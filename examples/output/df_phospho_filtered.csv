@@ -1,0 +1,5 @@
+proteins,uid,gene_names,gene_p_site,phospho_sty_probabilities,number_of_phospho_sty,localization_prob,score_for_localization,centralized_sequence,p_group1,p_group2,p_group3,p_group4,p_group5,p_group6
+P17612,UID1,PRKACA,PRKACA_S339,0.95,1,0.9,10,AAAAAA,10.0,11.0,,13.0,14.0,15.0
+P17612,UID2,PRKACA,PRKACA_S339,0.95,1,0.9,10,BBBBBB,11.0,,13.0,14.0,15.0,16.0
+Q06187,UID3,BTK,BTK_Y551,0.98,1,0.92,12,CCCCCC,8.0,8.0,8.0,9.0,9.0,9.0
+P63085,UID4,MAPK1,MAPK1_T185,0.96,1,0.88,11,DDDDDD,,11.0,10.0,9.0,8.0,7.0
