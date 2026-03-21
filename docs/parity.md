@@ -50,6 +50,8 @@ equivalence.
 
 This repository currently uses two fixture paths.
 
+The bundled L6 path is also the preferred place to extend native-seam parity because it has enough phosphosites to make profile construction, score combination, and candidate-substrate selection meaningful.
+
 ### Small Synthetic Fixture Path
 
 Use this path for deterministic preprocessing and core matrix-building parity.
@@ -88,13 +90,16 @@ Rscript scripts/generate_r_l6_fixtures.R
 This writes CSV fixtures into `tests/fixtures/r_reference_l6/` for:
 
 - the filtered standardised L6 phosphosite matrix used for kinase analysis
+- native-seam inputs and outputs for kinase-profile construction
+- native profile-score and combined-score matrices
+- native combined-score weights and candidate-substrate selections
 - `predMat`
 - weighted kinase activity
 - KSEA scores
 - kinase target counts
 - `sessionInfo()` for provenance
 
-This is the better current evidence for parity of the implemented downstream kinase-analysis methods.
+This is the better current evidence for parity of the implemented downstream kinase-analysis methods, and it is now also the preferred parity path for the native kinase workflow seams that can be compared stably against R.
 
 ## Native Kinase Workflow
 
@@ -113,7 +118,10 @@ At present, it should be described carefully:
 
 - it is a live native workflow, not just a thin wrapper
 - parts of it are tested and fixture-backed
+- the strongest current native-seam parity targets are profile construction, profile scoring, weighted score
+  combination, and candidate-substrate selection
 - it is **not** yet a blanket claim of numerical equivalence to the R package
+- full adaptive-SVM prediction probabilities should not yet be treated as parity-backed across implementations
 - parity claims for this path should stay limited to the specific seams that are explicitly covered by fixtures and
   tests
 
