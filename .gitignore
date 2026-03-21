@@ -1,6 +1,9 @@
 # Python cache and test artefacts
 __pycache__/
 *.py[cod]
+*.pyc
+src/*.egg-info/
+src/phosrpy.egg-info/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/

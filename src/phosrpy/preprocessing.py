@@ -39,14 +39,20 @@ def collapse_duplicate_genes(
         raise KeyError(f"Missing gene column: {gene_col}")
 
     work = df.copy()
-    work[gene_col] = work[gene_col].astype("string")
-    work["__mean_signal"] = work.loc[:, list(value_cols)].mean(axis=1, skipna=True)
-    idx = work.groupby(gene_col)["__mean_signal"].idxmax()
-    result = work.loc[idx].drop(columns="__mean_signal").copy()
-
+    work[gene_col] = work[gene_col].astype("string").str.strip()
     if uppercase:
-        result[gene_col] = result[gene_col].str.upper()
+        work[gene_col] = work[gene_col].str.upper()
 
+    work["__mean_signal"] = work.loc[:, list(value_cols)].mean(axis=1, skipna=True)
+    work["__all_missing"] = work.loc[:, list(value_cols)].isna().all(axis=1)
+    work = work.sort_values(
+        by=[gene_col, "__all_missing", "__mean_signal"],
+        ascending=[True, True, False],
+        kind="mergesort",
+    )
+    result = work.drop_duplicates(subset=[gene_col], keep="first").drop(
+        columns=["__mean_signal", "__all_missing"]
+    )
     return result.reset_index(drop=True)
 
 
@@ -62,11 +68,23 @@ def correct_phospho_to_protein(
     if len(phospho_cols) != len(protein_cols):
         raise ValueError("phospho_cols and protein_cols must have the same length")
 
+    total_keys = df_total[total_gene_col].dropna()
+    duplicate_total_keys = sorted(
+        total_keys.loc[total_keys.duplicated(keep=False)].astype(str).unique().tolist()
+    )
+    if duplicate_total_keys:
+        duplicated_preview = ", ".join(duplicate_total_keys[:5])
+        raise ValueError(
+            "df_total must contain unique gene keys for phospho-to-protein correction; "
+            f"duplicates found for: {duplicated_preview}"
+        )
+
     merged = df_phospho.merge(
         df_total[[total_gene_col, *protein_cols]],
         left_on=phospho_gene_col,
         right_on=total_gene_col,
         how="inner",
+        validate="many_to_one",
     )
 
     if total_gene_col != phospho_gene_col and total_gene_col in merged.columns:
