@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A Python-first phosphoproteomics toolkit shaped around core PhosR-style outputs."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 classifiers = [
   "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
   "Programming Language :: Python :: 3",
@@ -21,22 +21,33 @@ dependencies = [
   "numpy>=1.24",
   "pandas>=2.0",
 ]
-optional-dependencies.test = [
+
+[project.optional-dependencies]
+test = [
   "pytest>=8.0",
+  "scikit-learn>=1.4",
 ]
-optional-dependencies.viz = [
+
+ml = [
+  "scikit-learn>=1.4",
+]
+
+viz = [
   "matplotlib>=3.8",
   "seaborn>=0.13",
   "networkx>=3.2",
-  "scikit-learn>=1.4",
   "matplotlib-venn>=1.1",
 ]
-optional-dependencies.enrich = [
+
+enrich = [
   "gseapy>=1.1",
 ]
-optional-dependencies.dev = [
+
+dev = [
   "pre-commit>=4.0",
   "ruff>=0.15.7",
+  "pytest>=8.0",
+  "scikit-learn>=1.4",
 ]
 
 [project.scripts]
@@ -67,6 +78,7 @@ select = [
 ignore = [
   "E501",  # formatter handles line wrapping
 ]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
