@@ -1,14 +1,26 @@
 # phosrpy
 
-A small Python package that reproduces a practical subset of the outputs used in a PhosR-shaped phosphoproteomics workflow.
+`phosrpy` is an **unofficial Python port** of selected PhosR workflow components for phosphoproteomics.
 
-The package now exposes a **class-based API** around the core domain concepts instead of centring everything on one pipeline file:
+The original **PhosR** project is an R/Bioconductor package from the PhosR team / Yang Lab for phosphoproteomic data processing and downstream kinase and signalling analysis. This repository is intended to translate parts of that workflow into Python while preserving clear attribution to the original project and staying honest about which pieces are already ported and which are not.
 
-- `PhosphoDataset` owns input tables and preprocessing
-- `KinaseActivityAnalyzer` owns downstream summaries derived from `predMat`
-- `PhosRPipeline` orchestrates both when you want the full run
+## Attribution
 
-This is **not** yet a full Python replacement for PhosR. It is the start of a package that can be open-sourced and grown in a disciplined way.
+All scientific credit for the original methods, package design, and biological workflow belongs with the **PhosR authors and maintainers**.
+
+Please cite and acknowledge the original PhosR work when using this repository:
+
+- Kim, H. J., Kim, T., Hoffman, N. J., Xiao, D., James, D. E., Humphrey, S. J., & Yang, P. (2021). *PhosR enables processing and functional analysis of phosphoproteomic data*. Cell Reports, 34(8), 108771.
+- Kim, H., Kim, T., Xiao, D., & Yang, P. (2021). *Protocol for the processing and downstream analysis of phosphoproteomic data with PhosR*. STAR Protocols, 2(2), 100585.
+- Original R package: `PYangLab/PhosR`
+
+This Python repository should be described as an **unofficial port** unless and until the original PhosR authors choose to endorse or participate in it.
+
+## License
+
+This repository is distributed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. See [`LICENSE`](LICENSE).
+
+That choice is deliberate. PhosR is distributed under GPL-3, and the GNU GPL FAQ states that translating a program into another programming language is treated as a kind of modification/translation under copyright law. For that reason, this project uses GPL-3.0-only as the conservative licensing position for a Python port.
 
 ## Current scope
 
@@ -21,15 +33,17 @@ Implemented now:
 - pairwise comparison columns from corrected phosphosites
 - site-matrix construction with duplicate site collapse
 - weighted kinase activity from `predMat`
-- KSEA scores and kinase target counts from `predMat`
+- KSEA-style scores and kinase target counts from `predMat`
 - a minimal CLI
 - class-based public API
+- parity-test harness for comparing Python outputs against R-generated fixtures
 
 Not implemented yet:
 
 - native Python replacement for `kinaseSubstrateScore()`
 - native Python replacement for `kinaseSubstratePred()`
 - native Python replacement for `Signalomes()`
+- full numerical parity claims against PhosR for the unported methods
 
 ## Install
 
@@ -86,11 +100,9 @@ This produces:
 - `kinase_target_counts.csv`
 - `kinase_target_table.csv`
 
-## Generating R reference fixtures
+## R reference fixtures and parity tests
 
-The next milestone is parity against fixed R outputs. A small R harness is included to generate those fixtures from the synthetic example data using real PhosR.
-
-From the repository root:
+A small R harness is included to generate reference fixtures from the synthetic example data using PhosR:
 
 ```bash
 Rscript scripts/generate_r_fixtures.R
@@ -106,15 +118,10 @@ This writes CSV fixtures into `tests/fixtures/r_reference/` for:
 - substrate counts
 - `sessionInfo()` for provenance
 
-Those outputs are meant to be checked into version control and used by later parity tests.
+If the fixtures are present, parity tests can be run with:
 
-## Notes
+```bash
+pytest -m parity
+```
 
-The code is intentionally split into domain classes with small helper modules underneath so parity against R can be tested method by method.
-
-The next sensible milestone is to add **golden parity tests** against fixed R outputs for:
-
-- corrected phosphosite values
-- site matrix rows / IDs
-- kinase activity scores
-- KSEA scores
+Until the core scoring and prediction methods are ported, this repository should not claim to be a full PhosR replacement.

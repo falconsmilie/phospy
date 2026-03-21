@@ -8,8 +8,14 @@ version = "0.1.0"
 description = "A Python-first phosphoproteomics toolkit shaped around core PhosR-style outputs."
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [
-  {name = "OpenAI assistant scaffold for user project"}
+license = {file = "LICENSE"}
+classifiers = [
+  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: OS Independent",
 ]
 dependencies = [
   "numpy>=1.24",
