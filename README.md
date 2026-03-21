@@ -62,6 +62,14 @@ pip install -e ".[test]"
 pytest
 ```
 
+For development checks:
+
+```bash
+pip install -e ".[test,dev]"
+pre-commit install
+pre-commit run --all-files
+```
+
 ## Public API
 
 ```python
@@ -130,7 +138,7 @@ This produces:
 
 ## R reference fixtures and parity tests
 
-This repository has two fixture paths.
+This repository has two fixture paths. The detailed parity model, limits, and maintenance rule live in [`docs/parity.md`](docs/parity.md).
 
 ### 1. Small synthetic fixture path
 
@@ -178,6 +186,17 @@ If the fixtures are present, parity tests can be run with:
 ```bash
 pytest -m parity
 ```
+
+## Development checks
+
+Code style and linting are enforced with Ruff through `pre-commit`. The repository policy is intentionally small:
+
+- `ruff check --fix` for linting, import sorting, and safe fixes
+- `ruff format` for formatting
+- `pytest` for unit tests
+- `pytest -m parity` for the R-backed parity layer
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for local setup and [`docs/parity.md`](docs/parity.md) for the parity contract.
 
 ## Honest project status
 
