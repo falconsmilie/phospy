@@ -1,6 +1,6 @@
-# phosrpy
+# PhosPy
 
-`phosrpy` is an **unofficial Python port** of selected PhosR workflow components for phosphoproteomics.
+`PhosPy` is an **unofficial Python port** of selected PhosR workflow components for phosphoproteomics.
 
 The original **PhosR** project is an R/Bioconductor package from the PhosR team / Yang Lab for phosphoproteomic data 
 processing and downstream kinase and signalling analysis. This repository translates parts of that workflow into Python, 
@@ -62,7 +62,7 @@ Not implemented yet:
 
 The package core keeps only structural defaults such as `group1` to `group6`. Comparison choices are analysis intent, 
 so they should be supplied by caller code or live in example configuration and fixture-generation scripts rather than 
-inside `src/phosrpy`.
+inside `src/phospy`.
 
 The native kinase scoring path is intentionally modular:
 
@@ -108,7 +108,7 @@ pre-commit run --all-files
 ### Core preprocessing and downstream summaries
 
 ```python
-from phosrpy import (
+from phospy import (
     KinaseActivityAnalyzer,
     PhosphoDataset,
     PhosRPipeline,
@@ -152,7 +152,7 @@ plain two-tuples of group names.
 ### Native kinase scoring building blocks
 
 ```python
-from phosrpy import (
+from phospy import (
     KinaseMotifScorer,
     KinasePredictor,
     KinaseProfileBuilder,
@@ -200,7 +200,7 @@ prediction_result = predictor.predict_from_scoring_result(
 If you want one orchestration call instead of stitching the pieces together manually:
 
 ```python
-from phosrpy import run_kinase_workflow
+from phospy import run_kinase_workflow
 
 result = run_kinase_workflow(
     phospho_matrix=phospho_matrix,
@@ -240,7 +240,7 @@ seams described in [`docs/parity.md`](docs/parity.md).
 A small synthetic dataset is included:
 
 ```bash
-PYTHONPATH=src python -m phosrpy.cli \
+PYTHONPATH=src python -m phospy.cli \
   --total examples/data/total.tsv \
   --phospho examples/data/phospho.tsv \
   --pred-mat examples/data/predMat.csv \

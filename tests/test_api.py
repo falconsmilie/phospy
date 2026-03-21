@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phosrpy import (
+from phospy import (
     KinaseActivityAnalyzer,
     KinaseMotifScorer,
     KinaseScorer,

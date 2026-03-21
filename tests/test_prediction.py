@@ -3,12 +3,12 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phosrpy.prediction import (
+from phospy.prediction import (
     KinasePredictionResult,
     KinasePredictor,
     build_candidate_substrate_list,
 )
-from phosrpy.scoring import KinaseScoringResult
+from phospy.scoring import KinaseScoringResult
 
 
 def make_combined_scores() -> pd.DataFrame:

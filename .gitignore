@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 *.pyc
 src/*.egg-info/
-src/phosrpy.egg-info/
+src/phospy.egg-info/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/

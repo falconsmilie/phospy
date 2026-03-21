@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from phosrpy.preprocessing import (
+from phospy.preprocessing import (
     add_pairwise_comparisons,
     collapse_duplicate_genes,
     correct_phospho_to_protein,

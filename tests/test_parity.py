@@ -6,7 +6,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phosrpy import KinaseActivityAnalyzer, PhosphoDataset
+from phospy import KinaseActivityAnalyzer, PhosphoDataset
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_DATA = ROOT / "examples" / "data"

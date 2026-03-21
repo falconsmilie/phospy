@@ -45,7 +45,7 @@ This is the strongest current evidence for parity of the downstream methods that
 
 ## Current honest claim
 
-Today, `phosrpy` is best described as a Python package for PhosR-style preprocessing and downstream kinase-analysis summaries, backed by R-generated parity fixtures.
+Today, `PhosPy` is best described as a Python package for PhosR-style preprocessing and downstream kinase-analysis summaries, backed by R-generated parity fixtures.
 
 It is **not** yet a full Python replacement for PhosR. Narrow Python-native seams now exist for profile scoring and motif-frequency scoring, but full `kinaseSubstrateScore()` orchestration and score-to-prediction parity remain outside the current claim.
 
