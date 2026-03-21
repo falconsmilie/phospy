@@ -31,6 +31,20 @@ KINASE_FIXTURE_FILES = [
     "kinase_target_counts.csv",
 ]
 
+
+
+EXAMPLE_COMPARISONS = [
+    ("group1", "group4"),
+    ("group2", "group5"),
+    ("group3", "group6"),
+    ("group1", "group2"),
+    ("group1", "group3"),
+    ("group2", "group3"),
+    ("group4", "group5"),
+    ("group4", "group6"),
+    ("group5", "group6"),
+]
+
 L6_FIXTURE_FILES = [
     "l6_phospho_matrix.csv",
     "predMat.csv",
@@ -135,6 +149,7 @@ def test_core_outputs_match_r_reference() -> None:
     dataset = PhosphoDataset.from_files(
         total_path=EXAMPLE_DATA / "total.tsv",
         phospho_path=EXAMPLE_DATA / "phospho.tsv",
+        comparisons=EXAMPLE_COMPARISONS,
     )
     result = dataset.process_core()
 
@@ -174,6 +189,7 @@ def test_kinase_outputs_match_r_reference() -> None:
     dataset = PhosphoDataset.from_files(
         total_path=EXAMPLE_DATA / "total.tsv",
         phospho_path=EXAMPLE_DATA / "phospho.tsv",
+        comparisons=EXAMPLE_COMPARISONS,
     )
     core = dataset.process_core()
 

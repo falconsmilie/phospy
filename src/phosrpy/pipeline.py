@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Sequence
 
 import pandas as pd
 
 from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
+from .constants import ComparisonSpec
 from .dataset import CoreProcessingResult, PhosphoDataset
 
 
@@ -32,8 +34,13 @@ class PhosRPipeline:
         total_path: str | Path,
         phospho_path: str | Path,
         pred_mat_path: str | Path | None = None,
+        comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> "PhosRPipeline":
-        dataset = PhosphoDataset.from_files(total_path=total_path, phospho_path=phospho_path)
+        dataset = PhosphoDataset.from_files(
+            total_path=total_path,
+            phospho_path=phospho_path,
+            comparisons=comparisons,
+        )
         pred_mat = pd.read_csv(pred_mat_path, index_col=0) if pred_mat_path is not None else None
         return cls(dataset=dataset, pred_mat=pred_mat)
 
@@ -57,10 +64,12 @@ def run_core_pipeline(
     phospho_path: str | Path,
     outdir: str | Path,
     pred_mat_path: str | Path | None = None,
+    comparisons: Sequence[ComparisonSpec] | None = None,
 ) -> CoreOutputs:
     pipeline = PhosRPipeline.from_files(
         total_path=total_path,
         phospho_path=phospho_path,
         pred_mat_path=pred_mat_path,
+        comparisons=comparisons,
     )
     return pipeline.run(outdir=outdir)

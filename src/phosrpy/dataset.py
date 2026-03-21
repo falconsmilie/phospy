@@ -6,13 +6,7 @@ from typing import Sequence
 
 import pandas as pd
 
-from .constants import (
-    ComparisonSpec,
-    DEFAULT_COMPARISONS,
-    DEFAULT_CORRECTED_COLS,
-    DEFAULT_PHOSPHO_COLS,
-    DEFAULT_TOTAL_COLS,
-)
+from .constants import ComparisonSpec, DEFAULT_CORRECTED_COLS, DEFAULT_PHOSPHO_COLS, DEFAULT_TOTAL_COLS
 from .io import read_table
 from .matrices import build_site_matrix
 from .preprocessing import (
@@ -61,7 +55,7 @@ class PhosphoDataset:
         self.total_cols = list(total_cols or DEFAULT_TOTAL_COLS)
         self.phospho_cols = list(phospho_cols or DEFAULT_PHOSPHO_COLS)
         self.corrected_cols = list(corrected_cols or DEFAULT_CORRECTED_COLS)
-        self.comparisons = list(comparisons or DEFAULT_COMPARISONS)
+        self.comparisons = list(comparisons) if comparisons is not None else None
 
     @classmethod
     def from_files(
@@ -69,10 +63,11 @@ class PhosphoDataset:
         total_path: str | Path,
         phospho_path: str | Path,
         phospho_encoding: str | None = None,
+        comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> "PhosphoDataset":
         total_df = read_table(total_path)
         phospho_df = read_table(phospho_path, encoding=phospho_encoding)
-        return cls(total_df=total_df, phospho_df=phospho_df)
+        return cls(total_df=total_df, phospho_df=phospho_df, comparisons=comparisons)
 
     def prepare_total(
         self,
@@ -134,6 +129,9 @@ class PhosphoDataset:
         corrected_df: pd.DataFrame,
         output_prefix: str = "p_",
     ) -> pd.DataFrame:
+        if not self.comparisons:
+            return corrected_df.copy()
+
         group_map = {f"group{i}": self.corrected_cols[i - 1] for i in range(1, len(self.corrected_cols) + 1)}
         return add_pairwise_comparisons(
             corrected_df,

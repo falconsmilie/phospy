@@ -30,7 +30,7 @@ Implemented now:
 - replace sentinel missing values
 - minimum-observation filtering
 - phosphosite correction against total proteome
-- pairwise comparison columns from corrected phosphosites
+- optional pairwise comparison columns from corrected phosphosites
 - site-matrix construction with duplicate site collapse
 - weighted kinase activity from `predMat`
 - KSEA-style scores and kinase target counts from `predMat`
@@ -47,7 +47,7 @@ Not implemented yet:
 
 ## Design notes
 
-The package core keeps only structural defaults such as `group1` to `group6` and generic comparison pairs. Study-specific labels or experimental naming should live in caller code, example configuration, or fixture-generation scripts rather than inside `src/phosrpy`.
+The package core keeps only structural defaults such as `group1` to `group6`. Comparison choices are analysis intent, so they should be supplied by caller code or live in example configuration and fixture-generation scripts rather than inside `src/phosrpy`.
 
 ## Install
 
@@ -70,6 +70,14 @@ from phosrpy import PhosphoDataset, KinaseActivityAnalyzer, PhosRPipeline
 dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
 core = dataset.process_core()
 
+# Add pairwise comparisons only when your analysis wants them.
+dataset_with_comparisons = PhosphoDataset.from_files(
+    "total.tsv",
+    "phospho.tsv",
+    comparisons=[("group1", "group4"), ("group2", "group5")],
+)
+core_with_comparisons = dataset_with_comparisons.process_core()
+
 analyzer = KinaseActivityAnalyzer.from_csv("predMat.csv")
 kinase = analyzer.analyze(core.site_matrix.matrix)
 
@@ -81,7 +89,7 @@ pipeline = PhosRPipeline.from_files(
 outputs = pipeline.run(outdir="output")
 ```
 
-You can also override the default structural comparison pairs explicitly:
+You can also request pairwise comparisons explicitly:
 
 ```python
 dataset = PhosphoDataset(
@@ -91,7 +99,7 @@ dataset = PhosphoDataset(
 )
 ```
 
-Comparison definitions are plain two-tuples of group names.
+Without `comparisons=...`, the core pipeline does not add any pairwise comparison columns. Comparison definitions are plain two-tuples of group names.
 
 ## Minimal demo
 

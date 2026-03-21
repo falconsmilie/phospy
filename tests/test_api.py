@@ -5,6 +5,9 @@ import pandas as pd
 from phosrpy import KinaseActivityAnalyzer, PhosphoDataset, PhosRPipeline
 
 
+EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
+
+
 def make_total_df() -> pd.DataFrame:
     return pd.DataFrame(
         {
@@ -51,7 +54,7 @@ def make_pred_mat() -> pd.DataFrame:
 
 
 def test_phospho_dataset_process_core() -> None:
-    dataset = PhosphoDataset(total_df=make_total_df(), phospho_df=make_phospho_df())
+    dataset = PhosphoDataset(total_df=make_total_df(), phospho_df=make_phospho_df(), comparisons=EXAMPLE_COMPARISONS)
     result = dataset.process_core()
 
     assert sorted(result.total_unique["genes"].tolist()) == ["BTK", "LYN", "PRKACA"]
