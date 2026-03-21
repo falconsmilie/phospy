@@ -8,6 +8,11 @@ from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
 from .dataset import CoreProcessingResult, PhosphoDataset, SiteMatrixResult
 from .matrices import build_site_matrix
 from .pipeline import CoreOutputs, PhosRPipeline, run_core_pipeline
+from .prediction import (
+    KinasePredictionResult,
+    KinasePredictor,
+    build_candidate_substrate_list,
+)
 from .preprocessing import (
     add_pairwise_comparisons,
     collapse_duplicate_genes,
@@ -15,7 +20,18 @@ from .preprocessing import (
     filter_min_observed,
     replace_sentinel_with_nan,
 )
-from .scoring import KinaseScorer, KinaseScoringResult, combine_profile_and_motif_scores
+from .profiles import (
+    KinaseProfileBuilder,
+    KinaseProfileResult,
+    build_kinase_substrate_profiles,
+)
+from .scoring import (
+    KinaseScorer,
+    KinaseScoringResult,
+    KinaseSubstrateScoreResult,
+    combine_profile_and_motif_scores,
+    kinase_substrate_score,
+)
 
 __all__ = [
     "add_pairwise_comparisons",
@@ -30,11 +46,19 @@ __all__ = [
     "CoreProcessingResult",
     "filter_min_observed",
     "KinaseActivityAnalyzer",
+    "KinasePredictionResult",
+    "KinaseProfileBuilder",
+    "KinaseProfileResult",
+    "KinasePredictor",
     "KinaseActivityResult",
     "KinaseScorer",
     "KinaseScoringResult",
+    "KinaseSubstrateScoreResult",
     "PhosphoDataset",
+    "build_candidate_substrate_list",
+    "build_kinase_substrate_profiles",
     "combine_profile_and_motif_scores",
+    "kinase_substrate_score",
     "PhosRPipeline",
     "replace_sentinel_with_nan",
     "run_core_pipeline",
