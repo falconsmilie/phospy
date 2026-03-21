@@ -43,3 +43,6 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+  "parity: compare Python outputs against R/PhosR reference fixtures",
+]

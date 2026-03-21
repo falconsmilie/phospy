@@ -5,6 +5,8 @@ from typing import Iterable, Sequence
 import numpy as np
 import pandas as pd
 
+from .constants import ComparisonSpec
+
 
 def replace_sentinel_with_nan(
     df: pd.DataFrame,
@@ -67,15 +69,24 @@ def correct_phospho_to_protein(
         how="inner",
     )
 
+    if total_gene_col != phospho_gene_col and total_gene_col in merged.columns:
+        merged = merged.drop(columns=[total_gene_col])
+
     for idx, (p_col, t_col) in enumerate(zip(phospho_cols, protein_cols), start=1):
         merged[f"{output_prefix}{idx}"] = merged[p_col] - merged[t_col]
 
     return merged
 
 
+def _extract_comparison_pair(comparison: ComparisonSpec) -> tuple[str, str]:
+    if len(comparison) < 2:
+        raise ValueError("Each comparison must contain at least two group names")
+    return comparison[0], comparison[1]
+
+
 def add_pairwise_comparisons(
     df: pd.DataFrame,
-    comparisons: Sequence[tuple[str, str, str, str]],
+    comparisons: Sequence[ComparisonSpec],
     group_to_corrected_col: dict[str, str] | None = None,
     output_prefix: str = "p_",
 ) -> pd.DataFrame:
@@ -83,7 +94,8 @@ def add_pairwise_comparisons(
     if group_to_corrected_col is None:
         group_to_corrected_col = {f"group{i}": f"phospho_corrected_{i}" for i in range(1, 7)}
 
-    for left, right, *_ in comparisons:
+    for comparison in comparisons:
+        left, right = _extract_comparison_pair(comparison)
         if left not in group_to_corrected_col or right not in group_to_corrected_col:
             raise KeyError(f"Missing group mapping for comparison: {(left, right)}")
         result[f"{output_prefix}{left}_{right}"] = (

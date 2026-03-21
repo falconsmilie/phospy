@@ -44,7 +44,10 @@ def count_predicted_targets(
     threshold: float = 0.6,
 ) -> pd.Series:
     edges = build_kinase_target_table(pred_mat, threshold=threshold)
-    return edges.groupby("kinase").size().rename("n_targets").sort_values(ascending=False)
+    counts = edges.groupby("kinase").size()
+    counts = counts.reindex(pred_mat.columns, fill_value=0)
+    counts.index.name = "kinase"
+    return counts.rename("n_targets").sort_values(ascending=False)
 
 
 def compute_ksea_scores(
@@ -61,6 +64,12 @@ def compute_ksea_scores(
     }
     substrate_map = {k: v for k, v in substrate_map.items() if len(v) >= min_substrates}
 
+    if not substrate_map:
+        empty_scores = pd.DataFrame(columns=list(phospho_matrix.columns), dtype=float)
+        empty_counts = pd.Series(dtype=int, name="n_substrates")
+        empty_counts.index.name = "kinase"
+        return empty_scores, empty_counts
+
     score_dict: dict[str, pd.Series] = {}
     counts: dict[str, int] = {}
 
@@ -72,5 +81,8 @@ def compute_ksea_scores(
         score_dict[kinase] = phospho_matrix.loc[present_sites].mean(axis=0)
 
     score_frame = pd.DataFrame.from_dict(score_dict, orient="index")
+    if score_frame.empty:
+        score_frame = pd.DataFrame(columns=list(phospho_matrix.columns), dtype=float)
     count_series = pd.Series(counts, name="n_substrates").sort_values(ascending=False)
+    count_series.index.name = "kinase"
     return score_frame, count_series

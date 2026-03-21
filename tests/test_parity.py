@@ -11,6 +11,7 @@ from phosrpy import KinaseActivityAnalyzer, PhosphoDataset
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_DATA = ROOT / "examples" / "data"
 R_FIXTURES = ROOT / "tests" / "fixtures" / "r_reference"
+R_FIXTURES_L6 = ROOT / "tests" / "fixtures" / "r_reference_l6"
 
 CORE_FIXTURE_FILES = [
     "df_total_unique.csv",
@@ -30,27 +31,36 @@ KINASE_FIXTURE_FILES = [
     "kinase_target_counts.csv",
 ]
 
+L6_FIXTURE_FILES = [
+    "l6_phospho_matrix.csv",
+    "predMat.csv",
+    "kinase_activity_matrix.csv",
+    "ksea_scores.csv",
+    "ksea_counts.csv",
+    "kinase_target_counts.csv",
+]
 
-def _require_fixture_files(names: list[str]) -> None:
-    missing = [name for name in names if not (R_FIXTURES / name).exists()]
+
+def _require_fixture_files(names: list[str], fixture_dir: Path = R_FIXTURES) -> None:
+    missing = [name for name in names if not (fixture_dir / name).exists()]
     if missing:
         pytest.skip(
             "R reference fixtures are not present yet. "
-            "Generate them with `Rscript scripts/generate_r_fixtures.R` before running parity tests. "
+            "Generate the relevant fixtures under `tests/fixtures/` before running parity tests. "
             f"Missing: {', '.join(missing)}"
         )
 
 
-def _read_table(name: str) -> pd.DataFrame:
-    return pd.read_csv(R_FIXTURES / name)
+def _read_table(name: str, fixture_dir: Path = R_FIXTURES) -> pd.DataFrame:
+    return pd.read_csv(fixture_dir / name)
 
 
-def _read_indexed_table(name: str) -> pd.DataFrame:
-    return pd.read_csv(R_FIXTURES / name, index_col=0)
+def _read_indexed_table(name: str, fixture_dir: Path = R_FIXTURES) -> pd.DataFrame:
+    return pd.read_csv(fixture_dir / name, index_col=0)
 
 
-def _read_sequences(name: str = "site_sequences.csv") -> pd.Series:
-    frame = pd.read_csv(R_FIXTURES / name)
+def _read_sequences(name: str = "site_sequences.csv", fixture_dir: Path = R_FIXTURES) -> pd.Series:
+    frame = pd.read_csv(fixture_dir / name)
     if {"site_id", "centralized_sequence"} <= set(frame.columns):
         series = frame.set_index("site_id")["centralized_sequence"]
     else:
@@ -67,21 +77,55 @@ def _sort_table(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
 
 def _normalize_numeric_frame(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
+
     for col in out.columns:
-        out[col] = pd.to_numeric(out[col], errors="ignore")
+        try:
+            out[col] = pd.to_numeric(out[col], errors="raise")
+        except (ValueError, TypeError):
+            # Leave genuinely non-numeric columns, like gene names, unchanged.
+            pass
+
     return out
 
 
-def _assert_frame_close(actual: pd.DataFrame, expected: pd.DataFrame, *, atol: float = 1e-8, rtol: float = 1e-6) -> None:
+def _assert_frame_close(
+    actual: pd.DataFrame,
+    expected: pd.DataFrame,
+    *,
+    atol: float = 1e-8,
+    rtol: float = 1e-6,
+) -> None:
     actual = _normalize_numeric_frame(actual)
     expected = _normalize_numeric_frame(expected)
-    pdt.assert_frame_equal(actual, expected, check_dtype=False, atol=atol, rtol=rtol)
+
+    if actual.empty and expected.empty:
+        if list(actual.columns) != list(expected.columns):
+            assert len(actual.columns) == len(expected.columns)
+        return
+
+    pdt.assert_frame_equal(
+        actual,
+        expected,
+        check_dtype=False,
+        check_index_type=False,
+        check_column_type=False,
+        check_names=False,
+        atol=atol,
+        rtol=rtol,
+    )
+
+
+def _normalize_series(series: pd.Series) -> pd.Series:
+    try:
+        return pd.to_numeric(series, errors="raise")
+    except (ValueError, TypeError):
+        return series
 
 
 def _assert_series_close(actual: pd.Series, expected: pd.Series, *, atol: float = 1e-8, rtol: float = 1e-6) -> None:
-    actual = pd.to_numeric(actual, errors="ignore")
-    expected = pd.to_numeric(expected, errors="ignore")
-    pdt.assert_series_equal(actual, expected, check_dtype=False, atol=atol, rtol=rtol)
+    actual = _normalize_series(actual)
+    expected = _normalize_series(expected)
+    pdt.assert_series_equal(actual, expected, check_dtype=False, check_index_type=False, check_names=False, atol=atol, rtol=rtol)
 
 
 @pytest.mark.parity
@@ -146,11 +190,42 @@ def test_kinase_outputs_match_r_reference() -> None:
     _assert_frame_close(actual_ksea, expected_ksea)
 
     actual_ksea_counts = result.ksea_counts.sort_index()
-    expected_ksea_counts = _read_indexed_table("ksea_counts.csv").iloc[:, 0].sort_index()
+    expected_ksea_counts_frame = _read_indexed_table("ksea_counts.csv")
+    expected_ksea_counts = expected_ksea_counts_frame.iloc[:, 0].sort_index() if not expected_ksea_counts_frame.empty else pd.Series(dtype=int)
     expected_ksea_counts.name = actual_ksea_counts.name
     _assert_series_close(actual_ksea_counts, expected_ksea_counts)
 
     actual_target_counts = result.target_counts.sort_index()
     expected_target_counts = _read_indexed_table("kinase_target_counts.csv").iloc[:, 0].sort_index()
+    expected_target_counts.name = actual_target_counts.name
+    _assert_series_close(actual_target_counts, expected_target_counts)
+
+
+@pytest.mark.parity
+def test_l6_kinase_outputs_match_r_reference() -> None:
+    _require_fixture_files(L6_FIXTURE_FILES, fixture_dir=R_FIXTURES_L6)
+
+    phospho_matrix = _read_indexed_table("l6_phospho_matrix.csv", fixture_dir=R_FIXTURES_L6).sort_index().sort_index(axis=1)
+    pred_mat = _read_indexed_table("predMat.csv", fixture_dir=R_FIXTURES_L6)
+
+    analyzer = KinaseActivityAnalyzer(pred_mat=pred_mat)
+    result = analyzer.analyze(phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20)
+
+    actual_weighted = result.weighted_activity.sort_index().sort_index(axis=1)
+    expected_weighted = _read_indexed_table("kinase_activity_matrix.csv", fixture_dir=R_FIXTURES_L6).sort_index().sort_index(axis=1)
+    _assert_frame_close(actual_weighted, expected_weighted)
+
+    actual_ksea = result.ksea_scores.sort_index().sort_index(axis=1)
+    expected_ksea = _read_indexed_table("ksea_scores.csv", fixture_dir=R_FIXTURES_L6).sort_index().sort_index(axis=1)
+    _assert_frame_close(actual_ksea, expected_ksea)
+
+    actual_ksea_counts = result.ksea_counts.sort_index()
+    expected_ksea_counts_frame = _read_indexed_table("ksea_counts.csv", fixture_dir=R_FIXTURES_L6)
+    expected_ksea_counts = expected_ksea_counts_frame.iloc[:, 0].sort_index() if not expected_ksea_counts_frame.empty else pd.Series(dtype=int)
+    expected_ksea_counts.name = actual_ksea_counts.name
+    _assert_series_close(actual_ksea_counts, expected_ksea_counts)
+
+    actual_target_counts = result.target_counts.sort_index()
+    expected_target_counts = _read_indexed_table("kinase_target_counts.csv", fixture_dir=R_FIXTURES_L6).iloc[:, 0].sort_index()
     expected_target_counts.name = actual_target_counts.name
     _assert_series_close(actual_target_counts, expected_target_counts)

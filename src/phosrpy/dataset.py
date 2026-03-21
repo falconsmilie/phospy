@@ -6,7 +6,13 @@ from typing import Sequence
 
 import pandas as pd
 
-from .constants import DEFAULT_COMPARISONS, DEFAULT_CORRECTED_COLS, DEFAULT_PHOSPHO_COLS, DEFAULT_TOTAL_COLS
+from .constants import (
+    ComparisonSpec,
+    DEFAULT_COMPARISON_PAIRS,
+    DEFAULT_CORRECTED_COLS,
+    DEFAULT_PHOSPHO_COLS,
+    DEFAULT_TOTAL_COLS,
+)
 from .io import read_table
 from .matrices import build_site_matrix
 from .preprocessing import (
@@ -48,14 +54,14 @@ class PhosphoDataset:
         total_cols: Sequence[str] | None = None,
         phospho_cols: Sequence[str] | None = None,
         corrected_cols: Sequence[str] | None = None,
-        comparisons: Sequence[tuple[str, str, str, str]] | None = None,
+        comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> None:
         self.total_df = total_df.copy()
         self.phospho_df = phospho_df.copy()
         self.total_cols = list(total_cols or DEFAULT_TOTAL_COLS)
         self.phospho_cols = list(phospho_cols or DEFAULT_PHOSPHO_COLS)
         self.corrected_cols = list(corrected_cols or DEFAULT_CORRECTED_COLS)
-        self.comparisons = list(comparisons or DEFAULT_COMPARISONS)
+        self.comparisons = list(comparisons or DEFAULT_COMPARISON_PAIRS)
 
     @classmethod
     def from_files(

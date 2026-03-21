@@ -1,3 +1,22 @@
+# Python cache and test artefacts
 __pycache__/
-*.pyc
-.idea
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+
+# Packaging artefacts
+*.egg-info/
+build/
+dist/
+
+# Virtual environments and local tooling
+.venv/
+venv/
+.idea/
+
+# OS cruft
+.DS_Store
+Thumbs.db
