@@ -1,6 +1,4 @@
-# docs/parity.md
-
-# Parity model
+# Parity Model
 
 This document explains what parity means in PhosPy, where parity evidence currently exists, and where it does not.
 
@@ -8,7 +6,7 @@ PhosPy is an unofficial Python port of selected PhosR workflow components. Some 
 against R-generated fixtures, while newer native workflow pieces are currently better described as PhosR-style
 implementations with targeted fixture-backed seams rather than blanket claims of numerical equivalence.
 
-## What parity means here
+## What Parity Means Here
 
 In this repository, “parity” means that a specific Python path has been compared against outputs generated from the R
 package and shown to agree within the limits of the fixture-backed tests for that path.
@@ -23,7 +21,7 @@ Parity in this project is therefore:
 It does **not** mean that the repository as a whole is a complete behavioural, numerical, or feature-level replacement
 for PhosR.
 
-## What parity does not mean
+## What Parity Does Not Mean
 
 Parity should not be read as a claim of:
 
@@ -36,7 +34,7 @@ Parity should not be read as a claim of:
 Where parity has not been established, PhosPy should be described as an evolving Python port inspired by and translating
 selected parts of the PhosR workflow.
 
-## Current parity-backed areas
+## Current Parity-Backed Areas
 
 The strongest current parity evidence in this repository is for:
 
@@ -48,11 +46,11 @@ The strongest current parity evidence in this repository is for:
 These checks provide confidence in the implemented paths, but they are still narrower than a claim of package-wide
 equivalence.
 
-## Fixture paths
+## Fixture Paths
 
 This repository currently uses two fixture paths.
 
-### 1. Small synthetic fixture path
+### Small Synthetic Fixture Path
 
 Use this path for deterministic preprocessing and core matrix-building parity.
 
@@ -76,7 +74,7 @@ This path is useful for logic-level parity and regression protection in the core
 flow. It should not be treated as strong evidence for broader downstream equivalence beyond the implemented and tested
 wrapper path.
 
-### 2. Bundled PhosR L6 fixture path
+### Bundled PhosR L6 Fixture Path
 
 Use this path for a more realistic downstream kinase-analysis parity check based on PhosR’s bundled rat L6 myotube
 example dataset, which is used throughout the original package examples and vignette.
@@ -98,7 +96,7 @@ This writes CSV fixtures into `tests/fixtures/r_reference_l6/` for:
 
 This is the better current evidence for parity of the implemented downstream kinase-analysis methods.
 
-## Native kinase workflow
+## Native Kinase Workflow
 
 PhosPy now includes a native end-to-end kinase workflow covering:
 
@@ -121,7 +119,7 @@ At present, it should be described carefully:
 
 That distinction matters. The project can be both useful and scientifically careful at the same time.
 
-## Running parity tests
+## Running Parity Tests
 
 If the fixtures are present, parity tests can be run with:
 
@@ -131,7 +129,7 @@ pytest -m parity
 
 These tests should be treated as the executable definition of the repository’s current parity contract.
 
-## Maintenance rule
+## Maintenance Rule
 
 When a parity-backed workflow changes, at least one of the following should also change in the same line of work:
 
@@ -142,7 +140,7 @@ When a parity-backed workflow changes, at least one of the following should also
 Do not silently broaden the parity claim in the README or other project documentation without adding the corresponding
 fixture-backed evidence.
 
-## Recommended wording for project status
+## Recommended Wording for Project Status
 
 For now, PhosPy is best described as:
 
