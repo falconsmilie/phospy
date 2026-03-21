@@ -5,12 +5,12 @@ import pytest
 
 from phosrpy import (
     KinaseActivityAnalyzer,
-    KinasePredictor,
-    KinaseProfileBuilder,
+    KinaseMotifScorer,
     KinaseScorer,
     PhosphoDataset,
     PhosRPipeline,
-    kinase_substrate_score,
+    create_frequency_matrix,
+    score_phosphosite_motifs,
 )
 
 EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
@@ -133,93 +133,33 @@ def test_kinase_scorer_profile_api() -> None:
     assert result.combined_scores is None
 
 
-def test_kinase_predictor_api() -> None:
-    predictor = KinasePredictor()
-    combined_scores = pd.DataFrame(
+def test_kinase_motif_scorer_api() -> None:
+    scorer = KinaseMotifScorer.from_substrate_sequences(
         {
-            "PRKACA": [0.95, 0.91, 0.87, 0.82, 0.20, 0.10],
-            "BTK": [0.10, 0.20, 0.25, 0.30, 0.90, 0.88],
+            "KINASE_A": ["AAAAA"],
+            "KINASE_B": ["TTTTT"],
         },
-        index=[
-            "SITE_1",
-            "SITE_2",
-            "SITE_3",
-            "SITE_4",
-            "SITE_5",
-            "SITE_6",
-        ],
+        flank_size=2,
     )
 
-    result = predictor.predict(
-        combined_scores=combined_scores,
-        ensemble_size=2,
-        top=4,
-        score_threshold=0.8,
-        inclusion=2,
-        n_iterations=2,
-        random_state=7,
+    result = scorer.score_sequences(
+        seqs={"SITE_A": "QQAAAAAYY", "SITE_B": "QQTTTTTYY"},
+        min_motif_size=1,
     )
 
-    assert set(result.pred_matrix.columns) == {"PRKACA", "BTK"}
-    assert 0.0 <= float(result.pred_matrix.loc["SITE_1", "PRKACA"]) <= 1.0
-    assert float(result.pred_matrix.loc["SITE_1", "PRKACA"]) > float(
-        result.pred_matrix.loc["SITE_6", "PRKACA"]
+    assert float(result.motif_scores.loc["SITE_A", "KINASE_A"]) == pytest.approx(1.0)
+    assert result.sequence_windows.loc["SITE_B"] == "TTTTT"
+
+
+def test_score_phosphosite_motifs_api() -> None:
+    result = score_phosphosite_motifs(
+        seqs={"SITE_A": "QQAAAAAYY"},
+        motif_frequency_matrices={
+            "KINASE_A": create_frequency_matrix(["AAAAA"], flank_size=2),
+        },
+        motif_sizes=pd.Series({"KINASE_A": 4}, dtype=float),
+        flank_size=2,
     )
 
-
-def test_kinase_profile_builder_and_scorer_api() -> None:
-    phospho_matrix = pd.DataFrame(
-        {"s1": [1.0, 3.0], "s2": [2.0, 4.0], "s3": [3.0, 5.0]},
-        index=["PRKACA;S339;", "BTK;Y551;"],
-    )
-    builder = KinaseProfileBuilder()
-    profile_result = builder.build(
-        substrate_map={"PRKACA": ["PRKACA;S339;", "BTK;Y551;"]},
-        phospho_matrix=phospho_matrix,
-    )
-    scorer = KinaseScorer.from_profile_result(profile_result)
-
-    result = scorer.score(phospho_matrix)
-
-    assert list(profile_result.profile_matrix.index) == ["PRKACA"]
-    assert float(profile_result.profile_matrix.loc["PRKACA", "s1"]) == pytest.approx(
-        2.0
-    )
-    assert list(result.profile_scores.columns) == ["PRKACA"]
-
-
-def test_kinase_scorer_from_substrate_map_api() -> None:
-    phospho_matrix = pd.DataFrame(
-        {"s1": [1.0, 3.0], "s2": [2.0, 4.0], "s3": [3.0, 5.0]},
-        index=["PRKACA;S339;", "BTK;Y551;"],
-    )
-
-    scorer = KinaseScorer.from_substrate_map(
-        substrate_map={"PRKACA": ["PRKACA;S339;", "BTK;Y551;"]},
-        phospho_matrix=phospho_matrix,
-    )
-    result = scorer.score(phospho_matrix)
-
-    assert list(result.profile_scores.columns) == ["PRKACA"]
-
-
-def test_kinase_substrate_score_api() -> None:
-    phospho_matrix = pd.DataFrame(
-        {"s1": [1.0, 3.0], "s2": [2.0, 2.0], "s3": [3.0, 1.0]},
-        index=["SITE_A", "SITE_B"],
-    )
-    motif_scores = pd.DataFrame(
-        {"KINASE_A": [0.8, 0.3], "KINASE_B": [0.4, 0.9]},
-        index=phospho_matrix.index.copy(),
-    )
-    motif_sizes = pd.Series({"KINASE_A": 4, "KINASE_B": 2})
-
-    result = kinase_substrate_score(
-        substrate_map={"KINASE_A": ["SITE_A"], "KINASE_B": ["SITE_B"]},
-        phospho_matrix=phospho_matrix,
-        motif_scores=motif_scores,
-        motif_sizes=motif_sizes,
-    )
-
-    assert list(result.combined_scores.columns) == ["KINASE_A", "KINASE_B"]
-    assert list(result.ks_activity_matrix.index) == ["KINASE_A", "KINASE_B"]
+    assert list(result.motif_scores.columns) == ["KINASE_A"]
+    assert float(result.motif_scores.loc["SITE_A", "KINASE_A"]) != float("inf")

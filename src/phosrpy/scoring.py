@@ -6,12 +6,6 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .profiles import (
-    AggregationMethod,
-    KinaseProfileResult,
-    build_kinase_substrate_profiles,
-)
-
 
 @dataclass(slots=True)
 class KinaseScoringResult:
@@ -20,58 +14,17 @@ class KinaseScoringResult:
     weights: pd.DataFrame | None = None
 
 
-@dataclass(slots=True)
-class KinaseSubstrateScoreResult:
-    profile_result: KinaseProfileResult
-    profile_scores: pd.DataFrame
-    motif_scores: pd.DataFrame | None = None
-    combined_scores: pd.DataFrame | None = None
-    ks_activity_matrix: pd.DataFrame | None = None
-    weights: pd.DataFrame | None = None
-    motif_sizes: pd.Series | None = None
-
-    def to_scoring_result(self) -> KinaseScoringResult:
-        return KinaseScoringResult(
-            profile_scores=self.profile_scores,
-            combined_scores=self.combined_scores,
-            weights=self.weights,
-        )
-
-
 class KinaseScorer:
     """Score phosphosites against kinase-substrate activity profiles.
 
-    This class provides a native Python seam for profile-based kinase scoring.
-    Motif scoring remains separate, but profile construction, profile scoring,
-    and motif/profile combination can now be orchestrated through the module's
-    ``kinase_substrate_score()`` helper.
+    This class provides a first native Python scoring seam for profile-based
+    kinase scoring. It intentionally stays narrower than PhosR's full
+    ``kinaseSubstrateScore()`` workflow: motif scoring and prediction remain
+    separate concerns.
     """
 
     def __init__(self, kinase_profiles: pd.DataFrame) -> None:
         self.kinase_profiles = kinase_profiles.copy()
-
-    @classmethod
-    def from_substrate_map(
-        cls,
-        substrate_map: Mapping[str, Sequence[str]],
-        phospho_matrix: pd.DataFrame,
-        min_substrates: int = 1,
-        aggregation: AggregationMethod = "median",
-    ) -> KinaseScorer:
-        profile_result = build_kinase_substrate_profiles(
-            substrate_map=substrate_map,
-            phospho_matrix=phospho_matrix,
-            min_substrates=min_substrates,
-            aggregation=aggregation,
-        )
-        return cls.from_profile_result(profile_result)
-
-    @classmethod
-    def from_profile_result(
-        cls,
-        profile_result: KinaseProfileResult,
-    ) -> KinaseScorer:
-        return cls(profile_result.profile_matrix)
 
     @classmethod
     def from_profile_dict(
@@ -152,96 +105,6 @@ class KinaseScorer:
             combined_scores=combined_scores,
             weights=weights,
         )
-
-
-def kinase_substrate_score(
-    substrate_map: Mapping[str, Sequence[str]],
-    phospho_matrix: pd.DataFrame,
-    motif_scores: pd.DataFrame | None = None,
-    motif_sizes: pd.Series | None = None,
-    min_motif_size: int = 1,
-    min_substrates: int = 1,
-    aggregation: AggregationMethod = "median",
-    allow_profile_only_fallback: bool = False,
-) -> KinaseSubstrateScoreResult:
-    """Build kinase profiles, score phosphosites, and combine motif evidence.
-
-    This is a narrower Python-native analogue of PhosR's
-    ``kinaseSubstrateScore()``. It builds kinase substrate profiles from the
-    provided substrate map, scores all phosphosites against those profiles, and
-    optionally combines those profile scores with a caller-supplied motif score
-    matrix. Motif *generation* is not implemented here yet; callers provide the
-    motif scores and motif sizes explicitly when they want a combined matrix.
-    """
-
-    _validate_positive_int(min_motif_size, name="min_motif_size")
-
-    profile_result = build_kinase_substrate_profiles(
-        substrate_map=substrate_map,
-        phospho_matrix=phospho_matrix,
-        min_substrates=min_substrates,
-        aggregation=aggregation,
-    )
-    scorer = KinaseScorer.from_profile_result(profile_result)
-    profile_scores = scorer.score_phosphosite_profiles(phospho_matrix)
-    profile_sizes = profile_result.substrate_counts.loc[profile_scores.columns].astype(
-        float
-    )
-
-    if motif_scores is None:
-        combined_scores, weights = _profile_only_score_outputs(
-            profile_scores=profile_scores,
-            allow_profile_only_fallback=allow_profile_only_fallback,
-        )
-        ks_activity_matrix = profile_result.profile_matrix.loc[
-            profile_scores.columns
-        ].copy()
-        return KinaseSubstrateScoreResult(
-            profile_result=profile_result,
-            profile_scores=profile_scores,
-            combined_scores=combined_scores,
-            ks_activity_matrix=ks_activity_matrix,
-            weights=weights,
-        )
-
-    if motif_sizes is None:
-        msg = "motif_sizes are required when motif_scores are provided"
-        raise ValueError(msg)
-
-    _require_index_members(motif_sizes, motif_scores.columns, name="motif_sizes")
-
-    allowed_kinases = [
-        kinase
-        for kinase in motif_scores.columns
-        if float(motif_sizes.loc[kinase]) >= float(min_motif_size)
-    ]
-    filtered_motif_scores = motif_scores.loc[:, allowed_kinases].copy()
-    filtered_motif_sizes = motif_sizes.loc[allowed_kinases].astype(float).copy()
-
-    combined_scores, weights = combine_profile_and_motif_scores(
-        motif_scores=filtered_motif_scores,
-        profile_scores=profile_scores,
-        motif_sizes=filtered_motif_sizes,
-        profile_sizes=profile_sizes,
-        allow_profile_only_fallback=allow_profile_only_fallback,
-    )
-
-    ks_activity_columns = (
-        list(combined_scores.columns)
-        if combined_scores is not None
-        else list(profile_scores.columns)
-    )
-    ks_activity_matrix = profile_result.profile_matrix.loc[ks_activity_columns].copy()
-
-    return KinaseSubstrateScoreResult(
-        profile_result=profile_result,
-        profile_scores=profile_scores,
-        motif_scores=filtered_motif_scores,
-        combined_scores=combined_scores,
-        ks_activity_matrix=ks_activity_matrix,
-        weights=weights,
-        motif_sizes=filtered_motif_sizes,
-    )
 
 
 def combine_profile_and_motif_scores(
@@ -325,26 +188,6 @@ def _build_profile_frame(
     return profile_frame
 
 
-def _profile_only_score_outputs(
-    profile_scores: pd.DataFrame,
-    allow_profile_only_fallback: bool,
-) -> tuple[pd.DataFrame | None, pd.DataFrame | None]:
-    if not allow_profile_only_fallback:
-        return None, None
-
-    weights = pd.DataFrame(
-        {
-            "motif_weight": 0.0,
-            "profile_weight": 1.0,
-            "motif_rank_weight": 0.0,
-            "profile_rank_weight": 1.0,
-        },
-        index=profile_scores.columns.copy(),
-    )
-    weights.index.name = "kinase"
-    return profile_scores.copy(), weights
-
-
 def _require_index_members(
     series: pd.Series, members: Sequence[str], name: str
 ) -> None:
@@ -367,8 +210,3 @@ def _rowwise_correlation_matrix(left: np.ndarray, right: np.ndarray) -> np.ndarr
 
     correlation[denominator == 0.0] = np.nan
     return correlation
-
-
-def _validate_positive_int(value: int, name: str) -> None:
-    if value < 1:
-        raise ValueError(f"{name} must be at least 1")

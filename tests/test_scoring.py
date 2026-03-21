@@ -4,12 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phosrpy.scoring import (
-    KinaseScorer,
-    KinaseSubstrateScoreResult,
-    combine_profile_and_motif_scores,
-    kinase_substrate_score,
-)
+from phosrpy.scoring import KinaseScorer, combine_profile_and_motif_scores
 
 
 def make_kinase_profiles() -> pd.DataFrame:
@@ -137,92 +132,3 @@ def test_combine_profile_and_motif_scores_can_fall_back_to_profile_only() -> Non
     pd.testing.assert_frame_equal(combined, profile_scores)
     assert (weights["motif_weight"] == 0.0).all()
     assert (weights["profile_weight"] == 1.0).all()
-
-
-def test_kinase_substrate_score_builds_profile_only_result() -> None:
-    phospho_matrix = pd.DataFrame(
-        {
-            "sample_1": [1.0, 3.0],
-            "sample_2": [2.0, 2.0],
-            "sample_3": [3.0, 1.0],
-        },
-        index=["SITE_A", "SITE_B"],
-    )
-
-    result = kinase_substrate_score(
-        substrate_map={"KINASE_A": ["SITE_A"], "KINASE_B": ["SITE_B"]},
-        phospho_matrix=phospho_matrix,
-        allow_profile_only_fallback=True,
-    )
-
-    assert isinstance(result, KinaseSubstrateScoreResult)
-    assert result.motif_scores is None
-    pd.testing.assert_frame_equal(result.profile_scores, result.combined_scores)
-    assert list(result.ks_activity_matrix.index) == ["KINASE_A", "KINASE_B"]
-    assert float(result.profile_scores.loc["SITE_A", "KINASE_A"]) == pytest.approx(1.0)
-
-
-def test_kinase_substrate_score_combines_filtered_motif_and_profile_inputs() -> None:
-    phospho_matrix = pd.DataFrame(
-        {
-            "sample_1": [1.0, 3.0],
-            "sample_2": [2.0, 2.0],
-            "sample_3": [3.0, 1.0],
-        },
-        index=["SITE_A", "SITE_B"],
-    )
-    motif_scores = pd.DataFrame(
-        {
-            "KINASE_A": [0.8, 0.3],
-            "KINASE_B": [0.4, 0.9],
-            "KINASE_X": [0.7, 0.6],
-        },
-        index=phospho_matrix.index.copy(),
-    )
-    motif_sizes = pd.Series({"KINASE_A": 4, "KINASE_B": 2, "KINASE_X": 1})
-
-    result = kinase_substrate_score(
-        substrate_map={"KINASE_A": ["SITE_A"], "KINASE_B": ["SITE_B"]},
-        phospho_matrix=phospho_matrix,
-        motif_scores=motif_scores,
-        motif_sizes=motif_sizes,
-        min_motif_size=2,
-    )
-
-    assert list(result.motif_scores.columns) == ["KINASE_A", "KINASE_B"]
-    assert list(result.combined_scores.columns) == ["KINASE_A", "KINASE_B"]
-    assert list(result.ks_activity_matrix.index) == ["KINASE_A", "KINASE_B"]
-    expected_profile_b = np.log(2.5) / (np.log(2.0) + np.log(2.5))
-    assert float(result.weights.loc["KINASE_A", "motif_weight"]) == pytest.approx(
-        np.log(3.0) / (np.log(3.0) + np.log(2.5))
-    )
-    assert float(result.weights.loc["KINASE_B", "profile_weight"]) == pytest.approx(
-        expected_profile_b
-    )
-
-
-def test_kinase_substrate_score_can_fall_back_when_no_motif_overlap_exists() -> None:
-    phospho_matrix = pd.DataFrame(
-        {
-            "sample_1": [1.0, 3.0],
-            "sample_2": [2.0, 2.0],
-            "sample_3": [3.0, 1.0],
-        },
-        index=["SITE_A", "SITE_B"],
-    )
-    motif_scores = pd.DataFrame(
-        {"KINASE_X": [0.8, 0.2]},
-        index=phospho_matrix.index.copy(),
-    )
-    motif_sizes = pd.Series({"KINASE_X": 5})
-
-    result = kinase_substrate_score(
-        substrate_map={"KINASE_A": ["SITE_A"], "KINASE_B": ["SITE_B"]},
-        phospho_matrix=phospho_matrix,
-        motif_scores=motif_scores,
-        motif_sizes=motif_sizes,
-        allow_profile_only_fallback=True,
-    )
-
-    pd.testing.assert_frame_equal(result.combined_scores, result.profile_scores)
-    assert list(result.ks_activity_matrix.index) == ["KINASE_A", "KINASE_B"]

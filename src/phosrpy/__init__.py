@@ -7,12 +7,14 @@ from .activities import (
 from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
 from .dataset import CoreProcessingResult, PhosphoDataset, SiteMatrixResult
 from .matrices import build_site_matrix
-from .pipeline import CoreOutputs, PhosRPipeline, run_core_pipeline
-from .prediction import (
-    KinasePredictionResult,
-    KinasePredictor,
-    build_candidate_substrate_list,
+from .motifs import (
+    KinaseMotifScorer,
+    MotifScoringResult,
+    create_frequency_matrix,
+    frequency_scoring,
+    score_phosphosite_motifs,
 )
+from .pipeline import CoreOutputs, PhosRPipeline, run_core_pipeline
 from .preprocessing import (
     add_pairwise_comparisons,
     collapse_duplicate_genes,
@@ -20,18 +22,7 @@ from .preprocessing import (
     filter_min_observed,
     replace_sentinel_with_nan,
 )
-from .profiles import (
-    KinaseProfileBuilder,
-    KinaseProfileResult,
-    build_kinase_substrate_profiles,
-)
-from .scoring import (
-    KinaseScorer,
-    KinaseScoringResult,
-    KinaseSubstrateScoreResult,
-    combine_profile_and_motif_scores,
-    kinase_substrate_score,
-)
+from .scoring import KinaseScorer, KinaseScoringResult, combine_profile_and_motif_scores
 
 __all__ = [
     "add_pairwise_comparisons",
@@ -40,27 +31,24 @@ __all__ = [
     "collapse_duplicate_genes",
     "compute_ksea_scores",
     "compute_weighted_kinase_activity",
+    "create_frequency_matrix",
     "correct_phospho_to_protein",
     "count_predicted_targets",
     "CoreOutputs",
     "CoreProcessingResult",
     "filter_min_observed",
+    "frequency_scoring",
     "KinaseActivityAnalyzer",
-    "KinasePredictionResult",
-    "KinaseProfileBuilder",
-    "KinaseProfileResult",
-    "KinasePredictor",
     "KinaseActivityResult",
+    "KinaseMotifScorer",
     "KinaseScorer",
     "KinaseScoringResult",
-    "KinaseSubstrateScoreResult",
+    "MotifScoringResult",
     "PhosphoDataset",
-    "build_candidate_substrate_list",
-    "build_kinase_substrate_profiles",
     "combine_profile_and_motif_scores",
-    "kinase_substrate_score",
     "PhosRPipeline",
     "replace_sentinel_with_nan",
     "run_core_pipeline",
+    "score_phosphosite_motifs",
     "SiteMatrixResult",
 ]

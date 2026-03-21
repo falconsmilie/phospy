@@ -37,15 +37,13 @@ Implemented now:
 - a minimal CLI
 - class-based public API
 - parity-test harness for comparing Python outputs against R-generated fixtures
-- native kinase substrate-profile construction via `build_kinase_substrate_profiles()` and `KinaseProfileBuilder`
 - native profile-based kinase scoring via `KinaseScorer.score_phosphosite_profiles()`
-- a narrow native `kinase_substrate_score()` orchestration seam that builds profiles, scores phosphosites, and combines caller-supplied motif scores
-- an initial native kinase prediction seam via `KinasePredictor`
+- native motif-frequency scoring via `KinaseMotifScorer` and `score_phosphosite_motifs()`
 
 Not implemented yet:
 
-- native motif-score generation for a full Python `kinaseSubstrateScore()` replacement
-- full parity-claimed native Python replacement for `kinaseSubstratePred()`
+- full native Python replacement for `kinaseSubstrateScore()`
+- native Python replacement for `kinaseSubstratePred()`
 - native Python replacement for `Signalomes()`
 - full numerical parity claims against PhosR for the unported methods
 
@@ -66,12 +64,6 @@ pip install -e ".[test]"
 pytest
 ```
 
-For native kinase prediction helpers:
-
-```bash
-pip install -e ".[ml]"
-```
-
 For development checks:
 
 ```bash
@@ -85,12 +77,10 @@ pre-commit run --all-files
 ```python
 from phosrpy import (
     KinaseActivityAnalyzer,
-    KinasePredictor,
-    KinaseProfileBuilder,
+    KinaseMotifScorer,
     KinaseScorer,
     PhosphoDataset,
     PhosRPipeline,
-    kinase_substrate_score,
 )
 
 dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
@@ -107,13 +97,6 @@ core_with_comparisons = dataset_with_comparisons.process_core()
 analyzer = KinaseActivityAnalyzer.from_csv("predMat.csv")
 kinase = analyzer.analyze(core.site_matrix.matrix)
 
-# Native profile construction + scoring workflow.
-scoring = kinase_substrate_score(
-    substrate_map={"PRKACA": ["PRKACA;S339;"], "BTK": ["BTK;Y551;"]},
-    phospho_matrix=core.site_matrix.matrix,
-    allow_profile_only_fallback=True,
-)
-
 pipeline = PhosRPipeline.from_files(
     total_path="total.tsv",
     phospho_path="phospho.tsv",
@@ -121,28 +104,22 @@ pipeline = PhosRPipeline.from_files(
 )
 outputs = pipeline.run(outdir="output")
 
-profile_builder = KinaseProfileBuilder()
-profile_result = profile_builder.build(
-    substrate_map={
-        "PRKACA": ["PRKACA;S339;"],
-        "BTK": ["BTK;Y551;"],
-    },
-    phospho_matrix=core.site_matrix.matrix,
+scorer = KinaseScorer.from_profile_dict(
+    {
+        "PRKACA": core.site_matrix.matrix.mean(axis=0),
+        "BTK": core.site_matrix.matrix.median(axis=0),
+    }
 )
-scorer = KinaseScorer.from_profile_result(profile_result)
-scoring = scorer.score(core.site_matrix.matrix)
+profile_scores = scorer.score_phosphosite_profiles(core.site_matrix.matrix)
 
-predictor = KinasePredictor()
-prediction = predictor.predict_from_scoring_result(
-    scoring,
-    ensemble_size=5,
-    top=30,
-    score_threshold=0.8,
-    inclusion=5,
-    n_iterations=3,
-    random_state=7,
-    allow_profile_only_fallback=True,
+motif_scorer = KinaseMotifScorer.from_substrate_sequences(
+    {
+        "PRKACA": ["QQAAAAAYY"],
+        "BTK": ["QQTTTTTYY"],
+    },
+    flank_size=2,
 )
+motif_scores = motif_scorer.score_sequences(core.site_matrix.sequences)
 ```
 
 You can also request pairwise comparisons explicitly:
@@ -248,6 +225,6 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for local setup and [`docs/parity.md`](
 
 ## Honest project status
 
-Today this repository is best described as a structured Python package for PhosR-style preprocessing and downstream kinase-analysis summaries, with a live R-backed parity harness, native kinase substrate-profile construction, a narrow native `kinase_substrate_score()` orchestration seam, an initial native profile-scoring seam, and an initial native score-to-prediction seam.
+Today this repository is best described as a structured Python package for PhosR-style preprocessing and downstream kinase-analysis summaries, with a live R-backed parity harness and initial native scoring seams for profile-based kinase scoring and motif-frequency scoring.
 
 It is not yet a full Python replacement for PhosR.
