@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
-from phosrpy import KinaseActivityAnalyzer, PhosphoDataset, PhosRPipeline
+from phosrpy import KinaseActivityAnalyzer, KinaseScorer, PhosphoDataset, PhosRPipeline
 
 EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
 
@@ -102,3 +103,23 @@ def test_pipeline_runs_with_class_api(tmp_path) -> None:
     assert outputs.kinase_activity is not None
     assert (outdir / "df_phospho_corrected.csv").exists()
     assert (outdir / "kinase_activity_matrix.csv").exists()
+
+
+def test_kinase_scorer_profile_api() -> None:
+    scorer = KinaseScorer.from_profile_dict(
+        {
+            "PRKACA": pd.Series([1.0, 2.0, 3.0], index=["s1", "s2", "s3"]),
+            "BTK": pd.Series([3.0, 2.0, 1.0], index=["s1", "s2", "s3"]),
+        }
+    )
+    phospho_matrix = pd.DataFrame(
+        {"s1": [1.0], "s2": [2.0], "s3": [3.0]},
+        index=["PRKACA;S339;"],
+    )
+
+    result = scorer.score(phospho_matrix)
+
+    assert float(result.profile_scores.loc["PRKACA;S339;", "PRKACA"]) == pytest.approx(
+        1.0
+    )
+    assert result.combined_scores is None

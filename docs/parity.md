@@ -20,7 +20,7 @@ What it is good for:
 What it does **not** prove:
 
 - broad downstream numerical equivalence to all of PhosR
-- equivalence for unported methods such as native kinase scoring, kinase prediction, or signalome analysis
+- full equivalence for unported methods such as motif scoring, kinase prediction, or signalome analysis
 
 This layer is best treated as logic-level parity evidence.
 
@@ -47,11 +47,11 @@ This is the strongest current evidence for parity of the downstream methods that
 
 Today, `phosrpy` is best described as a Python package for PhosR-style preprocessing and downstream kinase-analysis summaries, backed by R-generated parity fixtures.
 
-It is **not** yet a full Python replacement for PhosR.
+It is **not** yet a full Python replacement for PhosR. A narrow Python-native profile scoring seam now exists, but motif scoring and full score-to-prediction parity remain outside the current claim.
 
 In particular, the following still remain outside the current parity claim:
 
-- a native Python `kinaseSubstrateScore()` replacement
+- a full native Python `kinaseSubstrateScore()` replacement
 - a native Python `kinaseSubstratePred()` replacement
 - a native Python `Signalomes()` replacement
 

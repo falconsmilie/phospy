@@ -15,6 +15,7 @@ from .preprocessing import (
     filter_min_observed,
     replace_sentinel_with_nan,
 )
+from .scoring import KinaseScorer, KinaseScoringResult, combine_profile_and_motif_scores
 
 __all__ = [
     "add_pairwise_comparisons",
@@ -30,7 +31,10 @@ __all__ = [
     "filter_min_observed",
     "KinaseActivityAnalyzer",
     "KinaseActivityResult",
+    "KinaseScorer",
+    "KinaseScoringResult",
     "PhosphoDataset",
+    "combine_profile_and_motif_scores",
     "PhosRPipeline",
     "replace_sentinel_with_nan",
     "run_core_pipeline",

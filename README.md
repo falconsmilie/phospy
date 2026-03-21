@@ -37,10 +37,11 @@ Implemented now:
 - a minimal CLI
 - class-based public API
 - parity-test harness for comparing Python outputs against R-generated fixtures
+- native profile-based kinase scoring via `KinaseScorer.score_phosphosite_profiles()`
 
 Not implemented yet:
 
-- native Python replacement for `kinaseSubstrateScore()`
+- full native Python replacement for `kinaseSubstrateScore()`
 - native Python replacement for `kinaseSubstratePred()`
 - native Python replacement for `Signalomes()`
 - full numerical parity claims against PhosR for the unported methods
@@ -73,7 +74,7 @@ pre-commit run --all-files
 ## Public API
 
 ```python
-from phosrpy import PhosphoDataset, KinaseActivityAnalyzer, PhosRPipeline
+from phosrpy import KinaseActivityAnalyzer, KinaseScorer, PhosphoDataset, PhosRPipeline
 
 dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
 core = dataset.process_core()
@@ -95,6 +96,14 @@ pipeline = PhosRPipeline.from_files(
     pred_mat_path="predMat.csv",
 )
 outputs = pipeline.run(outdir="output")
+
+scorer = KinaseScorer.from_profile_dict(
+    {
+        "PRKACA": core.site_matrix.matrix.mean(axis=0),
+        "BTK": core.site_matrix.matrix.median(axis=0),
+    }
+)
+profile_scores = scorer.score_phosphosite_profiles(core.site_matrix.matrix)
 ```
 
 You can also request pairwise comparisons explicitly:
@@ -200,6 +209,6 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for local setup and [`docs/parity.md`](
 
 ## Honest project status
 
-Today this repository is best described as a structured Python package for PhosR-style preprocessing and downstream kinase-analysis summaries, with a live R-backed parity harness and a clear path toward porting the core PhosR scoring methods.
+Today this repository is best described as a structured Python package for PhosR-style preprocessing and downstream kinase-analysis summaries, with a live R-backed parity harness and an initial native scoring seam for profile-based kinase scoring.
 
 It is not yet a full Python replacement for PhosR.
