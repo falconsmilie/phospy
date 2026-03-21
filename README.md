@@ -2,11 +2,15 @@
 
 `phosrpy` is an **unofficial Python port** of selected PhosR workflow components for phosphoproteomics.
 
-The original **PhosR** project is an R/Bioconductor package from the PhosR team / Yang Lab for phosphoproteomic data processing and downstream kinase and signalling analysis. This repository aims to translate parts of that workflow into Python while keeping attribution clear and keeping scope claims honest.
+The original **PhosR** project is an R/Bioconductor package from the PhosR team / Yang Lab for phosphoproteomic data 
+processing and downstream kinase and signalling analysis. This repository translates parts of that workflow into Python, 
+including a native end-to-end kinase scoring and prediction path, while keeping attribution clear and parity claims 
+limited to fixture-backed seams.
 
 ## Attribution
 
-All scientific credit for the original methods, package design, and biological workflow belongs to the **PhosR authors and maintainers**.
+All scientific credit for the original methods, package design, and biological workflow belongs to the **PhosR authors 
+and maintainers**.
 
 Please cite and acknowledge the original PhosR work when using this repository:
 
@@ -14,13 +18,16 @@ Please cite and acknowledge the original PhosR work when using this repository:
 - Kim, H., Kim, T., Xiao, D., & Yang, P. (2021). *Protocol for the processing and downstream analysis of phosphoproteomic data with PhosR*. STAR Protocols, 2(2), 100585.
 - Original R package: `PYangLab/PhosR`
 
-This Python repository should be described as an **unofficial port** unless and until the original PhosR authors choose to endorse or participate in it.
+This Python repository should be described as an **unofficial port** unless and until the original PhosR authors choose 
+to endorse or participate in it.
 
 ## License
 
 This repository is distributed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. See [`LICENSE`](LICENSE).
 
-That choice is deliberate. PhosR is distributed under GPL-3, and the GNU GPL FAQ treats translation of a program into another programming language as a kind of modification or translation under copyright law. This project therefore uses GPL-3.0-only as the conservative licensing position for a Python port.
+That choice is deliberate. PhosR is distributed under GPL-3, and the GNU GPL FAQ treats translation of a program into 
+another programming language as a kind of modification or translation under copyright law. This project therefore uses 
+GPL-3.0-only as the conservative licensing position for a Python port.
 
 ## Current scope
 
@@ -48,12 +55,14 @@ Not implemented yet:
 
 - full native Python replacement for every PhosR method
 - native Python replacement for `Signalomes()`
-- broad numerical parity claims for the newer native kinase workflow beyond the fixture-backed seams
-- full feature and output parity with the original R package
+- broad numerical parity claims for the newer native kinase workflow beyond the fixture-backed seams documented in `docs/parity.md`
+- full feature, behaviour, and output parity with the original R package
 
 ## Design notes
 
-The package core keeps only structural defaults such as `group1` to `group6`. Comparison choices are analysis intent, so they should be supplied by caller code or live in example configuration and fixture-generation scripts rather than inside `src/phosrpy`.
+The package core keeps only structural defaults such as `group1` to `group6`. Comparison choices are analysis intent, 
+so they should be supplied by caller code or live in example configuration and fixture-generation scripts rather than 
+inside `src/phosrpy`.
 
 The native kinase scoring path is intentionally modular:
 
@@ -137,7 +146,8 @@ dataset = PhosphoDataset(
 )
 ```
 
-Without `comparisons=...`, the core pipeline does not add any pairwise comparison columns. Comparison definitions are plain two-tuples of group names.
+Without `comparisons=...`, the core pipeline does not add any pairwise comparison columns. Comparison definitions are 
+plain two-tuples of group names.
 
 ### Native kinase scoring building blocks
 
@@ -221,6 +231,10 @@ pred_matrix = result.prediction_result.pred_matrix
 
 For a profile-only fallback path, omit `motif_sequences` and pass `allow_profile_only_fallback=True`.
 
+This workflow is implemented natively in Python and is intended to provide a coherent PhosR-style kinase scoring path. 
+It should not be read as a blanket claim of numerical equivalence to the R package beyond the specific fixture-backed 
+seams described in [`docs/parity.md`](docs/parity.md).
+
 ## Minimal demo
 
 A small synthetic dataset is included:
@@ -270,11 +284,13 @@ This writes CSV fixtures into `tests/fixtures/r_reference/` for:
 - substrate counts
 - `sessionInfo()` for provenance
 
-This path is useful for logic-level parity, but it is not strong evidence for downstream scoring equivalence beyond the implemented wrapper flow.
+This path is useful for logic-level parity, but it is not strong evidence for downstream scoring equivalence beyond the 
+implemented wrapper flow.
 
 ### 2. Richer bundled PhosR L6 fixture path
 
-Use this for a more realistic downstream kinase-analysis parity path based on PhosR’s bundled rat L6 myotube example dataset, which is used throughout the original package examples and vignette.
+Use this for a more realistic downstream kinase-analysis parity path based on PhosR’s bundled rat L6 myotube example 
+dataset, which is used throughout the original package examples and vignette.
 
 Generate those fixtures with:
 
@@ -312,6 +328,9 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for local setup and [`docs/parity.md`](
 
 ## Honest project status
 
-Today this repository is best described as a structured Python package for PhosR-style preprocessing and downstream kinase-analysis summaries, with a live R-backed parity harness and a growing native kinase workflow covering profile construction, motif scoring, profile scoring, rank-weighted score combination, and adaptive SVM prediction.
+Today this repository is best described as a structured Python package for PhosR-style preprocessing and downstream 
+kinase-analysis summaries, with a live R-backed parity harness and a growing native kinase workflow covering profile 
+construction, motif scoring, profile scoring, rank-weighted score combination, and adaptive SVM prediction.
 
-It is still not a full Python replacement for PhosR, and the newer native workflow should be described as an evolving port rather than a parity-complete reimplementation.
+It is still not a full Python replacement for PhosR, and the newer native workflow should be described as an evolving 
+port rather than a parity-complete reimplementation.

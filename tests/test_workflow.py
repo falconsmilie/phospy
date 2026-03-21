@@ -117,3 +117,42 @@ def test_kinase_workflow_requires_motif_sequences_without_profile_fallback() -> 
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
         )
+
+
+def test_kinase_workflow_rejects_empty_substrate_map() -> None:
+    phospho_matrix, _, _, _ = make_workflow_inputs()
+    workflow = KinaseWorkflow()
+
+    with pytest.raises(ValueError, match="substrate_map must not be empty"):
+        workflow.run(
+            phospho_matrix=phospho_matrix,
+            substrate_map={},
+            motif_sequences=None,
+            allow_profile_only_fallback=True,
+        )
+
+
+def test_kinase_workflow_rejects_empty_motif_sequences_mapping() -> None:
+    phospho_matrix, substrate_map, site_sequences, _ = make_workflow_inputs()
+    workflow = KinaseWorkflow()
+
+    with pytest.raises(ValueError, match="motif_sequences must not be empty"):
+        workflow.run(
+            phospho_matrix=phospho_matrix,
+            substrate_map=substrate_map,
+            site_sequences=site_sequences,
+            motif_sequences={},
+        )
+
+
+def test_kinase_workflow_requires_site_sequences_when_motifs_are_provided() -> None:
+    phospho_matrix, substrate_map, _, motif_sequences = make_workflow_inputs()
+    workflow = KinaseWorkflow()
+
+    with pytest.raises(ValueError, match="site_sequences are required"):
+        workflow.run(
+            phospho_matrix=phospho_matrix,
+            substrate_map=substrate_map,
+            site_sequences=None,
+            motif_sequences=motif_sequences,
+        )
