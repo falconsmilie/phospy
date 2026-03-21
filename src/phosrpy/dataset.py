@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 import pandas as pd
 
-from .constants import ComparisonSpec, DEFAULT_CORRECTED_COLS, DEFAULT_PHOSPHO_COLS, DEFAULT_TOTAL_COLS
+from .constants import (
+    DEFAULT_CORRECTED_COLS,
+    DEFAULT_PHOSPHO_COLS,
+    DEFAULT_TOTAL_COLS,
+    ComparisonSpec,
+)
 from .io import read_table
 from .matrices import build_site_matrix
 from .preprocessing import (
@@ -64,7 +69,7 @@ class PhosphoDataset:
         phospho_path: str | Path,
         phospho_encoding: str | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
-    ) -> "PhosphoDataset":
+    ) -> PhosphoDataset:
         total_df = read_table(total_path)
         phospho_df = read_table(phospho_path, encoding=phospho_encoding)
         return cls(total_df=total_df, phospho_df=phospho_df, comparisons=comparisons)
@@ -80,8 +85,12 @@ class PhosphoDataset:
         for col in self.total_cols:
             total[col] = pd.to_numeric(total[col], errors="coerce")
         total = replace_sentinel_with_nan(total, self.total_cols, sentinel=sentinel)
-        total_unique = collapse_duplicate_genes(total, gene_col=gene_col, value_cols=self.total_cols)
-        total_filtered = filter_min_observed(total_unique, self.total_cols, min_observed=min_observed)
+        total_unique = collapse_duplicate_genes(
+            total, gene_col=gene_col, value_cols=self.total_cols
+        )
+        total_filtered = filter_min_observed(
+            total_unique, self.total_cols, min_observed=min_observed
+        )
         return total_unique, total_filtered
 
     def prepare_phospho(
@@ -97,14 +106,24 @@ class PhosphoDataset:
         phospho = self.phospho_df.copy()
         phospho[gene_col] = phospho[gene_col].astype("string").str.upper()
         phospho[site_col] = phospho[site_col].astype("string")
-        phospho[localization_col] = pd.to_numeric(phospho[localization_col], errors="coerce")
+        phospho[localization_col] = pd.to_numeric(
+            phospho[localization_col], errors="coerce"
+        )
         for col in self.phospho_cols:
             phospho[col] = pd.to_numeric(phospho[col], errors="coerce")
 
-        phospho = phospho.loc[phospho[uid_col].notna() & phospho[gene_col].notna()].copy()
-        phospho = phospho.loc[phospho[localization_col] >= localization_threshold].copy()
-        phospho = replace_sentinel_with_nan(phospho, self.phospho_cols, sentinel=sentinel)
-        return filter_min_observed(phospho, self.phospho_cols, min_observed=min_observed)
+        phospho = phospho.loc[
+            phospho[uid_col].notna() & phospho[gene_col].notna()
+        ].copy()
+        phospho = phospho.loc[
+            phospho[localization_col] >= localization_threshold
+        ].copy()
+        phospho = replace_sentinel_with_nan(
+            phospho, self.phospho_cols, sentinel=sentinel
+        )
+        return filter_min_observed(
+            phospho, self.phospho_cols, min_observed=min_observed
+        )
 
     def correct_to_protein(
         self,
@@ -132,7 +151,10 @@ class PhosphoDataset:
         if not self.comparisons:
             return corrected_df.copy()
 
-        group_map = {f"group{i}": self.corrected_cols[i - 1] for i in range(1, len(self.corrected_cols) + 1)}
+        group_map = {
+            f"group{i}": self.corrected_cols[i - 1]
+            for i in range(1, len(self.corrected_cols) + 1)
+        }
         return add_pairwise_comparisons(
             corrected_df,
             comparisons=self.comparisons,
@@ -152,7 +174,9 @@ class PhosphoDataset:
             sequence_col=sequence_col,
             value_cols=self.corrected_cols,
         )
-        return SiteMatrixResult(phosr_input=phosr_input, matrix=matrix, sequences=sequences)
+        return SiteMatrixResult(
+            phosr_input=phosr_input, matrix=matrix, sequences=sequences
+        )
 
     def process_core(self) -> CoreProcessingResult:
         total_unique, total_filtered = self.prepare_total()
@@ -175,7 +199,11 @@ class PhosphoDataset:
         result.total_unique.to_csv(outdir / "df_total_unique.csv", index=False)
         result.total_filtered.to_csv(outdir / "df_total_filtered.csv", index=False)
         result.phospho_filtered.to_csv(outdir / "df_phospho_filtered.csv", index=False)
-        result.phospho_corrected.to_csv(outdir / "df_phospho_corrected.csv", index=False)
+        result.phospho_corrected.to_csv(
+            outdir / "df_phospho_corrected.csv", index=False
+        )
         result.site_matrix.phosr_input.to_csv(outdir / "phosr_input.csv", index=False)
         result.site_matrix.matrix.to_csv(outdir / "mat_phospho_corrected.csv")
-        result.site_matrix.sequences.rename("centralized_sequence").to_csv(outdir / "site_sequences.csv")
+        result.site_matrix.sequences.rename("centralized_sequence").to_csv(
+            outdir / "site_sequences.csv"
+        )

@@ -77,7 +77,14 @@ def test_correct_phospho_to_protein_and_pairwise_comparisons() -> None:
         total,
         phospho_gene_col="gene_names",
         total_gene_col="genes",
-        phospho_cols=["p_group1", "p_group2", "p_group3", "p_group4", "p_group5", "p_group6"],
+        phospho_cols=[
+            "p_group1",
+            "p_group2",
+            "p_group3",
+            "p_group4",
+            "p_group5",
+            "p_group6",
+        ],
         protein_cols=["group1", "group2", "group3", "group4", "group5", "group6"],
     )
     assert corrected["phospho_corrected_1"].iloc[0] == 7.0

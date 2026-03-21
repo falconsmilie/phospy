@@ -15,8 +15,12 @@ def compute_weighted_kinase_activity(
     kinase_mat = pd.DataFrame(index=kinases, columns=samples, dtype=float)
 
     for kinase in kinases:
-        top_substrates = pred_mat[kinase].sort_values(ascending=False).head(top_n_substrates)
-        substrates = [site for site in top_substrates.index if site in phospho_matrix.index]
+        top_substrates = (
+            pred_mat[kinase].sort_values(ascending=False).head(top_n_substrates)
+        )
+        substrates = [
+            site for site in top_substrates.index if site in phospho_matrix.index
+        ]
         if len(substrates) < min_substrates:
             continue
 
@@ -32,11 +36,12 @@ def build_kinase_target_table(
     pred_mat: pd.DataFrame,
     threshold: float = 0.6,
 ) -> pd.DataFrame:
-    edges = (
-        pred_mat.reset_index(names="site_id")
-        .melt(id_vars="site_id", var_name="kinase", value_name="score")
+    edges = pred_mat.reset_index(names="site_id").melt(
+        id_vars="site_id", var_name="kinase", value_name="score"
     )
-    return edges.loc[edges["score"] > threshold].sort_values(["kinase", "score"], ascending=[True, False])
+    return edges.loc[edges["score"] > threshold].sort_values(
+        ["kinase", "score"], ascending=[True, False]
+    )
 
 
 def count_predicted_targets(
@@ -59,8 +64,7 @@ def compute_ksea_scores(
     edges = build_kinase_target_table(pred_mat, threshold=threshold)
 
     substrate_map = {
-        kinase: group["site_id"].tolist()
-        for kinase, group in edges.groupby("kinase")
+        kinase: group["site_id"].tolist() for kinase, group in edges.groupby("kinase")
     }
     substrate_map = {k: v for k, v in substrate_map.items() if len(v) >= min_substrates}
 

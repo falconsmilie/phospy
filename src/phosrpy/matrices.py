@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import pandas as pd
 
@@ -23,18 +23,32 @@ def build_site_matrix(
     )
 
     base_cols = [
-        col for col in ["gene_names", gene_col_name, p_site_col_name, "uid", sequence_col, "site_id"]
+        col
+        for col in [
+            "gene_names",
+            gene_col_name,
+            p_site_col_name,
+            "uid",
+            sequence_col,
+            "site_id",
+        ]
         if col in work.columns
     ]
     keep_cols: list[str] = [*base_cols, *list(value_cols)]
     phosr_input = work.loc[:, keep_cols].copy()
 
     phosr_input = phosr_input[phosr_input[sequence_col].notna()].copy()
-    phosr_input = phosr_input[phosr_input.loc[:, list(value_cols)].notna().all(axis=1)].copy()
+    phosr_input = phosr_input[
+        phosr_input.loc[:, list(value_cols)].notna().all(axis=1)
+    ].copy()
 
-    phosr_input["__mean_signal"] = phosr_input.loc[:, list(value_cols)].mean(axis=1, skipna=True)
+    phosr_input["__mean_signal"] = phosr_input.loc[:, list(value_cols)].mean(
+        axis=1, skipna=True
+    )
     idx = phosr_input.groupby("site_id")["__mean_signal"].idxmax()
-    phosr_input = phosr_input.loc[idx].drop(columns="__mean_signal").copy().reset_index(drop=True)
+    phosr_input = (
+        phosr_input.loc[idx].drop(columns="__mean_signal").copy().reset_index(drop=True)
+    )
 
     matrix = phosr_input.loc[:, ["site_id", *value_cols]].set_index("site_id")
     sequences = phosr_input.set_index("site_id")[sequence_col].copy()

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 import pandas as pd
 
@@ -35,13 +35,17 @@ class PhosRPipeline:
         phospho_path: str | Path,
         pred_mat_path: str | Path | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
-    ) -> "PhosRPipeline":
+    ) -> PhosRPipeline:
         dataset = PhosphoDataset.from_files(
             total_path=total_path,
             phospho_path=phospho_path,
             comparisons=comparisons,
         )
-        pred_mat = pd.read_csv(pred_mat_path, index_col=0) if pred_mat_path is not None else None
+        pred_mat = (
+            pd.read_csv(pred_mat_path, index_col=0)
+            if pred_mat_path is not None
+            else None
+        )
         return cls(dataset=dataset, pred_mat=pred_mat)
 
     def run(self, outdir: str | Path | None = None) -> CoreOutputs:

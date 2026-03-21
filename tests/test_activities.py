@@ -40,7 +40,9 @@ def test_compute_weighted_kinase_activity() -> None:
         min_substrates=3,
     )
     assert set(result.index) == {"PRKACA", "BTK"}
-    assert round(float(result.loc["PRKACA", "phospho_corrected_1"]), 6) == round((10*0.9 + 4*0.8 + 1*0.7)/(0.9+0.8+0.7), 6)
+    assert round(float(result.loc["PRKACA", "phospho_corrected_1"]), 6) == round(
+        (10 * 0.9 + 4 * 0.8 + 1 * 0.7) / (0.9 + 0.8 + 0.7), 6
+    )
 
 
 def test_compute_ksea_scores_and_target_counts() -> None:

@@ -10,7 +10,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--total", required=True, help="Path to total proteome TSV.")
     parser.add_argument("--phospho", required=True, help="Path to phosphoproteome TSV.")
     parser.add_argument("--outdir", required=True, help="Directory for outputs.")
-    parser.add_argument("--pred-mat", help="Optional predMat CSV for kinase activity and KSEA.")
+    parser.add_argument(
+        "--pred-mat", help="Optional predMat CSV for kinase activity and KSEA."
+    )
     return parser
 
 

@@ -29,7 +29,7 @@ class KinaseActivityAnalyzer:
         self.pred_mat = pred_mat.copy()
 
     @classmethod
-    def from_csv(cls, pred_mat_path: str | Path) -> "KinaseActivityAnalyzer":
+    def from_csv(cls, pred_mat_path: str | Path) -> KinaseActivityAnalyzer:
         pred_mat = pd.read_csv(pred_mat_path, index_col=0)
         return cls(pred_mat=pred_mat)
 

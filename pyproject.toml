@@ -46,3 +46,20 @@ testpaths = ["tests"]
 markers = [
   "parity: compare Python outputs against R/PhosR reference fixtures",
 ]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+force-exclude = true
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "I",   # import sorting
+  "B",   # bugbear
+  "UP",  # pyupgrade
+]
+ignore = [
+  "E501",  # formatter handles line wrapping
+]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -72,7 +72,10 @@ def correct_phospho_to_protein(
     if total_gene_col != phospho_gene_col and total_gene_col in merged.columns:
         merged = merged.drop(columns=[total_gene_col])
 
-    for idx, (p_col, t_col) in enumerate(zip(phospho_cols, protein_cols), start=1):
+    for idx, (p_col, t_col) in enumerate(
+        zip(phospho_cols, protein_cols, strict=True),
+        start=1,
+    ):
         merged[f"{output_prefix}{idx}"] = merged[p_col] - merged[t_col]
 
     return merged
@@ -86,7 +89,9 @@ def add_pairwise_comparisons(
 ) -> pd.DataFrame:
     result = df.copy()
     if group_to_corrected_col is None:
-        group_to_corrected_col = {f"group{i}": f"phospho_corrected_{i}" for i in range(1, 7)}
+        group_to_corrected_col = {
+            f"group{i}": f"phospho_corrected_{i}" for i in range(1, 7)
+        }
 
     for left, right in comparisons:
         if left not in group_to_corrected_col or right not in group_to_corrected_col:

@@ -4,7 +4,6 @@ import pandas as pd
 
 from phosrpy import KinaseActivityAnalyzer, PhosphoDataset, PhosRPipeline
 
-
 EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
 
 
@@ -20,7 +19,6 @@ def make_total_df() -> pd.DataFrame:
             "group6": [1.0, 5.0, 2.0, 3.0],
         }
     )
-
 
 
 def make_phospho_df() -> pd.DataFrame:
@@ -41,7 +39,6 @@ def make_phospho_df() -> pd.DataFrame:
     )
 
 
-
 def make_pred_mat() -> pd.DataFrame:
     return pd.DataFrame(
         {
@@ -52,16 +49,18 @@ def make_pred_mat() -> pd.DataFrame:
     )
 
 
-
 def test_phospho_dataset_process_core() -> None:
-    dataset = PhosphoDataset(total_df=make_total_df(), phospho_df=make_phospho_df(), comparisons=EXAMPLE_COMPARISONS)
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
     result = dataset.process_core()
 
     assert sorted(result.total_unique["genes"].tolist()) == ["BTK", "LYN", "PRKACA"]
     assert "p_group1_group4" in result.phospho_corrected.columns
     assert "PRKACA;S339;" in result.site_matrix.matrix.index
     assert result.site_matrix.sequences.loc["PRKACA;S339;"] == "DDDDDD"
-
 
 
 def test_kinase_activity_analyzer() -> None:
@@ -73,12 +72,16 @@ def test_kinase_activity_analyzer() -> None:
         },
         index=["PRKACA;S339;", "BTK;Y551;", "LYN;Y397;"],
     )
-    result = analyzer.analyze(phospho_matrix=phospho_matrix, threshold=0.6, min_substrates=2)
+    result = analyzer.analyze(
+        phospho_matrix=phospho_matrix, threshold=0.6, min_substrates=2
+    )
 
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
     assert int(result.target_counts.loc["BTK"]) == 2
-    assert set(result.ksea_scores.columns) == {"phospho_corrected_1", "phospho_corrected_2"}
-
+    assert set(result.ksea_scores.columns) == {
+        "phospho_corrected_1",
+        "phospho_corrected_2",
+    }
 
 
 def test_pipeline_runs_with_class_api(tmp_path) -> None:
@@ -91,7 +94,9 @@ def test_pipeline_runs_with_class_api(tmp_path) -> None:
     make_phospho_df().to_csv(phospho_path, sep="\t", index=False)
     make_pred_mat().to_csv(pred_path)
 
-    pipeline = PhosRPipeline.from_files(total_path=total_path, phospho_path=phospho_path, pred_mat_path=pred_path)
+    pipeline = PhosRPipeline.from_files(
+        total_path=total_path, phospho_path=phospho_path, pred_mat_path=pred_path
+    )
     outputs = pipeline.run(outdir=outdir)
 
     assert outputs.kinase_activity is not None
