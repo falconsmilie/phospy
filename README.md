@@ -91,7 +91,7 @@ dataset = PhosphoDataset(
 )
 ```
 
-Legacy four-field comparison tuples are still accepted for compatibility, but only the first two group names are used by the Python core.
+Comparison definitions are plain two-tuples of group names.
 
 ## Minimal demo
 

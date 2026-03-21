@@ -8,7 +8,7 @@ import pandas as pd
 
 from .constants import (
     ComparisonSpec,
-    DEFAULT_COMPARISON_PAIRS,
+    DEFAULT_COMPARISONS,
     DEFAULT_CORRECTED_COLS,
     DEFAULT_PHOSPHO_COLS,
     DEFAULT_TOTAL_COLS,
@@ -61,7 +61,7 @@ class PhosphoDataset:
         self.total_cols = list(total_cols or DEFAULT_TOTAL_COLS)
         self.phospho_cols = list(phospho_cols or DEFAULT_PHOSPHO_COLS)
         self.corrected_cols = list(corrected_cols or DEFAULT_CORRECTED_COLS)
-        self.comparisons = list(comparisons or DEFAULT_COMPARISON_PAIRS)
+        self.comparisons = list(comparisons or DEFAULT_COMPARISONS)
 
     @classmethod
     def from_files(

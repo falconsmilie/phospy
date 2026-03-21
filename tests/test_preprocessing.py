@@ -83,6 +83,6 @@ def test_correct_phospho_to_protein_and_pairwise_comparisons() -> None:
     assert corrected["phospho_corrected_1"].iloc[0] == 7.0
     with_comparisons = add_pairwise_comparisons(
         corrected,
-        comparisons=[("group1", "group4", "a", "b")],
+        comparisons=[("group1", "group4")],
     )
     assert with_comparisons["p_group1_group4"].iloc[0] == 3.0
