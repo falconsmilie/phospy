@@ -132,3 +132,22 @@ def test_combine_profile_and_motif_scores_can_fall_back_to_profile_only() -> Non
     pd.testing.assert_frame_equal(combined, profile_scores)
     assert (weights["motif_weight"] == 0.0).all()
     assert (weights["profile_weight"] == 1.0).all()
+
+
+def test_score_phosphosite_profiles_returns_nan_scores_for_rows_with_missing_values() -> (
+    None
+):
+    scorer = KinaseScorer(make_kinase_profiles())
+    phospho_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0],
+            "sample_2": [np.nan],
+            "sample_3": [3.0],
+        },
+        index=["SITE_NA"],
+    )
+
+    result = scorer.score_phosphosite_profiles(phospho_matrix)
+
+    assert np.isnan(result.loc["SITE_NA", "KINASE_A"])
+    assert np.isnan(result.loc["SITE_NA", "KINASE_B"])

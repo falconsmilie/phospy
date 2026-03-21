@@ -187,3 +187,39 @@ def test_correct_phospho_to_protein_rejects_non_unique_total_gene_keys() -> None
         assert "PRKACA" in str(exc)
     else:
         raise AssertionError("Expected ValueError for duplicate total gene keys")
+
+
+def test_replace_sentinel_then_collapse_duplicate_genes_handles_all_sentinel_group() -> (
+    None
+):
+    df = pd.DataFrame(
+        {
+            "genes": ["Prkaca", "PRKACA", "Btk"],
+            "group1": [10.0, 10.0, 1.0],
+            "group2": [10.0, 10.0, 1.0],
+            "group3": [10.0, 10.0, 1.0],
+            "group4": [10.0, 10.0, 1.0],
+            "group5": [10.0, 10.0, 1.0],
+            "group6": [10.0, 10.0, 1.0],
+        }
+    )
+
+    cleaned = replace_sentinel_with_nan(
+        df,
+        ["group1", "group2", "group3", "group4", "group5", "group6"],
+        sentinel=10,
+    )
+    out = collapse_duplicate_genes(
+        df=cleaned,
+        gene_col="genes",
+        value_cols=["group1", "group2", "group3", "group4", "group5", "group6"],
+    )
+
+    assert sorted(out["genes"].tolist()) == ["BTK", "PRKACA"]
+    assert out["genes"].tolist().count("PRKACA") == 1
+    prkaca = out.loc[out["genes"] == "PRKACA"].iloc[0]
+    assert (
+        prkaca[["group1", "group2", "group3", "group4", "group5", "group6"]]
+        .isna()
+        .all()
+    )

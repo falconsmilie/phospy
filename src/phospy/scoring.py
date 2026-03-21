@@ -17,7 +17,7 @@ class KinaseScoringResult:
 class KinaseScorer:
     """Score phosphosites against kinase-substrate activity profiles.
 
-    This class provides a first native Python scoring seam for profile-based
+    This class provides a native Python scoring seam for profile-based
     kinase scoring. It intentionally stays narrower than PhosR's full
     ``kinaseSubstrateScore()`` workflow: motif scoring and prediction remain
     separate concerns.
