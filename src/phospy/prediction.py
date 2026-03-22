@@ -38,7 +38,7 @@ class KinasePredictor:
         inclusion: int = 20,
         n_iterations: int = 5,
         random_state: int | None = None,
-        negative_sampling_strategy: NegativeSamplingStrategy = "hybrid",
+        negative_sampling_strategy: NegativeSamplingStrategy = "random",
     ) -> KinasePredictionResult:
         _validate_positive_int(ensemble_size, name="ensemble_size")
         _validate_positive_int(top, name="top")
@@ -117,7 +117,7 @@ class KinasePredictor:
         n_iterations: int = 5,
         random_state: int | None = None,
         allow_profile_only_fallback: bool = False,
-        negative_sampling_strategy: NegativeSamplingStrategy = "hybrid",
+        negative_sampling_strategy: NegativeSamplingStrategy = "random",
     ) -> KinasePredictionResult:
         if scoring_result.combined_scores is not None:
             feature_mat = scoring_result.combined_scores
@@ -307,6 +307,7 @@ def _make_svm(
         StandardScaler(),
         SVC(
             kernel=kernel,
+            gamma="auto",
             probability=True,
             random_state=int(rng.integers(0, 2**31 - 1)),
         ),
