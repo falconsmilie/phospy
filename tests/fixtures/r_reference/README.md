@@ -1,14 +1,18 @@
-# R reference fixtures
+# R Reference Fixtures
 
-This directory is reserved for CSV fixtures generated from the synthetic example dataset by real R/PhosR code.
+This directory contains CSV fixtures generated from the synthetic example dataset by real R/PhosR code.
 
-Generate them from the repository root with:
+These files are used as stable reference outputs for the synthetic parity layer. They are most useful for deterministic
+preprocessing checks, site-matrix construction checks, and regression protection around the currently implemented
+downstream wrapper flow.
+
+Generate the fixtures from the repository root with:
 
 ```bash
 Rscript scripts/generate_r_fixtures.R
 ```
 
-Or choose explicit paths:
+You can also choose explicit input and output paths:
 
 ```bash
 Rscript scripts/generate_r_fixtures.R \
@@ -33,4 +37,5 @@ Expected outputs:
 - `kinase_target_counts.csv`
 - `sessionInfo.txt`
 
-These files are intended to become stable parity fixtures for Python-vs-R tests.
+These fixtures should be treated as committed reference data. If behaviour changes intentionally, regenerate the
+affected files and update the related parity tests in the same line of work.
