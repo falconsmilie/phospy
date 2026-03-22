@@ -165,6 +165,12 @@ def _show_profile_construction_metrics() -> bool:
     return _show_parity_metrics() and _env_flag("PHOSPY_SHOW_PROFILE_CONSTRUCTION")
 
 
+def _show_prediction_mode_comparison_metrics() -> bool:
+    return _show_parity_metrics() and _env_flag(
+        "PHOSPY_SHOW_PREDICTION_MODE_COMPARISON"
+    )
+
+
 def _mean_abs_diff(actual: pd.DataFrame, expected: pd.DataFrame) -> float:
     aligned_actual = actual.sort_index().sort_index(axis=1)
     aligned_expected = expected.sort_index().sort_index(axis=1)
@@ -635,13 +641,7 @@ def test_l6_native_candidate_substrates_match_r_reference() -> None:
     assert actual == expected
 
 
-@pytest.mark.parity
-def test_l6_native_prediction_rankings_agree_with_r_reference() -> None:
-    _require_fixture_files(
-        L6_FIXTURE_FILES + L6_NATIVE_FIXTURE_FILES,
-        fixture_dir=R_FIXTURES_L6,
-    )
-
+def _prediction_parity_metrics(*, svm_mode: str) -> dict[str, float | int]:
     combined_scores = _read_indexed_table(
         "native_combined_scores.csv",
         fixture_dir=R_FIXTURES_L6,
@@ -652,7 +652,7 @@ def test_l6_native_prediction_rankings_agree_with_r_reference() -> None:
         fixture_dir=R_FIXTURES_L6,
     )
 
-    result = KinasePredictor().predict(
+    result = KinasePredictor(svm_mode=svm_mode).predict(
         combined_scores=combined_scores,
         ensemble_size=10,
         top=30,
@@ -705,22 +705,70 @@ def test_l6_native_prediction_rankings_agree_with_r_reference() -> None:
     mean_top10_overlap = float(pd.Series(top10_overlaps).mean())
     mean_top20_overlap = float(pd.Series(top20_overlaps).mean())
     mean_top30_overlap = float(pd.Series(top30_overlaps).mean())
-    n_good_top10 = sum(overlap >= 0.7 for overlap in top10_overlaps)
+    n_good_top10 = int(sum(overlap >= 0.7 for overlap in top10_overlaps))
     n_kinases = len(common_kinases)
+
+    return {
+        "mean_spearman": mean_spearman,
+        "mean_top10_overlap": mean_top10_overlap,
+        "mean_top20_overlap": mean_top20_overlap,
+        "mean_top30_overlap": mean_top30_overlap,
+        "n_good_top10": n_good_top10,
+        "n_kinases": n_kinases,
+    }
+
+
+@pytest.mark.parity
+def test_l6_native_prediction_rankings_agree_with_r_reference() -> None:
+    _require_fixture_files(
+        L6_FIXTURE_FILES + L6_NATIVE_FIXTURE_FILES,
+        fixture_dir=R_FIXTURES_L6,
+    )
+
+    metrics = _prediction_parity_metrics(svm_mode="default")
 
     _maybe_print_metrics(
         "Prediction parity metrics",
         [
-            f"kinases compared: {n_kinases}",
-            f"mean Spearman rank agreement: {mean_spearman * 100:.2f}%",
-            f"mean top-10 overlap: {mean_top10_overlap * 100:.2f}%",
-            f"mean top-20 overlap: {mean_top20_overlap * 100:.2f}%",
-            f"mean top-30 overlap: {mean_top30_overlap * 100:.2f}%",
-            f"kinases with top-10 overlap >= 70%: {n_good_top10}/{n_kinases}",
+            "svm_mode: default",
+            f"kinases compared: {metrics['n_kinases']}",
+            f"mean Spearman rank agreement: {metrics['mean_spearman'] * 100:.2f}%",
+            f"mean top-10 overlap: {metrics['mean_top10_overlap'] * 100:.2f}%",
+            f"mean top-20 overlap: {metrics['mean_top20_overlap'] * 100:.2f}%",
+            f"mean top-30 overlap: {metrics['mean_top30_overlap'] * 100:.2f}%",
+            f"kinases with top-10 overlap >= 70%: {metrics['n_good_top10']}/{metrics['n_kinases']}",
         ],
     )
 
-    assert mean_spearman >= 0.96
-    assert mean_top20_overlap >= 0.85
-    assert mean_top30_overlap >= 0.88
-    assert n_good_top10 >= 20
+    assert metrics["mean_spearman"] >= 0.96
+    assert metrics["mean_top20_overlap"] >= 0.85
+    assert metrics["mean_top30_overlap"] >= 0.88
+    assert metrics["n_good_top10"] >= 20
+
+
+@pytest.mark.parity
+def test_l6_native_prediction_mode_comparison_metrics() -> None:
+    _require_fixture_files(
+        L6_FIXTURE_FILES + L6_NATIVE_FIXTURE_FILES,
+        fixture_dir=R_FIXTURES_L6,
+    )
+
+    default_metrics = _prediction_parity_metrics(svm_mode="default")
+    r_parity_metrics = _prediction_parity_metrics(svm_mode="r_parity")
+
+    if _show_prediction_mode_comparison_metrics():
+        _maybe_print_metrics(
+            "Prediction parity mode comparison",
+            [
+                f"default mean Spearman rank agreement: {default_metrics['mean_spearman'] * 100:.2f}%",
+                f"r_parity mean Spearman rank agreement: {r_parity_metrics['mean_spearman'] * 100:.2f}%",
+                f"default mean top-10 overlap: {default_metrics['mean_top10_overlap'] * 100:.2f}%",
+                f"r_parity mean top-10 overlap: {r_parity_metrics['mean_top10_overlap'] * 100:.2f}%",
+                f"default mean top-20 overlap: {default_metrics['mean_top20_overlap'] * 100:.2f}%",
+                f"r_parity mean top-20 overlap: {r_parity_metrics['mean_top20_overlap'] * 100:.2f}%",
+                f"default mean top-30 overlap: {default_metrics['mean_top30_overlap'] * 100:.2f}%",
+                f"r_parity mean top-30 overlap: {r_parity_metrics['mean_top30_overlap'] * 100:.2f}%",
+            ],
+        )
+
+    assert default_metrics["n_kinases"] == r_parity_metrics["n_kinases"]

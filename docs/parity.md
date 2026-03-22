@@ -101,6 +101,15 @@ The parity export script uses `r_parity` by default so the intent is explicit:
 python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1 --svm-mode r_parity
 ```
 
+The L6 native ranking parity test does **not** switch to `r_parity` by default.
+On the current fixture set, `r_parity` improves some learner-seam metrics, but it is not a clean across-the-board win for the non-replayed end-to-end ranking path. The parity test therefore keeps the library-style `default` mode explicitly, while the trace export path continues to use `r_parity` for learner-seam investigation.
+
+If you want to compare both modes in the parity test output, run:
+
+```bash
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 pytest -m parity tests/test_parity-with_metrics.py -k native_prediction
+```
+
 `r_parity` currently means:
 
 - R-like scaling semantics using sample standard deviation
