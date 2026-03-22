@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "phospy"
+name = "phosrpy"
 version = "0.1.0"
 description = "A Python-first phosphoproteomics toolkit shaped around core PhosR-style outputs."
 readme = "README.md"
@@ -51,7 +51,7 @@ dev = [
 ]
 
 [project.scripts]
-phospy = "phospy.cli:main"
+phosrpy = "phosrpy.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

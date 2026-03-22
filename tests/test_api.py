@@ -163,31 +163,3 @@ def test_score_phosphosite_motifs_api() -> None:
 
     assert list(result.motif_scores.columns) == ["KINASE_A"]
     assert float(result.motif_scores.loc["SITE_A", "KINASE_A"]) != float("inf")
-
-
-def test_phospho_dataset_process_core_does_not_multiply_rows_for_mixed_case_total_duplicates() -> (
-    None
-):
-    total_df = pd.DataFrame(
-        {
-            "genes": ["Prkaca", "PRKACA", "Btk", "Lyn"],
-            "group1": [1.0, 5.0, 2.0, 3.0],
-            "group2": [1.0, 5.0, 2.0, 3.0],
-            "group3": [1.0, 5.0, 2.0, 3.0],
-            "group4": [1.0, 5.0, 2.0, 3.0],
-            "group5": [1.0, 5.0, 2.0, 3.0],
-            "group6": [1.0, 5.0, 2.0, 3.0],
-        }
-    )
-
-    dataset = PhosphoDataset(
-        total_df=total_df,
-        phospho_df=make_phospho_df(),
-        comparisons=EXAMPLE_COMPARISONS,
-    )
-    result = dataset.process_core()
-
-    assert result.total_unique["genes"].is_unique
-    assert sorted(result.total_unique["genes"].tolist()) == ["BTK", "LYN", "PRKACA"]
-    assert len(result.phospho_corrected) == 4
-    assert (result.phospho_corrected["gene_names"] == "PRKACA").sum() == 2

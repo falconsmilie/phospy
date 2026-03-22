@@ -1,11 +1,6 @@
 # Contributing
 
-Thank you for your interest in contributing to PhosPy.
-
-This project is still evolving, and contributions are welcome. The clearest way to help is to keep changes small, well
-tested, and easy to review.
-
-## Development Setup
+## Development setup
 
 Install the package with test and development tooling:
 
@@ -13,7 +8,7 @@ Install the package with test and development tooling:
 pip install -e ".[test,dev]"
 ```
 
-Install the Git hooks:
+Install the git hooks:
 
 ```bash
 pre-commit install
@@ -27,26 +22,26 @@ pytest
 pytest -m parity
 ```
 
-## Code Conventions
+## Code conventions
 
 This repository uses Ruff for both linting and formatting.
 
-- `ruff check --fix` handles linting, import sorting, and safe auto-fixes
-- `ruff format` handles code formatting
-- `pre-commit` enforces both before commit
+- `ruff check --fix` handles linting, import sorting, and safe auto-fixes.
+- `ruff format` handles code formatting.
+- `pre-commit` enforces both before commit.
 
 The current repository policy lives in:
 
 - `.pre-commit-config.yaml`
 - `pyproject.toml`
 
-## Test Layers
+## Test layers
 
-### Unit Tests
+### Unit tests
 
 The regular `pytest` run covers package logic that should stay stable regardless of the R reference fixtures.
 
-### Parity Tests
+### Parity tests
 
 The parity layer compares Python outputs against CSV fixtures generated from real R/PhosR runs.
 
@@ -56,15 +51,14 @@ Run it with:
 pytest -m parity
 ```
 
-See [`docs/parity.md`](docs/parity.md) for the fixture model, scope boundaries, and current parity claims.
+See [`docs/parity.md`](docs/parity.md) for the fixture model, scope boundaries, and current claims.
 
-## CI Expectations
+## CI expectations
 
-GitHub Actions currently runs three quality gates:
+GitHub Actions runs three quality gates:
 
 - Ruff via `pre-commit`
 - unit tests
 - parity tests against the committed fixture snapshots
 
-If you intentionally change fixture-producing behaviour, regenerate the affected R fixtures, commit them, and explain
-the change clearly in the pull request.
+If you change fixture-producing behaviour intentionally, regenerate the affected R fixtures, commit them, and explain the change in the pull request.

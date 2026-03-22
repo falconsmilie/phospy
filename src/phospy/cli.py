@@ -6,7 +6,7 @@ from .pipeline import run_core_pipeline
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run the core phospy pipeline.")
+    parser = argparse.ArgumentParser(description="Run the core phosrpy pipeline.")
     parser.add_argument("--total", required=True, help="Path to total proteome TSV.")
     parser.add_argument("--phospho", required=True, help="Path to phosphoproteome TSV.")
     parser.add_argument("--outdir", required=True, help="Directory for outputs.")

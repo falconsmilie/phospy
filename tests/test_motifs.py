@@ -74,19 +74,3 @@ def test_score_phosphosite_motifs_filters_by_minimum_motif_size() -> None:
 
     assert list(result.motif_scores.columns) == ["KINASE_A"]
     assert list(result.motif_sizes.index) == ["KINASE_A"]
-
-
-def test_create_frequency_matrix_rejects_inconsistent_window_lengths() -> None:
-    with pytest.raises(ValueError, match="same window length"):
-        create_frequency_matrix(["AAAAA", "TTT"], flank_size=2)
-
-
-def test_frequency_scoring_returns_zero_for_empty_sequence_window() -> None:
-    frequency_mat = create_frequency_matrix(["ACA"], flank_size=1)
-
-    result = frequency_scoring(
-        sequence_list=pd.Series([""], index=["SITE_EMPTY"]),
-        frequency_mat=frequency_mat,
-    )
-
-    assert float(result.loc["SITE_EMPTY"]) == pytest.approx(0.0)

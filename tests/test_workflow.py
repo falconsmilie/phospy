@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import KinaseWorkflow, run_kinase_workflow
+from phospy.workflow import KinaseWorkflow, run_kinase_workflow
 
 
 def make_workflow_inputs() -> tuple[
