@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 import pandas as pd
 
 from .scoring import KinaseScoringResult
+
+NegativeSamplingStrategy = Literal["random", "coverage", "hybrid"]
 
 
 @dataclass(slots=True)
@@ -35,11 +38,13 @@ class KinasePredictor:
         inclusion: int = 20,
         n_iterations: int = 5,
         random_state: int | None = None,
+        negative_sampling_strategy: NegativeSamplingStrategy = "hybrid",
     ) -> KinasePredictionResult:
         _validate_positive_int(ensemble_size, name="ensemble_size")
         _validate_positive_int(top, name="top")
         _validate_positive_int(inclusion, name="inclusion")
         _validate_positive_int(n_iterations, name="n_iterations")
+        _validate_negative_sampling_strategy(negative_sampling_strategy)
 
         substrate_list = build_candidate_substrate_list(
             combined_scores,
@@ -71,12 +76,14 @@ class KinasePredictor:
                 )
                 raise ValueError(msg)
 
-            for _ in range(ensemble_size):
-                negative_indices = rng.choice(
-                    negative_pool.index.to_numpy(),
-                    size=len(positive_train),
-                    replace=len(negative_pool) < len(positive_train),
-                )
+            negative_batches = _build_initial_negative_batches(
+                negative_index=negative_pool.index.to_numpy(),
+                batch_size=len(positive_train),
+                ensemble_size=ensemble_size,
+                rng=rng,
+                strategy=negative_sampling_strategy,
+            )
+            for negative_indices in negative_batches:
                 negative_train = negative_pool.loc[list(negative_indices), :]
                 train_mat = pd.concat([positive_train, negative_train], axis=0)
                 labels = np.concatenate(
@@ -110,6 +117,7 @@ class KinasePredictor:
         n_iterations: int = 5,
         random_state: int | None = None,
         allow_profile_only_fallback: bool = False,
+        negative_sampling_strategy: NegativeSamplingStrategy = "hybrid",
     ) -> KinasePredictionResult:
         if scoring_result.combined_scores is not None:
             feature_mat = scoring_result.combined_scores
@@ -130,6 +138,7 @@ class KinasePredictor:
             inclusion=inclusion,
             n_iterations=n_iterations,
             random_state=random_state,
+            negative_sampling_strategy=negative_sampling_strategy,
         )
 
 
@@ -146,11 +155,93 @@ def build_candidate_substrate_list(
 
     substrate_list: dict[str, list[str]] = {}
     for kinase in combined_scores.columns:
-        selected = combined_scores.loc[:, kinase].sort_values(ascending=False).head(top)
-        sites = selected.loc[selected > score_threshold].index.tolist()
+        series = combined_scores.loc[:, kinase]
+        selected = (
+            pd.DataFrame(
+                {"site_id": series.index.astype(str), "score": series.to_numpy()}
+            )
+            .sort_values(
+                ["score", "site_id"], ascending=[False, True], kind="mergesort"
+            )
+            .head(top)
+        )
+        sites = selected.loc[selected["score"] > score_threshold, "site_id"].tolist()
         if len(sites) >= inclusion:
             substrate_list[kinase] = sites
     return substrate_list
+
+
+def _build_initial_negative_batches(
+    *,
+    negative_index: np.ndarray,
+    batch_size: int,
+    ensemble_size: int,
+    rng: np.random.Generator,
+    strategy: NegativeSamplingStrategy,
+) -> list[np.ndarray]:
+    if strategy == "random":
+        return [
+            rng.choice(
+                negative_index,
+                size=batch_size,
+                replace=len(negative_index) < batch_size,
+            )
+            for _ in range(ensemble_size)
+        ]
+    if strategy == "coverage":
+        return _build_coverage_negative_batches(
+            negative_index=negative_index,
+            batch_size=batch_size,
+            ensemble_size=ensemble_size,
+            rng=rng,
+        )
+    if strategy == "hybrid":
+        n_coverage = ensemble_size // 2
+        n_random = ensemble_size - n_coverage
+        coverage_batches = _build_coverage_negative_batches(
+            negative_index=negative_index,
+            batch_size=batch_size,
+            ensemble_size=n_coverage,
+            rng=rng,
+        )
+        random_batches = [
+            rng.choice(
+                negative_index,
+                size=batch_size,
+                replace=len(negative_index) < batch_size,
+            )
+            for _ in range(n_random)
+        ]
+        return [*coverage_batches, *random_batches]
+    raise ValueError(f"Unsupported negative_sampling_strategy: {strategy}")
+
+
+def _build_coverage_negative_batches(
+    *,
+    negative_index: np.ndarray,
+    batch_size: int,
+    ensemble_size: int,
+    rng: np.random.Generator,
+) -> list[np.ndarray]:
+    shuffled = rng.permutation(np.asarray(negative_index, dtype=object))
+    if shuffled.size == 0:
+        return []
+
+    cursor = 0
+    batches: list[np.ndarray] = []
+    for _ in range(ensemble_size):
+        pieces: list[np.ndarray] = []
+        needed = batch_size
+        while needed > 0:
+            if cursor >= shuffled.size:
+                shuffled = rng.permutation(np.asarray(negative_index, dtype=object))
+                cursor = 0
+            take_n = min(needed, shuffled.size - cursor)
+            pieces.append(shuffled[cursor : cursor + take_n])
+            cursor += take_n
+            needed -= take_n
+        batches.append(np.concatenate(pieces))
+    return batches
 
 
 def _multi_ada_sampling(
@@ -245,3 +336,10 @@ def _require_sklearn() -> tuple[type, type]:
 def _validate_positive_int(value: int, name: str) -> None:
     if value < 1:
         raise ValueError(f"{name} must be at least 1")
+
+
+def _validate_negative_sampling_strategy(value: str) -> None:
+    if value not in {"random", "coverage", "hybrid"}:
+        raise ValueError(
+            "negative_sampling_strategy must be one of: random, coverage, hybrid"
+        )

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from phospy.prediction import (
     KinasePredictionResult,
     KinasePredictor,
+    _build_coverage_negative_batches,
     build_candidate_substrate_list,
 )
 from phospy.scoring import KinaseScoringResult
@@ -33,6 +35,39 @@ def test_build_candidate_substrate_list_applies_selection_rules() -> None:
         "KINASE_A": ["SITE_1", "SITE_2", "SITE_3"],
         "KINASE_B": ["SITE_5", "SITE_6", "SITE_7"],
     }
+
+
+def test_build_candidate_substrate_list_breaks_ties_deterministically() -> None:
+    tied = pd.DataFrame(
+        {
+            "KINASE_A": [0.9, 0.9, 0.9, 0.8],
+        },
+        index=["SITE_3", "SITE_1", "SITE_2", "SITE_4"],
+    )
+
+    substrate_list = build_candidate_substrate_list(
+        tied,
+        top=3,
+        score_threshold=0.1,
+        inclusion=1,
+    )
+
+    assert substrate_list["KINASE_A"] == ["SITE_1", "SITE_2", "SITE_3"]
+
+
+def test_coverage_negative_batches_expand_pool_exposure() -> None:
+    rng = np.random.default_rng(7)
+    batches = _build_coverage_negative_batches(
+        negative_index=np.array([f"NEG_{idx}" for idx in range(1, 11)], dtype=object),
+        batch_size=4,
+        ensemble_size=3,
+        rng=rng,
+    )
+
+    assert len(batches) == 3
+    assert all(len(batch) == 4 for batch in batches)
+    distinct_seen = {str(site) for batch in batches for site in batch.tolist()}
+    assert len(distinct_seen) >= 10
 
 
 def test_kinase_predictor_returns_probability_matrix() -> None:
@@ -67,6 +102,55 @@ def test_kinase_predictor_returns_probability_matrix() -> None:
             ["SITE_1", "SITE_2", "SITE_3", "SITE_4"], "KINASE_B"
         ].mean()
     )
+
+
+def test_predict_supports_multiple_negative_sampling_strategies() -> None:
+    predictor = KinasePredictor()
+
+    random_result = predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=4,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=11,
+        negative_sampling_strategy="random",
+    )
+    coverage_result = predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=4,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=11,
+        negative_sampling_strategy="coverage",
+    )
+    hybrid_result = predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=4,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=11,
+        negative_sampling_strategy="hybrid",
+    )
+
+    assert list(random_result.pred_matrix.columns) == ["KINASE_A", "KINASE_B"]
+    assert list(coverage_result.pred_matrix.columns) == ["KINASE_A", "KINASE_B"]
+    assert list(hybrid_result.pred_matrix.columns) == ["KINASE_A", "KINASE_B"]
+
+
+def test_predict_rejects_unknown_negative_sampling_strategy() -> None:
+    predictor = KinasePredictor()
+
+    with pytest.raises(ValueError, match="negative_sampling_strategy"):
+        predictor.predict(
+            combined_scores=make_combined_scores(),
+            negative_sampling_strategy="nope",
+        )
 
 
 def test_predict_from_scoring_result_uses_combined_scores() -> None:
