@@ -4,6 +4,7 @@ required_pkgs <- c("PhosR", "SummarizedExperiment")
 native_pred_top <- 30L
 native_pred_cs <- 0.6
 native_pred_inclusion <- 5L
+native_prediction_rank_top <- 30L
 
 missing_pkgs <- required_pkgs[
   !vapply(required_pkgs, requireNamespace, logical(1), quietly = TRUE)
@@ -103,6 +104,35 @@ write_grouped_mapping <- function(mapping, out_path, key_col = "kinase", value_c
   }
 
   names(rows) <- c(key_col, value_col)
+  write.csv(rows, out_path, row.names = FALSE)
+}
+
+write_ranked_prediction_table <- function(pred_mat, out_path, top_n = NULL) {
+  kinase_names <- colnames(pred_mat)
+  rows <- do.call(rbind, lapply(kinase_names, function(kinase) {
+    ordered <- sort(pred_mat[, kinase], decreasing = TRUE)
+    if (!is.null(top_n)) {
+      ordered <- ordered[seq_len(min(top_n, length(ordered)))]
+    }
+    data.frame(
+      kinase = rep(kinase, length(ordered)),
+      site_id = names(ordered),
+      pred_score = as.numeric(unname(ordered)),
+      rank = seq_along(ordered),
+      stringsAsFactors = FALSE
+    )
+  }))
+
+  if (is.null(rows)) {
+    rows <- data.frame(
+      kinase = character(0),
+      site_id = character(0),
+      pred_score = numeric(0),
+      rank = integer(0),
+      stringsAsFactors = FALSE
+    )
+  }
+
   write.csv(rows, out_path, row.names = FALSE)
 }
 
@@ -476,6 +506,11 @@ main <- function() {
     row.names = FALSE
   )
   write.csv(L6.predMat, file.path(outdir, "predMat.csv"), row.names = TRUE)
+  write_ranked_prediction_table(
+    L6.predMat,
+    file.path(outdir, "native_prediction_top30.csv"),
+    top_n = native_prediction_rank_top
+  )
   write.csv(kinase_activity, file.path(outdir, "kinase_activity_matrix.csv"), row.names = TRUE)
   write.csv(ksea$scores, file.path(outdir, "ksea_scores.csv"), row.names = TRUE)
   write.csv(

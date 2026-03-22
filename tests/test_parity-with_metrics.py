@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -149,6 +150,68 @@ def _top_n_overlap(expected: list[str], actual: list[str], n: int) -> float:
     if not expected_top:
         return 0.0
     return len(set(expected_top) & set(actual_top)) / float(len(expected_top))
+
+
+def _env_flag(name: str) -> bool:
+    value = os.getenv(name, "")
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _show_parity_metrics() -> bool:
+    return _env_flag("PHOSPY_SHOW_PARITY")
+
+
+def _show_profile_construction_metrics() -> bool:
+    return _show_parity_metrics() and _env_flag("PHOSPY_SHOW_PROFILE_CONSTRUCTION")
+
+
+def _mean_abs_diff(actual: pd.DataFrame, expected: pd.DataFrame) -> float:
+    aligned_actual = actual.sort_index().sort_index(axis=1)
+    aligned_expected = expected.sort_index().sort_index(axis=1)
+    diff = (aligned_actual - aligned_expected).abs().to_numpy().ravel()
+    if diff.size == 0:
+        return 0.0
+    return float(pd.Series(diff).mean())
+
+
+def _max_abs_diff(actual: pd.DataFrame, expected: pd.DataFrame) -> float:
+    aligned_actual = actual.sort_index().sort_index(axis=1)
+    aligned_expected = expected.sort_index().sort_index(axis=1)
+    diff = (aligned_actual - aligned_expected).abs().to_numpy().ravel()
+    if diff.size == 0:
+        return 0.0
+    return float(pd.Series(diff).max())
+
+
+def _mean_column_correlation(
+    actual: pd.DataFrame, expected: pd.DataFrame, *, method: str = "pearson"
+) -> float:
+    common_index = actual.index.intersection(expected.index)
+    common_columns = actual.columns.intersection(expected.columns)
+    corrs: list[float] = []
+    for column in common_columns:
+        actual_col = actual.loc[common_index, column]
+        expected_col = expected.loc[common_index, column]
+        corr = actual_col.corr(expected_col, method=method)
+        if pd.notna(corr):
+            corrs.append(float(corr))
+    if not corrs:
+        return float("nan")
+    return sum(corrs) / len(corrs)
+
+
+def _maybe_print_metrics(
+    title: str, lines: list[str], *, optional: bool = False
+) -> None:
+    if optional:
+        if not _show_profile_construction_metrics():
+            return
+    elif not _show_parity_metrics():
+        return
+
+    print(f"\n{title}:")
+    for line in lines:
+        print(f"  {line}")
 
 
 def _sort_table(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
@@ -407,6 +470,19 @@ def test_l6_native_profile_construction_matches_r_reference() -> None:
         .sort_index()
         .sort_index(axis=1)
     )
+
+    _maybe_print_metrics(
+        "Optional profile-construction parity metrics",
+        [
+            f"kinases compared: {len(actual_profile.index.intersection(expected_profile.index))}",
+            f"profile matrix shape: {actual_profile.shape} vs {expected_profile.shape}",
+            f"mean per-kinase Pearson correlation: {_mean_column_correlation(actual_profile.T, expected_profile.T, method='pearson') * 100:.2f}%",
+            f"mean absolute difference: {_mean_abs_diff(actual_profile, expected_profile):.6g}",
+            f"max absolute difference: {_max_abs_diff(actual_profile, expected_profile):.6g}",
+        ],
+        optional=True,
+    )
+
     _assert_frame_close(actual_profile, expected_profile)
 
     actual_quantified = {
@@ -444,6 +520,19 @@ def test_l6_native_profile_scores_match_r_reference() -> None:
         .sort_index()
         .sort_index(axis=1)
     )
+
+    _maybe_print_metrics(
+        "Profile-scoring parity metrics",
+        [
+            f"sites compared: {len(actual_profile_scores.index)}",
+            f"kinases compared: {len(actual_profile_scores.columns)}",
+            f"mean per-kinase Pearson correlation: {_mean_column_correlation(actual_profile_scores, expected_profile_scores, method='pearson') * 100:.2f}%",
+            f"mean per-kinase Spearman correlation: {_mean_column_correlation(actual_profile_scores, expected_profile_scores, method='spearman') * 100:.2f}%",
+            f"mean absolute difference: {_mean_abs_diff(actual_profile_scores, expected_profile_scores):.6g}",
+            f"max absolute difference: {_max_abs_diff(actual_profile_scores, expected_profile_scores):.6g}",
+        ],
+    )
+
     _assert_frame_close(actual_profile_scores, expected_profile_scores, atol=1e-7)
 
 
@@ -499,8 +588,23 @@ def test_l6_native_combined_scores_match_r_reference() -> None:
         .sort_index()
     )
 
+    actual_combined = actual_combined.sort_index().sort_index(axis=1)
+
+    _maybe_print_metrics(
+        "Combined-score parity metrics",
+        [
+            f"sites compared: {len(actual_combined.index)}",
+            f"kinases compared: {len(actual_combined.columns)}",
+            f"mean per-kinase Pearson correlation: {_mean_column_correlation(actual_combined, expected_combined, method='pearson') * 100:.2f}%",
+            f"mean per-kinase Spearman correlation: {_mean_column_correlation(actual_combined, expected_combined, method='spearman') * 100:.2f}%",
+            f"mean absolute difference: {_mean_abs_diff(actual_combined, expected_combined):.6g}",
+            f"max absolute difference: {_max_abs_diff(actual_combined, expected_combined):.6g}",
+            f"mean weight absolute difference: {_mean_abs_diff(actual_weights.sort_index(), expected_weights):.6g}",
+        ],
+    )
+
     _assert_frame_close(
-        actual_combined.sort_index().sort_index(axis=1),
+        actual_combined,
         expected_combined,
         atol=1e-7,
     )
@@ -597,7 +701,26 @@ def test_l6_native_prediction_rankings_agree_with_r_reference() -> None:
         )
         rank_correlations.append(expected_ranks.corr(actual_ranks, method="spearman"))
 
-    assert pd.Series(rank_correlations).mean() >= 0.96
-    assert pd.Series(top20_overlaps).mean() >= 0.85
-    assert pd.Series(top30_overlaps).mean() >= 0.88
-    assert sum(overlap >= 0.7 for overlap in top10_overlaps) >= 20
+    mean_spearman = float(pd.Series(rank_correlations).mean())
+    mean_top10_overlap = float(pd.Series(top10_overlaps).mean())
+    mean_top20_overlap = float(pd.Series(top20_overlaps).mean())
+    mean_top30_overlap = float(pd.Series(top30_overlaps).mean())
+    n_good_top10 = sum(overlap >= 0.7 for overlap in top10_overlaps)
+    n_kinases = len(common_kinases)
+
+    _maybe_print_metrics(
+        "Prediction parity metrics",
+        [
+            f"kinases compared: {n_kinases}",
+            f"mean Spearman rank agreement: {mean_spearman * 100:.2f}%",
+            f"mean top-10 overlap: {mean_top10_overlap * 100:.2f}%",
+            f"mean top-20 overlap: {mean_top20_overlap * 100:.2f}%",
+            f"mean top-30 overlap: {mean_top30_overlap * 100:.2f}%",
+            f"kinases with top-10 overlap >= 70%: {n_good_top10}/{n_kinases}",
+        ],
+    )
+
+    assert mean_spearman >= 0.96
+    assert mean_top20_overlap >= 0.85
+    assert mean_top30_overlap >= 0.88
+    assert n_good_top10 >= 20

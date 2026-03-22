@@ -1,15 +1,12 @@
 # Parity Model
 
-This document explains what parity means in PhosPy, where parity evidence currently exists, and where it does not.
+This document explains what parity means in PhosPy, where parity evidence currently exists, how to inspect parity metrics, and where parity has not been established.
 
-PhosPy is an unofficial Python port of selected PhosR workflow components. Some parts of the project are tested directly
-against R-generated fixtures, while newer native workflow pieces are currently better described as PhosR-style
-implementations with targeted fixture-backed seams rather than blanket claims of numerical equivalence.
+PhosPy is an unofficial Python port of selected PhosR workflow components. Some parts of the project are tested directly against R-generated fixtures, while newer native workflow pieces are better described as PhosR-style implementations with targeted fixture-backed seams rather than blanket claims of numerical equivalence.
 
 ## What Parity Means Here
 
-In this repository, “parity” means that a specific Python path has been compared against outputs generated from the R
-package and shown to agree within the limits of the fixture-backed tests for that path.
+In this repository, “parity” means that a specific Python path has been compared against outputs generated from the R package and shown to agree within the limits of the fixture-backed tests for that path.
 
 Parity in this project is therefore:
 
@@ -18,8 +15,7 @@ Parity in this project is therefore:
 - limited to named workflow seams
 - narrower than full package equivalence
 
-It does **not** mean that the repository as a whole is a complete behavioural, numerical, or feature-level replacement
-for PhosR.
+It does **not** mean that the repository as a whole is a complete behavioural, numerical, or feature-level replacement for PhosR.
 
 ## What Parity Does Not Mean
 
@@ -31,8 +27,7 @@ Parity should not be read as a claim of:
 - broad numerical equivalence for the newer native kinase workflow outside the seams documented here
 - a native Python replacement for `Signalomes()`
 
-Where parity has not been established, PhosPy should be described as an evolving Python port inspired by and translating
-selected parts of the PhosR workflow.
+Where parity has not been established, PhosPy should be described as an evolving Python port inspired by and translating selected parts of the PhosR workflow.
 
 ## Current Parity-Backed Areas
 
@@ -40,17 +35,15 @@ The strongest current parity evidence in this repository is for:
 
 - deterministic preprocessing and matrix-building seams backed by small synthetic fixtures
 - downstream kinase-analysis summaries backed by R-generated fixtures
-- selected native kinase workflow seams where Python outputs are checked against reference expectations captured in
-  fixtures and tests
+- selected native kinase workflow seams where Python outputs are checked against reference expectations captured in fixtures and tests
 
-These checks provide confidence in the implemented paths, but they are still narrower than a claim of package-wide
-equivalence.
+These checks provide confidence in the implemented paths, but they are still narrower than a claim of package-wide equivalence.
 
 ## Fixture Paths
 
 This repository currently uses two fixture paths.
 
-The bundled L6 path is also the preferred place to extend native-seam parity because it has enough phosphosites to make profile construction, score combination, and candidate-substrate selection meaningful.
+The bundled L6 path is also the preferred place to extend native-seam parity because it has enough phosphosites to make profile construction, score combination, candidate-substrate selection, and ranked prediction agreement meaningful.
 
 ### Small Synthetic Fixture Path
 
@@ -72,14 +65,11 @@ This writes CSV fixtures into `tests/fixtures/r_reference/` for:
 - substrate counts
 - `sessionInfo()` for provenance
 
-This path is useful for logic-level parity and regression protection in the core preprocessing and downstream summary
-flow. It should not be treated as strong evidence for broader downstream equivalence beyond the implemented and tested
-wrapper path.
+This path is useful for logic-level parity and regression protection in the core preprocessing and downstream summary flow. It should not be treated as strong evidence for broader downstream equivalence beyond the implemented and tested wrapper path.
 
 ### Bundled PhosR L6 Fixture Path
 
-Use this path for a more realistic downstream kinase-analysis parity check based on PhosR’s bundled rat L6 myotube
-example dataset, which is used throughout the original package examples and vignette.
+Use this path for a more realistic downstream kinase-analysis parity check based on PhosR’s bundled rat L6 myotube example dataset, which is used throughout the original package examples and vignette.
 
 Generate fixtures with:
 
@@ -93,6 +83,7 @@ This writes CSV fixtures into `tests/fixtures/r_reference_l6/` for:
 - native-seam inputs and outputs for kinase-profile construction
 - native profile-score and combined-score matrices
 - native combined-score weights and candidate-substrate selections
+- ranked native prediction outputs for the top R L6 predictions
 - `predMat`
 - weighted kinase activity
 - KSEA scores
@@ -118,12 +109,11 @@ At present, it should be described carefully:
 
 - it is a live native workflow, not just a thin wrapper
 - parts of it are tested and fixture-backed
-- the strongest current native-seam parity targets are profile construction, profile scoring, weighted score
-  combination, and candidate-substrate selection
+- the strongest current native-seam parity targets are profile construction, profile scoring, weighted score combination, candidate-substrate selection, and ranked prediction agreement on the L6 fixture path
 - it is **not** yet a blanket claim of numerical equivalence to the R package
 - full adaptive-SVM prediction probabilities should not yet be treated as parity-backed across implementations
-- parity claims for this path should stay limited to the specific seams that are explicitly covered by fixtures and
-  tests
+- prediction parity is currently expressed as agreement in ranking behaviour and top-call overlap, not raw matrix equality
+- parity claims for this path should stay limited to the specific seams that are explicitly covered by fixtures and tests
 
 That distinction matters. The project can be both useful and scientifically careful at the same time.
 
@@ -137,6 +127,49 @@ pytest -m parity
 
 These tests should be treated as the executable definition of the repository’s current parity contract.
 
+## Inspecting Parity Metrics
+
+The parity suite can also print summary metrics for the most informative native seams.
+
+Set `PHOSPY_SHOW_PARITY=1` and run the parity tests without output capture:
+
+```bash
+PHOSPY_SHOW_PARITY=1 pytest -m parity -s
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:PHOSPY_SHOW_PARITY="1"
+pytest -m parity -s
+```
+
+This prints metric summaries for:
+
+- prediction parity
+- combined-score parity
+- profile-scoring parity
+
+These summaries are intended to make the parity story easier to inspect during development and review. They are informative diagnostics, not a replacement for the test assertions themselves.
+
+### Optional Profile-Construction Metrics
+
+Profile-construction parity output is available separately because it is useful, but usually less informative than the scoring and prediction summaries.
+
+To show it as well:
+
+```bash
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 pytest -m parity -s
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:PHOSPY_SHOW_PARITY="1"
+$env:PHOSPY_SHOW_PROFILE_CONSTRUCTION="1"
+pytest -m parity -s
+```
+
 ## Maintenance Rule
 
 When a parity-backed workflow changes, at least one of the following should also change in the same line of work:
@@ -145,15 +178,13 @@ When a parity-backed workflow changes, at least one of the following should also
 - the tests
 - the documented scope of the parity claim
 
-Do not silently broaden the parity claim in the README or other project documentation without adding the corresponding
-fixture-backed evidence.
+Do not silently broaden the parity claim in the README or other project documentation without adding the corresponding fixture-backed evidence.
 
 ## Recommended Wording for Project Status
 
 For now, PhosPy is best described as:
 
-> an unofficial Python port of selected PhosR workflow components, with fixture-backed parity for specific preprocessing
-> and downstream kinase-analysis seams, plus a growing native kinase workflow implemented in Python.
+> an unofficial Python port of selected PhosR workflow components, with fixture-backed parity for specific preprocessing and downstream kinase-analysis seams, plus a growing native kinase workflow implemented in Python.
 
 Avoid describing the project as:
 
@@ -164,5 +195,4 @@ Avoid describing the project as:
 
 ## Provenance
 
-Generated fixtures should keep provenance information, including `sessionInfo()` where available, so that reference
-outputs can be tied back to the R environment used to create them.
+Generated fixtures should keep provenance information, including `sessionInfo()` where available, so that reference outputs can be tied back to the R environment used to create them.
