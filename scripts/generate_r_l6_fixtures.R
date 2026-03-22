@@ -477,8 +477,8 @@ trace_kinase_substrate_pred <- function(
   phosScoringMatrices,
   ensembleSize = 10,
   top = 50,
-  cs = 0.6,
-  inclusion = 5,
+  cs = 0.8,
+  inclusion = 20,
   iter = 5,
   trace_kinases = c("PRKAA1", "MAPK1"),
   trace_top_n = 10
@@ -645,8 +645,6 @@ main <- function() {
   L6.prediction <- trace_kinase_substrate_pred(
     L6.matrices,
     top = 30,
-    cs = 0.6,
-    inclusion = 5,
     trace_kinases = trace_kinases,
     trace_top_n = trace_top_n
   )
@@ -695,5 +693,3 @@ main <- function() {
 }
 
 main()
-
-# python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1 --sampling-trace-dir tests/fixtures/r_reference_l6/prediction_trace

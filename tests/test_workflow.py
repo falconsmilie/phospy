@@ -156,3 +156,31 @@ def test_kinase_workflow_requires_site_sequences_when_motifs_are_provided() -> N
             site_sequences=None,
             motif_sequences=motif_sequences,
         )
+
+
+def test_run_kinase_workflow_accepts_explicit_svm_mode() -> None:
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
+        make_workflow_inputs()
+    )
+
+    result = run_kinase_workflow(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        min_substrates=2,
+        min_motif_size=2,
+        ensemble_size=2,
+        top=4,
+        score_threshold=0.75,
+        inclusion=3,
+        n_iterations=2,
+        random_state=17,
+        flank_size=2,
+        svm_mode="r_parity",
+    )
+
+    assert list(result.prediction_result.pred_matrix.columns) == [
+        "KINASE_A",
+        "KINASE_B",
+    ]

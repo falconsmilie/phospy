@@ -4,8 +4,7 @@ These files are generated from the native Python predictor with debug tracing en
 They are intended for direct comparison with the R trace fixtures generated from the PhosR L6 example path.
 
 Trace kinases: PRKAA1
-
-Sampling trace override: tests/fixtures/r_reference_l6/prediction_trace
+SVM mode: r_parity
 
 Files:
 - trace_candidates.csv: ranked combined-score candidates for the traced kinases

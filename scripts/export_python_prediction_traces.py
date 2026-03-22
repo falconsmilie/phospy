@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy import KinasePredictor, PredictionSamplingTrace
+from phospy import KinasePredictor
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -42,13 +42,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--random-state", type=int, default=1)
     parser.add_argument("--debug-top-n", type=int, default=10)
     parser.add_argument(
-        "--sampling-trace-dir",
-        default=None,
-        help=(
-            "Optional directory containing R-exported trace_initial_negatives.csv "
-            "and trace_iteration_samples.csv. When provided, Python replays "
-            "those sampled rows so the remaining delta is model-only."
-        ),
+        "--svm-mode",
+        choices=["default", "r_parity"],
+        default="r_parity",
+        help="SVM configuration mode to use for Python trace export.",
     )
     return parser.parse_args()
 
@@ -100,7 +97,7 @@ def export_traces(
     score_threshold: float,
     inclusion: int,
     trace_kinases: list[str],
-    sampling_trace_dir: str | None,
+    svm_mode: str,
 ) -> None:
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -229,8 +226,7 @@ def export_traces(
         "They are intended for direct comparison with the R trace fixtures generated from the PhosR L6 example path.",
         "",
         f"Trace kinases: {', '.join(trace_kinases)}",
-        "",
-        f"Sampling trace override: {sampling_trace_dir or 'none'}",
+        f"SVM mode: {svm_mode}",
         "",
         "Files:",
         "- trace_candidates.csv: ranked combined-score candidates for the traced kinases",
@@ -249,11 +245,6 @@ def main() -> None:
     trace_kinases = parse_csv_values(args.trace_kinases)
 
     predictor = KinasePredictor()
-    sampling_trace = None
-    if args.sampling_trace_dir:
-        sampling_trace = PredictionSamplingTrace.from_trace_directory(
-            args.sampling_trace_dir
-        ).subset_kinases(trace_kinases)
     result = predictor.predict(
         combined_scores=combined_scores,
         ensemble_size=args.ensemble_size,
@@ -265,7 +256,7 @@ def main() -> None:
         capture_debug_trace=True,
         debug_kinases=trace_kinases,
         debug_top_n=args.debug_top_n,
-        sampling_trace=sampling_trace,
+        svm_mode=args.svm_mode,
     )
 
     export_traces(
@@ -276,7 +267,7 @@ def main() -> None:
         score_threshold=args.score_threshold,
         inclusion=args.inclusion,
         trace_kinases=trace_kinases,
-        sampling_trace_dir=args.sampling_trace_dir,
+        svm_mode=args.svm_mode,
     )
 
     print(f"Done. Python prediction traces written to: {args.outdir}")

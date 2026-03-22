@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
-
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -9,10 +8,9 @@ from phospy import (
     KinasePredictionResult,
     KinasePredictor,
     KinaseScoringResult,
-    PredictionSamplingTrace,
     build_candidate_substrate_list,
 )
-from phospy.prediction import _RLikeStandardScaler
+from phospy.prediction import _make_svm, _require_sklearn, _RLikeStandardScaler
 
 
 def make_combined_scores() -> pd.DataFrame:
@@ -23,32 +21,6 @@ def make_combined_scores() -> pd.DataFrame:
         },
         index=[f"SITE_{i}" for i in range(1, 9)],
     )
-
-
-def test_r_like_standard_scaler_uses_sample_standard_deviation() -> None:
-    scaler = _RLikeStandardScaler().fit(
-        pd.DataFrame(
-            {
-                "a": [1.0, 3.0, 5.0],
-                "b": [2.0, 2.0, 2.0],
-            }
-        ).to_numpy(dtype=float)
-    )
-
-    transformed = scaler.transform(
-        pd.DataFrame(
-            {
-                "a": [1.0, 3.0, 5.0],
-                "b": [2.0, 2.0, 2.0],
-            }
-        ).to_numpy(dtype=float)
-    )
-
-    assert scaler.mean_.tolist() == [3.0, 2.0]
-    assert scaler.scale_[0] == pytest.approx(2.0)
-    assert scaler.scale_[1] == pytest.approx(1.0)
-    assert transformed[:, 0].tolist() == pytest.approx([-1.0, 0.0, 1.0])
-    assert transformed[:, 1].tolist() == pytest.approx([0.0, 0.0, 0.0])
 
 
 def test_build_candidate_substrate_list_applies_selection_rules() -> None:
@@ -252,251 +224,88 @@ def test_build_candidate_substrate_list_preserves_input_order_for_ties() -> None
     assert substrate_list == {"KINASE_A": ["SITE_A", "SITE_B", "SITE_C"]}
 
 
-def _write_sampling_trace_fixture(trace_dir: Path) -> Path:
-    trace_dir.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(
-        [
-            {"kinase": "KINASE_A", "ensemble": 1, "draw": 1, "site": "SITE_8"},
-            {"kinase": "KINASE_A", "ensemble": 1, "draw": 2, "site": "SITE_8"},
-            {"kinase": "KINASE_A", "ensemble": 1, "draw": 3, "site": "SITE_7"},
-            {"kinase": "KINASE_A", "ensemble": 1, "draw": 4, "site": "SITE_6"},
-        ]
-    ).to_csv(trace_dir / "trace_initial_negatives.csv", index=False)
-    pd.DataFrame(
-        [
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 1,
-                "class_label": 1,
-                "draw": 1,
-                "site": "SITE_4",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 1,
-                "class_label": 1,
-                "draw": 2,
-                "site": "SITE_4",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 1,
-                "class_label": 1,
-                "draw": 3,
-                "site": "SITE_2",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 1,
-                "class_label": 1,
-                "draw": 4,
-                "site": "SITE_1",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 1,
-                "class_label": 2,
-                "draw": 1,
-                "site": "SITE_8",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 1,
-                "class_label": 2,
-                "draw": 2,
-                "site": "SITE_8",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 1,
-                "class_label": 2,
-                "draw": 3,
-                "site": "SITE_7",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 1,
-                "class_label": 2,
-                "draw": 4,
-                "site": "SITE_6",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 2,
-                "class_label": 1,
-                "draw": 1,
-                "site": "SITE_3",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 2,
-                "class_label": 1,
-                "draw": 2,
-                "site": "SITE_3",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 2,
-                "class_label": 1,
-                "draw": 3,
-                "site": "SITE_2",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 2,
-                "class_label": 1,
-                "draw": 4,
-                "site": "SITE_1",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 2,
-                "class_label": 2,
-                "draw": 1,
-                "site": "SITE_8",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 2,
-                "class_label": 2,
-                "draw": 2,
-                "site": "SITE_7",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 2,
-                "class_label": 2,
-                "draw": 3,
-                "site": "SITE_7",
-            },
-            {
-                "kinase": "KINASE_A",
-                "ensemble": 1,
-                "iteration": 2,
-                "class_label": 2,
-                "draw": 4,
-                "site": "SITE_6",
-            },
-        ]
-    ).to_csv(trace_dir / "trace_iteration_samples.csv", index=False)
-    return trace_dir
+def test_r_like_standard_scaler_uses_sample_standard_deviation() -> None:
+    values = np.array([[1.0, 2.0], [3.0, 6.0], [5.0, 10.0]])
+
+    scaler = _RLikeStandardScaler().fit(values)
+    transformed = scaler.transform(values)
+
+    assert scaler.mean_ is not None
+    assert scaler.scale_ is not None
+    assert np.allclose(scaler.mean_, values.mean(axis=0))
+    assert np.allclose(scaler.scale_, values.std(axis=0, ddof=1))
+    assert np.allclose(transformed.mean(axis=0), [0.0, 0.0])
+    assert np.allclose(transformed.std(axis=0, ddof=1), [1.0, 1.0])
 
 
-def test_predict_can_replay_sampling_trace_from_directory(tmp_path: Path) -> None:
-    predictor = KinasePredictor()
-    trace_dir = _write_sampling_trace_fixture(tmp_path / "prediction_trace")
+def test_make_svm_default_mode_uses_sklearn_defaults_explicitly() -> None:
+    StandardScaler, SVC = _require_sklearn()
+
+    model = _make_svm(
+        StandardScaler=StandardScaler,
+        SVC=SVC,
+        kernel="rbf",
+        rng=np.random.default_rng(7),
+        svm_mode="default",
+    )
+
+    assert model.steps[0][1].__class__.__name__ == "StandardScaler"
+    assert model.steps[1][1].gamma == "scale"
+
+
+def test_make_svm_r_parity_mode_uses_r_like_scaler_and_gamma_auto() -> None:
+    StandardScaler, SVC = _require_sklearn()
+
+    model = _make_svm(
+        StandardScaler=StandardScaler,
+        SVC=SVC,
+        kernel="rbf",
+        rng=np.random.default_rng(7),
+        svm_mode="r_parity",
+    )
+
+    assert isinstance(model.steps[0][1], _RLikeStandardScaler)
+    assert model.steps[1][1].gamma == "auto"
+
+
+def test_predict_accepts_explicit_r_parity_mode() -> None:
+    predictor = KinasePredictor(svm_mode="r_parity")
 
     result = predictor.predict(
         combined_scores=make_combined_scores(),
-        ensemble_size=1,
+        ensemble_size=2,
         top=4,
         score_threshold=0.85,
         inclusion=3,
         n_iterations=2,
         random_state=5,
-        capture_debug_trace=True,
-        debug_kinases=["KINASE_A"],
-        sampling_trace=trace_dir,
     )
 
-    assert result.debug_traces is not None
-    ensemble_trace = result.debug_traces["KINASE_A"].ensemble_traces[0]
-    assert ensemble_trace.initial_negative_sites == [
-        "SITE_8",
-        "SITE_8",
-        "SITE_7",
-        "SITE_6",
-    ]
-    assert ensemble_trace.iterations[0].sampled_positive_sites == [
-        "SITE_4",
-        "SITE_4",
-        "SITE_2",
-        "SITE_1",
-    ]
-    assert ensemble_trace.iterations[0].sampled_negative_sites == [
-        "SITE_8",
-        "SITE_8",
-        "SITE_7",
-        "SITE_6",
-    ]
-    assert ensemble_trace.iterations[1].sampled_positive_sites == [
-        "SITE_3",
-        "SITE_3",
-        "SITE_2",
-        "SITE_1",
-    ]
-    assert ensemble_trace.iterations[1].sampled_negative_sites == [
-        "SITE_8",
-        "SITE_7",
-        "SITE_7",
-        "SITE_6",
-    ]
+    assert isinstance(result, KinasePredictionResult)
+    assert list(result.pred_matrix.columns) == ["KINASE_A", "KINASE_B"]
 
 
-def test_predict_accepts_preloaded_sampling_trace(tmp_path: Path) -> None:
-    predictor = KinasePredictor()
-    trace_dir = _write_sampling_trace_fixture(tmp_path / "prediction_trace")
-    sampling_trace = PredictionSamplingTrace.from_trace_directory(trace_dir)
+def test_predict_rejects_unknown_svm_mode() -> None:
+    with pytest.raises(ValueError, match="svm_mode"):
+        KinasePredictor(svm_mode="broken")  # type: ignore[arg-type]
 
-    result = predictor.predict(
+
+def test_predict_from_scoring_result_allows_svm_mode_override() -> None:
+    predictor = KinasePredictor(svm_mode="default")
+    scoring_result = KinaseScoringResult(
+        profile_scores=make_combined_scores(),
         combined_scores=make_combined_scores(),
-        ensemble_size=1,
+    )
+
+    result = predictor.predict_from_scoring_result(
+        scoring_result,
+        ensemble_size=2,
         top=4,
         score_threshold=0.85,
         inclusion=3,
         n_iterations=2,
-        random_state=5,
-        capture_debug_trace=True,
-        debug_kinases=["KINASE_A"],
-        sampling_trace=sampling_trace,
+        random_state=9,
+        svm_mode="r_parity",
     )
 
-    assert result.debug_traces is not None
-    ensemble_trace = result.debug_traces["KINASE_A"].ensemble_traces[0]
-    assert ensemble_trace.initial_negative_sites == [
-        "SITE_8",
-        "SITE_8",
-        "SITE_7",
-        "SITE_6",
-    ]
-
-
-def test_predict_raises_for_invalid_sampling_trace_sites(tmp_path: Path) -> None:
-    predictor = KinasePredictor()
-    trace_dir = tmp_path / "prediction_trace"
-    trace_dir.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(
-        [
-            {"kinase": "KINASE_A", "ensemble": 1, "draw": 1, "site": "SITE_8"},
-            {"kinase": "KINASE_A", "ensemble": 1, "draw": 2, "site": "SITE_7"},
-            {"kinase": "KINASE_A", "ensemble": 1, "draw": 3, "site": "SITE_6"},
-            {"kinase": "KINASE_A", "ensemble": 1, "draw": 4, "site": "SITE_404"},
-        ]
-    ).to_csv(trace_dir / "trace_initial_negatives.csv", index=False)
-
-    with pytest.raises(ValueError, match="outside the available training rows"):
-        predictor.predict(
-            combined_scores=make_combined_scores(),
-            ensemble_size=1,
-            top=4,
-            score_threshold=0.85,
-            inclusion=3,
-            n_iterations=2,
-            random_state=5,
-            sampling_trace=trace_dir,
-        )
+    assert list(result.pred_matrix.columns) == ["KINASE_A", "KINASE_B"]

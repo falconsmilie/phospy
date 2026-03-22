@@ -6,7 +6,11 @@ from dataclasses import dataclass
 import pandas as pd
 
 from .motifs import KinaseMotifScorer, MotifScoringResult
-from .prediction import KinasePredictionResult, KinasePredictor
+from .prediction import (
+    KinasePredictionResult,
+    KinasePredictor,
+    PredictionSvmMode,
+)
 from .profiles import (
     AggregationMethod,
     KinaseProfileBuilder,
@@ -31,10 +35,12 @@ class KinaseWorkflow:
         aggregation: AggregationMethod = "median",
         flank_size: int = 7,
         kernel: str = "rbf",
+        svm_mode: PredictionSvmMode = "default",
     ) -> None:
         self.aggregation = aggregation
         self.flank_size = flank_size
         self.kernel = kernel
+        self.svm_mode = svm_mode
 
     def run(
         self,
@@ -51,6 +57,7 @@ class KinaseWorkflow:
         inclusion: int = 20,
         n_iterations: int = 5,
         random_state: int | None = None,
+        svm_mode: PredictionSvmMode | None = None,
     ) -> KinaseWorkflowResult:
         if not substrate_map:
             msg = "substrate_map must not be empty"
@@ -104,7 +111,10 @@ class KinaseWorkflow:
         else:
             scoring_result = scorer.score(phospho_matrix=phospho_matrix)
 
-        predictor = KinasePredictor(kernel=self.kernel)
+        predictor = KinasePredictor(
+            kernel=self.kernel,
+            svm_mode=self.svm_mode if svm_mode is None else svm_mode,
+        )
         prediction_result = predictor.predict_from_scoring_result(
             scoring_result=scoring_result,
             ensemble_size=ensemble_size,
@@ -114,6 +124,7 @@ class KinaseWorkflow:
             n_iterations=n_iterations,
             random_state=random_state,
             allow_profile_only_fallback=allow_profile_only_fallback,
+            svm_mode=svm_mode,
         )
 
         return KinaseWorkflowResult(
@@ -141,11 +152,13 @@ def run_kinase_workflow(
     aggregation: AggregationMethod = "median",
     flank_size: int = 7,
     kernel: str = "rbf",
+    svm_mode: PredictionSvmMode = "default",
 ) -> KinaseWorkflowResult:
     workflow = KinaseWorkflow(
         aggregation=aggregation,
         flank_size=flank_size,
         kernel=kernel,
+        svm_mode=svm_mode,
     )
     return workflow.run(
         phospho_matrix=phospho_matrix,
@@ -161,4 +174,5 @@ def run_kinase_workflow(
         inclusion=inclusion,
         n_iterations=n_iterations,
         random_state=random_state,
+        svm_mode=svm_mode,
     )

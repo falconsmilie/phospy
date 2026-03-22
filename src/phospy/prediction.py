@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from typing import Literal
 
 import numpy as np
 import pandas as pd
 
 from .scoring import KinaseScoringResult
+
+PredictionSvmMode = Literal["default", "r_parity"]
 
 
 @dataclass(slots=True)
@@ -44,110 +46,51 @@ class KinasePredictionResult:
     debug_traces: dict[str, KinasePredictionDebugTrace] | None = None
 
 
-@dataclass(slots=True)
-class SamplingTraceOverrideEnsemble:
-    initial_negative_sites: list[str] | None
-    iteration_sample_sites: dict[int, dict[int, list[str]]]
+class _RLikeStandardScaler:
+    """Match R scale() semantics used by e1071::svm scaling."""
 
-    def get_iteration_sample_sites(
-        self, iteration_index: int, class_label: int
-    ) -> list[str] | None:
-        return self.iteration_sample_sites.get(iteration_index, {}).get(class_label)
+    def __init__(self) -> None:
+        self.mean_: np.ndarray | None = None
+        self.scale_: np.ndarray | None = None
 
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        del deep
+        return {}
 
-@dataclass(slots=True)
-class PredictionSamplingTrace:
-    ensembles_by_kinase: dict[str, dict[int, SamplingTraceOverrideEnsemble]]
-
-    @classmethod
-    def from_trace_directory(cls, trace_dir: str | Path) -> PredictionSamplingTrace:
-        path = Path(trace_dir)
-        initial_path = path / "trace_initial_negatives.csv"
-        samples_path = path / "trace_iteration_samples.csv"
-        if not initial_path.exists() and not samples_path.exists():
-            msg = (
-                "sampling trace directory must contain trace_initial_negatives.csv "
-                "and/or trace_iteration_samples.csv"
-            )
+    def set_params(self, **params: object) -> _RLikeStandardScaler:
+        if params:
+            msg = f"_RLikeStandardScaler does not accept parameters: {sorted(params)}"
             raise ValueError(msg)
+        return self
 
-        ensembles_by_kinase: dict[str, dict[int, SamplingTraceOverrideEnsemble]] = {}
+    def fit(
+        self,
+        values: np.ndarray,
+        y: np.ndarray | None = None,
+    ) -> _RLikeStandardScaler:
+        del y
+        x = np.asarray(values, dtype=float)
+        self.mean_ = x.mean(axis=0)
+        if x.shape[0] > 1:
+            scale = x.std(axis=0, ddof=1)
+        else:
+            scale = np.ones(x.shape[1], dtype=float)
+        self.scale_ = np.where(np.isfinite(scale) & (scale > 0.0), scale, 1.0)
+        return self
 
-        if initial_path.exists():
-            initial_df = pd.read_csv(initial_path)
-            required_initial_cols = {"kinase", "ensemble", "draw", "site"}
-            if not required_initial_cols.issubset(initial_df.columns):
-                missing = sorted(required_initial_cols.difference(initial_df.columns))
-                raise ValueError(
-                    "trace_initial_negatives.csv is missing required columns: "
-                    + ", ".join(missing)
-                )
-            initial_df = initial_df.sort_values(
-                ["kinase", "ensemble", "draw"], kind="mergesort"
-            )
-            for (kinase, ensemble), group in initial_df.groupby(
-                ["kinase", "ensemble"], sort=False
-            ):
-                ensemble_map = ensembles_by_kinase.setdefault(str(kinase), {})
-                ensemble_map[int(ensemble)] = SamplingTraceOverrideEnsemble(
-                    initial_negative_sites=group.loc[:, "site"].astype(str).tolist(),
-                    iteration_sample_sites={},
-                )
+    def transform(self, values: np.ndarray) -> np.ndarray:
+        if self.mean_ is None or self.scale_ is None:
+            msg = "_RLikeStandardScaler must be fitted before transform()"
+            raise ValueError(msg)
+        x = np.asarray(values, dtype=float)
+        return (x - self.mean_) / self.scale_
 
-        if samples_path.exists():
-            samples_df = pd.read_csv(samples_path)
-            required_sample_cols = {
-                "kinase",
-                "ensemble",
-                "iteration",
-                "class_label",
-                "draw",
-                "site",
-            }
-            if not required_sample_cols.issubset(samples_df.columns):
-                missing = sorted(required_sample_cols.difference(samples_df.columns))
-                raise ValueError(
-                    "trace_iteration_samples.csv is missing required columns: "
-                    + ", ".join(missing)
-                )
-            samples_df = samples_df.sort_values(
-                ["kinase", "ensemble", "iteration", "class_label", "draw"],
-                kind="mergesort",
-            )
-            for (kinase, ensemble, iteration, class_label), group in samples_df.groupby(
-                ["kinase", "ensemble", "iteration", "class_label"], sort=False
-            ):
-                ensemble_map = ensembles_by_kinase.setdefault(str(kinase), {})
-                ensemble_override = ensemble_map.setdefault(
-                    int(ensemble),
-                    SamplingTraceOverrideEnsemble(
-                        initial_negative_sites=None,
-                        iteration_sample_sites={},
-                    ),
-                )
-                iteration_map = ensemble_override.iteration_sample_sites.setdefault(
-                    int(iteration), {}
-                )
-                iteration_map[int(class_label)] = (
-                    group.loc[:, "site"].astype(str).tolist()
-                )
-
-        return cls(ensembles_by_kinase=ensembles_by_kinase)
-
-    def get_ensemble_override(
-        self, kinase: str, ensemble_index: int
-    ) -> SamplingTraceOverrideEnsemble | None:
-        return self.ensembles_by_kinase.get(kinase, {}).get(ensemble_index)
-
-    def subset_kinases(self, kinases: list[str] | set[str]) -> PredictionSamplingTrace:
-        kinase_set = {str(kinase) for kinase in kinases}
-        return PredictionSamplingTrace(
-            ensembles_by_kinase={
-                kinase: ensemble_map
-                for kinase, ensemble_map in self.ensembles_by_kinase.items()
-                if kinase in kinase_set
-            }
-        )
+    def fit_transform(
+        self,
+        values: np.ndarray,
+        y: np.ndarray | None = None,
+    ) -> np.ndarray:
+        return self.fit(values, y=y).transform(values)
 
 
 class KinasePredictor:
@@ -157,10 +100,19 @@ class KinasePredictor:
     It mirrors the broad structure of ``kinaseSubstratePred()``: candidate
     substrates are selected from the combined score matrix, then an ensemble of
     adaptive SVM models is used to produce a kinase prediction matrix.
+
+    Use ``svm_mode='r_parity'`` when you want settings that more closely match
+    PhosR's e1071-based learner seam. The default mode preserves the standard
+    scikit-learn behaviour.
     """
 
-    def __init__(self, kernel: str = "rbf") -> None:
+    def __init__(
+        self,
+        kernel: str = "rbf",
+        svm_mode: PredictionSvmMode = "default",
+    ) -> None:
         self.kernel = kernel
+        self.svm_mode = _validate_svm_mode(svm_mode)
 
     def predict(
         self,
@@ -174,15 +126,16 @@ class KinasePredictor:
         capture_debug_trace: bool = False,
         debug_kinases: list[str] | None = None,
         debug_top_n: int = 10,
-        sampling_trace: PredictionSamplingTrace | str | Path | None = None,
+        svm_mode: PredictionSvmMode | None = None,
     ) -> KinasePredictionResult:
         _validate_positive_int(ensemble_size, name="ensemble_size")
         _validate_positive_int(top, name="top")
         _validate_positive_int(inclusion, name="inclusion")
         _validate_positive_int(n_iterations, name="n_iterations")
         _validate_positive_int(debug_top_n, name="debug_top_n")
-
-        sampling_trace_obj = _coerce_sampling_trace(sampling_trace)
+        resolved_svm_mode = (
+            self.svm_mode if svm_mode is None else _validate_svm_mode(svm_mode)
+        )
 
         substrate_list = build_candidate_substrate_list(
             combined_scores,
@@ -219,7 +172,7 @@ class KinasePredictor:
             positive_train = feature_mat.loc[substrates, :]
             negative_pool = feature_mat.loc[
                 ~feature_mat.index.isin(substrates),
-                :,
+                :,  # noqa: E203
             ]
             if negative_pool.empty:
                 msg = (
@@ -240,35 +193,12 @@ class KinasePredictor:
                 )
 
             for ensemble_idx in range(ensemble_size):
-                ensemble_index = ensemble_idx + 1
-                ensemble_override = None
-                if sampling_trace_obj is not None:
-                    ensemble_override = sampling_trace_obj.get_ensemble_override(
-                        kinase=kinase,
-                        ensemble_index=ensemble_index,
-                    )
-
-                if (
-                    ensemble_override is not None
-                    and ensemble_override.initial_negative_sites is not None
-                ):
-                    negative_sites = _validate_override_sites(
-                        available_sites=negative_pool.index,
-                        sampled_sites=ensemble_override.initial_negative_sites,
-                        expected_size=len(positive_train),
-                        context=(
-                            f"initial negatives for kinase={kinase}, "
-                            f"ensemble={ensemble_index}"
-                        ),
-                    )
-                else:
-                    negative_indices = rng.choice(
-                        negative_pool.index.to_numpy(),
-                        size=len(positive_train),
-                        replace=len(negative_pool) < len(positive_train),
-                    )
-                    negative_sites = list(negative_indices.tolist())
-
+                negative_indices = rng.choice(
+                    negative_pool.index.to_numpy(),
+                    size=len(positive_train),
+                    replace=len(negative_pool) < len(positive_train),
+                )
+                negative_sites = list(negative_indices.tolist())
                 negative_train = negative_pool.loc[negative_sites, :]
                 train_mat = pd.concat([positive_train, negative_train], axis=0)
                 labels = np.concatenate(
@@ -291,10 +221,10 @@ class KinasePredictor:
                         n_iterations=n_iterations,
                         rng=rng,
                         capture_trace=True,
-                        ensemble_index=ensemble_index,
+                        ensemble_index=ensemble_idx + 1,
                         initial_negative_sites=negative_sites,
                         debug_top_n=debug_top_n,
-                        sampling_override=ensemble_override,
+                        svm_mode=resolved_svm_mode,
                     )
                     if ensemble_trace is not None:
                         debug_traces[kinase].ensemble_traces.append(ensemble_trace)
@@ -307,10 +237,10 @@ class KinasePredictor:
                         n_iterations=n_iterations,
                         rng=rng,
                         capture_trace=False,
-                        ensemble_index=ensemble_index,
+                        ensemble_index=ensemble_idx + 1,
                         initial_negative_sites=negative_sites,
                         debug_top_n=debug_top_n,
-                        sampling_override=ensemble_override,
+                        svm_mode=resolved_svm_mode,
                     )
 
                 pred_matrix.loc[:, kinase] += series
@@ -335,7 +265,7 @@ class KinasePredictor:
         capture_debug_trace: bool = False,
         debug_kinases: list[str] | None = None,
         debug_top_n: int = 10,
-        sampling_trace: PredictionSamplingTrace | str | Path | None = None,
+        svm_mode: PredictionSvmMode | None = None,
     ) -> KinasePredictionResult:
         if scoring_result.combined_scores is not None:
             feature_mat = scoring_result.combined_scores
@@ -359,7 +289,7 @@ class KinasePredictor:
             capture_debug_trace=capture_debug_trace,
             debug_kinases=debug_kinases,
             debug_top_n=debug_top_n,
-            sampling_trace=sampling_trace,
+            svm_mode=svm_mode,
         )
 
 
@@ -398,7 +328,7 @@ def _multi_ada_sampling(
     ensemble_index: int,
     initial_negative_sites: list[str],
     debug_top_n: int,
-    sampling_override: SamplingTraceOverrideEnsemble | None,
+    svm_mode: PredictionSvmMode,
 ) -> tuple[pd.Series, AdaptiveSamplingEnsembleTrace | None]:
     StandardScaler, SVC = _require_sklearn()
 
@@ -412,7 +342,11 @@ def _multi_ada_sampling(
 
     for iteration_index in range(1, n_iterations + 1):
         model = _make_svm(
-            StandardScaler=StandardScaler, SVC=SVC, kernel=kernel, rng=rng
+            StandardScaler=StandardScaler,
+            SVC=SVC,
+            kernel=kernel,
+            rng=rng,
+            svm_mode=svm_mode,
         )
         model.fit(current_x, current_y)
         prob_mat = model.predict_proba(base_x)
@@ -438,29 +372,12 @@ def _multi_ada_sampling(
                 if sample_prob is not None
                 else None
             )
-            override_sites = None
-            if sampling_override is not None:
-                override_sites = sampling_override.get_iteration_sample_sites(
-                    iteration_index=iteration_index,
-                    class_label=int(class_label),
-                )
-            if override_sites is not None:
-                sampled_idx = _resolve_sampled_site_positions(
-                    available_sites=class_index,
-                    sampled_sites=override_sites,
-                    expected_size=class_x.shape[0],
-                    context=(
-                        f"iteration={iteration_index}, ensemble={ensemble_index}, "
-                        f"class_label={int(class_label)}"
-                    ),
-                )
-            else:
-                sampled_idx = rng.choice(
-                    class_x.shape[0],
-                    size=class_x.shape[0],
-                    replace=True,
-                    p=sample_prob,
-                )
+            sampled_idx = rng.choice(
+                class_x.shape[0],
+                size=class_x.shape[0],
+                replace=True,
+                p=sample_prob,
+            )
             sampled_sites = class_index[sampled_idx].tolist()
             sampled_sites_by_class[int(class_label)] = sampled_sites
             resampled_x.append(class_x[sampled_idx])
@@ -494,7 +411,10 @@ def _multi_ada_sampling(
     )
     positive_idx = np.flatnonzero(model.classes_ == 1)
     if len(positive_idx) != 1:
-        msg = f"Expected exactly one positive class labelled 1; found {model.classes_.tolist()}"
+        msg = (
+            "Expected exactly one positive class labelled 1; found "
+            f"{model.classes_.tolist()}"
+        )
         raise ValueError(msg)
     positive_series = pd.Series(
         pred[:, positive_idx[0]], index=test_mat.index.copy(), dtype=float
@@ -518,45 +438,23 @@ def _multi_ada_sampling(
     return positive_series, ensemble_trace
 
 
-class _RLikeStandardScaler:
-    """Match R/e1071 column scaling more closely.
-
-    R's ``scale()`` uses the sample standard deviation when centering is
-    enabled. scikit-learn's ``StandardScaler`` instead uses the population
-    standard deviation. e1071::svm() scales training data internally by
-    default and reuses the learned center/scale for prediction, so we mirror
-    that behaviour here with ddof=1 semantics.
-    """
-
-    def fit(self, x: np.ndarray, y: np.ndarray | None = None) -> _RLikeStandardScaler:
-        values = np.asarray(x, dtype=float)
-        self.mean_ = values.mean(axis=0)
-        if values.shape[0] <= 1:
-            scale = np.ones(values.shape[1], dtype=float)
-        else:
-            centered = values - self.mean_
-            scale = np.sqrt(np.sum(centered**2, axis=0) / (values.shape[0] - 1))
-            scale[scale == 0.0] = 1.0
-        self.scale_ = scale
-        return self
-
-    def transform(self, x: np.ndarray) -> np.ndarray:
-        values = np.asarray(x, dtype=float)
-        return (values - self.mean_) / self.scale_
-
-
 def _make_svm(
-    *, StandardScaler: type, SVC: type, kernel: str, rng: np.random.Generator
+    *,
+    StandardScaler: type,
+    SVC: type,
+    kernel: str,
+    rng: np.random.Generator,
+    svm_mode: PredictionSvmMode,
 ):
     from sklearn.pipeline import make_pipeline
 
-    del StandardScaler
-
+    scaler = StandardScaler() if svm_mode == "default" else _RLikeStandardScaler()
+    gamma: str | float = "scale" if svm_mode == "default" else "auto"
     return make_pipeline(
-        _RLikeStandardScaler(),
+        scaler,
         SVC(
             kernel=kernel,
-            gamma="auto",
+            gamma=gamma,
             probability=True,
             random_state=int(rng.integers(0, 2**31 - 1)),
         ),
@@ -568,63 +466,6 @@ def _normalize_probabilities(values: np.ndarray) -> np.ndarray | None:
     if total <= 0.0 or not np.isfinite(total):
         return None
     return values / total
-
-
-def _coerce_sampling_trace(
-    sampling_trace: PredictionSamplingTrace | str | Path | None,
-) -> PredictionSamplingTrace | None:
-    if sampling_trace is None:
-        return None
-    if isinstance(sampling_trace, PredictionSamplingTrace):
-        return sampling_trace
-    return PredictionSamplingTrace.from_trace_directory(sampling_trace)
-
-
-def _resolve_sampled_site_positions(
-    *,
-    available_sites: pd.Index,
-    sampled_sites: list[str],
-    expected_size: int,
-    context: str,
-) -> np.ndarray:
-    sampled_site_list = _validate_override_sites(
-        available_sites=available_sites,
-        sampled_sites=sampled_sites,
-        expected_size=expected_size,
-        context=context,
-    )
-    position_lookup: dict[str, int] = {}
-    for position, site in enumerate(available_sites.astype(str).tolist()):
-        position_lookup.setdefault(site, position)
-    return np.asarray([position_lookup[site] for site in sampled_site_list], dtype=int)
-
-
-def _validate_override_sites(
-    *,
-    available_sites: pd.Index,
-    sampled_sites: list[str],
-    expected_size: int,
-    context: str,
-) -> list[str]:
-    sampled_site_list = [str(site) for site in sampled_sites]
-    if len(sampled_site_list) != expected_size:
-        msg = (
-            f"Sampling override for {context} has {len(sampled_site_list)} rows; "
-            f"expected {expected_size}"
-        )
-        raise ValueError(msg)
-    available_site_set = set(available_sites.astype(str).tolist())
-    invalid_sites = [
-        site for site in sampled_site_list if site not in available_site_set
-    ]
-    if invalid_sites:
-        unique_invalid_sites = sorted(set(invalid_sites))
-        msg = (
-            f"Sampling override for {context} contains sites outside the "
-            f"available training rows: {', '.join(unique_invalid_sites)}"
-        )
-        raise ValueError(msg)
-    return sampled_site_list
 
 
 def _require_sklearn() -> tuple[type, type]:
@@ -643,3 +484,10 @@ def _require_sklearn() -> tuple[type, type]:
 def _validate_positive_int(value: int, name: str) -> None:
     if value < 1:
         raise ValueError(f"{name} must be at least 1")
+
+
+def _validate_svm_mode(value: PredictionSvmMode) -> PredictionSvmMode:
+    if value not in {"default", "r_parity"}:
+        msg = "svm_mode must be one of: 'default', 'r_parity'"
+        raise ValueError(msg)
+    return value

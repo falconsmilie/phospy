@@ -87,10 +87,23 @@ The generated trace files are:
 
 Those files are the starting point for debugging remaining prediction-stage ranking gaps without guessing where the divergence is being introduced.
 
-You can also ask the Python trace exporter to replay the R-side sampling path directly:
+
+## Native predictor SVM modes
+
+`KinasePredictor` now exposes an explicit `svm_mode` setting in the public API.
+
+- `default`: ordinary scikit-learn behaviour
+- `r_parity`: parity-oriented settings for the PhosR learner seam
+
+The parity export script uses `r_parity` by default so the intent is explicit:
 
 ```bash
-python scripts/export_python_prediction_traces.py   --sampling-trace-dir tests/fixtures/r_reference_l6/prediction_trace
+python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1 --svm-mode r_parity
 ```
 
-That makes Python consume the R-exported initial negatives and per-iteration class resamples from `trace_initial_negatives.csv` and `trace_iteration_samples.csv`. Once those sampled rows are fixed, any remaining difference is in the fitted model path rather than in candidate selection or adaptive resampling.
+`r_parity` currently means:
+
+- R-like scaling semantics using sample standard deviation
+- `gamma=1 / n_features` via scikit-learn `gamma="auto"`
+
+This does not guarantee bit-for-bit agreement with PhosR probability estimates, but it keeps the parity-sensitive learner settings visible and testable rather than implicit.
