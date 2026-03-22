@@ -2,51 +2,22 @@
 
 `PhosPy` is an unofficial Python port of selected PhosR workflow components for phosphoproteomics.
 
-It brings a practical subset of the PhosR workflow into Python, including preprocessing utilities, downstream
-kinase-analysis summaries, and a native end-to-end kinase scoring and prediction path. The aim is to make these
-workflows easier to use in Python while staying clear about attribution, scope, and current parity limits.
+It brings a practical subset of the PhosR workflow into Python, including core preprocessing, downstream kinase-analysis
+summaries, and a growing native workflow for kinase scoring and prediction.
 
-## What PhosPy Can Do Today
+## What PhosPy Covers
 
-PhosPy currently supports four main areas of work.
+PhosPy currently supports three main areas of work:
 
-### Core Data Processing
+- **Core data processing** for PhosR-style preprocessing, phosphosite correction, optional pairwise comparisons, and
+  site-matrix construction
+- **Downstream kinase analysis** from `predMat`, including weighted kinase activity, KSEA-style scores, and target
+  counts
+- **Native kinase workflow** for substrate-profile construction, motif scoring, score combination, candidate-substrate
+  selection, and adaptive SVM prediction
 
-- collapse duplicate total-protein genes by highest mean signal after gene normalisation
-- replace sentinel missing values
-- apply minimum-observation filtering
-- correct phosphosites against total proteome
-- add optional pairwise comparison columns from corrected phosphosites
-- construct site matrices with duplicate site collapse
-
-### Downstream Kinase Analysis
-
-- calculate weighted kinase activity from `predMat`
-- calculate KSEA-style scores and kinase target counts from `predMat`
-
-### Native Kinase Workflow
-
-- build kinase substrate profiles with `KinaseProfileBuilder`
-- score phosphosites from substrate profiles with `KinaseScorer`
-- score phosphosite motifs with `KinaseMotifScorer`
-- combine profile and motif scores with `combine_profile_and_motif_scores()`
-- select candidate substrates and run adaptive SVM prediction with `KinasePredictor`
-- run the full native workflow through `KinaseWorkflow` or `run_kinase_workflow()`
-
-### Project Tooling
-
-- a minimal CLI
-- a class-based public API
-- parity tests against R-generated fixtures for selected workflow seams
-
-## Still in Progress
-
-PhosPy is not yet a full Python replacement for PhosR. Important areas still in progress include:
-
-- broader native Python coverage across the PhosR package
-- a native Python replacement for `Signalomes()`
-- broader numerical parity claims for the newer native kinase workflow beyond the fixture-backed seams documented in [`docs/parity.md`](docs/parity.md)
-- full feature, behaviour, and output parity with the original R package
+Alongside that, the repository includes a small CLI, a class-based public API, and parity tests against R-generated
+reference fixtures for selected workflow seams.
 
 ## Install
 
@@ -91,7 +62,7 @@ site_matrix = core.site_matrix.matrix
 corrected = core.phospho_corrected
 ```
 
-### Adding Pairwise Comparisons
+If your analysis needs pairwise comparisons, pass them explicitly:
 
 ```python
 from phospy import PhosphoDataset
@@ -104,9 +75,7 @@ dataset = PhosphoDataset.from_files(
 core = dataset.process_core()
 ```
 
-If you do not pass `comparisons=...`, the core pipeline does not add pairwise comparison columns.
-
-### Downstream Kinase Activity From `predMat`
+### Downstream Kinase Analysis From `predMat`
 
 ```python
 from phospy import KinaseActivityAnalyzer, PhosphoDataset
@@ -133,9 +102,6 @@ pipeline = PhosRPipeline.from_files(
     pred_mat_path="predMat.csv",
 )
 outputs = pipeline.run(outdir="output")
-
-site_matrix = outputs.core.site_matrix.matrix
-kinase_activity = outputs.kinase_activity
 ```
 
 ### Native End-to-End Kinase Workflow
@@ -173,39 +139,17 @@ result = run_kinase_workflow(
     },
     min_substrates=2,
     min_motif_size=2,
-    ensemble_size=3,
-    top=4,
-    score_threshold=0.75,
-    inclusion=3,
-    n_iterations=2,
     random_state=17,
     flank_size=2,
 )
 
-profile_matrix = result.profile_result.profile_matrix
-motif_scores = result.motif_result.motif_scores
-combined_scores = result.scoring_result.combined_scores
 pred_matrix = result.prediction_result.pred_matrix
 ```
 
 For a profile-only fallback path, omit `motif_sequences` and pass `allow_profile_only_fallback=True`.
 
-If you want prediction settings that more closely track the R learner seam, you can also pass `svm_mode="r_parity"`.
-
-### Lower-Level Native Building Blocks
-
-If you need finer control, PhosPy also exposes lower-level building blocks for profile construction, motif scoring,
-profile scoring, score combination, and prediction:
-
-```python
-from phospy import (
-    KinaseMotifScorer,
-    KinasePredictor,
-    KinaseProfileBuilder,
-    KinaseScorer,
-    combine_profile_and_motif_scores,
-)
-```
+If you need more control, the lower-level building blocks are also public, including `KinaseProfileBuilder`,
+`KinaseMotifScorer`, `KinaseScorer`, and `KinasePredictor`.
 
 ## CLI Demo
 
@@ -221,39 +165,25 @@ phospy \
   --outdir examples/output
 ```
 
-This produces:
+The example output directory under `examples/output/` shows the generated CSV files.
 
-- `df_total_unique.csv`
-- `df_total_filtered.csv`
-- `df_phospho_filtered.csv`
-- `df_phospho_corrected.csv`
-- `phosr_input.csv`
-- `mat_phospho_corrected.csv`
-- `site_sequences.csv`
-- `kinase_activity_matrix.csv`
-- `ksea_scores.csv`
-- `ksea_counts.csv`
-- `kinase_target_counts.csv`
-- `kinase_target_table.csv`
+## Documentation Guide
+
+The main supporting documentation lives here:
+
+- [`docs/parity.md`](docs/parity.md) explains what parity means in this repository, which seams are fixture-backed, and
+  what claims are currently supported
+- [`docs/fixtures.md`](docs/fixtures.md) explains the fixture and trace directories, generation commands, and the
+  difference between committed reference data and temporary debugging output
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) covers local setup, tests, linting, and CI expectations
 
 ## Project Status
 
 PhosPy is currently a structured Python package for PhosR-style preprocessing and downstream kinase-analysis summaries.
 It also includes a live R-backed parity harness and a growing native kinase workflow for kinase scoring and prediction.
 
-The newer native workflow should be described as an evolving port, not a parity-complete reimplementation. For the
-current parity contract, fixture paths, and maintenance rules, see [`docs/parity.md`](docs/parity.md).
-
-## Development
-
-Code style and linting are enforced with Ruff through `pre-commit`. The local workflow is intentionally small:
-
-- `ruff check --fix` for linting, import sorting, and safe fixes
-- `ruff format` for formatting
-- `pytest` for unit tests
-- `pytest -m parity` for the R-backed parity layer
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for local setup and [`docs/parity.md`](docs/parity.md) for the parity contract.
+It is not yet a full Python replacement for PhosR. In particular, parity claims for the newer native workflow should
+stay limited to the fixture-backed seams documented in [`docs/parity.md`](docs/parity.md).
 
 ## Attribution
 
