@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.activities import (
+from phospy import (
     build_kinase_target_table,
     compute_ksea_scores,
     compute_weighted_kinase_activity,

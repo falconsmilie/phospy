@@ -1,20 +1,46 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
 
 import numpy as np
 import pandas as pd
 
 from .scoring import KinaseScoringResult
 
-NegativeSamplingStrategy = Literal["random", "coverage", "hybrid"]
+
+@dataclass(slots=True)
+class AdaptiveSamplingIterationTrace:
+    iteration_index: int
+    labels: pd.Series
+    probabilities: pd.DataFrame
+    positive_weights: pd.Series | None
+    negative_weights: pd.Series | None
+    sampled_positive_sites: list[str]
+    sampled_negative_sites: list[str]
+
+
+@dataclass(slots=True)
+class AdaptiveSamplingEnsembleTrace:
+    ensemble_index: int
+    initial_negative_sites: list[str]
+    iterations: list[AdaptiveSamplingIterationTrace]
+    final_prediction_probabilities: pd.DataFrame
+    final_top_sites: list[str]
+
+
+@dataclass(slots=True)
+class KinasePredictionDebugTrace:
+    kinase: str
+    candidate_substrates: list[str]
+    negative_pool_sites: list[str]
+    ensemble_traces: list[AdaptiveSamplingEnsembleTrace]
 
 
 @dataclass(slots=True)
 class KinasePredictionResult:
     pred_matrix: pd.DataFrame
     substrate_list: dict[str, list[str]]
+    debug_traces: dict[str, KinasePredictionDebugTrace] | None = None
 
 
 class KinasePredictor:
@@ -38,13 +64,15 @@ class KinasePredictor:
         inclusion: int = 20,
         n_iterations: int = 5,
         random_state: int | None = None,
-        negative_sampling_strategy: NegativeSamplingStrategy = "random",
+        capture_debug_trace: bool = False,
+        debug_kinases: list[str] | None = None,
+        debug_top_n: int = 10,
     ) -> KinasePredictionResult:
         _validate_positive_int(ensemble_size, name="ensemble_size")
         _validate_positive_int(top, name="top")
         _validate_positive_int(inclusion, name="inclusion")
         _validate_positive_int(n_iterations, name="n_iterations")
-        _validate_negative_sampling_strategy(negative_sampling_strategy)
+        _validate_positive_int(debug_top_n, name="debug_top_n")
 
         substrate_list = build_candidate_substrate_list(
             combined_scores,
@@ -54,7 +82,11 @@ class KinasePredictor:
         )
         if not substrate_list:
             empty = pd.DataFrame(index=combined_scores.index.copy(), dtype=float)
-            return KinasePredictionResult(pred_matrix=empty, substrate_list={})
+            return KinasePredictionResult(
+                pred_matrix=empty,
+                substrate_list={},
+                debug_traces={} if capture_debug_trace else None,
+            )
 
         rng = np.random.default_rng(random_state)
         feature_mat = combined_scores.astype(float)
@@ -62,6 +94,15 @@ class KinasePredictor:
             0.0,
             index=feature_mat.index.copy(),
             columns=list(substrate_list),
+        )
+
+        traced_kinases = (
+            set(substrate_list)
+            if capture_debug_trace and debug_kinases is None
+            else set(debug_kinases or [])
+        )
+        debug_traces: dict[str, KinasePredictionDebugTrace] | None = (
+            {} if capture_debug_trace else None
         )
 
         for kinase, substrates in substrate_list.items():
@@ -76,15 +117,26 @@ class KinasePredictor:
                 )
                 raise ValueError(msg)
 
-            negative_batches = _build_initial_negative_batches(
-                negative_index=negative_pool.index.to_numpy(),
-                batch_size=len(positive_train),
-                ensemble_size=ensemble_size,
-                rng=rng,
-                strategy=negative_sampling_strategy,
-            )
-            for negative_indices in negative_batches:
-                negative_train = negative_pool.loc[list(negative_indices), :]
+            if (
+                capture_debug_trace
+                and kinase in traced_kinases
+                and debug_traces is not None
+            ):
+                debug_traces[kinase] = KinasePredictionDebugTrace(
+                    kinase=kinase,
+                    candidate_substrates=list(substrates),
+                    negative_pool_sites=negative_pool.index.tolist(),
+                    ensemble_traces=[],
+                )
+
+            for ensemble_idx in range(ensemble_size):
+                negative_indices = rng.choice(
+                    negative_pool.index.to_numpy(),
+                    size=len(positive_train),
+                    replace=len(negative_pool) < len(positive_train),
+                )
+                negative_sites = list(negative_indices.tolist())
+                negative_train = negative_pool.loc[negative_sites, :]
                 train_mat = pd.concat([positive_train, negative_train], axis=0)
                 labels = np.concatenate(
                     [
@@ -92,19 +144,47 @@ class KinasePredictor:
                         np.repeat(2, len(negative_train)),
                     ]
                 )
-                pred_matrix.loc[:, kinase] += _multi_ada_sampling(
-                    train_mat=train_mat,
-                    test_mat=feature_mat,
-                    labels=labels,
-                    kernel=self.kernel,
-                    n_iterations=n_iterations,
-                    rng=rng,
-                )
+
+                if (
+                    capture_debug_trace
+                    and kinase in traced_kinases
+                    and debug_traces is not None
+                ):
+                    series, ensemble_trace = _multi_ada_sampling(
+                        train_mat=train_mat,
+                        test_mat=feature_mat,
+                        labels=labels,
+                        kernel=self.kernel,
+                        n_iterations=n_iterations,
+                        rng=rng,
+                        capture_trace=True,
+                        ensemble_index=ensemble_idx + 1,
+                        initial_negative_sites=negative_sites,
+                        debug_top_n=debug_top_n,
+                    )
+                    if ensemble_trace is not None:
+                        debug_traces[kinase].ensemble_traces.append(ensemble_trace)
+                else:
+                    series, _ = _multi_ada_sampling(
+                        train_mat=train_mat,
+                        test_mat=feature_mat,
+                        labels=labels,
+                        kernel=self.kernel,
+                        n_iterations=n_iterations,
+                        rng=rng,
+                        capture_trace=False,
+                        ensemble_index=ensemble_idx + 1,
+                        initial_negative_sites=negative_sites,
+                        debug_top_n=debug_top_n,
+                    )
+
+                pred_matrix.loc[:, kinase] += series
 
         pred_matrix /= float(ensemble_size)
         return KinasePredictionResult(
             pred_matrix=pred_matrix,
             substrate_list=substrate_list,
+            debug_traces=debug_traces,
         )
 
     def predict_from_scoring_result(
@@ -117,7 +197,9 @@ class KinasePredictor:
         n_iterations: int = 5,
         random_state: int | None = None,
         allow_profile_only_fallback: bool = False,
-        negative_sampling_strategy: NegativeSamplingStrategy = "random",
+        capture_debug_trace: bool = False,
+        debug_kinases: list[str] | None = None,
+        debug_top_n: int = 10,
     ) -> KinasePredictionResult:
         if scoring_result.combined_scores is not None:
             feature_mat = scoring_result.combined_scores
@@ -138,7 +220,9 @@ class KinasePredictor:
             inclusion=inclusion,
             n_iterations=n_iterations,
             random_state=random_state,
-            negative_sampling_strategy=negative_sampling_strategy,
+            capture_debug_trace=capture_debug_trace,
+            debug_kinases=debug_kinases,
+            debug_top_n=debug_top_n,
         )
 
 
@@ -155,93 +239,15 @@ def build_candidate_substrate_list(
 
     substrate_list: dict[str, list[str]] = {}
     for kinase in combined_scores.columns:
-        series = combined_scores.loc[:, kinase]
         selected = (
-            pd.DataFrame(
-                {"site_id": series.index.astype(str), "score": series.to_numpy()}
-            )
-            .sort_values(
-                ["score", "site_id"], ascending=[False, True], kind="mergesort"
-            )
+            combined_scores.loc[:, kinase]
+            .sort_values(ascending=False, kind="mergesort")
             .head(top)
         )
-        sites = selected.loc[selected["score"] > score_threshold, "site_id"].tolist()
+        sites = selected.loc[selected > score_threshold].index.tolist()
         if len(sites) >= inclusion:
             substrate_list[kinase] = sites
     return substrate_list
-
-
-def _build_initial_negative_batches(
-    *,
-    negative_index: np.ndarray,
-    batch_size: int,
-    ensemble_size: int,
-    rng: np.random.Generator,
-    strategy: NegativeSamplingStrategy,
-) -> list[np.ndarray]:
-    if strategy == "random":
-        return [
-            rng.choice(
-                negative_index,
-                size=batch_size,
-                replace=len(negative_index) < batch_size,
-            )
-            for _ in range(ensemble_size)
-        ]
-    if strategy == "coverage":
-        return _build_coverage_negative_batches(
-            negative_index=negative_index,
-            batch_size=batch_size,
-            ensemble_size=ensemble_size,
-            rng=rng,
-        )
-    if strategy == "hybrid":
-        n_coverage = ensemble_size // 2
-        n_random = ensemble_size - n_coverage
-        coverage_batches = _build_coverage_negative_batches(
-            negative_index=negative_index,
-            batch_size=batch_size,
-            ensemble_size=n_coverage,
-            rng=rng,
-        )
-        random_batches = [
-            rng.choice(
-                negative_index,
-                size=batch_size,
-                replace=len(negative_index) < batch_size,
-            )
-            for _ in range(n_random)
-        ]
-        return [*coverage_batches, *random_batches]
-    raise ValueError(f"Unsupported negative_sampling_strategy: {strategy}")
-
-
-def _build_coverage_negative_batches(
-    *,
-    negative_index: np.ndarray,
-    batch_size: int,
-    ensemble_size: int,
-    rng: np.random.Generator,
-) -> list[np.ndarray]:
-    shuffled = rng.permutation(np.asarray(negative_index, dtype=object))
-    if shuffled.size == 0:
-        return []
-
-    cursor = 0
-    batches: list[np.ndarray] = []
-    for _ in range(ensemble_size):
-        pieces: list[np.ndarray] = []
-        needed = batch_size
-        while needed > 0:
-            if cursor >= shuffled.size:
-                shuffled = rng.permutation(np.asarray(negative_index, dtype=object))
-                cursor = 0
-            take_n = min(needed, shuffled.size - cursor)
-            pieces.append(shuffled[cursor : cursor + take_n])
-            cursor += take_n
-            needed -= take_n
-        batches.append(np.concatenate(pieces))
-    return batches
 
 
 def _multi_ada_sampling(
@@ -251,37 +257,72 @@ def _multi_ada_sampling(
     kernel: str,
     n_iterations: int,
     rng: np.random.Generator,
-) -> pd.Series:
+    capture_trace: bool,
+    ensemble_index: int,
+    initial_negative_sites: list[str],
+    debug_top_n: int,
+) -> tuple[pd.Series, AdaptiveSamplingEnsembleTrace | None]:
     StandardScaler, SVC = _require_sklearn()
 
     base_x = train_mat.to_numpy(dtype=float)
     base_y = np.asarray(labels, dtype=int)
+    base_index = train_mat.index.copy()
     current_x = base_x
     current_y = base_y
     model = None
+    iteration_traces: list[AdaptiveSamplingIterationTrace] = []
 
-    for _ in range(n_iterations):
+    for iteration_index in range(1, n_iterations + 1):
         model = _make_svm(
             StandardScaler=StandardScaler, SVC=SVC, kernel=kernel, rng=rng
         )
         model.fit(current_x, current_y)
         prob_mat = model.predict_proba(base_x)
+        prob_df = pd.DataFrame(
+            prob_mat,
+            index=base_index,
+            columns=[str(class_label) for class_label in model.classes_],
+        )
+        label_series = pd.Series(base_y, index=base_index, dtype=int)
 
         resampled_x: list[np.ndarray] = []
         resampled_y: list[np.ndarray] = []
+        sampled_sites_by_class: dict[int, list[str]] = {}
+        weights_by_class: dict[int, pd.Series | None] = {}
         for class_idx, class_label in enumerate(model.classes_):
             class_mask = base_y == class_label
             class_x = base_x[class_mask]
+            class_index = base_index[class_mask]
             class_prob = prob_mat[class_mask, class_idx]
             sample_prob = _normalize_probabilities(class_prob)
+            weights_by_class[int(class_label)] = (
+                pd.Series(sample_prob, index=class_index, dtype=float)
+                if sample_prob is not None
+                else None
+            )
             sampled_idx = rng.choice(
                 class_x.shape[0],
                 size=class_x.shape[0],
                 replace=True,
                 p=sample_prob,
             )
+            sampled_sites = class_index[sampled_idx].tolist()
+            sampled_sites_by_class[int(class_label)] = sampled_sites
             resampled_x.append(class_x[sampled_idx])
             resampled_y.append(np.repeat(class_label, class_x.shape[0]))
+
+        if capture_trace:
+            iteration_traces.append(
+                AdaptiveSamplingIterationTrace(
+                    iteration_index=iteration_index,
+                    labels=label_series,
+                    probabilities=prob_df,
+                    positive_weights=weights_by_class.get(1),
+                    negative_weights=weights_by_class.get(2),
+                    sampled_positive_sites=sampled_sites_by_class.get(1, []),
+                    sampled_negative_sites=sampled_sites_by_class.get(2, []),
+                )
+            )
 
         current_x = np.vstack(resampled_x)
         current_y = np.concatenate(resampled_y)
@@ -291,11 +332,35 @@ def _multi_ada_sampling(
         raise ValueError(msg)
 
     pred = model.predict_proba(test_mat.to_numpy(dtype=float))
+    pred_df = pd.DataFrame(
+        pred,
+        index=test_mat.index.copy(),
+        columns=[str(class_label) for class_label in model.classes_],
+    )
     positive_idx = np.flatnonzero(model.classes_ == 1)
     if len(positive_idx) != 1:
         msg = f"Expected exactly one positive class labelled 1; found {model.classes_.tolist()}"
         raise ValueError(msg)
-    return pd.Series(pred[:, positive_idx[0]], index=test_mat.index.copy(), dtype=float)
+    positive_series = pd.Series(
+        pred[:, positive_idx[0]], index=test_mat.index.copy(), dtype=float
+    )
+
+    ensemble_trace = None
+    if capture_trace:
+        final_top_sites = (
+            positive_series.sort_values(ascending=False)
+            .head(debug_top_n)
+            .index.tolist()
+        )
+        ensemble_trace = AdaptiveSamplingEnsembleTrace(
+            ensemble_index=ensemble_index,
+            initial_negative_sites=list(initial_negative_sites),
+            iterations=iteration_traces,
+            final_prediction_probabilities=pred_df,
+            final_top_sites=final_top_sites,
+        )
+
+    return positive_series, ensemble_trace
 
 
 def _make_svm(
@@ -307,7 +372,6 @@ def _make_svm(
         StandardScaler(),
         SVC(
             kernel=kernel,
-            gamma="auto",
             probability=True,
             random_state=int(rng.integers(0, 2**31 - 1)),
         ),
@@ -337,10 +401,3 @@ def _require_sklearn() -> tuple[type, type]:
 def _validate_positive_int(value: int, name: str) -> None:
     if value < 1:
         raise ValueError(f"{name} must be at least 1")
-
-
-def _validate_negative_sampling_strategy(value: str) -> None:
-    if value not in {"random", "coverage", "hybrid"}:
-        raise ValueError(
-            "negative_sampling_strategy must be one of: random, coverage, hybrid"
-        )

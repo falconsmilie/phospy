@@ -1,6 +1,6 @@
-# phosrpy
+# phospy
 
-`phosrpy` is an **unofficial Python port** of selected PhosR workflow components for phosphoproteomics.
+`phospy` is an **unofficial Python port** of selected PhosR workflow components for phosphoproteomics.
 
 The original **PhosR** project is an R/Bioconductor package from the PhosR team / Yang Lab for phosphoproteomic data processing and downstream kinase and signalling analysis. This repository aims to translate parts of that workflow into Python while keeping attribution clear and keeping scope claims honest.
 
@@ -49,7 +49,7 @@ Not implemented yet:
 
 ## Design notes
 
-The package core keeps only structural defaults such as `group1` to `group6`. Comparison choices are analysis intent, so they should be supplied by caller code or live in example configuration and fixture-generation scripts rather than inside `src/phosrpy`.
+The package core keeps only structural defaults such as `group1` to `group6`. Comparison choices are analysis intent, so they should be supplied by caller code or live in example configuration and fixture-generation scripts rather than inside `src/phospy`.
 
 ## Install
 
@@ -75,7 +75,7 @@ pre-commit run --all-files
 ## Public API
 
 ```python
-from phosrpy import (
+from phospy import (
     KinaseActivityAnalyzer,
     KinaseMotifScorer,
     KinaseScorer,
@@ -139,7 +139,7 @@ Without `comparisons=...`, the core pipeline does not add any pairwise compariso
 A small synthetic dataset is included:
 
 ```bash
-PYTHONPATH=src python -m phosrpy.cli \
+PYTHONPATH=src python -m phospy.cli \
   --total examples/data/total.tsv \
   --phospho examples/data/phospho.tsv \
   --pred-mat examples/data/predMat.csv \

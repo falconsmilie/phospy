@@ -1,11 +1,6 @@
 #!/usr/bin/env Rscript
 
-required_pkgs <- c("PhosR", "SummarizedExperiment")
-native_pred_top <- 30L
-native_pred_cs <- 0.6
-native_pred_inclusion <- 5L
-native_prediction_rank_top <- 30L
-
+required_pkgs <- c("PhosR", "SummarizedExperiment", "e1071")
 missing_pkgs <- required_pkgs[
   !vapply(required_pkgs, requireNamespace, logical(1), quietly = TRUE)
 ]
@@ -18,10 +13,14 @@ if (length(missing_pkgs) > 0) {
   )
 }
 
+multiAdaSampling_fn <- getFromNamespace("multiAdaSampling", "PhosR")
+
 read_args <- function() {
   args <- commandArgs(trailingOnly = TRUE)
   defaults <- list(
-    outdir = "tests/fixtures/r_reference_l6"
+    outdir = "tests/fixtures/r_reference_l6",
+    trace_kinases = "PRKAA1,MAPK1",
+    trace_top_n = "10"
   )
 
   if (length(args) == 0) {
@@ -43,141 +42,46 @@ read_args <- function() {
   parsed
 }
 
+parse_csv_values <- function(value) {
+  parts <- trimws(unlist(strsplit(value, ",", fixed = TRUE)))
+  parts[nzchar(parts)]
+}
+
 write_session_info <- function(outdir) {
   sink(file.path(outdir, "sessionInfo.txt"))
   print(sessionInfo())
   sink()
 }
 
-
-extract_substrate_sites <- function(substrate_entry) {
-  if (is.null(substrate_entry)) {
-    return(character(0))
-  }
-
-  if (is.data.frame(substrate_entry)) {
-    site_cols <- intersect(
-      c("site_id", "site", "SITE", "substrate", "phosphosite"),
-      names(substrate_entry)
-    )
-    if (length(site_cols) > 0) {
-      return(unique(as.character(substrate_entry[[site_cols[[1]]]])))
-    }
-    return(unique(as.character(substrate_entry[[1]])))
-  }
-
-  unique(as.character(substrate_entry))
-}
-
-filter_substrate_map_to_observed <- function(substrate.list, observed_sites, kinases = NULL) {
-  kinase_names <- names(substrate.list)
-  if (!is.null(kinases)) {
-    kinase_names <- intersect(kinase_names, kinases)
-  }
-
-  out <- list()
-  for (kinase in kinase_names) {
-    sites <- extract_substrate_sites(substrate.list[[kinase]])
-    sites <- unique(sites[sites %in% observed_sites])
-    if (length(sites) > 0) {
-      out[[kinase]] <- sites
-    }
-  }
-  out
-}
-
-write_grouped_mapping <- function(mapping, out_path, key_col = "kinase", value_col = "site_id") {
-  rows <- do.call(rbind, lapply(names(mapping), function(key) {
-    values <- mapping[[key]]
-    if (length(values) == 0) {
-      return(NULL)
-    }
-    data.frame(
-      key = rep(key, length(values)),
-      value = unname(values),
-      stringsAsFactors = FALSE
-    )
-  }))
-
-  if (is.null(rows)) {
-    rows <- data.frame(key = character(0), value = character(0), stringsAsFactors = FALSE)
-  }
-
-  names(rows) <- c(key_col, value_col)
-  write.csv(rows, out_path, row.names = FALSE)
-}
-
-write_ranked_prediction_table <- function(pred_mat, out_path, top_n = NULL) {
-  kinase_names <- colnames(pred_mat)
-  rows <- do.call(rbind, lapply(kinase_names, function(kinase) {
-    ordered <- sort(pred_mat[, kinase], decreasing = TRUE)
-    if (!is.null(top_n)) {
-      ordered <- ordered[seq_len(min(top_n, length(ordered)))]
-    }
-    data.frame(
-      kinase = rep(kinase, length(ordered)),
-      site_id = names(ordered),
-      pred_score = as.numeric(unname(ordered)),
-      rank = seq_along(ordered),
-      stringsAsFactors = FALSE
-    )
-  }))
-
-  if (is.null(rows)) {
-    rows <- data.frame(
-      kinase = character(0),
-      site_id = character(0),
-      pred_score = numeric(0),
-      rank = integer(0),
-      stringsAsFactors = FALSE
-    )
-  }
-
-  write.csv(rows, out_path, row.names = FALSE)
-}
-
-build_candidate_substrate_list_compat <- function(combined_score_matrix, top = 30L, cs = 0.6, inclusion = 5L) {
-  substrate_list <- list()
-  for (kinase in colnames(combined_score_matrix)) {
-    scores <- sort(combined_score_matrix[, kinase], decreasing = TRUE, na.last = NA)
-    scores <- head(scores, min(top, length(scores)))
-    sites <- names(scores)[scores > cs]
-    if (length(sites) >= inclusion) {
-      substrate_list[[kinase]] <- sites
-    }
-  }
-  substrate_list
-}
-
-load_phosphosite_mouse <- function() {
-  env <- new.env(parent = emptyenv())
-  tryCatch({
-    data("PhosphoSitePlus", package = "PhosR", envir = env)
-    if (exists("PhosphoSite.mouse", envir = env, inherits = FALSE)) {
-      return(get("PhosphoSite.mouse", envir = env, inherits = FALSE))
-    }
-    NULL
-  }, error = function(e) NULL)
-}
-
-load_motif_mouse_list <- function() {
-  env <- new.env(parent = emptyenv())
-  tryCatch({
-    data("KinaseMotifs", package = "PhosR", envir = env)
-    if (exists("motif.mouse.list", envir = env, inherits = FALSE)) {
-      return(get("motif.mouse.list", envir = env, inherits = FALSE))
-    }
-    NULL
-  }, error = function(e) NULL)
+write_trace_readme <- function(trace_dir, trace_kinases, trace_top_n) {
+  lines <- c(
+    "# R prediction trace fixtures",
+    "",
+    "These files are generated from the bundled PhosR L6 example path.",
+    "They are intended for direct comparison with Python-side prediction debug traces.",
+    "",
+    paste0("Trace kinases: ", paste(trace_kinases, collapse = ", ")),
+    paste0("Per-ensemble top-N export: ", trace_top_n),
+    "",
+    "Files:",
+    "- trace_candidates.csv: ranked combined-score candidates for the traced kinases",
+    "- trace_initial_negatives.csv: initial negative draw for each ensemble member",
+    "- trace_iteration_probabilities.csv: per-iteration class probabilities on the base train set",
+    "- trace_iteration_samples.csv: resampled site identities for each iteration and class",
+    "- trace_final_ensemble_predictions.csv: final per-ensemble prediction probabilities for all sites",
+    "- trace_final_ensemble_top.csv: final per-ensemble top-ranked sites"
+  )
+  writeLines(lines, file.path(trace_dir, "README.md"))
 }
 
 load_required_objects <- function() {
   env <- new.env(parent = emptyenv())
-
   data("phospho_L6_ratio_pe", package = "PhosR", envir = env)
   data("SPSs", package = "PhosR", envir = env)
+  data("PhosphoSitePlus", package = "PhosR", envir = env)
+  data("KinaseMotifs", package = "PhosR", envir = env)
 
-  required <- c("phospho.L6.ratio.pe", "SPSs")
+  required <- c("phospho.L6.ratio.pe", "SPSs", "PhosphoSite.mouse", "motif.mouse.list")
   missing <- required[!vapply(required, exists, logical(1), envir = env, inherits = FALSE)]
   if (length(missing) > 0) {
     stop(
@@ -187,27 +91,11 @@ load_required_objects <- function() {
     )
   }
 
-  phosphosite_mouse <- load_phosphosite_mouse()
-  if (is.null(phosphosite_mouse)) {
-    stop(
-      "Could not load PhosphoSite.mouse from the PhosphoSitePlus dataset in PhosR.",
-      call. = FALSE
-    )
-  }
-
-  motif_mouse_list <- load_motif_mouse_list()
-  if (is.null(motif_mouse_list)) {
-    stop(
-      "Could not load motif.mouse.list from the KinaseMotifs dataset in PhosR.",
-      call. = FALSE
-    )
-  }
-
   list(
     ppe = get("phospho.L6.ratio.pe", envir = env, inherits = FALSE),
     SPSs = get("SPSs", envir = env, inherits = FALSE),
-    PhosphoSite.mouse = phosphosite_mouse,
-    motif.mouse.list = motif_mouse_list
+    PhosphoSite.mouse = get("PhosphoSite.mouse", envir = env, inherits = FALSE),
+    motif.mouse.list = get("motif.mouse.list", envir = env, inherits = FALSE)
   )
 }
 
@@ -260,19 +148,23 @@ score_phosphosite_profile_compat <- function(mat, ks.profile.list.filtered) {
 }
 
 kinase_substrate_score_compat <- function(
-    substrate.list,
-    mat,
-    seqs,
-    motif.mouse.list,
-    numMotif = 5,
-    numSub = 1
+  substrate.list,
+  mat,
+  seqs,
+  motif.mouse.list,
+  numMotif = 5,
+  numSub = 1
 ) {
   ks.profile.list <- PhosR::kinaseSubstrateProfile(substrate.list, mat)
 
-  message("Number of kinases passed motif size filtering: ",
-          sum(motif.mouse.list$NumInputSeq >= numMotif))
-  message("Number of kinases passed profile size filtering: ",
-          sum(ks.profile.list$NumSub >= numSub))
+  message(
+    "Number of kinases passed motif size filtering: ",
+    sum(motif.mouse.list$NumInputSeq >= numMotif)
+  )
+  message(
+    "Number of kinases passed profile size filtering: ",
+    sum(ks.profile.list$NumSub >= numSub)
+  )
 
   motif.mouse.list.filtered <- motif.mouse.list[
     which(motif.mouse.list$NumInputSeq >= numMotif)
@@ -321,34 +213,25 @@ kinase_substrate_score_compat <- function(
   }
   message("done.")
 
-  ksActivityMatrixAll <- do.call(rbind, ks.profile.list.filtered)
-  rownames(ksActivityMatrixAll) <- names(ks.profile.list.filtered)
-  ksActivityMatrix <- ksActivityMatrixAll[o, , drop = FALSE]
-
-  weightTable <- data.frame(
-    kinase = o,
-    motif_weight = as.numeric(w1 / w3),
-    profile_weight = as.numeric(w2 / w3),
-    motif_rank_weight = as.numeric(w1),
-    profile_rank_weight = as.numeric(w2),
-    stringsAsFactors = FALSE
-  )
+  ksActivityMatrix <- do.call(rbind, ks.profile.list.filtered)
+  rownames(ksActivityMatrix) <- names(ks.profile.list.filtered)
+  ksActivityMatrix <- ksActivityMatrix[o, , drop = FALSE]
 
   list(
     motifScoreMatrix = motifScoreMatrix,
     profileScoreMatrix = profileScoreMatrix,
     combinedScoreMatrix = combinedScoreMatrix,
     ksActivityMatrix = ksActivityMatrix,
-    ksActivityMatrixAll = ksActivityMatrixAll,
-    profileSizes = ks.profile.list$NumSub,
-    motifSizes = motif.mouse.list$NumInputSeq,
-    overlapKinases = o,
-    weightTable = weightTable,
     weights = w3
   )
 }
 
-build_weighted_kinase_activity <- function(pred_mat, phospho_matrix, top_n = 20L, min_substrates = 3L) {
+build_weighted_kinase_activity <- function(
+  pred_mat,
+  phospho_matrix,
+  top_n = 20L,
+  min_substrates = 3L
+) {
   kinase_names <- colnames(pred_mat)
   sample_names <- colnames(phospho_matrix)
   kinase_mat <- matrix(NA_real_, nrow = length(kinase_names), ncol = length(sample_names))
@@ -414,10 +297,305 @@ build_ksea_scores <- function(pred_mat, phospho_matrix, threshold = 0.6, min_sub
   list(scores = ksea_scores, counts = sort(ksea_counts, decreasing = TRUE))
 }
 
+trace_substrate_list <- function(phosScoringMatrices, top, cs, inclusion, trace_kinases) {
+  combined <- phosScoringMatrices$combinedScoreMatrix
+  substrate.list <- list()
+  kinaseSel <- c()
+  candidate_rows <- list()
+  candidate_count <- 0
+  substrate_count <- 0
+
+  for (i in seq_len(ncol(combined))) {
+    kinase <- colnames(combined)[i]
+    ordered <- sort(combined[, i], decreasing = TRUE)
+    top_count <- min(top, length(ordered))
+    top_sites <- ordered[seq_len(top_count)]
+    selected_sites <- names(which(top_sites > cs))
+
+    if (length(selected_sites) >= inclusion) {
+      substrate_count <- substrate_count + 1
+      substrate.list[[substrate_count]] <- selected_sites
+      kinaseSel <- c(kinaseSel, kinase)
+    }
+
+    if (kinase %in% trace_kinases) {
+      candidate_count <- candidate_count + 1
+      candidate_rows[[candidate_count]] <- data.frame(
+        kinase = kinase,
+        rank = seq_along(ordered),
+        site = names(ordered),
+        combined_score = as.numeric(ordered),
+        within_top = seq_along(ordered) <= top,
+        above_threshold = as.numeric(ordered) > cs,
+        selected_candidate = names(ordered) %in% selected_sites,
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+
+  names(substrate.list) <- kinaseSel
+  candidates <- if (length(candidate_rows) > 0) {
+    do.call(rbind, candidate_rows)
+  } else {
+    data.frame(
+      kinase = character(0),
+      rank = integer(0),
+      site = character(0),
+      combined_score = numeric(0),
+      within_top = logical(0),
+      above_threshold = logical(0),
+      selected_candidate = logical(0),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  list(substrate_list = substrate.list, candidates = candidates)
+}
+
+trace_multi_ada_sampling <- function(
+  train.mat,
+  test.mat,
+  label,
+  kernelType,
+  iter = 5,
+  kinase,
+  ensemble_idx,
+  trace_top_n = 10
+) {
+  X <- train.mat
+  Y <- label
+
+  model <- c()
+  prob.mat <- c()
+  iteration_prob_rows <- list()
+  iteration_sample_rows <- list()
+  probability_count <- 0
+  sample_count <- 0
+
+  for (i in seq_len(iter)) {
+    tmp <- X
+    rownames(tmp) <- NULL
+    model <- e1071::svm(tmp, factor(Y), kernel = kernelType, probability = TRUE)
+    train_pred <- predict(model, train.mat, decision.values = FALSE, probability = TRUE)
+    prob.mat <- attr(train_pred, "probabilities")
+
+    if (is.null(rownames(prob.mat))) {
+      rownames(prob.mat) <- rownames(train.mat)
+    }
+
+    prob_col_1 <- rep(NA_real_, nrow(prob.mat))
+    prob_col_2 <- rep(NA_real_, nrow(prob.mat))
+    if ("1" %in% colnames(prob.mat)) {
+      prob_col_1 <- prob.mat[, "1"]
+    }
+    if ("2" %in% colnames(prob.mat)) {
+      prob_col_2 <- prob.mat[, "2"]
+    }
+
+    probability_count <- probability_count + 1
+    iteration_prob_rows[[probability_count]] <- data.frame(
+      kinase = kinase,
+      ensemble = ensemble_idx,
+      iteration = i,
+      site = rownames(prob.mat),
+      label = as.character(label[rownames(prob.mat)]),
+      prob_class_1 = as.numeric(prob_col_1),
+      prob_class_2 = as.numeric(prob_col_2),
+      stringsAsFactors = FALSE
+    )
+
+    X <- c()
+    Y <- c()
+    for (j in seq_len(ncol(prob.mat))) {
+      class_name <- colnames(prob.mat)[j]
+      voteClass <- prob.mat[label == class_name, , drop = FALSE]
+      idx <- sample(
+        seq_len(nrow(voteClass)),
+        size = nrow(voteClass),
+        replace = TRUE,
+        prob = voteClass[, j]
+      )
+      sampled_sites <- rownames(voteClass)[idx]
+      sample_count <- sample_count + 1
+      iteration_sample_rows[[sample_count]] <- data.frame(
+        kinase = kinase,
+        ensemble = ensemble_idx,
+        iteration = i,
+        class_label = class_name,
+        draw = seq_along(sampled_sites),
+        site = sampled_sites,
+        stringsAsFactors = FALSE
+      )
+      X <- rbind(X, train.mat[sampled_sites, , drop = FALSE])
+      Y <- c(Y, label[sampled_sites])
+    }
+  }
+
+  pred_obj <- predict(model, newdata = test.mat, probability = TRUE)
+  pred <- attr(pred_obj, "probabilities")
+  if (is.null(rownames(pred))) {
+    rownames(pred) <- rownames(test.mat)
+  }
+
+  pred_col_1 <- rep(NA_real_, nrow(pred))
+  pred_col_2 <- rep(NA_real_, nrow(pred))
+  if ("1" %in% colnames(pred)) {
+    pred_col_1 <- pred[, "1"]
+  }
+  if ("2" %in% colnames(pred)) {
+    pred_col_2 <- pred[, "2"]
+  }
+
+  ordered_sites <- rownames(pred)[order(pred_col_1, decreasing = TRUE)]
+  top_count <- min(trace_top_n, length(ordered_sites))
+  top_sites <- ordered_sites[seq_len(top_count)]
+
+  list(
+    pred = pred,
+    iteration_probabilities = do.call(rbind, iteration_prob_rows),
+    iteration_samples = do.call(rbind, iteration_sample_rows),
+    final_predictions = data.frame(
+      kinase = kinase,
+      ensemble = ensemble_idx,
+      site = rownames(pred),
+      prob_class_1 = as.numeric(pred_col_1),
+      prob_class_2 = as.numeric(pred_col_2),
+      stringsAsFactors = FALSE
+    ),
+    final_top = data.frame(
+      kinase = kinase,
+      ensemble = ensemble_idx,
+      rank = seq_along(top_sites),
+      site = top_sites,
+      prob_class_1 = as.numeric(pred_col_1[match(top_sites, rownames(pred))]),
+      stringsAsFactors = FALSE
+    )
+  )
+}
+
+trace_kinase_substrate_pred <- function(
+  phosScoringMatrices,
+  ensembleSize = 10,
+  top = 50,
+  cs = 0.8,
+  inclusion = 20,
+  iter = 5,
+  trace_kinases = c("PRKAA1", "MAPK1"),
+  trace_top_n = 10
+) {
+  substrate_trace <- trace_substrate_list(
+    phosScoringMatrices = phosScoringMatrices,
+    top = top,
+    cs = cs,
+    inclusion = inclusion,
+    trace_kinases = trace_kinases
+  )
+  substrate.list <- substrate_trace$substrate_list
+
+  print("Predicting kinases for phosphosites:")
+  featureMat <- phosScoringMatrices$combinedScoreMatrix
+  predMatrix <- matrix(0, nrow = nrow(featureMat), ncol = length(substrate.list))
+  colnames(predMatrix) <- names(substrate.list)
+  rownames(predMatrix) <- rownames(featureMat)
+
+  initial_negative_rows <- list()
+  iteration_probability_rows <- list()
+  iteration_sample_rows <- list()
+  final_prediction_rows <- list()
+  final_top_rows <- list()
+  initial_count <- 0
+  probability_count <- 0
+  sample_count <- 0
+  final_prediction_count <- 0
+  final_top_count <- 0
+
+  for (i in seq_len(length(substrate.list))) {
+    kinase <- names(substrate.list)[i]
+    positive.train <- featureMat[substrate.list[[i]], , drop = FALSE]
+    positive.cls <- rep(1, length(substrate.list[[i]]))
+    negative.pool <- featureMat[!(rownames(featureMat) %in% substrate.list[[i]]), , drop = FALSE]
+    cat(paste(i, ".", sep = ""))
+
+    for (e in seq_len(ensembleSize)) {
+      negativeSize <- length(substrate.list[[i]])
+      idx <- sample(seq_len(nrow(negative.pool)), size = negativeSize, replace = FALSE)
+      negative.samples <- rownames(negative.pool)[idx]
+      negative.train <- featureMat[negative.samples, , drop = FALSE]
+      negative.cls <- rep(2, length(negative.samples))
+      train.mat <- rbind(positive.train, negative.train)
+      cls <- as.factor(c(positive.cls, negative.cls))
+      names(cls) <- rownames(train.mat)
+
+      if (kinase %in% trace_kinases) {
+        initial_count <- initial_count + 1
+        initial_negative_rows[[initial_count]] <- data.frame(
+          kinase = kinase,
+          ensemble = e,
+          draw = seq_along(negative.samples),
+          site = negative.samples,
+          stringsAsFactors = FALSE
+        )
+
+        trace_result <- trace_multi_ada_sampling(
+          train.mat = train.mat,
+          test.mat = featureMat,
+          label = cls,
+          kernelType = "radial",
+          iter = iter,
+          kinase = kinase,
+          ensemble_idx = e,
+          trace_top_n = trace_top_n
+        )
+        pred <- trace_result$pred
+        probability_count <- probability_count + 1
+        iteration_probability_rows[[probability_count]] <- trace_result$iteration_probabilities
+        sample_count <- sample_count + 1
+        iteration_sample_rows[[sample_count]] <- trace_result$iteration_samples
+        final_prediction_count <- final_prediction_count + 1
+        final_prediction_rows[[final_prediction_count]] <- trace_result$final_predictions
+        final_top_count <- final_top_count + 1
+        final_top_rows[[final_top_count]] <- trace_result$final_top
+      } else {
+        pred <- multiAdaSampling_fn(
+          train.mat,
+          test.mat = featureMat,
+          label = cls,
+          kernelType = "radial",
+          iter = iter
+        )
+      }
+
+      predMatrix[rownames(pred), i] <- predMatrix[rownames(pred), i] + pred[, 1]
+    }
+  }
+
+  predMatrix <- predMatrix / ensembleSize
+  print("done")
+
+  list(
+    pred_matrix = predMatrix,
+    substrate_list = substrate.list,
+    trace_candidates = substrate_trace$candidates,
+    trace_initial_negatives = if (length(initial_negative_rows) > 0) do.call(rbind, initial_negative_rows) else data.frame(),
+    trace_iteration_probabilities = if (length(iteration_probability_rows) > 0) do.call(rbind, iteration_probability_rows) else data.frame(),
+    trace_iteration_samples = if (length(iteration_sample_rows) > 0) do.call(rbind, iteration_sample_rows) else data.frame(),
+    trace_final_ensemble_predictions = if (length(final_prediction_rows) > 0) do.call(rbind, final_prediction_rows) else data.frame(),
+    trace_final_ensemble_top = if (length(final_top_rows) > 0) do.call(rbind, final_top_rows) else data.frame()
+  )
+}
+
 main <- function() {
   args <- read_args()
   outdir <- args$outdir
+  trace_kinases <- parse_csv_values(args$trace_kinases)
+  trace_top_n <- as.integer(args$trace_top_n)
+  if (is.na(trace_top_n) || trace_top_n < 1) {
+    stop("trace_top_n must be a positive integer.", call. = FALSE)
+  }
+
   dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
+  trace_dir <- file.path(outdir, "prediction_trace")
+  dir.create(trace_dir, recursive = TRUE, showWarnings = FALSE)
 
   message("Loading bundled PhosR L6 dataset...")
   objs <- load_required_objects()
@@ -463,54 +641,25 @@ main <- function() {
     numSub = 1
   )
 
-  native_substrate_map <- filter_substrate_map_to_observed(
-    substrate.list = substrate_list,
-    observed_sites = rownames(L6.phos.std),
-    kinases = rownames(L6.matrices$ksActivityMatrixAll)
-  )
-  native_candidate_substrates <- build_candidate_substrate_list_compat(
-    L6.matrices$combinedScoreMatrix,
-    top = native_pred_top,
-    cs = native_pred_cs,
-    inclusion = native_pred_inclusion
-  )
-
   set.seed(1)
-  L6.predMat <- PhosR::kinaseSubstratePred(L6.matrices, top = 30)
+  L6.prediction <- trace_kinase_substrate_pred(
+    L6.matrices,
+    top = 30,
+    trace_kinases = trace_kinases,
+    trace_top_n = trace_top_n
+  )
+  L6.predMat <- L6.prediction$pred_matrix
 
   kinase_activity <- build_weighted_kinase_activity(L6.predMat, L6.phos.std)
   ksea <- build_ksea_scores(L6.predMat, L6.phos.std)
 
   write.csv(L6.phos.std, file.path(outdir, "l6_phospho_matrix.csv"), row.names = TRUE)
-  write_grouped_mapping(
-    native_substrate_map,
-    file.path(outdir, "native_substrate_map.csv")
-  )
-  write.csv(L6.matrices$ksActivityMatrixAll, file.path(outdir, "native_profile_matrix.csv"), row.names = TRUE)
-  write.csv(L6.matrices$profileScoreMatrix, file.path(outdir, "native_profile_scores.csv"), row.names = TRUE)
-  write.csv(L6.matrices$motifScoreMatrix, file.path(outdir, "native_motif_scores.csv"), row.names = TRUE)
-  write.csv(
-    data.frame(kinase = names(L6.matrices$motifSizes), motif_size = unname(L6.matrices$motifSizes)),
-    file.path(outdir, "native_motif_sizes.csv"),
-    row.names = FALSE
-  )
-  write.csv(L6.matrices$combinedScoreMatrix, file.path(outdir, "native_combined_scores.csv"), row.names = TRUE)
-  write.csv(L6.matrices$weightTable, file.path(outdir, "native_combined_weights.csv"), row.names = FALSE)
-  write_grouped_mapping(
-    native_candidate_substrates,
-    file.path(outdir, "native_candidate_substrates.csv")
-  )
   write.csv(
     data.frame(site_id = names(L6.phos.seq), centralized_sequence = unname(L6.phos.seq)),
     file.path(outdir, "l6_site_sequences.csv"),
     row.names = FALSE
   )
   write.csv(L6.predMat, file.path(outdir, "predMat.csv"), row.names = TRUE)
-  write_ranked_prediction_table(
-    L6.predMat,
-    file.path(outdir, "native_prediction_top30.csv"),
-    top_n = native_prediction_rank_top
-  )
   write.csv(kinase_activity, file.path(outdir, "kinase_activity_matrix.csv"), row.names = TRUE)
   write.csv(ksea$scores, file.path(outdir, "ksea_scores.csv"), row.names = TRUE)
   write.csv(
@@ -521,11 +670,23 @@ main <- function() {
   write.csv(
     data.frame(
       kinase = colnames(L6.predMat),
-      n_targets = vapply(colnames(L6.predMat), function(k) sum(L6.predMat[, k] > 0.6, na.rm = TRUE), integer(1))
+      n_targets = vapply(
+        colnames(L6.predMat),
+        function(k) sum(L6.predMat[, k] > 0.6, na.rm = TRUE),
+        integer(1)
+      )
     ),
     file.path(outdir, "kinase_target_counts.csv"),
     row.names = FALSE
   )
+
+  write.csv(L6.prediction$trace_candidates, file.path(trace_dir, "trace_candidates.csv"), row.names = FALSE)
+  write.csv(L6.prediction$trace_initial_negatives, file.path(trace_dir, "trace_initial_negatives.csv"), row.names = FALSE)
+  write.csv(L6.prediction$trace_iteration_probabilities, file.path(trace_dir, "trace_iteration_probabilities.csv"), row.names = FALSE)
+  write.csv(L6.prediction$trace_iteration_samples, file.path(trace_dir, "trace_iteration_samples.csv"), row.names = FALSE)
+  write.csv(L6.prediction$trace_final_ensemble_predictions, file.path(trace_dir, "trace_final_ensemble_predictions.csv"), row.names = FALSE)
+  write.csv(L6.prediction$trace_final_ensemble_top, file.path(trace_dir, "trace_final_ensemble_top.csv"), row.names = FALSE)
+  write_trace_readme(trace_dir, trace_kinases, trace_top_n)
 
   write_session_info(outdir)
   message("Done. R L6 reference fixtures written to: ", outdir)
