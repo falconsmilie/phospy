@@ -1,5 +1,3 @@
-# docs/fixtures.md
-
 # Fixture and Trace Directory Guide
 
 This document explains the fixture and trace directories used in PhosPy, what each one is for, how the files are
