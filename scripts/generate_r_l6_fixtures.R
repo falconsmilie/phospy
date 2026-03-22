@@ -1,13 +1,14 @@
 #!/usr/bin/env Rscript
 
-suppressPackageStartupMessages({
-  library(readr)
-  library(dplyr)
-  library(tibble)
-})
-
 required_pkgs <- c("PhosR", "SummarizedExperiment")
-missing_pkgs <- required_pkgs[!vapply(required_pkgs, requireNamespace, logical(1), quietly = TRUE)]
+native_pred_top <- 30L
+native_pred_cs <- 0.6
+native_pred_inclusion <- 5L
+native_prediction_rank_top <- 30L
+
+missing_pkgs <- required_pkgs[
+  !vapply(required_pkgs, requireNamespace, logical(1), quietly = TRUE)
+]
 if (length(missing_pkgs) > 0) {
   stop(
     "Missing required R packages: ",
@@ -48,24 +49,165 @@ write_session_info <- function(outdir) {
   sink()
 }
 
+
+extract_substrate_sites <- function(substrate_entry) {
+  if (is.null(substrate_entry)) {
+    return(character(0))
+  }
+
+  if (is.data.frame(substrate_entry)) {
+    site_cols <- intersect(
+      c("site_id", "site", "SITE", "substrate", "phosphosite"),
+      names(substrate_entry)
+    )
+    if (length(site_cols) > 0) {
+      return(unique(as.character(substrate_entry[[site_cols[[1]]]])))
+    }
+    return(unique(as.character(substrate_entry[[1]])))
+  }
+
+  unique(as.character(substrate_entry))
+}
+
+filter_substrate_map_to_observed <- function(substrate.list, observed_sites, kinases = NULL) {
+  kinase_names <- names(substrate.list)
+  if (!is.null(kinases)) {
+    kinase_names <- intersect(kinase_names, kinases)
+  }
+
+  out <- list()
+  for (kinase in kinase_names) {
+    sites <- extract_substrate_sites(substrate.list[[kinase]])
+    sites <- unique(sites[sites %in% observed_sites])
+    if (length(sites) > 0) {
+      out[[kinase]] <- sites
+    }
+  }
+  out
+}
+
+write_grouped_mapping <- function(mapping, out_path, key_col = "kinase", value_col = "site_id") {
+  rows <- do.call(rbind, lapply(names(mapping), function(key) {
+    values <- mapping[[key]]
+    if (length(values) == 0) {
+      return(NULL)
+    }
+    data.frame(
+      key = rep(key, length(values)),
+      value = unname(values),
+      stringsAsFactors = FALSE
+    )
+  }))
+
+  if (is.null(rows)) {
+    rows <- data.frame(key = character(0), value = character(0), stringsAsFactors = FALSE)
+  }
+
+  names(rows) <- c(key_col, value_col)
+  write.csv(rows, out_path, row.names = FALSE)
+}
+
+write_ranked_prediction_table <- function(pred_mat, out_path, top_n = NULL) {
+  kinase_names <- colnames(pred_mat)
+  rows <- do.call(rbind, lapply(kinase_names, function(kinase) {
+    ordered <- sort(pred_mat[, kinase], decreasing = TRUE)
+    if (!is.null(top_n)) {
+      ordered <- ordered[seq_len(min(top_n, length(ordered)))]
+    }
+    data.frame(
+      kinase = rep(kinase, length(ordered)),
+      site_id = names(ordered),
+      pred_score = as.numeric(unname(ordered)),
+      rank = seq_along(ordered),
+      stringsAsFactors = FALSE
+    )
+  }))
+
+  if (is.null(rows)) {
+    rows <- data.frame(
+      kinase = character(0),
+      site_id = character(0),
+      pred_score = numeric(0),
+      rank = integer(0),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  write.csv(rows, out_path, row.names = FALSE)
+}
+
+build_candidate_substrate_list_compat <- function(combined_score_matrix, top = 30L, cs = 0.6, inclusion = 5L) {
+  substrate_list <- list()
+  for (kinase in colnames(combined_score_matrix)) {
+    scores <- sort(combined_score_matrix[, kinase], decreasing = TRUE, na.last = NA)
+    scores <- head(scores, min(top, length(scores)))
+    sites <- names(scores)[scores > cs]
+    if (length(sites) >= inclusion) {
+      substrate_list[[kinase]] <- sites
+    }
+  }
+  substrate_list
+}
+
+load_phosphosite_mouse <- function() {
+  env <- new.env(parent = emptyenv())
+  tryCatch({
+    data("PhosphoSitePlus", package = "PhosR", envir = env)
+    if (exists("PhosphoSite.mouse", envir = env, inherits = FALSE)) {
+      return(get("PhosphoSite.mouse", envir = env, inherits = FALSE))
+    }
+    NULL
+  }, error = function(e) NULL)
+}
+
+load_motif_mouse_list <- function() {
+  env <- new.env(parent = emptyenv())
+  tryCatch({
+    data("KinaseMotifs", package = "PhosR", envir = env)
+    if (exists("motif.mouse.list", envir = env, inherits = FALSE)) {
+      return(get("motif.mouse.list", envir = env, inherits = FALSE))
+    }
+    NULL
+  }, error = function(e) NULL)
+}
+
 load_required_objects <- function() {
   env <- new.env(parent = emptyenv())
+
   data("phospho_L6_ratio_pe", package = "PhosR", envir = env)
   data("SPSs", package = "PhosR", envir = env)
-  data("PhosphoSitePlus", package = "PhosR", envir = env)
-  data("KinaseMotifs", package = "PhosR", envir = env)
 
-  required <- c("phospho.L6.ratio.pe", "SPSs", "PhosphoSite.mouse", "motif.mouse.list")
+  required <- c("phospho.L6.ratio.pe", "SPSs")
   missing <- required[!vapply(required, exists, logical(1), envir = env, inherits = FALSE)]
   if (length(missing) > 0) {
-    stop("Missing required PhosR data objects: ", paste(missing, collapse = ", "), call. = FALSE)
+    stop(
+      "Missing required PhosR data objects: ",
+      paste(missing, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  phosphosite_mouse <- load_phosphosite_mouse()
+  if (is.null(phosphosite_mouse)) {
+    stop(
+      "Could not load PhosphoSite.mouse from the PhosphoSitePlus dataset in PhosR.",
+      call. = FALSE
+    )
+  }
+
+  motif_mouse_list <- load_motif_mouse_list()
+  if (is.null(motif_mouse_list)) {
+    stop(
+      "Could not load motif.mouse.list from the KinaseMotifs dataset in PhosR.",
+      call. = FALSE
+    )
   }
 
   list(
     ppe = get("phospho.L6.ratio.pe", envir = env, inherits = FALSE),
     SPSs = get("SPSs", envir = env, inherits = FALSE),
-    PhosphoSite.mouse = get("PhosphoSite.mouse", envir = env, inherits = FALSE),
-    motif.mouse.list = get("motif.mouse.list", envir = env, inherits = FALSE)
+    PhosphoSite.mouse = phosphosite_mouse,
+    motif.mouse.list = motif_mouse_list
   )
 }
 
@@ -179,15 +321,29 @@ kinase_substrate_score_compat <- function(
   }
   message("done.")
 
-  ksActivityMatrix <- do.call(rbind, ks.profile.list.filtered)
-  rownames(ksActivityMatrix) <- names(ks.profile.list.filtered)
-  ksActivityMatrix <- ksActivityMatrix[o, , drop = FALSE]
+  ksActivityMatrixAll <- do.call(rbind, ks.profile.list.filtered)
+  rownames(ksActivityMatrixAll) <- names(ks.profile.list.filtered)
+  ksActivityMatrix <- ksActivityMatrixAll[o, , drop = FALSE]
+
+  weightTable <- data.frame(
+    kinase = o,
+    motif_weight = as.numeric(w1 / w3),
+    profile_weight = as.numeric(w2 / w3),
+    motif_rank_weight = as.numeric(w1),
+    profile_rank_weight = as.numeric(w2),
+    stringsAsFactors = FALSE
+  )
 
   list(
     motifScoreMatrix = motifScoreMatrix,
     profileScoreMatrix = profileScoreMatrix,
     combinedScoreMatrix = combinedScoreMatrix,
     ksActivityMatrix = ksActivityMatrix,
+    ksActivityMatrixAll = ksActivityMatrixAll,
+    profileSizes = ks.profile.list$NumSub,
+    motifSizes = motif.mouse.list$NumInputSeq,
+    overlapKinases = o,
+    weightTable = weightTable,
     weights = w3
   )
 }
@@ -307,6 +463,18 @@ main <- function() {
     numSub = 1
   )
 
+  native_substrate_map <- filter_substrate_map_to_observed(
+    substrate.list = substrate_list,
+    observed_sites = rownames(L6.phos.std),
+    kinases = rownames(L6.matrices$ksActivityMatrixAll)
+  )
+  native_candidate_substrates <- build_candidate_substrate_list_compat(
+    L6.matrices$combinedScoreMatrix,
+    top = native_pred_top,
+    cs = native_pred_cs,
+    inclusion = native_pred_inclusion
+  )
+
   set.seed(1)
   L6.predMat <- PhosR::kinaseSubstratePred(L6.matrices, top = 30)
 
@@ -314,12 +482,35 @@ main <- function() {
   ksea <- build_ksea_scores(L6.predMat, L6.phos.std)
 
   write.csv(L6.phos.std, file.path(outdir, "l6_phospho_matrix.csv"), row.names = TRUE)
+  write_grouped_mapping(
+    native_substrate_map,
+    file.path(outdir, "native_substrate_map.csv")
+  )
+  write.csv(L6.matrices$ksActivityMatrixAll, file.path(outdir, "native_profile_matrix.csv"), row.names = TRUE)
+  write.csv(L6.matrices$profileScoreMatrix, file.path(outdir, "native_profile_scores.csv"), row.names = TRUE)
+  write.csv(L6.matrices$motifScoreMatrix, file.path(outdir, "native_motif_scores.csv"), row.names = TRUE)
+  write.csv(
+    data.frame(kinase = names(L6.matrices$motifSizes), motif_size = unname(L6.matrices$motifSizes)),
+    file.path(outdir, "native_motif_sizes.csv"),
+    row.names = FALSE
+  )
+  write.csv(L6.matrices$combinedScoreMatrix, file.path(outdir, "native_combined_scores.csv"), row.names = TRUE)
+  write.csv(L6.matrices$weightTable, file.path(outdir, "native_combined_weights.csv"), row.names = FALSE)
+  write_grouped_mapping(
+    native_candidate_substrates,
+    file.path(outdir, "native_candidate_substrates.csv")
+  )
   write.csv(
     data.frame(site_id = names(L6.phos.seq), centralized_sequence = unname(L6.phos.seq)),
     file.path(outdir, "l6_site_sequences.csv"),
     row.names = FALSE
   )
   write.csv(L6.predMat, file.path(outdir, "predMat.csv"), row.names = TRUE)
+  write_ranked_prediction_table(
+    L6.predMat,
+    file.path(outdir, "native_prediction_top30.csv"),
+    top_n = native_prediction_rank_top
+  )
   write.csv(kinase_activity, file.path(outdir, "kinase_activity_matrix.csv"), row.names = TRUE)
   write.csv(ksea$scores, file.path(outdir, "ksea_scores.csv"), row.names = TRUE)
   write.csv(
