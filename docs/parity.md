@@ -48,56 +48,10 @@ equivalence.
 
 ## Fixture Paths
 
-This repository currently uses two main R fixture paths.
+The repository uses committed R fixtures, committed Python reference traces, and temporary debugging traces.
 
-### Small Synthetic Fixture Path
-
-Use this path for deterministic preprocessing and core matrix-building parity.
-
-Generate fixtures with:
-
-```bash
-Rscript scripts/generate_r_fixtures.R
-```
-
-This writes CSV fixtures into `tests/fixtures/r_reference/` for:
-
-- corrected phosphosite values
-- PhosR input rows and site matrix
-- `predMat`
-- weighted kinase activity
-- KSEA scores
-- substrate counts
-- `sessionInfo()` for provenance
-
-This path is useful for logic-level parity and regression protection in the core preprocessing and downstream summary
-flow. It should not be treated as strong evidence for broader downstream equivalence beyond the implemented and tested
-wrapper path.
-
-### Bundled PhosR L6 Fixture Path
-
-Use this path for a more realistic downstream kinase-analysis parity check based on PhosR’s bundled rat L6 myotube
-example dataset, which is used throughout the original package examples and vignette.
-
-Generate fixtures with:
-
-```bash
-Rscript scripts/generate_r_l6_fixtures.R
-```
-
-This writes CSV fixtures into `tests/fixtures/r_reference_l6/` for:
-
-- the filtered standardised L6 phosphosite matrix used for kinase analysis
-- `predMat`
-- weighted kinase activity
-- KSEA scores
-- kinase target counts
-- `sessionInfo()` for provenance
-
-That directory also includes committed native-workflow reference tables used in parity tests for Python-native scoring
-and prediction seams.
-
-This is the better current evidence for parity of the implemented downstream kinase-analysis methods.
+See [`docs/fixtures.md`](fixtures.md) for the fixture and trace directory layout, generation commands, promotion rules,
+and the distinction between committed reference data and temporary debugging output.
 
 ## Native Kinase Workflow
 
@@ -130,43 +84,6 @@ That setting is useful when you want learner behaviour that more closely tracks 
 parity-sensitive prediction settings explicit and testable rather than hidden behind defaults. It should still be
 treated as one seam within a larger workflow, not as a standalone claim of full workflow equivalence.
 
-## Prediction Trace Directories
-
-The repository also contains prediction-trace exports for seam-level debugging.
-
-### Committed R Trace Fixtures
-
-The directory `tests/fixtures/r_reference_l6/prediction_trace/` contains committed R-side prediction traces for selected
-kinases on the bundled L6 path.
-
-These files are useful for inspecting candidate selection, negative sampling, iteration-level probabilities, and final
-ensemble predictions at a more granular level than end-result tables alone.
-
-### Committed Python Trace Fixtures
-
-The directory `tests/fixtures/python_reference_l6/prediction_trace/` contains committed Python-side prediction traces
-exported from the native predictor.
-
-These files exist so that Python learner-stage behaviour can be compared directly against the committed R traces. They
-are part of the repository’s seam-level debugging and comparison story, and they help make prediction-stage differences
-easier to inspect and discuss.
-
-### Temporary Trace Output
-
-The directory `tmp_trace_out/` exists as a documented scratch area for ad hoc Python prediction-trace exports during
-debugging.
-
-Its purpose is different from the committed fixture paths:
-
-- it is for short-lived or investigation-specific trace runs
-- its contents may be regenerated or replaced freely
-- it should not be treated as stable reference data
-- files should only be considered part of the parity contract when they are intentionally promoted into a committed
-  fixture path under `tests/fixtures/`
-
-This distinction helps keep the repository honest about which artefacts are stable evidence and which are working-output
-diagnostics.
-
 ## Running Parity Tests
 
 If the fixtures are present, parity tests can be run with:
@@ -188,8 +105,8 @@ When a parity-backed workflow changes, at least one of the following should also
 Do not silently broaden parity claims in the README or other project documentation beyond the fixture-backed seams
 described here without adding corresponding evidence.
 
-When temporary debugging artefacts in `tmp_trace_out/` reveal an important new seam or a stable comparison case, promote
-the relevant outputs into a committed fixture directory and update the associated tests or documentation accordingly.
+When a fixture or trace layout changes, update [`docs/fixtures.md`](fixtures.md) rather than scattering the same
+explanation across multiple directory-level README files.
 
 ## Provenance
 
