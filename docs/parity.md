@@ -86,3 +86,11 @@ The generated trace files are:
 - `trace_final_ensemble_top.csv`
 
 Those files are the starting point for debugging remaining prediction-stage ranking gaps without guessing where the divergence is being introduced.
+
+You can also ask the Python trace exporter to replay the R-side sampling path directly:
+
+```bash
+python scripts/export_python_prediction_traces.py   --sampling-trace-dir tests/fixtures/r_reference_l6/prediction_trace
+```
+
+That makes Python consume the R-exported initial negatives and per-iteration class resamples from `trace_initial_negatives.csv` and `trace_iteration_samples.csv`. Once those sampled rows are fixed, any remaining difference is in the fitted model path rather than in candidate selection or adaptive resampling.

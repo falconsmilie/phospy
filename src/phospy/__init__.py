@@ -21,6 +21,8 @@ from .prediction import (
     KinasePredictionDebugTrace,
     KinasePredictionResult,
     KinasePredictor,
+    PredictionSamplingTrace,
+    SamplingTraceOverrideEnsemble,
     build_candidate_substrate_list,
 )
 from .preprocessing import (
@@ -63,6 +65,8 @@ __all__ = [
     "KinasePredictionDebugTrace",
     "KinasePredictionResult",
     "KinasePredictor",
+    "PredictionSamplingTrace",
+    "SamplingTraceOverrideEnsemble",
     "KinaseProfileBuilder",
     "KinaseProfileResult",
     "KinaseScorer",
