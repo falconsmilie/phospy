@@ -12,6 +12,7 @@ from phospy import (
     PredictionSamplingTrace,
     build_candidate_substrate_list,
 )
+from phospy.prediction import _RLikeStandardScaler
 
 
 def make_combined_scores() -> pd.DataFrame:
@@ -22,6 +23,32 @@ def make_combined_scores() -> pd.DataFrame:
         },
         index=[f"SITE_{i}" for i in range(1, 9)],
     )
+
+
+def test_r_like_standard_scaler_uses_sample_standard_deviation() -> None:
+    scaler = _RLikeStandardScaler().fit(
+        pd.DataFrame(
+            {
+                "a": [1.0, 3.0, 5.0],
+                "b": [2.0, 2.0, 2.0],
+            }
+        ).to_numpy(dtype=float)
+    )
+
+    transformed = scaler.transform(
+        pd.DataFrame(
+            {
+                "a": [1.0, 3.0, 5.0],
+                "b": [2.0, 2.0, 2.0],
+            }
+        ).to_numpy(dtype=float)
+    )
+
+    assert scaler.mean_.tolist() == [3.0, 2.0]
+    assert scaler.scale_[0] == pytest.approx(2.0)
+    assert scaler.scale_[1] == pytest.approx(1.0)
+    assert transformed[:, 0].tolist() == pytest.approx([-1.0, 0.0, 1.0])
+    assert transformed[:, 1].tolist() == pytest.approx([0.0, 0.0, 0.0])
 
 
 def test_build_candidate_substrate_list_applies_selection_rules() -> None:

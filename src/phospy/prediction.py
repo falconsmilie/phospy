@@ -518,15 +518,45 @@ def _multi_ada_sampling(
     return positive_series, ensemble_trace
 
 
+class _RLikeStandardScaler:
+    """Match R/e1071 column scaling more closely.
+
+    R's ``scale()`` uses the sample standard deviation when centering is
+    enabled. scikit-learn's ``StandardScaler`` instead uses the population
+    standard deviation. e1071::svm() scales training data internally by
+    default and reuses the learned center/scale for prediction, so we mirror
+    that behaviour here with ddof=1 semantics.
+    """
+
+    def fit(self, x: np.ndarray, y: np.ndarray | None = None) -> _RLikeStandardScaler:
+        values = np.asarray(x, dtype=float)
+        self.mean_ = values.mean(axis=0)
+        if values.shape[0] <= 1:
+            scale = np.ones(values.shape[1], dtype=float)
+        else:
+            centered = values - self.mean_
+            scale = np.sqrt(np.sum(centered**2, axis=0) / (values.shape[0] - 1))
+            scale[scale == 0.0] = 1.0
+        self.scale_ = scale
+        return self
+
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        values = np.asarray(x, dtype=float)
+        return (values - self.mean_) / self.scale_
+
+
 def _make_svm(
     *, StandardScaler: type, SVC: type, kernel: str, rng: np.random.Generator
 ):
     from sklearn.pipeline import make_pipeline
 
+    del StandardScaler
+
     return make_pipeline(
-        StandardScaler(),
+        _RLikeStandardScaler(),
         SVC(
             kernel=kernel,
+            gamma="auto",
             probability=True,
             random_state=int(rng.integers(0, 2**31 - 1)),
         ),
