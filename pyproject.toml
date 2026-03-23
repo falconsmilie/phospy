@@ -20,16 +20,12 @@ classifiers = [
 dependencies = [
   "numpy>=1.24",
   "pandas>=2.0",
+  "scikit-learn>=1.4",
 ]
 
 [project.optional-dependencies]
 test = [
   "pytest>=8.0",
-  "scikit-learn>=1.4",
-]
-
-ml = [
-  "scikit-learn>=1.4",
 ]
 
 viz = [
@@ -45,9 +41,19 @@ enrich = [
 
 dev = [
   "pre-commit>=4.0",
-  "ruff>=0.15.7",
   "pytest>=8.0",
-  "scikit-learn>=1.4",
+  "ruff>=0.15.7",
+]
+
+full = [
+  "gseapy>=1.1",
+  "matplotlib>=3.8",
+  "matplotlib-venn>=1.1",
+  "networkx>=3.2",
+  "pre-commit>=4.0",
+  "pytest>=8.0",
+  "ruff>=0.15.7",
+  "seaborn>=0.13",
 ]
 
 [project.scripts]
