@@ -19,7 +19,7 @@ read_args <- function() {
   args <- commandArgs(trailingOnly = TRUE)
   defaults <- list(
     outdir = "tests/fixtures/r_reference_l6",
-    trace_kinases = "PRKAA1,MAPK1",
+    trace_kinases = "PRKAA1,MAPK1,MAPK9,IRAK1,TBK1,LCK",
     trace_top_n = "10"
   )
 
@@ -617,7 +617,7 @@ trace_kinase_substrate_pred <- function(
   cs = 0.8,
   inclusion = 20,
   iter = 5,
-  trace_kinases = c("PRKAA1", "MAPK1"),
+  trace_kinases = c("PRKAA1", "MAPK1", "MAPK9", "IRAK1", "TBK1", "LCK"),
   trace_top_n = 10
 ) {
   substrate_trace <- trace_substrate_list(

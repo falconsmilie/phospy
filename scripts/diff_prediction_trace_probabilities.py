@@ -49,10 +49,30 @@ def read_trace_table(trace_dir: Path, filename: str) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
-def normalize_probability_table(
-    frame: pd.DataFrame, kinases: list[str]
+def _validate_requested_kinases(
+    *,
+    frame: pd.DataFrame,
+    kinases: list[str],
+    source_name: str,
 ) -> pd.DataFrame:
-    filtered = frame.loc[frame["kinase"].astype(str).isin(kinases)].copy()
+    available = sorted(frame["kinase"].astype(str).drop_duplicates().tolist())
+    requested = [str(kinase) for kinase in kinases]
+    missing = [kinase for kinase in requested if kinase not in available]
+    if missing:
+        msg = (
+            f"Requested kinases are missing from {source_name}: {', '.join(missing)}. "
+            f"Available kinases: {', '.join(available) or 'none'}"
+        )
+        raise ValueError(msg)
+    return frame.loc[frame["kinase"].astype(str).isin(requested)].copy()
+
+
+def normalize_probability_table(
+    frame: pd.DataFrame, kinases: list[str], source_name: str
+) -> pd.DataFrame:
+    filtered = _validate_requested_kinases(
+        frame=frame, kinases=kinases, source_name=source_name
+    )
     filtered["kinase"] = filtered["kinase"].astype(str)
     filtered["ensemble"] = filtered["ensemble"].astype(int)
     filtered["iteration"] = filtered["iteration"].astype(int)
@@ -63,8 +83,12 @@ def normalize_probability_table(
     ).reset_index(drop=True)
 
 
-def normalize_weight_table(frame: pd.DataFrame, kinases: list[str]) -> pd.DataFrame:
-    filtered = frame.loc[frame["kinase"].astype(str).isin(kinases)].copy()
+def normalize_weight_table(
+    frame: pd.DataFrame, kinases: list[str], source_name: str
+) -> pd.DataFrame:
+    filtered = _validate_requested_kinases(
+        frame=frame, kinases=kinases, source_name=source_name
+    )
     filtered["kinase"] = filtered["kinase"].astype(str)
     filtered["ensemble"] = filtered["ensemble"].astype(int)
     filtered["iteration"] = filtered["iteration"].astype(int)
@@ -125,10 +149,12 @@ def main() -> None:
     r_prob = normalize_probability_table(
         read_trace_table(r_trace_dir, "trace_iteration_probabilities.csv"),
         kinases,
+        source_name=f"R trace directory ({r_trace_dir})",
     )
     py_prob = normalize_probability_table(
         read_trace_table(python_trace_dir, "trace_iteration_probabilities.csv"),
         kinases,
+        source_name=f"Python trace directory ({python_trace_dir})",
     )
     merged_prob = py_prob.merge(
         r_prob,
@@ -136,15 +162,22 @@ def main() -> None:
         suffixes=("_py", "_r"),
         validate="one_to_one",
     )
+    if merged_prob.empty:
+        raise ValueError(
+            "No overlapping probability rows were found after merging the requested kinases. "
+            "Check that both traces were generated from the same kinase list and fixture state."
+        )
     prob_summary = summarize_probability_diff(merged_prob)
 
     r_weights = normalize_weight_table(
         read_trace_table(r_trace_dir, "trace_iteration_resampling_weights.csv"),
         kinases,
+        source_name=f"R trace directory ({r_trace_dir})",
     )
     py_weights = normalize_weight_table(
         read_trace_table(python_trace_dir, "trace_iteration_resampling_weights.csv"),
         kinases,
+        source_name=f"Python trace directory ({python_trace_dir})",
     )
     merged_weights = py_weights.merge(
         r_weights,
@@ -152,6 +185,11 @@ def main() -> None:
         suffixes=("_py", "_r"),
         validate="one_to_one",
     )
+    if merged_weights.empty:
+        raise ValueError(
+            "No overlapping resampling-weight rows were found after merging the requested kinases. "
+            "Check that both traces were generated from the same kinase list and fixture state."
+        )
     weight_summary = summarize_weight_diff(merged_weights)
 
     print("Probability diff summary")
