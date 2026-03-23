@@ -74,6 +74,126 @@ write_trace_readme <- function(trace_dir, trace_kinases, trace_top_n) {
   writeLines(lines, file.path(trace_dir, "README.md"))
 }
 
+
+
+build_quantified_substrate_map <- function(
+  substrate.list,
+  observed_sites,
+  min_substrates = 1L
+) {
+  substrate_map <- list()
+  map_idx <- 0L
+
+  for (kinase in names(substrate.list)) {
+    quantified <- c()
+    seen <- character(0)
+
+    for (site in substrate.list[[kinase]]) {
+      if ((site %in% observed_sites) && !(site %in% seen)) {
+        quantified <- c(quantified, site)
+        seen <- c(seen, site)
+      }
+    }
+
+    if (length(quantified) >= min_substrates) {
+      map_idx <- map_idx + 1L
+      substrate_map[[map_idx]] <- quantified
+      names(substrate_map)[map_idx] <- kinase
+    }
+  }
+
+  substrate_map
+}
+
+flatten_grouped_mapping <- function(
+  grouped_map,
+  group_col = "kinase",
+  value_col = "site_id"
+) {
+  rows <- list()
+  row_idx <- 0L
+
+  for (group_name in names(grouped_map)) {
+    values <- grouped_map[[group_name]]
+    if (length(values) == 0) {
+      next
+    }
+    row_idx <- row_idx + 1L
+    rows[[row_idx]] <- data.frame(
+      kinase = rep(group_name, length(values)),
+      site_id = values,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  if (length(rows) == 0) {
+    empty <- data.frame(
+      kinase = character(0),
+      site_id = character(0),
+      stringsAsFactors = FALSE
+    )
+    names(empty) <- c(group_col, value_col)
+    return(empty)
+  }
+
+  result <- do.call(rbind, rows)
+  names(result) <- c(group_col, value_col)
+  result
+}
+
+build_combined_weight_table <- function(
+  overlap_kinases,
+  motif_sizes,
+  profile_sizes
+) {
+  motif_rank_weight <- log(rank(motif_sizes[overlap_kinases]) + 1)
+  profile_rank_weight <- log(rank(profile_sizes[overlap_kinases]) + 1)
+  total_weight <- motif_rank_weight + profile_rank_weight
+
+  data.frame(
+    kinase = overlap_kinases,
+    motif_weight = as.numeric(motif_rank_weight / total_weight),
+    profile_weight = as.numeric(profile_rank_weight / total_weight),
+    motif_rank_weight = as.numeric(motif_rank_weight),
+    profile_rank_weight = as.numeric(profile_rank_weight),
+    stringsAsFactors = FALSE
+  )
+}
+
+build_prediction_top_table <- function(pred_mat, top_n = 30L) {
+  rows <- list()
+  row_idx <- 0L
+
+  for (kinase in colnames(pred_mat)) {
+    ordered <- sort(pred_mat[, kinase], decreasing = TRUE)
+    top_count <- min(top_n, length(ordered))
+    if (top_count == 0) {
+      next
+    }
+    top_sites <- names(ordered)[seq_len(top_count)]
+    row_idx <- row_idx + 1L
+    rows[[row_idx]] <- data.frame(
+      kinase = kinase,
+      site_id = top_sites,
+      pred_score = as.numeric(ordered[seq_len(top_count)]),
+      rank = seq_len(top_count),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  if (length(rows) == 0) {
+    return(data.frame(
+      kinase = character(0),
+      site_id = character(0),
+      pred_score = numeric(0),
+      rank = integer(0),
+      stringsAsFactors = FALSE
+    ))
+  }
+
+  do.call(rbind, rows)
+}
+
 load_required_objects <- function() {
   env <- new.env(parent = emptyenv())
   data("phospho_L6_ratio_pe", package = "PhosR", envir = env)
@@ -632,23 +752,73 @@ main <- function() {
   L6.phos.seq <- PhosR::Sequence(ppe)[idx]
 
   message("Running PhosR kinase-substrate scoring on L6 data...")
+  native_num_motif <- 5L
+  native_num_sub <- 1L
+  native_top <- 30L
+  native_score_threshold <- 0.6
+  native_inclusion <- 5L
+
   L6.matrices <- kinase_substrate_score_compat(
     substrate.list = substrate_list,
     mat = L6.phos.std,
     seqs = L6.phos.seq,
     motif.mouse.list = motif.mouse.list,
-    numMotif = 5,
-    numSub = 1
+    numMotif = native_num_motif,
+    numSub = native_num_sub
+  )
+
+  native_substrate_map <- build_quantified_substrate_map(
+    substrate.list = substrate_list,
+    observed_sites = rownames(L6.phos.std),
+    min_substrates = native_num_sub
+  )
+  native_profile_list <- PhosR::kinaseSubstrateProfile(substrate_list, L6.phos.std)
+  native_profile_filtered <- native_profile_list[
+    which(native_profile_list$NumSub >= native_num_sub)
+  ]
+  native_profile_matrix <- do.call(rbind, native_profile_filtered)
+  rownames(native_profile_matrix) <- names(native_profile_filtered)
+  native_profile_scores <- score_phosphosite_profile_compat(
+    L6.phos.std,
+    native_profile_filtered
+  )
+  native_motif_filtered <- motif.mouse.list[
+    which(motif.mouse.list$NumInputSeq >= native_num_motif)
+  ]
+  native_motif_scores <- score_phosphosites_motifs_compat(
+    mat = L6.phos.std,
+    motif.mouse.list.filtered = native_motif_filtered,
+    seqs = L6.phos.seq
+  )
+  native_motif_sizes <- data.frame(
+    kinase = names(motif.mouse.list$NumInputSeq),
+    motif_size = as.numeric(motif.mouse.list$NumInputSeq),
+    stringsAsFactors = FALSE
+  )
+  native_combined_weights <- build_combined_weight_table(
+    overlap_kinases = colnames(L6.matrices$combinedScoreMatrix),
+    motif_sizes = motif.mouse.list$NumInputSeq,
+    profile_sizes = native_profile_list$NumSub
+  )
+  native_candidate_trace <- trace_substrate_list(
+    phosScoringMatrices = L6.matrices,
+    top = native_top,
+    cs = native_score_threshold,
+    inclusion = native_inclusion,
+    trace_kinases = character(0)
   )
 
   set.seed(1)
   L6.prediction <- trace_kinase_substrate_pred(
     L6.matrices,
-    top = 30,
+    top = native_top,
+    cs = native_score_threshold,
+    inclusion = native_inclusion,
     trace_kinases = trace_kinases,
     trace_top_n = trace_top_n
   )
   L6.predMat <- L6.prediction$pred_matrix
+  native_prediction_top30 <- build_prediction_top_table(L6.predMat, top_n = native_top)
 
   kinase_activity <- build_weighted_kinase_activity(L6.predMat, L6.phos.std)
   ksea <- build_ksea_scores(L6.predMat, L6.phos.std)
@@ -657,6 +827,35 @@ main <- function() {
   write.csv(
     data.frame(site_id = names(L6.phos.seq), centralized_sequence = unname(L6.phos.seq)),
     file.path(outdir, "l6_site_sequences.csv"),
+    row.names = FALSE
+  )
+  write.csv(
+    flatten_grouped_mapping(native_substrate_map),
+    file.path(outdir, "native_substrate_map.csv"),
+    row.names = FALSE
+  )
+  write.csv(native_profile_matrix, file.path(outdir, "native_profile_matrix.csv"), row.names = TRUE)
+  write.csv(native_profile_scores, file.path(outdir, "native_profile_scores.csv"), row.names = TRUE)
+  write.csv(native_motif_scores, file.path(outdir, "native_motif_scores.csv"), row.names = TRUE)
+  write.csv(native_motif_sizes, file.path(outdir, "native_motif_sizes.csv"), row.names = FALSE)
+  write.csv(
+    L6.matrices$combinedScoreMatrix,
+    file.path(outdir, "native_combined_scores.csv"),
+    row.names = TRUE
+  )
+  write.csv(
+    native_combined_weights,
+    file.path(outdir, "native_combined_weights.csv"),
+    row.names = FALSE
+  )
+  write.csv(
+    flatten_grouped_mapping(native_candidate_trace$substrate_list),
+    file.path(outdir, "native_candidate_substrates.csv"),
+    row.names = FALSE
+  )
+  write.csv(
+    native_prediction_top30,
+    file.path(outdir, "native_prediction_top30.csv"),
     row.names = FALSE
   )
   write.csv(L6.predMat, file.path(outdir, "predMat.csv"), row.names = TRUE)
