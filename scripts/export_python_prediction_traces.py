@@ -206,9 +206,11 @@ def export_traces(
 
     initial_rows: list[dict[str, object]] = []
     probability_rows: list[dict[str, object]] = []
+    decision_rows: list[dict[str, object]] = []
     weight_rows: list[dict[str, object]] = []
     sample_rows: list[dict[str, object]] = []
     final_prediction_rows: list[dict[str, object]] = []
+    final_decision_rows: list[dict[str, object]] = []
     final_top_rows: list[dict[str, object]] = []
 
     debug_traces = result.debug_traces or {}
@@ -243,6 +245,18 @@ def export_traces(
                             else float("nan"),
                         }
                     )
+                for site, decision_value in iteration_trace.decision_values.items():
+                    decision_rows.append(
+                        {
+                            "kinase": kinase,
+                            "ensemble": ensemble_trace.ensemble_index,
+                            "iteration": iteration_trace.iteration_index,
+                            "site": site,
+                            "label": str(int(labels.loc[site])),
+                            "decision_value_class_1": float(decision_value),
+                        }
+                    )
+
                 if iteration_trace.positive_weights is not None:
                     for site, weight in iteration_trace.positive_weights.items():
                         weight_rows.append(
@@ -310,6 +324,15 @@ def export_traces(
                         else float("nan"),
                     }
                 )
+            for site, decision_value in ensemble_trace.final_decision_values.items():
+                final_decision_rows.append(
+                    {
+                        "kinase": kinase,
+                        "ensemble": ensemble_trace.ensemble_index,
+                        "site": site,
+                        "decision_value_class_1": float(decision_value),
+                    }
+                )
             for rank, site in enumerate(ensemble_trace.final_top_sites, start=1):
                 final_top_rows.append(
                     {
@@ -329,6 +352,9 @@ def export_traces(
     pd.DataFrame(probability_rows).to_csv(
         outdir / "trace_iteration_probabilities.csv", index=False
     )
+    pd.DataFrame(decision_rows).to_csv(
+        outdir / "trace_iteration_decision_values.csv", index=False
+    )
     pd.DataFrame(weight_rows).to_csv(
         outdir / "trace_iteration_resampling_weights.csv", index=False
     )
@@ -337,6 +363,9 @@ def export_traces(
     )
     pd.DataFrame(final_prediction_rows).to_csv(
         outdir / "trace_final_ensemble_predictions.csv", index=False
+    )
+    pd.DataFrame(final_decision_rows).to_csv(
+        outdir / "trace_final_ensemble_decision_values.csv", index=False
     )
     pd.DataFrame(final_top_rows).to_csv(
         outdir / "trace_final_ensemble_top.csv", index=False
@@ -357,9 +386,11 @@ def export_traces(
         "- trace_candidates.csv: ranked combined-score candidates for the traced kinases",
         "- trace_initial_negatives.csv: initial negative draw for each ensemble member",
         "- trace_iteration_probabilities.csv: per-iteration class probabilities on the base train set",
+        "- trace_iteration_decision_values.csv: per-iteration binary decision values aligned to class 1",
         "- trace_iteration_resampling_weights.csv: per-iteration class-specific resampling weights",
         "- trace_iteration_samples.csv: resampled site identities for each iteration and class",
         "- trace_final_ensemble_predictions.csv: final per-ensemble prediction probabilities for all sites",
+        "- trace_final_ensemble_decision_values.csv: final per-ensemble binary decision values aligned to class 1",
         "- trace_final_ensemble_top.csv: final per-ensemble top-ranked sites",
     ]
     (outdir / "README.md").write_text("\n".join(readme) + "\n", encoding="utf-8")

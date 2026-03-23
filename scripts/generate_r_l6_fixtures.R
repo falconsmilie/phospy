@@ -489,9 +489,11 @@ trace_multi_ada_sampling <- function(
   model <- c()
   prob.mat <- c()
   iteration_prob_rows <- list()
+  iteration_decision_rows <- list()
   iteration_weight_rows <- list()
   iteration_sample_rows <- list()
   probability_count <- 0
+  decision_count <- 0
   weight_count <- 0
   sample_count <- 0
 
@@ -499,8 +501,9 @@ trace_multi_ada_sampling <- function(
     tmp <- X
     rownames(tmp) <- NULL
     model <- e1071::svm(tmp, factor(Y), kernel = kernelType, probability = TRUE)
-    train_pred <- predict(model, train.mat, decision.values = FALSE, probability = TRUE)
+    train_pred <- predict(model, train.mat, decision.values = TRUE, probability = TRUE)
     prob.mat <- attr(train_pred, "probabilities")
+    decision_values <- attr(train_pred, "decision.values")
 
     if (is.null(rownames(prob.mat))) {
       rownames(prob.mat) <- rownames(train.mat)
@@ -515,6 +518,14 @@ trace_multi_ada_sampling <- function(
       prob_col_2 <- prob.mat[, "2"]
     }
 
+    train_decision <- as.numeric(decision_values)
+    if (length(train_decision) != nrow(prob.mat)) {
+      stop("Unexpected decision.values length in training trace.", call. = FALSE)
+    }
+    if (stats::cor(train_decision, prob_col_1, use = "pairwise.complete.obs") < 0) {
+      train_decision <- -train_decision
+    }
+
     probability_count <- probability_count + 1
     iteration_prob_rows[[probability_count]] <- data.frame(
       kinase = kinase,
@@ -524,6 +535,17 @@ trace_multi_ada_sampling <- function(
       label = as.character(label[rownames(prob.mat)]),
       prob_class_1 = as.numeric(prob_col_1),
       prob_class_2 = as.numeric(prob_col_2),
+      stringsAsFactors = FALSE
+    )
+
+    decision_count <- decision_count + 1
+    iteration_decision_rows[[decision_count]] <- data.frame(
+      kinase = kinase,
+      ensemble = ensemble_idx,
+      iteration = i,
+      site = rownames(prob.mat),
+      label = as.character(label[rownames(prob.mat)]),
+      decision_value_class_1 = train_decision,
       stringsAsFactors = FALSE
     )
 
@@ -582,6 +604,13 @@ trace_multi_ada_sampling <- function(
     pred_col_2 <- pred[, "2"]
   }
 
+  if (length(pred_decision) != nrow(pred)) {
+    stop("Unexpected decision.values length in final prediction trace.", call. = FALSE)
+  }
+  if (stats::cor(pred_decision, pred_col_1, use = "pairwise.complete.obs") < 0) {
+    pred_decision <- -pred_decision
+  }
+
   ordered_sites <- rownames(pred)[order(pred_col_1, decreasing = TRUE)]
   top_count <- min(trace_top_n, length(ordered_sites))
   top_sites <- ordered_sites[seq_len(top_count)]
@@ -589,6 +618,7 @@ trace_multi_ada_sampling <- function(
   list(
     pred = pred,
     iteration_probabilities = do.call(rbind, iteration_prob_rows),
+    iteration_decision_values = do.call(rbind, iteration_decision_rows),
     iteration_resampling_weights = do.call(rbind, iteration_weight_rows),
     iteration_samples = do.call(rbind, iteration_sample_rows),
     final_predictions = data.frame(
@@ -597,6 +627,13 @@ trace_multi_ada_sampling <- function(
       site = rownames(pred),
       prob_class_1 = as.numeric(pred_col_1),
       prob_class_2 = as.numeric(pred_col_2),
+      stringsAsFactors = FALSE
+    ),
+    final_decision_values = data.frame(
+      kinase = kinase,
+      ensemble = ensemble_idx,
+      site = rownames(pred),
+      decision_value_class_1 = pred_decision,
       stringsAsFactors = FALSE
     ),
     final_top = data.frame(
@@ -637,15 +674,19 @@ trace_kinase_substrate_pred <- function(
 
   initial_negative_rows <- list()
   iteration_probability_rows <- list()
+  iteration_decision_rows <- list()
   iteration_weight_rows <- list()
   iteration_sample_rows <- list()
   final_prediction_rows <- list()
+  final_decision_rows <- list()
   final_top_rows <- list()
   initial_count <- 0
   probability_count <- 0
+  decision_count <- 0
   weight_count <- 0
   sample_count <- 0
   final_prediction_count <- 0
+  final_decision_count <- 0
   final_top_count <- 0
 
   for (i in seq_len(length(substrate.list))) {
@@ -688,12 +729,16 @@ trace_kinase_substrate_pred <- function(
         pred <- trace_result$pred
         probability_count <- probability_count + 1
         iteration_probability_rows[[probability_count]] <- trace_result$iteration_probabilities
+        decision_count <- decision_count + 1
+        iteration_decision_rows[[decision_count]] <- trace_result$iteration_decision_values
         weight_count <- weight_count + 1
         iteration_weight_rows[[weight_count]] <- trace_result$iteration_resampling_weights
         sample_count <- sample_count + 1
         iteration_sample_rows[[sample_count]] <- trace_result$iteration_samples
         final_prediction_count <- final_prediction_count + 1
         final_prediction_rows[[final_prediction_count]] <- trace_result$final_predictions
+        final_decision_count <- final_decision_count + 1
+        final_decision_rows[[final_decision_count]] <- trace_result$final_decision_values
         final_top_count <- final_top_count + 1
         final_top_rows[[final_top_count]] <- trace_result$final_top
       } else {
@@ -719,9 +764,11 @@ trace_kinase_substrate_pred <- function(
     trace_candidates = substrate_trace$candidates,
     trace_initial_negatives = if (length(initial_negative_rows) > 0) do.call(rbind, initial_negative_rows) else data.frame(),
     trace_iteration_probabilities = if (length(iteration_probability_rows) > 0) do.call(rbind, iteration_probability_rows) else data.frame(),
+    trace_iteration_decision_values = if (length(iteration_decision_rows) > 0) do.call(rbind, iteration_decision_rows) else data.frame(),
     trace_iteration_resampling_weights = if (length(iteration_weight_rows) > 0) do.call(rbind, iteration_weight_rows) else data.frame(),
     trace_iteration_samples = if (length(iteration_sample_rows) > 0) do.call(rbind, iteration_sample_rows) else data.frame(),
     trace_final_ensemble_predictions = if (length(final_prediction_rows) > 0) do.call(rbind, final_prediction_rows) else data.frame(),
+    trace_final_ensemble_decision_values = if (length(final_decision_rows) > 0) do.call(rbind, final_decision_rows) else data.frame(),
     trace_final_ensemble_top = if (length(final_top_rows) > 0) do.call(rbind, final_top_rows) else data.frame()
   )
 }

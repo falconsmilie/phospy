@@ -11,7 +11,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Compare R and Python prediction traces at the learner seam by diffing "
-            "per-iteration probability tables and class-specific resampling weights."
+            "per-iteration probabilities, decision values, and class-specific resampling weights."
         )
     )
     parser.add_argument(
@@ -122,6 +122,44 @@ def summarize_probability_diff(merged: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(summary_rows)
 
 
+def normalize_decision_table(
+    frame: pd.DataFrame, kinases: list[str], source_name: str
+) -> pd.DataFrame:
+    filtered = _validate_requested_kinases(
+        frame=frame, kinases=kinases, source_name=source_name
+    )
+    filtered["kinase"] = filtered["kinase"].astype(str)
+    filtered["ensemble"] = filtered["ensemble"].astype(int)
+    filtered["iteration"] = filtered["iteration"].astype(int)
+    filtered["site"] = filtered["site"].astype(str)
+    filtered["label"] = filtered["label"].astype(str)
+    return filtered.sort_values(
+        ["kinase", "ensemble", "iteration", "site"], kind="mergesort"
+    ).reset_index(drop=True)
+
+
+def summarize_decision_diff(merged: pd.DataFrame) -> pd.DataFrame:
+    summary_rows: list[dict[str, object]] = []
+    for kinase, group in merged.groupby("kinase", sort=True):
+        diff = (
+            group["decision_value_class_1_py"] - group["decision_value_class_1_r"]
+        ).abs()
+        summary_rows.append(
+            {
+                "kinase": kinase,
+                "rows": int(len(group)),
+                "decision_value_corr": float(
+                    group["decision_value_class_1_py"].corr(
+                        group["decision_value_class_1_r"], method="pearson"
+                    )
+                ),
+                "decision_value_mae": float(diff.mean()),
+                "decision_value_max_abs": float(diff.max()),
+            }
+        )
+    return pd.DataFrame(summary_rows)
+
+
 def summarize_weight_diff(merged: pd.DataFrame) -> pd.DataFrame:
     summary_rows: list[dict[str, object]] = []
     for (kinase, class_label), group in merged.groupby(
@@ -168,6 +206,29 @@ def main() -> None:
             "Check that both traces were generated from the same kinase list and fixture state."
         )
     prob_summary = summarize_probability_diff(merged_prob)
+
+    r_decision = normalize_decision_table(
+        read_trace_table(r_trace_dir, "trace_iteration_decision_values.csv"),
+        kinases,
+        source_name=f"R trace directory ({r_trace_dir})",
+    )
+    py_decision = normalize_decision_table(
+        read_trace_table(python_trace_dir, "trace_iteration_decision_values.csv"),
+        kinases,
+        source_name=f"Python trace directory ({python_trace_dir})",
+    )
+    merged_decision = py_decision.merge(
+        r_decision,
+        on=["kinase", "ensemble", "iteration", "site", "label"],
+        suffixes=("_py", "_r"),
+        validate="one_to_one",
+    )
+    if merged_decision.empty:
+        raise ValueError(
+            "No overlapping decision-value rows were found after merging the requested kinases. "
+            "Check that both traces were generated from the same kinase list and fixture state."
+        )
+    decision_summary = summarize_decision_diff(merged_decision)
 
     r_weights = normalize_weight_table(
         read_trace_table(r_trace_dir, "trace_iteration_resampling_weights.csv"),
@@ -220,6 +281,36 @@ def main() -> None:
                 "prob_class_2_py",
                 "prob_class_2_r",
                 "prob_class_2_abs_diff",
+            ],
+        ]
+        .head(args.top_rows)
+        .to_string(index=False)
+    )
+    print()
+
+    print("Decision-value diff summary")
+    print(decision_summary.to_string(index=False))
+    print()
+
+    top_decisions = merged_decision.assign(
+        decision_value_abs_diff=(
+            merged_decision["decision_value_class_1_py"]
+            - merged_decision["decision_value_class_1_r"]
+        ).abs()
+    ).sort_values("decision_value_abs_diff", ascending=False)
+    print(f"Top {args.top_rows} decision-value deltas")
+    print(
+        top_decisions.loc[
+            :,
+            [
+                "kinase",
+                "ensemble",
+                "iteration",
+                "site",
+                "label",
+                "decision_value_class_1_py",
+                "decision_value_class_1_r",
+                "decision_value_abs_diff",
             ],
         ]
         .head(args.top_rows)

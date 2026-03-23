@@ -17,6 +17,7 @@ class AdaptiveSamplingIterationTrace:
     iteration_index: int
     labels: pd.Series
     probabilities: pd.DataFrame
+    decision_values: pd.Series
     positive_weights: pd.Series | None
     negative_weights: pd.Series | None
     sampled_positive_sites: list[str]
@@ -29,6 +30,7 @@ class AdaptiveSamplingEnsembleTrace:
     initial_negative_sites: list[str]
     iterations: list[AdaptiveSamplingIterationTrace]
     final_prediction_probabilities: pd.DataFrame
+    final_decision_values: pd.Series
     final_top_sites: list[str]
 
 
@@ -519,6 +521,12 @@ def _multi_ada_sampling(
             index=base_index,
             columns=[str(class_label) for class_label in model.classes_],
         )
+        decision_series = _aligned_binary_decision_values(
+            model=model,
+            values=base_x,
+            index=base_index,
+            positive_probabilities=prob_df.get("1"),
+        )
         label_series = pd.Series(base_y, index=base_index, dtype=int)
 
         resampled_x: list[np.ndarray] = []
@@ -574,6 +582,7 @@ def _multi_ada_sampling(
                     iteration_index=iteration_index,
                     labels=label_series,
                     probabilities=prob_df,
+                    decision_values=decision_series,
                     positive_weights=weights_by_class.get(1),
                     negative_weights=weights_by_class.get(2),
                     sampled_positive_sites=sampled_sites_by_class.get(1, []),
@@ -588,7 +597,8 @@ def _multi_ada_sampling(
         msg = "n_iterations must be at least 1"
         raise ValueError(msg)
 
-    pred = model.predict_proba(test_mat.to_numpy(dtype=float))
+    test_x = test_mat.to_numpy(dtype=float)
+    pred = model.predict_proba(test_x)
     pred_df = pd.DataFrame(
         pred,
         index=test_mat.index.copy(),
@@ -612,15 +622,44 @@ def _multi_ada_sampling(
             .head(debug_top_n)
             .index.tolist()
         )
+        final_decision_values = _aligned_binary_decision_values(
+            model=model,
+            values=test_x,
+            index=test_mat.index.copy(),
+            positive_probabilities=pred_df.get("1"),
+        )
         ensemble_trace = AdaptiveSamplingEnsembleTrace(
             ensemble_index=ensemble_index,
             initial_negative_sites=list(initial_negative_sites),
             iterations=iteration_traces,
             final_prediction_probabilities=pred_df,
+            final_decision_values=final_decision_values,
             final_top_sites=final_top_sites,
         )
 
     return positive_series, ensemble_trace
+
+
+def _aligned_binary_decision_values(
+    *,
+    model,
+    values: np.ndarray,
+    index: pd.Index,
+    positive_probabilities: pd.Series | None,
+) -> pd.Series:
+    """Return binary decision values aligned so larger means more class 1-like."""
+
+    decision_values = np.asarray(model.decision_function(values), dtype=float).reshape(
+        -1
+    )
+    series = pd.Series(decision_values, index=index, dtype=float)
+    if positive_probabilities is None:
+        return series
+    aligned_probabilities = positive_probabilities.reindex(index)
+    corr = series.corr(aligned_probabilities, method="pearson")
+    if pd.notna(corr) and corr < 0:
+        return -series
+    return series
 
 
 def _make_svm(
