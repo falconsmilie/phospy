@@ -14,6 +14,7 @@ from phospy import (
     build_candidate_substrate_list,
 )
 from phospy.prediction import (
+    _make_prediction_random_generators,
     _make_svm,
     _require_sklearn,
     _resolve_svm_probability_random_state,
@@ -230,6 +231,47 @@ def test_build_candidate_substrate_list_preserves_input_order_for_ties() -> None
     )
 
     assert substrate_list == {"KINASE_A": ["SITE_A", "SITE_B", "SITE_C"]}
+
+
+def test_make_prediction_random_generators_are_reproducible_and_independent() -> None:
+    initial_rng, adaptive_rng, svm_seed_rng = _make_prediction_random_generators(11)
+
+    initial_draw = int(initial_rng.integers(0, 10_000))
+    adaptive_draw = int(adaptive_rng.integers(0, 10_000))
+    svm_seed_draw = int(svm_seed_rng.integers(0, 10_000))
+
+    assert initial_draw == adaptive_draw == svm_seed_draw
+
+    second_initial_draw = int(initial_rng.integers(0, 10_000))
+    second_adaptive_draw = int(adaptive_rng.integers(0, 10_000))
+    second_svm_seed_draw = int(svm_seed_rng.integers(0, 10_000))
+
+    assert second_initial_draw == second_adaptive_draw == second_svm_seed_draw
+
+
+def test_predict_is_reproducible_for_the_same_random_state() -> None:
+    predictor = KinasePredictor()
+
+    first = predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=5,
+    )
+    second = predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=5,
+    )
+
+    pd.testing.assert_frame_equal(first.pred_matrix, second.pred_matrix)
 
 
 def test_r_like_standard_scaler_uses_sample_standard_deviation() -> None:

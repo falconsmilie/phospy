@@ -274,7 +274,11 @@ class KinasePredictor:
                 debug_traces={} if capture_debug_trace else None,
             )
 
-        rng = np.random.default_rng(random_state)
+        (
+            initial_sampling_rng,
+            adaptive_sampling_rng,
+            svm_probability_seed_rng,
+        ) = _make_prediction_random_generators(random_state)
         feature_mat = combined_scores.astype(float)
         pred_matrix = pd.DataFrame(
             0.0,
@@ -338,7 +342,7 @@ class KinasePredictor:
                         ),
                     )
                 else:
-                    negative_indices = rng.choice(
+                    negative_indices = initial_sampling_rng.choice(
                         negative_pool.index.to_numpy(),
                         size=len(positive_train),
                         replace=len(negative_pool) < len(positive_train),
@@ -365,7 +369,8 @@ class KinasePredictor:
                         labels=labels,
                         kernel=self.kernel,
                         n_iterations=n_iterations,
-                        rng=rng,
+                        sampling_rng=adaptive_sampling_rng,
+                        svm_probability_seed_rng=svm_probability_seed_rng,
                         capture_trace=True,
                         ensemble_index=ensemble_index,
                         initial_negative_sites=negative_sites,
@@ -382,7 +387,8 @@ class KinasePredictor:
                         labels=labels,
                         kernel=self.kernel,
                         n_iterations=n_iterations,
-                        rng=rng,
+                        sampling_rng=adaptive_sampling_rng,
+                        svm_probability_seed_rng=svm_probability_seed_rng,
                         capture_trace=False,
                         ensemble_index=ensemble_index,
                         initial_negative_sites=negative_sites,
@@ -473,7 +479,8 @@ def _multi_ada_sampling(
     labels: np.ndarray,
     kernel: str,
     n_iterations: int,
-    rng: np.random.Generator,
+    sampling_rng: np.random.Generator,
+    svm_probability_seed_rng: np.random.Generator,
     capture_trace: bool,
     ensemble_index: int,
     initial_negative_sites: list[str],
@@ -496,7 +503,7 @@ def _multi_ada_sampling(
             StandardScaler=StandardScaler,
             SVC=SVC,
             kernel=kernel,
-            rng=rng,
+            rng=svm_probability_seed_rng,
             svm_mode=svm_mode,
         )
         model.fit(current_x, current_y)
@@ -541,7 +548,7 @@ def _multi_ada_sampling(
                     ),
                 )
             else:
-                sampled_idx = rng.choice(
+                sampled_idx = sampling_rng.choice(
                     class_x.shape[0],
                     size=class_x.shape[0],
                     replace=True,
@@ -646,6 +653,31 @@ def _resolve_svm_probability_random_state(
     if svm_mode == "r_parity":
         return 1
     return int(rng.integers(0, 2**31 - 1))
+
+
+def _make_prediction_random_generators(
+    random_state: int | None,
+) -> tuple[np.random.Generator, np.random.Generator, np.random.Generator]:
+    """Return independent RNGs for the prediction workflow.
+
+    The native path has three stochastic seams: initial negative-pool sampling,
+    adaptive class resampling, and scikit-learn's probability-calibration seed.
+    Keeping them on separate generators avoids accidental cross-coupling between
+    those seams while preserving reproducibility for an explicit random_state.
+    """
+
+    if random_state is None:
+        return (
+            np.random.default_rng(),
+            np.random.default_rng(),
+            np.random.default_rng(),
+        )
+
+    return (
+        np.random.default_rng(random_state),
+        np.random.default_rng(random_state),
+        np.random.default_rng(random_state),
+    )
 
 
 def _normalize_probabilities(values: np.ndarray) -> np.ndarray | None:
