@@ -55,4 +55,5 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test]"
       - name: Run parity tests
-        run: pytest -m parity
+        run: PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
+#        run: pytest -m parity
