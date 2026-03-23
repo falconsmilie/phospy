@@ -162,7 +162,19 @@ class _RLikeStandardScaler:
         self.mean_: np.ndarray | None = None
         self.scale_: np.ndarray | None = None
 
-    def get_params(self, deep: bool = True) -> dict[str, object]:
+    @staticmethod
+    def __sklearn_tags__():
+        from sklearn.utils import InputTags, Tags, TargetTags, TransformerTags
+
+        return Tags(
+            estimator_type="transformer",
+            target_tags=TargetTags(required=False),
+            transformer_tags=TransformerTags(),
+            input_tags=InputTags(two_d_array=True),
+        )
+
+    @staticmethod
+    def get_params(deep: bool = True) -> dict[str, object]:
         del deep
         return {}
 
