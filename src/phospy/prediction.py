@@ -214,6 +214,17 @@ class _RLikeStandardScaler:
         return self.fit(values, y=y).transform(values)
 
 
+def _make_prediction_random_generators(
+    rng: np.random.Generator,
+) -> tuple[np.random.Generator, np.random.Generator]:
+    """Create independent RNG streams for prediction sampling steps."""
+
+    return (
+        np.random.default_rng(int(rng.integers(0, 2**31 - 1))),
+        np.random.default_rng(int(rng.integers(0, 2**31 - 1))),
+    )
+
+
 class KinasePredictor:
     """Predict kinase-substrate relationships from phosphosite score matrices.
 
@@ -274,11 +285,7 @@ class KinasePredictor:
                 debug_traces={} if capture_debug_trace else None,
             )
 
-        (
-            initial_sampling_rng,
-            adaptive_sampling_rng,
-            svm_probability_seed_rng,
-        ) = _make_prediction_random_generators(random_state)
+        master_rng = np.random.default_rng(random_state)
         feature_mat = combined_scores.astype(float)
         pred_matrix = pd.DataFrame(
             0.0,
@@ -296,6 +303,9 @@ class KinasePredictor:
         )
 
         for kinase, substrates in substrate_list.items():
+            negative_sampling_rng, resampling_rng = _make_prediction_random_generators(
+                master_rng
+            )
             positive_train = feature_mat.loc[substrates, :]
             negative_pool = feature_mat.loc[
                 ~feature_mat.index.isin(substrates),
@@ -342,7 +352,7 @@ class KinasePredictor:
                         ),
                     )
                 else:
-                    negative_indices = initial_sampling_rng.choice(
+                    negative_indices = negative_sampling_rng.choice(
                         negative_pool.index.to_numpy(),
                         size=len(positive_train),
                         replace=len(negative_pool) < len(positive_train),
@@ -369,8 +379,7 @@ class KinasePredictor:
                         labels=labels,
                         kernel=self.kernel,
                         n_iterations=n_iterations,
-                        sampling_rng=adaptive_sampling_rng,
-                        svm_probability_seed_rng=svm_probability_seed_rng,
+                        resampling_rng=resampling_rng,
                         capture_trace=True,
                         ensemble_index=ensemble_index,
                         initial_negative_sites=negative_sites,
@@ -387,8 +396,7 @@ class KinasePredictor:
                         labels=labels,
                         kernel=self.kernel,
                         n_iterations=n_iterations,
-                        sampling_rng=adaptive_sampling_rng,
-                        svm_probability_seed_rng=svm_probability_seed_rng,
+                        resampling_rng=resampling_rng,
                         capture_trace=False,
                         ensemble_index=ensemble_index,
                         initial_negative_sites=negative_sites,
@@ -479,8 +487,7 @@ def _multi_ada_sampling(
     labels: np.ndarray,
     kernel: str,
     n_iterations: int,
-    sampling_rng: np.random.Generator,
-    svm_probability_seed_rng: np.random.Generator,
+    resampling_rng: np.random.Generator,
     capture_trace: bool,
     ensemble_index: int,
     initial_negative_sites: list[str],
@@ -503,7 +510,6 @@ def _multi_ada_sampling(
             StandardScaler=StandardScaler,
             SVC=SVC,
             kernel=kernel,
-            rng=svm_probability_seed_rng,
             svm_mode=svm_mode,
         )
         model.fit(current_x, current_y)
@@ -548,7 +554,7 @@ def _multi_ada_sampling(
                     ),
                 )
             else:
-                sampled_idx = sampling_rng.choice(
+                sampled_idx = resampling_rng.choice(
                     class_x.shape[0],
                     size=class_x.shape[0],
                     replace=True,
@@ -619,14 +625,13 @@ def _make_svm(
     StandardScaler: type,
     SVC: type,
     kernel: str,
-    rng: np.random.Generator,
     svm_mode: PredictionSvmMode,
 ):
     from sklearn.pipeline import make_pipeline
 
     scaler = StandardScaler() if svm_mode == "default" else _RLikeStandardScaler()
     gamma: str | float = "scale" if svm_mode == "default" else "auto"
-    random_state = _resolve_svm_probability_random_state(rng=rng, svm_mode=svm_mode)
+    random_state = _resolve_svm_probability_random_state(svm_mode=svm_mode)
     return make_pipeline(
         scaler,
         SVC(
@@ -640,44 +645,12 @@ def _make_svm(
 
 def _resolve_svm_probability_random_state(
     *,
-    rng: np.random.Generator,
     svm_mode: PredictionSvmMode,
 ) -> int:
-    """Return the probability-calibration seed for the SVM model.
+    """Return the deterministic SVM probability-calibration seed."""
 
-    The parity-oriented mode uses a fixed calibration seed to reduce the extra
-    run-to-run jitter introduced by scikit-learn's internal probability-fitting
-    path. The default mode keeps the existing per-model random stream.
-    """
-
-    if svm_mode == "r_parity":
-        return 1
-    return int(rng.integers(0, 2**31 - 1))
-
-
-def _make_prediction_random_generators(
-    random_state: int | None,
-) -> tuple[np.random.Generator, np.random.Generator, np.random.Generator]:
-    """Return independent RNGs for the prediction workflow.
-
-    The native path has three stochastic seams: initial negative-pool sampling,
-    adaptive class resampling, and scikit-learn's probability-calibration seed.
-    Keeping them on separate generators avoids accidental cross-coupling between
-    those seams while preserving reproducibility for an explicit random_state.
-    """
-
-    if random_state is None:
-        return (
-            np.random.default_rng(),
-            np.random.default_rng(),
-            np.random.default_rng(),
-        )
-
-    return (
-        np.random.default_rng(random_state),
-        np.random.default_rng(random_state),
-        np.random.default_rng(random_state),
-    )
+    del svm_mode
+    return 1
 
 
 def _normalize_probabilities(values: np.ndarray) -> np.ndarray | None:

@@ -233,47 +233,6 @@ def test_build_candidate_substrate_list_preserves_input_order_for_ties() -> None
     assert substrate_list == {"KINASE_A": ["SITE_A", "SITE_B", "SITE_C"]}
 
 
-def test_make_prediction_random_generators_are_reproducible_and_independent() -> None:
-    initial_rng, adaptive_rng, svm_seed_rng = _make_prediction_random_generators(11)
-
-    initial_draw = int(initial_rng.integers(0, 10_000))
-    adaptive_draw = int(adaptive_rng.integers(0, 10_000))
-    svm_seed_draw = int(svm_seed_rng.integers(0, 10_000))
-
-    assert initial_draw == adaptive_draw == svm_seed_draw
-
-    second_initial_draw = int(initial_rng.integers(0, 10_000))
-    second_adaptive_draw = int(adaptive_rng.integers(0, 10_000))
-    second_svm_seed_draw = int(svm_seed_rng.integers(0, 10_000))
-
-    assert second_initial_draw == second_adaptive_draw == second_svm_seed_draw
-
-
-def test_predict_is_reproducible_for_the_same_random_state() -> None:
-    predictor = KinasePredictor()
-
-    first = predictor.predict(
-        combined_scores=make_combined_scores(),
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.85,
-        inclusion=3,
-        n_iterations=2,
-        random_state=5,
-    )
-    second = predictor.predict(
-        combined_scores=make_combined_scores(),
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.85,
-        inclusion=3,
-        n_iterations=2,
-        random_state=5,
-    )
-
-    pd.testing.assert_frame_equal(first.pred_matrix, second.pred_matrix)
-
-
 def test_r_like_standard_scaler_uses_sample_standard_deviation() -> None:
     values = np.array([[1.0, 2.0], [3.0, 6.0], [5.0, 10.0]])
 
@@ -295,13 +254,11 @@ def test_make_svm_default_mode_uses_sklearn_defaults_explicitly() -> None:
         StandardScaler=StandardScaler,
         SVC=SVC,
         kernel="rbf",
-        rng=np.random.default_rng(7),
         svm_mode="default",
     )
 
     assert model.steps[0][1].__class__.__name__ == "StandardScaler"
     assert model.steps[1][1].gamma == "scale"
-    assert model.steps[1][1].random_state != 1
 
 
 def test_make_svm_r_parity_mode_uses_r_like_scaler_and_gamma_auto() -> None:
@@ -311,30 +268,11 @@ def test_make_svm_r_parity_mode_uses_r_like_scaler_and_gamma_auto() -> None:
         StandardScaler=StandardScaler,
         SVC=SVC,
         kernel="rbf",
-        rng=np.random.default_rng(7),
         svm_mode="r_parity",
     )
 
     assert isinstance(model.steps[0][1], _RLikeStandardScaler)
     assert model.steps[1][1].gamma == "auto"
-    assert model.steps[1][1].random_state == 1
-
-
-def test_resolve_svm_probability_random_state_is_mode_specific() -> None:
-    rng = np.random.default_rng(7)
-
-    default_random_state = _resolve_svm_probability_random_state(
-        rng=rng,
-        svm_mode="default",
-    )
-    r_parity_random_state = _resolve_svm_probability_random_state(
-        rng=rng,
-        svm_mode="r_parity",
-    )
-
-    assert isinstance(default_random_state, int)
-    assert default_random_state != 1
-    assert r_parity_random_state == 1
 
 
 def test_predict_accepts_explicit_r_parity_mode() -> None:
@@ -628,3 +566,44 @@ def test_predict_raises_for_invalid_sampling_trace_sites(tmp_path: Path) -> None
             random_state=5,
             sampling_trace=trace_dir,
         )
+
+
+def test_make_prediction_random_generators_returns_independent_streams() -> None:
+    negative_rng, resampling_rng = _make_prediction_random_generators(
+        np.random.default_rng(17)
+    )
+
+    first_negative_draw = int(negative_rng.integers(0, 1000))
+    first_resampling_draw = int(resampling_rng.integers(0, 1000))
+
+    assert first_negative_draw != first_resampling_draw
+
+
+def test_resolve_svm_probability_random_state_returns_fixed_seed() -> None:
+    assert _resolve_svm_probability_random_state(svm_mode="default") == 1
+    assert _resolve_svm_probability_random_state(svm_mode="r_parity") == 1
+
+
+def test_kinase_predictor_is_reproducible_for_same_random_state() -> None:
+    predictor = KinasePredictor()
+
+    result_a = predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=11,
+    )
+    result_b = predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=11,
+    )
+
+    pd.testing.assert_frame_equal(result_a.pred_matrix, result_b.pred_matrix)

@@ -196,7 +196,6 @@ trace_final_ensemble_top.csv
 
 - committed Python reference traces
 - part of the seam-level parity story
-- the committed L6 replay fixtures currently align for both `PRKAA1` and `MAPK1`, so replay runs should not skip either kinase
 
 ### Temporary Python Trace Output
 

@@ -276,12 +276,6 @@ Effect on output:
 - adds optional comparison output for the replayed prediction-trace path
 - only works when `PHOSPY_SHOW_PARITY=1` is also set
 
-Current committed L6 replay state:
-
-- both traced kinases, `PRKAA1` and `MAPK1`, are replay-aligned
-- the replay exporter should currently report `Skipped trace kinases: none`
-- on this fixture set, `default` remains the stronger native parity default, while `r_parity` is the better fit for the replayed learner-only seam
-
 ## Regenerating the Python-Side Prediction Trace
 
 This is useful for seam debugging and trace comparison, but it is **not required** for the parity suite itself.
