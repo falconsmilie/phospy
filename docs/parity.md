@@ -1,17 +1,14 @@
 # Parity Model
 
-This document explains what parity means in PhosPy, where parity evidence currently exists, and where it does not.
-
-PhosPy is an unofficial Python port of selected PhosR workflow components. Some parts of the project are tested directly
-against R-generated fixtures, while newer native workflow pieces are better described as PhosR-style implementations
-with targeted fixture-backed seams rather than blanket claims of numerical equivalence.
+This document covers the fixture-backed test suite: what parity means in this repository, how to run it, and which
+options change the pytest output you see.
 
 ## What Parity Means Here
 
 In this repository, parity means that a specific Python path has been compared against outputs generated from the R
-package and shown to agree within the limits of the fixture-backed tests for that path.
+package and shown to agree within the limits of the committed fixture-backed tests for that path.
 
-Parity in this project is therefore:
+Parity here is:
 
 - explicit
 - test-backed
@@ -21,94 +18,330 @@ Parity in this project is therefore:
 It does **not** mean that the repository as a whole is a complete behavioural, numerical, or feature-level replacement
 for PhosR.
 
-## What Parity Does Not Mean
+## What the Parity Suite Covers
 
-Parity should not be read as a claim of:
-
-- full feature parity with the original R package
-- full behavioural parity across all PhosR methods
-- full output parity for workflows that have not been fixture-backed
-- broad numerical equivalence for the newer native kinase workflow outside the seams documented here
-- a native Python replacement for `Signalomes()`
-
-Where parity has not been established, PhosPy should be described as an evolving Python port inspired by and translating
-selected parts of the PhosR workflow.
-
-## Current Parity-Backed Areas
-
-The strongest current parity evidence in this repository is for:
+The current parity layer covers:
 
 - deterministic preprocessing and matrix-building seams backed by small synthetic fixtures
 - downstream kinase-analysis summaries backed by R-generated fixtures
-- selected native kinase workflow seams where Python outputs are checked against reference expectations captured in
-  fixtures and tests
+- selected native kinase workflow seams backed by committed L6 reference tables
+- seam-level prediction debugging through committed R and Python trace exports
 
-These checks provide confidence in the implemented paths, but they are still narrower than a claim of package-wide
-equivalence.
+For fixture and trace directory details, see [`docs/fixtures.md`](fixtures.md).
 
-## Fixture Paths
+## Running the Fixture-Backed Test Suite
 
-The repository uses committed R fixtures, committed Python reference traces, and temporary debugging traces.
+### 1) Install the Python Test Dependencies
 
-See [`docs/fixtures.md`](fixtures.md) for the fixture and trace directory layout, generation commands, promotion rules,
-and the distinction between committed reference data and temporary debugging output.
+```bash
+python -m pip install --upgrade pip
+pip install -e ".[test]"
+```
 
-## Native Kinase Workflow
+### 2) Generate the Small Synthetic R Fixtures
 
-PhosPy now includes a native end-to-end kinase workflow covering:
+```bash
+Rscript scripts/generate_r_fixtures.R
+```
 
-- substrate-profile construction
-- motif scoring
-- profile scoring
-- weighted score combination
-- candidate-substrate selection
-- adaptive SVM prediction
+This writes into:
 
-This workflow is implemented natively in Python and is intended to provide a coherent PhosR-style kinase scoring path.
+```text
+tests/fixtures/r_reference
+```
 
-At present, it should be described carefully:
+### 3) Generate the L6 R Fixtures, Including the R Prediction Trace
 
-- it is a live native workflow, not just a thin wrapper
-- parts of it are tested and fixture-backed
-- it is **not** yet a blanket claim of numerical equivalence to the R package
-- parity claims for this path should stay limited to the specific seams that are explicitly covered by fixtures and
-  tests
+```bash
+Rscript scripts/generate_r_l6_fixtures.R
+```
 
-That distinction matters. The project can be both useful and scientifically careful at the same time.
+This writes into:
 
-## Parity-Sensitive Prediction Settings
+```text
+tests/fixtures/r_reference_l6
+tests/fixtures/r_reference_l6/prediction_trace
+```
 
-The prediction layer also exposes `svm_mode="r_parity"`.
+### 4) Run the Python Tests That Do Not Need Parity Fixtures
 
-That setting is useful when you want learner behaviour that more closely tracks the R seam used by PhosR. It helps keep
-parity-sensitive prediction settings explicit and testable rather than hidden behind defaults. It should still be
-treated as one seam within a larger workflow, not as a standalone claim of full workflow equivalence.
+```bash
+pytest -m "not parity"
+```
 
-## Running Parity Tests
-
-If the fixtures are present, parity tests can be run with:
+### 5) Run the Parity Tests
 
 ```bash
 pytest -m parity
 ```
 
-These tests should be treated as the executable definition of the repository’s current parity contract.
+### 6) Run the Whole Python Test Suite
+
+```bash
+pytest
+```
+
+## One Clean Command Sequence
+
+```bash
+python -m pip install --upgrade pip
+pip install -e ".[test]"
+
+Rscript scripts/generate_r_fixtures.R
+Rscript scripts/generate_r_l6_fixtures.R
+
+pytest -m "not parity"
+pytest -m parity
+pytest
+```
+
+## Useful Pytest Options
+
+The parity suite does **not** currently define custom pytest command-line flags. The output is controlled by:
+
+- standard pytest options
+- a small set of environment variables used by `tests/test_parity-with_metrics.py`
+
+### Show Skip Reasons
+
+```bash
+pytest -m parity -rs
+```
+
+Effect on output:
+
+- prints skip reasons in the summary
+- useful when fixture files are missing
+- helpful because the parity tests call `pytest.skip(...)` with the missing filenames
+
+### Show Verbose Test Names
+
+```bash
+pytest -m parity -vv
+```
+
+Effect on output:
+
+- prints each selected parity test name
+- makes it easier to see which seam failed
+- useful when you want a more detailed test log
+
+### Quiet Output
+
+```bash
+pytest -m parity -q
+```
+
+Effect on output:
+
+- reduces pytest noise
+- useful when you only care whether the parity suite passed
+
+### Stop on the First Failure
+
+```bash
+pytest -m parity --maxfail=1
+```
+
+Effect on output:
+
+- stops the run after the first failing parity test
+- useful when debugging one broken seam at a time
+
+### Restrict Test Selection
+
+```bash
+pytest -m parity -k l6
+```
+
+Effect on output:
+
+- only runs parity tests whose names match `l6`
+- useful when you want to focus on the L6 fixture path
+
+### Show Collection Without Running Tests
+
+```bash
+pytest -m parity --collect-only -q
+```
+
+Effect on output:
+
+- prints which parity tests would run
+- does not execute the tests
+
+## Optional Diagnostic Output
+
+The metrics-oriented parity tests can print extra diagnostic output, but that output is controlled by environment
+variables rather than pytest flags.
+
+### Base Switch for Parity Metrics
+
+```bash
+PHOSPY_SHOW_PARITY=1 pytest -m parity -s
+```
+
+Effect on output:
+
+- enables printed metric summaries from `tests/test_parity-with_metrics.py`
+- `-s` is important here because it disables stdout capture and lets the printed metrics appear during a passing run
+
+Typical output may include:
+
+- mean per-kinase Pearson or Spearman correlation
+- mean and maximum absolute differences
+- ranked-overlap summaries for prediction outputs
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+$env:PHOSPY_SHOW_PARITY=1
+pytest -m parity -s
+```
+
+</details>
+
+### Profile-Construction Metrics
+
+```bash
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 pytest -m parity -s
+```
+
+Effect on output:
+
+- adds optional profile-construction metrics
+- only works when `PHOSPY_SHOW_PARITY=1` is also set
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+$env:PHOSPY_SHOW_PARITY=1
+$env:PHOSPY_SHOW_PROFILE_CONSTRUCTION=1
+pytest -m parity -s
+```
+
+</details>
+
+### Prediction-Mode Comparison Metrics
+
+```bash
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
+```
+
+Effect on output:
+
+- adds optional comparison output between prediction modes such as `default` and `r_parity`
+- only works when `PHOSPY_SHOW_PARITY=1` is also set
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+$env:PHOSPY_SHOW_PARITY=1
+$env:PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1
+pytest -m parity -s
+```
+
+</details>
+
+### Replayed Prediction-Mode Comparison Metrics
+
+```bash
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
+```
+
+Effect on output:
+
+- adds optional comparison output for the replayed prediction-trace path
+- only works when `PHOSPY_SHOW_PARITY=1` is also set
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+$env:PHOSPY_SHOW_PARITY=1
+$env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1
+pytest -m parity -s
+```
+
+</details>
+
+## Regenerating the Python-Side Prediction Trace
+
+This is useful for seam debugging and trace comparison, but it is **not required** for the parity suite itself.
+
+```bash
+python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1,MAPK1 --svm-mode r_parity --debug-top-n 10 --outdir tests/fixtures/python_reference_l6/prediction_trace
+```
+
+If you want Python to replay the committed R sampling rows so the remaining delta is model-side only:
+
+```bash
+python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1,MAPK1 --svm-mode r_parity --sampling-trace-dir tests/fixtures/r_reference_l6/prediction_trace --outdir tests/fixtures/python_reference_l6/prediction_trace
+```
+
+## Clean Regeneration Flow
+
+If you want to regenerate everything from scratch first:
+
+```bash
+rm -rf tests/fixtures/r_reference
+rm -rf tests/fixtures/r_reference_l6
+rm -rf tests/fixtures/python_reference_l6/prediction_trace
+
+Rscript scripts/generate_r_fixtures.R
+Rscript scripts/generate_r_l6_fixtures.R
+
+python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1,MAPK1 --svm-mode r_parity --debug-top-n 10 --outdir tests/fixtures/python_reference_l6/prediction_trace
+
+pytest
+```
+
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+Remove-Item -Recurse -Force tests\fixtures\r_reference -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force tests\fixtures\r_reference_l6 -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force tests\fixtures\python_reference_l6\prediction_trace -ErrorAction SilentlyContinue
+
+Rscript scripts/generate_r_fixtures.R
+Rscript scripts/generate_r_l6_fixtures.R
+
+python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1,MAPK1 --svm-mode r_parity --debug-top-n 10 --outdir tests/fixtures/python_reference_l6/prediction_trace
+
+pytest
+```
+
+</details>
+
+## R-Side Packages
+
+The R scripts in this repository expect at least:
+
+- `PhosR`
+- `SummarizedExperiment`
+- `e1071`
+
+The small synthetic fixture script also uses:
+
+- `readr`
+- `dplyr`
+- `tidyr`
+- `tibble`
+- `janitor`
 
 ## Maintenance Rule
 
-When a parity-backed workflow changes, at least one of the following should also change in the same line of work:
+Treat the parity tests as the executable definition of the repository’s current parity contract.
+
+When a parity-backed workflow changes, update at least one of these in the same line of work:
 
 - the fixtures
 - the tests
-- the documented scope of the parity claim
+- the documented scope in this file or [`docs/fixtures.md`](fixtures.md)
 
 Do not silently broaden parity claims in the README or other project documentation beyond the fixture-backed seams
 described here without adding corresponding evidence.
-
-When a fixture or trace layout changes, update [`docs/fixtures.md`](fixtures.md) rather than scattering the same
-explanation across multiple directory-level README files.
-
-## Provenance
-
-Generated fixtures should keep provenance information, including `sessionInfo()` where available, so that reference
-outputs can be tied back to the R environment used to create them.

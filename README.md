@@ -16,8 +16,8 @@ PhosPy currently supports three main areas of work:
 - **Native kinase workflow** for substrate-profile construction, motif scoring, score combination, candidate-substrate
   selection, and adaptive SVM prediction
 
-Alongside that, the repository includes a small CLI, a class-based public API, and parity tests against R-generated
-reference fixtures for selected workflow seams.
+Alongside that, the repository includes a small CLI, a class-based public API, and fixture-backed parity tests for
+selected workflow seams.
 
 ## Install
 
@@ -27,7 +27,7 @@ Base install:
 pip install -e .
 ```
 
-For the native prediction workflow, install the machine-learning extra:
+For the native prediction workflow:
 
 ```bash
 pip install -e ".[ml]"
@@ -139,8 +139,10 @@ result = run_kinase_workflow(
     },
     min_substrates=2,
     min_motif_size=2,
+    top=4,
+    score_threshold=0.75,
+    inclusion=3,
     random_state=17,
-    flank_size=2,
 )
 
 pred_matrix = result.prediction_result.pred_matrix
@@ -167,15 +169,15 @@ phospy \
 
 The example output directory under `examples/output/` shows the generated CSV files.
 
-## Documentation Guide
+## Testing and Reference Data
 
-The main supporting documentation lives here:
+The supporting documentation is split by topic:
 
-- [`docs/parity.md`](docs/parity.md) explains what parity means in this repository, which seams are fixture-backed, and
-  what claims are currently supported
-- [`docs/fixtures.md`](docs/fixtures.md) explains the fixture and trace directories, generation commands, and the
-  difference between committed reference data and temporary debugging output
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) covers local setup, tests, linting, and CI expectations
+- [`docs/parity.md`](docs/parity.md) explains what parity means here, how to run the fixture-backed suite, and which
+  options affect pytest output
+- [`docs/fixtures.md`](docs/fixtures.md) explains the fixture and trace directories, generation commands, and which
+  outputs are committed reference data
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) covers local setup, linting, tests, and CI expectations
 
 ## Project Status
 
@@ -203,7 +205,8 @@ participate in it.
 
 ## License
 
-This repository is distributed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. See [`LICENSE`](LICENSE).
+This repository is distributed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. See [
+`LICENSE`](LICENSE).
 
 That choice is deliberate. PhosR is distributed under GPL-3, and the GNU GPL FAQ treats translation of a program into
 another programming language as a kind of modification or translation under copyright law. This project therefore uses
