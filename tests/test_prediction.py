@@ -19,6 +19,7 @@ from phospy.prediction import (
     _require_sklearn,
     _resolve_svm_probability_random_state,
     _RLikeStandardScaler,
+    _transform_resampling_probabilities,
 )
 
 
@@ -566,6 +567,26 @@ def test_predict_raises_for_invalid_sampling_trace_sites(tmp_path: Path) -> None
             random_state=5,
             sampling_trace=trace_dir,
         )
+
+
+def test_transform_resampling_probabilities_flattens_default_mode() -> None:
+    values = np.array([0.9, 0.1], dtype=float)
+
+    transformed = _transform_resampling_probabilities(values, svm_mode="default")
+    normalized_input = values / values.sum()
+    normalized_transformed = transformed / transformed.sum()
+
+    assert normalized_transformed[0] < normalized_input[0]
+    assert normalized_transformed[1] > normalized_input[1]
+    assert normalized_transformed[0] > normalized_transformed[1]
+
+
+def test_transform_resampling_probabilities_keeps_r_parity_weights() -> None:
+    values = np.array([0.9, 0.1], dtype=float)
+
+    transformed = _transform_resampling_probabilities(values, svm_mode="r_parity")
+
+    assert np.allclose(transformed, values)
 
 
 def test_make_prediction_random_generators_returns_independent_streams() -> None:

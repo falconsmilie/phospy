@@ -529,7 +529,10 @@ def _multi_ada_sampling(
             class_mask = base_y == class_label
             class_x = base_x[class_mask]
             class_index = base_index[class_mask]
-            class_prob = prob_mat[class_mask, class_idx]
+            class_prob = _transform_resampling_probabilities(
+                prob_mat[class_mask, class_idx],
+                svm_mode=svm_mode,
+            )
             sample_prob = _normalize_probabilities(class_prob)
             weights_by_class[int(class_label)] = (
                 pd.Series(sample_prob, index=class_index, dtype=float)
@@ -658,6 +661,26 @@ def _normalize_probabilities(values: np.ndarray) -> np.ndarray | None:
     if total <= 0.0 or not np.isfinite(total):
         return None
     return values / total
+
+
+def _transform_resampling_probabilities(
+    values: np.ndarray,
+    *,
+    svm_mode: PredictionSvmMode,
+) -> np.ndarray:
+    """Adjust class resampling weights before normalization.
+
+    In the native non-replayed path, scikit-learn's probability calibration can
+    be slightly peakier than the e1071 path used by PhosR. Flattening the
+    resampling weights a little reduces learner-side jitter in the adaptive
+    sampling loop without changing candidate selection or the replay override
+    seam.
+    """
+
+    weights = np.asarray(values, dtype=float)
+    if svm_mode == "default":
+        return np.power(weights, 0.8)
+    return weights
 
 
 def _coerce_sampling_trace(
