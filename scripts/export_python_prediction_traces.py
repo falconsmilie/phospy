@@ -206,6 +206,7 @@ def export_traces(
 
     initial_rows: list[dict[str, object]] = []
     probability_rows: list[dict[str, object]] = []
+    probability_parameter_rows: list[dict[str, object]] = []
     decision_rows: list[dict[str, object]] = []
     weight_rows: list[dict[str, object]] = []
     sample_rows: list[dict[str, object]] = []
@@ -245,6 +246,7 @@ def export_traces(
                             else float("nan"),
                         }
                     )
+
                 for site, decision_value in iteration_trace.decision_values.items():
                     decision_rows.append(
                         {
@@ -256,7 +258,18 @@ def export_traces(
                             "decision_value_class_1": float(decision_value),
                         }
                     )
-
+                if iteration_trace.probability_parameters is not None:
+                    for _, row in iteration_trace.probability_parameters.iterrows():
+                        probability_parameter_rows.append(
+                            {
+                                "kinase": kinase,
+                                "ensemble": ensemble_trace.ensemble_index,
+                                "iteration": iteration_trace.iteration_index,
+                                "class_pair": str(row["class_pair"]),
+                                "probA": float(row["probA"]),
+                                "probB": float(row["probB"]),
+                            }
+                        )
                 if iteration_trace.positive_weights is not None:
                     for site, weight in iteration_trace.positive_weights.items():
                         weight_rows.append(
@@ -355,6 +368,9 @@ def export_traces(
     pd.DataFrame(decision_rows).to_csv(
         outdir / "trace_iteration_decision_values.csv", index=False
     )
+    pd.DataFrame(probability_parameter_rows).to_csv(
+        outdir / "trace_iteration_probability_parameters.csv", index=False
+    )
     pd.DataFrame(weight_rows).to_csv(
         outdir / "trace_iteration_resampling_weights.csv", index=False
     )
@@ -386,6 +402,7 @@ def export_traces(
         "- trace_candidates.csv: ranked combined-score candidates for the traced kinases",
         "- trace_initial_negatives.csv: initial negative draw for each ensemble member",
         "- trace_iteration_probabilities.csv: per-iteration class probabilities on the base train set",
+        "- trace_iteration_probability_parameters.csv: per-iteration libsvm probability-calibration parameters",
         "- trace_iteration_decision_values.csv: per-iteration binary decision values aligned to class 1",
         "- trace_iteration_resampling_weights.csv: per-iteration class-specific resampling weights",
         "- trace_iteration_samples.csv: resampled site identities for each iteration and class",

@@ -17,6 +17,7 @@ class AdaptiveSamplingIterationTrace:
     iteration_index: int
     labels: pd.Series
     probabilities: pd.DataFrame
+    probability_parameters: pd.DataFrame | None
     decision_values: pd.Series
     positive_weights: pd.Series | None
     negative_weights: pd.Series | None
@@ -527,6 +528,7 @@ def _multi_ada_sampling(
             index=base_index,
             positive_probabilities=prob_df.get("1"),
         )
+        probability_parameters = _extract_svm_probability_parameters(model)
         label_series = pd.Series(base_y, index=base_index, dtype=int)
 
         resampled_x: list[np.ndarray] = []
@@ -582,6 +584,7 @@ def _multi_ada_sampling(
                     iteration_index=iteration_index,
                     labels=label_series,
                     probabilities=prob_df,
+                    probability_parameters=probability_parameters,
                     decision_values=decision_series,
                     positive_weights=weights_by_class.get(1),
                     negative_weights=weights_by_class.get(2),
@@ -693,6 +696,36 @@ def _resolve_svm_probability_random_state(
 
     del svm_mode
     return 1
+
+
+def _extract_svm_probability_parameters(model) -> pd.DataFrame | None:
+    """Return libsvm Platt-scaling parameters from the fitted SVC step."""
+
+    svc = model.steps[-1][1]
+    prob_a = np.asarray(getattr(svc, "probA_", np.asarray([])), dtype=float)
+    prob_b = np.asarray(getattr(svc, "probB_", np.asarray([])), dtype=float)
+    if prob_a.size == 0 or prob_b.size == 0:
+        return None
+
+    classes = [str(class_label) for class_label in getattr(svc, "classes_", [])]
+    if len(classes) >= 2:
+        class_pairs = [
+            f"{left}|{right}"
+            for idx, left in enumerate(classes[:-1])
+            for right in classes[idx + 1 :]
+        ]
+    else:
+        class_pairs = []
+    if len(class_pairs) != prob_a.size:
+        class_pairs = [str(index + 1) for index in range(prob_a.size)]
+
+    return pd.DataFrame(
+        {
+            "class_pair": class_pairs,
+            "probA": prob_a.astype(float),
+            "probB": prob_b.astype(float),
+        }
+    )
 
 
 def _normalize_probabilities(values: np.ndarray) -> np.ndarray | None:

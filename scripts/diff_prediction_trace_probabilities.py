@@ -104,6 +104,23 @@ def normalize_weight_table(
     ).reset_index(drop=True)
 
 
+def normalize_probability_parameter_table(
+    frame: pd.DataFrame, kinases: list[str], source_name: str
+) -> pd.DataFrame:
+    filtered = _validate_requested_kinases(
+        frame=frame, kinases=kinases, source_name=source_name
+    )
+    filtered["kinase"] = filtered["kinase"].astype(str)
+    filtered["ensemble"] = filtered["ensemble"].astype(int)
+    filtered["iteration"] = filtered["iteration"].astype(int)
+    filtered["class_pair"] = filtered["class_pair"].astype(str)
+    filtered["probA"] = filtered["probA"].astype(float)
+    filtered["probB"] = filtered["probB"].astype(float)
+    return filtered.sort_values(
+        ["kinase", "ensemble", "iteration", "class_pair"], kind="mergesort"
+    ).reset_index(drop=True)
+
+
 def summarize_probability_diff(merged: pd.DataFrame) -> pd.DataFrame:
     summary_rows: list[dict[str, object]] = []
     for kinase, group in merged.groupby("kinase", sort=True):
@@ -173,6 +190,24 @@ def summarize_weight_diff(merged: pd.DataFrame) -> pd.DataFrame:
                 "rows": int(len(group)),
                 "weight_mae": float(diff.mean()),
                 "weight_max_abs": float(diff.max()),
+            }
+        )
+    return pd.DataFrame(summary_rows)
+
+
+def summarize_probability_parameter_diff(merged: pd.DataFrame) -> pd.DataFrame:
+    summary_rows: list[dict[str, object]] = []
+    for kinase, group in merged.groupby("kinase", sort=True):
+        diff_a = (group["probA_py"] - group["probA_r"]).abs()
+        diff_b = (group["probB_py"] - group["probB_r"]).abs()
+        summary_rows.append(
+            {
+                "kinase": kinase,
+                "rows": int(len(group)),
+                "probA_mae": float(diff_a.mean()),
+                "probA_max_abs": float(diff_a.max()),
+                "probB_mae": float(diff_b.mean()),
+                "probB_max_abs": float(diff_b.max()),
             }
         )
     return pd.DataFrame(summary_rows)
@@ -253,6 +288,33 @@ def main() -> None:
         )
     weight_summary = summarize_weight_diff(merged_weights)
 
+    r_probability_parameters = normalize_probability_parameter_table(
+        read_trace_table(r_trace_dir, "trace_iteration_probability_parameters.csv"),
+        kinases,
+        source_name=f"R trace directory ({r_trace_dir})",
+    )
+    py_probability_parameters = normalize_probability_parameter_table(
+        read_trace_table(
+            python_trace_dir, "trace_iteration_probability_parameters.csv"
+        ),
+        kinases,
+        source_name=f"Python trace directory ({python_trace_dir})",
+    )
+    merged_probability_parameters = py_probability_parameters.merge(
+        r_probability_parameters,
+        on=["kinase", "ensemble", "iteration", "class_pair"],
+        suffixes=("_py", "_r"),
+        validate="one_to_one",
+    )
+    if merged_probability_parameters.empty:
+        raise ValueError(
+            "No overlapping probability-parameter rows were found after merging the requested kinases. "
+            "Check that both traces were generated from the same kinase list and fixture state."
+        )
+    probability_parameter_summary = summarize_probability_parameter_diff(
+        merged_probability_parameters
+    )
+
     print("Probability diff summary")
     print(prob_summary.to_string(index=False))
     print()
@@ -311,6 +373,42 @@ def main() -> None:
                 "decision_value_class_1_py",
                 "decision_value_class_1_r",
                 "decision_value_abs_diff",
+            ],
+        ]
+        .head(args.top_rows)
+        .to_string(index=False)
+    )
+    print()
+
+    print("Probability-parameter diff summary")
+    print(probability_parameter_summary.to_string(index=False))
+    print()
+
+    top_probability_parameters = merged_probability_parameters.assign(
+        probA_abs_diff=(
+            merged_probability_parameters["probA_py"]
+            - merged_probability_parameters["probA_r"]
+        ).abs(),
+        probB_abs_diff=(
+            merged_probability_parameters["probB_py"]
+            - merged_probability_parameters["probB_r"]
+        ).abs(),
+    ).sort_values(["probA_abs_diff", "probB_abs_diff"], ascending=False)
+    print(f"Top {args.top_rows} probability-parameter deltas")
+    print(
+        top_probability_parameters.loc[
+            :,
+            [
+                "kinase",
+                "ensemble",
+                "iteration",
+                "class_pair",
+                "probA_py",
+                "probA_r",
+                "probA_abs_diff",
+                "probB_py",
+                "probB_r",
+                "probB_abs_diff",
             ],
         ]
         .head(args.top_rows)

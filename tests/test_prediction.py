@@ -171,6 +171,15 @@ def test_predict_can_capture_debug_trace_for_selected_kinase() -> None:
     assert list(iteration_trace.probabilities.columns) == ["1", "2"]
     assert len(iteration_trace.sampled_positive_sites) == 4
     assert len(iteration_trace.sampled_negative_sites) == 4
+    assert iteration_trace.probability_parameters is not None
+    assert list(iteration_trace.probability_parameters.columns) == [
+        "class_pair",
+        "probA",
+        "probB",
+    ]
+    assert len(iteration_trace.probability_parameters) == 1
+    assert np.isfinite(iteration_trace.probability_parameters.loc[0, "probA"])
+    assert np.isfinite(iteration_trace.probability_parameters.loc[0, "probB"])
     assert iteration_trace.positive_weights is not None
     assert iteration_trace.negative_weights is not None
     assert iteration_trace.positive_weights.sum() == pytest.approx(1.0)
