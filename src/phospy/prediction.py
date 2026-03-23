@@ -619,15 +619,33 @@ def _make_svm(
 
     scaler = StandardScaler() if svm_mode == "default" else _RLikeStandardScaler()
     gamma: str | float = "scale" if svm_mode == "default" else "auto"
+    random_state = _resolve_svm_probability_random_state(rng=rng, svm_mode=svm_mode)
     return make_pipeline(
         scaler,
         SVC(
             kernel=kernel,
             gamma=gamma,
             probability=True,
-            random_state=int(rng.integers(0, 2**31 - 1)),
+            random_state=random_state,
         ),
     )
+
+
+def _resolve_svm_probability_random_state(
+    *,
+    rng: np.random.Generator,
+    svm_mode: PredictionSvmMode,
+) -> int:
+    """Return the probability-calibration seed for the SVM model.
+
+    The parity-oriented mode uses a fixed calibration seed to reduce the extra
+    run-to-run jitter introduced by scikit-learn's internal probability-fitting
+    path. The default mode keeps the existing per-model random stream.
+    """
+
+    if svm_mode == "r_parity":
+        return 1
+    return int(rng.integers(0, 2**31 - 1))
 
 
 def _normalize_probabilities(values: np.ndarray) -> np.ndarray | None:

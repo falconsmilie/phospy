@@ -13,7 +13,12 @@ from phospy import (
     PredictionSamplingTrace,
     build_candidate_substrate_list,
 )
-from phospy.prediction import _make_svm, _require_sklearn, _RLikeStandardScaler
+from phospy.prediction import (
+    _make_svm,
+    _require_sklearn,
+    _resolve_svm_probability_random_state,
+    _RLikeStandardScaler,
+)
 
 
 def make_combined_scores() -> pd.DataFrame:
@@ -254,6 +259,7 @@ def test_make_svm_default_mode_uses_sklearn_defaults_explicitly() -> None:
 
     assert model.steps[0][1].__class__.__name__ == "StandardScaler"
     assert model.steps[1][1].gamma == "scale"
+    assert model.steps[1][1].random_state != 1
 
 
 def test_make_svm_r_parity_mode_uses_r_like_scaler_and_gamma_auto() -> None:
@@ -269,6 +275,24 @@ def test_make_svm_r_parity_mode_uses_r_like_scaler_and_gamma_auto() -> None:
 
     assert isinstance(model.steps[0][1], _RLikeStandardScaler)
     assert model.steps[1][1].gamma == "auto"
+    assert model.steps[1][1].random_state == 1
+
+
+def test_resolve_svm_probability_random_state_is_mode_specific() -> None:
+    rng = np.random.default_rng(7)
+
+    default_random_state = _resolve_svm_probability_random_state(
+        rng=rng,
+        svm_mode="default",
+    )
+    r_parity_random_state = _resolve_svm_probability_random_state(
+        rng=rng,
+        svm_mode="r_parity",
+    )
+
+    assert isinstance(default_random_state, int)
+    assert default_random_state != 1
+    assert r_parity_random_state == 1
 
 
 def test_predict_accepts_explicit_r_parity_mode() -> None:

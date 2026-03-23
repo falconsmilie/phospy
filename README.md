@@ -179,6 +179,9 @@ result = run_kinase_workflow(
 pred_matrix = result.prediction_result.pred_matrix
 ```
 
+For normal native runs, keep the default predictor mode; prefer `r_parity` only for replay-based parity checks that
+reuse the committed R sampling traces, as described in [`docs/parity.md`](docs/parity.md).
+
 For a profile-only fallback path, omit `motif_sequences` and pass `allow_profile_only_fallback=True`.
 
 If you need more control, the lower-level building blocks are also public, including `KinaseProfileBuilder`,
@@ -210,6 +213,19 @@ The supporting documentation is split by topic:
   outputs are committed reference data
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) covers local setup, linting, tests, and CI expectations
 
+### Parity at a Glance
+
+The committed parity fixtures support two different conclusions, depending on which seam you are trying to evaluate:
+
+- For the normal native prediction path, keep the default predictor mode. That remains the better general-purpose fit
+  for the non-replayed parity checks.
+- For the replayed prediction-trace path, prefer `r_parity`. When Python reuses the committed R sampling rows, the
+  remaining comparison is much closer to a learner-seam check, and `r_parity` is currently the stronger match there.
+- The committed L6 replay fixtures are currently aligned for both traced kinases, `PRKAA1` and `MAPK1`, so the replay
+  comparison is no longer based on a single-kinase subset.
+
+If you want the detailed commands, scope, and diagnostic flags, start with [`docs/parity.md`](docs/parity.md).
+
 ## Project Status
 
 PhosPy is currently a structured Python package for PhosR-style preprocessing and downstream kinase-analysis summaries.
@@ -236,8 +252,8 @@ participate in it.
 
 ## License
 
-This repository is distributed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. See [
-`LICENSE`](LICENSE).
+This repository is distributed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. See
+[`LICENSE`](LICENSE).
 
 That choice is deliberate. PhosR is distributed under GPL-3, and the GNU GPL FAQ treats translation of a program into
 another programming language as a kind of modification or translation under copyright law. This project therefore uses
