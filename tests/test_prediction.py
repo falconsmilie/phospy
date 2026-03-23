@@ -173,6 +173,8 @@ def test_predict_can_capture_debug_trace_for_selected_kinase() -> None:
     assert len(iteration_trace.sampled_negative_sites) == 4
     assert iteration_trace.positive_weights is not None
     assert iteration_trace.negative_weights is not None
+    assert iteration_trace.positive_weights.sum() == pytest.approx(1.0)
+    assert iteration_trace.negative_weights.sum() == pytest.approx(1.0)
 
 
 def test_predict_can_capture_debug_trace_for_all_kinases() -> None:

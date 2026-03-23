@@ -67,6 +67,7 @@ write_trace_readme <- function(trace_dir, trace_kinases, trace_top_n) {
     "- trace_candidates.csv: ranked combined-score candidates for the traced kinases",
     "- trace_initial_negatives.csv: initial negative draw for each ensemble member",
     "- trace_iteration_probabilities.csv: per-iteration class probabilities on the base train set",
+    "- trace_iteration_resampling_weights.csv: per-iteration class-specific resampling weights",
     "- trace_iteration_samples.csv: resampled site identities for each iteration and class",
     "- trace_final_ensemble_predictions.csv: final per-ensemble prediction probabilities for all sites",
     "- trace_final_ensemble_top.csv: final per-ensemble top-ranked sites"
@@ -488,8 +489,10 @@ trace_multi_ada_sampling <- function(
   model <- c()
   prob.mat <- c()
   iteration_prob_rows <- list()
+  iteration_weight_rows <- list()
   iteration_sample_rows <- list()
   probability_count <- 0
+  weight_count <- 0
   sample_count <- 0
 
   for (i in seq_len(iter)) {
@@ -529,11 +532,24 @@ trace_multi_ada_sampling <- function(
     for (j in seq_len(ncol(prob.mat))) {
       class_name <- colnames(prob.mat)[j]
       voteClass <- prob.mat[label == class_name, , drop = FALSE]
+      raw_weights <- as.numeric(voteClass[, j])
+      normalized_weights <- raw_weights / sum(raw_weights)
+      weight_count <- weight_count + 1
+      iteration_weight_rows[[weight_count]] <- data.frame(
+        kinase = kinase,
+        ensemble = ensemble_idx,
+        iteration = i,
+        class_label = class_name,
+        site = rownames(voteClass),
+        raw_weight = raw_weights,
+        normalized_weight = normalized_weights,
+        stringsAsFactors = FALSE
+      )
       idx <- sample(
         seq_len(nrow(voteClass)),
         size = nrow(voteClass),
         replace = TRUE,
-        prob = voteClass[, j]
+        prob = raw_weights
       )
       sampled_sites <- rownames(voteClass)[idx]
       sample_count <- sample_count + 1
@@ -573,6 +589,7 @@ trace_multi_ada_sampling <- function(
   list(
     pred = pred,
     iteration_probabilities = do.call(rbind, iteration_prob_rows),
+    iteration_resampling_weights = do.call(rbind, iteration_weight_rows),
     iteration_samples = do.call(rbind, iteration_sample_rows),
     final_predictions = data.frame(
       kinase = kinase,
@@ -620,11 +637,13 @@ trace_kinase_substrate_pred <- function(
 
   initial_negative_rows <- list()
   iteration_probability_rows <- list()
+  iteration_weight_rows <- list()
   iteration_sample_rows <- list()
   final_prediction_rows <- list()
   final_top_rows <- list()
   initial_count <- 0
   probability_count <- 0
+  weight_count <- 0
   sample_count <- 0
   final_prediction_count <- 0
   final_top_count <- 0
@@ -669,6 +688,8 @@ trace_kinase_substrate_pred <- function(
         pred <- trace_result$pred
         probability_count <- probability_count + 1
         iteration_probability_rows[[probability_count]] <- trace_result$iteration_probabilities
+        weight_count <- weight_count + 1
+        iteration_weight_rows[[weight_count]] <- trace_result$iteration_resampling_weights
         sample_count <- sample_count + 1
         iteration_sample_rows[[sample_count]] <- trace_result$iteration_samples
         final_prediction_count <- final_prediction_count + 1
@@ -698,6 +719,7 @@ trace_kinase_substrate_pred <- function(
     trace_candidates = substrate_trace$candidates,
     trace_initial_negatives = if (length(initial_negative_rows) > 0) do.call(rbind, initial_negative_rows) else data.frame(),
     trace_iteration_probabilities = if (length(iteration_probability_rows) > 0) do.call(rbind, iteration_probability_rows) else data.frame(),
+    trace_iteration_resampling_weights = if (length(iteration_weight_rows) > 0) do.call(rbind, iteration_weight_rows) else data.frame(),
     trace_iteration_samples = if (length(iteration_sample_rows) > 0) do.call(rbind, iteration_sample_rows) else data.frame(),
     trace_final_ensemble_predictions = if (length(final_prediction_rows) > 0) do.call(rbind, final_prediction_rows) else data.frame(),
     trace_final_ensemble_top = if (length(final_top_rows) > 0) do.call(rbind, final_top_rows) else data.frame()
@@ -882,6 +904,7 @@ main <- function() {
   write.csv(L6.prediction$trace_candidates, file.path(trace_dir, "trace_candidates.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_initial_negatives, file.path(trace_dir, "trace_initial_negatives.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_iteration_probabilities, file.path(trace_dir, "trace_iteration_probabilities.csv"), row.names = FALSE)
+  write.csv(L6.prediction$trace_iteration_resampling_weights, file.path(trace_dir, "trace_iteration_resampling_weights.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_iteration_samples, file.path(trace_dir, "trace_iteration_samples.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_final_ensemble_predictions, file.path(trace_dir, "trace_final_ensemble_predictions.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_final_ensemble_top, file.path(trace_dir, "trace_final_ensemble_top.csv"), row.names = FALSE)

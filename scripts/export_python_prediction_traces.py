@@ -206,6 +206,7 @@ def export_traces(
 
     initial_rows: list[dict[str, object]] = []
     probability_rows: list[dict[str, object]] = []
+    weight_rows: list[dict[str, object]] = []
     sample_rows: list[dict[str, object]] = []
     final_prediction_rows: list[dict[str, object]] = []
     final_top_rows: list[dict[str, object]] = []
@@ -242,6 +243,31 @@ def export_traces(
                             else float("nan"),
                         }
                     )
+                if iteration_trace.positive_weights is not None:
+                    for site, weight in iteration_trace.positive_weights.items():
+                        weight_rows.append(
+                            {
+                                "kinase": kinase,
+                                "ensemble": ensemble_trace.ensemble_index,
+                                "iteration": iteration_trace.iteration_index,
+                                "class_label": "1",
+                                "site": site,
+                                "normalized_weight": float(weight),
+                            }
+                        )
+                if iteration_trace.negative_weights is not None:
+                    for site, weight in iteration_trace.negative_weights.items():
+                        weight_rows.append(
+                            {
+                                "kinase": kinase,
+                                "ensemble": ensemble_trace.ensemble_index,
+                                "iteration": iteration_trace.iteration_index,
+                                "class_label": "2",
+                                "site": site,
+                                "normalized_weight": float(weight),
+                            }
+                        )
+
                 for draw, site in enumerate(
                     iteration_trace.sampled_positive_sites, start=1
                 ):
@@ -303,6 +329,9 @@ def export_traces(
     pd.DataFrame(probability_rows).to_csv(
         outdir / "trace_iteration_probabilities.csv", index=False
     )
+    pd.DataFrame(weight_rows).to_csv(
+        outdir / "trace_iteration_resampling_weights.csv", index=False
+    )
     pd.DataFrame(sample_rows).to_csv(
         outdir / "trace_iteration_samples.csv", index=False
     )
@@ -328,6 +357,7 @@ def export_traces(
         "- trace_candidates.csv: ranked combined-score candidates for the traced kinases",
         "- trace_initial_negatives.csv: initial negative draw for each ensemble member",
         "- trace_iteration_probabilities.csv: per-iteration class probabilities on the base train set",
+        "- trace_iteration_resampling_weights.csv: per-iteration class-specific resampling weights",
         "- trace_iteration_samples.csv: resampled site identities for each iteration and class",
         "- trace_final_ensemble_predictions.csv: final per-ensemble prediction probabilities for all sites",
         "- trace_final_ensemble_top.csv: final per-ensemble top-ranked sites",
