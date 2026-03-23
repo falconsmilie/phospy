@@ -1104,6 +1104,7 @@ def test_l6_replayed_prediction_trace_matches_r_sampling_path() -> None:
         ],
     )
 
+    assert metrics["skipped_trace_kinases"] == ""
     assert metrics["initial_exact_matches"] == metrics["initial_total_rows"]
     assert metrics["sample_exact_matches"] == metrics["sample_total_rows"]
     assert metrics["iteration_prob_class1_corr"] >= 0.999
@@ -1138,7 +1139,14 @@ def test_l6_replayed_prediction_mode_comparison_metrics() -> None:
             ],
         )
 
+    assert default_metrics["trace_kinases"] == r_parity_metrics["trace_kinases"]
+    assert default_metrics["skipped_trace_kinases"] == ""
+    assert r_parity_metrics["skipped_trace_kinases"] == ""
     assert (
         default_metrics["initial_total_rows"] == r_parity_metrics["initial_total_rows"]
     )
     assert default_metrics["sample_total_rows"] == r_parity_metrics["sample_total_rows"]
+    assert (
+        r_parity_metrics["final_top_site_matches"]
+        >= default_metrics["final_top_site_matches"]
+    )
