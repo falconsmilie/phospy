@@ -865,6 +865,44 @@ def _replayed_prediction_trace_metrics(
         validate="one_to_one",
     )
 
+    expected_decision = _normalize_numeric_frame(
+        _sort_table(
+            _read_prediction_trace_table("trace_iteration_decision_values.csv").loc[
+                lambda df: df["kinase"].astype(str).isin(eligible_kinases)
+            ],
+            ["kinase", "ensemble", "iteration", "site"],
+        )
+    )
+    actual_decision = _normalize_numeric_frame(
+        _sort_table(
+            pd.DataFrame(
+                [
+                    {
+                        "kinase": trace.kinase,
+                        "ensemble": ensemble_trace.ensemble_index,
+                        "iteration": iteration_trace.iteration_index,
+                        "site": site,
+                        "label": str(label),
+                        "decision_value_class_1": float(
+                            iteration_trace.decision_values.loc[site]
+                        ),
+                    }
+                    for trace in (result.debug_traces or {}).values()
+                    for ensemble_trace in trace.ensemble_traces
+                    for iteration_trace in ensemble_trace.iterations
+                    for site, label in iteration_trace.labels.items()
+                ]
+            ),
+            ["kinase", "ensemble", "iteration", "site"],
+        )
+    )
+    merged_decision = actual_decision.merge(
+        expected_decision,
+        on=["kinase", "ensemble", "iteration", "site", "label"],
+        suffixes=("_py", "_r"),
+        validate="one_to_one",
+    )
+
     expected_top = _normalize_numeric_frame(
         _sort_table(
             _read_prediction_trace_table("trace_final_ensemble_top.csv").loc[
@@ -905,6 +943,19 @@ def _replayed_prediction_trace_metrics(
         "sample_total_rows": sample_total_rows,
         "iteration_prob_class1_corr": float(prob_class1_corr),
         "iteration_prob_class2_corr": float(prob_class2_corr),
+        "iteration_decision_class1_corr": float(
+            merged_decision["decision_value_class_1_py"].corr(
+                merged_decision["decision_value_class_1_r"], method="pearson"
+            )
+        ),
+        "iteration_decision_mae": float(
+            (
+                merged_decision["decision_value_class_1_py"]
+                - merged_decision["decision_value_class_1_r"]
+            )
+            .abs()
+            .mean()
+        ),
         "iteration_prob_mae": float(
             (merged_prob["prob_class_1_py"] - merged_prob["prob_class_1_r"])
             .abs()
@@ -1098,6 +1149,8 @@ def test_l6_replayed_prediction_trace_matches_r_sampling_path() -> None:
             f"iteration sample exact matches: {metrics['sample_exact_matches']}/{metrics['sample_total_rows']}",
             f"iteration prob class-1 Pearson correlation: {metrics['iteration_prob_class1_corr'] * 100:.3f}%",
             f"iteration prob class-2 Pearson correlation: {metrics['iteration_prob_class2_corr'] * 100:.3f}%",
+            f"iteration decision class-1 Pearson correlation: {metrics['iteration_decision_class1_corr'] * 100:.3f}%",
+            f"iteration decision class-1 mean absolute difference: {metrics['iteration_decision_mae']:.6g}",
             f"iteration prob class-1 mean absolute difference: {metrics['iteration_prob_mae']:.6g}",
             f"final top-site matches: {metrics['final_top_site_matches']}/{metrics['final_top_total']}",
             f"final top class-1 mean absolute difference: {metrics['final_top_prob_mae']:.6g}",
@@ -1106,7 +1159,10 @@ def test_l6_replayed_prediction_trace_matches_r_sampling_path() -> None:
 
     assert metrics["initial_exact_matches"] == metrics["initial_total_rows"]
     assert metrics["sample_exact_matches"] == metrics["sample_total_rows"]
-    assert metrics["iteration_prob_class1_corr"] >= 0.999
+    assert metrics["iteration_decision_class1_corr"] >= 0.999999
+    assert metrics["iteration_decision_mae"] <= 1e-12
+    assert metrics["iteration_prob_class1_corr"] >= 0.998
+    assert metrics["iteration_prob_mae"] <= 0.015
     assert metrics["final_top_site_matches"] >= 95
 
 

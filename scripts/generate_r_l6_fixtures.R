@@ -589,8 +589,9 @@ trace_multi_ada_sampling <- function(
     }
   }
 
-  pred_obj <- predict(model, newdata = test.mat, probability = TRUE)
+  pred_obj <- predict(model, newdata = test.mat, decision.values = TRUE, probability = TRUE)
   pred <- attr(pred_obj, "probabilities")
+  pred_decision <- as.numeric(attr(pred_obj, "decision.values"))
   if (is.null(rownames(pred))) {
     rownames(pred) <- rownames(test.mat)
   }
@@ -951,13 +952,17 @@ main <- function() {
   write.csv(L6.prediction$trace_candidates, file.path(trace_dir, "trace_candidates.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_initial_negatives, file.path(trace_dir, "trace_initial_negatives.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_iteration_probabilities, file.path(trace_dir, "trace_iteration_probabilities.csv"), row.names = FALSE)
+  write.csv(L6.prediction$trace_iteration_decision_values, file.path(trace_dir, "trace_iteration_decision_values.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_iteration_resampling_weights, file.path(trace_dir, "trace_iteration_resampling_weights.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_iteration_samples, file.path(trace_dir, "trace_iteration_samples.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_final_ensemble_predictions, file.path(trace_dir, "trace_final_ensemble_predictions.csv"), row.names = FALSE)
+  write.csv(L6.prediction$trace_final_ensemble_decision_values, file.path(trace_dir, "trace_final_ensemble_decision_values.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_final_ensemble_top, file.path(trace_dir, "trace_final_ensemble_top.csv"), row.names = FALSE)
+
   write_trace_readme(trace_dir, trace_kinases, trace_top_n)
 
   write_session_info(outdir)
+
   message("Done. R L6 reference fixtures written to: ", outdir)
 }
 
