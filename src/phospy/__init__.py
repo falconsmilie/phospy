@@ -21,6 +21,7 @@ from .prediction import (
     KinasePredictionDebugTrace,
     KinasePredictionResult,
     KinasePredictor,
+    PredictionSamplingTrace,
     PredictionSvmMode,
     build_candidate_substrate_list,
 )
@@ -64,6 +65,7 @@ __all__ = [
     "KinasePredictionDebugTrace",
     "KinasePredictionResult",
     "KinasePredictor",
+    "PredictionSamplingTrace",
     "PredictionSvmMode",
     "KinaseProfileBuilder",
     "KinaseProfileResult",

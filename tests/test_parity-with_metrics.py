@@ -8,7 +8,11 @@ import pandas.testing as pdt
 import pytest
 
 from phospy import KinaseActivityAnalyzer, PhosphoDataset
-from phospy.prediction import KinasePredictor, build_candidate_substrate_list
+from phospy.prediction import (
+    KinasePredictor,
+    PredictionSamplingTrace,
+    build_candidate_substrate_list,
+)
 from phospy.profiles import build_kinase_substrate_profiles
 from phospy.scoring import KinaseScorer, combine_profile_and_motif_scores
 
@@ -168,6 +172,12 @@ def _show_profile_construction_metrics() -> bool:
 def _show_prediction_mode_comparison_metrics() -> bool:
     return _show_parity_metrics() and _env_flag(
         "PHOSPY_SHOW_PREDICTION_MODE_COMPARISON"
+    )
+
+
+def _show_replayed_prediction_mode_comparison_metrics() -> bool:
+    return _show_parity_metrics() and _env_flag(
+        "PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON"
     )
 
 
@@ -617,6 +627,300 @@ def test_l6_native_combined_scores_match_r_reference() -> None:
     _assert_frame_close(actual_weights.sort_index(), expected_weights, atol=1e-7)
 
 
+def _debug_trace_to_tables(result) -> dict[str, pd.DataFrame]:
+    initial_rows: list[dict[str, object]] = []
+    probability_rows: list[dict[str, object]] = []
+    sample_rows: list[dict[str, object]] = []
+    final_prediction_rows: list[dict[str, object]] = []
+    final_top_rows: list[dict[str, object]] = []
+
+    debug_traces = result.debug_traces or {}
+    for kinase, trace in debug_traces.items():
+        for ensemble_trace in trace.ensemble_traces:
+            for draw, site in enumerate(ensemble_trace.initial_negative_sites, start=1):
+                initial_rows.append(
+                    {
+                        "kinase": kinase,
+                        "ensemble": ensemble_trace.ensemble_index,
+                        "draw": draw,
+                        "site": site,
+                    }
+                )
+
+            for iteration_trace in ensemble_trace.iterations:
+                labels = iteration_trace.labels
+                probs = iteration_trace.probabilities
+                for site in probs.index:
+                    probability_rows.append(
+                        {
+                            "kinase": kinase,
+                            "ensemble": ensemble_trace.ensemble_index,
+                            "iteration": iteration_trace.iteration_index,
+                            "site": site,
+                            "label": str(int(labels.loc[site])),
+                            "prob_class_1": float(probs.loc[site, "1"])
+                            if "1" in probs.columns
+                            else float("nan"),
+                            "prob_class_2": float(probs.loc[site, "2"])
+                            if "2" in probs.columns
+                            else float("nan"),
+                        }
+                    )
+                for draw, site in enumerate(
+                    iteration_trace.sampled_positive_sites, start=1
+                ):
+                    sample_rows.append(
+                        {
+                            "kinase": kinase,
+                            "ensemble": ensemble_trace.ensemble_index,
+                            "iteration": iteration_trace.iteration_index,
+                            "class_label": "1",
+                            "draw": draw,
+                            "site": site,
+                        }
+                    )
+                for draw, site in enumerate(
+                    iteration_trace.sampled_negative_sites, start=1
+                ):
+                    sample_rows.append(
+                        {
+                            "kinase": kinase,
+                            "ensemble": ensemble_trace.ensemble_index,
+                            "iteration": iteration_trace.iteration_index,
+                            "class_label": "2",
+                            "draw": draw,
+                            "site": site,
+                        }
+                    )
+
+            final_probs = ensemble_trace.final_prediction_probabilities
+            for site in final_probs.index:
+                final_prediction_rows.append(
+                    {
+                        "kinase": kinase,
+                        "ensemble": ensemble_trace.ensemble_index,
+                        "site": site,
+                        "prob_class_1": float(final_probs.loc[site, "1"])
+                        if "1" in final_probs.columns
+                        else float("nan"),
+                        "prob_class_2": float(final_probs.loc[site, "2"])
+                        if "2" in final_probs.columns
+                        else float("nan"),
+                    }
+                )
+            for rank, site in enumerate(ensemble_trace.final_top_sites, start=1):
+                final_top_rows.append(
+                    {
+                        "kinase": kinase,
+                        "ensemble": ensemble_trace.ensemble_index,
+                        "rank": rank,
+                        "site": site,
+                        "prob_class_1": float(final_probs.loc[site, "1"])
+                        if "1" in final_probs.columns
+                        else float("nan"),
+                    }
+                )
+
+    return {
+        "trace_initial_negatives": pd.DataFrame(initial_rows),
+        "trace_iteration_probabilities": pd.DataFrame(probability_rows),
+        "trace_iteration_samples": pd.DataFrame(sample_rows),
+        "trace_final_ensemble_predictions": pd.DataFrame(final_prediction_rows),
+        "trace_final_ensemble_top": pd.DataFrame(final_top_rows),
+    }
+
+
+def _read_prediction_trace_table(name: str) -> pd.DataFrame:
+    return pd.read_csv(R_FIXTURES_L6 / "prediction_trace" / name)
+
+
+def _replayed_prediction_trace_metrics(
+    *, svm_mode: str
+) -> dict[str, float | int | str]:
+    combined_scores = _read_indexed_table(
+        "native_combined_scores.csv",
+        fixture_dir=R_FIXTURES_L6,
+    )
+    current_candidates = build_candidate_substrate_list(
+        combined_scores,
+        top=30,
+        score_threshold=0.6,
+        inclusion=5,
+    )
+    expected_candidates = _read_prediction_trace_table("trace_candidates.csv")
+    initial_trace = _read_prediction_trace_table("trace_initial_negatives.csv")
+    sample_trace = _read_prediction_trace_table("trace_iteration_samples.csv")
+
+    trace_selected_counts = (
+        expected_candidates.loc[expected_candidates["selected_candidate"]]
+        .groupby("kinase")
+        .size()
+        .to_dict()
+    )
+
+    eligible_kinases: list[str] = []
+    skipped_kinases: list[str] = []
+    for kinase in sorted(trace_selected_counts):
+        current_count = len(current_candidates.get(kinase, []))
+        trace_count = int(trace_selected_counts[kinase])
+        initial_counts = (
+            initial_trace.loc[initial_trace["kinase"] == kinase]
+            .groupby("ensemble")
+            .size()
+        )
+        sample_counts = (
+            sample_trace.loc[sample_trace["kinase"] == kinase]
+            .groupby(["ensemble", "iteration", "class_label"])
+            .size()
+        )
+        initial_ok = not initial_counts.empty and bool(
+            (initial_counts == trace_count).all()
+        )
+        sample_ok = not sample_counts.empty and bool(
+            (sample_counts == trace_count).all()
+        )
+        if current_count == trace_count and initial_ok and sample_ok:
+            eligible_kinases.append(str(kinase))
+        else:
+            skipped_kinases.append(str(kinase))
+
+    if not eligible_kinases:
+        pytest.skip(
+            "No replay-aligned trace kinases are available. Regenerate the R "
+            "prediction trace fixtures so candidate counts and sampling rows "
+            "match the current native candidate set."
+        )
+
+    sampling_trace = PredictionSamplingTrace.from_trace_directory(
+        R_FIXTURES_L6 / "prediction_trace"
+    ).subset_kinases(eligible_kinases)
+
+    result = KinasePredictor(svm_mode=svm_mode).predict(
+        combined_scores=combined_scores,
+        ensemble_size=10,
+        top=30,
+        score_threshold=0.6,
+        inclusion=5,
+        n_iterations=5,
+        random_state=1,
+        capture_debug_trace=True,
+        debug_kinases=eligible_kinases,
+        debug_top_n=10,
+        sampling_trace=sampling_trace,
+    )
+    actual_tables = _debug_trace_to_tables(result)
+
+    expected_initial = _normalize_numeric_frame(
+        _sort_table(
+            _read_prediction_trace_table("trace_initial_negatives.csv").loc[
+                lambda df: df["kinase"].astype(str).isin(eligible_kinases)
+            ],
+            ["kinase", "ensemble", "draw", "site"],
+        )
+    )
+    actual_initial = _normalize_numeric_frame(
+        _sort_table(
+            actual_tables["trace_initial_negatives"],
+            ["kinase", "ensemble", "draw", "site"],
+        )
+    )
+    expected_samples = _normalize_numeric_frame(
+        _sort_table(
+            _read_prediction_trace_table("trace_iteration_samples.csv").loc[
+                lambda df: df["kinase"].astype(str).isin(eligible_kinases)
+            ],
+            ["kinase", "ensemble", "iteration", "class_label", "draw", "site"],
+        )
+    )
+    actual_samples = _normalize_numeric_frame(
+        _sort_table(
+            actual_tables["trace_iteration_samples"],
+            ["kinase", "ensemble", "iteration", "class_label", "draw", "site"],
+        )
+    )
+
+    initial_exact_matches = int(actual_initial.eq(expected_initial).all(axis=1).sum())
+    initial_total_rows = int(len(expected_initial))
+    sample_exact_matches = int(actual_samples.eq(expected_samples).all(axis=1).sum())
+    sample_total_rows = int(len(expected_samples))
+
+    expected_prob = _normalize_numeric_frame(
+        _sort_table(
+            _read_prediction_trace_table("trace_iteration_probabilities.csv").loc[
+                lambda df: df["kinase"].astype(str).isin(eligible_kinases)
+            ],
+            ["kinase", "ensemble", "iteration", "site"],
+        )
+    )
+    actual_prob = _normalize_numeric_frame(
+        _sort_table(
+            actual_tables["trace_iteration_probabilities"],
+            ["kinase", "ensemble", "iteration", "site"],
+        )
+    )
+    merged_prob = actual_prob.merge(
+        expected_prob,
+        on=["kinase", "ensemble", "iteration", "site", "label"],
+        suffixes=("_py", "_r"),
+        validate="one_to_one",
+    )
+
+    expected_top = _normalize_numeric_frame(
+        _sort_table(
+            _read_prediction_trace_table("trace_final_ensemble_top.csv").loc[
+                lambda df: df["kinase"].astype(str).isin(eligible_kinases)
+            ],
+            ["kinase", "ensemble", "rank"],
+        )
+    )
+    actual_top = _normalize_numeric_frame(
+        _sort_table(
+            actual_tables["trace_final_ensemble_top"],
+            ["kinase", "ensemble", "rank"],
+        )
+    )
+    merged_top = actual_top.merge(
+        expected_top,
+        on=["kinase", "ensemble", "rank"],
+        suffixes=("_py", "_r"),
+        validate="one_to_one",
+    )
+
+    prob_class1_corr = merged_prob["prob_class_1_py"].corr(
+        merged_prob["prob_class_1_r"], method="pearson"
+    )
+    prob_class2_corr = merged_prob["prob_class_2_py"].corr(
+        merged_prob["prob_class_2_r"], method="pearson"
+    )
+    final_top_site_matches = int((merged_top["site_py"] == merged_top["site_r"]).sum())
+    final_top_total = int(len(merged_top))
+
+    return {
+        "n_kinases": len(eligible_kinases),
+        "trace_kinases": ", ".join(eligible_kinases),
+        "skipped_trace_kinases": ", ".join(skipped_kinases),
+        "initial_exact_matches": initial_exact_matches,
+        "initial_total_rows": initial_total_rows,
+        "sample_exact_matches": sample_exact_matches,
+        "sample_total_rows": sample_total_rows,
+        "iteration_prob_class1_corr": float(prob_class1_corr),
+        "iteration_prob_class2_corr": float(prob_class2_corr),
+        "iteration_prob_mae": float(
+            (merged_prob["prob_class_1_py"] - merged_prob["prob_class_1_r"])
+            .abs()
+            .mean()
+        ),
+        "iteration_prob_max_abs_diff": float(
+            (merged_prob["prob_class_1_py"] - merged_prob["prob_class_1_r"]).abs().max()
+        ),
+        "final_top_site_matches": final_top_site_matches,
+        "final_top_total": final_top_total,
+        "final_top_prob_mae": float(
+            (merged_top["prob_class_1_py"] - merged_top["prob_class_1_r"]).abs().mean()
+        ),
+    }
+
+
 @pytest.mark.parity
 def test_l6_native_candidate_substrates_match_r_reference() -> None:
     _require_fixture_files(
@@ -772,3 +1076,69 @@ def test_l6_native_prediction_mode_comparison_metrics() -> None:
         )
 
     assert default_metrics["n_kinases"] == r_parity_metrics["n_kinases"]
+
+
+@pytest.mark.parity
+def test_l6_replayed_prediction_trace_matches_r_sampling_path() -> None:
+    _require_fixture_files(
+        L6_FIXTURE_FILES + L6_NATIVE_FIXTURE_FILES,
+        fixture_dir=R_FIXTURES_L6,
+    )
+
+    metrics = _replayed_prediction_trace_metrics(svm_mode="r_parity")
+
+    _maybe_print_metrics(
+        "Replayed prediction trace parity metrics",
+        [
+            "svm_mode: r_parity",
+            f"kinases compared: {metrics['n_kinases']}",
+            f"trace kinases used: {metrics['trace_kinases']}",
+            f"trace kinases skipped: {metrics['skipped_trace_kinases'] or 'none'}",
+            f"initial negative exact matches: {metrics['initial_exact_matches']}/{metrics['initial_total_rows']}",
+            f"iteration sample exact matches: {metrics['sample_exact_matches']}/{metrics['sample_total_rows']}",
+            f"iteration prob class-1 Pearson correlation: {metrics['iteration_prob_class1_corr'] * 100:.3f}%",
+            f"iteration prob class-2 Pearson correlation: {metrics['iteration_prob_class2_corr'] * 100:.3f}%",
+            f"iteration prob class-1 mean absolute difference: {metrics['iteration_prob_mae']:.6g}",
+            f"final top-site matches: {metrics['final_top_site_matches']}/{metrics['final_top_total']}",
+            f"final top class-1 mean absolute difference: {metrics['final_top_prob_mae']:.6g}",
+        ],
+    )
+
+    assert metrics["initial_exact_matches"] == metrics["initial_total_rows"]
+    assert metrics["sample_exact_matches"] == metrics["sample_total_rows"]
+    assert metrics["iteration_prob_class1_corr"] >= 0.999
+    assert metrics["final_top_site_matches"] >= 95
+
+
+@pytest.mark.parity
+def test_l6_replayed_prediction_mode_comparison_metrics() -> None:
+    _require_fixture_files(
+        L6_FIXTURE_FILES + L6_NATIVE_FIXTURE_FILES,
+        fixture_dir=R_FIXTURES_L6,
+    )
+
+    default_metrics = _replayed_prediction_trace_metrics(svm_mode="default")
+    r_parity_metrics = _replayed_prediction_trace_metrics(svm_mode="r_parity")
+
+    if _show_replayed_prediction_mode_comparison_metrics():
+        _maybe_print_metrics(
+            "Replayed prediction parity mode comparison",
+            [
+                f"default trace kinases used: {default_metrics['trace_kinases']}",
+                f"r_parity trace kinases used: {r_parity_metrics['trace_kinases']}",
+                f"trace kinases skipped: {r_parity_metrics['skipped_trace_kinases'] or 'none'}",
+                f"default iteration prob class-1 Pearson correlation: {default_metrics['iteration_prob_class1_corr'] * 100:.3f}%",
+                f"r_parity iteration prob class-1 Pearson correlation: {r_parity_metrics['iteration_prob_class1_corr'] * 100:.3f}%",
+                f"default iteration prob mean absolute difference: {default_metrics['iteration_prob_mae']:.6g}",
+                f"r_parity iteration prob mean absolute difference: {r_parity_metrics['iteration_prob_mae']:.6g}",
+                f"default final top-site matches: {default_metrics['final_top_site_matches']}/{default_metrics['final_top_total']}",
+                f"r_parity final top-site matches: {r_parity_metrics['final_top_site_matches']}/{r_parity_metrics['final_top_total']}",
+                f"default final top class-1 mean absolute difference: {default_metrics['final_top_prob_mae']:.6g}",
+                f"r_parity final top class-1 mean absolute difference: {r_parity_metrics['final_top_prob_mae']:.6g}",
+            ],
+        )
+
+    assert (
+        default_metrics["initial_total_rows"] == r_parity_metrics["initial_total_rows"]
+    )
+    assert default_metrics["sample_total_rows"] == r_parity_metrics["sample_total_rows"]

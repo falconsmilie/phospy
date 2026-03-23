@@ -2,17 +2,11 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
 import pandas as pd
 
-from phospy import KinasePredictor
-
-ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+from phospy import KinasePredictor, PredictionSamplingTrace
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,6 +40,15 @@ def parse_args() -> argparse.Namespace:
         choices=["default", "r_parity"],
         default="r_parity",
         help="SVM configuration mode to use for Python trace export.",
+    )
+    parser.add_argument(
+        "--sampling-trace-dir",
+        default=None,
+        help=(
+            "Optional directory containing R-exported trace_initial_negatives.csv "
+            "and trace_iteration_samples.csv. When provided, Python replays "
+            "those sampled rows so the remaining delta is model-only."
+        ),
     )
     return parser.parse_args()
 
@@ -88,6 +91,95 @@ def build_trace_candidates(
     return pd.DataFrame(rows), substrate_list
 
 
+def resolve_replay_aligned_trace_kinases(
+    *,
+    combined_scores: pd.DataFrame,
+    requested_trace_kinases: list[str],
+    sampling_trace_dir: str | Path,
+    top: int,
+    score_threshold: float,
+    inclusion: int,
+) -> tuple[list[str], list[str], PredictionSamplingTrace]:
+    trace_dir = Path(sampling_trace_dir)
+    trace_candidates_path = trace_dir / "trace_candidates.csv"
+    trace_initial_path = trace_dir / "trace_initial_negatives.csv"
+    trace_samples_path = trace_dir / "trace_iteration_samples.csv"
+
+    if not trace_candidates_path.exists():
+        msg = (
+            "sampling trace replay requires trace_candidates.csv so the exporter "
+            "can verify candidate-set alignment before applying the override"
+        )
+        raise ValueError(msg)
+
+    _, substrate_list = build_trace_candidates(
+        combined_scores,
+        requested_trace_kinases,
+        top=top,
+        score_threshold=score_threshold,
+        inclusion=inclusion,
+    )
+    trace_candidates = pd.read_csv(trace_candidates_path)
+    trace_initial = (
+        pd.read_csv(trace_initial_path)
+        if trace_initial_path.exists()
+        else pd.DataFrame(columns=["kinase", "ensemble", "draw", "site"])
+    )
+    trace_samples = (
+        pd.read_csv(trace_samples_path)
+        if trace_samples_path.exists()
+        else pd.DataFrame(
+            columns=["kinase", "ensemble", "iteration", "class_label", "draw", "site"]
+        )
+    )
+
+    eligible_kinases: list[str] = []
+    skipped_kinases: list[str] = []
+    for kinase in requested_trace_kinases:
+        current_count = len(substrate_list.get(kinase, []))
+        trace_count = int(
+            trace_candidates.loc[
+                (trace_candidates["kinase"].astype(str) == kinase)
+                & (trace_candidates["selected_candidate"]),
+                "site",
+            ].shape[0]
+        )
+        initial_counts = (
+            trace_initial.loc[trace_initial["kinase"].astype(str) == kinase]
+            .groupby("ensemble")
+            .size()
+        )
+        sample_counts = (
+            trace_samples.loc[trace_samples["kinase"].astype(str) == kinase]
+            .groupby(["ensemble", "iteration", "class_label"])
+            .size()
+        )
+        initial_ok = not initial_counts.empty and bool(
+            (initial_counts == trace_count).all()
+        )
+        sample_ok = not sample_counts.empty and bool(
+            (sample_counts == trace_count).all()
+        )
+
+        if current_count == trace_count and initial_ok and sample_ok:
+            eligible_kinases.append(kinase)
+        else:
+            skipped_kinases.append(kinase)
+
+    if not eligible_kinases:
+        msg = (
+            "No replay-aligned trace kinases are available in the requested set. "
+            "Regenerate the R prediction trace fixtures so candidate counts and "
+            "sampling rows match the current native candidate set."
+        )
+        raise ValueError(msg)
+
+    sampling_trace = PredictionSamplingTrace.from_trace_directory(
+        trace_dir
+    ).subset_kinases(eligible_kinases)
+    return eligible_kinases, skipped_kinases, sampling_trace
+
+
 def export_traces(
     result,
     combined_scores: pd.DataFrame,
@@ -98,6 +190,8 @@ def export_traces(
     inclusion: int,
     trace_kinases: list[str],
     svm_mode: str,
+    sampling_trace_dir: str | None,
+    skipped_trace_kinases: list[str] | None = None,
 ) -> None:
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -227,6 +321,8 @@ def export_traces(
         "",
         f"Trace kinases: {', '.join(trace_kinases)}",
         f"SVM mode: {svm_mode}",
+        f"Sampling trace override: {sampling_trace_dir or 'none'}",
+        f"Skipped trace kinases: {', '.join(skipped_trace_kinases or []) or 'none'}",
         "",
         "Files:",
         "- trace_candidates.csv: ranked combined-score candidates for the traced kinases",
@@ -244,6 +340,20 @@ def main() -> None:
     combined_scores = pd.read_csv(args.combined_scores, index_col=0)
     trace_kinases = parse_csv_values(args.trace_kinases)
 
+    sampling_trace = None
+    skipped_trace_kinases: list[str] = []
+    if args.sampling_trace_dir:
+        trace_kinases, skipped_trace_kinases, sampling_trace = (
+            resolve_replay_aligned_trace_kinases(
+                combined_scores=combined_scores,
+                requested_trace_kinases=trace_kinases,
+                sampling_trace_dir=args.sampling_trace_dir,
+                top=args.top,
+                score_threshold=args.score_threshold,
+                inclusion=args.inclusion,
+            )
+        )
+
     predictor = KinasePredictor()
     result = predictor.predict(
         combined_scores=combined_scores,
@@ -257,6 +367,7 @@ def main() -> None:
         debug_kinases=trace_kinases,
         debug_top_n=args.debug_top_n,
         svm_mode=args.svm_mode,
+        sampling_trace=sampling_trace,
     )
 
     export_traces(
@@ -268,8 +379,15 @@ def main() -> None:
         inclusion=args.inclusion,
         trace_kinases=trace_kinases,
         svm_mode=args.svm_mode,
+        sampling_trace_dir=args.sampling_trace_dir,
+        skipped_trace_kinases=skipped_trace_kinases,
     )
 
+    if skipped_trace_kinases:
+        print(
+            "Replay trace skipped kinases with stale or incompatible fixture rows: "
+            + ", ".join(skipped_trace_kinases)
+        )
     print(f"Done. Python prediction traces written to: {args.outdir}")
 
 
