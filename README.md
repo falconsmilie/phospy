@@ -21,16 +21,12 @@ selected workflow seams.
 
 ## Install
 
+### Python Requirements
+
 Base install:
 
 ```bash
 pip install -e .
-```
-
-For the native prediction workflow:
-
-```bash
-pip install -e ".[ml]"
 ```
 
 For tests:
@@ -43,9 +39,48 @@ pytest
 For development checks:
 
 ```bash
-pip install -e ".[test,dev]"
+pip install -e ".[dev]"
 pre-commit install
 pre-commit run --all-files
+```
+
+For a full Python-side install:
+
+```bash
+pip install -e ".[full]"
+```
+
+### R Requirements for Fixture Generation
+
+The parity and fixture-generation scripts in `scripts/` also need a working R installation. Python packaging does not
+install these R-side requirements for you.
+
+The current scripts use these R packages:
+
+- `PhosR`
+- `SummarizedExperiment`
+- `e1071`
+- `readr`
+- `dplyr`
+- `tidyr`
+- `tibble`
+- `janitor`
+
+A practical greenfield setup in R is:
+
+```r
+install.packages(c("BiocManager", "devtools", "e1071", "readr", "dplyr", "tidyr", "tibble", "janitor"))
+BiocManager::install("SummarizedExperiment")
+devtools::install_github("PYangLab/PhosR")
+```
+
+The bundled fixture scripts check for the packages they need and stop with a clear error if anything is missing.
+
+Once both the Python and R dependencies are installed, you can generate the committed R reference fixtures with:
+
+```bash
+Rscript scripts/generate_r_fixtures.R
+Rscript scripts/generate_r_l6_fixtures.R
 ```
 
 ## Quick Start
@@ -106,13 +141,9 @@ outputs = pipeline.run(outdir="output")
 
 ### Native End-to-End Kinase Workflow
 
-This workflow requires the machine-learning extra:
+The native prediction workflow is included in the base install.
 
-```bash
-pip install -e ".[ml]"
-```
-
-Then you can run the native workflow in one orchestration call:
+You can run the native workflow in one orchestration call:
 
 ```python
 from phospy import run_kinase_workflow
