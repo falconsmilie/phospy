@@ -3,6 +3,14 @@
 This document covers the fixture-backed test suite: what parity means in this repository, how to run it, and which
 options change the pytest output you see.
 
+Unless otherwise noted, commands below assume:
+
+- **Linux**
+- **repo root**
+- a shell that understands standard `bash` syntax
+
+macOS uses the same commands unless a section says otherwise. Windows is only shown where the syntax changes.
+
 ## What Parity Means Here
 
 In this repository, parity means that a specific Python path has been compared against outputs generated from the R
@@ -181,6 +189,16 @@ variables rather than pytest flags.
 PHOSPY_SHOW_PARITY=1 pytest -m parity -s
 ```
 
+<details>
+<summary>Windows (PowerShell)</summary>
+
+```powershell
+$env:PHOSPY_SHOW_PARITY=1
+pytest -m parity -s
+```
+
+</details>
+
 Effect on output:
 
 - enables printed metric summaries from `tests/test_parity-with_metrics.py`
@@ -192,26 +210,11 @@ Typical output may include:
 - mean and maximum absolute differences
 - ranked-overlap summaries for prediction outputs
 
-<details>
-<summary>Windows (PowerShell)</summary>
-
-```powershell
-$env:PHOSPY_SHOW_PARITY=1
-pytest -m parity -s
-```
-
-</details>
-
 ### Profile-Construction Metrics
 
 ```bash
 PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 pytest -m parity -s
 ```
-
-Effect on output:
-
-- adds optional profile-construction metrics
-- only works when `PHOSPY_SHOW_PARITY=1` is also set
 
 <details>
 <summary>Windows (PowerShell)</summary>
@@ -224,16 +227,16 @@ pytest -m parity -s
 
 </details>
 
+Effect on output:
+
+- adds optional profile-construction metrics
+- only works when `PHOSPY_SHOW_PARITY=1` is also set
+
 ### Prediction-Mode Comparison Metrics
 
 ```bash
 PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
 ```
-
-Effect on output:
-
-- adds optional comparison output between prediction modes such as `default` and `r_parity`
-- only works when `PHOSPY_SHOW_PARITY=1` is also set
 
 <details>
 <summary>Windows (PowerShell)</summary>
@@ -246,16 +249,16 @@ pytest -m parity -s
 
 </details>
 
+Effect on output:
+
+- adds optional comparison output between prediction modes such as `default` and `r_parity`
+- only works when `PHOSPY_SHOW_PARITY=1` is also set
+
 ### Replayed Prediction-Mode Comparison Metrics
 
 ```bash
 PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
 ```
-
-Effect on output:
-
-- adds optional comparison output for the replayed prediction-trace path
-- only works when `PHOSPY_SHOW_PARITY=1` is also set
 
 <details>
 <summary>Windows (PowerShell)</summary>
@@ -267,6 +270,11 @@ pytest -m parity -s
 ```
 
 </details>
+
+Effect on output:
+
+- adds optional comparison output for the replayed prediction-trace path
+- only works when `PHOSPY_SHOW_PARITY=1` is also set
 
 ## Regenerating the Python-Side Prediction Trace
 

@@ -2,6 +2,14 @@
 
 This document is the single source of truth for the fixture and trace directories used in PhosPy.
 
+Unless otherwise noted, commands below assume:
+
+- **Linux**
+- **repo root**
+- a shell that understands standard `bash` syntax
+
+macOS uses the same commands unless a section says otherwise. Windows is only shown where the syntax changes.
+
 ## Directory Map
 
 ### Small Synthetic R Fixtures
