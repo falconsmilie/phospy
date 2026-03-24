@@ -17,6 +17,7 @@ from phospy.prediction import (
     _RLikeStandardScaler,
     _transform_resampling_probabilities,
     build_candidate_substrate_list,
+    prediction_debug_trace_tables,
 )
 from phospy.scoring import KinaseScoringResult
 
@@ -29,6 +30,11 @@ def make_combined_scores() -> pd.DataFrame:
         },
         index=[f"SITE_{i}" for i in range(1, 9)],
     )
+
+
+SYNTHETIC_ADAPTIVE_SAMPLING_EDGE_DIR = (
+    Path(__file__).resolve().parent / "fixtures" / "synthetic_adaptive_sampling_edge"
+)
 
 
 def test_build_candidate_substrate_list_applies_selection_rules() -> None:
@@ -550,6 +556,72 @@ def test_predict_accepts_preloaded_sampling_trace(tmp_path: Path) -> None:
         "SITE_7",
         "SITE_6",
     ]
+
+
+def test_synthetic_adaptive_sampling_edge_fixture_replays_expected_decision_state() -> (
+    None
+):
+    combined_scores = pd.read_csv(
+        SYNTHETIC_ADAPTIVE_SAMPLING_EDGE_DIR / "combined_scores.csv",
+        index_col=0,
+    )
+    sampling_trace = PredictionSamplingTrace.from_trace_directory(
+        SYNTHETIC_ADAPTIVE_SAMPLING_EDGE_DIR
+    )
+
+    result = KinasePredictor(svm_mode="r_parity").predict(
+        combined_scores=combined_scores,
+        ensemble_size=1,
+        top=4,
+        score_threshold=0.85,
+        inclusion=2,
+        n_iterations=2,
+        random_state=1,
+        capture_debug_trace=True,
+        debug_kinases=["KINASE_A", "KINASE_B"],
+        debug_top_n=4,
+        sampling_trace=sampling_trace,
+    )
+    actual_tables = prediction_debug_trace_tables(result)
+
+    expected_candidates = pd.read_csv(
+        SYNTHETIC_ADAPTIVE_SAMPLING_EDGE_DIR / "trace_selected_candidates.csv"
+    )
+    expected_negative_pool = pd.read_csv(
+        SYNTHETIC_ADAPTIVE_SAMPLING_EDGE_DIR / "trace_negative_pool.csv"
+    )
+    expected_labels = pd.read_csv(
+        SYNTHETIC_ADAPTIVE_SAMPLING_EDGE_DIR / "trace_iteration_labels.csv"
+    )
+    expected_labels["label"] = expected_labels["label"].astype(str)
+    expected_samples = pd.read_csv(
+        SYNTHETIC_ADAPTIVE_SAMPLING_EDGE_DIR / "trace_iteration_samples.csv"
+    )
+    expected_samples["class_label"] = expected_samples["class_label"].astype(str)
+    expected_top = pd.read_csv(
+        SYNTHETIC_ADAPTIVE_SAMPLING_EDGE_DIR / "trace_final_ensemble_top.csv"
+    )
+
+    pd.testing.assert_frame_equal(
+        actual_tables["trace_selected_candidates"].reset_index(drop=True),
+        expected_candidates,
+    )
+    pd.testing.assert_frame_equal(
+        actual_tables["trace_negative_pool"].reset_index(drop=True),
+        expected_negative_pool,
+    )
+    pd.testing.assert_frame_equal(
+        actual_tables["trace_iteration_labels"].reset_index(drop=True),
+        expected_labels,
+    )
+    pd.testing.assert_frame_equal(
+        actual_tables["trace_iteration_samples"].reset_index(drop=True),
+        expected_samples,
+    )
+    pd.testing.assert_frame_equal(
+        actual_tables["trace_final_ensemble_top"].reset_index(drop=True),
+        expected_top,
+    )
 
 
 def test_predict_raises_for_invalid_sampling_trace_sites(tmp_path: Path) -> None:

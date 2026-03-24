@@ -33,7 +33,8 @@ The current parity layer covers:
 - deterministic preprocessing and matrix-building seams backed by small synthetic fixtures
 - downstream kinase-analysis summaries backed by R-generated fixtures
 - selected native kinase workflow seams backed by committed L6 reference tables
-- seam-level prediction debugging through committed R and Python trace exports
+- a native combined-score + candidate-selection seam backed by committed L6 reference tables
+- an adaptive-sampling decision seam backed by committed R and Python trace exports
 
 For fixture and trace directory details, see [`docs/fixtures.md`](fixtures.md).
 

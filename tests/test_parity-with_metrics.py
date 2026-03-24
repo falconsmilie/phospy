@@ -12,6 +12,7 @@ from phospy.prediction import (
     KinasePredictor,
     PredictionSamplingTrace,
     build_candidate_substrate_list,
+    prediction_debug_trace_tables,
 )
 from phospy.profiles import build_kinase_substrate_profiles
 from phospy.scoring import KinaseScorer, combine_profile_and_motif_scores
@@ -73,6 +74,22 @@ L6_NATIVE_FIXTURE_FILES = [
     "native_prediction_top30.csv",
 ]
 
+L6_PREDICTION_TRACE_FILES = [
+    "trace_candidates.csv",
+    "trace_selected_candidates.csv",
+    "trace_negative_pool.csv",
+    "trace_initial_negatives.csv",
+    "trace_iteration_labels.csv",
+    "trace_iteration_probabilities.csv",
+    "trace_iteration_probability_parameters.csv",
+    "trace_iteration_decision_values.csv",
+    "trace_iteration_resampling_weights.csv",
+    "trace_iteration_samples.csv",
+    "trace_final_ensemble_predictions.csv",
+    "trace_final_ensemble_decision_values.csv",
+    "trace_final_ensemble_top.csv",
+]
+
 
 def _require_fixture_files(names: list[str], fixture_dir: Path = R_FIXTURES) -> None:
     missing = [name for name in names if not (fixture_dir / name).exists()]
@@ -82,6 +99,13 @@ def _require_fixture_files(names: list[str], fixture_dir: Path = R_FIXTURES) -> 
             "Generate the relevant fixtures under `tests/fixtures/` before running parity tests. "
             f"Missing: {', '.join(missing)}"
         )
+
+
+def _require_prediction_trace_files(names: list[str]) -> None:
+    _require_fixture_files(
+        names,
+        fixture_dir=R_FIXTURES_L6 / "prediction_trace",
+    )
 
 
 def _read_table(name: str, fixture_dir: Path = R_FIXTURES) -> pd.DataFrame:
@@ -627,109 +651,6 @@ def test_l6_native_combined_scores_match_r_reference() -> None:
     _assert_frame_close(actual_weights.sort_index(), expected_weights, atol=1e-7)
 
 
-def _debug_trace_to_tables(result) -> dict[str, pd.DataFrame]:
-    initial_rows: list[dict[str, object]] = []
-    probability_rows: list[dict[str, object]] = []
-    sample_rows: list[dict[str, object]] = []
-    final_prediction_rows: list[dict[str, object]] = []
-    final_top_rows: list[dict[str, object]] = []
-
-    debug_traces = result.debug_traces or {}
-    for kinase, trace in debug_traces.items():
-        for ensemble_trace in trace.ensemble_traces:
-            for draw, site in enumerate(ensemble_trace.initial_negative_sites, start=1):
-                initial_rows.append(
-                    {
-                        "kinase": kinase,
-                        "ensemble": ensemble_trace.ensemble_index,
-                        "draw": draw,
-                        "site": site,
-                    }
-                )
-
-            for iteration_trace in ensemble_trace.iterations:
-                labels = iteration_trace.labels
-                probs = iteration_trace.probabilities
-                for site in probs.index:
-                    probability_rows.append(
-                        {
-                            "kinase": kinase,
-                            "ensemble": ensemble_trace.ensemble_index,
-                            "iteration": iteration_trace.iteration_index,
-                            "site": site,
-                            "label": str(int(labels.loc[site])),
-                            "prob_class_1": float(probs.loc[site, "1"])
-                            if "1" in probs.columns
-                            else float("nan"),
-                            "prob_class_2": float(probs.loc[site, "2"])
-                            if "2" in probs.columns
-                            else float("nan"),
-                        }
-                    )
-                for draw, site in enumerate(
-                    iteration_trace.sampled_positive_sites, start=1
-                ):
-                    sample_rows.append(
-                        {
-                            "kinase": kinase,
-                            "ensemble": ensemble_trace.ensemble_index,
-                            "iteration": iteration_trace.iteration_index,
-                            "class_label": "1",
-                            "draw": draw,
-                            "site": site,
-                        }
-                    )
-                for draw, site in enumerate(
-                    iteration_trace.sampled_negative_sites, start=1
-                ):
-                    sample_rows.append(
-                        {
-                            "kinase": kinase,
-                            "ensemble": ensemble_trace.ensemble_index,
-                            "iteration": iteration_trace.iteration_index,
-                            "class_label": "2",
-                            "draw": draw,
-                            "site": site,
-                        }
-                    )
-
-            final_probs = ensemble_trace.final_prediction_probabilities
-            for site in final_probs.index:
-                final_prediction_rows.append(
-                    {
-                        "kinase": kinase,
-                        "ensemble": ensemble_trace.ensemble_index,
-                        "site": site,
-                        "prob_class_1": float(final_probs.loc[site, "1"])
-                        if "1" in final_probs.columns
-                        else float("nan"),
-                        "prob_class_2": float(final_probs.loc[site, "2"])
-                        if "2" in final_probs.columns
-                        else float("nan"),
-                    }
-                )
-            for rank, site in enumerate(ensemble_trace.final_top_sites, start=1):
-                final_top_rows.append(
-                    {
-                        "kinase": kinase,
-                        "ensemble": ensemble_trace.ensemble_index,
-                        "rank": rank,
-                        "site": site,
-                        "prob_class_1": float(final_probs.loc[site, "1"])
-                        if "1" in final_probs.columns
-                        else float("nan"),
-                    }
-                )
-
-    return {
-        "trace_initial_negatives": pd.DataFrame(initial_rows),
-        "trace_iteration_probabilities": pd.DataFrame(probability_rows),
-        "trace_iteration_samples": pd.DataFrame(sample_rows),
-        "trace_final_ensemble_predictions": pd.DataFrame(final_prediction_rows),
-        "trace_final_ensemble_top": pd.DataFrame(final_top_rows),
-    }
-
-
 def _read_prediction_trace_table(name: str) -> pd.DataFrame:
     return pd.read_csv(R_FIXTURES_L6 / "prediction_trace" / name)
 
@@ -808,55 +729,85 @@ def _replayed_prediction_trace_metrics(
         debug_top_n=10,
         sampling_trace=sampling_trace,
     )
-    actual_tables = _debug_trace_to_tables(result)
+    actual_tables = prediction_debug_trace_tables(result)
 
-    expected_initial = _normalize_numeric_frame(
-        _sort_table(
-            _read_prediction_trace_table("trace_initial_negatives.csv").loc[
-                lambda df: df["kinase"].astype(str).isin(eligible_kinases)
-            ],
-            ["kinase", "ensemble", "draw", "site"],
+    def _filtered_expected(name: str, sort_cols: list[str]) -> pd.DataFrame:
+        return _normalize_numeric_frame(
+            _sort_table(
+                _read_prediction_trace_table(name).loc[
+                    lambda df: df["kinase"].astype(str).isin(eligible_kinases)
+                ],
+                sort_cols,
+            )
         )
+
+    def _filtered_actual(name: str, sort_cols: list[str]) -> pd.DataFrame:
+        return _normalize_numeric_frame(_sort_table(actual_tables[name], sort_cols))
+
+    expected_selected_candidates = _filtered_expected(
+        "trace_selected_candidates.csv",
+        ["kinase", "candidate_rank", "site"],
     )
-    actual_initial = _normalize_numeric_frame(
-        _sort_table(
-            actual_tables["trace_initial_negatives"],
-            ["kinase", "ensemble", "draw", "site"],
-        )
+    actual_selected_candidates = _filtered_actual(
+        "trace_selected_candidates",
+        ["kinase", "candidate_rank", "site"],
     )
-    expected_samples = _normalize_numeric_frame(
-        _sort_table(
-            _read_prediction_trace_table("trace_iteration_samples.csv").loc[
-                lambda df: df["kinase"].astype(str).isin(eligible_kinases)
-            ],
-            ["kinase", "ensemble", "iteration", "class_label", "draw", "site"],
-        )
+    expected_negative_pool = _filtered_expected(
+        "trace_negative_pool.csv",
+        ["kinase", "pool_index", "site"],
     )
-    actual_samples = _normalize_numeric_frame(
-        _sort_table(
-            actual_tables["trace_iteration_samples"],
-            ["kinase", "ensemble", "iteration", "class_label", "draw", "site"],
-        )
+    actual_negative_pool = _filtered_actual(
+        "trace_negative_pool",
+        ["kinase", "pool_index", "site"],
+    )
+    expected_labels = _filtered_expected(
+        "trace_iteration_labels.csv",
+        ["kinase", "ensemble", "iteration", "site"],
+    )
+    actual_labels = _filtered_actual(
+        "trace_iteration_labels",
+        ["kinase", "ensemble", "iteration", "site"],
     )
 
+    expected_initial = _filtered_expected(
+        "trace_initial_negatives.csv",
+        ["kinase", "ensemble", "draw", "site"],
+    )
+    actual_initial = _filtered_actual(
+        "trace_initial_negatives",
+        ["kinase", "ensemble", "draw", "site"],
+    )
+    expected_samples = _filtered_expected(
+        "trace_iteration_samples.csv",
+        ["kinase", "ensemble", "iteration", "class_label", "draw", "site"],
+    )
+    actual_samples = _filtered_actual(
+        "trace_iteration_samples",
+        ["kinase", "ensemble", "iteration", "class_label", "draw", "site"],
+    )
+
+    candidate_exact_matches = int(
+        actual_selected_candidates.eq(expected_selected_candidates).all(axis=1).sum()
+    )
+    candidate_total_rows = int(len(expected_selected_candidates))
+    negative_pool_exact_matches = int(
+        actual_negative_pool.eq(expected_negative_pool).all(axis=1).sum()
+    )
+    negative_pool_total_rows = int(len(expected_negative_pool))
+    label_exact_matches = int(actual_labels.eq(expected_labels).all(axis=1).sum())
+    label_total_rows = int(len(expected_labels))
     initial_exact_matches = int(actual_initial.eq(expected_initial).all(axis=1).sum())
     initial_total_rows = int(len(expected_initial))
     sample_exact_matches = int(actual_samples.eq(expected_samples).all(axis=1).sum())
     sample_total_rows = int(len(expected_samples))
 
-    expected_prob = _normalize_numeric_frame(
-        _sort_table(
-            _read_prediction_trace_table("trace_iteration_probabilities.csv").loc[
-                lambda df: df["kinase"].astype(str).isin(eligible_kinases)
-            ],
-            ["kinase", "ensemble", "iteration", "site"],
-        )
+    expected_prob = _filtered_expected(
+        "trace_iteration_probabilities.csv",
+        ["kinase", "ensemble", "iteration", "site"],
     )
-    actual_prob = _normalize_numeric_frame(
-        _sort_table(
-            actual_tables["trace_iteration_probabilities"],
-            ["kinase", "ensemble", "iteration", "site"],
-        )
+    actual_prob = _filtered_actual(
+        "trace_iteration_probabilities",
+        ["kinase", "ensemble", "iteration", "site"],
     )
     merged_prob = actual_prob.merge(
         expected_prob,
@@ -865,36 +816,13 @@ def _replayed_prediction_trace_metrics(
         validate="one_to_one",
     )
 
-    expected_decision = _normalize_numeric_frame(
-        _sort_table(
-            _read_prediction_trace_table("trace_iteration_decision_values.csv").loc[
-                lambda df: df["kinase"].astype(str).isin(eligible_kinases)
-            ],
-            ["kinase", "ensemble", "iteration", "site"],
-        )
+    expected_decision = _filtered_expected(
+        "trace_iteration_decision_values.csv",
+        ["kinase", "ensemble", "iteration", "site"],
     )
-    actual_decision = _normalize_numeric_frame(
-        _sort_table(
-            pd.DataFrame(
-                [
-                    {
-                        "kinase": trace.kinase,
-                        "ensemble": ensemble_trace.ensemble_index,
-                        "iteration": iteration_trace.iteration_index,
-                        "site": site,
-                        "label": str(label),
-                        "decision_value_class_1": float(
-                            iteration_trace.decision_values.loc[site]
-                        ),
-                    }
-                    for trace in (result.debug_traces or {}).values()
-                    for ensemble_trace in trace.ensemble_traces
-                    for iteration_trace in ensemble_trace.iterations
-                    for site, label in iteration_trace.labels.items()
-                ]
-            ),
-            ["kinase", "ensemble", "iteration", "site"],
-        )
+    actual_decision = _filtered_actual(
+        "trace_iteration_decision_values",
+        ["kinase", "ensemble", "iteration", "site"],
     )
     merged_decision = actual_decision.merge(
         expected_decision,
@@ -903,19 +831,13 @@ def _replayed_prediction_trace_metrics(
         validate="one_to_one",
     )
 
-    expected_top = _normalize_numeric_frame(
-        _sort_table(
-            _read_prediction_trace_table("trace_final_ensemble_top.csv").loc[
-                lambda df: df["kinase"].astype(str).isin(eligible_kinases)
-            ],
-            ["kinase", "ensemble", "rank"],
-        )
+    expected_top = _filtered_expected(
+        "trace_final_ensemble_top.csv",
+        ["kinase", "ensemble", "rank"],
     )
-    actual_top = _normalize_numeric_frame(
-        _sort_table(
-            actual_tables["trace_final_ensemble_top"],
-            ["kinase", "ensemble", "rank"],
-        )
+    actual_top = _filtered_actual(
+        "trace_final_ensemble_top",
+        ["kinase", "ensemble", "rank"],
     )
     merged_top = actual_top.merge(
         expected_top,
@@ -930,17 +852,44 @@ def _replayed_prediction_trace_metrics(
     prob_class2_corr = merged_prob["prob_class_2_py"].corr(
         merged_prob["prob_class_2_r"], method="pearson"
     )
+    decision_site_close_matches = int(
+        (
+            (
+                merged_decision["decision_value_class_1_py"]
+                - merged_decision["decision_value_class_1_r"]
+            ).abs()
+            <= 1e-12
+        ).sum()
+    )
+    decision_total_rows = int(len(merged_decision))
     final_top_site_matches = int((merged_top["site_py"] == merged_top["site_r"]).sum())
     final_top_total = int(len(merged_top))
+    final_top_prob_site_matches = int(
+        (
+            (merged_top["site_py"] == merged_top["site_r"])
+            & (
+                (merged_top["prob_class_1_py"] - merged_top["prob_class_1_r"]).abs()
+                <= 0.05
+            )
+        ).sum()
+    )
 
     return {
         "n_kinases": len(eligible_kinases),
         "trace_kinases": ", ".join(eligible_kinases),
         "skipped_trace_kinases": ", ".join(skipped_kinases),
+        "candidate_exact_matches": candidate_exact_matches,
+        "candidate_total_rows": candidate_total_rows,
+        "negative_pool_exact_matches": negative_pool_exact_matches,
+        "negative_pool_total_rows": negative_pool_total_rows,
+        "label_exact_matches": label_exact_matches,
+        "label_total_rows": label_total_rows,
         "initial_exact_matches": initial_exact_matches,
         "initial_total_rows": initial_total_rows,
         "sample_exact_matches": sample_exact_matches,
         "sample_total_rows": sample_total_rows,
+        "decision_site_close_matches": decision_site_close_matches,
+        "decision_total_rows": decision_total_rows,
         "iteration_prob_class1_corr": float(prob_class1_corr),
         "iteration_prob_class2_corr": float(prob_class2_corr),
         "iteration_decision_class1_corr": float(
@@ -966,6 +915,7 @@ def _replayed_prediction_trace_metrics(
         ),
         "final_top_site_matches": final_top_site_matches,
         "final_top_total": final_top_total,
+        "final_top_prob_site_matches": final_top_prob_site_matches,
         "final_top_prob_mae": float(
             (merged_top["prob_class_1_py"] - merged_top["prob_class_1_r"]).abs().mean()
         ),
@@ -1130,37 +1080,71 @@ def test_l6_native_prediction_mode_comparison_metrics() -> None:
 
 
 @pytest.mark.parity
-def test_l6_replayed_prediction_trace_matches_r_sampling_path() -> None:
+def test_l6_adaptive_sampling_decision_seam_matches_r_trace() -> None:
     _require_fixture_files(
         L6_FIXTURE_FILES + L6_NATIVE_FIXTURE_FILES,
         fixture_dir=R_FIXTURES_L6,
     )
+    _require_prediction_trace_files(L6_PREDICTION_TRACE_FILES)
 
     metrics = _replayed_prediction_trace_metrics(svm_mode="r_parity")
 
     _maybe_print_metrics(
-        "Replayed prediction trace parity metrics",
+        "Adaptive-sampling decision seam parity metrics",
         [
             "svm_mode: r_parity",
             f"kinases compared: {metrics['n_kinases']}",
             f"trace kinases used: {metrics['trace_kinases']}",
             f"trace kinases skipped: {metrics['skipped_trace_kinases'] or 'none'}",
+            f"selected candidate exact matches: {metrics['candidate_exact_matches']}/{metrics['candidate_total_rows']}",
+            f"negative-pool exact matches: {metrics['negative_pool_exact_matches']}/{metrics['negative_pool_total_rows']}",
+            f"iteration label exact matches: {metrics['label_exact_matches']}/{metrics['label_total_rows']}",
             f"initial negative exact matches: {metrics['initial_exact_matches']}/{metrics['initial_total_rows']}",
             f"iteration sample exact matches: {metrics['sample_exact_matches']}/{metrics['sample_total_rows']}",
-            f"iteration prob class-1 Pearson correlation: {metrics['iteration_prob_class1_corr'] * 100:.3f}%",
-            f"iteration prob class-2 Pearson correlation: {metrics['iteration_prob_class2_corr'] * 100:.3f}%",
+            f"iteration decision close matches: {metrics['decision_site_close_matches']}/{metrics['decision_total_rows']}",
+            f"final top-site matches: {metrics['final_top_site_matches']}/{metrics['final_top_total']}",
+            f"final top site+prob close matches: {metrics['final_top_prob_site_matches']}/{metrics['final_top_total']}",
             f"iteration decision class-1 Pearson correlation: {metrics['iteration_decision_class1_corr'] * 100:.3f}%",
             f"iteration decision class-1 mean absolute difference: {metrics['iteration_decision_mae']:.6g}",
+        ],
+    )
+
+    assert metrics["candidate_exact_matches"] == metrics["candidate_total_rows"]
+    assert metrics["negative_pool_exact_matches"] == metrics["negative_pool_total_rows"]
+    assert metrics["label_exact_matches"] == metrics["label_total_rows"]
+    assert metrics["initial_exact_matches"] == metrics["initial_total_rows"]
+    assert metrics["sample_exact_matches"] == metrics["sample_total_rows"]
+    assert metrics["decision_site_close_matches"] == metrics["decision_total_rows"]
+    assert metrics["iteration_decision_class1_corr"] >= 0.999999
+    assert metrics["iteration_decision_mae"] <= 1e-12
+    assert metrics["final_top_site_matches"] / metrics["final_top_total"] >= 0.97
+
+
+@pytest.mark.parity
+def test_l6_adaptive_sampling_probabilities_remain_close_to_r_trace() -> None:
+    _require_fixture_files(
+        L6_FIXTURE_FILES + L6_NATIVE_FIXTURE_FILES,
+        fixture_dir=R_FIXTURES_L6,
+    )
+    _require_prediction_trace_files(L6_PREDICTION_TRACE_FILES)
+
+    metrics = _replayed_prediction_trace_metrics(svm_mode="r_parity")
+
+    _maybe_print_metrics(
+        "Adaptive-sampling probability diagnostics",
+        [
+            "svm_mode: r_parity",
+            f"kinases compared: {metrics['n_kinases']}",
+            f"trace kinases used: {metrics['trace_kinases']}",
+            f"trace kinases skipped: {metrics['skipped_trace_kinases'] or 'none'}",
+            f"iteration prob class-1 Pearson correlation: {metrics['iteration_prob_class1_corr'] * 100:.3f}%",
+            f"iteration prob class-2 Pearson correlation: {metrics['iteration_prob_class2_corr'] * 100:.3f}%",
             f"iteration prob class-1 mean absolute difference: {metrics['iteration_prob_mae']:.6g}",
             f"final top-site matches: {metrics['final_top_site_matches']}/{metrics['final_top_total']}",
             f"final top class-1 mean absolute difference: {metrics['final_top_prob_mae']:.6g}",
         ],
     )
 
-    assert metrics["initial_exact_matches"] == metrics["initial_total_rows"]
-    assert metrics["sample_exact_matches"] == metrics["sample_total_rows"]
-    assert metrics["iteration_decision_class1_corr"] >= 0.999999
-    assert metrics["iteration_decision_mae"] <= 1e-12
     assert metrics["iteration_prob_class1_corr"] >= 0.998
     assert metrics["iteration_prob_mae"] <= 0.015
     assert metrics["final_top_site_matches"] >= 95
@@ -1172,6 +1156,7 @@ def test_l6_replayed_prediction_mode_comparison_metrics() -> None:
         L6_FIXTURE_FILES + L6_NATIVE_FIXTURE_FILES,
         fixture_dir=R_FIXTURES_L6,
     )
+    _require_prediction_trace_files(L6_PREDICTION_TRACE_FILES)
 
     default_metrics = _replayed_prediction_trace_metrics(svm_mode="default")
     r_parity_metrics = _replayed_prediction_trace_metrics(svm_mode="r_parity")

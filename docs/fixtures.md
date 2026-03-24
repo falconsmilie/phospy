@@ -127,7 +127,7 @@ tests/fixtures/r_reference_l6/prediction_trace
 
 **Purpose**
 
-- seam-level debugging of the prediction stage
+- seam-level debugging of the adaptive-sampling decision stage
 - direct comparison against Python trace exports
 
 **Generate**
@@ -143,9 +143,14 @@ Rscript scripts/generate_r_l6_fixtures.R \
 
 ```text
 trace_candidates.csv
+trace_selected_candidates.csv
+trace_negative_pool.csv
 trace_initial_negatives.csv
+trace_iteration_labels.csv
 trace_iteration_probabilities.csv
+trace_iteration_decision_values.csv
 trace_iteration_samples.csv
+trace_final_ensemble_decision_values.csv
 trace_final_ensemble_predictions.csv
 trace_final_ensemble_top.csv
 ```
@@ -153,7 +158,7 @@ trace_final_ensemble_top.csv
 **Contract Status**
 
 - committed reference traces
-- part of the seam-level parity story
+- part of the adaptive-sampling decision seam parity story
 - not a standalone claim of full workflow parity
 
 ### Committed Python Prediction Traces
@@ -167,7 +172,7 @@ tests/fixtures/python_reference_l6/prediction_trace
 **Purpose**
 
 - direct comparison against the committed R prediction traces
-- seam-level inspection of learner-stage differences
+- seam-level inspection of adaptive-sampling learner-stage differences
 
 **Generate**
 
@@ -185,9 +190,14 @@ python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1,MAPK1 -
 
 ```text
 trace_candidates.csv
+trace_selected_candidates.csv
+trace_negative_pool.csv
 trace_initial_negatives.csv
+trace_iteration_labels.csv
 trace_iteration_probabilities.csv
+trace_iteration_decision_values.csv
 trace_iteration_samples.csv
+trace_final_ensemble_decision_values.csv
 trace_final_ensemble_predictions.csv
 trace_final_ensemble_top.csv
 ```
@@ -195,7 +205,46 @@ trace_final_ensemble_top.csv
 **Contract Status**
 
 - committed Python reference traces
-- part of the seam-level parity story
+- part of the adaptive-sampling decision seam parity story
+
+### Synthetic Adaptive-Sampling Edge Fixtures
+
+**Directory**
+
+```text
+tests/fixtures/synthetic_adaptive_sampling_edge
+```
+
+**Purpose**
+
+- small deterministic replay fixture family for adaptive-sampling edge cases
+- exercises tied candidate scores, tiny negative pools, and explicit replayed sampling rows
+- complements the R-backed L6 seam without making a broader parity claim
+
+**Generate**
+
+```bash
+PYTHONPATH=src python scripts/generate_synthetic_adaptive_sampling_edge_fixtures.py
+```
+
+**Key Outputs**
+
+```text
+combined_scores.csv
+trace_candidates.csv
+trace_selected_candidates.csv
+trace_negative_pool.csv
+trace_initial_negatives.csv
+trace_iteration_labels.csv
+trace_iteration_samples.csv
+trace_final_ensemble_top.csv
+```
+
+**Contract Status**
+
+- committed synthetic regression fixtures
+- not part of the R parity contract
+- intended to pin replay behaviour around adaptive-sampling edge cases
 
 ### Temporary Python Trace Output
 

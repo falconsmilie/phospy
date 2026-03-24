@@ -65,12 +65,17 @@ write_trace_readme <- function(trace_dir, trace_kinases, trace_top_n) {
     "",
     "Files:",
     "- trace_candidates.csv: ranked combined-score candidates for the traced kinases",
+    "- trace_selected_candidates.csv: selected candidate substrate site IDs per traced kinase",
+    "- trace_negative_pool.csv: full negative-pool site IDs available to each traced kinase",
     "- trace_initial_negatives.csv: initial negative draw for each ensemble member",
+    "- trace_iteration_labels.csv: per-iteration base-train labels before resampling",
     "- trace_iteration_probabilities.csv: per-iteration class probabilities on the base train set",
     "- trace_iteration_probability_parameters.csv: per-iteration libsvm probability-calibration parameters",
+    "- trace_iteration_decision_values.csv: per-iteration binary decision values aligned to class 1",
     "- trace_iteration_resampling_weights.csv: per-iteration class-specific resampling weights",
     "- trace_iteration_samples.csv: resampled site identities for each iteration and class",
     "- trace_final_ensemble_predictions.csv: final per-ensemble prediction probabilities for all sites",
+    "- trace_final_ensemble_decision_values.csv: final per-ensemble binary decision values aligned to class 1",
     "- trace_final_ensemble_top.csv: final per-ensemble top-ranked sites"
   )
   writeLines(lines, file.path(trace_dir, "README.md"))
@@ -490,11 +495,13 @@ trace_multi_ada_sampling <- function(
   prob.mat <- c()
   iteration_prob_rows <- list()
   iteration_probability_parameter_rows <- list()
+  iteration_label_rows <- list()
   iteration_decision_rows <- list()
   iteration_weight_rows <- list()
   iteration_sample_rows <- list()
   probability_count <- 0
   probability_parameter_count <- 0
+  label_count <- 0
   decision_count <- 0
   weight_count <- 0
   sample_count <- 0
@@ -557,6 +564,16 @@ trace_multi_ada_sampling <- function(
       label = as.character(label[rownames(prob.mat)]),
       prob_class_1 = as.numeric(prob_col_1),
       prob_class_2 = as.numeric(prob_col_2),
+      stringsAsFactors = FALSE
+    )
+
+    label_count <- label_count + 1
+    iteration_label_rows[[label_count]] <- data.frame(
+      kinase = kinase,
+      ensemble = ensemble_idx,
+      iteration = i,
+      site = rownames(prob.mat),
+      label = as.character(label[rownames(prob.mat)]),
       stringsAsFactors = FALSE
     )
 
@@ -640,6 +657,7 @@ trace_multi_ada_sampling <- function(
 
   list(
     pred = pred,
+    iteration_labels = do.call(rbind, iteration_label_rows),
     iteration_probabilities = do.call(rbind, iteration_prob_rows),
     iteration_probability_parameters = if (length(iteration_probability_parameter_rows) > 0) do.call(rbind, iteration_probability_parameter_rows) else data.frame(),
     iteration_decision_values = do.call(rbind, iteration_decision_rows),
@@ -689,6 +707,11 @@ trace_kinase_substrate_pred <- function(
     trace_kinases = trace_kinases
   )
   substrate.list <- substrate_trace$substrate_list
+  selected_candidates <- substrate_trace$candidates[
+    substrate_trace$candidates$selected_candidate,
+    c("kinase", "rank", "site")
+  ]
+  names(selected_candidates) <- c("kinase", "candidate_rank", "site")
 
   print("Predicting kinases for phosphosites:")
   featureMat <- phosScoringMatrices$combinedScoreMatrix
@@ -697,6 +720,8 @@ trace_kinase_substrate_pred <- function(
   rownames(predMatrix) <- rownames(featureMat)
 
   initial_negative_rows <- list()
+  negative_pool_rows <- list()
+  iteration_label_rows <- list()
   iteration_probability_rows <- list()
   iteration_probability_parameter_rows <- list()
   iteration_decision_rows <- list()
@@ -706,6 +731,8 @@ trace_kinase_substrate_pred <- function(
   final_decision_rows <- list()
   final_top_rows <- list()
   initial_count <- 0
+  negative_pool_count <- 0
+  label_count <- 0
   probability_count <- 0
   probability_parameter_count <- 0
   decision_count <- 0
@@ -720,6 +747,17 @@ trace_kinase_substrate_pred <- function(
     positive.train <- featureMat[substrate.list[[i]], , drop = FALSE]
     positive.cls <- rep(1, length(substrate.list[[i]]))
     negative.pool <- featureMat[!(rownames(featureMat) %in% substrate.list[[i]]), , drop = FALSE]
+
+    if (kinase %in% trace_kinases) {
+      negative_pool_count <- negative_pool_count + 1
+      negative_pool_rows[[negative_pool_count]] <- data.frame(
+        kinase = kinase,
+        pool_index = seq_len(nrow(negative.pool)),
+        site = rownames(negative.pool),
+        stringsAsFactors = FALSE
+      )
+    }
+
     cat(paste(i, ".", sep = ""))
 
     for (e in seq_len(ensembleSize)) {
@@ -753,6 +791,8 @@ trace_kinase_substrate_pred <- function(
           trace_top_n = trace_top_n
         )
         pred <- trace_result$pred
+        label_count <- label_count + 1
+        iteration_label_rows[[label_count]] <- trace_result$iteration_labels
         probability_count <- probability_count + 1
         iteration_probability_rows[[probability_count]] <- trace_result$iteration_probabilities
         decision_count <- decision_count + 1
@@ -790,7 +830,10 @@ trace_kinase_substrate_pred <- function(
     pred_matrix = predMatrix,
     substrate_list = substrate.list,
     trace_candidates = substrate_trace$candidates,
+    trace_selected_candidates = selected_candidates,
+    trace_negative_pool = if (length(negative_pool_rows) > 0) do.call(rbind, negative_pool_rows) else data.frame(),
     trace_initial_negatives = if (length(initial_negative_rows) > 0) do.call(rbind, initial_negative_rows) else data.frame(),
+    trace_iteration_labels = if (length(iteration_label_rows) > 0) do.call(rbind, iteration_label_rows) else data.frame(),
     trace_iteration_probabilities = if (length(iteration_probability_rows) > 0) do.call(rbind, iteration_probability_rows) else data.frame(),
     trace_iteration_probability_parameters = if (length(iteration_probability_parameter_rows) > 0) do.call(rbind, iteration_probability_parameter_rows) else data.frame(),
     trace_iteration_decision_values = if (length(iteration_decision_rows) > 0) do.call(rbind, iteration_decision_rows) else data.frame(),
@@ -978,7 +1021,10 @@ main <- function() {
   )
 
   write.csv(L6.prediction$trace_candidates, file.path(trace_dir, "trace_candidates.csv"), row.names = FALSE)
+  write.csv(L6.prediction$trace_selected_candidates, file.path(trace_dir, "trace_selected_candidates.csv"), row.names = FALSE)
+  write.csv(L6.prediction$trace_negative_pool, file.path(trace_dir, "trace_negative_pool.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_initial_negatives, file.path(trace_dir, "trace_initial_negatives.csv"), row.names = FALSE)
+  write.csv(L6.prediction$trace_iteration_labels, file.path(trace_dir, "trace_iteration_labels.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_iteration_probabilities, file.path(trace_dir, "trace_iteration_probabilities.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_iteration_probability_parameters, file.path(trace_dir, "trace_iteration_probability_parameters.csv"), row.names = FALSE)
   write.csv(L6.prediction$trace_iteration_decision_values, file.path(trace_dir, "trace_iteration_decision_values.csv"), row.names = FALSE)
