@@ -8,6 +8,11 @@ import numpy as np
 import pandas as pd
 
 from .scoring import KinaseScoringResult
+from .validation.errors import (
+    InputCompatibilityError,
+    PhospyValidationError,
+    TableSchemaError,
+)
 
 PredictionSvmMode = Literal["default", "r_parity"]
 
@@ -75,7 +80,7 @@ class PredictionSamplingTrace:
                 "sampling trace directory must contain trace_initial_negatives.csv "
                 "and/or trace_iteration_samples.csv"
             )
-            raise ValueError(msg)
+            raise TableSchemaError(msg)
 
         ensembles_by_kinase: dict[str, dict[int, SamplingTraceOverrideEnsemble]] = {}
 
@@ -88,7 +93,7 @@ class PredictionSamplingTrace:
                     "trace_initial_negatives.csv is missing required columns: "
                     + ", ".join(missing)
                 )
-                raise ValueError(msg)
+                raise TableSchemaError(msg)
             initial_df = initial_df.sort_values(
                 ["kinase", "ensemble", "draw"], kind="mergesort"
             )
@@ -117,7 +122,7 @@ class PredictionSamplingTrace:
                     "trace_iteration_samples.csv is missing required columns: "
                     + ", ".join(missing)
                 )
-                raise ValueError(msg)
+                raise TableSchemaError(msg)
             samples_df = samples_df.sort_values(
                 ["kinase", "ensemble", "iteration", "class_label", "draw"],
                 kind="mergesort",
@@ -184,7 +189,7 @@ class _RLikeStandardScaler:
     def set_params(self, **params: object) -> _RLikeStandardScaler:
         if params:
             msg = f"_RLikeStandardScaler does not accept parameters: {sorted(params)}"
-            raise ValueError(msg)
+            raise InputCompatibilityError(msg)
         return self
 
     def fit(
@@ -442,7 +447,7 @@ class KinasePredictor:
                 "scoring_result does not contain combined_scores; pass "
                 "allow_profile_only_fallback=True to use profile_scores instead"
             )
-            raise ValueError(msg)
+            raise InputCompatibilityError(msg)
 
         return self.predict(
             combined_scores=feature_mat,
@@ -827,11 +832,11 @@ def _require_sklearn() -> tuple[type, type]:
 
 def _validate_positive_int(value: int, name: str) -> None:
     if value < 1:
-        raise ValueError(f"{name} must be at least 1")
+        raise PhospyValidationError(f"{name} must be at least 1")
 
 
 def _validate_svm_mode(value: PredictionSvmMode) -> PredictionSvmMode:
     if value not in {"default", "r_parity"}:
         msg = "svm_mode must be one of: 'default', 'r_parity'"
-        raise ValueError(msg)
+        raise PhospyValidationError(msg)
     return value
