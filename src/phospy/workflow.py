@@ -17,6 +17,7 @@ from .profiles import (
     KinaseProfileResult,
 )
 from .scoring import KinaseScorer, KinaseScoringResult
+from .validation.compatibility import validate_workflow_inputs
 from .validation.requests import KinaseWorkflowRequest
 
 
@@ -79,10 +80,17 @@ class KinaseWorkflow:
         return self.run_request(request)
 
     def run_request(self, request: KinaseWorkflowRequest) -> KinaseWorkflowResult:
+        phospho_matrix = validate_workflow_inputs(
+            request.phospho_matrix,
+            request.substrate_map,
+            request.site_sequences,
+            request.motif_sequences,
+        )
+
         profile_builder = KinaseProfileBuilder(aggregation=self.aggregation)
         profile_result = profile_builder.build(
             substrate_map=request.substrate_map,
-            phospho_matrix=request.phospho_matrix,
+            phospho_matrix=phospho_matrix,
             min_substrates=request.min_substrates,
         )
 
@@ -96,18 +104,18 @@ class KinaseWorkflow:
             )
             motif_result = motif_scorer.score_sequences(
                 seqs=request.site_sequences,
-                site_index=request.phospho_matrix.index,
+                site_index=phospho_matrix.index,
                 min_motif_size=request.min_motif_size,
             )
             scoring_result = scorer.score(
-                phospho_matrix=request.phospho_matrix,
+                phospho_matrix=phospho_matrix,
                 motif_scores=motif_result.motif_scores,
                 motif_sizes=motif_result.motif_sizes,
                 profile_sizes=profile_result.substrate_counts.astype(float),
                 allow_profile_only_fallback=request.allow_profile_only_fallback,
             )
         else:
-            scoring_result = scorer.score(phospho_matrix=request.phospho_matrix)
+            scoring_result = scorer.score(phospho_matrix=phospho_matrix)
 
         predictor = KinasePredictor(
             kernel=self.kernel,

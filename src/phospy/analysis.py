@@ -11,6 +11,9 @@ from .activities import (
     compute_weighted_kinase_activity,
     count_predicted_targets,
 )
+from .io import load_pred_mat
+from .validation.compatibility import validate_pred_mat_overlap
+from .validation.tables import PredMatSchema, SiteMatrixSchema
 
 
 @dataclass(slots=True)
@@ -26,11 +29,11 @@ class KinaseActivityAnalyzer:
     """Owns downstream kinase summaries derived from a prediction matrix."""
 
     def __init__(self, pred_mat: pd.DataFrame) -> None:
-        self.pred_mat = pred_mat.copy()
+        self.pred_mat = PredMatSchema.validate(pred_mat, context="pred_mat")
 
     @classmethod
     def from_csv(cls, pred_mat_path: str | Path) -> KinaseActivityAnalyzer:
-        pred_mat = pd.read_csv(pred_mat_path, index_col=0)
+        pred_mat = load_pred_mat(pred_mat_path)
         return cls(pred_mat=pred_mat)
 
     def build_target_table(self, threshold: float = 0.6) -> pd.DataFrame:
@@ -72,13 +75,18 @@ class KinaseActivityAnalyzer:
         min_substrates: int = 3,
         top_n_substrates: int = 20,
     ) -> KinaseActivityResult:
+        validated_matrix = SiteMatrixSchema.validate(
+            phospho_matrix,
+            context="phospho_matrix",
+        )
+        validate_pred_mat_overlap(self.pred_mat, validated_matrix)
         weighted_activity = self.compute_weighted_activity(
-            phospho_matrix=phospho_matrix,
+            phospho_matrix=validated_matrix,
             top_n_substrates=top_n_substrates,
             min_substrates=min_substrates,
         )
         ksea_scores, ksea_counts = self.compute_ksea_scores(
-            phospho_matrix=phospho_matrix,
+            phospho_matrix=validated_matrix,
             threshold=threshold,
             min_substrates=min_substrates,
         )

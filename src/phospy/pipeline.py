@@ -9,6 +9,7 @@ import pandas as pd
 from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
 from .constants import ComparisonSpec
 from .dataset import CoreProcessingResult, PhosphoDataset
+from .io import load_phospho_table, load_pred_mat, load_total_table
 from .validation.requests import CorePipelineRequest
 
 
@@ -35,14 +36,16 @@ class PhosRPipeline:
 
     @classmethod
     def from_request(cls, request: CorePipelineRequest) -> PhosRPipeline:
-        dataset = PhosphoDataset.from_files(
-            total_path=request.total_path,
-            phospho_path=request.phospho_path,
-            phospho_encoding=request.phospho_encoding,
+        dataset = PhosphoDataset(
+            total_df=load_total_table(request.total_path),
+            phospho_df=load_phospho_table(
+                request.phospho_path,
+                encoding=request.phospho_encoding,
+            ),
             comparisons=request.comparisons,
         )
         pred_mat = (
-            pd.read_csv(request.pred_mat_path, index_col=0)
+            load_pred_mat(request.pred_mat_path)
             if request.pred_mat_path is not None
             else None
         )

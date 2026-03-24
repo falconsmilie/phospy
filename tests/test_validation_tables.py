@@ -1,0 +1,101 @@
+from __future__ import annotations
+
+import pandas as pd
+import pytest
+
+from phospy.io import load_phospho_table, load_pred_mat, load_total_table
+from phospy.validation.errors import TableSchemaError
+from phospy.validation.tables import (
+    PhosphoInputSchema,
+    SiteMatrixSchema,
+    TotalInputSchema,
+)
+
+
+def test_total_input_schema_rejects_non_numeric_group_values() -> None:
+    frame = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": ["bad"],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+
+    with pytest.raises(TableSchemaError, match="non-numeric values"):
+        TotalInputSchema.validate(frame)
+
+
+def test_phospho_input_schema_rejects_malformed_gene_p_site() -> None:
+    frame = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+
+    with pytest.raises(TableSchemaError, match="malformed gene_p_site"):
+        PhosphoInputSchema.validate(frame)
+
+
+def test_load_phospho_table_rejects_duplicate_cleaned_columns(tmp_path) -> None:
+    phospho_path = tmp_path / "phospho.tsv"
+    phospho_path.write_text(
+        "uid\tGene Names\tgene-names\tgene_p_site\tlocalization_prob\tcentralized_sequence"
+        "\tp_group1\tp_group2\tp_group3\tp_group4\tp_group5\tp_group6\n"
+        "u1\tPRKACA\tPRKACA\tPRKACA_S339\t0.95\tAAAAAA\t1\t1\t1\t1\t1\t1\n"
+    )
+
+    with pytest.raises(TableSchemaError, match="duplicate column names"):
+        load_phospho_table(phospho_path)
+
+
+def test_load_pred_mat_rejects_out_of_range_scores(tmp_path) -> None:
+    pred_path = tmp_path / "pred.csv"
+    pd.DataFrame(
+        {
+            "PRKACA": [1.2],
+            "BTK": [0.8],
+        },
+        index=["PRKACA;S339;"],
+    ).to_csv(pred_path)
+
+    with pytest.raises(TableSchemaError, match="outside the allowed range"):
+        load_pred_mat(pred_path)
+
+
+def test_site_matrix_schema_rejects_duplicate_index() -> None:
+    frame = pd.DataFrame(
+        {
+            "sample_1": [1.0, 2.0],
+        },
+        index=["SITE_1", "SITE_1"],
+    )
+
+    with pytest.raises(TableSchemaError, match="duplicate index entries"):
+        SiteMatrixSchema.validate(frame)
+
+
+def test_load_total_table_returns_numeric_frame(tmp_path) -> None:
+    total_path = tmp_path / "total.tsv"
+    total_path.write_text(
+        "genes\tgroup1\tgroup2\tgroup3\tgroup4\tgroup5\tgroup6\n"
+        "PRKACA\t1\t2\t3\t4\t5\t6\n"
+    )
+
+    loaded = load_total_table(total_path)
+
+    assert loaded["group1"].dtype.kind in {"f", "i"}
+    assert loaded.loc[0, "genes"] == "PRKACA"

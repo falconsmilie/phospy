@@ -16,6 +16,15 @@ def build_site_matrix(
     work = df.copy()
 
     split_cols = work[gene_p_site_col].astype("string").str.split("_", n=1, expand=True)
+    invalid_mask = (
+        (split_cols.shape[1] < 2)
+        or split_cols[0].isna().any()
+        or split_cols[1].isna().any()
+    )
+    if invalid_mask:
+        raise ValueError(
+            f"{gene_p_site_col} must contain values in the form GENE_SITE, for example PRKACA_S339"
+        )
     work[gene_col_name] = split_cols[0].astype("string")
     work[p_site_col_name] = split_cols[1].astype("string")
     work["site_id"] = (

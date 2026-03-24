@@ -12,7 +12,7 @@ from .constants import (
     DEFAULT_TOTAL_COLS,
     ComparisonSpec,
 )
-from .io import read_table
+from .io import load_phospho_table, load_total_table
 from .matrices import build_site_matrix
 from .preprocessing import (
     add_pairwise_comparisons,
@@ -21,6 +21,7 @@ from .preprocessing import (
     filter_min_observed,
     replace_sentinel_with_nan,
 )
+from .validation.tables import PhosphoInputSchema, SiteMatrixSchema, TotalInputSchema
 
 
 @dataclass(slots=True)
@@ -55,11 +56,14 @@ class PhosphoDataset:
         corrected_cols: Sequence[str] | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> None:
-        self.total_df = total_df.copy()
-        self.phospho_df = phospho_df.copy()
         self.total_cols = list(total_cols or DEFAULT_TOTAL_COLS)
         self.phospho_cols = list(phospho_cols or DEFAULT_PHOSPHO_COLS)
         self.corrected_cols = list(corrected_cols or DEFAULT_CORRECTED_COLS)
+        self.total_df = TotalInputSchema.validate(total_df, total_cols=self.total_cols)
+        self.phospho_df = PhosphoInputSchema.validate(
+            phospho_df,
+            phospho_cols=self.phospho_cols,
+        )
         self.comparisons = list(comparisons) if comparisons is not None else None
 
     @classmethod
@@ -70,8 +74,8 @@ class PhosphoDataset:
         phospho_encoding: str | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> PhosphoDataset:
-        total_df = read_table(total_path)
-        phospho_df = read_table(phospho_path, encoding=phospho_encoding)
+        total_df = load_total_table(total_path)
+        phospho_df = load_phospho_table(phospho_path, encoding=phospho_encoding)
         return cls(total_df=total_df, phospho_df=phospho_df, comparisons=comparisons)
 
     def prepare_total(
@@ -82,8 +86,6 @@ class PhosphoDataset:
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         total = self.total_df.copy()
         total[gene_col] = total[gene_col].astype("string")
-        for col in self.total_cols:
-            total[col] = pd.to_numeric(total[col], errors="coerce")
         total = replace_sentinel_with_nan(total, self.total_cols, sentinel=sentinel)
         total_unique = collapse_duplicate_genes(
             total, gene_col=gene_col, value_cols=self.total_cols
@@ -106,11 +108,6 @@ class PhosphoDataset:
         phospho = self.phospho_df.copy()
         phospho[gene_col] = phospho[gene_col].astype("string").str.upper()
         phospho[site_col] = phospho[site_col].astype("string")
-        phospho[localization_col] = pd.to_numeric(
-            phospho[localization_col], errors="coerce"
-        )
-        for col in self.phospho_cols:
-            phospho[col] = pd.to_numeric(phospho[col], errors="coerce")
 
         phospho = phospho.loc[
             phospho[uid_col].notna() & phospho[gene_col].notna()
@@ -174,6 +171,7 @@ class PhosphoDataset:
             sequence_col=sequence_col,
             value_cols=self.corrected_cols,
         )
+        matrix = SiteMatrixSchema.validate(matrix, context="site matrix")
         return SiteMatrixResult(
             phosr_input=phosr_input, matrix=matrix, sequences=sequences
         )
