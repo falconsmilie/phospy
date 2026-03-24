@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import KinaseActivityAnalyzer
+from phospy import KinaseActivityAnalyzer, PhosphoDataset
 from phospy.validation.errors import InputCompatibilityError
 from phospy.workflow import KinaseWorkflow
 
@@ -79,3 +79,73 @@ def test_kinase_workflow_rejects_zero_substrate_overlap() -> None:
             inclusion=1,
             n_iterations=1,
         )
+
+
+def _make_total_df() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "genes": ["PRKACA", "BTK"],
+            "group1": [1.0, 2.0],
+            "group2": [1.0, 2.0],
+            "group3": [1.0, 2.0],
+            "group4": [1.0, 2.0],
+            "group5": [1.0, 2.0],
+            "group6": [1.0, 2.0],
+        }
+    )
+
+
+def _make_phospho_df() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "uid": ["u1", "u2"],
+            "gene_names": ["PRKACA", "MISSING1"],
+            "gene_p_site": ["PRKACA_S339", "MISSING1_S1"],
+            "localization_prob": [0.95, 0.95],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "p_group1": [8.0, 6.0],
+            "p_group2": [7.0, 5.0],
+            "p_group3": [6.0, 4.0],
+            "p_group4": [5.0, 3.0],
+            "p_group5": [4.0, 2.0],
+            "p_group6": [3.0, 1.0],
+        }
+    )
+
+
+def test_core_processing_rejects_zero_gene_overlap_before_correction() -> None:
+    dataset = PhosphoDataset(
+        total_df=_make_total_df().loc[[1]].reset_index(drop=True),
+        phospho_df=_make_phospho_df().loc[[0]].assign(gene_names="PRKACA_MISSING"),
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match="no overlapping gene identifiers",
+    ):
+        dataset.process_core()
+
+
+def test_core_processing_rejects_row_loss_before_correction() -> None:
+    dataset = PhosphoDataset(
+        total_df=_make_total_df(),
+        phospho_df=_make_phospho_df(),
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=r"would drop 1 of 2 phosphosite rows \(50.0%\)",
+    ):
+        dataset.process_core(min_observed=1)
+
+
+def test_core_processing_allows_row_loss_with_explicit_tolerance() -> None:
+    dataset = PhosphoDataset(
+        total_df=_make_total_df(),
+        phospho_df=_make_phospho_df(),
+    )
+
+    result = dataset.process_core(min_observed=1, max_unmatched_fraction=0.5)
+
+    assert result.phospho_corrected.shape[0] == 1
+    assert result.phospho_corrected["gene_names"].tolist() == ["PRKACA"]

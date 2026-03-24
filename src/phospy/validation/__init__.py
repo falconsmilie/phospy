@@ -1,4 +1,9 @@
-from .compatibility import validate_pred_mat_overlap, validate_workflow_inputs
+from .compatibility import (
+    validate_core_column_alignment,
+    validate_pred_mat_overlap,
+    validate_protein_correction_inputs,
+    validate_workflow_inputs,
+)
 from .errors import (
     InputCompatibilityError,
     PhospyValidationError,
@@ -29,6 +34,8 @@ __all__ = [
     "SiteMatrixSchema",
     "TableSchemaError",
     "TotalInputSchema",
+    "validate_core_column_alignment",
     "validate_pred_mat_overlap",
+    "validate_protein_correction_inputs",
     "validate_workflow_inputs",
 ]

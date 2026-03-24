@@ -21,6 +21,10 @@ from .preprocessing import (
     filter_min_observed,
     replace_sentinel_with_nan,
 )
+from .validation.compatibility import (
+    validate_core_column_alignment,
+    validate_protein_correction_inputs,
+)
 from .validation.tables import PhosphoInputSchema, SiteMatrixSchema, TotalInputSchema
 
 
@@ -59,6 +63,11 @@ class PhosphoDataset:
         self.total_cols = list(total_cols or DEFAULT_TOTAL_COLS)
         self.phospho_cols = list(phospho_cols or DEFAULT_PHOSPHO_COLS)
         self.corrected_cols = list(corrected_cols or DEFAULT_CORRECTED_COLS)
+        validate_core_column_alignment(
+            self.total_cols,
+            self.phospho_cols,
+            self.corrected_cols,
+        )
         self.total_df = TotalInputSchema.validate(total_df, total_cols=self.total_cols)
         self.phospho_df = PhosphoInputSchema.validate(
             phospho_df,
@@ -129,7 +138,17 @@ class PhosphoDataset:
         phospho_gene_col: str = "gene_names",
         total_gene_col: str = "genes",
         output_prefix: str = "phospho_corrected_",
+        max_unmatched_fraction: float = 0.0,
     ) -> pd.DataFrame:
+        validate_protein_correction_inputs(
+            phospho_df,
+            total_df,
+            phospho_gene_col=phospho_gene_col,
+            total_gene_col=total_gene_col,
+            phospho_cols=self.phospho_cols,
+            protein_cols=self.total_cols,
+            max_unmatched_fraction=max_unmatched_fraction,
+        )
         return correct_phospho_to_protein(
             df_phospho=phospho_df,
             df_total=total_df,
@@ -180,13 +199,18 @@ class PhosphoDataset:
         self,
         localization_threshold: float = 0.75,
         min_observed: int = 4,
+        max_unmatched_fraction: float = 0.0,
     ) -> CoreProcessingResult:
         total_unique, total_filtered = self.prepare_total(min_observed=min_observed)
         phospho_filtered = self.prepare_phospho(
             localization_threshold=localization_threshold,
             min_observed=min_observed,
         )
-        phospho_corrected = self.correct_to_protein(phospho_filtered, total_filtered)
+        phospho_corrected = self.correct_to_protein(
+            phospho_filtered,
+            total_filtered,
+            max_unmatched_fraction=max_unmatched_fraction,
+        )
         phospho_corrected = self.add_pairwise_comparisons(phospho_corrected)
         site_matrix = self.build_site_matrix(phospho_corrected)
         return CoreProcessingResult(
