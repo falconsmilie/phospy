@@ -16,8 +16,8 @@ PhosPy currently supports three main areas of work:
 - **Native kinase workflow** for substrate-profile construction, motif scoring, score combination, candidate-substrate
   selection, and adaptive SVM prediction
 
-Alongside that, the repository includes a small CLI, a class-based public API, and fixture-backed parity tests for
-selected workflow seams.
+Alongside that, the repository includes a small CLI, a deliberately small public API, and fixture-backed parity
+tests for selected workflow seams.
 
 ## Install
 
@@ -84,6 +84,19 @@ Rscript scripts/generate_r_l6_fixtures.R
 ```
 
 ## Quick Start
+
+The supported root-level public API is intentionally small:
+
+- `PhosphoDataset`
+- `PhosRPipeline`
+- `run_core_pipeline`
+- `KinaseActivityAnalyzer`
+- `KinaseWorkflow`
+- `run_kinase_workflow`
+- result dataclasses returned by those entry points
+
+Examples below use only those supported root imports. Lower-level submodule imports may still exist for internal use and
+testing, but they are not part of the stable public API unless documented here.
 
 ### Core Preprocessing
 
@@ -181,9 +194,6 @@ pred_matrix = result.prediction_result.pred_matrix
 
 For a profile-only fallback path, omit `motif_sequences` and pass `allow_profile_only_fallback=True`.
 
-If you need more control, the lower-level building blocks are also public, including `KinaseProfileBuilder`,
-`KinaseMotifScorer`, `KinaseScorer`, and `KinasePredictor`.
-
 ## CLI Demo
 
 A small synthetic dataset is included.
@@ -214,6 +224,9 @@ The supporting documentation is split by topic:
 
 PhosPy is currently a structured Python package for PhosR-style preprocessing and downstream kinase-analysis summaries.
 It also includes a live R-backed parity harness and a growing native kinase workflow for kinase scoring and prediction.
+
+The public API is now intentionally centered on the documented root entry points rather than exposing most internal
+helpers from `phospy` itself.
 
 It is not yet a full Python replacement for PhosR. In particular, parity claims for the newer native workflow should
 stay limited to the fixture-backed seams documented in [`docs/parity.md`](docs/parity.md).

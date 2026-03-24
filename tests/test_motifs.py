@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy import (
+from phospy.motifs import (
     KinaseMotifScorer,
     create_frequency_matrix,
     frequency_scoring,

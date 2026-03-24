@@ -6,21 +6,19 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy import (
+from phospy.prediction import (
     KinasePredictionResult,
     KinasePredictor,
-    KinaseScoringResult,
     PredictionSamplingTrace,
-    build_candidate_substrate_list,
-)
-from phospy.prediction import (
     _make_prediction_random_generators,
     _make_svm,
     _require_sklearn,
     _resolve_svm_probability_random_state,
     _RLikeStandardScaler,
     _transform_resampling_probabilities,
+    build_candidate_substrate_list,
 )
+from phospy.scoring import KinaseScoringResult
 
 
 def make_combined_scores() -> pd.DataFrame:
