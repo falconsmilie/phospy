@@ -9,6 +9,7 @@ import pandas as pd
 from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
 from .constants import ComparisonSpec
 from .dataset import CoreProcessingResult, PhosphoDataset
+from .validation.requests import CorePipelineRequest
 
 
 @dataclass(slots=True)
@@ -24,9 +25,33 @@ class PhosRPipeline:
         self,
         dataset: PhosphoDataset,
         pred_mat: pd.DataFrame | None = None,
+        localization_threshold: float = 0.75,
+        min_observed: int = 4,
     ) -> None:
         self.dataset = dataset
         self.pred_mat = pred_mat.copy() if pred_mat is not None else None
+        self.localization_threshold = localization_threshold
+        self.min_observed = min_observed
+
+    @classmethod
+    def from_request(cls, request: CorePipelineRequest) -> PhosRPipeline:
+        dataset = PhosphoDataset.from_files(
+            total_path=request.total_path,
+            phospho_path=request.phospho_path,
+            phospho_encoding=request.phospho_encoding,
+            comparisons=request.comparisons,
+        )
+        pred_mat = (
+            pd.read_csv(request.pred_mat_path, index_col=0)
+            if request.pred_mat_path is not None
+            else None
+        )
+        return cls(
+            dataset=dataset,
+            pred_mat=pred_mat,
+            localization_threshold=request.localization_threshold,
+            min_observed=request.min_observed,
+        )
 
     @classmethod
     def from_files(
@@ -35,21 +60,26 @@ class PhosRPipeline:
         phospho_path: str | Path,
         pred_mat_path: str | Path | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
+        phospho_encoding: str | None = None,
+        localization_threshold: float = 0.75,
+        min_observed: int = 4,
     ) -> PhosRPipeline:
-        dataset = PhosphoDataset.from_files(
-            total_path=total_path,
-            phospho_path=phospho_path,
-            comparisons=comparisons,
+        request = CorePipelineRequest.validate_request(
+            total_path=Path(total_path),
+            phospho_path=Path(phospho_path),
+            pred_mat_path=Path(pred_mat_path) if pred_mat_path is not None else None,
+            phospho_encoding=phospho_encoding,
+            comparisons=tuple(comparisons) if comparisons is not None else None,
+            localization_threshold=localization_threshold,
+            min_observed=min_observed,
         )
-        pred_mat = (
-            pd.read_csv(pred_mat_path, index_col=0)
-            if pred_mat_path is not None
-            else None
-        )
-        return cls(dataset=dataset, pred_mat=pred_mat)
+        return cls.from_request(request)
 
     def run(self, outdir: str | Path | None = None) -> CoreOutputs:
-        core = self.dataset.process_core()
+        core = self.dataset.process_core(
+            localization_threshold=self.localization_threshold,
+            min_observed=self.min_observed,
+        )
         if outdir is not None:
             self.dataset.write_core_outputs(core, outdir)
 

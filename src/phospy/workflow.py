@@ -17,6 +17,7 @@ from .profiles import (
     KinaseProfileResult,
 )
 from .scoring import KinaseScorer, KinaseScoringResult
+from .validation.requests import KinaseWorkflowRequest
 
 
 @dataclass(slots=True)
@@ -59,72 +60,69 @@ class KinaseWorkflow:
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
     ) -> KinaseWorkflowResult:
-        if not substrate_map:
-            msg = "substrate_map must not be empty"
-            raise ValueError(msg)
-
-        if motif_sequences is not None and not motif_sequences:
-            msg = (
-                "motif_sequences must not be empty; pass None and set "
-                "allow_profile_only_fallback=True for profile-only prediction"
-            )
-            raise ValueError(msg)
-
-        if motif_sequences is None and not allow_profile_only_fallback:
-            msg = (
-                "motif_sequences are required for end-to-end prediction unless "
-                "allow_profile_only_fallback=True"
-            )
-            raise ValueError(msg)
-
-        if motif_sequences is not None and site_sequences is None:
-            msg = "site_sequences are required when motif_sequences are provided"
-            raise ValueError(msg)
-
-        profile_builder = KinaseProfileBuilder(aggregation=self.aggregation)
-        profile_result = profile_builder.build(
-            substrate_map=substrate_map,
+        request = KinaseWorkflowRequest.validate_request(
             phospho_matrix=phospho_matrix,
+            substrate_map=substrate_map,
+            site_sequences=site_sequences,
+            motif_sequences=motif_sequences,
             min_substrates=min_substrates,
-        )
-
-        scorer = KinaseScorer(profile_result.profile_matrix)
-        motif_result: MotifScoringResult | None = None
-
-        if motif_sequences is not None:
-            motif_scorer = KinaseMotifScorer.from_substrate_sequences(
-                motif_sequences=motif_sequences,
-                flank_size=self.flank_size,
-            )
-            motif_result = motif_scorer.score_sequences(
-                seqs=site_sequences,
-                site_index=phospho_matrix.index,
-                min_motif_size=min_motif_size,
-            )
-            scoring_result = scorer.score(
-                phospho_matrix=phospho_matrix,
-                motif_scores=motif_result.motif_scores,
-                motif_sizes=motif_result.motif_sizes,
-                profile_sizes=profile_result.substrate_counts.astype(float),
-                allow_profile_only_fallback=allow_profile_only_fallback,
-            )
-        else:
-            scoring_result = scorer.score(phospho_matrix=phospho_matrix)
-
-        predictor = KinasePredictor(
-            kernel=self.kernel,
-            svm_mode=self.svm_mode if svm_mode is None else svm_mode,
-        )
-        prediction_result = predictor.predict_from_scoring_result(
-            scoring_result=scoring_result,
+            min_motif_size=min_motif_size,
+            allow_profile_only_fallback=allow_profile_only_fallback,
             ensemble_size=ensemble_size,
             top=top,
             score_threshold=score_threshold,
             inclusion=inclusion,
             n_iterations=n_iterations,
             random_state=random_state,
-            allow_profile_only_fallback=allow_profile_only_fallback,
             svm_mode=svm_mode,
+        )
+        return self.run_request(request)
+
+    def run_request(self, request: KinaseWorkflowRequest) -> KinaseWorkflowResult:
+        profile_builder = KinaseProfileBuilder(aggregation=self.aggregation)
+        profile_result = profile_builder.build(
+            substrate_map=request.substrate_map,
+            phospho_matrix=request.phospho_matrix,
+            min_substrates=request.min_substrates,
+        )
+
+        scorer = KinaseScorer(profile_result.profile_matrix)
+        motif_result: MotifScoringResult | None = None
+
+        if request.motif_sequences is not None:
+            motif_scorer = KinaseMotifScorer.from_substrate_sequences(
+                motif_sequences=request.motif_sequences,
+                flank_size=self.flank_size,
+            )
+            motif_result = motif_scorer.score_sequences(
+                seqs=request.site_sequences,
+                site_index=request.phospho_matrix.index,
+                min_motif_size=request.min_motif_size,
+            )
+            scoring_result = scorer.score(
+                phospho_matrix=request.phospho_matrix,
+                motif_scores=motif_result.motif_scores,
+                motif_sizes=motif_result.motif_sizes,
+                profile_sizes=profile_result.substrate_counts.astype(float),
+                allow_profile_only_fallback=request.allow_profile_only_fallback,
+            )
+        else:
+            scoring_result = scorer.score(phospho_matrix=request.phospho_matrix)
+
+        predictor = KinasePredictor(
+            kernel=self.kernel,
+            svm_mode=self.svm_mode if request.svm_mode is None else request.svm_mode,
+        )
+        prediction_result = predictor.predict_from_scoring_result(
+            scoring_result=scoring_result,
+            ensemble_size=request.ensemble_size,
+            top=request.top,
+            score_threshold=request.score_threshold,
+            inclusion=request.inclusion,
+            n_iterations=request.n_iterations,
+            random_state=request.random_state,
+            allow_profile_only_fallback=request.allow_profile_only_fallback,
+            svm_mode=request.svm_mode,
         )
 
         return KinaseWorkflowResult(

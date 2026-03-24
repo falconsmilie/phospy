@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.validation.errors import RequestValidationError
 from phospy.workflow import KinaseWorkflow
 
 
@@ -113,7 +114,7 @@ def test_kinase_workflow_requires_motif_sequences_without_profile_fallback() -> 
     phospho_matrix, substrate_map, _, _ = make_workflow_inputs()
     workflow = KinaseWorkflow()
 
-    with pytest.raises(ValueError, match="motif_sequences are required"):
+    with pytest.raises(RequestValidationError, match="motif_sequences are required"):
         workflow.run(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
@@ -124,7 +125,7 @@ def test_kinase_workflow_rejects_empty_substrate_map() -> None:
     phospho_matrix, _, _, _ = make_workflow_inputs()
     workflow = KinaseWorkflow()
 
-    with pytest.raises(ValueError, match="substrate_map must not be empty"):
+    with pytest.raises(RequestValidationError, match="substrate_map must not be empty"):
         workflow.run(
             phospho_matrix=phospho_matrix,
             substrate_map={},
@@ -137,7 +138,9 @@ def test_kinase_workflow_rejects_empty_motif_sequences_mapping() -> None:
     phospho_matrix, substrate_map, site_sequences, _ = make_workflow_inputs()
     workflow = KinaseWorkflow()
 
-    with pytest.raises(ValueError, match="motif_sequences must not be empty"):
+    with pytest.raises(
+        RequestValidationError, match="motif_sequences must not be empty"
+    ):
         workflow.run(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
@@ -150,7 +153,7 @@ def test_kinase_workflow_requires_site_sequences_when_motifs_are_provided() -> N
     phospho_matrix, substrate_map, _, motif_sequences = make_workflow_inputs()
     workflow = KinaseWorkflow()
 
-    with pytest.raises(ValueError, match="site_sequences are required"):
+    with pytest.raises(RequestValidationError, match="site_sequences are required"):
         workflow.run(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,

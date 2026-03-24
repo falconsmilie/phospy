@@ -178,9 +178,16 @@ class PhosphoDataset:
             phosr_input=phosr_input, matrix=matrix, sequences=sequences
         )
 
-    def process_core(self) -> CoreProcessingResult:
-        total_unique, total_filtered = self.prepare_total()
-        phospho_filtered = self.prepare_phospho()
+    def process_core(
+        self,
+        localization_threshold: float = 0.75,
+        min_observed: int = 4,
+    ) -> CoreProcessingResult:
+        total_unique, total_filtered = self.prepare_total(min_observed=min_observed)
+        phospho_filtered = self.prepare_phospho(
+            localization_threshold=localization_threshold,
+            min_observed=min_observed,
+        )
         phospho_corrected = self.correct_to_protein(phospho_filtered, total_filtered)
         phospho_corrected = self.add_pairwise_comparisons(phospho_corrected)
         site_matrix = self.build_site_matrix(phospho_corrected)

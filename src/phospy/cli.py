@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 
 from .pipeline import PhosRPipeline
+from .validation.errors import RequestValidationError
+from .validation.requests import CorePipelineRequest
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -13,17 +15,37 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--pred-mat", help="Optional predMat CSV for kinase activity and KSEA."
     )
+    parser.add_argument(
+        "--localization-threshold",
+        type=float,
+        default=0.75,
+        help="Minimum localisation probability to retain a phosphosite.",
+    )
+    parser.add_argument(
+        "--min-observed",
+        type=int,
+        default=4,
+        help="Minimum number of observed values required per row.",
+    )
     return parser
 
 
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    pipeline = PhosRPipeline.from_files(
-        total_path=args.total,
-        phospho_path=args.phospho,
-        pred_mat_path=args.pred_mat,
-    )
+
+    try:
+        request = CorePipelineRequest.validate_request(
+            total_path=args.total,
+            phospho_path=args.phospho,
+            pred_mat_path=args.pred_mat,
+            localization_threshold=args.localization_threshold,
+            min_observed=args.min_observed,
+        )
+    except RequestValidationError as error:
+        parser.error(str(error))
+
+    pipeline = PhosRPipeline.from_request(request)
     pipeline.run(outdir=args.outdir)
 
 
