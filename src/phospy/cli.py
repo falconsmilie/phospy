@@ -27,6 +27,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=4,
         help="Minimum number of observed values required per row.",
     )
+    parser.add_argument(
+        "--max-unmatched-fraction",
+        type=float,
+        default=0.0,
+        help=(
+            "Maximum allowed fraction of phosphosite rows that may be dropped "
+            "during protein correction because no matching protein row exists."
+        ),
+    )
     return parser
 
 
@@ -41,6 +50,7 @@ def main() -> None:
             pred_mat_path=args.pred_mat,
             localization_threshold=args.localization_threshold,
             min_observed=args.min_observed,
+            max_unmatched_fraction=args.max_unmatched_fraction,
         )
     except RequestValidationError as error:
         parser.error(str(error))

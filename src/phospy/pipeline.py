@@ -28,11 +28,13 @@ class PhosRPipeline:
         pred_mat: pd.DataFrame | None = None,
         localization_threshold: float = 0.75,
         min_observed: int = 4,
+        max_unmatched_fraction: float = 0.0,
     ) -> None:
         self.dataset = dataset
         self.pred_mat = pred_mat.copy() if pred_mat is not None else None
         self.localization_threshold = localization_threshold
         self.min_observed = min_observed
+        self.max_unmatched_fraction = max_unmatched_fraction
 
     @classmethod
     def from_request(cls, request: CorePipelineRequest) -> PhosRPipeline:
@@ -54,6 +56,7 @@ class PhosRPipeline:
             pred_mat=pred_mat,
             localization_threshold=request.localization_threshold,
             min_observed=request.min_observed,
+            max_unmatched_fraction=request.max_unmatched_fraction,
         )
 
     @classmethod
@@ -66,6 +69,7 @@ class PhosRPipeline:
         phospho_encoding: str | None = None,
         localization_threshold: float = 0.75,
         min_observed: int = 4,
+        max_unmatched_fraction: float = 0.0,
     ) -> PhosRPipeline:
         request = CorePipelineRequest.validate_request(
             total_path=Path(total_path),
@@ -75,6 +79,7 @@ class PhosRPipeline:
             comparisons=tuple(comparisons) if comparisons is not None else None,
             localization_threshold=localization_threshold,
             min_observed=min_observed,
+            max_unmatched_fraction=max_unmatched_fraction,
         )
         return cls.from_request(request)
 
@@ -82,6 +87,7 @@ class PhosRPipeline:
         core = self.dataset.process_core(
             localization_threshold=self.localization_threshold,
             min_observed=self.min_observed,
+            max_unmatched_fraction=self.max_unmatched_fraction,
         )
         if outdir is not None:
             self.dataset.write_core_outputs(core, outdir)

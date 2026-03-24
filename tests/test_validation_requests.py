@@ -68,3 +68,17 @@ def test_kinase_workflow_request_requires_site_sequences_with_motifs() -> None:
             substrate_map={"KINASE_A": ["SITE_1"]},
             motif_sequences={"KINASE_A": ["QQAAAAAYY"]},
         )
+
+
+def test_core_pipeline_request_rejects_invalid_max_unmatched_fraction(tmp_path) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    total_path.write_text("genes\tgroup1\nPRKACA\t1\n")
+    phospho_path.write_text("uid\tgene_names\n1\tPRKACA\n")
+
+    with pytest.raises(RequestValidationError, match="max_unmatched_fraction"):
+        CorePipelineRequest.validate_request(
+            total_path=total_path,
+            phospho_path=phospho_path,
+            max_unmatched_fraction=1.5,
+        )

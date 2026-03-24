@@ -153,3 +153,47 @@ def test_kinase_workflow_runs_with_class_api() -> None:
     )
 
     assert result.prediction_result.pred_matrix.shape[1] == 2
+
+
+def test_pipeline_propagates_max_unmatched_fraction(tmp_path) -> None:
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1", "u2"],
+            "gene_names": ["PRKACA", "BTK"],
+            "gene_p_site": ["PRKACA_S339", "BTK_Y551"],
+            "localization_prob": [0.95, 0.95],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "p_group1": [8.0, 6.0],
+            "p_group2": [7.0, 5.0],
+            "p_group3": [6.0, 4.0],
+            "p_group4": [5.0, 3.0],
+            "p_group5": [4.0, 2.0],
+            "p_group6": [3.0, 1.0],
+        }
+    )
+
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    total_df.to_csv(total_path, sep="	", index=False)
+    phospho_df.to_csv(phospho_path, sep="	", index=False)
+
+    pipeline = PhosRPipeline.from_files(
+        total_path=total_path,
+        phospho_path=phospho_path,
+        max_unmatched_fraction=0.5,
+    )
+    outputs = pipeline.run()
+
+    assert outputs.core.phospho_corrected.shape[0] == 1
+    assert pipeline.max_unmatched_fraction == 0.5

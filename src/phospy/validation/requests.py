@@ -35,6 +35,7 @@ class CorePipelineRequest(PhospyRequestModel):
     comparisons: tuple[ComparisonSpec, ...] | None = None
     localization_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
     min_observed: int = Field(default=4, ge=1)
+    max_unmatched_fraction: float = Field(default=0.0, ge=0.0, le=1.0)
 
     @field_validator("total_path", "phospho_path", "pred_mat_path")
     @classmethod

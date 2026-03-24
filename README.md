@@ -146,6 +146,7 @@ pipeline = PhosRPipeline.from_files(
     total_path="total.tsv",
     phospho_path="phospho.tsv",
     pred_mat_path="predMat.csv",
+    max_unmatched_fraction=0.1,
 )
 outputs = pipeline.run(outdir="output")
 ```
@@ -204,10 +205,13 @@ phospy \
   --total examples/data/total.tsv \
   --phospho examples/data/phospho.tsv \
   --pred-mat examples/data/predMat.csv \
+  --max-unmatched-fraction 0.1 \
   --outdir examples/output
 ```
 
 The example output directory under `examples/output/` shows the generated CSV files.
+
+`--max-unmatched-fraction` defaults to `0.0`, which means protein correction fails if the inner join would silently drop any phosphosite rows. Raise it only when you deliberately want to allow a bounded amount of row loss.
 
 ## Testing and Reference Data
 
