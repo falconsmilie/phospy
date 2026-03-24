@@ -130,12 +130,7 @@ dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
 core = dataset.process_core()
 
 analyzer = KinaseActivityAnalyzer.from_csv("predMat.csv")
-kinase = analyzer.analyze(
-    core.site_matrix.matrix,
-    threshold=0.6,
-    min_substrates=3,
-    top_n_substrates=20,
-)
+kinase = analyzer.analyze(core.site_matrix.matrix)
 
 weighted_activity = kinase.weighted_activity
 ksea_scores = kinase.ksea_scores
@@ -152,9 +147,6 @@ pipeline = PhosRPipeline.from_files(
     phospho_path="phospho.tsv",
     pred_mat_path="predMat.csv",
     max_unmatched_fraction=0.1,
-    kinase_activity_threshold=0.6,
-    kinase_activity_min_substrates=3,
-    kinase_activity_top_n_substrates=20,
 )
 outputs = pipeline.run(outdir="output")
 ```
@@ -220,8 +212,6 @@ phospy \
 The example output directory under `examples/output/` shows the generated CSV files.
 
 `--max-unmatched-fraction` defaults to `0.0`, which means protein correction fails if the inner join would silently drop any phosphosite rows. Raise it only when you deliberately want to allow a bounded amount of row loss.
-
-The kinase activity options are only used when `--pred-mat` is provided. They control the thresholded target table and KSEA summaries, plus the top-ranked substrate set used for weighted kinase activity.
 
 ## Testing and Reference Data
 

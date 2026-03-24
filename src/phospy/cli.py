@@ -36,24 +36,6 @@ def build_parser() -> argparse.ArgumentParser:
             "during protein correction because no matching protein row exists."
         ),
     )
-    parser.add_argument(
-        "--kinase-activity-threshold",
-        type=float,
-        default=0.6,
-        help="Prediction-score threshold used for kinase target tables and KSEA.",
-    )
-    parser.add_argument(
-        "--kinase-activity-min-substrates",
-        type=int,
-        default=3,
-        help="Minimum number of predicted substrates required per kinase.",
-    )
-    parser.add_argument(
-        "--kinase-activity-top-n-substrates",
-        type=int,
-        default=20,
-        help="Number of top-ranked substrates to use for weighted kinase activity.",
-    )
     return parser
 
 
@@ -69,9 +51,6 @@ def main() -> None:
             localization_threshold=args.localization_threshold,
             min_observed=args.min_observed,
             max_unmatched_fraction=args.max_unmatched_fraction,
-            kinase_activity_threshold=args.kinase_activity_threshold,
-            kinase_activity_min_substrates=args.kinase_activity_min_substrates,
-            kinase_activity_top_n_substrates=args.kinase_activity_top_n_substrates,
         )
     except RequestValidationError as error:
         parser.error(str(error))

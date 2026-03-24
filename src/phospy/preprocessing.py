@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 
 from .constants import ComparisonSpec
-from .validation.errors import InputCompatibilityError, TableSchemaError
 
 
 def replace_sentinel_with_nan(
@@ -37,8 +36,7 @@ def collapse_duplicate_genes(
     uppercase: bool = True,
 ) -> pd.DataFrame:
     if gene_col not in df.columns:
-        msg = f"Missing gene column: {gene_col}"
-        raise TableSchemaError(msg)
+        raise KeyError(f"Missing gene column: {gene_col}")
 
     work = df.copy()
     work[gene_col] = work[gene_col].astype("string")
@@ -62,8 +60,7 @@ def correct_phospho_to_protein(
     output_prefix: str = "phospho_corrected_",
 ) -> pd.DataFrame:
     if len(phospho_cols) != len(protein_cols):
-        msg = "phospho_cols and protein_cols must have the same length"
-        raise InputCompatibilityError(msg)
+        raise ValueError("phospho_cols and protein_cols must have the same length")
 
     merged = df_phospho.merge(
         df_total[[total_gene_col, *protein_cols]],
@@ -98,8 +95,7 @@ def add_pairwise_comparisons(
 
     for left, right in comparisons:
         if left not in group_to_corrected_col or right not in group_to_corrected_col:
-            msg = f"Missing group mapping for comparison: {(left, right)}"
-            raise InputCompatibilityError(msg)
+            raise KeyError(f"Missing group mapping for comparison: {(left, right)}")
         result[f"{output_prefix}{left}_{right}"] = (
             result[group_to_corrected_col[left]] - result[group_to_corrected_col[right]]
         )

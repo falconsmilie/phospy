@@ -8,11 +8,6 @@ import numpy as np
 import pandas as pd
 
 from .scoring import KinaseScoringResult
-from .validation.errors import (
-    InputCompatibilityError,
-    PhospyValidationError,
-    TableSchemaError,
-)
 
 PredictionSvmMode = Literal["default", "r_parity"]
 
@@ -80,7 +75,7 @@ class PredictionSamplingTrace:
                 "sampling trace directory must contain trace_initial_negatives.csv "
                 "and/or trace_iteration_samples.csv"
             )
-            raise TableSchemaError(msg)
+            raise ValueError(msg)
 
         ensembles_by_kinase: dict[str, dict[int, SamplingTraceOverrideEnsemble]] = {}
 
@@ -93,7 +88,7 @@ class PredictionSamplingTrace:
                     "trace_initial_negatives.csv is missing required columns: "
                     + ", ".join(missing)
                 )
-                raise TableSchemaError(msg)
+                raise ValueError(msg)
             initial_df = initial_df.sort_values(
                 ["kinase", "ensemble", "draw"], kind="mergesort"
             )
@@ -122,7 +117,7 @@ class PredictionSamplingTrace:
                     "trace_iteration_samples.csv is missing required columns: "
                     + ", ".join(missing)
                 )
-                raise TableSchemaError(msg)
+                raise ValueError(msg)
             samples_df = samples_df.sort_values(
                 ["kinase", "ensemble", "iteration", "class_label", "draw"],
                 kind="mergesort",
@@ -189,7 +184,7 @@ class _RLikeStandardScaler:
     def set_params(self, **params: object) -> _RLikeStandardScaler:
         if params:
             msg = f"_RLikeStandardScaler does not accept parameters: {sorted(params)}"
-            raise PhospyValidationError(msg)
+            raise ValueError(msg)
         return self
 
     def fit(
@@ -210,7 +205,7 @@ class _RLikeStandardScaler:
     def transform(self, values: np.ndarray) -> np.ndarray:
         if self.mean_ is None or self.scale_ is None:
             msg = "_RLikeStandardScaler must be fitted before transform()"
-            raise PhospyValidationError(msg)
+            raise ValueError(msg)
         x = np.asarray(values, dtype=float)
         return (x - self.mean_) / self.scale_
 
@@ -323,7 +318,7 @@ class KinasePredictor:
                 msg = (
                     f"No negative pool sites available to train predictor for {kinase}"
                 )
-                raise InputCompatibilityError(msg)
+                raise ValueError(msg)
 
             if (
                 capture_debug_trace
@@ -447,7 +442,7 @@ class KinasePredictor:
                 "scoring_result does not contain combined_scores; pass "
                 "allow_profile_only_fallback=True to use profile_scores instead"
             )
-            raise InputCompatibilityError(msg)
+            raise ValueError(msg)
 
         return self.predict(
             combined_scores=feature_mat,
@@ -463,225 +458,6 @@ class KinasePredictor:
             svm_mode=svm_mode,
             sampling_trace=sampling_trace,
         )
-
-
-def prediction_debug_trace_tables(
-    result: KinasePredictionResult,
-) -> dict[str, pd.DataFrame]:
-    """Flatten captured debug traces into comparison-friendly tables.
-
-    The returned layout intentionally mirrors the trace fixture directories used
-    by the parity and replay tests. It focuses on decision-state seams: chosen
-    candidate sets, negative pools, per-iteration labels and sampling rows, and
-    final ensemble-level decisions.
-    """
-
-    selected_candidate_rows: list[dict[str, object]] = []
-    negative_pool_rows: list[dict[str, object]] = []
-    initial_rows: list[dict[str, object]] = []
-    label_rows: list[dict[str, object]] = []
-    probability_rows: list[dict[str, object]] = []
-    probability_parameter_rows: list[dict[str, object]] = []
-    decision_rows: list[dict[str, object]] = []
-    weight_rows: list[dict[str, object]] = []
-    sample_rows: list[dict[str, object]] = []
-    final_prediction_rows: list[dict[str, object]] = []
-    final_decision_rows: list[dict[str, object]] = []
-    final_top_rows: list[dict[str, object]] = []
-
-    debug_traces = result.debug_traces or {}
-    for kinase, trace in debug_traces.items():
-        for candidate_rank, site in enumerate(trace.candidate_substrates, start=1):
-            selected_candidate_rows.append(
-                {
-                    "kinase": kinase,
-                    "candidate_rank": candidate_rank,
-                    "site": site,
-                }
-            )
-
-        for pool_index, site in enumerate(trace.negative_pool_sites, start=1):
-            negative_pool_rows.append(
-                {
-                    "kinase": kinase,
-                    "pool_index": pool_index,
-                    "site": site,
-                }
-            )
-
-        for ensemble_trace in trace.ensemble_traces:
-            for draw, site in enumerate(ensemble_trace.initial_negative_sites, start=1):
-                initial_rows.append(
-                    {
-                        "kinase": kinase,
-                        "ensemble": ensemble_trace.ensemble_index,
-                        "draw": draw,
-                        "site": site,
-                    }
-                )
-
-            for iteration_trace in ensemble_trace.iterations:
-                labels = iteration_trace.labels
-                probs = iteration_trace.probabilities
-
-                for site, label in labels.items():
-                    label_rows.append(
-                        {
-                            "kinase": kinase,
-                            "ensemble": ensemble_trace.ensemble_index,
-                            "iteration": iteration_trace.iteration_index,
-                            "site": site,
-                            "label": str(int(label)),
-                        }
-                    )
-
-                for site in probs.index:
-                    probability_rows.append(
-                        {
-                            "kinase": kinase,
-                            "ensemble": ensemble_trace.ensemble_index,
-                            "iteration": iteration_trace.iteration_index,
-                            "site": site,
-                            "label": str(int(labels.loc[site])),
-                            "prob_class_1": float(probs.loc[site, "1"])
-                            if "1" in probs.columns
-                            else float("nan"),
-                            "prob_class_2": float(probs.loc[site, "2"])
-                            if "2" in probs.columns
-                            else float("nan"),
-                        }
-                    )
-
-                if iteration_trace.probability_parameters is not None:
-                    for _, row in iteration_trace.probability_parameters.iterrows():
-                        probability_parameter_rows.append(
-                            {
-                                "kinase": kinase,
-                                "ensemble": ensemble_trace.ensemble_index,
-                                "iteration": iteration_trace.iteration_index,
-                                "class_pair": str(row["class_pair"]),
-                                "probA": float(row["probA"]),
-                                "probB": float(row["probB"]),
-                            }
-                        )
-
-                for site, decision_value in iteration_trace.decision_values.items():
-                    decision_rows.append(
-                        {
-                            "kinase": kinase,
-                            "ensemble": ensemble_trace.ensemble_index,
-                            "iteration": iteration_trace.iteration_index,
-                            "site": site,
-                            "label": str(int(labels.loc[site])),
-                            "decision_value_class_1": float(decision_value),
-                        }
-                    )
-
-                if iteration_trace.positive_weights is not None:
-                    for site, weight in iteration_trace.positive_weights.items():
-                        weight_rows.append(
-                            {
-                                "kinase": kinase,
-                                "ensemble": ensemble_trace.ensemble_index,
-                                "iteration": iteration_trace.iteration_index,
-                                "class_label": "1",
-                                "site": site,
-                                "normalized_weight": float(weight),
-                            }
-                        )
-                if iteration_trace.negative_weights is not None:
-                    for site, weight in iteration_trace.negative_weights.items():
-                        weight_rows.append(
-                            {
-                                "kinase": kinase,
-                                "ensemble": ensemble_trace.ensemble_index,
-                                "iteration": iteration_trace.iteration_index,
-                                "class_label": "2",
-                                "site": site,
-                                "normalized_weight": float(weight),
-                            }
-                        )
-
-                for draw, site in enumerate(
-                    iteration_trace.sampled_positive_sites, start=1
-                ):
-                    sample_rows.append(
-                        {
-                            "kinase": kinase,
-                            "ensemble": ensemble_trace.ensemble_index,
-                            "iteration": iteration_trace.iteration_index,
-                            "class_label": "1",
-                            "draw": draw,
-                            "site": site,
-                        }
-                    )
-                for draw, site in enumerate(
-                    iteration_trace.sampled_negative_sites, start=1
-                ):
-                    sample_rows.append(
-                        {
-                            "kinase": kinase,
-                            "ensemble": ensemble_trace.ensemble_index,
-                            "iteration": iteration_trace.iteration_index,
-                            "class_label": "2",
-                            "draw": draw,
-                            "site": site,
-                        }
-                    )
-
-            final_probs = ensemble_trace.final_prediction_probabilities
-            for site in final_probs.index:
-                final_prediction_rows.append(
-                    {
-                        "kinase": kinase,
-                        "ensemble": ensemble_trace.ensemble_index,
-                        "site": site,
-                        "prob_class_1": float(final_probs.loc[site, "1"])
-                        if "1" in final_probs.columns
-                        else float("nan"),
-                        "prob_class_2": float(final_probs.loc[site, "2"])
-                        if "2" in final_probs.columns
-                        else float("nan"),
-                    }
-                )
-            for site, decision_value in ensemble_trace.final_decision_values.items():
-                final_decision_rows.append(
-                    {
-                        "kinase": kinase,
-                        "ensemble": ensemble_trace.ensemble_index,
-                        "site": site,
-                        "decision_value_class_1": float(decision_value),
-                    }
-                )
-            for rank, site in enumerate(ensemble_trace.final_top_sites, start=1):
-                final_top_rows.append(
-                    {
-                        "kinase": kinase,
-                        "ensemble": ensemble_trace.ensemble_index,
-                        "rank": rank,
-                        "site": site,
-                        "prob_class_1": float(final_probs.loc[site, "1"])
-                        if "1" in final_probs.columns
-                        else float("nan"),
-                    }
-                )
-
-    return {
-        "trace_selected_candidates": pd.DataFrame(selected_candidate_rows),
-        "trace_negative_pool": pd.DataFrame(negative_pool_rows),
-        "trace_initial_negatives": pd.DataFrame(initial_rows),
-        "trace_iteration_labels": pd.DataFrame(label_rows),
-        "trace_iteration_probabilities": pd.DataFrame(probability_rows),
-        "trace_iteration_probability_parameters": pd.DataFrame(
-            probability_parameter_rows
-        ),
-        "trace_iteration_decision_values": pd.DataFrame(decision_rows),
-        "trace_iteration_resampling_weights": pd.DataFrame(weight_rows),
-        "trace_iteration_samples": pd.DataFrame(sample_rows),
-        "trace_final_ensemble_predictions": pd.DataFrame(final_prediction_rows),
-        "trace_final_ensemble_decision_values": pd.DataFrame(final_decision_rows),
-        "trace_final_ensemble_top": pd.DataFrame(final_top_rows),
-    }
 
 
 def build_candidate_substrate_list(
@@ -822,7 +598,7 @@ def _multi_ada_sampling(
 
     if model is None:
         msg = "n_iterations must be at least 1"
-        raise InputCompatibilityError(msg)
+        raise ValueError(msg)
 
     test_x = test_mat.to_numpy(dtype=float)
     pred = model.predict_proba(test_x)
@@ -837,7 +613,7 @@ def _multi_ada_sampling(
             "Expected exactly one positive class labelled 1; found "
             f"{model.classes_.tolist()}"
         )
-        raise InputCompatibilityError(msg)
+        raise ValueError(msg)
     positive_series = pd.Series(
         pred[:, positive_idx[0]], index=test_mat.index.copy(), dtype=float
     )
@@ -1021,7 +797,7 @@ def _validate_override_sites(
             f"Sampling override for {context} has {len(sampled_site_list)} rows; "
             f"expected {expected_size}"
         )
-        raise PhospyValidationError(msg)
+        raise ValueError(msg)
     available_site_set = set(available_sites.astype(str).tolist())
     invalid_sites = [
         site for site in sampled_site_list if site not in available_site_set
@@ -1032,7 +808,7 @@ def _validate_override_sites(
             f"Sampling override for {context} contains sites outside the "
             f"available training rows: {', '.join(unique_invalid_sites)}"
         )
-        raise InputCompatibilityError(msg)
+        raise ValueError(msg)
     return sampled_site_list
 
 
@@ -1051,11 +827,11 @@ def _require_sklearn() -> tuple[type, type]:
 
 def _validate_positive_int(value: int, name: str) -> None:
     if value < 1:
-        raise PhospyValidationError(f"{name} must be at least 1")
+        raise ValueError(f"{name} must be at least 1")
 
 
 def _validate_svm_mode(value: PredictionSvmMode) -> PredictionSvmMode:
     if value not in {"default", "r_parity"}:
         msg = "svm_mode must be one of: 'default', 'r_parity'"
-        raise PhospyValidationError(msg)
+        raise ValueError(msg)
     return value

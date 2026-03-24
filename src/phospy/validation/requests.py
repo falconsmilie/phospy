@@ -36,9 +36,6 @@ class CorePipelineRequest(PhospyRequestModel):
     localization_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
     min_observed: int = Field(default=4, ge=1)
     max_unmatched_fraction: float = Field(default=0.0, ge=0.0, le=1.0)
-    kinase_activity_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
-    kinase_activity_min_substrates: int = Field(default=3, ge=1)
-    kinase_activity_top_n_substrates: int = Field(default=20, ge=1)
 
     @field_validator("total_path", "phospho_path", "pred_mat_path")
     @classmethod

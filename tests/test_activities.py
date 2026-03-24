@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pandas as pd
-import pytest
 
 from phospy.activities import (
     build_kinase_target_table,
@@ -9,9 +8,6 @@ from phospy.activities import (
     compute_weighted_kinase_activity,
     count_predicted_targets,
 )
-from phospy.analysis import KinaseActivityAnalyzer
-from phospy.validation.errors import RequestValidationError
-from phospy.validation.requests import KinaseActivityRequest
 
 
 def make_pred_mat() -> pd.DataFrame:
@@ -69,25 +65,3 @@ def test_build_kinase_target_table() -> None:
     table = build_kinase_target_table(make_pred_mat(), threshold=0.6)
     assert {"site_id", "kinase", "score"} <= set(table.columns)
     assert table.shape[0] == 6
-
-
-def test_kinase_activity_analyzer_accepts_validated_request() -> None:
-    analyzer = KinaseActivityAnalyzer(make_pred_mat())
-
-    result = analyzer.analyze(
-        phospho_matrix=make_phospho_matrix(),
-        request=KinaseActivityRequest.validate_request(
-            threshold=0.6,
-            min_substrates=3,
-            top_n_substrates=3,
-        ),
-    )
-
-    assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
-
-
-def test_kinase_activity_analyzer_rejects_invalid_request_arguments() -> None:
-    analyzer = KinaseActivityAnalyzer(make_pred_mat())
-
-    with pytest.raises(RequestValidationError, match="threshold"):
-        analyzer.analyze(make_phospho_matrix(), threshold=1.5)

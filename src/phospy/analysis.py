@@ -13,7 +13,6 @@ from .activities import (
 )
 from .io import load_pred_mat
 from .validation.compatibility import validate_pred_mat_overlap
-from .validation.requests import KinaseActivityRequest
 from .validation.tables import PredMatSchema, SiteMatrixSchema
 
 
@@ -36,15 +35,6 @@ class KinaseActivityAnalyzer:
     def from_csv(cls, pred_mat_path: str | Path) -> KinaseActivityAnalyzer:
         pred_mat = load_pred_mat(pred_mat_path)
         return cls(pred_mat=pred_mat)
-
-    @classmethod
-    def from_validated_pred_mat(
-        cls,
-        pred_mat: pd.DataFrame,
-    ) -> KinaseActivityAnalyzer:
-        instance = cls.__new__(cls)
-        instance.pred_mat = pred_mat.copy()
-        return instance
 
     def build_target_table(self, threshold: float = 0.6) -> pd.DataFrame:
         return build_kinase_target_table(self.pred_mat, threshold=threshold)
@@ -84,32 +74,24 @@ class KinaseActivityAnalyzer:
         threshold: float = 0.6,
         min_substrates: int = 3,
         top_n_substrates: int = 20,
-        request: KinaseActivityRequest | None = None,
     ) -> KinaseActivityResult:
         validated_matrix = SiteMatrixSchema.validate(
             phospho_matrix,
             context="phospho_matrix",
         )
-        activity_request = request or KinaseActivityRequest.validate_request(
-            threshold=threshold,
-            min_substrates=min_substrates,
-            top_n_substrates=top_n_substrates,
-        )
         validate_pred_mat_overlap(self.pred_mat, validated_matrix)
         weighted_activity = self.compute_weighted_activity(
             phospho_matrix=validated_matrix,
-            top_n_substrates=activity_request.top_n_substrates,
-            min_substrates=activity_request.min_substrates,
+            top_n_substrates=top_n_substrates,
+            min_substrates=min_substrates,
         )
         ksea_scores, ksea_counts = self.compute_ksea_scores(
             phospho_matrix=validated_matrix,
-            threshold=activity_request.threshold,
-            min_substrates=activity_request.min_substrates,
+            threshold=threshold,
+            min_substrates=min_substrates,
         )
-        target_counts = self.count_predicted_targets(
-            threshold=activity_request.threshold
-        )
-        target_table = self.build_target_table(threshold=activity_request.threshold)
+        target_counts = self.count_predicted_targets(threshold=threshold)
+        target_table = self.build_target_table(threshold=threshold)
         return KinaseActivityResult(
             weighted_activity=weighted_activity,
             ksea_scores=ksea_scores,

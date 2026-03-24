@@ -6,8 +6,6 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .validation.errors import InputCompatibilityError
-
 
 @dataclass(slots=True)
 class KinaseScoringResult:
@@ -55,7 +53,7 @@ class KinaseScorer:
                 "phospho_matrix columns must match kinase profile columns exactly; "
                 "the order may differ, but the sets must be equal"
             )
-            raise InputCompatibilityError(msg)
+            raise ValueError(msg)
 
         phospho_values = phospho_matrix.loc[:, sample_cols].to_numpy(dtype=float)
         profile_values = self.kinase_profiles.loc[:, sample_cols].to_numpy(dtype=float)
@@ -93,7 +91,7 @@ class KinaseScorer:
                 "motif_sizes and profile_sizes are required when motif_scores are "
                 "provided"
             )
-            raise InputCompatibilityError(msg)
+            raise ValueError(msg)
 
         combined_scores, weights = combine_profile_and_motif_scores(
             motif_scores=motif_scores,
@@ -127,7 +125,7 @@ def combine_profile_and_motif_scores(
     if not overlap:
         if not allow_profile_only_fallback:
             msg = "No overlapping kinases between motif and profile score matrices"
-            raise InputCompatibilityError(msg)
+            raise ValueError(msg)
 
         weights = pd.DataFrame(
             {
@@ -181,7 +179,7 @@ def _build_profile_frame(
 
         if sample_names is None:
             msg = "sample_names are required when kinase profiles are not pandas Series"
-            raise InputCompatibilityError(msg)
+            raise ValueError(msg)
 
         rows[kinase] = pd.Series(profile, index=list(sample_names), dtype=float)
 
@@ -196,7 +194,7 @@ def _require_index_members(
     missing = [member for member in members if member not in series.index]
     if missing:
         msg = f"{name} is missing entries for: {', '.join(missing)}"
-        raise InputCompatibilityError(msg)
+        raise ValueError(msg)
 
 
 def _rowwise_correlation_matrix(left: np.ndarray, right: np.ndarray) -> np.ndarray:

@@ -3,17 +3,14 @@
 These files are generated from the native Python predictor with debug tracing enabled.
 They are intended for direct comparison with the R trace fixtures generated from the PhosR L6 example path.
 
-Trace kinases: PRKAA1, MAPK1
+Trace kinases: PRKAA1, MAPK1, MAPK9, IRAK1, TBK1, LCK
 SVM mode: r_parity
 Sampling trace override: tests/fixtures/r_reference_l6/prediction_trace
 Skipped trace kinases: none
 
 Files:
 - trace_candidates.csv: ranked combined-score candidates for the traced kinases
-- trace_selected_candidates.csv: selected candidate substrate site IDs per traced kinase
-- trace_negative_pool.csv: full negative-pool site IDs available to each traced kinase
 - trace_initial_negatives.csv: initial negative draw for each ensemble member
-- trace_iteration_labels.csv: per-iteration base-train labels before resampling
 - trace_iteration_probabilities.csv: per-iteration class probabilities on the base train set
 - trace_iteration_probability_parameters.csv: per-iteration libsvm probability-calibration parameters
 - trace_iteration_decision_values.csv: per-iteration binary decision values aligned to class 1

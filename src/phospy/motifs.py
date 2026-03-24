@@ -6,12 +6,6 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .validation.errors import (
-    InputCompatibilityError,
-    PhospyValidationError,
-    TableSchemaError,
-)
-
 AMINO_ACIDS: tuple[str, ...] = (
     "A",
     "R",
@@ -55,7 +49,7 @@ class KinaseMotifScorer:
         _validate_non_negative_int(flank_size, name="flank_size")
         if not motif_frequency_matrices:
             msg = "motif_frequency_matrices must not be empty"
-            raise PhospyValidationError(msg)
+            raise ValueError(msg)
 
         self.motif_frequency_matrices = {
             kinase: _coerce_frequency_matrix(matrix)
@@ -71,7 +65,7 @@ class KinaseMotifScorer:
         ]
         if missing:
             msg = f"motif_sizes is missing entries for: {', '.join(missing)}"
-            raise InputCompatibilityError(msg)
+            raise ValueError(msg)
 
     @classmethod
     def from_substrate_sequences(
@@ -143,12 +137,12 @@ def create_frequency_matrix(
     windows = _coerce_sequence_series(substrates_seq, flank_size=flank_size)
     if windows.empty:
         msg = "substrates_seq must contain at least one sequence"
-        raise PhospyValidationError(msg)
+        raise ValueError(msg)
 
     width = len(str(windows.iloc[0]))
     if any(len(str(window)) != width for window in windows):
         msg = "All sequences must have the same window length"
-        raise TableSchemaError(msg)
+        raise ValueError(msg)
 
     frequency_mat = pd.DataFrame(
         0.0,
@@ -233,7 +227,7 @@ def minmax_scale_columns(mat: pd.DataFrame) -> pd.DataFrame:
 def _coerce_frequency_matrix(frequency_mat: pd.DataFrame) -> pd.DataFrame:
     if not isinstance(frequency_mat, pd.DataFrame):
         msg = "frequency_mat must be a pandas DataFrame"
-        raise TableSchemaError(msg)
+        raise TypeError(msg)
 
     matrix = frequency_mat.astype(float).copy()
     matrix = matrix.reindex(index=list(AMINO_ACIDS), fill_value=0.0)
@@ -257,14 +251,14 @@ def _coerce_sequence_series(
         else:
             if len(seq_list) != len(site_index):
                 msg = "site_index must have the same length as seqs"
-                raise InputCompatibilityError(msg)
+                raise ValueError(msg)
             series = pd.Series(seq_list, index=list(site_index), dtype=object)
 
     if site_index is not None:
         missing = [site for site in site_index if site not in series.index]
         if missing:
             msg = f"seqs is missing entries for: {', '.join(missing)}"
-            raise InputCompatibilityError(msg)
+            raise ValueError(msg)
         series = series.loc[list(site_index)].copy()
 
     return series.map(lambda value: _extract_sequence_window(value, flank_size))
@@ -293,9 +287,9 @@ def _extract_sequence_window(value: object, flank_size: int | None) -> str:
 
 def _validate_non_negative_int(value: int, name: str) -> None:
     if value < 0:
-        raise PhospyValidationError(f"{name} must be at least 0")
+        raise ValueError(f"{name} must be at least 0")
 
 
 def _validate_positive_int(value: int, name: str) -> None:
     if value < 1:
-        raise PhospyValidationError(f"{name} must be at least 1")
+        raise ValueError(f"{name} must be at least 1")

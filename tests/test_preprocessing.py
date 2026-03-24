@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from phospy.preprocessing import (
     add_pairwise_comparisons,
@@ -11,7 +10,6 @@ from phospy.preprocessing import (
     filter_min_observed,
     replace_sentinel_with_nan,
 )
-from phospy.validation.errors import InputCompatibilityError, TableSchemaError
 
 
 def test_replace_sentinel_with_nan_and_filter_min_observed() -> None:
@@ -95,36 +93,3 @@ def test_correct_phospho_to_protein_and_pairwise_comparisons() -> None:
         comparisons=[("group1", "group4")],
     )
     assert with_comparisons["p_group1_group4"].iloc[0] == 3.0
-
-
-def test_collapse_duplicate_genes_rejects_missing_gene_column() -> None:
-    df = pd.DataFrame({"group1": [1.0]})
-
-    with pytest.raises(TableSchemaError, match="Missing gene column"):
-        collapse_duplicate_genes(df=df, gene_col="genes", value_cols=["group1"])
-
-
-def test_correct_phospho_to_protein_rejects_mismatched_column_counts() -> None:
-    phospho = pd.DataFrame({"gene_names": ["PRKACA"], "p_group1": [1.0]})
-    total = pd.DataFrame({"genes": ["PRKACA"], "group1": [1.0], "group2": [2.0]})
-
-    with pytest.raises(InputCompatibilityError, match="must have the same length"):
-        correct_phospho_to_protein(
-            phospho,
-            total,
-            phospho_gene_col="gene_names",
-            total_gene_col="genes",
-            phospho_cols=["p_group1"],
-            protein_cols=["group1", "group2"],
-        )
-
-
-def test_add_pairwise_comparisons_rejects_missing_group_mapping() -> None:
-    df = pd.DataFrame({"phospho_corrected_1": [1.0]})
-
-    with pytest.raises(InputCompatibilityError, match="Missing group mapping"):
-        add_pairwise_comparisons(
-            df,
-            comparisons=[("group1", "group4")],
-            group_to_corrected_col={"group1": "phospho_corrected_1"},
-        )

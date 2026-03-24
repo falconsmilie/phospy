@@ -10,8 +10,7 @@ from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
 from .constants import ComparisonSpec
 from .dataset import CoreProcessingResult, PhosphoDataset
 from .io import load_phospho_table, load_pred_mat, load_total_table
-from .validation.requests import CorePipelineRequest, KinaseActivityRequest
-from .validation.tables import PredMatSchema
+from .validation.requests import CorePipelineRequest
 
 
 @dataclass(slots=True)
@@ -30,27 +29,12 @@ class PhosRPipeline:
         localization_threshold: float = 0.75,
         min_observed: int = 4,
         max_unmatched_fraction: float = 0.0,
-        kinase_activity_threshold: float = 0.6,
-        kinase_activity_min_substrates: int = 3,
-        kinase_activity_top_n_substrates: int = 20,
     ) -> None:
-        activity_request = KinaseActivityRequest.validate_request(
-            threshold=kinase_activity_threshold,
-            min_substrates=kinase_activity_min_substrates,
-            top_n_substrates=kinase_activity_top_n_substrates,
-        )
         self.dataset = dataset
-        self.pred_mat = (
-            PredMatSchema.validate(pred_mat, context="pred_mat")
-            if pred_mat is not None
-            else None
-        )
+        self.pred_mat = pred_mat.copy() if pred_mat is not None else None
         self.localization_threshold = localization_threshold
         self.min_observed = min_observed
         self.max_unmatched_fraction = max_unmatched_fraction
-        self.kinase_activity_threshold = activity_request.threshold
-        self.kinase_activity_min_substrates = activity_request.min_substrates
-        self.kinase_activity_top_n_substrates = activity_request.top_n_substrates
 
     @classmethod
     def from_request(cls, request: CorePipelineRequest) -> PhosRPipeline:
@@ -73,9 +57,6 @@ class PhosRPipeline:
             localization_threshold=request.localization_threshold,
             min_observed=request.min_observed,
             max_unmatched_fraction=request.max_unmatched_fraction,
-            kinase_activity_threshold=request.kinase_activity_threshold,
-            kinase_activity_min_substrates=request.kinase_activity_min_substrates,
-            kinase_activity_top_n_substrates=request.kinase_activity_top_n_substrates,
         )
 
     @classmethod
@@ -89,9 +70,6 @@ class PhosRPipeline:
         localization_threshold: float = 0.75,
         min_observed: int = 4,
         max_unmatched_fraction: float = 0.0,
-        kinase_activity_threshold: float = 0.6,
-        kinase_activity_min_substrates: int = 3,
-        kinase_activity_top_n_substrates: int = 20,
     ) -> PhosRPipeline:
         request = CorePipelineRequest.validate_request(
             total_path=Path(total_path),
@@ -102,9 +80,6 @@ class PhosRPipeline:
             localization_threshold=localization_threshold,
             min_observed=min_observed,
             max_unmatched_fraction=max_unmatched_fraction,
-            kinase_activity_threshold=kinase_activity_threshold,
-            kinase_activity_min_substrates=kinase_activity_min_substrates,
-            kinase_activity_top_n_substrates=kinase_activity_top_n_substrates,
         )
         return cls.from_request(request)
 
@@ -119,16 +94,8 @@ class PhosRPipeline:
 
         kinase_activity = None
         if self.pred_mat is not None:
-            analyzer = KinaseActivityAnalyzer.from_validated_pred_mat(self.pred_mat)
-            activity_request = KinaseActivityRequest.validate_request(
-                threshold=self.kinase_activity_threshold,
-                min_substrates=self.kinase_activity_min_substrates,
-                top_n_substrates=self.kinase_activity_top_n_substrates,
-            )
-            kinase_activity = analyzer.analyze(
-                core.site_matrix.matrix,
-                request=activity_request,
-            )
+            analyzer = KinaseActivityAnalyzer(self.pred_mat)
+            kinase_activity = analyzer.analyze(core.site_matrix.matrix)
             if outdir is not None:
                 analyzer.write_outputs(kinase_activity, outdir)
 
