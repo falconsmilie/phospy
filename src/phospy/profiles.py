@@ -6,6 +6,10 @@ from typing import Literal, TypeAlias
 
 import pandas as pd
 
+from .validation.errors import (
+    PhospyValidationError,
+)
+
 AggregationMethod: TypeAlias = Literal["median"]
 
 
@@ -132,9 +136,9 @@ def _quantified_sites(
 
 def _validate_positive_int(value: int, name: str) -> None:
     if value < 1:
-        raise ValueError(f"{name} must be at least 1")
+        raise PhospyValidationError(f"{name} must be at least 1")
 
 
 def _validate_aggregation(aggregation: AggregationMethod) -> None:
     if aggregation != "median":
-        raise ValueError("aggregation must be 'median'")
+        raise PhospyValidationError("aggregation must be 'median'")

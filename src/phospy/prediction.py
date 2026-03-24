@@ -8,6 +8,11 @@ import numpy as np
 import pandas as pd
 
 from .scoring import KinaseScoringResult
+from .validation.errors import (
+    InputCompatibilityError,
+    PhospyValidationError,
+    TableSchemaError,
+)
 
 PredictionSvmMode = Literal["default", "r_parity"]
 
@@ -75,7 +80,7 @@ class PredictionSamplingTrace:
                 "sampling trace directory must contain trace_initial_negatives.csv "
                 "and/or trace_iteration_samples.csv"
             )
-            raise ValueError(msg)
+            raise TableSchemaError(msg)
 
         ensembles_by_kinase: dict[str, dict[int, SamplingTraceOverrideEnsemble]] = {}
 
@@ -88,7 +93,7 @@ class PredictionSamplingTrace:
                     "trace_initial_negatives.csv is missing required columns: "
                     + ", ".join(missing)
                 )
-                raise ValueError(msg)
+                raise TableSchemaError(msg)
             initial_df = initial_df.sort_values(
                 ["kinase", "ensemble", "draw"], kind="mergesort"
             )
@@ -117,7 +122,7 @@ class PredictionSamplingTrace:
                     "trace_iteration_samples.csv is missing required columns: "
                     + ", ".join(missing)
                 )
-                raise ValueError(msg)
+                raise TableSchemaError(msg)
             samples_df = samples_df.sort_values(
                 ["kinase", "ensemble", "iteration", "class_label", "draw"],
                 kind="mergesort",
@@ -184,7 +189,7 @@ class _RLikeStandardScaler:
     def set_params(self, **params: object) -> _RLikeStandardScaler:
         if params:
             msg = f"_RLikeStandardScaler does not accept parameters: {sorted(params)}"
-            raise ValueError(msg)
+            raise PhospyValidationError(msg)
         return self
 
     def fit(
@@ -205,7 +210,7 @@ class _RLikeStandardScaler:
     def transform(self, values: np.ndarray) -> np.ndarray:
         if self.mean_ is None or self.scale_ is None:
             msg = "_RLikeStandardScaler must be fitted before transform()"
-            raise ValueError(msg)
+            raise PhospyValidationError(msg)
         x = np.asarray(values, dtype=float)
         return (x - self.mean_) / self.scale_
 
@@ -318,7 +323,7 @@ class KinasePredictor:
                 msg = (
                     f"No negative pool sites available to train predictor for {kinase}"
                 )
-                raise ValueError(msg)
+                raise InputCompatibilityError(msg)
 
             if (
                 capture_debug_trace
@@ -442,7 +447,7 @@ class KinasePredictor:
                 "scoring_result does not contain combined_scores; pass "
                 "allow_profile_only_fallback=True to use profile_scores instead"
             )
-            raise ValueError(msg)
+            raise InputCompatibilityError(msg)
 
         return self.predict(
             combined_scores=feature_mat,
@@ -598,7 +603,7 @@ def _multi_ada_sampling(
 
     if model is None:
         msg = "n_iterations must be at least 1"
-        raise ValueError(msg)
+        raise InputCompatibilityError(msg)
 
     test_x = test_mat.to_numpy(dtype=float)
     pred = model.predict_proba(test_x)
@@ -613,7 +618,7 @@ def _multi_ada_sampling(
             "Expected exactly one positive class labelled 1; found "
             f"{model.classes_.tolist()}"
         )
-        raise ValueError(msg)
+        raise InputCompatibilityError(msg)
     positive_series = pd.Series(
         pred[:, positive_idx[0]], index=test_mat.index.copy(), dtype=float
     )
@@ -797,7 +802,7 @@ def _validate_override_sites(
             f"Sampling override for {context} has {len(sampled_site_list)} rows; "
             f"expected {expected_size}"
         )
-        raise ValueError(msg)
+        raise PhospyValidationError(msg)
     available_site_set = set(available_sites.astype(str).tolist())
     invalid_sites = [
         site for site in sampled_site_list if site not in available_site_set
@@ -808,7 +813,7 @@ def _validate_override_sites(
             f"Sampling override for {context} contains sites outside the "
             f"available training rows: {', '.join(unique_invalid_sites)}"
         )
-        raise ValueError(msg)
+        raise InputCompatibilityError(msg)
     return sampled_site_list
 
 
@@ -827,11 +832,11 @@ def _require_sklearn() -> tuple[type, type]:
 
 def _validate_positive_int(value: int, name: str) -> None:
     if value < 1:
-        raise ValueError(f"{name} must be at least 1")
+        raise PhospyValidationError(f"{name} must be at least 1")
 
 
 def _validate_svm_mode(value: PredictionSvmMode) -> PredictionSvmMode:
     if value not in {"default", "r_parity"}:
         msg = "svm_mode must be one of: 'default', 'r_parity'"
-        raise ValueError(msg)
+        raise PhospyValidationError(msg)
     return value
