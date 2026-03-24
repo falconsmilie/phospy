@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from phospy.matrices import build_site_matrix
+from phospy.validation.errors import TableSchemaError
 
 
 def test_build_site_matrix_creates_site_ids_and_deduplicates_by_mean() -> None:
@@ -35,3 +37,21 @@ def test_build_site_matrix_creates_site_ids_and_deduplicates_by_mean() -> None:
     assert matrix.loc["PRKACA;S339;", "phospho_corrected_1"] == 10.0
     assert sequences.loc["PRKACA;S339;"] == "BBBBBB"
     assert phosr_input.shape[0] == 2
+
+
+def test_build_site_matrix_rejects_malformed_gene_p_site() -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA"],
+            "centralized_sequence": ["AAAAAA"],
+            "phospho_corrected_1": [1.0],
+        }
+    )
+
+    with pytest.raises(TableSchemaError, match="gene_p_site must contain values"):
+        build_site_matrix(
+            df=df,
+            gene_p_site_col="gene_p_site",
+            sequence_col="centralized_sequence",
+            value_cols=["phospho_corrected_1"],
+        )

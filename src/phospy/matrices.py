@@ -4,6 +4,8 @@ from collections.abc import Sequence
 
 import pandas as pd
 
+from .validation.errors import TableSchemaError
+
 
 def build_site_matrix(
     df: pd.DataFrame,
@@ -22,9 +24,11 @@ def build_site_matrix(
         or split_cols[1].isna().any()
     )
     if invalid_mask:
-        raise ValueError(
-            f"{gene_p_site_col} must contain values in the form GENE_SITE, for example PRKACA_S339"
+        msg = (
+            f"{gene_p_site_col} must contain values in the form GENE_SITE, "
+            "for example PRKACA_S339"
         )
+        raise TableSchemaError(msg)
     work[gene_col_name] = split_cols[0].astype("string")
     work[p_site_col_name] = split_cols[1].astype("string")
     work["site_id"] = (

@@ -110,10 +110,16 @@ def test_pipeline_runs_with_class_api(tmp_path) -> None:
         total_path=total_path,
         phospho_path=phospho_path,
         pred_mat_path=pred_path,
+        kinase_activity_threshold=0.6,
+        kinase_activity_min_substrates=2,
+        kinase_activity_top_n_substrates=2,
     )
     outputs = pipeline.run(outdir=outdir)
 
     assert outputs.kinase_activity is not None
+    assert pipeline.kinase_activity_threshold == 0.6
+    assert pipeline.kinase_activity_min_substrates == 2
+    assert pipeline.kinase_activity_top_n_substrates == 2
 
 
 def test_kinase_workflow_runs_with_class_api() -> None:
