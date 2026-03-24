@@ -61,19 +61,3 @@ class PhosRPipeline:
                 analyzer.write_outputs(kinase_activity, outdir)
 
         return CoreOutputs(core=core, kinase_activity=kinase_activity)
-
-
-def run_core_pipeline(
-    total_path: str | Path,
-    phospho_path: str | Path,
-    outdir: str | Path,
-    pred_mat_path: str | Path | None = None,
-    comparisons: Sequence[ComparisonSpec] | None = None,
-) -> CoreOutputs:
-    pipeline = PhosRPipeline.from_files(
-        total_path=total_path,
-        phospho_path=phospho_path,
-        pred_mat_path=pred_mat_path,
-        comparisons=comparisons,
-    )
-    return pipeline.run(outdir=outdir)

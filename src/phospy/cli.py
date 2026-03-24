@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from .pipeline import run_core_pipeline
+from .pipeline import PhosRPipeline
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -19,12 +19,12 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    run_core_pipeline(
+    pipeline = PhosRPipeline.from_files(
         total_path=args.total,
         phospho_path=args.phospho,
-        outdir=args.outdir,
         pred_mat_path=args.pred_mat,
     )
+    pipeline.run(outdir=args.outdir)
 
 
 if __name__ == "__main__":

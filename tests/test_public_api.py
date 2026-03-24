@@ -2,13 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy import (
-    KinaseActivityAnalyzer,
-    PhosphoDataset,
-    PhosRPipeline,
-    run_core_pipeline,
-    run_kinase_workflow,
-)
+from phospy import KinaseActivityAnalyzer, KinaseWorkflow, PhosphoDataset, PhosRPipeline
 
 EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
 
@@ -69,8 +63,6 @@ def test_public_root_exports() -> None:
         "PhosphoDataset",
         "PhosRPipeline",
         "SiteMatrixResult",
-        "run_core_pipeline",
-        "run_kinase_workflow",
     }
     assert set(phospy.__all__) == expected
 
@@ -110,8 +102,8 @@ def test_pipeline_runs_with_class_api(tmp_path) -> None:
     pred_path = tmp_path / "predMat.csv"
     outdir = tmp_path / "out"
 
-    make_total_df().to_csv(total_path, sep="	", index=False)
-    make_phospho_df().to_csv(phospho_path, sep="	", index=False)
+    make_total_df().to_csv(total_path, sep="\t", index=False)
+    make_phospho_df().to_csv(phospho_path, sep="\t", index=False)
     make_pred_mat().to_csv(pred_path)
 
     pipeline = PhosRPipeline.from_files(
@@ -124,24 +116,7 @@ def test_pipeline_runs_with_class_api(tmp_path) -> None:
     assert outputs.kinase_activity is not None
 
 
-def test_run_core_pipeline(tmp_path) -> None:
-    total_path = tmp_path / "total.tsv"
-    phospho_path = tmp_path / "phospho.tsv"
-    outdir = tmp_path / "out"
-
-    make_total_df().to_csv(total_path, sep="	", index=False)
-    make_phospho_df().to_csv(phospho_path, sep="	", index=False)
-
-    outputs = run_core_pipeline(
-        total_path=total_path,
-        phospho_path=phospho_path,
-        outdir=outdir,
-    )
-
-    assert outputs.core.site_matrix.matrix.shape[0] > 0
-
-
-def test_run_kinase_workflow() -> None:
+def test_kinase_workflow_runs_with_class_api() -> None:
     phospho_matrix = pd.DataFrame(
         {
             "sample_1": [1.0, 2.0, 10.0, 11.0],
@@ -150,7 +125,8 @@ def test_run_kinase_workflow() -> None:
         index=["SITE_1", "SITE_2", "SITE_3", "SITE_4"],
     )
 
-    result = run_kinase_workflow(
+    workflow = KinaseWorkflow()
+    result = workflow.run(
         phospho_matrix=phospho_matrix,
         substrate_map={
             "KINASE_A": ["SITE_1", "SITE_2"],

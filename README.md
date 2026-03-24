@@ -89,11 +89,9 @@ The supported root-level public API is intentionally small:
 
 - `PhosphoDataset`
 - `PhosRPipeline`
-- `run_core_pipeline`
 - `KinaseActivityAnalyzer`
 - `KinaseWorkflow`
-- `run_kinase_workflow`
-- result dataclasses returned by those entry points
+- result dataclasses returned by those classes
 
 Examples below use only those supported root imports. Lower-level submodule imports may still exist for internal use and
 testing, but they are not part of the stable public API unless documented here.
@@ -156,12 +154,13 @@ outputs = pipeline.run(outdir="output")
 
 The native prediction workflow is included in the base install.
 
-You can run the native workflow in one orchestration call:
+You can run the native workflow through the `KinaseWorkflow` class:
 
 ```python
-from phospy import run_kinase_workflow
+from phospy import KinaseWorkflow
 
-result = run_kinase_workflow(
+workflow = KinaseWorkflow()
+result = workflow.run(
     phospho_matrix=phospho_matrix,
     substrate_map={
         "KINASE_A": ["SITE_1", "SITE_2", "SITE_3", "SITE_4"],
@@ -225,8 +224,7 @@ The supporting documentation is split by topic:
 PhosPy is currently a structured Python package for PhosR-style preprocessing and downstream kinase-analysis summaries.
 It also includes a live R-backed parity harness and a growing native kinase workflow for kinase scoring and prediction.
 
-The public API is now intentionally centered on the documented root entry points rather than exposing most internal
-helpers from `phospy` itself.
+The public API is now intentionally centered on a small set of documented root-level classes and result types rather than exposing most internal helpers from `phospy` itself.
 
 It is not yet a full Python replacement for PhosR. In particular, parity claims for the newer native workflow should
 stay limited to the fixture-backed seams documented in [`docs/parity.md`](docs/parity.md).

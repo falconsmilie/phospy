@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.workflow import KinaseWorkflow, run_kinase_workflow
+from phospy.workflow import KinaseWorkflow
 
 
 def make_workflow_inputs() -> tuple[
@@ -41,12 +41,14 @@ def make_workflow_inputs() -> tuple[
     return phospho_matrix, substrate_map, site_sequences, motif_sequences
 
 
-def test_run_kinase_workflow_runs_native_end_to_end_path() -> None:
+def test_kinase_workflow_runs_native_end_to_end_path() -> None:
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
         make_workflow_inputs()
     )
 
-    result = run_kinase_workflow(
+    workflow = KinaseWorkflow(flank_size=2)
+
+    result = workflow.run(
         phospho_matrix=phospho_matrix,
         substrate_map=substrate_map,
         site_sequences=site_sequences,
@@ -59,7 +61,6 @@ def test_run_kinase_workflow_runs_native_end_to_end_path() -> None:
         inclusion=3,
         n_iterations=2,
         random_state=17,
-        flank_size=2,
     )
 
     assert list(result.profile_result.profile_matrix.index) == ["KINASE_A", "KINASE_B"]
@@ -158,12 +159,14 @@ def test_kinase_workflow_requires_site_sequences_when_motifs_are_provided() -> N
         )
 
 
-def test_run_kinase_workflow_accepts_explicit_svm_mode() -> None:
+def test_kinase_workflow_accepts_explicit_svm_mode() -> None:
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
         make_workflow_inputs()
     )
 
-    result = run_kinase_workflow(
+    workflow = KinaseWorkflow(svm_mode="r_parity")
+
+    result = workflow.run(
         phospho_matrix=phospho_matrix,
         substrate_map=substrate_map,
         site_sequences=site_sequences,
@@ -176,7 +179,6 @@ def test_run_kinase_workflow_accepts_explicit_svm_mode() -> None:
         inclusion=3,
         n_iterations=2,
         random_state=17,
-        flank_size=2,
         svm_mode="r_parity",
     )
 
