@@ -10,12 +10,6 @@ Unless otherwise noted, commands below assume:
 
 macOS uses the same commands unless a section says otherwise. Windows is only shown where the syntax changes.
 
-```bash
-make help
-```
-
-The `Makefile` is a thin wrapper around the documented generator commands in this file.
-
 ## Directory Map
 
 ### Small Synthetic R Fixtures
@@ -133,10 +127,9 @@ tests/fixtures/fragile_support_reference
 
 **Purpose**
 
-- widen seam-focused evidence beyond the main L6 reference path
+- widen evidence beyond the main L6 reference path
 - stress native-workflow decision fragility with mixed support and smaller candidate pools
 - provide a compact curated dataset for future seam expansion
-- make combined-score and candidate-selection behaviour easy to inspect without rerunning the full L6 pipeline
 
 **Generate**
 
@@ -165,24 +158,9 @@ README.md
 
 **Contract Status**
 
-- committed curated derivative reference data
+- committed curated reference data
 - not part of the current R-backed parity contract
-- suitable for seam-focused native-workflow tests
-- not a standalone full R-regenerated reference family
-
-**Provenance Notes**
-
-This directory is intentionally derived from the wider `tests/fixtures/r_reference_l6` outputs rather than regenerated
-from scratch as its own R reference family. In the current generator path:
-
-- `motif_scores.csv` is sliced from `r_reference_l6/native_motif_scores.csv`
-- `motif_sizes.csv` is sliced from `r_reference_l6/native_motif_sizes.csv`
-- `motif_sequences.csv` is built from the selected substrate rows and `site_sequences.csv`
-- `combined_scores.csv`, `combined_weights.csv`, `candidate_substrates.csv`, and `screening_summary.csv` are then
-  recomputed on the curated subset
-
-That makes the dataset useful and internally consistent, but it should be described as a curated L6-derived stress
-fixture rather than as a fresh independent R-backed regeneration.
+- intended for widening evidence and future seam-focused parity work
 
 ### Committed R Prediction Traces
 

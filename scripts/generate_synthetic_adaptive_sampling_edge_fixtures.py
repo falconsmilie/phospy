@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pandas as pd
 
-from phospy.prediction import (
-    KinasePredictor,
-    PredictionSamplingTrace,
-    prediction_debug_trace_tables,
-)
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 FIXTURE_DIR = Path("tests/fixtures/synthetic_adaptive_sampling_edge")
 TOP = 4
@@ -284,6 +284,12 @@ def write_readme(outdir: Path) -> None:
 
 
 def main() -> None:
+    from phospy.prediction import (
+        KinasePredictor,
+        PredictionSamplingTrace,
+        prediction_debug_trace_tables,
+    )
+
     FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
     combined_scores = build_combined_scores()
     combined_scores.to_csv(FIXTURE_DIR / "combined_scores.csv")

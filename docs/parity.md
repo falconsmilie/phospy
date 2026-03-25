@@ -34,19 +34,11 @@ The current parity layer covers:
 - downstream kinase-analysis summaries backed by R-generated fixtures
 - selected native kinase workflow seams backed by committed L6 reference tables
 - seam-level prediction debugging through committed R and Python trace exports
-- a committed curated fragile-support dataset used for seam-focused native-workflow evidence beyond the main L6 path
+- a committed curated fragile-support dataset used to widen evidence beyond the main L6 path
 
 For fixture and trace directory details, see [`docs/fixtures.md`](fixtures.md).
 
-A boundary worth keeping clear: the small `r_reference` and main `r_reference_l6` directories are the R-backed
-reference families. `fragile_support_reference` is different. It is a committed curated L6-derived stress fixture used
-for seam-focused native-workflow tests, not a standalone full R-regenerated parity family.
-
 ## Running the Fixture-Backed Test Suite
-
-If you prefer wrapper targets over the raw script commands, run `make help` first. The `Makefile` mirrors the fixture
-generation paths documented below.
-
 
 ### 1) Install the Python Test Dependencies
 

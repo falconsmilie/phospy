@@ -2,11 +2,21 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from phospy.prediction import KinasePredictor, PredictionSamplingTrace
+if TYPE_CHECKING:
+    from phospy.prediction import PredictionSamplingTrace
+
+
+def ensure_src_on_path() -> None:
+    root = Path(__file__).resolve().parents[1]
+    src = root / "src"
+    if str(src) not in sys.path:
+        sys.path.insert(0, str(src))
 
 
 def parse_args() -> argparse.Namespace:
@@ -100,6 +110,8 @@ def resolve_replay_aligned_trace_kinases(
     score_threshold: float,
     inclusion: int,
 ) -> tuple[list[str], list[str], PredictionSamplingTrace]:
+    from phospy.prediction import PredictionSamplingTrace
+
     trace_dir = Path(sampling_trace_dir)
     trace_candidates_path = trace_dir / "trace_candidates.csv"
     trace_initial_path = trace_dir / "trace_initial_negatives.csv"
@@ -414,6 +426,9 @@ def export_traces(
 
 
 def main() -> None:
+
+    from phospy.prediction import KinasePredictor
+
     args = parse_args()
     combined_scores = pd.read_csv(args.combined_scores, index_col=0)
     trace_kinases = parse_csv_values(args.trace_kinases)
