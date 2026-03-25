@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy import KinasePredictor, PredictionSamplingTrace
+from phospy.prediction import KinasePredictor, PredictionSamplingTrace
 
 
 def parse_args() -> argparse.Namespace:
