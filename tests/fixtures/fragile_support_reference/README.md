@@ -1,6 +1,6 @@
 # Fragile-support reference dataset
 
-This dataset is a curated L6-derived reference family designed to stress decision fragility rather than broad coverage.
+This dataset is a curated L6-derived stress fixture designed to stress decision fragility rather than broad coverage.
 
 It is intentionally smaller and more uneven than the full L6 reference family:
 - mixed kinase support counts
@@ -12,7 +12,7 @@ Selected kinases: MAPK1, AKT1, IRAK1, PRKAA1, PRKAA2, LCK
 Row count: 105
 Candidate selection settings: top=50, score_threshold=0.8, inclusion=20
 
-This directory is not a blanket parity claim. It is a committed curated dataset for widening evidence beyond the main L6 path and for future seam expansion.
+This directory is not a blanket parity claim. It is a committed curated L6-derived dataset for widening seam-focused evidence beyond the main L6 path and for future seam expansion.
 
 Files:
 - phospho_matrix.csv: curated phosphosite matrix
@@ -24,3 +24,9 @@ Files:
 - motif_sizes.csv / combined_scores.csv / combined_weights.csv: score-combination seam outputs
 - candidate_substrates.csv: candidate selection output under the configured threshold settings
 - screening_summary.csv: selection-summary table for the curated dataset
+
+Provenance:
+- motif_scores.csv is sliced from tests/fixtures/r_reference_l6/native_motif_scores.csv
+- motif_sizes.csv is sliced from tests/fixtures/r_reference_l6/native_motif_sizes.csv
+- motif_sequences.csv is rebuilt from the selected substrate rows and site_sequences.csv
+- combined_scores.csv, combined_weights.csv, candidate_substrates.csv, and screening_summary.csv are recomputed on the curated subset

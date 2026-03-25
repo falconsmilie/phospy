@@ -219,9 +219,22 @@ The supporting documentation is split by topic:
 
 - [`docs/parity.md`](docs/parity.md) explains what parity means here, how to run the fixture-backed suite, and which
   options affect pytest output
-- [`docs/fixtures.md`](docs/fixtures.md) explains the fixture and trace directories, generation commands, and which
-  outputs are committed reference data
+- [`docs/fixtures.md`](docs/fixtures.md) explains the fixture and trace directories, generation commands, provenance,
+  and which outputs are committed reference data
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) covers local setup, linting, tests, and CI expectations
+
+A practical reminder on provenance: not every committed fixture directory carries the same weight. The small
+`r_reference` and main `r_reference_l6` directories are the R-backed reference families. The
+`fragile_support_reference` directory is different: it is a committed curated L6-derived stress fixture used for
+seam-focused native-workflow tests. It is internally consistent, but it is not a standalone full R-regenerated
+reference family.
+
+For day-to-day fixture work, the repository also includes a `Makefile` so you do not need to remember every script
+entry point:
+
+```bash
+make help
+```
 
 ## Project Status
 
