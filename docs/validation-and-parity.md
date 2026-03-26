@@ -1,7 +1,7 @@
 # Validation and Parity Guide
 
 This document is the practical entry point for understanding what PhosPy validates, what its current parity claims
-actually mean, and which checks form the v1 release gate.
+actually mean, and which checks form the 1.0.0 release gate.
 
 ## Validation Layers
 
@@ -48,9 +48,9 @@ Run them with:
 pre-commit run --all-files
 ```
 
-## v1 Release Gate
+## 1.0.0 Release Gate
 
-PhosPy v1 is ready to cut when all three checks are green from a clean checkout:
+PhosPy 1.0.0 is ready to cut when all three checks are green from a clean checkout:
 
 ```bash
 pre-commit run --all-files
@@ -58,7 +58,7 @@ pytest -m "not parity"
 pytest -m parity
 ```
 
-That is the whole gate. Anything beyond that is useful, but not required for the basic v1 release contract.
+That is the whole gate. Anything beyond that is useful, but not required for the basic 1.0.0 release contract.
 
 ## What Parity Means Here
 
@@ -76,10 +76,9 @@ Parity does **not** mean:
 
 ## `KinaseWorkflow` Parity Wording
 
-`KinaseWorkflow` is part of the supported v1 API, but its parity claim is deliberately narrower than the older
-preprocessing path.
+`KinaseWorkflow` is part of the supported 1.0.0 API, but its parity claim is deliberately narrower than the older preprocessing path.
 
-For v1, the correct wording is:
+For 1.0.0, the correct wording is:
 
 - `KinaseWorkflow` is a **native Python workflow** for profile construction, motif scoring, score combination,
   candidate selection, and adaptive SVM prediction.
@@ -88,7 +87,7 @@ For v1, the correct wording is:
 - The default `svm_mode="default"` is the preferred Python-native path and is **not** a claim of package-wide
   numerical equivalence to PhosR.
 
-That wording is intentionally modest. It is still strong enough for a real v1.
+That wording is intentionally modest. It is still strong enough for a real 1.0.0 release.
 
 ## Typical Test Commands
 

@@ -1,9 +1,8 @@
 # Parity Notes
 
-This document explains what the repository currently means by **parity** and where the native kinase workflow fits into
-that claim.
+This document explains what PhosPy 1.0.0 means by **parity** and where the native kinase workflow fits into that claim.
 
-For the broader validation model and the v1 release gate, start with
+For the broader validation model and the 1.0.0 release gate, start with
 [`docs/validation-and-parity.md`](validation-and-parity.md).
 
 ## What Parity Means in This Repository
@@ -37,7 +36,7 @@ For fixture and trace directory details, see [`docs/fixtures.md`](fixtures.md).
 
 ## `KinaseWorkflow` and Parity
 
-`KinaseWorkflow` is part of the supported v1 public API.
+`KinaseWorkflow` is part of the supported 1.0.0 public API.
 
 That does **not** turn the whole workflow into a blanket PhosR-equivalence claim.
 

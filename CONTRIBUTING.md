@@ -2,8 +2,7 @@
 
 Thank you for your interest in contributing to PhosPy.
 
-This project is still evolving, and contributions are welcome. The clearest way to help is to keep changes small, 
-well-tested, and easy to review.
+PhosPy 1.0.0 is intentionally narrow: it supports the documented preprocessing, `predMat`-driven kinase-analysis, and native `KinaseWorkflow` paths. The clearest way to help is to keep changes small, well-tested, and easy to review.
 
 ## Development Setup
 
@@ -60,7 +59,7 @@ See [`docs/parity.md`](docs/parity.md) for the fixture model, scope boundaries, 
 
 ## Release Gate
 
-The practical v1 release gate is:
+The practical 1.0.0 release gate is:
 
 ```bash
 pre-commit run --all-files
