@@ -28,6 +28,15 @@ dependencies = [
   "scikit-learn>=1.4",
 ]
 
+[project.urls]
+Homepage = "https://github.com/falconsmilie/phospy"
+Repository = "https://github.com/falconsmilie/phospy"
+Documentation = "https://github.com/falconsmilie/phospy/tree/main/docs"
+Issues = "https://github.com/falconsmilie/phospy/issues"
+Changelog = "https://github.com/falconsmilie/phospy/blob/main/CHANGELOG.md"
+
+license-files = ["LICENSE", "NOTICE.md"]
+
 [project.optional-dependencies]
 test = [
   "pytest>=8.0",

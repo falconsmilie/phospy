@@ -20,15 +20,25 @@ prediction.
 
 ## Install
 
-### Python Requirements
+### Install From PyPI
 
-Base install:
+Install the supported root-level API and the `phospy` CLI.
+
+```bash
+pip install phospy
+```
+
+### Install From Source
+
+Use an editable installation only when you want to work from a local checkout:
 
 ```bash
 pip install -e .
 ```
 
-For tests:
+### Test Dependencies
+
+To run the test suite from a local checkout:
 
 ```bash
 pip install -e ".[test]"
@@ -36,7 +46,9 @@ pytest -m "not parity"
 pytest -m parity
 ```
 
-For development checks:
+### Development Checks
+
+To run linting and other contributor checks from a local checkout:
 
 ```bash
 pip install -e ".[dev]"
