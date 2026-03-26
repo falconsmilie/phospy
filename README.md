@@ -1,24 +1,22 @@
 # PhosPy
 
-`PhosPy` 1.0.0 is an unofficial Python implementation of selected PhosR-style workflows for phosphoproteomics.
+`PhosPy` 1.0.0 is an unofficial Python implementation of selected PhosR-style workflows for phosphoproteomics. PhosPy is
+a deliberately narrow, Python-native subset with test-backed validation at defined seams. It is **not** presented as a
+full replacement for the R `PhosR` package.
 
-The package is deliberately narrow. Version 1.0.0 supports:
+## Preprocess Phosphoproteomics Data
 
-- **core preprocessing** from total and phospho input tables to corrected phosphosite matrices
-- **downstream kinase analysis from `predMat`**, including weighted activity, KSEA-style summaries, and target counts
-- **a native kinase workflow** for profile construction, motif scoring, score combination, candidate selection, and adaptive SVM prediction
+Start from total and phospho input tables and produce corrected phosphosite matrices for downstream use.
 
-PhosPy is useful as a Python-native, test-backed subset. It is **not** presented as a full replacement for the R/Bioconductor `PhosR` package.
+## Analyse Kinase Activity From `predMat`
 
-## Known Limitations
+Generate weighted activity scores, KSEA-style summaries, and target counts from predicted kinase–substrate
+relationships.
 
-Before you adopt PhosPy, the important boundaries are:
+## Run a Native Kinase Workflow
 
-- **Selective scope only.** PhosPy 1.0.0 covers the workflows documented below and nothing broader.
-- **Parity is seam-level, not package-wide.** Validation claims are limited to the committed fixture-backed seams described in [`docs/validation-and-parity.md`](docs/validation-and-parity.md) and [`docs/parity.md`](docs/parity.md).
-- **`KinaseWorkflow` is native first.** It includes an `svm_mode="r_parity"` option for narrower learner-seam comparisons, but the default mode is the preferred Python-native path and is not claimed to numerically match every PhosR result.
-- **The CLI is intentionally small.** It covers the core preprocessing and `predMat`-driven downstream path. The native kinase workflow is currently exposed through the Python API and example script.
-- **R is only required for fixture regeneration.** Running the committed Python test suite does not require R, but regenerating the R reference fixtures does.
+Construct substrate profiles, score motifs, combine evidence, select candidates, and perform adaptive SVM-based kinase
+prediction.
 
 ## Install
 
@@ -48,7 +46,8 @@ pre-commit run --all-files
 
 ### R Requirements for Fixture Regeneration
 
-The committed parity fixtures are already included in the repository. You only need R when you want to regenerate or extend
+The committed parity fixtures are already included in the repository. You only need R when you want to regenerate or
+extend
 those fixtures.
 
 The current scripts use these R packages:
@@ -88,12 +87,12 @@ The supported root-level public API is intentionally small:
 - `KinaseActivityAnalyzer`
 - `KinaseWorkflow`
 - result dataclasses returned by those classes:
-  - `CoreProcessingResult`
-  - `SiteMatrixResult`
-  - `CoreOutputs`
-  - `KinaseActivityResult`
-  - `KinasePredictionResult`
-  - `KinaseWorkflowResult`
+    - `CoreProcessingResult`
+    - `SiteMatrixResult`
+    - `CoreOutputs`
+    - `KinaseActivityResult`
+    - `KinasePredictionResult`
+    - `KinaseWorkflowResult`
 
 Examples below use only those supported root imports. Lower-level submodule imports may still exist for internal use and
 testing, but they are not part of the stable public API unless documented here.
@@ -175,13 +174,15 @@ This writes the core CSV outputs plus downstream kinase-analysis tables, includi
 
 ### Native End-to-End Kinase Workflow
 
-A complete runnable native-workflow example lives at [`examples/native_workflow_demo.py`](examples/native_workflow_demo.py):
+A complete runnable native-workflow example lives at [
+`examples/native_workflow_demo.py`](examples/native_workflow_demo.py):
 
 ```bash
 python examples/native_workflow_demo.py
 ```
 
-That example uses only the supported 1.0.0 root API and prints a small prediction matrix for a synthetic two-kinase setup.
+That example uses only the supported 1.0.0 root API and prints a small prediction matrix for a synthetic two-kinase
+setup.
 
 ## CLI Demo
 
@@ -200,7 +201,8 @@ phospy \
 
 The example output directory under `examples/output/` shows the generated CSV files.
 
-`--max-unmatched-fraction` defaults to `0.0`, which means protein correction fails if the inner join would silently drop any phosphosite rows. Raise it only when you deliberately want to allow a bounded amount of row loss.
+`--max-unmatched-fraction` defaults to `0.0`, which means protein correction fails if the inner join would silently drop
+any phosphosite rows. Raise it only when you deliberately want to allow a bounded amount of row loss.
 
 ## Testing, Validation, and Release Gate
 
@@ -220,11 +222,28 @@ That gate covers:
 
 Supporting documentation:
 
-- [`docs/validation-and-parity.md`](docs/validation-and-parity.md) explains the validation layers, release gate, and test commands
+- [`docs/validation-and-parity.md`](docs/validation-and-parity.md) explains the validation layers, release gate, and
+  test commands
 - [`docs/parity.md`](docs/parity.md) explains what parity means here, especially for the native kinase workflow
-- [`docs/fixtures.md`](docs/fixtures.md) explains the fixture and trace directories, generation commands, and which outputs are committed reference data
+- [`docs/fixtures.md`](docs/fixtures.md) explains the fixture and trace directories, generation commands, and which
+  outputs are committed reference data
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) covers local setup, linting, tests, and CI expectations
 - [`CHANGELOG.md`](CHANGELOG.md) contains the 1.0.0 release notes
+
+## Known Limitations
+
+Before you adopt PhosPy, the important boundaries are:
+
+- **Selective scope only.** PhosPy 1.0.0 covers the workflows documented above and nothing broader.
+- **Parity is seam-level, not package-wide.** Validation claims are limited to the committed fixture-backed seams
+  described in [`docs/validation-and-parity.md`](docs/validation-and-parity.md) and [`docs/parity.md`](docs/parity.md).
+- **`KinaseWorkflow` is native first.** It includes an `svm_mode="r_parity"` option for narrower learner-seam
+  comparisons, but the default mode is the preferred Python-native path and is not claimed to numerically match every
+  PhosR result.
+- **The CLI is intentionally small.** It covers the core preprocessing and `predMat`-driven downstream path. The native
+  kinase workflow is currently exposed through the Python API and example script.
+- **R is only required for fixture regeneration.** Running the committed Python test suite does not require R, but
+  regenerating the R reference fixtures does.
 
 ## Attribution
 
@@ -244,7 +263,8 @@ or participate in it.
 
 ## License
 
-This repository is distributed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. See [`LICENSE`](LICENSE).
+This repository is distributed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. See [
+`LICENSE`](LICENSE).
 
 That choice is deliberate. PhosR is distributed under GPL-3, and the GNU GPL FAQ treats translation of a program into
 another programming language as a kind of modification or translation under copyright law. This project therefore uses

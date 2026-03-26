@@ -49,9 +49,6 @@ The current parity wording for `KinaseWorkflow` is:
 - The default `svm_mode="default"` remains the preferred Python-native mode and should not be described as numerically
   identical to PhosR across all datasets or settings.
 
-That distinction matters. The package is strongest when it is explicit about which parts are validated against committed
-references and which parts are deliberately native.
-
 ## Running the Parity Suite
 
 ```bash

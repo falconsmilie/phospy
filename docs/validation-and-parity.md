@@ -76,18 +76,11 @@ Parity does **not** mean:
 
 ## `KinaseWorkflow` Parity Wording
 
-`KinaseWorkflow` is part of the supported 1.0.0 API, but its parity claim is deliberately narrower than the older preprocessing path.
-
-For 1.0.0, the correct wording is:
-
-- `KinaseWorkflow` is a **native Python workflow** for profile construction, motif scoring, score combination,
-  candidate selection, and adaptive SVM prediction.
-- PhosPy includes **fixture-backed validation at selected seams** of that workflow.
-- `svm_mode="r_parity"` exists for narrower learner-seam comparison against committed references.
-- The default `svm_mode="default"` is the preferred Python-native path and is **not** a claim of package-wide
-  numerical equivalence to PhosR.
-
-That wording is intentionally modest. It is still strong enough for a real 1.0.0 release.
+`KinaseWorkflow` is part of the supported 1.0.0 API. `KinaseWorkflow` is a **native Python workflow** for profile
+construction, motif scoring, score combination, candidate selection, and adaptive SVM prediction. PhosPy includes *
+*fixture-backed validation at selected seams** of that workflow. `svm_mode="r_parity"` exists for narrower learner-seam
+comparison against committed references. The default `svm_mode="default"` is the preferred Python-native path and is *
+*not** a claim of package-wide numerical equivalence to PhosR.
 
 ## Typical Test Commands
 
@@ -102,7 +95,8 @@ pytest -m parity
 pytest
 ```
 
-`pytest` runs the whole collected suite. The split commands are more useful when you want to keep the release gate easy to
+`pytest` runs the whole collected suite. The split commands are more useful when you want to keep the release gate easy
+to
 reason about.
 
 ## Regenerating R Fixtures
@@ -115,13 +109,3 @@ Rscript scripts/generate_r_l6_fixtures.R
 ```
 
 For fixture and trace directory details, see [`docs/fixtures.md`](fixtures.md).
-
-## When to Update the Docs
-
-When you change parity-backed behaviour, update at least one of these in the same line of work:
-
-- the fixtures
-- the parity tests
-- this guide or [`docs/parity.md`](parity.md)
-
-Do not silently broaden parity claims in the README or release notes without adding matching evidence.
