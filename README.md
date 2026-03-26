@@ -227,8 +227,16 @@ Supporting documentation:
 - [`docs/parity.md`](docs/parity.md) explains what parity means here, especially for the native kinase workflow
 - [`docs/fixtures.md`](docs/fixtures.md) explains the fixture and trace directories, generation commands, and which
   outputs are committed reference data
+- [`docs/roadmap.md`](docs/roadmap.md) explains the most likely next expansion areas after 1.0.0
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) covers local setup, linting, tests, and CI expectations
 - [`CHANGELOG.md`](CHANGELOG.md) contains the 1.0.0 release notes
+
+## Roadmap
+
+[`docs/roadmap.md`](docs/roadmap.md) sets out the most credible next steps after 1.0.0. The short version is that
+PhosPy is most likely to grow by extending the native workflow surface already in the repository: CLI support for
+`KinaseWorkflow`, broader seam-level validation around the native workflow, better trace tooling, and carefully chosen
+PhosR-inspired ports that fit the current narrow scope.
 
 ## Known Limitations
 

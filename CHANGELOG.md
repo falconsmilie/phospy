@@ -23,6 +23,7 @@ The supported scope for 1.0.0 is:
 - an explicit 1.0.0 scope statement in the README
 - a documented supported public API for 1.0.0
 - a dedicated validation and parity guide
+- a public roadmap describing the most likely next expansion areas after 1.0.0
 - a runnable native workflow example script under `examples/native_workflow_demo.py`
 - an end-to-end smoke test covering the documented example pipeline workflow
 

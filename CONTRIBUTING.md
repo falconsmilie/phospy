@@ -79,3 +79,9 @@ GitHub Actions currently runs three quality gates:
 
 If you intentionally change fixture-producing behaviour, regenerate the affected R fixtures, commit them, and explain
 the change clearly in the pull request.
+
+## Roadmap-Aligned Contributions
+
+The public roadmap lives in [`docs/roadmap.md`](docs/roadmap.md). The most helpful contributions are the ones that
+extend the current supported surface without inflating the claim: native-workflow CLI coverage, better seam-level
+validation, clearer diagnostics, and carefully scoped PhosR-inspired additions.
