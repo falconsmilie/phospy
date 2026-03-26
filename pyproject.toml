@@ -35,7 +35,7 @@ Documentation = "https://github.com/falconsmilie/phospy/tree/main/docs"
 Issues = "https://github.com/falconsmilie/phospy/issues"
 Changelog = "https://github.com/falconsmilie/phospy/blob/main/CHANGELOG.md"
 
-license-files = ["LICENSE", "NOTICE.md"]
+#license-files = ["LICENSE", "NOTICE.md"]
 
 [project.optional-dependencies]
 test = [
