@@ -5,17 +5,21 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "phospy"
 version = "0.1.0"
-description = "A Python-first phosphoproteomics toolkit shaped around core PhosR-style outputs."
+description = "Python-native implementation of selected PhosR-style phosphoproteomics workflows."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
+keywords = ["phosphoproteomics", "proteomics", "bioinformatics", "phosphorylation", "kinase"]
 classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
   "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
-  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
   "numpy>=1.24",
@@ -29,32 +33,10 @@ test = [
   "pytest>=8.0",
 ]
 
-viz = [
-  "matplotlib>=3.8",
-  "seaborn>=0.13",
-  "networkx>=3.2",
-  "matplotlib-venn>=1.1",
-]
-
-enrich = [
-  "gseapy>=1.1",
-]
-
 dev = [
   "pre-commit>=4.0",
   "pytest>=8.0",
   "ruff>=0.15.7",
-]
-
-full = [
-  "gseapy>=1.1",
-  "matplotlib>=3.8",
-  "matplotlib-venn>=1.1",
-  "networkx>=3.2",
-  "pre-commit>=4.0",
-  "pytest>=8.0",
-  "ruff>=0.15.7",
-  "seaborn>=0.13",
 ]
 
 [project.scripts]
@@ -89,3 +71,5 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

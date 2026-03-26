@@ -23,7 +23,7 @@ Run the local quality checks on demand:
 
 ```bash
 pre-commit run --all-files
-pytest
+pytest -m "not parity"
 pytest -m parity
 ```
 
@@ -44,7 +44,7 @@ The current repository policy lives in:
 
 ### Unit Tests
 
-The regular `pytest` run covers package logic that should stay stable regardless of the R reference fixtures.
+The regular non-parity run covers package logic that should stay stable regardless of the R reference fixtures.
 
 ### Parity Tests
 
@@ -57,6 +57,18 @@ pytest -m parity
 ```
 
 See [`docs/parity.md`](docs/parity.md) for the fixture model, scope boundaries, and current parity claims.
+
+## Release Gate
+
+The practical v1 release gate is:
+
+```bash
+pre-commit run --all-files
+pytest -m "not parity"
+pytest -m parity
+```
+
+The non-parity suite includes the documented example smoke workflow. The parity suite covers the committed R-backed seams.
 
 ## CI Expectations
 

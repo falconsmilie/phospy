@@ -20,3 +20,7 @@ venv/
 # OS cruft
 .DS_Store
 Thumbs.db
+
+# Local trace scratch space
+tmp_trace_*/
+tmp_edge_trace/

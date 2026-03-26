@@ -1,23 +1,24 @@
 # PhosPy
 
-`PhosPy` is an unofficial Python port of selected PhosR workflow components for phosphoproteomics.
+`PhosPy` v1 is an unofficial Python implementation of selected PhosR-style workflows for phosphoproteomics.
 
-It brings a practical subset of the PhosR workflow into Python, including core preprocessing, downstream kinase-analysis
-summaries, and a growing native workflow for kinase scoring and prediction.
+The package is deliberately narrow. v1 supports:
 
-## What PhosPy Covers
+- **core preprocessing** from total and phospho input tables to corrected phosphosite matrices
+- **downstream kinase analysis from `predMat`**, including weighted activity, KSEA-style summaries, and target counts
+- **a native kinase workflow** for profile construction, motif scoring, score combination, candidate selection, and adaptive SVM prediction
 
-PhosPy currently supports three main areas of work:
+PhosPy is useful as a Python-native, test-backed subset. It is **not** presented as a full replacement for the R/Bioconductor `PhosR` package.
 
-- **Core data processing** for PhosR-style preprocessing, phosphosite correction, optional pairwise comparisons, and
-  site-matrix construction
-- **Downstream kinase analysis** from `predMat`, including weighted kinase activity, KSEA-style scores, and target
-  counts
-- **Native kinase workflow** for substrate-profile construction, motif scoring, score combination, candidate-substrate
-  selection, and adaptive SVM prediction
+## Known Limitations
 
-Alongside that, the repository includes a small CLI, a deliberately small public API, and fixture-backed parity
-tests for selected workflow seams.
+Before you adopt PhosPy, the important boundaries are:
+
+- **Selective scope only.** v1 covers the workflows documented below and nothing broader.
+- **Parity is seam-level, not package-wide.** Validation claims are limited to the committed fixture-backed seams described in [`docs/validation-and-parity.md`](docs/validation-and-parity.md) and [`docs/parity.md`](docs/parity.md).
+- **`KinaseWorkflow` is native first.** It includes an `svm_mode="r_parity"` option for narrower learner-seam comparisons, but the default mode is the preferred Python-native path and is not claimed to numerically match every PhosR result.
+- **The CLI is intentionally small.** It covers the core preprocessing and `predMat`-driven downstream path. The native kinase workflow is currently exposed through the Python API and example script.
+- **R is only required for fixture regeneration.** Running the committed Python test suite does not require R, but regenerating the R reference fixtures does.
 
 ## Install
 
@@ -33,7 +34,8 @@ For tests:
 
 ```bash
 pip install -e ".[test]"
-pytest
+pytest -m "not parity"
+pytest -m parity
 ```
 
 For development checks:
@@ -44,16 +46,10 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-For a full Python-side install:
+### R Requirements for Fixture Regeneration
 
-```bash
-pip install -e ".[full]"
-```
-
-### R Requirements for Fixture Generation
-
-The parity and fixture-generation scripts in `scripts/` also need a working R installation. Python packaging does not
-install these R-side requirements for you.
+The committed parity fixtures are already included in the repository. You only need R when you want to regenerate or extend
+those fixtures.
 
 The current scripts use these R packages:
 
@@ -76,14 +72,14 @@ devtools::install_github("PYangLab/PhosR")
 
 The bundled fixture scripts check for the packages they need and stop with a clear error if anything is missing.
 
-Once both the Python and R dependencies are installed, you can generate the committed R reference fixtures with:
+To regenerate the committed R reference fixtures:
 
 ```bash
 Rscript scripts/generate_r_fixtures.R
 Rscript scripts/generate_r_l6_fixtures.R
 ```
 
-## Quick Start
+## Supported Public API for v1
 
 The supported root-level public API is intentionally small:
 
@@ -91,22 +87,37 @@ The supported root-level public API is intentionally small:
 - `PhosRPipeline`
 - `KinaseActivityAnalyzer`
 - `KinaseWorkflow`
-- result dataclasses returned by those classes
+- result dataclasses returned by those classes:
+  - `CoreProcessingResult`
+  - `SiteMatrixResult`
+  - `CoreOutputs`
+  - `KinaseActivityResult`
+  - `KinasePredictionResult`
+  - `KinaseWorkflowResult`
 
 Examples below use only those supported root imports. Lower-level submodule imports may still exist for internal use and
 testing, but they are not part of the stable public API unless documented here.
+
+## Quick Start
+
+The quickest path is to use the bundled example data under `examples/data/`.
 
 ### Core Preprocessing
 
 ```python
 from phospy import PhosphoDataset
 
-dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
-core = dataset.process_core()
+dataset = PhosphoDataset.from_files(
+    "examples/data/total.tsv",
+    "examples/data/phospho.tsv",
+)
+core = dataset.process_core(max_unmatched_fraction=0.1)
 
 site_matrix = core.site_matrix.matrix
 corrected = core.phospho_corrected
 ```
+
+For the bundled example data, `site_matrix.index.tolist()` is `['BTK;Y551;']`.
 
 If your analysis needs pairwise comparisons, pass them explicitly:
 
@@ -114,11 +125,11 @@ If your analysis needs pairwise comparisons, pass them explicitly:
 from phospy import PhosphoDataset
 
 dataset = PhosphoDataset.from_files(
-    "total.tsv",
-    "phospho.tsv",
+    "examples/data/total.tsv",
+    "examples/data/phospho.tsv",
     comparisons=[("group1", "group4"), ("group2", "group5")],
 )
-core = dataset.process_core()
+core = dataset.process_core(max_unmatched_fraction=0.1)
 ```
 
 ### Downstream Kinase Analysis From `predMat`
@@ -126,16 +137,25 @@ core = dataset.process_core()
 ```python
 from phospy import KinaseActivityAnalyzer, PhosphoDataset
 
-dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
-core = dataset.process_core()
+dataset = PhosphoDataset.from_files(
+    "examples/data/total.tsv",
+    "examples/data/phospho.tsv",
+)
+core = dataset.process_core(max_unmatched_fraction=0.1)
 
-analyzer = KinaseActivityAnalyzer.from_csv("predMat.csv")
-kinase = analyzer.analyze(core.site_matrix.matrix)
+analyzer = KinaseActivityAnalyzer.from_csv("examples/data/predMat.csv")
+kinase = analyzer.analyze(
+    core.site_matrix.matrix,
+    threshold=0.6,
+    min_substrates=1,
+    top_n_substrates=1,
+)
 
-weighted_activity = kinase.weighted_activity
-ksea_scores = kinase.ksea_scores
 target_counts = kinase.target_counts
+ksea_scores = kinase.ksea_scores
 ```
+
+For the bundled example data, `target_counts.to_dict()` is `{'PRKACA': 3, 'BTK': 2}`.
 
 ### End-to-End Pipeline
 
@@ -143,56 +163,25 @@ target_counts = kinase.target_counts
 from phospy import PhosRPipeline
 
 pipeline = PhosRPipeline.from_files(
-    total_path="total.tsv",
-    phospho_path="phospho.tsv",
-    pred_mat_path="predMat.csv",
+    total_path="examples/data/total.tsv",
+    phospho_path="examples/data/phospho.tsv",
+    pred_mat_path="examples/data/predMat.csv",
     max_unmatched_fraction=0.1,
 )
-outputs = pipeline.run(outdir="output")
+outputs = pipeline.run(outdir="examples/output")
 ```
+
+This writes the core CSV outputs plus downstream kinase-analysis tables, including `kinase_target_table.csv`.
 
 ### Native End-to-End Kinase Workflow
 
-The native prediction workflow is included in the base install.
+A complete runnable native-workflow example lives at [`examples/native_workflow_demo.py`](examples/native_workflow_demo.py):
 
-You can run the native workflow through the `KinaseWorkflow` class:
-
-```python
-from phospy import KinaseWorkflow
-
-workflow = KinaseWorkflow()
-result = workflow.run(
-    phospho_matrix=phospho_matrix,
-    substrate_map={
-        "KINASE_A": ["SITE_1", "SITE_2", "SITE_3", "SITE_4"],
-        "KINASE_B": ["SITE_5", "SITE_6", "SITE_7", "SITE_8"],
-    },
-    site_sequences={
-        "SITE_1": "QQAAAAAYY",
-        "SITE_2": "QQAAAAAYY",
-        "SITE_3": "QQAAAAAYY",
-        "SITE_4": "QQAAAAAYY",
-        "SITE_5": "QQTTTTTYY",
-        "SITE_6": "QQTTTTTYY",
-        "SITE_7": "QQTTTTTYY",
-        "SITE_8": "QQTTTTTYY",
-    },
-    motif_sequences={
-        "KINASE_A": ["QQAAAAAYY", "QQAAAAAYY", "QQAAAAAYY"],
-        "KINASE_B": ["QQTTTTTYY", "QQTTTTTYY", "QQTTTTTYY"],
-    },
-    min_substrates=2,
-    min_motif_size=2,
-    top=4,
-    score_threshold=0.75,
-    inclusion=3,
-    random_state=17,
-)
-
-pred_matrix = result.prediction_result.pred_matrix
+```bash
+python examples/native_workflow_demo.py
 ```
 
-For a profile-only fallback path, omit `motif_sequences` and pass `allow_profile_only_fallback=True`.
+That example uses only the supported v1 root API and prints a small prediction matrix for a synthetic two-kinase setup.
 
 ## CLI Demo
 
@@ -213,25 +202,29 @@ The example output directory under `examples/output/` shows the generated CSV fi
 
 `--max-unmatched-fraction` defaults to `0.0`, which means protein correction fails if the inner join would silently drop any phosphosite rows. Raise it only when you deliberately want to allow a bounded amount of row loss.
 
-## Testing and Reference Data
+## Testing, Validation, and Release Gate
 
-The supporting documentation is split by topic:
+The v1 release gate is intentionally simple:
 
-- [`docs/parity.md`](docs/parity.md) explains what parity means here, how to run the fixture-backed suite, and which
-  options affect pytest output
-- [`docs/fixtures.md`](docs/fixtures.md) explains the fixture and trace directories, generation commands, and which
-  outputs are committed reference data
+```bash
+pre-commit run --all-files
+pytest -m "not parity"
+pytest -m parity
+```
+
+That gate covers:
+
+- linting and formatting via `pre-commit`
+- the regular Python test suite, including the documented example smoke test
+- the parity suite against the committed R-backed fixtures
+
+Supporting documentation:
+
+- [`docs/validation-and-parity.md`](docs/validation-and-parity.md) explains the validation layers, release gate, and test commands
+- [`docs/parity.md`](docs/parity.md) explains what parity means here, especially for the native kinase workflow
+- [`docs/fixtures.md`](docs/fixtures.md) explains the fixture and trace directories, generation commands, and which outputs are committed reference data
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) covers local setup, linting, tests, and CI expectations
-
-## Project Status
-
-PhosPy is currently a structured Python package for PhosR-style preprocessing and downstream kinase-analysis summaries.
-It also includes a live R-backed parity harness and a growing native kinase workflow for kinase scoring and prediction.
-
-The public API is now intentionally centered on a small set of documented root-level classes and result types rather than exposing most internal helpers from `phospy` itself.
-
-It is not yet a full Python replacement for PhosR. In particular, parity claims for the newer native workflow should
-stay limited to the fixture-backed seams documented in [`docs/parity.md`](docs/parity.md).
+- [`CHANGELOG.md`](CHANGELOG.md) contains the draft v1 release notes
 
 ## Attribution
 
@@ -246,14 +239,13 @@ Please cite and acknowledge the original PhosR work when using this repository:
   phosphoproteomic data with PhosR*. STAR Protocols, 2(2), 100585.
 - Original R package: `PYangLab/PhosR`
 
-PhosPy should be described as an unofficial port unless and until the original PhosR authors choose to endorse or
-participate in it.
+PhosPy should be described as an unofficial implementation unless and until the original PhosR authors choose to endorse
+or participate in it.
 
 ## License
 
-This repository is distributed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. See [
-`LICENSE`](LICENSE).
+This repository is distributed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. See [`LICENSE`](LICENSE).
 
 That choice is deliberate. PhosR is distributed under GPL-3, and the GNU GPL FAQ treats translation of a program into
 another programming language as a kind of modification or translation under copyright law. This project therefore uses
-GPL-3.0-only as the conservative licensing position for a Python port.
+GPL-3.0-only as the conservative licensing position for a Python implementation of selected PhosR-style workflows.

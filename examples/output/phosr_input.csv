@@ -1,2 +1,2 @@
-proteins,uid,gene_names,gene_p_site,phospho_sty_probabilities,number_of_phospho_sty,localization_prob,score_for_localization,centralized_sequence,p_group1,p_group2,p_group3,p_group4,p_group5,p_group6,genes,group1,group2,group3,group4,group5,group6,phospho_corrected_1,phospho_corrected_2,phospho_corrected_3,phospho_corrected_4,phospho_corrected_5,phospho_corrected_6,p_group1_group4,p_group2_group5,p_group3_group6,p_group1_group2,p_group1_group3,p_group2_group3,p_group4_group5,p_group4_group6,p_group5_group6,gene,p_site,site_id
-Q06187,UID3,BTK,BTK_Y551,0.98,1,0.92,12,CCCCCC,8.0,8.0,8.0,9.0,9.0,9.0,BTK,4.0,4.0,4.0,5.0,5.0,5.0,4.0,4.0,4.0,4.0,4.0,4.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,BTK,Y551,BTK;Y551;
+gene_names,gene,p_site,uid,centralized_sequence,site_id,phospho_corrected_1,phospho_corrected_2,phospho_corrected_3,phospho_corrected_4,phospho_corrected_5,phospho_corrected_6
+BTK,BTK,Y551,UID3,CCCCCC,BTK;Y551;,4.0,4.0,4.0,4.0,4.0,4.0
