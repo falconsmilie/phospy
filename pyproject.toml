@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77.0.3", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,12 +8,12 @@ version = "1.0.0"
 description = "Python-native implementation of selected PhosR-style phosphoproteomics workflows."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { file = "LICENSE" }
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE", "NOTICE.md"]
 keywords = ["phosphoproteomics", "proteomics", "bioinformatics", "phosphorylation", "kinase"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
@@ -35,7 +35,6 @@ Documentation = "https://github.com/falconsmilie/phospy/tree/main/docs"
 Issues = "https://github.com/falconsmilie/phospy/issues"
 Changelog = "https://github.com/falconsmilie/phospy/blob/main/CHANGELOG.md"
 
-#license-files = ["LICENSE", "NOTICE.md"]
 
 [project.optional-dependencies]
 test = [
