@@ -66,7 +66,8 @@ site_matrix = core.site_matrix.matrix
 corrected = core.phospho_corrected
 ```
 
-For the bundled example data, `site_matrix.index.tolist()` is `['BTK;Y551;']`.
+For the bundled example data, `site_matrix.index.tolist()` is `['BTK;Y551;']`. These bundled files are 
+deliberately minimal examples; the analysis is determined by the supplied workflow inputs.
 
 Need explicit pairwise comparisons? Pass them when you build the dataset:
 
@@ -104,7 +105,8 @@ target_counts = kinase.target_counts
 ksea_scores = kinase.ksea_scores
 ```
 
-For the bundled example data, `target_counts.to_dict()` is `{'PRKACA': 3, 'BTK': 2}`.
+For the bundled example data, `target_counts.to_dict()` is `{'PRKACA': 3, 'BTK': 2}`. These bundled files are 
+deliberately minimal examples; the analysis is determined by the supplied `predMat` or workflow inputs.
 
 ### End-to-End Pipeline
 
