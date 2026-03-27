@@ -28,68 +28,6 @@ Install the supported root-level API and the `phospy` CLI.
 pip install phospy
 ```
 
-### Install From Source
-
-Use an editable installation only when you want to work from a local checkout:
-
-```bash
-pip install -e .
-```
-
-### Test Dependencies
-
-To run the test suite from a local checkout:
-
-```bash
-pip install -e ".[test]"
-pytest -m "not parity"
-pytest -m parity
-```
-
-### Development Checks
-
-To run linting and other contributor checks from a local checkout:
-
-```bash
-pip install -e ".[dev]"
-pre-commit install
-pre-commit run --all-files
-```
-
-### R Requirements for Fixture Regeneration
-
-The committed parity fixtures are already included in the repository. You only need R when you want to regenerate or
-extend
-those fixtures.
-
-The current scripts use these R packages:
-
-- `PhosR`
-- `SummarizedExperiment`
-- `e1071`
-- `readr`
-- `dplyr`
-- `tidyr`
-- `tibble`
-- `janitor`
-
-A practical greenfield setup in R is:
-
-```r
-install.packages(c("BiocManager", "devtools", "e1071", "readr", "dplyr", "tidyr", "tibble", "janitor"))
-BiocManager::install("SummarizedExperiment")
-devtools::install_github("PYangLab/PhosR")
-```
-
-The bundled fixture scripts check for the packages they need and stop with a clear error if anything is missing.
-
-To regenerate the committed R reference fixtures:
-
-```bash
-Rscript scripts/generate_r_fixtures.R
-Rscript scripts/generate_r_l6_fixtures.R
-```
-
 ## Supported Public API for 1.0.0
 
 The supported root-level public API is intentionally small:
@@ -99,15 +37,15 @@ The supported root-level public API is intentionally small:
 - `KinaseActivityAnalyzer`
 - `KinaseWorkflow`
 - result dataclasses returned by those classes:
-    - `CoreProcessingResult`
-    - `SiteMatrixResult`
-    - `CoreOutputs`
-    - `KinaseActivityResult`
-    - `KinasePredictionResult`
-    - `KinaseWorkflowResult`
+  - `CoreProcessingResult`
+  - `SiteMatrixResult`
+  - `CoreOutputs`
+  - `KinaseActivityResult`
+  - `KinasePredictionResult`
+  - `KinaseWorkflowResult`
 
-Examples below use only those supported root imports. Lower-level submodule imports may still exist for internal use and
-testing, but they are not part of the stable public API unless documented here.
+The examples below use only those supported root imports. Lower-level submodule imports may still exist for internal use
+and testing, but they are not part of the stable public API unless documented here.
 
 ## Quick Start
 
@@ -186,8 +124,8 @@ This writes the core CSV outputs plus downstream kinase-analysis tables, includi
 
 ### Native End-to-End Kinase Workflow
 
-A complete runnable native-workflow example lives at [
-`examples/native_workflow_demo.py`](examples/native_workflow_demo.py):
+A complete runnable native-workflow example is available at
+[`examples/native_workflow_demo.py`](examples/native_workflow_demo.py):
 
 ```bash
 python examples/native_workflow_demo.py
@@ -200,7 +138,7 @@ setup.
 
 A small synthetic dataset is included.
 
-After installation, you can run:
+After installation, run:
 
 ```bash
 phospy \
@@ -215,6 +153,67 @@ The example output directory under `examples/output/` shows the generated CSV fi
 
 `--max-unmatched-fraction` defaults to `0.0`, which means protein correction fails if the inner join would silently drop
 any phosphosite rows. Raise it only when you deliberately want to allow a bounded amount of row loss.
+
+## Install From Source
+
+Use an editable installation only when you want to work from a local checkout:
+
+```bash
+pip install -e .
+```
+
+### Test Dependencies
+
+To run the test suite from a local checkout:
+
+```bash
+pip install -e ".[test]"
+pytest -m "not parity"
+pytest -m parity
+```
+
+### Development Checks
+
+To run linting and other contributor checks from a local checkout:
+
+```bash
+pip install -e ".[dev]"
+pre-commit install
+pre-commit run --all-files
+```
+
+### R Requirements for Fixture Regeneration
+
+The committed parity fixtures are already included in the repository. You only need R when you want to regenerate or
+extend those fixtures.
+
+The current scripts use these R packages:
+
+- `PhosR`
+- `SummarizedExperiment`
+- `e1071`
+- `readr`
+- `dplyr`
+- `tidyr`
+- `tibble`
+- `janitor`
+
+A practical greenfield setup in R is:
+
+```r
+install.packages(c("BiocManager", "devtools", "e1071", "readr", "dplyr", "tidyr", "tibble", "janitor"))
+BiocManager::install("SummarizedExperiment")
+devtools::install_github("PYangLab/PhosR")
+```
+
+The bundled fixture scripts check for the packages they need and stop with a clear error if anything is missing.
+
+To regenerate the committed R reference fixtures:
+
+```bash
+Rscript scripts/generate_r_fixtures.R
+Rscript scripts/generate_r_l6_fixtures.R
+```
 
 ## Testing, Validation, and Release Gate
 
@@ -245,10 +244,10 @@ Supporting documentation:
 
 ## Roadmap
 
-[`docs/roadmap.md`](docs/roadmap.md) sets out the most credible next steps after 1.0.0. The short version is that
-PhosPy is most likely to grow by extending the native workflow surface already in the repository: CLI support for
-`KinaseWorkflow`, broader seam-level validation around the native workflow, better trace tooling, and carefully chosen
-PhosR-inspired ports that fit the current narrow scope.
+[`docs/roadmap.md`](docs/roadmap.md) sets out the most credible next steps after 1.0.0. In practice, PhosPy is most
+likely to grow by extending the native workflow surface already in the repository: CLI support for `KinaseWorkflow`,
+broader seam-level validation around the native workflow, better trace tooling, and carefully chosen PhosR-inspired
+ports that fit the current narrow scope.
 
 ## Known Limitations
 
@@ -283,8 +282,8 @@ or participate in it.
 
 ## License
 
-This repository is distributed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. See [
-`LICENSE`](LICENSE).
+This repository is distributed under the **GNU General Public License v3.0 only (GPL-3.0-only)**. See
+[`LICENSE`](LICENSE).
 
 That choice is deliberate. PhosR is distributed under GPL-3, and the GNU GPL FAQ treats translation of a program into
 another programming language as a kind of modification or translation under copyright law. This project therefore uses
