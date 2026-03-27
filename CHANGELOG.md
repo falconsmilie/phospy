@@ -1,16 +1,14 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project are documented here.
 
 ## [1.0.0] - 2026-03-26
 
-This is the first supported PhosPy release.
+First supported PhosPy release.
 
 ### Scope
 
-PhosPy 1.0.0 is an unofficial Python implementation of selected PhosR-style workflows for phosphoproteomics.
-
-The supported scope for 1.0.0 is:
+PhosPy 1.0.0 covers:
 
 - core preprocessing from total and phospho inputs to corrected phosphosite matrices
 - downstream kinase analysis from `predMat`
@@ -20,20 +18,20 @@ The supported scope for 1.0.0 is:
 
 ### Added
 
-- an explicit 1.0.0 scope statement in the README
-- a documented supported public API for 1.0.0
-- a dedicated validation and parity guide
-- a public roadmap describing the most likely next expansion areas after 1.0.0
-- a runnable native workflow example script under `examples/native_workflow_demo.py`
-- an end-to-end smoke test covering the documented example pipeline workflow
+- a clear 1.0.0 scope statement in the README
+- a documented supported public API
+- validation and parity guides
+- a public roadmap for the next likely expansion areas
+- a runnable native workflow example at `examples/native_workflow_demo.py`
+- an end-to-end smoke test for the documented example pipeline workflow
 
 ### Changed
 
-- tightened README quickstart examples around the bundled example data
-- clarified `KinaseWorkflow` parity wording in the project docs
+- tightened the README quick-start around the bundled example data
+- clarified `KinaseWorkflow` parity wording across the docs
 - documented the release gate as `pre-commit`, the non-parity suite, and the parity suite
-- refreshed the packaged example outputs so they match current CLI behaviour
-- simplified package metadata to focus on supported 1.0.0 dependencies and extras
+- refreshed the packaged example outputs to match current CLI behaviour
+- simplified package metadata around supported 1.0.0 dependencies and extras
 
 ### Known Limitations
 

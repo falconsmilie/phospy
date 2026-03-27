@@ -1,26 +1,26 @@
 # PhosPy
 
-`PhosPy` 1.0.0 is an unofficial Python implementation of selected PhosR-style workflows for phosphoproteomics. PhosPy is
-a deliberately narrow, Python-native subset with test-backed validation at defined seams. It is **not** presented as a
-full replacement for the R `PhosR` package.
+`PhosPy` 1.0.0 is an unofficial Python implementation of selected PhosR-style workflows for phosphoproteomics.
+It is deliberately narrow: a Python-native subset with test-backed validation at defined seams. It is **not** a full
+replacement for the R `PhosR` package.
 
-## Preprocess Phosphoproteomics Data
+## What PhosPy Covers
+
+### Preprocess Phosphoproteomics Data
 
 Start from total and phospho input tables and produce corrected phosphosite matrices for downstream use.
 
-## Analyse Kinase Activity From `predMat`
+### Analyse Kinase Activity From `predMat`
 
 Generate weighted activity scores, KSEA-style summaries, and target counts from predicted kinase–substrate
 relationships.
 
-## Run a Native Kinase Workflow
+### Run a Native Kinase Workflow
 
 Construct substrate profiles, score motifs, combine evidence, select candidates, and perform adaptive SVM-based kinase
 prediction.
 
 ## Install
-
-### Install From PyPI
 
 Install the supported root-level API and the `phospy` CLI.
 
@@ -44,8 +44,8 @@ The supported root-level public API is intentionally small:
   - `KinasePredictionResult`
   - `KinaseWorkflowResult`
 
-The examples below use only those supported root imports. Lower-level submodule imports may still exist for internal use
-and testing, but they are not part of the stable public API unless documented here.
+The examples below use only those imports. Lower-level submodule imports may still exist for internal use and testing,
+but they are not part of the stable public API unless documented here.
 
 ## Quick Start
 
@@ -68,7 +68,7 @@ corrected = core.phospho_corrected
 
 For the bundled example data, `site_matrix.index.tolist()` is `['BTK;Y551;']`.
 
-If your analysis needs pairwise comparisons, pass them explicitly:
+Need explicit pairwise comparisons? Pass them when you build the dataset:
 
 ```python
 from phospy import PhosphoDataset
@@ -136,8 +136,6 @@ setup.
 
 ## CLI Demo
 
-A small synthetic dataset is included.
-
 After installation, run:
 
 ```bash
@@ -151,10 +149,10 @@ phospy \
 
 The example output directory under `examples/output/` shows the generated CSV files.
 
-`--max-unmatched-fraction` defaults to `0.0`, which means protein correction fails if the inner join would silently drop
-any phosphosite rows. Raise it only when you deliberately want to allow a bounded amount of row loss.
+`--max-unmatched-fraction` defaults to `0.0`. That means protein correction fails if the inner join would silently
+drop any phosphosite rows. Raise it only when you deliberately want to allow a bounded amount of row loss.
 
-## Install From Source
+## Working From Source
 
 Use an editable installation only when you want to work from a local checkout:
 
@@ -162,9 +160,7 @@ Use an editable installation only when you want to work from a local checkout:
 pip install -e .
 ```
 
-### Test Dependencies
-
-To run the test suite from a local checkout:
+To run tests:
 
 ```bash
 pip install -e ".[test]"
@@ -172,9 +168,7 @@ pytest -m "not parity"
 pytest -m parity
 ```
 
-### Development Checks
-
-To run linting and other contributor checks from a local checkout:
+To run the usual contributor checks:
 
 ```bash
 pip install -e ".[dev]"
@@ -182,12 +176,12 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-### R Requirements for Fixture Regeneration
+## R Requirements for Fixture Regeneration
 
 The committed parity fixtures are already included in the repository. You only need R when you want to regenerate or
-extend those fixtures.
+extend them.
 
-The current scripts use these R packages:
+Current R package requirements:
 
 - `PhosR`
 - `SummarizedExperiment`
@@ -198,15 +192,13 @@ The current scripts use these R packages:
 - `tibble`
 - `janitor`
 
-A practical greenfield setup in R is:
+A practical greenfield setup is:
 
 ```r
 install.packages(c("BiocManager", "devtools", "e1071", "readr", "dplyr", "tidyr", "tibble", "janitor"))
 BiocManager::install("SummarizedExperiment")
 devtools::install_github("PYangLab/PhosR")
 ```
-
-The bundled fixture scripts check for the packages they need and stop with a clear error if anything is missing.
 
 To regenerate the committed R reference fixtures:
 
@@ -215,9 +207,9 @@ Rscript scripts/generate_r_fixtures.R
 Rscript scripts/generate_r_l6_fixtures.R
 ```
 
-## Testing, Validation, and Release Gate
+## Validation and Supporting Docs
 
-The 1.0.0 release gate is intentionally simple:
+The 1.0.0 release gate is intentionally small:
 
 ```bash
 pre-commit run --all-files
@@ -225,49 +217,33 @@ pytest -m "not parity"
 pytest -m parity
 ```
 
-That gate covers:
+Helpful follow-on reading:
 
-- linting and formatting via `pre-commit`
-- the regular Python test suite, including the documented example smoke test
-- the parity suite against the committed R-backed fixtures
-
-Supporting documentation:
-
-- [`docs/validation-and-parity.md`](docs/validation-and-parity.md) explains the validation layers, release gate, and
-  test commands
+- [`docs/validation-and-parity.md`](docs/validation-and-parity.md) explains the validation layers and release gate
 - [`docs/parity.md`](docs/parity.md) explains what parity means here, especially for the native kinase workflow
-- [`docs/fixtures.md`](docs/fixtures.md) explains the fixture and trace directories, generation commands, and which
-  outputs are committed reference data
-- [`docs/roadmap.md`](docs/roadmap.md) explains the most likely next expansion areas after 1.0.0
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) covers local setup, linting, tests, and CI expectations
+- [`docs/fixtures.md`](docs/fixtures.md) maps the fixture and trace directories
+- [`docs/roadmap.md`](docs/roadmap.md) outlines the most likely next steps after 1.0.0
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) covers local setup and contribution expectations
 - [`CHANGELOG.md`](CHANGELOG.md) contains the 1.0.0 release notes
-
-## Roadmap
-
-[`docs/roadmap.md`](docs/roadmap.md) sets out the most credible next steps after 1.0.0. In practice, PhosPy is most
-likely to grow by extending the native workflow surface already in the repository: CLI support for `KinaseWorkflow`,
-broader seam-level validation around the native workflow, better trace tooling, and carefully chosen PhosR-inspired
-ports that fit the current narrow scope.
 
 ## Known Limitations
 
-Before you adopt PhosPy, the important boundaries are:
+A few boundaries matter before you adopt PhosPy:
 
 - **Selective scope only.** PhosPy 1.0.0 covers the workflows documented above and nothing broader.
 - **Parity is seam-level, not package-wide.** Validation claims are limited to the committed fixture-backed seams
   described in [`docs/validation-and-parity.md`](docs/validation-and-parity.md) and [`docs/parity.md`](docs/parity.md).
 - **`KinaseWorkflow` is native first.** It includes an `svm_mode="r_parity"` option for narrower learner-seam
-  comparisons, but the default mode is the preferred Python-native path and is not claimed to numerically match every
+  comparison, but the default mode is the preferred Python-native path and is not claimed to numerically match every
   PhosR result.
-- **The CLI is intentionally small.** It covers the core preprocessing and `predMat`-driven downstream path. The native
-  kinase workflow is currently exposed through the Python API and example script.
-- **R is only required for fixture regeneration.** Running the committed Python test suite does not require R, but
-  regenerating the R reference fixtures does.
+- **The CLI is intentionally small.** It covers the core preprocessing and `predMat`-driven downstream path. The
+  native kinase workflow is currently exposed through the Python API and example script.
+- **R is only required for fixture regeneration.** Running the committed Python test suite does not require R.
 
 ## Attribution
 
-All scientific credit for the original methods, package design, and biological workflow belongs to the PhosR authors and
-maintainers.
+All scientific credit for the original methods, package design, and biological workflow belongs to the PhosR authors
+and maintainers.
 
 Please cite and acknowledge the original PhosR work when using this repository:
 
@@ -277,8 +253,8 @@ Please cite and acknowledge the original PhosR work when using this repository:
   phosphoproteomic data with PhosR*. STAR Protocols, 2(2), 100585.
 - Original R package: `PYangLab/PhosR`
 
-PhosPy should be described as an unofficial implementation unless and until the original PhosR authors choose to endorse
-or participate in it.
+PhosPy should be described as an unofficial implementation unless and until the original PhosR authors choose to
+endorse or participate in it.
 
 ## License
 

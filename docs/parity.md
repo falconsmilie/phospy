@@ -1,53 +1,50 @@
 # Parity Notes
 
-This document explains what PhosPy 1.0.0 means by **parity** and where the native kinase workflow fits into that claim.
+This document explains what **parity** means in PhosPy and where the native kinase workflow fits into that claim.
 
-For the broader validation model and the 1.0.0 release gate, start with
+For the bigger picture and the release gate, start with
 [`docs/validation-and-parity.md`](validation-and-parity.md).
 
-## What Parity Means in This Repository
+## What Parity Means
 
-In PhosPy, parity means:
+In this repository, parity means:
 
 - Python outputs are compared against committed reference tables generated from R/PhosR
 - those comparisons are automated in the parity-marked test suite
 - the claim stays limited to the tested seam
 
-Parity is therefore:
+So parity here is:
 
 - fixture-backed
 - seam-level
 - narrower than full package equivalence
 
-It does **not** mean that the repository as a whole is a complete behavioural, numerical, or feature-level replacement
-for PhosR.
+It does **not** mean that PhosPy is a complete behavioural, numerical, or feature-level replacement for PhosR.
 
 ## What the Parity Suite Covers
 
 The current parity layer covers:
 
 - deterministic preprocessing and matrix-building seams backed by small synthetic fixtures
-- downstream kinase-analysis summaries backed by R-generated fixtures
-- selected native kinase workflow seams backed by committed L6 reference tables
-- seam-level prediction debugging through committed R and Python trace exports
-- a committed curated fragile-support dataset used to widen evidence beyond the main L6 path
+- downstream kinase-analysis summaries backed by committed R-generated fixtures
+- selected native workflow seams backed by committed L6 reference tables
+- prediction-stage debugging through committed R and Python trace exports
+- a curated fragile-support dataset used to widen evidence beyond the main L6 path
 
 For fixture and trace directory details, see [`docs/fixtures.md`](fixtures.md).
 
 ## `KinaseWorkflow` and Parity
 
-`KinaseWorkflow` is part of the supported 1.0.0 public API.
+`KinaseWorkflow` is part of the supported 1.0.0 public API, but that does **not** turn the whole workflow into a broad
+PhosR-equivalence claim.
 
-That does **not** turn the whole workflow into a blanket PhosR-equivalence claim.
-
-The current parity wording for `KinaseWorkflow` is:
+The practical wording is:
 
 - PhosPy provides a native Python workflow for profile construction, motif scoring, score combination, candidate
   selection, and adaptive SVM prediction.
 - The repository includes fixture-backed validation for selected seams within that workflow.
 - `svm_mode="r_parity"` is available when you want a closer comparison to the PhosR learner seam.
-- The default `svm_mode="default"` remains the preferred Python-native mode and should not be described as numerically
-  identical to PhosR across all datasets or settings.
+- The default `svm_mode="default"` is still the preferred Python-native mode.
 
 ## Running the Parity Suite
 
@@ -55,130 +52,35 @@ The current parity wording for `KinaseWorkflow` is:
 pytest -m parity
 ```
 
-Useful variations:
+A few useful variations:
 
 ```bash
 pytest -m parity -rs
 pytest -m parity -vv
 pytest -m parity --maxfail=1
 pytest -m parity -k l6
-pytest -m parity --collect-only -q
 ```
 
-## Optional Diagnostic Output
+## Optional Trace Regeneration
 
-The metrics-oriented parity tests can print extra diagnostic output through environment variables.
+Most users do not need this. It is mainly useful when you are debugging a divergence between the committed R traces and
+Python prediction behaviour.
 
-### Base Switch for Parity Metrics
+Regenerate the committed R fixture sets:
 
 ```bash
-PHOSPY_SHOW_PARITY=1 pytest -m parity -s
+Rscript scripts/generate_r_fixtures.R
+Rscript scripts/generate_r_l6_fixtures.R
 ```
 
-<details>
-<summary>Windows (PowerShell)</summary>
-
-```powershell
-$env:PHOSPY_SHOW_PARITY=1
-pytest -m parity -s
-```
-
-</details>
-
-### Profile-Construction Metrics
-
-```bash
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 pytest -m parity -s
-```
-
-<details>
-<summary>Windows (PowerShell)</summary>
-
-```powershell
-$env:PHOSPY_SHOW_PARITY=1
-$env:PHOSPY_SHOW_PROFILE_CONSTRUCTION=1
-pytest -m parity -s
-```
-
-</details>
-
-### Prediction-Mode Comparison Metrics
-
-```bash
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
-```
-
-<details>
-<summary>Windows (PowerShell)</summary>
-
-```powershell
-$env:PHOSPY_SHOW_PARITY=1
-$env:PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1
-pytest -m parity -s
-```
-
-</details>
-
-### Replayed Prediction-Mode Comparison Metrics
-
-```bash
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
-```
-
-<details>
-<summary>Windows (PowerShell)</summary>
-
-```powershell
-$env:PHOSPY_SHOW_PARITY=1
-$env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1
-pytest -m parity -s
-```
-
-</details>
-
-## Regenerating the Python-Side Prediction Trace
-
-This is useful for seam debugging and trace comparison, but it is **not required** for the parity suite itself.
+Regenerate the committed Python trace exports:
 
 ```bash
 python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1,MAPK1 --svm-mode r_parity --debug-top-n 10 --outdir tests/fixtures/python_reference_l6/prediction_trace
 ```
 
-If you want Python to replay the committed R sampling rows so the remaining delta is model-side only:
+Replay the R sampling rows in Python:
 
 ```bash
 python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1,MAPK1 --svm-mode r_parity --sampling-trace-dir tests/fixtures/r_reference_l6/prediction_trace --outdir tests/fixtures/python_reference_l6/prediction_trace
 ```
-
-## Clean Regeneration Flow
-
-```bash
-rm -rf tests/fixtures/r_reference
-rm -rf tests/fixtures/r_reference_l6
-rm -rf tests/fixtures/python_reference_l6/prediction_trace
-
-Rscript scripts/generate_r_fixtures.R
-Rscript scripts/generate_r_l6_fixtures.R
-
-python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1,MAPK1 --svm-mode r_parity --debug-top-n 10 --outdir tests/fixtures/python_reference_l6/prediction_trace
-
-pytest
-```
-
-<details>
-<summary>Windows (PowerShell)</summary>
-
-```powershell
-Remove-Item -Recurse -Force tests\fixtures\r_reference -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force tests\fixtures\r_reference_l6 -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force tests\fixtures\python_reference_l6\prediction_trace -ErrorAction SilentlyContinue
-
-Rscript scripts/generate_r_fixtures.R
-Rscript scripts/generate_r_l6_fixtures.R
-
-python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1,MAPK1 --svm-mode r_parity --debug-top-n 10 --outdir tests/fixtures/python_reference_l6/prediction_trace
-
-pytest
-```
-
-</details>

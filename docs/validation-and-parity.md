@@ -1,56 +1,41 @@
-# Validation and Parity Guide
+# Validation and Parity
 
-This document is the practical entry point for understanding what PhosPy validates, what its current parity claims
-actually mean, and which checks form the 1.0.0 release gate.
+This is the quickest guide to what PhosPy validates and what its current parity claim actually means.
 
-## Validation Layers
+## The Three Checks That Matter
 
-PhosPy uses three complementary layers of evidence.
+PhosPy uses three practical layers of evidence.
 
-### 1. Core Python Tests
+### 1. Non-Parity Tests
 
-These tests do not depend on R.
-
-They cover:
-
-- schema and request validation
-- preprocessing rules
-- matrix construction
-- public API behaviour
-- native workflow components
-- the documented example smoke path
-
-Run them with:
+These tests do not depend on R. They cover core package behaviour, validation rules, preprocessing, native workflow
+components, and the documented example smoke path.
 
 ```bash
 pytest -m "not parity"
 ```
 
-### 2. Fixture-Backed Parity Tests
+### 2. Parity Tests
 
-These tests compare Python outputs against committed reference tables generated from R/PhosR.
+These tests compare Python outputs against committed R/PhosR-generated reference tables.
 
-They cover selected seams rather than the package as a whole.
-
-Run them with:
+The claim is deliberately narrow: parity is asserted only for the tested seam.
 
 ```bash
 pytest -m parity
 ```
 
-### 3. Lint and Formatting Checks
+### 3. Lint and Formatting
 
 These checks keep the release surface tidy and consistent.
 
-Run them with:
-
 ```bash
 pre-commit run --all-files
 ```
 
-## 1.0.0 Release Gate
+## Release Gate for 1.0.0
 
-PhosPy 1.0.0 is ready to cut when all three checks are green from a clean checkout:
+From a clean checkout, the 1.0.0 release gate is simply:
 
 ```bash
 pre-commit run --all-files
@@ -58,31 +43,31 @@ pytest -m "not parity"
 pytest -m parity
 ```
 
-That is the whole gate. Anything beyond that is useful, but not required for the basic 1.0.0 release contract.
+That is the whole gate.
 
 ## What Parity Means Here
 
-Parity in PhosPy means:
+In PhosPy, parity means:
 
 - committed fixtures exist for the seam being discussed
-- automated tests compare the Python result against those fixtures
-- the corresponding documentation names the seam and keeps the claim narrow
+- automated tests compare Python results against those fixtures
+- the claim stays limited to that seam
 
 Parity does **not** mean:
 
 - the whole package is numerically identical to PhosR
-- every PhosR option, corner case, or workflow branch is implemented
+- every PhosR option or workflow branch is implemented
 - every native Python path should match the R implementation exactly
 
-## `KinaseWorkflow` Parity Wording
+## `KinaseWorkflow` and Parity
 
-`KinaseWorkflow` is part of the supported 1.0.0 API. `KinaseWorkflow` is a **native Python workflow** for profile
-construction, motif scoring, score combination, candidate selection, and adaptive SVM prediction. PhosPy includes *
-*fixture-backed validation at selected seams** of that workflow. `svm_mode="r_parity"` exists for narrower learner-seam
-comparison against committed references. The default `svm_mode="default"` is the preferred Python-native path and is *
-*not** a claim of package-wide numerical equivalence to PhosR.
+`KinaseWorkflow` is part of the supported 1.0.0 API, but it is still a **native Python workflow**.
 
-## Typical Test Commands
+PhosPy includes fixture-backed validation at selected seams within that workflow. `svm_mode="r_parity"` exists for a
+narrower learner-seam comparison against committed references. The default `svm_mode="default"` remains the preferred
+Python-native path and is **not** a claim of package-wide numerical equivalence to PhosR.
+
+## Typical Commands
 
 From the repo root:
 
@@ -95,9 +80,7 @@ pytest -m parity
 pytest
 ```
 
-`pytest` runs the whole collected suite. The split commands are more useful when you want to keep the release gate easy
-to
-reason about.
+Use the split commands when you want the release gate to stay easy to reason about.
 
 ## Regenerating R Fixtures
 
@@ -108,4 +91,4 @@ Rscript scripts/generate_r_fixtures.R
 Rscript scripts/generate_r_l6_fixtures.R
 ```
 
-For fixture and trace directory details, see [`docs/fixtures.md`](fixtures.md).
+For the fixture and trace directory layout, see [`docs/fixtures.md`](fixtures.md).

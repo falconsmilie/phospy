@@ -1,47 +1,25 @@
-# Fixture and Trace Directory Guide
+# Fixtures and Traces
 
-This document is the single source of truth for the fixture and trace directories used in PhosPy.
+This page is the quick map for the fixture and trace directories used in PhosPy.
 
-Unless otherwise noted, commands below assume:
+Unless noted otherwise, commands assume:
 
-- **Linux**
-- **repo root**
+- the repo root
+- Linux or macOS
 - a shell that understands standard `bash` syntax
 
-macOS uses the same commands unless a section says otherwise. Windows is only shown where the syntax changes.
+## `tests/fixtures/r_reference`
 
-## Directory Map
+Small synthetic R-backed fixtures for deterministic preprocessing, site-matrix construction, and the current
+downstream wrapper flow.
 
-### Small Synthetic R Fixtures
-
-**Directory**
-
-```text
-tests/fixtures/r_reference
-```
-
-**Purpose**
-
-- deterministic preprocessing parity checks
-- site-matrix construction parity checks
-- regression protection around the current downstream wrapper flow
-
-**Generate**
+Generate them with:
 
 ```bash
 Rscript scripts/generate_r_fixtures.R
 ```
 
-**Optional Explicit Paths**
-
-```bash
-Rscript scripts/generate_r_fixtures.R \
-  --total examples/data/total.tsv \
-  --phospho examples/data/phospho.tsv \
-  --outdir tests/fixtures/r_reference
-```
-
-**Key Outputs**
+Key files include:
 
 ```text
 df_total_unique.csv
@@ -56,41 +34,20 @@ kinase_activity_matrix.csv
 ksea_scores.csv
 ksea_counts.csv
 kinase_target_counts.csv
-sessionInfo.txt
 ```
 
-**Contract Status**
+## `tests/fixtures/r_reference_l6`
 
-- committed reference data
-- part of the parity contract
+Committed R-backed references for the bundled L6 dataset. This directory supports downstream kinase-analysis parity and
+selected native workflow seams.
 
-### Bundled PhosR L6 R Fixtures
-
-**Directory**
-
-```text
-tests/fixtures/r_reference_l6
-```
-
-**Purpose**
-
-- downstream kinase-analysis parity checks on a more realistic dataset
-- committed R-side reference tables for native workflow seams
-
-**Generate**
+Generate them with:
 
 ```bash
 Rscript scripts/generate_r_l6_fixtures.R
 ```
 
-**Optional Explicit Output Path**
-
-```bash
-Rscript scripts/generate_r_l6_fixtures.R \
-  --outdir tests/fixtures/r_reference_l6
-```
-
-**Key Outputs**
+Key files include:
 
 ```text
 l6_phospho_matrix.csv
@@ -100,7 +57,6 @@ kinase_activity_matrix.csv
 ksea_scores.csv
 ksea_counts.csv
 kinase_target_counts.csv
-sessionInfo.txt
 native_substrate_map.csv
 native_profile_matrix.csv
 native_profile_scores.csv
@@ -112,32 +68,18 @@ native_candidate_substrates.csv
 native_prediction_top30.csv
 ```
 
-**Contract Status**
+## `tests/fixtures/fragile_support_reference`
 
-- committed reference data
-- part of the parity contract
+A curated reference dataset used to widen evidence beyond the main L6 path and to stress native-workflow decision
+boundaries.
 
-### Curated Fragile-Support Reference Dataset
-
-**Directory**
-
-```text
-tests/fixtures/fragile_support_reference
-```
-
-**Purpose**
-
-- widen evidence beyond the main L6 reference path
-- stress native-workflow decision fragility with mixed support and smaller candidate pools
-- provide a compact curated dataset for future seam expansion
-
-**Generate**
+Generate it with:
 
 ```bash
 python scripts/generate_fragile_support_reference.py
 ```
 
-**Key Outputs**
+Key files include:
 
 ```text
 phospho_matrix.csv
@@ -156,121 +98,47 @@ screening_summary.csv
 README.md
 ```
 
-**Contract Status**
+## `tests/fixtures/r_reference_l6/prediction_trace`
 
-- committed curated reference data
-- not part of the current R-backed parity contract
-- intended for widening evidence and future seam-focused parity work
+Committed R prediction traces for seam-level debugging of the prediction stage.
 
-### Committed R Prediction Traces
-
-**Directory**
-
-```text
-tests/fixtures/r_reference_l6/prediction_trace
-```
-
-**Purpose**
-
-- seam-level debugging of the prediction stage
-- direct comparison against Python trace exports
-
-**Generate**
+Generate them with:
 
 ```bash
-Rscript scripts/generate_r_l6_fixtures.R \
-  --outdir tests/fixtures/r_reference_l6 \
-  --trace_kinases PRKAA1,MAPK1 \
-  --trace_top_n 10
+Rscript scripts/generate_r_l6_fixtures.R --outdir tests/fixtures/r_reference_l6 --trace_kinases PRKAA1,MAPK1 --trace_top_n 10
 ```
 
-**Key Outputs**
+## `tests/fixtures/python_reference_l6/prediction_trace`
 
-```text
-trace_candidates.csv
-trace_initial_negatives.csv
-trace_iteration_probabilities.csv
-trace_iteration_samples.csv
-trace_final_ensemble_predictions.csv
-trace_final_ensemble_top.csv
-```
+Committed Python prediction traces used alongside the R traces.
 
-**Contract Status**
-
-- committed reference traces
-- part of the seam-level parity story
-- not a standalone claim of full workflow parity
-
-### Committed Python Prediction Traces
-
-**Directory**
-
-```text
-tests/fixtures/python_reference_l6/prediction_trace
-```
-
-**Purpose**
-
-- direct comparison against the committed R prediction traces
-- seam-level inspection of learner-stage differences
-
-**Generate**
+Generate them with:
 
 ```bash
 python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1,MAPK1 --svm-mode r_parity --debug-top-n 10 --outdir tests/fixtures/python_reference_l6/prediction_trace
 ```
 
-**Replay the R Sampling Rows**
+Replay the R sampling rows in Python with:
 
 ```bash
 python scripts/export_python_prediction_traces.py --trace-kinases PRKAA1,MAPK1 --svm-mode r_parity --sampling-trace-dir tests/fixtures/r_reference_l6/prediction_trace --outdir tests/fixtures/python_reference_l6/prediction_trace
 ```
 
-**Key Outputs**
+## `tmp_trace_out`
 
-```text
-trace_candidates.csv
-trace_initial_negatives.csv
-trace_iteration_probabilities.csv
-trace_iteration_samples.csv
-trace_final_ensemble_predictions.csv
-trace_final_ensemble_top.csv
-```
+Scratch output for temporary debugging runs. This directory is not part of the committed parity contract unless you
+deliberately promote something into a fixture path.
 
-**Contract Status**
-
-- committed Python reference traces
-- part of the seam-level parity story
-
-### Temporary Python Trace Output
-
-**Directory**
-
-```text
-tmp_trace_out
-```
-
-**Purpose**
-
-- short-lived debugging output
-- investigation-specific trace runs
-- scratch space before promotion into committed fixture paths
-
-**Typical Use**
+Typical use:
 
 ```bash
 python scripts/export_python_prediction_traces.py --trace-kinases MAPK1 --svm-mode r_parity --sampling-trace-dir tests/fixtures/r_reference_l6/prediction_trace --outdir tmp_trace_out
 ```
 
-**Contract Status**
+# Promotion Rule
 
-- not committed reference data by default
-- not part of the parity contract unless deliberately promoted
+If temporary debugging output reveals a stable and useful new seam:
 
-## Promotion Rule
-
-When temporary debugging output reveals an important new seam or a stable comparison case:
-
-1. promote the relevant outputs into an appropriate committed fixture directory
+1. promote the relevant files into a committed fixture directory
 2. update the related tests
-3. update this file or [`docs/parity.md`](parity.md) if the documented scope has changed
+3. update this page or [`docs/parity.md`](parity.md) if the documented scope changes
