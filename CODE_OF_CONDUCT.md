@@ -17,7 +17,7 @@ Examples of behaviour that contribute to a positive environment include:
 - being respectful in disagreement and discussion
 - assuming good faith and asking for clarification before escalating
 - giving constructive, specific, and technically grounded feedback
-- being welcoming to newcomers and people still learning
+- being welcoming to newcomers and people who are still learning
 - accepting that others may have different perspectives, priorities, and workflows
 - focusing discussion on improving the project
 - showing courtesy and professionalism in all project interactions
@@ -48,8 +48,8 @@ If you experience or witness behaviour that violates this Code of Conduct, pleas
 
 shane @ rededitor dot net
 
-Reports will be reviewed as promptly and fairly as possible. Please include any relevant context, links, screenshots, or
-other information that may help with review.
+Reports will be reviewed as promptly and fairly as possible. Please include any relevant context, links, screenshots,
+or other information that may help with review.
 
 ## Enforcement
 

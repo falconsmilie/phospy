@@ -2,7 +2,9 @@
 
 Thank you for your interest in contributing to PhosPy.
 
-PhosPy 1.0.0 is intentionally narrow: it supports the documented preprocessing, `predMat`-driven kinase-analysis, and native `KinaseWorkflow` paths. The clearest way to help is to keep changes small, well-tested, and easy to review.
+PhosPy 1.0.0 is intentionally narrow. It supports the documented preprocessing, `predMat`-driven kinase-analysis,
+and native `KinaseWorkflow` paths. The clearest way to help is to keep changes small, well tested, and easy to
+review.
 
 ## Development Setup
 
@@ -67,7 +69,8 @@ pytest -m "not parity"
 pytest -m parity
 ```
 
-The non-parity suite includes the documented example smoke workflow. The parity suite covers the committed R-backed seams.
+The non-parity suite includes the documented example smoke workflow. The parity suite covers the committed R-backed
+seams.
 
 ## CI Expectations
 
