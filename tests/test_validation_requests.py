@@ -109,3 +109,22 @@ def test_kinase_workflow_request_rejects_plain_site_sequence_lists() -> None:
             site_sequences=["QQAAAAAYY"],
             motif_sequences={"KINASE_A": ["QQAAAAAYY"]},
         )
+
+
+def test_core_pipeline_request_accepts_explicit_sentinel_configuration(
+    tmp_path,
+) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    total_path.write_text("genes\tgroup1\nPRKACA\t1\n")
+    phospho_path.write_text("uid\tgene_names\n1\tPRKACA\n")
+
+    request = CorePipelineRequest.validate_request(
+        total_path=total_path,
+        phospho_path=phospho_path,
+        total_sentinel=99.0,
+        phospho_sentinel=88.0,
+    )
+
+    assert request.total_sentinel == 99.0
+    assert request.phospho_sentinel == 88.0

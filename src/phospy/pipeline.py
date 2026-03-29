@@ -8,9 +8,10 @@ import pandas as pd
 
 from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
 from .constants import ComparisonSpec
-from .dataset import CoreProcessingResult, PhosphoDataset
+from .dataset import CorePreprocessingConfig, CoreProcessingResult, PhosphoDataset
 from .io import load_phospho_table, load_pred_mat, load_total_table
 from .validation.requests import CorePipelineRequest
+from .writers import CoreProcessingWriter, KinaseActivityWriter
 
 
 @dataclass(slots=True)
@@ -29,12 +30,23 @@ class PhosRPipeline:
         localization_threshold: float = 0.75,
         min_observed: int = 4,
         max_unmatched_fraction: float = 0.0,
+        total_sentinel: float = 10.0,
+        phospho_sentinel: float = 12.0,
     ) -> None:
         self.dataset = dataset
         self.pred_mat = pred_mat.copy() if pred_mat is not None else None
+        self.preprocessing_config = CorePreprocessingConfig(
+            localization_threshold=localization_threshold,
+            min_observed=min_observed,
+            max_unmatched_fraction=max_unmatched_fraction,
+            total_sentinel=total_sentinel,
+            phospho_sentinel=phospho_sentinel,
+        )
         self.localization_threshold = localization_threshold
         self.min_observed = min_observed
         self.max_unmatched_fraction = max_unmatched_fraction
+        self.total_sentinel = total_sentinel
+        self.phospho_sentinel = phospho_sentinel
 
     @classmethod
     def from_request(cls, request: CorePipelineRequest) -> PhosRPipeline:
@@ -57,6 +69,8 @@ class PhosRPipeline:
             localization_threshold=request.localization_threshold,
             min_observed=request.min_observed,
             max_unmatched_fraction=request.max_unmatched_fraction,
+            total_sentinel=request.total_sentinel,
+            phospho_sentinel=request.phospho_sentinel,
         )
 
     @classmethod
@@ -70,6 +84,8 @@ class PhosRPipeline:
         localization_threshold: float = 0.75,
         min_observed: int = 4,
         max_unmatched_fraction: float = 0.0,
+        total_sentinel: float = 10.0,
+        phospho_sentinel: float = 12.0,
     ) -> PhosRPipeline:
         request = CorePipelineRequest.validate_request(
             total_path=Path(total_path),
@@ -79,24 +95,22 @@ class PhosRPipeline:
             comparisons=tuple(comparisons) if comparisons is not None else None,
             localization_threshold=localization_threshold,
             min_observed=min_observed,
+            total_sentinel=total_sentinel,
+            phospho_sentinel=phospho_sentinel,
             max_unmatched_fraction=max_unmatched_fraction,
         )
         return cls.from_request(request)
 
     def run(self, outdir: str | Path | None = None) -> CoreOutputs:
-        core = self.dataset.process_core(
-            localization_threshold=self.localization_threshold,
-            min_observed=self.min_observed,
-            max_unmatched_fraction=self.max_unmatched_fraction,
-        )
+        core = self.dataset.process_core(config=self.preprocessing_config)
         if outdir is not None:
-            self.dataset.write_core_outputs(core, outdir)
+            CoreProcessingWriter.write(core, outdir)
 
         kinase_activity = None
         if self.pred_mat is not None:
             analyzer = KinaseActivityAnalyzer(self.pred_mat)
             kinase_activity = analyzer.analyze(core.site_matrix.matrix)
             if outdir is not None:
-                analyzer.write_outputs(kinase_activity, outdir)
+                KinaseActivityWriter.write(kinase_activity, outdir)
 
         return CoreOutputs(core=core, kinase_activity=kinase_activity)

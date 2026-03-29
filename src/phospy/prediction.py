@@ -2,19 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 import numpy as np
 import pandas as pd
 
 from .scoring import KinaseScoringResult
+from .types import PredictionSvmMode
 from .validation.errors import (
     InputCompatibilityError,
     PhospyValidationError,
     TableSchemaError,
 )
-
-PredictionSvmMode = Literal["default", "r_parity"]
 
 
 @dataclass(slots=True)

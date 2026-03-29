@@ -28,6 +28,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Minimum number of observed values required per row.",
     )
     parser.add_argument(
+        "--total-sentinel",
+        type=float,
+        default=10.0,
+        help="Sentinel value to treat as missing in the total proteome table.",
+    )
+    parser.add_argument(
+        "--phospho-sentinel",
+        type=float,
+        default=12.0,
+        help="Sentinel value to treat as missing in the phosphoproteome table.",
+    )
+    parser.add_argument(
         "--max-unmatched-fraction",
         type=float,
         default=0.0,
@@ -50,6 +62,8 @@ def main() -> None:
             pred_mat_path=args.pred_mat,
             localization_threshold=args.localization_threshold,
             min_observed=args.min_observed,
+            total_sentinel=args.total_sentinel,
+            phospho_sentinel=args.phospho_sentinel,
             max_unmatched_fraction=args.max_unmatched_fraction,
         )
     except RequestValidationError as error:

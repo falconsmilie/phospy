@@ -9,7 +9,9 @@ import pandas as pd
 from .constants import (
     DEFAULT_CORRECTED_COLS,
     DEFAULT_PHOSPHO_COLS,
+    DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_COLS,
+    DEFAULT_TOTAL_SENTINEL,
     ComparisonSpec,
 )
 from .io import load_phospho_table, load_total_table
@@ -26,6 +28,15 @@ from .validation.compatibility import (
     validate_protein_correction_inputs,
 )
 from .validation.tables import PhosphoInputSchema, SiteMatrixSchema, TotalInputSchema
+
+
+@dataclass(frozen=True, slots=True)
+class CorePreprocessingConfig:
+    localization_threshold: float = 0.75
+    min_observed: int = 4
+    total_sentinel: float = DEFAULT_TOTAL_SENTINEL
+    phospho_sentinel: float = DEFAULT_PHOSPHO_SENTINEL
+    max_unmatched_fraction: float = 0.0
 
 
 @dataclass(slots=True)
@@ -91,7 +102,7 @@ class PhosphoDataset:
     def prepare_total(
         self,
         gene_col: str = "genes",
-        sentinel: float | int = 10,
+        sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
         min_observed: int = 4,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         total = self.total_df.copy()
@@ -112,7 +123,7 @@ class PhosphoDataset:
         uid_col: str = "uid",
         localization_col: str = "localization_prob",
         localization_threshold: float = 0.75,
-        sentinel: float | int = 12,
+        sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
         min_observed: int = 4,
     ) -> pd.DataFrame:
         phospho = self.phospho_df.copy()
@@ -135,7 +146,6 @@ class PhosphoDataset:
         total_df: pd.DataFrame,
         phospho_gene_col: str = "gene_names",
         total_gene_col: str = "genes",
-        output_prefix: str = "phospho_corrected_",
         max_unmatched_fraction: float = 0.0,
     ) -> pd.DataFrame:
         validate_protein_correction_inputs(
@@ -154,7 +164,7 @@ class PhosphoDataset:
             total_gene_col=total_gene_col,
             phospho_cols=self.phospho_cols,
             protein_cols=self.total_cols,
-            output_prefix=output_prefix,
+            corrected_cols=self.corrected_cols,
         )
 
     def add_pairwise_comparisons(
@@ -202,16 +212,30 @@ class PhosphoDataset:
         localization_threshold: float = 0.75,
         min_observed: int = 4,
         max_unmatched_fraction: float = 0.0,
+        total_sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
+        phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
+        config: CorePreprocessingConfig | None = None,
     ) -> CoreProcessingResult:
-        total_unique, total_filtered = self.prepare_total(min_observed=min_observed)
-        phospho_filtered = self.prepare_phospho(
+        resolved = config or CorePreprocessingConfig(
             localization_threshold=localization_threshold,
             min_observed=min_observed,
+            total_sentinel=float(total_sentinel),
+            phospho_sentinel=float(phospho_sentinel),
+            max_unmatched_fraction=max_unmatched_fraction,
+        )
+        total_unique, total_filtered = self.prepare_total(
+            min_observed=resolved.min_observed,
+            sentinel=resolved.total_sentinel,
+        )
+        phospho_filtered = self.prepare_phospho(
+            localization_threshold=resolved.localization_threshold,
+            min_observed=resolved.min_observed,
+            sentinel=resolved.phospho_sentinel,
         )
         phospho_corrected = self.correct_to_protein(
             phospho_filtered,
             total_filtered,
-            max_unmatched_fraction=max_unmatched_fraction,
+            max_unmatched_fraction=resolved.max_unmatched_fraction,
         )
         phospho_corrected = self.add_pairwise_comparisons(phospho_corrected)
         site_matrix = self.build_site_matrix(phospho_corrected)
@@ -225,16 +249,6 @@ class PhosphoDataset:
 
     @staticmethod
     def write_core_outputs(result: CoreProcessingResult, outdir: str | Path) -> None:
-        outdir = Path(outdir)
-        outdir.mkdir(parents=True, exist_ok=True)
-        result.total_unique.to_csv(outdir / "df_total_unique.csv", index=False)
-        result.total_filtered.to_csv(outdir / "df_total_filtered.csv", index=False)
-        result.phospho_filtered.to_csv(outdir / "df_phospho_filtered.csv", index=False)
-        result.phospho_corrected.to_csv(
-            outdir / "df_phospho_corrected.csv", index=False
-        )
-        result.site_matrix.phosr_input.to_csv(outdir / "phosr_input.csv", index=False)
-        result.site_matrix.matrix.to_csv(outdir / "mat_phospho_corrected.csv")
-        result.site_matrix.sequences.rename("centralized_sequence").to_csv(
-            outdir / "site_sequences.csv"
-        )
+        from .writers import CoreProcessingWriter
+
+        CoreProcessingWriter.write(result, outdir)

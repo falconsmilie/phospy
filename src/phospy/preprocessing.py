@@ -58,10 +58,21 @@ def correct_phospho_to_protein(
     total_gene_col: str,
     phospho_cols: Sequence[str],
     protein_cols: Sequence[str],
+    corrected_cols: Sequence[str] | None = None,
     output_prefix: str = "phospho_corrected_",
 ) -> pd.DataFrame:
     if len(phospho_cols) != len(protein_cols):
         raise ValueError("phospho_cols and protein_cols must have the same length")
+
+    resolved_corrected_cols = (
+        list(corrected_cols)
+        if corrected_cols is not None
+        else [f"{output_prefix}{idx}" for idx in range(1, len(phospho_cols) + 1)]
+    )
+    if len(resolved_corrected_cols) != len(phospho_cols):
+        raise ValueError(
+            "corrected_cols must have the same length as phospho_cols and protein_cols"
+        )
 
     if df_total[total_gene_col].duplicated().any():
         msg = (
@@ -80,11 +91,13 @@ def correct_phospho_to_protein(
     if total_gene_col != phospho_gene_col and total_gene_col in merged.columns:
         merged = merged.drop(columns=[total_gene_col])
 
-    for idx, (p_col, t_col) in enumerate(
-        zip(phospho_cols, protein_cols, strict=True),
-        start=1,
+    for corrected_col, p_col, t_col in zip(
+        resolved_corrected_cols,
+        phospho_cols,
+        protein_cols,
+        strict=True,
     ):
-        merged[f"{output_prefix}{idx}"] = merged[p_col] - merged[t_col]
+        merged[corrected_col] = merged[p_col] - merged[t_col]
 
     return merged
 

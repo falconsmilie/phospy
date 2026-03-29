@@ -200,3 +200,84 @@ def test_pipeline_propagates_max_unmatched_fraction(tmp_path) -> None:
 
     assert outputs.core.phospho_corrected.shape[0] == 1
     assert pipeline.max_unmatched_fraction == 0.5
+
+
+def test_phospho_dataset_honours_custom_corrected_columns() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        corrected_cols=[
+            "sample_a",
+            "sample_b",
+            "sample_c",
+            "sample_d",
+            "sample_e",
+            "sample_f",
+        ],
+    )
+
+    total_unique, total_filtered = dataset.prepare_total()
+    phospho_filtered = dataset.prepare_phospho()
+    corrected = dataset.correct_to_protein(phospho_filtered, total_filtered)
+
+    expected = {"sample_a", "sample_b", "sample_c", "sample_d", "sample_e", "sample_f"}
+    assert expected.issubset(corrected.columns)
+    assert "phospho_corrected_1" not in corrected.columns
+
+
+def test_pipeline_propagates_sentinel_configuration(tmp_path) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [99.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [99.0],
+            "p_group2": [7.0],
+            "p_group3": [6.0],
+            "p_group4": [5.0],
+            "p_group5": [4.0],
+            "p_group6": [3.0],
+        }
+    )
+    total_df.to_csv(total_path, sep="	", index=False)
+    phospho_df.to_csv(phospho_path, sep="	", index=False)
+
+    pipeline = PhosRPipeline.from_files(
+        total_path=total_path,
+        phospho_path=phospho_path,
+        min_observed=5,
+        total_sentinel=99.0,
+        phospho_sentinel=99.0,
+    )
+
+    total_unique, total_filtered = pipeline.dataset.prepare_total(
+        sentinel=pipeline.total_sentinel,
+        min_observed=pipeline.min_observed,
+    )
+    phospho_filtered = pipeline.dataset.prepare_phospho(
+        localization_threshold=pipeline.localization_threshold,
+        sentinel=pipeline.phospho_sentinel,
+        min_observed=pipeline.min_observed,
+    )
+
+    assert pipeline.total_sentinel == 99.0
+    assert pipeline.phospho_sentinel == 99.0
+    assert total_unique.shape[0] == 1
+    assert pd.isna(total_filtered.iloc[0]["group1"])
+    assert pd.isna(phospho_filtered.iloc[0]["p_group1"])

@@ -102,10 +102,6 @@ class KinaseActivityAnalyzer:
 
     @staticmethod
     def write_outputs(result: KinaseActivityResult, outdir: str | Path) -> None:
-        outdir = Path(outdir)
-        outdir.mkdir(parents=True, exist_ok=True)
-        result.weighted_activity.to_csv(outdir / "kinase_activity_matrix.csv")
-        result.ksea_scores.to_csv(outdir / "ksea_scores.csv")
-        result.ksea_counts.to_csv(outdir / "ksea_counts.csv")
-        result.target_counts.to_csv(outdir / "kinase_target_counts.csv")
-        result.target_table.to_csv(outdir / "kinase_target_table.csv", index=False)
+        from .writers import KinaseActivityWriter
+
+        KinaseActivityWriter.write(result, outdir)

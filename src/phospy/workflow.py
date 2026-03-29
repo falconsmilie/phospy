@@ -6,17 +6,14 @@ from dataclasses import dataclass
 import pandas as pd
 
 from .motifs import KinaseMotifScorer, MotifScoringResult
-from .prediction import (
-    KinasePredictionResult,
-    KinasePredictor,
-    PredictionSvmMode,
-)
+from .prediction import KinasePredictionResult, KinasePredictor
 from .profiles import (
     AggregationMethod,
     KinaseProfileBuilder,
     KinaseProfileResult,
 )
 from .scoring import KinaseScorer, KinaseScoringResult
+from .types import PredictionSvmMode
 from .validation.compatibility import validate_workflow_inputs
 from .validation.requests import KinaseWorkflowRequest
 
