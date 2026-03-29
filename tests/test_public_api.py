@@ -78,6 +78,9 @@ def test_phospho_dataset_process_core() -> None:
     assert sorted(result.total_unique["genes"].tolist()) == ["BTK", "LYN", "PRKACA"]
     assert "p_group1_group4" in result.phospho_corrected.columns
     assert "PRKACA;S339;" in result.site_matrix.matrix.index
+    assert result.site_matrix.row_drop_stats["retained_rows"] == len(
+        result.site_matrix.matrix
+    )
 
 
 def test_kinase_activity_analyzer() -> None:

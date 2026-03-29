@@ -149,3 +149,25 @@ def test_core_processing_allows_row_loss_with_explicit_tolerance() -> None:
 
     assert result.phospho_corrected.shape[0] == 1
     assert result.phospho_corrected["gene_names"].tolist() == ["PRKACA"]
+
+
+def test_kinase_activity_analyzer_rejects_insufficient_overlap_fraction() -> None:
+    analyzer = KinaseActivityAnalyzer(
+        pd.DataFrame(
+            {
+                "PRKACA": [0.9],
+            },
+            index=["SITE_1"],
+        )
+    )
+    phospho_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0] * 20,
+        },
+        index=[f"SITE_{idx}" for idx in range(1, 21)],
+    )
+
+    with pytest.raises(
+        InputCompatibilityError, match="insufficient overlapping phosphosite IDs"
+    ):
+        analyzer.analyze(phospho_matrix)

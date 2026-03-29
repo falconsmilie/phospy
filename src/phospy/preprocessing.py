@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from .constants import ComparisonSpec
+from .validation.errors import InputCompatibilityError
 
 
 def replace_sentinel_with_nan(
@@ -61,6 +62,13 @@ def correct_phospho_to_protein(
 ) -> pd.DataFrame:
     if len(phospho_cols) != len(protein_cols):
         raise ValueError("phospho_cols and protein_cols must have the same length")
+
+    if df_total[total_gene_col].duplicated().any():
+        msg = (
+            f"{total_gene_col} must be unique before protein correction to avoid "
+            "duplicating phosphosite rows during the merge"
+        )
+        raise InputCompatibilityError(msg)
 
     merged = df_phospho.merge(
         df_total[[total_gene_col, *protein_cols]],

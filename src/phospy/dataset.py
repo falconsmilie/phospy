@@ -33,6 +33,7 @@ class SiteMatrixResult:
     phosr_input: pd.DataFrame
     matrix: pd.DataFrame
     sequences: pd.Series
+    row_drop_stats: dict[str, int]
 
 
 @dataclass(slots=True)
@@ -119,9 +120,6 @@ class PhosphoDataset:
         phospho[site_col] = phospho[site_col].astype("string")
 
         phospho = phospho.loc[
-            phospho[uid_col].notna() & phospho[gene_col].notna()
-        ].copy()
-        phospho = phospho.loc[
             phospho[localization_col] >= localization_threshold
         ].copy()
         phospho = replace_sentinel_with_nan(
@@ -191,8 +189,12 @@ class PhosphoDataset:
             value_cols=self.corrected_cols,
         )
         matrix = SiteMatrixSchema.validate(matrix, context="site matrix")
+        row_drop_stats = dict(phosr_input.attrs.get("row_drop_stats", {}))
         return SiteMatrixResult(
-            phosr_input=phosr_input, matrix=matrix, sequences=sequences
+            phosr_input=phosr_input,
+            matrix=matrix,
+            sequences=sequences,
+            row_drop_stats=row_drop_stats,
         )
 
     def process_core(

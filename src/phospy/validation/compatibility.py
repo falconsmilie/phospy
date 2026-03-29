@@ -53,8 +53,16 @@ def validate_protein_correction_inputs(
         msg = f"{context} is missing total gene column: {total_gene_col}"
         raise InputCompatibilityError(msg)
 
+    total_gene_series = _normalise_identifier_series(total_df[total_gene_col])
+    if total_gene_series.duplicated().any():
+        msg = (
+            f"{context} require unique values in {total_gene_col} before protein "
+            "correction to avoid duplicating phosphosite rows"
+        )
+        raise InputCompatibilityError(msg)
+
     phospho_genes = _normalise_identifier_series(phospho_df[phospho_gene_col])
-    total_gene_values = set(_normalise_identifier_series(total_df[total_gene_col]))
+    total_gene_values = set(total_gene_series)
     matched_mask = phospho_genes.isin(total_gene_values)
     matched_rows = int(matched_mask.sum())
 
@@ -88,10 +96,23 @@ def validate_pred_mat_overlap(
     *,
     pred_context: str = "pred_mat",
     matrix_context: str = "phospho_matrix",
+    min_overlap: int = 1,
+    min_fraction: float = 0.1,
 ) -> None:
     overlap = pred_mat.index.intersection(phospho_matrix.index)
-    if overlap.empty:
+    overlap_count = len(overlap)
+    if overlap_count == 0:
         msg = f"{pred_context} and {matrix_context} have no overlapping phosphosite IDs"
+        raise InputCompatibilityError(msg)
+
+    matrix_rows = len(phospho_matrix.index)
+    overlap_fraction = overlap_count / max(matrix_rows, 1)
+    if overlap_count < min_overlap or overlap_fraction < min_fraction:
+        percent = overlap_fraction * 100.0
+        msg = (
+            f"{pred_context} and {matrix_context} have insufficient overlapping "
+            f"phosphosite IDs: {overlap_count} row(s) ({percent:.1f}%)"
+        )
         raise InputCompatibilityError(msg)
 
 
@@ -158,12 +179,11 @@ def _extract_sequence_index(
         return {str(value) for value in site_sequences.index}
     if isinstance(site_sequences, Mapping):
         return {str(value) for value in site_sequences}
-    if len(site_sequences) != len(site_index):
-        msg = (
-            "site_sequences must match phospho_matrix length when passed as a sequence"
-        )
-        raise InputCompatibilityError(msg)
-    return {str(value) for value in site_index}
+    msg = (
+        "site_sequences must be provided as a mapping keyed by phosphosite ID "
+        "or as a pandas Series with an explicit phosphosite index"
+    )
+    raise InputCompatibilityError(msg)
 
 
 def _normalise_identifier_series(series: pd.Series) -> pd.Series:

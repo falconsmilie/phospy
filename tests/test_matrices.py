@@ -35,3 +35,28 @@ def test_build_site_matrix_creates_site_ids_and_deduplicates_by_mean() -> None:
     assert matrix.loc["PRKACA;S339;", "phospho_corrected_1"] == 10.0
     assert sequences.loc["PRKACA;S339;"] == "BBBBBB"
     assert phosr_input.shape[0] == 2
+
+
+def test_build_site_matrix_exposes_row_drop_stats() -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_S339", "BTK_Y551", "BTK_Y551"],
+            "centralized_sequence": ["AAAAAA", None, "CCCCCC"],
+            "phospho_corrected_1": [1.0, 2.0, 3.0],
+            "phospho_corrected_2": [1.0, 2.0, None],
+        }
+    )
+    phosr_input, matrix, sequences = build_site_matrix(
+        df=df,
+        gene_p_site_col="gene_p_site",
+        sequence_col="centralized_sequence",
+        value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+    )
+
+    stats = phosr_input.attrs["row_drop_stats"]
+    assert stats["input_rows"] == 3
+    assert stats["dropped_missing_sequence"] == 1
+    assert stats["dropped_incomplete_values"] == 1
+    assert stats["retained_rows"] == 1
+    assert matrix.attrs["row_drop_stats"] == stats
+    assert sequences.attrs["row_drop_stats"] == stats

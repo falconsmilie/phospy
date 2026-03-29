@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from phospy.preprocessing import (
     add_pairwise_comparisons,
@@ -10,6 +11,7 @@ from phospy.preprocessing import (
     filter_min_observed,
     replace_sentinel_with_nan,
 )
+from phospy.validation.errors import InputCompatibilityError
 
 
 def test_replace_sentinel_with_nan_and_filter_min_observed() -> None:
@@ -93,3 +95,20 @@ def test_correct_phospho_to_protein_and_pairwise_comparisons() -> None:
         comparisons=[("group1", "group4")],
     )
     assert with_comparisons["p_group1_group4"].iloc[0] == 3.0
+
+
+def test_correct_phospho_to_protein_rejects_duplicate_total_genes() -> None:
+    phospho = pd.DataFrame({"gene_names": ["PRKACA"], "p_group1": [8.0]})
+    total = pd.DataFrame({"genes": ["PRKACA", "PRKACA"], "group1": [1.0, 2.0]})
+
+    with pytest.raises(
+        InputCompatibilityError, match="must be unique before protein correction"
+    ):
+        correct_phospho_to_protein(
+            phospho,
+            total,
+            phospho_gene_col="gene_names",
+            total_gene_col="genes",
+            phospho_cols=["p_group1"],
+            protein_cols=["group1"],
+        )

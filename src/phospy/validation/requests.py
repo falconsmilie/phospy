@@ -45,6 +45,9 @@ class CorePipelineRequest(PhospyRequestModel):
         if not value.exists():
             msg = f"Path does not exist: {value}"
             raise ValueError(msg)
+        if not value.is_file():
+            msg = f"Path is not a file: {value}"
+            raise ValueError(msg)
         return value
 
     @field_validator("comparisons")
@@ -124,6 +127,20 @@ class KinaseWorkflowRequest(PhospyRequestModel):
             msg = "substrate_map must not be empty"
             raise ValueError(msg)
         return value
+
+    @field_validator("site_sequences")
+    @classmethod
+    def validate_site_sequences(
+        cls,
+        value: Mapping[str, str] | Sequence[str] | pd.Series | None,
+    ) -> Mapping[str, str] | Sequence[str] | pd.Series | None:
+        if value is None or isinstance(value, (pd.Series, Mapping)):
+            return value
+        msg = (
+            "site_sequences must be provided as a mapping keyed by phosphosite ID "
+            "or as a pandas Series with an explicit phosphosite index"
+        )
+        raise ValueError(msg)
 
     @field_validator("motif_sequences")
     @classmethod

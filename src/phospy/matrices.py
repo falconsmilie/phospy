@@ -46,19 +46,38 @@ def build_site_matrix(
     keep_cols: list[str] = [*base_cols, *list(value_cols)]
     phosr_input = work.loc[:, keep_cols].copy()
 
-    phosr_input = phosr_input[phosr_input[sequence_col].notna()].copy()
-    phosr_input = phosr_input[
-        phosr_input.loc[:, list(value_cols)].notna().all(axis=1)
-    ].copy()
+    total_rows = len(phosr_input)
+    with_sequence = phosr_input[phosr_input[sequence_col].notna()].copy()
+    dropped_missing_sequence = total_rows - len(with_sequence)
 
-    phosr_input["__mean_signal"] = phosr_input.loc[:, list(value_cols)].mean(
+    complete_cases = with_sequence[
+        with_sequence.loc[:, list(value_cols)].notna().all(axis=1)
+    ].copy()
+    dropped_incomplete_values = len(with_sequence) - len(complete_cases)
+
+    complete_cases["__mean_signal"] = complete_cases.loc[:, list(value_cols)].mean(
         axis=1, skipna=True
     )
-    idx = phosr_input.groupby("site_id")["__mean_signal"].idxmax()
+    idx = complete_cases.groupby("site_id")["__mean_signal"].idxmax()
     phosr_input = (
-        phosr_input.loc[idx].drop(columns="__mean_signal").copy().reset_index(drop=True)
+        complete_cases.loc[idx]
+        .drop(columns="__mean_signal")
+        .copy()
+        .reset_index(drop=True)
     )
+    deduplicated_site_rows = len(complete_cases) - len(phosr_input)
+
+    row_drop_stats = {
+        "input_rows": total_rows,
+        "dropped_missing_sequence": dropped_missing_sequence,
+        "dropped_incomplete_values": dropped_incomplete_values,
+        "deduplicated_site_rows": deduplicated_site_rows,
+        "retained_rows": len(phosr_input),
+    }
 
     matrix = phosr_input.loc[:, ["site_id", *value_cols]].set_index("site_id")
+    matrix.attrs["row_drop_stats"] = row_drop_stats.copy()
     sequences = phosr_input.set_index("site_id")[sequence_col].copy()
+    sequences.attrs["row_drop_stats"] = row_drop_stats.copy()
+    phosr_input.attrs["row_drop_stats"] = row_drop_stats.copy()
     return phosr_input, matrix, sequences

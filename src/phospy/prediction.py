@@ -1027,8 +1027,8 @@ def _require_sklearn() -> tuple[type, type]:
         from sklearn.svm import SVC
     except ImportError as exc:  # pragma: no cover - environment-dependent
         msg = (
-            "KinasePredictor requires scikit-learn. Install the package with "
-            "the 'ml' extra, for example: pip install .[ml]"
+            "KinasePredictor requires scikit-learn, but it could not be imported. "
+            "Install the project dependencies or add scikit-learn manually."
         )
         raise ImportError(msg) from exc
     return StandardScaler, SVC
