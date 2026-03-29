@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
@@ -14,54 +13,18 @@ from .constants import (
     DEFAULT_TOTAL_SENTINEL,
     ComparisonSpec,
 )
-from .io import load_phospho_table, load_total_table
-from .matrices import build_site_matrix
-from .preprocessing import (
-    add_pairwise_comparisons,
-    collapse_duplicate_genes,
-    correct_phospho_to_protein,
-    filter_min_observed,
-    replace_sentinel_with_nan,
+from .core_processing import (
+    CorePreprocessingConfig,
+    CoreProcessingResult,
+    CoreProcessor,
 )
-from .validation.compatibility import (
-    validate_core_column_alignment,
-    validate_protein_correction_inputs,
-)
-from .validation.tables import PhosphoInputSchema, SiteMatrixSchema, TotalInputSchema
-
-
-@dataclass(frozen=True, slots=True)
-class CorePreprocessingConfig:
-    localization_threshold: float = 0.75
-    min_observed: int = 4
-    total_sentinel: float = DEFAULT_TOTAL_SENTINEL
-    phospho_sentinel: float = DEFAULT_PHOSPHO_SENTINEL
-    max_unmatched_fraction: float = 0.0
-
-
-@dataclass(slots=True)
-class SiteMatrixResult:
-    phosr_input: pd.DataFrame
-    matrix: pd.DataFrame
-    sequences: pd.Series
-    row_drop_stats: dict[str, int]
-
-
-@dataclass(slots=True)
-class CoreProcessingResult:
-    total_unique: pd.DataFrame
-    total_filtered: pd.DataFrame
-    phospho_filtered: pd.DataFrame
-    phospho_corrected: pd.DataFrame
-    site_matrix: SiteMatrixResult
+from .dataset_loader import DatasetLoader
+from .site_matrix_builder import SiteMatrixBuilder, SiteMatrixResult
+from .validation.compatibility import validate_core_column_alignment
 
 
 class PhosphoDataset:
-    """Owns phosphoproteomics inputs and preprocessing steps.
-
-    The class provides a domain-oriented API around the core data wrangling
-    that feeds downstream PhosR-style analysis.
-    """
+    """Facade around validated phosphoproteomics inputs and core processing."""
 
     def __init__(
         self,
@@ -80,12 +43,24 @@ class PhosphoDataset:
             self.phospho_cols,
             self.corrected_cols,
         )
-        self.total_df = TotalInputSchema.validate(total_df, total_cols=self.total_cols)
-        self.phospho_df = PhosphoInputSchema.validate(
-            phospho_df,
+
+        self.loader = DatasetLoader(
+            total_cols=self.total_cols,
             phospho_cols=self.phospho_cols,
         )
+        self.total_df, self.phospho_df = self.loader.validate(
+            total_df=total_df,
+            phospho_df=phospho_df,
+        )
         self.comparisons = list(comparisons) if comparisons is not None else None
+        self.site_matrix_builder = SiteMatrixBuilder(value_cols=self.corrected_cols)
+        self.core_processor = CoreProcessor(
+            total_cols=self.total_cols,
+            phospho_cols=self.phospho_cols,
+            corrected_cols=self.corrected_cols,
+            comparisons=self.comparisons,
+            site_matrix_builder=self.site_matrix_builder,
+        )
 
     @classmethod
     def from_files(
@@ -95,8 +70,12 @@ class PhosphoDataset:
         phospho_encoding: str | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> PhosphoDataset:
-        total_df = load_total_table(total_path)
-        phospho_df = load_phospho_table(phospho_path, encoding=phospho_encoding)
+        loader = DatasetLoader()
+        total_df, phospho_df = loader.load(
+            total_path,
+            phospho_path,
+            phospho_encoding=phospho_encoding,
+        )
         return cls(total_df=total_df, phospho_df=phospho_df, comparisons=comparisons)
 
     def prepare_total(
@@ -105,16 +84,12 @@ class PhosphoDataset:
         sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
         min_observed: int = 4,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        total = self.total_df.copy()
-        total[gene_col] = total[gene_col].astype("string")
-        total = replace_sentinel_with_nan(total, self.total_cols, sentinel=sentinel)
-        total_unique = collapse_duplicate_genes(
-            total, gene_col=gene_col, value_cols=self.total_cols
+        return self.core_processor.prepare_total(
+            self.total_df,
+            gene_col=gene_col,
+            sentinel=sentinel,
+            min_observed=min_observed,
         )
-        total_filtered = filter_min_observed(
-            total_unique, self.total_cols, min_observed=min_observed
-        )
-        return total_unique, total_filtered
 
     def prepare_phospho(
         self,
@@ -126,18 +101,15 @@ class PhosphoDataset:
         sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
         min_observed: int = 4,
     ) -> pd.DataFrame:
-        phospho = self.phospho_df.copy()
-        phospho[gene_col] = phospho[gene_col].astype("string").str.upper()
-        phospho[site_col] = phospho[site_col].astype("string")
-
-        phospho = phospho.loc[
-            phospho[localization_col] >= localization_threshold
-        ].copy()
-        phospho = replace_sentinel_with_nan(
-            phospho, self.phospho_cols, sentinel=sentinel
-        )
-        return filter_min_observed(
-            phospho, self.phospho_cols, min_observed=min_observed
+        del uid_col
+        return self.core_processor.prepare_phospho(
+            self.phospho_df,
+            gene_col=gene_col,
+            site_col=site_col,
+            localization_col=localization_col,
+            localization_threshold=localization_threshold,
+            sentinel=sentinel,
+            min_observed=min_observed,
         )
 
     def correct_to_protein(
@@ -148,23 +120,12 @@ class PhosphoDataset:
         total_gene_col: str = "genes",
         max_unmatched_fraction: float = 0.0,
     ) -> pd.DataFrame:
-        validate_protein_correction_inputs(
+        return self.core_processor.correct_to_protein(
             phospho_df,
             total_df,
             phospho_gene_col=phospho_gene_col,
             total_gene_col=total_gene_col,
-            phospho_cols=self.phospho_cols,
-            protein_cols=self.total_cols,
             max_unmatched_fraction=max_unmatched_fraction,
-        )
-        return correct_phospho_to_protein(
-            df_phospho=phospho_df,
-            df_total=total_df,
-            phospho_gene_col=phospho_gene_col,
-            total_gene_col=total_gene_col,
-            phospho_cols=self.phospho_cols,
-            protein_cols=self.total_cols,
-            corrected_cols=self.corrected_cols,
         )
 
     def add_pairwise_comparisons(
@@ -172,17 +133,8 @@ class PhosphoDataset:
         corrected_df: pd.DataFrame,
         output_prefix: str = "p_",
     ) -> pd.DataFrame:
-        if not self.comparisons:
-            return corrected_df.copy()
-
-        group_map = {
-            f"group{i}": self.corrected_cols[i - 1]
-            for i in range(1, len(self.corrected_cols) + 1)
-        }
-        return add_pairwise_comparisons(
+        return self.core_processor.add_pairwise_comparisons(
             corrected_df,
-            comparisons=self.comparisons,
-            group_to_corrected_col=group_map,
             output_prefix=output_prefix,
         )
 
@@ -192,19 +144,10 @@ class PhosphoDataset:
         gene_p_site_col: str = "gene_p_site",
         sequence_col: str = "centralized_sequence",
     ) -> SiteMatrixResult:
-        phosr_input, matrix, sequences = build_site_matrix(
-            df=corrected_df,
+        return self.site_matrix_builder.build(
+            corrected_df,
             gene_p_site_col=gene_p_site_col,
             sequence_col=sequence_col,
-            value_cols=self.corrected_cols,
-        )
-        matrix = SiteMatrixSchema.validate(matrix, context="site matrix")
-        row_drop_stats = dict(phosr_input.attrs.get("row_drop_stats", {}))
-        return SiteMatrixResult(
-            phosr_input=phosr_input,
-            matrix=matrix,
-            sequences=sequences,
-            row_drop_stats=row_drop_stats,
         )
 
     def process_core(
@@ -223,32 +166,14 @@ class PhosphoDataset:
             phospho_sentinel=float(phospho_sentinel),
             max_unmatched_fraction=max_unmatched_fraction,
         )
-        total_unique, total_filtered = self.prepare_total(
-            min_observed=resolved.min_observed,
-            sentinel=resolved.total_sentinel,
-        )
-        phospho_filtered = self.prepare_phospho(
-            localization_threshold=resolved.localization_threshold,
-            min_observed=resolved.min_observed,
-            sentinel=resolved.phospho_sentinel,
-        )
-        phospho_corrected = self.correct_to_protein(
-            phospho_filtered,
-            total_filtered,
-            max_unmatched_fraction=resolved.max_unmatched_fraction,
-        )
-        phospho_corrected = self.add_pairwise_comparisons(phospho_corrected)
-        site_matrix = self.build_site_matrix(phospho_corrected)
-        return CoreProcessingResult(
-            total_unique=total_unique,
-            total_filtered=total_filtered,
-            phospho_filtered=phospho_filtered,
-            phospho_corrected=phospho_corrected,
-            site_matrix=site_matrix,
+        return self.core_processor.process(
+            self.total_df,
+            self.phospho_df,
+            config=resolved,
         )
 
     @staticmethod
     def write_core_outputs(result: CoreProcessingResult, outdir: str | Path) -> None:
-        from .writers import CoreProcessingWriter
+        from .writers import CoreOutputWriter
 
-        CoreProcessingWriter.write(result, outdir)
+        CoreOutputWriter.write(result, outdir)

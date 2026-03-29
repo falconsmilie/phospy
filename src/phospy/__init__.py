@@ -1,7 +1,9 @@
 from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
-from .dataset import CoreProcessingResult, PhosphoDataset, SiteMatrixResult
+from .core_processing import CoreProcessingResult
+from .dataset import PhosphoDataset
 from .pipeline import CoreOutputs, PhosRPipeline
 from .prediction import KinasePredictionResult
+from .site_matrix_builder import SiteMatrixResult
 from .workflow import KinaseWorkflow, KinaseWorkflowResult
 
 __all__ = [

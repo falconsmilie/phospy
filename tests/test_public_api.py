@@ -3,6 +3,9 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy import KinaseActivityAnalyzer, KinaseWorkflow, PhosphoDataset, PhosRPipeline
+from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
+from phospy.dataset_loader import DatasetLoader
+from phospy.site_matrix_builder import SiteMatrixBuilder
 
 EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
 
@@ -281,3 +284,48 @@ def test_pipeline_propagates_sentinel_configuration(tmp_path) -> None:
     assert total_unique.shape[0] == 1
     assert pd.isna(total_filtered.iloc[0]["group1"])
     assert pd.isna(phospho_filtered.iloc[0]["p_group1"])
+
+
+def test_dataset_components_work_together() -> None:
+    loader = DatasetLoader()
+    total_df, phospho_df = loader.validate(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+    processor = CoreProcessor(
+        total_cols=["group1", "group2", "group3", "group4", "group5", "group6"],
+        phospho_cols=[
+            "p_group1",
+            "p_group2",
+            "p_group3",
+            "p_group4",
+            "p_group5",
+            "p_group6",
+        ],
+        corrected_cols=[
+            "phospho_corrected_1",
+            "phospho_corrected_2",
+            "phospho_corrected_3",
+            "phospho_corrected_4",
+            "phospho_corrected_5",
+            "phospho_corrected_6",
+        ],
+        site_matrix_builder=SiteMatrixBuilder(
+            value_cols=[
+                "phospho_corrected_1",
+                "phospho_corrected_2",
+                "phospho_corrected_3",
+                "phospho_corrected_4",
+                "phospho_corrected_5",
+                "phospho_corrected_6",
+            ]
+        ),
+    )
+
+    result = processor.process(total_df, phospho_df, config=pipeline_config())
+
+    assert "PRKACA;S339;" in result.site_matrix.matrix.index
+
+
+def pipeline_config() -> CorePreprocessingConfig:
+    return CorePreprocessingConfig()

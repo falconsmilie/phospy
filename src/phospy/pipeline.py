@@ -8,10 +8,11 @@ import pandas as pd
 
 from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
 from .constants import ComparisonSpec
-from .dataset import CorePreprocessingConfig, CoreProcessingResult, PhosphoDataset
+from .core_processing import CorePreprocessingConfig, CoreProcessingResult
+from .dataset import PhosphoDataset
 from .io import load_phospho_table, load_pred_mat, load_total_table
 from .validation.requests import CorePipelineRequest
-from .writers import CoreProcessingWriter, KinaseActivityWriter
+from .writers import CoreOutputWriter, KinaseActivityWriter
 
 
 @dataclass(slots=True)
@@ -104,7 +105,7 @@ class PhosRPipeline:
     def run(self, outdir: str | Path | None = None) -> CoreOutputs:
         core = self.dataset.process_core(config=self.preprocessing_config)
         if outdir is not None:
-            CoreProcessingWriter.write(core, outdir)
+            CoreOutputWriter.write(core, outdir)
 
         kinase_activity = None
         if self.pred_mat is not None:

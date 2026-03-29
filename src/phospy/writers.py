@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from .analysis import KinaseActivityResult
-from .dataset import CoreProcessingResult
+from .core_processing import CoreProcessingResult
 
 
-class CoreProcessingWriter:
+class CoreOutputWriter:
     """Persist core preprocessing outputs to disk."""
 
     @staticmethod
@@ -48,3 +48,6 @@ class KinaseActivityWriter:
             target_dir / "kinase_target_table.csv",
             index=False,
         )
+
+
+CoreProcessingWriter = CoreOutputWriter
