@@ -14,13 +14,11 @@ def compute_weighted_kinase_activity(
     samples = phospho_matrix.columns.tolist()
     kinase_mat = pd.DataFrame(index=kinases, columns=samples, dtype=float)
 
+    available_sites = set(phospho_matrix.index)
+
     for kinase in kinases:
-        top_substrates = (
-            pred_mat[kinase].sort_values(ascending=False).head(top_n_substrates)
-        )
-        substrates = [
-            site for site in top_substrates.index if site in phospho_matrix.index
-        ]
+        top_substrates = pred_mat[kinase].nlargest(top_n_substrates)
+        substrates = [site for site in top_substrates.index if site in available_sites]
         if len(substrates) < min_substrates:
             continue
 
@@ -36,12 +34,14 @@ def build_kinase_target_table(
     pred_mat: pd.DataFrame,
     threshold: float = 0.6,
 ) -> pd.DataFrame:
-    edges = pred_mat.reset_index(names="site_id").melt(
-        id_vars="site_id", var_name="kinase", value_name="score"
-    )
-    return edges.loc[edges["score"] > threshold].sort_values(
-        ["kinase", "score"], ascending=[True, False]
-    )
+    filtered = pred_mat.where(pred_mat > threshold)
+    try:
+        edges = filtered.stack(future_stack=True).rename("score").reset_index()
+        edges = edges.loc[edges["score"].notna()]
+    except TypeError:
+        edges = filtered.stack(dropna=True).rename("score").reset_index()
+    edges.columns = ["site_id", "kinase", "score"]
+    return edges.sort_values(["kinase", "score"], ascending=[True, False])
 
 
 def count_predicted_targets(
@@ -77,8 +77,10 @@ def compute_ksea_scores(
     score_dict: dict[str, pd.Series] = {}
     counts: dict[str, int] = {}
 
+    available_sites = set(phospho_matrix.index)
+
     for kinase, sites in substrate_map.items():
-        present_sites = [site for site in sites if site in phospho_matrix.index]
+        present_sites = [site for site in sites if site in available_sites]
         counts[kinase] = len(present_sites)
         if len(present_sites) < min_substrates:
             continue

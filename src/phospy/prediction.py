@@ -686,11 +686,7 @@ def build_candidate_substrate_list(
 
     substrate_list: dict[str, list[str]] = {}
     for kinase in combined_scores.columns:
-        selected = (
-            combined_scores.loc[:, kinase]
-            .sort_values(ascending=False, kind="mergesort")
-            .head(top)
-        )
+        selected = combined_scores.loc[:, kinase].nlargest(top)
         sites = selected.loc[selected > score_threshold].index.tolist()
         if len(sites) >= inclusion:
             substrate_list[kinase] = sites

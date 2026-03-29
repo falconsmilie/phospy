@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 import pandas as pd
@@ -21,7 +21,8 @@ def clean_columns(columns: Iterable[str]) -> list[str]:
 
 
 def infer_text_encoding(path: str | Path) -> str:
-    raw = Path(path).read_bytes()[:4096]
+    with Path(path).open("rb") as handle:
+        raw = handle.read(4096)
     if raw.startswith(b"\xff\xfe"):
         return "utf-16le"
     if raw.startswith(b"\xfe\xff"):
@@ -37,6 +38,7 @@ def read_table_raw(
     sep: str = "\t",
     encoding: str | None = None,
     index_col: int | str | None = None,
+    usecols: Sequence[str | int] | None = None,
 ) -> pd.DataFrame:
     resolved_encoding = encoding or infer_text_encoding(path)
     return pd.read_csv(
@@ -45,16 +47,26 @@ def read_table_raw(
         encoding=resolved_encoding,
         low_memory=False,
         index_col=index_col,
+        usecols=usecols,
     )
 
 
-def read_table(path: str | Path, encoding: str | None = None) -> pd.DataFrame:
-    frame = read_table_raw(path, encoding=encoding)
+def read_table(
+    path: str | Path,
+    encoding: str | None = None,
+    *,
+    usecols: Sequence[str | int] | None = None,
+) -> pd.DataFrame:
+    frame = read_table_raw(path, encoding=encoding, usecols=usecols)
     return _clean_table_columns(frame)
 
 
-def load_total_table(path: str | Path) -> pd.DataFrame:
-    frame = _clean_table_columns(read_table_raw(path))
+def load_total_table(
+    path: str | Path,
+    *,
+    usecols: Sequence[str | int] | None = None,
+) -> pd.DataFrame:
+    frame = _clean_table_columns(read_table_raw(path, usecols=usecols))
     return TotalInputSchema.validate(frame, context=f"total input table ({path})")
 
 
@@ -62,13 +74,20 @@ def load_phospho_table(
     path: str | Path,
     *,
     encoding: str | None = None,
+    usecols: Sequence[str | int] | None = None,
 ) -> pd.DataFrame:
-    frame = _clean_table_columns(read_table_raw(path, encoding=encoding))
+    frame = _clean_table_columns(
+        read_table_raw(path, encoding=encoding, usecols=usecols)
+    )
     return PhosphoInputSchema.validate(frame, context=f"phospho input table ({path})")
 
 
-def load_pred_mat(path: str | Path) -> pd.DataFrame:
-    frame = read_table_raw(path, sep=",", index_col=0)
+def load_pred_mat(
+    path: str | Path,
+    *,
+    usecols: Sequence[str | int] | None = None,
+) -> pd.DataFrame:
+    frame = read_table_raw(path, sep=",", index_col=0, usecols=usecols)
     frame.index = frame.index.map(str)
     frame.columns = [str(column).strip() for column in frame.columns]
     return PredMatSchema.validate(frame, context=f"pred_mat ({path})")
