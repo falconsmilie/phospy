@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from phospy.matrices import build_site_matrix
+from phospy.site_matrix_builder import SiteMatrixBuilder
+from phospy.validation.errors import TableSchemaError
 
 
 def test_build_site_matrix_creates_site_ids_and_deduplicates_by_mean() -> None:
@@ -106,3 +109,45 @@ def test_build_site_matrix_breaks_equal_mean_ties_by_original_order_without_uid(
 
     assert sequences.loc["PRKACA;S339;"] == "AAAAAA"
     assert matrix.loc["PRKACA;S339;", "phospho_corrected_1"] == 10.0
+
+
+@pytest.mark.parametrize(
+    "gene_p_site",
+    ["_S339", "PRKACA_", "  _S339", "PRKACA_  "],
+)
+def test_build_site_matrix_rejects_empty_gene_or_site_parts(
+    gene_p_site: str,
+) -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": [gene_p_site],
+            "centralized_sequence": ["AAAAAA"],
+            "phospho_corrected_1": [1.0],
+            "phospho_corrected_2": [1.0],
+        }
+    )
+
+    with pytest.raises(TableSchemaError, match="malformed gene_p_site"):
+        build_site_matrix(
+            df=df,
+            gene_p_site_col="gene_p_site",
+            sequence_col="centralized_sequence",
+            value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+        )
+
+
+def test_site_matrix_builder_rejects_empty_gene_or_site_parts() -> None:
+    builder = SiteMatrixBuilder(
+        value_cols=["phospho_corrected_1", "phospho_corrected_2"]
+    )
+    corrected_df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_"],
+            "centralized_sequence": ["AAAAAA"],
+            "phospho_corrected_1": [1.0],
+            "phospho_corrected_2": [1.0],
+        }
+    )
+
+    with pytest.raises(TableSchemaError, match="malformed gene_p_site"):
+        builder.build(corrected_df)
