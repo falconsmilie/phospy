@@ -622,8 +622,7 @@ def test_make_prediction_random_generators_returns_independent_streams() -> None
 
 
 def test_resolve_svm_probability_random_state_returns_fixed_seed() -> None:
-    assert _resolve_svm_probability_random_state(svm_mode="default") == 1
-    assert _resolve_svm_probability_random_state(svm_mode="r_parity") == 1
+    assert _resolve_svm_probability_random_state() == 1
 
 
 def test_kinase_predictor_is_reproducible_for_same_random_state() -> None:

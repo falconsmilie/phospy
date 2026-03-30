@@ -71,8 +71,3 @@ def test_kinase_profile_builder_wraps_functional_api() -> None:
 
     assert list(result.profile_matrix.index) == ["KINASE_A"]
     assert float(result.profile_matrix.loc["KINASE_A", "s1"]) == pytest.approx(2.0)
-
-
-def test_kinase_profile_builder_rejects_unknown_aggregation() -> None:
-    with pytest.raises(ValueError, match="aggregation must be 'median'"):
-        KinaseProfileBuilder(aggregation="mean")  # type: ignore[arg-type]

@@ -7,11 +7,7 @@ import pandas as pd
 
 from .motifs import KinaseMotifScorer, MotifScoringResult
 from .prediction import KinasePredictionResult, KinasePredictor
-from .profiles import (
-    AggregationMethod,
-    KinaseProfileBuilder,
-    KinaseProfileResult,
-)
+from .profiles import KinaseProfileBuilder, KinaseProfileResult
 from .scoring import KinaseScorer, KinaseScoringResult
 from .types import PredictionSvmMode
 from .validation.compatibility import validate_workflow_inputs
@@ -31,12 +27,10 @@ class KinaseWorkflow:
 
     def __init__(
         self,
-        aggregation: AggregationMethod = "median",
         flank_size: int = 7,
         kernel: str = "rbf",
         svm_mode: PredictionSvmMode = "default",
     ) -> None:
-        self.aggregation = aggregation
         self.flank_size = flank_size
         self.kernel = kernel
         self.svm_mode = svm_mode
@@ -84,7 +78,7 @@ class KinaseWorkflow:
             request.motif_sequences,
         )
 
-        profile_builder = KinaseProfileBuilder(aggregation=self.aggregation)
+        profile_builder = KinaseProfileBuilder()
         profile_result = profile_builder.build(
             substrate_map=request.substrate_map,
             phospho_matrix=phospho_matrix,

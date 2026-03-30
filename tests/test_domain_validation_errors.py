@@ -11,7 +11,6 @@ from phospy.prediction import (
     PredictionSamplingTrace,
     build_candidate_substrate_list,
 )
-from phospy.profiles import KinaseProfileBuilder
 from phospy.scoring import KinaseScorer
 from phospy.validation.errors import (
     InputCompatibilityError,
@@ -36,11 +35,6 @@ def test_create_frequency_matrix_rejects_inconsistent_windows_with_package_error
 ):
     with pytest.raises(TableSchemaError, match="same window length"):
         create_frequency_matrix(["AAAAA", "AAA"], flank_size=2)
-
-
-def test_profile_builder_rejects_unknown_aggregation_with_package_error() -> None:
-    with pytest.raises(PhospyValidationError, match="aggregation must be 'median'"):
-        KinaseProfileBuilder(aggregation="mean")  # type: ignore[arg-type]
 
 
 def test_kinase_scorer_rejects_mismatched_columns_with_package_error() -> None:

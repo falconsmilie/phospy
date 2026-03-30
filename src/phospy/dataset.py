@@ -153,13 +153,11 @@ class PhosphoDataset:
         self,
         gene_col: str = "gene_names",
         site_col: str = "gene_p_site",
-        uid_col: str = "uid",
         localization_col: str = "localization_prob",
         localization_threshold: float = 0.75,
         sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
         min_observed: int = 4,
     ) -> pd.DataFrame:
-        del uid_col
         return self.core_processor.prepare_phospho(
             self.phospho_df,
             gene_col=gene_col,

@@ -99,7 +99,7 @@ def make_svm(
 
     scaler = StandardScaler() if svm_mode == "default" else _RLikeStandardScaler()
     gamma: str | float = "scale" if svm_mode == "default" else "auto"
-    random_state = resolve_svm_probability_random_state(svm_mode=svm_mode)
+    random_state = resolve_svm_probability_random_state()
     return make_pipeline(
         scaler,
         SVC(
@@ -111,13 +111,9 @@ def make_svm(
     )
 
 
-def resolve_svm_probability_random_state(
-    *,
-    svm_mode: PredictionSvmMode,
-) -> int:
+def resolve_svm_probability_random_state() -> int:
     """Return the deterministic SVM probability-calibration seed."""
 
-    del svm_mode
     return 1
 
 
