@@ -264,8 +264,12 @@ class KinasePredictor:
                     )
 
                 pred_matrix.loc[:, kinase] += series
+            if is_traced_kinase and trace_sink_obj is not None:
+                trace_sink_obj.flush()
 
         pred_matrix /= float(ensemble_size)
+        if trace_sink_obj is not None:
+            trace_sink_obj.flush()
         return KinasePredictionResult(
             pred_matrix=pred_matrix,
             substrate_list=substrate_list,

@@ -4,6 +4,7 @@ import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from ..types import PredictionTraceFormat
@@ -35,7 +36,11 @@ class TraceSink(ABC):
     def read_table(self, table_name: str) -> pd.DataFrame:
         raise NotImplementedError
 
+    def flush(self) -> None:
+        return None
+
     def read_all_tables(self) -> dict[str, pd.DataFrame]:
+        self.flush()
         return {name: self.read_table(name) for name in TRACE_TABLE_NAMES}
 
 
@@ -50,6 +55,9 @@ class DirectoryTraceSink(TraceSink):
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.fmt = fmt
         self._part_counters: dict[str, int] = {name: 0 for name in TRACE_TABLE_NAMES}
+        self._buffered_rows: dict[str, list[dict[str, object]]] = {
+            name: [] for name in TRACE_TABLE_NAMES
+        }
 
     def write_rows(self, table_name: str, rows: list[dict[str, object]]) -> None:
         if table_name not in TRACE_TABLE_NAMES:
@@ -57,7 +65,15 @@ class DirectoryTraceSink(TraceSink):
             raise ValueError(msg)
         if not rows:
             return
+        self._buffered_rows[table_name].extend(rows)
+
+    def _flush_table(self, table_name: str) -> None:
+        rows = self._buffered_rows[table_name]
+        if not rows:
+            return
+
         frame = pd.DataFrame(rows)
+        rows.clear()
         if self.fmt == "csv":
             path = self.output_dir / f"{table_name}.csv"
             frame.to_csv(path, mode="a", header=not path.exists(), index=False)
@@ -75,10 +91,15 @@ class DirectoryTraceSink(TraceSink):
             )
             raise RuntimeError(msg) from error
 
+    def flush(self) -> None:
+        for table_name in TRACE_TABLE_NAMES:
+            self._flush_table(table_name)
+
     def read_table(self, table_name: str) -> pd.DataFrame:
         if table_name not in TRACE_TABLE_NAMES:
             msg = f"Unsupported trace table: {table_name}"
             raise ValueError(msg)
+        self._flush_table(table_name)
         if self.fmt == "csv":
             path = self.output_dir / f"{table_name}.csv"
             return pd.read_csv(path) if path.exists() else pd.DataFrame()
@@ -248,6 +269,12 @@ def _flatten_initial_rows(result: KinasePredictionResult) -> list[dict[str, obje
     return rows
 
 
+def _probability_column(frame: pd.DataFrame, class_label: str) -> np.ndarray:
+    if class_label in frame.columns:
+        return frame.loc[:, class_label].to_numpy(dtype=float, copy=False)
+    return np.full(len(frame.index), np.nan, dtype=float)
+
+
 def _flatten_iteration_rows(
     result: KinasePredictionResult,
 ) -> tuple[
@@ -263,21 +290,37 @@ def _flatten_iteration_rows(
     for kinase, trace in (result.debug_traces or {}).items():
         for ensemble_trace in trace.ensemble_traces:
             for iteration_trace in ensemble_trace.iterations:
-                labels = iteration_trace.labels
+                labels = iteration_trace.labels.to_numpy(dtype=int, copy=False)
                 probs = iteration_trace.probabilities
-                for position, site in enumerate(probs.index.tolist()):
-                    label_value = int(labels.iloc[position])
-                    prob_row = probs.iloc[position]
-                    decision_value = float(
-                        iteration_trace.decision_values.iloc[position]
-                    )
+                sites = probs.index.tolist()
+                class_1_probs = _probability_column(probs, "1")
+                class_2_probs = _probability_column(probs, "2")
+                decision_values = iteration_trace.decision_values.to_numpy(
+                    dtype=float,
+                    copy=False,
+                )
+                for (
+                    site,
+                    label_value,
+                    class_1_prob,
+                    class_2_prob,
+                    decision_value,
+                ) in zip(
+                    sites,
+                    labels,
+                    class_1_probs,
+                    class_2_probs,
+                    decision_values,
+                    strict=True,
+                ):
+                    normalized_label = int(label_value)
                     label_rows.append(
                         {
                             "kinase": kinase,
                             "ensemble": ensemble_trace.ensemble_index,
                             "iteration": iteration_trace.iteration_index,
                             "site": site,
-                            "label": label_value,
+                            "label": normalized_label,
                         }
                     )
                     probability_rows.append(
@@ -286,9 +329,9 @@ def _flatten_iteration_rows(
                             "ensemble": ensemble_trace.ensemble_index,
                             "iteration": iteration_trace.iteration_index,
                             "site": site,
-                            "label": label_value,
-                            "prob_class_1": float(prob_row.get("1", float("nan"))),
-                            "prob_class_2": float(prob_row.get("2", float("nan"))),
+                            "label": normalized_label,
+                            "prob_class_1": float(class_1_prob),
+                            "prob_class_2": float(class_2_prob),
                         }
                     )
                     decision_rows.append(
@@ -297,20 +340,22 @@ def _flatten_iteration_rows(
                             "ensemble": ensemble_trace.ensemble_index,
                             "iteration": iteration_trace.iteration_index,
                             "site": site,
-                            "label": label_value,
-                            "decision_value_class_1": decision_value,
+                            "label": normalized_label,
+                            "decision_value_class_1": float(decision_value),
                         }
                     )
                 if iteration_trace.probability_parameters is not None:
-                    for _, row in iteration_trace.probability_parameters.iterrows():
+                    for row in iteration_trace.probability_parameters.itertuples(
+                        index=False
+                    ):
                         probability_parameter_rows.append(
                             {
                                 "kinase": kinase,
                                 "ensemble": ensemble_trace.ensemble_index,
                                 "iteration": iteration_trace.iteration_index,
-                                "class_pair": str(row["class_pair"]),
-                                "probA": float(row["probA"]),
-                                "probB": float(row["probB"]),
+                                "class_pair": str(row.class_pair),
+                                "probA": float(row.probA),
+                                "probB": float(row.probB),
                             }
                         )
     return label_rows, probability_rows, probability_parameter_rows, decision_rows
@@ -322,7 +367,12 @@ def _flatten_weight_rows(result: KinasePredictionResult) -> list[dict[str, objec
         for ensemble_trace in trace.ensemble_traces:
             for iteration_trace in ensemble_trace.iterations:
                 if iteration_trace.positive_weights is not None:
-                    for site, weight in iteration_trace.positive_weights.items():
+                    positive_weights = iteration_trace.positive_weights
+                    for site, weight in zip(
+                        positive_weights.index.tolist(),
+                        positive_weights.to_numpy(dtype=float, copy=False),
+                        strict=True,
+                    ):
                         rows.append(
                             {
                                 "kinase": kinase,
@@ -334,7 +384,12 @@ def _flatten_weight_rows(result: KinasePredictionResult) -> list[dict[str, objec
                             }
                         )
                 if iteration_trace.negative_weights is not None:
-                    for site, weight in iteration_trace.negative_weights.items():
+                    negative_weights = iteration_trace.negative_weights
+                    for site, weight in zip(
+                        negative_weights.index.tolist(),
+                        negative_weights.to_numpy(dtype=float, copy=False),
+                        strict=True,
+                    ):
                         rows.append(
                             {
                                 "kinase": kinase,
@@ -392,19 +447,28 @@ def _flatten_final_prediction_rows(
         for ensemble_trace in trace.ensemble_traces:
             final_probs = ensemble_trace.final_prediction_probabilities
             final_decisions = ensemble_trace.final_decision_values
+            prob_class_1_by_site: dict[object, float] = {}
             if final_probs is not None:
-                for site in final_probs.index:
+                sites = final_probs.index.tolist()
+                class_1_probs = _probability_column(final_probs, "1")
+                class_2_probs = _probability_column(final_probs, "2")
+                decision_values = (
+                    final_decisions.to_numpy(dtype=float, copy=False)
+                    if final_decisions is not None
+                    else np.empty(0, dtype=float)
+                )
+                prob_class_1_by_site = {
+                    site: float(probability)
+                    for site, probability in zip(sites, class_1_probs, strict=True)
+                }
+                for position, site in enumerate(sites):
                     final_prediction_rows.append(
                         {
                             "kinase": kinase,
                             "ensemble": ensemble_trace.ensemble_index,
                             "site": site,
-                            "prob_class_1": float(final_probs.loc[site, "1"])
-                            if "1" in final_probs.columns
-                            else float("nan"),
-                            "prob_class_2": float(final_probs.loc[site, "2"])
-                            if "2" in final_probs.columns
-                            else float("nan"),
+                            "prob_class_1": float(class_1_probs[position]),
+                            "prob_class_2": float(class_2_probs[position]),
                         }
                     )
                     if final_decisions is not None:
@@ -414,7 +478,7 @@ def _flatten_final_prediction_rows(
                                 "ensemble": ensemble_trace.ensemble_index,
                                 "site": site,
                                 "decision_value_class_1": float(
-                                    final_decisions.loc[site]
+                                    decision_values[position]
                                 ),
                             }
                         )
@@ -425,11 +489,7 @@ def _flatten_final_prediction_rows(
                         "ensemble": ensemble_trace.ensemble_index,
                         "rank": rank,
                         "site": site,
-                        "prob_class_1": (
-                            float(final_probs.loc[site, "1"])
-                            if final_probs is not None and "1" in final_probs.columns
-                            else float("nan")
-                        ),
+                        "prob_class_1": prob_class_1_by_site.get(site, float("nan")),
                     }
                 )
     return final_prediction_rows, final_decision_rows, final_top_rows

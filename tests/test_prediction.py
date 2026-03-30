@@ -26,6 +26,7 @@ from phospy.prediction.svm import require_sklearn as _require_sklearn
 from phospy.prediction.svm import (
     resolve_svm_probability_random_state as _resolve_svm_probability_random_state,
 )
+from phospy.prediction.traces import DirectoryTraceSink
 from phospy.scoring import KinaseScoringResult
 
 
@@ -197,6 +198,7 @@ def test_predict_can_stream_full_trace_tables_to_sink(tmp_path: Path) -> None:
     assert result.trace_level == "full"
     assert result.trace_sink is not None
     assert result.debug_traces is not None
+    assert (tmp_path / "trace_output" / "trace_iteration_samples.csv").exists()
     ensemble_trace = result.debug_traces["KINASE_A"].ensemble_traces[0]
     assert ensemble_trace.iterations == []
     tables = prediction_debug_trace_tables(result)
@@ -204,6 +206,32 @@ def test_predict_can_stream_full_trace_tables_to_sink(tmp_path: Path) -> None:
     assert not tables["trace_iteration_samples"].empty
     assert not tables["trace_final_ensemble_predictions"].empty
     assert not tables["trace_final_ensemble_top"].empty
+
+
+def test_directory_trace_sink_buffers_until_read_or_flush(tmp_path: Path) -> None:
+    sink = DirectoryTraceSink(tmp_path / "trace_output")
+
+    sink.write_rows(
+        "trace_iteration_samples",
+        [
+            {
+                "kinase": "KINASE_A",
+                "ensemble": 1,
+                "iteration": 1,
+                "class_label": 1,
+                "draw": 1,
+                "site": "SITE_1",
+            }
+        ],
+    )
+
+    csv_path = tmp_path / "trace_output" / "trace_iteration_samples.csv"
+    assert not csv_path.exists()
+
+    table = sink.read_table("trace_iteration_samples")
+
+    assert csv_path.exists()
+    assert table.loc[:, "site"].tolist() == ["SITE_1"]
 
 
 def test_multi_ada_sampling_requires_trace_sink_for_full_trace() -> None:

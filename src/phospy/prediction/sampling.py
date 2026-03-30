@@ -155,6 +155,12 @@ def _resample_training_rows(
     return np.vstack(resampled_x), np.concatenate(resampled_y), sampled_sites_by_class
 
 
+def _probability_column(frame: pd.DataFrame, class_label: str) -> np.ndarray:
+    if class_label in frame.columns:
+        return frame.loc[:, class_label].to_numpy(dtype=float, copy=False)
+    return np.full(len(frame.index), np.nan, dtype=float)
+
+
 def _write_iteration_trace_rows(
     *,
     trace_sink: TraceSink,
@@ -168,20 +174,31 @@ def _write_iteration_trace_rows(
     weights_by_class: dict[int, pd.Series | None],
     sampled_sites_by_class: dict[int, list[str]],
 ) -> None:
+    sites = probabilities.index.tolist()
+    label_values = labels.to_numpy(dtype=int, copy=False)
+    class_1_probs = _probability_column(probabilities, "1")
+    class_2_probs = _probability_column(probabilities, "2")
+    decision_vector = decision_values.to_numpy(dtype=float, copy=False)
+
     label_rows: list[dict[str, object]] = []
     probability_rows: list[dict[str, object]] = []
     decision_rows: list[dict[str, object]] = []
-    for position, site in enumerate(probabilities.index.tolist()):
-        label_value = int(labels.iloc[position])
-        prob_row = probabilities.iloc[position]
-        decision_value = float(decision_values.iloc[position])
+    for site, label_value, class_1_prob, class_2_prob, decision_value in zip(
+        sites,
+        label_values,
+        class_1_probs,
+        class_2_probs,
+        decision_vector,
+        strict=True,
+    ):
+        normalized_label = int(label_value)
         label_rows.append(
             {
                 "kinase": kinase,
                 "ensemble": ensemble_index,
                 "iteration": iteration_index,
                 "site": site,
-                "label": label_value,
+                "label": normalized_label,
             }
         )
         probability_rows.append(
@@ -190,9 +207,9 @@ def _write_iteration_trace_rows(
                 "ensemble": ensemble_index,
                 "iteration": iteration_index,
                 "site": site,
-                "label": label_value,
-                "prob_class_1": float(prob_row.get("1", float("nan"))),
-                "prob_class_2": float(prob_row.get("2", float("nan"))),
+                "label": normalized_label,
+                "prob_class_1": float(class_1_prob),
+                "prob_class_2": float(class_2_prob),
             }
         )
         decision_rows.append(
@@ -201,8 +218,8 @@ def _write_iteration_trace_rows(
                 "ensemble": ensemble_index,
                 "iteration": iteration_index,
                 "site": site,
-                "label": label_value,
-                "decision_value_class_1": decision_value,
+                "label": normalized_label,
+                "decision_value_class_1": float(decision_value),
             }
         )
     trace_sink.write_rows("trace_iteration_labels", label_rows)
@@ -217,11 +234,11 @@ def _write_iteration_trace_rows(
                     "kinase": kinase,
                     "ensemble": ensemble_index,
                     "iteration": iteration_index,
-                    "class_pair": str(row["class_pair"]),
-                    "probA": float(row["probA"]),
-                    "probB": float(row["probB"]),
+                    "class_pair": str(row.class_pair),
+                    "probA": float(row.probA),
+                    "probB": float(row.probB),
                 }
-                for _, row in probability_parameters.iterrows()
+                for row in probability_parameters.itertuples(index=False)
             ],
         )
 
@@ -232,7 +249,11 @@ def _write_iteration_trace_rows(
     ):
         if weights is None:
             continue
-        for site, weight in weights.items():
+        for site, weight in zip(
+            weights.index.tolist(),
+            weights.to_numpy(dtype=float, copy=False),
+            strict=True,
+        ):
             weight_rows.append(
                 {
                     "kinase": kinase,
@@ -272,21 +293,29 @@ def _write_final_trace_rows(
     final_decision_values: pd.Series,
     final_top_sites: list[str],
 ) -> None:
+    sites = final_probabilities.index.tolist()
+    class_1_probs = _probability_column(final_probabilities, "1")
+    class_2_probs = _probability_column(final_probabilities, "2")
+    decision_vector = final_decision_values.to_numpy(dtype=float, copy=False)
     prediction_rows: list[dict[str, object]] = []
     decision_rows: list[dict[str, object]] = []
-    top_rows: list[dict[str, object]] = []
-    for site in final_probabilities.index:
+    prob_class_1_by_site: dict[object, float] = {}
+    for site, class_1_prob, class_2_prob, decision_value in zip(
+        sites,
+        class_1_probs,
+        class_2_probs,
+        decision_vector,
+        strict=True,
+    ):
+        normalized_prob_class_1 = float(class_1_prob)
+        prob_class_1_by_site[site] = normalized_prob_class_1
         prediction_rows.append(
             {
                 "kinase": kinase,
                 "ensemble": ensemble_index,
                 "site": site,
-                "prob_class_1": float(final_probabilities.loc[site, "1"])
-                if "1" in final_probabilities.columns
-                else float("nan"),
-                "prob_class_2": float(final_probabilities.loc[site, "2"])
-                if "2" in final_probabilities.columns
-                else float("nan"),
+                "prob_class_1": normalized_prob_class_1,
+                "prob_class_2": float(class_2_prob),
             }
         )
         decision_rows.append(
@@ -294,21 +323,19 @@ def _write_final_trace_rows(
                 "kinase": kinase,
                 "ensemble": ensemble_index,
                 "site": site,
-                "decision_value_class_1": float(final_decision_values.loc[site]),
+                "decision_value_class_1": float(decision_value),
             }
         )
-    for rank, site in enumerate(final_top_sites, start=1):
-        top_rows.append(
-            {
-                "kinase": kinase,
-                "ensemble": ensemble_index,
-                "rank": rank,
-                "site": site,
-                "prob_class_1": float(final_probabilities.loc[site, "1"])
-                if "1" in final_probabilities.columns
-                else float("nan"),
-            }
-        )
+    top_rows = [
+        {
+            "kinase": kinase,
+            "ensemble": ensemble_index,
+            "rank": rank,
+            "site": site,
+            "prob_class_1": prob_class_1_by_site.get(site, float("nan")),
+        }
+        for rank, site in enumerate(final_top_sites, start=1)
+    ]
     trace_sink.write_rows("trace_final_ensemble_predictions", prediction_rows)
     trace_sink.write_rows("trace_final_ensemble_decision_values", decision_rows)
     trace_sink.write_rows("trace_final_ensemble_top", top_rows)
