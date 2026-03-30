@@ -1,9 +1,25 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING, Protocol
 
-from .analysis import KinaseActivityResult
-from .core_processing import CoreProcessingResult
+if TYPE_CHECKING:
+    from .analysis import KinaseActivityResult
+    from .core_processing import CoreProcessingResult
+
+
+class CoreProcessingResultWriter(Protocol):
+    """Writer contract for persisted core preprocessing outputs."""
+
+    @staticmethod
+    def write(result: CoreProcessingResult, outdir: str | Path) -> None: ...
+
+
+class KinaseActivityResultWriter(Protocol):
+    """Writer contract for persisted kinase activity outputs."""
+
+    @staticmethod
+    def write(result: KinaseActivityResult, outdir: str | Path) -> None: ...
 
 
 class CoreOutputWriter:

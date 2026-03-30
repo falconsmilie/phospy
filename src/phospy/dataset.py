@@ -22,6 +22,7 @@ from .core_processing import (
 from .dataset_loader import DatasetLoader
 from .site_matrix_builder import SiteMatrixBuilder, SiteMatrixResult
 from .validation.compatibility import validate_core_column_alignment
+from .writers import CoreOutputWriter, CoreProcessingResultWriter
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,7 +261,10 @@ class PhosphoDataset:
         )
 
     @staticmethod
-    def write_core_outputs(result: CoreProcessingResult, outdir: str | Path) -> None:
-        from .writers import CoreOutputWriter
-
-        CoreOutputWriter.write(result, outdir)
+    def write_core_outputs(
+        result: CoreProcessingResult,
+        outdir: str | Path,
+        *,
+        writer: CoreProcessingResultWriter = CoreOutputWriter,
+    ) -> None:
+        writer.write(result, outdir)

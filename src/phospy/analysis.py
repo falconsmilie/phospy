@@ -14,6 +14,7 @@ from .activities import (
 from .io import load_pred_mat
 from .validation.compatibility import validate_pred_mat_overlap
 from .validation.tables import PredMatSchema, SiteMatrixSchema
+from .writers import KinaseActivityResultWriter, KinaseActivityWriter
 
 
 @dataclass(slots=True)
@@ -94,7 +95,7 @@ def load_and_analyze_kinase_activity(
 def write_kinase_activity_outputs(
     result: KinaseActivityResult,
     outdir: str | Path,
+    *,
+    writer: KinaseActivityResultWriter = KinaseActivityWriter,
 ) -> None:
-    from .writers import KinaseActivityWriter
-
-    KinaseActivityWriter.write(result, outdir)
+    writer.write(result, outdir)
