@@ -9,7 +9,6 @@ import pandas as pd
 from ..types import PredictionSvmMode, PredictionTraceLevel
 from .models import (
     AdaptiveSamplingEnsembleTrace,
-    AdaptiveSamplingIterationTrace,
     SamplingTraceOverrideEnsemble,
 )
 from .svm import (
@@ -154,29 +153,6 @@ def _resample_training_rows(
         resampled_y.append(np.repeat(class_label, class_x.shape[0]))
 
     return np.vstack(resampled_x), np.concatenate(resampled_y), sampled_sites_by_class
-
-
-def _build_iteration_trace(
-    *,
-    iteration_index: int,
-    labels: pd.Series,
-    probabilities: pd.DataFrame,
-    probability_parameters: pd.DataFrame | None,
-    decision_values: pd.Series,
-    weights_by_class: dict[int, pd.Series | None],
-    sampled_sites_by_class: dict[int, list[str]],
-) -> AdaptiveSamplingIterationTrace:
-    return AdaptiveSamplingIterationTrace(
-        iteration_index=iteration_index,
-        labels=labels,
-        probabilities=probabilities,
-        probability_parameters=probability_parameters,
-        decision_values=decision_values,
-        positive_weights=weights_by_class.get(1),
-        negative_weights=weights_by_class.get(2),
-        sampled_positive_sites=sampled_sites_by_class.get(1, []),
-        sampled_negative_sites=sampled_sites_by_class.get(2, []),
-    )
 
 
 def _write_iteration_trace_rows(
@@ -362,8 +338,11 @@ def multi_ada_sampling(
     base_index = train_mat.index.copy()
     current_x = base_x
     current_y = base_y
+    if capture_trace and trace_level == "full" and trace_sink is None:
+        msg = "full trace capture requires a trace sink"
+        raise ValueError(msg)
+
     model = None
-    iteration_traces: list[AdaptiveSamplingIterationTrace] = []
 
     for iteration_index in range(1, n_iterations + 1):
         model = _fit_sampling_model(
@@ -454,7 +433,7 @@ def multi_ada_sampling(
             index=test_mat.index.copy(),
             positive_probabilities=pred_df.get("1"),
         )
-        if trace_level == "full" and trace_sink is not None:
+        if trace_level == "full":
             _write_final_trace_rows(
                 trace_sink=trace_sink,
                 kinase=kinase,
@@ -463,26 +442,12 @@ def multi_ada_sampling(
                 final_decision_values=final_decision_values,
                 final_top_sites=final_top_sites,
             )
-            ensemble_trace = AdaptiveSamplingEnsembleTrace(
-                ensemble_index=ensemble_index,
-                initial_negative_sites=list(initial_negative_sites),
-                final_top_sites=final_top_sites,
-            )
-        elif trace_level == "summary":
-            ensemble_trace = AdaptiveSamplingEnsembleTrace(
-                ensemble_index=ensemble_index,
-                initial_negative_sites=list(initial_negative_sites),
-                final_top_sites=final_top_sites,
-            )
-        else:
-            ensemble_trace = AdaptiveSamplingEnsembleTrace(
-                ensemble_index=ensemble_index,
-                initial_negative_sites=list(initial_negative_sites),
-                iterations=iteration_traces,
-                final_prediction_probabilities=pred_df,
-                final_decision_values=final_decision_values,
-                final_top_sites=final_top_sites,
-            )
+
+        ensemble_trace = AdaptiveSamplingEnsembleTrace(
+            ensemble_index=ensemble_index,
+            initial_negative_sites=list(initial_negative_sites),
+            final_top_sites=final_top_sites,
+        )
 
     return positive_series, ensemble_trace
 

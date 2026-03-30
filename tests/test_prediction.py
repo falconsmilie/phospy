@@ -16,6 +16,7 @@ from phospy.prediction import (
 from phospy.prediction.sampling import (
     make_prediction_random_generators as _make_prediction_random_generators,
 )
+from phospy.prediction.sampling import multi_ada_sampling as _multi_ada_sampling
 from phospy.prediction.sampling import (
     transform_resampling_probabilities as _transform_resampling_probabilities,
 )
@@ -203,6 +204,37 @@ def test_predict_can_stream_full_trace_tables_to_sink(tmp_path: Path) -> None:
     assert not tables["trace_iteration_samples"].empty
     assert not tables["trace_final_ensemble_predictions"].empty
     assert not tables["trace_final_ensemble_top"].empty
+
+
+def test_multi_ada_sampling_requires_trace_sink_for_full_trace() -> None:
+    train_mat = pd.DataFrame(
+        {
+            "feature_1": [1.0, 0.9, 0.1, 0.0],
+            "feature_2": [1.0, 0.8, 0.2, 0.1],
+        },
+        index=["SITE_1", "SITE_2", "SITE_3", "SITE_4"],
+    )
+    test_mat = train_mat.copy()
+    labels = np.asarray([1, 1, 2, 2], dtype=int)
+
+    with pytest.raises(ValueError, match="trace sink"):
+        _multi_ada_sampling(
+            train_mat=train_mat,
+            test_mat=test_mat,
+            labels=labels,
+            kernel="rbf",
+            n_iterations=2,
+            resampling_rng=np.random.default_rng(7),
+            capture_trace=True,
+            trace_level="full",
+            trace_sink=None,
+            kinase="KINASE_A",
+            ensemble_index=1,
+            initial_negative_sites=["SITE_3", "SITE_4"],
+            debug_top_n=2,
+            svm_mode="default",
+            sampling_override=None,
+        )
 
 
 def test_predict_can_capture_debug_trace_for_all_kinases() -> None:
