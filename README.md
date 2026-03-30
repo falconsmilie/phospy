@@ -328,6 +328,44 @@ pytest -m "not parity"
 pytest -m parity
 ```
 
+If you want the parity suite to print its optional comparison metrics while you debug a seam, these environment
+variables are available:
+
+- `PHOSPY_SHOW_PARITY`: master switch for parity metrics output
+- `PHOSPY_SHOW_PROFILE_CONSTRUCTION`: also print the optional profile-construction metrics
+- `PHOSPY_SHOW_PREDICTION_MODE_COMPARISON`: also print default-versus-`r_parity` prediction comparison metrics
+- `PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON`: also print replayed prediction comparison metrics
+
+The three more specific flags only do anything when `PHOSPY_SHOW_PARITY` is enabled first. Truthy values are
+case-insensitive and include `1`, `true`, `yes`, and `on`.
+
+Linux or macOS examples:
+
+```bash
+PHOSPY_SHOW_PARITY=1 pytest -m parity
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 pytest -m parity -k l6
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 pytest -m parity -k comparison
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -k replayed
+```
+
+Windows PowerShell examples:
+
+```powershell
+$env:PHOSPY_SHOW_PARITY = "1"; pytest -m parity
+$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; pytest -m parity -k l6
+$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -k comparison
+$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -k replayed
+```
+
+Windows Command Prompt examples:
+
+```bat
+set PHOSPY_SHOW_PARITY=1 && pytest -m parity
+set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && pytest -m parity -k l6
+set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -k comparison
+set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -k replayed
+```
+
 To run the usual contributor checks:
 
 ```bash

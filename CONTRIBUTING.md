@@ -53,6 +53,37 @@ Run the parity layer with:
 pytest -m parity
 ```
 
+If you want the parity suite to print its optional comparison summaries while you are debugging, these environment
+variables are available:
+
+- `PHOSPY_SHOW_PARITY`: master switch for parity metrics output
+- `PHOSPY_SHOW_PROFILE_CONSTRUCTION`: adds the optional profile-construction summary
+- `PHOSPY_SHOW_PREDICTION_MODE_COMPARISON`: adds default-versus-`r_parity` prediction comparison metrics
+- `PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON`: adds replayed prediction comparison metrics
+
+The more specific flags only take effect when `PHOSPY_SHOW_PARITY` is also enabled.
+
+Linux or macOS:
+
+```bash
+PHOSPY_SHOW_PARITY=1 pytest -m parity
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 pytest -m parity -k l6
+```
+
+Windows PowerShell:
+
+```powershell
+$env:PHOSPY_SHOW_PARITY = "1"; pytest -m parity
+$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; pytest -m parity -k l6
+```
+
+Windows Command Prompt:
+
+```bat
+set PHOSPY_SHOW_PARITY=1 && pytest -m parity
+set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && pytest -m parity -k l6
+```
+
 For more on scope and wording, see [`docs/parity.md`](docs/parity.md).
 
 ## Release Gate

@@ -123,6 +123,47 @@ pytest
 
 Use the split commands when you want the release gate to stay easy to reason about.
 
+## Optional Parity Metrics Flags
+
+When you are debugging a parity seam, `tests/test_parity-with_metrics.py` can print extra comparison summaries.
+
+Available environment variables:
+
+- `PHOSPY_SHOW_PARITY`: master switch for parity metrics output
+- `PHOSPY_SHOW_PROFILE_CONSTRUCTION`: adds the optional profile-construction summary
+- `PHOSPY_SHOW_PREDICTION_MODE_COMPARISON`: adds default-versus-`r_parity` prediction comparison metrics
+- `PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON`: adds replayed prediction comparison metrics
+
+The three more specific flags only take effect when `PHOSPY_SHOW_PARITY` is enabled first. Truthy values are
+case-insensitive and include `1`, `true`, `yes`, and `on`.
+
+Linux or macOS examples:
+
+```bash
+PHOSPY_SHOW_PARITY=1 pytest -m parity
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 pytest -m parity -k l6
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 pytest -m parity -k comparison
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -k replayed
+```
+
+Windows PowerShell examples:
+
+```powershell
+$env:PHOSPY_SHOW_PARITY = "1"; pytest -m parity
+$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; pytest -m parity -k l6
+$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -k comparison
+$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -k replayed
+```
+
+Windows Command Prompt examples:
+
+```bat
+set PHOSPY_SHOW_PARITY=1 && pytest -m parity
+set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && pytest -m parity -k l6
+set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -k comparison
+set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -k replayed
+```
+
 ## Regenerating R Fixtures
 
 You only need R when you want to regenerate or extend the committed fixtures.
