@@ -68,6 +68,7 @@ pytest -m parity -k l6
 ### Optional parity metrics output
 
 The parity suite can also print a few extra comparison summaries that are useful when you are investigating a seam.
+To see those summaries in the terminal, run pytest with `-s` (or `--capture=no`).
 
 Available environment variables:
 
@@ -79,31 +80,134 @@ Available environment variables:
 The more specific flags are ignored unless `PHOSPY_SHOW_PARITY` is also enabled. Truthy values are
 case-insensitive and include `1`, `true`, `yes`, and `on`.
 
+If you enable all four flags and run the full parity suite, PhosPy prints every available metrics block exercised by
+those tests. If you narrow the run with `-k`, you will only see the summaries for the matching tests.
+
 Linux or macOS examples:
 
 ```bash
-PHOSPY_SHOW_PARITY=1 pytest -m parity
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 pytest -m parity -k l6
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 pytest -m parity -k comparison
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -k replayed
+PHOSPY_SHOW_PARITY=1 pytest -m parity -s
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 pytest -m parity -k l6 -s
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 pytest -m parity -k comparison -s
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -k replayed -s
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
 ```
 
 Windows PowerShell examples:
 
 ```powershell
-$env:PHOSPY_SHOW_PARITY = "1"; pytest -m parity
-$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; pytest -m parity -k l6
-$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -k comparison
-$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -k replayed
+$env:PHOSPY_SHOW_PARITY = "1"; pytest -m parity -s
+$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; pytest -m parity -k l6 -s
+$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -k comparison -s
+$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -k replayed -s
+$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; $env:PHOSPY_SHOW_PREDICTION_MODE_COMPARISON = "1"; $env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -s
 ```
 
 Windows Command Prompt examples:
 
 ```bat
-set PHOSPY_SHOW_PARITY=1 && pytest -m parity
-set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && pytest -m parity -k l6
-set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -k comparison
-set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -k replayed
+set PHOSPY_SHOW_PARITY=1 && pytest -m parity -s
+set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && pytest -m parity -k l6 -s
+set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -k comparison -s
+set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -k replayed -s
+set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && set PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 && set PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -s
+```
+
+### Reading the metrics
+
+These summaries are meant to make the parity claim easier to interpret, not to widen it.
+
+- **Profile-construction, profile-scoring, and combined-score metrics** show how closely the numeric tables line up
+  with the committed reference outputs.
+- **Prediction parity metrics** focus on ranking agreement and overlap, because the prediction seam is better judged by
+  ranked outputs than by strict element-for-element equality.
+- **Prediction mode comparison metrics** help you compare the default Python-native learner path with
+  `svm_mode="r_parity"` on the same bundled fixtures.
+- **Replayed prediction trace metrics** go one level deeper by checking how closely Python follows committed trace data
+  for selected kinases.
+
+In the bundled fixtures, the deterministic profile-building seams are effectively numerically identical to the reference
+outputs, while prediction-stage parity is intentionally described with rank agreement, overlap, and trace-replay
+statistics.
+
+### Example output from the bundled parity fixtures
+
+The block below is reference output from the bundled repository fixtures. It is useful context when you are reading the
+parity docs or debugging a seam, but it is not a promise that every dataset or every platform will produce identical
+numbers.
+
+```text
+tests\test_parity-with_metrics.py ...
+Optional profile-construction parity metrics:
+  kinases compared: 44
+  profile matrix shape: (44, 12) vs (44, 12)
+  mean per-kinase Pearson correlation: 100.00%
+  mean absolute difference: 4.25993e-16
+  max absolute difference: 6.43929e-15
+.
+Profile-scoring parity metrics:
+  sites compared: 589
+  kinases compared: 44
+  mean per-kinase Pearson correlation: 100.00%
+  mean per-kinase Spearman correlation: 100.00%
+  mean absolute difference: 2.85064e-16
+  max absolute difference: 1.44329e-15
+.
+Combined-score parity metrics:
+  sites compared: 589
+  kinases compared: 28
+  mean per-kinase Pearson correlation: 100.00%
+  mean per-kinase Spearman correlation: 100.00%
+  mean absolute difference: 2.81253e-16
+  max absolute difference: 9.99201e-16
+  mean weight absolute difference: 1.39695e-15
+..
+Prediction parity metrics:
+  svm_mode: default
+  kinases compared: 28
+  mean Spearman rank agreement: 96.41%
+  mean top-10 overlap: 83.21%
+  mean top-20 overlap: 88.75%
+  mean top-30 overlap: 89.64%
+  kinases with top-10 overlap >= 70%: 26/28
+.
+Prediction parity mode comparison:
+  default mean Spearman rank agreement: 96.41%
+  r_parity mean Spearman rank agreement: 96.46%
+  default mean top-10 overlap: 83.21%
+  r_parity mean top-10 overlap: 80.71%
+  default mean top-20 overlap: 88.75%
+  r_parity mean top-20 overlap: 87.32%
+  default mean top-30 overlap: 89.64%
+  r_parity mean top-30 overlap: 89.05%
+.
+Replayed prediction trace parity metrics:
+  svm_mode: r_parity
+  kinases compared: 2
+  trace kinases used: MAPK1, PRKAA1
+  trace kinases skipped: none
+  initial negative exact matches: 600/600
+  iteration sample exact matches: 6000/6000
+  iteration prob class-1 Pearson correlation: 99.952%
+  iteration prob class-2 Pearson correlation: 99.952%
+  iteration decision class-1 Pearson correlation: 100.000%
+  iteration decision class-1 mean absolute difference: 2.14513e-15
+  iteration prob class-1 mean absolute difference: 0.00675895
+  final top-site matches: 198/200
+  final top class-1 mean absolute difference: 0.00325916
+.
+Replayed prediction parity mode comparison:
+  default trace kinases used: MAPK1, PRKAA1
+  r_parity trace kinases used: MAPK1, PRKAA1
+  trace kinases skipped: none
+  default iteration prob class-1 Pearson correlation: 99.953%
+  r_parity iteration prob class-1 Pearson correlation: 99.952%
+  default iteration prob mean absolute difference: 0.00670807
+  r_parity iteration prob mean absolute difference: 0.00675895
+  default final top-site matches: 183/200
+  r_parity final top-site matches: 198/200
+  default final top class-1 mean absolute difference: 0.00326616
+  r_parity final top class-1 mean absolute difference: 0.00325916
 ```
 
 If you prefer repository shortcuts:

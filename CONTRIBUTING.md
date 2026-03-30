@@ -61,30 +61,34 @@ variables are available:
 - `PHOSPY_SHOW_PREDICTION_MODE_COMPARISON`: adds default-versus-`r_parity` prediction comparison metrics
 - `PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON`: adds replayed prediction comparison metrics
 
-The more specific flags only take effect when `PHOSPY_SHOW_PARITY` is also enabled.
+The more specific flags only take effect when `PHOSPY_SHOW_PARITY` is also enabled. Run pytest with `-s` if you want
+to see the printed summaries in the terminal.
 
 Linux or macOS:
 
 ```bash
-PHOSPY_SHOW_PARITY=1 pytest -m parity
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 pytest -m parity -k l6
+PHOSPY_SHOW_PARITY=1 pytest -m parity -s
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 pytest -m parity -k l6 -s
+PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
 ```
 
 Windows PowerShell:
 
 ```powershell
-$env:PHOSPY_SHOW_PARITY = "1"; pytest -m parity
-$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; pytest -m parity -k l6
+$env:PHOSPY_SHOW_PARITY = "1"; pytest -m parity -s
+$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; pytest -m parity -k l6 -s
+$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; $env:PHOSPY_SHOW_PREDICTION_MODE_COMPARISON = "1"; $env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -s
 ```
 
 Windows Command Prompt:
 
 ```bat
-set PHOSPY_SHOW_PARITY=1 && pytest -m parity
-set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && pytest -m parity -k l6
+set PHOSPY_SHOW_PARITY=1 && pytest -m parity -s
+set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && pytest -m parity -k l6 -s
+set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && set PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 && set PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -s
 ```
 
-For more on scope and wording, see [`docs/parity.md`](docs/parity.md).
+For more on scope, wording, and sample output from the bundled fixtures, see [`docs/parity.md`](docs/parity.md).
 
 ## Release Gate
 
