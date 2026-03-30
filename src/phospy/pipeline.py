@@ -57,7 +57,7 @@ class PhosRPipeline:
             request.phospho_path,
             phospho_encoding=request.phospho_encoding,
         )
-        dataset = PhosphoDataset._from_validated_frames(
+        dataset = PhosphoDataset.from_validated_inputs(
             total_df=total_df,
             phospho_df=phospho_df,
             comparisons=request.comparisons,

@@ -91,6 +91,24 @@ def test_phospho_dataset_process_core() -> None:
     )
 
 
+def test_phospho_dataset_from_validated_inputs_builds_without_revalidation() -> None:
+    loader = DatasetLoader()
+    total_df, phospho_df = loader.validate(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+
+    dataset = PhosphoDataset.from_validated_inputs(
+        total_df=total_df,
+        phospho_df=phospho_df,
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+
+    assert dataset.total_df.equals(total_df)
+    assert dataset.phospho_df.equals(phospho_df)
+    assert dataset.comparisons == tuple(EXAMPLE_COMPARISONS)
+
+
 def test_analyze_kinase_activity() -> None:
     phospho_matrix = pd.DataFrame(
         {
