@@ -4,8 +4,7 @@ from collections.abc import Iterable, Sequence
 
 import pandas as pd
 
-from phospy.constants import DEFAULT_PHOSPHO_COLS, DEFAULT_TOTAL_COLS
-
+from ..constants import DEFAULT_PHOSPHO_COLS, DEFAULT_TOTAL_COLS
 from .errors import TableSchemaError
 
 
