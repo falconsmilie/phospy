@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+
 import pandas as pd
+import pytest
 
 from phospy import (
     KinaseWorkflow,
@@ -423,6 +426,67 @@ def test_pipeline_from_request_validates_inputs_once(monkeypatch, tmp_path) -> N
     assert pipeline.dataset.total_df.shape[0] == 4
     assert total_calls == 1
     assert phospho_calls == 1
+
+
+def test_pipeline_writes_run_manifest(tmp_path) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    pred_path = tmp_path / "predMat.csv"
+    outdir = tmp_path / "out"
+
+    make_total_df().to_csv(total_path, sep="	", index=False)
+    make_phospho_df().to_csv(phospho_path, sep="	", index=False)
+    make_pred_mat().to_csv(pred_path)
+
+    pipeline = PhosRPipeline.from_files(
+        total_path=total_path,
+        phospho_path=phospho_path,
+        pred_mat_path=pred_path,
+    )
+
+    pipeline.run(outdir=outdir)
+
+    manifest = json.loads((outdir / "run_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["status"] == "success"
+    assert manifest["has_kinase_activity"] is True
+    assert manifest["core_rows"]["site_matrix"] == 3
+    assert manifest["preprocessing_config"]["min_observed"] == 4
+
+
+def test_pipeline_run_does_not_publish_partial_outputs_on_failure(
+    monkeypatch, tmp_path
+) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    pred_path = tmp_path / "predMat.csv"
+    outdir = tmp_path / "out"
+
+    make_total_df().to_csv(total_path, sep="	", index=False)
+    make_phospho_df().to_csv(phospho_path, sep="	", index=False)
+    make_pred_mat().to_csv(pred_path)
+
+    pipeline = PhosRPipeline.from_files(
+        total_path=total_path,
+        phospho_path=phospho_path,
+        pred_mat_path=pred_path,
+    )
+
+    from phospy import pipeline as pipeline_module
+
+    def blow_up(*args, **kwargs) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        pipeline_module.KinaseActivityWriter,
+        "write",
+        staticmethod(blow_up),
+    )
+
+    with pytest.raises(RuntimeError, match="boom"):
+        pipeline.run(outdir=outdir)
+
+    assert not outdir.exists()
+    assert not any(path.name.startswith(".out.tmp-") for path in tmp_path.iterdir())
 
 
 def pipeline_config() -> CorePreprocessingConfig:

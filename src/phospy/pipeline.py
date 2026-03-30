@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import json
+import shutil
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from uuid import uuid4
 
 import pandas as pd
 
@@ -20,6 +25,15 @@ from .writers import CoreOutputWriter, KinaseActivityWriter
 class CoreOutputs:
     core: CoreProcessingResult
     kinase_activity: KinaseActivityResult | None = None
+
+
+def _package_version() -> str:
+    try:
+        from importlib.metadata import version
+
+        return version("phospy")
+    except Exception:
+        return "unknown"
 
 
 class PhosRPipeline:
@@ -105,15 +119,90 @@ class PhosRPipeline:
 
     def run(self, outdir: str | Path | None = None) -> CoreOutputs:
         core = self.dataset.process_core(config=self.preprocessing_config)
-        if outdir is not None:
-            CoreOutputWriter.write(core, outdir)
 
         kinase_activity = None
         if self.pred_mat is not None:
             kinase_activity = analyze_kinase_activity(
-                self.pred_mat, core.site_matrix.matrix
+                self.pred_mat,
+                core.site_matrix.matrix,
             )
-            if outdir is not None:
-                KinaseActivityWriter.write(kinase_activity, outdir)
+
+        if outdir is not None:
+            self._write_outputs_atomically(
+                outdir=outdir,
+                core=core,
+                kinase_activity=kinase_activity,
+            )
 
         return CoreOutputs(core=core, kinase_activity=kinase_activity)
+
+    def _write_outputs_atomically(
+        self,
+        *,
+        outdir: str | Path,
+        core: CoreProcessingResult,
+        kinase_activity: KinaseActivityResult | None,
+    ) -> None:
+        target_dir = Path(outdir)
+        parent_dir = target_dir.parent
+        parent_dir.mkdir(parents=True, exist_ok=True)
+
+        with TemporaryDirectory(
+            dir=parent_dir,
+            prefix=f".{target_dir.name}.tmp-",
+        ) as staging_dir_str:
+            staging_dir = Path(staging_dir_str)
+            CoreOutputWriter.write(core, staging_dir)
+            if kinase_activity is not None:
+                KinaseActivityWriter.write(kinase_activity, staging_dir)
+            self._write_run_manifest(
+                outdir=staging_dir,
+                core=core,
+                kinase_activity=kinase_activity,
+            )
+            self._publish_output_directory(
+                staging_dir=staging_dir,
+                target_dir=target_dir,
+            )
+
+    def _write_run_manifest(
+        self,
+        *,
+        outdir: Path,
+        core: CoreProcessingResult,
+        kinase_activity: KinaseActivityResult | None,
+    ) -> None:
+        manifest = {
+            "status": "success",
+            "generated_at_utc": datetime.now(UTC).isoformat(),
+            "package_version": _package_version(),
+            "has_kinase_activity": kinase_activity is not None,
+            "core_rows": {
+                "total_unique": int(core.total_unique.shape[0]),
+                "total_filtered": int(core.total_filtered.shape[0]),
+                "phospho_filtered": int(core.phospho_filtered.shape[0]),
+                "phospho_corrected": int(core.phospho_corrected.shape[0]),
+                "site_matrix": int(core.site_matrix.matrix.shape[0]),
+            },
+            "preprocessing_config": asdict(self.preprocessing_config),
+        }
+        (outdir / "run_manifest.json").write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+    @staticmethod
+    def _publish_output_directory(*, staging_dir: Path, target_dir: Path) -> None:
+        if not target_dir.exists():
+            staging_dir.replace(target_dir)
+            return
+
+        backup_dir = target_dir.with_name(f".{target_dir.name}.backup-{uuid4().hex}")
+        target_dir.replace(backup_dir)
+        try:
+            staging_dir.replace(target_dir)
+        except Exception:
+            backup_dir.replace(target_dir)
+            raise
+        else:
+            shutil.rmtree(backup_dir)
