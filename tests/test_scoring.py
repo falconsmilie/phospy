@@ -69,6 +69,44 @@ def test_score_phosphosite_profiles_requires_matching_columns() -> None:
         scorer.score_phosphosite_profiles(phospho_matrix)
 
 
+def test_score_phosphosite_profiles_matches_unbatched_result() -> None:
+    scorer = KinaseScorer(make_kinase_profiles(), correlation_batch_size=1)
+    phospho_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 3.0, 2.0, 4.0],
+            "sample_2": [2.0, 2.0, 1.0, 4.0],
+            "sample_3": [3.0, 1.0, 0.0, 4.0],
+        },
+        index=["SITE_A", "SITE_B", "SITE_C", "SITE_CONST"],
+    )
+
+    chunked = scorer.score_phosphosite_profiles(phospho_matrix)
+    unbatched = scorer.score_phosphosite_profiles(
+        phospho_matrix,
+        correlation_batch_size=None,
+    )
+
+    pd.testing.assert_frame_equal(chunked, unbatched)
+
+
+def test_score_phosphosite_profiles_rejects_invalid_batch_size() -> None:
+    scorer = KinaseScorer(make_kinase_profiles())
+    phospho_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0],
+            "sample_2": [2.0],
+            "sample_3": [3.0],
+        },
+        index=["SITE_A"],
+    )
+
+    with pytest.raises(ValueError, match="correlation_batch_size must be at least 1"):
+        scorer.score_phosphosite_profiles(
+            phospho_matrix,
+            correlation_batch_size=0,
+        )
+
+
 def test_combine_profile_and_motif_scores_uses_rank_weights() -> None:
     motif_scores = pd.DataFrame(
         {

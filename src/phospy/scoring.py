@@ -25,22 +25,38 @@ class KinaseScorer:
     separate concerns.
     """
 
-    def __init__(self, kinase_profiles: pd.DataFrame) -> None:
+    def __init__(
+        self,
+        kinase_profiles: pd.DataFrame,
+        correlation_batch_size: int | None = 1024,
+    ) -> None:
         self.kinase_profiles = kinase_profiles.copy()
+        self.correlation_batch_size = _validate_correlation_batch_size(
+            correlation_batch_size
+        )
 
     @classmethod
     def from_profile_dict(
         cls,
         kinase_profiles: Mapping[str, pd.Series | Sequence[float] | np.ndarray],
         sample_names: Sequence[str] | None = None,
+        correlation_batch_size: int | None = 1024,
     ) -> KinaseScorer:
         profile_frame = _build_profile_frame(
             kinase_profiles=kinase_profiles,
             sample_names=sample_names,
         )
-        return cls(profile_frame)
+        return cls(
+            profile_frame,
+            correlation_batch_size=correlation_batch_size,
+        )
 
-    def score_phosphosite_profiles(self, phospho_matrix: pd.DataFrame) -> pd.DataFrame:
+    def score_phosphosite_profiles(
+        self,
+        phospho_matrix: pd.DataFrame,
+        *,
+        correlation_batch_size: int | None = None,
+    ) -> pd.DataFrame:
         """Return profile-based kinase scores on the 0..1 scale.
 
         The implementation mirrors the compatibility helper used in the R
@@ -63,6 +79,10 @@ class KinaseScorer:
         correlation_matrix = _rowwise_correlation_matrix(
             left=phospho_values,
             right=profile_values,
+            batch_size=_resolve_correlation_batch_size(
+                requested_batch_size=correlation_batch_size,
+                default_batch_size=self.correlation_batch_size,
+            ),
         )
         score_matrix = (correlation_matrix + 1.0) / 2.0
 
@@ -82,8 +102,13 @@ class KinaseScorer:
         motif_sizes: pd.Series | None = None,
         profile_sizes: pd.Series | None = None,
         allow_profile_only_fallback: bool = False,
+        *,
+        correlation_batch_size: int | None = None,
     ) -> KinaseScoringResult:
-        profile_scores = self.score_phosphosite_profiles(phospho_matrix)
+        profile_scores = self.score_phosphosite_profiles(
+            phospho_matrix,
+            correlation_batch_size=correlation_batch_size,
+        )
 
         if motif_scores is None:
             return KinaseScoringResult(profile_scores=profile_scores)
@@ -199,16 +224,49 @@ def _require_index_members(
         raise InputCompatibilityError(msg)
 
 
-def _rowwise_correlation_matrix(left: np.ndarray, right: np.ndarray) -> np.ndarray:
-    left_centered = left - left.mean(axis=1, keepdims=True)
+def _rowwise_correlation_matrix(
+    left: np.ndarray,
+    right: np.ndarray,
+    batch_size: int | None = None,
+) -> np.ndarray:
+    resolved_batch_size = _validate_correlation_batch_size(batch_size)
+    if resolved_batch_size is None:
+        resolved_batch_size = left.shape[0] or 1
+
     right_centered = right - right.mean(axis=1, keepdims=True)
-
-    left_scale = np.linalg.norm(left_centered, axis=1)
     right_scale = np.linalg.norm(right_centered, axis=1)
-    denominator = np.outer(left_scale, right_scale)
 
-    with np.errstate(divide="ignore", invalid="ignore"):
-        correlation = left_centered @ right_centered.T / denominator
+    correlation = np.empty((left.shape[0], right.shape[0]), dtype=float)
 
-    correlation[denominator == 0.0] = np.nan
+    for start in range(0, left.shape[0], resolved_batch_size):
+        stop = min(start + resolved_batch_size, left.shape[0])
+        left_chunk = left[start:stop]
+        left_centered = left_chunk - left_chunk.mean(axis=1, keepdims=True)
+        left_scale = np.linalg.norm(left_centered, axis=1)
+        denominator = np.outer(left_scale, right_scale)
+
+        with np.errstate(divide="ignore", invalid="ignore"):
+            chunk_correlation = left_centered @ right_centered.T / denominator
+
+        chunk_correlation[denominator == 0.0] = np.nan
+        correlation[start:stop, :] = chunk_correlation
+
     return correlation
+
+
+def _resolve_correlation_batch_size(
+    requested_batch_size: int | None,
+    default_batch_size: int | None,
+) -> int | None:
+    if requested_batch_size is None:
+        return default_batch_size
+    return _validate_correlation_batch_size(requested_batch_size)
+
+
+def _validate_correlation_batch_size(batch_size: int | None) -> int | None:
+    if batch_size is None:
+        return None
+    if batch_size < 1:
+        msg = "correlation_batch_size must be at least 1 when provided"
+        raise InputCompatibilityError(msg)
+    return batch_size
