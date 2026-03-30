@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
+import numpy as np
 import pandas as pd
 
 from ..constants import DEFAULT_PHOSPHO_COLS, DEFAULT_TOTAL_COLS
@@ -142,6 +143,16 @@ class SiteMatrixSchema:
         )
         _ensure_unique_index(validated, context=context)
         _ensure_non_null_index(validated, context=context)
+        _ensure_non_null_numeric_values(
+            validated,
+            list(validated.columns),
+            context=context,
+        )
+        _ensure_finite_values(
+            validated,
+            list(validated.columns),
+            context=context,
+        )
         return validated
 
 
@@ -277,4 +288,37 @@ def _ensure_unique_index(frame: pd.DataFrame, *, context: str) -> None:
 def _ensure_non_null_index(frame: pd.DataFrame, *, context: str) -> None:
     if frame.index.isna().any():
         msg = f"{context} contains null index entries"
+        raise TableSchemaError(msg)
+
+
+def _ensure_non_null_numeric_values(
+    frame: pd.DataFrame,
+    columns: Sequence[str],
+    *,
+    context: str,
+) -> None:
+    failures: list[str] = []
+    for column in columns:
+        if frame[column].isna().any():
+            failures.append(column)
+    if failures:
+        failures_str = ", ".join(failures)
+        msg = f"{context} contains null values in numeric columns: {failures_str}"
+        raise TableSchemaError(msg)
+
+
+def _ensure_finite_values(
+    frame: pd.DataFrame,
+    columns: Sequence[str],
+    *,
+    context: str,
+) -> None:
+    failures: list[str] = []
+    for column in columns:
+        values = frame[column].to_numpy(dtype=float, copy=False)
+        if not np.isfinite(values).all():
+            failures.append(column)
+    if failures:
+        failures_str = ", ".join(failures)
+        msg = f"{context} contains non-finite numeric values in columns: {failures_str}"
         raise TableSchemaError(msg)

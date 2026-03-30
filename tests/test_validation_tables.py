@@ -99,3 +99,27 @@ def test_load_total_table_returns_numeric_frame(tmp_path) -> None:
 
     assert loaded["group1"].dtype.kind in {"f", "i"}
     assert loaded.loc[0, "genes"] == "PRKACA"
+
+
+def test_site_matrix_schema_rejects_null_numeric_values() -> None:
+    frame = pd.DataFrame(
+        {
+            "sample_1": [1.0, None],
+        },
+        index=["SITE_1", "SITE_2"],
+    )
+
+    with pytest.raises(TableSchemaError, match="null values in numeric columns"):
+        SiteMatrixSchema.validate(frame)
+
+
+def test_site_matrix_schema_rejects_non_finite_numeric_values() -> None:
+    frame = pd.DataFrame(
+        {
+            "sample_1": [1.0, float("inf")],
+        },
+        index=["SITE_1", "SITE_2"],
+    )
+
+    with pytest.raises(TableSchemaError, match="non-finite numeric values"):
+        SiteMatrixSchema.validate(frame)

@@ -135,3 +135,23 @@ def test_kinase_activity_analyzer_rejects_invalid_substrate_counts_with_package_
             phospho_matrix=phospho_matrix,
             min_substrates=0,
         )
+
+
+def test_kinase_activity_analyzer_rejects_non_finite_phospho_matrix_values() -> None:
+    analyzer = KinaseActivityAnalyzer(
+        pred_mat=pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"])
+    )
+    phospho_matrix = pd.DataFrame({"sample_1": [float("inf")]}, index=["SITE_1"])
+
+    with pytest.raises(TableSchemaError, match="non-finite numeric values"):
+        analyzer.compute_weighted_activity(phospho_matrix=phospho_matrix)
+
+
+def test_kinase_activity_analyzer_rejects_null_phospho_matrix_values() -> None:
+    analyzer = KinaseActivityAnalyzer(
+        pred_mat=pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"])
+    )
+    phospho_matrix = pd.DataFrame({"sample_1": [None]}, index=["SITE_1"])
+
+    with pytest.raises(TableSchemaError, match="null values in numeric columns"):
+        analyzer.compute_ksea_scores(phospho_matrix=phospho_matrix)
