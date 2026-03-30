@@ -14,7 +14,7 @@ means to support.
 from phospy import (
     CoreOutputs,
     CoreProcessingResult,
-    KinaseActivityAnalyzer,
+    analyze_kinase_activity,
     KinaseActivityResult,
     KinasePredictionResult,
     KinaseWorkflow,
@@ -112,31 +112,23 @@ Attributes:
 A useful detail: site-matrix construction drops rows with missing sequences or incomplete corrected values, then
 collapses duplicate phosphosites by keeping the row with the highest mean corrected signal.
 
-## `KinaseActivityAnalyzer`
+## `analyze_kinase_activity`
 
 Use this when you already have a phosphosite matrix and a `predMat` and want downstream kinase summaries.
 
-### Create it
-
-From a CSV:
+### Call it
 
 ```python
-from phospy import KinaseActivityAnalyzer
+from phospy import analyze_kinase_activity
+import pandas as pd
 
-analyzer = KinaseActivityAnalyzer.from_csv("predMat.csv")
+pred_mat = pd.read_csv("predMat.csv", index_col=0)
+result = analyze_kinase_activity(pred_mat=pred_mat, phospho_matrix=phospho_matrix)
 ```
 
-From a data frame:
+### Signature
 
-```python
-from phospy import KinaseActivityAnalyzer
-
-analyzer = KinaseActivityAnalyzer(pred_mat=pred_mat)
-```
-
-### Main method
-
-#### `analyze(phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20) -> KinaseActivityResult`
+#### `analyze_kinase_activity(pred_mat, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20) -> KinaseActivityResult`
 
 Returns:
 
@@ -149,17 +141,18 @@ Returns:
 The input `predMat` and phosphosite matrix must overlap by at least one row and at least 10% of the phosphosite
 matrix.
 
-### Helpful lower-level methods
+### Related lower-level functions
 
-- `build_target_table(...)`
+These live in `phospy.activities`:
+
+- `build_kinase_target_table(...)`
 - `count_predicted_targets(...)`
-- `compute_weighted_activity(...)`
+- `compute_weighted_kinase_activity(...)`
 - `compute_ksea_scores(...)`
-- `write_outputs(...)`
 
 ## `KinaseActivityResult`
 
-Returned by `KinaseActivityAnalyzer.analyze(...)`.
+Returned by `analyze_kinase_activity(...)`.
 
 Attributes:
 

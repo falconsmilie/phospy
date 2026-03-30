@@ -3,19 +3,17 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import KinaseActivityAnalyzer, PhosphoDataset
+from phospy import PhosphoDataset, analyze_kinase_activity
 from phospy.validation.errors import InputCompatibilityError
 from phospy.workflow import KinaseWorkflow
 
 
-def test_kinase_activity_analyzer_rejects_zero_overlap() -> None:
-    analyzer = KinaseActivityAnalyzer(
-        pd.DataFrame(
-            {
-                "PRKACA": [0.9],
-            },
-            index=["SITE_A"],
-        )
+def test_analyze_kinase_activity_rejects_zero_overlap() -> None:
+    pred_mat = pd.DataFrame(
+        {
+            "PRKACA": [0.9],
+        },
+        index=["SITE_A"],
     )
     phospho_matrix = pd.DataFrame(
         {
@@ -25,7 +23,7 @@ def test_kinase_activity_analyzer_rejects_zero_overlap() -> None:
     )
 
     with pytest.raises(InputCompatibilityError, match="no overlapping phosphosite IDs"):
-        analyzer.analyze(phospho_matrix)
+        analyze_kinase_activity(pred_mat=pred_mat, phospho_matrix=phospho_matrix)
 
 
 def test_kinase_workflow_rejects_missing_site_sequence_coverage() -> None:
@@ -151,14 +149,12 @@ def test_core_processing_allows_row_loss_with_explicit_tolerance() -> None:
     assert result.phospho_corrected["gene_names"].tolist() == ["PRKACA"]
 
 
-def test_kinase_activity_analyzer_rejects_insufficient_overlap_fraction() -> None:
-    analyzer = KinaseActivityAnalyzer(
-        pd.DataFrame(
-            {
-                "PRKACA": [0.9],
-            },
-            index=["SITE_1"],
-        )
+def test_analyze_kinase_activity_rejects_insufficient_overlap_fraction() -> None:
+    pred_mat = pd.DataFrame(
+        {
+            "PRKACA": [0.9],
+        },
+        index=["SITE_1"],
     )
     phospho_matrix = pd.DataFrame(
         {
@@ -170,4 +166,4 @@ def test_kinase_activity_analyzer_rejects_insufficient_overlap_fraction() -> Non
     with pytest.raises(
         InputCompatibilityError, match="insufficient overlapping phosphosite IDs"
     ):
-        analyzer.analyze(phospho_matrix)
+        analyze_kinase_activity(pred_mat=pred_mat, phospho_matrix=phospho_matrix)

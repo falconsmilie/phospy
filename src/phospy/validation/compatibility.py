@@ -140,7 +140,7 @@ def validate_workflow_inputs(
         raise InputCompatibilityError(msg)
 
     if site_sequences is not None:
-        sequence_index = _extract_sequence_index(site_sequences, validated_matrix.index)
+        sequence_index = _extract_sequence_index(site_sequences)
         missing = [
             site for site in validated_matrix.index if site not in sequence_index
         ]
@@ -173,7 +173,6 @@ def validate_workflow_inputs(
 
 def _extract_sequence_index(
     site_sequences: Mapping[str, str] | pd.Series,
-    site_index: pd.Index,
 ) -> set[str]:
     if isinstance(site_sequences, pd.Series):
         return {str(value) for value in site_sequences.index}

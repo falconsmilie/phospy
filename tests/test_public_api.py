@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy import KinaseActivityAnalyzer, KinaseWorkflow, PhosphoDataset, PhosRPipeline
+from phospy import (
+    KinaseWorkflow,
+    PhosphoDataset,
+    PhosRPipeline,
+    analyze_kinase_activity,
+)
 from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
 from phospy.dataset_loader import DatasetLoader
 from phospy.site_matrix_builder import SiteMatrixBuilder
@@ -58,7 +63,7 @@ def test_public_root_exports() -> None:
     expected = {
         "CoreOutputs",
         "CoreProcessingResult",
-        "KinaseActivityAnalyzer",
+        "analyze_kinase_activity",
         "KinaseActivityResult",
         "KinasePredictionResult",
         "KinaseWorkflow",
@@ -86,8 +91,7 @@ def test_phospho_dataset_process_core() -> None:
     )
 
 
-def test_kinase_activity_analyzer() -> None:
-    analyzer = KinaseActivityAnalyzer(pred_mat=make_pred_mat())
+def test_analyze_kinase_activity() -> None:
     phospho_matrix = pd.DataFrame(
         {
             "phospho_corrected_1": [4.0, 4.0, 4.0],
@@ -95,8 +99,11 @@ def test_kinase_activity_analyzer() -> None:
         },
         index=["PRKACA;S339;", "BTK;Y551;", "LYN;Y397;"],
     )
-    result = analyzer.analyze(
-        phospho_matrix=phospho_matrix, threshold=0.6, min_substrates=2
+    result = analyze_kinase_activity(
+        pred_mat=make_pred_mat(),
+        phospho_matrix=phospho_matrix,
+        threshold=0.6,
+        min_substrates=2,
     )
 
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}

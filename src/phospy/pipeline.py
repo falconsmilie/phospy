@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
+from .analysis import KinaseActivityResult, analyze_kinase_activity
 from .constants import ComparisonSpec
 from .core_processing import CorePreprocessingConfig, CoreProcessingResult
 from .dataset import PhosphoDataset
@@ -112,8 +112,9 @@ class PhosRPipeline:
 
         kinase_activity = None
         if self.pred_mat is not None:
-            analyzer = KinaseActivityAnalyzer(self.pred_mat)
-            kinase_activity = analyzer.analyze(core.site_matrix.matrix)
+            kinase_activity = analyze_kinase_activity(
+                self.pred_mat, core.site_matrix.matrix
+            )
             if outdir is not None:
                 KinaseActivityWriter.write(kinase_activity, outdir)
 

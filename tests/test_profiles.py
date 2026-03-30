@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.profiles import KinaseProfileBuilder, build_kinase_substrate_profiles
+from phospy.profiles import build_kinase_substrate_profiles
 
 
 def make_phospho_matrix() -> pd.DataFrame:
@@ -62,12 +62,14 @@ def test_build_kinase_substrate_profiles_applies_minimum_substrate_filter() -> N
     assert int(result.substrate_counts.loc["KINASE_A"]) == 1
 
 
-def test_kinase_profile_builder_wraps_functional_api() -> None:
-    builder = KinaseProfileBuilder()
+def test_build_kinase_substrate_profiles_returns_expected_profile_rows() -> None:
     phospho_matrix = make_phospho_matrix()
     substrate_map = {"KINASE_A": ["SITE_1", "SITE_2"]}
 
-    result = builder.build(substrate_map=substrate_map, phospho_matrix=phospho_matrix)
+    result = build_kinase_substrate_profiles(
+        substrate_map=substrate_map,
+        phospho_matrix=phospho_matrix,
+    )
 
     assert list(result.profile_matrix.index) == ["KINASE_A"]
     assert float(result.profile_matrix.loc["KINASE_A", "s1"]) == pytest.approx(2.0)

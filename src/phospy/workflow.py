@@ -7,7 +7,7 @@ import pandas as pd
 
 from .motifs import KinaseMotifScorer, MotifScoringResult
 from .prediction import KinasePredictionResult, KinasePredictor
-from .profiles import KinaseProfileBuilder, KinaseProfileResult
+from .profiles import KinaseProfileResult, build_kinase_substrate_profiles
 from .scoring import KinaseScorer, KinaseScoringResult
 from .types import PredictionSvmMode
 from .validation.compatibility import validate_workflow_inputs
@@ -78,8 +78,7 @@ class KinaseWorkflow:
             request.motif_sequences,
         )
 
-        profile_builder = KinaseProfileBuilder()
-        profile_result = profile_builder.build(
+        profile_result = build_kinase_substrate_profiles(
             substrate_map=request.substrate_map,
             phospho_matrix=phospho_matrix,
             min_substrates=request.min_substrates,

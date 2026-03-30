@@ -15,22 +15,6 @@ class KinaseProfileResult:
     quantified_substrates: dict[str, list[str]]
 
 
-class KinaseProfileBuilder:
-    """Construct kinase substrate profiles from known substrate annotations."""
-
-    def build(
-        self,
-        substrate_map: Mapping[str, Sequence[str]],
-        phospho_matrix: pd.DataFrame,
-        min_substrates: int = 1,
-    ) -> KinaseProfileResult:
-        return build_kinase_substrate_profiles(
-            substrate_map=substrate_map,
-            phospho_matrix=phospho_matrix,
-            min_substrates=min_substrates,
-        )
-
-
 def build_kinase_substrate_profiles(
     substrate_map: Mapping[str, Sequence[str]],
     phospho_matrix: pd.DataFrame,
