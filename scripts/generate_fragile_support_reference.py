@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -10,8 +11,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 
-SOURCE_DIR = ROOT / "tests" / "fixtures" / "r_reference_l6"
-OUTPUT_DIR = ROOT / "tests" / "fixtures" / "fragile_support_reference"
+DEFAULT_SOURCE_DIR = ROOT / "tests" / "fixtures" / "r_reference_l6"
+DEFAULT_OUTPUT_DIR = ROOT / "tests" / "fixtures" / "fragile_support_reference"
 SELECTED_KINASES: tuple[str, ...] = (
     "MAPK1",
     "AKT1",
@@ -31,6 +32,26 @@ TARGET_TOP_THRESHOLD_ROWS: dict[str, int] = {
 SCORE_THRESHOLD = 0.8
 INCLUSION = 20
 TOP = 50
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generate the curated fragile-support reference dataset derived from "
+            "the committed L6 R reference outputs."
+        )
+    )
+    parser.add_argument(
+        "--source-dir",
+        default=str(DEFAULT_SOURCE_DIR),
+        help="Directory containing the source L6 reference outputs.",
+    )
+    parser.add_argument(
+        "--outdir",
+        default=str(DEFAULT_OUTPUT_DIR),
+        help="Directory where the fragile-support fixture family will be written.",
+    )
+    return parser.parse_args()
 
 
 def read_indexed_csv(path: Path) -> pd.DataFrame:
@@ -69,6 +90,10 @@ def candidate_status(candidate_count: int) -> str:
 
 
 def main() -> None:
+    args = parse_args()
+    source_dir = Path(args.source_dir)
+    output_dir = Path(args.outdir)
+
     if str(SRC) not in sys.path:
         sys.path.insert(0, str(SRC))
 
@@ -76,10 +101,10 @@ def main() -> None:
     from phospy.profiles import build_kinase_substrate_profiles
     from phospy.scoring import KinaseScorer, combine_profile_and_motif_scores
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    phospho_matrix = read_indexed_csv(SOURCE_DIR / "l6_phospho_matrix.csv")
-    site_sequence_frame = pd.read_csv(SOURCE_DIR / "l6_site_sequences.csv")
+    phospho_matrix = read_indexed_csv(source_dir / "l6_phospho_matrix.csv")
+    site_sequence_frame = pd.read_csv(source_dir / "l6_site_sequences.csv")
     site_sequence_frame["site_id"] = site_sequence_frame["site_id"].astype(str)
     site_sequence_frame["short_site_id"] = (
         site_sequence_frame["site_id"]
@@ -89,12 +114,12 @@ def main() -> None:
     site_sequences = site_sequence_frame.set_index("short_site_id")[
         "centralized_sequence"
     ]
-    substrate_map_full = read_grouped_mapping(SOURCE_DIR / "native_substrate_map.csv")
-    motif_scores_full = read_indexed_csv(SOURCE_DIR / "native_motif_scores.csv")
-    motif_sizes_full = pd.read_csv(SOURCE_DIR / "native_motif_sizes.csv").set_index(
+    substrate_map_full = read_grouped_mapping(source_dir / "native_substrate_map.csv")
+    motif_scores_full = read_indexed_csv(source_dir / "native_motif_scores.csv")
+    motif_sizes_full = pd.read_csv(source_dir / "native_motif_sizes.csv").set_index(
         "kinase"
     )["motif_size"]
-    combined_scores_full = read_indexed_csv(SOURCE_DIR / "native_combined_scores.csv")
+    combined_scores_full = read_indexed_csv(source_dir / "native_combined_scores.csv")
 
     selected_rows: set[str] = set()
     for kinase in SELECTED_KINASES:
@@ -216,52 +241,52 @@ def main() -> None:
         "- candidate_substrates.csv: candidate selection output under the configured threshold settings",
         "- screening_summary.csv: selection-summary table for the curated dataset",
     ]
-    (OUTPUT_DIR / "README.md").write_text(
+    (output_dir / "README.md").write_text(
         "\n".join(readme_lines) + "\n", encoding="utf-8"
     )
 
-    phospho_subset.to_csv(OUTPUT_DIR / "phospho_matrix.csv")
+    phospho_subset.to_csv(output_dir / "phospho_matrix.csv")
     (
         sequence_subset.rename("centralized_sequence")
         .rename_axis("site_id")
         .reset_index()
-        .to_csv(OUTPUT_DIR / "site_sequences.csv", index=False)
+        .to_csv(output_dir / "site_sequences.csv", index=False)
     )
     flatten_mapping(
         substrate_map_subset,
         key_col="kinase",
         value_col="site_id",
-    ).to_csv(OUTPUT_DIR / "substrate_map.csv", index=False)
-    motif_sequence_frame.to_csv(OUTPUT_DIR / "motif_sequences.csv", index=False)
+    ).to_csv(output_dir / "substrate_map.csv", index=False)
+    motif_sequence_frame.to_csv(output_dir / "motif_sequences.csv", index=False)
     profile_result.profile_matrix.sort_index().sort_index(axis=1).to_csv(
-        OUTPUT_DIR / "profile_matrix.csv"
+        output_dir / "profile_matrix.csv"
     )
     (
         profile_result.substrate_counts.rename("substrate_count")
         .rename_axis("kinase")
         .reset_index()
-        .to_csv(OUTPUT_DIR / "profile_sizes.csv", index=False)
+        .to_csv(output_dir / "profile_sizes.csv", index=False)
     )
-    profile_scores.to_csv(OUTPUT_DIR / "profile_scores.csv")
-    motif_scores.to_csv(OUTPUT_DIR / "motif_scores.csv")
+    profile_scores.to_csv(output_dir / "profile_scores.csv")
+    motif_scores.to_csv(output_dir / "motif_scores.csv")
     (
         motif_sizes.rename("motif_size")
         .rename_axis("kinase")
         .reset_index()
-        .to_csv(OUTPUT_DIR / "motif_sizes.csv", index=False)
+        .to_csv(output_dir / "motif_sizes.csv", index=False)
     )
-    combined_scores.to_csv(OUTPUT_DIR / "combined_scores.csv")
+    combined_scores.to_csv(output_dir / "combined_scores.csv")
     combined_weights.reset_index().to_csv(
-        OUTPUT_DIR / "combined_weights.csv", index=False
+        output_dir / "combined_weights.csv", index=False
     )
     flatten_mapping(
         candidate_substrates,
         key_col="kinase",
         value_col="site_id",
-    ).to_csv(OUTPUT_DIR / "candidate_substrates.csv", index=False)
-    summary.to_csv(OUTPUT_DIR / "screening_summary.csv", index=False)
+    ).to_csv(output_dir / "candidate_substrates.csv", index=False)
+    summary.to_csv(output_dir / "screening_summary.csv", index=False)
 
-    print(f"Wrote fragile-support reference dataset to: {OUTPUT_DIR}")
+    print(f"Wrote fragile-support reference dataset to: {output_dir}")
 
 
 if __name__ == "__main__":

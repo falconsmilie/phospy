@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -11,7 +12,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-FIXTURE_DIR = Path("tests/fixtures/synthetic_adaptive_sampling_edge")
+DEFAULT_FIXTURE_DIR = Path("tests/fixtures/synthetic_adaptive_sampling_edge")
 TOP = 4
 SCORE_THRESHOLD = 0.85
 INCLUSION = 2
@@ -20,6 +21,21 @@ N_ITERATIONS = 2
 RANDOM_STATE = 1
 DEBUG_TOP_N = 4
 TRACE_KINASES = ["KINASE_A", "KINASE_B"]
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generate deterministic synthetic fixtures for adaptive-sampling "
+            "edge-case replay tests."
+        )
+    )
+    parser.add_argument(
+        "--outdir",
+        default=str(DEFAULT_FIXTURE_DIR),
+        help="Directory where the synthetic fixture family will be written.",
+    )
+    return parser.parse_args()
 
 
 def build_combined_scores() -> pd.DataFrame:
@@ -284,20 +300,23 @@ def write_readme(outdir: Path) -> None:
 
 
 def main() -> None:
+    args = parse_args()
+    fixture_dir = Path(args.outdir)
+
     from phospy.prediction import (
         KinasePredictor,
         PredictionSamplingTrace,
         prediction_debug_trace_tables,
     )
 
-    FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
+    fixture_dir.mkdir(parents=True, exist_ok=True)
     combined_scores = build_combined_scores()
-    combined_scores.to_csv(FIXTURE_DIR / "combined_scores.csv")
+    combined_scores.to_csv(fixture_dir / "combined_scores.csv")
 
-    trace_dir = FIXTURE_DIR
+    trace_dir = fixture_dir
     write_sampling_override(trace_dir)
     build_trace_candidates(combined_scores).to_csv(
-        FIXTURE_DIR / "trace_candidates.csv",
+        fixture_dir / "trace_candidates.csv",
         index=False,
     )
 
@@ -315,12 +334,12 @@ def main() -> None:
         debug_top_n=DEBUG_TOP_N,
         sampling_trace=sampling_trace,
         trace_level="full",
-        trace_sink=FIXTURE_DIR,
+        trace_sink=fixture_dir,
     )
     for name, table in prediction_debug_trace_tables(result).items():
-        table.to_csv(FIXTURE_DIR / f"{name}.csv", index=False)
+        table.to_csv(fixture_dir / f"{name}.csv", index=False)
 
-    write_readme(FIXTURE_DIR)
+    write_readme(fixture_dir)
 
 
 if __name__ == "__main__":
