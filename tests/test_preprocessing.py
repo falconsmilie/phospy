@@ -51,6 +51,51 @@ def test_collapse_duplicate_genes_keeps_highest_mean_signal() -> None:
     assert sorted(out["genes"].tolist()) == ["BTK", "PRKACA"]
 
 
+def test_collapse_duplicate_genes_prefers_more_observed_values_before_mean() -> None:
+    df = pd.DataFrame(
+        {
+            "genes": ["Prkaca", "Prkaca"],
+            "group1": [10.0, 6.0],
+            "group2": [np.nan, 6.0],
+            "group3": [np.nan, 6.0],
+        }
+    )
+
+    out = collapse_duplicate_genes(
+        df=df,
+        gene_col="genes",
+        value_cols=["group1", "group2", "group3"],
+    )
+
+    prkaca = out.loc[out["genes"] == "PRKACA"].iloc[0]
+    assert prkaca["group1"] == 6.0
+    assert prkaca["group2"] == 6.0
+    assert prkaca["group3"] == 6.0
+
+
+def test_collapse_duplicate_genes_uses_original_order_as_final_tiebreaker() -> None:
+    df = pd.DataFrame(
+        {
+            "genes": ["Prkaca", "Prkaca"],
+            "row_id": ["first", "second"],
+            "group1": [4.0, 4.0],
+            "group2": [2.0, 2.0],
+        }
+    )
+
+    out = collapse_duplicate_genes(
+        df=df,
+        gene_col="genes",
+        value_cols=["group1", "group2"],
+        uppercase=False,
+    )
+
+    prkaca = out.loc[out["genes"] == "Prkaca"].iloc[0]
+    assert prkaca["row_id"] == "first"
+    assert prkaca["group1"] == 4.0
+    assert prkaca["group2"] == 2.0
+
+
 def test_collapse_duplicate_genes_reports_missing_required_columns() -> None:
     df = pd.DataFrame({"genes": ["Prkaca"], "group1": [1.0]})
 

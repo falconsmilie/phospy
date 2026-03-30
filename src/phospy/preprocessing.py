@@ -51,6 +51,15 @@ def collapse_duplicate_genes(
     value_cols: Sequence[str],
     uppercase: bool = True,
 ) -> pd.DataFrame:
+    """Collapse duplicate gene rows using an explicit ranking policy.
+
+    Rows are ranked within each gene group by:
+    1. highest observed-value count across ``value_cols``
+    2. highest mean signal across ``value_cols``
+    3. earliest original row order as a stable tie-breaker
+
+    The top-ranked row for each gene is retained.
+    """
     _require_columns(
         df,
         required_columns=[gene_col, *value_cols],
@@ -59,9 +68,19 @@ def collapse_duplicate_genes(
 
     work = df.copy()
     work[gene_col] = work[gene_col].astype("string")
-    work["__mean_signal"] = work.loc[:, list(value_cols)].mean(axis=1, skipna=True)
-    idx = work.groupby(gene_col)["__mean_signal"].idxmax()
-    result = work.loc[idx].drop(columns="__mean_signal").copy()
+    ranked_cols = list(value_cols)
+    work["__observed_count"] = work.loc[:, ranked_cols].notna().sum(axis=1)
+    work["__mean_signal"] = work.loc[:, ranked_cols].mean(axis=1, skipna=True)
+    work["__original_order"] = np.arange(len(work), dtype=int)
+
+    ranked = work.sort_values(
+        by=[gene_col, "__observed_count", "__mean_signal", "__original_order"],
+        ascending=[True, False, False, True],
+        kind="mergesort",
+    )
+    result = ranked.drop_duplicates(subset=[gene_col], keep="first").drop(
+        columns=["__observed_count", "__mean_signal", "__original_order"]
+    )
 
     if uppercase:
         result[gene_col] = result[gene_col].str.upper()
