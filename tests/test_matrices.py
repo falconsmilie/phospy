@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from phospy.matrices import build_site_matrix
+from phospy.validation.errors import TableSchemaError
 
 
 def test_build_site_matrix_creates_site_ids_and_deduplicates_by_mean() -> None:
@@ -60,3 +62,26 @@ def test_build_site_matrix_exposes_row_drop_stats() -> None:
     assert stats["retained_rows"] == 1
     assert matrix.attrs["row_drop_stats"] == stats
     assert sequences.attrs["row_drop_stats"] == stats
+
+
+def test_build_site_matrix_raises_table_schema_error_for_malformed_gene_p_site() -> (
+    None
+):
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA", "BTK_Y551"],
+            "centralized_sequence": ["AAAAAA", "CCCCCC"],
+            "phospho_corrected_1": [1.0, 3.0],
+            "phospho_corrected_2": [1.0, 3.0],
+        }
+    )
+
+    with pytest.raises(
+        TableSchemaError, match="must contain values in the form GENE_SITE"
+    ):
+        build_site_matrix(
+            df=df,
+            gene_p_site_col="gene_p_site",
+            sequence_col="centralized_sequence",
+            value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+        )
