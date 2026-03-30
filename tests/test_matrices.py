@@ -60,3 +60,49 @@ def test_build_site_matrix_exposes_row_drop_stats() -> None:
     assert stats["retained_rows"] == 1
     assert matrix.attrs["row_drop_stats"] == stats
     assert sequences.attrs["row_drop_stats"] == stats
+
+
+def test_build_site_matrix_breaks_equal_mean_ties_deterministically_by_uid() -> None:
+    df = pd.DataFrame(
+        {
+            "uid": ["z-row", "a-row"],
+            "gene_p_site": ["PRKACA_S339", "PRKACA_S339"],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "phospho_corrected_1": [10.0, 10.0],
+            "phospho_corrected_2": [10.0, 10.0],
+        }
+    )
+
+    phosr_input, matrix, sequences = build_site_matrix(
+        df=df,
+        gene_p_site_col="gene_p_site",
+        sequence_col="centralized_sequence",
+        value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+    )
+
+    assert matrix.loc["PRKACA;S339;", "phospho_corrected_1"] == 10.0
+    assert sequences.loc["PRKACA;S339;"] == "BBBBBB"
+    assert phosr_input.loc[0, "uid"] == "a-row"
+
+
+def test_build_site_matrix_breaks_equal_mean_ties_by_original_order_without_uid() -> (
+    None
+):
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_S339", "PRKACA_S339"],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "phospho_corrected_1": [10.0, 10.0],
+            "phospho_corrected_2": [10.0, 10.0],
+        }
+    )
+
+    _, matrix, sequences = build_site_matrix(
+        df=df,
+        gene_p_site_col="gene_p_site",
+        sequence_col="centralized_sequence",
+        value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+    )
+
+    assert sequences.loc["PRKACA;S339;"] == "AAAAAA"
+    assert matrix.loc["PRKACA;S339;", "phospho_corrected_1"] == 10.0

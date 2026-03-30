@@ -58,10 +58,27 @@ def build_site_matrix(
     complete_cases["__mean_signal"] = complete_cases.loc[:, list(value_cols)].mean(
         axis=1, skipna=True
     )
-    idx = complete_cases.groupby("site_id")["__mean_signal"].idxmax()
+    complete_cases["__row_order"] = range(len(complete_cases))
+
+    sort_cols = ["site_id", "__mean_signal"]
+    ascending = [True, False]
+    if "uid" in complete_cases.columns:
+        complete_cases["__uid_sort"] = complete_cases["uid"].astype("string")
+        sort_cols.append("__uid_sort")
+        ascending.append(True)
+    sort_cols.append("__row_order")
+    ascending.append(True)
+
     phosr_input = (
-        complete_cases.loc[idx]
-        .drop(columns="__mean_signal")
+        complete_cases.sort_values(sort_cols, ascending=ascending, kind="mergesort")
+        .drop_duplicates(subset=["site_id"], keep="first")
+        .drop(
+            columns=[
+                col
+                for col in ["__mean_signal", "__uid_sort", "__row_order"]
+                if col in complete_cases.columns
+            ]
+        )
         .copy()
         .reset_index(drop=True)
     )
