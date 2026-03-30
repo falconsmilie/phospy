@@ -227,7 +227,7 @@ def test_pipeline_propagates_max_unmatched_fraction(tmp_path) -> None:
     outputs = pipeline.run()
 
     assert outputs.core.phospho_corrected.shape[0] == 1
-    assert pipeline.max_unmatched_fraction == 0.5
+    assert pipeline.preprocessing_config.max_unmatched_fraction == 0.5
 
 
 def test_phospho_dataset_honours_custom_corrected_columns() -> None:
@@ -295,17 +295,17 @@ def test_pipeline_propagates_sentinel_configuration(tmp_path) -> None:
     )
 
     total_unique, total_filtered = pipeline.dataset.prepare_total(
-        sentinel=pipeline.total_sentinel,
-        min_observed=pipeline.min_observed,
+        sentinel=pipeline.preprocessing_config.total_sentinel,
+        min_observed=pipeline.preprocessing_config.min_observed,
     )
     phospho_filtered = pipeline.dataset.prepare_phospho(
-        localization_threshold=pipeline.localization_threshold,
-        sentinel=pipeline.phospho_sentinel,
-        min_observed=pipeline.min_observed,
+        localization_threshold=pipeline.preprocessing_config.localization_threshold,
+        sentinel=pipeline.preprocessing_config.phospho_sentinel,
+        min_observed=pipeline.preprocessing_config.min_observed,
     )
 
-    assert pipeline.total_sentinel == 99.0
-    assert pipeline.phospho_sentinel == 99.0
+    assert pipeline.preprocessing_config.total_sentinel == 99.0
+    assert pipeline.preprocessing_config.phospho_sentinel == 99.0
     assert total_unique.shape[0] == 1
     assert pd.isna(total_filtered.iloc[0]["group1"])
     assert pd.isna(phospho_filtered.iloc[0]["p_group1"])

@@ -29,6 +29,7 @@ class PhosRPipeline:
         self,
         dataset: PhosphoDataset,
         pred_mat: pd.DataFrame | None = None,
+        preprocessing_config: CorePreprocessingConfig | None = None,
         localization_threshold: float = 0.75,
         min_observed: int = 4,
         max_unmatched_fraction: float = 0.0,
@@ -37,18 +38,13 @@ class PhosRPipeline:
     ) -> None:
         self.dataset = dataset
         self.pred_mat = pred_mat.copy() if pred_mat is not None else None
-        self.preprocessing_config = CorePreprocessingConfig(
+        self.preprocessing_config = preprocessing_config or CorePreprocessingConfig(
             localization_threshold=localization_threshold,
             min_observed=min_observed,
             max_unmatched_fraction=max_unmatched_fraction,
             total_sentinel=total_sentinel,
             phospho_sentinel=phospho_sentinel,
         )
-        self.localization_threshold = localization_threshold
-        self.min_observed = min_observed
-        self.max_unmatched_fraction = max_unmatched_fraction
-        self.total_sentinel = total_sentinel
-        self.phospho_sentinel = phospho_sentinel
 
     @classmethod
     def from_request(cls, request: CorePipelineRequest) -> PhosRPipeline:
@@ -70,11 +66,13 @@ class PhosRPipeline:
         return cls(
             dataset=dataset,
             pred_mat=pred_mat,
-            localization_threshold=request.localization_threshold,
-            min_observed=request.min_observed,
-            max_unmatched_fraction=request.max_unmatched_fraction,
-            total_sentinel=request.total_sentinel,
-            phospho_sentinel=request.phospho_sentinel,
+            preprocessing_config=CorePreprocessingConfig(
+                localization_threshold=request.localization_threshold,
+                min_observed=request.min_observed,
+                max_unmatched_fraction=request.max_unmatched_fraction,
+                total_sentinel=request.total_sentinel,
+                phospho_sentinel=request.phospho_sentinel,
+            ),
         )
 
     @classmethod
