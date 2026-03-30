@@ -23,7 +23,7 @@ TRACE_ENSEMBLE_SIZE = 10
 TRACE_N_ITERATIONS = 5
 TRACE_RANDOM_STATE = 1
 TRACE_DEBUG_TOP_N = 10
-TRACE_KINASES: tuple[str, ...] = ("MAPK1", "IRAK1")
+PREFERRED_TRACE_KINASES: tuple[str, ...] = ("MAPK1", "IRAK1")
 
 TRACE_TABLES = (
     "trace_candidates.csv",
@@ -110,14 +110,14 @@ def candidate_status(candidate_count: int) -> str:
     return "dropped"
 
 
-def select_row_index(trace_dir: Path) -> list[str]:
+def select_row_index(trace_dir: Path, trace_kinases: tuple[str, ...]) -> list[str]:
     trace_candidates = pd.read_csv(trace_dir / "trace_candidates.csv")
     trace_initial = pd.read_csv(trace_dir / "trace_initial_negatives.csv")
     trace_samples = pd.read_csv(trace_dir / "trace_iteration_samples.csv")
     trace_final_top = pd.read_csv(trace_dir / "trace_final_ensemble_top.csv")
 
     selected_rows: set[str] = set()
-    for kinase in TRACE_KINASES:
+    for kinase in trace_kinases:
         selected_rows.update(
             trace_candidates.loc[
                 (trace_candidates.loc[:, "kinase"].astype(str) == kinase)
@@ -136,10 +136,30 @@ def select_row_index(trace_dir: Path) -> list[str]:
 
 
 def filter_trace_table(table: pd.DataFrame, row_index: set[str]) -> pd.DataFrame:
-    filtered = table.loc[table.loc[:, "kinase"].astype(str).isin(TRACE_KINASES)].copy()
+    filtered = table.copy()
     if "site" in filtered.columns:
         filtered = filtered.loc[filtered.loc[:, "site"].astype(str).isin(row_index)]
     return filtered.reset_index(drop=True)
+
+
+def resolve_trace_kinases(trace_dir: Path) -> tuple[str, ...]:
+    trace_candidates = pd.read_csv(trace_dir / "trace_candidates.csv")
+    available_kinases = (
+        trace_candidates.loc[:, "kinase"].astype(str).drop_duplicates().tolist()
+    )
+    if not available_kinases:
+        msg = "No traced kinases were found in the source trace_candidates.csv table."
+        raise ValueError(msg)
+
+    preferred = [
+        kinase for kinase in PREFERRED_TRACE_KINASES if kinase in available_kinases
+    ]
+    ordered_kinases = list(dict.fromkeys(preferred + available_kinases))
+    return tuple(ordered_kinases)
+
+
+def available_trace_tables(trace_dir: Path) -> tuple[str, ...]:
+    return tuple(name for name in TRACE_TABLES if (trace_dir / name).exists())
 
 
 def main() -> None:
@@ -158,7 +178,16 @@ def main() -> None:
     trace_outdir = outdir / "prediction_trace"
     trace_outdir.mkdir(parents=True, exist_ok=True)
 
-    row_index = select_row_index(trace_source_dir)
+    trace_kinases = resolve_trace_kinases(trace_source_dir)
+    trace_tables = available_trace_tables(trace_source_dir)
+    if not trace_tables:
+        msg = "No source prediction trace tables were found for seam-stress generation."
+        raise ValueError(msg)
+
+    for existing_trace_file in trace_outdir.glob("trace_*.csv"):
+        existing_trace_file.unlink()
+
+    row_index = select_row_index(trace_source_dir, trace_kinases)
     row_index_set = set(row_index)
 
     profile_scores_full = read_indexed_csv(source_dir / "native_profile_scores.csv")
@@ -252,7 +281,7 @@ def main() -> None:
 
     candidate_counts_for_trace: dict[str, int] = {}
     trace_candidates_full = pd.read_csv(trace_source_dir / "trace_candidates.csv")
-    for kinase in TRACE_KINASES:
+    for kinase in trace_kinases:
         trace_count = int(
             trace_candidates_full.loc[
                 (trace_candidates_full.loc[:, "kinase"].astype(str) == kinase)
@@ -286,7 +315,7 @@ def main() -> None:
         "",
         f"Row count: {len(row_index)}",
         f"Kinase count: {combined_scores.shape[1]}",
-        f"Trace kinases: {', '.join(TRACE_KINASES)}",
+        f"Trace kinases: {', '.join(trace_kinases)}",
         f"Candidate-selection settings: top={CANDIDATE_TOP}, score_threshold={CANDIDATE_SCORE_THRESHOLD}, inclusion={CANDIDATE_INCLUSION}",
         f"Trace replay settings: top={TRACE_TOP}, score_threshold={TRACE_SCORE_THRESHOLD}, inclusion={TRACE_INCLUSION}, ensemble_size={TRACE_ENSEMBLE_SIZE}, n_iterations={TRACE_N_ITERATIONS}, random_state={TRACE_RANDOM_STATE}, debug_top_n={TRACE_DEBUG_TOP_N}",
         "",
@@ -330,9 +359,12 @@ def main() -> None:
         value_col="site_id",
     ).to_csv(outdir / "candidate_substrates.csv", index=False)
 
-    for table_name in TRACE_TABLES:
+    for table_name in trace_tables:
         filtered = filter_trace_table(
-            pd.read_csv(trace_source_dir / table_name), row_index_set
+            pd.read_csv(trace_source_dir / table_name).loc[
+                lambda frame: frame.loc[:, "kinase"].astype(str).isin(trace_kinases)
+            ],
+            row_index_set,
         )
         filtered.to_csv(trace_outdir / table_name, index=False)
 

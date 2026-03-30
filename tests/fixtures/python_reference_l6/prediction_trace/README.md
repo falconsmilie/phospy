@@ -3,9 +3,9 @@
 These files are generated from the native Python predictor with debug tracing enabled.
 They are intended for direct comparison with the R trace fixtures generated from the PhosR L6 example path.
 
-Trace kinases: PRKAA1, MAPK1, MAPK9, IRAK1, TBK1, LCK
+Trace kinases: PRKAA1, MAPK1
 SVM mode: r_parity
-Sampling trace override: tests/fixtures/r_reference_l6/prediction_trace
+Sampling trace override: none
 Skipped trace kinases: none
 
 Files:

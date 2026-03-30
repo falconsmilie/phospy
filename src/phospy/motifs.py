@@ -150,22 +150,23 @@ def create_frequency_matrix(
         msg = "All sequences must have the same window length"
         raise TableSchemaError(msg)
 
-    frequency_mat = pd.DataFrame(
-        0.0,
+    frequency_values = np.zeros((len(AMINO_ACIDS), width), dtype=float)
+    amino_acid_to_row = _amino_acid_to_row_index()
+
+    for window in windows:
+        for position_index, aa in enumerate(str(window)):
+            row_index = amino_acid_to_row.get(aa)
+            if row_index is None:
+                continue
+            frequency_values[row_index, position_index] += 1.0
+
+    frequency_values /= float(len(windows))
+    return pd.DataFrame(
+        frequency_values,
         index=list(AMINO_ACIDS),
         columns=[f"p{i}" for i in range(1, width + 1)],
         dtype=float,
     )
-
-    for window in windows:
-        for position, aa in enumerate(str(window), start=1):
-            if aa == "_":
-                continue
-            if aa in frequency_mat.index:
-                frequency_mat.loc[aa, f"p{position}"] += 1.0
-
-    frequency_mat /= float(len(windows))
-    return frequency_mat
 
 
 def frequency_scoring(
@@ -176,22 +177,26 @@ def frequency_scoring(
 
     frequency_mat = _coerce_frequency_matrix(frequency_mat)
     sequences = _coerce_sequence_series(sequence_list, flank_size=None)
-    max_width = frequency_mat.shape[1]
+    frequency_values = frequency_mat.to_numpy(dtype=float, copy=False)
+    amino_acid_to_row = _amino_acid_to_row_index()
+    max_width = frequency_values.shape[1]
 
-    scores = pd.Series(0.0, index=sequences.index.copy(), dtype=float)
-    for site, sequence in sequences.items():
+    score_values = np.zeros(len(sequences), dtype=float)
+    for sequence_index, sequence in enumerate(sequences):
         if pd.isna(sequence):
-            scores.loc[site] = 0.0
+            score_values[sequence_index] = 0.0
             continue
 
         score = 0.0
-        for position, aa in enumerate(str(sequence), start=1):
-            if position > max_width:
+        for position_index, aa in enumerate(str(sequence)):
+            if position_index >= max_width:
                 break
-            if aa in frequency_mat.index:
-                score += float(frequency_mat.loc[aa, f"p{position}"])
-        scores.loc[site] = score
-    return scores
+            row_index = amino_acid_to_row.get(aa)
+            if row_index is None:
+                continue
+            score += float(frequency_values[row_index, position_index])
+        score_values[sequence_index] = score
+    return pd.Series(score_values, index=sequences.index.copy(), dtype=float)
 
 
 def score_phosphosite_motifs(
@@ -228,6 +233,10 @@ def minmax_scale_columns(mat: pd.DataFrame) -> pd.DataFrame:
         else:
             scaled.loc[:, column] = (values - min_value) / denominator
     return scaled
+
+
+def _amino_acid_to_row_index() -> dict[str, int]:
+    return {amino_acid: row_index for row_index, amino_acid in enumerate(AMINO_ACIDS)}
 
 
 def _coerce_frequency_matrix(frequency_mat: pd.DataFrame) -> pd.DataFrame:
