@@ -10,14 +10,26 @@ from phospy.prediction import (
     KinasePredictionResult,
     KinasePredictor,
     PredictionSamplingTrace,
-    _make_prediction_random_generators,
-    _make_svm,
-    _require_sklearn,
-    _resolve_svm_probability_random_state,
-    _RLikeStandardScaler,
-    _transform_resampling_probabilities,
     build_candidate_substrate_list,
     prediction_debug_trace_tables,
+)
+from phospy.prediction.sampling import (
+    make_prediction_random_generators as _make_prediction_random_generators,
+)
+from phospy.prediction.sampling import (
+    transform_resampling_probabilities as _transform_resampling_probabilities,
+)
+from phospy.prediction.svm import (
+    _RLikeStandardScaler,
+)
+from phospy.prediction.svm import (
+    make_svm as _make_svm,
+)
+from phospy.prediction.svm import (
+    require_sklearn as _require_sklearn,
+)
+from phospy.prediction.svm import (
+    resolve_svm_probability_random_state as _resolve_svm_probability_random_state,
 )
 from phospy.scoring import KinaseScoringResult
 
