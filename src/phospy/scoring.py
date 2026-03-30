@@ -143,11 +143,8 @@ def combine_profile_and_motif_scores(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Combine motif and profile score matrices using rank-derived weights."""
 
-    overlap = [
-        kinase
-        for kinase in motif_scores.columns
-        if kinase in set(profile_scores.columns)
-    ]
+    profile_kinases = set(profile_scores.columns)
+    overlap = [kinase for kinase in motif_scores.columns if kinase in profile_kinases]
 
     if not overlap:
         if not allow_profile_only_fallback:
