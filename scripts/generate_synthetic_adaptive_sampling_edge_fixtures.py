@@ -314,6 +314,8 @@ def main() -> None:
         debug_kinases=TRACE_KINASES,
         debug_top_n=DEBUG_TOP_N,
         sampling_trace=sampling_trace,
+        trace_level="full",
+        trace_sink=FIXTURE_DIR,
     )
     for name, table in prediction_debug_trace_tables(result).items():
         table.to_csv(FIXTURE_DIR / f"{name}.csv", index=False)

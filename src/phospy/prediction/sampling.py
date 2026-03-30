@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ..types import PredictionSvmMode
+from ..types import PredictionSvmMode, PredictionTraceLevel
 from .models import (
     AdaptiveSamplingEnsembleTrace,
     AdaptiveSamplingIterationTrace,
@@ -18,7 +18,7 @@ from .svm import (
     make_svm,
     require_sklearn,
 )
-from .traces import PredictionSamplingTrace
+from .traces import PredictionSamplingTrace, TraceSink
 
 
 def make_prediction_random_generators(
@@ -179,6 +179,165 @@ def _build_iteration_trace(
     )
 
 
+def _write_iteration_trace_rows(
+    *,
+    trace_sink: TraceSink,
+    kinase: str,
+    ensemble_index: int,
+    iteration_index: int,
+    labels: pd.Series,
+    probabilities: pd.DataFrame,
+    probability_parameters: pd.DataFrame | None,
+    decision_values: pd.Series,
+    weights_by_class: dict[int, pd.Series | None],
+    sampled_sites_by_class: dict[int, list[str]],
+) -> None:
+    label_rows: list[dict[str, object]] = []
+    probability_rows: list[dict[str, object]] = []
+    decision_rows: list[dict[str, object]] = []
+    for position, site in enumerate(probabilities.index.tolist()):
+        label_value = int(labels.iloc[position])
+        prob_row = probabilities.iloc[position]
+        decision_value = float(decision_values.iloc[position])
+        label_rows.append(
+            {
+                "kinase": kinase,
+                "ensemble": ensemble_index,
+                "iteration": iteration_index,
+                "site": site,
+                "label": label_value,
+            }
+        )
+        probability_rows.append(
+            {
+                "kinase": kinase,
+                "ensemble": ensemble_index,
+                "iteration": iteration_index,
+                "site": site,
+                "label": label_value,
+                "prob_class_1": float(prob_row.get("1", float("nan"))),
+                "prob_class_2": float(prob_row.get("2", float("nan"))),
+            }
+        )
+        decision_rows.append(
+            {
+                "kinase": kinase,
+                "ensemble": ensemble_index,
+                "iteration": iteration_index,
+                "site": site,
+                "label": label_value,
+                "decision_value_class_1": decision_value,
+            }
+        )
+    trace_sink.write_rows("trace_iteration_labels", label_rows)
+    trace_sink.write_rows("trace_iteration_probabilities", probability_rows)
+    trace_sink.write_rows("trace_iteration_decision_values", decision_rows)
+
+    if probability_parameters is not None:
+        trace_sink.write_rows(
+            "trace_iteration_probability_parameters",
+            [
+                {
+                    "kinase": kinase,
+                    "ensemble": ensemble_index,
+                    "iteration": iteration_index,
+                    "class_pair": str(row["class_pair"]),
+                    "probA": float(row["probA"]),
+                    "probB": float(row["probB"]),
+                }
+                for _, row in probability_parameters.iterrows()
+            ],
+        )
+
+    weight_rows: list[dict[str, object]] = []
+    for class_label, weights in (
+        (1, weights_by_class.get(1)),
+        (2, weights_by_class.get(2)),
+    ):
+        if weights is None:
+            continue
+        for site, weight in weights.items():
+            weight_rows.append(
+                {
+                    "kinase": kinase,
+                    "ensemble": ensemble_index,
+                    "iteration": iteration_index,
+                    "class_label": class_label,
+                    "site": site,
+                    "normalized_weight": float(weight),
+                }
+            )
+    trace_sink.write_rows("trace_iteration_resampling_weights", weight_rows)
+
+    sample_rows: list[dict[str, object]] = []
+    for class_label in (1, 2):
+        for draw, site in enumerate(
+            sampled_sites_by_class.get(class_label, []), start=1
+        ):
+            sample_rows.append(
+                {
+                    "kinase": kinase,
+                    "ensemble": ensemble_index,
+                    "iteration": iteration_index,
+                    "class_label": class_label,
+                    "draw": draw,
+                    "site": site,
+                }
+            )
+    trace_sink.write_rows("trace_iteration_samples", sample_rows)
+
+
+def _write_final_trace_rows(
+    *,
+    trace_sink: TraceSink,
+    kinase: str,
+    ensemble_index: int,
+    final_probabilities: pd.DataFrame,
+    final_decision_values: pd.Series,
+    final_top_sites: list[str],
+) -> None:
+    prediction_rows: list[dict[str, object]] = []
+    decision_rows: list[dict[str, object]] = []
+    top_rows: list[dict[str, object]] = []
+    for site in final_probabilities.index:
+        prediction_rows.append(
+            {
+                "kinase": kinase,
+                "ensemble": ensemble_index,
+                "site": site,
+                "prob_class_1": float(final_probabilities.loc[site, "1"])
+                if "1" in final_probabilities.columns
+                else float("nan"),
+                "prob_class_2": float(final_probabilities.loc[site, "2"])
+                if "2" in final_probabilities.columns
+                else float("nan"),
+            }
+        )
+        decision_rows.append(
+            {
+                "kinase": kinase,
+                "ensemble": ensemble_index,
+                "site": site,
+                "decision_value_class_1": float(final_decision_values.loc[site]),
+            }
+        )
+    for rank, site in enumerate(final_top_sites, start=1):
+        top_rows.append(
+            {
+                "kinase": kinase,
+                "ensemble": ensemble_index,
+                "rank": rank,
+                "site": site,
+                "prob_class_1": float(final_probabilities.loc[site, "1"])
+                if "1" in final_probabilities.columns
+                else float("nan"),
+            }
+        )
+    trace_sink.write_rows("trace_final_ensemble_predictions", prediction_rows)
+    trace_sink.write_rows("trace_final_ensemble_decision_values", decision_rows)
+    trace_sink.write_rows("trace_final_ensemble_top", top_rows)
+
+
 def multi_ada_sampling(
     train_mat: pd.DataFrame,
     test_mat: pd.DataFrame,
@@ -187,6 +346,9 @@ def multi_ada_sampling(
     n_iterations: int,
     resampling_rng: np.random.Generator,
     capture_trace: bool,
+    trace_level: PredictionTraceLevel,
+    trace_sink: TraceSink | None,
+    kinase: str,
     ensemble_index: int,
     initial_negative_sites: list[str],
     debug_top_n: int,
@@ -243,17 +405,18 @@ def multi_ada_sampling(
             ensemble_index=ensemble_index,
         )
 
-        if capture_trace:
-            iteration_traces.append(
-                _build_iteration_trace(
-                    iteration_index=iteration_index,
-                    labels=label_series,
-                    probabilities=prob_df,
-                    probability_parameters=probability_parameters,
-                    decision_values=decision_series,
-                    weights_by_class=weights_by_class,
-                    sampled_sites_by_class=sampled_sites_by_class,
-                )
+        if capture_trace and trace_level == "full" and trace_sink is not None:
+            _write_iteration_trace_rows(
+                trace_sink=trace_sink,
+                kinase=kinase,
+                ensemble_index=ensemble_index,
+                iteration_index=iteration_index,
+                labels=label_series,
+                probabilities=prob_df,
+                probability_parameters=probability_parameters,
+                decision_values=decision_series,
+                weights_by_class=weights_by_class,
+                sampled_sites_by_class=sampled_sites_by_class,
             )
 
     if model is None:
@@ -291,14 +454,35 @@ def multi_ada_sampling(
             index=test_mat.index.copy(),
             positive_probabilities=pred_df.get("1"),
         )
-        ensemble_trace = AdaptiveSamplingEnsembleTrace(
-            ensemble_index=ensemble_index,
-            initial_negative_sites=list(initial_negative_sites),
-            iterations=iteration_traces,
-            final_prediction_probabilities=pred_df,
-            final_decision_values=final_decision_values,
-            final_top_sites=final_top_sites,
-        )
+        if trace_level == "full" and trace_sink is not None:
+            _write_final_trace_rows(
+                trace_sink=trace_sink,
+                kinase=kinase,
+                ensemble_index=ensemble_index,
+                final_probabilities=pred_df,
+                final_decision_values=final_decision_values,
+                final_top_sites=final_top_sites,
+            )
+            ensemble_trace = AdaptiveSamplingEnsembleTrace(
+                ensemble_index=ensemble_index,
+                initial_negative_sites=list(initial_negative_sites),
+                final_top_sites=final_top_sites,
+            )
+        elif trace_level == "summary":
+            ensemble_trace = AdaptiveSamplingEnsembleTrace(
+                ensemble_index=ensemble_index,
+                initial_negative_sites=list(initial_negative_sites),
+                final_top_sites=final_top_sites,
+            )
+        else:
+            ensemble_trace = AdaptiveSamplingEnsembleTrace(
+                ensemble_index=ensemble_index,
+                initial_negative_sites=list(initial_negative_sites),
+                iterations=iteration_traces,
+                final_prediction_probabilities=pred_df,
+                final_decision_values=final_decision_values,
+                final_top_sites=final_top_sites,
+            )
 
     return positive_series, ensemble_trace
 

@@ -1,8 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import pandas as pd
+
+from ..types import PredictionTraceLevel
+
+if TYPE_CHECKING:
+    from .traces import TraceSink
 
 
 @dataclass(slots=True)
@@ -22,10 +28,10 @@ class AdaptiveSamplingIterationTrace:
 class AdaptiveSamplingEnsembleTrace:
     ensemble_index: int
     initial_negative_sites: list[str]
-    iterations: list[AdaptiveSamplingIterationTrace]
-    final_prediction_probabilities: pd.DataFrame
-    final_decision_values: pd.Series
-    final_top_sites: list[str]
+    iterations: list[AdaptiveSamplingIterationTrace] = field(default_factory=list)
+    final_prediction_probabilities: pd.DataFrame | None = None
+    final_decision_values: pd.Series | None = None
+    final_top_sites: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
@@ -41,6 +47,8 @@ class KinasePredictionResult:
     pred_matrix: pd.DataFrame
     substrate_list: dict[str, list[str]]
     debug_traces: dict[str, KinasePredictionDebugTrace] | None = None
+    trace_level: PredictionTraceLevel = "none"
+    trace_sink: TraceSink | None = None
 
 
 @dataclass(slots=True)

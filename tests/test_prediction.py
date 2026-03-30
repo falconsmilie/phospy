@@ -17,6 +17,7 @@ from phospy.prediction import (
     _RLikeStandardScaler,
     _transform_resampling_probabilities,
     build_candidate_substrate_list,
+    prediction_debug_trace_tables,
 )
 from phospy.scoring import KinaseScoringResult
 
@@ -137,7 +138,7 @@ def test_predict_returns_empty_matrix_when_no_kinases_pass_inclusion() -> None:
     assert list(result.pred_matrix.index) == list(make_combined_scores().index)
 
 
-def test_predict_can_capture_debug_trace_for_selected_kinase() -> None:
+def test_predict_uses_summary_trace_level_by_default_when_debug_is_enabled() -> None:
     predictor = KinasePredictor()
 
     result = predictor.predict(
@@ -153,6 +154,7 @@ def test_predict_can_capture_debug_trace_for_selected_kinase() -> None:
         debug_top_n=3,
     )
 
+    assert result.trace_level == "summary"
     assert result.debug_traces is not None
     assert set(result.debug_traces) == {"KINASE_A"}
     trace = result.debug_traces["KINASE_A"]
@@ -161,27 +163,40 @@ def test_predict_can_capture_debug_trace_for_selected_kinase() -> None:
     assert len(trace.ensemble_traces) == 2
     ensemble_trace = trace.ensemble_traces[0]
     assert len(ensemble_trace.initial_negative_sites) == 4
-    assert len(ensemble_trace.iterations) == 2
-    assert list(ensemble_trace.final_prediction_probabilities.columns) == ["1", "2"]
+    assert ensemble_trace.iterations == []
+    assert ensemble_trace.final_prediction_probabilities is None
+    assert ensemble_trace.final_decision_values is None
     assert len(ensemble_trace.final_top_sites) == 3
-    iteration_trace = ensemble_trace.iterations[0]
-    assert set(iteration_trace.labels.unique()) == {1, 2}
-    assert list(iteration_trace.probabilities.columns) == ["1", "2"]
-    assert len(iteration_trace.sampled_positive_sites) == 4
-    assert len(iteration_trace.sampled_negative_sites) == 4
-    assert iteration_trace.probability_parameters is not None
-    assert list(iteration_trace.probability_parameters.columns) == [
-        "class_pair",
-        "probA",
-        "probB",
-    ]
-    assert len(iteration_trace.probability_parameters) == 1
-    assert np.isfinite(iteration_trace.probability_parameters.loc[0, "probA"])
-    assert np.isfinite(iteration_trace.probability_parameters.loc[0, "probB"])
-    assert iteration_trace.positive_weights is not None
-    assert iteration_trace.negative_weights is not None
-    assert iteration_trace.positive_weights.sum() == pytest.approx(1.0)
-    assert iteration_trace.negative_weights.sum() == pytest.approx(1.0)
+
+
+def test_predict_can_stream_full_trace_tables_to_sink(tmp_path: Path) -> None:
+    predictor = KinasePredictor()
+
+    result = predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=2,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=5,
+        capture_debug_trace=True,
+        debug_kinases=["KINASE_A"],
+        debug_top_n=3,
+        trace_level="full",
+        trace_sink=tmp_path / "trace_output",
+    )
+
+    assert result.trace_level == "full"
+    assert result.trace_sink is not None
+    assert result.debug_traces is not None
+    ensemble_trace = result.debug_traces["KINASE_A"].ensemble_traces[0]
+    assert ensemble_trace.iterations == []
+    tables = prediction_debug_trace_tables(result)
+    assert not tables["trace_iteration_probabilities"].empty
+    assert not tables["trace_iteration_samples"].empty
+    assert not tables["trace_final_ensemble_predictions"].empty
+    assert not tables["trace_final_ensemble_top"].empty
 
 
 def test_predict_can_capture_debug_trace_for_all_kinases() -> None:
@@ -488,6 +503,8 @@ def test_predict_can_replay_sampling_trace_from_directory(tmp_path: Path) -> Non
         capture_debug_trace=True,
         debug_kinases=["KINASE_A"],
         sampling_trace=trace_dir,
+        trace_level="full",
+        trace_sink=tmp_path / "trace_output_from_directory",
     )
 
     assert result.debug_traces is not None
@@ -498,30 +515,24 @@ def test_predict_can_replay_sampling_trace_from_directory(tmp_path: Path) -> Non
         "SITE_7",
         "SITE_6",
     ]
-    assert ensemble_trace.iterations[0].sampled_positive_sites == [
-        "SITE_4",
-        "SITE_4",
-        "SITE_2",
-        "SITE_1",
-    ]
-    assert ensemble_trace.iterations[0].sampled_negative_sites == [
-        "SITE_8",
-        "SITE_8",
-        "SITE_7",
-        "SITE_6",
-    ]
-    assert ensemble_trace.iterations[1].sampled_positive_sites == [
-        "SITE_3",
-        "SITE_3",
-        "SITE_2",
-        "SITE_1",
-    ]
-    assert ensemble_trace.iterations[1].sampled_negative_sites == [
-        "SITE_8",
-        "SITE_7",
-        "SITE_7",
-        "SITE_6",
-    ]
+    tables = prediction_debug_trace_tables(result)
+    samples = tables["trace_iteration_samples"]
+    positive_iter_1 = samples.loc[
+        (samples["iteration"] == 1) & (samples["class_label"] == 1), "site"
+    ].tolist()
+    negative_iter_1 = samples.loc[
+        (samples["iteration"] == 1) & (samples["class_label"] == 2), "site"
+    ].tolist()
+    positive_iter_2 = samples.loc[
+        (samples["iteration"] == 2) & (samples["class_label"] == 1), "site"
+    ].tolist()
+    negative_iter_2 = samples.loc[
+        (samples["iteration"] == 2) & (samples["class_label"] == 2), "site"
+    ].tolist()
+    assert positive_iter_1 == ["SITE_4", "SITE_4", "SITE_2", "SITE_1"]
+    assert negative_iter_1 == ["SITE_8", "SITE_8", "SITE_7", "SITE_6"]
+    assert positive_iter_2 == ["SITE_3", "SITE_3", "SITE_2", "SITE_1"]
+    assert negative_iter_2 == ["SITE_8", "SITE_7", "SITE_7", "SITE_6"]
 
 
 def test_predict_accepts_preloaded_sampling_trace(tmp_path: Path) -> None:
@@ -540,6 +551,7 @@ def test_predict_accepts_preloaded_sampling_trace(tmp_path: Path) -> None:
         capture_debug_trace=True,
         debug_kinases=["KINASE_A"],
         sampling_trace=sampling_trace,
+        trace_level="summary",
     )
 
     assert result.debug_traces is not None

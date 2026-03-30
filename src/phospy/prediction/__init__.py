@@ -26,15 +26,22 @@ from .svm import (
 from .svm import (
     resolve_svm_probability_random_state as _resolve_svm_probability_random_state,
 )
-from .traces import PredictionSamplingTrace, prediction_debug_trace_tables
+from .traces import (
+    DirectoryTraceSink,
+    PredictionSamplingTrace,
+    TraceSink,
+    prediction_debug_trace_tables,
+)
 
 __all__ = [
     "AdaptiveSamplingEnsembleTrace",
     "AdaptiveSamplingIterationTrace",
     "KinasePredictionDebugTrace",
     "KinasePredictionResult",
+    "DirectoryTraceSink",
     "KinasePredictor",
     "PredictionSamplingTrace",
+    "TraceSink",
     "SamplingTraceOverrideEnsemble",
     "_RLikeStandardScaler",
     "_make_prediction_random_generators",

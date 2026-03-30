@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -12,6 +13,7 @@ from phospy.prediction import (
     KinasePredictor,
     PredictionSamplingTrace,
     build_candidate_substrate_list,
+    prediction_debug_trace_tables,
 )
 from phospy.profiles import build_kinase_substrate_profiles
 from phospy.scoring import KinaseScorer, combine_profile_and_motif_scores
@@ -628,106 +630,7 @@ def test_l6_native_combined_scores_match_r_reference() -> None:
 
 
 def _debug_trace_to_tables(result) -> dict[str, pd.DataFrame]:
-    initial_rows: list[dict[str, object]] = []
-    probability_rows: list[dict[str, object]] = []
-    sample_rows: list[dict[str, object]] = []
-    final_prediction_rows: list[dict[str, object]] = []
-    final_top_rows: list[dict[str, object]] = []
-
-    debug_traces = result.debug_traces or {}
-    for kinase, trace in debug_traces.items():
-        for ensemble_trace in trace.ensemble_traces:
-            for draw, site in enumerate(ensemble_trace.initial_negative_sites, start=1):
-                initial_rows.append(
-                    {
-                        "kinase": kinase,
-                        "ensemble": ensemble_trace.ensemble_index,
-                        "draw": draw,
-                        "site": site,
-                    }
-                )
-
-            for iteration_trace in ensemble_trace.iterations:
-                labels = iteration_trace.labels
-                probs = iteration_trace.probabilities
-                for site in probs.index:
-                    probability_rows.append(
-                        {
-                            "kinase": kinase,
-                            "ensemble": ensemble_trace.ensemble_index,
-                            "iteration": iteration_trace.iteration_index,
-                            "site": site,
-                            "label": str(int(labels.loc[site])),
-                            "prob_class_1": float(probs.loc[site, "1"])
-                            if "1" in probs.columns
-                            else float("nan"),
-                            "prob_class_2": float(probs.loc[site, "2"])
-                            if "2" in probs.columns
-                            else float("nan"),
-                        }
-                    )
-                for draw, site in enumerate(
-                    iteration_trace.sampled_positive_sites, start=1
-                ):
-                    sample_rows.append(
-                        {
-                            "kinase": kinase,
-                            "ensemble": ensemble_trace.ensemble_index,
-                            "iteration": iteration_trace.iteration_index,
-                            "class_label": "1",
-                            "draw": draw,
-                            "site": site,
-                        }
-                    )
-                for draw, site in enumerate(
-                    iteration_trace.sampled_negative_sites, start=1
-                ):
-                    sample_rows.append(
-                        {
-                            "kinase": kinase,
-                            "ensemble": ensemble_trace.ensemble_index,
-                            "iteration": iteration_trace.iteration_index,
-                            "class_label": "2",
-                            "draw": draw,
-                            "site": site,
-                        }
-                    )
-
-            final_probs = ensemble_trace.final_prediction_probabilities
-            for site in final_probs.index:
-                final_prediction_rows.append(
-                    {
-                        "kinase": kinase,
-                        "ensemble": ensemble_trace.ensemble_index,
-                        "site": site,
-                        "prob_class_1": float(final_probs.loc[site, "1"])
-                        if "1" in final_probs.columns
-                        else float("nan"),
-                        "prob_class_2": float(final_probs.loc[site, "2"])
-                        if "2" in final_probs.columns
-                        else float("nan"),
-                    }
-                )
-            for rank, site in enumerate(ensemble_trace.final_top_sites, start=1):
-                final_top_rows.append(
-                    {
-                        "kinase": kinase,
-                        "ensemble": ensemble_trace.ensemble_index,
-                        "rank": rank,
-                        "site": site,
-                        "prob_class_1": float(final_probs.loc[site, "1"])
-                        if "1" in final_probs.columns
-                        else float("nan"),
-                    }
-                )
-
-    return {
-        "trace_initial_negatives": pd.DataFrame(initial_rows),
-        "trace_iteration_probabilities": pd.DataFrame(probability_rows),
-        "trace_iteration_samples": pd.DataFrame(sample_rows),
-        "trace_final_ensemble_predictions": pd.DataFrame(final_prediction_rows),
-        "trace_final_ensemble_top": pd.DataFrame(final_top_rows),
-    }
+    return prediction_debug_trace_tables(result)
 
 
 def _read_prediction_trace_table(name: str) -> pd.DataFrame:
@@ -795,21 +698,25 @@ def _replayed_prediction_trace_metrics(
         R_FIXTURES_L6 / "prediction_trace"
     ).subset_kinases(eligible_kinases)
 
-    result = KinasePredictor(svm_mode=svm_mode).predict(
-        combined_scores=combined_scores,
-        ensemble_size=10,
-        top=30,
-        score_threshold=0.6,
-        inclusion=5,
-        n_iterations=5,
-        random_state=1,
-        capture_debug_trace=True,
-        debug_kinases=eligible_kinases,
-        debug_top_n=10,
-        sampling_trace=sampling_trace,
-    )
-    actual_tables = _debug_trace_to_tables(result)
-
+    with tempfile.TemporaryDirectory(
+        prefix="phospy_trace_metrics_"
+    ) as trace_output_dir:
+        result = KinasePredictor(svm_mode=svm_mode).predict(
+            combined_scores=combined_scores,
+            ensemble_size=10,
+            top=30,
+            score_threshold=0.6,
+            inclusion=5,
+            n_iterations=5,
+            random_state=1,
+            capture_debug_trace=True,
+            debug_kinases=eligible_kinases,
+            debug_top_n=10,
+            sampling_trace=sampling_trace,
+            trace_level="full",
+            trace_sink=trace_output_dir,
+        )
+        actual_tables = _debug_trace_to_tables(result)
     expected_initial = _normalize_numeric_frame(
         _sort_table(
             _read_prediction_trace_table("trace_initial_negatives.csv").loc[
@@ -875,24 +782,7 @@ def _replayed_prediction_trace_metrics(
     )
     actual_decision = _normalize_numeric_frame(
         _sort_table(
-            pd.DataFrame(
-                [
-                    {
-                        "kinase": trace.kinase,
-                        "ensemble": ensemble_trace.ensemble_index,
-                        "iteration": iteration_trace.iteration_index,
-                        "site": site,
-                        "label": str(label),
-                        "decision_value_class_1": float(
-                            iteration_trace.decision_values.loc[site]
-                        ),
-                    }
-                    for trace in (result.debug_traces or {}).values()
-                    for ensemble_trace in trace.ensemble_traces
-                    for iteration_trace in ensemble_trace.iterations
-                    for site, label in iteration_trace.labels.items()
-                ]
-            ),
+            actual_tables["trace_iteration_decision_values"],
             ["kinase", "ensemble", "iteration", "site"],
         )
     )

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from ..scoring import KinaseScoringResult
-from ..types import PredictionSvmMode
+from ..types import PredictionSvmMode, PredictionTraceFormat, PredictionTraceLevel
 from ..validation.errors import InputCompatibilityError
 from .models import KinasePredictionDebugTrace, KinasePredictionResult
 from .sampling import (
@@ -15,8 +15,13 @@ from .sampling import (
     multi_ada_sampling,
     validate_override_sites,
 )
-from .traces import PredictionSamplingTrace
-from .validation import validate_positive_int, validate_svm_mode
+from .traces import PredictionSamplingTrace, TraceSink, create_trace_sink
+from .validation import (
+    validate_positive_int,
+    validate_svm_mode,
+    validate_trace_format,
+    validate_trace_level,
+)
 
 
 class KinasePredictor:
@@ -54,6 +59,9 @@ class KinasePredictor:
         debug_top_n: int = 10,
         svm_mode: PredictionSvmMode | None = None,
         sampling_trace: PredictionSamplingTrace | str | Path | None = None,
+        trace_level: PredictionTraceLevel | None = None,
+        trace_sink: TraceSink | str | Path | None = None,
+        trace_sink_format: PredictionTraceFormat = "csv",
     ) -> KinasePredictionResult:
         validate_positive_int(ensemble_size, name="ensemble_size")
         validate_positive_int(top, name="top")
@@ -63,7 +71,18 @@ class KinasePredictor:
         resolved_svm_mode = (
             self.svm_mode if svm_mode is None else validate_svm_mode(svm_mode)
         )
+        resolved_trace_level = validate_trace_level(
+            "summary"
+            if trace_level is None and capture_debug_trace
+            else trace_level or "none"
+        )
+        resolved_trace_format = validate_trace_format(trace_sink_format)
         sampling_trace_obj = coerce_sampling_trace(sampling_trace)
+        trace_sink_obj = (
+            create_trace_sink(trace_sink, fmt=resolved_trace_format)
+            if resolved_trace_level == "full"
+            else None
+        )
 
         substrate_list = build_candidate_substrate_list(
             combined_scores,
@@ -76,7 +95,9 @@ class KinasePredictor:
             return KinasePredictionResult(
                 pred_matrix=empty,
                 substrate_list={},
-                debug_traces={} if capture_debug_trace else None,
+                debug_traces={} if resolved_trace_level != "none" else None,
+                trace_level=resolved_trace_level,
+                trace_sink=trace_sink_obj,
             )
 
         master_rng = np.random.default_rng(random_state)
@@ -89,11 +110,11 @@ class KinasePredictor:
 
         traced_kinases = (
             set(substrate_list)
-            if capture_debug_trace and debug_kinases is None
+            if resolved_trace_level != "none" and debug_kinases is None
             else set(debug_kinases or [])
         )
         debug_traces: dict[str, KinasePredictionDebugTrace] | None = (
-            {} if capture_debug_trace else None
+            {} if resolved_trace_level != "none" else None
         )
 
         for kinase, substrates in substrate_list.items():
@@ -111,17 +132,41 @@ class KinasePredictor:
                 )
                 raise ValueError(msg)
 
-            if (
-                capture_debug_trace
-                and kinase in traced_kinases
-                and debug_traces is not None
-            ):
+            is_traced_kinase = (
+                resolved_trace_level != "none" and kinase in traced_kinases
+            )
+            if is_traced_kinase and debug_traces is not None:
                 debug_traces[kinase] = KinasePredictionDebugTrace(
                     kinase=kinase,
                     candidate_substrates=list(substrates),
                     negative_pool_sites=negative_pool.index.tolist(),
                     ensemble_traces=[],
                 )
+                if trace_sink_obj is not None:
+                    trace_sink_obj.write_rows(
+                        "trace_selected_candidates",
+                        [
+                            {
+                                "kinase": kinase,
+                                "candidate_rank": rank,
+                                "site": site,
+                            }
+                            for rank, site in enumerate(substrates, start=1)
+                        ],
+                    )
+                    trace_sink_obj.write_rows(
+                        "trace_negative_pool",
+                        [
+                            {
+                                "kinase": kinase,
+                                "pool_index": pool_index,
+                                "site": site,
+                            }
+                            for pool_index, site in enumerate(
+                                negative_pool.index.tolist(), start=1
+                            )
+                        ],
+                    )
 
             for ensemble_idx in range(ensemble_size):
                 ensemble_index = ensemble_idx + 1
@@ -162,11 +207,21 @@ class KinasePredictor:
                     ]
                 )
 
-                if (
-                    capture_debug_trace
-                    and kinase in traced_kinases
-                    and debug_traces is not None
-                ):
+                if is_traced_kinase and trace_sink_obj is not None:
+                    trace_sink_obj.write_rows(
+                        "trace_initial_negatives",
+                        [
+                            {
+                                "kinase": kinase,
+                                "ensemble": ensemble_index,
+                                "draw": draw,
+                                "site": site,
+                            }
+                            for draw, site in enumerate(negative_sites, start=1)
+                        ],
+                    )
+
+                if is_traced_kinase and debug_traces is not None:
                     series, ensemble_trace = multi_ada_sampling(
                         train_mat=train_mat,
                         test_mat=feature_mat,
@@ -175,6 +230,9 @@ class KinasePredictor:
                         n_iterations=n_iterations,
                         resampling_rng=resampling_rng,
                         capture_trace=True,
+                        trace_level=resolved_trace_level,
+                        trace_sink=trace_sink_obj,
+                        kinase=kinase,
                         ensemble_index=ensemble_index,
                         initial_negative_sites=negative_sites,
                         debug_top_n=debug_top_n,
@@ -192,6 +250,9 @@ class KinasePredictor:
                         n_iterations=n_iterations,
                         resampling_rng=resampling_rng,
                         capture_trace=False,
+                        trace_level="none",
+                        trace_sink=None,
+                        kinase=kinase,
                         ensemble_index=ensemble_index,
                         initial_negative_sites=negative_sites,
                         debug_top_n=debug_top_n,
@@ -206,6 +267,8 @@ class KinasePredictor:
             pred_matrix=pred_matrix,
             substrate_list=substrate_list,
             debug_traces=debug_traces,
+            trace_level=resolved_trace_level,
+            trace_sink=trace_sink_obj,
         )
 
     def predict_from_scoring_result(
@@ -223,6 +286,9 @@ class KinasePredictor:
         debug_top_n: int = 10,
         svm_mode: PredictionSvmMode | None = None,
         sampling_trace: PredictionSamplingTrace | str | Path | None = None,
+        trace_level: PredictionTraceLevel | None = None,
+        trace_sink: TraceSink | str | Path | None = None,
+        trace_sink_format: PredictionTraceFormat = "csv",
     ) -> KinasePredictionResult:
         if scoring_result.combined_scores is not None:
             feature_mat = scoring_result.combined_scores
@@ -248,6 +314,9 @@ class KinasePredictor:
             debug_top_n=debug_top_n,
             svm_mode=svm_mode,
             sampling_trace=sampling_trace,
+            trace_level=trace_level,
+            trace_sink=trace_sink,
+            trace_sink_format=trace_sink_format,
         )
 
 

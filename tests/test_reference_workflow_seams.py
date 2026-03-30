@@ -210,6 +210,7 @@ def test_reference_candidate_selection_seam_matches_expected(
 )
 def test_reference_replayed_prediction_trace_matches_expected_sampling_path(
     case: ReferenceSeamCase,
+    tmp_path: Path,
 ) -> None:
     combined_scores = _read_indexed_table(case.fixture_dir / case.combined_scores_file)
     expected_candidates = pd.read_csv(case.trace_dir / "trace_candidates.csv")
@@ -276,6 +277,8 @@ def test_reference_replayed_prediction_trace_matches_expected_sampling_path(
         debug_kinases=eligible_kinases,
         debug_top_n=case.trace_debug_top_n,
         sampling_trace=sampling_trace,
+        trace_level="full",
+        trace_sink=tmp_path / "python_trace_output",
     )
     actual_tables = prediction_debug_trace_tables(result)
 
