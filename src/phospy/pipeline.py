@@ -44,26 +44,11 @@ class PhosRPipeline:
             total_sentinel=total_sentinel,
             phospho_sentinel=phospho_sentinel,
         )
-
-    @property
-    def localization_threshold(self) -> float:
-        return self.preprocessing_config.localization_threshold
-
-    @property
-    def min_observed(self) -> int:
-        return self.preprocessing_config.min_observed
-
-    @property
-    def max_unmatched_fraction(self) -> float:
-        return self.preprocessing_config.max_unmatched_fraction
-
-    @property
-    def total_sentinel(self) -> float:
-        return self.preprocessing_config.total_sentinel
-
-    @property
-    def phospho_sentinel(self) -> float:
-        return self.preprocessing_config.phospho_sentinel
+        self.localization_threshold = localization_threshold
+        self.min_observed = min_observed
+        self.max_unmatched_fraction = max_unmatched_fraction
+        self.total_sentinel = total_sentinel
+        self.phospho_sentinel = phospho_sentinel
 
     @classmethod
     def from_request(cls, request: CorePipelineRequest) -> PhosRPipeline:
