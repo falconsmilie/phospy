@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ..types import PredictionSvmMode
+from ..types import DegenerateProbabilityPolicy, PredictionSvmMode
 from .models import (
     AdaptiveSamplingEnsembleTrace,
     AdaptiveSamplingIterationTrace,
@@ -82,8 +82,9 @@ def _compute_class_weights(
     base_y: np.ndarray,
     base_index: pd.Index,
     svm_mode: PredictionSvmMode,
-) -> dict[int, pd.Series | None]:
-    weights_by_class: dict[int, pd.Series | None] = {}
+    degenerate_probability_policy: DegenerateProbabilityPolicy,
+) -> dict[int, pd.Series]:
+    weights_by_class: dict[int, pd.Series] = {}
     for class_idx, class_label in enumerate(model.classes_):
         class_mask = base_y == class_label
         class_index = base_index[class_mask]
@@ -91,11 +92,15 @@ def _compute_class_weights(
             prob_mat[class_mask, class_idx],
             svm_mode=svm_mode,
         )
-        sample_prob = normalize_probabilities(class_prob)
-        weights_by_class[int(class_label)] = (
-            pd.Series(sample_prob, index=class_index, dtype=float)
-            if sample_prob is not None
-            else None
+        sample_prob = normalize_probabilities(
+            class_prob,
+            degenerate_probability_policy=degenerate_probability_policy,
+            context=(
+                f"adaptive resampling probabilities for class_label={int(class_label)}"
+            ),
+        )
+        weights_by_class[int(class_label)] = pd.Series(
+            sample_prob, index=class_index, dtype=float
         )
     return weights_by_class
 
@@ -106,7 +111,7 @@ def _resample_training_rows(
     base_x: np.ndarray,
     base_y: np.ndarray,
     base_index: pd.Index,
-    weights_by_class: dict[int, pd.Series | None],
+    weights_by_class: dict[int, pd.Series],
     resampling_rng: np.random.Generator,
     sampling_override: SamplingTraceOverrideEnsemble | None,
     iteration_index: int,
@@ -120,10 +125,8 @@ def _resample_training_rows(
         class_mask = base_y == class_label
         class_x = base_x[class_mask]
         class_index = base_index[class_mask]
-        sample_weights = weights_by_class.get(int(class_label))
-        sample_prob = (
-            None if sample_weights is None else sample_weights.to_numpy(dtype=float)
-        )
+        sample_weights = weights_by_class[int(class_label)]
+        sample_prob = sample_weights.to_numpy(dtype=float)
 
         override_sites = None
         if sampling_override is not None:
@@ -163,7 +166,7 @@ def _build_iteration_trace(
     probabilities: pd.DataFrame,
     probability_parameters: pd.DataFrame | None,
     decision_values: pd.Series,
-    weights_by_class: dict[int, pd.Series | None],
+    weights_by_class: dict[int, pd.Series],
     sampled_sites_by_class: dict[int, list[str]],
 ) -> AdaptiveSamplingIterationTrace:
     return AdaptiveSamplingIterationTrace(
@@ -192,6 +195,7 @@ def multi_ada_sampling(
     debug_top_n: int,
     svm_mode: PredictionSvmMode,
     sampling_override: SamplingTraceOverrideEnsemble | None,
+    degenerate_probability_policy: DegenerateProbabilityPolicy = "uniform",
 ) -> tuple[pd.Series, AdaptiveSamplingEnsembleTrace | None]:
     StandardScaler, SVC = require_sklearn()
 
@@ -230,6 +234,7 @@ def multi_ada_sampling(
             base_y=base_y,
             base_index=base_index,
             svm_mode=svm_mode,
+            degenerate_probability_policy=degenerate_probability_policy,
         )
         current_x, current_y, sampled_sites_by_class = _resample_training_rows(
             model=model,
@@ -303,11 +308,35 @@ def multi_ada_sampling(
     return positive_series, ensemble_trace
 
 
-def normalize_probabilities(values: np.ndarray) -> np.ndarray | None:
+def normalize_probabilities(
+    values: np.ndarray,
+    *,
+    degenerate_probability_policy: DegenerateProbabilityPolicy = "uniform",
+    context: str = "probability vector",
+) -> np.ndarray:
     total = float(np.nansum(values))
     if total <= 0.0 or not np.isfinite(total):
-        return None
-    return values / total
+        if degenerate_probability_policy == "uniform":
+            if values.size == 0:
+                msg = f"Cannot build uniform probabilities for empty {context}"
+                raise ValueError(msg)
+            return np.full(values.shape, 1.0 / float(values.size), dtype=float)
+        msg = (
+            f"Degenerate {context} cannot be normalized under "
+            "degenerate_probability_policy='error'"
+        )
+        raise ValueError(msg)
+
+    normalized = values / total
+    if np.any(~np.isfinite(normalized)):
+        if degenerate_probability_policy == "uniform":
+            return np.full(values.shape, 1.0 / float(values.size), dtype=float)
+        msg = (
+            f"Degenerate {context} produced non-finite normalized weights under "
+            "degenerate_probability_policy='error'"
+        )
+        raise ValueError(msg)
+    return normalized
 
 
 def transform_resampling_probabilities(

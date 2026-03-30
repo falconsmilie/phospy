@@ -18,6 +18,7 @@ from phospy.prediction import (
     _transform_resampling_probabilities,
     build_candidate_substrate_list,
 )
+from phospy.prediction.sampling import normalize_probabilities
 from phospy.scoring import KinaseScoringResult
 
 
@@ -305,6 +306,13 @@ def test_predict_accepts_explicit_r_parity_mode() -> None:
 def test_predict_rejects_unknown_svm_mode() -> None:
     with pytest.raises(ValueError, match="svm_mode"):
         KinasePredictor(svm_mode="broken")  # type: ignore[arg-type]
+
+
+def test_predict_rejects_unknown_degenerate_probability_policy() -> None:
+    with pytest.raises(ValueError, match="degenerate_probability_policy"):
+        KinasePredictor(
+            degenerate_probability_policy="broken"  # type: ignore[arg-type]
+        )
 
 
 def test_predict_from_scoring_result_allows_svm_mode_override() -> None:
@@ -596,6 +604,25 @@ def test_transform_resampling_probabilities_keeps_r_parity_weights() -> None:
     transformed = _transform_resampling_probabilities(values, svm_mode="r_parity")
 
     assert np.allclose(transformed, values)
+
+
+def test_normalize_probabilities_uses_explicit_uniform_fallback() -> None:
+    normalized = normalize_probabilities(
+        np.array([np.nan, np.nan], dtype=float),
+        degenerate_probability_policy="uniform",
+        context="test vector",
+    )
+
+    assert np.allclose(normalized, np.array([0.5, 0.5], dtype=float))
+
+
+def test_normalize_probabilities_can_raise_for_degenerate_vectors() -> None:
+    with pytest.raises(ValueError, match="degenerate_probability_policy='error'"):
+        normalize_probabilities(
+            np.array([np.nan, np.nan], dtype=float),
+            degenerate_probability_policy="error",
+            context="test vector",
+        )
 
 
 def test_make_prediction_random_generators_returns_independent_streams() -> None:

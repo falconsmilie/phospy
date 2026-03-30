@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from ..scoring import KinaseScoringResult
-from ..types import PredictionSvmMode
+from ..types import DegenerateProbabilityPolicy, PredictionSvmMode
 from ..validation.errors import InputCompatibilityError
 from .models import KinasePredictionDebugTrace, KinasePredictionResult
 from .sampling import (
@@ -16,7 +16,11 @@ from .sampling import (
     validate_override_sites,
 )
 from .traces import PredictionSamplingTrace
-from .validation import validate_positive_int, validate_svm_mode
+from .validation import (
+    validate_degenerate_probability_policy,
+    validate_positive_int,
+    validate_svm_mode,
+)
 
 
 class KinasePredictor:
@@ -36,9 +40,13 @@ class KinasePredictor:
         self,
         kernel: str = "rbf",
         svm_mode: PredictionSvmMode = "default",
+        degenerate_probability_policy: DegenerateProbabilityPolicy = "uniform",
     ) -> None:
         self.kernel = kernel
         self.svm_mode = validate_svm_mode(svm_mode)
+        self.degenerate_probability_policy = validate_degenerate_probability_policy(
+            degenerate_probability_policy
+        )
 
     def predict(
         self,
@@ -54,6 +62,7 @@ class KinasePredictor:
         debug_top_n: int = 10,
         svm_mode: PredictionSvmMode | None = None,
         sampling_trace: PredictionSamplingTrace | str | Path | None = None,
+        degenerate_probability_policy: DegenerateProbabilityPolicy | None = None,
     ) -> KinasePredictionResult:
         validate_positive_int(ensemble_size, name="ensemble_size")
         validate_positive_int(top, name="top")
@@ -62,6 +71,11 @@ class KinasePredictor:
         validate_positive_int(debug_top_n, name="debug_top_n")
         resolved_svm_mode = (
             self.svm_mode if svm_mode is None else validate_svm_mode(svm_mode)
+        )
+        resolved_degenerate_probability_policy = (
+            self.degenerate_probability_policy
+            if degenerate_probability_policy is None
+            else validate_degenerate_probability_policy(degenerate_probability_policy)
         )
         sampling_trace_obj = coerce_sampling_trace(sampling_trace)
 
@@ -180,6 +194,9 @@ class KinasePredictor:
                         debug_top_n=debug_top_n,
                         svm_mode=resolved_svm_mode,
                         sampling_override=ensemble_override,
+                        degenerate_probability_policy=(
+                            resolved_degenerate_probability_policy
+                        ),
                     )
                     if ensemble_trace is not None:
                         debug_traces[kinase].ensemble_traces.append(ensemble_trace)
@@ -197,6 +214,9 @@ class KinasePredictor:
                         debug_top_n=debug_top_n,
                         svm_mode=resolved_svm_mode,
                         sampling_override=ensemble_override,
+                        degenerate_probability_policy=(
+                            resolved_degenerate_probability_policy
+                        ),
                     )
 
                 pred_matrix.loc[:, kinase] += series
@@ -223,6 +243,7 @@ class KinasePredictor:
         debug_top_n: int = 10,
         svm_mode: PredictionSvmMode | None = None,
         sampling_trace: PredictionSamplingTrace | str | Path | None = None,
+        degenerate_probability_policy: DegenerateProbabilityPolicy | None = None,
     ) -> KinasePredictionResult:
         if scoring_result.combined_scores is not None:
             feature_mat = scoring_result.combined_scores
@@ -248,6 +269,7 @@ class KinasePredictor:
             debug_top_n=debug_top_n,
             svm_mode=svm_mode,
             sampling_trace=sampling_trace,
+            degenerate_probability_policy=degenerate_probability_policy,
         )
 
 

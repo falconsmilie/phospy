@@ -111,6 +111,21 @@ def test_kinase_workflow_request_rejects_plain_site_sequence_lists() -> None:
         )
 
 
+def test_kinase_workflow_request_rejects_unknown_degenerate_probability_policy() -> (
+    None
+):
+    phospho_matrix = pd.DataFrame({"sample_1": [1.0]}, index=["SITE_1"])
+
+    with pytest.raises(RequestValidationError, match="degenerate_probability_policy"):
+        KinaseWorkflowRequest.validate_request(
+            phospho_matrix=phospho_matrix,
+            substrate_map={"KINASE_A": ["SITE_1"]},
+            motif_sequences=None,
+            allow_profile_only_fallback=True,
+            degenerate_probability_policy="broken",
+        )
+
+
 def test_core_pipeline_request_accepts_explicit_sentinel_configuration(
     tmp_path,
 ) -> None:

@@ -14,7 +14,7 @@ from pydantic import (
 )
 
 from phospy.constants import DEFAULT_TOTAL_COLS, ComparisonSpec
-from phospy.types import PredictionSvmMode
+from phospy.types import DegenerateProbabilityPolicy, PredictionSvmMode
 
 from .errors import RequestValidationError
 
@@ -118,6 +118,7 @@ class KinaseWorkflowRequest(PhospyRequestModel):
     n_iterations: int = Field(default=5, ge=1)
     random_state: int | None = None
     svm_mode: PredictionSvmMode | None = None
+    degenerate_probability_policy: DegenerateProbabilityPolicy | None = None
 
     @field_validator("substrate_map")
     @classmethod
