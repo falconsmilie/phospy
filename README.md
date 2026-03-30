@@ -12,11 +12,16 @@ PhosPy is deliberately narrow. It is **not** a full replacement for the R `PhosR
 
 ## Install
 
+PhosPy supports Python 3.10 and newer.
+
 Install the supported Python API and the `phospy` CLI:
 
 ```bash
 pip install phospy
 ```
+
+A small note before you start: the file-path examples below use `examples/data/...`, so they assume you are working from a
+repository checkout. If you installed from PyPI, use the same code with paths to your own input files instead.
 
 ## What You Can Do With PhosPy
 
@@ -54,9 +59,43 @@ Returned result dataclasses:
 
 The examples below use only those imports.
 
+For a compact guide to the supported classes, methods, and result objects, see [`docs/api.md`](docs/api.md).
+
+## Input Tables at a Glance
+
+PhosPy expects a small, fixed set of input shapes.
+
+### Total-proteome table
+
+Required columns:
+
+- `genes`
+- `group1` to `group6`
+
+### Phosphoproteome table
+
+Required columns:
+
+- `uid`
+- `gene_names`
+- `gene_p_site`
+- `localization_prob`
+- `centralized_sequence`
+- `p_group1` to `p_group6`
+
+`gene_p_site` must look like `GENE_SITE`, for example `PRKACA_S339`.
+
+### `predMat`
+
+`predMat` must be a numeric matrix with:
+
+- phosphosite IDs as the index, for example `BTK;Y551;`
+- kinase names as columns
+- scores in the range `[0, 1]`
+
 ## Quick Start
 
-The quickest way to get started is to use the bundled example data in `examples/data/`.
+The quickest way to get started from a source checkout is to use the bundled example data in `examples/data/`.
 
 ### Core Preprocessing
 
@@ -75,6 +114,14 @@ corrected = core.phospho_corrected
 
 For the bundled example data, `site_matrix.index.tolist()` is `['BTK;Y551;']`.
 
+`process_core()` returns a `CoreProcessingResult` with:
+
+- `total_unique`
+- `total_filtered`
+- `phospho_filtered`
+- `phospho_corrected`
+- `site_matrix`
+
 If your analysis needs explicit pairwise comparisons, pass them when you build the dataset:
 
 ```python
@@ -87,6 +134,8 @@ dataset = PhosphoDataset.from_files(
 )
 core = dataset.process_core(max_unmatched_fraction=0.1)
 ```
+
+If you do not pass `comparisons`, preprocessing still runs normally and no extra pairwise columns are added.
 
 ### Downstream Kinase Analysis From `predMat`
 
@@ -113,6 +162,14 @@ ksea_scores = kinase.ksea_scores
 
 For the bundled example data, `target_counts.to_dict()` is `{'PRKACA': 3, 'BTK': 2}`.
 
+`analyze()` returns a `KinaseActivityResult` with:
+
+- `weighted_activity`
+- `ksea_scores`
+- `ksea_counts`
+- `target_counts`
+- `target_table`
+
 ### End-to-End Pipeline
 
 ```python
@@ -127,8 +184,28 @@ pipeline = PhosRPipeline.from_files(
 outputs = pipeline.run(outdir="examples/output")
 ```
 
-This writes the core CSV outputs together with downstream kinase-analysis tables, including
-`kinase_target_table.csv`.
+`outputs` is a `CoreOutputs` object with:
+
+- `outputs.core`
+- `outputs.kinase_activity`
+
+This writes the core CSV outputs together with downstream kinase-analysis tables, including:
+
+- `df_total_unique.csv`
+- `df_total_filtered.csv`
+- `df_phospho_filtered.csv`
+- `df_phospho_corrected.csv`
+- `phosr_input.csv`
+- `mat_phospho_corrected.csv`
+- `site_sequences.csv`
+- `kinase_activity_matrix.csv`
+- `ksea_scores.csv`
+- `ksea_counts.csv`
+- `kinase_target_counts.csv`
+- `kinase_target_table.csv`
+
+If you omit `pred_mat_path`, the pipeline still runs the core preprocessing path and simply skips the downstream
+kinase-analysis outputs.
 
 ### Native End-to-End Kinase Workflow
 
@@ -139,12 +216,28 @@ A complete runnable native-workflow example is included at
 python examples/native_workflow_demo.py
 ```
 
+If you are working from a local checkout, there is also a Make target:
+
+```bash
+make native-workflow-demo
+```
+
 That example uses only the supported 1.0.0 root API and prints a small prediction matrix for a synthetic two-kinase
 setup.
 
+The native workflow expects:
+
+- a phosphosite matrix
+- a `substrate_map`
+- `site_sequences` when motif scoring is used
+- `motif_sequences` for end-to-end motif-aware prediction
+
+If you want profile-only prediction, pass `allow_profile_only_fallback=True` and omit `motif_sequences`.
+
 ## Command-Line Demo
 
-After installation, you can run the bundled example from the command line:
+After installation, you can run the CLI on your own files. The example below uses the bundled tables from a source
+checkout:
 
 ```bash
 phospy \
@@ -157,13 +250,43 @@ phospy \
 
 The example output directory in `examples/output/` shows the generated CSV files.
 
-`--max-unmatched-fraction` defaults to `0.0`. That means protein correction fails if the inner join would silently drop
-any phosphosite rows. Raise it only when you want to allow a small, bounded amount of row loss.
+The CLI currently supports these options:
+
+- `--total` and `--phospho` are required input files
+- `--outdir` is the required output directory
+- `--pred-mat` is optional
+- `--localization-threshold` defaults to `0.75`
+- `--min-observed` defaults to `4`
+- `--total-sentinel` defaults to `10.0`
+- `--phospho-sentinel` defaults to `12.0`
+- `--max-unmatched-fraction` defaults to `0.0`
+
+`--max-unmatched-fraction=0.0` means protein correction fails if the inner join would silently drop any phosphosite
+rows. Raise it only when you want to allow a small, bounded amount of row loss.
+
+The CLI is intentionally small in 1.0.0. It does not currently expose pairwise comparison generation or the native
+`KinaseWorkflow` path.
+
+## Validation Rules Worth Knowing
+
+A few checks are especially useful to know up front:
+
+- `localization_prob` must stay within `[0, 1]`.
+- `predMat` values must stay within `[0, 1]`.
+- `predMat` and the phosphosite matrix must overlap by at least one phosphosite row, and that overlap must cover at
+  least 10% of the phosphosite matrix.
+- Protein correction normalises gene identifiers before matching and, by default, refuses to drop unmatched phosphosite
+  rows.
+- Site-matrix construction drops rows with missing sequences or incomplete corrected values, then deduplicates repeated
+  phosphosites by keeping the row with the highest mean corrected signal.
+- In the native workflow, `motif_sequences` require matching `site_sequences`. If you omit motif data entirely, set
+  `allow_profile_only_fallback=True`.
 
 ## Where to Go Next
 
 If you want more detail, these are the most useful follow-on docs:
 
+- [`docs/api.md`](docs/api.md) maps the supported 1.0.0 public API
 - [`docs/validation-and-parity.md`](docs/validation-and-parity.md) explains how validation is approached in PhosPy
 - [`docs/parity.md`](docs/parity.md) explains what parity means here, especially for the native kinase workflow
 - [`docs/fixtures.md`](docs/fixtures.md) maps the committed fixture and trace directories
@@ -217,45 +340,3 @@ pre-commit run --all-files
 
 The committed parity fixtures are already included in the repository. You only need R if you want to regenerate or
 extend them.
-
-Current R package requirements:
-
-- `PhosR`
-- `SummarizedExperiment`
-- `e1071`
-- `readr`
-- `dplyr`
-- `tidyr`
-- `tibble`
-- `janitor`
-
-A practical greenfield setup is:
-
-```r
-install.packages(c("BiocManager", "devtools", "e1071", "readr", "dplyr", "tidyr", "tibble", "janitor"))
-BiocManager::install("SummarizedExperiment")
-devtools::install_github("PYangLab/PhosR")
-```
-
-To regenerate the committed R reference fixtures:
-
-```bash
-Rscript scripts/generate_r_fixtures.R
-Rscript scripts/generate_r_l6_fixtures.R
-```
-
-## Attribution
-
-All scientific credit for the original methods, package design, and biological workflow belongs to the PhosR authors
-and maintainers.
-
-Please cite and acknowledge the original PhosR work when using this repository:
-
-- Kim, H. J., Kim, T., Hoffman, N. J., Xiao, D., James, D. E., Humphrey, S. J., & Yang, P. (2021). *PhosR enables
-  processing and functional analysis of phosphoproteomic data*. Cell Reports, 34(8), 108771.
-- Kim, H., Kim, T., Xiao, D., & Yang, P. (2021). *Protocol for the processing and downstream analysis of
-  phosphoproteomic data with PhosR*. STAR Protocols, 2(2), 100585.
-- Original R package: `PYangLab/PhosR`
-
-PhosPy should be described as an unofficial implementation unless and until the original PhosR authors choose to
-endorse or participate in it.

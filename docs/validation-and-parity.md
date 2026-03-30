@@ -9,7 +9,7 @@ PhosPy uses three practical layers of evidence.
 ### 1. Non-Parity Tests
 
 These tests do not depend on R. They cover core package behaviour, validation rules, preprocessing, native workflow
-components, and the documented example smoke path.
+components, request validation, and the documented example smoke path.
 
 ```bash
 pytest -m "not parity"
@@ -44,6 +44,47 @@ pytest -m parity
 ```
 
 That is the whole gate.
+
+If you prefer the repository shortcuts, the closest Make targets are:
+
+```bash
+make pre-commit
+make test-unit
+make test-parity
+```
+
+## Validation Rules You Will Notice First
+
+A few rules show up often enough that they are worth knowing before you hit them.
+
+### Table validation
+
+- total input requires `genes` plus `group1` to `group6`
+- phospho input requires `uid`, `gene_names`, `gene_p_site`, `localization_prob`, `centralized_sequence`, and
+  `p_group1` to `p_group6`
+- `gene_p_site` must be splitable into gene and site parts, such as `BTK_Y551`
+- `localization_prob` and `predMat` scores must stay in `[0, 1]`
+- `predMat` must use a unique, non-null phosphosite index
+- site matrices must use a unique, non-null phosphosite index
+
+### Compatibility validation
+
+- total, phospho, and corrected value columns must align in count
+- protein correction refuses mismatched joins by default through `max_unmatched_fraction=0.0`
+- protein correction also refuses duplicate protein identifiers in the filtered total table
+- downstream kinase analysis requires `predMat` and the phosphosite matrix to overlap by at least one row and by at
+  least 10% of the phosphosite matrix
+- native workflow inputs must share phosphosite IDs across the matrix, substrate map, and sequence inputs
+- motif-aware native workflow runs require both `motif_sequences` and matching `site_sequences`
+
+### Request validation
+
+The request models also validate practical edges such as:
+
+- input paths must exist and be files
+- comparison pairs must use known groups and must not be duplicated
+- native workflow requests must not use an empty `substrate_map`
+- profile-only native prediction must opt in with `allow_profile_only_fallback=True`
 
 ## What Parity Means Here
 

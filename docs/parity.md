@@ -30,6 +30,7 @@ The current parity layer covers:
 - selected native workflow seams backed by committed L6 reference tables
 - prediction-stage debugging through committed R and Python trace exports
 - a curated fragile-support dataset used to widen evidence beyond the main L6 path
+- smaller seam-stress and synthetic adaptive-sampling fixtures used for narrower replay-style checks
 
 For fixture and trace directory details, see [`docs/fixtures.md`](fixtures.md).
 
@@ -46,6 +47,9 @@ The practical wording is:
 - `svm_mode="r_parity"` is available when you want a closer comparison to the PhosR learner seam.
 - The default `svm_mode="default"` is still the preferred Python-native mode.
 
+What `svm_mode="r_parity"` does **not** mean is “the entire workflow now matches PhosR”. It narrows one part of the
+comparison. It does not widen the package claim.
+
 ## Running the Parity Suite
 
 ```bash
@@ -60,6 +64,24 @@ pytest -m parity -vv
 pytest -m parity --maxfail=1
 pytest -m parity -k l6
 ```
+
+If you prefer repository shortcuts:
+
+```bash
+make test-parity
+make test-seams
+```
+
+## Trace Replay and Debugging
+
+Most users will not need this, but it is very helpful when you are trying to answer a narrower question: “is the delta
+coming from candidate sampling, or from the later learner path?”
+
+The usual pattern is:
+
+1. compare against the committed R trace tables
+2. export Python traces for the same kinases
+3. optionally replay the R sampling rows in Python to isolate the remaining difference
 
 ## Optional Trace Regeneration
 
