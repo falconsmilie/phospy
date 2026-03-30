@@ -27,7 +27,7 @@ SYNTHETIC_EDGE_OUTDIR ?= $(FIXTURES_ROOT)/synthetic_adaptive_sampling_edge
 	check-tools check-r-tools fixtures-dirs \
 	install install-dev lint format pre-commit test test-unit test-parity test-seams build clean \
 	fixtures fixtures-r-small fixtures-r-l6 traces-r fixtures-fragile fixtures-r-l6-seam-stress \
-	traces-python traces-python-replay fixtures-synthetic-edge fixtures-all
+	traces-python traces-python-replay fixtures-synthetic-edge fixtures-all native-workflow-demo
 
 help:
 	@printf '%s\n' \
@@ -41,6 +41,7 @@ help:
 	  '  make test-parity                   Run the parity pytest suite' \
 	  '  make test                          Run unit and parity tests' \
 	  '  make test-seams                    Run the seam-focused parity tests' \
+	  '  make native-workflow-demo          Run examples.native_workflow_demo.main()' \
 	  '  make build                         Build source and wheel distributions' \
 	  '  make clean                         Remove common local build and test artefacts' \
 	  '  make fixtures-r-small              Generate the small R-backed fixture family' \
@@ -85,6 +86,9 @@ test-unit: check-tools
 
 test-parity: check-tools
 	PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 $(PYTEST) -m parity -s
+
+native-workflow-demo: check-tools
+	$(PYTHON) -c "from examples.native_workflow_demo import main; main()"
 
 fixtures: fixtures-all
 
