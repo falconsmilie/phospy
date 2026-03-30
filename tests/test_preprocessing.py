@@ -11,7 +11,7 @@ from phospy.preprocessing import (
     filter_min_observed,
     replace_sentinel_with_nan,
 )
-from phospy.validation.errors import InputCompatibilityError
+from phospy.validation.errors import InputCompatibilityError, TableSchemaError
 
 
 def test_replace_sentinel_with_nan_and_filter_min_observed() -> None:
@@ -49,6 +49,17 @@ def test_collapse_duplicate_genes_keeps_highest_mean_signal() -> None:
     prkaca = out.loc[out["genes"] == "PRKACA"].iloc[0]
     assert prkaca["group1"] == 5.0
     assert sorted(out["genes"].tolist()) == ["BTK", "PRKACA"]
+
+
+def test_collapse_duplicate_genes_reports_missing_required_columns() -> None:
+    df = pd.DataFrame({"genes": ["Prkaca"], "group1": [1.0]})
+
+    with pytest.raises(TableSchemaError, match="missing required columns: group2"):
+        collapse_duplicate_genes(
+            df=df,
+            gene_col="genes",
+            value_cols=["group1", "group2"],
+        )
 
 
 def test_correct_phospho_to_protein_and_pairwise_comparisons() -> None:

@@ -6,7 +6,22 @@ import numpy as np
 import pandas as pd
 
 from .constants import ComparisonSpec
-from .validation.errors import InputCompatibilityError
+from .validation.errors import InputCompatibilityError, TableSchemaError
+
+
+def _require_columns(
+    df: pd.DataFrame,
+    *,
+    required_columns: Sequence[str],
+    context: str,
+) -> None:
+    missing_columns = [
+        column for column in required_columns if column not in df.columns
+    ]
+    if missing_columns:
+        joined_columns = ", ".join(missing_columns)
+        msg = f"{context} is missing required columns: {joined_columns}"
+        raise TableSchemaError(msg)
 
 
 def replace_sentinel_with_nan(
@@ -36,8 +51,11 @@ def collapse_duplicate_genes(
     value_cols: Sequence[str],
     uppercase: bool = True,
 ) -> pd.DataFrame:
-    if gene_col not in df.columns:
-        raise KeyError(f"Missing gene column: {gene_col}")
+    _require_columns(
+        df,
+        required_columns=[gene_col, *value_cols],
+        context="collapse_duplicate_genes() input",
+    )
 
     work = df.copy()
     work[gene_col] = work[gene_col].astype("string")
