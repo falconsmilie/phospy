@@ -88,7 +88,7 @@ test-parity: check-tools
 	PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 $(PYTEST) -m parity -s
 
 native-workflow-demo: check-tools
-	$(PYTHON) -c "from examples.native_workflow_demo import main; main()"
+	PYTHONPATH=src $(PYTHON) -c "from examples.native_workflow_demo import main; main()"
 
 fixtures: fixtures-all
 

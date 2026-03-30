@@ -217,6 +217,11 @@ make test-parity
 make test-seams
 ```
 
+`make test-parity` currently runs pytest with `PHOSPY_SHOW_PARITY=1` and
+`PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1`. That means it prints the core parity summaries plus the replayed
+mode-comparison metrics, but not every optional metrics block. If you want the full set, enable all four flags and run
+`pytest -m parity -s` directly.
+
 ## Trace Replay and Debugging
 
 Most users will not need this, but it is very helpful when you are trying to answer a narrower question: “is the delta

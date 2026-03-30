@@ -210,13 +210,17 @@ kinase-analysis outputs.
 ### Native End-to-End Kinase Workflow
 
 A complete runnable native-workflow example is included at
-[`examples/native_workflow_demo.py`](examples/native_workflow_demo.py):
+[`examples/native_workflow_demo.py`](examples/native_workflow_demo.py).
+
+If PhosPy is installed in the environment, for example with `pip install phospy` or `pip install -e .` from a local
+checkout, you can run it directly:
 
 ```bash
 python examples/native_workflow_demo.py
 ```
 
-If you are working from a local checkout, there is also a Make target:
+From a local checkout, there is also a Make target that runs the example with the repository `src/` path configured for
+that shell session:
 
 ```bash
 make native-workflow-demo
@@ -342,37 +346,14 @@ case-insensitive and include `1`, `true`, `yes`, and `on`.
 To see the printed summaries in the terminal, run pytest with `-s` (or `--capture=no`). If you enable all four flags
 and run the full parity suite, PhosPy prints every available metrics block reached by those tests.
 
-Linux or macOS examples:
+Linux or macOS quick example:
 
 ```bash
-PHOSPY_SHOW_PARITY=1 pytest -m parity -s
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 pytest -m parity -k l6 -s
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 pytest -m parity -k comparison -s
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -k replayed -s
 PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
 ```
 
-Windows PowerShell examples:
-
-```powershell
-$env:PHOSPY_SHOW_PARITY = "1"; pytest -m parity -s
-$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; pytest -m parity -k l6 -s
-$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -k comparison -s
-$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -k replayed -s
-$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; $env:PHOSPY_SHOW_PREDICTION_MODE_COMPARISON = "1"; $env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -s
-```
-
-Windows Command Prompt examples:
-
-```bat
-set PHOSPY_SHOW_PARITY=1 && pytest -m parity -s
-set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && pytest -m parity -k l6 -s
-set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -k comparison -s
-set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -k replayed -s
-set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && set PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 && set PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -s
-```
-
-For a sample of the bundled parity output and guidance on how to read it, see [`docs/parity.md`](docs/parity.md).
+For Linux/macOS, PowerShell, and Command Prompt examples together with a sample of the bundled parity output, see
+[`docs/parity.md`](docs/parity.md).
 
 To run the usual contributor checks:
 

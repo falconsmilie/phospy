@@ -141,37 +141,22 @@ case-insensitive and include `1`, `true`, `yes`, and `on`.
 If you enable all four flags and run the full parity suite, PhosPy prints every available metrics block exercised by
 those tests. If you narrow the run with `-k`, you will only see the summaries for the matching tests.
 
-Linux or macOS examples:
+Linux or macOS quick example:
 
 ```bash
-PHOSPY_SHOW_PARITY=1 pytest -m parity -s
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 pytest -m parity -k l6 -s
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 pytest -m parity -k comparison -s
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -k replayed -s
 PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
 ```
 
-Windows PowerShell examples:
+The `make test-parity` shortcut deliberately enables a smaller set by default:
 
-```powershell
-$env:PHOSPY_SHOW_PARITY = "1"; pytest -m parity -s
-$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; pytest -m parity -k l6 -s
-$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -k comparison -s
-$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -k replayed -s
-$env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; $env:PHOSPY_SHOW_PREDICTION_MODE_COMPARISON = "1"; $env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -s
-```
+- `PHOSPY_SHOW_PARITY=1`
+- `PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1`
 
-Windows Command Prompt examples:
+That gives you the core parity summaries plus the replayed mode-comparison block without turning on every optional
+metrics section.
 
-```bat
-set PHOSPY_SHOW_PARITY=1 && pytest -m parity -s
-set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && pytest -m parity -k l6 -s
-set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -k comparison -s
-set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -k replayed -s
-set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && set PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 && set PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -s
-```
-
-For a sample of the bundled parity output and guidance on how to interpret it, see [`docs/parity.md`](parity.md).
+For Linux/macOS, PowerShell, and Command Prompt examples, together with a sample of the bundled parity output and notes
+on how to interpret it, see [`docs/parity.md`](parity.md).
 
 ## Regenerating R Fixtures
 

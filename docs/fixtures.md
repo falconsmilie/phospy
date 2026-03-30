@@ -170,7 +170,8 @@ make fixtures-r-l6-seam-stress
 ```
 
 This directory includes a reduced prediction trace subtree together with the smaller score and prediction tables used by
-`tests/test_reference_workflow_seams.py`.
+`tests/test_reference_workflow_seams.py`. Helpful files to inspect first are `profile_scores.csv`, `combined_scores.csv`,
+`prediction_top30.csv`, and the `prediction_trace/` directory.
 
 ## `tests/fixtures/synthetic_adaptive_sampling_edge`
 
@@ -190,6 +191,8 @@ combined_scores.csv
 trace_candidates.csv
 trace_initial_negatives.csv
 trace_iteration_samples.csv
+trace_iteration_probabilities.csv
+trace_final_ensemble_predictions.csv
 trace_final_ensemble_top.csv
 README.md
 ```

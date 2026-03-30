@@ -2,6 +2,9 @@
 
 This is the compact guide to the supported 1.0.0 Python API.
 
+PhosPy 1.0.0 does not expose HTTP endpoints. The supported public surface is the Python API on this page together with
+the small `phospy` command-line interface described in the README.
+
 The goal is simple: if you stay within the classes on this page, you are using the public surface that PhosPy 1.0.0
 means to support.
 
@@ -37,6 +40,7 @@ dataset = PhosphoDataset.from_files(
     "total.tsv",
     "phospho.tsv",
     comparisons=[("group1", "group4")],
+    phospho_encoding="utf-8",
 )
 ```
 
@@ -67,6 +71,9 @@ Key parameters:
 - `max_unmatched_fraction=0.0`
 - `total_sentinel=10.0`
 - `phospho_sentinel=12.0`
+
+A practical detail: `max_unmatched_fraction=0.0` is strict. Protein correction fails if the inner join would silently
+drop any phosphosite rows.
 
 #### Other supported methods
 
@@ -175,6 +182,8 @@ pipeline = PhosRPipeline.from_files(
     total_path="total.tsv",
     phospho_path="phospho.tsv",
     pred_mat_path="predMat.csv",
+    comparisons=[("group1", "group4")],
+    phospho_encoding="utf-8",
     max_unmatched_fraction=0.1,
 )
 ```
@@ -186,7 +195,10 @@ outputs = pipeline.run(outdir="output")
 ```
 
 If `pred_mat_path` was supplied, `run()` writes both core outputs and downstream kinase-analysis outputs. If not, it
-still writes the core outputs.
+still writes the core outputs. If you call `run(outdir=None)`, PhosPy still returns the in-memory results and simply
+skips file writing.
+
+If you already have a validated `CorePipelineRequest`, you can build the pipeline with `PhosRPipeline.from_request(...)`.
 
 ## `CoreOutputs`
 
@@ -241,10 +253,13 @@ Key parameters:
 
 Important behaviour:
 
+- `site_sequences` must be keyed by phosphosite ID, or supplied as a pandas Series with a phosphosite index.
 - `motif_sequences` require matching `site_sequences`.
 - If you omit `motif_sequences`, you must set `allow_profile_only_fallback=True`.
 - `svm_mode="default"` is the preferred native mode.
 - `svm_mode="r_parity"` exists for a narrower learner-seam comparison against committed parity references.
+
+If you already have a validated `KinaseWorkflowRequest`, use `run_request(...)`.
 
 ## `KinaseWorkflowResult`
 
@@ -253,7 +268,7 @@ Returned by `KinaseWorkflow.run(...)`.
 Attributes:
 
 - `profile_result`
-- `motif_result`
+- `motif_result` (`None` in profile-only mode)
 - `scoring_result`
 - `prediction_result`
 
