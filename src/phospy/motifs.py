@@ -35,6 +35,16 @@ AMINO_ACIDS: tuple[str, ...] = (
     "V",
 )
 
+_ASCII_LOOKUP_SIZE = 256
+_INVALID_AMINO_ACID_INDEX = -1
+_AMINO_ACID_INDEX_LOOKUP = np.full(
+    _ASCII_LOOKUP_SIZE,
+    _INVALID_AMINO_ACID_INDEX,
+    dtype=np.int16,
+)
+for _row_index, _amino_acid in enumerate(AMINO_ACIDS):
+    _AMINO_ACID_INDEX_LOOKUP[ord(_amino_acid)] = _row_index
+
 
 @dataclass(slots=True)
 class MotifScoringResult:
@@ -151,14 +161,14 @@ def create_frequency_matrix(
         raise TableSchemaError(msg)
 
     frequency_values = np.zeros((len(AMINO_ACIDS), width), dtype=float)
-    amino_acid_to_row = _amino_acid_to_row_index()
-
-    for window in windows:
-        for position_index, aa in enumerate(str(window)):
-            row_index = amino_acid_to_row.get(aa)
-            if row_index is None:
-                continue
-            frequency_values[row_index, position_index] += 1.0
+    encoded_windows = _encode_sequence_positions(windows, width=width)
+    valid_rows, valid_cols = np.nonzero(encoded_windows >= 0)
+    if valid_rows.size > 0:
+        np.add.at(
+            frequency_values,
+            (encoded_windows[valid_rows, valid_cols], valid_cols),
+            1.0,
+        )
 
     frequency_values /= float(len(windows))
     return pd.DataFrame(
@@ -178,24 +188,14 @@ def frequency_scoring(
     frequency_mat = _coerce_frequency_matrix(frequency_mat)
     sequences = _coerce_sequence_series(sequence_list, flank_size=None)
     frequency_values = frequency_mat.to_numpy(dtype=float, copy=False)
-    amino_acid_to_row = _amino_acid_to_row_index()
-    max_width = frequency_values.shape[1]
-
-    score_values = np.zeros(len(sequences), dtype=float)
-    for sequence_index, sequence in enumerate(sequences):
-        if pd.isna(sequence):
-            score_values[sequence_index] = 0.0
-            continue
-
-        score = 0.0
-        for position_index, aa in enumerate(str(sequence)):
-            if position_index >= max_width:
-                break
-            row_index = amino_acid_to_row.get(aa)
-            if row_index is None:
-                continue
-            score += float(frequency_values[row_index, position_index])
-        score_values[sequence_index] = score
+    encoded_sequences = _encode_sequence_positions(
+        sequences,
+        width=frequency_values.shape[1],
+    )
+    score_values = _score_encoded_sequences(
+        encoded_sequences=encoded_sequences,
+        frequency_values=frequency_values,
+    )
     return pd.Series(score_values, index=sequences.index.copy(), dtype=float)
 
 
@@ -235,8 +235,57 @@ def minmax_scale_columns(mat: pd.DataFrame) -> pd.DataFrame:
     return scaled
 
 
-def _amino_acid_to_row_index() -> dict[str, int]:
-    return {amino_acid: row_index for row_index, amino_acid in enumerate(AMINO_ACIDS)}
+def _encode_sequence_positions(
+    sequences: Sequence[object] | pd.Series,
+    width: int,
+) -> np.ndarray:
+    """Encode sequence characters into amino-acid row indices for vectorised scoring."""
+    encoded = np.full(
+        (len(sequences), width),
+        _INVALID_AMINO_ACID_INDEX,
+        dtype=np.int16,
+    )
+    if width == 0:
+        return encoded
+
+    for row_index, sequence in enumerate(sequences):
+        if sequence is None or pd.isna(sequence):
+            continue
+
+        text = str(sequence)[:width]
+        if text == "":
+            continue
+
+        code_points = np.fromiter(
+            (ord(character) for character in text),
+            dtype=np.int32,
+            count=len(text),
+        )
+        valid_ascii = code_points < _ASCII_LOOKUP_SIZE
+        if not np.any(valid_ascii):
+            continue
+
+        valid_positions = np.flatnonzero(valid_ascii)
+        encoded[row_index, valid_positions] = _AMINO_ACID_INDEX_LOOKUP[
+            code_points[valid_positions]
+        ]
+    return encoded
+
+
+def _score_encoded_sequences(
+    encoded_sequences: np.ndarray,
+    frequency_values: np.ndarray,
+) -> np.ndarray:
+    """Score encoded sequence windows against a frequency matrix using NumPy indexing."""
+    if encoded_sequences.size == 0:
+        return np.zeros(encoded_sequences.shape[0], dtype=float)
+
+    valid_mask = encoded_sequences >= 0
+    safe_indices = np.where(valid_mask, encoded_sequences, 0)
+    position_indices = np.arange(encoded_sequences.shape[1])
+    position_scores = frequency_values[safe_indices, position_indices]
+    position_scores = np.where(valid_mask, position_scores, 0.0)
+    return position_scores.sum(axis=1, dtype=float)
 
 
 def _coerce_frequency_matrix(frequency_mat: pd.DataFrame) -> pd.DataFrame:
