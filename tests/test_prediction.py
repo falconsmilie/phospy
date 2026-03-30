@@ -26,7 +26,7 @@ from phospy.prediction.svm import require_sklearn as _require_sklearn
 from phospy.prediction.svm import (
     resolve_svm_probability_random_state as _resolve_svm_probability_random_state,
 )
-from phospy.prediction.traces import DirectoryTraceSink
+from phospy.prediction.traces import DirectoryTraceSink, create_trace_sink
 from phospy.scoring import KinaseScoringResult
 
 
@@ -714,3 +714,55 @@ def test_kinase_predictor_is_reproducible_for_same_random_state() -> None:
     )
 
     pd.testing.assert_frame_equal(result_a.pred_matrix, result_b.pred_matrix)
+
+
+def test_create_trace_sink_owns_and_cleans_up_temp_directory() -> None:
+    sink = create_trace_sink(None, fmt="csv")
+    assert isinstance(sink, DirectoryTraceSink)
+    output_dir = sink.output_dir
+
+    sink.write_rows(
+        "trace_iteration_samples",
+        [
+            {
+                "kinase": "KINASE_A",
+                "ensemble": 1,
+                "iteration": 1,
+                "class_label": 1,
+                "draw": 1,
+                "site": "SITE_1",
+            }
+        ],
+    )
+
+    assert output_dir.exists()
+    sink.close()
+
+    assert not output_dir.exists()
+
+
+def test_prediction_result_close_cleans_up_owned_trace_sink() -> None:
+    predictor = KinasePredictor()
+
+    result = predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=1,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=5,
+        capture_debug_trace=True,
+        debug_kinases=["KINASE_A"],
+        debug_top_n=3,
+        trace_level="full",
+        trace_sink=None,
+    )
+
+    assert result.trace_sink is not None
+    output_dir = result.trace_sink.output_dir
+    assert output_dir.exists()
+
+    result.close()
+
+    assert not output_dir.exists()

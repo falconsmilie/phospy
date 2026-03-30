@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import numpy as np
 import pandas as pd
@@ -39,6 +39,20 @@ class TraceSink(ABC):
     def flush(self) -> None:
         return None
 
+    def close(self) -> None:
+        return None
+
+    def __enter__(self) -> TraceSink:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: object | None,
+    ) -> None:
+        self.close()
+
     def read_all_tables(self) -> dict[str, pd.DataFrame]:
         self.flush()
         return {name: self.read_table(name) for name in TRACE_TABLE_NAMES}
@@ -50,7 +64,9 @@ class DirectoryTraceSink(TraceSink):
         output_dir: str | Path,
         *,
         fmt: PredictionTraceFormat = "csv",
+        owned_temp_dir: TemporaryDirectory[str] | None = None,
     ) -> None:
+        self._owned_temp_dir = owned_temp_dir
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.fmt = fmt
@@ -58,6 +74,7 @@ class DirectoryTraceSink(TraceSink):
         self._buffered_rows: dict[str, list[dict[str, object]]] = {
             name: [] for name in TRACE_TABLE_NAMES
         }
+        self._closed = False
 
     def write_rows(self, table_name: str, rows: list[dict[str, object]]) -> None:
         if table_name not in TRACE_TABLE_NAMES:
@@ -95,6 +112,15 @@ class DirectoryTraceSink(TraceSink):
         for table_name in TRACE_TABLE_NAMES:
             self._flush_table(table_name)
 
+    def close(self) -> None:
+        if self._closed:
+            return
+        self.flush()
+        if self._owned_temp_dir is not None:
+            self._owned_temp_dir.cleanup()
+            self._owned_temp_dir = None
+        self._closed = True
+
     def read_table(self, table_name: str) -> pd.DataFrame:
         if table_name not in TRACE_TABLE_NAMES:
             msg = f"Unsupported trace table: {table_name}"
@@ -127,8 +153,8 @@ def create_trace_sink(
     if isinstance(trace_sink, TraceSink):
         return trace_sink
     if trace_sink is None:
-        temp_dir = Path(tempfile.mkdtemp(prefix="phospy_prediction_trace_"))
-        return DirectoryTraceSink(temp_dir, fmt=fmt)
+        temp_dir = TemporaryDirectory(prefix="phospy_prediction_trace_")
+        return DirectoryTraceSink(temp_dir.name, fmt=fmt, owned_temp_dir=temp_dir)
     return DirectoryTraceSink(trace_sink, fmt=fmt)
 
 

@@ -50,6 +50,21 @@ class KinasePredictionResult:
     trace_level: PredictionTraceLevel = "none"
     trace_sink: TraceSink | None = None
 
+    def close(self) -> None:
+        if self.trace_sink is not None:
+            self.trace_sink.close()
+
+    def __enter__(self) -> KinasePredictionResult:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: object | None,
+    ) -> None:
+        self.close()
+
 
 @dataclass(slots=True)
 class SamplingTraceOverrideEnsemble:
