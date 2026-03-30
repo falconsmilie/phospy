@@ -16,6 +16,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--pred-mat", help="Optional predMat CSV for kinase activity and KSEA."
     )
     parser.add_argument(
+        "--phospho-encoding",
+        help=(
+            "Optional text encoding for the phosphoproteome table. "
+            "Defaults to utf-8 when omitted."
+        ),
+    )
+    parser.add_argument(
         "--localization-threshold",
         type=float,
         default=0.75,
@@ -60,6 +67,7 @@ def main() -> None:
             total_path=args.total,
             phospho_path=args.phospho,
             pred_mat_path=args.pred_mat,
+            phospho_encoding=args.phospho_encoding,
             localization_threshold=args.localization_threshold,
             min_observed=args.min_observed,
             total_sentinel=args.total_sentinel,

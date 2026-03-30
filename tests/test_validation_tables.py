@@ -3,7 +3,13 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.io import load_phospho_table, load_pred_mat, load_total_table
+from phospy.io import (
+    DEFAULT_TEXT_ENCODING,
+    infer_text_encoding,
+    load_phospho_table,
+    load_pred_mat,
+    load_total_table,
+)
 from phospy.validation.errors import TableSchemaError
 from phospy.validation.tables import (
     PhosphoInputSchema,
@@ -99,3 +105,18 @@ def test_load_total_table_returns_numeric_frame(tmp_path) -> None:
 
     assert loaded["group1"].dtype.kind in {"f", "i"}
     assert loaded.loc[0, "genes"] == "PRKACA"
+
+
+def test_load_phospho_table_uses_explicit_encoding_when_provided(tmp_path) -> None:
+    phospho_path = tmp_path / "phospho-utf16.tsv"
+    phospho_path.write_text(
+        "uid\tgene_names\tgene_p_site\tlocalization_prob\tcentralized_sequence"
+        "\tp_group1\tp_group2\tp_group3\tp_group4\tp_group5\tp_group6\n"
+        "u1\tPRKACA\tPRKACA_S339\t0.95\tAAAAAA\t1\t1\t1\t1\t1\t1\n",
+        encoding="utf-16",
+    )
+
+    loaded = load_phospho_table(phospho_path, encoding="utf-16")
+
+    assert loaded.loc[0, "gene_names"] == "PRKACA"
+    assert infer_text_encoding(phospho_path) == DEFAULT_TEXT_ENCODING

@@ -40,7 +40,7 @@ dataset = PhosphoDataset.from_files(
     "total.tsv",
     "phospho.tsv",
     comparisons=[("group1", "group4")],
-    phospho_encoding="utf-8",
+    phospho_encoding="utf-8",  # default is utf-8 when omitted
 )
 ```
 
@@ -176,7 +176,7 @@ pipeline = PhosRPipeline.from_files(
     phospho_path="phospho.tsv",
     pred_mat_path="predMat.csv",
     comparisons=[("group1", "group4")],
-    phospho_encoding="utf-8",
+    phospho_encoding="utf-8",  # default is utf-8 when omitted
     max_unmatched_fraction=0.1,
 )
 ```

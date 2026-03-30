@@ -105,6 +105,7 @@ from phospy import PhosphoDataset
 dataset = PhosphoDataset.from_files(
     "examples/data/total.tsv",
     "examples/data/phospho.tsv",
+    phospho_encoding="utf-16le",
 )
 core = dataset.process_core(max_unmatched_fraction=0.1)
 
@@ -130,6 +131,7 @@ from phospy import PhosphoDataset
 dataset = PhosphoDataset.from_files(
     "examples/data/total.tsv",
     "examples/data/phospho.tsv",
+    phospho_encoding="utf-16le",
     comparisons=[("group1", "group4"), ("group2", "group5")],
 )
 core = dataset.process_core(max_unmatched_fraction=0.1)
@@ -146,6 +148,7 @@ import pandas as pd
 dataset = PhosphoDataset.from_files(
     "examples/data/total.tsv",
     "examples/data/phospho.tsv",
+    phospho_encoding="utf-16le",
 )
 core = dataset.process_core(max_unmatched_fraction=0.1)
 pred_mat = pd.read_csv("examples/data/predMat.csv", index_col=0)
@@ -181,6 +184,7 @@ pipeline = PhosRPipeline.from_files(
     total_path="examples/data/total.tsv",
     phospho_path="examples/data/phospho.tsv",
     pred_mat_path="examples/data/predMat.csv",
+    phospho_encoding="utf-16le",
     max_unmatched_fraction=0.1,
 )
 outputs = pipeline.run(outdir="examples/output")
@@ -250,6 +254,7 @@ phospy \
   --total examples/data/total.tsv \
   --phospho examples/data/phospho.tsv \
   --pred-mat examples/data/predMat.csv \
+  --phospho-encoding utf-16le \
   --max-unmatched-fraction 0.1 \
   --outdir examples/output
 ```
@@ -259,6 +264,7 @@ The example output directory in `examples/output/` shows the generated CSV files
 The CLI currently supports these options:
 
 - `--total` and `--phospho` are required input files
+- `--phospho-encoding` optionally overrides the default `utf-8` reader encoding
 - `--outdir` is the required output directory
 - `--pred-mat` is optional
 - `--localization-threshold` defaults to `0.75`

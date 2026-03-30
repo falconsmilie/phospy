@@ -8,6 +8,8 @@ import pandas as pd
 
 from .validation.tables import PhosphoInputSchema, PredMatSchema, TotalInputSchema
 
+DEFAULT_TEXT_ENCODING = "utf-8"
+
 
 def clean_columns(columns: Iterable[str]) -> list[str]:
     cleaned: list[str] = []
@@ -21,15 +23,16 @@ def clean_columns(columns: Iterable[str]) -> list[str]:
 
 
 def infer_text_encoding(path: str | Path) -> str:
-    with Path(path).open("rb") as handle:
-        raw = handle.read(4096)
-    if raw.startswith(b"\xff\xfe"):
-        return "utf-16le"
-    if raw.startswith(b"\xfe\xff"):
-        return "utf-16be"
-    if b"\x00" in raw:
-        return "utf-16le"
-    return "utf-8"
+    """Return the package default text encoding.
+
+    The loader no longer guesses encodings from file contents. Callers should pass
+    an explicit encoding when they need something other than the default.
+    The ``path`` argument is kept for backward compatibility with earlier helper
+    usage.
+    """
+
+    _ = path
+    return DEFAULT_TEXT_ENCODING
 
 
 def read_table_raw(
@@ -40,7 +43,7 @@ def read_table_raw(
     index_col: int | str | None = None,
     usecols: Sequence[str | int] | None = None,
 ) -> pd.DataFrame:
-    resolved_encoding = encoding or infer_text_encoding(path)
+    resolved_encoding = encoding or DEFAULT_TEXT_ENCODING
     return pd.read_csv(
         path,
         sep=sep,
@@ -64,9 +67,12 @@ def read_table(
 def load_total_table(
     path: str | Path,
     *,
+    encoding: str | None = None,
     usecols: Sequence[str | int] | None = None,
 ) -> pd.DataFrame:
-    frame = _clean_table_columns(read_table_raw(path, usecols=usecols))
+    frame = _clean_table_columns(
+        read_table_raw(path, encoding=encoding, usecols=usecols)
+    )
     return TotalInputSchema.validate(frame, context=f"total input table ({path})")
 
 
@@ -85,9 +91,16 @@ def load_phospho_table(
 def load_pred_mat(
     path: str | Path,
     *,
+    encoding: str | None = None,
     usecols: Sequence[str | int] | None = None,
 ) -> pd.DataFrame:
-    frame = read_table_raw(path, sep=",", index_col=0, usecols=usecols)
+    frame = read_table_raw(
+        path,
+        sep=",",
+        encoding=encoding,
+        index_col=0,
+        usecols=usecols,
+    )
     frame.index = frame.index.map(str)
     frame.columns = [str(column).strip() for column in frame.columns]
     return PredMatSchema.validate(frame, context=f"pred_mat ({path})")

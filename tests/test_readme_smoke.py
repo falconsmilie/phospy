@@ -30,6 +30,7 @@ def test_readme_example_pipeline_runs_end_to_end(tmp_path) -> None:
         total_path=repo_root / "examples" / "data" / "total.tsv",
         phospho_path=repo_root / "examples" / "data" / "phospho.tsv",
         pred_mat_path=repo_root / "examples" / "data" / "predMat.csv",
+        phospho_encoding="utf-16le",
         max_unmatched_fraction=0.1,
     )
     outputs = pipeline.run(outdir=outdir)

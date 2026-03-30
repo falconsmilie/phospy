@@ -54,6 +54,8 @@ EXAMPLE_COMPARISONS = [
     ("group5", "group6"),
 ]
 
+PHOSPHO_FIXTURE_ENCODING = "utf-16le"
+
 L6_FIXTURE_FILES = [
     "l6_phospho_matrix.csv",
     "predMat.csv",
@@ -312,6 +314,7 @@ def test_core_outputs_match_r_reference() -> None:
         total_path=EXAMPLE_DATA / "total.tsv",
         phospho_path=EXAMPLE_DATA / "phospho.tsv",
         comparisons=EXAMPLE_COMPARISONS,
+        phospho_encoding=PHOSPHO_FIXTURE_ENCODING,
     )
     result = dataset.process_core()
 
@@ -366,6 +369,7 @@ def test_kinase_outputs_match_r_reference() -> None:
         total_path=EXAMPLE_DATA / "total.tsv",
         phospho_path=EXAMPLE_DATA / "phospho.tsv",
         comparisons=EXAMPLE_COMPARISONS,
+        phospho_encoding=PHOSPHO_FIXTURE_ENCODING,
     )
     core = dataset.process_core()
 
