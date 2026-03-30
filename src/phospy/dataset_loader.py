@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from .constants import DEFAULT_PHOSPHO_COLS, DEFAULT_TOTAL_COLS
-from .io import load_phospho_table, load_total_table
+from .io import read_table
 from .validation.tables import PhosphoInputSchema, TotalInputSchema
 
 
@@ -44,6 +44,6 @@ class DatasetLoader:
         *,
         phospho_encoding: str | None = None,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        total_df = load_total_table(total_path)
-        phospho_df = load_phospho_table(phospho_path, encoding=phospho_encoding)
+        total_df = read_table(total_path)
+        phospho_df = read_table(phospho_path, encoding=phospho_encoding)
         return self.validate(total_df=total_df, phospho_df=phospho_df)

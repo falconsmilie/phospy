@@ -10,7 +10,8 @@ from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
 from .constants import ComparisonSpec
 from .core_processing import CorePreprocessingConfig, CoreProcessingResult
 from .dataset import PhosphoDataset
-from .io import load_phospho_table, load_pred_mat, load_total_table
+from .dataset_loader import DatasetLoader
+from .io import load_pred_mat
 from .validation.requests import CorePipelineRequest
 from .writers import CoreOutputWriter, KinaseActivityWriter
 
@@ -51,12 +52,14 @@ class PhosRPipeline:
 
     @classmethod
     def from_request(cls, request: CorePipelineRequest) -> PhosRPipeline:
-        dataset = PhosphoDataset(
-            total_df=load_total_table(request.total_path),
-            phospho_df=load_phospho_table(
-                request.phospho_path,
-                encoding=request.phospho_encoding,
-            ),
+        total_df, phospho_df = DatasetLoader().load(
+            request.total_path,
+            request.phospho_path,
+            phospho_encoding=request.phospho_encoding,
+        )
+        dataset = PhosphoDataset._from_validated_frames(
+            total_df=total_df,
+            phospho_df=phospho_df,
             comparisons=request.comparisons,
         )
         pred_mat = (

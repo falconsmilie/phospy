@@ -327,5 +327,78 @@ def test_dataset_components_work_together() -> None:
     assert "PRKACA;S339;" in result.site_matrix.matrix.index
 
 
+def test_dataset_from_files_validates_inputs_once(monkeypatch, tmp_path) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    make_total_df().to_csv(total_path, sep="	", index=False)
+    make_phospho_df().to_csv(phospho_path, sep="	", index=False)
+
+    from phospy.validation.tables import PhosphoInputSchema, TotalInputSchema
+
+    total_calls = 0
+    phospho_calls = 0
+    original_total_validate = TotalInputSchema.validate
+    original_phospho_validate = PhosphoInputSchema.validate
+
+    def counting_total_validate(*args, **kwargs):
+        nonlocal total_calls
+        total_calls += 1
+        return original_total_validate(*args, **kwargs)
+
+    def counting_phospho_validate(*args, **kwargs):
+        nonlocal phospho_calls
+        phospho_calls += 1
+        return original_phospho_validate(*args, **kwargs)
+
+    monkeypatch.setattr(TotalInputSchema, "validate", counting_total_validate)
+    monkeypatch.setattr(PhosphoInputSchema, "validate", counting_phospho_validate)
+
+    dataset = PhosphoDataset.from_files(
+        total_path=total_path, phospho_path=phospho_path
+    )
+
+    assert dataset.total_df.shape[0] == 4
+    assert total_calls == 1
+    assert phospho_calls == 1
+
+
+def test_pipeline_from_request_validates_inputs_once(monkeypatch, tmp_path) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    make_total_df().to_csv(total_path, sep="	", index=False)
+    make_phospho_df().to_csv(phospho_path, sep="	", index=False)
+
+    from phospy.validation.requests import CorePipelineRequest
+    from phospy.validation.tables import PhosphoInputSchema, TotalInputSchema
+
+    total_calls = 0
+    phospho_calls = 0
+    original_total_validate = TotalInputSchema.validate
+    original_phospho_validate = PhosphoInputSchema.validate
+
+    def counting_total_validate(*args, **kwargs):
+        nonlocal total_calls
+        total_calls += 1
+        return original_total_validate(*args, **kwargs)
+
+    def counting_phospho_validate(*args, **kwargs):
+        nonlocal phospho_calls
+        phospho_calls += 1
+        return original_phospho_validate(*args, **kwargs)
+
+    monkeypatch.setattr(TotalInputSchema, "validate", counting_total_validate)
+    monkeypatch.setattr(PhosphoInputSchema, "validate", counting_phospho_validate)
+
+    request = CorePipelineRequest.validate_request(
+        total_path=total_path,
+        phospho_path=phospho_path,
+    )
+    pipeline = PhosRPipeline.from_request(request)
+
+    assert pipeline.dataset.total_df.shape[0] == 4
+    assert total_calls == 1
+    assert phospho_calls == 1
+
+
 def pipeline_config() -> CorePreprocessingConfig:
     return CorePreprocessingConfig()

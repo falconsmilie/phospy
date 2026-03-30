@@ -94,6 +94,5 @@ def load_pred_mat(
 
 
 def _clean_table_columns(frame: pd.DataFrame) -> pd.DataFrame:
-    cleaned = frame.copy()
-    cleaned.columns = clean_columns(str(column) for column in cleaned.columns)
-    return cleaned
+    frame.columns = clean_columns(str(column) for column in frame.columns)
+    return frame
