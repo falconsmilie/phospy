@@ -6,9 +6,12 @@ from .compatibility import (
 )
 from .errors import (
     InputCompatibilityError,
+    PhospyError,
     PhospyValidationError,
+    PredictionConfigurationError,
     RequestValidationError,
     TableSchemaError,
+    TraceError,
 )
 from .requests import (
     CorePipelineRequest,
@@ -25,14 +28,17 @@ from .tables import (
 __all__ = [
     "CorePipelineRequest",
     "InputCompatibilityError",
+    "PhospyError",
     "KinaseActivityRequest",
     "KinaseWorkflowRequest",
     "PhosphoInputSchema",
     "PhospyValidationError",
+    "PredictionConfigurationError",
     "PredMatSchema",
     "RequestValidationError",
     "SiteMatrixSchema",
     "TableSchemaError",
+    "TraceError",
     "TotalInputSchema",
     "validate_core_column_alignment",
     "validate_pred_mat_overlap",

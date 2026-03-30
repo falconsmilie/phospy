@@ -5,7 +5,11 @@ from collections.abc import Sequence
 from pydantic import ValidationError
 
 
-class PhospyValidationError(ValueError):
+class PhospyError(Exception):
+    """Base class for phospy package errors."""
+
+
+class PhospyValidationError(PhospyError, ValueError):
     """Base class for phospy validation failures."""
 
 
@@ -29,6 +33,14 @@ class TableSchemaError(PhospyValidationError):
 
 class InputCompatibilityError(PhospyValidationError):
     """Raised when otherwise valid inputs are incompatible with each other."""
+
+
+class PredictionConfigurationError(PhospyValidationError):
+    """Raised when predictor configuration cannot produce a valid training run."""
+
+
+class TraceError(PhospyValidationError):
+    """Raised when prediction tracing is misconfigured or cannot be loaded."""
 
 
 def _format_pydantic_errors(error: ValidationError) -> str:

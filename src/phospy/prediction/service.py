@@ -7,7 +7,10 @@ import pandas as pd
 
 from ..scoring import KinaseScoringResult
 from ..types import PredictionSvmMode, PredictionTraceFormat, PredictionTraceLevel
-from ..validation.errors import InputCompatibilityError
+from ..validation.errors import (
+    InputCompatibilityError,
+    PredictionConfigurationError,
+)
 from .models import KinasePredictionDebugTrace, KinasePredictionResult
 from .sampling import (
     coerce_sampling_trace,
@@ -130,7 +133,7 @@ class KinasePredictor:
                 msg = (
                     f"No negative pool sites available to train predictor for {kinase}"
                 )
-                raise ValueError(msg)
+                raise PredictionConfigurationError(msg)
 
             is_traced_kinase = (
                 resolved_trace_level != "none" and kinase in traced_kinases

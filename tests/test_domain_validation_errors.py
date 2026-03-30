@@ -14,7 +14,9 @@ from phospy.prediction import (
 from phospy.scoring import KinaseScorer
 from phospy.validation.errors import (
     InputCompatibilityError,
+    PhospyError,
     PhospyValidationError,
+    PredictionConfigurationError,
     TableSchemaError,
 )
 
@@ -74,6 +76,32 @@ def test_prediction_sampling_trace_rejects_missing_trace_files_with_package_erro
 ) -> None:
     with pytest.raises(TableSchemaError, match="sampling trace directory"):
         PredictionSamplingTrace.from_trace_directory(tmp_path / "missing_trace")
+
+
+def test_predict_rejects_missing_negative_pool_with_configuration_error() -> None:
+    predictor = KinasePredictor()
+    combined_scores = pd.DataFrame(
+        {"KINASE_A": [0.95, 0.93]}, index=["SITE_1", "SITE_2"]
+    )
+
+    with pytest.raises(
+        PredictionConfigurationError,
+        match="No negative pool sites available to train predictor for KINASE_A",
+    ):
+        predictor.predict(
+            combined_scores=combined_scores,
+            ensemble_size=2,
+            top=2,
+            score_threshold=0.9,
+            inclusion=1,
+            n_iterations=2,
+            random_state=3,
+        )
+
+
+def test_prediction_configuration_error_is_a_package_validation_error() -> None:
+    assert issubclass(PredictionConfigurationError, PhospyValidationError)
+    assert issubclass(PredictionConfigurationError, PhospyError)
 
 
 def test_predict_from_scoring_result_requires_profile_fallback_with_package_error() -> (
