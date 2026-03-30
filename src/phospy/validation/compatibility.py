@@ -119,7 +119,7 @@ def validate_pred_mat_overlap(
 def validate_workflow_inputs(
     phospho_matrix: pd.DataFrame,
     substrate_map: Mapping[str, Sequence[str]],
-    site_sequences: Mapping[str, str] | Sequence[str] | pd.Series | None,
+    site_sequences: Mapping[str, str] | pd.Series | None,
     motif_sequences: Mapping[str, Sequence[str]] | None,
     *,
     context: str = "Kinase workflow inputs",
@@ -172,7 +172,7 @@ def validate_workflow_inputs(
 
 
 def _extract_sequence_index(
-    site_sequences: Mapping[str, str] | Sequence[str] | pd.Series,
+    site_sequences: Mapping[str, str] | pd.Series,
     site_index: pd.Index,
 ) -> set[str]:
     if isinstance(site_sequences, pd.Series):
@@ -181,7 +181,8 @@ def _extract_sequence_index(
         return {str(value) for value in site_sequences}
     msg = (
         "site_sequences must be provided as a mapping keyed by phosphosite ID "
-        "or as a pandas Series with an explicit phosphosite index"
+        "or as a pandas Series with an explicit phosphosite index; plain "
+        "sequences are not supported"
     )
     raise InputCompatibilityError(msg)
 

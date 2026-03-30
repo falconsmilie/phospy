@@ -42,29 +42,8 @@ def collapse_duplicate_genes(
     work = df.copy()
     work[gene_col] = work[gene_col].astype("string")
     work["__mean_signal"] = work.loc[:, list(value_cols)].mean(axis=1, skipna=True)
-    work["__row_order"] = range(len(work))
-
-    sort_cols = [gene_col, "__mean_signal"]
-    ascending = [True, False]
-    if "uid" in work.columns:
-        work["__uid_sort"] = work["uid"].astype("string")
-        sort_cols.append("__uid_sort")
-        ascending.append(True)
-    sort_cols.append("__row_order")
-    ascending.append(True)
-
-    result = (
-        work.sort_values(sort_cols, ascending=ascending, kind="mergesort")
-        .drop_duplicates(subset=[gene_col], keep="first")
-        .drop(
-            columns=[
-                col
-                for col in ["__mean_signal", "__uid_sort", "__row_order"]
-                if col in work.columns
-            ]
-        )
-        .copy()
-    )
+    idx = work.groupby(gene_col)["__mean_signal"].idxmax()
+    result = work.loc[idx].drop(columns="__mean_signal").copy()
 
     if uppercase:
         result[gene_col] = result[gene_col].str.upper()

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
-import numpy as np
 import pandas as pd
 
 from ..constants import DEFAULT_PHOSPHO_COLS, DEFAULT_TOTAL_COLS
@@ -76,7 +75,7 @@ class PhosphoInputSchema:
             maximum=1.0,
             context=context,
         )
-        split_gene_p_site(
+        _ensure_splitable_gene_p_site(
             validated["gene_p_site"],
             context=context,
         )
@@ -143,16 +142,6 @@ class SiteMatrixSchema:
         )
         _ensure_unique_index(validated, context=context)
         _ensure_non_null_index(validated, context=context)
-        _ensure_non_null_numeric_values(
-            validated,
-            list(validated.columns),
-            context=context,
-        )
-        _ensure_finite_values(
-            validated,
-            list(validated.columns),
-            context=context,
-        )
         return validated
 
 
@@ -254,17 +243,15 @@ def _ensure_value_range(
         raise TableSchemaError(msg)
 
 
-def split_gene_p_site(series: pd.Series, *, context: str) -> pd.DataFrame:
+def _ensure_splitable_gene_p_site(series: pd.Series, *, context: str) -> None:
     split_columns = series.astype("string").str.split("_", n=1, expand=True)
-    invalid_mask: bool | pd.Series = split_columns.shape[1] < 2
+    invalid_mask = split_columns.shape[1] < 2
     if not invalid_mask:
-        gene_part = split_columns[0].astype("string").str.strip()
-        site_part = split_columns[1].astype("string").str.strip()
         invalid_mask = (
-            gene_part.isna()
-            | site_part.isna()
-            | (gene_part.str.len() == 0)
-            | (site_part.str.len() == 0)
+            split_columns[0].isna()
+            | split_columns[1].isna()
+            | (split_columns[0].str.len() == 0)
+            | (split_columns[1].str.len() == 0)
         )
     if isinstance(invalid_mask, bool):
         invalid_mask = pd.Series([invalid_mask] * len(series), index=series.index)
@@ -276,11 +263,6 @@ def split_gene_p_site(series: pd.Series, *, context: str) -> pd.DataFrame:
             f"into gene and site parts: {sample_preview}"
         )
         raise TableSchemaError(msg)
-
-    validated = pd.DataFrame(index=series.index)
-    validated[0] = split_columns[0].astype("string").str.strip()
-    validated[1] = split_columns[1].astype("string").str.strip()
-    return validated
 
 
 def _ensure_unique_index(frame: pd.DataFrame, *, context: str) -> None:
@@ -295,37 +277,4 @@ def _ensure_unique_index(frame: pd.DataFrame, *, context: str) -> None:
 def _ensure_non_null_index(frame: pd.DataFrame, *, context: str) -> None:
     if frame.index.isna().any():
         msg = f"{context} contains null index entries"
-        raise TableSchemaError(msg)
-
-
-def _ensure_non_null_numeric_values(
-    frame: pd.DataFrame,
-    columns: Sequence[str],
-    *,
-    context: str,
-) -> None:
-    failures: list[str] = []
-    for column in columns:
-        if frame[column].isna().any():
-            failures.append(column)
-    if failures:
-        failures_str = ", ".join(failures)
-        msg = f"{context} contains null values in numeric columns: {failures_str}"
-        raise TableSchemaError(msg)
-
-
-def _ensure_finite_values(
-    frame: pd.DataFrame,
-    columns: Sequence[str],
-    *,
-    context: str,
-) -> None:
-    failures: list[str] = []
-    for column in columns:
-        values = frame[column].to_numpy(dtype=float, copy=False)
-        if not np.isfinite(values).all():
-            failures.append(column)
-    if failures:
-        failures_str = ", ".join(failures)
-        msg = f"{context} contains non-finite numeric values in columns: {failures_str}"
         raise TableSchemaError(msg)

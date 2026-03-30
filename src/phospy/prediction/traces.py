@@ -5,13 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from ..validation.errors import TableSchemaError
-from .models import (
-    AdaptiveSamplingEnsembleTrace,
-    AdaptiveSamplingIterationTrace,
-    KinasePredictionDebugTrace,
-    KinasePredictionResult,
-    SamplingTraceOverrideEnsemble,
-)
+from .models import KinasePredictionResult, SamplingTraceOverrideEnsemble
 
 
 class PredictionSamplingTrace:
@@ -113,261 +107,6 @@ class PredictionSamplingTrace:
         )
 
 
-def _get_probability_value(
-    probabilities: pd.DataFrame, site: str, column: str
-) -> float:
-    if column not in probabilities.columns:
-        return float("nan")
-    return float(probabilities.loc[site, column])
-
-
-def _flatten_candidate_rows(
-    kinase: str,
-    trace: KinasePredictionDebugTrace,
-) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    candidate_rows: list[dict[str, object]] = []
-    negative_pool_rows: list[dict[str, object]] = []
-
-    for rank, site in enumerate(trace.candidate_substrates, start=1):
-        candidate_rows.append(
-            {
-                "kinase": kinase,
-                "candidate_rank": rank,
-                "site": site,
-            }
-        )
-
-    for pool_index, site in enumerate(trace.negative_pool_sites, start=1):
-        negative_pool_rows.append(
-            {
-                "kinase": kinase,
-                "pool_index": pool_index,
-                "site": site,
-            }
-        )
-
-    return candidate_rows, negative_pool_rows
-
-
-def _flatten_weight_rows(
-    *,
-    kinase: str,
-    ensemble_index: int,
-    iteration_index: int,
-    class_label: int,
-    weights: pd.Series | None,
-) -> list[dict[str, object]]:
-    if weights is None:
-        return []
-
-    rows: list[dict[str, object]] = []
-    for site, weight in weights.items():
-        rows.append(
-            {
-                "kinase": kinase,
-                "ensemble": ensemble_index,
-                "iteration": iteration_index,
-                "class_label": class_label,
-                "site": site,
-                "normalized_weight": float(weight),
-            }
-        )
-    return rows
-
-
-def _flatten_sample_rows(
-    *,
-    kinase: str,
-    ensemble_index: int,
-    iteration_index: int,
-    class_label: int,
-    sampled_sites: list[str],
-) -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
-    for draw, site in enumerate(sampled_sites, start=1):
-        rows.append(
-            {
-                "kinase": kinase,
-                "ensemble": ensemble_index,
-                "iteration": iteration_index,
-                "class_label": class_label,
-                "draw": draw,
-                "site": site,
-            }
-        )
-    return rows
-
-
-def _flatten_iteration_rows(
-    kinase: str,
-    ensemble_trace: AdaptiveSamplingEnsembleTrace,
-    iteration_trace: AdaptiveSamplingIterationTrace,
-) -> dict[str, list[dict[str, object]]]:
-    label_rows: list[dict[str, object]] = []
-    probability_rows: list[dict[str, object]] = []
-    probability_parameter_rows: list[dict[str, object]] = []
-    decision_rows: list[dict[str, object]] = []
-
-    labels = iteration_trace.labels
-    probabilities = iteration_trace.probabilities
-    ensemble_index = ensemble_trace.ensemble_index
-    iteration_index = iteration_trace.iteration_index
-
-    for site in probabilities.index:
-        label_value = int(labels.loc[site])
-        label_rows.append(
-            {
-                "kinase": kinase,
-                "ensemble": ensemble_index,
-                "iteration": iteration_index,
-                "site": site,
-                "label": label_value,
-            }
-        )
-        probability_rows.append(
-            {
-                "kinase": kinase,
-                "ensemble": ensemble_index,
-                "iteration": iteration_index,
-                "site": site,
-                "label": label_value,
-                "prob_class_1": _get_probability_value(probabilities, site, "1"),
-                "prob_class_2": _get_probability_value(probabilities, site, "2"),
-            }
-        )
-        decision_rows.append(
-            {
-                "kinase": kinase,
-                "ensemble": ensemble_index,
-                "iteration": iteration_index,
-                "site": site,
-                "label": label_value,
-                "decision_value_class_1": float(
-                    iteration_trace.decision_values.loc[site]
-                ),
-            }
-        )
-
-    if iteration_trace.probability_parameters is not None:
-        for _, row in iteration_trace.probability_parameters.iterrows():
-            probability_parameter_rows.append(
-                {
-                    "kinase": kinase,
-                    "ensemble": ensemble_index,
-                    "iteration": iteration_index,
-                    "class_pair": str(row["class_pair"]),
-                    "probA": float(row["probA"]),
-                    "probB": float(row["probB"]),
-                }
-            )
-
-    return {
-        "labels": label_rows,
-        "probabilities": probability_rows,
-        "probability_parameters": probability_parameter_rows,
-        "decision_values": decision_rows,
-        "weights": [
-            *_flatten_weight_rows(
-                kinase=kinase,
-                ensemble_index=ensemble_index,
-                iteration_index=iteration_index,
-                class_label=1,
-                weights=iteration_trace.positive_weights,
-            ),
-            *_flatten_weight_rows(
-                kinase=kinase,
-                ensemble_index=ensemble_index,
-                iteration_index=iteration_index,
-                class_label=2,
-                weights=iteration_trace.negative_weights,
-            ),
-        ],
-        "samples": [
-            *_flatten_sample_rows(
-                kinase=kinase,
-                ensemble_index=ensemble_index,
-                iteration_index=iteration_index,
-                class_label=1,
-                sampled_sites=iteration_trace.sampled_positive_sites,
-            ),
-            *_flatten_sample_rows(
-                kinase=kinase,
-                ensemble_index=ensemble_index,
-                iteration_index=iteration_index,
-                class_label=2,
-                sampled_sites=iteration_trace.sampled_negative_sites,
-            ),
-        ],
-    }
-
-
-def _flatten_initial_negative_rows(
-    kinase: str,
-    ensemble_trace: AdaptiveSamplingEnsembleTrace,
-) -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
-    for draw, site in enumerate(ensemble_trace.initial_negative_sites, start=1):
-        rows.append(
-            {
-                "kinase": kinase,
-                "ensemble": ensemble_trace.ensemble_index,
-                "draw": draw,
-                "site": site,
-            }
-        )
-    return rows
-
-
-def _flatten_final_prediction_rows(
-    kinase: str,
-    ensemble_trace: AdaptiveSamplingEnsembleTrace,
-) -> tuple[
-    list[dict[str, object]],
-    list[dict[str, object]],
-    list[dict[str, object]],
-]:
-    final_prediction_rows: list[dict[str, object]] = []
-    final_decision_rows: list[dict[str, object]] = []
-    final_top_rows: list[dict[str, object]] = []
-
-    final_probabilities = ensemble_trace.final_prediction_probabilities
-    ensemble_index = ensemble_trace.ensemble_index
-
-    for site in final_probabilities.index:
-        final_prediction_rows.append(
-            {
-                "kinase": kinase,
-                "ensemble": ensemble_index,
-                "site": site,
-                "prob_class_1": _get_probability_value(final_probabilities, site, "1"),
-                "prob_class_2": _get_probability_value(final_probabilities, site, "2"),
-            }
-        )
-        final_decision_rows.append(
-            {
-                "kinase": kinase,
-                "ensemble": ensemble_index,
-                "site": site,
-                "decision_value_class_1": float(
-                    ensemble_trace.final_decision_values.loc[site]
-                ),
-            }
-        )
-
-    for rank, site in enumerate(ensemble_trace.final_top_sites, start=1):
-        final_top_rows.append(
-            {
-                "kinase": kinase,
-                "ensemble": ensemble_index,
-                "rank": rank,
-                "site": site,
-                "prob_class_1": _get_probability_value(final_probabilities, site, "1"),
-            }
-        )
-
-    return final_prediction_rows, final_decision_rows, final_top_rows
-
-
 def prediction_debug_trace_tables(
     result: KinasePredictionResult,
 ) -> dict[str, pd.DataFrame]:
@@ -386,36 +125,177 @@ def prediction_debug_trace_tables(
 
     debug_traces = result.debug_traces or {}
     for kinase, trace in debug_traces.items():
-        candidate_trace_rows, negative_pool_trace_rows = _flatten_candidate_rows(
-            kinase, trace
-        )
-        candidate_rows.extend(candidate_trace_rows)
-        negative_pool_rows.extend(negative_pool_trace_rows)
+        for rank, site in enumerate(trace.candidate_substrates, start=1):
+            candidate_rows.append(
+                {
+                    "kinase": kinase,
+                    "candidate_rank": rank,
+                    "site": site,
+                }
+            )
+        for pool_index, site in enumerate(trace.negative_pool_sites, start=1):
+            negative_pool_rows.append(
+                {
+                    "kinase": kinase,
+                    "pool_index": pool_index,
+                    "site": site,
+                }
+            )
 
         for ensemble_trace in trace.ensemble_traces:
-            initial_rows.extend(_flatten_initial_negative_rows(kinase, ensemble_trace))
+            for draw, site in enumerate(ensemble_trace.initial_negative_sites, start=1):
+                initial_rows.append(
+                    {
+                        "kinase": kinase,
+                        "ensemble": ensemble_trace.ensemble_index,
+                        "draw": draw,
+                        "site": site,
+                    }
+                )
 
             for iteration_trace in ensemble_trace.iterations:
-                iteration_rows = _flatten_iteration_rows(
-                    kinase, ensemble_trace, iteration_trace
-                )
-                label_rows.extend(iteration_rows["labels"])
-                probability_rows.extend(iteration_rows["probabilities"])
-                probability_parameter_rows.extend(
-                    iteration_rows["probability_parameters"]
-                )
-                decision_rows.extend(iteration_rows["decision_values"])
-                weight_rows.extend(iteration_rows["weights"])
-                sample_rows.extend(iteration_rows["samples"])
+                labels = iteration_trace.labels
+                probs = iteration_trace.probabilities
+                for site in probs.index:
+                    label_value = int(labels.loc[site])
+                    label_rows.append(
+                        {
+                            "kinase": kinase,
+                            "ensemble": ensemble_trace.ensemble_index,
+                            "iteration": iteration_trace.iteration_index,
+                            "site": site,
+                            "label": label_value,
+                        }
+                    )
+                    probability_rows.append(
+                        {
+                            "kinase": kinase,
+                            "ensemble": ensemble_trace.ensemble_index,
+                            "iteration": iteration_trace.iteration_index,
+                            "site": site,
+                            "label": label_value,
+                            "prob_class_1": float(probs.loc[site, "1"])
+                            if "1" in probs.columns
+                            else float("nan"),
+                            "prob_class_2": float(probs.loc[site, "2"])
+                            if "2" in probs.columns
+                            else float("nan"),
+                        }
+                    )
+                    decision_rows.append(
+                        {
+                            "kinase": kinase,
+                            "ensemble": ensemble_trace.ensemble_index,
+                            "iteration": iteration_trace.iteration_index,
+                            "site": site,
+                            "label": label_value,
+                            "decision_value_class_1": float(
+                                iteration_trace.decision_values.loc[site]
+                            ),
+                        }
+                    )
 
-            (
-                ensemble_prediction_rows,
-                ensemble_decision_rows,
-                ensemble_top_rows,
-            ) = _flatten_final_prediction_rows(kinase, ensemble_trace)
-            final_prediction_rows.extend(ensemble_prediction_rows)
-            final_decision_rows.extend(ensemble_decision_rows)
-            final_top_rows.extend(ensemble_top_rows)
+                if iteration_trace.probability_parameters is not None:
+                    for _, row in iteration_trace.probability_parameters.iterrows():
+                        probability_parameter_rows.append(
+                            {
+                                "kinase": kinase,
+                                "ensemble": ensemble_trace.ensemble_index,
+                                "iteration": iteration_trace.iteration_index,
+                                "class_pair": str(row["class_pair"]),
+                                "probA": float(row["probA"]),
+                                "probB": float(row["probB"]),
+                            }
+                        )
+                if iteration_trace.positive_weights is not None:
+                    for site, weight in iteration_trace.positive_weights.items():
+                        weight_rows.append(
+                            {
+                                "kinase": kinase,
+                                "ensemble": ensemble_trace.ensemble_index,
+                                "iteration": iteration_trace.iteration_index,
+                                "class_label": 1,
+                                "site": site,
+                                "normalized_weight": float(weight),
+                            }
+                        )
+                if iteration_trace.negative_weights is not None:
+                    for site, weight in iteration_trace.negative_weights.items():
+                        weight_rows.append(
+                            {
+                                "kinase": kinase,
+                                "ensemble": ensemble_trace.ensemble_index,
+                                "iteration": iteration_trace.iteration_index,
+                                "class_label": 2,
+                                "site": site,
+                                "normalized_weight": float(weight),
+                            }
+                        )
+
+                for draw, site in enumerate(
+                    iteration_trace.sampled_positive_sites, start=1
+                ):
+                    sample_rows.append(
+                        {
+                            "kinase": kinase,
+                            "ensemble": ensemble_trace.ensemble_index,
+                            "iteration": iteration_trace.iteration_index,
+                            "class_label": 1,
+                            "draw": draw,
+                            "site": site,
+                        }
+                    )
+                for draw, site in enumerate(
+                    iteration_trace.sampled_negative_sites, start=1
+                ):
+                    sample_rows.append(
+                        {
+                            "kinase": kinase,
+                            "ensemble": ensemble_trace.ensemble_index,
+                            "iteration": iteration_trace.iteration_index,
+                            "class_label": 2,
+                            "draw": draw,
+                            "site": site,
+                        }
+                    )
+
+            final_probs = ensemble_trace.final_prediction_probabilities
+            for site in final_probs.index:
+                final_prediction_rows.append(
+                    {
+                        "kinase": kinase,
+                        "ensemble": ensemble_trace.ensemble_index,
+                        "site": site,
+                        "prob_class_1": float(final_probs.loc[site, "1"])
+                        if "1" in final_probs.columns
+                        else float("nan"),
+                        "prob_class_2": float(final_probs.loc[site, "2"])
+                        if "2" in final_probs.columns
+                        else float("nan"),
+                    }
+                )
+                final_decision_rows.append(
+                    {
+                        "kinase": kinase,
+                        "ensemble": ensemble_trace.ensemble_index,
+                        "site": site,
+                        "decision_value_class_1": float(
+                            ensemble_trace.final_decision_values.loc[site]
+                        ),
+                    }
+                )
+            for rank, site in enumerate(ensemble_trace.final_top_sites, start=1):
+                final_top_rows.append(
+                    {
+                        "kinase": kinase,
+                        "ensemble": ensemble_trace.ensemble_index,
+                        "rank": rank,
+                        "site": site,
+                        "prob_class_1": float(final_probs.loc[site, "1"])
+                        if "1" in final_probs.columns
+                        else float("nan"),
+                    }
+                )
 
     return {
         "trace_selected_candidates": pd.DataFrame(candidate_rows),

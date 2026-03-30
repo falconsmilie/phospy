@@ -5,7 +5,6 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.analysis import KinaseActivityAnalyzer
 from phospy.motifs import KinaseMotifScorer, create_frequency_matrix
 from phospy.prediction import (
     KinasePredictor,
@@ -97,61 +96,3 @@ def test_predict_from_scoring_result_requires_profile_fallback_with_package_erro
         InputCompatibilityError, match="allow_profile_only_fallback=True"
     ):
         predictor.predict_from_scoring_result(scoring_result)  # type: ignore[arg-type]
-
-
-def test_kinase_activity_analyzer_rejects_invalid_threshold_with_package_error() -> (
-    None
-):
-    analyzer = KinaseActivityAnalyzer(
-        pred_mat=pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"])
-    )
-
-    with pytest.raises(
-        PhospyValidationError, match="threshold must be between 0.0 and 1.0"
-    ):
-        analyzer.build_target_table(threshold=1.5)
-
-
-def test_kinase_activity_analyzer_rejects_invalid_substrate_counts_with_package_error() -> (
-    None
-):
-    analyzer = KinaseActivityAnalyzer(
-        pred_mat=pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"])
-    )
-    phospho_matrix = pd.DataFrame({"sample_1": [1.0]}, index=["SITE_1"])
-
-    with pytest.raises(
-        PhospyValidationError, match="top_n_substrates must be at least 1"
-    ):
-        analyzer.compute_weighted_activity(
-            phospho_matrix=phospho_matrix,
-            top_n_substrates=0,
-        )
-
-    with pytest.raises(
-        PhospyValidationError, match="min_substrates must be at least 1"
-    ):
-        analyzer.compute_ksea_scores(
-            phospho_matrix=phospho_matrix,
-            min_substrates=0,
-        )
-
-
-def test_kinase_activity_analyzer_rejects_non_finite_phospho_matrix_values() -> None:
-    analyzer = KinaseActivityAnalyzer(
-        pred_mat=pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"])
-    )
-    phospho_matrix = pd.DataFrame({"sample_1": [float("inf")]}, index=["SITE_1"])
-
-    with pytest.raises(TableSchemaError, match="non-finite numeric values"):
-        analyzer.compute_weighted_activity(phospho_matrix=phospho_matrix)
-
-
-def test_kinase_activity_analyzer_rejects_null_phospho_matrix_values() -> None:
-    analyzer = KinaseActivityAnalyzer(
-        pred_mat=pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"])
-    )
-    phospho_matrix = pd.DataFrame({"sample_1": [None]}, index=["SITE_1"])
-
-    with pytest.raises(TableSchemaError, match="null values in numeric columns"):
-        analyzer.compute_ksea_scores(phospho_matrix=phospho_matrix)

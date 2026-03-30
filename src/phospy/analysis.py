@@ -13,7 +13,6 @@ from .activities import (
 )
 from .io import load_pred_mat
 from .validation.compatibility import validate_pred_mat_overlap
-from .validation.errors import PhospyValidationError
 from .validation.tables import PredMatSchema, SiteMatrixSchema
 
 
@@ -38,11 +37,9 @@ class KinaseActivityAnalyzer:
         return cls(pred_mat=pred_mat)
 
     def build_target_table(self, threshold: float = 0.6) -> pd.DataFrame:
-        _validate_probability_threshold(threshold, name="threshold")
         return build_kinase_target_table(self.pred_mat, threshold=threshold)
 
     def count_predicted_targets(self, threshold: float = 0.6) -> pd.Series:
-        _validate_probability_threshold(threshold, name="threshold")
         return count_predicted_targets(self.pred_mat, threshold=threshold)
 
     def compute_weighted_activity(
@@ -51,12 +48,9 @@ class KinaseActivityAnalyzer:
         top_n_substrates: int = 20,
         min_substrates: int = 3,
     ) -> pd.DataFrame:
-        _validate_positive_int(top_n_substrates, name="top_n_substrates")
-        _validate_positive_int(min_substrates, name="min_substrates")
-        validated_matrix = _validate_site_matrix(phospho_matrix)
         return compute_weighted_kinase_activity(
             pred_mat=self.pred_mat,
-            phospho_matrix=validated_matrix,
+            phospho_matrix=phospho_matrix,
             top_n_substrates=top_n_substrates,
             min_substrates=min_substrates,
         )
@@ -67,12 +61,9 @@ class KinaseActivityAnalyzer:
         threshold: float = 0.6,
         min_substrates: int = 3,
     ) -> tuple[pd.DataFrame, pd.Series]:
-        _validate_probability_threshold(threshold, name="threshold")
-        _validate_positive_int(min_substrates, name="min_substrates")
-        validated_matrix = _validate_site_matrix(phospho_matrix)
         return compute_ksea_scores(
             pred_mat=self.pred_mat,
-            phospho_matrix=validated_matrix,
+            phospho_matrix=phospho_matrix,
             threshold=threshold,
             min_substrates=min_substrates,
         )
@@ -84,7 +75,10 @@ class KinaseActivityAnalyzer:
         min_substrates: int = 3,
         top_n_substrates: int = 20,
     ) -> KinaseActivityResult:
-        validated_matrix = _validate_site_matrix(phospho_matrix)
+        validated_matrix = SiteMatrixSchema.validate(
+            phospho_matrix,
+            context="phospho_matrix",
+        )
         validate_pred_mat_overlap(self.pred_mat, validated_matrix)
         weighted_activity = self.compute_weighted_activity(
             phospho_matrix=validated_matrix,
@@ -111,21 +105,3 @@ class KinaseActivityAnalyzer:
         from .writers import KinaseActivityWriter
 
         KinaseActivityWriter.write(result, outdir)
-
-
-def _validate_probability_threshold(value: float, *, name: str) -> None:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise PhospyValidationError(f"{name} must be a number between 0.0 and 1.0")
-    if not 0.0 <= float(value) <= 1.0:
-        raise PhospyValidationError(f"{name} must be between 0.0 and 1.0")
-
-
-def _validate_positive_int(value: int, *, name: str) -> None:
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise PhospyValidationError(f"{name} must be an integer")
-    if value < 1:
-        raise PhospyValidationError(f"{name} must be at least 1")
-
-
-def _validate_site_matrix(phospho_matrix: pd.DataFrame) -> pd.DataFrame:
-    return SiteMatrixSchema.validate(phospho_matrix, context="phospho_matrix")

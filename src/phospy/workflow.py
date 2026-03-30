@@ -13,7 +13,7 @@ from .profiles import (
     KinaseProfileResult,
 )
 from .scoring import KinaseScorer, KinaseScoringResult
-from .types import DegenerateProbabilityPolicy, PredictionSvmMode
+from .types import PredictionSvmMode
 from .validation.compatibility import validate_workflow_inputs
 from .validation.requests import KinaseWorkflowRequest
 
@@ -35,19 +35,17 @@ class KinaseWorkflow:
         flank_size: int = 7,
         kernel: str = "rbf",
         svm_mode: PredictionSvmMode = "default",
-        degenerate_probability_policy: DegenerateProbabilityPolicy = "uniform",
     ) -> None:
         self.aggregation = aggregation
         self.flank_size = flank_size
         self.kernel = kernel
         self.svm_mode = svm_mode
-        self.degenerate_probability_policy = degenerate_probability_policy
 
     def run(
         self,
         phospho_matrix: pd.DataFrame,
         substrate_map: Mapping[str, Sequence[str]],
-        site_sequences: Mapping[str, str] | Sequence[str] | pd.Series | None = None,
+        site_sequences: Mapping[str, str] | pd.Series | None = None,
         motif_sequences: Mapping[str, Sequence[str]] | None = None,
         min_substrates: int = 1,
         min_motif_size: int = 1,
@@ -59,7 +57,6 @@ class KinaseWorkflow:
         n_iterations: int = 5,
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
-        degenerate_probability_policy: DegenerateProbabilityPolicy | None = None,
     ) -> KinaseWorkflowResult:
         request = KinaseWorkflowRequest.validate_request(
             phospho_matrix=phospho_matrix,
@@ -76,7 +73,6 @@ class KinaseWorkflow:
             n_iterations=n_iterations,
             random_state=random_state,
             svm_mode=svm_mode,
-            degenerate_probability_policy=degenerate_probability_policy,
         )
         return self.run_request(request)
 
@@ -121,11 +117,6 @@ class KinaseWorkflow:
         predictor = KinasePredictor(
             kernel=self.kernel,
             svm_mode=self.svm_mode if request.svm_mode is None else request.svm_mode,
-            degenerate_probability_policy=(
-                self.degenerate_probability_policy
-                if request.degenerate_probability_policy is None
-                else request.degenerate_probability_policy
-            ),
         )
         prediction_result = predictor.predict_from_scoring_result(
             scoring_result=scoring_result,
@@ -137,7 +128,6 @@ class KinaseWorkflow:
             random_state=request.random_state,
             allow_profile_only_fallback=request.allow_profile_only_fallback,
             svm_mode=request.svm_mode,
-            degenerate_probability_policy=request.degenerate_probability_policy,
         )
 
         return KinaseWorkflowResult(

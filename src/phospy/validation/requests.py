@@ -14,7 +14,7 @@ from pydantic import (
 )
 
 from phospy.constants import DEFAULT_TOTAL_COLS, ComparisonSpec
-from phospy.types import DegenerateProbabilityPolicy, PredictionSvmMode
+from phospy.types import PredictionSvmMode
 
 from .errors import RequestValidationError
 
@@ -106,7 +106,7 @@ class KinaseActivityRequest(PhospyRequestModel):
 class KinaseWorkflowRequest(PhospyRequestModel):
     phospho_matrix: pd.DataFrame
     substrate_map: Mapping[str, Sequence[str]]
-    site_sequences: Mapping[str, str] | Sequence[str] | pd.Series | None = None
+    site_sequences: Mapping[str, str] | pd.Series | None = None
     motif_sequences: Mapping[str, Sequence[str]] | None = None
     min_substrates: int = Field(default=1, ge=1)
     min_motif_size: int = Field(default=1, ge=1)
@@ -118,7 +118,6 @@ class KinaseWorkflowRequest(PhospyRequestModel):
     n_iterations: int = Field(default=5, ge=1)
     random_state: int | None = None
     svm_mode: PredictionSvmMode | None = None
-    degenerate_probability_policy: DegenerateProbabilityPolicy | None = None
 
     @field_validator("substrate_map")
     @classmethod
@@ -131,17 +130,18 @@ class KinaseWorkflowRequest(PhospyRequestModel):
             raise ValueError(msg)
         return value
 
-    @field_validator("site_sequences")
+    @field_validator("site_sequences", mode="before")
     @classmethod
     def validate_site_sequences(
         cls,
-        value: Mapping[str, str] | Sequence[str] | pd.Series | None,
-    ) -> Mapping[str, str] | Sequence[str] | pd.Series | None:
+        value: Mapping[str, str] | pd.Series | None,
+    ) -> Mapping[str, str] | pd.Series | None:
         if value is None or isinstance(value, (pd.Series, Mapping)):
             return value
         msg = (
             "site_sequences must be provided as a mapping keyed by phosphosite ID "
-            "or as a pandas Series with an explicit phosphosite index"
+            "or as a pandas Series with an explicit phosphosite index; plain "
+            "sequences are not supported"
         )
         raise ValueError(msg)
 

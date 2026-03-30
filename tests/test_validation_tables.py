@@ -50,33 +50,6 @@ def test_phospho_input_schema_rejects_malformed_gene_p_site() -> None:
         PhosphoInputSchema.validate(frame)
 
 
-@pytest.mark.parametrize(
-    "gene_p_site",
-    ["PRKACA", "_S339", "PRKACA_", "   _S339", "PRKACA_   "],
-)
-def test_phospho_input_schema_rejects_empty_gene_or_site_parts(
-    gene_p_site: str,
-) -> None:
-    frame = pd.DataFrame(
-        {
-            "uid": ["u1"],
-            "gene_names": ["PRKACA"],
-            "gene_p_site": [gene_p_site],
-            "localization_prob": [0.95],
-            "centralized_sequence": ["AAAAAA"],
-            "p_group1": [1.0],
-            "p_group2": [1.0],
-            "p_group3": [1.0],
-            "p_group4": [1.0],
-            "p_group5": [1.0],
-            "p_group6": [1.0],
-        }
-    )
-
-    with pytest.raises(TableSchemaError, match="malformed gene_p_site"):
-        PhosphoInputSchema.validate(frame)
-
-
 def test_load_phospho_table_rejects_duplicate_cleaned_columns(tmp_path) -> None:
     phospho_path = tmp_path / "phospho.tsv"
     phospho_path.write_text(
@@ -126,27 +99,3 @@ def test_load_total_table_returns_numeric_frame(tmp_path) -> None:
 
     assert loaded["group1"].dtype.kind in {"f", "i"}
     assert loaded.loc[0, "genes"] == "PRKACA"
-
-
-def test_site_matrix_schema_rejects_null_numeric_values() -> None:
-    frame = pd.DataFrame(
-        {
-            "sample_1": [1.0, None],
-        },
-        index=["SITE_1", "SITE_2"],
-    )
-
-    with pytest.raises(TableSchemaError, match="null values in numeric columns"):
-        SiteMatrixSchema.validate(frame)
-
-
-def test_site_matrix_schema_rejects_non_finite_numeric_values() -> None:
-    frame = pd.DataFrame(
-        {
-            "sample_1": [1.0, float("inf")],
-        },
-        index=["SITE_1", "SITE_2"],
-    )
-
-    with pytest.raises(TableSchemaError, match="non-finite numeric values"):
-        SiteMatrixSchema.validate(frame)

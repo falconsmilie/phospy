@@ -4,8 +4,6 @@ from collections.abc import Sequence
 
 import pandas as pd
 
-from .validation.tables import split_gene_p_site
-
 
 def build_site_matrix(
     df: pd.DataFrame,
@@ -17,7 +15,16 @@ def build_site_matrix(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     work = df.copy()
 
-    split_cols = split_gene_p_site(work[gene_p_site_col], context=gene_p_site_col)
+    split_cols = work[gene_p_site_col].astype("string").str.split("_", n=1, expand=True)
+    invalid_mask = (
+        (split_cols.shape[1] < 2)
+        or split_cols[0].isna().any()
+        or split_cols[1].isna().any()
+    )
+    if invalid_mask:
+        raise ValueError(
+            f"{gene_p_site_col} must contain values in the form GENE_SITE, for example PRKACA_S339"
+        )
     work[gene_col_name] = split_cols[0].astype("string")
     work[p_site_col_name] = split_cols[1].astype("string")
     work["site_id"] = (
@@ -51,27 +58,10 @@ def build_site_matrix(
     complete_cases["__mean_signal"] = complete_cases.loc[:, list(value_cols)].mean(
         axis=1, skipna=True
     )
-    complete_cases["__row_order"] = range(len(complete_cases))
-
-    sort_cols = ["site_id", "__mean_signal"]
-    ascending = [True, False]
-    if "uid" in complete_cases.columns:
-        complete_cases["__uid_sort"] = complete_cases["uid"].astype("string")
-        sort_cols.append("__uid_sort")
-        ascending.append(True)
-    sort_cols.append("__row_order")
-    ascending.append(True)
-
+    idx = complete_cases.groupby("site_id")["__mean_signal"].idxmax()
     phosr_input = (
-        complete_cases.sort_values(sort_cols, ascending=ascending, kind="mergesort")
-        .drop_duplicates(subset=["site_id"], keep="first")
-        .drop(
-            columns=[
-                col
-                for col in ["__mean_signal", "__uid_sort", "__row_order"]
-                if col in complete_cases.columns
-            ]
-        )
+        complete_cases.loc[idx]
+        .drop(columns="__mean_signal")
         .copy()
         .reset_index(drop=True)
     )
