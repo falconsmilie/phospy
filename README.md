@@ -41,7 +41,7 @@ prediction.
 
 ## Supported Public API
 
-The stable root-level API for is intentionally small:
+The stable root-level API is intentionally small:
 
 - `PhosphoDataset`
 - `PhosRPipeline`
