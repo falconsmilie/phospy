@@ -52,6 +52,20 @@ from phospy import PhosphoDataset
 dataset = PhosphoDataset(total_df=total_df, phospho_df=phospho_df)
 ```
 
+From already-validated frames:
+
+```python
+from phospy import PhosphoDataset
+
+validated = PhosphoDataset.from_validated_inputs(
+    total_df=total_df,
+    phospho_df=phospho_df,
+)
+```
+
+A practical detail: `from_files(...)` cleans file headers to lowercase snake case before validation. In-memory data
+frames are validated as provided.
+
 ### Main methods
 
 #### `process_core(...) -> CoreProcessingResult`
@@ -85,6 +99,9 @@ These are useful when you want the steps separately:
 - `add_pairwise_comparisons(...)`
 - `build_site_matrix(...)`
 - `write_core_outputs(...)`
+
+You can also customise `total_cols`, `phospho_cols`, and `corrected_cols` at construction time. If you override those
+column groups, they must still align by length.
 
 ## `CoreProcessingResult`
 
@@ -192,6 +209,7 @@ still writes the core outputs. If you call `run(outdir=None)`, PhosPy still retu
 skips file writing.
 
 If you already have a validated `CorePipelineRequest`, you can build the pipeline with `PhosRPipeline.from_request(...)`.
+That is the supported entry point when you want path validation separated from pipeline construction.
 
 ## `CoreOutputs`
 
@@ -262,7 +280,7 @@ Attributes:
 
 - `profile_result`
 - `motif_result` (`None` in profile-only mode)
-- `scoring_result`
+- `scoring_result` (`combined_scores` and `weights` are `None` in profile-only mode)
 - `prediction_result`
 
 ## `KinasePredictionResult`
@@ -274,6 +292,9 @@ The two fields most people reach for first are:
 - `pred_matrix`
 - `substrate_list`
 
+Despite the name, `substrate_list` is a dictionary keyed by kinase name, with each value holding the ranked phosphosite
+IDs selected for that kinase.
+
 The full object also carries candidate and debugging information that is useful in seam-level validation and trace
 comparison.
 
@@ -284,6 +305,8 @@ A few checks are worth keeping in mind while you build around the API:
 - total input requires `genes` plus `group1` to `group6`
 - phospho input requires `uid`, `gene_names`, `gene_p_site`, `localization_prob`, `centralized_sequence`, and
   `p_group1` to `p_group6`
+- file-loaded table headers are cleaned to lowercase snake case before validation, and duplicate cleaned names are
+  rejected
 - `gene_p_site` must be splitable into gene and site parts, such as `BTK_Y551`
 - `localization_prob` and `predMat` scores must stay in `[0, 1]`
 - by default, protein correction allows no silent row loss

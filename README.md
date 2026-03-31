@@ -93,6 +93,12 @@ Required columns:
 - kinase names as columns
 - scores in the range `[0, 1]`
 
+When you load tables from files, PhosPy normalises input headers to lowercase snake case before validation. For example,
+`Gene Names` and `gene-names` both become `gene_names`. That makes file input a little more forgiving, but it also
+means loading fails if two raw headers collapse to the same cleaned name.
+
+If you build `PhosphoDataset` from in-memory pandas data frames instead, those column names are validated as provided.
+
 ## Quick Start
 
 The quickest way to get started from a source checkout is to use the bundled example data in `examples/data/`.
@@ -164,6 +170,10 @@ kinase = analyze_kinase_activity(
 target_counts = kinase.target_counts
 ksea_scores = kinase.ksea_scores
 ```
+
+The bundled example uses `min_substrates=1` and `top_n_substrates=1` because the example matrix is intentionally tiny.
+For larger real datasets, the defaults (`min_substrates=3`, `top_n_substrates=20`) are usually the better starting
+point.
 
 For the bundled example data, `target_counts.to_dict()` is `{'PRKACA': 3, 'BTK': 2}`.
 
@@ -239,9 +249,10 @@ The native workflow expects:
 
 - a phosphosite matrix
 - a `substrate_map`
-- `site_sequences` when motif scoring is used
+- `site_sequences` keyed by phosphosite ID when motif scoring is used
 - `motif_sequences` for end-to-end motif-aware prediction
 
+`site_sequences` can be passed as either a mapping keyed by phosphosite ID or a pandas Series with a phosphosite index.
 If you want profile-only prediction, pass `allow_profile_only_fallback=True` and omit `motif_sequences`.
 
 ## Command-Line Demo
@@ -285,6 +296,8 @@ A few checks are especially useful to know up front:
 
 - `localization_prob` must stay within `[0, 1]`.
 - `predMat` values must stay within `[0, 1]`.
+- file-loaded total and phospho headers are cleaned to lowercase snake case before validation, so duplicate cleaned
+  names are rejected.
 - `predMat` and the phosphosite matrix must overlap by at least one phosphosite row, and that overlap must cover at
   least 10% of the phosphosite matrix.
 - Protein correction normalises gene identifiers before matching and, by default, refuses to drop unmatched phosphosite

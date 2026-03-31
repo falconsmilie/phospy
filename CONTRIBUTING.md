@@ -70,7 +70,7 @@ Quick Linux or macOS example:
 PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
 ```
 
-For Linux/macOS, PowerShell, and Command Prompt examples, together with sample output from the bundled fixtures, see
+For the full cross-platform command set, sample output, and notes on how to read the printed metrics, see
 [`docs/parity.md`](docs/parity.md).
 
 ## Release Gate

@@ -62,6 +62,8 @@ A few rules show up often enough that they are worth knowing before you hit them
 - total input requires `genes` plus `group1` to `group6`
 - phospho input requires `uid`, `gene_names`, `gene_p_site`, `localization_prob`, `centralized_sequence`, and
   `p_group1` to `p_group6`
+- when those tables are loaded from files, headers are normalised to lowercase snake case before validation
+- duplicate raw headers that collapse to the same cleaned name are rejected
 - `gene_p_site` must be splitable into gene and site parts, such as `BTK_Y551`
 - `localization_prob` and `predMat` scores must stay in `[0, 1]`
 - `predMat` must use a unique, non-null phosphosite index
@@ -84,6 +86,7 @@ The request models also validate practical edges such as:
 - input paths must exist and be files
 - comparison pairs must use known groups and must not be duplicated
 - native workflow requests must not use an empty `substrate_map`
+- `site_sequences` must be a phosphosite-keyed mapping or a pandas Series with a phosphosite index
 - profile-only native prediction must opt in with `allow_profile_only_fallback=True`
 
 ## What Parity Means Here
