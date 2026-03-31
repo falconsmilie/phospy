@@ -28,7 +28,7 @@ from phospy.prediction.svm import (
 )
 from phospy.prediction.traces import DirectoryTraceSink, create_trace_sink
 from phospy.scoring import KinaseScoringResult
-from phospy.validation.errors import PhospyValidationError
+from phospy.validation.errors import PhospyValidationError, TableSchemaError
 
 
 def make_combined_scores() -> pd.DataFrame:
@@ -726,6 +726,100 @@ def test_sampling_trace_directory_supports_parquet_replay(
     assert ensemble_trace is not None
     assert ensemble_trace.initial_negative_sites == ["SITE_8", "SITE_7"]
     assert ensemble_trace.iteration_sample_sites == {1: {1: ["SITE_4"], 2: ["SITE_8"]}}
+
+
+def test_prediction_sampling_trace_rejects_duplicate_initial_negative_draws(
+    tmp_path: Path,
+) -> None:
+    trace_dir = tmp_path / "prediction_trace"
+    trace_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(
+        [
+            {"kinase": "KINASE_A", "ensemble": 1, "draw": 1, "site": "SITE_8"},
+            {"kinase": "KINASE_A", "ensemble": 1, "draw": 1, "site": "SITE_7"},
+        ]
+    ).to_csv(trace_dir / "trace_initial_negatives.csv", index=False)
+
+    with pytest.raises(
+        TableSchemaError,
+        match=r"trace_initial_negatives\.csv contains duplicate \(kinase, ensemble, draw\) entries",
+    ):
+        PredictionSamplingTrace.from_trace_directory(trace_dir)
+
+
+def test_prediction_sampling_trace_rejects_duplicate_iteration_sample_draws(
+    tmp_path: Path,
+) -> None:
+    trace_dir = tmp_path / "prediction_trace"
+    trace_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(
+        [
+            {"kinase": "KINASE_A", "ensemble": 1, "draw": 1, "site": "SITE_8"},
+        ]
+    ).to_csv(trace_dir / "trace_initial_negatives.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "kinase": "KINASE_A",
+                "ensemble": 1,
+                "iteration": 1,
+                "class_label": 1,
+                "draw": 1,
+                "site": "SITE_4",
+            },
+            {
+                "kinase": "KINASE_A",
+                "ensemble": 1,
+                "iteration": 1,
+                "class_label": 1,
+                "draw": 1,
+                "site": "SITE_3",
+            },
+        ]
+    ).to_csv(trace_dir / "trace_iteration_samples.csv", index=False)
+
+    with pytest.raises(
+        TableSchemaError,
+        match=r"trace_iteration_samples\.csv contains duplicate \(kinase, ensemble, iteration, class_label, draw\) entries",
+    ):
+        PredictionSamplingTrace.from_trace_directory(trace_dir)
+
+
+def test_prediction_sampling_trace_rejects_non_contiguous_draw_sequence(
+    tmp_path: Path,
+) -> None:
+    trace_dir = tmp_path / "prediction_trace"
+    trace_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(
+        [
+            {"kinase": "KINASE_A", "ensemble": 1, "draw": 1, "site": "SITE_8"},
+            {"kinase": "KINASE_A", "ensemble": 1, "draw": 3, "site": "SITE_7"},
+        ]
+    ).to_csv(trace_dir / "trace_initial_negatives.csv", index=False)
+
+    with pytest.raises(
+        TableSchemaError,
+        match=r"trace_initial_negatives\.csv draw values must be contiguous within each \(kinase, ensemble\) group",
+    ):
+        PredictionSamplingTrace.from_trace_directory(trace_dir)
+
+
+def test_prediction_sampling_trace_rejects_missing_required_columns(
+    tmp_path: Path,
+) -> None:
+    trace_dir = tmp_path / "prediction_trace"
+    trace_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(
+        [
+            {"kinase": "KINASE_A", "ensemble": 1, "draw": 1},
+        ]
+    ).to_csv(trace_dir / "trace_initial_negatives.csv", index=False)
+
+    with pytest.raises(
+        TableSchemaError,
+        match=r"trace_initial_negatives\.csv is missing required columns: site",
+    ):
+        PredictionSamplingTrace.from_trace_directory(trace_dir)
 
 
 def test_predict_raises_for_invalid_sampling_trace_sites(tmp_path: Path) -> None:
