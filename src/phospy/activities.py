@@ -23,6 +23,10 @@ def compute_weighted_kinase_activity(
             continue
 
         weights = top_substrates.loc[substrates].to_numpy(dtype=float)
+        weight_sum = float(weights.sum())
+        if weight_sum <= 0.0:
+            continue
+
         values = phospho_matrix.loc[substrates, samples].to_numpy(dtype=float)
         weighted_values = np.average(values, axis=0, weights=weights)
         kinase_mat.loc[kinase, :] = weighted_values

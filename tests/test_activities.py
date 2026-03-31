@@ -65,3 +65,29 @@ def test_build_kinase_target_table() -> None:
     table = build_kinase_target_table(make_pred_mat(), threshold=0.6)
     assert {"site_id", "kinase", "score"} <= set(table.columns)
     assert table.shape[0] == 6
+
+
+def test_compute_weighted_kinase_activity_skips_zero_weight_kinases() -> None:
+    pred_mat = pd.DataFrame(
+        {
+            "PRKACA": [0.0, 0.0, 0.0],
+            "BTK": [0.7, 0.6, 0.5],
+        },
+        index=["A;S1;", "B;S2;", "C;S3;"],
+    )
+    phospho_matrix = pd.DataFrame(
+        {
+            "phospho_corrected_1": [10.0, 4.0, 1.0],
+            "phospho_corrected_2": [20.0, 6.0, 2.0],
+        },
+        index=["A;S1;", "B;S2;", "C;S3;"],
+    )
+
+    result = compute_weighted_kinase_activity(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+        top_n_substrates=3,
+        min_substrates=3,
+    )
+
+    assert list(result.index) == ["BTK"]
