@@ -10,6 +10,16 @@ Unless noted otherwise, commands assume:
 
 If you just want the usual shortcuts, the `Makefile` wraps the most common commands.
 
+## Rebuild Everything From Scratch
+
+If you want the full local fixture bootstrap path, use:
+
+```bash
+make fixtures-all
+```
+
+That wraps the currently committed fixture families and trace exports in the expected order.
+
 ## `tests/fixtures/r_reference`
 
 Small synthetic R-backed fixtures for deterministic preprocessing, site-matrix construction, and the current
@@ -211,16 +221,6 @@ python scripts/export_python_prediction_traces.py \
   --sampling-trace-dir tests/fixtures/r_reference_l6/prediction_trace \
   --outdir tmp_trace_out
 ```
-
-## Rebuild Everything From Scratch
-
-If you want the full local fixture bootstrap path, use:
-
-```bash
-make fixtures-all
-```
-
-That wraps the currently committed fixture families and trace exports in the expected order.
 
 # Promotion Rule
 

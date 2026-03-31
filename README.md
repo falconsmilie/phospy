@@ -20,8 +20,8 @@ Install the supported Python API and the `phospy` CLI:
 pip install phospy
 ```
 
-A small note before you start: the file-path examples below use `examples/data/...`, so they assume you are working from a
-repository checkout. If you installed from PyPI, use the same code with paths to your own input files instead.
+The file-path examples below use `examples/data/...`, so they assume you are working from a
+repository checkout. If you installed from PyPI, use the same code with paths to your own input files.
 
 ## What You Can Do With PhosPy
 
