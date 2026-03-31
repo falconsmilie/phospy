@@ -1,12 +1,11 @@
 # Public API Guide
 
-This is the compact guide to the supported 1.0.0 Python API.
+This is the compact guide to the supported Python API.
 
-PhosPy 1.0.0 does not expose HTTP endpoints. The supported public surface is the Python API on this page together with
+PhosPy does not expose HTTP endpoints. The supported public surface is the Python API on this page together with
 the small `phospy` command-line interface described in the README.
 
-The goal is simple: if you stay within the classes on this page, you are using the public surface that PhosPy 1.0.0
-means to support.
+If you stay within the classes on this page, you are using the public surface that PhosPy means to support.
 
 ## Stable Root Imports
 
@@ -132,16 +131,20 @@ collapses duplicate phosphosites by keeping the row with the highest mean correc
 ## `KinaseActivityAnalyzer`
 
 Use this when you already have a phosphosite matrix and a `predMat` and want downstream kinase summaries.
+`KinaseActivityAnalyzer` is the sole public orchestration entrypoint for standalone activity analysis. Lower-level
+computational helpers remain in `phospy.activities`.
 
-### Call it
+### Preferred usage
 
 ```python
 from phospy import KinaseActivityAnalyzer
-import pandas as pd
 
-pred_mat = pd.read_csv("predMat.csv", index_col=0)
 analyzer = KinaseActivityAnalyzer()
-result = analyzer.analyze(pred_mat=pred_mat, phospho_matrix=phospho_matrix)
+result = analyzer.load_and_analyze(
+    pred_mat_path="predMat.csv",
+    phospho_matrix=phospho_matrix,
+)
+analyzer.write_outputs(result, outdir="output")
 ```
 
 ### Supported methods
@@ -156,11 +159,11 @@ Computes downstream kinase summaries from in-memory `predMat` and phosphosite ma
 
 #### `load_and_analyze(pred_mat_path, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20) -> KinaseActivityResult`
 
-Convenience entry point that combines `load_pred_mat(...)` and `analyze(...)`.
+Convenience entry point that combines `load_pred_mat(...)` and `analyze(...)`. This is the preferred entrypoint when your `predMat` lives on disk.
 
 #### `write_outputs(result, outdir) -> None`
 
-Writes the same downstream kinase-analysis tables that `PhosRPipeline` emits when `pred_mat_path` is supplied.
+Writes the same downstream kinase-analysis tables that `PhosRPipeline` emits when `pred_mat_path` is supplied. Use this to materialize the class-based workflow outputs without going through the pipeline.
 
 Returns:
 

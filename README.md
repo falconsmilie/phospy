@@ -41,7 +41,7 @@ prediction.
 
 ## Supported Public API
 
-The stable root-level API is intentionally small:
+The stable API is intentionally small:
 
 - `PhosphoDataset`
 - `PhosRPipeline`
@@ -119,7 +119,7 @@ site_matrix = core.site_matrix.matrix
 corrected = core.phospho_corrected
 ```
 
-For the bundled example data, `site_matrix.index.tolist()` is `['BTK;Y551;']`.
+For the bundled example data, `site_matrix.index.tolist()` returns `['BTK;Y551;']`.
 
 `process_core()` returns a `CoreProcessingResult` with:
 
@@ -147,9 +147,12 @@ If you do not pass `comparisons`, preprocessing still runs normally and no extra
 
 ### Downstream Kinase Analysis From `predMat`
 
+`KinaseActivityAnalyzer` is the public orchestration layer for standalone downstream kinase analysis. Use it when you
+already have a phosphosite matrix and a `predMat` and want the downstream kinase summary tables without going through
+`PhosRPipeline`.
+
 ```python
 from phospy import KinaseActivityAnalyzer, PhosphoDataset
-import pandas as pd
 
 dataset = PhosphoDataset.from_files(
     "examples/data/total.tsv",
@@ -157,16 +160,16 @@ dataset = PhosphoDataset.from_files(
     phospho_encoding="utf-16le",
 )
 core = dataset.process_core(max_unmatched_fraction=0.1)
-pred_mat = pd.read_csv("examples/data/predMat.csv", index_col=0)
 
 analyzer = KinaseActivityAnalyzer()
-kinase = analyzer.analyze(
-    pred_mat=pred_mat,
+kinase = analyzer.load_and_analyze(
+    pred_mat_path="examples/data/predMat.csv",
     phospho_matrix=core.site_matrix.matrix,
     threshold=0.6,
     min_substrates=1,
     top_n_substrates=1,
 )
+analyzer.write_outputs(kinase, outdir="examples/output")
 
 target_counts = kinase.target_counts
 ksea_scores = kinase.ksea_scores
@@ -178,7 +181,7 @@ point.
 
 For the bundled example data, `target_counts.to_dict()` is `{'PRKACA': 3, 'BTK': 2}`.
 
-`KinaseActivityAnalyzer.analyze(...)` returns a `KinaseActivityResult` with:
+`KinaseActivityAnalyzer.load_and_analyze(...)` returns a `KinaseActivityResult` with:
 
 - `weighted_activity`
 - `ksea_scores`

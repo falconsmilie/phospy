@@ -27,7 +27,8 @@ SYNTHETIC_EDGE_OUTDIR ?= $(FIXTURES_ROOT)/synthetic_adaptive_sampling_edge
 	check-tools check-r-tools fixtures-dirs \
 	install install-dev lint format pre-commit test test-unit test-parity test-seams build clean \
 	fixtures fixtures-r-small fixtures-r-l6 traces-r fixtures-fragile fixtures-r-l6-seam-stress \
-	traces-python traces-python-replay fixtures-synthetic-edge fixtures-all native-workflow-demo
+	traces-python traces-python-replay fixtures-synthetic-edge fixtures-all \
+	native-workflow-demo kinase-activity-demo demo-all
 
 help:
 	@printf '%s\n' \
@@ -89,6 +90,11 @@ test-parity: check-tools
 
 native-workflow-demo: check-tools
 	PYTHONPATH=src $(PYTHON) -c "from examples.native_workflow_demo import main; main()"
+
+kinase-activity-demo: check-tools
+	PYTHONPATH=src $(PYTHON) -c "from examples.kinase_activity_analyzer_demo import main; main()"
+
+demo-all: native-workflow-demo kinase-activity-demo
 
 fixtures: fixtures-all
 
