@@ -53,6 +53,10 @@ def collapse_duplicate_genes(
 ) -> pd.DataFrame:
     """Collapse duplicate gene rows using an explicit ranking policy.
 
+    Gene identifiers are converted to pandas ``string`` values before ranking.
+    When ``uppercase`` is ``True``, identifiers are normalised to uppercase
+    before duplicate grouping so mixed-case duplicates collapse together.
+
     Rows are ranked within each gene group by:
     1. highest observed-value count across ``value_cols``
     2. highest mean signal across ``value_cols``
@@ -68,6 +72,8 @@ def collapse_duplicate_genes(
 
     work = df.copy()
     work[gene_col] = work[gene_col].astype("string")
+    if uppercase:
+        work[gene_col] = work[gene_col].str.upper()
     ranked_cols = list(value_cols)
     work["__observed_count"] = work.loc[:, ranked_cols].notna().sum(axis=1)
     work["__mean_signal"] = work.loc[:, ranked_cols].mean(axis=1, skipna=True)
@@ -81,9 +87,6 @@ def collapse_duplicate_genes(
     result = ranked.drop_duplicates(subset=[gene_col], keep="first").drop(
         columns=["__observed_count", "__mean_signal", "__original_order"]
     )
-
-    if uppercase:
-        result[gene_col] = result[gene_col].str.upper()
 
     return result.reset_index(drop=True)
 

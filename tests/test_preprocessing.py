@@ -73,6 +73,29 @@ def test_collapse_duplicate_genes_prefers_more_observed_values_before_mean() -> 
     assert prkaca["group3"] == 6.0
 
 
+def test_collapse_duplicate_genes_collapses_mixed_case_duplicates_before_ranking() -> (
+    None
+):
+    df = pd.DataFrame(
+        {
+            "genes": ["akt1", "AKT1", "Mapk1"],
+            "group1": [1.0, 5.0, 3.0],
+            "group2": [1.0, 5.0, 3.0],
+        }
+    )
+
+    out = collapse_duplicate_genes(
+        df=df,
+        gene_col="genes",
+        value_cols=["group1", "group2"],
+    )
+
+    assert out["genes"].tolist() == ["AKT1", "MAPK1"]
+    akt1 = out.loc[out["genes"] == "AKT1"].iloc[0]
+    assert akt1["group1"] == 5.0
+    assert akt1["group2"] == 5.0
+
+
 def test_collapse_duplicate_genes_uses_original_order_as_final_tiebreaker() -> None:
     df = pd.DataFrame(
         {
