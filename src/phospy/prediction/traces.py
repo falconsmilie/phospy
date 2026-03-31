@@ -158,6 +158,39 @@ def create_trace_sink(
     return DirectoryTraceSink(trace_sink, fmt=fmt)
 
 
+def _read_trace_table_from_directory(
+    trace_dir: Path,
+    table_name: str,
+) -> tuple[pd.DataFrame | None, str | None]:
+    csv_path = trace_dir / f"{table_name}.csv"
+    if csv_path.exists():
+        return pd.read_csv(csv_path), csv_path.name
+
+    parquet_path = trace_dir / f"{table_name}.parquet"
+    parquet_parts = sorted(trace_dir.glob(f"{table_name}.part-*.parquet"))
+    if parquet_path.exists() or parquet_parts:
+        parquet_sources = [parquet_path] if parquet_path.exists() else parquet_parts
+        try:
+            frame = pd.concat(
+                [pd.read_parquet(source) for source in parquet_sources],
+                ignore_index=True,
+            )
+        except Exception as error:  # pragma: no cover - engine availability varies
+            msg = (
+                "Unable to read parquet trace replay input. Install a supported "
+                "parquet engine such as 'pyarrow', or provide CSV trace files."
+            )
+            raise RuntimeError(msg) from error
+        label = (
+            parquet_path.name
+            if parquet_path.exists()
+            else f"{table_name}.part-*.parquet"
+        )
+        return frame, label
+
+    return None, None
+
+
 class PredictionSamplingTrace:
     def __init__(
         self, ensembles_by_kinase: dict[str, dict[int, SamplingTraceOverrideEnsemble]]
@@ -167,25 +200,27 @@ class PredictionSamplingTrace:
     @classmethod
     def from_trace_directory(cls, trace_dir: str | Path) -> PredictionSamplingTrace:
         path = Path(trace_dir)
-        initial_path = path / "trace_initial_negatives.csv"
-        samples_path = path / "trace_iteration_samples.csv"
-        if not initial_path.exists() and not samples_path.exists():
+        initial_df, initial_label = _read_trace_table_from_directory(
+            path, "trace_initial_negatives"
+        )
+        samples_df, samples_label = _read_trace_table_from_directory(
+            path, "trace_iteration_samples"
+        )
+        if initial_df is None and samples_df is None:
             msg = (
-                "sampling trace directory must contain trace_initial_negatives.csv "
-                "and/or trace_iteration_samples.csv"
+                "sampling trace directory must contain trace_initial_negatives "
+                "and/or trace_iteration_samples in CSV or parquet format"
             )
             raise TableSchemaError(msg)
 
         ensembles_by_kinase: dict[str, dict[int, SamplingTraceOverrideEnsemble]] = {}
 
-        if initial_path.exists():
-            initial_df = pd.read_csv(initial_path)
+        if initial_df is not None:
             required_initial_cols = {"kinase", "ensemble", "draw", "site"}
             if not required_initial_cols.issubset(initial_df.columns):
                 missing = sorted(required_initial_cols.difference(initial_df.columns))
-                msg = (
-                    "trace_initial_negatives.csv is missing required columns: "
-                    + ", ".join(missing)
+                msg = f"{initial_label} is missing required columns: " + ", ".join(
+                    missing
                 )
                 raise TableSchemaError(msg)
             initial_df = initial_df.sort_values(
@@ -200,8 +235,7 @@ class PredictionSamplingTrace:
                     iteration_sample_sites={},
                 )
 
-        if samples_path.exists():
-            samples_df = pd.read_csv(samples_path)
+        if samples_df is not None:
             required_sample_cols = {
                 "kinase",
                 "ensemble",
@@ -212,9 +246,8 @@ class PredictionSamplingTrace:
             }
             if not required_sample_cols.issubset(samples_df.columns):
                 missing = sorted(required_sample_cols.difference(samples_df.columns))
-                msg = (
-                    "trace_iteration_samples.csv is missing required columns: "
-                    + ", ".join(missing)
+                msg = f"{samples_label} is missing required columns: " + ", ".join(
+                    missing
                 )
                 raise TableSchemaError(msg)
             samples_df = samples_df.sort_values(

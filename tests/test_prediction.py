@@ -630,6 +630,59 @@ def test_predict_accepts_preloaded_sampling_trace(tmp_path: Path) -> None:
     ]
 
 
+def test_sampling_trace_directory_supports_parquet_replay(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_dir = tmp_path / "prediction_trace"
+    trace_dir.mkdir(parents=True, exist_ok=True)
+
+    initial_frame = pd.DataFrame(
+        [
+            {"kinase": "KINASE_A", "ensemble": 1, "draw": 1, "site": "SITE_8"},
+            {"kinase": "KINASE_A", "ensemble": 1, "draw": 2, "site": "SITE_7"},
+        ]
+    )
+    samples_frame = pd.DataFrame(
+        [
+            {
+                "kinase": "KINASE_A",
+                "ensemble": 1,
+                "iteration": 1,
+                "class_label": 1,
+                "draw": 1,
+                "site": "SITE_4",
+            },
+            {
+                "kinase": "KINASE_A",
+                "ensemble": 1,
+                "iteration": 1,
+                "class_label": 2,
+                "draw": 1,
+                "site": "SITE_8",
+            },
+        ]
+    )
+    (trace_dir / "trace_initial_negatives.part-000000.parquet").touch()
+    (trace_dir / "trace_iteration_samples.part-000000.parquet").touch()
+
+    def fake_read_parquet(path: Path | str) -> pd.DataFrame:
+        filename = Path(path).name
+        if filename.startswith("trace_initial_negatives"):
+            return initial_frame.copy()
+        if filename.startswith("trace_iteration_samples"):
+            return samples_frame.copy()
+        raise AssertionError(f"unexpected parquet path: {filename}")
+
+    monkeypatch.setattr(pd, "read_parquet", fake_read_parquet)
+
+    sampling_trace = PredictionSamplingTrace.from_trace_directory(trace_dir)
+    ensemble_trace = sampling_trace.get_ensemble_override("KINASE_A", 1)
+
+    assert ensemble_trace is not None
+    assert ensemble_trace.initial_negative_sites == ["SITE_8", "SITE_7"]
+    assert ensemble_trace.iteration_sample_sites == {1: {1: ["SITE_4"], 2: ["SITE_8"]}}
+
+
 def test_predict_raises_for_invalid_sampling_trace_sites(tmp_path: Path) -> None:
     predictor = KinasePredictor()
     trace_dir = tmp_path / "prediction_trace"
