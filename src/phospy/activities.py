@@ -85,14 +85,23 @@ def compute_ksea_scores(
 
     for kinase, sites in substrate_map.items():
         present_sites = [site for site in sites if site in available_sites]
-        counts[kinase] = len(present_sites)
         if len(present_sites) < min_substrates:
             continue
         score_dict[kinase] = phospho_matrix.loc[present_sites].mean(axis=0)
+        counts[kinase] = len(present_sites)
 
     score_frame = pd.DataFrame.from_dict(score_dict, orient="index")
     if score_frame.empty:
         score_frame = pd.DataFrame(columns=list(phospho_matrix.columns), dtype=float)
-    count_series = pd.Series(counts, name="n_substrates").sort_values(ascending=False)
+        count_series = pd.Series(dtype=int, name="n_substrates")
+        count_series.index.name = "kinase"
+        return score_frame, count_series
+
+    count_series = pd.Series(
+        (counts[kinase] for kinase in score_frame.index),
+        index=score_frame.index,
+        name="n_substrates",
+        dtype=int,
+    )
     count_series.index.name = "kinase"
     return score_frame, count_series
