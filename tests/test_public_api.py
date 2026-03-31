@@ -112,6 +112,30 @@ def test_phospho_dataset_from_validated_inputs_builds_without_revalidation() -> 
     assert dataset.comparisons == tuple(EXAMPLE_COMPARISONS)
 
 
+def test_dataset_total_df_property_returns_defensive_copy() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+
+    exposed_total = dataset.total_df
+    exposed_total.loc[0, "genes"] = "MUTATED"
+
+    assert dataset.total_df.loc[0, "genes"] == "Prkaca"
+
+
+def test_dataset_phospho_df_property_returns_defensive_copy() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+
+    exposed_phospho = dataset.phospho_df
+    exposed_phospho.loc[0, "gene_names"] = "MUTATED"
+
+    assert dataset.phospho_df.loc[0, "gene_names"] == "PRKACA"
+
+
 def test_analyze_kinase_activity() -> None:
     phospho_matrix = pd.DataFrame(
         {
