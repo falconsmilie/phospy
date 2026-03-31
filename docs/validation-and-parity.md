@@ -33,9 +33,9 @@ These checks keep the release surface tidy and consistent.
 pre-commit run --all-files
 ```
 
-## Release Gate for 1.0.0
+## Release Gate
 
-From a clean checkout, the 1.0.0 release gate is simply:
+From a clean checkout, the release gate is simply:
 
 ```bash
 pre-commit run --all-files
@@ -105,7 +105,7 @@ Parity does **not** mean:
 
 ## `KinaseWorkflow` and Parity
 
-`KinaseWorkflow` is part of the supported 1.0.0 API, but it is still a **native Python workflow**.
+`KinaseWorkflow` is part of the supported API, but it is still a **native Python workflow**.
 
 PhosPy includes fixture-backed validation at selected seams within that workflow. `svm_mode="r_parity"` exists for a
 narrower learner-seam comparison against committed references. The default `svm_mode="default"` remains the preferred
