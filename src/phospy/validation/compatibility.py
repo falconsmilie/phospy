@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 import pandas as pd
 
 from .errors import InputCompatibilityError
+from .normalization import normalize_identifier_series
 from .tables import SiteMatrixSchema
 
 
@@ -53,7 +54,7 @@ def validate_protein_correction_inputs(
         msg = f"{context} is missing total gene column: {total_gene_col}"
         raise InputCompatibilityError(msg)
 
-    total_gene_series = _normalise_identifier_series(total_df[total_gene_col])
+    total_gene_series = normalize_identifier_series(total_df[total_gene_col])
     if total_gene_series.duplicated().any():
         msg = (
             f"{context} require unique values in {total_gene_col} before protein "
@@ -61,7 +62,7 @@ def validate_protein_correction_inputs(
         )
         raise InputCompatibilityError(msg)
 
-    phospho_genes = _normalise_identifier_series(phospho_df[phospho_gene_col])
+    phospho_genes = normalize_identifier_series(phospho_df[phospho_gene_col])
     total_gene_values = set(total_gene_series)
     matched_mask = phospho_genes.isin(total_gene_values)
     matched_rows = int(matched_mask.sum())
@@ -184,7 +185,3 @@ def _extract_sequence_index(
         "sequences are not supported"
     )
     raise InputCompatibilityError(msg)
-
-
-def _normalise_identifier_series(series: pd.Series) -> pd.Series:
-    return series.astype("string").str.strip().str.upper()

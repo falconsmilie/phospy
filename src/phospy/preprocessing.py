@@ -7,6 +7,7 @@ import pandas as pd
 
 from .constants import ComparisonSpec
 from .validation.errors import InputCompatibilityError, TableSchemaError
+from .validation.normalization import normalize_identifier_series
 
 
 def _require_columns(
@@ -117,22 +118,34 @@ def correct_phospho_to_protein(
             "corrected_cols must have the same length as phospho_cols and protein_cols"
         )
 
-    if df_total[total_gene_col].duplicated().any():
+    phospho_join_col = "__phospy_normalized_phospho_gene_key"
+    total_join_col = "__phospy_normalized_total_gene_key"
+
+    phospho_work = df_phospho.copy()
+    total_work = df_total.copy()
+    phospho_work[phospho_join_col] = normalize_identifier_series(
+        phospho_work[phospho_gene_col]
+    )
+    total_work[total_join_col] = normalize_identifier_series(total_work[total_gene_col])
+
+    if total_work[total_join_col].duplicated().any():
         msg = (
             f"{total_gene_col} must be unique before protein correction to avoid "
             "duplicating phosphosite rows during the merge"
         )
         raise InputCompatibilityError(msg)
 
-    merged = df_phospho.merge(
-        df_total[[total_gene_col, *protein_cols]],
-        left_on=phospho_gene_col,
-        right_on=total_gene_col,
+    merged = phospho_work.merge(
+        total_work[[total_join_col, total_gene_col, *protein_cols]],
+        left_on=phospho_join_col,
+        right_on=total_join_col,
         how="inner",
     )
 
+    drop_columns: list[str] = [phospho_join_col, total_join_col]
     if total_gene_col != phospho_gene_col and total_gene_col in merged.columns:
-        merged = merged.drop(columns=[total_gene_col])
+        drop_columns.append(total_gene_col)
+    merged = merged.drop(columns=drop_columns, errors="ignore")
 
     for corrected_col, p_col, t_col in zip(
         resolved_corrected_cols,

@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy import PhosphoDataset, analyze_kinase_activity
+from phospy.validation import validate_protein_correction_inputs
 from phospy.validation.errors import InputCompatibilityError
 from phospy.workflow import KinaseWorkflow
 
@@ -167,3 +168,32 @@ def test_analyze_kinase_activity_rejects_insufficient_overlap_fraction() -> None
         InputCompatibilityError, match="insufficient overlapping phosphosite IDs"
     ):
         analyze_kinase_activity(pred_mat=pred_mat, phospho_matrix=phospho_matrix)
+
+
+def test_validate_protein_correction_inputs_uses_same_normalization_as_merge() -> None:
+    phospho_df = pd.DataFrame(
+        {
+            "gene_names": [" prkaca ", "BTK", "missing "],
+            "p_group1": [8.0, 6.0, 2.0],
+        }
+    )
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA", " btk "],
+            "group1": [1.0, 2.0],
+        }
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=r"would drop 1 of 3 phosphosite rows \(33.3%\).*MISSING",
+    ):
+        validate_protein_correction_inputs(
+            phospho_df,
+            total_df,
+            phospho_gene_col="gene_names",
+            total_gene_col="genes",
+            phospho_cols=["p_group1"],
+            protein_cols=["group1"],
+            max_unmatched_fraction=0.0,
+        )

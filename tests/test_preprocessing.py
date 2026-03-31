@@ -210,3 +210,55 @@ def test_correct_phospho_to_protein_rejects_duplicate_total_genes() -> None:
             phospho_cols=["p_group1"],
             protein_cols=["group1"],
         )
+
+
+def test_correct_phospho_to_protein_matches_after_identifier_normalization() -> None:
+    phospho = pd.DataFrame(
+        {
+            "gene_names": [" prkaca ", "BTK"],
+            "p_group1": [8.0, 6.0],
+        }
+    )
+    total = pd.DataFrame(
+        {
+            "genes": ["PRKACA", " btk "],
+            "group1": [1.0, 2.0],
+        }
+    )
+
+    corrected = correct_phospho_to_protein(
+        phospho,
+        total,
+        phospho_gene_col="gene_names",
+        total_gene_col="genes",
+        phospho_cols=["p_group1"],
+        protein_cols=["group1"],
+    )
+
+    assert corrected["gene_names"].tolist() == [" prkaca ", "BTK"]
+    assert corrected["phospho_corrected_1"].tolist() == [7.0, 4.0]
+    assert "genes" not in corrected.columns
+    assert "__phospy_normalized_phospho_gene_key" not in corrected.columns
+    assert "__phospy_normalized_total_gene_key" not in corrected.columns
+
+
+def test_correct_phospho_to_protein_rejects_duplicate_normalized_total_genes() -> None:
+    phospho = pd.DataFrame({"gene_names": ["PRKACA"], "p_group1": [8.0]})
+    total = pd.DataFrame(
+        {
+            "genes": ["PRKACA", " prkaca "],
+            "group1": [1.0, 2.0],
+        }
+    )
+
+    with pytest.raises(
+        InputCompatibilityError, match="must be unique before protein correction"
+    ):
+        correct_phospho_to_protein(
+            phospho,
+            total,
+            phospho_gene_col="gene_names",
+            total_gene_col="genes",
+            phospho_cols=["p_group1"],
+            protein_cols=["group1"],
+        )
