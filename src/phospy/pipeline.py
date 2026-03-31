@@ -4,7 +4,7 @@ import json
 import shutil
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import uuid4
@@ -174,7 +174,7 @@ class PhosRPipeline:
     ) -> None:
         manifest = {
             "status": "success",
-            "generated_at_utc": datetime.now(UTC).isoformat(),
+            "generated_at_utc": datetime.now(timezone.utc).isoformat(),
             "package_version": _package_version(),
             "has_kinase_activity": kinase_activity is not None,
             "core_rows": {
