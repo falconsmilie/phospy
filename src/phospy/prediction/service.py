@@ -22,6 +22,7 @@ from .sampling import (
 from .traces import PredictionSamplingTrace, TraceSink, create_trace_sink
 from .validation import (
     validate_positive_int,
+    validate_probability_threshold,
     validate_svm_mode,
     validate_trace_format,
     validate_trace_level,
@@ -84,6 +85,7 @@ class PredictionRequestFactory:
     ) -> PredictionRequest:
         validate_positive_int(ensemble_size, name="ensemble_size")
         validate_positive_int(top, name="top")
+        validate_probability_threshold(score_threshold, name="score_threshold")
         validate_positive_int(inclusion, name="inclusion")
         validate_positive_int(n_iterations, name="n_iterations")
         validate_positive_int(debug_top_n, name="debug_top_n")
@@ -650,6 +652,7 @@ def build_candidate_substrate_list(
     """Select candidate kinase substrates from the combined score matrix."""
 
     validate_positive_int(top, name="top")
+    validate_probability_threshold(score_threshold, name="score_threshold")
     validate_positive_int(inclusion, name="inclusion")
 
     substrate_list: dict[str, list[str]] = {}

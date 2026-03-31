@@ -28,6 +28,7 @@ from phospy.prediction.svm import (
 )
 from phospy.prediction.traces import DirectoryTraceSink, create_trace_sink
 from phospy.scoring import KinaseScoringResult
+from phospy.validation.errors import PhospyValidationError
 
 
 def make_combined_scores() -> pd.DataFrame:
@@ -52,6 +53,50 @@ def test_build_candidate_substrate_list_applies_selection_rules() -> None:
         "KINASE_A": ["SITE_1", "SITE_2", "SITE_3"],
         "KINASE_B": ["SITE_5", "SITE_6", "SITE_7"],
     }
+
+
+def test_build_candidate_substrate_list_rejects_invalid_score_threshold() -> None:
+    scores = make_combined_scores()
+
+    with pytest.raises(
+        PhospyValidationError,
+        match="score_threshold must be between 0.0 and 1.0",
+    ):
+        build_candidate_substrate_list(scores, score_threshold=1.1)
+
+
+def test_predict_rejects_score_threshold_above_one() -> None:
+    predictor = KinasePredictor()
+
+    with pytest.raises(
+        PhospyValidationError,
+        match="score_threshold must be between 0.0 and 1.0",
+    ):
+        predictor.predict(make_combined_scores(), score_threshold=1.1)
+
+
+def test_predict_rejects_score_threshold_below_zero() -> None:
+    predictor = KinasePredictor()
+
+    with pytest.raises(
+        PhospyValidationError,
+        match="score_threshold must be between 0.0 and 1.0",
+    ):
+        predictor.predict(make_combined_scores(), score_threshold=-0.1)
+
+
+def test_predict_rejects_non_finite_score_threshold() -> None:
+    predictor = KinasePredictor()
+
+    for invalid_threshold in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(
+            PhospyValidationError,
+            match="score_threshold must be a finite number",
+        ):
+            predictor.predict(
+                make_combined_scores(),
+                score_threshold=invalid_threshold,
+            )
 
 
 def test_kinase_predictor_returns_probability_matrix() -> None:
