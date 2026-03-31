@@ -1,6 +1,6 @@
 # PhosPy
 
-`PhosPy` 1.0.0 is an unofficial Python implementation of selected PhosR-style workflows for phosphoproteomics.
+`PhosPy` is an unofficial Python implementation of selected PhosR-style workflows for phosphoproteomics.
 
 It is designed for people who want a small, Python-native way to:
 
@@ -39,9 +39,9 @@ relationships.
 Construct substrate profiles, score motifs, combine evidence, select candidates, and perform adaptive SVM-based kinase
 prediction.
 
-## Supported Public API for 1.0.0
+## Supported Public API
 
-The stable root-level API for 1.0.0 is intentionally small:
+The stable root-level API for is intentionally small:
 
 - `PhosphoDataset`
 - `PhosRPipeline`
@@ -242,8 +242,7 @@ that shell session:
 make native-workflow-demo
 ```
 
-That example uses only the supported 1.0.0 root API and prints a small prediction matrix for a synthetic two-kinase
-setup.
+That example uses only the supported API and prints a small prediction matrix for a synthetic two-kinase setup.
 
 The native workflow expects:
 
@@ -287,7 +286,7 @@ The CLI currently supports these options:
 `--max-unmatched-fraction=0.0` means protein correction fails if the inner join would silently drop any phosphosite
 rows. Raise it only when you want to allow a small, bounded amount of row loss.
 
-The CLI is intentionally small in 1.0.0. It does not currently expose pairwise comparison generation or the native
+The CLI is intentionally small. It does not currently expose pairwise comparison generation or the native
 `KinaseWorkflow` path.
 
 ## Validation Rules Worth Knowing
@@ -311,12 +310,12 @@ A few checks are especially useful to know up front:
 
 If you want more detail, these are the most useful follow-on docs:
 
-- [`docs/api.md`](docs/api.md) maps the supported 1.0.0 public API
+- [`docs/api.md`](docs/api.md) maps the supported public API
 - [`docs/validation-and-parity.md`](docs/validation-and-parity.md) explains how validation is approached in PhosPy
 - [`docs/parity.md`](docs/parity.md) explains what parity means here, especially for the native kinase workflow
 - [`docs/fixtures.md`](docs/fixtures.md) maps the committed fixture and trace directories
-- [`docs/roadmap.md`](docs/roadmap.md) outlines the most likely next steps after 1.0.0
-- [`CHANGELOG.md`](CHANGELOG.md) contains the 1.0.0 release notes
+- [`docs/roadmap.md`](docs/roadmap.md) outlines the most likely next steps
+- [`CHANGELOG.md`](CHANGELOG.md) contains the release notes
 
 If you want to contribute or work from a local checkout, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
@@ -324,7 +323,7 @@ If you want to contribute or work from a local checkout, see [`CONTRIBUTING.md`]
 
 A few boundaries are worth knowing up front:
 
-- **Selective scope only.** PhosPy 1.0.0 covers the workflows documented above and nothing broader.
+- **Selective scope only.** PhosPy covers the workflows documented above and nothing broader.
 - **Parity is seam-level, not package-wide.** Validation claims are limited to the committed fixture-backed seams
   described in [`docs/validation-and-parity.md`](docs/validation-and-parity.md) and [`docs/parity.md`](docs/parity.md).
 - **`KinaseWorkflow` is native first.** It includes an `svm_mode="r_parity"` option for narrower learner-seam
