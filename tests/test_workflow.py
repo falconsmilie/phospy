@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.validation.errors import RequestValidationError
+from phospy.validation.errors import PhospyValidationError, RequestValidationError
 from phospy.workflow import KinaseWorkflow
 
 
@@ -189,3 +189,8 @@ def test_kinase_workflow_accepts_explicit_svm_mode() -> None:
         "KINASE_A",
         "KINASE_B",
     ]
+
+
+def test_workflow_rejects_invalid_svm_mode_at_construction() -> None:
+    with pytest.raises(PhospyValidationError, match="svm_mode must be one of"):
+        KinaseWorkflow(svm_mode="invalid")

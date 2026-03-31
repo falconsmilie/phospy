@@ -7,6 +7,7 @@ import pandas as pd
 
 from .motifs import KinaseMotifScorer, MotifScoringResult
 from .prediction import KinasePredictionResult, KinasePredictor
+from .prediction.validation import validate_svm_mode
 from .profiles import KinaseProfileResult, build_kinase_substrate_profiles
 from .scoring import KinaseScorer, KinaseScoringResult
 from .types import PredictionSvmMode
@@ -33,7 +34,7 @@ class KinaseWorkflow:
     ) -> None:
         self.flank_size = flank_size
         self.kernel = kernel
-        self.svm_mode = svm_mode
+        self.svm_mode = validate_svm_mode(svm_mode)
 
     def run(
         self,
