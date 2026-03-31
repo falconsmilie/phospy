@@ -119,6 +119,25 @@ def test_collapse_duplicate_genes_uses_original_order_as_final_tiebreaker() -> N
     assert prkaca["group2"] == 2.0
 
 
+def test_collapse_duplicate_genes_drops_all_nan_groups_before_deduping() -> None:
+    df = pd.DataFrame(
+        {
+            "genes": ["Prkaca", "Prkaca", "Btk"],
+            "group1": [np.nan, np.nan, 2.0],
+            "group2": [np.nan, np.nan, 3.0],
+        }
+    )
+
+    out = collapse_duplicate_genes(
+        df=df,
+        gene_col="genes",
+        value_cols=["group1", "group2"],
+    )
+
+    assert out["genes"].tolist() == ["BTK"]
+    assert out[["group1", "group2"]].iloc[0].tolist() == [2.0, 3.0]
+
+
 def test_collapse_duplicate_genes_reports_missing_required_columns() -> None:
     df = pd.DataFrame({"genes": ["Prkaca"], "group1": [1.0]})
 

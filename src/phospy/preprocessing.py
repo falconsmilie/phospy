@@ -62,7 +62,9 @@ def collapse_duplicate_genes(
     2. highest mean signal across ``value_cols``
     3. earliest original row order as a stable tie-breaker
 
-    The top-ranked row for each gene is retained.
+    Rows with zero observed values across ``value_cols`` are dropped before the
+    winning row is selected so all-missing groups do not survive deduplication.
+    The top-ranked remaining row for each gene is retained.
     """
     _require_columns(
         df,
@@ -84,6 +86,7 @@ def collapse_duplicate_genes(
         ascending=[True, False, False, True],
         kind="mergesort",
     )
+    ranked = ranked.loc[ranked["__observed_count"] > 0]
     result = ranked.drop_duplicates(subset=[gene_col], keep="first").drop(
         columns=["__observed_count", "__mean_signal", "__original_order"]
     )
