@@ -1,12 +1,12 @@
 # Public API Guide
 
-This is the compact guide to the supported Python API.
+This is the compact guide to the supported 1.0.0 Python API.
 
-PhosPy does not expose HTTP endpoints. The supported public surface is the Python API on this page together with
+PhosPy 1.0.0 does not expose HTTP endpoints. The supported public surface is the Python API on this page together with
 the small `phospy` command-line interface described in the README.
 
-The goal is simple: if you stay within the classes on this page, you are using the public surface that PhosPy means to 
-support.
+The goal is simple: if you stay within the classes on this page, you are using the public surface that PhosPy 1.0.0
+means to support.
 
 ## Stable Root Imports
 

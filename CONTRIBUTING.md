@@ -2,7 +2,7 @@
 
 Thank you for your interest in PhosPy.
 
-PhosPy is intentionally narrow. The most helpful contributions keep that scope clear: small changes, good tests,
+PhosPy 1.0.0 is intentionally narrow. The most helpful contributions keep that scope clear: small changes, good tests,
 and straightforward review.
 
 ## Get Set Up
@@ -75,7 +75,7 @@ For the full cross-platform command set, sample output, and notes on how to read
 
 ## Release Gate
 
-The practical release gate is:
+The practical 1.0.0 release gate is:
 
 ```bash
 pre-commit run --all-files

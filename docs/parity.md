@@ -36,7 +36,7 @@ For fixture and trace directory details, see [`docs/fixtures.md`](fixtures.md).
 
 ## `KinaseWorkflow` and Parity
 
-`KinaseWorkflow` is part of the supported public API, but that does **not** turn the whole workflow into a broad
+`KinaseWorkflow` is part of the supported 1.0.0 public API, but that does **not** turn the whole workflow into a broad
 PhosR-equivalence claim.
 
 The practical wording is:
