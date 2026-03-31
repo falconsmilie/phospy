@@ -32,14 +32,15 @@ class KinaseActivityAnalyzer:
 
     result_writer: type[KinaseActivityResultWriter] = KinaseActivityWriter
 
-    def load_pred_mat(self, pred_mat_path: str | Path) -> pd.DataFrame:
+    @staticmethod
+    def load_pred_mat(pred_mat_path: str | Path) -> pd.DataFrame:
         """Load and validate a kinase prediction matrix from disk."""
 
         pred_mat = load_pred_mat(pred_mat_path)
         return PredMatSchema.validate(pred_mat, context="pred_mat")
 
+    @staticmethod
     def analyze(
-        self,
         pred_mat: pd.DataFrame,
         phospho_matrix: pd.DataFrame,
         threshold: float = 0.6,

@@ -138,7 +138,7 @@ class PhosphoDataset:
         corrected_cols: Sequence[str] | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> PhosphoDataset:
-        """Build a dataset from already-validated in-memory inputs."""
+        """Build a dataset from validated in-memory inputs."""
         instance = cls.__new__(cls)
         instance._set_state(
             inputs=CoreInputs(total_df=total_df, phospho_df=phospho_df),

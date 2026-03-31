@@ -137,8 +137,8 @@ class CandidateSelector:
 
 
 class NegativePoolSampler:
+    @staticmethod
     def sample_initial_negative_sites(
-        self,
         *,
         negative_pool: pd.DataFrame,
         positive_size: int,
@@ -167,8 +167,8 @@ class NegativePoolSampler:
 
 
 class TraceRecorder:
+    @staticmethod
     def create_state(
-        self,
         *,
         substrate_list: dict[str, list[str]],
         trace_level: PredictionTraceLevel,
@@ -268,8 +268,8 @@ class TraceRecorder:
             ],
         )
 
+    @staticmethod
     def record_ensemble_trace(
-        self,
         *,
         trace_state: PredictionTraceState,
         kinase: str,
@@ -288,7 +288,8 @@ class TraceRecorder:
         ):
             trace_state.trace_sink.flush()
 
-    def flush_final(self, *, trace_state: PredictionTraceState) -> None:
+    @staticmethod
+    def flush_final(*, trace_state: PredictionTraceState) -> None:
         if trace_state.trace_sink is not None:
             trace_state.trace_sink.flush()
 
@@ -421,8 +422,8 @@ class EnsemblePredictor:
 
 
 class PredictionAggregator:
+    @staticmethod
     def empty_result(
-        self,
         *,
         request: PredictionRequest,
     ) -> KinasePredictionResult:
@@ -435,8 +436,8 @@ class PredictionAggregator:
             trace_sink=request.trace_sink,
         )
 
+    @staticmethod
     def initialize_prediction_matrix(
-        self,
         *,
         feature_mat: pd.DataFrame,
         substrate_list: dict[str, list[str]],
@@ -447,16 +448,16 @@ class PredictionAggregator:
             columns=list(substrate_list),
         )
 
+    @staticmethod
     def add_kinase_scores(
-        self,
         *,
         pred_matrix: pd.DataFrame,
         batch: KinasePredictionBatch,
     ) -> None:
         pred_matrix.loc[:, batch.kinase] += batch.scores
 
+    @staticmethod
     def finalize(
-        self,
         *,
         pred_matrix: pd.DataFrame,
         substrate_list: dict[str, list[str]],
