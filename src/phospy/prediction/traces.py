@@ -32,6 +32,14 @@ class TraceSink(ABC):
     def write_rows(self, table_name: str, rows: list[dict[str, object]]) -> None:
         raise NotImplementedError
 
+    def write_frame(self, table_name: str, frame: pd.DataFrame) -> None:
+        if frame.empty:
+            return
+        self.write_rows(
+            table_name,
+            frame.to_dict(orient="records"),
+        )
+
     @abstractmethod
     def read_table(self, table_name: str) -> pd.DataFrame:
         raise NotImplementedError
@@ -65,32 +73,44 @@ class DirectoryTraceSink(TraceSink):
         *,
         fmt: PredictionTraceFormat = "csv",
         owned_temp_dir: TemporaryDirectory[str] | None = None,
+        flush_row_threshold: int = 1000,
     ) -> None:
+        if flush_row_threshold < 1:
+            msg = "flush_row_threshold must be at least 1"
+            raise ValueError(msg)
         self._owned_temp_dir = owned_temp_dir
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.fmt = fmt
+        self.flush_row_threshold = flush_row_threshold
         self._part_counters: dict[str, int] = {name: 0 for name in TRACE_TABLE_NAMES}
         self._buffered_rows: dict[str, list[dict[str, object]]] = {
             name: [] for name in TRACE_TABLE_NAMES
         }
         self._closed = False
 
-    def write_rows(self, table_name: str, rows: list[dict[str, object]]) -> None:
+    @staticmethod
+    def _validate_table_name(table_name: str) -> None:
         if table_name not in TRACE_TABLE_NAMES:
             msg = f"Unsupported trace table: {table_name}"
             raise ValueError(msg)
+
+    def write_rows(self, table_name: str, rows: list[dict[str, object]]) -> None:
+        self._validate_table_name(table_name)
         if not rows:
             return
-        self._buffered_rows[table_name].extend(rows)
+        buffered_rows = self._buffered_rows[table_name]
+        buffered_rows.extend(rows)
+        if len(buffered_rows) >= self.flush_row_threshold:
+            self._flush_table(table_name)
 
-    def _flush_table(self, table_name: str) -> None:
-        rows = self._buffered_rows[table_name]
-        if not rows:
+    def write_frame(self, table_name: str, frame: pd.DataFrame) -> None:
+        self._validate_table_name(table_name)
+        if frame.empty:
             return
+        self._write_frame(table_name, frame)
 
-        frame = pd.DataFrame(rows)
-        rows.clear()
+    def _write_frame(self, table_name: str, frame: pd.DataFrame) -> None:
         if self.fmt == "csv":
             path = self.output_dir / f"{table_name}.csv"
             frame.to_csv(path, mode="a", header=not path.exists(), index=False)
@@ -107,6 +127,15 @@ class DirectoryTraceSink(TraceSink):
                 "engine such as 'pyarrow', or use trace_sink_format='csv'."
             )
             raise RuntimeError(msg) from error
+
+    def _flush_table(self, table_name: str) -> None:
+        rows = self._buffered_rows[table_name]
+        if not rows:
+            return
+
+        frame = pd.DataFrame.from_records(rows)
+        rows.clear()
+        self._write_frame(table_name, frame)
 
     def flush(self) -> None:
         for table_name in TRACE_TABLE_NAMES:

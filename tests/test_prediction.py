@@ -253,6 +253,112 @@ def test_predict_can_stream_full_trace_tables_to_sink(tmp_path: Path) -> None:
     assert not tables["trace_final_ensemble_top"].empty
 
 
+def test_full_trace_output_schema_matches_existing_trace_tables(tmp_path: Path) -> None:
+    predictor = KinasePredictor()
+
+    result = predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=2,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=5,
+        capture_debug_trace=True,
+        debug_kinases=["KINASE_A"],
+        debug_top_n=3,
+        trace_level="full",
+        trace_sink=tmp_path / "trace_output",
+    )
+
+    tables = prediction_debug_trace_tables(result)
+
+    assert tables["trace_selected_candidates"].columns.tolist() == [
+        "kinase",
+        "candidate_rank",
+        "site",
+    ]
+    assert tables["trace_negative_pool"].columns.tolist() == [
+        "kinase",
+        "pool_index",
+        "site",
+    ]
+    assert tables["trace_initial_negatives"].columns.tolist() == [
+        "kinase",
+        "ensemble",
+        "draw",
+        "site",
+    ]
+    assert tables["trace_iteration_labels"].columns.tolist() == [
+        "kinase",
+        "ensemble",
+        "iteration",
+        "site",
+        "label",
+    ]
+    assert tables["trace_iteration_probabilities"].columns.tolist() == [
+        "kinase",
+        "ensemble",
+        "iteration",
+        "site",
+        "label",
+        "prob_class_1",
+        "prob_class_2",
+    ]
+    assert tables["trace_iteration_probability_parameters"].columns.tolist() == [
+        "kinase",
+        "ensemble",
+        "iteration",
+        "class_pair",
+        "probA",
+        "probB",
+    ]
+    assert tables["trace_iteration_decision_values"].columns.tolist() == [
+        "kinase",
+        "ensemble",
+        "iteration",
+        "site",
+        "label",
+        "decision_value_class_1",
+    ]
+    assert tables["trace_iteration_resampling_weights"].columns.tolist() == [
+        "kinase",
+        "ensemble",
+        "iteration",
+        "class_label",
+        "site",
+        "normalized_weight",
+    ]
+    assert tables["trace_iteration_samples"].columns.tolist() == [
+        "kinase",
+        "ensemble",
+        "iteration",
+        "class_label",
+        "draw",
+        "site",
+    ]
+    assert tables["trace_final_ensemble_predictions"].columns.tolist() == [
+        "kinase",
+        "ensemble",
+        "site",
+        "prob_class_1",
+        "prob_class_2",
+    ]
+    assert tables["trace_final_ensemble_decision_values"].columns.tolist() == [
+        "kinase",
+        "ensemble",
+        "site",
+        "decision_value_class_1",
+    ]
+    assert tables["trace_final_ensemble_top"].columns.tolist() == [
+        "kinase",
+        "ensemble",
+        "rank",
+        "site",
+        "prob_class_1",
+    ]
+
+
 def test_directory_trace_sink_buffers_until_read_or_flush(tmp_path: Path) -> None:
     sink = DirectoryTraceSink(tmp_path / "trace_output")
 
@@ -277,6 +383,102 @@ def test_directory_trace_sink_buffers_until_read_or_flush(tmp_path: Path) -> Non
 
     assert csv_path.exists()
     assert table.loc[:, "site"].tolist() == ["SITE_1"]
+
+
+def test_directory_trace_sink_writes_incremental_csv_output(tmp_path: Path) -> None:
+    sink = DirectoryTraceSink(tmp_path / "trace_output", flush_row_threshold=1)
+
+    sink.write_rows(
+        "trace_iteration_samples",
+        [
+            {
+                "kinase": "KINASE_A",
+                "ensemble": 1,
+                "iteration": 1,
+                "class_label": 1,
+                "draw": 1,
+                "site": "SITE_1",
+            }
+        ],
+    )
+
+    csv_path = tmp_path / "trace_output" / "trace_iteration_samples.csv"
+    assert csv_path.exists()
+
+    sink.write_frame(
+        "trace_iteration_samples",
+        pd.DataFrame(
+            [
+                {
+                    "kinase": "KINASE_A",
+                    "ensemble": 1,
+                    "iteration": 1,
+                    "class_label": 1,
+                    "draw": 2,
+                    "site": "SITE_2",
+                }
+            ]
+        ),
+    )
+
+    table = pd.read_csv(csv_path)
+    assert table.loc[:, "site"].tolist() == ["SITE_1", "SITE_2"]
+
+
+def test_directory_trace_sink_writes_incremental_parquet_parts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sink = DirectoryTraceSink(
+        tmp_path / "trace_output",
+        fmt="parquet",
+        flush_row_threshold=1,
+    )
+    parquet_paths: list[str] = []
+
+    def fake_to_parquet(
+        self: pd.DataFrame,
+        path: Path | str,
+        *,
+        index: bool,
+    ) -> None:
+        parquet_paths.append(Path(path).name)
+        Path(path).touch()
+
+    monkeypatch.setattr(pd.DataFrame, "to_parquet", fake_to_parquet)
+
+    sink.write_rows(
+        "trace_iteration_samples",
+        [
+            {
+                "kinase": "KINASE_A",
+                "ensemble": 1,
+                "iteration": 1,
+                "class_label": 1,
+                "draw": 1,
+                "site": "SITE_1",
+            }
+        ],
+    )
+    sink.write_frame(
+        "trace_iteration_samples",
+        pd.DataFrame(
+            [
+                {
+                    "kinase": "KINASE_A",
+                    "ensemble": 1,
+                    "iteration": 1,
+                    "class_label": 1,
+                    "draw": 2,
+                    "site": "SITE_2",
+                }
+            ]
+        ),
+    )
+
+    assert parquet_paths == [
+        "trace_iteration_samples.part-000000.parquet",
+        "trace_iteration_samples.part-000001.parquet",
+    ]
 
 
 def test_multi_ada_sampling_requires_trace_sink_for_full_trace() -> None:

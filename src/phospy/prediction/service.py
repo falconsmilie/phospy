@@ -220,29 +220,26 @@ class TraceRecorder:
                 ensemble_traces=[],
             )
         if trace_state.trace_sink is not None:
-            trace_state.trace_sink.write_rows(
+            trace_state.trace_sink.write_frame(
                 "trace_selected_candidates",
-                [
+                pd.DataFrame(
                     {
-                        "kinase": kinase,
-                        "candidate_rank": rank,
-                        "site": site,
+                        "kinase": [kinase] * len(substrates),
+                        "candidate_rank": np.arange(1, len(substrates) + 1),
+                        "site": substrates,
                     }
-                    for rank, site in enumerate(substrates, start=1)
-                ],
+                ),
             )
-            trace_state.trace_sink.write_rows(
+            negative_sites = negative_pool.index.tolist()
+            trace_state.trace_sink.write_frame(
                 "trace_negative_pool",
-                [
+                pd.DataFrame(
                     {
-                        "kinase": kinase,
-                        "pool_index": pool_index,
-                        "site": site,
+                        "kinase": [kinase] * len(negative_sites),
+                        "pool_index": np.arange(1, len(negative_sites) + 1),
+                        "site": negative_sites,
                     }
-                    for pool_index, site in enumerate(
-                        negative_pool.index.tolist(), start=1
-                    )
-                ],
+                ),
             )
 
     def record_initial_negatives(
@@ -257,17 +254,16 @@ class TraceRecorder:
             return
         if trace_state.trace_sink is None:
             return
-        trace_state.trace_sink.write_rows(
+        trace_state.trace_sink.write_frame(
             "trace_initial_negatives",
-            [
+            pd.DataFrame(
                 {
-                    "kinase": kinase,
-                    "ensemble": ensemble_index,
-                    "draw": draw,
-                    "site": site,
+                    "kinase": [kinase] * len(negative_sites),
+                    "ensemble": [ensemble_index] * len(negative_sites),
+                    "draw": np.arange(1, len(negative_sites) + 1),
+                    "site": negative_sites,
                 }
-                for draw, site in enumerate(negative_sites, start=1)
-            ],
+            ),
         )
 
     def record_ensemble_trace(
