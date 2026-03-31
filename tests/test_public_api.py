@@ -6,10 +6,10 @@ import pandas as pd
 import pytest
 
 from phospy import (
+    KinaseActivityAnalyzer,
     KinaseWorkflow,
     PhosphoDataset,
     PhosRPipeline,
-    analyze_kinase_activity,
 )
 from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
 from phospy.dataset_loader import DatasetLoader
@@ -66,7 +66,7 @@ def test_public_root_exports() -> None:
     expected = {
         "CoreOutputs",
         "CoreProcessingResult",
-        "analyze_kinase_activity",
+        "KinaseActivityAnalyzer",
         "KinaseActivityResult",
         "KinasePredictionResult",
         "KinaseWorkflow",
@@ -112,7 +112,7 @@ def test_phospho_dataset_from_validated_inputs_builds_without_revalidation() -> 
     assert dataset.comparisons == tuple(EXAMPLE_COMPARISONS)
 
 
-def test_analyze_kinase_activity() -> None:
+def test_kinase_activity_analyzer_analyze() -> None:
     phospho_matrix = pd.DataFrame(
         {
             "phospho_corrected_1": [4.0, 4.0, 4.0],
@@ -120,7 +120,7 @@ def test_analyze_kinase_activity() -> None:
         },
         index=["PRKACA;S339;", "BTK;Y551;", "LYN;Y397;"],
     )
-    result = analyze_kinase_activity(
+    result = KinaseActivityAnalyzer().analyze(
         pred_mat=make_pred_mat(),
         phospho_matrix=phospho_matrix,
         threshold=0.6,
@@ -128,6 +128,55 @@ def test_analyze_kinase_activity() -> None:
     )
 
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
+
+
+def test_kinase_activity_analyzer_load_and_analyze(tmp_path) -> None:
+    pred_mat_path = tmp_path / "predMat.csv"
+    make_pred_mat().to_csv(pred_mat_path)
+    phospho_matrix = pd.DataFrame(
+        {
+            "phospho_corrected_1": [4.0, 4.0, 4.0],
+            "phospho_corrected_2": [5.0, 5.0, 5.0],
+        },
+        index=["PRKACA;S339;", "BTK;Y551;", "LYN;Y397;"],
+    )
+
+    result = KinaseActivityAnalyzer().load_and_analyze(
+        pred_mat_path=pred_mat_path,
+        phospho_matrix=phospho_matrix,
+        threshold=0.6,
+        min_substrates=2,
+    )
+
+    assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
+
+
+def test_kinase_activity_analyzer_write_outputs(tmp_path) -> None:
+    phospho_matrix = pd.DataFrame(
+        {
+            "phospho_corrected_1": [4.0, 4.0, 4.0],
+            "phospho_corrected_2": [5.0, 5.0, 5.0],
+        },
+        index=["PRKACA;S339;", "BTK;Y551;", "LYN;Y397;"],
+    )
+    result = KinaseActivityAnalyzer().analyze(
+        pred_mat=make_pred_mat(),
+        phospho_matrix=phospho_matrix,
+        threshold=0.6,
+        min_substrates=2,
+    )
+
+    outdir = tmp_path / "kinase-output"
+    KinaseActivityAnalyzer().write_outputs(result, outdir)
+
+    expected_files = {
+        "kinase_activity_matrix.csv",
+        "kinase_target_counts.csv",
+        "kinase_target_table.csv",
+        "ksea_counts.csv",
+        "ksea_scores.csv",
+    }
+    assert expected_files.issubset({path.name for path in outdir.iterdir()})
 
 
 def test_pipeline_runs_with_class_api(tmp_path) -> None:

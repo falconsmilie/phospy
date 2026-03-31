@@ -1,4 +1,4 @@
-from .analysis import KinaseActivityResult, analyze_kinase_activity
+from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
 from .core_processing import CoreProcessingResult
 from .dataset import PhosphoDataset
 from .pipeline import CoreOutputs, PhosRPipeline
@@ -9,7 +9,7 @@ from .workflow import KinaseWorkflow, KinaseWorkflowResult
 __all__ = [
     "CoreOutputs",
     "CoreProcessingResult",
-    "analyze_kinase_activity",
+    "KinaseActivityAnalyzer",
     "KinaseActivityResult",
     "KinasePredictionResult",
     "KinaseWorkflow",

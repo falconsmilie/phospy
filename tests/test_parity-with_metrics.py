@@ -8,7 +8,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy import PhosphoDataset, analyze_kinase_activity
+from phospy import KinaseActivityAnalyzer, PhosphoDataset
 from phospy.prediction import (
     KinasePredictor,
     PredictionSamplingTrace,
@@ -374,7 +374,7 @@ def test_kinase_outputs_match_r_reference() -> None:
     core = dataset.process_core()
 
     pred_mat = _read_indexed_table("predMat.csv")
-    result = analyze_kinase_activity(
+    result = KinaseActivityAnalyzer().analyze(
         pred_mat=pred_mat, phospho_matrix=core.site_matrix.matrix
     )
 
@@ -421,7 +421,7 @@ def test_l6_kinase_outputs_match_r_reference() -> None:
     )
     pred_mat = _read_indexed_table("predMat.csv", fixture_dir=R_FIXTURES_L6)
 
-    result = analyze_kinase_activity(
+    result = KinaseActivityAnalyzer().analyze(
         pred_mat=pred_mat,
         phospho_matrix=phospho_matrix,
         threshold=0.6,

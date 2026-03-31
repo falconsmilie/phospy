@@ -3,13 +3,13 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import PhosphoDataset, analyze_kinase_activity
+from phospy import KinaseActivityAnalyzer, PhosphoDataset
 from phospy.validation import validate_protein_correction_inputs
 from phospy.validation.errors import InputCompatibilityError
 from phospy.workflow import KinaseWorkflow
 
 
-def test_analyze_kinase_activity_rejects_zero_overlap() -> None:
+def test_kinase_activity_analyzer_rejects_zero_overlap() -> None:
     pred_mat = pd.DataFrame(
         {
             "PRKACA": [0.9],
@@ -24,7 +24,10 @@ def test_analyze_kinase_activity_rejects_zero_overlap() -> None:
     )
 
     with pytest.raises(InputCompatibilityError, match="no overlapping phosphosite IDs"):
-        analyze_kinase_activity(pred_mat=pred_mat, phospho_matrix=phospho_matrix)
+        KinaseActivityAnalyzer().analyze(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+        )
 
 
 def test_kinase_workflow_rejects_missing_site_sequence_coverage() -> None:
@@ -150,7 +153,7 @@ def test_core_processing_allows_row_loss_with_explicit_tolerance() -> None:
     assert result.phospho_corrected["gene_names"].tolist() == ["PRKACA"]
 
 
-def test_analyze_kinase_activity_rejects_insufficient_overlap_fraction() -> None:
+def test_kinase_activity_analyzer_rejects_insufficient_overlap_fraction() -> None:
     pred_mat = pd.DataFrame(
         {
             "PRKACA": [0.9],
@@ -167,7 +170,10 @@ def test_analyze_kinase_activity_rejects_insufficient_overlap_fraction() -> None
     with pytest.raises(
         InputCompatibilityError, match="insufficient overlapping phosphosite IDs"
     ):
-        analyze_kinase_activity(pred_mat=pred_mat, phospho_matrix=phospho_matrix)
+        KinaseActivityAnalyzer().analyze(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+        )
 
 
 def test_validate_protein_correction_inputs_uses_same_normalization_as_merge() -> None:

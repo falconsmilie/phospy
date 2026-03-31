@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import analyze_kinase_activity
+from phospy import KinaseActivityAnalyzer
 from phospy.core_processing import CorePreprocessingConfig
 from phospy.dataset import PhosphoDataset
 from phospy.publishing import OutputPublisher, RunManifestWriter
@@ -119,7 +119,7 @@ def test_output_publisher_restores_backup_on_publish_failure(
 
 def test_run_manifest_writer_serializes_expected_metadata(tmp_path: Path) -> None:
     core = _build_core_result()
-    kinase_activity = analyze_kinase_activity(
+    kinase_activity = KinaseActivityAnalyzer().analyze(
         pred_mat=make_pred_mat(),
         phospho_matrix=core.site_matrix.matrix,
     )

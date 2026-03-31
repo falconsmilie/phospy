@@ -45,7 +45,7 @@ The stable root-level API is intentionally small:
 
 - `PhosphoDataset`
 - `PhosRPipeline`
-- `analyze_kinase_activity`
+- `KinaseActivityAnalyzer`
 - `KinaseWorkflow`
 
 Returned result dataclasses:
@@ -148,7 +148,7 @@ If you do not pass `comparisons`, preprocessing still runs normally and no extra
 ### Downstream Kinase Analysis From `predMat`
 
 ```python
-from phospy import PhosphoDataset, analyze_kinase_activity
+from phospy import KinaseActivityAnalyzer, PhosphoDataset
 import pandas as pd
 
 dataset = PhosphoDataset.from_files(
@@ -159,7 +159,8 @@ dataset = PhosphoDataset.from_files(
 core = dataset.process_core(max_unmatched_fraction=0.1)
 pred_mat = pd.read_csv("examples/data/predMat.csv", index_col=0)
 
-kinase = analyze_kinase_activity(
+analyzer = KinaseActivityAnalyzer()
+kinase = analyzer.analyze(
     pred_mat=pred_mat,
     phospho_matrix=core.site_matrix.matrix,
     threshold=0.6,
@@ -177,7 +178,7 @@ point.
 
 For the bundled example data, `target_counts.to_dict()` is `{'PRKACA': 3, 'BTK': 2}`.
 
-`analyze_kinase_activity(...)` returns a `KinaseActivityResult` with:
+`KinaseActivityAnalyzer.analyze(...)` returns a `KinaseActivityResult` with:
 
 - `weighted_activity`
 - `ksea_scores`

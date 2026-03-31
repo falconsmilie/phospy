@@ -14,7 +14,7 @@ means to support.
 from phospy import (
     CoreOutputs,
     CoreProcessingResult,
-    analyze_kinase_activity,
+    KinaseActivityAnalyzer,
     KinaseActivityResult,
     KinasePredictionResult,
     KinaseWorkflow,
@@ -129,23 +129,38 @@ Attributes:
 A useful detail: site-matrix construction drops rows with missing sequences or incomplete corrected values, then
 collapses duplicate phosphosites by keeping the row with the highest mean corrected signal.
 
-## `analyze_kinase_activity`
+## `KinaseActivityAnalyzer`
 
 Use this when you already have a phosphosite matrix and a `predMat` and want downstream kinase summaries.
 
 ### Call it
 
 ```python
-from phospy import analyze_kinase_activity
+from phospy import KinaseActivityAnalyzer
 import pandas as pd
 
 pred_mat = pd.read_csv("predMat.csv", index_col=0)
-result = analyze_kinase_activity(pred_mat=pred_mat, phospho_matrix=phospho_matrix)
+analyzer = KinaseActivityAnalyzer()
+result = analyzer.analyze(pred_mat=pred_mat, phospho_matrix=phospho_matrix)
 ```
 
-### Signature
+### Supported methods
 
-#### `analyze_kinase_activity(pred_mat, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20) -> KinaseActivityResult`
+#### `load_pred_mat(pred_mat_path) -> pd.DataFrame`
+
+Loads a prediction matrix from disk and validates it against the public `predMat` schema.
+
+#### `analyze(pred_mat, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20) -> KinaseActivityResult`
+
+Computes downstream kinase summaries from in-memory `predMat` and phosphosite matrices.
+
+#### `load_and_analyze(pred_mat_path, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20) -> KinaseActivityResult`
+
+Convenience entry point that combines `load_pred_mat(...)` and `analyze(...)`.
+
+#### `write_outputs(result, outdir) -> None`
+
+Writes the same downstream kinase-analysis tables that `PhosRPipeline` emits when `pred_mat_path` is supplied.
 
 Returns:
 
@@ -169,7 +184,7 @@ These live in `phospy.activities`:
 
 ## `KinaseActivityResult`
 
-Returned by `analyze_kinase_activity(...)`.
+Returned by `KinaseActivityAnalyzer.analyze(...)`.
 
 Attributes:
 

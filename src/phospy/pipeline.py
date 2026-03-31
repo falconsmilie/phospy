@@ -11,7 +11,7 @@ from uuid import uuid4
 
 import pandas as pd
 
-from .analysis import KinaseActivityResult, analyze_kinase_activity
+from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
 from .constants import ComparisonSpec
 from .core_processing import CorePreprocessingConfig, CoreProcessingResult
 from .dataset import PhosphoDataset
@@ -59,6 +59,7 @@ class PhosRPipeline:
             total_sentinel=total_sentinel,
             phospho_sentinel=phospho_sentinel,
         )
+        self.kinase_activity_analyzer = KinaseActivityAnalyzer()
 
     @classmethod
     def from_request(cls, request: CorePipelineRequest) -> PhosRPipeline:
@@ -122,7 +123,7 @@ class PhosRPipeline:
 
         kinase_activity = None
         if self.pred_mat is not None:
-            kinase_activity = analyze_kinase_activity(
+            kinase_activity = self.kinase_activity_analyzer.analyze(
                 self.pred_mat,
                 core.site_matrix.matrix,
             )
