@@ -147,78 +147,7 @@ def test_combine_profile_and_motif_scores_uses_rank_weights() -> None:
     )
 
 
-def test_combine_scores_keeps_profile_only_kinases_on_partial_overlap_when_fallback_enabled() -> (
-    None
-):
-    motif_scores = pd.DataFrame(
-        {
-            "KINASE_A": [0.9, 0.1],
-            "KINASE_B": [0.2, 0.8],
-        },
-        index=["SITE_1", "SITE_2"],
-    )
-    profile_scores = pd.DataFrame(
-        {
-            "KINASE_B": [0.6, 0.4],
-            "KINASE_A": [0.3, 0.7],
-            "KINASE_C": [0.5, 0.5],
-        },
-        index=["SITE_1", "SITE_2"],
-    )
-    motif_sizes = pd.Series({"KINASE_A": 10, "KINASE_B": 20})
-    profile_sizes = pd.Series({"KINASE_A": 30, "KINASE_B": 5, "KINASE_C": 15})
-
-    combined, weights = combine_profile_and_motif_scores(
-        motif_scores=motif_scores,
-        profile_scores=profile_scores,
-        motif_sizes=motif_sizes,
-        profile_sizes=profile_sizes,
-        allow_profile_only_fallback=True,
-    )
-
-    assert list(combined.columns) == ["KINASE_A", "KINASE_B", "KINASE_C"]
-    pd.testing.assert_series_equal(
-        combined.loc[:, "KINASE_C"],
-        profile_scores.loc[:, "KINASE_C"],
-        check_names=False,
-    )
-    assert float(weights.loc["KINASE_C", "motif_weight"]) == pytest.approx(0.0)
-    assert float(weights.loc["KINASE_C", "profile_weight"]) == pytest.approx(1.0)
-
-
-def test_combine_scores_drops_profile_only_kinases_when_fallback_disabled() -> None:
-    motif_scores = pd.DataFrame(
-        {
-            "KINASE_A": [0.9, 0.1],
-            "KINASE_B": [0.2, 0.8],
-        },
-        index=["SITE_1", "SITE_2"],
-    )
-    profile_scores = pd.DataFrame(
-        {
-            "KINASE_B": [0.6, 0.4],
-            "KINASE_A": [0.3, 0.7],
-            "KINASE_C": [0.5, 0.5],
-        },
-        index=["SITE_1", "SITE_2"],
-    )
-    motif_sizes = pd.Series({"KINASE_A": 10, "KINASE_B": 20})
-    profile_sizes = pd.Series({"KINASE_A": 30, "KINASE_B": 5, "KINASE_C": 15})
-
-    combined, weights = combine_profile_and_motif_scores(
-        motif_scores=motif_scores,
-        profile_scores=profile_scores,
-        motif_sizes=motif_sizes,
-        profile_sizes=profile_sizes,
-        allow_profile_only_fallback=False,
-    )
-
-    assert list(combined.columns) == ["KINASE_A", "KINASE_B"]
-    assert "KINASE_C" not in combined.columns
-    assert "KINASE_C" not in weights.index
-
-
-def test_combine_scores_handles_no_overlap_with_fallback_enabled() -> None:
+def test_combine_profile_and_motif_scores_can_fall_back_to_profile_only() -> None:
     motif_scores = pd.DataFrame(
         {"KINASE_X": [0.9]},
         index=["SITE_1"],

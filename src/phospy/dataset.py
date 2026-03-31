@@ -35,12 +35,7 @@ class CoreInputs:
 
 @dataclass(frozen=True, slots=True, init=False)
 class PhosphoDataset:
-    """Validated phosphoproteomics inputs with core preprocessing helpers.
-
-    The dataset stores validated input frames internally. The public ``total_df`` and
-    ``phospho_df`` accessors return defensive copies so callers cannot mutate the
-    dataset's internal state through those properties.
-    """
+    """Thin immutable holder around validated phosphoproteomics inputs."""
 
     inputs: CoreInputs
     total_cols: tuple[str, ...]
@@ -115,11 +110,11 @@ class PhosphoDataset:
 
     @property
     def total_df(self) -> pd.DataFrame:
-        return self.inputs.total_df.copy(deep=True)
+        return self.inputs.total_df
 
     @property
     def phospho_df(self) -> pd.DataFrame:
-        return self.inputs.phospho_df.copy(deep=True)
+        return self.inputs.phospho_df
 
     def _core_processor(self) -> CoreProcessor:
         return CoreProcessor(
@@ -181,7 +176,7 @@ class PhosphoDataset:
         min_observed: int = 4,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         return self._core_processor().prepare_total(
-            self.inputs.total_df,
+            self.total_df,
             gene_col=gene_col,
             sentinel=sentinel,
             min_observed=min_observed,
@@ -197,7 +192,7 @@ class PhosphoDataset:
         min_observed: int = 4,
     ) -> pd.DataFrame:
         return self._core_processor().prepare_phospho(
-            self.inputs.phospho_df,
+            self.phospho_df,
             gene_col=gene_col,
             site_col=site_col,
             localization_col=localization_col,
@@ -261,8 +256,8 @@ class PhosphoDataset:
             max_unmatched_fraction=max_unmatched_fraction,
         )
         return self._core_processor().process(
-            self.inputs.total_df,
-            self.inputs.phospho_df,
+            self.total_df,
+            self.phospho_df,
             config=resolved,
         )
 

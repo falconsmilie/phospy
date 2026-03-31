@@ -13,6 +13,7 @@ from .errors import (
     TableSchemaError,
     TraceError,
 )
+from .primitives import validate_non_negative_int, validate_positive_int
 from .requests import (
     CorePipelineRequest,
     KinaseActivityRequest,
@@ -31,6 +32,8 @@ __all__ = [
     "PhospyError",
     "KinaseActivityRequest",
     "KinaseWorkflowRequest",
+    "validate_non_negative_int",
+    "validate_positive_int",
     "PhosphoInputSchema",
     "PhospyValidationError",
     "PredictionConfigurationError",

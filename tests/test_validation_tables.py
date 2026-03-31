@@ -5,6 +5,7 @@ import pytest
 
 from phospy.io import (
     DEFAULT_TEXT_ENCODING,
+    default_text_encoding,
     infer_text_encoding,
     load_phospho_table,
     load_pred_mat,
@@ -119,4 +120,5 @@ def test_load_phospho_table_uses_explicit_encoding_when_provided(tmp_path) -> No
     loaded = load_phospho_table(phospho_path, encoding="utf-16")
 
     assert loaded.loc[0, "gene_names"] == "PRKACA"
+    assert default_text_encoding(phospho_path) == DEFAULT_TEXT_ENCODING
     assert infer_text_encoding(phospho_path) == DEFAULT_TEXT_ENCODING

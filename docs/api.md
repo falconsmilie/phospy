@@ -66,9 +66,6 @@ validated = PhosphoDataset.from_validated_inputs(
 A practical detail: `from_files(...)` cleans file headers to lowercase snake case before validation. In-memory data
 frames are validated as provided.
 
-Another practical detail: `dataset.total_df` and `dataset.phospho_df` return defensive copies of the stored
-validated frames, so mutating those properties does not mutate the dataset itself.
-
 ### Main methods
 
 #### `process_core(...) -> CoreProcessingResult`

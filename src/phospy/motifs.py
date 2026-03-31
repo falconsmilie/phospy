@@ -8,9 +8,9 @@ import pandas as pd
 
 from .validation.errors import (
     InputCompatibilityError,
-    PhospyValidationError,
     TableSchemaError,
 )
+from .validation.primitives import validate_non_negative_int, validate_positive_int
 
 AMINO_ACIDS: tuple[str, ...] = (
     "A",
@@ -62,7 +62,7 @@ class KinaseMotifScorer:
         motif_sizes: pd.Series,
         flank_size: int = 7,
     ) -> None:
-        _validate_non_negative_int(flank_size, name="flank_size")
+        validate_non_negative_int(flank_size, name="flank_size")
         if not motif_frequency_matrices:
             msg = "motif_frequency_matrices must not be empty"
             raise InputCompatibilityError(msg)
@@ -109,7 +109,7 @@ class KinaseMotifScorer:
         site_index: Sequence[str] | None = None,
         min_motif_size: int = 1,
     ) -> MotifScoringResult:
-        _validate_positive_int(min_motif_size, name="min_motif_size")
+        validate_positive_int(min_motif_size, name="min_motif_size")
         windows = _coerce_sequence_series(
             seqs=seqs,
             site_index=site_index,
@@ -149,7 +149,7 @@ def create_frequency_matrix(
 ) -> pd.DataFrame:
     """Create an amino-acid frequency matrix from substrate sequences."""
 
-    _validate_non_negative_int(flank_size, name="flank_size")
+    validate_non_negative_int(flank_size, name="flank_size")
     windows = _coerce_sequence_series(substrates_seq, flank_size=flank_size)
     if windows.empty:
         msg = "substrates_seq must contain at least one sequence"
@@ -347,13 +347,3 @@ def _extract_sequence_window(value: object, flank_size: int | None) -> str:
     start = mid - flank_size
     stop = mid + flank_size + 1
     return sequence[start:stop]
-
-
-def _validate_non_negative_int(value: int, name: str) -> None:
-    if value < 0:
-        raise PhospyValidationError(f"{name} must be at least 0")
-
-
-def _validate_positive_int(value: int, name: str) -> None:
-    if value < 1:
-        raise PhospyValidationError(f"{name} must be at least 1")

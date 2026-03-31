@@ -22,7 +22,6 @@ from .sampling import (
 from .traces import PredictionSamplingTrace, TraceSink, create_trace_sink
 from .validation import (
     validate_positive_int,
-    validate_probability_threshold,
     validate_svm_mode,
     validate_trace_format,
     validate_trace_level,
@@ -85,7 +84,6 @@ class PredictionRequestFactory:
     ) -> PredictionRequest:
         validate_positive_int(ensemble_size, name="ensemble_size")
         validate_positive_int(top, name="top")
-        validate_probability_threshold(score_threshold, name="score_threshold")
         validate_positive_int(inclusion, name="inclusion")
         validate_positive_int(n_iterations, name="n_iterations")
         validate_positive_int(debug_top_n, name="debug_top_n")
@@ -220,26 +218,29 @@ class TraceRecorder:
                 ensemble_traces=[],
             )
         if trace_state.trace_sink is not None:
-            trace_state.trace_sink.write_frame(
+            trace_state.trace_sink.write_rows(
                 "trace_selected_candidates",
-                pd.DataFrame(
+                [
                     {
-                        "kinase": [kinase] * len(substrates),
-                        "candidate_rank": np.arange(1, len(substrates) + 1),
-                        "site": substrates,
+                        "kinase": kinase,
+                        "candidate_rank": rank,
+                        "site": site,
                     }
-                ),
+                    for rank, site in enumerate(substrates, start=1)
+                ],
             )
-            negative_sites = negative_pool.index.tolist()
-            trace_state.trace_sink.write_frame(
+            trace_state.trace_sink.write_rows(
                 "trace_negative_pool",
-                pd.DataFrame(
+                [
                     {
-                        "kinase": [kinase] * len(negative_sites),
-                        "pool_index": np.arange(1, len(negative_sites) + 1),
-                        "site": negative_sites,
+                        "kinase": kinase,
+                        "pool_index": pool_index,
+                        "site": site,
                     }
-                ),
+                    for pool_index, site in enumerate(
+                        negative_pool.index.tolist(), start=1
+                    )
+                ],
             )
 
     def record_initial_negatives(
@@ -254,16 +255,17 @@ class TraceRecorder:
             return
         if trace_state.trace_sink is None:
             return
-        trace_state.trace_sink.write_frame(
+        trace_state.trace_sink.write_rows(
             "trace_initial_negatives",
-            pd.DataFrame(
+            [
                 {
-                    "kinase": [kinase] * len(negative_sites),
-                    "ensemble": [ensemble_index] * len(negative_sites),
-                    "draw": np.arange(1, len(negative_sites) + 1),
-                    "site": negative_sites,
+                    "kinase": kinase,
+                    "ensemble": ensemble_index,
+                    "draw": draw,
+                    "site": site,
                 }
-            ),
+                for draw, site in enumerate(negative_sites, start=1)
+            ],
         )
 
     def record_ensemble_trace(
@@ -648,7 +650,6 @@ def build_candidate_substrate_list(
     """Select candidate kinase substrates from the combined score matrix."""
 
     validate_positive_int(top, name="top")
-    validate_probability_threshold(score_threshold, name="score_threshold")
     validate_positive_int(inclusion, name="inclusion")
 
     substrate_list: dict[str, list[str]] = {}

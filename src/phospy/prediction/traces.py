@@ -32,14 +32,6 @@ class TraceSink(ABC):
     def write_rows(self, table_name: str, rows: list[dict[str, object]]) -> None:
         raise NotImplementedError
 
-    def write_frame(self, table_name: str, frame: pd.DataFrame) -> None:
-        if frame.empty:
-            return
-        self.write_rows(
-            table_name,
-            frame.to_dict(orient="records"),
-        )
-
     @abstractmethod
     def read_table(self, table_name: str) -> pd.DataFrame:
         raise NotImplementedError
@@ -73,44 +65,32 @@ class DirectoryTraceSink(TraceSink):
         *,
         fmt: PredictionTraceFormat = "csv",
         owned_temp_dir: TemporaryDirectory[str] | None = None,
-        flush_row_threshold: int = 1000,
     ) -> None:
-        if flush_row_threshold < 1:
-            msg = "flush_row_threshold must be at least 1"
-            raise ValueError(msg)
         self._owned_temp_dir = owned_temp_dir
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.fmt = fmt
-        self.flush_row_threshold = flush_row_threshold
         self._part_counters: dict[str, int] = {name: 0 for name in TRACE_TABLE_NAMES}
         self._buffered_rows: dict[str, list[dict[str, object]]] = {
             name: [] for name in TRACE_TABLE_NAMES
         }
         self._closed = False
 
-    @staticmethod
-    def _validate_table_name(table_name: str) -> None:
+    def write_rows(self, table_name: str, rows: list[dict[str, object]]) -> None:
         if table_name not in TRACE_TABLE_NAMES:
             msg = f"Unsupported trace table: {table_name}"
             raise ValueError(msg)
-
-    def write_rows(self, table_name: str, rows: list[dict[str, object]]) -> None:
-        self._validate_table_name(table_name)
         if not rows:
             return
-        buffered_rows = self._buffered_rows[table_name]
-        buffered_rows.extend(rows)
-        if len(buffered_rows) >= self.flush_row_threshold:
-            self._flush_table(table_name)
+        self._buffered_rows[table_name].extend(rows)
 
-    def write_frame(self, table_name: str, frame: pd.DataFrame) -> None:
-        self._validate_table_name(table_name)
-        if frame.empty:
+    def _flush_table(self, table_name: str) -> None:
+        rows = self._buffered_rows[table_name]
+        if not rows:
             return
-        self._write_frame(table_name, frame)
 
-    def _write_frame(self, table_name: str, frame: pd.DataFrame) -> None:
+        frame = pd.DataFrame(rows)
+        rows.clear()
         if self.fmt == "csv":
             path = self.output_dir / f"{table_name}.csv"
             frame.to_csv(path, mode="a", header=not path.exists(), index=False)
@@ -127,15 +107,6 @@ class DirectoryTraceSink(TraceSink):
                 "engine such as 'pyarrow', or use trace_sink_format='csv'."
             )
             raise RuntimeError(msg) from error
-
-    def _flush_table(self, table_name: str) -> None:
-        rows = self._buffered_rows[table_name]
-        if not rows:
-            return
-
-        frame = pd.DataFrame.from_records(rows)
-        rows.clear()
-        self._write_frame(table_name, frame)
 
     def flush(self) -> None:
         for table_name in TRACE_TABLE_NAMES:
@@ -220,135 +191,6 @@ def _read_trace_table_from_directory(
     return None, None
 
 
-def _raise_missing_trace_columns(
-    frame: pd.DataFrame,
-    *,
-    label: str,
-    required_columns: set[str],
-) -> None:
-    if required_columns.issubset(frame.columns):
-        return
-    missing = sorted(required_columns.difference(frame.columns))
-    msg = f"{label} is missing required columns: " + ", ".join(missing)
-    raise TableSchemaError(msg)
-
-
-def _format_trace_group(
-    group_values: tuple[object, ...],
-    group_columns: tuple[str, ...],
-) -> str:
-    return ", ".join(
-        f"{column}={value}"
-        for column, value in zip(group_columns, group_values, strict=True)
-    )
-
-
-def _normalize_trace_draw_column(frame: pd.DataFrame, *, label: str) -> pd.DataFrame:
-    normalized = frame.copy()
-    draw_values = pd.to_numeric(normalized.loc[:, "draw"], errors="coerce")
-    valid_draws = draw_values.notna() & np.isfinite(draw_values)
-    valid_draws &= np.equal(draw_values % 1, 0)
-    valid_draws &= draw_values >= 1
-    if not bool(valid_draws.all()):
-        invalid_values = normalized.loc[~valid_draws, "draw"].astype(str).tolist()[:5]
-        invalid_display = ", ".join(invalid_values)
-        msg = (
-            f"{label} draw values must be positive integers; invalid values: "
-            f"{invalid_display}"
-        )
-        raise TableSchemaError(msg)
-    normalized.loc[:, "draw"] = draw_values.astype(int)
-    return normalized
-
-
-def _validate_duplicate_trace_keys(
-    frame: pd.DataFrame,
-    *,
-    label: str,
-    key_columns: tuple[str, ...],
-) -> None:
-    duplicated = frame.duplicated(subset=list(key_columns), keep=False)
-    if not bool(duplicated.any()):
-        return
-    first_duplicate = frame.loc[duplicated, list(key_columns)].iloc[0].tolist()
-    key_display = _format_trace_group(tuple(first_duplicate), key_columns)
-    joined_columns = ", ".join(key_columns)
-    msg = f"{label} contains duplicate ({joined_columns}) entries: {key_display}"
-    raise TableSchemaError(msg)
-
-
-def _validate_contiguous_trace_draws(
-    frame: pd.DataFrame,
-    *,
-    label: str,
-    group_columns: tuple[str, ...],
-) -> None:
-    sorted_frame = frame.sort_values([*group_columns, "draw"], kind="mergesort")
-    for group_values, group in sorted_frame.groupby(list(group_columns), sort=False):
-        if not isinstance(group_values, tuple):
-            group_values = (group_values,)
-        draws = group.loc[:, "draw"].astype(int).tolist()
-        expected = list(range(1, len(draws) + 1))
-        if draws == expected:
-            continue
-        key_display = _format_trace_group(group_values, group_columns)
-        draw_display = ", ".join(str(draw) for draw in draws)
-        msg = (
-            f"{label} draw values must be contiguous within each "
-            f"({', '.join(group_columns)}) group; {key_display} has draws: {draw_display}"
-        )
-        raise TableSchemaError(msg)
-
-
-def _validate_initial_negative_replay_table(
-    frame: pd.DataFrame,
-    *,
-    label: str,
-) -> pd.DataFrame:
-    required_columns = {"kinase", "ensemble", "draw", "site"}
-    _raise_missing_trace_columns(frame, label=label, required_columns=required_columns)
-    normalized = _normalize_trace_draw_column(frame, label=label)
-    _validate_duplicate_trace_keys(
-        normalized,
-        label=label,
-        key_columns=("kinase", "ensemble", "draw"),
-    )
-    _validate_contiguous_trace_draws(
-        normalized,
-        label=label,
-        group_columns=("kinase", "ensemble"),
-    )
-    return normalized
-
-
-def _validate_iteration_sample_replay_table(
-    frame: pd.DataFrame,
-    *,
-    label: str,
-) -> pd.DataFrame:
-    required_columns = {
-        "kinase",
-        "ensemble",
-        "iteration",
-        "class_label",
-        "draw",
-        "site",
-    }
-    _raise_missing_trace_columns(frame, label=label, required_columns=required_columns)
-    normalized = _normalize_trace_draw_column(frame, label=label)
-    _validate_duplicate_trace_keys(
-        normalized,
-        label=label,
-        key_columns=("kinase", "ensemble", "iteration", "class_label", "draw"),
-    )
-    _validate_contiguous_trace_draws(
-        normalized,
-        label=label,
-        group_columns=("kinase", "ensemble", "iteration", "class_label"),
-    )
-    return normalized
-
-
 class PredictionSamplingTrace:
     def __init__(
         self, ensembles_by_kinase: dict[str, dict[int, SamplingTraceOverrideEnsemble]]
@@ -374,12 +216,13 @@ class PredictionSamplingTrace:
         ensembles_by_kinase: dict[str, dict[int, SamplingTraceOverrideEnsemble]] = {}
 
         if initial_df is not None:
-            if initial_label is None:  # pragma: no cover - defensive guard
-                initial_label = "trace_initial_negatives"
-            initial_df = _validate_initial_negative_replay_table(
-                initial_df,
-                label=initial_label,
-            )
+            required_initial_cols = {"kinase", "ensemble", "draw", "site"}
+            if not required_initial_cols.issubset(initial_df.columns):
+                missing = sorted(required_initial_cols.difference(initial_df.columns))
+                msg = f"{initial_label} is missing required columns: " + ", ".join(
+                    missing
+                )
+                raise TableSchemaError(msg)
             initial_df = initial_df.sort_values(
                 ["kinase", "ensemble", "draw"], kind="mergesort"
             )
@@ -393,12 +236,20 @@ class PredictionSamplingTrace:
                 )
 
         if samples_df is not None:
-            if samples_label is None:  # pragma: no cover - defensive guard
-                samples_label = "trace_iteration_samples"
-            samples_df = _validate_iteration_sample_replay_table(
-                samples_df,
-                label=samples_label,
-            )
+            required_sample_cols = {
+                "kinase",
+                "ensemble",
+                "iteration",
+                "class_label",
+                "draw",
+                "site",
+            }
+            if not required_sample_cols.issubset(samples_df.columns):
+                missing = sorted(required_sample_cols.difference(samples_df.columns))
+                msg = f"{samples_label} is missing required columns: " + ", ".join(
+                    missing
+                )
+                raise TableSchemaError(msg)
             samples_df = samples_df.sort_values(
                 ["kinase", "ensemble", "iteration", "class_label", "draw"],
                 kind="mergesort",

@@ -141,30 +141,26 @@ def combine_profile_and_motif_scores(
     profile_sizes: pd.Series,
     allow_profile_only_fallback: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Combine motif and profile score matrices using rank-derived weights.
+    """Combine motif and profile score matrices using rank-derived weights."""
 
-    Motif-only kinases are excluded consistently because downstream prediction
-    requires profile-based features. When ``allow_profile_only_fallback`` is
-    enabled, profile-only kinases are retained with full profile weight even if
-    other kinases in the same call have motif/profile overlap.
-    """
-
-    profile_kinases = list(profile_scores.columns)
-    profile_kinase_set = set(profile_kinases)
-    motif_kinases = list(motif_scores.columns)
-    motif_kinase_set = set(motif_kinases)
-
-    overlap = [kinase for kinase in motif_kinases if kinase in profile_kinase_set]
-    profile_only = [
-        kinase for kinase in profile_kinases if kinase not in motif_kinase_set
-    ]
+    profile_kinases = set(profile_scores.columns)
+    overlap = [kinase for kinase in motif_scores.columns if kinase in profile_kinases]
 
     if not overlap:
         if not allow_profile_only_fallback:
             msg = "No overlapping kinases between motif and profile score matrices"
             raise InputCompatibilityError(msg)
 
-        weights = _build_profile_only_weights(profile_scores.columns)
+        weights = pd.DataFrame(
+            {
+                "motif_weight": 0.0,
+                "profile_weight": 1.0,
+                "motif_rank_weight": 0.0,
+                "profile_rank_weight": 1.0,
+            },
+            index=profile_scores.columns.copy(),
+        )
+        weights.index.name = "kinase"
         return profile_scores.copy(), weights
 
     _require_index_members(motif_sizes, overlap, name="motif_sizes")
@@ -176,30 +172,20 @@ def combine_profile_and_motif_scores(
     )
     total_weight = motif_rank_weight + profile_rank_weight
 
-    combined_parts = [
-        (
-            motif_scores.loc[:, overlap].multiply(motif_rank_weight, axis=1)
-            + profile_scores.loc[:, overlap].multiply(profile_rank_weight, axis=1)
-        ).divide(total_weight, axis=1)
-    ]
-    weight_parts = [
-        pd.DataFrame(
-            {
-                "motif_weight": motif_rank_weight / total_weight,
-                "profile_weight": profile_rank_weight / total_weight,
-                "motif_rank_weight": motif_rank_weight,
-                "profile_rank_weight": profile_rank_weight,
-            },
-            index=overlap,
-        )
-    ]
+    combined_scores = (
+        motif_scores.loc[:, overlap].multiply(motif_rank_weight, axis=1)
+        + profile_scores.loc[:, overlap].multiply(profile_rank_weight, axis=1)
+    ).divide(total_weight, axis=1)
 
-    if allow_profile_only_fallback and profile_only:
-        combined_parts.append(profile_scores.loc[:, profile_only].copy())
-        weight_parts.append(_build_profile_only_weights(profile_only))
-
-    combined_scores = pd.concat(combined_parts, axis=1)
-    weights = pd.concat(weight_parts, axis=0)
+    weights = pd.DataFrame(
+        {
+            "motif_weight": motif_rank_weight / total_weight,
+            "profile_weight": profile_rank_weight / total_weight,
+            "motif_rank_weight": motif_rank_weight,
+            "profile_rank_weight": profile_rank_weight,
+        },
+        index=overlap,
+    )
     weights.index.name = "kinase"
     return combined_scores, weights
 
@@ -233,20 +219,6 @@ def _require_index_members(
     if missing:
         msg = f"{name} is missing entries for: {', '.join(missing)}"
         raise InputCompatibilityError(msg)
-
-
-def _build_profile_only_weights(kinases: Sequence[str] | pd.Index) -> pd.DataFrame:
-    weights = pd.DataFrame(
-        {
-            "motif_weight": 0.0,
-            "profile_weight": 1.0,
-            "motif_rank_weight": 0.0,
-            "profile_rank_weight": 1.0,
-        },
-        index=pd.Index(kinases, copy=True),
-    )
-    weights.index.name = "kinase"
-    return weights
 
 
 def _rowwise_correlation_matrix(

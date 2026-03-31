@@ -22,17 +22,23 @@ def clean_columns(columns: Iterable[str]) -> list[str]:
     return cleaned
 
 
-def infer_text_encoding(path: str | Path) -> str:
+def default_text_encoding(path: str | Path | None = None) -> str:
     """Return the package default text encoding.
 
-    The loader no longer guesses encodings from file contents. Callers should pass
-    an explicit encoding when they need something other than the default.
-    The ``path`` argument is kept for backward compatibility with earlier helper
-    usage.
+    The loader does not infer encodings from file contents. Callers should pass
+    an explicit encoding when they need something other than the package default.
+    The optional ``path`` argument is accepted for API convenience and backward
+    compatibility with earlier helper usage.
     """
 
     _ = path
     return DEFAULT_TEXT_ENCODING
+
+
+def infer_text_encoding(path: str | Path) -> str:
+    """Backward-compatible wrapper around :func:`default_text_encoding`."""
+
+    return default_text_encoding(path)
 
 
 def read_table_raw(

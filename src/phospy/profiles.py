@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from .validation.errors import PhospyValidationError
+from .validation.primitives import validate_positive_int
 
 
 @dataclass(slots=True)
@@ -28,7 +28,7 @@ def build_kinase_substrate_profiles(
     and otherwise summarise quantified substrates column-wise with the median.
     """
 
-    _validate_positive_int(min_substrates, name="min_substrates")
+    validate_positive_int(min_substrates, name="min_substrates")
 
     observed_sites = set(phospho_matrix.index)
     numeric_matrix = phospho_matrix.astype(float)
@@ -97,8 +97,3 @@ def _quantified_sites(
             seen.add(substrate)
 
     return quantified
-
-
-def _validate_positive_int(value: int, name: str) -> None:
-    if value < 1:
-        raise PhospyValidationError(f"{name} must be at least 1")
