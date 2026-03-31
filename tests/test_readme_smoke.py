@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy import PhosRPipeline
+from phospy import KinaseActivityAnalyzer, PhosphoDataset, PhosRPipeline
 
 EXAMPLE_OUTPUT_FILES = {
     "df_phospho_corrected.csv",
@@ -57,3 +57,27 @@ def test_readme_example_pipeline_runs_end_to_end(tmp_path) -> None:
         "kinase"
     ).reset_index(name="n_targets")
     pd.testing.assert_frame_equal(actual_target_counts, expected_target_counts)
+
+
+def test_readme_example_kinase_activity_analyzer_runs_end_to_end() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+
+    dataset = PhosphoDataset.from_files(
+        repo_root / "examples" / "data" / "total.tsv",
+        repo_root / "examples" / "data" / "phospho.tsv",
+        phospho_encoding="utf-16le",
+    )
+    core = dataset.process_core(max_unmatched_fraction=0.1)
+    pred_mat = pd.read_csv(repo_root / "examples" / "data" / "predMat.csv", index_col=0)
+
+    analyzer = KinaseActivityAnalyzer()
+    result = analyzer.analyze(
+        pred_mat=pred_mat,
+        phospho_matrix=core.site_matrix.matrix,
+        threshold=0.6,
+        min_substrates=1,
+        top_n_substrates=1,
+    )
+
+    assert result.target_counts.to_dict() == {"PRKACA": 3, "BTK": 2}
+    assert set(result.ksea_scores.index) == {"PRKACA", "BTK"}
