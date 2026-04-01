@@ -141,7 +141,13 @@ def combine_profile_and_motif_scores(
     profile_sizes: pd.Series,
     allow_profile_only_fallback: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Combine motif and profile score matrices using rank-derived weights."""
+    """Combine motif and profile scores using rank-derived weights.
+
+    Overlapping kinases are combined using motif and profile rank-derived weights.
+    When ``allow_profile_only_fallback`` is ``True``, kinases present only in the
+    profile score matrix are preserved with ``motif_weight=0`` and
+    ``profile_weight=1`` instead of being dropped during partial overlap.
+    """
 
     profile_kinases = set(profile_scores.columns)
     overlap = [kinase for kinase in motif_scores.columns if kinase in profile_kinases]
@@ -186,6 +192,27 @@ def combine_profile_and_motif_scores(
         },
         index=overlap,
     )
+
+    if allow_profile_only_fallback:
+        profile_only = [
+            kinase for kinase in profile_scores.columns if kinase not in set(overlap)
+        ]
+        if profile_only:
+            combined_scores = pd.concat(
+                [combined_scores, profile_scores.loc[:, profile_only]],
+                axis=1,
+            )
+            fallback_weights = pd.DataFrame(
+                {
+                    "motif_weight": 0.0,
+                    "profile_weight": 1.0,
+                    "motif_rank_weight": 0.0,
+                    "profile_rank_weight": 1.0,
+                },
+                index=profile_only,
+            )
+            weights = pd.concat([weights, fallback_weights], axis=0)
+
     weights.index.name = "kinase"
     return combined_scores, weights
 

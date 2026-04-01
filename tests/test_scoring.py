@@ -170,3 +170,54 @@ def test_combine_profile_and_motif_scores_can_fall_back_to_profile_only() -> Non
     pd.testing.assert_frame_equal(combined, profile_scores)
     assert (weights["motif_weight"] == 0.0).all()
     assert (weights["profile_weight"] == 1.0).all()
+
+
+def test_combine_profile_and_motif_scores_preserves_profile_only_kinases_on_partial_overlap() -> (
+    None
+):
+    motif_scores = pd.DataFrame(
+        {
+            "KINASE_A": [0.9, 0.1],
+            "KINASE_B": [0.2, 0.8],
+        },
+        index=["SITE_1", "SITE_2"],
+    )
+    profile_scores = pd.DataFrame(
+        {
+            "KINASE_B": [0.6, 0.4],
+            "KINASE_A": [0.3, 0.7],
+            "KINASE_C": [0.5, 0.9],
+        },
+        index=["SITE_1", "SITE_2"],
+    )
+    motif_sizes = pd.Series({"KINASE_A": 10, "KINASE_B": 20})
+    profile_sizes = pd.Series({"KINASE_A": 30, "KINASE_B": 5, "KINASE_C": 15})
+
+    combined, weights = combine_profile_and_motif_scores(
+        motif_scores=motif_scores,
+        profile_scores=profile_scores,
+        motif_sizes=motif_sizes,
+        profile_sizes=profile_sizes,
+        allow_profile_only_fallback=True,
+    )
+
+    expected_overlap = pd.DataFrame(
+        {
+            "KINASE_A": [
+                (np.log(2.0) * 0.9 + np.log(3.0) * 0.3) / (np.log(2.0) + np.log(3.0)),
+                (np.log(2.0) * 0.1 + np.log(3.0) * 0.7) / (np.log(2.0) + np.log(3.0)),
+            ],
+            "KINASE_B": [
+                (np.log(3.0) * 0.2 + np.log(2.0) * 0.6) / (np.log(3.0) + np.log(2.0)),
+                (np.log(3.0) * 0.8 + np.log(2.0) * 0.4) / (np.log(3.0) + np.log(2.0)),
+            ],
+            "KINASE_C": [0.5, 0.9],
+        },
+        index=["SITE_1", "SITE_2"],
+    )
+
+    pd.testing.assert_frame_equal(combined, expected_overlap)
+    assert float(weights.loc["KINASE_C", "motif_weight"]) == pytest.approx(0.0)
+    assert float(weights.loc["KINASE_C", "profile_weight"]) == pytest.approx(1.0)
+    assert float(weights.loc["KINASE_C", "motif_rank_weight"]) == pytest.approx(0.0)
+    assert float(weights.loc["KINASE_C", "profile_rank_weight"]) == pytest.approx(1.0)
