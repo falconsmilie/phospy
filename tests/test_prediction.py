@@ -265,6 +265,52 @@ def test_directory_trace_sink_buffers_until_read_or_flush(tmp_path: Path) -> Non
     assert table.loc[:, "site"].tolist() == ["SITE_1"]
 
 
+def test_directory_trace_sink_auto_flushes_after_threshold(tmp_path: Path) -> None:
+    sink = DirectoryTraceSink(tmp_path / "trace_output", max_buffer_rows=2)
+
+    sink.write_rows(
+        "trace_iteration_samples",
+        [
+            {
+                "kinase": "KINASE_A",
+                "ensemble": 1,
+                "iteration": 1,
+                "class_label": 1,
+                "draw": 1,
+                "site": "SITE_1",
+            }
+        ],
+    )
+
+    csv_path = tmp_path / "trace_output" / "trace_iteration_samples.csv"
+    assert not csv_path.exists()
+
+    sink.write_rows(
+        "trace_iteration_samples",
+        [
+            {
+                "kinase": "KINASE_A",
+                "ensemble": 1,
+                "iteration": 1,
+                "class_label": 2,
+                "draw": 2,
+                "site": "SITE_2",
+            }
+        ],
+    )
+
+    assert csv_path.exists()
+    table = pd.read_csv(csv_path)
+    assert table.loc[:, "site"].tolist() == ["SITE_1", "SITE_2"]
+
+
+def test_directory_trace_sink_rejects_non_positive_auto_flush_threshold(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="max_buffer_rows"):
+        DirectoryTraceSink(tmp_path / "trace_output", max_buffer_rows=0)
+
+
 def test_multi_ada_sampling_requires_trace_sink_for_full_trace() -> None:
     train_mat = pd.DataFrame(
         {

@@ -65,12 +65,17 @@ class DirectoryTraceSink(TraceSink):
         output_dir: str | Path,
         *,
         fmt: PredictionTraceFormat = "csv",
+        max_buffer_rows: int = 1000,
         owned_temp_dir: TemporaryDirectory[str] | None = None,
     ) -> None:
+        if max_buffer_rows < 1:
+            msg = "max_buffer_rows must be greater than or equal to 1"
+            raise ValueError(msg)
         self._owned_temp_dir = owned_temp_dir
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.fmt = fmt
+        self.max_buffer_rows = max_buffer_rows
         self._part_counters: dict[str, int] = {name: 0 for name in TRACE_TABLE_NAMES}
         self._buffered_rows: dict[str, list[dict[str, object]]] = {
             name: [] for name in TRACE_TABLE_NAMES
@@ -84,6 +89,8 @@ class DirectoryTraceSink(TraceSink):
         if not rows:
             return
         self._buffered_rows[table_name].extend(rows)
+        if len(self._buffered_rows[table_name]) >= self.max_buffer_rows:
+            self._flush_table(table_name)
 
     def _flush_table(self, table_name: str) -> None:
         rows = self._buffered_rows[table_name]
@@ -150,13 +157,19 @@ def create_trace_sink(
     trace_sink: TraceSink | str | Path | None,
     *,
     fmt: PredictionTraceFormat,
+    max_buffer_rows: int = 1000,
 ) -> TraceSink:
     if isinstance(trace_sink, TraceSink):
         return trace_sink
     if trace_sink is None:
         temp_dir = TemporaryDirectory(prefix="phospy_prediction_trace_")
-        return DirectoryTraceSink(temp_dir.name, fmt=fmt, owned_temp_dir=temp_dir)
-    return DirectoryTraceSink(trace_sink, fmt=fmt)
+        return DirectoryTraceSink(
+            temp_dir.name,
+            fmt=fmt,
+            max_buffer_rows=max_buffer_rows,
+            owned_temp_dir=temp_dir,
+        )
+    return DirectoryTraceSink(trace_sink, fmt=fmt, max_buffer_rows=max_buffer_rows)
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,6 +184,7 @@ def build_prediction_execution_context(
     trace_level: PredictionTraceLevel,
     trace_sink: TraceSink | str | Path | None,
     trace_sink_format: PredictionTraceFormat,
+    trace_sink_max_buffer_rows: int = 1000,
 ) -> PredictionExecutionContext:
     """Resolve runtime-only prediction execution resources.
 
@@ -182,7 +196,11 @@ def build_prediction_execution_context(
 
     resolved_sampling_trace = coerce_sampling_trace(sampling_trace)
     resolved_trace_sink = (
-        create_trace_sink(trace_sink, fmt=trace_sink_format)
+        create_trace_sink(
+            trace_sink,
+            fmt=trace_sink_format,
+            max_buffer_rows=trace_sink_max_buffer_rows,
+        )
         if trace_level == "full"
         else None
     )
