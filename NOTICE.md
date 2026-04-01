@@ -10,8 +10,8 @@ Attribution:
 - This repository should cite and acknowledge the original PhosR publications and repository.
 
 Licensing position:
-- This repository is distributed under GPL-3.0-only.
-- That is the conservative choice for a language port of GPL-licensed software.
+- This repository is distributed under GPL-3.0-or-later.
+- That matches the package metadata in this repository and stays consistent with a conservative approach for a language port of GPL-licensed software.
 - Copyright in the original PhosR code remains with its original authors.
 - Copyright in changes made in this repository belongs to the contributors to this repository.
 

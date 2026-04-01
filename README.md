@@ -93,6 +93,10 @@ Required columns:
 - kinase names as columns
 - scores in the range `[0, 1]`
 
+On disk, `PhosphoDataset.from_files(...)`, `PhosRPipeline.from_files(...)`, and the CLI read the total and phospho
+inputs as tab-delimited text tables. `predMat` is read separately as CSV with the first column used as the phosphosite
+index.
+
 When you load tables from files, PhosPy normalises input headers to lowercase snake case before validation. For example,
 `Gene Names` and `gene-names` both become `gene_names`. That makes file input a little more forgiving, but it also
 means loading fails if two raw headers collapse to the same cleaned name.
@@ -264,6 +268,10 @@ This writes the default core CSV outputs together with downstream kinase-analysi
 - `ksea_counts.csv`
 - `kinase_target_counts.csv`
 - `kinase_target_table.csv`
+- `run_manifest.json`
+
+`run_manifest.json` records a small summary of the run, including whether kinase activity outputs were produced, row
+counts for the core tables, the preprocessing configuration, and the installed package version.
 
 If you omit `pred_mat_path`, the pipeline still runs the core preprocessing path and simply skips the downstream
 kinase-analysis outputs. For explicit non-CSV core persistence outside the pipeline, use `CoreOutputWriter` directly with `format="tsv"`, `format="csv"`, or `format="parquet"`. Parquet output requires an installed pandas parquet engine such as `pyarrow`; the package now exposes this as the optional `phospy[parquet]` extra.
@@ -314,11 +322,12 @@ phospy \
   --outdir examples/output
 ```
 
-The example output directory in `examples/output/` shows the generated CSV files.
+The checked-in example output directory in `examples/output/` shows the generated CSV tables. A fresh CLI or pipeline
+run also writes `run_manifest.json` to the chosen output directory.
 
 The CLI currently supports these options:
 
-- `--total` and `--phospho` are required input files
+- `--total` and `--phospho` are required tab-delimited input files
 - `--phospho-encoding` optionally overrides the default `utf-8` reader encoding
 - `--outdir` is the required output directory
 - `--pred-mat` is optional

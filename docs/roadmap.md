@@ -26,8 +26,8 @@ make them easier to run, compare, and interpret.
 
 ### Wider Preprocessing Helpers
 
-Version 1.0.0 focuses on the core path from total and phospho tables to corrected phosphosite matrices. A sensible next
-wave would be carefully chosen preprocessing helpers that fit the current dataset model.
+The current release line focuses on the core path from total and phospho tables to corrected phosphosite matrices. A
+sensible next wave would be carefully chosen preprocessing helpers that fit the current dataset model.
 
 ### Richer Downstream Kinase Summaries
 

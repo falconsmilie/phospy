@@ -33,9 +33,9 @@ These checks keep the release surface tidy and consistent.
 pre-commit run --all-files
 ```
 
-## Release Gate for 1.0.0
+## Current Release Gate
 
-From a clean checkout, the 1.0.0 release gate is simply:
+From a clean checkout, the release gate is simply:
 
 ```bash
 pre-commit run --all-files
@@ -105,7 +105,7 @@ Parity does **not** mean:
 
 ## `KinaseWorkflow` and Parity
 
-`KinaseWorkflow` is part of the supported 1.0.0 API, but it is still a **native Python workflow**.
+`KinaseWorkflow` is part of the supported public API, but it is still a **native Python workflow**.
 
 PhosPy includes fixture-backed validation at selected seams within that workflow. `svm_mode="r_parity"` exists for a
 narrower learner-seam comparison against committed references. The default `svm_mode="default"` remains the preferred
@@ -132,6 +132,10 @@ When you are debugging a parity seam, `tests/test_parity-with_metrics.py` can pr
 To see those summaries in the terminal, run pytest with `-s` (or `--capture=no`).
 
 Available environment variables:
+
+This page keeps the short version. For the full cross-platform commands, sample output, and interpretation notes, see
+[`docs/parity.md`](parity.md).
+
 
 - `PHOSPY_SHOW_PARITY`: master switch for parity metrics output
 - `PHOSPY_SHOW_PROFILE_CONSTRUCTION`: adds the optional profile-construction summary

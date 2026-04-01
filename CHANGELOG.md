@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here.
 
+## [1.1.1]
+
+Current package metadata version reflected in this repository snapshot.
+
+### Documentation and release-surface alignment
+
+- documented that file-based total and phospho inputs are read as tab-delimited text tables, while `predMat` is read as CSV with a phosphosite index column
+- documented the pipeline output bundle more completely, including `run_manifest.json`
+- updated version-specific wording in the parity and roadmap docs so it matches the current supported surface
+- aligned the licensing note in `NOTICE.md` with the package metadata
+
 ## [1.0.0] - 2026-03-26
 
 First supported PhosPy release.

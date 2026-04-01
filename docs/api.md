@@ -80,8 +80,8 @@ validated = PhosphoDataset.from_validated_inputs(validated_inputs)
 `PhosphoDataset` is immutable at the public boundary: it stores defensive copies of validated input tables and
 returns deep copies from `total_df` and `phospho_df`.
 
-A practical detail: `from_files(...)` cleans file headers to lowercase snake case before validation. In-memory data
-frames are validated as provided.
+A practical detail: `from_files(...)` reads the total and phospho inputs as tab-delimited text tables, then cleans file
+headers to lowercase snake case before validation. In-memory data frames are validated as provided.
 
 ### Main methods
 
@@ -266,7 +266,8 @@ analyzer.write_outputs(result, outdir="output")
 
 #### `load_pred_mat(pred_mat_path) -> pd.DataFrame`
 
-Loads a prediction matrix from disk and validates it against the public `predMat` schema.
+Loads a prediction matrix from disk and validates it against the public `predMat` schema. The on-disk format is CSV,
+with the first column used as the phosphosite index.
 
 #### `analyze(pred_mat, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20) -> KinaseActivityResult`
 
@@ -343,6 +344,10 @@ outputs = pipeline.run(outdir="output")
 If `pred_mat_path` was supplied, `run()` writes both core outputs and downstream kinase-analysis outputs. If not, it
 still writes the core outputs. If you call `run(outdir=None)`, PhosPy still returns the in-memory results and simply
 skips file writing.
+
+When `outdir` is provided, the pipeline publishes an output bundle that includes the core tables, any downstream
+kinase-analysis tables, and `run_manifest.json`. The manifest records whether kinase activity outputs were produced,
+row counts for the core tables, the preprocessing configuration, and the installed package version.
 
 If you already have a validated `CorePipelineRequest`, you can build the pipeline with
 `PhosRPipeline.from_request(...)`.
