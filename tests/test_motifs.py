@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import phospy.motifs as motifs
 from phospy.motifs import (
     KinaseMotifScorer,
     create_frequency_matrix,
@@ -71,6 +72,44 @@ def test_kinase_motif_scorer_extracts_centered_windows_and_scales_scores() -> No
     assert float(result.motif_scores.loc["SITE_A", "KINASE_A"]) == pytest.approx(1.0)
     assert float(result.motif_scores.loc["SITE_A", "KINASE_B"]) == pytest.approx(0.0)
     assert result.sequence_windows.loc["SITE_A"] == "AAAAA"
+
+
+def test_kinase_motif_scorer_encodes_sequence_windows_once_per_batch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scorer = KinaseMotifScorer(
+        motif_frequency_matrices={
+            "KINASE_A": create_frequency_matrix(["AAAAA"], flank_size=2),
+            "KINASE_B": create_frequency_matrix(["TTTTT"], flank_size=2),
+            "KINASE_C": create_frequency_matrix(["SSSSS"], flank_size=2),
+        },
+        motif_sizes=pd.Series(
+            {"KINASE_A": 2, "KINASE_B": 2, "KINASE_C": 2}, dtype=float
+        ),
+        flank_size=2,
+    )
+
+    encode_calls = 0
+    original_encode = motifs._encode_sequence_positions
+
+    def counting_encode(sequences: object, width: int) -> np.ndarray:
+        nonlocal encode_calls
+        encode_calls += 1
+        return original_encode(sequences, width)
+
+    monkeypatch.setattr(motifs, "_encode_sequence_positions", counting_encode)
+
+    result = scorer.score_sequences(
+        seqs={
+            "SITE_A": "QQAAAAAYY",
+            "SITE_B": "QQTTTTTYY",
+            "SITE_C": "QQSSSSSYY",
+        },
+        min_motif_size=1,
+    )
+
+    assert encode_calls == 1
+    assert list(result.motif_scores.columns) == ["KINASE_A", "KINASE_B", "KINASE_C"]
 
 
 def test_score_phosphosite_motifs_filters_by_minimum_motif_size() -> None:

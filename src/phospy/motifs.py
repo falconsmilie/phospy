@@ -73,6 +73,18 @@ class KinaseMotifScorer:
             kinase: _coerce_frequency_matrix(matrix)
             for kinase, matrix in motif_frequency_matrices.items()
         }
+        motif_widths = {
+            _motif_matrix_width(matrix)
+            for matrix in self.motif_frequency_matrices.values()
+        }
+        if len(motif_widths) != 1:
+            msg = "All motif frequency matrices must have the same window width"
+            raise InputCompatibilityError(msg)
+        self._motif_width = motif_widths.pop()
+        self._motif_frequency_values = {
+            kinase: matrix.to_numpy(dtype=float, copy=False)
+            for kinase, matrix in self.motif_frequency_matrices.items()
+        }
         self.motif_sizes = motif_sizes.astype(float).copy()
         self.flank_size = flank_size
 
@@ -129,11 +141,16 @@ class KinaseMotifScorer:
             columns=kinases,
             dtype=float,
         )
-        for kinase in kinases:
-            motif_scores.loc[:, kinase] = frequency_scoring(
-                sequence_list=windows,
-                frequency_mat=self.motif_frequency_matrices[kinase],
+        if kinases:
+            encoded_windows = _encode_sequence_positions(
+                windows,
+                width=self._motif_width,
             )
+            for kinase in kinases:
+                motif_scores.loc[:, kinase] = _score_encoded_sequences(
+                    encoded_sequences=encoded_windows,
+                    frequency_values=self._motif_frequency_values[kinase],
+                )
         motif_scores = minmax_scale_columns(motif_scores)
 
         motif_sizes = self.motif_sizes.loc[kinases].astype(float).copy()
@@ -288,6 +305,10 @@ def _score_encoded_sequences(
     position_scores = frequency_values[safe_indices, position_indices]
     position_scores = np.where(valid_mask, position_scores, 0.0)
     return position_scores.sum(axis=1, dtype=float)
+
+
+def _motif_matrix_width(frequency_mat: pd.DataFrame) -> int:
+    return int(frequency_mat.shape[1])
 
 
 def _coerce_frequency_matrix(frequency_mat: pd.DataFrame) -> pd.DataFrame:
