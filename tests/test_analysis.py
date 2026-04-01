@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy import KinaseActivityAnalyzer
-from phospy.validation.errors import TableSchemaError
+from phospy.validation.errors import RequestValidationError, TableSchemaError
 
 
 def make_pred_mat() -> pd.DataFrame:
@@ -90,3 +90,12 @@ def test_analyzer_write_outputs_writes_expected_files(tmp_path) -> None:
         "ksea_scores.csv",
     }
     assert expected_files == {path.name for path in outdir.iterdir()}
+
+
+def test_analyzer_rejects_invalid_request_threshold() -> None:
+    with pytest.raises(RequestValidationError, match="threshold"):
+        KinaseActivityAnalyzer().analyze(
+            pred_mat=make_pred_mat(),
+            phospho_matrix=make_phospho_matrix(),
+            threshold=1.5,
+        )

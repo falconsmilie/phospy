@@ -12,37 +12,15 @@ from ..validation.errors import (
     InputCompatibilityError,
     PredictionConfigurationError,
 )
+from ..validation.requests import PredictionRequest
 from .models import KinasePredictionDebugTrace, KinasePredictionResult
 from .sampling import (
-    coerce_sampling_trace,
     make_prediction_random_generators,
     multi_ada_sampling,
     validate_override_sites,
 )
-from .traces import PredictionSamplingTrace, TraceSink, create_trace_sink
-from .validation import (
-    validate_positive_int,
-    validate_svm_mode,
-    validate_trace_format,
-    validate_trace_level,
-)
-
-
-@dataclass(frozen=True, slots=True)
-class PredictionRequest:
-    combined_scores: pd.DataFrame
-    ensemble_size: int
-    top: int
-    score_threshold: float
-    inclusion: int
-    n_iterations: int
-    random_state: int | None
-    debug_kinases: list[str] | None
-    debug_top_n: int
-    svm_mode: PredictionSvmMode
-    sampling_trace: PredictionSamplingTrace | None
-    trace_level: PredictionTraceLevel
-    trace_sink: TraceSink | None
+from .traces import PredictionSamplingTrace, TraceSink
+from .validation import validate_positive_int, validate_svm_mode
 
 
 @dataclass(slots=True)
@@ -61,7 +39,7 @@ class KinasePredictionBatch:
 
 class PredictionRequestFactory:
     def __init__(self, *, default_svm_mode: PredictionSvmMode) -> None:
-        self.default_svm_mode = default_svm_mode
+        self.default_svm_mode = validate_svm_mode(default_svm_mode)
 
     def create(
         self,
@@ -82,23 +60,7 @@ class PredictionRequestFactory:
         trace_sink: TraceSink | str | Path | None,
         trace_sink_format: PredictionTraceFormat,
     ) -> PredictionRequest:
-        validate_positive_int(ensemble_size, name="ensemble_size")
-        validate_positive_int(top, name="top")
-        validate_positive_int(inclusion, name="inclusion")
-        validate_positive_int(n_iterations, name="n_iterations")
-        validate_positive_int(debug_top_n, name="debug_top_n")
-
-        resolved_svm_mode = (
-            self.default_svm_mode if svm_mode is None else validate_svm_mode(svm_mode)
-        )
-        resolved_trace_level = validate_trace_level(
-            "summary"
-            if trace_level is None and capture_debug_trace
-            else trace_level or "none"
-        )
-        resolved_trace_format = validate_trace_format(trace_sink_format)
-
-        return PredictionRequest(
+        return PredictionRequest.validate_request(
             combined_scores=combined_scores,
             ensemble_size=ensemble_size,
             top=top,
@@ -108,14 +70,13 @@ class PredictionRequestFactory:
             random_state=random_state,
             debug_kinases=debug_kinases,
             debug_top_n=debug_top_n,
-            svm_mode=resolved_svm_mode,
-            sampling_trace=coerce_sampling_trace(sampling_trace),
-            trace_level=resolved_trace_level,
-            trace_sink=(
-                create_trace_sink(trace_sink, fmt=resolved_trace_format)
-                if resolved_trace_level == "full"
-                else None
-            ),
+            svm_mode=svm_mode,
+            sampling_trace=sampling_trace,
+            trace_level=trace_level,
+            trace_sink=trace_sink,
+            default_svm_mode=self.default_svm_mode,
+            capture_debug_trace=capture_debug_trace,
+            trace_sink_format=trace_sink_format,
         )
 
 
@@ -128,7 +89,7 @@ class CandidateSelector:
         score_threshold: float,
         inclusion: int,
     ) -> dict[str, list[str]]:
-        return build_candidate_substrate_list(
+        return _build_candidate_substrate_list(
             combined_scores,
             top=top,
             score_threshold=score_threshold,
@@ -500,10 +461,10 @@ class KinasePredictor:
         ensemble_predictor: EnsemblePredictor | None = None,
     ) -> None:
         self.kernel = kernel
-        self.svm_mode = validate_svm_mode(svm_mode)
         self.request_factory = request_factory or PredictionRequestFactory(
-            default_svm_mode=self.svm_mode
+            default_svm_mode=svm_mode
         )
+        self.svm_mode = self.request_factory.default_svm_mode
         self.candidate_selector = candidate_selector or CandidateSelector()
         self.negative_pool_sampler = negative_pool_sampler or NegativePoolSampler()
         self.trace_recorder = trace_recorder or TraceRecorder()
@@ -549,6 +510,9 @@ class KinasePredictor:
             trace_sink=trace_sink,
             trace_sink_format=trace_sink_format,
         )
+        return self.predict_request(request)
+
+    def predict_request(self, request: PredictionRequest) -> KinasePredictionResult:
         substrate_list = self.candidate_selector.select(
             request.combined_scores,
             top=request.top,
@@ -623,7 +587,7 @@ class KinasePredictor:
             )
             raise InputCompatibilityError(msg)
 
-        return self.predict(
+        request = self.request_factory.create(
             combined_scores=feature_mat,
             ensemble_size=ensemble_size,
             top=top,
@@ -640,6 +604,23 @@ class KinasePredictor:
             trace_sink=trace_sink,
             trace_sink_format=trace_sink_format,
         )
+        return self.predict_request(request)
+
+
+def _build_candidate_substrate_list(
+    combined_scores: pd.DataFrame,
+    *,
+    top: int,
+    score_threshold: float,
+    inclusion: int,
+) -> dict[str, list[str]]:
+    substrate_list: dict[str, list[str]] = {}
+    for kinase in combined_scores.columns:
+        selected = combined_scores.loc[:, kinase].nlargest(top)
+        sites = selected.loc[selected > score_threshold].index.tolist()
+        if len(sites) >= inclusion:
+            substrate_list[kinase] = sites
+    return substrate_list
 
 
 def build_candidate_substrate_list(
@@ -652,14 +633,12 @@ def build_candidate_substrate_list(
 
     validate_positive_int(top, name="top")
     validate_positive_int(inclusion, name="inclusion")
-
-    substrate_list: dict[str, list[str]] = {}
-    for kinase in combined_scores.columns:
-        selected = combined_scores.loc[:, kinase].nlargest(top)
-        sites = selected.loc[selected > score_threshold].index.tolist()
-        if len(sites) >= inclusion:
-            substrate_list[kinase] = sites
-    return substrate_list
+    return _build_candidate_substrate_list(
+        combined_scores,
+        top=top,
+        score_threshold=score_threshold,
+        inclusion=inclusion,
+    )
 
 
 __all__ = [

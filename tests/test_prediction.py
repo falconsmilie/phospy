@@ -28,6 +28,7 @@ from phospy.prediction.svm import (
 )
 from phospy.prediction.traces import DirectoryTraceSink, create_trace_sink
 from phospy.scoring import KinaseScoringResult
+from phospy.validation.errors import RequestValidationError
 
 
 def make_combined_scores() -> pd.DataFrame:
@@ -819,3 +820,75 @@ def test_prediction_result_close_cleans_up_owned_trace_sink() -> None:
     result.close()
 
     assert not output_dir.exists()
+
+
+def test_predict_rejects_invalid_request_at_boundary() -> None:
+    predictor = KinasePredictor()
+
+    with pytest.raises(RequestValidationError, match="ensemble_size"):
+        predictor.predict(
+            combined_scores=make_combined_scores(),
+            ensemble_size=0,
+        )
+
+
+def test_predict_rejects_invalid_trace_sink_format_at_boundary() -> None:
+    predictor = KinasePredictor()
+
+    with pytest.raises(RequestValidationError, match="trace_sink_format"):
+        predictor.predict(
+            combined_scores=make_combined_scores(),
+            ensemble_size=1,
+            top=4,
+            score_threshold=0.85,
+            inclusion=3,
+            n_iterations=1,
+            trace_level="full",
+            trace_sink_format="json",  # type: ignore[arg-type]
+        )
+
+
+def test_predict_request_uses_prevalidated_request_without_revalidating_candidate_scalars() -> (
+    None
+):
+    predictor = KinasePredictor()
+    request = predictor.request_factory.create(
+        combined_scores=make_combined_scores(),
+        ensemble_size=1,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=1,
+        random_state=5,
+        capture_debug_trace=False,
+        debug_kinases=None,
+        debug_top_n=3,
+        svm_mode=None,
+        sampling_trace=None,
+        trace_level=None,
+        trace_sink=None,
+        trace_sink_format="csv",
+    )
+
+    original = predictor.candidate_selector.select
+
+    def select_once(
+        combined_scores: pd.DataFrame,
+        *,
+        top: int,
+        score_threshold: float,
+        inclusion: int,
+    ) -> dict[str, list[str]]:
+        assert top == 4
+        assert inclusion == 3
+        return original(
+            combined_scores,
+            top=top,
+            score_threshold=score_threshold,
+            inclusion=inclusion,
+        )
+
+    predictor.candidate_selector.select = select_once  # type: ignore[method-assign]
+    result = predictor.predict_request(request)
+
+    assert isinstance(result, KinasePredictionResult)

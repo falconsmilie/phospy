@@ -12,8 +12,9 @@ from .activities import (
     count_predicted_targets,
 )
 from .io import load_pred_mat
-from .validation.compatibility import validate_pred_mat_overlap
-from .validation.tables import PredMatSchema, SiteMatrixSchema
+from .validation.compatibility import validate_kinase_activity_inputs
+from .validation.requests import KinaseActivityRequest
+from .validation.tables import PredMatSchema
 from .writers import KinaseActivityResultWriter, KinaseActivityWriter
 
 
@@ -49,28 +50,48 @@ class KinaseActivityAnalyzer:
     ) -> KinaseActivityResult:
         """Compute downstream kinase summaries from a validated prediction matrix."""
 
-        validated_pred_mat = PredMatSchema.validate(pred_mat, context="pred_mat")
-        validated_matrix = SiteMatrixSchema.validate(
-            phospho_matrix,
-            context="phospho_matrix",
+        request = KinaseActivityRequest.validate_request(
+            threshold=threshold,
+            min_substrates=min_substrates,
+            top_n_substrates=top_n_substrates,
         )
-        validate_pred_mat_overlap(validated_pred_mat, validated_matrix)
+        return KinaseActivityAnalyzer.analyze_request(
+            request=request,
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+        )
+
+    @staticmethod
+    def analyze_request(
+        *,
+        request: KinaseActivityRequest,
+        pred_mat: pd.DataFrame,
+        phospho_matrix: pd.DataFrame,
+    ) -> KinaseActivityResult:
+        validated_pred_mat, validated_matrix = validate_kinase_activity_inputs(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+        )
 
         weighted_activity = compute_weighted_kinase_activity(
             pred_mat=validated_pred_mat,
             phospho_matrix=validated_matrix,
-            top_n_substrates=top_n_substrates,
-            min_substrates=min_substrates,
+            top_n_substrates=request.top_n_substrates,
+            min_substrates=request.min_substrates,
         )
         ksea_scores, ksea_counts = compute_ksea_scores(
             pred_mat=validated_pred_mat,
             phospho_matrix=validated_matrix,
-            threshold=threshold,
-            min_substrates=min_substrates,
+            threshold=request.threshold,
+            min_substrates=request.min_substrates,
         )
-        target_counts = count_predicted_targets(validated_pred_mat, threshold=threshold)
+        target_counts = count_predicted_targets(
+            validated_pred_mat,
+            threshold=request.threshold,
+        )
         target_table = build_kinase_target_table(
-            validated_pred_mat, threshold=threshold
+            validated_pred_mat,
+            threshold=request.threshold,
         )
 
         return KinaseActivityResult(
@@ -92,12 +113,15 @@ class KinaseActivityAnalyzer:
         """Load a prediction matrix from disk and compute downstream kinase summaries."""
 
         pred_mat = self.load_pred_mat(pred_mat_path)
-        return self.analyze(
-            pred_mat=pred_mat,
-            phospho_matrix=phospho_matrix,
+        request = KinaseActivityRequest.validate_request(
             threshold=threshold,
             min_substrates=min_substrates,
             top_n_substrates=top_n_substrates,
+        )
+        return self.analyze_request(
+            request=request,
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
         )
 
     def write_outputs(self, result: KinaseActivityResult, outdir: str | Path) -> None:

@@ -4,7 +4,11 @@ import pandas as pd
 import pytest
 
 from phospy.validation.errors import RequestValidationError
-from phospy.validation.requests import CorePipelineRequest, KinaseWorkflowRequest
+from phospy.validation.requests import (
+    CorePipelineRequest,
+    KinaseWorkflowRequest,
+    PredictionRequest,
+)
 
 
 def test_core_pipeline_request_requires_existing_paths(tmp_path) -> None:
@@ -128,3 +132,65 @@ def test_core_pipeline_request_accepts_explicit_sentinel_configuration(
 
     assert request.total_sentinel == 99.0
     assert request.phospho_sentinel == 88.0
+
+
+def test_prediction_request_rejects_invalid_trace_level() -> None:
+    with pytest.raises(RequestValidationError, match="trace_level"):
+        PredictionRequest.validate_request(
+            combined_scores=pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"]),
+            ensemble_size=2,
+            top=2,
+            score_threshold=0.8,
+            inclusion=1,
+            n_iterations=2,
+            debug_top_n=1,
+            trace_level="broken",
+            default_svm_mode="default",
+        )
+
+
+def test_prediction_request_rejects_invalid_trace_sink_format() -> None:
+    with pytest.raises(RequestValidationError, match="trace_sink_format"):
+        PredictionRequest.validate_request(
+            combined_scores=pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"]),
+            ensemble_size=2,
+            top=2,
+            score_threshold=0.8,
+            inclusion=1,
+            n_iterations=2,
+            debug_top_n=1,
+            trace_level="full",
+            trace_sink_format="json",
+            default_svm_mode="default",
+        )
+
+
+def test_prediction_request_uses_boundary_defaults() -> None:
+    request = PredictionRequest.validate_request(
+        combined_scores=pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"]),
+        ensemble_size=2,
+        top=2,
+        score_threshold=0.8,
+        inclusion=1,
+        n_iterations=2,
+        debug_top_n=1,
+        capture_debug_trace=True,
+        default_svm_mode="r_parity",
+    )
+
+    assert request.svm_mode == "r_parity"
+    assert request.trace_level == "summary"
+
+
+def test_prediction_request_rejects_non_positive_integer_fields() -> None:
+    with pytest.raises(RequestValidationError, match="ensemble_size"):
+        PredictionRequest.validate_request(
+            combined_scores=pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"]),
+            ensemble_size=0,
+            top=2,
+            score_threshold=0.8,
+            inclusion=1,
+            n_iterations=2,
+            debug_top_n=1,
+            default_svm_mode="default",
+        )

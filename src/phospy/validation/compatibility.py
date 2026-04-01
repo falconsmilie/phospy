@@ -6,7 +6,8 @@ import pandas as pd
 
 from .errors import InputCompatibilityError
 from .normalization import normalize_identifier_series
-from .tables import SiteMatrixSchema
+from .requests import KinaseWorkflowRequest
+from .tables import PredMatSchema, SiteMatrixSchema
 
 
 def validate_core_column_alignment(
@@ -89,6 +90,42 @@ def validate_protein_correction_inputs(
             f"{total_gene_col}: {unmatched_preview}"
         )
         raise InputCompatibilityError(msg)
+
+
+def validate_kinase_activity_inputs(
+    pred_mat: pd.DataFrame,
+    phospho_matrix: pd.DataFrame,
+    *,
+    pred_context: str = "pred_mat",
+    matrix_context: str = "phospho_matrix",
+    min_overlap: int = 1,
+    min_fraction: float = 0.1,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    validated_pred_mat = PredMatSchema.validate(pred_mat, context=pred_context)
+    validated_matrix = SiteMatrixSchema.validate(phospho_matrix, context=matrix_context)
+    validate_pred_mat_overlap(
+        validated_pred_mat,
+        validated_matrix,
+        pred_context=pred_context,
+        matrix_context=matrix_context,
+        min_overlap=min_overlap,
+        min_fraction=min_fraction,
+    )
+    return validated_pred_mat, validated_matrix
+
+
+def validate_workflow_request(
+    request: KinaseWorkflowRequest,
+    *,
+    context: str = "Kinase workflow inputs",
+) -> pd.DataFrame:
+    return validate_workflow_inputs(
+        request.phospho_matrix,
+        request.substrate_map,
+        request.site_sequences,
+        request.motif_sequences,
+        context=context,
+    )
 
 
 def validate_pred_mat_overlap(

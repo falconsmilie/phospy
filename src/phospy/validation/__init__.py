@@ -1,8 +1,10 @@
 from .compatibility import (
     validate_core_column_alignment,
+    validate_kinase_activity_inputs,
     validate_pred_mat_overlap,
     validate_protein_correction_inputs,
     validate_workflow_inputs,
+    validate_workflow_request,
 )
 from .errors import (
     InputCompatibilityError,
@@ -18,6 +20,7 @@ from .requests import (
     CorePipelineRequest,
     KinaseActivityRequest,
     KinaseWorkflowRequest,
+    PredictionRequest,
 )
 from .tables import (
     PhosphoInputSchema,
@@ -32,6 +35,7 @@ __all__ = [
     "PhospyError",
     "KinaseActivityRequest",
     "KinaseWorkflowRequest",
+    "PredictionRequest",
     "validate_non_negative_int",
     "validate_positive_int",
     "PhosphoInputSchema",
@@ -44,7 +48,9 @@ __all__ = [
     "TraceError",
     "TotalInputSchema",
     "validate_core_column_alignment",
+    "validate_kinase_activity_inputs",
     "validate_pred_mat_overlap",
     "validate_protein_correction_inputs",
     "validate_workflow_inputs",
+    "validate_workflow_request",
 ]

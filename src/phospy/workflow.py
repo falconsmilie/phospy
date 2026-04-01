@@ -10,7 +10,7 @@ from .prediction import KinasePredictionResult, KinasePredictor
 from .profiles import KinaseProfileResult, build_kinase_substrate_profiles
 from .scoring import KinaseScorer, KinaseScoringResult
 from .types import PredictionSvmMode
-from .validation.compatibility import validate_workflow_inputs
+from .validation.compatibility import validate_workflow_request
 from .validation.requests import KinaseWorkflowRequest
 
 
@@ -71,12 +71,7 @@ class KinaseWorkflow:
         return self.run_request(request)
 
     def run_request(self, request: KinaseWorkflowRequest) -> KinaseWorkflowResult:
-        phospho_matrix = validate_workflow_inputs(
-            request.phospho_matrix,
-            request.substrate_map,
-            request.site_sequences,
-            request.motif_sequences,
-        )
+        phospho_matrix = validate_workflow_request(request)
 
         profile_result = build_kinase_substrate_profiles(
             substrate_map=request.substrate_map,
