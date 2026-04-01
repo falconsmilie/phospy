@@ -24,6 +24,7 @@ from .requests import (
 )
 from .tables import (
     PhosphoInputSchema,
+    PredictionScoreMatrixSchema,
     PredMatSchema,
     SiteMatrixSchema,
     TotalInputSchema,
@@ -42,6 +43,7 @@ __all__ = [
     "PhospyValidationError",
     "PredictionConfigurationError",
     "PredMatSchema",
+    "PredictionScoreMatrixSchema",
     "RequestValidationError",
     "SiteMatrixSchema",
     "TableSchemaError",

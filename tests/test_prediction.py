@@ -892,3 +892,29 @@ def test_predict_request_uses_prevalidated_request_without_revalidating_candidat
     result = predictor.predict_request(request)
 
     assert isinstance(result, KinasePredictionResult)
+
+
+def test_predict_rejects_non_numeric_combined_scores_at_boundary() -> None:
+    predictor = KinasePredictor()
+
+    with pytest.raises(RequestValidationError, match="combined_scores"):
+        predictor.predict(
+            combined_scores=pd.DataFrame({"KINASE_A": ["bad"]}, index=["SITE_1"]),
+            ensemble_size=1,
+            top=1,
+            score_threshold=0.8,
+            inclusion=1,
+            n_iterations=1,
+        )
+
+
+def test_build_candidate_substrate_list_rejects_invalid_combined_scores_cleanly() -> (
+    None
+):
+    with pytest.raises(ValueError, match="combined_scores"):
+        build_candidate_substrate_list(
+            pd.DataFrame({"KINASE_A": ["bad"]}, index=["SITE_1"]),
+            top=1,
+            score_threshold=0.8,
+            inclusion=1,
+        )

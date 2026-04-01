@@ -23,6 +23,7 @@ from phospy.types import (
 )
 
 from .errors import RequestValidationError
+from .tables import PredictionScoreMatrixSchema
 
 _VALID_COMPARISON_GROUPS = frozenset(DEFAULT_TOTAL_COLS)
 _PREDICTION_SVM_MODE_ADAPTER = TypeAdapter(PredictionSvmMode)
@@ -214,7 +215,7 @@ class PredictionRequest(PhospyRequestModel):
     combined_scores: pd.DataFrame
     ensemble_size: int = Field(ge=1)
     top: int = Field(ge=1)
-    score_threshold: float
+    score_threshold: float = Field(ge=0.0, le=1.0)
     inclusion: int = Field(ge=1)
     n_iterations: int = Field(ge=1)
     random_state: int | None = None
@@ -224,6 +225,14 @@ class PredictionRequest(PhospyRequestModel):
     sampling_trace: Any | None = None
     trace_level: PredictionTraceLevel = "none"
     trace_sink: Any | None = None
+
+    @field_validator("combined_scores")
+    @classmethod
+    def validate_combined_scores(cls, value: pd.DataFrame) -> pd.DataFrame:
+        return PredictionScoreMatrixSchema.validate(
+            value,
+            context="combined_scores",
+        )
 
     @field_validator("debug_kinases", mode="before")
     @classmethod

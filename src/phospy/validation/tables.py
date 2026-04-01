@@ -117,6 +117,35 @@ class PredMatSchema:
         return validated
 
 
+class PredictionScoreMatrixSchema:
+    """Validate combined score matrices used by kinase prediction workflows."""
+
+    @classmethod
+    def validate(
+        cls,
+        frame: pd.DataFrame,
+        *,
+        context: str = "combined_scores",
+    ) -> pd.DataFrame:
+        validated = _ensure_dataframe(frame, context=context)
+        _ensure_unique_columns(validated.columns, context=context)
+        _ensure_non_null_columns(validated.columns, context=context)
+        if validated.empty:
+            msg = f"{context} must contain at least one phosphosite row"
+            raise TableSchemaError(msg)
+        if validated.shape[1] == 0:
+            msg = f"{context} must contain at least one kinase column"
+            raise TableSchemaError(msg)
+        validated = _coerce_numeric_columns(
+            validated,
+            list(validated.columns),
+            context=context,
+        )
+        _ensure_unique_index(validated, context=context)
+        _ensure_non_null_index(validated, context=context)
+        return validated
+
+
 class SiteMatrixSchema:
     """Validate phosphosite matrices used by downstream analysis and workflows."""
 
@@ -176,6 +205,16 @@ def _ensure_unique_columns(columns: Iterable[object], *, context: str) -> None:
     if duplicates:
         duplicates_str = ", ".join(duplicates)
         msg = f"{context} contains duplicate column names: {duplicates_str}"
+        raise TableSchemaError(msg)
+
+
+def _ensure_non_null_columns(columns: Iterable[object], *, context: str) -> None:
+    null_like: list[str] = []
+    for column in columns:
+        if pd.isna(column):
+            null_like.append("<null>")
+    if null_like:
+        msg = f"{context} contains null column names"
         raise TableSchemaError(msg)
 
 

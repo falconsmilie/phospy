@@ -11,8 +11,10 @@ from ..types import PredictionSvmMode, PredictionTraceFormat, PredictionTraceLev
 from ..validation.errors import (
     InputCompatibilityError,
     PredictionConfigurationError,
+    TableSchemaError,
 )
 from ..validation.requests import PredictionRequest
+from ..validation.tables import PredictionScoreMatrixSchema
 from .models import KinasePredictionDebugTrace, KinasePredictionResult
 from .sampling import (
     make_prediction_random_generators,
@@ -633,8 +635,15 @@ def build_candidate_substrate_list(
 
     validate_positive_int(top, name="top")
     validate_positive_int(inclusion, name="inclusion")
-    return _build_candidate_substrate_list(
+    if not 0.0 <= float(score_threshold) <= 1.0:
+        msg = "score_threshold must be between 0.0 and 1.0"
+        raise TableSchemaError(msg)
+    validated_scores = PredictionScoreMatrixSchema.validate(
         combined_scores,
+        context="combined_scores",
+    )
+    return _build_candidate_substrate_list(
+        validated_scores,
         top=top,
         score_threshold=score_threshold,
         inclusion=inclusion,
