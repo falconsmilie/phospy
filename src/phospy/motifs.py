@@ -45,6 +45,8 @@ _AMINO_ACID_INDEX_LOOKUP = np.full(
 for _row_index, _amino_acid in enumerate(AMINO_ACIDS):
     _AMINO_ACID_INDEX_LOOKUP[ord(_amino_acid)] = _row_index
 
+_ALLOWED_SEQUENCE_CHARACTERS: frozenset[str] = frozenset(AMINO_ACIDS) | frozenset({"_"})
+
 
 @dataclass(slots=True)
 class MotifScoringResult:
@@ -332,18 +334,36 @@ def _extract_sequence_window(value: object, flank_size: int | None) -> str:
     if value is None or pd.isna(value):
         return np.nan  # type: ignore[return-value]
 
-    sequence = str(value)
+    sequence = str(value).upper()
     if sequence == "":
         return "_"
 
     if flank_size is None:
-        return sequence
+        return _validate_sequence_window(sequence)
 
     window_size = (2 * flank_size) + 1
     if len(sequence) <= window_size:
-        return sequence
+        return _validate_sequence_window(sequence)
 
     mid = len(sequence) // 2
     start = mid - flank_size
     stop = mid + flank_size + 1
-    return sequence[start:stop]
+    return _validate_sequence_window(sequence[start:stop])
+
+
+def _validate_sequence_window(sequence: str) -> str:
+    invalid_characters = sorted(
+        {
+            character
+            for character in sequence
+            if character not in _ALLOWED_SEQUENCE_CHARACTERS
+        }
+    )
+    if invalid_characters:
+        invalid_text = ", ".join(repr(character) for character in invalid_characters)
+        msg = (
+            "sequence contains invalid amino-acid characters: "
+            f"{invalid_text}; allowed characters are the 20 standard amino acids and '_'"
+        )
+        raise TableSchemaError(msg)
+    return sequence

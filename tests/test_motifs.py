@@ -10,6 +10,7 @@ from phospy.motifs import (
     frequency_scoring,
     score_phosphosite_motifs,
 )
+from phospy.validation.errors import TableSchemaError
 
 
 def test_create_frequency_matrix_normalizes_counts_and_ignores_gaps() -> None:
@@ -20,18 +21,33 @@ def test_create_frequency_matrix_normalizes_counts_and_ignores_gaps() -> None:
     assert float(frequency_mat.loc["A", "p3"]) == pytest.approx(1.0)
 
 
-def test_frequency_scoring_scores_valid_amino_acids_and_ignores_invalid() -> None:
+def test_create_frequency_matrix_normalizes_lowercase_sequences() -> None:
+    lower = create_frequency_matrix(["aca"], flank_size=1)
+    upper = create_frequency_matrix(["ACA"], flank_size=1)
+
+    pd.testing.assert_frame_equal(lower, upper)
+
+
+def test_frequency_scoring_normalizes_lowercase_sequences() -> None:
     frequency_mat = create_frequency_matrix(["ACA", "AAA"], flank_size=1)
-    sequence_list = pd.Series(
-        ["ACA", "AXA", np.nan],
-        index=["SITE_A", "SITE_X", "SITE_NA"],
+
+    result = frequency_scoring(
+        sequence_list=pd.Series(["ACA", "aca"], index=["SITE_UPPER", "SITE_LOWER"]),
+        frequency_mat=frequency_mat,
     )
 
-    result = frequency_scoring(sequence_list=sequence_list, frequency_mat=frequency_mat)
+    assert float(result.loc["SITE_UPPER"]) == pytest.approx(2.5)
+    assert float(result.loc["SITE_LOWER"]) == pytest.approx(2.5)
 
-    assert float(result.loc["SITE_A"]) == pytest.approx(2.5)
-    assert float(result.loc["SITE_X"]) == pytest.approx(2.0)
-    assert float(result.loc["SITE_NA"]) == pytest.approx(0.0)
+
+def test_frequency_scoring_rejects_invalid_amino_acid_characters() -> None:
+    frequency_mat = create_frequency_matrix(["ACA", "AAA"], flank_size=1)
+
+    with pytest.raises(TableSchemaError, match="invalid amino-acid characters"):
+        frequency_scoring(
+            sequence_list=pd.Series(["AXA", np.nan], index=["SITE_X", "SITE_NA"]),
+            frequency_mat=frequency_mat,
+        )
 
 
 def test_kinase_motif_scorer_extracts_centered_windows_and_scales_scores() -> None:
