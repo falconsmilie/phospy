@@ -37,6 +37,10 @@ Changelog = "https://github.com/falconsmilie/phospy/blob/main/CHANGELOG.md"
 
 
 [project.optional-dependencies]
+parquet = [
+  "pyarrow>=15.0",
+]
+
 test = [
   "pytest>=8.0",
 ]

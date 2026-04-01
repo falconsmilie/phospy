@@ -7,12 +7,10 @@ from pathlib import Path
 import pandas as pd
 
 from .constants import ComparisonSpec
-from .core_processing import CoreProcessingResult
 from .dataset_loader import DatasetLoader
 from .dataset_preprocessing import DatasetPreprocessing
 from .dataset_schema import DatasetSchema
 from .dataset_site_matrix import DatasetSiteMatrix
-from .writers import CoreOutputWriter, CoreProcessingResultWriter
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,12 +126,3 @@ class PhosphoDataset:
             comparisons=comparisons,
             schema=loader.schema,
         )
-
-    @staticmethod
-    def write_core_outputs(
-        result: CoreProcessingResult,
-        outdir: str | Path,
-        *,
-        writer: CoreProcessingResultWriter = CoreOutputWriter,
-    ) -> None:
-        writer.write(result, outdir)

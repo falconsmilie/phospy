@@ -106,7 +106,7 @@ The quickest way to get started from a source checkout is to use the bundled exa
 ### Core Preprocessing
 
 ```python
-from phospy import PhosphoDataset
+from phospy import CoreOutputWriter, PhosphoDataset
 
 dataset = PhosphoDataset.from_files(
     "examples/data/total.tsv",
@@ -115,13 +115,17 @@ dataset = PhosphoDataset.from_files(
 )
 core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
 
+writer = CoreOutputWriter()
+writer.write(core, outdir="examples/output", format="csv")
+# Use format="tsv" or format="parquet" for alternative core output bundles.
+
 site_matrix = core.site_matrix.matrix
 corrected = core.phospho_corrected
 ```
 
 For the bundled example data, `site_matrix.index.tolist()` returns `['BTK;Y551;']`.
 
-`dataset.preprocessing` is the bound preprocessing facade for the dataset and the public entrypoint for core preprocessing.
+`dataset.preprocessing` is the bound preprocessing facade for the dataset and the public entrypoint for core preprocessing. `CoreOutputWriter` is the canonical public API for persisting core preprocessing outputs.
 
 `dataset.preprocessing.run()` returns a `CoreProcessingResult` with:
 
@@ -245,7 +249,7 @@ outputs = pipeline.run(outdir="examples/output")
 - `outputs.core`
 - `outputs.kinase_activity`
 
-This writes the core CSV outputs together with downstream kinase-analysis tables, including:
+This writes the default core CSV outputs together with downstream kinase-analysis tables, including:
 
 - `df_total_unique.csv`
 - `df_total_filtered.csv`
@@ -261,7 +265,7 @@ This writes the core CSV outputs together with downstream kinase-analysis tables
 - `kinase_target_table.csv`
 
 If you omit `pred_mat_path`, the pipeline still runs the core preprocessing path and simply skips the downstream
-kinase-analysis outputs.
+kinase-analysis outputs. For explicit non-CSV core persistence outside the pipeline, use `CoreOutputWriter` directly with `format="tsv"`, `format="csv"`, or `format="parquet"`. Parquet output requires an installed pandas parquet engine such as `pyarrow`; the package now exposes this as the optional `phospy[parquet]` extra.
 
 ### Native End-to-End Kinase Workflow
 

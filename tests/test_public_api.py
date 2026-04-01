@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pandas as pd
 import pytest
 
 from phospy import (
+    CoreOutputWriter,
     DatasetPreprocessing,
     DatasetSchema,
     DatasetSiteMatrix,
@@ -67,6 +69,7 @@ def test_public_root_exports() -> None:
     import phospy
 
     expected = {
+        "CoreOutputWriter",
         "CoreOutputs",
         "CoreProcessingResult",
         "DatasetPreprocessing",
@@ -204,6 +207,7 @@ def test_phospho_dataset_does_not_expose_legacy_direct_preprocessing_methods() -
     assert not hasattr(dataset, "add_pairwise_comparisons")
     assert not hasattr(dataset, "process_core")
     assert not hasattr(dataset, "build_site_matrix")
+    assert not hasattr(dataset, "write_core_outputs")
     assert not hasattr(dataset.preprocessing, "build_site_matrix")
 
 
@@ -223,6 +227,135 @@ def test_phospho_dataset_from_validated_inputs_builds_without_revalidation() -> 
     assert dataset.total_df.equals(total_df)
     assert dataset.phospho_df.equals(phospho_df)
     assert dataset.comparisons == tuple(EXAMPLE_COMPARISONS)
+
+
+def test_core_output_writer_writes_csv_outputs(tmp_path) -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+
+    outdir = tmp_path / "core-output-csv"
+    CoreOutputWriter().write(core, outdir)
+
+    expected_files = {
+        "df_phospho_corrected.csv",
+        "df_phospho_filtered.csv",
+        "df_total_filtered.csv",
+        "df_total_unique.csv",
+        "mat_phospho_corrected.csv",
+        "phosr_input.csv",
+        "site_sequences.csv",
+    }
+    assert expected_files == {path.name for path in outdir.iterdir()}
+
+
+def test_core_output_writer_writes_tsv_outputs(tmp_path) -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+
+    outdir = tmp_path / "core-output-tsv"
+    CoreOutputWriter().write(core, outdir, format="tsv")
+
+    expected_files = {
+        "df_phospho_corrected.tsv",
+        "df_phospho_filtered.tsv",
+        "df_total_filtered.tsv",
+        "df_total_unique.tsv",
+        "mat_phospho_corrected.tsv",
+        "phosr_input.tsv",
+        "site_sequences.tsv",
+    }
+    assert expected_files == {path.name for path in outdir.iterdir()}
+
+    total_unique = pd.read_csv(outdir / "df_total_unique.tsv", sep="\t")
+    assert total_unique["genes"].tolist() == ["BTK", "LYN", "PRKACA"]
+
+
+def test_core_output_writer_writes_parquet_outputs(monkeypatch, tmp_path) -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    written_paths: list[tuple[Path, bool]] = []
+
+    def fake_to_parquet(
+        self: pd.DataFrame,
+        path: str | Path,
+        *,
+        index: bool = True,
+        **_: object,
+    ) -> None:
+        destination = Path(path)
+        written_paths.append((destination, index))
+        destination.write_text("parquet stub", encoding="utf-8")
+
+    monkeypatch.setattr(pd.DataFrame, "to_parquet", fake_to_parquet)
+
+    outdir = tmp_path / "core-output-parquet"
+    CoreOutputWriter().write(core, outdir, format="parquet")
+
+    assert {path.name for path, _ in written_paths} == {
+        "df_phospho_corrected.parquet",
+        "df_phospho_filtered.parquet",
+        "df_total_filtered.parquet",
+        "df_total_unique.parquet",
+        "mat_phospho_corrected.parquet",
+        "phosr_input.parquet",
+        "site_sequences.parquet",
+    }
+    index_flags = {path.name: index for path, index in written_paths}
+    assert index_flags["df_total_unique.parquet"] is False
+    assert index_flags["mat_phospho_corrected.parquet"] is True
+    assert index_flags["site_sequences.parquet"] is True
+
+
+def test_core_output_writer_rejects_unknown_format(tmp_path) -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+
+    with pytest.raises(ValueError, match="Unsupported core output format"):
+        CoreOutputWriter().write(core, tmp_path / "core-output-unknown", format="json")
+
+
+def test_core_output_writer_raises_clear_error_without_parquet_engine(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+
+    def blow_up(
+        self: pd.DataFrame,
+        path: str | Path,
+        *,
+        index: bool = True,
+        **_: object,
+    ) -> None:
+        raise ImportError("missing engine")
+
+    monkeypatch.setattr(pd.DataFrame, "to_parquet", blow_up)
+
+    with pytest.raises(RuntimeError, match="optional pandas parquet engine"):
+        CoreOutputWriter().write(
+            core, tmp_path / "core-output-parquet", format="parquet"
+        )
 
 
 def test_kinase_activity_analyzer_analyze() -> None:

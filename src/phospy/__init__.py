@@ -8,8 +8,10 @@ from .pipeline import CoreOutputs, PhosRPipeline
 from .prediction import KinasePredictionResult
 from .site_matrix_builder import SiteMatrixResult
 from .workflow import KinaseWorkflow, KinaseWorkflowResult
+from .writers import CoreOutputWriter
 
 __all__ = [
+    "CoreOutputWriter",
     "CoreOutputs",
     "CoreProcessingResult",
     "DatasetPreprocessing",

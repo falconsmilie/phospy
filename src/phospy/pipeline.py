@@ -153,7 +153,7 @@ class PhosRPipeline:
             prefix=f".{target_dir.name}.tmp-",
         ) as staging_dir_str:
             staging_dir = Path(staging_dir_str)
-            CoreOutputWriter.write(core, staging_dir)
+            CoreOutputWriter().write(core, staging_dir)
             if kinase_activity is not None:
                 KinaseActivityWriter.write(kinase_activity, staging_dir)
             self._write_run_manifest(

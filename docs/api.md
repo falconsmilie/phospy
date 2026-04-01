@@ -11,6 +11,7 @@ If you stay within the classes on this page, you are using the public surface th
 
 ```python
 from phospy import (
+    CoreOutputWriter,
     CoreOutputs,
     CoreProcessingResult,
     DatasetPreprocessing,
@@ -138,12 +139,32 @@ core = dataset.preprocessing.run()
 site_matrix = dataset.site_matrix.build(core.phospho_corrected)
 ```
 
-#### Other supported methods
-
-- `write_core_outputs(...)`
-
 Use `DatasetSchema` when your input tables do not use the default aligned sample columns. The schema is immutable and
 travels with the dataset through validation and core preprocessing.
+
+## `CoreOutputWriter`
+
+Use this when you want to persist a `CoreProcessingResult`. Output writing is intentionally separate from `PhosphoDataset`.
+
+Typical usage:
+
+```python
+from phospy import CoreOutputWriter, PhosphoDataset
+
+dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
+core = dataset.preprocessing.run()
+
+writer = CoreOutputWriter()
+writer.write(core, outdir="results", format="parquet")
+```
+
+Supported formats:
+
+- `"csv"`
+- `"tsv"`
+- `"parquet"`
+
+Parquet output requires an installed pandas parquet engine such as `pyarrow`.
 
 ### Standalone localisation and coverage filtering helpers
 
