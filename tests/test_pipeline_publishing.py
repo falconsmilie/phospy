@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import KinaseActivityAnalyzer
+from phospy import KinaseActivityAnalyzer, PhosRPipeline
 from phospy.core_processing import CorePreprocessingConfig
 from phospy.dataset import PhosphoDataset
 from phospy.publishing import OutputPublisher, RunManifestWriter
@@ -115,6 +115,75 @@ def test_output_publisher_restores_backup_on_publish_failure(
     assert staging_dir.exists()
     assert (staging_dir / "new.txt").read_text(encoding="utf-8") == "new"
     assert not list(tmp_path.glob(".published.backup-*"))
+
+
+def test_pipeline_delegates_manifest_and_publish_to_publishing_layer(
+    tmp_path: Path,
+) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    pred_path = tmp_path / "predMat.csv"
+    outdir = tmp_path / "published"
+
+    make_total_df().to_csv(total_path, sep="	", index=False)
+    make_phospho_df().to_csv(phospho_path, sep="	", index=False)
+    make_pred_mat().to_csv(pred_path)
+
+    manifest_calls: list[dict[str, object]] = []
+    publish_calls: list[dict[str, Path]] = []
+
+    class RecordingManifestWriter(RunManifestWriter):
+        def write(self, *, outdir, core, kinase_activity, preprocessing_config) -> None:
+            manifest_calls.append(
+                {
+                    "outdir": outdir,
+                    "has_kinase_activity": kinase_activity is not None,
+                    "min_observed": preprocessing_config.min_observed,
+                    "site_matrix_rows": int(core.site_matrix.matrix.shape[0]),
+                }
+            )
+            super().write(
+                outdir=outdir,
+                core=core,
+                kinase_activity=kinase_activity,
+                preprocessing_config=preprocessing_config,
+            )
+
+    class RecordingOutputPublisher(OutputPublisher):
+        def publish(self, *, staging_dir: Path, target_dir: Path) -> None:
+            publish_calls.append(
+                {
+                    "staging_dir": staging_dir,
+                    "target_dir": target_dir,
+                }
+            )
+            super().publish(staging_dir=staging_dir, target_dir=target_dir)
+
+    pipeline = PhosRPipeline.from_files(
+        total_path=total_path,
+        phospho_path=phospho_path,
+        pred_mat_path=pred_path,
+    )
+    pipeline.manifest_writer = RecordingManifestWriter(
+        package_version_resolver=lambda: "1.2.3-test",
+        clock=lambda: datetime(2026, 4, 1, 9, 30, tzinfo=timezone.utc),
+    )
+    pipeline.output_publisher = RecordingOutputPublisher()
+
+    pipeline.run(outdir=outdir)
+
+    assert len(manifest_calls) == 1
+    assert manifest_calls[0]["has_kinase_activity"] is True
+    assert manifest_calls[0]["min_observed"] == 4
+    assert manifest_calls[0]["site_matrix_rows"] == 3
+
+    assert len(publish_calls) == 1
+    assert publish_calls[0]["target_dir"] == outdir
+    assert publish_calls[0]["staging_dir"].name.startswith(".published.tmp-")
+
+    manifest = json.loads((outdir / "run_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["package_version"] == "1.2.3-test"
+    assert manifest["generated_at_utc"] == "2026-04-01T09:30:00+00:00"
 
 
 def test_run_manifest_writer_serializes_expected_metadata(tmp_path: Path) -> None:
