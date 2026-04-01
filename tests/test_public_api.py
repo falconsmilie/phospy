@@ -8,6 +8,7 @@ import pytest
 from phospy import (
     DatasetPreprocessing,
     DatasetSchema,
+    DatasetSiteMatrix,
     KinaseActivityAnalyzer,
     KinaseWorkflow,
     PhosphoDataset,
@@ -70,6 +71,7 @@ def test_public_root_exports() -> None:
         "CoreProcessingResult",
         "DatasetPreprocessing",
         "DatasetSchema",
+        "DatasetSiteMatrix",
         "KinaseActivityAnalyzer",
         "KinaseActivityResult",
         "KinasePredictionResult",
@@ -112,6 +114,34 @@ def test_phospho_dataset_preprocessing_facade_is_bound_and_typed() -> None:
     assert preprocessing.phospho_df.equals(dataset.phospho_df)
     assert preprocessing.schema == dataset.schema
     assert preprocessing.comparisons == tuple(EXAMPLE_COMPARISONS)
+
+
+def test_phospho_dataset_site_matrix_facade_is_bound_and_typed() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+
+    site_matrix = dataset.site_matrix
+
+    assert isinstance(site_matrix, DatasetSiteMatrix)
+    assert site_matrix.schema == dataset.schema
+
+
+def test_phospho_dataset_site_matrix_build_matches_run_output() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+
+    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    via_service = dataset.site_matrix.build(core.phospho_corrected)
+
+    pd.testing.assert_frame_equal(via_service.phosr_input, core.site_matrix.phosr_input)
+    pd.testing.assert_frame_equal(via_service.matrix, core.site_matrix.matrix)
+    pd.testing.assert_series_equal(via_service.sequences, core.site_matrix.sequences)
+    assert via_service.row_drop_stats == core.site_matrix.row_drop_stats
 
 
 def test_phospho_dataset_preprocessing_run_matches_core_processor() -> None:
@@ -173,6 +203,8 @@ def test_phospho_dataset_does_not_expose_legacy_direct_preprocessing_methods() -
     assert not hasattr(dataset, "correct_to_protein")
     assert not hasattr(dataset, "add_pairwise_comparisons")
     assert not hasattr(dataset, "process_core")
+    assert not hasattr(dataset, "build_site_matrix")
+    assert not hasattr(dataset.preprocessing, "build_site_matrix")
 
 
 def test_phospho_dataset_from_validated_inputs_builds_without_revalidation() -> None:

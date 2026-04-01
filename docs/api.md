@@ -15,6 +15,7 @@ from phospy import (
     CoreProcessingResult,
     DatasetPreprocessing,
     DatasetSchema,
+    DatasetSiteMatrix,
     KinaseActivityAnalyzer,
     KinaseActivityResult,
     KinasePredictionResult,
@@ -100,7 +101,6 @@ The facade also exposes the stepwise preprocessing methods when you want to exec
 - `prepare_phospho(...)`
 - `correct_to_protein(...)`
 - `add_pairwise_comparisons(...)`
-- `build_site_matrix(...)`
 
 #### `preprocessing.run(...) -> CoreProcessingResult`
 
@@ -123,15 +123,23 @@ Key parameters:
 A practical detail: `max_unmatched_fraction=0.0` is strict. Protein correction fails if the inner join would silently
 drop any phosphosite rows.
 
+#### `site_matrix -> DatasetSiteMatrix`
+
+Bound site-matrix facade for the dataset. Use this when you already have a corrected phosphosite table and want to
+build the PhosR-style site matrix directly.
+
+Typical usage:
+
+```python
+from phospy import PhosphoDataset
+
+dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
+core = dataset.preprocessing.run()
+site_matrix = dataset.site_matrix.build(core.phospho_corrected)
+```
+
 #### Other supported methods
 
-These are useful when you want the steps separately:
-
-- `prepare_total(...)`
-- `prepare_phospho(...)`
-- `correct_to_protein(...)`
-- `add_pairwise_comparisons(...)`
-- `build_site_matrix(...)`
 - `write_core_outputs(...)`
 
 Use `DatasetSchema` when your input tables do not use the default aligned sample columns. The schema is immutable and

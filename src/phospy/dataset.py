@@ -11,7 +11,7 @@ from .core_processing import CoreProcessingResult
 from .dataset_loader import DatasetLoader
 from .dataset_preprocessing import DatasetPreprocessing
 from .dataset_schema import DatasetSchema
-from .site_matrix_builder import SiteMatrixResult
+from .dataset_site_matrix import DatasetSiteMatrix
 from .writers import CoreOutputWriter, CoreProcessingResultWriter
 
 
@@ -84,6 +84,11 @@ class PhosphoDataset:
             comparisons=self.comparisons,
         )
 
+    @property
+    def site_matrix(self) -> DatasetSiteMatrix:
+        """Return the bound site-matrix facade for this dataset."""
+        return DatasetSiteMatrix(schema=self.schema)
+
     @classmethod
     def from_validated_inputs(
         cls,
@@ -122,18 +127,6 @@ class PhosphoDataset:
             phospho_df=phospho_df,
             comparisons=comparisons,
             schema=loader.schema,
-        )
-
-    def build_site_matrix(
-        self,
-        corrected_df: pd.DataFrame,
-        gene_p_site_col: str = "gene_p_site",
-        sequence_col: str = "centralized_sequence",
-    ) -> SiteMatrixResult:
-        return self.preprocessing.build_site_matrix(
-            corrected_df,
-            gene_p_site_col=gene_p_site_col,
-            sequence_col=sequence_col,
         )
 
     @staticmethod

@@ -16,7 +16,6 @@ from .core_processing import (
     CoreProcessor,
 )
 from .dataset_schema import DatasetSchema
-from .site_matrix_builder import SiteMatrixBuilder, SiteMatrixResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,9 +49,6 @@ class DatasetPreprocessing:
             schema=self.schema,
             comparisons=self.comparisons,
         )
-
-    def _site_matrix_builder(self) -> SiteMatrixBuilder:
-        return SiteMatrixBuilder(value_cols=self.schema.corrected_cols)
 
     def prepare_total(
         self,
@@ -110,18 +106,6 @@ class DatasetPreprocessing:
         return self._core_processor().add_pairwise_comparisons(
             corrected_df,
             output_prefix=output_prefix,
-        )
-
-    def build_site_matrix(
-        self,
-        corrected_df: pd.DataFrame,
-        gene_p_site_col: str = "gene_p_site",
-        sequence_col: str = "centralized_sequence",
-    ) -> SiteMatrixResult:
-        return self._site_matrix_builder().build(
-            corrected_df,
-            gene_p_site_col=gene_p_site_col,
-            sequence_col=sequence_col,
         )
 
     def run(
