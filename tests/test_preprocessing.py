@@ -5,13 +5,74 @@ import pandas as pd
 import pytest
 
 from phospy.preprocessing import (
+    LocalizationFilterResult,
     add_pairwise_comparisons,
     collapse_duplicate_genes,
     correct_phospho_to_protein,
+    filter_localized_sites,
     filter_min_observed,
     replace_sentinel_with_nan,
 )
-from phospy.validation.errors import InputCompatibilityError, TableSchemaError
+from phospy.validation.errors import (
+    InputCompatibilityError,
+    PhospyValidationError,
+    TableSchemaError,
+)
+
+
+def test_filter_localized_sites_filters_inclusive_threshold_and_returns_summary() -> (
+    None
+):
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_S339", "BTK_Y551", "LYN_Y397"],
+            "localization_prob": [0.75, 0.7499, 1.0],
+        }
+    )
+
+    result = filter_localized_sites(df, threshold=0.75, return_summary=True)
+
+    assert isinstance(result, LocalizationFilterResult)
+    assert result.filtered["gene_p_site"].tolist() == ["PRKACA_S339", "LYN_Y397"]
+    assert result.summary.input_rows == 3
+    assert result.summary.retained_rows == 2
+    assert result.summary.removed_rows == 1
+    assert result.summary.retention_fraction == pytest.approx(2 / 3)
+    assert result.summary.threshold == 0.75
+    assert result.summary.localization_col == "localization_prob"
+
+
+def test_filter_localized_sites_accepts_threshold_boundary_of_one() -> None:
+    df = pd.DataFrame(
+        {
+            "localization_prob": [1.0, 0.999],
+            "gene_p_site": ["A", "B"],
+        }
+    )
+
+    filtered = filter_localized_sites(df, threshold=1.0)
+
+    assert filtered["gene_p_site"].tolist() == ["A"]
+
+
+def test_filter_localized_sites_rejects_invalid_threshold() -> None:
+    df = pd.DataFrame({"localization_prob": [0.95]})
+
+    with pytest.raises(
+        PhospyValidationError,
+        match="threshold must be a finite numeric value between 0 and 1",
+    ):
+        filter_localized_sites(df, threshold=1.1)
+
+
+def test_filter_localized_sites_reports_missing_required_column() -> None:
+    df = pd.DataFrame({"score_for_localization": [0.95]})
+
+    with pytest.raises(
+        TableSchemaError,
+        match=r"filter_localized_sites\(\) input is missing required columns: localization_prob",
+    ):
+        filter_localized_sites(df)
 
 
 def test_replace_sentinel_with_nan_and_filter_min_observed() -> None:

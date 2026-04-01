@@ -145,6 +145,23 @@ core = dataset.process_core(max_unmatched_fraction=0.1)
 
 If you do not pass `comparisons`, preprocessing still runs normally and no extra pairwise columns are added.
 
+If you only want the phosphosite localisation filter as a standalone preprocessing step, use the public helper in
+`phospy.preprocessing`:
+
+```python
+from phospy.preprocessing import filter_localized_sites
+
+filtered = filter_localized_sites(phospho_df, threshold=0.75)
+summary_result = filter_localized_sites(
+    phospho_df,
+    threshold=0.75,
+    return_summary=True,
+)
+```
+
+`summary_result.filtered` contains the retained rows and `summary_result.summary` reports how many rows were kept or
+removed.
+
 ### Downstream Kinase Analysis From `predMat`
 
 `KinaseActivityAnalyzer` is the public orchestration layer for standalone downstream kinase analysis. Use it when you

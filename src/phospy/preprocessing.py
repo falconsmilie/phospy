@@ -1,13 +1,41 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
+from numbers import Real
+from typing import Literal, overload
 
 import numpy as np
 import pandas as pd
 
 from .constants import ComparisonSpec
-from .validation.errors import InputCompatibilityError, TableSchemaError
+from .validation.errors import (
+    InputCompatibilityError,
+    PhospyValidationError,
+    TableSchemaError,
+)
 from .validation.normalization import normalize_identifier_series
+
+
+@dataclass(frozen=True, slots=True)
+class LocalizationFilterSummary:
+    """Small summary describing a phosphosite localisation filter pass."""
+
+    input_rows: int
+    retained_rows: int
+    removed_rows: int
+    retention_fraction: float
+    threshold: float
+    localization_col: str
+
+
+@dataclass(frozen=True, slots=True)
+class LocalizationFilterResult:
+    """Filtered phosphosites together with a localisation filter summary."""
+
+    filtered: pd.DataFrame
+    summary: LocalizationFilterSummary
 
 
 def _require_columns(
@@ -23,6 +51,103 @@ def _require_columns(
         joined_columns = ", ".join(missing_columns)
         msg = f"{context} is missing required columns: {joined_columns}"
         raise TableSchemaError(msg)
+
+
+def _validate_probability_threshold(value: float, *, name: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise PhospyValidationError(
+            f"{name} must be a finite numeric value between 0 and 1"
+        )
+
+    resolved = float(value)
+    if not math.isfinite(resolved) or not 0.0 <= resolved <= 1.0:
+        raise PhospyValidationError(
+            f"{name} must be a finite numeric value between 0 and 1"
+        )
+
+    return resolved
+
+
+def _require_numeric_series(
+    values: pd.Series,
+    *,
+    column: str,
+    context: str,
+) -> pd.Series:
+    try:
+        numeric_values = pd.to_numeric(values, errors="raise")
+    except (TypeError, ValueError) as exc:
+        raise TableSchemaError(
+            f"{context} requires numeric values in column '{column}'"
+        ) from exc
+
+    return pd.Series(numeric_values, index=values.index, copy=False)
+
+
+@overload
+def filter_localized_sites(
+    df: pd.DataFrame,
+    *,
+    localization_col: str = "localization_prob",
+    threshold: float = 0.75,
+    return_summary: Literal[False] = False,
+) -> pd.DataFrame: ...
+
+
+@overload
+def filter_localized_sites(
+    df: pd.DataFrame,
+    *,
+    localization_col: str = "localization_prob",
+    threshold: float = 0.75,
+    return_summary: Literal[True],
+) -> LocalizationFilterResult: ...
+
+
+def filter_localized_sites(
+    df: pd.DataFrame,
+    *,
+    localization_col: str = "localization_prob",
+    threshold: float = 0.75,
+    return_summary: bool = False,
+) -> pd.DataFrame | LocalizationFilterResult:
+    """Filter phosphosites by localisation probability.
+
+    The helper keeps rows whose localisation probability is greater than or
+    equal to ``threshold`` and returns a copy of the retained rows.
+    """
+
+    _require_columns(
+        df,
+        required_columns=[localization_col],
+        context="filter_localized_sites() input",
+    )
+    resolved_threshold = _validate_probability_threshold(
+        threshold,
+        name="threshold",
+    )
+    localization_values = _require_numeric_series(
+        df[localization_col],
+        column=localization_col,
+        context="filter_localized_sites()",
+    )
+
+    filtered = df.loc[localization_values >= resolved_threshold].copy()
+    if not return_summary:
+        return filtered
+
+    input_rows = int(len(df))
+    retained_rows = int(len(filtered))
+    removed_rows = input_rows - retained_rows
+    summary = LocalizationFilterSummary(
+        input_rows=input_rows,
+        retained_rows=retained_rows,
+        removed_rows=removed_rows,
+        retention_fraction=(retained_rows / input_rows) if input_rows else 0.0,
+        threshold=resolved_threshold,
+        localization_col=localization_col,
+    )
+    return LocalizationFilterResult(filtered=filtered, summary=summary)
 
 
 def replace_sentinel_with_nan(
@@ -178,3 +303,15 @@ def add_pairwise_comparisons(
         )
 
     return result
+
+
+__all__ = [
+    "LocalizationFilterResult",
+    "LocalizationFilterSummary",
+    "add_pairwise_comparisons",
+    "collapse_duplicate_genes",
+    "correct_phospho_to_protein",
+    "filter_localized_sites",
+    "filter_min_observed",
+    "replace_sentinel_with_nan",
+]

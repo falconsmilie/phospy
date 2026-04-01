@@ -102,6 +102,31 @@ These are useful when you want the steps separately:
 You can also customise `total_cols`, `phospho_cols`, and `corrected_cols` at construction time. If you override those
 column groups, they must still align by length.
 
+### Standalone localisation filtering helper
+
+When you only want the phosphosite localisation step, use the public helper in `phospy.preprocessing`:
+
+```python
+from phospy.preprocessing import filter_localized_sites
+
+filtered = filter_localized_sites(
+    phospho_df,
+    threshold=0.75,
+)
+
+summary_result = filter_localized_sites(
+    phospho_df,
+    threshold=0.75,
+    return_summary=True,
+)
+
+retained = summary_result.filtered
+removed_rows = summary_result.summary.removed_rows
+```
+
+The helper validates that the localisation column exists and that `threshold` is a finite value in `[0, 1]`.
+Rows with `localization_prob >= threshold` are retained.
+
 ## `CoreProcessingResult`
 
 Returned by `PhosphoDataset.process_core(...)`.

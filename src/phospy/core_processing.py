@@ -14,6 +14,7 @@ from .preprocessing import (
     add_pairwise_comparisons,
     collapse_duplicate_genes,
     correct_phospho_to_protein,
+    filter_localized_sites,
     filter_min_observed,
     replace_sentinel_with_nan,
 )
@@ -95,9 +96,11 @@ class CoreProcessor:
         phospho[gene_col] = phospho[gene_col].astype("string").str.upper()
         phospho[site_col] = phospho[site_col].astype("string")
 
-        phospho = phospho.loc[
-            phospho[localization_col] >= localization_threshold
-        ].copy()
+        phospho = filter_localized_sites(
+            phospho,
+            localization_col=localization_col,
+            threshold=localization_threshold,
+        )
         phospho = replace_sentinel_with_nan(
             phospho, self.phospho_cols, sentinel=sentinel
         )
