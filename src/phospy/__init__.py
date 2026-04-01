@@ -1,6 +1,7 @@
 from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
 from .core_processing import CoreProcessingResult
 from .dataset import PhosphoDataset
+from .dataset_preprocessing import DatasetPreprocessing
 from .dataset_schema import DatasetSchema
 from .pipeline import CoreOutputs, PhosRPipeline
 from .prediction import KinasePredictionResult
@@ -10,6 +11,7 @@ from .workflow import KinaseWorkflow, KinaseWorkflowResult
 __all__ = [
     "CoreOutputs",
     "CoreProcessingResult",
+    "DatasetPreprocessing",
     "DatasetSchema",
     "KinaseActivityAnalyzer",
     "KinaseActivityResult",

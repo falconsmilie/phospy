@@ -113,7 +113,7 @@ dataset = PhosphoDataset.from_files(
     "examples/data/phospho.tsv",
     phospho_encoding="utf-16le",
 )
-core = dataset.process_core(max_unmatched_fraction=0.1)
+core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
 
 site_matrix = core.site_matrix.matrix
 corrected = core.phospho_corrected
@@ -121,7 +121,9 @@ corrected = core.phospho_corrected
 
 For the bundled example data, `site_matrix.index.tolist()` returns `['BTK;Y551;']`.
 
-`process_core()` returns a `CoreProcessingResult` with:
+`dataset.preprocessing` is the bound preprocessing facade for the dataset. `process_core(...)` remains available, but `dataset.preprocessing.run(...)` is the preferred public entrypoint.
+
+`dataset.preprocessing.run()` returns a `CoreProcessingResult` with:
 
 - `total_unique`
 - `total_filtered`
@@ -140,7 +142,7 @@ dataset = PhosphoDataset.from_files(
     phospho_encoding="utf-16le",
     comparisons=[("group1", "group4"), ("group2", "group5")],
 )
-core = dataset.process_core(max_unmatched_fraction=0.1)
+core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
 ```
 
 If you do not pass `comparisons`, preprocessing still runs normally and no extra pairwise columns are added.
@@ -193,7 +195,7 @@ dataset = PhosphoDataset.from_files(
     "examples/data/phospho.tsv",
     phospho_encoding="utf-16le",
 )
-core = dataset.process_core(max_unmatched_fraction=0.1)
+core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
 
 analyzer = KinaseActivityAnalyzer()
 kinase = analyzer.load_and_analyze(

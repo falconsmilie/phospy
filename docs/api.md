@@ -13,6 +13,7 @@ If you stay within the classes on this page, you are using the public surface th
 from phospy import (
     CoreOutputs,
     CoreProcessingResult,
+    DatasetPreprocessing,
     DatasetSchema,
     KinaseActivityAnalyzer,
     KinaseActivityResult,
@@ -79,9 +80,31 @@ frames are validated as provided.
 
 ### Main methods
 
-#### `process_core(...) -> CoreProcessingResult`
+#### `preprocessing -> DatasetPreprocessing`
 
-The usual one-call entry point for:
+Bound preprocessing facade for the dataset. This is the preferred public entrypoint for core preprocessing.
+The facade is bound to the dataset's validated frames, schema, and optional comparison definitions.
+
+Typical usage:
+
+```python
+from phospy import PhosphoDataset
+
+dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
+core = dataset.preprocessing.run()
+```
+
+The facade also exposes the stepwise preprocessing methods when you want to execute them separately:
+
+- `prepare_total(...)`
+- `prepare_phospho(...)`
+- `correct_to_protein(...)`
+- `add_pairwise_comparisons(...)`
+- `build_site_matrix(...)`
+
+#### `preprocessing.run(...) -> CoreProcessingResult`
+
+The preferred one-call entry point for:
 
 - total-table cleanup
 - phospho filtering
@@ -162,7 +185,7 @@ returned deterministically as an empty frame with the original columns preserved
 
 ## `CoreProcessingResult`
 
-Returned by `PhosphoDataset.process_core(...)`.
+Returned by `PhosphoDataset.preprocessing.run(...)` or `PhosphoDataset.process_core(...)`.
 
 Attributes:
 

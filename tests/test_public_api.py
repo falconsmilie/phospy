@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from phospy import (
+    DatasetPreprocessing,
     DatasetSchema,
     KinaseActivityAnalyzer,
     KinaseWorkflow,
@@ -67,6 +68,7 @@ def test_public_root_exports() -> None:
     expected = {
         "CoreOutputs",
         "CoreProcessingResult",
+        "DatasetPreprocessing",
         "DatasetSchema",
         "KinaseActivityAnalyzer",
         "KinaseActivityResult",
@@ -93,6 +95,62 @@ def test_phospho_dataset_process_core() -> None:
     assert "PRKACA;S339;" in result.site_matrix.matrix.index
     assert result.site_matrix.row_drop_stats["retained_rows"] == len(
         result.site_matrix.matrix
+    )
+
+
+def test_phospho_dataset_preprocessing_facade_is_bound_and_typed() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+
+    preprocessing = dataset.preprocessing
+
+    assert isinstance(preprocessing, DatasetPreprocessing)
+    assert preprocessing.total_df.equals(dataset.total_df)
+    assert preprocessing.phospho_df.equals(dataset.phospho_df)
+    assert preprocessing.schema == dataset.schema
+    assert preprocessing.comparisons == tuple(EXAMPLE_COMPARISONS)
+
+
+def test_phospho_dataset_preprocessing_run_matches_process_core() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+
+    via_dataset = dataset.process_core(max_unmatched_fraction=0.1)
+    via_facade = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+
+    pd.testing.assert_frame_equal(via_facade.total_unique, via_dataset.total_unique)
+    pd.testing.assert_frame_equal(
+        via_facade.total_filtered,
+        via_dataset.total_filtered,
+    )
+    pd.testing.assert_frame_equal(
+        via_facade.phospho_filtered,
+        via_dataset.phospho_filtered,
+    )
+    pd.testing.assert_frame_equal(
+        via_facade.phospho_corrected,
+        via_dataset.phospho_corrected,
+    )
+    pd.testing.assert_frame_equal(
+        via_facade.site_matrix.phosr_input,
+        via_dataset.site_matrix.phosr_input,
+    )
+    pd.testing.assert_frame_equal(
+        via_facade.site_matrix.matrix,
+        via_dataset.site_matrix.matrix,
+    )
+    pd.testing.assert_series_equal(
+        via_facade.site_matrix.sequences,
+        via_dataset.site_matrix.sequences,
+    )
+    assert (
+        via_facade.site_matrix.row_drop_stats == via_dataset.site_matrix.row_drop_stats
     )
 
 
