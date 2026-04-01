@@ -1,10 +1,43 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 import pandas as pd
 
 from .validation.errors import TableSchemaError
+
+
+def format_row_drop_diagnostics(row_drop_stats: Mapping[str, int]) -> str:
+    """Format human-readable site-matrix row-drop diagnostics."""
+
+    stats = {
+        "input_rows": int(row_drop_stats.get("input_rows", 0)),
+        "dropped_missing_sequence": int(
+            row_drop_stats.get("dropped_missing_sequence", 0)
+        ),
+        "dropped_incomplete_values": int(
+            row_drop_stats.get("dropped_incomplete_values", 0)
+        ),
+        "deduplicated_site_rows": int(row_drop_stats.get("deduplicated_site_rows", 0)),
+        "retained_rows": int(row_drop_stats.get("retained_rows", 0)),
+    }
+    known_drops = (
+        stats["dropped_missing_sequence"]
+        + stats["dropped_incomplete_values"]
+        + stats["deduplicated_site_rows"]
+    )
+    other_dropped_rows = max(
+        stats["input_rows"] - stats["retained_rows"] - known_drops, 0
+    )
+    return (
+        "row-drop diagnostics: "
+        f"input_rows={stats['input_rows']}, "
+        f"dropped_missing_sequence={stats['dropped_missing_sequence']}, "
+        f"dropped_incomplete_values={stats['dropped_incomplete_values']}, "
+        f"deduplicated_site_rows={stats['deduplicated_site_rows']}, "
+        f"other_dropped_rows={other_dropped_rows}, "
+        f"retained_rows={stats['retained_rows']}"
+    )
 
 
 def build_site_matrix(

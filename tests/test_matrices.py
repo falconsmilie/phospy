@@ -85,3 +85,33 @@ def test_build_site_matrix_raises_table_schema_error_for_malformed_gene_p_site()
             sequence_col="centralized_sequence",
             value_cols=["phospho_corrected_1", "phospho_corrected_2"],
         )
+
+
+def test_site_matrix_builder_reports_row_drop_diagnostics_when_all_rows_are_dropped() -> (
+    None
+):
+    from phospy.site_matrix_builder import SiteMatrixBuilder
+
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_S339", "BTK_Y551", "SRC_Y419"],
+            "centralized_sequence": [None, "CCCCCC", "DDDDDD"],
+            "phospho_corrected_1": [1.0, None, 3.0],
+            "phospho_corrected_2": [1.0, 2.0, None],
+        }
+    )
+
+    builder = SiteMatrixBuilder(
+        value_cols=["phospho_corrected_1", "phospho_corrected_2"]
+    )
+
+    with pytest.raises(TableSchemaError, match="row-drop diagnostics") as exc_info:
+        builder.build(df)
+
+    message = str(exc_info.value)
+    assert "site matrix must contain at least one phosphosite row" in message
+    assert "dropped_missing_sequence=1" in message
+    assert "dropped_incomplete_values=2" in message
+    assert "deduplicated_site_rows=0" in message
+    assert "other_dropped_rows=0" in message
+    assert "retained_rows=0" in message

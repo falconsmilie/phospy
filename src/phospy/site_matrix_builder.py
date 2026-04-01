@@ -5,7 +5,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from .matrices import build_site_matrix
+from .matrices import build_site_matrix, format_row_drop_diagnostics
+from .validation.errors import TableSchemaError
 from .validation.tables import SiteMatrixSchema
 
 
@@ -36,8 +37,13 @@ class SiteMatrixBuilder:
             sequence_col=sequence_col,
             value_cols=self.value_cols,
         )
-        matrix = SiteMatrixSchema.validate(matrix, context="site matrix")
         row_drop_stats = dict(phosr_input.attrs.get("row_drop_stats", {}))
+        if matrix.empty:
+            diagnostics = format_row_drop_diagnostics(row_drop_stats)
+            raise TableSchemaError(
+                f"site matrix must contain at least one phosphosite row; {diagnostics}"
+            )
+        matrix = SiteMatrixSchema.validate(matrix, context="site matrix")
         return SiteMatrixResult(
             phosr_input=phosr_input,
             matrix=matrix,
