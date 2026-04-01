@@ -101,6 +101,10 @@ core = dataset.preprocessing.run()
 
 The facade also exposes the stepwise preprocessing methods when you want to execute them separately:
 
+The bound preprocessing path takes a single working copy of each validated input table at the service boundary and
+reuses that owned frame across sentinel replacement, localisation filtering, and coverage filtering. Standalone helpers
+in `phospy.preprocessing` still return copied frames by default so they remain safe to compose independently.
+
 - `prepare_total(...)`
 - `prepare_phospho(...)`
 - `correct_to_protein(...)`
@@ -147,7 +151,8 @@ travels with the dataset through validation and core preprocessing.
 
 ## `CoreOutputWriter`
 
-Use this when you want to persist a `CoreProcessingResult`. Output writing is intentionally separate from `PhosphoDataset`.
+Use this when you want to persist a `CoreProcessingResult`. Output writing is intentionally separate from
+`PhosphoDataset`.
 
 Typical usage:
 
@@ -270,13 +275,16 @@ Loads a prediction matrix from disk and validates it against the public `predMat
 
 Computes downstream kinase summaries from in-memory `predMat` and phosphosite matrices.
 
-#### `load_and_analyze(pred_mat_path, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20) -> KinaseActivityResult`
+####
+`load_and_analyze(pred_mat_path, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20) -> KinaseActivityResult`
 
-Convenience entry point that combines `load_pred_mat(...)` and `analyze(...)`. This is the preferred entrypoint when your `predMat` lives on disk.
+Convenience entry point that combines `load_pred_mat(...)` and `analyze(...)`. This is the preferred entrypoint when
+your `predMat` lives on disk.
 
 #### `write_outputs(result, outdir) -> None`
 
-Writes the same downstream kinase-analysis tables that `PhosRPipeline` emits when `pred_mat_path` is supplied. Use this to materialize the class-based workflow outputs without going through the pipeline.
+Writes the same downstream kinase-analysis tables that `PhosRPipeline` emits when `pred_mat_path` is supplied. Use this
+to materialize the class-based workflow outputs without going through the pipeline.
 
 Returns:
 
@@ -339,7 +347,8 @@ If `pred_mat_path` was supplied, `run()` writes both core outputs and downstream
 still writes the core outputs. If you call `run(outdir=None)`, PhosPy still returns the in-memory results and simply
 skips file writing.
 
-If you already have a validated `CorePipelineRequest`, you can build the pipeline with `PhosRPipeline.from_request(...)`.
+If you already have a validated `CorePipelineRequest`, you can build the pipeline with
+`PhosRPipeline.from_request(...)`.
 That is the supported entry point when you want path validation separated from pipeline construction.
 
 ## `CoreOutputs`

@@ -474,6 +474,25 @@ def test_total_preprocessor_matches_existing_total_preparation_flow() -> None:
     assert total_unique.loc[total_unique["genes"] == "PRKACA", "group1"].iloc[0] == 5.0
 
 
+def test_total_preprocessor_does_not_mutate_input_dataframe() -> None:
+    total_df = pd.DataFrame(
+        {
+            "genes": ["Prkaca", "Prkaca", "Btk"],
+            "group1": [1.0, 5.0, 12.0],
+            "group2": [1.0, 5.0, 9.0],
+            "group3": [1.0, 5.0, 9.0],
+            "group4": [1.0, 5.0, 9.0],
+            "group5": [1.0, 5.0, 9.0],
+            "group6": [1.0, 5.0, 9.0],
+        }
+    )
+    original = total_df.copy(deep=True)
+
+    TotalPreprocessor(schema=DatasetSchema()).prepare(total_df, sentinel=12.0)
+
+    pd.testing.assert_frame_equal(total_df, original)
+
+
 def test_phospho_preprocessor_applies_localization_sentinel_and_coverage_rules() -> (
     None
 ):
@@ -499,6 +518,31 @@ def test_phospho_preprocessor_applies_localization_sentinel_and_coverage_rules()
 
     assert filtered["gene_names"].tolist() == ["PRKACA"]
     assert filtered["gene_p_site"].tolist() == ["prkaca_s339"]
+
+
+def test_phospho_preprocessor_does_not_mutate_input_dataframe() -> None:
+    phospho_df = pd.DataFrame(
+        {
+            "gene_names": ["prkaca", "btk"],
+            "gene_p_site": ["prkaca_s339", "btk_y551"],
+            "localization_prob": [0.95, 0.70],
+            "p_group1": [8.0, 12.0],
+            "p_group2": [7.0, 12.0],
+            "p_group3": [6.0, 12.0],
+            "p_group4": [5.0, 12.0],
+            "p_group5": [4.0, 12.0],
+            "p_group6": [3.0, 12.0],
+        }
+    )
+    original = phospho_df.copy(deep=True)
+
+    PhosphoPreprocessor(schema=DatasetSchema()).prepare(
+        phospho_df,
+        sentinel=12.0,
+        min_observed=4,
+    )
+
+    pd.testing.assert_frame_equal(phospho_df, original)
 
 
 def test_protein_correction_service_applies_correction_and_pairwise_augmentation() -> (

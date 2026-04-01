@@ -167,7 +167,12 @@ def filter_localized_sites(
         context="filter_localized_sites()",
     )
 
-    filtered = df.loc[localization_values >= resolved_threshold].copy()
+    filtered = _filter_localized_sites_without_copy(
+        df,
+        localization_col=localization_col,
+        threshold=resolved_threshold,
+        localization_values=localization_values,
+    ).copy()
     if not return_summary:
         return filtered
 
@@ -183,6 +188,23 @@ def filter_localized_sites(
         localization_col=localization_col,
     )
     return LocalizationFilterResult(filtered=filtered, summary=summary)
+
+
+def _filter_localized_sites_without_copy(
+    df: pd.DataFrame,
+    *,
+    localization_col: str,
+    threshold: float,
+    localization_values: pd.Series | None = None,
+) -> pd.DataFrame:
+    values = localization_values
+    if values is None:
+        values = _require_numeric_series(
+            df[localization_col],
+            column=localization_col,
+            context="filter_localized_sites()",
+        )
+    return df.loc[values >= threshold]
 
 
 @overload
@@ -258,16 +280,33 @@ def filter_sites_by_coverage(
     return CoverageFilterResult(filtered=filtered, summary=summary)
 
 
+def _replace_sentinel_with_nan_in_place(
+    df: pd.DataFrame,
+    columns: Iterable[str],
+    sentinel: float | int,
+) -> pd.DataFrame:
+    cols = list(columns)
+    for col in cols:
+        df[col] = df[col].astype(float).replace(sentinel, np.nan)
+    return df
+
+
 def replace_sentinel_with_nan(
     df: pd.DataFrame,
     columns: Iterable[str],
     sentinel: float | int,
 ) -> pd.DataFrame:
     result = df.copy()
-    cols = list(columns)
-    for col in cols:
-        result[col] = result[col].astype(float).replace(sentinel, np.nan)
-    return result
+    return _replace_sentinel_with_nan_in_place(result, columns, sentinel)
+
+
+def _filter_min_observed_without_copy(
+    df: pd.DataFrame,
+    columns: Sequence[str],
+    min_observed: int,
+) -> pd.DataFrame:
+    mask = df.loc[:, list(columns)].notna().sum(axis=1) >= min_observed
+    return df.loc[mask]
 
 
 def filter_min_observed(
@@ -275,11 +314,10 @@ def filter_min_observed(
     columns: Sequence[str],
     min_observed: int,
 ) -> pd.DataFrame:
-    mask = df.loc[:, list(columns)].notna().sum(axis=1) >= min_observed
-    return df.loc[mask].copy()
+    return _filter_min_observed_without_copy(df, columns, min_observed).copy()
 
 
-def collapse_duplicate_genes(
+def _collapse_duplicate_genes_owned(
     df: pd.DataFrame,
     gene_col: str,
     value_cols: Sequence[str],
@@ -306,16 +344,15 @@ def collapse_duplicate_genes(
         context="collapse_duplicate_genes() input",
     )
 
-    work = df.copy()
-    work[gene_col] = work[gene_col].astype("string")
+    df[gene_col] = df[gene_col].astype("string")
     if uppercase:
-        work[gene_col] = work[gene_col].str.upper()
+        df[gene_col] = df[gene_col].str.upper()
     ranked_cols = list(value_cols)
-    work["__observed_count"] = work.loc[:, ranked_cols].notna().sum(axis=1)
-    work["__mean_signal"] = work.loc[:, ranked_cols].mean(axis=1, skipna=True)
-    work["__original_order"] = np.arange(len(work), dtype=int)
+    df["__observed_count"] = df.loc[:, ranked_cols].notna().sum(axis=1)
+    df["__mean_signal"] = df.loc[:, ranked_cols].mean(axis=1, skipna=True)
+    df["__original_order"] = np.arange(len(df), dtype=int)
 
-    ranked = work.sort_values(
+    ranked = df.sort_values(
         by=[gene_col, "__observed_count", "__mean_signal", "__original_order"],
         ascending=[True, False, False, True],
         kind="mergesort",
@@ -326,6 +363,21 @@ def collapse_duplicate_genes(
     )
 
     return result.reset_index(drop=True)
+
+
+def collapse_duplicate_genes(
+    df: pd.DataFrame,
+    gene_col: str,
+    value_cols: Sequence[str],
+    uppercase: bool = True,
+) -> pd.DataFrame:
+    work = df.copy()
+    return _collapse_duplicate_genes_owned(
+        work,
+        gene_col=gene_col,
+        value_cols=value_cols,
+        uppercase=uppercase,
+    )
 
 
 def correct_phospho_to_protein(
@@ -391,13 +443,12 @@ def correct_phospho_to_protein(
     return merged
 
 
-def add_pairwise_comparisons(
+def _add_pairwise_comparisons_in_place(
     df: pd.DataFrame,
     comparisons: Sequence[ComparisonSpec],
     group_to_corrected_col: dict[str, str] | None = None,
     output_prefix: str = "p_",
 ) -> pd.DataFrame:
-    result = df.copy()
     if group_to_corrected_col is None:
         group_to_corrected_col = {
             f"group{i}": f"phospho_corrected_{i}" for i in range(1, 7)
@@ -406,11 +457,26 @@ def add_pairwise_comparisons(
     for left, right in comparisons:
         if left not in group_to_corrected_col or right not in group_to_corrected_col:
             raise KeyError(f"Missing group mapping for comparison: {(left, right)}")
-        result[f"{output_prefix}{left}_{right}"] = (
-            result[group_to_corrected_col[left]] - result[group_to_corrected_col[right]]
+        df[f"{output_prefix}{left}_{right}"] = (
+            df[group_to_corrected_col[left]] - df[group_to_corrected_col[right]]
         )
 
-    return result
+    return df
+
+
+def add_pairwise_comparisons(
+    df: pd.DataFrame,
+    comparisons: Sequence[ComparisonSpec],
+    group_to_corrected_col: dict[str, str] | None = None,
+    output_prefix: str = "p_",
+) -> pd.DataFrame:
+    result = df.copy()
+    return _add_pairwise_comparisons_in_place(
+        result,
+        comparisons,
+        group_to_corrected_col=group_to_corrected_col,
+        output_prefix=output_prefix,
+    )
 
 
 __all__ = [

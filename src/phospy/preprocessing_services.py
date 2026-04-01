@@ -12,12 +12,12 @@ from .constants import (
 )
 from .dataset_schema import DatasetSchema
 from .preprocessing import (
-    add_pairwise_comparisons,
-    collapse_duplicate_genes,
+    _add_pairwise_comparisons_in_place,
+    _collapse_duplicate_genes_owned,
+    _filter_localized_sites_without_copy,
+    _filter_min_observed_without_copy,
+    _replace_sentinel_with_nan_in_place,
     correct_phospho_to_protein,
-    filter_localized_sites,
-    filter_min_observed,
-    replace_sentinel_with_nan,
 )
 from .validation.compatibility import validate_protein_correction_inputs
 
@@ -38,17 +38,17 @@ class TotalPreprocessor:
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         total = total_df.copy()
         total[gene_col] = total[gene_col].astype("string")
-        total = replace_sentinel_with_nan(
+        _replace_sentinel_with_nan_in_place(
             total,
             self.schema.total_cols,
             sentinel=sentinel,
         )
-        total_unique = collapse_duplicate_genes(
+        total_unique = _collapse_duplicate_genes_owned(
             total,
             gene_col=gene_col,
             value_cols=self.schema.total_cols,
         )
-        total_filtered = filter_min_observed(
+        total_filtered = _filter_min_observed_without_copy(
             total_unique,
             self.schema.total_cols,
             min_observed=min_observed,
@@ -77,17 +77,17 @@ class PhosphoPreprocessor:
         phospho[gene_col] = phospho[gene_col].astype("string").str.upper()
         phospho[site_col] = phospho[site_col].astype("string")
 
-        phospho = filter_localized_sites(
+        phospho = _filter_localized_sites_without_copy(
             phospho,
             localization_col=localization_col,
             threshold=localization_threshold,
         )
-        phospho = replace_sentinel_with_nan(
+        _replace_sentinel_with_nan_in_place(
             phospho,
             self.schema.phospho_cols,
             sentinel=sentinel,
         )
-        return filter_min_observed(
+        return _filter_min_observed_without_copy(
             phospho,
             self.schema.phospho_cols,
             min_observed=min_observed,
@@ -149,9 +149,9 @@ class ProteinCorrectionService:
         output_prefix: str = "p_",
     ) -> pd.DataFrame:
         if not self.comparisons:
-            return corrected_df.copy()
+            return corrected_df
 
-        return add_pairwise_comparisons(
+        return _add_pairwise_comparisons_in_place(
             corrected_df,
             comparisons=self.comparisons,
             group_to_corrected_col=self.schema.group_to_corrected_col,

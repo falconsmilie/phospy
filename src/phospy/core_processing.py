@@ -175,7 +175,8 @@ class CoreProcessor:
             total_filtered,
             max_unmatched_fraction=config.max_unmatched_fraction,
         )
-        phospho_corrected = self.add_pairwise_comparisons(phospho_corrected)
+        if self.comparisons:
+            phospho_corrected = self.add_pairwise_comparisons(phospho_corrected)
         site_matrix = self.site_matrix_builder.build(phospho_corrected)
         return CoreProcessingResult(
             total_unique=total_unique,
