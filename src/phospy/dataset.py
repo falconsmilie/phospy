@@ -6,12 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from .constants import (
-    DEFAULT_PHOSPHO_SENTINEL,
-    DEFAULT_TOTAL_SENTINEL,
-    ComparisonSpec,
-)
-from .core_processing import CorePreprocessingConfig, CoreProcessingResult
+from .constants import ComparisonSpec
+from .core_processing import CoreProcessingResult
 from .dataset_loader import DatasetLoader
 from .dataset_preprocessing import DatasetPreprocessing
 from .dataset_schema import DatasetSchema
@@ -128,62 +124,6 @@ class PhosphoDataset:
             schema=loader.schema,
         )
 
-    def prepare_total(
-        self,
-        gene_col: str = "genes",
-        sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
-        min_observed: int = 4,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        return self.preprocessing.prepare_total(
-            gene_col=gene_col,
-            sentinel=sentinel,
-            min_observed=min_observed,
-        )
-
-    def prepare_phospho(
-        self,
-        gene_col: str = "gene_names",
-        site_col: str = "gene_p_site",
-        localization_col: str = "localization_prob",
-        localization_threshold: float = 0.75,
-        sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
-        min_observed: int = 4,
-    ) -> pd.DataFrame:
-        return self.preprocessing.prepare_phospho(
-            gene_col=gene_col,
-            site_col=site_col,
-            localization_col=localization_col,
-            localization_threshold=localization_threshold,
-            sentinel=sentinel,
-            min_observed=min_observed,
-        )
-
-    def correct_to_protein(
-        self,
-        phospho_df: pd.DataFrame,
-        total_df: pd.DataFrame,
-        phospho_gene_col: str = "gene_names",
-        total_gene_col: str = "genes",
-        max_unmatched_fraction: float = 0.0,
-    ) -> pd.DataFrame:
-        return self.preprocessing.correct_to_protein(
-            phospho_df,
-            total_df,
-            phospho_gene_col=phospho_gene_col,
-            total_gene_col=total_gene_col,
-            max_unmatched_fraction=max_unmatched_fraction,
-        )
-
-    def add_pairwise_comparisons(
-        self,
-        corrected_df: pd.DataFrame,
-        output_prefix: str = "p_",
-    ) -> pd.DataFrame:
-        return self.preprocessing.add_pairwise_comparisons(
-            corrected_df,
-            output_prefix=output_prefix,
-        )
-
     def build_site_matrix(
         self,
         corrected_df: pd.DataFrame,
@@ -194,24 +134,6 @@ class PhosphoDataset:
             corrected_df,
             gene_p_site_col=gene_p_site_col,
             sequence_col=sequence_col,
-        )
-
-    def process_core(
-        self,
-        localization_threshold: float = 0.75,
-        min_observed: int = 4,
-        max_unmatched_fraction: float = 0.0,
-        total_sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
-        phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
-        config: CorePreprocessingConfig | None = None,
-    ) -> CoreProcessingResult:
-        return self.preprocessing.run(
-            localization_threshold=localization_threshold,
-            min_observed=min_observed,
-            max_unmatched_fraction=max_unmatched_fraction,
-            total_sentinel=total_sentinel,
-            phospho_sentinel=phospho_sentinel,
-            config=config,
         )
 
     @staticmethod

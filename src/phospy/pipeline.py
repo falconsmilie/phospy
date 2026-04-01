@@ -119,7 +119,7 @@ class PhosRPipeline:
         return cls.from_request(request)
 
     def run(self, outdir: str | Path | None = None) -> CoreOutputs:
-        core = self.dataset.process_core(config=self.preprocessing_config)
+        core = self.dataset.preprocessing.run(config=self.preprocessing_config)
 
         kinase_activity = None
         if self.pred_mat is not None:

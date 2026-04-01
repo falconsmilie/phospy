@@ -185,7 +185,7 @@ returned deterministically as an empty frame with the original columns preserved
 
 ## `CoreProcessingResult`
 
-Returned by `PhosphoDataset.preprocessing.run(...)` or `PhosphoDataset.process_core(...)`.
+Returned by `PhosphoDataset.preprocessing.run(...)`.
 
 Attributes:
 

@@ -82,13 +82,13 @@ def test_public_root_exports() -> None:
     assert set(phospy.__all__) == expected
 
 
-def test_phospho_dataset_process_core() -> None:
+def test_phospho_dataset_preprocessing_run() -> None:
     dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
-    result = dataset.process_core()
+    result = dataset.preprocessing.run()
 
     assert sorted(result.total_unique["genes"].tolist()) == ["BTK", "LYN", "PRKACA"]
     assert "p_group1_group4" in result.phospho_corrected.columns
@@ -114,44 +114,65 @@ def test_phospho_dataset_preprocessing_facade_is_bound_and_typed() -> None:
     assert preprocessing.comparisons == tuple(EXAMPLE_COMPARISONS)
 
 
-def test_phospho_dataset_preprocessing_run_matches_process_core() -> None:
+def test_phospho_dataset_preprocessing_run_matches_core_processor() -> None:
     dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
 
-    via_dataset = dataset.process_core(max_unmatched_fraction=0.1)
     via_facade = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    via_processor = CoreProcessor(
+        schema=dataset.schema,
+        comparisons=dataset.comparisons,
+    ).process(
+        dataset.total_df,
+        dataset.phospho_df,
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1),
+    )
 
-    pd.testing.assert_frame_equal(via_facade.total_unique, via_dataset.total_unique)
+    pd.testing.assert_frame_equal(via_facade.total_unique, via_processor.total_unique)
     pd.testing.assert_frame_equal(
         via_facade.total_filtered,
-        via_dataset.total_filtered,
+        via_processor.total_filtered,
     )
     pd.testing.assert_frame_equal(
         via_facade.phospho_filtered,
-        via_dataset.phospho_filtered,
+        via_processor.phospho_filtered,
     )
     pd.testing.assert_frame_equal(
         via_facade.phospho_corrected,
-        via_dataset.phospho_corrected,
+        via_processor.phospho_corrected,
     )
     pd.testing.assert_frame_equal(
         via_facade.site_matrix.phosr_input,
-        via_dataset.site_matrix.phosr_input,
+        via_processor.site_matrix.phosr_input,
     )
     pd.testing.assert_frame_equal(
         via_facade.site_matrix.matrix,
-        via_dataset.site_matrix.matrix,
+        via_processor.site_matrix.matrix,
     )
     pd.testing.assert_series_equal(
         via_facade.site_matrix.sequences,
-        via_dataset.site_matrix.sequences,
+        via_processor.site_matrix.sequences,
     )
     assert (
-        via_facade.site_matrix.row_drop_stats == via_dataset.site_matrix.row_drop_stats
+        via_facade.site_matrix.row_drop_stats
+        == via_processor.site_matrix.row_drop_stats
     )
+
+
+def test_phospho_dataset_does_not_expose_legacy_direct_preprocessing_methods() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+
+    assert not hasattr(dataset, "prepare_total")
+    assert not hasattr(dataset, "prepare_phospho")
+    assert not hasattr(dataset, "correct_to_protein")
+    assert not hasattr(dataset, "add_pairwise_comparisons")
+    assert not hasattr(dataset, "process_core")
 
 
 def test_phospho_dataset_from_validated_inputs_builds_without_revalidation() -> None:
@@ -358,9 +379,12 @@ def test_phospho_dataset_honours_custom_corrected_columns() -> None:
         ),
     )
 
-    total_unique, total_filtered = dataset.prepare_total()
-    phospho_filtered = dataset.prepare_phospho()
-    corrected = dataset.correct_to_protein(phospho_filtered, total_filtered)
+    total_unique, total_filtered = dataset.preprocessing.prepare_total()
+    phospho_filtered = dataset.preprocessing.prepare_phospho()
+    corrected = dataset.preprocessing.correct_to_protein(
+        phospho_filtered,
+        total_filtered,
+    )
 
     expected = {"sample_a", "sample_b", "sample_c", "sample_d", "sample_e", "sample_f"}
     assert expected.issubset(corrected.columns)
@@ -408,11 +432,11 @@ def test_pipeline_propagates_sentinel_configuration(tmp_path) -> None:
         phospho_sentinel=99.0,
     )
 
-    total_unique, total_filtered = pipeline.dataset.prepare_total(
+    total_unique, total_filtered = pipeline.dataset.preprocessing.prepare_total(
         sentinel=pipeline.preprocessing_config.total_sentinel,
         min_observed=pipeline.preprocessing_config.min_observed,
     )
-    phospho_filtered = pipeline.dataset.prepare_phospho(
+    phospho_filtered = pipeline.dataset.preprocessing.prepare_phospho(
         localization_threshold=pipeline.preprocessing_config.localization_threshold,
         sentinel=pipeline.preprocessing_config.phospho_sentinel,
         min_observed=pipeline.preprocessing_config.min_observed,

@@ -63,7 +63,7 @@ def _build_core_result():
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
-    return dataset.process_core()
+    return dataset.preprocessing.run()
 
 
 def test_output_publisher_replaces_existing_directory_atomically(

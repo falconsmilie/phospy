@@ -121,7 +121,7 @@ corrected = core.phospho_corrected
 
 For the bundled example data, `site_matrix.index.tolist()` returns `['BTK;Y551;']`.
 
-`dataset.preprocessing` is the bound preprocessing facade for the dataset. `process_core(...)` remains available, but `dataset.preprocessing.run(...)` is the preferred public entrypoint.
+`dataset.preprocessing` is the bound preprocessing facade for the dataset and the public entrypoint for core preprocessing.
 
 `dataset.preprocessing.run()` returns a `CoreProcessingResult` with:
 
