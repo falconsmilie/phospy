@@ -3,12 +3,21 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.prediction.traces import TraceSink
 from phospy.validation.errors import RequestValidationError
 from phospy.validation.requests import (
     CorePipelineRequest,
     KinaseWorkflowRequest,
     PredictionRequest,
 )
+
+
+class _DummyTraceSink(TraceSink):
+    def write_rows(self, table_name: str, rows: list[dict[str, object]]) -> None:
+        return None
+
+    def read_table(self, table_name: str) -> pd.DataFrame:
+        return pd.DataFrame()
 
 
 def test_core_pipeline_request_requires_existing_paths(tmp_path) -> None:
@@ -180,6 +189,42 @@ def test_prediction_request_uses_boundary_defaults() -> None:
 
     assert request.svm_mode == "r_parity"
     assert request.trace_level == "summary"
+
+
+def test_prediction_request_validation_does_not_allocate_trace_sink() -> None:
+    request = PredictionRequest.validate_request(
+        combined_scores=pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"]),
+        ensemble_size=2,
+        top=2,
+        score_threshold=0.8,
+        inclusion=1,
+        n_iterations=2,
+        debug_top_n=1,
+        trace_level="full",
+        default_svm_mode="default",
+    )
+
+    assert request.trace_level == "full"
+    assert request.trace_sink is None
+
+
+def test_prediction_request_validation_preserves_explicit_trace_sink_spec() -> None:
+    trace_sink = _DummyTraceSink()
+    request = PredictionRequest.validate_request(
+        combined_scores=pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"]),
+        ensemble_size=2,
+        top=2,
+        score_threshold=0.8,
+        inclusion=1,
+        n_iterations=2,
+        debug_top_n=1,
+        trace_level="full",
+        trace_sink=trace_sink,
+        default_svm_mode="default",
+    )
+
+    assert isinstance(request.trace_sink, TraceSink)
+    assert request.trace_sink is trace_sink
 
 
 def test_prediction_request_rejects_non_positive_integer_fields() -> None:

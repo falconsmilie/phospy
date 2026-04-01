@@ -21,7 +21,11 @@ from .sampling import (
     multi_ada_sampling,
     validate_override_sites,
 )
-from .traces import PredictionSamplingTrace, TraceSink
+from .traces import (
+    PredictionSamplingTrace,
+    TraceSink,
+    build_prediction_execution_context,
+)
 from .validation import validate_positive_int, validate_svm_mode
 
 
@@ -515,34 +519,46 @@ class KinasePredictor:
         return self.predict_request(request)
 
     def predict_request(self, request: PredictionRequest) -> KinasePredictionResult:
+        execution_context = build_prediction_execution_context(
+            sampling_trace=request.sampling_trace,
+            trace_level=request.trace_level,
+            trace_sink=request.trace_sink,
+            trace_sink_format=request.trace_sink_format,
+        )
+        runtime_request = request.model_copy(
+            update={
+                "sampling_trace": execution_context.sampling_trace,
+                "trace_sink": execution_context.trace_sink,
+            }
+        )
         substrate_list = self.candidate_selector.select(
-            request.combined_scores,
-            top=request.top,
-            score_threshold=request.score_threshold,
-            inclusion=request.inclusion,
+            runtime_request.combined_scores,
+            top=runtime_request.top,
+            score_threshold=runtime_request.score_threshold,
+            inclusion=runtime_request.inclusion,
         )
         if not substrate_list:
-            return self.prediction_aggregator.empty_result(request=request)
+            return self.prediction_aggregator.empty_result(request=runtime_request)
 
-        feature_mat = request.combined_scores.astype(float)
+        feature_mat = runtime_request.combined_scores.astype(float)
         pred_matrix = self.prediction_aggregator.initialize_prediction_matrix(
             feature_mat=feature_mat,
             substrate_list=substrate_list,
         )
         trace_state = self.trace_recorder.create_state(
             substrate_list=substrate_list,
-            trace_level=request.trace_level,
-            debug_kinases=request.debug_kinases,
-            trace_sink=request.trace_sink,
+            trace_level=runtime_request.trace_level,
+            debug_kinases=runtime_request.debug_kinases,
+            trace_sink=runtime_request.trace_sink,
         )
-        master_rng = np.random.default_rng(request.random_state)
+        master_rng = np.random.default_rng(runtime_request.random_state)
 
         for kinase, substrates in substrate_list.items():
             batch = self.ensemble_predictor.predict_kinase(
                 kinase=kinase,
                 substrates=substrates,
                 feature_mat=feature_mat,
-                request=request,
+                request=runtime_request,
                 master_rng=master_rng,
                 trace_state=trace_state,
             )
@@ -555,7 +571,7 @@ class KinasePredictor:
         return self.prediction_aggregator.finalize(
             pred_matrix=pred_matrix,
             substrate_list=substrate_list,
-            request=request,
+            request=runtime_request,
             trace_state=trace_state,
         )
 

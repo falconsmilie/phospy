@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
 import pandas as pd
 
-from ..types import PredictionTraceFormat
+from ..types import PredictionTraceFormat, PredictionTraceLevel
 from ..validation.errors import TableSchemaError
 from .models import KinasePredictionResult, SamplingTraceOverrideEnsemble
 
@@ -156,6 +157,39 @@ def create_trace_sink(
         temp_dir = TemporaryDirectory(prefix="phospy_prediction_trace_")
         return DirectoryTraceSink(temp_dir.name, fmt=fmt, owned_temp_dir=temp_dir)
     return DirectoryTraceSink(trace_sink, fmt=fmt)
+
+
+@dataclass(frozen=True, slots=True)
+class PredictionExecutionContext:
+    sampling_trace: PredictionSamplingTrace | None
+    trace_sink: TraceSink | None
+
+
+def build_prediction_execution_context(
+    *,
+    sampling_trace: PredictionSamplingTrace | str | Path | None,
+    trace_level: PredictionTraceLevel,
+    trace_sink: TraceSink | str | Path | None,
+    trace_sink_format: PredictionTraceFormat,
+) -> PredictionExecutionContext:
+    """Resolve runtime-only prediction execution resources.
+
+    Sampling trace replay input is normalized first so invalid replay sources do
+    not leave behind an owned temporary trace sink.
+    """
+
+    from .sampling import coerce_sampling_trace
+
+    resolved_sampling_trace = coerce_sampling_trace(sampling_trace)
+    resolved_trace_sink = (
+        create_trace_sink(trace_sink, fmt=trace_sink_format)
+        if trace_level == "full"
+        else None
+    )
+    return PredictionExecutionContext(
+        sampling_trace=resolved_sampling_trace,
+        trace_sink=resolved_trace_sink,
+    )
 
 
 def _read_trace_table_from_directory(
@@ -593,9 +627,11 @@ def prediction_debug_trace_tables(
 
 __all__ = [
     "DirectoryTraceSink",
+    "PredictionExecutionContext",
     "PredictionSamplingTrace",
     "TRACE_TABLE_NAMES",
     "TraceSink",
+    "build_prediction_execution_context",
     "create_trace_sink",
     "prediction_debug_trace_tables",
 ]

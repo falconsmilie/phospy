@@ -29,6 +29,7 @@ from phospy.prediction.svm import (
 from phospy.prediction.traces import DirectoryTraceSink, create_trace_sink
 from phospy.scoring import KinaseScoringResult
 from phospy.validation.errors import RequestValidationError
+from phospy.validation.requests import PredictionRequest
 
 
 def make_combined_scores() -> pd.DataFrame:
@@ -207,6 +208,35 @@ def test_predict_can_stream_full_trace_tables_to_sink(tmp_path: Path) -> None:
     assert not tables["trace_iteration_samples"].empty
     assert not tables["trace_final_ensemble_predictions"].empty
     assert not tables["trace_final_ensemble_top"].empty
+
+
+def test_predict_request_creates_runtime_trace_sink_for_full_trace() -> None:
+    predictor = KinasePredictor()
+    request = PredictionRequest.validate_request(
+        combined_scores=make_combined_scores(),
+        ensemble_size=2,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=5,
+        debug_top_n=3,
+        trace_level="full",
+        default_svm_mode="default",
+        capture_debug_trace=True,
+        debug_kinases=["KINASE_A"],
+    )
+
+    assert request.trace_sink is None
+
+    result = predictor.predict_request(request)
+    assert result.trace_level == "full"
+    assert result.trace_sink is not None
+    output_dir = result.trace_sink.output_dir
+    assert output_dir.exists()
+
+    result.close()
+    assert not output_dir.exists()
 
 
 def test_directory_trace_sink_buffers_until_read_or_flush(tmp_path: Path) -> None:
