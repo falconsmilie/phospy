@@ -359,7 +359,6 @@ If you want more detail, these are the most useful follow-on docs:
 - [`docs/parity.md`](docs/parity.md) explains what parity means here, especially for the native kinase workflow
 - [`docs/fixtures.md`](docs/fixtures.md) maps the committed fixture and trace directories
 - [`docs/roadmap.md`](docs/roadmap.md) outlines the most likely next steps
-- [`CHANGELOG.md`](CHANGELOG.md) contains the release notes
 
 If you want to contribute or work from a local checkout, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
