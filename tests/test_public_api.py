@@ -229,6 +229,42 @@ def test_phospho_dataset_from_validated_inputs_builds_without_revalidation() -> 
     assert dataset.comparisons == tuple(EXAMPLE_COMPARISONS)
 
 
+def test_phospho_dataset_defensively_copies_constructor_inputs() -> None:
+    total_df = make_total_df()
+    phospho_df = make_phospho_df()
+
+    dataset = PhosphoDataset(
+        total_df=total_df,
+        phospho_df=phospho_df,
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+
+    total_df.loc[0, "group1"] = 999.0
+    phospho_df.loc[0, "p_group1"] = 999.0
+
+    assert dataset.total_df.loc[0, "group1"] != 999.0
+    assert dataset.phospho_df.loc[0, "p_group1"] != 999.0
+
+
+def test_phospho_dataset_accessors_return_deep_copies() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+
+    total_view = dataset.total_df
+    phospho_view = dataset.phospho_df
+
+    total_view.loc[0, "group1"] = 999.0
+    phospho_view.loc[0, "p_group1"] = 999.0
+
+    assert dataset.total_df.loc[0, "group1"] != 999.0
+    assert dataset.phospho_df.loc[0, "p_group1"] != 999.0
+    assert dataset.inputs.total_df.loc[0, "group1"] != 999.0
+    assert dataset.inputs.phospho_df.loc[0, "p_group1"] != 999.0
+
+
 def test_core_output_writer_writes_csv_outputs(tmp_path) -> None:
     dataset = PhosphoDataset(
         total_df=make_total_df(),

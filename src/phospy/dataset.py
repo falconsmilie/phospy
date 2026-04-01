@@ -13,17 +13,37 @@ from .dataset_schema import DatasetSchema
 from .dataset_site_matrix import DatasetSiteMatrix
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class CoreInputs:
-    """Validated in-memory tables used by the core preprocessing pipeline."""
+    """Validated in-memory tables used by the core preprocessing pipeline.
 
-    total_df: pd.DataFrame
-    phospho_df: pd.DataFrame
+    Defensive copies are taken on construction and when exposing the stored
+    tables so callers cannot mutate dataset state through the public API.
+    """
+
+    _total_df: pd.DataFrame
+    _phospho_df: pd.DataFrame
+
+    def __init__(self, total_df: pd.DataFrame, phospho_df: pd.DataFrame) -> None:
+        object.__setattr__(self, "_total_df", total_df.copy(deep=True))
+        object.__setattr__(self, "_phospho_df", phospho_df.copy(deep=True))
+
+    @property
+    def total_df(self) -> pd.DataFrame:
+        return self._total_df.copy(deep=True)
+
+    @property
+    def phospho_df(self) -> pd.DataFrame:
+        return self._phospho_df.copy(deep=True)
 
 
 @dataclass(frozen=True, slots=True, init=False)
 class PhosphoDataset:
-    """Thin immutable holder around validated phosphoproteomics inputs."""
+    """Immutable holder around validated phosphoproteomics inputs.
+
+    The dataset stores defensive copies of validated tables and returns deep
+    copies from its public accessors so callers cannot mutate internal state.
+    """
 
     inputs: CoreInputs
     schema: DatasetSchema

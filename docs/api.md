@@ -77,6 +77,9 @@ validated = PhosphoDataset.from_validated_inputs(
 )
 ```
 
+`PhosphoDataset` is immutable at the public boundary: it stores defensive copies of validated input tables and
+returns deep copies from `total_df` and `phospho_df`.
+
 A practical detail: `from_files(...)` cleans file headers to lowercase snake case before validation. In-memory data
 frames are validated as provided.
 
