@@ -91,3 +91,93 @@ def test_compute_weighted_kinase_activity_skips_zero_weight_kinases() -> None:
     )
 
     assert list(result.index) == ["BTK"]
+
+
+def test_weighted_activity_ignores_missing_values_per_sample() -> None:
+    pred_mat = pd.DataFrame(
+        {
+            "PRKACA": [0.9, 0.8, 0.7],
+        },
+        index=["A;S1;", "B;S2;", "C;S3;"],
+    )
+    phospho_matrix = pd.DataFrame(
+        {
+            "phospho_corrected_1": [10.0, float("nan"), 1.0],
+            "phospho_corrected_2": [20.0, 6.0, float("nan")],
+        },
+        index=["A;S1;", "B;S2;", "C;S3;"],
+    )
+
+    result = compute_weighted_kinase_activity(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+        top_n_substrates=3,
+        min_substrates=3,
+    )
+
+    assert round(float(result.loc["PRKACA", "phospho_corrected_1"]), 6) == 6.0625
+    assert round(float(result.loc["PRKACA", "phospho_corrected_2"]), 6) == round(
+        (20 * 0.9 + 6 * 0.8) / (0.9 + 0.8),
+        6,
+    )
+
+
+def test_ksea_scores_ignore_missing_values_per_sample() -> None:
+    pred_mat = pd.DataFrame(
+        {
+            "PRKACA": [0.9, 0.8, 0.7],
+        },
+        index=["A;S1;", "B;S2;", "C;S3;"],
+    )
+    phospho_matrix = pd.DataFrame(
+        {
+            "phospho_corrected_1": [10.0, float("nan"), 1.0],
+            "phospho_corrected_2": [20.0, 6.0, float("nan")],
+        },
+        index=["A;S1;", "B;S2;", "C;S3;"],
+    )
+
+    scores, counts = compute_ksea_scores(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+        threshold=0.6,
+        min_substrates=3,
+    )
+
+    assert float(scores.loc["PRKACA", "phospho_corrected_1"]) == 5.5
+    assert float(scores.loc["PRKACA", "phospho_corrected_2"]) == 13.0
+    assert int(counts.loc["PRKACA"]) == 3
+
+
+def test_activity_methods_drop_kinases_with_all_missing_substrate_values() -> None:
+    pred_mat = pd.DataFrame(
+        {
+            "PRKACA": [0.9, 0.8, 0.7],
+            "BTK": [0.2, 0.1, 0.05],
+        },
+        index=["A;S1;", "B;S2;", "C;S3;"],
+    )
+    phospho_matrix = pd.DataFrame(
+        {
+            "phospho_corrected_1": [float("nan"), float("nan"), float("nan")],
+            "phospho_corrected_2": [float("nan"), float("nan"), float("nan")],
+        },
+        index=["A;S1;", "B;S2;", "C;S3;"],
+    )
+
+    weighted = compute_weighted_kinase_activity(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+        top_n_substrates=3,
+        min_substrates=3,
+    )
+    scores, counts = compute_ksea_scores(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+        threshold=0.6,
+        min_substrates=3,
+    )
+
+    assert weighted.empty
+    assert scores.empty
+    assert counts.empty

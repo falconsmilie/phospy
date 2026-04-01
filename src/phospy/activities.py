@@ -10,6 +10,14 @@ def compute_weighted_kinase_activity(
     top_n_substrates: int = 20,
     min_substrates: int = 3,
 ) -> pd.DataFrame:
+    """Compute weighted downstream kinase activity scores.
+
+    Missing phosphosite values are ignored on a per-sample basis. For each sample,
+    weights are re-normalized across the observed substrates only. Kinases whose
+    selected substrates contain no observed phosphosite values in any sample are
+    omitted from the returned activity matrix.
+    """
+
     kinases = pred_mat.columns.tolist()
     samples = phospho_matrix.columns.tolist()
     kinase_mat = pd.DataFrame(index=kinases, columns=samples, dtype=float)
@@ -28,7 +36,9 @@ def compute_weighted_kinase_activity(
             continue
 
         values = phospho_matrix.loc[substrates, samples].to_numpy(dtype=float)
-        weighted_values = np.average(values, axis=0, weights=weights)
+        weighted_values = _nan_aware_weighted_average(values, weights)
+        if np.isnan(weighted_values).all():
+            continue
         kinase_mat.loc[kinase, :] = weighted_values
 
     return kinase_mat.dropna(how="all")
@@ -65,6 +75,14 @@ def compute_ksea_scores(
     threshold: float = 0.6,
     min_substrates: int = 3,
 ) -> tuple[pd.DataFrame, pd.Series]:
+    """Compute KSEA-style downstream kinase scores.
+
+    Missing phosphosite values are ignored on a per-sample basis. Each sample score
+    is the arithmetic mean across the observed substrates only. Kinases whose
+    selected substrates contain no observed phosphosite values in any sample are
+    omitted from both returned outputs.
+    """
+
     edges = build_kinase_target_table(pred_mat, threshold=threshold)
 
     substrate_map = {
@@ -85,10 +103,15 @@ def compute_ksea_scores(
 
     for kinase, sites in substrate_map.items():
         present_sites = [site for site in sites if site in available_sites]
-        counts[kinase] = len(present_sites)
         if len(present_sites) < min_substrates:
             continue
-        score_dict[kinase] = phospho_matrix.loc[present_sites].mean(axis=0)
+
+        kinase_scores = _nan_aware_mean(phospho_matrix.loc[present_sites])
+        if kinase_scores.isna().all():
+            continue
+
+        counts[kinase] = len(present_sites)
+        score_dict[kinase] = kinase_scores
 
     score_frame = pd.DataFrame.from_dict(score_dict, orient="index")
     if score_frame.empty:
@@ -96,3 +119,35 @@ def compute_ksea_scores(
     count_series = pd.Series(counts, name="n_substrates").sort_values(ascending=False)
     count_series.index.name = "kinase"
     return score_frame, count_series
+
+
+def _nan_aware_weighted_average(
+    values: np.ndarray,
+    weights: np.ndarray,
+) -> np.ndarray:
+    if values.ndim != 2:
+        msg = "values must be a two-dimensional array"
+        raise ValueError(msg)
+    if weights.ndim != 1:
+        msg = "weights must be a one-dimensional array"
+        raise ValueError(msg)
+    if values.shape[0] != weights.shape[0]:
+        msg = "values and weights must align by substrate"
+        raise ValueError(msg)
+
+    valid_mask = ~np.isnan(values)
+    broadcast_weights = weights[:, np.newaxis]
+    weighted_values = np.where(valid_mask, values * broadcast_weights, 0.0)
+    weight_totals = np.where(valid_mask, broadcast_weights, 0.0).sum(axis=0)
+    result = np.full(values.shape[1], np.nan, dtype=float)
+    np.divide(
+        weighted_values.sum(axis=0),
+        weight_totals,
+        out=result,
+        where=weight_totals > 0.0,
+    )
+    return result
+
+
+def _nan_aware_mean(values: pd.DataFrame) -> pd.Series:
+    return values.mean(axis=0, skipna=True)
