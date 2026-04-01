@@ -89,6 +89,7 @@ frames are validated as provided.
 
 Bound preprocessing facade for the dataset. This is the preferred public entrypoint for core preprocessing.
 The facade is bound to the dataset's validated frames, schema, and optional comparison definitions.
+Use `run(...)` as the single routine entrypoint for dataset-bound preprocessing.
 
 Typical usage:
 
@@ -99,16 +100,12 @@ dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
 core = dataset.preprocessing.run()
 ```
 
-The facade also exposes the stepwise preprocessing methods when you want to execute them separately:
-
 The bound preprocessing path takes a single working copy of each validated input table at the service boundary and
 reuses that owned frame across sentinel replacement, localisation filtering, and coverage filtering. Standalone helpers
 in `phospy.preprocessing` still return copied frames by default so they remain safe to compose independently.
 
-- `prepare_total(...)`
-- `prepare_phospho(...)`
-- `correct_to_protein(...)`
-- `add_pairwise_comparisons(...)`
+Lower-level orchestration lives in `phospy.core_processing` and `phospy.preprocessing_services` for advanced use, but
+those modules are implementation-oriented support layers rather than the recommended routine API.
 
 #### `preprocessing.run(...) -> CoreProcessingResult`
 

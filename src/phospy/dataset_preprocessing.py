@@ -17,10 +17,24 @@ from .core_processing import (
 )
 from .dataset_schema import DatasetSchema
 
+"""Bound dataset preprocessing facade.
+
+`DatasetPreprocessing` is the preferred public entrypoint for running the core
+preprocessing path. Lower-level step services remain available in
+`phospy.core_processing` and `phospy.preprocessing_services` for advanced use,
+but are intentionally not mirrored as separate bound public methods here.
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class DatasetPreprocessing:
-    """Bound preprocessing facade for a validated phosphoproteomics dataset."""
+    """Bound preprocessing facade for a validated phosphoproteomics dataset.
+
+    `run()` is the single preferred public entrypoint for dataset-bound core
+    preprocessing. Advanced stepwise orchestration lives in the lower-level
+    processing modules rather than being re-exposed here as overlapping bound
+    methods.
+    """
 
     total_df: pd.DataFrame
     phospho_df: pd.DataFrame
@@ -48,64 +62,6 @@ class DatasetPreprocessing:
         return CoreProcessor(
             schema=self.schema,
             comparisons=self.comparisons,
-        )
-
-    def prepare_total(
-        self,
-        gene_col: str = "genes",
-        sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
-        min_observed: int = 4,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        return self._core_processor().prepare_total(
-            self.total_df,
-            gene_col=gene_col,
-            sentinel=sentinel,
-            min_observed=min_observed,
-        )
-
-    def prepare_phospho(
-        self,
-        gene_col: str = "gene_names",
-        site_col: str = "gene_p_site",
-        localization_col: str = "localization_prob",
-        localization_threshold: float = 0.75,
-        sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
-        min_observed: int = 4,
-    ) -> pd.DataFrame:
-        return self._core_processor().prepare_phospho(
-            self.phospho_df,
-            gene_col=gene_col,
-            site_col=site_col,
-            localization_col=localization_col,
-            localization_threshold=localization_threshold,
-            sentinel=sentinel,
-            min_observed=min_observed,
-        )
-
-    def correct_to_protein(
-        self,
-        phospho_df: pd.DataFrame,
-        total_df: pd.DataFrame,
-        phospho_gene_col: str = "gene_names",
-        total_gene_col: str = "genes",
-        max_unmatched_fraction: float = 0.0,
-    ) -> pd.DataFrame:
-        return self._core_processor().correct_to_protein(
-            phospho_df,
-            total_df,
-            phospho_gene_col=phospho_gene_col,
-            total_gene_col=total_gene_col,
-            max_unmatched_fraction=max_unmatched_fraction,
-        )
-
-    def add_pairwise_comparisons(
-        self,
-        corrected_df: pd.DataFrame,
-        output_prefix: str = "p_",
-    ) -> pd.DataFrame:
-        return self._core_processor().add_pairwise_comparisons(
-            corrected_df,
-            output_prefix=output_prefix,
         )
 
     def run(

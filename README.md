@@ -125,7 +125,7 @@ corrected = core.phospho_corrected
 
 For the bundled example data, `site_matrix.index.tolist()` returns `['BTK;Y551;']`.
 
-`dataset.preprocessing` is the bound preprocessing facade for the dataset and the public entrypoint for core preprocessing. `CoreOutputWriter` is the canonical public API for persisting core preprocessing outputs.
+`dataset.preprocessing` is the bound preprocessing facade for the dataset and the preferred public entrypoint for core preprocessing. Use `dataset.preprocessing.run(...)` as the routine API. `CoreOutputWriter` is the canonical public API for persisting core preprocessing outputs.
 
 `dataset.preprocessing.run()` returns a `CoreProcessingResult` with:
 
@@ -182,7 +182,8 @@ coverage_result = filter_sites_by_coverage(
 ```
 
 `filter_localized_sites(...)` removes sites with weak localisation evidence, while
-`filter_sites_by_coverage(...)` removes sites with too many missing sample values. Coverage filtering currently
+`filter_sites_by_coverage(...)` removes sites with too many missing sample values. These standalone helpers are for
+targeted advanced use; the preferred end-to-end preprocessing path remains `dataset.preprocessing.run(...)`. Coverage filtering currently
 operates across the sample columns you provide rather than from a separate group metadata model.
 
 ### Downstream Kinase Analysis From `predMat`

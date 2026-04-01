@@ -19,6 +19,13 @@ from .preprocessing_services import (
 from .site_matrix_builder import SiteMatrixBuilder, SiteMatrixResult
 from .validation.errors import InputCompatibilityError
 
+"""Advanced core preprocessing orchestration.
+
+`CoreProcessor` powers the preferred dataset-bound preprocessing path. Most
+users should start with `PhosphoDataset.preprocessing.run()` and only reach for
+this module when they need lower-level orchestration control.
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class CorePreprocessingConfig:
@@ -39,7 +46,11 @@ class CoreProcessingResult:
 
 
 class CoreProcessor:
-    """Run the core preprocessing pipeline over validated dataset frames."""
+    """Run the core preprocessing pipeline over validated dataset frames.
+
+    This is the advanced orchestration layer used underneath
+    `PhosphoDataset.preprocessing.run()`.
+    """
 
     def __init__(
         self,

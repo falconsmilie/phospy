@@ -21,6 +21,13 @@ from .preprocessing import (
 )
 from .validation.compatibility import validate_protein_correction_inputs
 
+"""Internal preprocessing service layer.
+
+These classes back the preferred dataset-bound preprocessing path and the core
+processor. They remain available for advanced use, but they are not the
+preferred public entrypoint for routine preprocessing.
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class TotalPreprocessor:

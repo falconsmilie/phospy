@@ -210,6 +210,10 @@ def test_phospho_dataset_does_not_expose_legacy_direct_preprocessing_methods() -
     assert not hasattr(dataset, "build_site_matrix")
     assert not hasattr(dataset, "write_core_outputs")
     assert not hasattr(dataset.preprocessing, "build_site_matrix")
+    assert not hasattr(dataset.preprocessing, "prepare_total")
+    assert not hasattr(dataset.preprocessing, "prepare_phospho")
+    assert not hasattr(dataset.preprocessing, "correct_to_protein")
+    assert not hasattr(dataset.preprocessing, "add_pairwise_comparisons")
 
 
 def test_phospho_dataset_from_validated_inputs_builds_without_revalidation() -> None:
@@ -587,16 +591,11 @@ def test_phospho_dataset_honours_custom_corrected_columns() -> None:
         ),
     )
 
-    total_unique, total_filtered = dataset.preprocessing.prepare_total()
-    phospho_filtered = dataset.preprocessing.prepare_phospho()
-    corrected = dataset.preprocessing.correct_to_protein(
-        phospho_filtered,
-        total_filtered,
-    )
+    core = dataset.preprocessing.run()
 
     expected = {"sample_a", "sample_b", "sample_c", "sample_d", "sample_e", "sample_f"}
-    assert expected.issubset(corrected.columns)
-    assert "phospho_corrected_1" not in corrected.columns
+    assert expected.issubset(core.phospho_corrected.columns)
+    assert "phospho_corrected_1" not in core.phospho_corrected.columns
 
 
 def test_pipeline_propagates_sentinel_configuration(tmp_path) -> None:
@@ -640,11 +639,14 @@ def test_pipeline_propagates_sentinel_configuration(tmp_path) -> None:
         phospho_sentinel=99.0,
     )
 
-    total_unique, total_filtered = pipeline.dataset.preprocessing.prepare_total(
+    processor = CoreProcessor(schema=pipeline.dataset.schema)
+    total_unique, total_filtered = processor.prepare_total(
+        pipeline.dataset.total_df,
         sentinel=pipeline.preprocessing_config.total_sentinel,
         min_observed=pipeline.preprocessing_config.min_observed,
     )
-    phospho_filtered = pipeline.dataset.preprocessing.prepare_phospho(
+    phospho_filtered = processor.prepare_phospho(
+        pipeline.dataset.phospho_df,
         localization_threshold=pipeline.preprocessing_config.localization_threshold,
         sentinel=pipeline.preprocessing_config.phospho_sentinel,
         min_observed=pipeline.preprocessing_config.min_observed,

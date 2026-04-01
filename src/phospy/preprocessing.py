@@ -18,6 +18,13 @@ from .validation.errors import (
 )
 from .validation.normalization import normalize_identifier_series
 
+"""Standalone preprocessing helpers.
+
+`PhosphoDataset.preprocessing.run()` is the preferred public entrypoint for the
+end-to-end core preprocessing path. This module contains targeted helpers for
+advanced use when a caller only wants a specific preprocessing step.
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class LocalizationFilterSummary:
