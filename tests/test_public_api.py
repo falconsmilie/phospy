@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from phospy import (
+    DatasetSchema,
     KinaseActivityAnalyzer,
     KinaseWorkflow,
     PhosphoDataset,
@@ -66,6 +67,7 @@ def test_public_root_exports() -> None:
     expected = {
         "CoreOutputs",
         "CoreProcessingResult",
+        "DatasetSchema",
         "KinaseActivityAnalyzer",
         "KinaseActivityResult",
         "KinasePredictionResult",
@@ -286,14 +288,16 @@ def test_phospho_dataset_honours_custom_corrected_columns() -> None:
     dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
-        corrected_cols=[
-            "sample_a",
-            "sample_b",
-            "sample_c",
-            "sample_d",
-            "sample_e",
-            "sample_f",
-        ],
+        schema=DatasetSchema(
+            corrected_cols=(
+                "sample_a",
+                "sample_b",
+                "sample_c",
+                "sample_d",
+                "sample_e",
+                "sample_f",
+            ),
+        ),
     )
 
     total_unique, total_filtered = dataset.prepare_total()
@@ -370,23 +374,7 @@ def test_dataset_components_work_together() -> None:
         phospho_df=make_phospho_df(),
     )
     processor = CoreProcessor(
-        total_cols=["group1", "group2", "group3", "group4", "group5", "group6"],
-        phospho_cols=[
-            "p_group1",
-            "p_group2",
-            "p_group3",
-            "p_group4",
-            "p_group5",
-            "p_group6",
-        ],
-        corrected_cols=[
-            "phospho_corrected_1",
-            "phospho_corrected_2",
-            "phospho_corrected_3",
-            "phospho_corrected_4",
-            "phospho_corrected_5",
-            "phospho_corrected_6",
-        ],
+        schema=DatasetSchema(),
         site_matrix_builder=SiteMatrixBuilder(
             value_cols=[
                 "phospho_corrected_1",

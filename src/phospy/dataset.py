@@ -7,10 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from .constants import (
-    DEFAULT_CORRECTED_COLS,
-    DEFAULT_PHOSPHO_COLS,
     DEFAULT_PHOSPHO_SENTINEL,
-    DEFAULT_TOTAL_COLS,
     DEFAULT_TOTAL_SENTINEL,
     ComparisonSpec,
 )
@@ -20,8 +17,8 @@ from .core_processing import (
     CoreProcessor,
 )
 from .dataset_loader import DatasetLoader
+from .dataset_schema import DatasetSchema
 from .site_matrix_builder import SiteMatrixBuilder, SiteMatrixResult
-from .validation.compatibility import validate_core_column_alignment
 from .writers import CoreOutputWriter, CoreProcessingResultWriter
 
 
@@ -38,35 +35,26 @@ class PhosphoDataset:
     """Thin immutable holder around validated phosphoproteomics inputs."""
 
     inputs: CoreInputs
-    total_cols: tuple[str, ...]
-    phospho_cols: tuple[str, ...]
-    corrected_cols: tuple[str, ...]
+    schema: DatasetSchema
     comparisons: tuple[ComparisonSpec, ...] | None
 
     def __init__(
         self,
         total_df: pd.DataFrame,
         phospho_df: pd.DataFrame,
-        total_cols: Sequence[str] | None = None,
-        phospho_cols: Sequence[str] | None = None,
-        corrected_cols: Sequence[str] | None = None,
+        *,
+        schema: DatasetSchema | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> None:
-        resolved_total_cols = self._resolve_total_cols(total_cols)
-        resolved_phospho_cols = self._resolve_phospho_cols(phospho_cols)
-        loader = DatasetLoader(
-            total_cols=resolved_total_cols,
-            phospho_cols=resolved_phospho_cols,
-        )
+        resolved_schema = schema or DatasetSchema()
+        loader = DatasetLoader(schema=resolved_schema)
         validated_total, validated_phospho = loader.validate(
             total_df=total_df,
             phospho_df=phospho_df,
         )
         self._set_state(
             inputs=CoreInputs(total_df=validated_total, phospho_df=validated_phospho),
-            total_cols=resolved_total_cols,
-            phospho_cols=resolved_phospho_cols,
-            corrected_cols=corrected_cols,
+            schema=resolved_schema,
             comparisons=comparisons,
         )
 
@@ -74,39 +62,16 @@ class PhosphoDataset:
         self,
         *,
         inputs: CoreInputs,
-        total_cols: Sequence[str],
-        phospho_cols: Sequence[str],
-        corrected_cols: Sequence[str] | None,
+        schema: DatasetSchema,
         comparisons: Sequence[ComparisonSpec] | None,
     ) -> None:
-        resolved_corrected_cols = self._resolve_corrected_cols(corrected_cols)
-        validate_core_column_alignment(
-            total_cols,
-            phospho_cols,
-            resolved_corrected_cols,
-        )
-
         object.__setattr__(self, "inputs", inputs)
-        object.__setattr__(self, "total_cols", tuple(total_cols))
-        object.__setattr__(self, "phospho_cols", tuple(phospho_cols))
-        object.__setattr__(self, "corrected_cols", tuple(resolved_corrected_cols))
+        object.__setattr__(self, "schema", schema)
         object.__setattr__(
             self,
             "comparisons",
             tuple(comparisons) if comparisons is not None else None,
         )
-
-    @staticmethod
-    def _resolve_total_cols(total_cols: Sequence[str] | None) -> list[str]:
-        return list(total_cols or DEFAULT_TOTAL_COLS)
-
-    @staticmethod
-    def _resolve_phospho_cols(phospho_cols: Sequence[str] | None) -> list[str]:
-        return list(phospho_cols or DEFAULT_PHOSPHO_COLS)
-
-    @staticmethod
-    def _resolve_corrected_cols(corrected_cols: Sequence[str] | None) -> list[str]:
-        return list(corrected_cols or DEFAULT_CORRECTED_COLS)
 
     @property
     def total_df(self) -> pd.DataFrame:
@@ -118,14 +83,12 @@ class PhosphoDataset:
 
     def _core_processor(self) -> CoreProcessor:
         return CoreProcessor(
-            total_cols=self.total_cols,
-            phospho_cols=self.phospho_cols,
-            corrected_cols=self.corrected_cols,
+            schema=self.schema,
             comparisons=self.comparisons,
         )
 
     def _site_matrix_builder(self) -> SiteMatrixBuilder:
-        return SiteMatrixBuilder(value_cols=self.corrected_cols)
+        return SiteMatrixBuilder(value_cols=self.schema.corrected_cols)
 
     @classmethod
     def from_validated_inputs(
@@ -133,18 +96,14 @@ class PhosphoDataset:
         *,
         total_df: pd.DataFrame,
         phospho_df: pd.DataFrame,
-        total_cols: Sequence[str] | None = None,
-        phospho_cols: Sequence[str] | None = None,
-        corrected_cols: Sequence[str] | None = None,
+        schema: DatasetSchema | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> PhosphoDataset:
         """Build a dataset from validated in-memory inputs."""
         instance = cls.__new__(cls)
         instance._set_state(
             inputs=CoreInputs(total_df=total_df, phospho_df=phospho_df),
-            total_cols=cls._resolve_total_cols(total_cols),
-            phospho_cols=cls._resolve_phospho_cols(phospho_cols),
-            corrected_cols=corrected_cols,
+            schema=schema or DatasetSchema(),
             comparisons=comparisons,
         )
         return instance
@@ -156,8 +115,9 @@ class PhosphoDataset:
         phospho_path: str | Path,
         phospho_encoding: str | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
+        schema: DatasetSchema | None = None,
     ) -> PhosphoDataset:
-        loader = DatasetLoader()
+        loader = DatasetLoader(schema=schema)
         total_df, phospho_df = loader.load(
             total_path,
             phospho_path,
@@ -167,6 +127,7 @@ class PhosphoDataset:
             total_df=total_df,
             phospho_df=phospho_df,
             comparisons=comparisons,
+            schema=loader.schema,
         )
 
     def prepare_total(

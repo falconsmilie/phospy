@@ -10,6 +10,7 @@ from .constants import (
     DEFAULT_TOTAL_SENTINEL,
     ComparisonSpec,
 )
+from .dataset_schema import DatasetSchema
 from .preprocessing import (
     add_pairwise_comparisons,
     collapse_duplicate_genes,
@@ -19,9 +20,8 @@ from .preprocessing import (
     replace_sentinel_with_nan,
 )
 from .site_matrix_builder import SiteMatrixBuilder, SiteMatrixResult
-from .validation.compatibility import (
-    validate_protein_correction_inputs,
-)
+from .validation.compatibility import validate_protein_correction_inputs
+from .validation.errors import InputCompatibilityError
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,19 +48,22 @@ class CoreProcessor:
     def __init__(
         self,
         *,
-        total_cols: Sequence[str],
-        phospho_cols: Sequence[str],
-        corrected_cols: Sequence[str],
+        schema: DatasetSchema,
         comparisons: Sequence[ComparisonSpec] | None = None,
         site_matrix_builder: SiteMatrixBuilder | None = None,
     ) -> None:
-        self.total_cols = list(total_cols)
-        self.phospho_cols = list(phospho_cols)
-        self.corrected_cols = list(corrected_cols)
-        self.comparisons = list(comparisons) if comparisons is not None else None
+        self.schema = schema
+        self.comparisons = tuple(comparisons) if comparisons is not None else None
         self.site_matrix_builder = site_matrix_builder or SiteMatrixBuilder(
-            value_cols=self.corrected_cols
+            value_cols=self.schema.corrected_cols
         )
+        self._validate_site_matrix_builder()
+
+    def _validate_site_matrix_builder(self) -> None:
+        builder_value_cols = tuple(self.site_matrix_builder.value_cols)
+        if builder_value_cols != self.schema.corrected_cols:
+            msg = "Site matrix builder value columns must match schema.corrected_cols"
+            raise InputCompatibilityError(msg)
 
     def prepare_total(
         self,
@@ -72,12 +75,20 @@ class CoreProcessor:
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         total = total_df.copy()
         total[gene_col] = total[gene_col].astype("string")
-        total = replace_sentinel_with_nan(total, self.total_cols, sentinel=sentinel)
+        total = replace_sentinel_with_nan(
+            total,
+            self.schema.total_cols,
+            sentinel=sentinel,
+        )
         total_unique = collapse_duplicate_genes(
-            total, gene_col=gene_col, value_cols=self.total_cols
+            total,
+            gene_col=gene_col,
+            value_cols=self.schema.total_cols,
         )
         total_filtered = filter_min_observed(
-            total_unique, self.total_cols, min_observed=min_observed
+            total_unique,
+            self.schema.total_cols,
+            min_observed=min_observed,
         )
         return total_unique, total_filtered
 
@@ -102,10 +113,14 @@ class CoreProcessor:
             threshold=localization_threshold,
         )
         phospho = replace_sentinel_with_nan(
-            phospho, self.phospho_cols, sentinel=sentinel
+            phospho,
+            self.schema.phospho_cols,
+            sentinel=sentinel,
         )
         return filter_min_observed(
-            phospho, self.phospho_cols, min_observed=min_observed
+            phospho,
+            self.schema.phospho_cols,
+            min_observed=min_observed,
         )
 
     def correct_to_protein(
@@ -122,8 +137,8 @@ class CoreProcessor:
             total_df,
             phospho_gene_col=phospho_gene_col,
             total_gene_col=total_gene_col,
-            phospho_cols=self.phospho_cols,
-            protein_cols=self.total_cols,
+            phospho_cols=self.schema.phospho_cols,
+            protein_cols=self.schema.total_cols,
             max_unmatched_fraction=max_unmatched_fraction,
         )
         return correct_phospho_to_protein(
@@ -131,9 +146,9 @@ class CoreProcessor:
             df_total=total_df,
             phospho_gene_col=phospho_gene_col,
             total_gene_col=total_gene_col,
-            phospho_cols=self.phospho_cols,
-            protein_cols=self.total_cols,
-            corrected_cols=self.corrected_cols,
+            phospho_cols=self.schema.phospho_cols,
+            protein_cols=self.schema.total_cols,
+            corrected_cols=self.schema.corrected_cols,
         )
 
     def add_pairwise_comparisons(
@@ -145,14 +160,10 @@ class CoreProcessor:
         if not self.comparisons:
             return corrected_df.copy()
 
-        group_map = {
-            f"group{i}": self.corrected_cols[i - 1]
-            for i in range(1, len(self.corrected_cols) + 1)
-        }
         return add_pairwise_comparisons(
             corrected_df,
             comparisons=self.comparisons,
-            group_to_corrected_col=group_map,
+            group_to_corrected_col=self.schema.group_to_corrected_col,
             output_prefix=output_prefix,
         )
 

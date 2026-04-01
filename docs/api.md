@@ -13,6 +13,7 @@ If you stay within the classes on this page, you are using the public surface th
 from phospy import (
     CoreOutputs,
     CoreProcessingResult,
+    DatasetSchema,
     KinaseActivityAnalyzer,
     KinaseActivityResult,
     KinasePredictionResult,
@@ -46,9 +47,20 @@ dataset = PhosphoDataset.from_files(
 From in-memory data frames:
 
 ```python
-from phospy import PhosphoDataset
+from phospy import DatasetSchema, PhosphoDataset
 
 dataset = PhosphoDataset(total_df=total_df, phospho_df=phospho_df)
+
+custom_schema = DatasetSchema(
+    total_cols=("sample_1", "sample_2"),
+    phospho_cols=("p_sample_1", "p_sample_2"),
+    corrected_cols=("corrected_1", "corrected_2"),
+)
+dataset_with_schema = PhosphoDataset(
+    total_df=total_df,
+    phospho_df=phospho_df,
+    schema=custom_schema,
+)
 ```
 
 From already-validated frames:
@@ -99,8 +111,8 @@ These are useful when you want the steps separately:
 - `build_site_matrix(...)`
 - `write_core_outputs(...)`
 
-You can also customise `total_cols`, `phospho_cols`, and `corrected_cols` at construction time. If you override those
-column groups, they must still align by length.
+Use `DatasetSchema` when your input tables do not use the default aligned sample columns. The schema is immutable and
+travels with the dataset through validation and core preprocessing.
 
 ### Standalone localisation and coverage filtering helpers
 
