@@ -15,7 +15,8 @@ from pydantic import (
     model_validator,
 )
 
-from phospy.constants import DEFAULT_TOTAL_COLS, ComparisonSpec
+from phospy.constants import ComparisonSpec
+from phospy.dataset_schema import DatasetSchema
 from phospy.types import (
     PredictionSvmMode,
     PredictionTraceFormat,
@@ -26,7 +27,6 @@ from .errors import RequestValidationError
 from .paths import validate_existing_file_path
 from .tables import PredictionScoreMatrixSchema
 
-_VALID_COMPARISON_GROUPS = frozenset(DEFAULT_TOTAL_COLS)
 _PREDICTION_SVM_MODE_ADAPTER = TypeAdapter(PredictionSvmMode)
 _PREDICTION_TRACE_FORMAT_ADAPTER = TypeAdapter(PredictionTraceFormat)
 _PREDICTION_TRACE_LEVEL_ADAPTER = TypeAdapter(PredictionTraceLevel)
@@ -59,6 +59,7 @@ class CorePipelineRequest(PhospyRequestModel):
     phospho_path: Path
     pred_mat_path: Path | None = None
     phospho_encoding: str | None = None
+    dataset_schema: DatasetSchema = Field(default_factory=DatasetSchema, alias="schema")
     comparisons: tuple[ComparisonSpec, ...] | None = None
     localization_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
     min_observed: int = Field(default=4, ge=1)
@@ -76,29 +77,17 @@ class CorePipelineRequest(PhospyRequestModel):
         except RequestValidationError as error:
             raise ValueError(str(error)) from error
 
-    @field_validator("comparisons")
-    @classmethod
-    def validate_comparisons(
-        cls,
-        value: tuple[ComparisonSpec, ...] | None,
-    ) -> tuple[ComparisonSpec, ...] | None:
-        if value is None:
-            return None
-
-        seen: set[ComparisonSpec] = set()
-        for left_group, right_group in value:
-            if left_group not in _VALID_COMPARISON_GROUPS:
-                msg = f"Unknown comparison group: {left_group}"
-                raise ValueError(msg)
-            if right_group not in _VALID_COMPARISON_GROUPS:
-                msg = f"Unknown comparison group: {right_group}"
-                raise ValueError(msg)
-            pair = (left_group, right_group)
-            if pair in seen:
-                msg = f"Duplicate comparison pair: {left_group!r}, {right_group!r}"
-                raise ValueError(msg)
-            seen.add(pair)
-        return value
+    @model_validator(mode="after")
+    def validate_comparisons(self) -> CorePipelineRequest:
+        try:
+            validated = self.dataset_schema.validate_comparisons(
+                self.comparisons,
+                context="Core pipeline request",
+            )
+        except Exception as error:
+            raise ValueError(str(error)) from error
+        object.__setattr__(self, "comparisons", validated)
+        return self
 
     @classmethod
     def validate_request(cls, **data: object) -> CorePipelineRequest:

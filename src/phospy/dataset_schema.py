@@ -9,6 +9,7 @@ from .constants import (
     DEFAULT_TOTAL_COLS,
 )
 from .validation.compatibility import validate_core_column_alignment
+from .validation.errors import InputCompatibilityError
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,11 +37,41 @@ class DatasetSchema:
         object.__setattr__(self, "corrected_cols", corrected_cols)
 
     @property
+    def comparison_groups(self) -> tuple[str, ...]:
+        return self.total_cols
+
+    @property
     def group_to_corrected_col(self) -> Mapping[str, str]:
-        return {
-            f"group{index}": corrected_col
-            for index, corrected_col in enumerate(self.corrected_cols, start=1)
-        }
+        return dict(zip(self.comparison_groups, self.corrected_cols, strict=True))
+
+    def validate_comparisons(
+        self,
+        comparisons: Sequence[tuple[str, str]] | None,
+        *,
+        context: str = "Dataset schema",
+    ) -> tuple[tuple[str, str], ...] | None:
+        if comparisons is None:
+            return None
+
+        resolved = tuple(comparisons)
+        valid_groups = frozenset(self.comparison_groups)
+        seen: set[tuple[str, str]] = set()
+        for left_group, right_group in resolved:
+            if left_group not in valid_groups:
+                msg = f"{context} contains Unknown comparison group: {left_group}"
+                raise InputCompatibilityError(msg)
+            if right_group not in valid_groups:
+                msg = f"{context} contains Unknown comparison group: {right_group}"
+                raise InputCompatibilityError(msg)
+            pair = (left_group, right_group)
+            if pair in seen:
+                msg = (
+                    f"{context} contains Duplicate comparison pair: "
+                    f"{left_group!r}, {right_group!r}"
+                )
+                raise InputCompatibilityError(msg)
+            seen.add(pair)
+        return resolved
 
     @classmethod
     def from_groups(

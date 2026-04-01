@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from .constants import ComparisonSpec
+from .dataset_schema import DatasetSchema
 from .validation.errors import (
     InputCompatibilityError,
     PhospyValidationError,
@@ -448,11 +449,26 @@ def _add_pairwise_comparisons_in_place(
     comparisons: Sequence[ComparisonSpec],
     group_to_corrected_col: dict[str, str] | None = None,
     output_prefix: str = "p_",
+    schema: DatasetSchema | None = None,
 ) -> pd.DataFrame:
     if group_to_corrected_col is None:
-        group_to_corrected_col = {
-            f"group{i}": f"phospho_corrected_{i}" for i in range(1, 7)
-        }
+        resolved_schema = schema or DatasetSchema()
+        resolved_schema.validate_comparisons(
+            comparisons,
+            context="Pairwise comparison configuration",
+        )
+        group_to_corrected_col = dict(resolved_schema.group_to_corrected_col)
+    else:
+        resolved = tuple(comparisons)
+        valid_groups = frozenset(group_to_corrected_col)
+        seen: set[ComparisonSpec] = set()
+        for left, right in resolved:
+            if left not in valid_groups or right not in valid_groups:
+                raise KeyError(f"Missing group mapping for comparison: {(left, right)}")
+            pair = (left, right)
+            if pair in seen:
+                raise ValueError(f"Duplicate comparison pair: {left!r}, {right!r}")
+            seen.add(pair)
 
     for left, right in comparisons:
         if left not in group_to_corrected_col or right not in group_to_corrected_col:
@@ -469,6 +485,7 @@ def add_pairwise_comparisons(
     comparisons: Sequence[ComparisonSpec],
     group_to_corrected_col: dict[str, str] | None = None,
     output_prefix: str = "p_",
+    schema: DatasetSchema | None = None,
 ) -> pd.DataFrame:
     result = df.copy()
     return _add_pairwise_comparisons_in_place(
@@ -476,6 +493,7 @@ def add_pairwise_comparisons(
         comparisons,
         group_to_corrected_col=group_to_corrected_col,
         output_prefix=output_prefix,
+        schema=schema,
     )
 
 

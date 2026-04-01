@@ -580,3 +580,25 @@ def test_protein_correction_service_applies_correction_and_pairwise_augmentation
 
     assert corrected["phospho_corrected_1"].iloc[0] == 7.0
     assert with_comparisons["p_group1_group4"].iloc[0] == 3.0
+
+
+def test_add_pairwise_comparisons_uses_schema_group_names() -> None:
+    corrected = pd.DataFrame(
+        {
+            "corrected_a": [7.0],
+            "corrected_b": [4.0],
+        }
+    )
+    schema = DatasetSchema(
+        total_cols=("sample_a", "sample_b"),
+        phospho_cols=("p_sample_a", "p_sample_b"),
+        corrected_cols=("corrected_a", "corrected_b"),
+    )
+
+    with_comparisons = add_pairwise_comparisons(
+        corrected,
+        comparisons=[("sample_a", "sample_b")],
+        schema=schema,
+    )
+
+    assert with_comparisons["p_sample_a_sample_b"].iloc[0] == 3.0

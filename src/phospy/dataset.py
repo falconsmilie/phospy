@@ -63,13 +63,17 @@ class PhosphoDataset:
             total_df=total_df,
             phospho_df=phospho_df,
         )
+        validated_comparisons = validated_inputs.schema.validate_comparisons(
+            comparisons,
+            context="PhosphoDataset",
+        )
         self._set_state(
             inputs=CoreInputs(
                 total_df=validated_inputs.total_df,
                 phospho_df=validated_inputs.phospho_df,
             ),
             schema=validated_inputs.schema,
-            comparisons=comparisons,
+            comparisons=validated_comparisons,
         )
 
     def _set_state(
@@ -124,6 +128,10 @@ class PhosphoDataset:
                 "produced by DatasetLoader"
             )
             raise TypeError(msg)
+        validated_comparisons = validated_inputs.schema.validate_comparisons(
+            comparisons,
+            context="PhosphoDataset",
+        )
         instance = cls.__new__(cls)
         instance._set_state(
             inputs=CoreInputs(
@@ -131,7 +139,7 @@ class PhosphoDataset:
                 phospho_df=validated_inputs.phospho_df,
             ),
             schema=validated_inputs.schema,
-            comparisons=comparisons,
+            comparisons=validated_comparisons,
         )
         return instance
 

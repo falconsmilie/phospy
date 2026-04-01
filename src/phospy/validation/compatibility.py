@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from .errors import InputCompatibilityError
 from .normalization import normalize_identifier_series
-from .requests import KinaseWorkflowRequest
 from .tables import PredMatSchema, SiteMatrixSchema
+
+if TYPE_CHECKING:
+    from .requests import KinaseWorkflowRequest
 
 
 def validate_core_column_alignment(

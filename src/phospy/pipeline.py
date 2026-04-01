@@ -12,6 +12,7 @@ from .constants import ComparisonSpec
 from .core_processing import CorePreprocessingConfig, CoreProcessingResult
 from .dataset import PhosphoDataset
 from .dataset_loader import DatasetLoader
+from .dataset_schema import DatasetSchema
 from .io import load_pred_mat
 from .publishing import OutputPublisher, RunManifestWriter
 from .validation.errors import RequestValidationError, TableSchemaError
@@ -57,7 +58,7 @@ class PhosRPipeline:
 
     @classmethod
     def from_request(cls, request: CorePipelineRequest) -> PhosRPipeline:
-        validated_inputs = DatasetLoader().load(
+        validated_inputs = DatasetLoader(schema=request.dataset_schema).load(
             request.total_path,
             request.phospho_path,
             phospho_encoding=request.phospho_encoding,
@@ -103,6 +104,7 @@ class PhosRPipeline:
         pred_mat_path: str | Path | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
         phospho_encoding: str | None = None,
+        schema: DatasetSchema | None = None,
         localization_threshold: float = 0.75,
         min_observed: int = 4,
         max_unmatched_fraction: float = 0.0,
@@ -114,6 +116,7 @@ class PhosRPipeline:
             phospho_path=Path(phospho_path),
             pred_mat_path=Path(pred_mat_path) if pred_mat_path is not None else None,
             phospho_encoding=phospho_encoding,
+            schema=schema or DatasetSchema(),
             comparisons=tuple(comparisons) if comparisons is not None else None,
             localization_threshold=localization_threshold,
             min_observed=min_observed,

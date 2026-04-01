@@ -892,3 +892,40 @@ def test_pipeline_from_files_wraps_raw_pred_mat_read_errors(
             phospho_path=phospho_path,
             pred_mat_path=pred_path,
         )
+
+
+def test_dataset_with_custom_schema_preserves_schema_named_comparisons() -> None:
+    schema = DatasetSchema(
+        total_cols=("sample_a", "sample_b"),
+        phospho_cols=("p_sample_a", "p_sample_b"),
+        corrected_cols=("corrected_a", "corrected_b"),
+    )
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "sample_a": [1.0],
+            "sample_b": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_sample_a": [8.0],
+            "p_sample_b": [5.0],
+        }
+    )
+
+    dataset = PhosphoDataset(
+        total_df=total_df,
+        phospho_df=phospho_df,
+        schema=schema,
+        comparisons=[("sample_a", "sample_b")],
+    )
+    result = dataset.preprocessing.run(min_observed=1)
+
+    assert dataset.comparisons == (("sample_a", "sample_b"),)
+    assert result.phospho_corrected["p_sample_a_sample_b"].iloc[0] == 3.0

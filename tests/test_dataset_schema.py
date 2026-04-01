@@ -60,3 +60,32 @@ def test_dataset_stores_schema_object() -> None:
     )
 
     assert dataset.schema is schema
+
+
+def test_dataset_schema_maps_comparison_groups_to_corrected_columns() -> None:
+    schema = DatasetSchema(
+        total_cols=("sample_a", "sample_b"),
+        phospho_cols=("p_sample_a", "p_sample_b"),
+        corrected_cols=("corrected_a", "corrected_b"),
+    )
+
+    assert schema.comparison_groups == ("sample_a", "sample_b")
+    assert schema.group_to_corrected_col == {
+        "sample_a": "corrected_a",
+        "sample_b": "corrected_b",
+    }
+
+
+def test_dataset_schema_validates_comparisons_against_active_groups() -> None:
+    schema = DatasetSchema(
+        total_cols=("sample_a", "sample_b"),
+        phospho_cols=("p_sample_a", "p_sample_b"),
+        corrected_cols=("corrected_a", "corrected_b"),
+    )
+
+    assert schema.validate_comparisons((("sample_a", "sample_b"),)) == (
+        ("sample_a", "sample_b"),
+    )
+
+    with pytest.raises(InputCompatibilityError, match="Unknown comparison group"):
+        schema.validate_comparisons((("group1", "sample_b"),))

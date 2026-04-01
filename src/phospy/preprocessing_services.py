@@ -111,7 +111,10 @@ class ProteinCorrectionService:
         object.__setattr__(
             self,
             "comparisons",
-            tuple(comparisons) if comparisons is not None else None,
+            schema.validate_comparisons(
+                comparisons,
+                context="Protein correction service",
+            ),
         )
 
     def correct(
@@ -156,4 +159,5 @@ class ProteinCorrectionService:
             comparisons=self.comparisons,
             group_to_corrected_col=self.schema.group_to_corrected_col,
             output_prefix=output_prefix,
+            schema=self.schema,
         )

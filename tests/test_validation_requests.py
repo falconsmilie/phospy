@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy import DatasetSchema
 from phospy.prediction.traces import TraceSink
 from phospy.validation.errors import RequestValidationError
 from phospy.validation.requests import (
@@ -297,4 +298,56 @@ def test_prediction_request_rejects_duplicate_combined_score_index() -> None:
             n_iterations=2,
             debug_top_n=1,
             default_svm_mode="default",
+        )
+
+
+def test_core_pipeline_request_validates_comparisons_against_explicit_schema(
+    tmp_path,
+) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    total_path.write_text("genes\tsample_a\tsample_b\nPRKACA\t1\t1\n")
+    phospho_path.write_text(
+        "uid\tgene_names\tgene_p_site\tlocalization_prob\tcentralized_sequence\tp_sample_a\tp_sample_b\n"
+        "1\tPRKACA\tPRKACA_S339\t0.95\tAAAAAA\t1\t1\n"
+    )
+    schema = DatasetSchema(
+        total_cols=("sample_a", "sample_b"),
+        phospho_cols=("p_sample_a", "p_sample_b"),
+        corrected_cols=("corrected_a", "corrected_b"),
+    )
+
+    request = CorePipelineRequest.validate_request(
+        total_path=total_path,
+        phospho_path=phospho_path,
+        schema=schema,
+        comparisons=(("sample_a", "sample_b"),),
+    )
+
+    assert request.dataset_schema is schema
+    assert request.comparisons == (("sample_a", "sample_b"),)
+
+
+def test_core_pipeline_request_rejects_unknown_comparison_group_for_schema(
+    tmp_path,
+) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    total_path.write_text("genes\tsample_a\tsample_b\nPRKACA\t1\t1\n")
+    phospho_path.write_text(
+        "uid\tgene_names\tgene_p_site\tlocalization_prob\tcentralized_sequence\tp_sample_a\tp_sample_b\n"
+        "1\tPRKACA\tPRKACA_S339\t0.95\tAAAAAA\t1\t1\n"
+    )
+    schema = DatasetSchema(
+        total_cols=("sample_a", "sample_b"),
+        phospho_cols=("p_sample_a", "p_sample_b"),
+        corrected_cols=("corrected_a", "corrected_b"),
+    )
+
+    with pytest.raises(RequestValidationError, match="Unknown comparison group"):
+        CorePipelineRequest.validate_request(
+            total_path=total_path,
+            phospho_path=phospho_path,
+            schema=schema,
+            comparisons=(("group1", "sample_b"),),
         )
