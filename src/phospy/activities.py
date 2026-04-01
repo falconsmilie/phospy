@@ -48,6 +48,8 @@ def build_kinase_target_table(
     pred_mat: pd.DataFrame,
     threshold: float = 0.6,
 ) -> pd.DataFrame:
+    """Materialize a kinase-target edge table for reporting and export."""
+
     filtered = pred_mat.where(pred_mat > threshold)
     try:
         edges = filtered.stack(future_stack=True).rename("score").reset_index()
@@ -62,9 +64,10 @@ def count_predicted_targets(
     pred_mat: pd.DataFrame,
     threshold: float = 0.6,
 ) -> pd.Series:
-    edges = build_kinase_target_table(pred_mat, threshold=threshold)
-    counts = edges.groupby("kinase").size()
-    counts = counts.reindex(pred_mat.columns, fill_value=0)
+    """Count predicted kinase targets using matrix-native thresholding."""
+
+    counts = _prediction_mask(pred_mat, threshold=threshold).sum(axis=0)
+    counts = counts.reindex(pred_mat.columns, fill_value=0).astype(int)
     counts.index.name = "kinase"
     return counts.rename("n_targets").sort_values(ascending=False)
 
@@ -83,14 +86,15 @@ def compute_ksea_scores(
     omitted from both returned outputs.
     """
 
-    edges = build_kinase_target_table(pred_mat, threshold=threshold)
+    aligned_pred_mat, aligned_matrix = _align_activity_inputs(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+    )
+    substrate_mask = _prediction_mask(aligned_pred_mat, threshold=threshold)
+    substrate_counts = substrate_mask.sum(axis=0)
+    candidate_kinases = substrate_counts.index[substrate_counts >= min_substrates]
 
-    substrate_map = {
-        kinase: group["site_id"].tolist() for kinase, group in edges.groupby("kinase")
-    }
-    substrate_map = {k: v for k, v in substrate_map.items() if len(v) >= min_substrates}
-
-    if not substrate_map:
+    if len(candidate_kinases) == 0:
         empty_scores = pd.DataFrame(columns=list(phospho_matrix.columns), dtype=float)
         empty_counts = pd.Series(dtype=int, name="n_substrates")
         empty_counts.index.name = "kinase"
@@ -99,18 +103,13 @@ def compute_ksea_scores(
     score_dict: dict[str, pd.Series] = {}
     counts: dict[str, int] = {}
 
-    available_sites = set(phospho_matrix.index)
-
-    for kinase, sites in substrate_map.items():
-        present_sites = [site for site in sites if site in available_sites]
-        if len(present_sites) < min_substrates:
-            continue
-
-        kinase_scores = _nan_aware_mean(phospho_matrix.loc[present_sites])
+    for kinase in candidate_kinases:
+        selected_sites = aligned_pred_mat.index[substrate_mask[kinase].to_numpy()]
+        kinase_scores = _nan_aware_mean(aligned_matrix.loc[selected_sites])
         if kinase_scores.isna().all():
             continue
 
-        counts[kinase] = len(present_sites)
+        counts[kinase] = len(selected_sites)
         score_dict[kinase] = kinase_scores
 
     score_frame = pd.DataFrame.from_dict(score_dict, orient="index")
@@ -119,6 +118,19 @@ def compute_ksea_scores(
     count_series = pd.Series(counts, name="n_substrates").sort_values(ascending=False)
     count_series.index.name = "kinase"
     return score_frame, count_series
+
+
+def _prediction_mask(pred_mat: pd.DataFrame, threshold: float) -> pd.DataFrame:
+    return pred_mat.gt(threshold)
+
+
+def _align_activity_inputs(
+    *,
+    pred_mat: pd.DataFrame,
+    phospho_matrix: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    common_sites = pred_mat.index.intersection(phospho_matrix.index)
+    return pred_mat.loc[common_sites], phospho_matrix.loc[common_sites]
 
 
 def _nan_aware_weighted_average(
