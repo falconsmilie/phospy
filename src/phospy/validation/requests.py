@@ -23,6 +23,7 @@ from phospy.types import (
 )
 
 from .errors import RequestValidationError
+from .paths import validate_existing_file_path
 from .tables import PredictionScoreMatrixSchema
 
 _VALID_COMPARISON_GROUPS = frozenset(DEFAULT_TOTAL_COLS)
@@ -70,13 +71,10 @@ class CorePipelineRequest(PhospyRequestModel):
     def validate_existing_path(cls, value: Path | None) -> Path | None:
         if value is None:
             return None
-        if not value.exists():
-            msg = f"Path does not exist: {value}"
-            raise ValueError(msg)
-        if not value.is_file():
-            msg = f"Path is not a file: {value}"
-            raise ValueError(msg)
-        return value
+        try:
+            return validate_existing_file_path(value, context="core pipeline file path")
+        except RequestValidationError as error:
+            raise ValueError(str(error)) from error
 
     @field_validator("comparisons")
     @classmethod

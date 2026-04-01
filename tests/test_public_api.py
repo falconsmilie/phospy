@@ -19,6 +19,7 @@ from phospy import (
 from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
 from phospy.dataset_loader import DatasetLoader, ValidatedCoreInputs
 from phospy.site_matrix_builder import SiteMatrixBuilder
+from phospy.validation.errors import RequestValidationError
 
 EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
 
@@ -819,3 +820,75 @@ def test_pipeline_run_does_not_publish_partial_outputs_on_failure(
 
 def pipeline_config() -> CorePreprocessingConfig:
     return CorePreprocessingConfig()
+
+
+def test_dataset_from_files_rejects_missing_paths_with_request_validation_error(
+    tmp_path,
+) -> None:
+    total_path = tmp_path / "missing_total.tsv"
+    phospho_path = tmp_path / "missing_phospho.tsv"
+
+    with pytest.raises(RequestValidationError, match="Path does not exist"):
+        PhosphoDataset.from_files(total_path=total_path, phospho_path=phospho_path)
+
+
+def test_dataset_from_files_rejects_directory_paths_with_request_validation_error(
+    tmp_path,
+) -> None:
+    total_dir = tmp_path / "total_dir"
+    phospho_path = tmp_path / "phospho.tsv"
+    total_dir.mkdir()
+    phospho_path.write_text(
+        "uid	gene_names	gene_p_site	localization_prob	centralized_sequence	p_group1	p_group2	p_group3	p_group4	p_group5	p_group6\n"
+        "1	PRKACA	PRKACA_S339	0.95	AAAAAA	1	1	1	1	1	1\n"
+    )
+
+    with pytest.raises(RequestValidationError, match="Path is not a file"):
+        PhosphoDataset.from_files(total_path=total_dir, phospho_path=phospho_path)
+
+
+def test_dataset_and_pipeline_from_files_wrap_raw_table_read_errors(
+    monkeypatch, tmp_path
+) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    total_path.write_text("placeholder")
+    phospho_path.write_text("placeholder")
+
+    from phospy import dataset_loader as dataset_loader_module
+
+    def blow_up(*args, **kwargs):
+        raise pd.errors.ParserError("broken tsv")
+
+    monkeypatch.setattr(dataset_loader_module, "read_table", blow_up)
+
+    with pytest.raises(RequestValidationError, match="unable to read file: broken tsv"):
+        PhosphoDataset.from_files(total_path=total_path, phospho_path=phospho_path)
+
+    with pytest.raises(RequestValidationError, match="unable to read file: broken tsv"):
+        PhosRPipeline.from_files(total_path=total_path, phospho_path=phospho_path)
+
+
+def test_pipeline_from_files_wraps_raw_pred_mat_read_errors(
+    monkeypatch, tmp_path
+) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    pred_path = tmp_path / "predMat.csv"
+    make_total_df().to_csv(total_path, sep="	", index=False)
+    make_phospho_df().to_csv(phospho_path, sep="	", index=False)
+    pred_path.write_text("placeholder")
+
+    from phospy import pipeline as pipeline_module
+
+    def blow_up(*args, **kwargs):
+        raise pd.errors.ParserError("broken csv")
+
+    monkeypatch.setattr(pipeline_module, "load_pred_mat", blow_up)
+
+    with pytest.raises(RequestValidationError, match="unable to read pred_mat"):
+        PhosRPipeline.from_files(
+            total_path=total_path,
+            phospho_path=phospho_path,
+            pred_mat_path=pred_path,
+        )

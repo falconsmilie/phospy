@@ -14,6 +14,7 @@ from .dataset import PhosphoDataset
 from .dataset_loader import DatasetLoader
 from .io import load_pred_mat
 from .publishing import OutputPublisher, RunManifestWriter
+from .validation.errors import RequestValidationError, TableSchemaError
 from .validation.requests import CorePipelineRequest
 from .writers import CoreOutputWriter, KinaseActivityWriter
 
@@ -65,11 +66,23 @@ class PhosRPipeline:
             validated_inputs,
             comparisons=request.comparisons,
         )
-        pred_mat = (
-            load_pred_mat(request.pred_mat_path)
-            if request.pred_mat_path is not None
-            else None
-        )
+        pred_mat = None
+        if request.pred_mat_path is not None:
+            try:
+                pred_mat = load_pred_mat(request.pred_mat_path)
+            except TableSchemaError:
+                raise
+            except (
+                OSError,
+                UnicodeError,
+                pd.errors.ParserError,
+                pd.errors.EmptyDataError,
+            ) as error:
+                msg = (
+                    f"Invalid core pipeline request: pred_mat_path: "
+                    f"unable to read pred_mat ({request.pred_mat_path}): {error}"
+                )
+                raise RequestValidationError(msg) from error
         return cls(
             dataset=dataset,
             pred_mat=pred_mat,
