@@ -17,7 +17,7 @@ from phospy import (
     PhosRPipeline,
 )
 from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
-from phospy.dataset_loader import DatasetLoader
+from phospy.dataset_loader import DatasetLoader, ValidatedCoreInputs
 from phospy.site_matrix_builder import SiteMatrixBuilder
 
 EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
@@ -213,20 +213,26 @@ def test_phospho_dataset_does_not_expose_legacy_direct_preprocessing_methods() -
 
 def test_phospho_dataset_from_validated_inputs_builds_without_revalidation() -> None:
     loader = DatasetLoader()
-    total_df, phospho_df = loader.validate(
+    validated_inputs = loader.validate(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
     )
 
     dataset = PhosphoDataset.from_validated_inputs(
-        total_df=total_df,
-        phospho_df=phospho_df,
+        validated_inputs,
         comparisons=EXAMPLE_COMPARISONS,
     )
 
-    assert dataset.total_df.equals(total_df)
-    assert dataset.phospho_df.equals(phospho_df)
+    assert isinstance(validated_inputs, ValidatedCoreInputs)
+    assert dataset.total_df.equals(validated_inputs.total_df)
+    assert dataset.phospho_df.equals(validated_inputs.phospho_df)
+    assert dataset.schema == validated_inputs.schema
     assert dataset.comparisons == tuple(EXAMPLE_COMPARISONS)
+
+
+def test_phospho_dataset_from_validated_inputs_rejects_raw_dataframes() -> None:
+    with pytest.raises(TypeError, match="ValidatedCoreInputs"):
+        PhosphoDataset.from_validated_inputs(make_total_df())
 
 
 def test_phospho_dataset_defensively_copies_constructor_inputs() -> None:
@@ -652,10 +658,12 @@ def test_pipeline_propagates_sentinel_configuration(tmp_path) -> None:
 
 def test_dataset_components_work_together() -> None:
     loader = DatasetLoader()
-    total_df, phospho_df = loader.validate(
+    validated_inputs = loader.validate(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
     )
+    total_df = validated_inputs.total_df
+    phospho_df = validated_inputs.phospho_df
     processor = CoreProcessor(
         schema=DatasetSchema(),
         site_matrix_builder=SiteMatrixBuilder(

@@ -56,14 +56,13 @@ class PhosRPipeline:
 
     @classmethod
     def from_request(cls, request: CorePipelineRequest) -> PhosRPipeline:
-        total_df, phospho_df = DatasetLoader().load(
+        validated_inputs = DatasetLoader().load(
             request.total_path,
             request.phospho_path,
             phospho_encoding=request.phospho_encoding,
         )
         dataset = PhosphoDataset.from_validated_inputs(
-            total_df=total_df,
-            phospho_df=phospho_df,
+            validated_inputs,
             comparisons=request.comparisons,
         )
         pred_mat = (

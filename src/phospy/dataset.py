@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from .constants import ComparisonSpec
-from .dataset_loader import DatasetLoader
+from .dataset_loader import DatasetLoader, ValidatedCoreInputs
 from .dataset_preprocessing import DatasetPreprocessing
 from .dataset_schema import DatasetSchema
 from .dataset_site_matrix import DatasetSiteMatrix
@@ -59,13 +59,16 @@ class PhosphoDataset:
     ) -> None:
         resolved_schema = schema or DatasetSchema()
         loader = DatasetLoader(schema=resolved_schema)
-        validated_total, validated_phospho = loader.validate(
+        validated_inputs = loader.validate(
             total_df=total_df,
             phospho_df=phospho_df,
         )
         self._set_state(
-            inputs=CoreInputs(total_df=validated_total, phospho_df=validated_phospho),
-            schema=resolved_schema,
+            inputs=CoreInputs(
+                total_df=validated_inputs.total_df,
+                phospho_df=validated_inputs.phospho_df,
+            ),
+            schema=validated_inputs.schema,
             comparisons=comparisons,
         )
 
@@ -110,17 +113,24 @@ class PhosphoDataset:
     @classmethod
     def from_validated_inputs(
         cls,
+        validated_inputs: ValidatedCoreInputs,
         *,
-        total_df: pd.DataFrame,
-        phospho_df: pd.DataFrame,
-        schema: DatasetSchema | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> PhosphoDataset:
-        """Build a dataset from validated in-memory inputs."""
+        """Build a dataset from validated inputs produced by ``DatasetLoader``."""
+        if not isinstance(validated_inputs, ValidatedCoreInputs):
+            msg = (
+                "validated_inputs must be a ValidatedCoreInputs instance "
+                "produced by DatasetLoader"
+            )
+            raise TypeError(msg)
         instance = cls.__new__(cls)
         instance._set_state(
-            inputs=CoreInputs(total_df=total_df, phospho_df=phospho_df),
-            schema=schema or DatasetSchema(),
+            inputs=CoreInputs(
+                total_df=validated_inputs.total_df,
+                phospho_df=validated_inputs.phospho_df,
+            ),
+            schema=validated_inputs.schema,
             comparisons=comparisons,
         )
         return instance
@@ -135,14 +145,12 @@ class PhosphoDataset:
         schema: DatasetSchema | None = None,
     ) -> PhosphoDataset:
         loader = DatasetLoader(schema=schema)
-        total_df, phospho_df = loader.load(
+        validated_inputs = loader.load(
             total_path,
             phospho_path,
             phospho_encoding=phospho_encoding,
         )
         return cls.from_validated_inputs(
-            total_df=total_df,
-            phospho_df=phospho_df,
+            validated_inputs,
             comparisons=comparisons,
-            schema=loader.schema,
         )

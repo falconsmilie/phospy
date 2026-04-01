@@ -66,15 +66,15 @@ dataset_with_schema = PhosphoDataset(
 )
 ```
 
-From already-validated frames:
+From validated loader output:
 
 ```python
 from phospy import PhosphoDataset
+from phospy.dataset_loader import DatasetLoader
 
-validated = PhosphoDataset.from_validated_inputs(
-    total_df=total_df,
-    phospho_df=phospho_df,
-)
+loader = DatasetLoader()
+validated_inputs = loader.validate(total_df=total_df, phospho_df=phospho_df)
+validated = PhosphoDataset.from_validated_inputs(validated_inputs)
 ```
 
 `PhosphoDataset` is immutable at the public boundary: it stores defensive copies of validated input tables and
