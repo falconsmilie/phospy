@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy.dataset_schema import DatasetSchema
 from phospy.preprocessing import (
     CoverageFilterResult,
     LocalizationFilterResult,
@@ -14,6 +15,11 @@ from phospy.preprocessing import (
     filter_min_observed,
     filter_sites_by_coverage,
     replace_sentinel_with_nan,
+)
+from phospy.preprocessing_services import (
+    PhosphoPreprocessor,
+    ProteinCorrectionService,
+    TotalPreprocessor,
 )
 from phospy.validation.errors import (
     InputCompatibilityError,
@@ -444,3 +450,89 @@ def test_correct_phospho_to_protein_rejects_duplicate_normalized_total_genes() -
             phospho_cols=["p_group1"],
             protein_cols=["group1"],
         )
+
+
+def test_total_preprocessor_matches_existing_total_preparation_flow() -> None:
+    total_df = pd.DataFrame(
+        {
+            "genes": ["Prkaca", "Prkaca", "Btk"],
+            "group1": [1.0, 5.0, 9.0],
+            "group2": [1.0, 5.0, 9.0],
+            "group3": [1.0, 5.0, 9.0],
+            "group4": [1.0, 5.0, 9.0],
+            "group5": [1.0, 5.0, 9.0],
+            "group6": [1.0, 5.0, 9.0],
+        }
+    )
+
+    total_unique, total_filtered = TotalPreprocessor(schema=DatasetSchema()).prepare(
+        total_df
+    )
+
+    assert total_unique["genes"].tolist() == ["BTK", "PRKACA"]
+    assert total_filtered["genes"].tolist() == ["BTK", "PRKACA"]
+    assert total_unique.loc[total_unique["genes"] == "PRKACA", "group1"].iloc[0] == 5.0
+
+
+def test_phospho_preprocessor_applies_localization_sentinel_and_coverage_rules() -> (
+    None
+):
+    phospho_df = pd.DataFrame(
+        {
+            "gene_names": ["prkaca", "btk", "lyn"],
+            "gene_p_site": ["prkaca_s339", "btk_y551", "lyn_y397"],
+            "localization_prob": [0.95, 0.70, 0.95],
+            "p_group1": [8.0, 6.0, 12.0],
+            "p_group2": [7.0, 5.0, 12.0],
+            "p_group3": [6.0, 4.0, 12.0],
+            "p_group4": [5.0, 3.0, 12.0],
+            "p_group5": [4.0, 2.0, 2.0],
+            "p_group6": [3.0, 1.0, 12.0],
+        }
+    )
+
+    filtered = PhosphoPreprocessor(schema=DatasetSchema()).prepare(
+        phospho_df,
+        sentinel=12.0,
+        min_observed=4,
+    )
+
+    assert filtered["gene_names"].tolist() == ["PRKACA"]
+    assert filtered["gene_p_site"].tolist() == ["prkaca_s339"]
+
+
+def test_protein_correction_service_applies_correction_and_pairwise_augmentation() -> (
+    None
+):
+    phospho_df = pd.DataFrame(
+        {
+            "gene_names": ["PRKACA"],
+            "p_group1": [8.0],
+            "p_group2": [7.0],
+            "p_group3": [6.0],
+            "p_group4": [5.0],
+            "p_group5": [4.0],
+            "p_group6": [3.0],
+        }
+    )
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+
+    service = ProteinCorrectionService(
+        schema=DatasetSchema(),
+        comparisons=[("group1", "group4")],
+    )
+    corrected = service.correct(phospho_df, total_df)
+    with_comparisons = service.add_pairwise_comparisons(corrected)
+
+    assert corrected["phospho_corrected_1"].iloc[0] == 7.0
+    assert with_comparisons["p_group1_group4"].iloc[0] == 3.0

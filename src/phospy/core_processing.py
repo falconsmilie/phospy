@@ -11,16 +11,12 @@ from .constants import (
     ComparisonSpec,
 )
 from .dataset_schema import DatasetSchema
-from .preprocessing import (
-    add_pairwise_comparisons,
-    collapse_duplicate_genes,
-    correct_phospho_to_protein,
-    filter_localized_sites,
-    filter_min_observed,
-    replace_sentinel_with_nan,
+from .preprocessing_services import (
+    PhosphoPreprocessor,
+    ProteinCorrectionService,
+    TotalPreprocessor,
 )
 from .site_matrix_builder import SiteMatrixBuilder, SiteMatrixResult
-from .validation.compatibility import validate_protein_correction_inputs
 from .validation.errors import InputCompatibilityError
 
 
@@ -50,14 +46,41 @@ class CoreProcessor:
         *,
         schema: DatasetSchema,
         comparisons: Sequence[ComparisonSpec] | None = None,
+        total_preprocessor: TotalPreprocessor | None = None,
+        phospho_preprocessor: PhosphoPreprocessor | None = None,
+        protein_correction_service: ProteinCorrectionService | None = None,
         site_matrix_builder: SiteMatrixBuilder | None = None,
     ) -> None:
         self.schema = schema
         self.comparisons = tuple(comparisons) if comparisons is not None else None
+        self.total_preprocessor = total_preprocessor or TotalPreprocessor(
+            schema=self.schema
+        )
+        self.phospho_preprocessor = phospho_preprocessor or PhosphoPreprocessor(
+            schema=self.schema
+        )
+        self.protein_correction_service = protein_correction_service or (
+            ProteinCorrectionService(
+                schema=self.schema,
+                comparisons=self.comparisons,
+            )
+        )
         self.site_matrix_builder = site_matrix_builder or SiteMatrixBuilder(
             value_cols=self.schema.corrected_cols
         )
+        self._validate_services()
         self._validate_site_matrix_builder()
+
+    def _validate_services(self) -> None:
+        if self.total_preprocessor.schema != self.schema:
+            msg = "Total preprocessor schema must match CoreProcessor.schema"
+            raise InputCompatibilityError(msg)
+        if self.phospho_preprocessor.schema != self.schema:
+            msg = "Phospho preprocessor schema must match CoreProcessor.schema"
+            raise InputCompatibilityError(msg)
+        if self.protein_correction_service.schema != self.schema:
+            msg = "Protein correction service schema must match CoreProcessor.schema"
+            raise InputCompatibilityError(msg)
 
     def _validate_site_matrix_builder(self) -> None:
         builder_value_cols = tuple(self.site_matrix_builder.value_cols)
@@ -73,24 +96,12 @@ class CoreProcessor:
         sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
         min_observed: int = 4,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        total = total_df.copy()
-        total[gene_col] = total[gene_col].astype("string")
-        total = replace_sentinel_with_nan(
-            total,
-            self.schema.total_cols,
-            sentinel=sentinel,
-        )
-        total_unique = collapse_duplicate_genes(
-            total,
+        return self.total_preprocessor.prepare(
+            total_df,
             gene_col=gene_col,
-            value_cols=self.schema.total_cols,
-        )
-        total_filtered = filter_min_observed(
-            total_unique,
-            self.schema.total_cols,
+            sentinel=sentinel,
             min_observed=min_observed,
         )
-        return total_unique, total_filtered
 
     def prepare_phospho(
         self,
@@ -103,23 +114,13 @@ class CoreProcessor:
         sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
         min_observed: int = 4,
     ) -> pd.DataFrame:
-        phospho = phospho_df.copy()
-        phospho[gene_col] = phospho[gene_col].astype("string").str.upper()
-        phospho[site_col] = phospho[site_col].astype("string")
-
-        phospho = filter_localized_sites(
-            phospho,
+        return self.phospho_preprocessor.prepare(
+            phospho_df,
+            gene_col=gene_col,
+            site_col=site_col,
             localization_col=localization_col,
-            threshold=localization_threshold,
-        )
-        phospho = replace_sentinel_with_nan(
-            phospho,
-            self.schema.phospho_cols,
+            localization_threshold=localization_threshold,
             sentinel=sentinel,
-        )
-        return filter_min_observed(
-            phospho,
-            self.schema.phospho_cols,
             min_observed=min_observed,
         )
 
@@ -132,23 +133,12 @@ class CoreProcessor:
         total_gene_col: str = "genes",
         max_unmatched_fraction: float = 0.0,
     ) -> pd.DataFrame:
-        validate_protein_correction_inputs(
+        return self.protein_correction_service.correct(
             phospho_df,
             total_df,
             phospho_gene_col=phospho_gene_col,
             total_gene_col=total_gene_col,
-            phospho_cols=self.schema.phospho_cols,
-            protein_cols=self.schema.total_cols,
             max_unmatched_fraction=max_unmatched_fraction,
-        )
-        return correct_phospho_to_protein(
-            df_phospho=phospho_df,
-            df_total=total_df,
-            phospho_gene_col=phospho_gene_col,
-            total_gene_col=total_gene_col,
-            phospho_cols=self.schema.phospho_cols,
-            protein_cols=self.schema.total_cols,
-            corrected_cols=self.schema.corrected_cols,
         )
 
     def add_pairwise_comparisons(
@@ -157,13 +147,8 @@ class CoreProcessor:
         *,
         output_prefix: str = "p_",
     ) -> pd.DataFrame:
-        if not self.comparisons:
-            return corrected_df.copy()
-
-        return add_pairwise_comparisons(
+        return self.protein_correction_service.add_pairwise_comparisons(
             corrected_df,
-            comparisons=self.comparisons,
-            group_to_corrected_col=self.schema.group_to_corrected_col,
             output_prefix=output_prefix,
         )
 
