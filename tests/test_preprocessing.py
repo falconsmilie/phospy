@@ -5,12 +5,14 @@ import pandas as pd
 import pytest
 
 from phospy.preprocessing import (
+    CoverageFilterResult,
     LocalizationFilterResult,
     add_pairwise_comparisons,
     collapse_duplicate_genes,
     correct_phospho_to_protein,
     filter_localized_sites,
     filter_min_observed,
+    filter_sites_by_coverage,
     replace_sentinel_with_nan,
 )
 from phospy.validation.errors import (
@@ -73,6 +75,125 @@ def test_filter_localized_sites_reports_missing_required_column() -> None:
         match=r"filter_localized_sites\(\) input is missing required columns: localization_prob",
     ):
         filter_localized_sites(df)
+
+
+def test_filter_sites_by_coverage_filters_rows_and_returns_summary() -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["A", "B", "C"],
+            "p_group1": [1.0, 1.0, np.nan],
+            "p_group2": [2.0, np.nan, np.nan],
+            "p_group3": [3.0, np.nan, 5.0],
+            "p_group4": [4.0, 4.0, np.nan],
+        }
+    )
+
+    result = filter_sites_by_coverage(
+        df,
+        columns=["p_group1", "p_group2", "p_group3", "p_group4"],
+        min_coverage=0.5,
+        return_summary=True,
+    )
+
+    assert isinstance(result, CoverageFilterResult)
+    assert result.filtered["gene_p_site"].tolist() == ["A", "B"]
+    assert result.summary.input_rows == 3
+    assert result.summary.retained_rows == 2
+    assert result.summary.removed_rows == 1
+    assert result.summary.retention_fraction == pytest.approx(2 / 3)
+    assert result.summary.min_coverage == 0.5
+    assert result.summary.required_observed_count == 2
+    assert result.summary.value_columns == (
+        "p_group1",
+        "p_group2",
+        "p_group3",
+        "p_group4",
+    )
+
+
+def test_filter_sites_by_coverage_applies_inclusive_boundary_threshold() -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["A", "B"],
+            "p_group1": [1.0, 1.0],
+            "p_group2": [2.0, np.nan],
+            "p_group3": [np.nan, np.nan],
+            "p_group4": [4.0, np.nan],
+        }
+    )
+
+    filtered = filter_sites_by_coverage(
+        df,
+        columns=["p_group1", "p_group2", "p_group3", "p_group4"],
+        min_coverage=0.75,
+    )
+
+    assert filtered["gene_p_site"].tolist() == ["A"]
+
+
+def test_filter_sites_by_coverage_rejects_invalid_threshold() -> None:
+    df = pd.DataFrame({"p_group1": [1.0], "p_group2": [2.0]})
+
+    with pytest.raises(
+        PhospyValidationError,
+        match="min_coverage must be a finite numeric value between 0 and 1",
+    ):
+        filter_sites_by_coverage(
+            df,
+            columns=["p_group1", "p_group2"],
+            min_coverage=-0.1,
+        )
+
+
+def test_filter_sites_by_coverage_reports_missing_required_column() -> None:
+    df = pd.DataFrame({"p_group1": [1.0]})
+
+    with pytest.raises(
+        TableSchemaError,
+        match=r"filter_sites_by_coverage\(\) input is missing required columns: p_group2",
+    ):
+        filter_sites_by_coverage(
+            df,
+            columns=["p_group1", "p_group2"],
+            min_coverage=0.5,
+        )
+
+
+def test_filter_sites_by_coverage_returns_deterministic_empty_result() -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["A", "B"],
+            "p_group1": [1.0, np.nan],
+            "p_group2": [np.nan, np.nan],
+        }
+    )
+
+    result = filter_sites_by_coverage(
+        df,
+        columns=["p_group1", "p_group2"],
+        min_coverage=1.0,
+        return_summary=True,
+    )
+
+    assert result.filtered.empty
+    assert result.filtered.columns.tolist() == df.columns.tolist()
+    assert result.summary.input_rows == 2
+    assert result.summary.retained_rows == 0
+    assert result.summary.removed_rows == 2
+    assert result.summary.retention_fraction == 0.0
+    assert result.summary.required_observed_count == 2
+
+
+def test_filter_sites_by_coverage_requires_at_least_one_column() -> None:
+    df = pd.DataFrame({"gene_p_site": ["A"]})
+
+    with pytest.raises(
+        PhospyValidationError,
+        match=(
+            r"filter_sites_by_coverage\(\) requires at least one column name in 'columns'"
+        ),
+    ):
+        filter_sites_by_coverage(df, columns=[])
 
 
 def test_replace_sentinel_with_nan_and_filter_min_observed() -> None:

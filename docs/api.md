@@ -102,7 +102,7 @@ These are useful when you want the steps separately:
 You can also customise `total_cols`, `phospho_cols`, and `corrected_cols` at construction time. If you override those
 column groups, they must still align by length.
 
-### Standalone localisation filtering helper
+### Standalone localisation and coverage filtering helpers
 
 When you only want the phosphosite localisation step, use the public helper in `phospy.preprocessing`:
 
@@ -126,6 +126,27 @@ removed_rows = summary_result.summary.removed_rows
 
 The helper validates that the localisation column exists and that `threshold` is a finite value in `[0, 1]`.
 Rows with `localization_prob >= threshold` are retained.
+
+For missingness and overall sample coverage filtering, use the standalone coverage helper:
+
+```python
+from phospy.preprocessing import filter_sites_by_coverage
+
+coverage_result = filter_sites_by_coverage(
+    phospho_df,
+    columns=["p_group1", "p_group2", "p_group3", "p_group4", "p_group5", "p_group6"],
+    min_coverage=0.5,
+    return_summary=True,
+)
+
+covered = coverage_result.filtered
+required_count = coverage_result.summary.required_observed_count
+```
+
+`filter_localized_sites(...)` filters by localisation confidence on a score column.
+`filter_sites_by_coverage(...)` filters by the proportion of non-missing values across the sample columns you pass in.
+`min_coverage` must be a finite value in `[0, 1]`, the selected sample columns must exist, and empty outputs are
+returned deterministically as an empty frame with the original columns preserved.
 
 ## `CoreProcessingResult`
 

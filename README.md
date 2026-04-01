@@ -162,6 +162,23 @@ summary_result = filter_localized_sites(
 `summary_result.filtered` contains the retained rows and `summary_result.summary` reports how many rows were kept or
 removed.
 
+If you want to filter by observed data coverage before the broader workflow, use the standalone coverage helper:
+
+```python
+from phospy.preprocessing import filter_sites_by_coverage
+
+coverage_result = filter_sites_by_coverage(
+    phospho_df,
+    columns=["p_group1", "p_group2", "p_group3", "p_group4", "p_group5", "p_group6"],
+    min_coverage=0.5,
+    return_summary=True,
+)
+```
+
+`filter_localized_sites(...)` removes sites with weak localisation evidence, while
+`filter_sites_by_coverage(...)` removes sites with too many missing sample values. Coverage filtering currently
+operates across the sample columns you provide rather than from a separate group metadata model.
+
 ### Downstream Kinase Analysis From `predMat`
 
 `KinaseActivityAnalyzer` is the public orchestration layer for standalone downstream kinase analysis. Use it when you

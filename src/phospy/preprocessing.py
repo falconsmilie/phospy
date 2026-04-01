@@ -38,6 +38,27 @@ class LocalizationFilterResult:
     summary: LocalizationFilterSummary
 
 
+@dataclass(frozen=True, slots=True)
+class CoverageFilterSummary:
+    """Small summary describing a phosphosite coverage filter pass."""
+
+    input_rows: int
+    retained_rows: int
+    removed_rows: int
+    retention_fraction: float
+    min_coverage: float
+    required_observed_count: int
+    value_columns: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class CoverageFilterResult:
+    """Filtered phosphosites together with a coverage filter summary."""
+
+    filtered: pd.DataFrame
+    summary: CoverageFilterSummary
+
+
 def _require_columns(
     df: pd.DataFrame,
     *,
@@ -82,6 +103,20 @@ def _require_numeric_series(
         ) from exc
 
     return pd.Series(numeric_values, index=values.index, copy=False)
+
+
+def _resolve_required_columns(
+    columns: Sequence[str],
+    *,
+    argument_name: str,
+    context: str,
+) -> list[str]:
+    resolved_columns = list(columns)
+    if not resolved_columns:
+        raise PhospyValidationError(
+            f"{context} requires at least one column name in '{argument_name}'"
+        )
+    return resolved_columns
 
 
 @overload
@@ -148,6 +183,79 @@ def filter_localized_sites(
         localization_col=localization_col,
     )
     return LocalizationFilterResult(filtered=filtered, summary=summary)
+
+
+@overload
+def filter_sites_by_coverage(
+    df: pd.DataFrame,
+    *,
+    columns: Sequence[str],
+    min_coverage: float = 0.0,
+    return_summary: Literal[False] = False,
+) -> pd.DataFrame: ...
+
+
+@overload
+def filter_sites_by_coverage(
+    df: pd.DataFrame,
+    *,
+    columns: Sequence[str],
+    min_coverage: float = 0.0,
+    return_summary: Literal[True],
+) -> CoverageFilterResult: ...
+
+
+def filter_sites_by_coverage(
+    df: pd.DataFrame,
+    *,
+    columns: Sequence[str],
+    min_coverage: float = 0.0,
+    return_summary: bool = False,
+) -> pd.DataFrame | CoverageFilterResult:
+    """Filter phosphosites by the minimum observed proportion across samples.
+
+    The helper keeps rows whose observed-value proportion across ``columns`` is
+    greater than or equal to ``min_coverage``. Coverage is evaluated as the
+    fraction of non-missing values among the selected sample columns.
+    """
+
+    resolved_columns = _resolve_required_columns(
+        columns,
+        argument_name="columns",
+        context="filter_sites_by_coverage()",
+    )
+    _require_columns(
+        df,
+        required_columns=resolved_columns,
+        context="filter_sites_by_coverage() input",
+    )
+    resolved_min_coverage = _validate_probability_threshold(
+        min_coverage,
+        name="min_coverage",
+    )
+    required_observed_count = math.ceil(resolved_min_coverage * len(resolved_columns))
+
+    filtered = filter_min_observed(
+        df,
+        resolved_columns,
+        min_observed=required_observed_count,
+    )
+    if not return_summary:
+        return filtered
+
+    input_rows = int(len(df))
+    retained_rows = int(len(filtered))
+    removed_rows = input_rows - retained_rows
+    summary = CoverageFilterSummary(
+        input_rows=input_rows,
+        retained_rows=retained_rows,
+        removed_rows=removed_rows,
+        retention_fraction=(retained_rows / input_rows) if input_rows else 0.0,
+        min_coverage=resolved_min_coverage,
+        required_observed_count=required_observed_count,
+        value_columns=tuple(resolved_columns),
+    )
+    return CoverageFilterResult(filtered=filtered, summary=summary)
 
 
 def replace_sentinel_with_nan(
@@ -306,6 +414,8 @@ def add_pairwise_comparisons(
 
 
 __all__ = [
+    "CoverageFilterResult",
+    "CoverageFilterSummary",
     "LocalizationFilterResult",
     "LocalizationFilterSummary",
     "add_pairwise_comparisons",
@@ -313,5 +423,6 @@ __all__ = [
     "correct_phospho_to_protein",
     "filter_localized_sites",
     "filter_min_observed",
+    "filter_sites_by_coverage",
     "replace_sentinel_with_nan",
 ]
