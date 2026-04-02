@@ -229,8 +229,8 @@ def test_phospho_dataset_from_validated_inputs_builds_without_revalidation() -> 
     )
 
     assert isinstance(validated_inputs, ValidatedCoreInputs)
-    assert dataset.total_df.equals(validated_inputs.total_df)
-    assert dataset.phospho_df.equals(validated_inputs.phospho_df)
+    assert dataset.total_df is validated_inputs.total_df
+    assert dataset.phospho_df is validated_inputs.phospho_df
     assert dataset.schema == validated_inputs.schema
     assert dataset.comparisons == tuple(EXAMPLE_COMPARISONS)
 
@@ -240,7 +240,7 @@ def test_phospho_dataset_from_validated_inputs_rejects_raw_dataframes() -> None:
         PhosphoDataset.from_validated_inputs(make_total_df())
 
 
-def test_phospho_dataset_defensively_copies_constructor_inputs() -> None:
+def test_phospho_dataset_owns_a_validated_snapshot_of_constructor_inputs() -> None:
     total_df = make_total_df()
     phospho_df = make_phospho_df()
 
@@ -257,23 +257,47 @@ def test_phospho_dataset_defensively_copies_constructor_inputs() -> None:
     assert dataset.phospho_df.loc[0, "p_group1"] != 999.0
 
 
-def test_phospho_dataset_accessors_return_deep_copies() -> None:
+def test_phospho_dataset_accessors_expose_owned_frames_without_copying() -> None:
     dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
 
-    total_view = dataset.total_df
-    phospho_view = dataset.phospho_df
+    assert dataset.total_df is dataset.inputs.total_df
+    assert dataset.phospho_df is dataset.inputs.phospho_df
+    assert dataset.preprocessing.total_df is dataset.total_df
+    assert dataset.preprocessing.phospho_df is dataset.phospho_df
 
-    total_view.loc[0, "group1"] = 999.0
-    phospho_view.loc[0, "p_group1"] = 999.0
+
+def test_phospho_dataset_copy_inputs_returns_mutation_safe_copies() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+
+    total_copy, phospho_copy = dataset.copy_inputs()
+
+    total_copy.loc[0, "group1"] = 999.0
+    phospho_copy.loc[0, "p_group1"] = 999.0
 
     assert dataset.total_df.loc[0, "group1"] != 999.0
     assert dataset.phospho_df.loc[0, "p_group1"] != 999.0
-    assert dataset.inputs.total_df.loc[0, "group1"] != 999.0
-    assert dataset.inputs.phospho_df.loc[0, "p_group1"] != 999.0
+
+
+def test_dataset_preprocessing_run_does_not_mutate_owned_dataset_inputs() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+    original_total, original_phospho = dataset.copy_inputs()
+
+    dataset.preprocessing.run(max_unmatched_fraction=0.1)
+
+    pd.testing.assert_frame_equal(dataset.total_df, original_total)
+    pd.testing.assert_frame_equal(dataset.phospho_df, original_phospho)
 
 
 def test_core_output_writer_writes_csv_outputs(tmp_path) -> None:

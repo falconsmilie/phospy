@@ -12,38 +12,23 @@ from .validation.paths import validate_existing_file_path
 from .validation.tables import PhosphoInputSchema, TotalInputSchema
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True)
 class ValidatedCoreInputs:
     """Validated dataset tables produced by :class:`DatasetLoader`.
 
-    The loader owns construction of this type so downstream code can distinguish
-    between arbitrary in-memory frames and frames that have passed the dataset
-    boundary validators. Defensive copies are stored and returned to preserve the
-    validated snapshot.
+    The loader is the boundary owner for validated dataset frames. The stored
+    frames are the single trusted in-memory snapshot that downstream code may
+    read directly. Call :meth:`copy_frames` before mutating them outside the
+    dataset-bound processing path.
     """
 
     schema: DatasetSchema
-    _total_df: pd.DataFrame
-    _phospho_df: pd.DataFrame
+    total_df: pd.DataFrame
+    phospho_df: pd.DataFrame
 
-    def __init__(
-        self,
-        *,
-        total_df: pd.DataFrame,
-        phospho_df: pd.DataFrame,
-        schema: DatasetSchema,
-    ) -> None:
-        object.__setattr__(self, "schema", schema)
-        object.__setattr__(self, "_total_df", total_df.copy(deep=True))
-        object.__setattr__(self, "_phospho_df", phospho_df.copy(deep=True))
-
-    @property
-    def total_df(self) -> pd.DataFrame:
-        return self._total_df.copy(deep=True)
-
-    @property
-    def phospho_df(self) -> pd.DataFrame:
-        return self._phospho_df.copy(deep=True)
+    def copy_frames(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Return deep copies suitable for caller-owned mutation."""
+        return self.total_df.copy(deep=True), self.phospho_df.copy(deep=True)
 
 
 class DatasetLoader:

@@ -13,36 +13,33 @@ from .dataset_schema import DatasetSchema
 from .dataset_site_matrix import DatasetSiteMatrix
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, slots=True)
 class CoreInputs:
-    """Validated in-memory tables used by the core preprocessing pipeline.
+    """Owned dataset tables used by the core preprocessing pipeline.
 
-    Defensive copies are taken on construction and when exposing the stored
-    tables so callers cannot mutate dataset state through the public API.
+    The frames stored here are the canonical validated in-memory dataset owned by
+    :class:`PhosphoDataset`. They are exposed directly for read access. Call
+    :meth:`copy_frames` before mutating them outside the processing boundary.
     """
 
-    _total_df: pd.DataFrame
-    _phospho_df: pd.DataFrame
+    total_df: pd.DataFrame
+    phospho_df: pd.DataFrame
 
-    def __init__(self, total_df: pd.DataFrame, phospho_df: pd.DataFrame) -> None:
-        object.__setattr__(self, "_total_df", total_df.copy(deep=True))
-        object.__setattr__(self, "_phospho_df", phospho_df.copy(deep=True))
-
-    @property
-    def total_df(self) -> pd.DataFrame:
-        return self._total_df.copy(deep=True)
-
-    @property
-    def phospho_df(self) -> pd.DataFrame:
-        return self._phospho_df.copy(deep=True)
+    def copy_frames(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Return deep copies suitable for caller-owned mutation."""
+        return self.total_df.copy(deep=True), self.phospho_df.copy(deep=True)
 
 
 @dataclass(frozen=True, slots=True, init=False)
 class PhosphoDataset:
-    """Immutable holder around validated phosphoproteomics inputs.
+    """Explicit owner around validated phosphoproteomics inputs.
 
-    The dataset stores defensive copies of validated tables and returns deep
-    copies from its public accessors so callers cannot mutate internal state.
+    ``PhosphoDataset`` keeps one trusted validated snapshot of the source frames.
+    Public accessors return the owned in-memory frames directly rather than
+    creating defensive copies on every read. Internal preprocessing remains safe
+    because mutation happens on caller-owned copies inside the processing
+    services. Call :meth:`copy_inputs` when you need a mutable copy of the
+    dataset inputs.
     """
 
     inputs: CoreInputs
@@ -93,18 +90,24 @@ class PhosphoDataset:
 
     @property
     def total_df(self) -> pd.DataFrame:
+        """Return the owned validated total-protein table."""
         return self.inputs.total_df
 
     @property
     def phospho_df(self) -> pd.DataFrame:
+        """Return the owned validated phosphoproteomics table."""
         return self.inputs.phospho_df
+
+    def copy_inputs(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Return deep copies suitable for caller-owned mutation."""
+        return self.inputs.copy_frames()
 
     @property
     def preprocessing(self) -> DatasetPreprocessing:
         """Return the bound preprocessing facade for this dataset."""
         return DatasetPreprocessing(
-            total_df=self.total_df,
-            phospho_df=self.phospho_df,
+            total_df=self.inputs.total_df,
+            phospho_df=self.inputs.phospho_df,
             schema=self.schema,
             comparisons=self.comparisons,
         )
