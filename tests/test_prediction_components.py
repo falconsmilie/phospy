@@ -5,6 +5,8 @@ import pandas as pd
 from phospy.prediction.aggregation import PredictionAggregator
 from phospy.prediction.candidates import CandidateSelector
 from phospy.prediction.execution import TraceRecorder
+from phospy.prediction.service import PredictionExecutionRunner
+from phospy.validation.requests import PredictionRequest
 
 
 def test_candidate_selector_selects_qualifying_kinases() -> None:
@@ -52,3 +54,35 @@ def test_trace_recorder_create_state_traces_all_kinases_by_default() -> None:
 
     assert state.traced_kinases == {"K1", "K2"}
     assert state.debug_traces == {}
+
+
+def test_prediction_execution_runner_returns_empty_result_without_candidates() -> None:
+    scores = pd.DataFrame({"K1": [0.2, 0.1]}, index=["s1", "s2"])
+    request = PredictionRequest.validate_request(
+        combined_scores=scores,
+        ensemble_size=2,
+        top=1,
+        score_threshold=0.9,
+        inclusion=1,
+        n_iterations=1,
+        random_state=3,
+        capture_debug_trace=False,
+        default_svm_mode="default",
+    )
+
+    runner = PredictionExecutionRunner(
+        candidate_selector=CandidateSelector(),
+        prediction_aggregator=PredictionAggregator(),
+        trace_recorder=TraceRecorder(),
+        ensemble_predictor=None,
+    )
+
+    try:
+        result = runner.run(request)
+    except AttributeError as error:
+        raise AssertionError(
+            "runner should short-circuit before ensemble execution"
+        ) from error
+
+    assert result.substrate_list == {}
+    assert result.pred_matrix.empty

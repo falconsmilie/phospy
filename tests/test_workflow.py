@@ -7,7 +7,7 @@ from phospy.motifs import KinaseMotifScorer
 from phospy.validation.errors import InputCompatibilityError, RequestValidationError
 from phospy.validation.requests import KinaseWorkflowRequest
 from phospy.validation.tables import SiteMatrixSchema
-from phospy.workflow import KinaseWorkflow
+from phospy.workflow import KinaseWorkflow, WorkflowExecutionPlanner
 
 
 def make_workflow_inputs() -> tuple[
@@ -281,3 +281,35 @@ def test_kinase_workflow_rejects_inconsistent_motif_widths_at_boundary() -> None
             n_iterations=2,
             random_state=17,
         )
+
+
+def test_workflow_execution_planner_resolves_predictor_mode_from_request() -> None:
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
+        make_workflow_inputs()
+    )
+    request = KinaseWorkflowRequest.validate_request(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        min_substrates=2,
+        min_motif_size=2,
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.75,
+        inclusion=3,
+        n_iterations=2,
+        random_state=17,
+        svm_mode="r_parity",
+    )
+
+    plan = WorkflowExecutionPlanner(
+        flank_size=2,
+        kernel="rbf",
+        default_svm_mode="default",
+    ).plan(request)
+
+    assert plan.predictor_svm_mode == "r_parity"
+    assert list(plan.validated_inputs.phospho_matrix.index) == list(
+        phospho_matrix.index
+    )

@@ -4,10 +4,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from ..types import PredictionTraceFormat, PredictionTraceLevel
+
+if TYPE_CHECKING:
+    from ..validation.requests import PredictionRequest
 
 TRACE_TABLE_NAMES: tuple[str, ...] = (
     "trace_selected_candidates",
@@ -188,6 +192,24 @@ class PredictionExecutionContext:
             self.trace_sink.close()
 
 
+@dataclass(slots=True)
+class PredictionRuntimeSession:
+    runtime_request: PredictionRequest
+    execution_context: PredictionExecutionContext
+
+    def __enter__(self) -> PredictionRuntimeSession:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: object | None,
+    ) -> None:
+        if exc_type is not None:
+            self.execution_context.close_owned_trace_sink()
+
+
 def build_prediction_execution_context(
     *,
     sampling_trace: object | str | Path | None,
@@ -221,11 +243,37 @@ def build_prediction_execution_context(
     )
 
 
+def build_prediction_runtime_session(
+    request: PredictionRequest,
+    *,
+    trace_sink_max_buffer_rows: int = 1000,
+) -> PredictionRuntimeSession:
+    execution_context = build_prediction_execution_context(
+        sampling_trace=request.sampling_trace,
+        trace_level=request.trace_level,
+        trace_sink=request.trace_sink,
+        trace_sink_format=request.trace_sink_format,
+        trace_sink_max_buffer_rows=trace_sink_max_buffer_rows,
+    )
+    runtime_request = request.model_copy(
+        update={
+            "sampling_trace": execution_context.sampling_trace,
+            "trace_sink": execution_context.trace_sink,
+        }
+    )
+    return PredictionRuntimeSession(
+        runtime_request=runtime_request,
+        execution_context=execution_context,
+    )
+
+
 __all__ = [
     "DirectoryTraceSink",
     "PredictionExecutionContext",
+    "PredictionRuntimeSession",
     "TRACE_TABLE_NAMES",
     "TraceSink",
     "build_prediction_execution_context",
+    "build_prediction_runtime_session",
     "create_trace_sink",
 ]

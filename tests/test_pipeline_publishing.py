@@ -12,7 +12,9 @@ from phospy import KinaseActivityAnalyzer, PhosRPipeline
 from phospy.constants import RUN_MANIFEST_FILENAME
 from phospy.core_processing import CorePreprocessingConfig
 from phospy.dataset import PhosphoDataset
+from phospy.pipeline import PipelineRequestLoader
 from phospy.publishing import OutputPublisher, RunManifestWriter, package_version
+from phospy.validation.requests import CorePipelineRequest
 
 EXAMPLE_COMPARISONS = (("group1", "group4"), ("group2", "group5"), ("group3", "group6"))
 
@@ -319,3 +321,24 @@ def test_package_version_propagates_unexpected_metadata_errors(
 
     with pytest.raises(RuntimeError, match="metadata backend failed"):
         package_version()
+
+
+def test_pipeline_request_loader_builds_dataset_and_config(tmp_path: Path) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    pred_path = tmp_path / "predMat.csv"
+    make_total_df().to_csv(total_path, sep="	", index=False)
+    make_phospho_df().to_csv(phospho_path, sep="	", index=False)
+    make_pred_mat().to_csv(pred_path)
+
+    request = CorePipelineRequest.validate_request(
+        total_path=total_path,
+        phospho_path=phospho_path,
+        pred_mat_path=pred_path,
+    )
+
+    inputs = PipelineRequestLoader().load(request)
+
+    assert inputs.pred_mat is not None
+    assert inputs.preprocessing_config.min_observed == 4
+    assert list(inputs.dataset.total_df.columns) == list(make_total_df().columns)

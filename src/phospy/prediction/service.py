@@ -16,7 +16,7 @@ from .models import KinasePredictionResult
 from .traces import (
     PredictionSamplingTrace,
     TraceSink,
-    build_prediction_execution_context,
+    build_prediction_runtime_session,
 )
 from .validation import validate_svm_mode
 
@@ -64,6 +64,68 @@ class PredictionRequestFactory:
         )
 
 
+class PredictionExecutionRunner:
+    """Execute a validated prediction request against resolved runtime resources."""
+
+    def __init__(
+        self,
+        *,
+        candidate_selector: CandidateSelector,
+        prediction_aggregator: PredictionAggregator,
+        trace_recorder: TraceRecorder,
+        ensemble_predictor: EnsemblePredictor,
+    ) -> None:
+        self.candidate_selector = candidate_selector
+        self.prediction_aggregator = prediction_aggregator
+        self.trace_recorder = trace_recorder
+        self.ensemble_predictor = ensemble_predictor
+
+    def run(self, request: PredictionRequest) -> KinasePredictionResult:
+        substrate_list = self.candidate_selector.select(
+            request.combined_scores,
+            top=request.top,
+            score_threshold=request.score_threshold,
+            inclusion=request.inclusion,
+        )
+        if not substrate_list:
+            return self.prediction_aggregator.empty_result(request=request)
+
+        feature_mat = request.combined_scores.astype(float)
+        pred_matrix = self.prediction_aggregator.initialize_prediction_matrix(
+            feature_mat=feature_mat,
+            substrate_list=substrate_list,
+        )
+        trace_state = self.trace_recorder.create_state(
+            substrate_list=substrate_list,
+            trace_level=request.trace_level,
+            debug_kinases=request.debug_kinases,
+            trace_sink=request.trace_sink,
+        )
+        master_rng = np.random.default_rng(request.random_state)
+
+        for kinase, substrates in substrate_list.items():
+            batch = self.ensemble_predictor.predict_kinase(
+                kinase=kinase,
+                substrates=substrates,
+                feature_mat=feature_mat,
+                request=request,
+                master_rng=master_rng,
+                trace_state=trace_state,
+            )
+            self.prediction_aggregator.add_kinase_scores(
+                pred_matrix=pred_matrix,
+                batch=batch,
+            )
+
+        self.trace_recorder.flush_final(trace_state=trace_state)
+        return self.prediction_aggregator.finalize(
+            pred_matrix=pred_matrix,
+            substrate_list=substrate_list,
+            request=request,
+            trace_state=trace_state,
+        )
+
+
 class KinasePredictor:
     """Predict kinase-substrate relationships from phosphosite score matrices.
 
@@ -104,6 +166,14 @@ class KinasePredictor:
             trace_recorder=self.trace_recorder,
         )
 
+    def _build_execution_runner(self) -> PredictionExecutionRunner:
+        return PredictionExecutionRunner(
+            candidate_selector=self.candidate_selector,
+            prediction_aggregator=self.prediction_aggregator,
+            trace_recorder=self.trace_recorder,
+            ensemble_predictor=self.ensemble_predictor,
+        )
+
     def predict(
         self,
         combined_scores: pd.DataFrame,
@@ -142,70 +212,8 @@ class KinasePredictor:
         return self.predict_request(request)
 
     def predict_request(self, request: PredictionRequest) -> KinasePredictionResult:
-        execution_context = build_prediction_execution_context(
-            sampling_trace=request.sampling_trace,
-            trace_level=request.trace_level,
-            trace_sink=request.trace_sink,
-            trace_sink_format=request.trace_sink_format,
-        )
-        result = None
-        try:
-            runtime_request = request.model_copy(
-                update={
-                    "sampling_trace": execution_context.sampling_trace,
-                    "trace_sink": execution_context.trace_sink,
-                }
-            )
-            substrate_list = self.candidate_selector.select(
-                runtime_request.combined_scores,
-                top=runtime_request.top,
-                score_threshold=runtime_request.score_threshold,
-                inclusion=runtime_request.inclusion,
-            )
-            if not substrate_list:
-                result = self.prediction_aggregator.empty_result(
-                    request=runtime_request
-                )
-                return result
-
-            feature_mat = runtime_request.combined_scores.astype(float)
-            pred_matrix = self.prediction_aggregator.initialize_prediction_matrix(
-                feature_mat=feature_mat,
-                substrate_list=substrate_list,
-            )
-            trace_state = self.trace_recorder.create_state(
-                substrate_list=substrate_list,
-                trace_level=runtime_request.trace_level,
-                debug_kinases=runtime_request.debug_kinases,
-                trace_sink=runtime_request.trace_sink,
-            )
-            master_rng = np.random.default_rng(runtime_request.random_state)
-
-            for kinase, substrates in substrate_list.items():
-                batch = self.ensemble_predictor.predict_kinase(
-                    kinase=kinase,
-                    substrates=substrates,
-                    feature_mat=feature_mat,
-                    request=runtime_request,
-                    master_rng=master_rng,
-                    trace_state=trace_state,
-                )
-                self.prediction_aggregator.add_kinase_scores(
-                    pred_matrix=pred_matrix,
-                    batch=batch,
-                )
-
-            self.trace_recorder.flush_final(trace_state=trace_state)
-            result = self.prediction_aggregator.finalize(
-                pred_matrix=pred_matrix,
-                substrate_list=substrate_list,
-                request=runtime_request,
-                trace_state=trace_state,
-            )
-            return result
-        finally:
-            if result is None:
-                execution_context.close_owned_trace_sink()
+        with build_prediction_runtime_session(request) as runtime_session:
+            return self._build_execution_runner().run(runtime_session.runtime_request)
 
     def predict_from_scoring_result(
         self,
@@ -263,6 +271,7 @@ __all__ = [
     "KinasePredictor",
     "NegativePoolSampler",
     "PredictionAggregator",
+    "PredictionExecutionRunner",
     "PredictionRequestFactory",
     "TraceRecorder",
     "build_candidate_substrate_list",
