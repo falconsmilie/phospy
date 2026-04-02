@@ -5,6 +5,7 @@ import pytest
 
 from phospy import KinaseActivityAnalyzer
 from phospy.validation.errors import RequestValidationError, TableSchemaError
+from phospy.validation.tables import PredMatSchema, SiteMatrixSchema
 
 
 def make_pred_mat() -> pd.DataFrame:
@@ -99,3 +100,66 @@ def test_analyzer_rejects_invalid_request_threshold() -> None:
             phospho_matrix=make_phospho_matrix(),
             threshold=1.5,
         )
+
+
+def test_analyzer_load_pred_mat_validates_through_loader_once(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pred_mat_path = tmp_path / "predMat.csv"
+    make_pred_mat().to_csv(pred_mat_path)
+
+    calls: list[str] = []
+    original_validate = PredMatSchema.validate
+
+    def counting_validate(df: pd.DataFrame, *, context: str) -> pd.DataFrame:
+        calls.append(context)
+        return original_validate(df, context=context)
+
+    monkeypatch.setattr(PredMatSchema, "validate", staticmethod(counting_validate))
+
+    loaded = KinaseActivityAnalyzer().load_pred_mat(pred_mat_path)
+
+    assert loaded.equals(make_pred_mat())
+    assert calls == [f"pred_mat ({pred_mat_path})"]
+
+
+def test_load_and_analyze_does_not_revalidate_loaded_prediction_matrix(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pred_mat_path = tmp_path / "predMat.csv"
+    make_pred_mat().to_csv(pred_mat_path)
+
+    pred_calls: list[str] = []
+    matrix_calls: list[str] = []
+    original_pred_validate = PredMatSchema.validate
+    original_matrix_validate = SiteMatrixSchema.validate
+
+    def counting_pred_validate(df: pd.DataFrame, *, context: str) -> pd.DataFrame:
+        pred_calls.append(context)
+        return original_pred_validate(df, context=context)
+
+    def counting_matrix_validate(df: pd.DataFrame, *, context: str) -> pd.DataFrame:
+        matrix_calls.append(context)
+        return original_matrix_validate(df, context=context)
+
+    monkeypatch.setattr(
+        PredMatSchema,
+        "validate",
+        staticmethod(counting_pred_validate),
+    )
+    monkeypatch.setattr(
+        SiteMatrixSchema,
+        "validate",
+        staticmethod(counting_matrix_validate),
+    )
+
+    result = KinaseActivityAnalyzer().load_and_analyze(
+        pred_mat_path=pred_mat_path,
+        phospho_matrix=make_phospho_matrix(),
+        threshold=0.6,
+        min_substrates=2,
+    )
+
+    assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
+    assert pred_calls == [f"pred_mat ({pred_mat_path})"]
+    assert matrix_calls == ["phospho_matrix"]
