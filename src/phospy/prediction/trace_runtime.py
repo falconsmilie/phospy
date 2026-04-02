@@ -206,8 +206,7 @@ class PredictionRuntimeSession:
         exc: BaseException | None,
         tb: object | None,
     ) -> None:
-        if exc_type is not None:
-            self.execution_context.close_owned_trace_sink()
+        self.execution_context.close_owned_trace_sink()
 
 
 def build_prediction_execution_context(

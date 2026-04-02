@@ -212,7 +212,7 @@ def test_predict_can_stream_full_trace_tables_to_sink(tmp_path: Path) -> None:
     assert not tables["trace_final_ensemble_top"].empty
 
 
-def test_predict_request_creates_runtime_trace_sink_for_full_trace() -> None:
+def test_predict_request_closes_owned_runtime_trace_sink_on_success() -> None:
     predictor = KinasePredictor()
     request = PredictionRequest.validate_request(
         combined_scores=make_combined_scores(),
@@ -232,10 +232,11 @@ def test_predict_request_creates_runtime_trace_sink_for_full_trace() -> None:
     assert request.trace_sink is None
 
     result = predictor.predict_request(request)
+
     assert result.trace_level == "full"
     assert result.trace_sink is not None
     output_dir = result.trace_sink.output_dir
-    assert output_dir.exists()
+    assert not output_dir.exists()
 
     result.close()
     assert not output_dir.exists()
@@ -1079,7 +1080,7 @@ def test_predict_request_does_not_close_caller_supplied_trace_sink_on_failure() 
     assert sink.closed is False
 
 
-def test_prediction_result_close_cleans_up_owned_trace_sink() -> None:
+def test_prediction_result_close_is_idempotent_for_owned_trace_sink() -> None:
     predictor = KinasePredictor()
 
     result = predictor.predict(
@@ -1099,7 +1100,7 @@ def test_prediction_result_close_cleans_up_owned_trace_sink() -> None:
 
     assert result.trace_sink is not None
     output_dir = result.trace_sink.output_dir
-    assert output_dir.exists()
+    assert not output_dir.exists()
 
     result.close()
 
