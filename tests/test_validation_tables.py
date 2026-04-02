@@ -15,6 +15,7 @@ from phospy.validation.errors import TableSchemaError
 from phospy.validation.tables import (
     PhosphoInputSchema,
     SiteMatrixSchema,
+    SiteMatrixSourceSchema,
     TotalInputSchema,
 )
 
@@ -122,3 +123,29 @@ def test_load_phospho_table_uses_explicit_encoding_when_provided(tmp_path) -> No
     assert loaded.loc[0, "gene_names"] == "PRKACA"
     assert default_text_encoding(phospho_path) == DEFAULT_TEXT_ENCODING
     assert infer_text_encoding(phospho_path) == DEFAULT_TEXT_ENCODING
+
+
+def test_site_matrix_source_schema_rejects_empty_or_extra_delimiter_gene_p_site() -> (
+    None
+):
+    frame = pd.DataFrame(
+        {
+            "gene_p_site": ["GENE_", "_S123", "GENE__S1"],
+            "centralized_sequence": ["AAAAAA", "BBBBBB", "CCCCCC"],
+            "sample_1": [1.0, 2.0, 3.0],
+        }
+    )
+
+    with pytest.raises(
+        TableSchemaError,
+        match=(
+            "site-matrix source table contains malformed gene_p_site values "
+            "that cannot be split into non-empty gene and site parts using a single underscore"
+        ),
+    ):
+        SiteMatrixSourceSchema.validate(
+            frame,
+            gene_p_site_col="gene_p_site",
+            sequence_col="centralized_sequence",
+            value_cols=["sample_1"],
+        )

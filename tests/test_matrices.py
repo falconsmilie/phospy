@@ -77,7 +77,11 @@ def test_build_site_matrix_raises_table_schema_error_for_malformed_gene_p_site()
     )
 
     with pytest.raises(
-        TableSchemaError, match="must contain values in the form GENE_SITE"
+        TableSchemaError,
+        match=(
+            "site-matrix source table contains malformed gene_p_site values "
+            "that cannot be split into non-empty gene and site parts using a single underscore"
+        ),
     ):
         build_site_matrix(
             df=df,
@@ -115,3 +119,33 @@ def test_site_matrix_builder_reports_row_drop_diagnostics_when_all_rows_are_drop
     assert "deduplicated_site_rows=0" in message
     assert "other_dropped_rows=0" in message
     assert "retained_rows=0" in message
+
+
+def test_build_site_matrix_rejects_empty_or_extra_delimiter_gene_p_site_values() -> (
+    None
+):
+    invalid_values = ["GENE_", "_S123", "GENE__S1"]
+
+    for invalid_value in invalid_values:
+        df = pd.DataFrame(
+            {
+                "gene_p_site": [invalid_value],
+                "centralized_sequence": ["AAAAAA"],
+                "phospho_corrected_1": [1.0],
+                "phospho_corrected_2": [1.0],
+            }
+        )
+
+        with pytest.raises(
+            TableSchemaError,
+            match=(
+                "site-matrix source table contains malformed gene_p_site values "
+                "that cannot be split into non-empty gene and site parts using a single underscore"
+            ),
+        ):
+            build_site_matrix(
+                df=df,
+                gene_p_site_col="gene_p_site",
+                sequence_col="centralized_sequence",
+                value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+            )

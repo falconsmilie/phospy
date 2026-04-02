@@ -78,6 +78,7 @@ class PhosphoInputSchema:
         _ensure_splitable_gene_p_site(
             validated["gene_p_site"],
             context=context,
+            column_name="gene_p_site",
         )
         return validated
 
@@ -143,6 +144,44 @@ class PredictionScoreMatrixSchema:
         )
         _ensure_unique_index(validated, context=context)
         _ensure_non_null_index(validated, context=context)
+        return validated
+
+
+class SiteMatrixSourceSchema:
+    """Validate corrected phosphosite rows before site-matrix construction."""
+
+    @classmethod
+    def validate(
+        cls,
+        frame: pd.DataFrame,
+        *,
+        gene_p_site_col: str,
+        sequence_col: str,
+        value_cols: Sequence[str],
+        context: str = "site-matrix source table",
+    ) -> pd.DataFrame:
+        validated = _ensure_dataframe(frame, context=context)
+        _ensure_unique_columns(validated.columns, context=context)
+        requested_value_cols = list(value_cols)
+        if not requested_value_cols:
+            msg = f"{context} must declare at least one numeric value column"
+            raise TableSchemaError(msg)
+        _ensure_required_columns(
+            validated,
+            [gene_p_site_col, sequence_col, *requested_value_cols],
+            context=context,
+        )
+        _ensure_non_null(validated, [gene_p_site_col], context=context)
+        validated = _coerce_numeric_columns(
+            validated,
+            requested_value_cols,
+            context=context,
+        )
+        _ensure_splitable_gene_p_site(
+            validated[gene_p_site_col],
+            context=context,
+            column_name=gene_p_site_col,
+        )
         return validated
 
 
@@ -282,24 +321,33 @@ def _ensure_value_range(
         raise TableSchemaError(msg)
 
 
-def _ensure_splitable_gene_p_site(series: pd.Series, *, context: str) -> None:
-    split_columns = series.astype("string").str.split("_", n=1, expand=True)
-    invalid_mask = split_columns.shape[1] < 2
-    if not invalid_mask:
+def _ensure_splitable_gene_p_site(
+    series: pd.Series,
+    *,
+    context: str,
+    column_name: str = "gene_p_site",
+) -> None:
+    normalized = series.astype("string")
+    split_columns = normalized.str.split("_", n=1, expand=True)
+    underscore_count = normalized.str.count("_")
+    if split_columns.shape[1] < 2:
+        invalid_mask = pd.Series(True, index=series.index)
+    else:
         invalid_mask = (
-            split_columns[0].isna()
+            normalized.isna()
+            | (underscore_count != 1)
+            | split_columns[0].isna()
             | split_columns[1].isna()
-            | (split_columns[0].str.len() == 0)
-            | (split_columns[1].str.len() == 0)
+            | (split_columns[0].str.strip().str.len() == 0)
+            | (split_columns[1].str.strip().str.len() == 0)
         )
-    if isinstance(invalid_mask, bool):
-        invalid_mask = pd.Series([invalid_mask] * len(series), index=series.index)
     if invalid_mask.any():
         sample_values = series.loc[invalid_mask].astype(str).unique()[:3]
         sample_preview = ", ".join(sample_values)
         msg = (
-            f"{context} contains malformed gene_p_site values that cannot be split "
-            f"into gene and site parts: {sample_preview}"
+            f"{context} contains malformed {column_name} values that cannot be split "
+            f"into non-empty gene and site parts using a single underscore: "
+            f"{sample_preview}"
         )
         raise TableSchemaError(msg)
 

@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 
 import pandas as pd
 
-from .validation.errors import TableSchemaError
+from .validation.tables import SiteMatrixSourceSchema
 
 
 def format_row_drop_diagnostics(row_drop_stats: Mapping[str, int]) -> str:
@@ -48,18 +48,15 @@ def build_site_matrix(
     gene_col_name: str = "gene",
     p_site_col_name: str = "p_site",
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
-    work = df.copy()
+    work = SiteMatrixSourceSchema.validate(
+        df,
+        gene_p_site_col=gene_p_site_col,
+        sequence_col=sequence_col,
+        value_cols=value_cols,
+        context="site-matrix source table",
+    )
 
     split_cols = work[gene_p_site_col].astype("string").str.split("_", n=1, expand=True)
-    invalid_mask = (
-        (split_cols.shape[1] < 2)
-        or split_cols[0].isna().any()
-        or split_cols[1].isna().any()
-    )
-    if invalid_mask:
-        raise TableSchemaError(
-            f"{gene_p_site_col} must contain values in the form GENE_SITE, for example PRKACA_S339"
-        )
     work[gene_col_name] = split_cols[0].astype("string")
     work[p_site_col_name] = split_cols[1].astype("string")
     work["site_id"] = (
