@@ -10,11 +10,11 @@ from .prediction import KinasePredictionResult, KinasePredictor
 from .profiles import KinaseProfileResult, build_kinase_substrate_profiles
 from .scoring import KinaseScorer, KinaseScoringResult
 from .types import PredictionSvmMode
-from .validation.compatibility import (
+from .validation.workflow import (
+    KinaseWorkflowRequest,
     ValidatedKinaseWorkflowInputs,
     build_workflow_request_inputs,
 )
-from .validation.requests import KinaseWorkflowRequest
 
 
 @dataclass(slots=True)

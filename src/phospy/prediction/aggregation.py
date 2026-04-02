@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from ..validation.requests import PredictionRequest
+from ..validation.prediction import PredictionRequest
 from .models import KinasePredictionResult
 
 if TYPE_CHECKING:

@@ -4,7 +4,7 @@ import argparse
 
 from .pipeline import PhosRPipeline
 from .validation.errors import RequestValidationError
-from .validation.requests import CorePipelineRequest
+from .validation.pipeline import CorePipelineRequest
 
 
 def build_parser() -> argparse.ArgumentParser:

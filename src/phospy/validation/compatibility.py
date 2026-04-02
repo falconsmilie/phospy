@@ -1,20 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from numbers import Real
-from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from phospy.motifs import KinaseMotifScorer
-
 from .errors import InputCompatibilityError, PhospyValidationError, TableSchemaError
 from .normalization import normalize_identifier_series
-from .tables import PredMatSchema, SiteMatrixSchema
-
-if TYPE_CHECKING:
-    from .requests import KinaseWorkflowRequest
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,19 +19,6 @@ class ProteinCorrectionMatchSummary:
     unmatched_rows: int
     unmatched_fraction: float
     unmatched_gene_preview: tuple[str, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class ValidatedKinaseActivityInputs:
-    pred_mat: pd.DataFrame
-    phospho_matrix: pd.DataFrame
-
-
-@dataclass(frozen=True, slots=True)
-class ValidatedKinaseWorkflowInputs:
-    request: KinaseWorkflowRequest
-    phospho_matrix: pd.DataFrame
-    motif_scorer: KinaseMotifScorer | None
 
 
 def _validate_fraction(
@@ -86,6 +66,8 @@ def validate_core_column_alignment(
     *,
     context: str = "Core preprocessing inputs",
 ) -> None:
+    """Validate that paired preprocessing column groups align by width."""
+
     if len(total_cols) != len(phospho_cols):
         msg = f"{context} require the same number of total and phospho value columns"
         raise InputCompatibilityError(msg)
@@ -108,6 +90,8 @@ def validate_protein_correction_inputs(
     max_unmatched_fraction: float = 0.0,
     context: str = "Protein correction inputs",
 ) -> ProteinCorrectionMatchSummary:
+    """Validate phosphosite/protein correction inputs and matching coverage."""
+
     resolved_max_unmatched_fraction = _validate_fraction(
         max_unmatched_fraction,
         name="max_unmatched_fraction",
@@ -178,110 +162,6 @@ def validate_protein_correction_inputs(
     )
 
 
-def build_kinase_activity_inputs(
-    pred_mat: pd.DataFrame,
-    phospho_matrix: pd.DataFrame,
-    *,
-    pred_context: str = "pred_mat",
-    matrix_context: str = "phospho_matrix",
-    min_overlap: int = 1,
-    min_fraction: float = 0.1,
-) -> ValidatedKinaseActivityInputs:
-    validated_pred_mat = PredMatSchema.validate(pred_mat, context=pred_context)
-    return build_loaded_kinase_activity_inputs(
-        validated_pred_mat=validated_pred_mat,
-        phospho_matrix=phospho_matrix,
-        pred_context=pred_context,
-        matrix_context=matrix_context,
-        min_overlap=min_overlap,
-        min_fraction=min_fraction,
-    )
-
-
-def build_loaded_kinase_activity_inputs(
-    *,
-    validated_pred_mat: pd.DataFrame,
-    phospho_matrix: pd.DataFrame,
-    pred_context: str = "pred_mat",
-    matrix_context: str = "phospho_matrix",
-    min_overlap: int = 1,
-    min_fraction: float = 0.1,
-) -> ValidatedKinaseActivityInputs:
-    validated_matrix = SiteMatrixSchema.validate(phospho_matrix, context=matrix_context)
-    validate_pred_mat_overlap(
-        validated_pred_mat,
-        validated_matrix,
-        pred_context=pred_context,
-        matrix_context=matrix_context,
-        min_overlap=min_overlap,
-        min_fraction=min_fraction,
-    )
-    return ValidatedKinaseActivityInputs(
-        pred_mat=validated_pred_mat,
-        phospho_matrix=validated_matrix,
-    )
-
-
-def validate_kinase_activity_inputs(
-    pred_mat: pd.DataFrame,
-    phospho_matrix: pd.DataFrame,
-    *,
-    pred_context: str = "pred_mat",
-    matrix_context: str = "phospho_matrix",
-    min_overlap: int = 1,
-    min_fraction: float = 0.1,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    validated_inputs = build_kinase_activity_inputs(
-        pred_mat=pred_mat,
-        phospho_matrix=phospho_matrix,
-        pred_context=pred_context,
-        matrix_context=matrix_context,
-        min_overlap=min_overlap,
-        min_fraction=min_fraction,
-    )
-    return validated_inputs.pred_mat, validated_inputs.phospho_matrix
-
-
-def build_workflow_request_inputs(
-    request: KinaseWorkflowRequest,
-    *,
-    flank_size: int,
-    context: str = "Kinase workflow inputs",
-) -> ValidatedKinaseWorkflowInputs:
-    validated_matrix = _validate_workflow_matrix_inputs(
-        request.phospho_matrix,
-        request.substrate_map,
-        request.site_sequences,
-        context=context,
-    )
-    motif_scorer = (
-        None
-        if request.motif_sequences is None
-        else KinaseMotifScorer.from_substrate_sequences(
-            motif_sequences=request.motif_sequences,
-            flank_size=flank_size,
-        )
-    )
-    return ValidatedKinaseWorkflowInputs(
-        request=request,
-        phospho_matrix=validated_matrix,
-        motif_scorer=motif_scorer,
-    )
-
-
-def validate_workflow_request(
-    request: KinaseWorkflowRequest,
-    *,
-    flank_size: int = 7,
-    context: str = "Kinase workflow inputs",
-) -> pd.DataFrame:
-    return build_workflow_request_inputs(
-        request,
-        flank_size=flank_size,
-        context=context,
-    ).phospho_matrix
-
-
 def validate_pred_mat_overlap(
     pred_mat: pd.DataFrame,
     phospho_matrix: pd.DataFrame,
@@ -291,6 +171,8 @@ def validate_pred_mat_overlap(
     min_overlap: int = 1,
     min_fraction: float = 0.1,
 ) -> None:
+    """Validate overlap between a prediction matrix and a phosphosite matrix."""
+
     overlap = pred_mat.index.intersection(phospho_matrix.index)
     overlap_count = len(overlap)
     if overlap_count == 0:
@@ -308,76 +190,9 @@ def validate_pred_mat_overlap(
         raise InputCompatibilityError(msg)
 
 
-def validate_workflow_inputs(
-    phospho_matrix: pd.DataFrame,
-    substrate_map: Mapping[str, Sequence[str]],
-    site_sequences: Mapping[str, str] | pd.Series | None,
-    motif_sequences: Mapping[str, Sequence[str]] | None,
-    *,
-    flank_size: int = 7,
-    context: str = "Kinase workflow inputs",
-) -> pd.DataFrame:
-    validated_matrix = _validate_workflow_matrix_inputs(
-        phospho_matrix,
-        substrate_map,
-        site_sequences,
-        context=context,
-    )
-    if motif_sequences is not None:
-        KinaseMotifScorer.from_substrate_sequences(
-            motif_sequences=motif_sequences,
-            flank_size=flank_size,
-        )
-    return validated_matrix
-
-
-def _validate_workflow_matrix_inputs(
-    phospho_matrix: pd.DataFrame,
-    substrate_map: Mapping[str, Sequence[str]],
-    site_sequences: Mapping[str, str] | pd.Series | None,
-    *,
-    context: str,
-) -> pd.DataFrame:
-    validated_matrix = SiteMatrixSchema.validate(
-        phospho_matrix,
-        context="phospho_matrix",
-    )
-
-    overlapping_sites = {
-        site
-        for sites in substrate_map.values()
-        for site in sites
-        if site in validated_matrix.index
-    }
-    if not overlapping_sites:
-        msg = f"{context} contain no overlap between substrate_map and phospho_matrix"
-        raise InputCompatibilityError(msg)
-
-    if site_sequences is not None:
-        sequence_index = _extract_sequence_index(site_sequences)
-        missing = [
-            site for site in validated_matrix.index if site not in sequence_index
-        ]
-        if missing:
-            missing_preview = ", ".join(missing[:5])
-            msg = (
-                f"site_sequences is missing entries for phosphosites: {missing_preview}"
-            )
-            raise InputCompatibilityError(msg)
-
-    return validated_matrix
-
-
-def _extract_sequence_index(
-    site_sequences: Mapping[str, str] | pd.Series,
-) -> set[str]:
-    if isinstance(site_sequences, pd.Series):
-        return {str(value) for value in site_sequences.index}
-    if isinstance(site_sequences, Mapping):
-        return {str(value) for value in site_sequences}
-    msg = (
-        "site_sequences must be provided as a mapping keyed by phosphosite ID "
-        "or as a pandas Series with an explicit phosphosite index; plain "
-        "sequences are not supported"
-    )
-    raise InputCompatibilityError(msg)
+__all__ = [
+    "ProteinCorrectionMatchSummary",
+    "validate_core_column_alignment",
+    "validate_pred_mat_overlap",
+    "validate_protein_correction_inputs",
+]

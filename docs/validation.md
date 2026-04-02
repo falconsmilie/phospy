@@ -5,6 +5,21 @@ This page is a short validation guide for common PhosPy inputs.
 For parity to the R `PhosR` package, see [`docs/parity.md`](parity.md).
 For method signatures and parameter-by-parameter validation, see [`docs/api.md`](api.md).
 
+## Validation Package Layout
+
+Validation now lives under `src/phospy/validation/` and is organised by responsibility:
+
+- `tables.py` for dataframe and schema validation
+- `compatibility.py` for cross-input compatibility rules
+- `dataset.py` for dataset-boundary validation helpers
+- `pipeline.py` for pipeline request validation
+- `workflow.py` for native workflow request validation
+- `analysis.py` for kinase activity request validation
+- `prediction.py` for prediction request validation used by workflow internals
+- `errors.py` for shared validation exceptions
+
+New validation rules should be added to the module that matches their responsibility instead of extending a generic catch-all validator file.
+
 ## File Types
 
 When you load from files:

@@ -7,9 +7,8 @@ import pandas as pd
 
 from .dataset_schema import DatasetSchema
 from .io import read_table
+from .validation.dataset import validate_dataset_file_paths, validate_dataset_frames
 from .validation.errors import RequestValidationError, TableSchemaError
-from .validation.paths import validate_existing_file_path
-from .validation.tables import PhosphoInputSchema, TotalInputSchema
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,13 +46,10 @@ class DatasetLoader:
         total_df: pd.DataFrame,
         phospho_df: pd.DataFrame,
     ) -> ValidatedCoreInputs:
-        validated_total = TotalInputSchema.validate(
-            total_df,
-            total_cols=self.schema.total_cols,
-        )
-        validated_phospho = PhosphoInputSchema.validate(
-            phospho_df,
-            phospho_cols=self.schema.phospho_cols,
+        validated_total, validated_phospho = validate_dataset_frames(
+            total_df=total_df,
+            phospho_df=phospho_df,
+            schema=self.schema,
         )
         return ValidatedCoreInputs(
             total_df=validated_total,
@@ -68,14 +64,12 @@ class DatasetLoader:
         *,
         phospho_encoding: str | None = None,
     ) -> ValidatedCoreInputs:
-        validated_total_path = validate_existing_file_path(
+        validated_paths = validate_dataset_file_paths(
             total_path,
-            context="total input table path",
-        )
-        validated_phospho_path = validate_existing_file_path(
             phospho_path,
-            context="phospho input table path",
         )
+        validated_total_path = validated_paths.total_path
+        validated_phospho_path = validated_paths.phospho_path
         total_df = self._read_input_table(
             validated_total_path,
             context="total input table",

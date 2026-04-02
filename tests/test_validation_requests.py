@@ -5,12 +5,11 @@ import pytest
 
 from phospy.dataset_schema import DatasetSchema
 from phospy.prediction.traces import TraceSink
+from phospy.validation.analysis import KinaseActivityRequest
 from phospy.validation.errors import RequestValidationError
-from phospy.validation.requests import (
-    CorePipelineRequest,
-    KinaseWorkflowRequest,
-    PredictionRequest,
-)
+from phospy.validation.pipeline import CorePipelineRequest
+from phospy.validation.prediction import PredictionRequest
+from phospy.validation.workflow import KinaseWorkflowRequest
 
 
 class _DummyTraceSink(TraceSink):
@@ -373,3 +372,10 @@ def test_core_pipeline_request_does_not_mask_unexpected_comparison_validation_er
             phospho_path=phospho_path,
             comparisons=(("group1", "group1"),),
         )
+
+
+def test_validation_modules_expose_use_case_boundaries() -> None:
+    assert CorePipelineRequest.__module__ == "phospy.validation.pipeline"
+    assert KinaseActivityRequest.__module__ == "phospy.validation.analysis"
+    assert KinaseWorkflowRequest.__module__ == "phospy.validation.workflow"
+    assert PredictionRequest.__module__ == "phospy.validation.prediction"

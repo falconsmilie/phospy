@@ -7,7 +7,7 @@ import pandas as pd
 
 from ..types import PredictionTraceLevel
 from ..validation.errors import PredictionConfigurationError
-from ..validation.requests import PredictionRequest
+from ..validation.prediction import PredictionRequest
 from .models import KinasePredictionDebugTrace
 from .sampling import (
     make_prediction_random_generators,

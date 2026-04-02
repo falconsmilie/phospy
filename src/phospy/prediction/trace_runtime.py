@@ -11,7 +11,7 @@ import pandas as pd
 from ..types import PredictionTraceFormat, PredictionTraceLevel
 
 if TYPE_CHECKING:
-    from ..validation.requests import PredictionRequest
+    from ..validation.prediction import PredictionRequest
 
 TRACE_TABLE_NAMES: tuple[str, ...] = (
     "trace_selected_candidates",

@@ -12,12 +12,12 @@ from .activities import (
     count_predicted_targets,
 )
 from .io import load_pred_mat
-from .validation.compatibility import (
+from .validation.analysis import (
+    KinaseActivityRequest,
     ValidatedKinaseActivityInputs,
     build_kinase_activity_inputs,
     build_loaded_kinase_activity_inputs,
 )
-from .validation.requests import KinaseActivityRequest
 from .writers import KinaseActivityResultWriter, KinaseActivityWriter
 
 
