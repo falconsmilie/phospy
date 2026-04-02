@@ -173,6 +173,11 @@ def create_trace_sink(
 class PredictionExecutionContext:
     sampling_trace: object | None
     trace_sink: TraceSink | None
+    owns_trace_sink: bool = False
+
+    def close_owned_trace_sink(self) -> None:
+        if self.owns_trace_sink and self.trace_sink is not None:
+            self.trace_sink.close()
 
 
 def build_prediction_execution_context(
@@ -192,18 +197,19 @@ def build_prediction_execution_context(
     from .sampling_runtime import coerce_sampling_trace
 
     resolved_sampling_trace = coerce_sampling_trace(sampling_trace)
-    resolved_trace_sink = (
-        create_trace_sink(
+    owns_trace_sink = False
+    resolved_trace_sink = None
+    if trace_level == "full":
+        owns_trace_sink = not isinstance(trace_sink, TraceSink)
+        resolved_trace_sink = create_trace_sink(
             trace_sink,
             fmt=trace_sink_format,
             max_buffer_rows=trace_sink_max_buffer_rows,
         )
-        if trace_level == "full"
-        else None
-    )
     return PredictionExecutionContext(
         sampling_trace=resolved_sampling_trace,
         trace_sink=resolved_trace_sink,
+        owns_trace_sink=owns_trace_sink,
     )
 
 

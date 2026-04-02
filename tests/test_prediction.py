@@ -26,6 +26,7 @@ from phospy.prediction.svm import require_sklearn as _require_sklearn
 from phospy.prediction.svm import (
     resolve_svm_probability_random_state as _resolve_svm_probability_random_state,
 )
+from phospy.prediction.trace_runtime import TraceSink
 from phospy.prediction.traces import DirectoryTraceSink, create_trace_sink
 from phospy.scoring import KinaseScoringResult
 from phospy.validation.errors import RequestValidationError
@@ -869,6 +870,86 @@ def test_create_trace_sink_owns_and_cleans_up_temp_directory() -> None:
     sink.close()
 
     assert not output_dir.exists()
+
+
+def test_predict_request_closes_owned_runtime_trace_sink_on_failure() -> None:
+    predictor = KinasePredictor()
+    request = PredictionRequest.validate_request(
+        combined_scores=make_combined_scores(),
+        ensemble_size=2,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=5,
+        debug_top_n=3,
+        trace_level="full",
+        default_svm_mode="default",
+        capture_debug_trace=True,
+        debug_kinases=["KINASE_A"],
+    )
+
+    created_output_dirs: list[Path] = []
+    original_create_state = predictor.trace_recorder.create_state
+
+    def create_state_and_fail(*args, **kwargs):
+        original_create_state(*args, **kwargs)
+        trace_sink = kwargs["trace_sink"]
+        assert trace_sink is not None
+        created_output_dirs.append(trace_sink.output_dir)
+        raise RuntimeError("boom")
+
+    predictor.trace_recorder.create_state = create_state_and_fail  # type: ignore[method-assign]
+
+    with pytest.raises(RuntimeError, match="boom"):
+        predictor.predict_request(request)
+
+    assert len(created_output_dirs) == 1
+    assert not created_output_dirs[0].exists()
+
+
+class _TrackingTraceSink(TraceSink):
+    def __init__(self) -> None:
+        self.closed = False
+
+    def write_rows(self, table_name: str, rows: list[dict[str, object]]) -> None:
+        return None
+
+    def read_table(self, table_name: str) -> pd.DataFrame:
+        return pd.DataFrame()
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_predict_request_does_not_close_caller_supplied_trace_sink_on_failure() -> None:
+    predictor = KinasePredictor()
+    sink = _TrackingTraceSink()
+    request = PredictionRequest.validate_request(
+        combined_scores=make_combined_scores(),
+        ensemble_size=2,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=5,
+        debug_top_n=3,
+        trace_level="full",
+        trace_sink=sink,
+        default_svm_mode="default",
+        capture_debug_trace=True,
+        debug_kinases=["KINASE_A"],
+    )
+
+    def create_state_and_fail(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    predictor.trace_recorder.create_state = create_state_and_fail  # type: ignore[method-assign]
+
+    with pytest.raises(RuntimeError, match="boom"):
+        predictor.predict_request(request)
+
+    assert sink.closed is False
 
 
 def test_prediction_result_close_cleans_up_owned_trace_sink() -> None:
