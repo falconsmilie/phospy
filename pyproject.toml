@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phospy"
-version = "1.1.1"
+version = "1.2.0"
 description = "Python-native implementation of selected PhosR-style phosphoproteomics workflows."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,7 +12,7 @@ license = "GPL-3.0-or-later"
 license-files = ["LICENSE", "NOTICE.md"]
 keywords = ["phosphoproteomics", "proteomics", "bioinformatics", "phosphorylation", "kinase"]
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
+  "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
