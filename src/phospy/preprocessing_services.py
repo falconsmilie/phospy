@@ -5,20 +5,20 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from ._preprocessing_primitives import (
+    _add_pairwise_comparisons_in_place,
+    _collapse_duplicate_genes_owned,
+    _filter_localized_sites_without_copy,
+    _filter_min_observed_without_copy,
+    _replace_sentinel_with_nan_in_place,
+)
 from .constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
     ComparisonSpec,
 )
 from .dataset_schema import DatasetSchema
-from .preprocessing import (
-    _add_pairwise_comparisons_in_place,
-    _collapse_duplicate_genes_owned,
-    _filter_localized_sites_without_copy,
-    _filter_min_observed_without_copy,
-    _replace_sentinel_with_nan_in_place,
-    correct_phospho_to_protein,
-)
+from .preprocessing import correct_phospho_to_protein
 from .validation.compatibility import validate_protein_correction_inputs
 
 """Internal preprocessing service layer.
