@@ -137,7 +137,7 @@ class PhosRPipeline:
             )
 
         if outdir is not None:
-            self._write_outputs_atomically(
+            self._write_outputs_with_staging_publish(
                 outdir=outdir,
                 core=core,
                 kinase_activity=kinase_activity,
@@ -145,7 +145,7 @@ class PhosRPipeline:
 
         return CoreOutputs(core=core, kinase_activity=kinase_activity)
 
-    def _write_outputs_atomically(
+    def _write_outputs_with_staging_publish(
         self,
         *,
         outdir: str | Path,

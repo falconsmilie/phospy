@@ -67,7 +67,7 @@ def _build_core_result():
     return dataset.preprocessing.run()
 
 
-def test_output_publisher_replaces_existing_directory_atomically(
+def test_output_publisher_replaces_existing_directory_via_crash_recoverable_swap(
     tmp_path: Path,
 ) -> None:
     target_dir = tmp_path / "published"
@@ -84,6 +84,7 @@ def test_output_publisher_replaces_existing_directory_atomically(
     assert not (target_dir / "old.txt").exists()
     assert (target_dir / "new.txt").read_text(encoding="utf-8") == "new"
     assert not list(tmp_path.glob(".published.backup-*"))
+    assert not (tmp_path / ".published.publish-state.json").exists()
 
 
 def test_output_publisher_restores_backup_on_publish_failure(
@@ -116,6 +117,73 @@ def test_output_publisher_restores_backup_on_publish_failure(
     assert staging_dir.exists()
     assert (staging_dir / "new.txt").read_text(encoding="utf-8") == "new"
     assert not list(tmp_path.glob(".published.backup-*"))
+    assert not (tmp_path / ".published.publish-state.json").exists()
+
+
+def test_output_publisher_recovers_interrupted_replacement_before_next_publish(
+    tmp_path: Path,
+) -> None:
+    target_dir = tmp_path / "published"
+    staging_dir = tmp_path / "staging"
+    backup_dir = tmp_path / ".published.backup-stale"
+    marker_path = tmp_path / ".published.publish-state.json"
+
+    backup_dir.mkdir()
+    staging_dir.mkdir()
+    (backup_dir / "old.txt").write_text("old", encoding="utf-8")
+    (staging_dir / "new.txt").write_text("new", encoding="utf-8")
+    marker_path.write_text(
+        json.dumps(
+            {
+                "target_dir": str(target_dir),
+                "backup_dir": str(backup_dir),
+                "created_at_utc": "2026-04-02T08:00:00+00:00",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    OutputPublisher().publish(staging_dir=staging_dir, target_dir=target_dir)
+
+    assert target_dir.exists()
+    assert (target_dir / "new.txt").read_text(encoding="utf-8") == "new"
+    assert not backup_dir.exists()
+    assert not marker_path.exists()
+
+
+def test_output_publisher_cleans_stale_backup_after_completed_replacement(
+    tmp_path: Path,
+) -> None:
+    target_dir = tmp_path / "published"
+    staging_dir = tmp_path / "staging"
+    backup_dir = tmp_path / ".published.backup-stale"
+    marker_path = tmp_path / ".published.publish-state.json"
+
+    target_dir.mkdir()
+    backup_dir.mkdir()
+    staging_dir.mkdir()
+    (target_dir / "current.txt").write_text("current", encoding="utf-8")
+    (backup_dir / "old.txt").write_text("old", encoding="utf-8")
+    (staging_dir / "new.txt").write_text("new", encoding="utf-8")
+    marker_path.write_text(
+        json.dumps(
+            {
+                "target_dir": str(target_dir),
+                "backup_dir": str(backup_dir),
+                "created_at_utc": "2026-04-02T08:00:00+00:00",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    OutputPublisher().publish(staging_dir=staging_dir, target_dir=target_dir)
+
+    assert target_dir.exists()
+    assert (target_dir / "new.txt").read_text(encoding="utf-8") == "new"
+    assert not backup_dir.exists()
+    assert not marker_path.exists()
 
 
 def test_pipeline_delegates_manifest_and_publish_to_publishing_layer(

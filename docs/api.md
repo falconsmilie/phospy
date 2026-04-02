@@ -353,6 +353,11 @@ When `outdir` is provided, the pipeline publishes an output bundle that includes
 kinase-analysis tables, and `run_manifest.json`. The manifest records whether kinase activity outputs were produced,
 row counts for the core tables, the preprocessing configuration, and the installed package version.
 
+Publishing uses a staging directory and then replaces the final output directory. That replacement is crash-recoverable,
+not fully atomic, when an existing output directory is being replaced. If a process is interrupted mid-replacement,
+PhosPy keeps a hidden recovery marker and restores the previous output directory on the next publish attempt when
+possible.
+
 If you already have a validated `CorePipelineRequest`, you can build the pipeline with
 `PhosRPipeline.from_request(...)`.
 That is the supported entry point when you want path validation separated from pipeline construction.

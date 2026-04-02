@@ -68,26 +68,107 @@ class RunManifestWriter:
 
 
 class OutputPublisher:
-    """Publish staged output directories to their final location atomically."""
+    """Publish staged output directories via crash-recoverable replacement.
+
+    Replacement is not atomic when the target directory already exists. The
+    publisher renames the current target to a backup directory, then renames the
+    staging directory into place. If the process is interrupted between those
+    steps, the target may be temporarily absent. To make that state recoverable,
+    the publisher writes a small recovery marker and restores or cleans up the
+    previous state on the next publish attempt when possible.
+    """
 
     def publish(self, *, staging_dir: Path, target_dir: Path) -> None:
+        self._recover_if_needed(target_dir)
         if not target_dir.exists():
             self._replace_directory(staging_dir, target_dir)
             return
 
         backup_dir = self._backup_dir_for(target_dir)
+        recovery_marker = self._recovery_marker_for(target_dir)
+        self._write_recovery_marker(
+            marker_path=recovery_marker,
+            target_dir=target_dir,
+            backup_dir=backup_dir,
+        )
         self._replace_directory(target_dir, backup_dir)
         try:
             self._replace_directory(staging_dir, target_dir)
         except OSError:
             self._replace_directory(backup_dir, target_dir)
+            self._remove_recovery_marker(recovery_marker)
             raise
         else:
             self._remove_directory(backup_dir)
+            self._remove_recovery_marker(recovery_marker)
+
+    def _recover_if_needed(self, target_dir: Path) -> None:
+        marker_path = self._recovery_marker_for(target_dir)
+        if not marker_path.exists():
+            return
+
+        recovery_state = self._read_recovery_marker(marker_path)
+        backup_dir = Path(recovery_state["backup_dir"])
+        expected_target_dir = Path(recovery_state["target_dir"])
+        if expected_target_dir != target_dir:
+            raise OSError(
+                f"Recovery marker {marker_path} does not match target directory {target_dir}."
+            )
+
+        if not target_dir.exists() and backup_dir.exists():
+            self._replace_directory(backup_dir, target_dir)
+            self._remove_recovery_marker(marker_path)
+            return
+
+        if target_dir.exists() and backup_dir.exists():
+            self._remove_directory(backup_dir)
+            self._remove_recovery_marker(marker_path)
+            return
+
+        if target_dir.exists() and not backup_dir.exists():
+            self._remove_recovery_marker(marker_path)
+            return
+
+        if not target_dir.exists() and not backup_dir.exists():
+            self._remove_recovery_marker(marker_path)
+            return
 
     @staticmethod
     def _backup_dir_for(target_dir: Path) -> Path:
         return target_dir.with_name(f".{target_dir.name}.backup-{uuid4().hex}")
+
+    @staticmethod
+    def _recovery_marker_for(target_dir: Path) -> Path:
+        return target_dir.with_name(f".{target_dir.name}.publish-state.json")
+
+    @staticmethod
+    def _write_recovery_marker(
+        *,
+        marker_path: Path,
+        target_dir: Path,
+        backup_dir: Path,
+    ) -> None:
+        marker_path.write_text(
+            json.dumps(
+                {
+                    "target_dir": str(target_dir),
+                    "backup_dir": str(backup_dir),
+                    "created_at_utc": datetime.now(timezone.utc).isoformat(),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    @staticmethod
+    def _read_recovery_marker(marker_path: Path) -> dict[str, str]:
+        return json.loads(marker_path.read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _remove_recovery_marker(marker_path: Path) -> None:
+        marker_path.unlink(missing_ok=True)
 
     @staticmethod
     def _replace_directory(source: Path, target: Path) -> None:
