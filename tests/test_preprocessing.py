@@ -8,6 +8,7 @@ from phospy.dataset_schema import DatasetSchema
 from phospy.preprocessing import (
     CoverageFilterResult,
     LocalizationFilterResult,
+    ProteinCorrectionResult,
     add_pairwise_comparisons,
     collapse_duplicate_genes,
     correct_phospho_to_protein,
@@ -202,6 +203,36 @@ def test_filter_sites_by_coverage_requires_at_least_one_column() -> None:
         filter_sites_by_coverage(df, columns=[])
 
 
+def test_filter_min_observed_rejects_negative_threshold() -> None:
+    df = pd.DataFrame({"gene": ["A"], "x1": [1.0]})
+
+    with pytest.raises(
+        PhospyValidationError,
+        match="min_observed must be a non-negative integer",
+    ):
+        filter_min_observed(df, ["x1"], min_observed=-1)
+
+
+def test_filter_min_observed_reports_missing_required_column() -> None:
+    df = pd.DataFrame({"gene": ["A"], "x1": [1.0]})
+
+    with pytest.raises(
+        TableSchemaError,
+        match=r"filter_min_observed\(\) input is missing required columns: x2",
+    ):
+        filter_min_observed(df, ["x1", "x2"], min_observed=1)
+
+
+def test_replace_sentinel_with_nan_reports_missing_required_column() -> None:
+    df = pd.DataFrame({"gene": ["A"], "x1": [1.0]})
+
+    with pytest.raises(
+        TableSchemaError,
+        match=r"replace_sentinel_with_nan\(\) input is missing required columns: x2",
+    ):
+        replace_sentinel_with_nan(df, ["x1", "x2"], sentinel=12)
+
+
 def test_replace_sentinel_with_nan_and_filter_min_observed() -> None:
     df = pd.DataFrame(
         {
@@ -381,6 +412,91 @@ def test_correct_phospho_to_protein_and_pairwise_comparisons() -> None:
         comparisons=[("group1", "group4")],
     )
     assert with_comparisons["p_group1_group4"].iloc[0] == 3.0
+
+
+def test_correct_phospho_to_protein_returns_summary_with_unmatched_rows() -> None:
+    phospho = pd.DataFrame(
+        {
+            "gene_names": ["PRKACA", "MISSING"],
+            "p_group1": [8.0, 6.0],
+        }
+    )
+    total = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+        }
+    )
+
+    result = correct_phospho_to_protein(
+        phospho,
+        total,
+        phospho_gene_col="gene_names",
+        total_gene_col="genes",
+        phospho_cols=["p_group1"],
+        protein_cols=["group1"],
+        return_summary=True,
+    )
+
+    assert isinstance(result, ProteinCorrectionResult)
+    assert result.corrected["gene_names"].tolist() == ["PRKACA"]
+    assert result.corrected["phospho_corrected_1"].tolist() == [7.0]
+    assert result.summary.input_rows == 2
+    assert result.summary.matched_rows == 1
+    assert result.summary.unmatched_rows == 1
+    assert result.summary.unmatched_fraction == pytest.approx(0.5)
+    assert result.summary.phospho_gene_col == "gene_names"
+    assert result.summary.total_gene_col == "genes"
+    assert result.summary.unmatched_gene_preview == ("MISSING",)
+
+
+def test_correct_phospho_to_protein_supports_strict_unmatched_row_mode() -> None:
+    phospho = pd.DataFrame(
+        {
+            "gene_names": ["PRKACA", "MISSING"],
+            "p_group1": [8.0, 6.0],
+        }
+    )
+    total = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+        }
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=r"would drop 1 of 2 phosphosite rows \(50.0%\)",
+    ):
+        correct_phospho_to_protein(
+            phospho,
+            total,
+            phospho_gene_col="gene_names",
+            total_gene_col="genes",
+            phospho_cols=["p_group1"],
+            protein_cols=["group1"],
+            max_unmatched_fraction=0.0,
+        )
+
+
+def test_correct_phospho_to_protein_reports_missing_required_value_columns() -> None:
+    phospho = pd.DataFrame({"gene_names": ["PRKACA"]})
+    total = pd.DataFrame({"genes": ["PRKACA"], "group1": [1.0]})
+
+    with pytest.raises(
+        TableSchemaError,
+        match=(
+            r"correct_phospho_to_protein\(\) phospho input is missing required columns: p_group1"
+        ),
+    ):
+        correct_phospho_to_protein(
+            phospho,
+            total,
+            phospho_gene_col="gene_names",
+            total_gene_col="genes",
+            phospho_cols=["p_group1"],
+            protein_cols=["group1"],
+        )
 
 
 def test_correct_phospho_to_protein_rejects_duplicate_total_genes() -> None:

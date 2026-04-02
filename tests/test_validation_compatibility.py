@@ -5,7 +5,7 @@ import pytest
 
 from phospy import KinaseActivityAnalyzer, PhosphoDataset
 from phospy.validation import validate_protein_correction_inputs
-from phospy.validation.errors import InputCompatibilityError
+from phospy.validation.errors import InputCompatibilityError, TableSchemaError
 from phospy.workflow import KinaseWorkflow
 
 
@@ -173,6 +173,26 @@ def test_kinase_activity_analyzer_rejects_insufficient_overlap_fraction() -> Non
         KinaseActivityAnalyzer().analyze(
             pred_mat=pred_mat,
             phospho_matrix=phospho_matrix,
+        )
+
+
+def test_validate_protein_correction_inputs_reports_missing_value_columns() -> None:
+    phospho_df = pd.DataFrame({"gene_names": ["PRKACA"]})
+    total_df = pd.DataFrame({"genes": ["PRKACA"], "group1": [1.0]})
+
+    with pytest.raises(
+        TableSchemaError,
+        match=(
+            r"Protein correction inputs phospho input is missing required columns: p_group1"
+        ),
+    ):
+        validate_protein_correction_inputs(
+            phospho_df,
+            total_df,
+            phospho_gene_col="gene_names",
+            total_gene_col="genes",
+            phospho_cols=["p_group1"],
+            protein_cols=["group1"],
         )
 
 

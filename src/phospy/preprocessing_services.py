@@ -150,6 +150,7 @@ class ProteinCorrectionService:
             phospho_cols=self.schema.phospho_cols,
             protein_cols=self.schema.total_cols,
             corrected_cols=self.schema.corrected_cols,
+            max_unmatched_fraction=max_unmatched_fraction,
         )
 
     def add_pairwise_comparisons(

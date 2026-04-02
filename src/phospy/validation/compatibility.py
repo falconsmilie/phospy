@@ -1,16 +1,67 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from numbers import Real
 from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .errors import InputCompatibilityError
+from .errors import InputCompatibilityError, PhospyValidationError, TableSchemaError
 from .normalization import normalize_identifier_series
 from .tables import PredMatSchema, SiteMatrixSchema
 
 if TYPE_CHECKING:
     from .requests import KinaseWorkflowRequest
+
+
+@dataclass(frozen=True, slots=True)
+class ProteinCorrectionMatchSummary:
+    """Describe phosphosite-to-protein matching before correction."""
+
+    input_rows: int
+    matched_rows: int
+    unmatched_rows: int
+    unmatched_fraction: float
+    unmatched_gene_preview: tuple[str, ...]
+
+
+def _validate_fraction(
+    value: float,
+    *,
+    name: str,
+) -> float:
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise PhospyValidationError(
+            f"{name} must be a finite numeric value between 0 and 1"
+        )
+
+    resolved = float(value)
+    if (
+        not 0.0 <= resolved <= 1.0
+        or resolved != resolved
+        or resolved in {float("inf"), float("-inf")}
+    ):
+        raise PhospyValidationError(
+            f"{name} must be a finite numeric value between 0 and 1"
+        )
+    return resolved
+
+
+def _require_columns(
+    frame: pd.DataFrame,
+    *,
+    required_columns: Sequence[str],
+    context: str,
+) -> None:
+    missing_columns = [
+        column for column in required_columns if column not in frame.columns
+    ]
+    if missing_columns:
+        joined_columns = ", ".join(missing_columns)
+        raise TableSchemaError(
+            f"{context} is missing required columns: {joined_columns}"
+        )
 
 
 def validate_core_column_alignment(
@@ -41,7 +92,11 @@ def validate_protein_correction_inputs(
     protein_cols: Sequence[str],
     max_unmatched_fraction: float = 0.0,
     context: str = "Protein correction inputs",
-) -> None:
+) -> ProteinCorrectionMatchSummary:
+    resolved_max_unmatched_fraction = _validate_fraction(
+        max_unmatched_fraction,
+        name="max_unmatched_fraction",
+    )
     if len(phospho_cols) != len(protein_cols):
         msg = f"{context} require the same number of phospho and protein columns"
         raise InputCompatibilityError(msg)
@@ -51,17 +106,22 @@ def validate_protein_correction_inputs(
     if total_df.empty:
         msg = f"{context} contain no protein rows after filtering"
         raise InputCompatibilityError(msg)
-    if phospho_gene_col not in phospho_df.columns:
-        msg = f"{context} is missing phospho gene column: {phospho_gene_col}"
-        raise InputCompatibilityError(msg)
-    if total_gene_col not in total_df.columns:
-        msg = f"{context} is missing total gene column: {total_gene_col}"
-        raise InputCompatibilityError(msg)
+
+    _require_columns(
+        phospho_df,
+        required_columns=[phospho_gene_col, *phospho_cols],
+        context=f"{context} phospho input",
+    )
+    _require_columns(
+        total_df,
+        required_columns=[total_gene_col, *protein_cols],
+        context=f"{context} total input",
+    )
 
     total_gene_series = normalize_identifier_series(total_df[total_gene_col])
     if total_gene_series.duplicated().any():
         msg = (
-            f"{context} require unique values in {total_gene_col} before protein "
+            f"{context}: {total_gene_col} must be unique before protein "
             "correction to avoid duplicating phosphosite rows"
         )
         raise InputCompatibilityError(msg)
@@ -78,21 +138,29 @@ def validate_protein_correction_inputs(
         )
         raise InputCompatibilityError(msg)
 
-    unmatched_rows = len(phospho_df) - matched_rows
-    if unmatched_rows == 0:
-        return
+    input_rows = int(len(phospho_df))
+    unmatched_rows = input_rows - matched_rows
+    unmatched_fraction = unmatched_rows / input_rows
+    unmatched_genes = pd.unique(phospho_genes.loc[~matched_mask].dropna())
+    unmatched_gene_preview = tuple(str(gene) for gene in unmatched_genes[:5])
 
-    unmatched_fraction = unmatched_rows / len(phospho_df)
-    if unmatched_fraction > max_unmatched_fraction:
-        unmatched_genes = pd.unique(phospho_genes.loc[~matched_mask].dropna())
-        unmatched_preview = ", ".join(str(gene) for gene in unmatched_genes[:5])
+    if unmatched_rows > 0 and unmatched_fraction > resolved_max_unmatched_fraction:
+        unmatched_preview = ", ".join(unmatched_gene_preview)
         percent = unmatched_fraction * 100.0
         msg = (
-            f"{context} would drop {unmatched_rows} of {len(phospho_df)} phosphosite "
+            f"{context} would drop {unmatched_rows} of {input_rows} phosphosite "
             f"rows ({percent:.1f}%) due to missing protein matches in "
             f"{total_gene_col}: {unmatched_preview}"
         )
         raise InputCompatibilityError(msg)
+
+    return ProteinCorrectionMatchSummary(
+        input_rows=input_rows,
+        matched_rows=matched_rows,
+        unmatched_rows=unmatched_rows,
+        unmatched_fraction=unmatched_fraction,
+        unmatched_gene_preview=unmatched_gene_preview,
+    )
 
 
 def validate_kinase_activity_inputs(

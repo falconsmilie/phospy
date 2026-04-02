@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from numbers import Real
+from numbers import Integral, Real
 from typing import Literal, overload
 
 import numpy as np
@@ -11,12 +11,17 @@ import pandas as pd
 
 from .constants import ComparisonSpec
 from .dataset_schema import DatasetSchema
+from .validation.compatibility import (
+    validate_core_column_alignment,
+    validate_protein_correction_inputs,
+)
 from .validation.errors import (
     InputCompatibilityError,
     PhospyValidationError,
     TableSchemaError,
 )
 from .validation.normalization import normalize_identifier_series
+from .validation.primitives import validate_non_negative_int
 
 """Standalone preprocessing helpers.
 
@@ -67,6 +72,27 @@ class CoverageFilterResult:
     summary: CoverageFilterSummary
 
 
+@dataclass(frozen=True, slots=True)
+class ProteinCorrectionSummary:
+    """Describe a phospho-to-protein correction pass."""
+
+    input_rows: int
+    matched_rows: int
+    unmatched_rows: int
+    unmatched_fraction: float
+    phospho_gene_col: str
+    total_gene_col: str
+    unmatched_gene_preview: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ProteinCorrectionResult:
+    """Corrected phosphosite rows together with protein-match metadata."""
+
+    corrected: pd.DataFrame
+    summary: ProteinCorrectionSummary
+
+
 def _require_columns(
     df: pd.DataFrame,
     *,
@@ -114,7 +140,7 @@ def _require_numeric_series(
 
 
 def _resolve_required_columns(
-    columns: Sequence[str],
+    columns: Iterable[str],
     *,
     argument_name: str,
     context: str,
@@ -125,6 +151,32 @@ def _resolve_required_columns(
             f"{context} requires at least one column name in '{argument_name}'"
         )
     return resolved_columns
+
+
+def _validate_non_negative_integer(value: int, *, name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, Integral):
+        raise PhospyValidationError(f"{name} must be a non-negative integer")
+
+    resolved = int(value)
+    try:
+        validate_non_negative_int(resolved, name)
+    except PhospyValidationError as exc:
+        raise PhospyValidationError(f"{name} must be a non-negative integer") from exc
+    return resolved
+
+
+def _require_numeric_columns(
+    df: pd.DataFrame,
+    *,
+    columns: Sequence[str],
+    context: str,
+) -> None:
+    for column in columns:
+        df[column] = _require_numeric_series(
+            df[column],
+            column=column,
+            context=context,
+        )
 
 
 @overload
@@ -304,8 +356,27 @@ def replace_sentinel_with_nan(
     columns: Iterable[str],
     sentinel: float | int,
 ) -> pd.DataFrame:
+    resolved_columns = _resolve_required_columns(
+        columns,
+        argument_name="columns",
+        context="replace_sentinel_with_nan()",
+    )
+    _require_columns(
+        df,
+        required_columns=resolved_columns,
+        context="replace_sentinel_with_nan() input",
+    )
     result = df.copy()
-    return _replace_sentinel_with_nan_in_place(result, columns, sentinel)
+    _require_numeric_columns(
+        result,
+        columns=resolved_columns,
+        context="replace_sentinel_with_nan()",
+    )
+    return _replace_sentinel_with_nan_in_place(
+        result,
+        resolved_columns,
+        sentinel,
+    )
 
 
 def _filter_min_observed_without_copy(
@@ -322,7 +393,25 @@ def filter_min_observed(
     columns: Sequence[str],
     min_observed: int,
 ) -> pd.DataFrame:
-    return _filter_min_observed_without_copy(df, columns, min_observed).copy()
+    resolved_columns = _resolve_required_columns(
+        columns,
+        argument_name="columns",
+        context="filter_min_observed()",
+    )
+    _require_columns(
+        df,
+        required_columns=resolved_columns,
+        context="filter_min_observed() input",
+    )
+    resolved_min_observed = _validate_non_negative_integer(
+        min_observed,
+        name="min_observed",
+    )
+    return _filter_min_observed_without_copy(
+        df,
+        resolved_columns,
+        resolved_min_observed,
+    ).copy()
 
 
 def _collapse_duplicate_genes_owned(
@@ -388,6 +477,7 @@ def collapse_duplicate_genes(
     )
 
 
+@overload
 def correct_phospho_to_protein(
     df_phospho: pd.DataFrame,
     df_total: pd.DataFrame,
@@ -397,25 +487,102 @@ def correct_phospho_to_protein(
     protein_cols: Sequence[str],
     corrected_cols: Sequence[str] | None = None,
     output_prefix: str = "phospho_corrected_",
-) -> pd.DataFrame:
-    if len(phospho_cols) != len(protein_cols):
-        raise ValueError("phospho_cols and protein_cols must have the same length")
+    *,
+    max_unmatched_fraction: float = 1.0,
+    return_summary: Literal[False] = False,
+) -> pd.DataFrame: ...
 
+
+@overload
+def correct_phospho_to_protein(
+    df_phospho: pd.DataFrame,
+    df_total: pd.DataFrame,
+    phospho_gene_col: str,
+    total_gene_col: str,
+    phospho_cols: Sequence[str],
+    protein_cols: Sequence[str],
+    corrected_cols: Sequence[str] | None = None,
+    output_prefix: str = "phospho_corrected_",
+    *,
+    max_unmatched_fraction: float = 1.0,
+    return_summary: Literal[True],
+) -> ProteinCorrectionResult: ...
+
+
+def correct_phospho_to_protein(
+    df_phospho: pd.DataFrame,
+    df_total: pd.DataFrame,
+    phospho_gene_col: str,
+    total_gene_col: str,
+    phospho_cols: Sequence[str],
+    protein_cols: Sequence[str],
+    corrected_cols: Sequence[str] | None = None,
+    output_prefix: str = "phospho_corrected_",
+    *,
+    max_unmatched_fraction: float = 1.0,
+    return_summary: bool = False,
+) -> pd.DataFrame | ProteinCorrectionResult:
+    resolved_phospho_cols = _resolve_required_columns(
+        phospho_cols,
+        argument_name="phospho_cols",
+        context="correct_phospho_to_protein()",
+    )
+    resolved_protein_cols = _resolve_required_columns(
+        protein_cols,
+        argument_name="protein_cols",
+        context="correct_phospho_to_protein()",
+    )
     resolved_corrected_cols = (
         list(corrected_cols)
         if corrected_cols is not None
-        else [f"{output_prefix}{idx}" for idx in range(1, len(phospho_cols) + 1)]
+        else [
+            f"{output_prefix}{idx}" for idx in range(1, len(resolved_phospho_cols) + 1)
+        ]
     )
-    if len(resolved_corrected_cols) != len(phospho_cols):
-        raise ValueError(
-            "corrected_cols must have the same length as phospho_cols and protein_cols"
-        )
+
+    validate_core_column_alignment(
+        resolved_protein_cols,
+        resolved_phospho_cols,
+        resolved_corrected_cols,
+        context="correct_phospho_to_protein() inputs",
+    )
+    _require_columns(
+        df_phospho,
+        required_columns=[phospho_gene_col, *resolved_phospho_cols],
+        context="correct_phospho_to_protein() phospho input",
+    )
+    _require_columns(
+        df_total,
+        required_columns=[total_gene_col, *resolved_protein_cols],
+        context="correct_phospho_to_protein() total input",
+    )
 
     phospho_join_col = "__phospy_normalized_phospho_gene_key"
     total_join_col = "__phospy_normalized_total_gene_key"
 
     phospho_work = df_phospho.copy()
     total_work = df_total.copy()
+    _require_numeric_columns(
+        phospho_work,
+        columns=resolved_phospho_cols,
+        context="correct_phospho_to_protein() phospho input",
+    )
+    _require_numeric_columns(
+        total_work,
+        columns=resolved_protein_cols,
+        context="correct_phospho_to_protein() total input",
+    )
+    match_summary = validate_protein_correction_inputs(
+        phospho_work,
+        total_work,
+        phospho_gene_col=phospho_gene_col,
+        total_gene_col=total_gene_col,
+        phospho_cols=resolved_phospho_cols,
+        protein_cols=resolved_protein_cols,
+        max_unmatched_fraction=max_unmatched_fraction,
+        context="correct_phospho_to_protein() inputs",
+    )
+
     phospho_work[phospho_join_col] = normalize_identifier_series(
         phospho_work[phospho_gene_col]
     )
@@ -429,7 +596,7 @@ def correct_phospho_to_protein(
         raise InputCompatibilityError(msg)
 
     merged = phospho_work.merge(
-        total_work[[total_join_col, total_gene_col, *protein_cols]],
+        total_work[[total_join_col, total_gene_col, *resolved_protein_cols]],
         left_on=phospho_join_col,
         right_on=total_join_col,
         how="inner",
@@ -442,13 +609,25 @@ def correct_phospho_to_protein(
 
     for corrected_col, p_col, t_col in zip(
         resolved_corrected_cols,
-        phospho_cols,
-        protein_cols,
+        resolved_phospho_cols,
+        resolved_protein_cols,
         strict=True,
     ):
         merged[corrected_col] = merged[p_col] - merged[t_col]
 
-    return merged
+    if not return_summary:
+        return merged
+
+    summary = ProteinCorrectionSummary(
+        input_rows=match_summary.input_rows,
+        matched_rows=match_summary.matched_rows,
+        unmatched_rows=match_summary.unmatched_rows,
+        unmatched_fraction=match_summary.unmatched_fraction,
+        phospho_gene_col=phospho_gene_col,
+        total_gene_col=total_gene_col,
+        unmatched_gene_preview=match_summary.unmatched_gene_preview,
+    )
+    return ProteinCorrectionResult(corrected=merged, summary=summary)
 
 
 def _add_pairwise_comparisons_in_place(
@@ -509,6 +688,8 @@ __all__ = [
     "CoverageFilterSummary",
     "LocalizationFilterResult",
     "LocalizationFilterSummary",
+    "ProteinCorrectionResult",
+    "ProteinCorrectionSummary",
     "add_pairwise_comparisons",
     "collapse_duplicate_genes",
     "correct_phospho_to_protein",
