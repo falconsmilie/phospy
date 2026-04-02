@@ -27,7 +27,8 @@ The file paths below use `examples/data/...`, so they assume a repository checko
 Use `PhosphoDataset` when you want validated inputs and the standard preprocessing flow.
 
 ```python
-from phospy import CoreOutputWriter, PhosphoDataset
+from phospy import PhosphoDataset
+from phospy.writers import CoreOutputWriter
 
 dataset = PhosphoDataset.from_files(
     "examples/data/total.tsv",
@@ -51,7 +52,7 @@ corrected = core.phospho_corrected
 - `phospho_corrected`
 - `site_matrix`
 
-Use `CoreOutputWriter` when you want to write the core outputs to disk.
+Use `CoreOutputWriter` from `phospy.writers` when you want to write the core outputs to disk.
 
 ### 2. Kinase activity analysis from an existing `predMat`
 

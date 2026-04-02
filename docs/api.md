@@ -7,31 +7,22 @@ small `phospy` CLI described in the README.
 
 The signatures below match the current code.
 
-## Stable Root Imports
+## Supported Root Imports
 
 ```python
 from phospy import (
-    CoreOutputWriter,
-    CoreOutputs,
-    CoreProcessingResult,
-    DatasetPreprocessing,
-    DatasetSchema,
-    DatasetSiteMatrix,
     KinaseActivityAnalyzer,
-    KinaseActivityResult,
-    KinasePredictionResult,
     KinaseWorkflow,
-    KinaseWorkflowResult,
     PhosphoDataset,
     PhosRPipeline,
-    SiteMatrixResult,
 )
 ```
+
+These are the supported package-root entry points. Lower-level helpers and result types remain available through explicit module imports when needed, but they are not part of the root API.
 
 ## Pick the Right Entry Point
 
 - Use `PhosphoDataset` for validated in-memory inputs and core preprocessing.
-- Use `CoreOutputWriter` to write a `CoreProcessingResult` to disk.
 - Use `KinaseActivityAnalyzer` when you already have a phosphosite matrix and a `predMat`.
 - Use `PhosRPipeline` when you want file loading, preprocessing, optional kinase analysis, and output publishing in one place.
 - Use `KinaseWorkflow` for the native end-to-end scoring and prediction workflow.
@@ -76,7 +67,7 @@ Validation rules:
 ### Example
 
 ```python
-from phospy import DatasetSchema
+from phospy.dataset_schema import DatasetSchema
 
 schema = DatasetSchema(
     total_cols=("sample_a", "sample_b"),
@@ -332,7 +323,7 @@ Writes the core preprocessing outputs to a directory.
 #### Example
 
 ```python
-from phospy import CoreOutputWriter
+from phospy.writers import CoreOutputWriter
 
 writer = CoreOutputWriter()
 writer.write(core, outdir="results", format="parquet")
@@ -728,7 +719,7 @@ pred_matrix = result.prediction_result.pred_matrix
 
 ## Result Objects
 
-The main result objects exposed at the package root are small dataclasses. The attributes below are the ones you are most likely to use.
+The main result objects returned by the public workflows are small dataclasses. The attributes below are the ones you are most likely to use. Import them from their defining modules only when you need explicit type references.
 
 ### `CoreProcessingResult`
 

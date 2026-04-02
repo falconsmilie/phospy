@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import DatasetSchema
+from phospy.dataset_schema import DatasetSchema
 from phospy.prediction.traces import TraceSink
 from phospy.validation.errors import RequestValidationError
 from phospy.validation.requests import (

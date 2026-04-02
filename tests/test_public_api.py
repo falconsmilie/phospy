@@ -6,16 +6,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import (
-    CoreOutputWriter,
-    DatasetPreprocessing,
-    DatasetSchema,
-    DatasetSiteMatrix,
-    KinaseActivityAnalyzer,
-    KinaseWorkflow,
-    PhosphoDataset,
-    PhosRPipeline,
-)
+from phospy import KinaseActivityAnalyzer, KinaseWorkflow, PhosphoDataset, PhosRPipeline
 from phospy.constants import (
     CORE_OUTPUT_ARTIFACT_BASENAMES,
     KINASE_OUTPUT_FILENAMES,
@@ -23,8 +14,12 @@ from phospy.constants import (
 )
 from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
 from phospy.dataset_loader import DatasetLoader, ValidatedCoreInputs
+from phospy.dataset_preprocessing import DatasetPreprocessing
+from phospy.dataset_schema import DatasetSchema
+from phospy.dataset_site_matrix import DatasetSiteMatrix
 from phospy.site_matrix_builder import SiteMatrixBuilder
 from phospy.validation.errors import RequestValidationError
+from phospy.writers import CoreOutputWriter
 
 EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
 
@@ -75,20 +70,10 @@ def test_public_root_exports() -> None:
     import phospy
 
     expected = {
-        "CoreOutputWriter",
-        "CoreOutputs",
-        "CoreProcessingResult",
-        "DatasetPreprocessing",
-        "DatasetSchema",
-        "DatasetSiteMatrix",
         "KinaseActivityAnalyzer",
-        "KinaseActivityResult",
-        "KinasePredictionResult",
         "KinaseWorkflow",
-        "KinaseWorkflowResult",
         "PhosphoDataset",
         "PhosRPipeline",
-        "SiteMatrixResult",
     }
     assert set(phospy.__all__) == expected
 
