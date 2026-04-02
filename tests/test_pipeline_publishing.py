@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 
 import pandas as pd
@@ -10,7 +11,7 @@ import pytest
 from phospy import KinaseActivityAnalyzer, PhosRPipeline
 from phospy.core_processing import CorePreprocessingConfig
 from phospy.dataset import PhosphoDataset
-from phospy.publishing import OutputPublisher, RunManifestWriter
+from phospy.publishing import OutputPublisher, RunManifestWriter, package_version
 
 EXAMPLE_COMPARISONS = (("group1", "group4"), ("group2", "group5"), ("group3", "group6"))
 
@@ -98,7 +99,7 @@ def test_output_publisher_restores_backup_on_publish_failure(
 
     def replace_with_failure(source: Path, target: Path) -> None:
         if source == staging_dir and target == target_dir:
-            raise RuntimeError("boom")
+            raise OSError("boom")
         source.replace(target)
 
     monkeypatch.setattr(
@@ -107,7 +108,7 @@ def test_output_publisher_restores_backup_on_publish_failure(
         staticmethod(replace_with_failure),
     )
 
-    with pytest.raises(RuntimeError, match="boom"):
+    with pytest.raises(OSError, match="boom"):
         OutputPublisher().publish(staging_dir=staging_dir, target_dir=target_dir)
 
     assert target_dir.exists()
@@ -226,3 +227,26 @@ def test_run_manifest_writer_serializes_expected_metadata(tmp_path: Path) -> Non
             "phospho_sentinel": 12.0,
         },
     }
+
+
+def test_package_version_returns_unknown_when_distribution_metadata_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def missing_distribution(_: str) -> str:
+        raise PackageNotFoundError("phospy")
+
+    monkeypatch.setattr("phospy.publishing.version", missing_distribution)
+
+    assert package_version() == "unknown"
+
+
+def test_package_version_propagates_unexpected_metadata_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def blow_up(_: str) -> str:
+        raise RuntimeError("metadata backend failed")
+
+    monkeypatch.setattr("phospy.publishing.version", blow_up)
+
+    with pytest.raises(RuntimeError, match="metadata backend failed"):
+        package_version()

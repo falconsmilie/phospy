@@ -351,3 +351,25 @@ def test_core_pipeline_request_rejects_unknown_comparison_group_for_schema(
             schema=schema,
             comparisons=(("group1", "sample_b"),),
         )
+
+
+def test_core_pipeline_request_does_not_mask_unexpected_comparison_validation_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    total_path.write_text("genes	group1\nPRKACA	1\n")
+    phospho_path.write_text("uid	gene_names\n1	PRKACA\n")
+
+    def blow_up(self: DatasetSchema, comparisons, *, context: str = "Dataset schema"):
+        raise RuntimeError("comparison validator exploded")
+
+    monkeypatch.setattr(DatasetSchema, "validate_comparisons", blow_up)
+
+    with pytest.raises(RuntimeError, match="comparison validator exploded"):
+        CorePipelineRequest.validate_request(
+            total_path=total_path,
+            phospho_path=phospho_path,
+            comparisons=(("group1", "group1"),),
+        )

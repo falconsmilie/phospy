@@ -106,7 +106,11 @@ class DirectoryTraceSink(TraceSink):
         path = self.output_dir / f"{table_name}.part-{part_index:06d}.parquet"
         try:
             frame.to_parquet(path, index=False)
-        except Exception as error:  # pragma: no cover - engine availability varies
+        except (
+            ImportError,
+            ModuleNotFoundError,
+            ValueError,
+        ) as error:  # pragma: no cover - engine availability varies
             msg = (
                 "Unable to write parquet trace output. Install a supported parquet "
                 "engine such as 'pyarrow', or use trace_sink_format='csv'."
@@ -142,7 +146,11 @@ class DirectoryTraceSink(TraceSink):
             return pd.concat(
                 [pd.read_parquet(part) for part in parts], ignore_index=True
             )
-        except Exception as error:  # pragma: no cover - engine availability varies
+        except (
+            ImportError,
+            ModuleNotFoundError,
+            ValueError,
+        ) as error:  # pragma: no cover - engine availability varies
             msg = (
                 "Unable to read parquet trace output. Install a supported parquet "
                 "engine such as 'pyarrow', or use trace_sink_format='csv'."

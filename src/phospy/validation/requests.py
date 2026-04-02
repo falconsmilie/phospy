@@ -23,7 +23,7 @@ from phospy.types import (
     PredictionTraceLevel,
 )
 
-from .errors import RequestValidationError
+from .errors import InputCompatibilityError, RequestValidationError
 from .paths import validate_existing_file_path
 from .tables import PredictionScoreMatrixSchema
 
@@ -84,7 +84,7 @@ class CorePipelineRequest(PhospyRequestModel):
                 self.comparisons,
                 context="Core pipeline request",
             )
-        except Exception as error:
+        except (InputCompatibilityError, TypeError, ValueError) as error:
             raise ValueError(str(error)) from error
         object.__setattr__(self, "comparisons", validated)
         return self

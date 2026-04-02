@@ -32,7 +32,11 @@ def _iter_trace_table_frames(
     for source in parquet_sources:
         try:
             yield pd.read_parquet(source), source.name
-        except Exception as error:  # pragma: no cover - engine availability varies
+        except (
+            ImportError,
+            ModuleNotFoundError,
+            ValueError,
+        ) as error:  # pragma: no cover - engine availability varies
             msg = (
                 "Unable to read parquet trace replay input. Install a supported "
                 "parquet engine such as 'pyarrow', or provide CSV trace files."

@@ -5,6 +5,7 @@ import shutil
 from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -16,10 +17,8 @@ if TYPE_CHECKING:
 
 def package_version() -> str:
     try:
-        from importlib.metadata import version
-
         return version("phospy")
-    except Exception:
+    except PackageNotFoundError:
         return "unknown"
 
 
@@ -80,7 +79,7 @@ class OutputPublisher:
         self._replace_directory(target_dir, backup_dir)
         try:
             self._replace_directory(staging_dir, target_dir)
-        except Exception:
+        except OSError:
             self._replace_directory(backup_dir, target_dir)
             raise
         else:
