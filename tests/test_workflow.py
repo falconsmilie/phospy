@@ -3,7 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.validation.errors import RequestValidationError
+from phospy.motifs import KinaseMotifScorer
+from phospy.validation.errors import InputCompatibilityError, RequestValidationError
+from phospy.validation.requests import KinaseWorkflowRequest
+from phospy.validation.tables import SiteMatrixSchema
 from phospy.workflow import KinaseWorkflow
 
 
@@ -189,3 +192,92 @@ def test_kinase_workflow_accepts_explicit_svm_mode() -> None:
         "KINASE_A",
         "KINASE_B",
     ]
+
+
+def test_kinase_workflow_run_request_validates_boundary_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
+        make_workflow_inputs()
+    )
+    workflow = KinaseWorkflow(flank_size=2)
+    request = KinaseWorkflowRequest.validate_request(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        min_substrates=2,
+        min_motif_size=2,
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.75,
+        inclusion=3,
+        n_iterations=2,
+        random_state=17,
+    )
+
+    matrix_calls: list[str] = []
+    motif_calls: list[int] = []
+    original_matrix_validate = SiteMatrixSchema.validate
+    original_from_sequences = KinaseMotifScorer.from_substrate_sequences
+
+    def counting_matrix_validate(df: pd.DataFrame, *, context: str) -> pd.DataFrame:
+        matrix_calls.append(context)
+        return original_matrix_validate(df, context=context)
+
+    def counting_from_sequences(
+        cls,
+        motif_sequences: dict[str, list[str]],
+        flank_size: int = 7,
+    ) -> KinaseMotifScorer:
+        motif_calls.append(flank_size)
+        return original_from_sequences(
+            motif_sequences=motif_sequences, flank_size=flank_size
+        )
+
+    monkeypatch.setattr(
+        SiteMatrixSchema,
+        "validate",
+        staticmethod(counting_matrix_validate),
+    )
+    monkeypatch.setattr(
+        KinaseMotifScorer,
+        "from_substrate_sequences",
+        classmethod(counting_from_sequences),
+    )
+
+    result = workflow.run_request(request)
+
+    assert list(result.prediction_result.pred_matrix.columns) == [
+        "KINASE_A",
+        "KINASE_B",
+    ]
+    assert matrix_calls == ["phospho_matrix"]
+    assert motif_calls == [2]
+
+
+def test_kinase_workflow_rejects_inconsistent_motif_widths_at_boundary() -> None:
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
+        make_workflow_inputs()
+    )
+    workflow = KinaseWorkflow(flank_size=2)
+    motif_sequences["KINASE_B"] = ["QTTY", "QTTY", "QTTY"]
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match="motif_sequences must use the same sequence width across kinases",
+    ):
+        workflow.run(
+            phospho_matrix=phospho_matrix,
+            substrate_map=substrate_map,
+            site_sequences=site_sequences,
+            motif_sequences=motif_sequences,
+            min_substrates=2,
+            min_motif_size=2,
+            ensemble_size=3,
+            top=4,
+            score_threshold=0.75,
+            inclusion=3,
+            n_iterations=2,
+            random_state=17,
+        )

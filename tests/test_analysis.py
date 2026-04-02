@@ -5,6 +5,7 @@ import pytest
 
 from phospy import KinaseActivityAnalyzer
 from phospy.validation.errors import RequestValidationError, TableSchemaError
+from phospy.validation.requests import KinaseActivityRequest
 from phospy.validation.tables import PredMatSchema, SiteMatrixSchema
 
 
@@ -162,4 +163,47 @@ def test_load_and_analyze_does_not_revalidate_loaded_prediction_matrix(
 
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
     assert pred_calls == [f"pred_mat ({pred_mat_path})"]
+    assert matrix_calls == ["phospho_matrix"]
+
+
+def test_analyze_request_validates_boundary_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pred_calls: list[str] = []
+    matrix_calls: list[str] = []
+    original_pred_validate = PredMatSchema.validate
+    original_matrix_validate = SiteMatrixSchema.validate
+
+    def counting_pred_validate(df: pd.DataFrame, *, context: str) -> pd.DataFrame:
+        pred_calls.append(context)
+        return original_pred_validate(df, context=context)
+
+    def counting_matrix_validate(df: pd.DataFrame, *, context: str) -> pd.DataFrame:
+        matrix_calls.append(context)
+        return original_matrix_validate(df, context=context)
+
+    monkeypatch.setattr(
+        PredMatSchema,
+        "validate",
+        staticmethod(counting_pred_validate),
+    )
+    monkeypatch.setattr(
+        SiteMatrixSchema,
+        "validate",
+        staticmethod(counting_matrix_validate),
+    )
+
+    request = KinaseActivityRequest.validate_request(
+        threshold=0.6,
+        min_substrates=2,
+        top_n_substrates=20,
+    )
+    result = KinaseActivityAnalyzer.analyze_request(
+        request=request,
+        pred_mat=make_pred_mat(),
+        phospho_matrix=make_phospho_matrix(),
+    )
+
+    assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
+    assert pred_calls == ["pred_mat"]
     assert matrix_calls == ["phospho_matrix"]

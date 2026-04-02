@@ -13,11 +13,11 @@ from .activities import (
 )
 from .io import load_pred_mat
 from .validation.compatibility import (
-    validate_kinase_activity_inputs,
-    validate_pred_mat_overlap,
+    ValidatedKinaseActivityInputs,
+    build_kinase_activity_inputs,
+    build_loaded_kinase_activity_inputs,
 )
 from .validation.requests import KinaseActivityRequest
-from .validation.tables import SiteMatrixSchema
 from .writers import KinaseActivityResultWriter, KinaseActivityWriter
 
 
@@ -70,41 +70,39 @@ class KinaseActivityAnalyzer:
         pred_mat: pd.DataFrame,
         phospho_matrix: pd.DataFrame,
     ) -> KinaseActivityResult:
-        validated_pred_mat, validated_matrix = validate_kinase_activity_inputs(
+        validated_inputs = build_kinase_activity_inputs(
             pred_mat=pred_mat,
             phospho_matrix=phospho_matrix,
         )
         return KinaseActivityAnalyzer._analyze_validated_request(
             request=request,
-            validated_pred_mat=validated_pred_mat,
-            validated_matrix=validated_matrix,
+            validated_inputs=validated_inputs,
         )
 
     @staticmethod
     def _analyze_validated_request(
         *,
         request: KinaseActivityRequest,
-        validated_pred_mat: pd.DataFrame,
-        validated_matrix: pd.DataFrame,
+        validated_inputs: ValidatedKinaseActivityInputs,
     ) -> KinaseActivityResult:
         weighted_activity = compute_weighted_kinase_activity(
-            pred_mat=validated_pred_mat,
-            phospho_matrix=validated_matrix,
+            pred_mat=validated_inputs.pred_mat,
+            phospho_matrix=validated_inputs.phospho_matrix,
             top_n_substrates=request.top_n_substrates,
             min_substrates=request.min_substrates,
         )
         ksea_scores, ksea_counts = compute_ksea_scores(
-            pred_mat=validated_pred_mat,
-            phospho_matrix=validated_matrix,
+            pred_mat=validated_inputs.pred_mat,
+            phospho_matrix=validated_inputs.phospho_matrix,
             threshold=request.threshold,
             min_substrates=request.min_substrates,
         )
         target_counts = count_predicted_targets(
-            validated_pred_mat,
+            validated_inputs.pred_mat,
             threshold=request.threshold,
         )
         target_table = build_kinase_target_table(
-            validated_pred_mat,
+            validated_inputs.pred_mat,
             threshold=request.threshold,
         )
 
@@ -132,13 +130,9 @@ class KinaseActivityAnalyzer:
             min_substrates=min_substrates,
             top_n_substrates=top_n_substrates,
         )
-        validated_matrix = SiteMatrixSchema.validate(
-            phospho_matrix,
-            context="phospho_matrix",
-        )
-        validate_pred_mat_overlap(
-            validated_pred_mat,
-            validated_matrix,
+        validated_inputs = build_loaded_kinase_activity_inputs(
+            validated_pred_mat=validated_pred_mat,
+            phospho_matrix=phospho_matrix,
             pred_context="pred_mat",
             matrix_context="phospho_matrix",
             min_overlap=1,
@@ -146,8 +140,7 @@ class KinaseActivityAnalyzer:
         )
         return self._analyze_validated_request(
             request=request,
-            validated_pred_mat=validated_pred_mat,
-            validated_matrix=validated_matrix,
+            validated_inputs=validated_inputs,
         )
 
     def write_outputs(self, result: KinaseActivityResult, outdir: str | Path) -> None:

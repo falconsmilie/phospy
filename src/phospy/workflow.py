@@ -5,12 +5,15 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from .motifs import KinaseMotifScorer, MotifScoringResult
+from .motifs import MotifScoringResult
 from .prediction import KinasePredictionResult, KinasePredictor
 from .profiles import KinaseProfileResult, build_kinase_substrate_profiles
 from .scoring import KinaseScorer, KinaseScoringResult
 from .types import PredictionSvmMode
-from .validation.compatibility import validate_workflow_request
+from .validation.compatibility import (
+    ValidatedKinaseWorkflowInputs,
+    build_workflow_request_inputs,
+)
 from .validation.requests import KinaseWorkflowRequest
 
 
@@ -71,7 +74,18 @@ class KinaseWorkflow:
         return self.run_request(request)
 
     def run_request(self, request: KinaseWorkflowRequest) -> KinaseWorkflowResult:
-        phospho_matrix = validate_workflow_request(request)
+        validated_inputs = build_workflow_request_inputs(
+            request,
+            flank_size=self.flank_size,
+        )
+        return self._run_validated_request(validated_inputs)
+
+    def _run_validated_request(
+        self,
+        validated_inputs: ValidatedKinaseWorkflowInputs,
+    ) -> KinaseWorkflowResult:
+        request = validated_inputs.request
+        phospho_matrix = validated_inputs.phospho_matrix
 
         profile_result = build_kinase_substrate_profiles(
             substrate_map=request.substrate_map,
@@ -82,12 +96,8 @@ class KinaseWorkflow:
         scorer = KinaseScorer(profile_result.profile_matrix)
         motif_result: MotifScoringResult | None = None
 
-        if request.motif_sequences is not None:
-            motif_scorer = KinaseMotifScorer.from_substrate_sequences(
-                motif_sequences=request.motif_sequences,
-                flank_size=self.flank_size,
-            )
-            motif_result = motif_scorer.score_sequences(
+        if validated_inputs.motif_scorer is not None:
+            motif_result = validated_inputs.motif_scorer.score_sequences(
                 seqs=request.site_sequences,
                 site_index=phospho_matrix.index,
                 min_motif_size=request.min_motif_size,

@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from phospy.motifs import KinaseMotifScorer
+
 from .errors import InputCompatibilityError, PhospyValidationError, TableSchemaError
 from .normalization import normalize_identifier_series
 from .tables import PredMatSchema, SiteMatrixSchema
@@ -24,6 +26,19 @@ class ProteinCorrectionMatchSummary:
     unmatched_rows: int
     unmatched_fraction: float
     unmatched_gene_preview: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ValidatedKinaseActivityInputs:
+    pred_mat: pd.DataFrame
+    phospho_matrix: pd.DataFrame
+
+
+@dataclass(frozen=True, slots=True)
+class ValidatedKinaseWorkflowInputs:
+    request: KinaseWorkflowRequest
+    phospho_matrix: pd.DataFrame
+    motif_scorer: KinaseMotifScorer | None
 
 
 def _validate_fraction(
@@ -163,7 +178,7 @@ def validate_protein_correction_inputs(
     )
 
 
-def validate_kinase_activity_inputs(
+def build_kinase_activity_inputs(
     pred_mat: pd.DataFrame,
     phospho_matrix: pd.DataFrame,
     *,
@@ -171,8 +186,27 @@ def validate_kinase_activity_inputs(
     matrix_context: str = "phospho_matrix",
     min_overlap: int = 1,
     min_fraction: float = 0.1,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+) -> ValidatedKinaseActivityInputs:
     validated_pred_mat = PredMatSchema.validate(pred_mat, context=pred_context)
+    return build_loaded_kinase_activity_inputs(
+        validated_pred_mat=validated_pred_mat,
+        phospho_matrix=phospho_matrix,
+        pred_context=pred_context,
+        matrix_context=matrix_context,
+        min_overlap=min_overlap,
+        min_fraction=min_fraction,
+    )
+
+
+def build_loaded_kinase_activity_inputs(
+    *,
+    validated_pred_mat: pd.DataFrame,
+    phospho_matrix: pd.DataFrame,
+    pred_context: str = "pred_mat",
+    matrix_context: str = "phospho_matrix",
+    min_overlap: int = 1,
+    min_fraction: float = 0.1,
+) -> ValidatedKinaseActivityInputs:
     validated_matrix = SiteMatrixSchema.validate(phospho_matrix, context=matrix_context)
     validate_pred_mat_overlap(
         validated_pred_mat,
@@ -182,21 +216,70 @@ def validate_kinase_activity_inputs(
         min_overlap=min_overlap,
         min_fraction=min_fraction,
     )
-    return validated_pred_mat, validated_matrix
+    return ValidatedKinaseActivityInputs(
+        pred_mat=validated_pred_mat,
+        phospho_matrix=validated_matrix,
+    )
+
+
+def validate_kinase_activity_inputs(
+    pred_mat: pd.DataFrame,
+    phospho_matrix: pd.DataFrame,
+    *,
+    pred_context: str = "pred_mat",
+    matrix_context: str = "phospho_matrix",
+    min_overlap: int = 1,
+    min_fraction: float = 0.1,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    validated_inputs = build_kinase_activity_inputs(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+        pred_context=pred_context,
+        matrix_context=matrix_context,
+        min_overlap=min_overlap,
+        min_fraction=min_fraction,
+    )
+    return validated_inputs.pred_mat, validated_inputs.phospho_matrix
+
+
+def build_workflow_request_inputs(
+    request: KinaseWorkflowRequest,
+    *,
+    flank_size: int,
+    context: str = "Kinase workflow inputs",
+) -> ValidatedKinaseWorkflowInputs:
+    validated_matrix = _validate_workflow_matrix_inputs(
+        request.phospho_matrix,
+        request.substrate_map,
+        request.site_sequences,
+        context=context,
+    )
+    motif_scorer = (
+        None
+        if request.motif_sequences is None
+        else KinaseMotifScorer.from_substrate_sequences(
+            motif_sequences=request.motif_sequences,
+            flank_size=flank_size,
+        )
+    )
+    return ValidatedKinaseWorkflowInputs(
+        request=request,
+        phospho_matrix=validated_matrix,
+        motif_scorer=motif_scorer,
+    )
 
 
 def validate_workflow_request(
     request: KinaseWorkflowRequest,
     *,
+    flank_size: int = 7,
     context: str = "Kinase workflow inputs",
 ) -> pd.DataFrame:
-    return validate_workflow_inputs(
-        request.phospho_matrix,
-        request.substrate_map,
-        request.site_sequences,
-        request.motif_sequences,
+    return build_workflow_request_inputs(
+        request,
+        flank_size=flank_size,
         context=context,
-    )
+    ).phospho_matrix
 
 
 def validate_pred_mat_overlap(
@@ -231,7 +314,29 @@ def validate_workflow_inputs(
     site_sequences: Mapping[str, str] | pd.Series | None,
     motif_sequences: Mapping[str, Sequence[str]] | None,
     *,
+    flank_size: int = 7,
     context: str = "Kinase workflow inputs",
+) -> pd.DataFrame:
+    validated_matrix = _validate_workflow_matrix_inputs(
+        phospho_matrix,
+        substrate_map,
+        site_sequences,
+        context=context,
+    )
+    if motif_sequences is not None:
+        KinaseMotifScorer.from_substrate_sequences(
+            motif_sequences=motif_sequences,
+            flank_size=flank_size,
+        )
+    return validated_matrix
+
+
+def _validate_workflow_matrix_inputs(
+    phospho_matrix: pd.DataFrame,
+    substrate_map: Mapping[str, Sequence[str]],
+    site_sequences: Mapping[str, str] | pd.Series | None,
+    *,
+    context: str,
 ) -> pd.DataFrame:
     validated_matrix = SiteMatrixSchema.validate(
         phospho_matrix,
@@ -258,23 +363,6 @@ def validate_workflow_inputs(
             msg = (
                 f"site_sequences is missing entries for phosphosites: {missing_preview}"
             )
-            raise InputCompatibilityError(msg)
-
-    if motif_sequences is not None:
-        widths: set[int] = set()
-        for kinase, sequences in motif_sequences.items():
-            if not sequences:
-                continue
-            kinase_widths = {len(str(sequence)) for sequence in sequences}
-            if len(kinase_widths) != 1:
-                msg = (
-                    f"motif_sequences for kinase {kinase} must use a consistent "
-                    "sequence width"
-                )
-                raise InputCompatibilityError(msg)
-            widths.update(kinase_widths)
-        if len(widths) > 1:
-            msg = "motif_sequences must use the same sequence width across kinases"
             raise InputCompatibilityError(msg)
 
     return validated_matrix

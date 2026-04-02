@@ -55,6 +55,12 @@ class MotifScoringResult:
     sequence_windows: pd.Series
 
 
+@dataclass(frozen=True, slots=True)
+class ValidatedMotifLibrary:
+    motif_frequency_matrices: dict[str, pd.DataFrame]
+    motif_sizes: pd.Series
+
+
 class KinaseMotifScorer:
     """Score phosphosite sequences against per-kinase motif frequency matrices."""
 
@@ -103,17 +109,13 @@ class KinaseMotifScorer:
         motif_sequences: Mapping[str, Sequence[str]],
         flank_size: int = 7,
     ) -> KinaseMotifScorer:
-        matrices: dict[str, pd.DataFrame] = {}
-        sizes: dict[str, float] = {}
-        for kinase, sequences in motif_sequences.items():
-            matrices[kinase] = create_frequency_matrix(
-                sequences,
-                flank_size=flank_size,
-            )
-            sizes[kinase] = float(len(sequences))
+        validated_library = build_validated_motif_library(
+            motif_sequences=motif_sequences,
+            flank_size=flank_size,
+        )
         return cls(
-            motif_frequency_matrices=matrices,
-            motif_sizes=pd.Series(sizes, dtype=float),
+            motif_frequency_matrices=validated_library.motif_frequency_matrices,
+            motif_sizes=validated_library.motif_sizes,
             flank_size=flank_size,
         )
 
@@ -170,31 +172,46 @@ def create_frequency_matrix(
 
     validate_non_negative_int(flank_size, name="flank_size")
     windows = _coerce_sequence_series(substrates_seq, flank_size=flank_size)
-    if windows.empty:
-        msg = "substrates_seq must contain at least one sequence"
-        raise TableSchemaError(msg)
+    return _build_frequency_matrix_from_windows(
+        windows,
+        context="substrates_seq",
+    )
 
-    width = len(str(windows.iloc[0]))
-    if any(len(str(window)) != width for window in windows):
-        msg = "All sequences must have the same window length"
-        raise TableSchemaError(msg)
 
-    frequency_values = np.zeros((len(AMINO_ACIDS), width), dtype=float)
-    encoded_windows = _encode_sequence_positions(windows, width=width)
-    valid_rows, valid_cols = np.nonzero(encoded_windows >= 0)
-    if valid_rows.size > 0:
-        np.add.at(
-            frequency_values,
-            (encoded_windows[valid_rows, valid_cols], valid_cols),
-            1.0,
-        )
+def build_validated_motif_library(
+    motif_sequences: Mapping[str, Sequence[str]],
+    *,
+    flank_size: int = 7,
+    context: str = "motif_sequences",
+) -> ValidatedMotifLibrary:
+    validate_non_negative_int(flank_size, name="flank_size")
 
-    frequency_values /= float(len(windows))
-    return pd.DataFrame(
-        frequency_values,
-        index=list(AMINO_ACIDS),
-        columns=[f"p{i}" for i in range(1, width + 1)],
-        dtype=float,
+    matrices: dict[str, pd.DataFrame] = {}
+    sizes: dict[str, float] = {}
+    widths: set[int] = set()
+
+    for kinase, sequences in motif_sequences.items():
+        windows = _coerce_sequence_series(sequences, flank_size=flank_size)
+        try:
+            matrices[kinase] = _build_frequency_matrix_from_windows(
+                windows,
+                context=f"{context} for kinase {kinase}",
+            )
+        except TableSchemaError as error:
+            if "same window length" in str(error):
+                msg = f"{context} for kinase {kinase} must use a consistent sequence width"
+                raise InputCompatibilityError(msg) from error
+            raise
+        sizes[kinase] = float(len(windows))
+        widths.add(matrices[kinase].shape[1])
+
+    if len(widths) > 1:
+        msg = f"{context} must use the same sequence width across kinases"
+        raise InputCompatibilityError(msg)
+
+    return ValidatedMotifLibrary(
+        motif_frequency_matrices=matrices,
+        motif_sizes=pd.Series(sizes, dtype=float),
     )
 
 
@@ -252,6 +269,39 @@ def minmax_scale_columns(mat: pd.DataFrame) -> pd.DataFrame:
         else:
             scaled.loc[:, column] = (values - min_value) / denominator
     return scaled
+
+
+def _build_frequency_matrix_from_windows(
+    windows: pd.Series,
+    *,
+    context: str,
+) -> pd.DataFrame:
+    if windows.empty:
+        msg = f"{context} must contain at least one sequence"
+        raise TableSchemaError(msg)
+
+    width = len(str(windows.iloc[0]))
+    if any(len(str(window)) != width for window in windows):
+        msg = "All sequences must have the same window length"
+        raise TableSchemaError(msg)
+
+    frequency_values = np.zeros((len(AMINO_ACIDS), width), dtype=float)
+    encoded_windows = _encode_sequence_positions(windows, width=width)
+    valid_rows, valid_cols = np.nonzero(encoded_windows >= 0)
+    if valid_rows.size > 0:
+        np.add.at(
+            frequency_values,
+            (encoded_windows[valid_rows, valid_cols], valid_cols),
+            1.0,
+        )
+
+    frequency_values /= float(len(windows))
+    return pd.DataFrame(
+        frequency_values,
+        index=list(AMINO_ACIDS),
+        columns=[f"p{i}" for i in range(1, width + 1)],
+        dtype=float,
+    )
 
 
 def _encode_sequence_positions(
