@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import pandas as pd
@@ -8,37 +9,49 @@ from ..validation.errors import TableSchemaError
 from .models import SamplingTraceOverrideEnsemble
 
 
-def _read_trace_table_from_directory(
+def _iter_trace_table_frames(
     trace_dir: Path,
     table_name: str,
-) -> tuple[pd.DataFrame | None, str | None]:
+) -> Iterator[tuple[pd.DataFrame, str]]:
     csv_path = trace_dir / f"{table_name}.csv"
     if csv_path.exists():
-        return pd.read_csv(csv_path), csv_path.name
+        yield pd.read_csv(csv_path), csv_path.name
+        return
 
     parquet_path = trace_dir / f"{table_name}.parquet"
     parquet_parts = sorted(trace_dir.glob(f"{table_name}.part-*.parquet"))
-    if parquet_path.exists() or parquet_parts:
-        parquet_sources = [parquet_path] if parquet_path.exists() else parquet_parts
+    parquet_sources: list[Path] = []
+    if parquet_path.exists():
+        parquet_sources.append(parquet_path)
+    else:
+        parquet_sources.extend(parquet_parts)
+
+    if not parquet_sources:
+        return
+
+    for source in parquet_sources:
         try:
-            frame = pd.concat(
-                [pd.read_parquet(source) for source in parquet_sources],
-                ignore_index=True,
-            )
+            yield pd.read_parquet(source), source.name
         except Exception as error:  # pragma: no cover - engine availability varies
             msg = (
                 "Unable to read parquet trace replay input. Install a supported "
                 "parquet engine such as 'pyarrow', or provide CSV trace files."
             )
             raise RuntimeError(msg) from error
-        label = (
-            parquet_path.name
-            if parquet_path.exists()
-            else f"{table_name}.part-*.parquet"
-        )
-        return frame, label
 
-    return None, None
+
+def _require_trace_columns(
+    frame: pd.DataFrame,
+    *,
+    required_columns: tuple[str, ...],
+    source_label: str,
+) -> pd.DataFrame:
+    required_set = set(required_columns)
+    if not required_set.issubset(frame.columns):
+        missing = sorted(required_set.difference(frame.columns))
+        msg = f"{source_label} is missing required columns: " + ", ".join(missing)
+        raise TableSchemaError(msg)
+    return frame.loc[:, list(required_columns)]
 
 
 class PredictionSamplingTrace:
@@ -50,13 +63,53 @@ class PredictionSamplingTrace:
     @classmethod
     def from_trace_directory(cls, trace_dir: str | Path) -> PredictionSamplingTrace:
         path = Path(trace_dir)
-        initial_df, initial_label = _read_trace_table_from_directory(
-            path, "trace_initial_negatives"
+        initial_required_cols = ("kinase", "ensemble", "draw", "site")
+        sample_required_cols = (
+            "kinase",
+            "ensemble",
+            "iteration",
+            "class_label",
+            "draw",
+            "site",
         )
-        samples_df, samples_label = _read_trace_table_from_directory(
-            path, "trace_iteration_samples"
-        )
-        if initial_df is None and samples_df is None:
+
+        initial_records: dict[tuple[str, int], list[tuple[int, str]]] = {}
+        sample_records: dict[tuple[str, int, int, int], list[tuple[int, str]]] = {}
+        found_initial = False
+        found_samples = False
+
+        for frame, label in _iter_trace_table_frames(path, "trace_initial_negatives"):
+            found_initial = True
+            valid_frame = _require_trace_columns(
+                frame,
+                required_columns=initial_required_cols,
+                source_label=label,
+            )
+            for kinase, ensemble, draw, site in valid_frame.itertuples(
+                index=False, name=None
+            ):
+                key = (str(kinase), int(ensemble))
+                initial_records.setdefault(key, []).append((int(draw), str(site)))
+
+        for frame, label in _iter_trace_table_frames(path, "trace_iteration_samples"):
+            found_samples = True
+            valid_frame = _require_trace_columns(
+                frame,
+                required_columns=sample_required_cols,
+                source_label=label,
+            )
+            for (
+                kinase,
+                ensemble,
+                iteration,
+                class_label,
+                draw,
+                site,
+            ) in valid_frame.itertuples(index=False, name=None):
+                key = (str(kinase), int(ensemble), int(iteration), int(class_label))
+                sample_records.setdefault(key, []).append((int(draw), str(site)))
+
+        if not found_initial and not found_samples:
             msg = (
                 "sampling trace directory must contain trace_initial_negatives "
                 "and/or trace_iteration_samples in CSV or parquet format"
@@ -65,62 +118,33 @@ class PredictionSamplingTrace:
 
         ensembles_by_kinase: dict[str, dict[int, SamplingTraceOverrideEnsemble]] = {}
 
-        if initial_df is not None:
-            required_initial_cols = {"kinase", "ensemble", "draw", "site"}
-            if not required_initial_cols.issubset(initial_df.columns):
-                missing = sorted(required_initial_cols.difference(initial_df.columns))
-                msg = f"{initial_label} is missing required columns: " + ", ".join(
-                    missing
-                )
-                raise TableSchemaError(msg)
-            initial_df = initial_df.sort_values(
-                ["kinase", "ensemble", "draw"], kind="mergesort"
+        for (kinase, ensemble), draws in sorted(initial_records.items()):
+            ordered_sites = [
+                site for _, site in sorted(draws, key=lambda item: item[0])
+            ]
+            ensemble_map = ensembles_by_kinase.setdefault(kinase, {})
+            ensemble_map[ensemble] = SamplingTraceOverrideEnsemble(
+                initial_negative_sites=ordered_sites,
+                iteration_sample_sites={},
             )
-            for (kinase, ensemble), group in initial_df.groupby(
-                ["kinase", "ensemble"], sort=False
-            ):
-                ensemble_map = ensembles_by_kinase.setdefault(str(kinase), {})
-                ensemble_map[int(ensemble)] = SamplingTraceOverrideEnsemble(
-                    initial_negative_sites=group.loc[:, "site"].astype(str).tolist(),
-                    iteration_sample_sites={},
-                )
 
-        if samples_df is not None:
-            required_sample_cols = {
-                "kinase",
-                "ensemble",
-                "iteration",
-                "class_label",
-                "draw",
-                "site",
-            }
-            if not required_sample_cols.issubset(samples_df.columns):
-                missing = sorted(required_sample_cols.difference(samples_df.columns))
-                msg = f"{samples_label} is missing required columns: " + ", ".join(
-                    missing
-                )
-                raise TableSchemaError(msg)
-            samples_df = samples_df.sort_values(
-                ["kinase", "ensemble", "iteration", "class_label", "draw"],
-                kind="mergesort",
+        for (kinase, ensemble, iteration, class_label), draws in sorted(
+            sample_records.items()
+        ):
+            ensemble_map = ensembles_by_kinase.setdefault(kinase, {})
+            ensemble_override = ensemble_map.setdefault(
+                ensemble,
+                SamplingTraceOverrideEnsemble(
+                    initial_negative_sites=None,
+                    iteration_sample_sites={},
+                ),
             )
-            for (kinase, ensemble, iteration, class_label), group in samples_df.groupby(
-                ["kinase", "ensemble", "iteration", "class_label"], sort=False
-            ):
-                ensemble_map = ensembles_by_kinase.setdefault(str(kinase), {})
-                ensemble_override = ensemble_map.setdefault(
-                    int(ensemble),
-                    SamplingTraceOverrideEnsemble(
-                        initial_negative_sites=None,
-                        iteration_sample_sites={},
-                    ),
-                )
-                iteration_map = ensemble_override.iteration_sample_sites.setdefault(
-                    int(iteration), {}
-                )
-                iteration_map[int(class_label)] = (
-                    group.loc[:, "site"].astype(str).tolist()
-                )
+            iteration_map = ensemble_override.iteration_sample_sites.setdefault(
+                iteration, {}
+            )
+            iteration_map[class_label] = [
+                site for _, site in sorted(draws, key=lambda item: item[0])
+            ]
 
         return cls(ensembles_by_kinase=ensembles_by_kinase)
 

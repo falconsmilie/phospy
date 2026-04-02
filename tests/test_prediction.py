@@ -29,7 +29,7 @@ from phospy.prediction.svm import (
 from phospy.prediction.trace_runtime import TraceSink
 from phospy.prediction.traces import DirectoryTraceSink, create_trace_sink
 from phospy.scoring import KinaseScoringResult
-from phospy.validation.errors import RequestValidationError
+from phospy.validation.errors import RequestValidationError, TableSchemaError
 from phospy.validation.requests import PredictionRequest
 
 
@@ -759,6 +759,132 @@ def test_sampling_trace_directory_supports_parquet_replay(
     assert ensemble_trace is not None
     assert ensemble_trace.initial_negative_sites == ["SITE_8", "SITE_7"]
     assert ensemble_trace.iteration_sample_sites == {1: {1: ["SITE_4"], 2: ["SITE_8"]}}
+
+
+def test_sampling_trace_directory_supports_multi_part_parquet_replay_incrementally(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_dir = tmp_path / "prediction_trace"
+    trace_dir.mkdir(parents=True, exist_ok=True)
+
+    initial_part_1 = pd.DataFrame(
+        [
+            {"kinase": "KINASE_A", "ensemble": 1, "draw": 2, "site": "SITE_7"},
+            {"kinase": "KINASE_A", "ensemble": 1, "draw": 4, "site": "SITE_5"},
+        ]
+    )
+    initial_part_2 = pd.DataFrame(
+        [
+            {"kinase": "KINASE_A", "ensemble": 1, "draw": 1, "site": "SITE_8"},
+            {"kinase": "KINASE_A", "ensemble": 1, "draw": 3, "site": "SITE_6"},
+        ]
+    )
+    samples_part_1 = pd.DataFrame(
+        [
+            {
+                "kinase": "KINASE_A",
+                "ensemble": 1,
+                "iteration": 1,
+                "class_label": 2,
+                "draw": 2,
+                "site": "SITE_8",
+            },
+            {
+                "kinase": "KINASE_A",
+                "ensemble": 1,
+                "iteration": 1,
+                "class_label": 1,
+                "draw": 1,
+                "site": "SITE_4",
+            },
+        ]
+    )
+    samples_part_2 = pd.DataFrame(
+        [
+            {
+                "kinase": "KINASE_A",
+                "ensemble": 1,
+                "iteration": 1,
+                "class_label": 2,
+                "draw": 1,
+                "site": "SITE_7",
+            },
+        ]
+    )
+
+    initial_part_path_1 = trace_dir / "trace_initial_negatives.part-000000.parquet"
+    initial_part_path_2 = trace_dir / "trace_initial_negatives.part-000001.parquet"
+    samples_part_path_1 = trace_dir / "trace_iteration_samples.part-000000.parquet"
+    samples_part_path_2 = trace_dir / "trace_iteration_samples.part-000001.parquet"
+    for path in (
+        initial_part_path_1,
+        initial_part_path_2,
+        samples_part_path_1,
+        samples_part_path_2,
+    ):
+        path.touch()
+
+    parquet_frames = {
+        initial_part_path_1.name: initial_part_1,
+        initial_part_path_2.name: initial_part_2,
+        samples_part_path_1.name: samples_part_1,
+        samples_part_path_2.name: samples_part_2,
+    }
+    read_order: list[str] = []
+
+    def fake_read_parquet(path: Path | str) -> pd.DataFrame:
+        filename = Path(path).name
+        read_order.append(filename)
+        return parquet_frames[filename].copy()
+
+    monkeypatch.setattr(pd, "read_parquet", fake_read_parquet)
+
+    sampling_trace = PredictionSamplingTrace.from_trace_directory(trace_dir)
+    ensemble_trace = sampling_trace.get_ensemble_override("KINASE_A", 1)
+
+    assert read_order == [
+        initial_part_path_1.name,
+        initial_part_path_2.name,
+        samples_part_path_1.name,
+        samples_part_path_2.name,
+    ]
+    assert ensemble_trace is not None
+    assert ensemble_trace.initial_negative_sites == [
+        "SITE_8",
+        "SITE_7",
+        "SITE_6",
+        "SITE_5",
+    ]
+    assert ensemble_trace.iteration_sample_sites == {
+        1: {1: ["SITE_4"], 2: ["SITE_7", "SITE_8"]}
+    }
+
+
+def test_sampling_trace_directory_reports_missing_columns_for_specific_parquet_part(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_dir = tmp_path / "prediction_trace"
+    trace_dir.mkdir(parents=True, exist_ok=True)
+
+    good_part = trace_dir / "trace_initial_negatives.part-000000.parquet"
+    bad_part = trace_dir / "trace_initial_negatives.part-000001.parquet"
+    good_part.touch()
+    bad_part.touch()
+
+    def fake_read_parquet(path: Path | str) -> pd.DataFrame:
+        filename = Path(path).name
+        if filename == good_part.name:
+            return pd.DataFrame(
+                [{"kinase": "KINASE_A", "ensemble": 1, "draw": 1, "site": "SITE_8"}]
+            )
+        if filename == bad_part.name:
+            return pd.DataFrame([{"kinase": "KINASE_A", "ensemble": 1, "draw": 2}])
+        raise AssertionError(f"unexpected parquet path: {filename}")
+
+    monkeypatch.setattr(pd, "read_parquet", fake_read_parquet)
+
+    with pytest.raises(TableSchemaError, match=bad_part.name):
+        PredictionSamplingTrace.from_trace_directory(trace_dir)
 
 
 def test_predict_raises_for_invalid_sampling_trace_sites(tmp_path: Path) -> None:
