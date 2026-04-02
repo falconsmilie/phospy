@@ -9,6 +9,17 @@ import pandas.testing as pdt
 import pytest
 
 from phospy import KinaseActivityAnalyzer, PhosphoDataset
+from phospy.constants import (
+    CENTRALIZED_SEQUENCE_COLUMN,
+    CORE_OUTPUT_ARTIFACT_BASENAMES,
+    CORE_SITE_SEQUENCES_BASENAME,
+    KINASE_ACTIVITY_MATRIX_FILENAME,
+    KINASE_OUTPUT_FILENAMES,
+    KINASE_TARGET_COUNTS_FILENAME,
+    KSEA_COUNTS_FILENAME,
+    KSEA_SCORES_FILENAME,
+    SITE_MATRIX_ID_COLUMN,
+)
 from phospy.prediction import (
     KinasePredictor,
     PredictionSamplingTrace,
@@ -23,23 +34,9 @@ EXAMPLE_DATA = ROOT / "examples" / "data"
 R_FIXTURES = ROOT / "tests" / "fixtures" / "r_reference"
 R_FIXTURES_L6 = ROOT / "tests" / "fixtures" / "r_reference_l6"
 
-CORE_FIXTURE_FILES = [
-    "df_total_unique.csv",
-    "df_total_filtered.csv",
-    "df_phospho_filtered.csv",
-    "df_phospho_corrected.csv",
-    "phosr_input.csv",
-    "mat_phospho_corrected.csv",
-    "site_sequences.csv",
-]
+CORE_FIXTURE_FILES = [f"{basename}.csv" for basename in CORE_OUTPUT_ARTIFACT_BASENAMES]
 
-KINASE_FIXTURE_FILES = [
-    "predMat.csv",
-    "kinase_activity_matrix.csv",
-    "ksea_scores.csv",
-    "ksea_counts.csv",
-    "kinase_target_counts.csv",
-]
+KINASE_FIXTURE_FILES = ["predMat.csv", *KINASE_OUTPUT_FILENAMES[:-1]]
 
 
 EXAMPLE_COMPARISONS = [
@@ -59,10 +56,10 @@ PHOSPHO_FIXTURE_ENCODING = "utf-16le"
 L6_FIXTURE_FILES = [
     "l6_phospho_matrix.csv",
     "predMat.csv",
-    "kinase_activity_matrix.csv",
-    "ksea_scores.csv",
-    "ksea_counts.csv",
-    "kinase_target_counts.csv",
+    KINASE_ACTIVITY_MATRIX_FILENAME,
+    KSEA_SCORES_FILENAME,
+    KSEA_COUNTS_FILENAME,
+    KINASE_TARGET_COUNTS_FILENAME,
 ]
 
 L6_NATIVE_FIXTURE_FILES = [
@@ -97,15 +94,15 @@ def _read_indexed_table(name: str, fixture_dir: Path = R_FIXTURES) -> pd.DataFra
 
 
 def _read_sequences(
-    name: str = "site_sequences.csv", fixture_dir: Path = R_FIXTURES
+    name: str = f"{CORE_SITE_SEQUENCES_BASENAME}.csv", fixture_dir: Path = R_FIXTURES
 ) -> pd.Series:
     frame = pd.read_csv(fixture_dir / name)
-    if {"site_id", "centralized_sequence"} <= set(frame.columns):
-        series = frame.set_index("site_id")["centralized_sequence"]
+    if {SITE_MATRIX_ID_COLUMN, CENTRALIZED_SEQUENCE_COLUMN} <= set(frame.columns):
+        series = frame.set_index(SITE_MATRIX_ID_COLUMN)[CENTRALIZED_SEQUENCE_COLUMN]
     else:
         series = frame.set_index(frame.columns[0]).iloc[:, 0]
-        series.index.name = "site_id"
-        series.name = "centralized_sequence"
+        series.index.name = SITE_MATRIX_ID_COLUMN
+        series.name = CENTRALIZED_SEQUENCE_COLUMN
     return series.sort_index()
 
 
@@ -380,7 +377,7 @@ def test_kinase_outputs_match_r_reference() -> None:
 
     actual_weighted = result.weighted_activity.sort_index().sort_index(axis=1)
     expected_weighted = (
-        _read_indexed_table("kinase_activity_matrix.csv")
+        _read_indexed_table(KINASE_ACTIVITY_MATRIX_FILENAME)
         .sort_index()
         .sort_index(axis=1)
     )
@@ -388,12 +385,12 @@ def test_kinase_outputs_match_r_reference() -> None:
 
     actual_ksea = result.ksea_scores.sort_index().sort_index(axis=1)
     expected_ksea = (
-        _read_indexed_table("ksea_scores.csv").sort_index().sort_index(axis=1)
+        _read_indexed_table(KSEA_SCORES_FILENAME).sort_index().sort_index(axis=1)
     )
     _assert_frame_close(actual_ksea, expected_ksea)
 
     actual_ksea_counts = result.ksea_counts.sort_index()
-    expected_ksea_counts_frame = _read_indexed_table("ksea_counts.csv")
+    expected_ksea_counts_frame = _read_indexed_table(KSEA_COUNTS_FILENAME)
     expected_ksea_counts = (
         expected_ksea_counts_frame.iloc[:, 0].sort_index()
         if not expected_ksea_counts_frame.empty
@@ -404,7 +401,7 @@ def test_kinase_outputs_match_r_reference() -> None:
 
     actual_target_counts = result.target_counts.sort_index()
     expected_target_counts = (
-        _read_indexed_table("kinase_target_counts.csv").iloc[:, 0].sort_index()
+        _read_indexed_table(KINASE_TARGET_COUNTS_FILENAME).iloc[:, 0].sort_index()
     )
     expected_target_counts.name = actual_target_counts.name
     _assert_series_close(actual_target_counts, expected_target_counts)
@@ -431,7 +428,7 @@ def test_l6_kinase_outputs_match_r_reference() -> None:
 
     actual_weighted = result.weighted_activity.sort_index().sort_index(axis=1)
     expected_weighted = (
-        _read_indexed_table("kinase_activity_matrix.csv", fixture_dir=R_FIXTURES_L6)
+        _read_indexed_table(KINASE_ACTIVITY_MATRIX_FILENAME, fixture_dir=R_FIXTURES_L6)
         .sort_index()
         .sort_index(axis=1)
     )
@@ -439,7 +436,7 @@ def test_l6_kinase_outputs_match_r_reference() -> None:
 
     actual_ksea = result.ksea_scores.sort_index().sort_index(axis=1)
     expected_ksea = (
-        _read_indexed_table("ksea_scores.csv", fixture_dir=R_FIXTURES_L6)
+        _read_indexed_table(KSEA_SCORES_FILENAME, fixture_dir=R_FIXTURES_L6)
         .sort_index()
         .sort_index(axis=1)
     )
@@ -447,7 +444,7 @@ def test_l6_kinase_outputs_match_r_reference() -> None:
 
     actual_ksea_counts = result.ksea_counts.sort_index()
     expected_ksea_counts_frame = _read_indexed_table(
-        "ksea_counts.csv", fixture_dir=R_FIXTURES_L6
+        KSEA_COUNTS_FILENAME, fixture_dir=R_FIXTURES_L6
     )
     expected_ksea_counts = (
         expected_ksea_counts_frame.iloc[:, 0].sort_index()
@@ -459,7 +456,7 @@ def test_l6_kinase_outputs_match_r_reference() -> None:
 
     actual_target_counts = result.target_counts.sort_index()
     expected_target_counts = (
-        _read_indexed_table("kinase_target_counts.csv", fixture_dir=R_FIXTURES_L6)
+        _read_indexed_table(KINASE_TARGET_COUNTS_FILENAME, fixture_dir=R_FIXTURES_L6)
         .iloc[:, 0]
         .sort_index()
     )

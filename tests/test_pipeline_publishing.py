@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 from phospy import KinaseActivityAnalyzer, PhosRPipeline
+from phospy.constants import RUN_MANIFEST_FILENAME
 from phospy.core_processing import CorePreprocessingConfig
 from phospy.dataset import PhosphoDataset
 from phospy.publishing import OutputPublisher, RunManifestWriter, package_version
@@ -250,7 +251,7 @@ def test_pipeline_delegates_manifest_and_publish_to_publishing_layer(
     assert publish_calls[0]["target_dir"] == outdir
     assert publish_calls[0]["staging_dir"].name.startswith(".published.tmp-")
 
-    manifest = json.loads((outdir / "run_manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads((outdir / RUN_MANIFEST_FILENAME).read_text(encoding="utf-8"))
     assert manifest["package_version"] == "1.2.3-test"
     assert manifest["generated_at_utc"] == "2026-04-01T09:30:00+00:00"
 
@@ -274,7 +275,7 @@ def test_run_manifest_writer_serializes_expected_metadata(tmp_path: Path) -> Non
         preprocessing_config=CorePreprocessingConfig(),
     )
 
-    manifest = json.loads((outdir / "run_manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads((outdir / RUN_MANIFEST_FILENAME).read_text(encoding="utf-8"))
     assert manifest == {
         "status": "success",
         "generated_at_utc": "2026-03-31T12:00:00+00:00",

@@ -5,20 +5,14 @@ from pathlib import Path
 import pandas as pd
 
 from phospy import KinaseActivityAnalyzer, PhosphoDataset, PhosRPipeline
+from phospy.constants import (
+    CORE_OUTPUT_ARTIFACT_BASENAMES,
+    KINASE_OUTPUT_FILENAMES,
+)
 
 EXAMPLE_OUTPUT_FILES = {
-    "df_phospho_corrected.csv",
-    "df_phospho_filtered.csv",
-    "df_total_filtered.csv",
-    "df_total_unique.csv",
-    "kinase_activity_matrix.csv",
-    "kinase_target_counts.csv",
-    "kinase_target_table.csv",
-    "ksea_counts.csv",
-    "ksea_scores.csv",
-    "mat_phospho_corrected.csv",
-    "phosr_input.csv",
-    "site_sequences.csv",
+    *(f"{basename}.csv" for basename in CORE_OUTPUT_ARTIFACT_BASENAMES),
+    *KINASE_OUTPUT_FILENAMES,
 }
 
 

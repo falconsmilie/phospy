@@ -10,7 +10,21 @@ import pandas as pd
 if TYPE_CHECKING:
     from .analysis import KinaseActivityResult
 
-from .constants import CENTRALIZED_SEQUENCE_COLUMN
+from .constants import (
+    CENTRALIZED_SEQUENCE_COLUMN,
+    CORE_PHOSPHO_CORRECTED_BASENAME,
+    CORE_PHOSPHO_FILTERED_BASENAME,
+    CORE_PHOSR_INPUT_BASENAME,
+    CORE_SITE_MATRIX_BASENAME,
+    CORE_SITE_SEQUENCES_BASENAME,
+    CORE_TOTAL_FILTERED_BASENAME,
+    CORE_TOTAL_UNIQUE_BASENAME,
+    KINASE_ACTIVITY_MATRIX_FILENAME,
+    KINASE_TARGET_COUNTS_FILENAME,
+    KINASE_TARGET_TABLE_FILENAME,
+    KSEA_COUNTS_FILENAME,
+    KSEA_SCORES_FILENAME,
+)
 from .core_processing import CoreProcessingResult
 
 CoreOutputFormat: TypeAlias = Literal["csv", "tsv", "parquet"]
@@ -152,18 +166,22 @@ class CoreOutputWriter:
         result: CoreProcessingResult,
     ) -> tuple[CoreOutputArtifact, ...]:
         return (
-            CoreOutputArtifact("df_total_unique", result.total_unique),
-            CoreOutputArtifact("df_total_filtered", result.total_filtered),
-            CoreOutputArtifact("df_phospho_filtered", result.phospho_filtered),
-            CoreOutputArtifact("df_phospho_corrected", result.phospho_corrected),
-            CoreOutputArtifact("phosr_input", result.site_matrix.phosr_input),
+            CoreOutputArtifact(CORE_TOTAL_UNIQUE_BASENAME, result.total_unique),
+            CoreOutputArtifact(CORE_TOTAL_FILTERED_BASENAME, result.total_filtered),
+            CoreOutputArtifact(CORE_PHOSPHO_FILTERED_BASENAME, result.phospho_filtered),
             CoreOutputArtifact(
-                "mat_phospho_corrected",
+                CORE_PHOSPHO_CORRECTED_BASENAME, result.phospho_corrected
+            ),
+            CoreOutputArtifact(
+                CORE_PHOSR_INPUT_BASENAME, result.site_matrix.phosr_input
+            ),
+            CoreOutputArtifact(
+                CORE_SITE_MATRIX_BASENAME,
                 result.site_matrix.matrix,
                 include_index=True,
             ),
             CoreOutputArtifact(
-                "site_sequences",
+                CORE_SITE_SEQUENCES_BASENAME,
                 result.site_matrix.sequences.rename(
                     CENTRALIZED_SEQUENCE_COLUMN
                 ).to_frame(),
@@ -179,11 +197,11 @@ class KinaseActivityWriter:
     def write(result: KinaseActivityResult, outdir: str | Path) -> None:
         target_dir = Path(outdir)
         target_dir.mkdir(parents=True, exist_ok=True)
-        result.weighted_activity.to_csv(target_dir / "kinase_activity_matrix.csv")
-        result.ksea_scores.to_csv(target_dir / "ksea_scores.csv")
-        result.ksea_counts.to_csv(target_dir / "ksea_counts.csv")
-        result.target_counts.to_csv(target_dir / "kinase_target_counts.csv")
+        result.weighted_activity.to_csv(target_dir / KINASE_ACTIVITY_MATRIX_FILENAME)
+        result.ksea_scores.to_csv(target_dir / KSEA_SCORES_FILENAME)
+        result.ksea_counts.to_csv(target_dir / KSEA_COUNTS_FILENAME)
+        result.target_counts.to_csv(target_dir / KINASE_TARGET_COUNTS_FILENAME)
         result.target_table.to_csv(
-            target_dir / "kinase_target_table.csv",
+            target_dir / KINASE_TARGET_TABLE_FILENAME,
             index=False,
         )

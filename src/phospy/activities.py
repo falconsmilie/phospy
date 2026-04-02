@@ -3,6 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .constants import SITE_MATRIX_ID_COLUMN
+
 
 def compute_weighted_kinase_activity(
     pred_mat: pd.DataFrame,
@@ -72,7 +74,7 @@ def build_kinase_target_table(
         edges = edges.loc[edges["score"].notna()]
     except TypeError:
         edges = filtered.stack(dropna=True).rename("score").reset_index()
-    edges.columns = ["site_id", "kinase", "score"]
+    edges.columns = [SITE_MATRIX_ID_COLUMN, "kinase", "score"]
     return edges.sort_values(["kinase", "score"], ascending=[True, False])
 
 

@@ -16,6 +16,11 @@ from phospy import (
     PhosphoDataset,
     PhosRPipeline,
 )
+from phospy.constants import (
+    CORE_OUTPUT_ARTIFACT_BASENAMES,
+    KINASE_OUTPUT_FILENAMES,
+    RUN_MANIFEST_FILENAME,
+)
 from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
 from phospy.dataset_loader import DatasetLoader, ValidatedCoreInputs
 from phospy.site_matrix_builder import SiteMatrixBuilder
@@ -311,15 +316,7 @@ def test_core_output_writer_writes_csv_outputs(tmp_path) -> None:
     outdir = tmp_path / "core-output-csv"
     CoreOutputWriter().write(core, outdir)
 
-    expected_files = {
-        "df_phospho_corrected.csv",
-        "df_phospho_filtered.csv",
-        "df_total_filtered.csv",
-        "df_total_unique.csv",
-        "mat_phospho_corrected.csv",
-        "phosr_input.csv",
-        "site_sequences.csv",
-    }
+    expected_files = {f"{basename}.csv" for basename in CORE_OUTPUT_ARTIFACT_BASENAMES}
     assert expected_files == {path.name for path in outdir.iterdir()}
 
 
@@ -334,15 +331,7 @@ def test_core_output_writer_writes_tsv_outputs(tmp_path) -> None:
     outdir = tmp_path / "core-output-tsv"
     CoreOutputWriter().write(core, outdir, format="tsv")
 
-    expected_files = {
-        "df_phospho_corrected.tsv",
-        "df_phospho_filtered.tsv",
-        "df_total_filtered.tsv",
-        "df_total_unique.tsv",
-        "mat_phospho_corrected.tsv",
-        "phosr_input.tsv",
-        "site_sequences.tsv",
-    }
+    expected_files = {f"{basename}.tsv" for basename in CORE_OUTPUT_ARTIFACT_BASENAMES}
     assert expected_files == {path.name for path in outdir.iterdir()}
 
     total_unique = pd.read_csv(outdir / "df_total_unique.tsv", sep="\t")
@@ -375,13 +364,7 @@ def test_core_output_writer_writes_parquet_outputs(monkeypatch, tmp_path) -> Non
     CoreOutputWriter().write(core, outdir, format="parquet")
 
     assert {path.name for path, _ in written_paths} == {
-        "df_phospho_corrected.parquet",
-        "df_phospho_filtered.parquet",
-        "df_total_filtered.parquet",
-        "df_total_unique.parquet",
-        "mat_phospho_corrected.parquet",
-        "phosr_input.parquet",
-        "site_sequences.parquet",
+        f"{basename}.parquet" for basename in CORE_OUTPUT_ARTIFACT_BASENAMES
     }
     index_flags = {path.name: index for path, index in written_paths}
     assert index_flags["df_total_unique.parquet"] is False
@@ -486,13 +469,7 @@ def test_kinase_activity_analyzer_write_outputs(tmp_path) -> None:
     outdir = tmp_path / "kinase-output"
     KinaseActivityAnalyzer().write_outputs(result, outdir)
 
-    expected_files = {
-        "kinase_activity_matrix.csv",
-        "kinase_target_counts.csv",
-        "kinase_target_table.csv",
-        "ksea_counts.csv",
-        "ksea_scores.csv",
-    }
+    expected_files = set(KINASE_OUTPUT_FILENAMES)
     assert expected_files.issubset({path.name for path in outdir.iterdir()})
 
 
@@ -801,7 +778,7 @@ def test_pipeline_writes_run_manifest(tmp_path) -> None:
 
     pipeline.run(outdir=outdir)
 
-    manifest = json.loads((outdir / "run_manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads((outdir / RUN_MANIFEST_FILENAME).read_text(encoding="utf-8"))
     assert manifest["status"] == "success"
     assert manifest["has_kinase_activity"] is True
     assert manifest["core_rows"]["site_matrix"] == 3

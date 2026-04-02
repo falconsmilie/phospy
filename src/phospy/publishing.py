@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from .constants import RUN_MANIFEST_FILENAME
+
 if TYPE_CHECKING:
     from .analysis import KinaseActivityResult
     from .core_processing import CorePreprocessingConfig, CoreProcessingResult
@@ -57,7 +59,7 @@ class RunManifestWriter:
             "preprocessing_config": asdict(preprocessing_config),
         }
         outdir.mkdir(parents=True, exist_ok=True)
-        (outdir / "run_manifest.json").write_text(
+        (outdir / RUN_MANIFEST_FILENAME).write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )

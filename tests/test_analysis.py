@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy import KinaseActivityAnalyzer
+from phospy.constants import KINASE_OUTPUT_FILENAMES
 from phospy.validation.errors import RequestValidationError, TableSchemaError
 from phospy.validation.requests import KinaseActivityRequest
 from phospy.validation.tables import PredMatSchema, SiteMatrixSchema
@@ -84,13 +85,7 @@ def test_analyzer_write_outputs_writes_expected_files(tmp_path) -> None:
     outdir = tmp_path / "kinase-output"
     analyzer.write_outputs(result, outdir)
 
-    expected_files = {
-        "kinase_activity_matrix.csv",
-        "kinase_target_counts.csv",
-        "kinase_target_table.csv",
-        "ksea_counts.csv",
-        "ksea_scores.csv",
-    }
+    expected_files = set(KINASE_OUTPUT_FILENAMES)
     assert expected_files == {path.name for path in outdir.iterdir()}
 
 
