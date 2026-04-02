@@ -47,30 +47,19 @@ PhosPy has two main test layers:
 - **non-parity tests** for package behaviour that should stay stable without R
 - **parity tests** for fixture-backed comparisons against committed R/PhosR reference outputs
 
-Run the parity layer with:
+Run them from the repository root:
 
 ```bash
+pytest -m "not parity"
 pytest -m parity
 ```
 
-If you want the parity suite to print its optional comparison summaries while you are debugging, these environment
-variables are available:
+Use `pytest -m parity` when you want only the fixture-backed seam checks.
 
-- `PHOSPY_SHOW_PARITY`: master switch for parity metrics output
-- `PHOSPY_SHOW_PROFILE_CONSTRUCTION`: adds the optional profile-construction summary
-- `PHOSPY_SHOW_PREDICTION_MODE_COMPARISON`: adds default-versus-`r_parity` prediction comparison metrics
-- `PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON`: adds replayed prediction comparison metrics
+For the short explanation of what parity means, see
+[`docs/validation-and-parity.md`](docs/validation-and-parity.md).
 
-The more specific flags only take effect when `PHOSPY_SHOW_PARITY` is also enabled. Run pytest with `-s` if you want
-to see the printed summaries in the terminal.
-
-Quick Linux or macOS example:
-
-```bash
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
-```
-
-For the full cross-platform command set, sample output, and notes on how to read the printed metrics, see
+For the full parity guide, including metrics flags, cross-platform examples, and sample output, see
 [`docs/parity.md`](docs/parity.md).
 
 ## Release Gate

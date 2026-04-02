@@ -65,14 +65,14 @@ For a compact guide to the supported classes, methods, and result objects, see [
 
 PhosPy expects a small, fixed set of input shapes.
 
-### Total-proteome table
+### Total Proteome Table
 
 Required columns:
 
 - `genes`
 - `group1` to `group6`
 
-### Phosphoproteome table
+### Phosphoproteome Table
 
 Required columns:
 
@@ -365,8 +365,8 @@ A few checks are especially useful to know up front:
 If you want more detail, these are the most useful follow-on docs:
 
 - [`docs/api.md`](docs/api.md) maps the supported public API
-- [`docs/validation-and-parity.md`](docs/validation-and-parity.md) explains how validation is approached in PhosPy
-- [`docs/parity.md`](docs/parity.md) explains what parity means here, especially for the native kinase workflow
+- [`docs/validation-and-parity.md`](docs/validation-and-parity.md) gives the short version of validation rules and parity scope
+- [`docs/parity.md`](docs/parity.md) is the detailed parity guide, including test commands, metrics flags, and sample output
 - [`docs/fixtures.md`](docs/fixtures.md) maps the committed fixture and trace directories
 - [`docs/roadmap.md`](docs/roadmap.md) outlines the most likely next steps
 
@@ -377,8 +377,7 @@ If you want to contribute or work from a local checkout, see [`CONTRIBUTING.md`]
 A few boundaries are worth knowing up front:
 
 - **Selective scope only.** PhosPy covers the workflows documented above and nothing broader.
-- **Parity is seam-level, not package-wide.** Validation claims are limited to the committed fixture-backed seams
-  described in [`docs/validation-and-parity.md`](docs/validation-and-parity.md) and [`docs/parity.md`](docs/parity.md).
+- **Parity is seam-level, not package-wide.** The short explanation lives in [`docs/validation-and-parity.md`](docs/validation-and-parity.md). The detailed guide lives in [`docs/parity.md`](docs/parity.md).
 - **`KinaseWorkflow` is native first.** It includes an `svm_mode="r_parity"` option for narrower learner-seam
   comparison, but the default mode is the preferred Python-native path and is not claimed to numerically match every
   PhosR result.
@@ -387,9 +386,7 @@ A few boundaries are worth knowing up front:
 - **R is only required for fixture regeneration.** You do not need R to install PhosPy or run the committed Python test
   suite.
 
-## For Contributors
-
-Most users can ignore this section.
+## For Contributors to PhosPy
 
 To work from a local checkout:
 
@@ -405,27 +402,7 @@ pytest -m "not parity"
 pytest -m parity
 ```
 
-If you want the parity suite to print its optional comparison metrics while you debug a seam, these environment
-variables are available:
-
-- `PHOSPY_SHOW_PARITY`: master switch for parity metrics output
-- `PHOSPY_SHOW_PROFILE_CONSTRUCTION`: also print the optional profile-construction metrics
-- `PHOSPY_SHOW_PREDICTION_MODE_COMPARISON`: also print default-versus-`r_parity` prediction comparison metrics
-- `PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON`: also print replayed prediction comparison metrics
-
-The three more specific flags only do anything when `PHOSPY_SHOW_PARITY` is enabled first. Truthy values are
-case-insensitive and include `1`, `true`, `yes`, and `on`.
-
-To see the printed summaries in the terminal, run pytest with `-s` (or `--capture=no`). If you enable all four flags
-and run the full parity suite, PhosPy prints every available metrics block reached by those tests.
-
-Linux or macOS quick example:
-
-```bash
-PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
-```
-
-For Linux/macOS, PowerShell, and Command Prompt examples together with a sample of the bundled parity output, see
+For the detailed parity guide, including metrics flags, cross-platform command examples, and sample output, see
 [`docs/parity.md`](docs/parity.md).
 
 To run the usual contributor checks:

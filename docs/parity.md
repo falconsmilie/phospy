@@ -1,62 +1,74 @@
-# Parity Notes
+# Parity
 
-This document explains what **parity** means in PhosPy and where the native kinase workflow fits into that claim.
+This is the detailed parity guide for PhosPy.
 
-For the bigger picture and the release gate, start with
-[`docs/validation-and-parity.md`](validation-and-parity.md).
+Read [`docs/validation-and-parity.md`](validation-and-parity.md) first if you want the short version of validation
+rules and parity scope. Read this page when you want to run parity tests, turn on extra metrics, or interpret the
+results.
 
-## What Parity Means
+## What Parity Means Here
 
-In this repository, parity means:
+In this repository, parity means all three of these are true:
 
-- Python outputs are compared against committed reference tables generated from R/PhosR
-- those comparisons are automated in the parity-marked test suite
-- the claim stays limited to the tested seam
+- a committed fixture exists for the seam being discussed
+- an automated parity test compares Python output with that fixture
+- the claim stays limited to that seam
 
 So parity here is:
 
-- fixture-backed
-- seam-level
-- narrower than full package equivalence
+- **seam-level**, not package-wide
+- **fixture-backed**, not anecdotal
+- **specific**, not a blanket claim that all PhosR behaviour is reproduced
 
-It does **not** mean that PhosPy is a complete behavioural, numerical, or feature-level replacement for PhosR.
+Parity does **not** mean:
 
-## What the Parity Suite Covers
+- the whole package is numerically identical to PhosR
+- every PhosR branch, option, or edge case is implemented
+- every native Python path should match the R implementation exactly
+
+## What Is Covered Today
 
 The current parity layer covers:
 
-- deterministic preprocessing and matrix-building seams backed by small synthetic fixtures
+- core preprocessing outputs backed by committed R-generated fixtures
 - downstream kinase-analysis summaries backed by committed R-generated fixtures
 - selected native workflow seams backed by committed L6 reference tables
 - prediction-stage debugging through committed R and Python trace exports
-- a curated fragile-support dataset used to widen evidence beyond the main L6 path
+- a curated fragile-support fixture that widens evidence beyond the main L6 path
 - smaller seam-stress and synthetic adaptive-sampling fixtures used for narrower replay-style checks
 
-For fixture and trace directory details, see [`docs/fixtures.md`](fixtures.md).
+For the fixture and trace directory layout, see [`docs/fixtures.md`](fixtures.md).
 
-## `KinaseWorkflow` and Parity
+## `KinaseWorkflow` and `svm_mode`
 
-`KinaseWorkflow` is part of the supported public API, but that does **not** turn the whole workflow into a broad
-PhosR-equivalence claim.
+`KinaseWorkflow` is part of the supported public API, but it remains a native Python workflow.
 
-The practical wording is:
+The practical rule is simple:
 
-- PhosPy provides a native Python workflow for profile construction, motif scoring, score combination, candidate
-  selection, and adaptive SVM prediction.
-- The repository includes fixture-backed validation for selected seams within that workflow.
-- `svm_mode="r_parity"` is available when you want a closer comparison to the PhosR learner seam.
-- The default `svm_mode="default"` is still the preferred Python-native mode.
+- use `svm_mode="default"` for the normal Python-native path
+- use `svm_mode="r_parity"` when you want a closer learner-seam comparison against the committed parity fixtures
 
-What `svm_mode="r_parity"` does **not** mean is “the entire workflow now matches PhosR”. It narrows one part of the
-comparison. It does not widen the package claim.
+Configuration example:
+
+```python
+from phospy import KinaseWorkflow
+
+native = KinaseWorkflow(svm_mode="default")
+comparison = KinaseWorkflow(svm_mode="r_parity")
+```
+
+What `svm_mode="r_parity"` does **not** mean is “the whole workflow now matches PhosR”. It narrows one comparison
+seam. It does not widen the package claim.
 
 ## Running the Parity Suite
+
+From the repository root:
 
 ```bash
 pytest -m parity
 ```
 
-A few useful variations:
+Useful variations:
 
 ```bash
 pytest -m parity -rs
@@ -65,10 +77,22 @@ pytest -m parity --maxfail=1
 pytest -m parity -k l6
 ```
 
-### Optional parity metrics output
+Repository shortcuts:
 
-The parity suite can also print a few extra comparison summaries that are useful when you are investigating a seam.
-To see those summaries in the terminal, run pytest with `-s` (or `--capture=no`).
+```bash
+make test-parity
+make test-seams
+```
+
+- `make test-parity` runs `pytest -m parity -s` with `PHOSPY_SHOW_PARITY=1` and
+  `PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1`
+- `make test-seams` runs the seam-focused parity files: `tests/test_reference_workflow_seams.py` and
+  `tests/test_fragile_support_reference.py`
+
+## Optional Parity Metrics Output
+
+`tests/test_parity-with_metrics.py` can print extra comparison summaries while you investigate a seam. To see those
+summaries in the terminal, run pytest with `-s` or `--capture=no`.
 
 Available environment variables:
 
@@ -77,13 +101,13 @@ Available environment variables:
 - `PHOSPY_SHOW_PREDICTION_MODE_COMPARISON`: adds default-versus-`r_parity` prediction comparison metrics
 - `PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON`: adds replayed prediction comparison metrics
 
-The more specific flags are ignored unless `PHOSPY_SHOW_PARITY` is also enabled. Truthy values are
-case-insensitive and include `1`, `true`, `yes`, and `on`.
+The more specific flags do nothing unless `PHOSPY_SHOW_PARITY` is also enabled. Truthy values are case-insensitive and
+include `1`, `true`, `yes`, and `on`.
 
-If you enable all four flags and run the full parity suite, PhosPy prints every available metrics block exercised by
-those tests. If you narrow the run with `-k`, you will only see the summaries for the matching tests.
+If you enable all four flags and run the full parity suite, PhosPy prints every available metrics block reached by
+those tests. If you narrow the run with `-k`, you only see the summaries for the matching tests.
 
-Linux or macOS examples:
+### Linux or macOS examples
 
 ```bash
 PHOSPY_SHOW_PARITY=1 pytest -m parity -s
@@ -93,7 +117,7 @@ PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m
 PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
 ```
 
-Windows PowerShell examples:
+### Windows PowerShell examples
 
 ```powershell
 $env:PHOSPY_SHOW_PARITY = "1"; pytest -m parity -s
@@ -103,7 +127,7 @@ $env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARI
 $env:PHOSPY_SHOW_PARITY = "1"; $env:PHOSPY_SHOW_PROFILE_CONSTRUCTION = "1"; $env:PHOSPY_SHOW_PREDICTION_MODE_COMPARISON = "1"; $env:PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON = "1"; pytest -m parity -s
 ```
 
-Windows Command Prompt examples:
+### Windows Command Prompt examples
 
 ```bat
 set PHOSPY_SHOW_PARITY=1 && pytest -m parity -s
@@ -113,31 +137,30 @@ set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=
 set PHOSPY_SHOW_PARITY=1 && set PHOSPY_SHOW_PROFILE_CONSTRUCTION=1 && set PHOSPY_SHOW_PREDICTION_MODE_COMPARISON=1 && set PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 && pytest -m parity -s
 ```
 
-### Reading the metrics
+## How to Read the Metrics
 
-These summaries are meant to make the parity claim easier to interpret, not to widen it.
+These summaries help you interpret the parity claim. They do not widen it.
 
-- **Profile-construction, profile-scoring, and combined-score metrics** show how closely the numeric tables line up
-  with the committed reference outputs.
-- **Prediction parity metrics** focus on ranking agreement and overlap, because the prediction seam is better judged by
-  ranked outputs than by strict element-for-element equality.
-- **Prediction mode comparison metrics** help you compare the default Python-native learner path with
-  `svm_mode="r_parity"` on the same bundled fixtures.
+- **Profile-construction, profile-scoring, and combined-score metrics** show how closely numeric tables match the
+  committed reference outputs.
+- **Prediction parity metrics** focus on ranking agreement and overlap because the prediction seam is better judged by
+  ranked output than by strict element-for-element equality.
+- **Prediction mode comparison metrics** compare the default learner path with `svm_mode="r_parity"` on the same
+  bundled fixtures.
 - **Replayed prediction trace metrics** go one level deeper by checking how closely Python follows committed trace data
   for selected kinases.
 
 In the bundled fixtures, the deterministic profile-building seams are effectively numerically identical to the reference
-outputs, while prediction-stage parity is intentionally described with rank agreement, overlap, and trace-replay
-statistics.
+outputs. Prediction-stage parity is intentionally described with rank agreement, overlap, and trace-replay statistics.
 
-### Example output from the bundled parity fixtures
+## Example Output From the Bundled Fixtures
 
 The block below is reference output from the bundled repository fixtures. It is useful context when you are reading the
 parity docs or debugging a seam, but it is not a promise that every dataset or every platform will produce identical
 numbers.
 
 ```text
-tests\test_parity-with_metrics.py ...
+tests/test_parity-with_metrics.py ...
 Optional profile-construction parity metrics:
   kinases compared: 44
   profile matrix shape: (44, 12) vs (44, 12)
@@ -210,24 +233,12 @@ Replayed prediction parity mode comparison:
   r_parity final top class-1 mean absolute difference: 0.00325916
 ```
 
-If you prefer repository shortcuts:
-
-```bash
-make test-parity
-make test-seams
-```
-
-`make test-parity` currently runs pytest with `PHOSPY_SHOW_PARITY=1` and
-`PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1`. That means it prints the core parity summaries plus the replayed
-mode-comparison metrics, but not every optional metrics block. If you want the full set, enable all four flags and run
-`pytest -m parity -s` directly.
-
 ## Trace Replay and Debugging
 
-Most users will not need this, but it is very helpful when you are trying to answer a narrower question: “is the delta
-coming from candidate sampling, or from the later learner path?”
+Most users will not need this. It is useful when you are trying to answer a narrower question: is the delta coming
+from candidate sampling, or from the later learner path?
 
-The usual pattern is:
+A common pattern is:
 
 1. compare against the committed R trace tables
 2. export Python traces for the same kinases
@@ -235,8 +246,7 @@ The usual pattern is:
 
 ## Optional Trace Regeneration
 
-Most users do not need this. It is mainly useful when you are debugging a divergence between the committed R traces and
-Python prediction behaviour.
+You only need R when you want to regenerate or extend the committed fixture sets.
 
 Regenerate the committed R fixture sets:
 
