@@ -364,11 +364,11 @@ A few checks are especially useful to know up front:
 
 If you want more detail, these are the most useful follow-on docs:
 
-- [`docs/api.md`](docs/api.md) maps the supported public API
-- [`docs/validation-and-parity.md`](docs/validation-and-parity.md) gives the short version of validation rules and parity scope
-- [`docs/parity.md`](docs/parity.md) is the detailed parity guide, including test commands, metrics flags, and sample output
-- [`docs/fixtures.md`](docs/fixtures.md) maps the committed fixture and trace directories
-- [`docs/roadmap.md`](docs/roadmap.md) outlines the most likely next steps
+- [`docs/api.md`](docs/api.md) for the public API reference
+- [`docs/validation-and-parity.md`](docs/validation-and-parity.md) for the short validation and PhosR parity guide
+- [`docs/parity.md`](docs/parity.md) for the detailed parity guide against the R `PhosR` package
+- [`docs/fixtures.md`](docs/fixtures.md) for the committed fixture and trace layout
+- [`docs/roadmap.md`](docs/roadmap.md) for likely next steps
 
 If you want to contribute or work from a local checkout, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
@@ -377,14 +377,10 @@ If you want to contribute or work from a local checkout, see [`CONTRIBUTING.md`]
 A few boundaries are worth knowing up front:
 
 - **Selective scope only.** PhosPy covers the workflows documented above and nothing broader.
-- **Parity is seam-level, not package-wide.** The short explanation lives in [`docs/validation-and-parity.md`](docs/validation-and-parity.md). The detailed guide lives in [`docs/parity.md`](docs/parity.md).
-- **`KinaseWorkflow` is native first.** It includes an `svm_mode="r_parity"` option for narrower learner-seam
-  comparison, but the default mode is the preferred Python-native path and is not claimed to numerically match every
-  PhosR result.
-- **The CLI is intentionally small.** It covers the core preprocessing and `predMat`-driven downstream path. The
-  native kinase workflow is currently exposed through the Python API and example script.
-- **R is only required for fixture regeneration.** You do not need R to install PhosPy or run the committed Python test
-  suite.
+- **Parity claims are narrow.** When PhosPy says there is parity, it means seam-level parity to the R `PhosR` package backed by committed fixtures and tests. See [`docs/parity.md`](docs/parity.md).
+- **`KinaseWorkflow` is native first.** `svm_mode="r_parity"` narrows one learner comparison seam. It does not make the whole workflow equivalent to `PhosR`.
+- **The CLI is intentionally small.** It covers the core preprocessing and `predMat`-driven downstream path. The native kinase workflow is exposed through the Python API and example script.
+- **R is only required for fixture regeneration.** You do not need R to install PhosPy or run the committed Python test suite.
 
 ## For Contributors to PhosPy
 
@@ -402,8 +398,8 @@ pytest -m "not parity"
 pytest -m parity
 ```
 
-For the detailed parity guide, including metrics flags, cross-platform command examples, and sample output, see
-[`docs/parity.md`](docs/parity.md).
+For the short validation and parity guide, see [`docs/validation-and-parity.md`](docs/validation-and-parity.md).
+For the detailed guide to parity against the R `PhosR` package, see [`docs/parity.md`](docs/parity.md).
 
 To run the usual contributor checks:
 

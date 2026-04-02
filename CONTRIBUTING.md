@@ -45,7 +45,7 @@ The current repository rules live in:
 PhosPy has two main test layers:
 
 - **non-parity tests** for package behaviour that should stay stable without R
-- **parity tests** for fixture-backed comparisons against committed R/PhosR reference outputs
+- **parity tests** for selected seams compared against committed reference outputs from the R `PhosR` package
 
 Run them from the repository root:
 
@@ -56,11 +56,8 @@ pytest -m parity
 
 Use `pytest -m parity` when you want only the fixture-backed seam checks.
 
-For the short explanation of what parity means, see
-[`docs/validation-and-parity.md`](docs/validation-and-parity.md).
-
-For the full parity guide, including metrics flags, cross-platform examples, and sample output, see
-[`docs/parity.md`](docs/parity.md).
+For the short guide, see [`docs/validation-and-parity.md`](docs/validation-and-parity.md).
+For the detailed parity guide, see [`docs/parity.md`](docs/parity.md).
 
 ## Release Gate
 
@@ -72,10 +69,7 @@ pytest -m "not parity"
 pytest -m parity
 ```
 
-The non-parity suite includes the documented example smoke workflow. The parity suite covers the committed R-backed
-seams. The `make test-parity` shortcut enables `PHOSPY_SHOW_PARITY=1` and
-`PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1`, so it prints the core parity summaries plus the replayed
-mode-comparison block rather than every optional metrics block.
+The non-parity suite includes the documented example smoke workflow. The parity suite covers the committed seam checks against the R `PhosR` reference fixtures. The `make test-parity` shortcut enables the standard parity summary output.
 
 ## CI Expectations
 
