@@ -20,28 +20,44 @@ def compute_weighted_kinase_activity(
 
     kinases = pred_mat.columns.tolist()
     samples = phospho_matrix.columns.tolist()
-    kinase_mat = pd.DataFrame(index=kinases, columns=samples, dtype=float)
+    kinase_rows: list[np.ndarray] = []
+    kinase_names: list[str] = []
 
-    available_sites = set(phospho_matrix.index)
+    phospho_values = phospho_matrix.to_numpy(dtype=float, copy=False)
+    phospho_site_positions = _build_site_position_lookup(phospho_matrix.index)
 
     for kinase in kinases:
         top_substrates = pred_mat[kinase].nlargest(top_n_substrates)
-        substrates = [site for site in top_substrates.index if site in available_sites]
-        if len(substrates) < min_substrates:
+        substrate_positions: list[int] = []
+        weights: list[float] = []
+
+        for site_id, weight in top_substrates.items():
+            site_position = phospho_site_positions.get(site_id)
+            if site_position is None:
+                continue
+            substrate_positions.append(site_position)
+            weights.append(float(weight))
+
+        if len(substrate_positions) < min_substrates:
             continue
 
-        weights = top_substrates.loc[substrates].to_numpy(dtype=float)
-        weight_sum = float(weights.sum())
+        weights_array = np.asarray(weights, dtype=float)
+        weight_sum = float(weights_array.sum())
         if weight_sum <= 0.0:
             continue
 
-        values = phospho_matrix.loc[substrates, samples].to_numpy(dtype=float)
-        weighted_values = _nan_aware_weighted_average(values, weights)
+        substrate_values = phospho_values[np.asarray(substrate_positions, dtype=int), :]
+        weighted_values = _nan_aware_weighted_average(substrate_values, weights_array)
         if np.isnan(weighted_values).all():
             continue
-        kinase_mat.loc[kinase, :] = weighted_values
 
-    return kinase_mat.dropna(how="all")
+        kinase_names.append(kinase)
+        kinase_rows.append(weighted_values)
+
+    if not kinase_rows:
+        return pd.DataFrame(columns=samples, dtype=float)
+
+    return pd.DataFrame(kinase_rows, index=kinase_names, columns=samples, dtype=float)
 
 
 def build_kinase_target_table(
@@ -90,31 +106,43 @@ def compute_ksea_scores(
         pred_mat=pred_mat,
         phospho_matrix=phospho_matrix,
     )
-    substrate_mask = _prediction_mask(aligned_pred_mat, threshold=threshold)
+    substrate_mask = _prediction_mask_array(aligned_pred_mat, threshold=threshold)
     substrate_counts = substrate_mask.sum(axis=0)
-    candidate_kinases = substrate_counts.index[substrate_counts >= min_substrates]
+    candidate_kinase_positions = np.flatnonzero(substrate_counts >= min_substrates)
 
-    if len(candidate_kinases) == 0:
+    if len(candidate_kinase_positions) == 0:
         empty_scores = pd.DataFrame(columns=list(phospho_matrix.columns), dtype=float)
         empty_counts = pd.Series(dtype=int, name="n_substrates")
         empty_counts.index.name = "kinase"
         return empty_scores, empty_counts
 
-    score_dict: dict[str, pd.Series] = {}
+    matrix_values = aligned_matrix.to_numpy(dtype=float, copy=False)
+    score_rows: list[np.ndarray] = []
+    score_index: list[str] = []
     counts: dict[str, int] = {}
 
-    for kinase in candidate_kinases:
-        selected_sites = aligned_pred_mat.index[substrate_mask[kinase].to_numpy()]
-        kinase_scores = _nan_aware_mean(aligned_matrix.loc[selected_sites])
-        if kinase_scores.isna().all():
+    for kinase_position in candidate_kinase_positions:
+        selected_row_positions = np.flatnonzero(substrate_mask[:, kinase_position])
+        kinase_values = matrix_values[selected_row_positions, :]
+        kinase_scores = _nan_aware_mean_array(kinase_values)
+        if np.isnan(kinase_scores).all():
             continue
 
-        counts[kinase] = len(selected_sites)
-        score_dict[kinase] = kinase_scores
+        kinase_name = str(aligned_pred_mat.columns[kinase_position])
+        counts[kinase_name] = int(selected_row_positions.size)
+        score_index.append(kinase_name)
+        score_rows.append(kinase_scores)
 
-    score_frame = pd.DataFrame.from_dict(score_dict, orient="index")
-    if score_frame.empty:
+    if score_rows:
+        score_frame = pd.DataFrame(
+            score_rows,
+            index=score_index,
+            columns=aligned_matrix.columns,
+            dtype=float,
+        )
+    else:
         score_frame = pd.DataFrame(columns=list(phospho_matrix.columns), dtype=float)
+
     count_series = pd.Series(counts, name="n_substrates").sort_values(ascending=False)
     count_series.index.name = "kinase"
     return score_frame, count_series
@@ -124,6 +152,10 @@ def _prediction_mask(pred_mat: pd.DataFrame, threshold: float) -> pd.DataFrame:
     return pred_mat.gt(threshold)
 
 
+def _prediction_mask_array(pred_mat: pd.DataFrame, threshold: float) -> np.ndarray:
+    return pred_mat.to_numpy(copy=False) > threshold
+
+
 def _align_activity_inputs(
     *,
     pred_mat: pd.DataFrame,
@@ -131,6 +163,10 @@ def _align_activity_inputs(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     common_sites = pred_mat.index.intersection(phospho_matrix.index)
     return pred_mat.loc[common_sites], phospho_matrix.loc[common_sites]
+
+
+def _build_site_position_lookup(index: pd.Index) -> dict[object, int]:
+    return {site_id: position for position, site_id in enumerate(index)}
 
 
 def _nan_aware_weighted_average(
@@ -162,4 +198,21 @@ def _nan_aware_weighted_average(
 
 
 def _nan_aware_mean(values: pd.DataFrame) -> pd.Series:
-    return values.mean(axis=0, skipna=True)
+    return pd.Series(
+        _nan_aware_mean_array(values.to_numpy(dtype=float, copy=False)),
+        index=values.columns,
+        dtype=float,
+    )
+
+
+def _nan_aware_mean_array(values: np.ndarray) -> np.ndarray:
+    if values.ndim != 2:
+        msg = "values must be a two-dimensional array"
+        raise ValueError(msg)
+
+    valid_mask = ~np.isnan(values)
+    valid_counts = valid_mask.sum(axis=0)
+    sums = np.where(valid_mask, values, 0.0).sum(axis=0)
+    result = np.full(values.shape[1], np.nan, dtype=float)
+    np.divide(sums, valid_counts, out=result, where=valid_counts > 0)
+    return result
