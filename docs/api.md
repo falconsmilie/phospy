@@ -802,4 +802,4 @@ These checks come up most often across the public API:
 - downstream kinase analysis requires overlapping phosphosite IDs between `predMat` and the phosphosite matrix
 - native workflow inputs must share phosphosite IDs across the matrix, substrate map, and sequence inputs
 
-For the short guide to validation rules and the PhosR parity scope, see [`validation-and-parity.md`](validation-and-parity.md).
+For the short guide to validation rules and the PhosR parity scope, see [`validation.md`](validation.md).

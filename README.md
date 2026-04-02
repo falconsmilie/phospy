@@ -1,113 +1,30 @@
 # PhosPy
 
-`PhosPy` is an unofficial Python implementation of selected PhosR-style workflows for phosphoproteomics.
+`PhosPy` is a small Python library for selected phosphoproteomics workflows inspired by the R `PhosR` package.
 
-It is designed for people who want a small, Python-native way to:
+Use it when you want to:
 
-- preprocess phosphoproteomics tables
-- analyse kinase activity from `predMat`
-- run a native kinase workflow from scoring through prediction
+- preprocess total and phospho tables
+- analyse kinase activity from a `predMat`
+- run the native Python kinase workflow
 
-PhosPy is deliberately narrow. It is **not** a full replacement for the R `PhosR` package.
+It is intentionally narrow. It does not aim to reproduce all of `PhosR`.
 
 ## Install
 
 PhosPy supports Python 3.10 and newer.
 
-Install the supported Python API and the `phospy` CLI:
-
 ```bash
 pip install phospy
 ```
 
-The file-path examples below use `examples/data/...`, so they assume you are working from a
-repository checkout. If you installed from PyPI, use the same code with paths to your own input files.
+The file paths below use `examples/data/...`, so they assume a repository checkout. If you installed from PyPI, use your own input-file paths instead.
 
-## What You Can Do With PhosPy
+## Pick the Method You Need
 
-### Preprocess Phosphoproteomics Data
+### 1. Core preprocessing from total and phospho tables
 
-Start from total and phospho input tables and produce corrected phosphosite matrices for downstream use.
-
-### Analyse Kinase Activity From `predMat`
-
-Generate weighted activity scores, KSEA-style summaries, and target counts from predicted kinase–substrate
-relationships.
-
-### Run a Native Kinase Workflow
-
-Construct substrate profiles, score motifs, combine evidence, select candidates, and perform adaptive SVM-based kinase
-prediction.
-
-## Supported Public API
-
-The stable API is intentionally small:
-
-- `PhosphoDataset`
-- `PhosRPipeline`
-- `KinaseActivityAnalyzer`
-- `KinaseWorkflow`
-
-Returned result dataclasses:
-
-- `CoreProcessingResult`
-- `SiteMatrixResult`
-- `CoreOutputs`
-- `KinaseActivityResult`
-- `KinasePredictionResult`
-- `KinaseWorkflowResult`
-
-The examples below use only those imports.
-
-For a compact guide to the supported classes, methods, and result objects, see [`docs/api.md`](docs/api.md).
-
-## Input Tables at a Glance
-
-PhosPy expects a small, fixed set of input shapes.
-
-### Total Proteome Table
-
-Required columns:
-
-- `genes`
-- `group1` to `group6`
-
-### Phosphoproteome Table
-
-Required columns:
-
-- `uid`
-- `gene_names`
-- `gene_p_site`
-- `localization_prob`
-- `centralized_sequence`
-- `p_group1` to `p_group6`
-
-`gene_p_site` must look like `GENE_SITE`, for example `PRKACA_S339`.
-
-### `predMat`
-
-`predMat` must be a numeric matrix with:
-
-- phosphosite IDs as the index, for example `BTK;Y551;`
-- kinase names as columns
-- scores in the range `[0, 1]`
-
-On disk, `PhosphoDataset.from_files(...)`, `PhosRPipeline.from_files(...)`, and the CLI read the total and phospho
-inputs as tab-delimited text tables. `predMat` is read separately as CSV with the first column used as the phosphosite
-index.
-
-When you load tables from files, PhosPy normalises input headers to lowercase snake case before validation. For example,
-`Gene Names` and `gene-names` both become `gene_names`. That makes file input a little more forgiving, but it also
-means loading fails if two raw headers collapse to the same cleaned name.
-
-If you build `PhosphoDataset` from in-memory pandas data frames instead, those column names are validated as provided.
-
-## Quick Start
-
-The quickest way to get started from a source checkout is to use the bundled example data in `examples/data/`.
-
-### Core Preprocessing
+Use `PhosphoDataset` when you want validated inputs and the standard preprocessing flow.
 
 ```python
 from phospy import CoreOutputWriter, PhosphoDataset
@@ -121,17 +38,12 @@ core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
 
 writer = CoreOutputWriter()
 writer.write(core, outdir="examples/output", format="csv")
-# Use format="tsv" or format="parquet" for alternative core output bundles.
 
 site_matrix = core.site_matrix.matrix
 corrected = core.phospho_corrected
 ```
 
-For the bundled example data, `site_matrix.index.tolist()` returns `['BTK;Y551;']`.
-
-`dataset.preprocessing` is the bound preprocessing facade for the dataset and the preferred public entrypoint for core preprocessing. Use `dataset.preprocessing.run(...)` as the routine API. `CoreOutputWriter` is the canonical public API for persisting core preprocessing outputs.
-
-`dataset.preprocessing.run()` returns a `CoreProcessingResult` with:
+`dataset.preprocessing.run(...)` returns a `CoreProcessingResult` with:
 
 - `total_unique`
 - `total_filtered`
@@ -139,62 +51,11 @@ For the bundled example data, `site_matrix.index.tolist()` returns `['BTK;Y551;'
 - `phospho_corrected`
 - `site_matrix`
 
-If your analysis needs explicit pairwise comparisons, pass them when you build the dataset:
+Use `CoreOutputWriter` when you want to write the core outputs to disk.
 
-```python
-from phospy import PhosphoDataset
+### 2. Kinase activity analysis from an existing `predMat`
 
-dataset = PhosphoDataset.from_files(
-    "examples/data/total.tsv",
-    "examples/data/phospho.tsv",
-    phospho_encoding="utf-16le",
-    comparisons=[("group1", "group4"), ("group2", "group5")],
-)
-core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
-```
-
-If you do not pass `comparisons`, preprocessing still runs normally and no extra pairwise columns are added.
-
-If you only want the phosphosite localisation filter as a standalone preprocessing step, use the public helper in
-`phospy.preprocessing`:
-
-```python
-from phospy.preprocessing import filter_localized_sites
-
-filtered = filter_localized_sites(phospho_df, threshold=0.75)
-summary_result = filter_localized_sites(
-    phospho_df,
-    threshold=0.75,
-    return_summary=True,
-)
-```
-
-`summary_result.filtered` contains the retained rows and `summary_result.summary` reports how many rows were kept or
-removed.
-
-If you want to filter by observed data coverage before the broader workflow, use the standalone coverage helper:
-
-```python
-from phospy.preprocessing import filter_sites_by_coverage
-
-coverage_result = filter_sites_by_coverage(
-    phospho_df,
-    columns=["p_group1", "p_group2", "p_group3", "p_group4", "p_group5", "p_group6"],
-    min_coverage=0.5,
-    return_summary=True,
-)
-```
-
-`filter_localized_sites(...)` removes sites with weak localisation evidence, while
-`filter_sites_by_coverage(...)` removes sites with too many missing sample values. These standalone helpers are for
-targeted advanced use; the preferred end-to-end preprocessing path remains `dataset.preprocessing.run(...)`. Coverage filtering currently
-operates across the sample columns you provide rather than from a separate group metadata model.
-
-### Downstream Kinase Analysis From `predMat`
-
-`KinaseActivityAnalyzer` is the public orchestration layer for standalone downstream kinase analysis. Use it when you
-already have a phosphosite matrix and a `predMat` and want the downstream kinase summary tables without going through
-`PhosRPipeline`.
+Use `KinaseActivityAnalyzer` when you already have a phosphosite matrix and a `predMat`.
 
 ```python
 from phospy import KinaseActivityAnalyzer, PhosphoDataset
@@ -207,34 +68,24 @@ dataset = PhosphoDataset.from_files(
 core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
 
 analyzer = KinaseActivityAnalyzer()
-kinase = analyzer.load_and_analyze(
+result = analyzer.load_and_analyze(
     pred_mat_path="examples/data/predMat.csv",
     phospho_matrix=core.site_matrix.matrix,
     threshold=0.6,
     min_substrates=1,
     top_n_substrates=1,
 )
-analyzer.write_outputs(kinase, outdir="examples/output")
+analyzer.write_outputs(result, outdir="examples/output")
 
-target_counts = kinase.target_counts
-ksea_scores = kinase.ksea_scores
+ksea_scores = result.ksea_scores
+target_counts = result.target_counts
 ```
 
-The bundled example uses `min_substrates=1` and `top_n_substrates=1` because the example matrix is intentionally tiny.
-For larger real datasets, the defaults (`min_substrates=3`, `top_n_substrates=20`) are usually the better starting
-point.
+The bundled example uses `min_substrates=1` and `top_n_substrates=1` because the example data is very small.
 
-For the bundled example data, `target_counts.to_dict()` is `{'PRKACA': 3, 'BTK': 2}`.
+### 3. One-shot pipeline from files
 
-`KinaseActivityAnalyzer.load_and_analyze(...)` returns a `KinaseActivityResult` with:
-
-- `weighted_activity`
-- `ksea_scores`
-- `ksea_counts`
-- `target_counts`
-- `target_table`
-
-### End-to-End Pipeline
+Use `PhosRPipeline` when you want file loading, preprocessing, optional kinase analysis, and output writing in one call.
 
 ```python
 from phospy import PhosRPipeline
@@ -249,68 +100,34 @@ pipeline = PhosRPipeline.from_files(
 outputs = pipeline.run(outdir="examples/output")
 ```
 
-`outputs` is a `CoreOutputs` object with:
+This writes the core CSV outputs and, when `pred_mat_path` is provided, the downstream kinase-analysis tables as well.
+A pipeline run also writes `run_manifest.json`.
 
-- `outputs.core`
-- `outputs.kinase_activity`
+### 4. Native Python kinase workflow
 
-This writes the default core CSV outputs together with downstream kinase-analysis tables, including:
+Use `KinaseWorkflow` for the native end-to-end prediction workflow.
 
-- `df_total_unique.csv`
-- `df_total_filtered.csv`
-- `df_phospho_filtered.csv`
-- `df_phospho_corrected.csv`
-- `phosr_input.csv`
-- `mat_phospho_corrected.csv`
-- `site_sequences.csv`
-- `kinase_activity_matrix.csv`
-- `ksea_scores.csv`
-- `ksea_counts.csv`
-- `kinase_target_counts.csv`
-- `kinase_target_table.csv`
-- `run_manifest.json`
+A complete runnable example lives in [`examples/native_workflow_demo.py`](examples/native_workflow_demo.py).
 
-`run_manifest.json` records a small summary of the run, including whether kinase activity outputs were produced, row
-counts for the core tables, the preprocessing configuration, and the installed package version.
-
-If you omit `pred_mat_path`, the pipeline still runs the core preprocessing path and simply skips the downstream
-kinase-analysis outputs. For explicit non-CSV core persistence outside the pipeline, use `CoreOutputWriter` directly with `format="tsv"`, `format="csv"`, or `format="parquet"`. Parquet output requires an installed pandas parquet engine such as `pyarrow`; the package now exposes this as the optional `phospy[parquet]` extra.
-
-### Native End-to-End Kinase Workflow
-
-A complete runnable native-workflow example is included at
-[`examples/native_workflow_demo.py`](examples/native_workflow_demo.py).
-
-If PhosPy is installed in the environment, for example with `pip install phospy` or `pip install -e .` from a local
-checkout, you can run it directly:
-
-```bash
-python examples/native_workflow_demo.py
-```
-
-From a local checkout, there is also a Make target that runs the example with the repository `src/` path configured for
-that shell session:
+From a repository checkout, run:
 
 ```bash
 make native-workflow-demo
 ```
 
-That example uses only the supported API and prints a small prediction matrix for a synthetic two-kinase setup.
+## Input Files
 
-The native workflow expects:
+For file-based workflows:
 
-- a phosphosite matrix
-- a `substrate_map`
-- `site_sequences` keyed by phosphosite ID when motif scoring is used
-- `motif_sequences` for end-to-end motif-aware prediction
+- total input is read as TSV
+- phospho input is read as TSV
+- `predMat` is read as CSV, using the first column as the phosphosite index
 
-`site_sequences` can be passed as either a mapping keyed by phosphosite ID or a pandas Series with a phosphosite index.
-If you want profile-only prediction, pass `allow_profile_only_fallback=True` and omit `motif_sequences`.
+For the default schema, the expected columns are documented in [`docs/api.md`](docs/api.md).
 
-## Command-Line Demo
+## CLI
 
-After installation, you can run the CLI on your own files. The example below uses the bundled tables from a source
-checkout:
+After installation, you can run the CLI on your own files.
 
 ```bash
 phospy \
@@ -322,94 +139,12 @@ phospy \
   --outdir examples/output
 ```
 
-The checked-in example output directory in `examples/output/` shows the generated CSV tables. A fresh CLI or pipeline
-run also writes `run_manifest.json` to the chosen output directory.
+The CLI covers the file-based preprocessing path and optional `predMat` analysis.
 
-The CLI currently supports these options:
+## Where to Read Next
 
-- `--total` and `--phospho` are required tab-delimited input files
-- `--phospho-encoding` optionally overrides the default `utf-8` reader encoding
-- `--outdir` is the required output directory
-- `--pred-mat` is optional
-- `--localization-threshold` defaults to `0.75`
-- `--min-observed` defaults to `4`
-- `--total-sentinel` defaults to `10.0`
-- `--phospho-sentinel` defaults to `12.0`
-- `--max-unmatched-fraction` defaults to `0.0`
-
-`--max-unmatched-fraction=0.0` means protein correction fails if the inner join would silently drop any phosphosite
-rows. Raise it only when you want to allow a small, bounded amount of row loss.
-
-The CLI is intentionally small. It does not currently expose pairwise comparison generation or the native
-`KinaseWorkflow` path.
-
-## Validation Rules Worth Knowing
-
-A few checks are especially useful to know up front:
-
-- `localization_prob` must stay within `[0, 1]`.
-- `predMat` values must stay within `[0, 1]`.
-- file-loaded total and phospho headers are cleaned to lowercase snake case before validation, so duplicate cleaned
-  names are rejected.
-- `predMat` and the phosphosite matrix must overlap by at least one phosphosite row, and that overlap must cover at
-  least 10% of the phosphosite matrix.
-- Protein correction normalises gene identifiers before matching and, by default, refuses to drop unmatched phosphosite
-  rows.
-- Site-matrix construction drops rows with missing sequences or incomplete corrected values, then deduplicates repeated
-  phosphosites by keeping the row with the highest mean corrected signal.
-- In the native workflow, `motif_sequences` require matching `site_sequences`. If you omit motif data entirely, set
-  `allow_profile_only_fallback=True`.
-
-## Where to Go Next
-
-If you want more detail, these are the most useful follow-on docs:
-
-- [`docs/api.md`](docs/api.md) for the public API reference
-- [`docs/validation-and-parity.md`](docs/validation-and-parity.md) for the short validation and PhosR parity guide
-- [`docs/parity.md`](docs/parity.md) for the detailed parity guide against the R `PhosR` package
-- [`docs/fixtures.md`](docs/fixtures.md) for the committed fixture and trace layout
-- [`docs/roadmap.md`](docs/roadmap.md) for likely next steps
-
-If you want to contribute or work from a local checkout, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-## Known Limitations
-
-A few boundaries are worth knowing up front:
-
-- **Selective scope only.** PhosPy covers the workflows documented above and nothing broader.
-- **Parity claims are narrow.** When PhosPy says there is parity, it means seam-level parity to the R `PhosR` package backed by committed fixtures and tests. See [`docs/parity.md`](docs/parity.md).
-- **`KinaseWorkflow` is native first.** `svm_mode="r_parity"` narrows one learner comparison seam. It does not make the whole workflow equivalent to `PhosR`.
-- **The CLI is intentionally small.** It covers the core preprocessing and `predMat`-driven downstream path. The native kinase workflow is exposed through the Python API and example script.
-- **R is only required for fixture regeneration.** You do not need R to install PhosPy or run the committed Python test suite.
-
-## For Contributors to PhosPy
-
-To work from a local checkout:
-
-```bash
-pip install -e .
-```
-
-To run tests:
-
-```bash
-pip install -e ".[test]"
-pytest -m "not parity"
-pytest -m parity
-```
-
-For the short validation and parity guide, see [`docs/validation-and-parity.md`](docs/validation-and-parity.md).
-For the detailed guide to parity against the R `PhosR` package, see [`docs/parity.md`](docs/parity.md).
-
-To run the usual contributor checks:
-
-```bash
-pip install -e ".[dev]"
-pre-commit install
-pre-commit run --all-files
-```
-
-### R Requirements for Fixture Regeneration
-
-The committed parity fixtures are already included in the repository. You only need R if you want to regenerate or
-extend them.
+- [`docs/api.md`](docs/api.md) for method signatures, parameters, validation, and examples
+- [`docs/validation.md`](docs/validation.md) for the validation quick guide
+- [`docs/parity.md`](docs/parity.md) for parity to the R `PhosR` package
+- [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace layout
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) for local development and test commands

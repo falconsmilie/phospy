@@ -1,20 +1,18 @@
 # Parity to the R `PhosR` Package
 
-This page explains the repository's parity claim, what is covered today, and how to run the parity checks.
+This page explains what PhosPy means by parity to the R `PhosR` package.
 
-If you only want the short version, read [`docs/validation-and-parity.md`](validation-and-parity.md) first.
+## What the Claim Means
 
-## What Parity Means in this Repository
+In this repository, a parity claim is narrow.
 
-In PhosPy, parity means parity to the R `PhosR` package for a specific seam backed by committed fixtures.
+A seam is called parity-backed only when all three of these are true:
 
-A parity claim is made only when all three of these are true:
-
-- a committed fixture exists for the seam
-- an automated test checks the Python output against that fixture
+- a committed reference fixture exists for that seam
+- an automated test compares the Python output with that fixture
 - the claim stays limited to that seam
 
-Parity here is:
+In practice, parity here is:
 
 - seam-level
 - fixture-backed
@@ -23,19 +21,19 @@ Parity here is:
 It does **not** mean:
 
 - the whole package is numerically identical to `PhosR`
-- every `PhosR` branch, option, or edge case is implemented
+- every `PhosR` workflow branch is implemented
 - every native Python workflow path should match `PhosR`
 
-## What is Covered Today
+## What is Covered
 
-The current parity layer covers:
+The current parity layer covers selected seams backed by committed fixtures, including:
 
-- core preprocessing outputs backed by committed R-generated fixtures
-- downstream kinase-analysis outputs backed by committed R-generated fixtures
-- selected native workflow seams backed by committed L6 reference tables
-- selected prediction trace and replay checks backed by committed reference traces
+- core preprocessing outputs
+- downstream kinase-analysis outputs
+- selected native workflow seam checks
+- selected prediction trace and replay checks
 
-For the fixture and trace layout, see [`docs/fixtures.md`](fixtures.md).
+For fixture locations, see [`docs/fixtures.md`](fixtures.md).
 
 ## `KinaseWorkflow` and `svm_mode`
 
@@ -44,7 +42,7 @@ For the fixture and trace layout, see [`docs/fixtures.md`](fixtures.md).
 Use:
 
 - `svm_mode="default"` for the normal native path
-- `svm_mode="r_parity"` when you want the narrower learner-seam comparison used in the parity fixtures
+- `svm_mode="r_parity"` for the narrower learner-seam comparison used in parity checks
 
 Example:
 
@@ -55,9 +53,9 @@ native = KinaseWorkflow(svm_mode="default")
 comparison = KinaseWorkflow(svm_mode="r_parity")
 ```
 
-Using `svm_mode="r_parity"` does not widen the package claim. It only narrows one comparison seam.
+Using `svm_mode="r_parity"` does not make the full workflow equivalent to `PhosR`.
 
-## Run the Parity Suite
+## Run the Parity Tests
 
 From the repository root:
 
@@ -81,19 +79,16 @@ make test-parity
 make test-seams
 ```
 
-- `make test-parity` runs the parity suite with the standard parity summary output enabled
-- `make test-seams` runs the seam-focused parity files only
-
-## Optional Parity Metrics
+## Optional Metrics Output
 
 Some parity tests can print extra comparison summaries.
 
 Available environment flags:
 
-- `PHOSPY_SHOW_PARITY`: master switch for parity metrics output
-- `PHOSPY_SHOW_PROFILE_CONSTRUCTION`: adds the optional profile-construction summary
-- `PHOSPY_SHOW_PREDICTION_MODE_COMPARISON`: compares default mode with `r_parity`
-- `PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON`: adds replayed prediction comparison metrics
+- `PHOSPY_SHOW_PARITY`
+- `PHOSPY_SHOW_PROFILE_CONSTRUCTION`
+- `PHOSPY_SHOW_PREDICTION_MODE_COMPARISON`
+- `PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON`
 
 Example:
 
@@ -101,19 +96,4 @@ Example:
 PHOSPY_SHOW_PARITY=1 pytest -m parity -s
 ```
 
-The more specific flags do nothing unless `PHOSPY_SHOW_PARITY` is also enabled.
-
-## How to Read the Metrics
-
-These summaries help you interpret the seam-level parity claim. They do not widen it.
-
-- profile-construction and score-matrix metrics show how closely numeric tables match the committed reference outputs
-- prediction metrics focus on rank agreement and overlap rather than strict cell-by-cell equality
-- replayed trace metrics check how closely Python follows the committed reference traces for selected kinases
-
-## Related Docs
-
-- [`docs/validation-and-parity.md`](validation-and-parity.md) for the short guide
-- [`docs/api.md`](api.md) for the public API reference
-- [`docs/fixtures.md`](fixtures.md) for fixture locations and trace directories
-- [`CONTRIBUTING.md`](../CONTRIBUTING.md) for contributor workflow
+The extra flags only take effect when `PHOSPY_SHOW_PARITY` is enabled.
