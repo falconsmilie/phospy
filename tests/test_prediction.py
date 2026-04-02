@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import get_type_hints
 
 import numpy as np
 import pandas as pd
@@ -1201,3 +1202,15 @@ def test_build_candidate_substrate_list_rejects_invalid_combined_scores_cleanly(
             score_threshold=0.8,
             inclusion=1,
         )
+
+
+def test_prediction_public_api_has_concrete_result_return_types() -> None:
+    assert get_type_hints(KinasePredictor.predict)["return"] == KinasePredictionResult
+    assert (
+        get_type_hints(KinasePredictor.predict_request)["return"]
+        == KinasePredictionResult
+    )
+    assert (
+        get_type_hints(KinasePredictor.predict_from_scoring_result)["return"]
+        == KinasePredictionResult
+    )

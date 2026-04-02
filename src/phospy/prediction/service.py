@@ -12,6 +12,7 @@ from ..validation.requests import PredictionRequest
 from .aggregation import PredictionAggregator
 from .candidates import CandidateSelector, build_candidate_substrate_list
 from .execution import EnsemblePredictor, NegativePoolSampler, TraceRecorder
+from .models import KinasePredictionResult
 from .traces import (
     PredictionSamplingTrace,
     TraceSink,
@@ -120,7 +121,7 @@ class KinasePredictor:
         trace_level: PredictionTraceLevel | None = None,
         trace_sink: TraceSink | str | Path | None = None,
         trace_sink_format: PredictionTraceFormat = "csv",
-    ) -> object:
+    ) -> KinasePredictionResult:
         request = self.request_factory.create(
             combined_scores=combined_scores,
             ensemble_size=ensemble_size,
@@ -140,7 +141,7 @@ class KinasePredictor:
         )
         return self.predict_request(request)
 
-    def predict_request(self, request: PredictionRequest):
+    def predict_request(self, request: PredictionRequest) -> KinasePredictionResult:
         execution_context = build_prediction_execution_context(
             sampling_trace=request.sampling_trace,
             trace_level=request.trace_level,
@@ -224,7 +225,7 @@ class KinasePredictor:
         trace_level: PredictionTraceLevel | None = None,
         trace_sink: TraceSink | str | Path | None = None,
         trace_sink_format: PredictionTraceFormat = "csv",
-    ):
+    ) -> KinasePredictionResult:
         if scoring_result.combined_scores is not None:
             feature_mat = scoring_result.combined_scores
         elif allow_profile_only_fallback:
