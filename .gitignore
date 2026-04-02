@@ -6,7 +6,6 @@ __pycache__/
 .ruff_cache/
 .coverage
 coverage.xml
-htmlcov
 
 # Packaging artefacts
 *.egg-info/
