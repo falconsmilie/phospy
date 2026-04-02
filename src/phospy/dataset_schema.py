@@ -14,7 +14,13 @@ from .validation.errors import InputCompatibilityError
 
 @dataclass(frozen=True, slots=True)
 class DatasetSchema:
-    """Immutable aligned column groups used by core dataset preprocessing."""
+    """Immutable aligned sample/value column groups used by dataset preprocessing.
+
+    DatasetSchema intentionally models only the aligned numeric/sample columns.
+    Core structural identifier columns such as gene_names, gene_p_site, and
+    localization_prob are fixed canonical package constants rather than
+    user-configurable schema fields.
+    """
 
     total_cols: tuple[str, ...] = DEFAULT_TOTAL_COLS
     phospho_cols: tuple[str, ...] = DEFAULT_PHOSPHO_COLS

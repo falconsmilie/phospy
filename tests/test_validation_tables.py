@@ -37,6 +37,40 @@ def test_total_input_schema_rejects_non_numeric_group_values() -> None:
         TotalInputSchema.validate(frame)
 
 
+def test_total_input_schema_uses_canonical_gene_column_with_custom_value_columns() -> (
+    None
+):
+    frame = pd.DataFrame(
+        {
+            "total_gene": ["PRKACA"],
+            "sample_1": [1.0],
+            "sample_2": [1.0],
+        }
+    )
+
+    with pytest.raises(TableSchemaError, match="missing required columns: genes"):
+        TotalInputSchema.validate(frame, total_cols=["sample_1", "sample_2"])
+
+
+def test_phospho_input_schema_keeps_canonical_metadata_columns_with_custom_value_columns() -> (
+    None
+):
+    frame = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "phospho_gene": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "sample_1": [1.0],
+            "sample_2": [1.0],
+        }
+    )
+
+    with pytest.raises(TableSchemaError, match="missing required columns: gene_names"):
+        PhosphoInputSchema.validate(frame, phospho_cols=["sample_1", "sample_2"])
+
+
 def test_phospho_input_schema_rejects_malformed_gene_p_site() -> None:
     frame = pd.DataFrame(
         {

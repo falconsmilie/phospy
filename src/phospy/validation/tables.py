@@ -4,7 +4,16 @@ from collections.abc import Iterable, Sequence
 
 import pandas as pd
 
-from ..constants import DEFAULT_PHOSPHO_COLS, DEFAULT_TOTAL_COLS
+from ..constants import (
+    DEFAULT_PHOSPHO_COLS,
+    DEFAULT_TOTAL_COLS,
+    GENE_P_SITE_COLUMN,
+    LOCALIZATION_PROB_COLUMN,
+    PHOSPHO_GENE_COLUMN,
+    PHOSPHO_REQUIRED_METADATA_COLUMNS,
+    PHOSPHO_UID_COLUMN,
+    TOTAL_GENE_COLUMN,
+)
 from .errors import TableSchemaError
 
 
@@ -22,8 +31,10 @@ class TotalInputSchema:
         total_columns = list(total_cols or DEFAULT_TOTAL_COLS)
         validated = _ensure_dataframe(frame, context=context)
         _ensure_unique_columns(validated.columns, context=context)
-        _ensure_required_columns(validated, ["genes", *total_columns], context=context)
-        _ensure_non_null(validated, ["genes"], context=context)
+        _ensure_required_columns(
+            validated, [TOTAL_GENE_COLUMN, *total_columns], context=context
+        )
+        _ensure_non_null(validated, [TOTAL_GENE_COLUMN], context=context)
         validated = _coerce_numeric_columns(
             validated,
             total_columns,
@@ -49,36 +60,32 @@ class PhosphoInputSchema:
         _ensure_required_columns(
             validated,
             [
-                "uid",
-                "gene_names",
-                "gene_p_site",
-                "localization_prob",
-                "centralized_sequence",
+                *PHOSPHO_REQUIRED_METADATA_COLUMNS,
                 *phospho_columns,
             ],
             context=context,
         )
         _ensure_non_null(
             validated,
-            ["uid", "gene_names", "gene_p_site"],
+            [PHOSPHO_UID_COLUMN, PHOSPHO_GENE_COLUMN, GENE_P_SITE_COLUMN],
             context=context,
         )
         validated = _coerce_numeric_columns(
             validated,
-            ["localization_prob", *phospho_columns],
+            [LOCALIZATION_PROB_COLUMN, *phospho_columns],
             context=context,
         )
         _ensure_value_range(
             validated,
-            ["localization_prob"],
+            [LOCALIZATION_PROB_COLUMN],
             minimum=0.0,
             maximum=1.0,
             context=context,
         )
         _ensure_splitable_gene_p_site(
-            validated["gene_p_site"],
+            validated[GENE_P_SITE_COLUMN],
             context=context,
-            column_name="gene_p_site",
+            column_name=GENE_P_SITE_COLUMN,
         )
         return validated
 
@@ -325,7 +332,7 @@ def _ensure_splitable_gene_p_site(
     series: pd.Series,
     *,
     context: str,
-    column_name: str = "gene_p_site",
+    column_name: str = GENE_P_SITE_COLUMN,
 ) -> None:
     normalized = series.astype("string")
     split_columns = normalized.str.split("_", n=1, expand=True)

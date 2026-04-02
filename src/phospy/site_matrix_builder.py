@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from .constants import CENTRALIZED_SEQUENCE_COLUMN, GENE_P_SITE_COLUMN
 from .matrices import build_site_matrix, format_row_drop_diagnostics
 from .validation.errors import TableSchemaError
 from .validation.tables import SiteMatrixSchema
@@ -28,8 +29,8 @@ class SiteMatrixBuilder:
         self,
         corrected_df: pd.DataFrame,
         *,
-        gene_p_site_col: str = "gene_p_site",
-        sequence_col: str = "centralized_sequence",
+        gene_p_site_col: str = GENE_P_SITE_COLUMN,
+        sequence_col: str = CENTRALIZED_SEQUENCE_COLUMN,
     ) -> SiteMatrixResult:
         phosr_input, matrix, sequences = build_site_matrix(
             df=corrected_df,

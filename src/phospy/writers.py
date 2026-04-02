@@ -9,7 +9,9 @@ import pandas as pd
 
 if TYPE_CHECKING:
     from .analysis import KinaseActivityResult
-    from .core_processing import CoreProcessingResult
+
+from .constants import CENTRALIZED_SEQUENCE_COLUMN
+from .core_processing import CoreProcessingResult
 
 CoreOutputFormat: TypeAlias = Literal["csv", "tsv", "parquet"]
 
@@ -162,7 +164,9 @@ class CoreOutputWriter:
             ),
             CoreOutputArtifact(
                 "site_sequences",
-                result.site_matrix.sequences.rename("centralized_sequence").to_frame(),
+                result.site_matrix.sequences.rename(
+                    CENTRALIZED_SEQUENCE_COLUMN
+                ).to_frame(),
                 include_index=True,
             ),
         )

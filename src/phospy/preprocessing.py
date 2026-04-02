@@ -17,7 +17,7 @@ from ._preprocessing_primitives import (
     _require_columns,
     _require_numeric_series,
 )
-from .constants import ComparisonSpec
+from .constants import LOCALIZATION_PROB_COLUMN, ComparisonSpec
 from .dataset_schema import DatasetSchema
 from .validation.compatibility import (
     validate_core_column_alignment,
@@ -159,7 +159,7 @@ def _require_numeric_columns(
 def filter_localized_sites(
     df: pd.DataFrame,
     *,
-    localization_col: str = "localization_prob",
+    localization_col: str = LOCALIZATION_PROB_COLUMN,
     threshold: float = 0.75,
     return_summary: Literal[False] = False,
 ) -> pd.DataFrame: ...
@@ -169,7 +169,7 @@ def filter_localized_sites(
 def filter_localized_sites(
     df: pd.DataFrame,
     *,
-    localization_col: str = "localization_prob",
+    localization_col: str = LOCALIZATION_PROB_COLUMN,
     threshold: float = 0.75,
     return_summary: Literal[True],
 ) -> LocalizationFilterResult: ...
@@ -178,7 +178,7 @@ def filter_localized_sites(
 def filter_localized_sites(
     df: pd.DataFrame,
     *,
-    localization_col: str = "localization_prob",
+    localization_col: str = LOCALIZATION_PROB_COLUMN,
     threshold: float = 0.75,
     return_summary: bool = False,
 ) -> pd.DataFrame | LocalizationFilterResult:

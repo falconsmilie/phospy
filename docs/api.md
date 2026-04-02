@@ -77,8 +77,9 @@ validated_inputs = loader.validate(total_df=total_df, phospho_df=phospho_df)
 validated = PhosphoDataset.from_validated_inputs(validated_inputs)
 ```
 
-`PhosphoDataset` is immutable at the public boundary: it stores defensive copies of validated input tables and
-returns deep copies from `total_df` and `phospho_df`.
+`PhosphoDataset` is the explicit owner of one validated in-memory dataset snapshot. `total_df` and `phospho_df`
+return those owned frames directly for read access, and `copy_inputs()` gives you deep copies when you need caller-owned
+mutation.
 
 A practical detail: `from_files(...)` reads the total and phospho inputs as tab-delimited text tables, then cleans file
 headers to lowercase snake case before validation. In-memory data frames are validated as provided.
@@ -143,8 +144,11 @@ core = dataset.preprocessing.run()
 site_matrix = dataset.site_matrix.build(core.phospho_corrected)
 ```
 
-Use `DatasetSchema` when your input tables do not use the default aligned sample columns. The schema is immutable and
-travels with the dataset through validation and core preprocessing.
+Use `DatasetSchema` when your input tables do not use the default aligned sample columns. `DatasetSchema` intentionally
+models only the aligned numeric/sample column groups. Core structural columns such as `genes`, `gene_names`,
+`gene_p_site`, `localization_prob`, and `centralized_sequence` are fixed canonical package columns rather than
+user-configurable schema fields. The schema is immutable and travels with the dataset through validation and core
+preprocessing.
 
 ## `CoreOutputWriter`
 

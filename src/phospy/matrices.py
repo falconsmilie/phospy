@@ -4,6 +4,13 @@ from collections.abc import Mapping, Sequence
 
 import pandas as pd
 
+from .constants import (
+    PHOSPHO_GENE_COLUMN,
+    PHOSPHO_UID_COLUMN,
+    SITE_MATRIX_GENE_COLUMN,
+    SITE_MATRIX_ID_COLUMN,
+    SITE_MATRIX_P_SITE_COLUMN,
+)
 from .validation.tables import SiteMatrixSourceSchema
 
 
@@ -45,8 +52,8 @@ def build_site_matrix(
     gene_p_site_col: str,
     sequence_col: str,
     value_cols: Sequence[str],
-    gene_col_name: str = "gene",
-    p_site_col_name: str = "p_site",
+    gene_col_name: str = SITE_MATRIX_GENE_COLUMN,
+    p_site_col_name: str = SITE_MATRIX_P_SITE_COLUMN,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     work = SiteMatrixSourceSchema.validate(
         df,
@@ -59,19 +66,19 @@ def build_site_matrix(
     split_cols = work[gene_p_site_col].astype("string").str.split("_", n=1, expand=True)
     work[gene_col_name] = split_cols[0].astype("string")
     work[p_site_col_name] = split_cols[1].astype("string")
-    work["site_id"] = (
+    work[SITE_MATRIX_ID_COLUMN] = (
         work[gene_col_name].str.upper() + ";" + work[p_site_col_name].str.upper() + ";"
     )
 
     base_cols = [
         col
         for col in [
-            "gene_names",
+            PHOSPHO_GENE_COLUMN,
             gene_col_name,
             p_site_col_name,
-            "uid",
+            PHOSPHO_UID_COLUMN,
             sequence_col,
-            "site_id",
+            SITE_MATRIX_ID_COLUMN,
         ]
         if col in work.columns
     ]
@@ -90,7 +97,7 @@ def build_site_matrix(
     complete_cases["__mean_signal"] = complete_cases.loc[:, list(value_cols)].mean(
         axis=1, skipna=True
     )
-    idx = complete_cases.groupby("site_id")["__mean_signal"].idxmax()
+    idx = complete_cases.groupby(SITE_MATRIX_ID_COLUMN)["__mean_signal"].idxmax()
     phosr_input = (
         complete_cases.loc[idx]
         .drop(columns="__mean_signal")
@@ -107,9 +114,11 @@ def build_site_matrix(
         "retained_rows": len(phosr_input),
     }
 
-    matrix = phosr_input.loc[:, ["site_id", *value_cols]].set_index("site_id")
+    matrix = phosr_input.loc[:, [SITE_MATRIX_ID_COLUMN, *value_cols]].set_index(
+        SITE_MATRIX_ID_COLUMN
+    )
     matrix.attrs["row_drop_stats"] = row_drop_stats.copy()
-    sequences = phosr_input.set_index("site_id")[sequence_col].copy()
+    sequences = phosr_input.set_index(SITE_MATRIX_ID_COLUMN)[sequence_col].copy()
     sequences.attrs["row_drop_stats"] = row_drop_stats.copy()
     phosr_input.attrs["row_drop_stats"] = row_drop_stats.copy()
     return phosr_input, matrix, sequences

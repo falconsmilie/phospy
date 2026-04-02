@@ -15,6 +15,10 @@ from ._preprocessing_primitives import (
 from .constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
+    GENE_P_SITE_COLUMN,
+    LOCALIZATION_PROB_COLUMN,
+    PHOSPHO_GENE_COLUMN,
+    TOTAL_GENE_COLUMN,
     ComparisonSpec,
 )
 from .dataset_schema import DatasetSchema
@@ -39,7 +43,7 @@ class TotalPreprocessor:
         self,
         total_df: pd.DataFrame,
         *,
-        gene_col: str = "genes",
+        gene_col: str = TOTAL_GENE_COLUMN,
         sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
         min_observed: int = 4,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -73,9 +77,9 @@ class PhosphoPreprocessor:
         self,
         phospho_df: pd.DataFrame,
         *,
-        gene_col: str = "gene_names",
-        site_col: str = "gene_p_site",
-        localization_col: str = "localization_prob",
+        gene_col: str = PHOSPHO_GENE_COLUMN,
+        site_col: str = GENE_P_SITE_COLUMN,
+        localization_col: str = LOCALIZATION_PROB_COLUMN,
         localization_threshold: float = 0.75,
         sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
         min_observed: int = 4,
@@ -129,8 +133,8 @@ class ProteinCorrectionService:
         phospho_df: pd.DataFrame,
         total_df: pd.DataFrame,
         *,
-        phospho_gene_col: str = "gene_names",
-        total_gene_col: str = "genes",
+        phospho_gene_col: str = PHOSPHO_GENE_COLUMN,
+        total_gene_col: str = TOTAL_GENE_COLUMN,
         max_unmatched_fraction: float = 0.0,
     ) -> pd.DataFrame:
         validate_protein_correction_inputs(

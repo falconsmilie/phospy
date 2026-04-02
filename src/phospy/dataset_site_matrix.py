@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from .constants import CENTRALIZED_SEQUENCE_COLUMN, GENE_P_SITE_COLUMN
 from .dataset_schema import DatasetSchema
 from .site_matrix_builder import SiteMatrixBuilder, SiteMatrixResult
 
@@ -21,8 +22,8 @@ class DatasetSiteMatrix:
         self,
         corrected_df: pd.DataFrame,
         *,
-        gene_p_site_col: str = "gene_p_site",
-        sequence_col: str = "centralized_sequence",
+        gene_p_site_col: str = GENE_P_SITE_COLUMN,
+        sequence_col: str = CENTRALIZED_SEQUENCE_COLUMN,
     ) -> SiteMatrixResult:
         return self._builder().build(
             corrected_df,
