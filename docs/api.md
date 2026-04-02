@@ -563,7 +563,9 @@ Builds a pipeline from file paths.
 PhosRPipeline.from_request(request: CorePipelineRequest) -> PhosRPipeline
 ```
 
-Builds a pipeline from an already validated request object.
+Builds a pipeline from an already validated file-backed request object.
+
+For an already materialised in-memory pipeline boundary, use `PhosRPipeline.from_validated_request(request)` with `ValidatedPipelineRequest`.
 
 ### `pipeline.run(outdir=None)`
 
@@ -682,10 +684,10 @@ Runs the native workflow end to end.
 ### `workflow.run_request(request)`
 
 ```python
-workflow.run_request(request: KinaseWorkflowRequest) -> KinaseWorkflowResult
+workflow.run_request(request: ValidatedWorkflowRequest | KinaseWorkflowRequest) -> KinaseWorkflowResult
 ```
 
-Runs the workflow from an already validated request object.
+Runs the workflow from a trusted validated workflow request. `KinaseWorkflowRequest` is still accepted for compatibility and is upgraded to `ValidatedWorkflowRequest` at the boundary.
 
 #### Return Value
 

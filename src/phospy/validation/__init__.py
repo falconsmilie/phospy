@@ -1,8 +1,12 @@
 from .analysis import (
     KinaseActivityRequest,
+    ValidatedAnalysisRequest,
     ValidatedKinaseActivityInputs,
     build_kinase_activity_inputs,
+    build_loaded_analysis_request,
     build_loaded_kinase_activity_inputs,
+    build_validated_analysis_request,
+    validate_analysis_request,
     validate_kinase_activity_inputs,
 )
 from .compatibility import (
@@ -12,9 +16,12 @@ from .compatibility import (
     validate_protein_correction_inputs,
 )
 from .dataset import (
+    ValidatedDatasetInputs,
     ValidatedDatasetPaths,
+    build_validated_dataset_inputs,
     validate_dataset_file_paths,
     validate_dataset_frames,
+    validate_dataset_request,
 )
 from .errors import (
     InputCompatibilityError,
@@ -25,7 +32,11 @@ from .errors import (
     TableSchemaError,
     TraceError,
 )
-from .pipeline import CorePipelineRequest
+from .pipeline import (
+    CorePipelineRequest,
+    ValidatedPipelineRequest,
+    validate_pipeline_request,
+)
 from .prediction import PredictionRequest
 from .primitives import validate_non_negative_int, validate_positive_int
 from .tables import (
@@ -39,6 +50,8 @@ from .tables import (
 from .workflow import (
     KinaseWorkflowRequest,
     ValidatedKinaseWorkflowInputs,
+    ValidatedWorkflowRequest,
+    build_validated_workflow_request,
     build_workflow_request_inputs,
     validate_workflow_inputs,
     validate_workflow_request,
@@ -63,17 +76,28 @@ __all__ = [
     "TableSchemaError",
     "TotalInputSchema",
     "TraceError",
+    "ValidatedAnalysisRequest",
+    "ValidatedDatasetInputs",
     "ValidatedDatasetPaths",
     "ValidatedKinaseActivityInputs",
     "ValidatedKinaseWorkflowInputs",
+    "ValidatedPipelineRequest",
+    "ValidatedWorkflowRequest",
     "build_kinase_activity_inputs",
+    "build_loaded_analysis_request",
     "build_loaded_kinase_activity_inputs",
+    "build_validated_analysis_request",
+    "build_validated_dataset_inputs",
+    "build_validated_workflow_request",
     "build_workflow_request_inputs",
+    "validate_analysis_request",
     "validate_core_column_alignment",
     "validate_dataset_file_paths",
     "validate_dataset_frames",
+    "validate_dataset_request",
     "validate_kinase_activity_inputs",
     "validate_non_negative_int",
+    "validate_pipeline_request",
     "validate_positive_int",
     "validate_pred_mat_overlap",
     "validate_protein_correction_inputs",

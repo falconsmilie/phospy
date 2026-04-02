@@ -11,16 +11,16 @@ from .dataset_loader import DatasetLoader, ValidatedCoreInputs
 from .dataset_preprocessing import DatasetPreprocessing
 from .dataset_schema import DatasetSchema
 from .dataset_site_matrix import DatasetSiteMatrix
+from .validation.dataset import (
+    ValidatedDatasetInputs,
+    build_validated_dataset_inputs,
+    validate_dataset_request,
+)
 
 
 @dataclass(frozen=True, slots=True)
 class CoreInputs:
-    """Owned dataset tables used by the core preprocessing pipeline.
-
-    The frames stored here are the canonical validated in-memory dataset owned by
-    :class:`PhosphoDataset`. They are exposed directly for read access. Call
-    :meth:`copy_frames` before mutating them outside the processing boundary.
-    """
+    """Owned dataset tables used by the core preprocessing pipeline."""
 
     total_df: pd.DataFrame
     phospho_df: pd.DataFrame
@@ -32,15 +32,7 @@ class CoreInputs:
 
 @dataclass(frozen=True, slots=True, init=False)
 class PhosphoDataset:
-    """Explicit owner around validated phosphoproteomics inputs.
-
-    ``PhosphoDataset`` keeps one trusted validated snapshot of the source frames.
-    Public accessors return the owned in-memory frames directly rather than
-    creating defensive copies on every read. Internal preprocessing remains safe
-    because mutation happens on caller-owned copies inside the processing
-    services. Call :meth:`copy_inputs` when you need a mutable copy of the
-    dataset inputs.
-    """
+    """Explicit owner around validated phosphoproteomics inputs."""
 
     inputs: CoreInputs
     schema: DatasetSchema
@@ -54,39 +46,25 @@ class PhosphoDataset:
         schema: DatasetSchema | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> None:
-        resolved_schema = schema or DatasetSchema()
-        loader = DatasetLoader(schema=resolved_schema)
-        validated_inputs = loader.validate(
+        validated_request = validate_dataset_request(
             total_df=total_df,
             phospho_df=phospho_df,
+            schema=schema,
+            comparisons=comparisons,
         )
-        validated_comparisons = validated_inputs.schema.validate_comparisons(
-            comparisons,
-            context="PhosphoDataset",
-        )
-        self._set_state(
-            inputs=CoreInputs(
-                total_df=validated_inputs.total_df,
-                phospho_df=validated_inputs.phospho_df,
-            ),
-            schema=validated_inputs.schema,
-            comparisons=validated_comparisons,
-        )
+        self._set_state(validated_request=validated_request)
 
-    def _set_state(
-        self,
-        *,
-        inputs: CoreInputs,
-        schema: DatasetSchema,
-        comparisons: Sequence[ComparisonSpec] | None,
-    ) -> None:
-        object.__setattr__(self, "inputs", inputs)
-        object.__setattr__(self, "schema", schema)
+    def _set_state(self, *, validated_request: ValidatedDatasetInputs) -> None:
         object.__setattr__(
             self,
-            "comparisons",
-            tuple(comparisons) if comparisons is not None else None,
+            "inputs",
+            CoreInputs(
+                total_df=validated_request.total_df,
+                phospho_df=validated_request.phospho_df,
+            ),
         )
+        object.__setattr__(self, "schema", validated_request.schema)
+        object.__setattr__(self, "comparisons", validated_request.comparisons)
 
     @property
     def total_df(self) -> pd.DataFrame:
@@ -131,19 +109,15 @@ class PhosphoDataset:
                 "produced by DatasetLoader"
             )
             raise TypeError(msg)
-        validated_comparisons = validated_inputs.schema.validate_comparisons(
-            comparisons,
+        validated_request = build_validated_dataset_inputs(
+            schema=validated_inputs.schema,
+            total_df=validated_inputs.total_df,
+            phospho_df=validated_inputs.phospho_df,
+            comparisons=comparisons,
             context="PhosphoDataset",
         )
         instance = cls.__new__(cls)
-        instance._set_state(
-            inputs=CoreInputs(
-                total_df=validated_inputs.total_df,
-                phospho_df=validated_inputs.phospho_df,
-            ),
-            schema=validated_inputs.schema,
-            comparisons=validated_comparisons,
-        )
+        instance._set_state(validated_request=validated_request)
         return instance
 
     @classmethod

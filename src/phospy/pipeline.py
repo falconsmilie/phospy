@@ -16,7 +16,11 @@ from .dataset_schema import DatasetSchema
 from .io import load_pred_mat
 from .publishing import OutputPublisher, RunManifestWriter
 from .validation.errors import RequestValidationError, TableSchemaError
-from .validation.pipeline import CorePipelineRequest
+from .validation.pipeline import (
+    CorePipelineRequest,
+    ValidatedPipelineRequest,
+    validate_pipeline_request,
+)
 from .writers import CoreOutputWriter, KinaseActivityWriter
 
 
@@ -24,13 +28,6 @@ from .writers import CoreOutputWriter, KinaseActivityWriter
 class CoreOutputs:
     core: CoreProcessingResult
     kinase_activity: KinaseActivityResult | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class PipelineConstructionInputs:
-    dataset: PhosphoDataset
-    pred_mat: pd.DataFrame | None
-    preprocessing_config: CorePreprocessingConfig
 
 
 class PipelineRequestLoader:
@@ -45,7 +42,7 @@ class PipelineRequestLoader:
             load_pred_mat if pred_mat_loader is None else pred_mat_loader
         )
 
-    def load(self, request: CorePipelineRequest) -> PipelineConstructionInputs:
+    def load(self, request: CorePipelineRequest) -> ValidatedPipelineRequest:
         validated_inputs = self.dataset_loader_factory(
             schema=request.dataset_schema
         ).load(
@@ -57,16 +54,14 @@ class PipelineRequestLoader:
             validated_inputs,
             comparisons=request.comparisons,
         )
-        return PipelineConstructionInputs(
+        return validate_pipeline_request(
             dataset=dataset,
             pred_mat=self._load_pred_mat(request),
-            preprocessing_config=CorePreprocessingConfig(
-                localization_threshold=request.localization_threshold,
-                min_observed=request.min_observed,
-                max_unmatched_fraction=request.max_unmatched_fraction,
-                total_sentinel=request.total_sentinel,
-                phospho_sentinel=request.phospho_sentinel,
-            ),
+            localization_threshold=request.localization_threshold,
+            min_observed=request.min_observed,
+            max_unmatched_fraction=request.max_unmatched_fraction,
+            total_sentinel=request.total_sentinel,
+            phospho_sentinel=request.phospho_sentinel,
         )
 
     def _load_pred_mat(self, request: CorePipelineRequest) -> pd.DataFrame | None:
@@ -93,20 +88,16 @@ class PipelineExecutionRunner:
     def __init__(self, *, kinase_activity_analyzer: KinaseActivityAnalyzer) -> None:
         self.kinase_activity_analyzer = kinase_activity_analyzer
 
-    def run(
-        self,
-        *,
-        dataset: PhosphoDataset,
-        pred_mat: pd.DataFrame | None,
-        preprocessing_config: CorePreprocessingConfig,
-    ) -> CoreOutputs:
-        core = dataset.preprocessing.run(config=preprocessing_config)
+    def run(self, request: ValidatedPipelineRequest) -> CoreOutputs:
+        core = request.dataset.preprocessing.run(config=request.preprocessing_config)
 
         kinase_activity = None
-        if pred_mat is not None:
-            kinase_activity = self.kinase_activity_analyzer.analyze(
-                pred_mat,
-                core.site_matrix.matrix,
+        if request.pred_mat is not None:
+            kinase_activity = self.kinase_activity_analyzer.analyze_validated_request(
+                request=self.kinase_activity_analyzer.validate_request(
+                    pred_mat=request.pred_mat,
+                    phospho_matrix=core.site_matrix.matrix,
+                )
             )
 
         return CoreOutputs(core=core, kinase_activity=kinase_activity)
@@ -163,15 +154,19 @@ class PhosRPipeline:
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
     ) -> None:
-        self.dataset = dataset
-        self.pred_mat = pred_mat.copy() if pred_mat is not None else None
-        self.preprocessing_config = preprocessing_config or CorePreprocessingConfig(
+        self.request = validate_pipeline_request(
+            dataset=dataset,
+            pred_mat=pred_mat,
+            preprocessing_config=preprocessing_config,
             localization_threshold=localization_threshold,
             min_observed=min_observed,
             max_unmatched_fraction=max_unmatched_fraction,
             total_sentinel=total_sentinel,
             phospho_sentinel=phospho_sentinel,
         )
+        self.dataset = self.request.dataset
+        self.pred_mat = self.request.pred_mat
+        self.preprocessing_config = self.request.preprocessing_config
         self.kinase_activity_analyzer = KinaseActivityAnalyzer()
         self.manifest_writer = manifest_writer or RunManifestWriter()
         self.output_publisher = output_publisher or OutputPublisher()
@@ -182,12 +177,27 @@ class PhosRPipeline:
 
     @classmethod
     def from_request(cls, request: CorePipelineRequest) -> PhosRPipeline:
-        inputs = PipelineRequestLoader().load(request)
-        return cls(
-            dataset=inputs.dataset,
-            pred_mat=inputs.pred_mat,
-            preprocessing_config=inputs.preprocessing_config,
+        validated_request = PipelineRequestLoader().load(request)
+        return cls.from_validated_request(validated_request)
+
+    @classmethod
+    def from_validated_request(
+        cls,
+        request: ValidatedPipelineRequest,
+    ) -> PhosRPipeline:
+        instance = cls.__new__(cls)
+        object.__setattr__(instance, "request", request)
+        instance.dataset = request.dataset
+        instance.pred_mat = request.pred_mat
+        instance.preprocessing_config = request.preprocessing_config
+        instance.kinase_activity_analyzer = KinaseActivityAnalyzer()
+        instance.manifest_writer = RunManifestWriter()
+        instance.output_publisher = OutputPublisher()
+        instance.execution_runner = PipelineExecutionRunner(
+            kinase_activity_analyzer=instance.kinase_activity_analyzer
         )
+        instance.output_coordinator = PipelineOutputCoordinator()
+        return instance
 
     @classmethod
     def from_files(
@@ -220,11 +230,7 @@ class PhosRPipeline:
         return cls.from_request(request)
 
     def run(self, outdir: str | Path | None = None) -> CoreOutputs:
-        outputs = self.execution_runner.run(
-            dataset=self.dataset,
-            pred_mat=self.pred_mat,
-            preprocessing_config=self.preprocessing_config,
-        )
+        outputs = self.execution_runner.run(self.request)
 
         if outdir is not None:
             self.output_coordinator.publish(

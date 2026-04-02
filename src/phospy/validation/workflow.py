@@ -13,15 +13,8 @@ from .errors import InputCompatibilityError, RequestValidationError
 from .tables import SiteMatrixSchema
 
 
-@dataclass(frozen=True, slots=True)
-class ValidatedKinaseWorkflowInputs:
-    request: KinaseWorkflowRequest
-    phospho_matrix: pd.DataFrame
-    motif_scorer: KinaseMotifScorer | None
-
-
 class KinaseWorkflowRequest(PhospyRequestModel):
-    """Validated boundary request for native kinase workflow execution."""
+    """Raw boundary request for native kinase workflow execution."""
 
     phospho_matrix: pd.DataFrame
     substrate_map: Mapping[str, Sequence[str]]
@@ -104,12 +97,27 @@ class KinaseWorkflowRequest(PhospyRequestModel):
             ) from error
 
 
-def build_workflow_request_inputs(
+@dataclass(frozen=True, slots=True)
+class ValidatedWorkflowRequest:
+    """Trusted boundary request for the public :class:`phospy.KinaseWorkflow` API."""
+
+    request: KinaseWorkflowRequest
+    phospho_matrix: pd.DataFrame
+    motif_scorer: KinaseMotifScorer | None
+    predictor_svm_mode: PredictionSvmMode
+
+
+# Backward-compatible alias for older internal names.
+ValidatedKinaseWorkflowInputs = ValidatedWorkflowRequest
+
+
+def build_validated_workflow_request(
     request: KinaseWorkflowRequest,
     *,
     flank_size: int,
+    default_svm_mode: PredictionSvmMode,
     context: str = "Kinase workflow inputs",
-) -> ValidatedKinaseWorkflowInputs:
+) -> ValidatedWorkflowRequest:
     validated_matrix = _validate_workflow_matrix_inputs(
         request.phospho_matrix,
         request.substrate_map,
@@ -124,24 +132,75 @@ def build_workflow_request_inputs(
             flank_size=flank_size,
         )
     )
-    return ValidatedKinaseWorkflowInputs(
+    return ValidatedWorkflowRequest(
         request=request,
         phospho_matrix=validated_matrix,
         motif_scorer=motif_scorer,
+        predictor_svm_mode=(
+            default_svm_mode if request.svm_mode is None else request.svm_mode
+        ),
     )
 
 
 def validate_workflow_request(
-    request: KinaseWorkflowRequest,
     *,
+    phospho_matrix: pd.DataFrame,
+    substrate_map: Mapping[str, Sequence[str]],
+    site_sequences: Mapping[str, str] | pd.Series | None = None,
+    motif_sequences: Mapping[str, Sequence[str]] | None = None,
+    min_substrates: int = 1,
+    min_motif_size: int = 1,
+    allow_profile_only_fallback: bool = False,
+    ensemble_size: int = 10,
+    top: int = 50,
+    score_threshold: float = 0.8,
+    inclusion: int = 20,
+    n_iterations: int = 5,
+    random_state: int | None = None,
+    svm_mode: PredictionSvmMode | None = None,
     flank_size: int = 7,
+    default_svm_mode: PredictionSvmMode = "default",
     context: str = "Kinase workflow inputs",
-) -> pd.DataFrame:
-    return build_workflow_request_inputs(
+) -> ValidatedWorkflowRequest:
+    request = KinaseWorkflowRequest.validate_request(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        min_substrates=min_substrates,
+        min_motif_size=min_motif_size,
+        allow_profile_only_fallback=allow_profile_only_fallback,
+        ensemble_size=ensemble_size,
+        top=top,
+        score_threshold=score_threshold,
+        inclusion=inclusion,
+        n_iterations=n_iterations,
+        random_state=random_state,
+        svm_mode=svm_mode,
+    )
+    return build_validated_workflow_request(
         request,
         flank_size=flank_size,
+        default_svm_mode=default_svm_mode,
         context=context,
-    ).phospho_matrix
+    )
+
+
+def build_workflow_request_inputs(
+    request: KinaseWorkflowRequest,
+    *,
+    flank_size: int,
+    default_svm_mode: PredictionSvmMode = "default",
+    context: str = "Kinase workflow inputs",
+) -> ValidatedWorkflowRequest:
+    """Compatibility wrapper around :func:`build_validated_workflow_request`."""
+
+    return build_validated_workflow_request(
+        request,
+        flank_size=flank_size,
+        default_svm_mode=default_svm_mode,
+        context=context,
+    )
 
 
 def validate_workflow_inputs(
@@ -222,6 +281,8 @@ def _extract_sequence_index(
 __all__ = [
     "KinaseWorkflowRequest",
     "ValidatedKinaseWorkflowInputs",
+    "ValidatedWorkflowRequest",
+    "build_validated_workflow_request",
     "build_workflow_request_inputs",
     "validate_workflow_inputs",
     "validate_workflow_request",

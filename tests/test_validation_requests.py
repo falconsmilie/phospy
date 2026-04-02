@@ -5,11 +5,23 @@ import pytest
 
 from phospy.dataset_schema import DatasetSchema
 from phospy.prediction.traces import TraceSink
-from phospy.validation.analysis import KinaseActivityRequest
+from phospy.validation.analysis import (
+    KinaseActivityRequest,
+    ValidatedAnalysisRequest,
+    validate_analysis_request,
+)
 from phospy.validation.errors import RequestValidationError
-from phospy.validation.pipeline import CorePipelineRequest
+from phospy.validation.pipeline import (
+    CorePipelineRequest,
+    ValidatedPipelineRequest,
+    validate_pipeline_request,
+)
 from phospy.validation.prediction import PredictionRequest
-from phospy.validation.workflow import KinaseWorkflowRequest
+from phospy.validation.workflow import (
+    KinaseWorkflowRequest,
+    ValidatedWorkflowRequest,
+    validate_workflow_request,
+)
 
 
 class _DummyTraceSink(TraceSink):
@@ -379,3 +391,76 @@ def test_validation_modules_expose_use_case_boundaries() -> None:
     assert KinaseActivityRequest.__module__ == "phospy.validation.analysis"
     assert KinaseWorkflowRequest.__module__ == "phospy.validation.workflow"
     assert PredictionRequest.__module__ == "phospy.validation.prediction"
+
+
+def test_validated_dataset_and_pipeline_requests_can_be_created() -> None:
+    from phospy import PhosphoDataset
+    from phospy.validation.dataset import (
+        ValidatedDatasetInputs,
+        validate_dataset_request,
+    )
+
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+
+    dataset_request = validate_dataset_request(total_df=total_df, phospho_df=phospho_df)
+    assert isinstance(dataset_request, ValidatedDatasetInputs)
+
+    pipeline_request = validate_pipeline_request(
+        dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
+        pred_mat=pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"]),
+    )
+    assert isinstance(pipeline_request, ValidatedPipelineRequest)
+
+
+def test_validated_workflow_and_analysis_requests_can_be_created() -> None:
+    workflow_request = validate_workflow_request(
+        phospho_matrix=pd.DataFrame(
+            {"sample_1": [1.0], "sample_2": [2.0]},
+            index=["SITE_1"],
+        ),
+        substrate_map={"KINASE_A": ["SITE_1"]},
+        site_sequences={"SITE_1": "QQAAAAAYY"},
+        motif_sequences={"KINASE_A": ["QQAAAAAYY"]},
+        allow_profile_only_fallback=False,
+        flank_size=2,
+        default_svm_mode="default",
+    )
+    assert isinstance(workflow_request, ValidatedWorkflowRequest)
+
+    analysis_request = validate_analysis_request(
+        pred_mat=pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"]),
+        phospho_matrix=pd.DataFrame({"sample_1": [1.0]}, index=["PRKACA;S339;"]),
+    )
+    assert isinstance(analysis_request, ValidatedAnalysisRequest)
+
+
+def test_validate_pipeline_request_rejects_non_dataset_inputs() -> None:
+    with pytest.raises(
+        RequestValidationError, match="dataset must be a PhosphoDataset"
+    ):
+        validate_pipeline_request(dataset=object())

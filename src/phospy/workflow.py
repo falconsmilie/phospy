@@ -12,8 +12,9 @@ from .scoring import KinaseScorer, KinaseScoringResult
 from .types import PredictionSvmMode
 from .validation.workflow import (
     KinaseWorkflowRequest,
-    ValidatedKinaseWorkflowInputs,
-    build_workflow_request_inputs,
+    ValidatedWorkflowRequest,
+    build_validated_workflow_request,
+    validate_workflow_request,
 )
 
 
@@ -27,9 +28,14 @@ class KinaseWorkflowResult:
 
 @dataclass(frozen=True, slots=True)
 class WorkflowExecutionPlan:
-    validated_inputs: ValidatedKinaseWorkflowInputs
-    predictor_svm_mode: PredictionSvmMode
+    request: ValidatedWorkflowRequest
     kernel: str
+    predictor_svm_mode: PredictionSvmMode
+
+    @property
+    def validated_inputs(self) -> ValidatedWorkflowRequest:
+        """Backward-compatible alias for older planner consumers."""
+        return self.request
 
 
 class WorkflowExecutionPlanner:
@@ -44,24 +50,28 @@ class WorkflowExecutionPlanner:
         self.kernel = kernel
         self.default_svm_mode = default_svm_mode
 
-    def plan(self, request: KinaseWorkflowRequest) -> WorkflowExecutionPlan:
-        validated_inputs = build_workflow_request_inputs(
-            request,
-            flank_size=self.flank_size,
-        )
+    def plan(
+        self,
+        request: ValidatedWorkflowRequest | KinaseWorkflowRequest,
+    ) -> WorkflowExecutionPlan:
+        validated_request = request
+        if isinstance(request, KinaseWorkflowRequest):
+            validated_request = build_validated_workflow_request(
+                request,
+                flank_size=self.flank_size,
+                default_svm_mode=self.default_svm_mode,
+            )
         return WorkflowExecutionPlan(
-            validated_inputs=validated_inputs,
-            predictor_svm_mode=(
-                self.default_svm_mode if request.svm_mode is None else request.svm_mode
-            ),
+            request=validated_request,
             kernel=self.kernel,
+            predictor_svm_mode=validated_request.predictor_svm_mode,
         )
 
 
 class WorkflowExecutionRunner:
     def execute(self, plan: WorkflowExecutionPlan) -> KinaseWorkflowResult:
-        request = plan.validated_inputs.request
-        phospho_matrix = plan.validated_inputs.phospho_matrix
+        request = plan.request.request
+        phospho_matrix = plan.request.phospho_matrix
 
         profile_result = build_kinase_substrate_profiles(
             substrate_map=request.substrate_map,
@@ -72,8 +82,8 @@ class WorkflowExecutionRunner:
         scorer = KinaseScorer(profile_result.profile_matrix)
         motif_result: MotifScoringResult | None = None
 
-        if plan.validated_inputs.motif_scorer is not None:
-            motif_result = plan.validated_inputs.motif_scorer.score_sequences(
+        if plan.request.motif_scorer is not None:
+            motif_result = plan.request.motif_scorer.score_sequences(
                 seqs=request.site_sequences,
                 site_index=phospho_matrix.index,
                 min_motif_size=request.min_motif_size,
@@ -131,6 +141,43 @@ class KinaseWorkflow:
         )
         self.execution_runner = WorkflowExecutionRunner()
 
+    def validate_request(
+        self,
+        *,
+        phospho_matrix: pd.DataFrame,
+        substrate_map: Mapping[str, Sequence[str]],
+        site_sequences: Mapping[str, str] | pd.Series | None = None,
+        motif_sequences: Mapping[str, Sequence[str]] | None = None,
+        min_substrates: int = 1,
+        min_motif_size: int = 1,
+        allow_profile_only_fallback: bool = False,
+        ensemble_size: int = 10,
+        top: int = 50,
+        score_threshold: float = 0.8,
+        inclusion: int = 20,
+        n_iterations: int = 5,
+        random_state: int | None = None,
+        svm_mode: PredictionSvmMode | None = None,
+    ) -> ValidatedWorkflowRequest:
+        return validate_workflow_request(
+            phospho_matrix=phospho_matrix,
+            substrate_map=substrate_map,
+            site_sequences=site_sequences,
+            motif_sequences=motif_sequences,
+            min_substrates=min_substrates,
+            min_motif_size=min_motif_size,
+            allow_profile_only_fallback=allow_profile_only_fallback,
+            ensemble_size=ensemble_size,
+            top=top,
+            score_threshold=score_threshold,
+            inclusion=inclusion,
+            n_iterations=n_iterations,
+            random_state=random_state,
+            svm_mode=svm_mode,
+            flank_size=self.flank_size,
+            default_svm_mode=self.svm_mode,
+        )
+
     def run(
         self,
         phospho_matrix: pd.DataFrame,
@@ -148,7 +195,7 @@ class KinaseWorkflow:
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
     ) -> KinaseWorkflowResult:
-        request = KinaseWorkflowRequest.validate_request(
+        request = self.validate_request(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
             site_sequences=site_sequences,
@@ -166,5 +213,17 @@ class KinaseWorkflow:
         )
         return self.run_request(request)
 
-    def run_request(self, request: KinaseWorkflowRequest) -> KinaseWorkflowResult:
-        return self.execution_runner.execute(self.execution_planner.plan(request))
+    def run_request(
+        self,
+        request: ValidatedWorkflowRequest | KinaseWorkflowRequest,
+    ) -> KinaseWorkflowResult:
+        validated_request = request
+        if isinstance(request, KinaseWorkflowRequest):
+            validated_request = build_validated_workflow_request(
+                request,
+                flank_size=self.flank_size,
+                default_svm_mode=self.svm_mode,
+            )
+        return self.execution_runner.execute(
+            self.execution_planner.plan(validated_request)
+        )

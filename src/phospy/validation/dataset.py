@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
 
+from ..constants import ComparisonSpec
 from ..dataset_schema import DatasetSchema
+from .errors import InputCompatibilityError
 from .paths import validate_existing_file_path
 from .tables import PhosphoInputSchema, TotalInputSchema
 
@@ -16,6 +19,16 @@ class ValidatedDatasetPaths:
 
     total_path: Path
     phospho_path: Path
+
+
+@dataclass(frozen=True, slots=True)
+class ValidatedDatasetInputs:
+    """Trusted dataset inputs for the public :class:`phospy.PhosphoDataset` boundary."""
+
+    schema: DatasetSchema
+    total_df: pd.DataFrame
+    phospho_df: pd.DataFrame
+    comparisons: tuple[ComparisonSpec, ...] | None = None
 
 
 def validate_dataset_file_paths(
@@ -55,8 +68,74 @@ def validate_dataset_frames(
     return validated_total, validated_phospho
 
 
+def validate_dataset_request(
+    *,
+    total_df: pd.DataFrame,
+    phospho_df: pd.DataFrame,
+    schema: DatasetSchema | None = None,
+    comparisons: Sequence[ComparisonSpec] | None = None,
+    context: str = "PhosphoDataset",
+) -> ValidatedDatasetInputs:
+    """Validate raw dataset inputs for the public dataset boundary."""
+
+    resolved_schema = schema or DatasetSchema()
+    validated_total, validated_phospho = validate_dataset_frames(
+        total_df=total_df,
+        phospho_df=phospho_df,
+        schema=resolved_schema,
+    )
+    validated_comparisons = _validate_dataset_comparisons(
+        schema=resolved_schema,
+        comparisons=comparisons,
+        context=context,
+    )
+    return ValidatedDatasetInputs(
+        schema=resolved_schema,
+        total_df=validated_total,
+        phospho_df=validated_phospho,
+        comparisons=validated_comparisons,
+    )
+
+
+def build_validated_dataset_inputs(
+    *,
+    schema: DatasetSchema,
+    total_df: pd.DataFrame,
+    phospho_df: pd.DataFrame,
+    comparisons: Sequence[ComparisonSpec] | None = None,
+    context: str = "PhosphoDataset",
+) -> ValidatedDatasetInputs:
+    """Build a validated dataset request from already validated frames."""
+
+    return ValidatedDatasetInputs(
+        schema=schema,
+        total_df=total_df,
+        phospho_df=phospho_df,
+        comparisons=_validate_dataset_comparisons(
+            schema=schema,
+            comparisons=comparisons,
+            context=context,
+        ),
+    )
+
+
+def _validate_dataset_comparisons(
+    *,
+    schema: DatasetSchema,
+    comparisons: Sequence[ComparisonSpec] | None,
+    context: str,
+) -> tuple[ComparisonSpec, ...] | None:
+    try:
+        return schema.validate_comparisons(comparisons, context=context)
+    except (InputCompatibilityError, TypeError, ValueError):
+        raise
+
+
 __all__ = [
+    "ValidatedDatasetInputs",
     "ValidatedDatasetPaths",
+    "build_validated_dataset_inputs",
     "validate_dataset_file_paths",
     "validate_dataset_frames",
+    "validate_dataset_request",
 ]

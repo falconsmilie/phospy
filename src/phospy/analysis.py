@@ -14,9 +14,10 @@ from .activities import (
 from .io import load_pred_mat
 from .validation.analysis import (
     KinaseActivityRequest,
-    ValidatedKinaseActivityInputs,
-    build_kinase_activity_inputs,
-    build_loaded_kinase_activity_inputs,
+    ValidatedAnalysisRequest,
+    build_loaded_analysis_request,
+    build_validated_analysis_request,
+    validate_analysis_request,
 )
 from .writers import KinaseActivityResultWriter, KinaseActivityWriter
 
@@ -42,6 +43,23 @@ class KinaseActivityAnalyzer:
 
         return load_pred_mat(pred_mat_path)
 
+    def validate_request(
+        self,
+        *,
+        pred_mat: pd.DataFrame,
+        phospho_matrix: pd.DataFrame,
+        threshold: float = 0.6,
+        min_substrates: int = 3,
+        top_n_substrates: int = 20,
+    ) -> ValidatedAnalysisRequest:
+        return validate_analysis_request(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+            threshold=threshold,
+            min_substrates=min_substrates,
+            top_n_substrates=top_n_substrates,
+        )
+
     @staticmethod
     def analyze(
         pred_mat: pd.DataFrame,
@@ -50,60 +68,66 @@ class KinaseActivityAnalyzer:
         min_substrates: int = 3,
         top_n_substrates: int = 20,
     ) -> KinaseActivityResult:
-        """Compute downstream kinase summaries from a validated prediction matrix."""
+        """Compute downstream kinase summaries from raw public inputs."""
 
-        request = KinaseActivityRequest.validate_request(
+        analyzer = KinaseActivityAnalyzer()
+        request = analyzer.validate_request(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
             threshold=threshold,
             min_substrates=min_substrates,
             top_n_substrates=top_n_substrates,
         )
-        return KinaseActivityAnalyzer.analyze_request(
-            request=request,
-            pred_mat=pred_mat,
-            phospho_matrix=phospho_matrix,
-        )
+        return analyzer.analyze_validated_request(request=request)
 
     @staticmethod
     def analyze_request(
         *,
-        request: KinaseActivityRequest,
-        pred_mat: pd.DataFrame,
-        phospho_matrix: pd.DataFrame,
+        request: ValidatedAnalysisRequest | KinaseActivityRequest,
+        pred_mat: pd.DataFrame | None = None,
+        phospho_matrix: pd.DataFrame | None = None,
     ) -> KinaseActivityResult:
-        validated_inputs = build_kinase_activity_inputs(
-            pred_mat=pred_mat,
-            phospho_matrix=phospho_matrix,
-        )
-        return KinaseActivityAnalyzer._analyze_validated_request(
-            request=request,
-            validated_inputs=validated_inputs,
+        if isinstance(request, KinaseActivityRequest):
+            if pred_mat is None or phospho_matrix is None:
+                msg = (
+                    "analyze_request requires pred_mat and phospho_matrix when "
+                    "given a KinaseActivityRequest"
+                )
+                raise TypeError(msg)
+            validated_request = build_validated_analysis_request(
+                request=request,
+                pred_mat=pred_mat,
+                phospho_matrix=phospho_matrix,
+            )
+        else:
+            validated_request = request
+        return KinaseActivityAnalyzer.analyze_validated_request(
+            request=validated_request,
         )
 
     @staticmethod
-    def _analyze_validated_request(
-        *,
-        request: KinaseActivityRequest,
-        validated_inputs: ValidatedKinaseActivityInputs,
+    def analyze_validated_request(
+        *, request: ValidatedAnalysisRequest
     ) -> KinaseActivityResult:
         weighted_activity = compute_weighted_kinase_activity(
-            pred_mat=validated_inputs.pred_mat,
-            phospho_matrix=validated_inputs.phospho_matrix,
-            top_n_substrates=request.top_n_substrates,
-            min_substrates=request.min_substrates,
+            pred_mat=request.pred_mat,
+            phospho_matrix=request.phospho_matrix,
+            top_n_substrates=request.request.top_n_substrates,
+            min_substrates=request.request.min_substrates,
         )
         ksea_scores, ksea_counts = compute_ksea_scores(
-            pred_mat=validated_inputs.pred_mat,
-            phospho_matrix=validated_inputs.phospho_matrix,
-            threshold=request.threshold,
-            min_substrates=request.min_substrates,
+            pred_mat=request.pred_mat,
+            phospho_matrix=request.phospho_matrix,
+            threshold=request.request.threshold,
+            min_substrates=request.request.min_substrates,
         )
         target_counts = count_predicted_targets(
-            validated_inputs.pred_mat,
-            threshold=request.threshold,
+            request.pred_mat,
+            threshold=request.request.threshold,
         )
         target_table = build_kinase_target_table(
-            validated_inputs.pred_mat,
-            threshold=request.threshold,
+            request.pred_mat,
+            threshold=request.request.threshold,
         )
 
         return KinaseActivityResult(
@@ -125,12 +149,13 @@ class KinaseActivityAnalyzer:
         """Load a prediction matrix from disk and compute downstream kinase summaries."""
 
         validated_pred_mat = self.load_pred_mat(pred_mat_path)
-        request = KinaseActivityRequest.validate_request(
+        raw_request = KinaseActivityRequest.validate_request(
             threshold=threshold,
             min_substrates=min_substrates,
             top_n_substrates=top_n_substrates,
         )
-        validated_inputs = build_loaded_kinase_activity_inputs(
+        request = build_loaded_analysis_request(
+            request=raw_request,
             validated_pred_mat=validated_pred_mat,
             phospho_matrix=phospho_matrix,
             pred_context="pred_mat",
@@ -138,10 +163,7 @@ class KinaseActivityAnalyzer:
             min_overlap=1,
             min_fraction=0.1,
         )
-        return self._analyze_validated_request(
-            request=request,
-            validated_inputs=validated_inputs,
-        )
+        return self.analyze_validated_request(request=request)
 
     def write_outputs(self, result: KinaseActivityResult, outdir: str | Path) -> None:
         self.result_writer.write(result, outdir)

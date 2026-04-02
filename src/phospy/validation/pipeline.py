@@ -1,18 +1,26 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+import pandas as pd
 from pydantic import Field, ValidationError, field_validator, model_validator
 
 from ..constants import ComparisonSpec
+from ..core_processing import CorePreprocessingConfig
 from ..dataset_schema import DatasetSchema
 from ._models import PhospyRequestModel
 from .errors import InputCompatibilityError, RequestValidationError
 from .paths import validate_existing_file_path
+from .tables import PredMatSchema
+
+if TYPE_CHECKING:
+    from ..dataset import PhosphoDataset
 
 
 class CorePipelineRequest(PhospyRequestModel):
-    """Validated boundary request for file-backed pipeline construction."""
+    """Validated file-backed boundary request for pipeline construction."""
 
     total_path: Path
     phospho_path: Path
@@ -59,4 +67,64 @@ class CorePipelineRequest(PhospyRequestModel):
             ) from error
 
 
-__all__ = ["CorePipelineRequest"]
+@dataclass(frozen=True, slots=True)
+class ValidatedPipelineRequest:
+    """Trusted in-memory pipeline request for the public :class:`phospy.PhosRPipeline` boundary."""
+
+    dataset: PhosphoDataset
+    pred_mat: pd.DataFrame | None
+    preprocessing_config: CorePreprocessingConfig
+
+
+def validate_pipeline_request(
+    *,
+    dataset: PhosphoDataset,
+    pred_mat: pd.DataFrame | None = None,
+    preprocessing_config: CorePreprocessingConfig | None = None,
+    localization_threshold: float = 0.75,
+    min_observed: int = 4,
+    max_unmatched_fraction: float = 0.0,
+    total_sentinel: float = 10.0,
+    phospho_sentinel: float = 12.0,
+) -> ValidatedPipelineRequest:
+    """Validate raw in-memory pipeline inputs for the public pipeline boundary."""
+
+    from ..dataset import PhosphoDataset
+
+    if not isinstance(dataset, PhosphoDataset):
+        msg = "Invalid pipeline request: dataset must be a PhosphoDataset instance"
+        raise RequestValidationError(msg)
+
+    if preprocessing_config is None:
+        resolved_config = CorePreprocessingConfig(
+            localization_threshold=localization_threshold,
+            min_observed=min_observed,
+            max_unmatched_fraction=max_unmatched_fraction,
+            total_sentinel=total_sentinel,
+            phospho_sentinel=phospho_sentinel,
+        )
+    elif isinstance(preprocessing_config, CorePreprocessingConfig):
+        resolved_config = preprocessing_config
+    else:
+        msg = (
+            "Invalid pipeline request: preprocessing_config must be a "
+            "CorePreprocessingConfig instance"
+        )
+        raise RequestValidationError(msg)
+
+    validated_pred_mat = None
+    if pred_mat is not None:
+        validated_pred_mat = PredMatSchema.validate(pred_mat, context="pred_mat")
+
+    return ValidatedPipelineRequest(
+        dataset=dataset,
+        pred_mat=validated_pred_mat,
+        preprocessing_config=resolved_config,
+    )
+
+
+__all__ = [
+    "CorePipelineRequest",
+    "ValidatedPipelineRequest",
+    "validate_pipeline_request",
+]
