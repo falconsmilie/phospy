@@ -51,17 +51,40 @@ dev = [
   "ruff>=0.15.7",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+minversion = "6.0"
+addopts = "--cov --cov-report=term-missing --cov-report=html"
+markers = [
+  "parity: compare Python outputs against R/PhosR reference fixtures",
+]
+
+[tool.coverage.run]
+branch = true
+source_pkgs = ["phospy"]
+relative_files = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+#fail_under = 85
+omit = [
+    "tests/*",
+]
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
 [project.scripts]
 phospy = "phospy.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-markers = [
-  "parity: compare Python outputs against R/PhosR reference fixtures",
-]
 
 [tool.ruff]
 line-length = 88
