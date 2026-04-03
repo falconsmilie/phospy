@@ -239,6 +239,25 @@ def test_prediction_request_validation_preserves_explicit_trace_sink_spec() -> N
     assert request.trace_sink is trace_sink
 
 
+def test_prediction_request_rejects_trace_sink_without_full_trace_level() -> None:
+    with pytest.raises(
+        RequestValidationError,
+        match="trace_sink may only be provided when trace_level='full'",
+    ):
+        PredictionRequest.validate_request(
+            combined_scores=pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"]),
+            ensemble_size=2,
+            top=2,
+            score_threshold=0.8,
+            inclusion=1,
+            n_iterations=2,
+            debug_top_n=1,
+            trace_level="summary",
+            trace_sink=_DummyTraceSink(),
+            default_svm_mode="default",
+        )
+
+
 def test_prediction_request_rejects_non_positive_integer_fields() -> None:
     with pytest.raises(RequestValidationError, match="ensemble_size"):
         PredictionRequest.validate_request(

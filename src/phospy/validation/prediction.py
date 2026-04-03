@@ -107,8 +107,6 @@ class PredictionRequest(PhospyRequestModel):
         request_data["svm_mode"] = resolved_svm_mode
         request_data["trace_level"] = resolved_trace_level
         request_data["trace_sink_format"] = resolved_trace_format
-        if resolved_trace_level != "full":
-            request_data["trace_sink"] = None
 
         try:
             return cls.model_validate(request_data)

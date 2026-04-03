@@ -1169,6 +1169,27 @@ def test_predict_rejects_invalid_trace_sink_format_at_boundary() -> None:
         )
 
 
+def test_predict_rejects_trace_sink_without_full_trace_level_at_boundary(
+    tmp_path: Path,
+) -> None:
+    predictor = KinasePredictor()
+
+    with pytest.raises(
+        RequestValidationError,
+        match="trace_sink may only be provided when trace_level='full'",
+    ):
+        predictor.predict(
+            combined_scores=make_combined_scores(),
+            ensemble_size=1,
+            top=4,
+            score_threshold=0.85,
+            inclusion=3,
+            n_iterations=1,
+            trace_level="summary",
+            trace_sink=tmp_path / "trace_output",
+        )
+
+
 def test_predict_request_uses_prevalidated_request_without_revalidating_candidate_scalars() -> (
     None
 ):

@@ -17,6 +17,7 @@ from phospy.validation.errors import (
     PhospyError,
     PhospyValidationError,
     PredictionConfigurationError,
+    RequestValidationError,
     TableSchemaError,
 )
 
@@ -102,6 +103,30 @@ def test_predict_rejects_missing_negative_pool_with_configuration_error() -> Non
 def test_prediction_configuration_error_is_a_package_validation_error() -> None:
     assert issubclass(PredictionConfigurationError, PhospyValidationError)
     assert issubclass(PredictionConfigurationError, PhospyError)
+
+
+def test_predict_rejects_trace_sink_without_full_trace_level_with_package_error(
+    tmp_path: Path,
+) -> None:
+    predictor = KinasePredictor()
+
+    with pytest.raises(
+        RequestValidationError,
+        match="trace_sink may only be provided when trace_level='full'",
+    ):
+        predictor.predict(
+            combined_scores=pd.DataFrame(
+                {"KINASE_A": [0.95, 0.93]}, index=["SITE_1", "SITE_2"]
+            ),
+            ensemble_size=2,
+            top=2,
+            score_threshold=0.9,
+            inclusion=1,
+            n_iterations=2,
+            random_state=3,
+            trace_level="summary",
+            trace_sink=tmp_path / "trace_output",
+        )
 
 
 def test_predict_from_scoring_result_requires_profile_fallback_with_package_error() -> (
