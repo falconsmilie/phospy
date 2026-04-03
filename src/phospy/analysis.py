@@ -96,6 +96,12 @@ class KinaseActivityAnalyzer:
     def analyze_validated_request(
         *, request: ValidatedAnalysisRequest
     ) -> KinaseActivityResult:
+        if not isinstance(request, ValidatedAnalysisRequest):
+            msg = (
+                "analyze_validated_request requires a ValidatedAnalysisRequest. "
+                "Call validate_request(...) first."
+            )
+            raise TypeError(msg)
         weighted_activity = compute_weighted_kinase_activity(
             pred_mat=request.pred_mat,
             phospho_matrix=request.phospho_matrix,

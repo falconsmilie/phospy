@@ -94,6 +94,12 @@ class PipelineExecutionRunner:
         self.kinase_activity_analyzer = kinase_activity_analyzer
 
     def run(self, request: ValidatedPipelineRequest) -> CoreOutputs:
+        if not isinstance(request, ValidatedPipelineRequest):
+            msg = (
+                "PipelineExecutionRunner.run requires a ValidatedPipelineRequest. "
+                "Call validate_pipeline_request(...) first."
+            )
+            raise TypeError(msg)
         core = request.dataset.preprocessing.run(config=request.preprocessing_config)
 
         kinase_activity = None
@@ -194,6 +200,12 @@ class PhosRPipeline:
         cls,
         request: ValidatedPipelineRequest,
     ) -> PhosRPipeline:
+        if not isinstance(request, ValidatedPipelineRequest):
+            msg = (
+                "from_validated_request requires a ValidatedPipelineRequest. "
+                "Call validate_pipeline_request(...) or from_request(...) first."
+            )
+            raise TypeError(msg)
         instance = cls.__new__(cls)
         object.__setattr__(instance, "request", request)
         instance.dataset = request.dataset

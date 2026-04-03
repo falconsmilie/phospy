@@ -105,8 +105,8 @@ class PhosphoDataset:
         """Build a dataset from validated inputs produced by ``DatasetLoader``."""
         if not isinstance(validated_inputs, ValidatedCoreInputs):
             msg = (
-                "validated_inputs must be a ValidatedCoreInputs instance "
-                "produced by DatasetLoader"
+                "from_validated_inputs requires a ValidatedCoreInputs instance. "
+                "Call DatasetLoader.validate(...) or DatasetLoader.load(...) first."
             )
             raise TypeError(msg)
         validated_request = build_validated_dataset_inputs(

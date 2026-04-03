@@ -203,6 +203,19 @@ def test_analyze_request_uses_validated_boundary_request(
     assert matrix_calls == ["phospho_matrix"]
 
 
+def test_analyze_validated_request_rejects_raw_request_objects() -> None:
+    request = KinaseActivityRequest.validate_request(
+        threshold=0.6,
+        min_substrates=2,
+        top_n_substrates=20,
+    )
+
+    with pytest.raises(TypeError, match="ValidatedAnalysisRequest"):
+        KinaseActivityAnalyzer.analyze_validated_request(
+            request=request  # type: ignore[arg-type]
+        )
+
+
 def test_analyze_request_rejects_raw_request_objects() -> None:
     request = KinaseActivityRequest.validate_request(
         threshold=0.6,

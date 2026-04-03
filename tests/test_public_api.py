@@ -745,6 +745,11 @@ def test_pipeline_from_request_validates_inputs_once(monkeypatch, tmp_path) -> N
     assert phospho_calls == 1
 
 
+def test_pipeline_from_validated_request_rejects_raw_request_objects() -> None:
+    with pytest.raises(TypeError, match="ValidatedPipelineRequest"):
+        PhosRPipeline.from_validated_request(object())  # type: ignore[arg-type]
+
+
 def test_pipeline_writes_run_manifest(tmp_path) -> None:
     total_path = tmp_path / "total.tsv"
     phospho_path = tmp_path / "phospho.tsv"
