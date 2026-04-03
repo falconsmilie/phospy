@@ -190,6 +190,61 @@ def test_output_publisher_cleans_stale_backup_after_completed_replacement(
     assert not marker_path.exists()
 
 
+def test_output_publisher_quarantines_corrupt_marker_and_continues_publish(
+    tmp_path: Path,
+) -> None:
+    target_dir = tmp_path / "published"
+    staging_dir = tmp_path / "staging"
+    marker_path = tmp_path / ".published.publish-state.json"
+
+    target_dir.mkdir()
+    staging_dir.mkdir()
+    (target_dir / "old.txt").write_text("old", encoding="utf-8")
+    (staging_dir / "new.txt").write_text("new", encoding="utf-8")
+    marker_path.write_text("{not valid json", encoding="utf-8")
+
+    OutputPublisher().publish(staging_dir=staging_dir, target_dir=target_dir)
+
+    assert target_dir.exists()
+    assert (target_dir / "new.txt").read_text(encoding="utf-8") == "new"
+    assert not (target_dir / "old.txt").exists()
+    assert not marker_path.exists()
+
+    quarantined_path = tmp_path / ".published.publish-state.json.corrupt"
+    assert quarantined_path.exists()
+    assert quarantined_path.read_text(encoding="utf-8") == "{not valid json"
+
+
+def test_output_publisher_quarantines_malformed_marker_object_and_continues_publish(
+    tmp_path: Path,
+) -> None:
+    target_dir = tmp_path / "published"
+    staging_dir = tmp_path / "staging"
+    marker_path = tmp_path / ".published.publish-state.json"
+
+    target_dir.mkdir()
+    staging_dir.mkdir()
+    (target_dir / "old.txt").write_text("old", encoding="utf-8")
+    (staging_dir / "new.txt").write_text("new", encoding="utf-8")
+    marker_path.write_text(
+        json.dumps({"target_dir": str(target_dir)}) + "\n",
+        encoding="utf-8",
+    )
+
+    OutputPublisher().publish(staging_dir=staging_dir, target_dir=target_dir)
+
+    assert target_dir.exists()
+    assert (target_dir / "new.txt").read_text(encoding="utf-8") == "new"
+    assert not (target_dir / "old.txt").exists()
+    assert not marker_path.exists()
+
+    quarantined_path = tmp_path / ".published.publish-state.json.corrupt"
+    assert quarantined_path.exists()
+    assert json.loads(quarantined_path.read_text(encoding="utf-8")) == {
+        "target_dir": str(target_dir)
+    }
+
+
 def test_pipeline_delegates_manifest_and_publish_to_publishing_layer(
     tmp_path: Path,
 ) -> None:

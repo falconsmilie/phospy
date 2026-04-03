@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
+from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -109,7 +110,12 @@ class OutputPublisher:
         if not marker_path.exists():
             return
 
-        recovery_state = self._read_recovery_marker(marker_path)
+        try:
+            recovery_state = self._read_recovery_marker(marker_path)
+        except (JSONDecodeError, OSError, TypeError, ValueError):
+            self._quarantine_recovery_marker(marker_path)
+            return
+
         backup_dir = Path(recovery_state["backup_dir"])
         expected_target_dir = Path(recovery_state["target_dir"])
         if expected_target_dir != target_dir:
@@ -166,7 +172,39 @@ class OutputPublisher:
 
     @staticmethod
     def _read_recovery_marker(marker_path: Path) -> dict[str, str]:
-        return json.loads(marker_path.read_text(encoding="utf-8"))
+        raw_state = json.loads(marker_path.read_text(encoding="utf-8"))
+        if not isinstance(raw_state, dict):
+            raise ValueError(
+                f"Recovery marker {marker_path} must contain a JSON object."
+            )
+
+        target_dir = raw_state.get("target_dir")
+        backup_dir = raw_state.get("backup_dir")
+        if not isinstance(target_dir, str) or not target_dir:
+            raise ValueError(
+                f"Recovery marker {marker_path} is missing a valid 'target_dir'."
+            )
+        if not isinstance(backup_dir, str) or not backup_dir:
+            raise ValueError(
+                f"Recovery marker {marker_path} is missing a valid 'backup_dir'."
+            )
+
+        return {
+            "target_dir": target_dir,
+            "backup_dir": backup_dir,
+        }
+
+    @staticmethod
+    def _quarantine_recovery_marker(marker_path: Path) -> Path:
+        quarantined_path = marker_path.with_suffix(marker_path.suffix + ".corrupt")
+        counter = 1
+        while quarantined_path.exists():
+            quarantined_path = marker_path.with_suffix(
+                marker_path.suffix + f".corrupt.{counter}"
+            )
+            counter += 1
+        marker_path.replace(quarantined_path)
+        return quarantined_path
 
     @staticmethod
     def _remove_recovery_marker(marker_path: Path) -> None:
