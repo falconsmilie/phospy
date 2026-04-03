@@ -49,10 +49,13 @@ class KinasePredictionResult:
     debug_traces: dict[str, KinasePredictionDebugTrace] | None = None
     trace_level: PredictionTraceLevel = "none"
     trace_sink: TraceSink | None = None
+    owns_trace_sink: bool = False
 
     def close(self) -> None:
-        if self.trace_sink is not None:
-            self.trace_sink.close()
+        if not self.owns_trace_sink or self.trace_sink is None:
+            return
+        self.trace_sink.close()
+        self.owns_trace_sink = False
 
     def __enter__(self) -> KinasePredictionResult:
         return self
@@ -64,6 +67,12 @@ class KinasePredictionResult:
         tb: object | None,
     ) -> None:
         self.close()
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            return None
 
 
 @dataclass(slots=True)

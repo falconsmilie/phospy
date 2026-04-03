@@ -212,7 +212,9 @@ def test_predict_can_stream_full_trace_tables_to_sink(tmp_path: Path) -> None:
     assert not tables["trace_final_ensemble_top"].empty
 
 
-def test_predict_request_closes_owned_runtime_trace_sink_on_success() -> None:
+def test_predict_request_transfers_owned_runtime_trace_sink_to_result_on_success() -> (
+    None
+):
     predictor = KinasePredictor()
     request = PredictionRequest.validate_request(
         combined_scores=make_combined_scores(),
@@ -235,8 +237,13 @@ def test_predict_request_closes_owned_runtime_trace_sink_on_success() -> None:
 
     assert result.trace_level == "full"
     assert result.trace_sink is not None
+    assert result.owns_trace_sink is True
     output_dir = result.trace_sink.output_dir
-    assert not output_dir.exists()
+    assert output_dir.exists()
+
+    tables = prediction_debug_trace_tables(result)
+    assert not tables["trace_iteration_probabilities"].empty
+    assert not tables["trace_iteration_samples"].empty
 
     result.close()
     assert not output_dir.exists()
@@ -1050,6 +1057,33 @@ class _TrackingTraceSink(TraceSink):
         self.closed = True
 
 
+def test_prediction_result_close_does_not_close_caller_supplied_trace_sink() -> None:
+    predictor = KinasePredictor()
+    sink = _TrackingTraceSink()
+
+    result = predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=1,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=5,
+        capture_debug_trace=True,
+        debug_kinases=["KINASE_A"],
+        debug_top_n=3,
+        trace_level="full",
+        trace_sink=sink,
+    )
+
+    assert result.trace_sink is sink
+    assert result.owns_trace_sink is False
+
+    result.close()
+
+    assert sink.closed is False
+
+
 def test_predict_request_does_not_close_caller_supplied_trace_sink_on_failure() -> None:
     predictor = KinasePredictor()
     sink = _TrackingTraceSink()
@@ -1099,9 +1133,11 @@ def test_prediction_result_close_is_idempotent_for_owned_trace_sink() -> None:
     )
 
     assert result.trace_sink is not None
+    assert result.owns_trace_sink is True
     output_dir = result.trace_sink.output_dir
-    assert not output_dir.exists()
+    assert output_dir.exists()
 
+    result.close()
     result.close()
 
     assert not output_dir.exists()

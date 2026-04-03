@@ -12,6 +12,7 @@ from ..types import PredictionTraceFormat, PredictionTraceLevel
 
 if TYPE_CHECKING:
     from ..validation.prediction import PredictionRequest
+    from .models import KinasePredictionResult
 
 TRACE_TABLE_NAMES: tuple[str, ...] = (
     "trace_selected_candidates",
@@ -196,9 +197,24 @@ class PredictionExecutionContext:
 class PredictionRuntimeSession:
     runtime_request: PredictionRequest
     execution_context: PredictionExecutionContext
+    trace_sink_ownership_transferred: bool = False
 
     def __enter__(self) -> PredictionRuntimeSession:
         return self
+
+    def transfer_trace_sink_ownership(
+        self,
+        result: KinasePredictionResult,
+    ) -> KinasePredictionResult:
+        if (
+            not self.execution_context.owns_trace_sink
+            or self.execution_context.trace_sink is None
+        ):
+            return result
+        if result.trace_sink is self.execution_context.trace_sink:
+            result.owns_trace_sink = True
+            self.trace_sink_ownership_transferred = True
+        return result
 
     def __exit__(
         self,
@@ -206,7 +222,8 @@ class PredictionRuntimeSession:
         exc: BaseException | None,
         tb: object | None,
     ) -> None:
-        self.execution_context.close_owned_trace_sink()
+        if exc_type is not None or not self.trace_sink_ownership_transferred:
+            self.execution_context.close_owned_trace_sink()
 
 
 def build_prediction_execution_context(

@@ -213,7 +213,8 @@ class KinasePredictor:
 
     def predict_request(self, request: PredictionRequest) -> KinasePredictionResult:
         with build_prediction_runtime_session(request) as runtime_session:
-            return self._build_execution_runner().run(runtime_session.runtime_request)
+            result = self._build_execution_runner().run(runtime_session.runtime_request)
+            return runtime_session.transfer_trace_sink_ownership(result)
 
     def predict_from_scoring_result(
         self,
