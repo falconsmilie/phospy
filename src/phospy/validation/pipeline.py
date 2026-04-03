@@ -76,10 +76,10 @@ class ValidatedPipelineRequest:
     preprocessing_config: CorePreprocessingConfig
 
 
-def validate_pipeline_request(
+def build_validated_pipeline_request(
     *,
     dataset: PhosphoDataset,
-    pred_mat: pd.DataFrame | None = None,
+    validated_pred_mat: pd.DataFrame | None = None,
     preprocessing_config: CorePreprocessingConfig | None = None,
     localization_threshold: float = 0.75,
     min_observed: int = 4,
@@ -87,7 +87,7 @@ def validate_pipeline_request(
     total_sentinel: float = 10.0,
     phospho_sentinel: float = 12.0,
 ) -> ValidatedPipelineRequest:
-    """Validate raw in-memory pipeline inputs for the public pipeline boundary."""
+    """Build a trusted pipeline request from already validated inputs."""
 
     from ..dataset import PhosphoDataset
 
@@ -112,9 +112,11 @@ def validate_pipeline_request(
         )
         raise RequestValidationError(msg)
 
-    validated_pred_mat = None
-    if pred_mat is not None:
-        validated_pred_mat = PredMatSchema.validate(pred_mat, context="pred_mat")
+    if validated_pred_mat is not None and not isinstance(
+        validated_pred_mat, pd.DataFrame
+    ):
+        msg = "Invalid pipeline request: pred_mat must be a pandas DataFrame when provided"
+        raise RequestValidationError(msg)
 
     return ValidatedPipelineRequest(
         dataset=dataset,
@@ -123,8 +125,38 @@ def validate_pipeline_request(
     )
 
 
+def validate_pipeline_request(
+    *,
+    dataset: PhosphoDataset,
+    pred_mat: pd.DataFrame | None = None,
+    preprocessing_config: CorePreprocessingConfig | None = None,
+    localization_threshold: float = 0.75,
+    min_observed: int = 4,
+    max_unmatched_fraction: float = 0.0,
+    total_sentinel: float = 10.0,
+    phospho_sentinel: float = 12.0,
+) -> ValidatedPipelineRequest:
+    """Validate raw in-memory pipeline inputs for the public pipeline boundary."""
+
+    validated_pred_mat = None
+    if pred_mat is not None:
+        validated_pred_mat = PredMatSchema.validate(pred_mat, context="pred_mat")
+
+    return build_validated_pipeline_request(
+        dataset=dataset,
+        validated_pred_mat=validated_pred_mat,
+        preprocessing_config=preprocessing_config,
+        localization_threshold=localization_threshold,
+        min_observed=min_observed,
+        max_unmatched_fraction=max_unmatched_fraction,
+        total_sentinel=total_sentinel,
+        phospho_sentinel=phospho_sentinel,
+    )
+
+
 __all__ = [
     "CorePipelineRequest",
+    "build_validated_pipeline_request",
     "ValidatedPipelineRequest",
     "validate_pipeline_request",
 ]

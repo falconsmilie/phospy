@@ -11,9 +11,7 @@ from .profiles import KinaseProfileResult, build_kinase_substrate_profiles
 from .scoring import KinaseScorer, KinaseScoringResult
 from .types import PredictionSvmMode
 from .validation.workflow import (
-    KinaseWorkflowRequest,
     ValidatedWorkflowRequest,
-    build_validated_workflow_request,
     validate_workflow_request,
 )
 
@@ -52,19 +50,18 @@ class WorkflowExecutionPlanner:
 
     def plan(
         self,
-        request: ValidatedWorkflowRequest | KinaseWorkflowRequest,
+        request: ValidatedWorkflowRequest,
     ) -> WorkflowExecutionPlan:
-        validated_request = request
-        if isinstance(request, KinaseWorkflowRequest):
-            validated_request = build_validated_workflow_request(
-                request,
-                flank_size=self.flank_size,
-                default_svm_mode=self.default_svm_mode,
+        if not isinstance(request, ValidatedWorkflowRequest):
+            msg = (
+                "WorkflowExecutionPlanner.plan requires a ValidatedWorkflowRequest. "
+                "Call KinaseWorkflow.validate_request(...) first."
             )
+            raise TypeError(msg)
         return WorkflowExecutionPlan(
-            request=validated_request,
+            request=request,
             kernel=self.kernel,
-            predictor_svm_mode=validated_request.predictor_svm_mode,
+            predictor_svm_mode=request.predictor_svm_mode,
         )
 
 
@@ -215,15 +212,12 @@ class KinaseWorkflow:
 
     def run_request(
         self,
-        request: ValidatedWorkflowRequest | KinaseWorkflowRequest,
+        request: ValidatedWorkflowRequest,
     ) -> KinaseWorkflowResult:
-        validated_request = request
-        if isinstance(request, KinaseWorkflowRequest):
-            validated_request = build_validated_workflow_request(
-                request,
-                flank_size=self.flank_size,
-                default_svm_mode=self.svm_mode,
+        if not isinstance(request, ValidatedWorkflowRequest):
+            msg = (
+                "run_request requires a ValidatedWorkflowRequest. "
+                "Call validate_request(...) first."
             )
-        return self.execution_runner.execute(
-            self.execution_planner.plan(validated_request)
-        )
+            raise TypeError(msg)
+        return self.execution_runner.execute(self.execution_planner.plan(request))

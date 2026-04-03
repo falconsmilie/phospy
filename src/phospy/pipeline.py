@@ -15,10 +15,15 @@ from .dataset_loader import DatasetLoader
 from .dataset_schema import DatasetSchema
 from .io import load_pred_mat
 from .publishing import OutputPublisher, RunManifestWriter
+from .validation.analysis import (
+    KinaseActivityRequest,
+    build_runtime_analysis_request,
+)
 from .validation.errors import RequestValidationError, TableSchemaError
 from .validation.pipeline import (
     CorePipelineRequest,
     ValidatedPipelineRequest,
+    build_validated_pipeline_request,
     validate_pipeline_request,
 )
 from .writers import CoreOutputWriter, KinaseActivityWriter
@@ -54,9 +59,9 @@ class PipelineRequestLoader:
             validated_inputs,
             comparisons=request.comparisons,
         )
-        return validate_pipeline_request(
+        return build_validated_pipeline_request(
             dataset=dataset,
-            pred_mat=self._load_pred_mat(request),
+            validated_pred_mat=self._load_pred_mat(request),
             localization_threshold=request.localization_threshold,
             min_observed=request.min_observed,
             max_unmatched_fraction=request.max_unmatched_fraction,
@@ -93,11 +98,15 @@ class PipelineExecutionRunner:
 
         kinase_activity = None
         if request.pred_mat is not None:
+            kinase_activity_request = build_runtime_analysis_request(
+                request=KinaseActivityRequest.validate_request(),
+                validated_pred_mat=request.pred_mat,
+                validated_phospho_matrix=core.site_matrix.matrix,
+                pred_context="pred_mat",
+                matrix_context="site matrix",
+            )
             kinase_activity = self.kinase_activity_analyzer.analyze_validated_request(
-                request=self.kinase_activity_analyzer.validate_request(
-                    pred_mat=request.pred_mat,
-                    phospho_matrix=core.site_matrix.matrix,
-                )
+                request=kinase_activity_request
             )
 
         return CoreOutputs(core=core, kinase_activity=kinase_activity)

@@ -684,7 +684,7 @@ Runs the native workflow end to end.
 ### `workflow.run_request(request)`
 
 ```python
-workflow.run_request(request: ValidatedWorkflowRequest | KinaseWorkflowRequest) -> KinaseWorkflowResult
+workflow.run_request(request: ValidatedWorkflowRequest) -> KinaseWorkflowResult
 ```
 
 Runs the workflow from a trusted validated workflow request. `KinaseWorkflowRequest` is still accepted for compatibility and is upgraded to `ValidatedWorkflowRequest` at the boundary.

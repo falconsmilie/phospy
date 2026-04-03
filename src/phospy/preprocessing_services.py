@@ -23,7 +23,6 @@ from .constants import (
 )
 from .dataset_schema import DatasetSchema
 from .preprocessing import correct_phospho_to_protein
-from .validation.compatibility import validate_protein_correction_inputs
 
 """Internal preprocessing service layer.
 
@@ -137,15 +136,6 @@ class ProteinCorrectionService:
         total_gene_col: str = TOTAL_GENE_COLUMN,
         max_unmatched_fraction: float = 0.0,
     ) -> pd.DataFrame:
-        validate_protein_correction_inputs(
-            phospho_df,
-            total_df,
-            phospho_gene_col=phospho_gene_col,
-            total_gene_col=total_gene_col,
-            phospho_cols=self.schema.phospho_cols,
-            protein_cols=self.schema.total_cols,
-            max_unmatched_fraction=max_unmatched_fraction,
-        )
         return correct_phospho_to_protein(
             df_phospho=phospho_df,
             df_total=total_df,

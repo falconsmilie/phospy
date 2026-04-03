@@ -16,7 +16,6 @@ from .validation.analysis import (
     KinaseActivityRequest,
     ValidatedAnalysisRequest,
     build_loaded_analysis_request,
-    build_validated_analysis_request,
     validate_analysis_request,
 )
 from .writers import KinaseActivityResultWriter, KinaseActivityWriter
@@ -83,27 +82,15 @@ class KinaseActivityAnalyzer:
     @staticmethod
     def analyze_request(
         *,
-        request: ValidatedAnalysisRequest | KinaseActivityRequest,
-        pred_mat: pd.DataFrame | None = None,
-        phospho_matrix: pd.DataFrame | None = None,
+        request: ValidatedAnalysisRequest,
     ) -> KinaseActivityResult:
-        if isinstance(request, KinaseActivityRequest):
-            if pred_mat is None or phospho_matrix is None:
-                msg = (
-                    "analyze_request requires pred_mat and phospho_matrix when "
-                    "given a KinaseActivityRequest"
-                )
-                raise TypeError(msg)
-            validated_request = build_validated_analysis_request(
-                request=request,
-                pred_mat=pred_mat,
-                phospho_matrix=phospho_matrix,
+        if not isinstance(request, ValidatedAnalysisRequest):
+            msg = (
+                "analyze_request requires a ValidatedAnalysisRequest. "
+                "Call validate_request(...) first."
             )
-        else:
-            validated_request = request
-        return KinaseActivityAnalyzer.analyze_validated_request(
-            request=validated_request,
-        )
+            raise TypeError(msg)
+        return KinaseActivityAnalyzer.analyze_validated_request(request=request)
 
     @staticmethod
     def analyze_validated_request(
