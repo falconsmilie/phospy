@@ -413,5 +413,5 @@ def test_pipeline_request_loader_builds_dataset_and_config(
 
     assert inputs.pred_mat is not None
     assert inputs.preprocessing_config.min_observed == 4
-    assert list(inputs.dataset.total_df.columns) == list(make_total_df().columns)
+    assert list(inputs.dataset.total_df_view.columns) == list(make_total_df().columns)
     assert pred_calls == [f"pred_mat ({pred_path})"]

@@ -82,9 +82,9 @@ Use `PhosphoDataset` when you want one validated in-memory dataset owner and the
 
 ### Data Ownership and Mutation
 
-`PhosphoDataset` owns the validated total and phospho input tables. The current `dataset.total_df` and `dataset.phospho_df` accessors return those owned pandas `DataFrame` instances directly, so mutating them mutates the dataset's owned state.
+`PhosphoDataset` owns the validated total and phospho input tables. `dataset.total_df_view` and `dataset.phospho_df_view` return those owned pandas `DataFrame` instances directly, so mutating them mutates the dataset's owned state.
 
-Use `dataset.copy_inputs()` when you need detached caller-owned copies instead of shared dataset state. See [`docs/adr/0001-data-ownership-and-mutability.md`](adr/0001-data-ownership-and-mutability.md) for the project-wide policy.
+Use `dataset.total_df_copy`, `dataset.phospho_df_copy`, or `dataset.copy_inputs()` when you need detached caller-owned copies instead of shared dataset state. See [`docs/adr/0001-data-ownership-and-mutability.md`](adr/0001-data-ownership-and-mutability.md) for the project-wide policy.
 
 ### `PhosphoDataset(total_df, phospho_df, *, schema=None, comparisons=None)`
 
@@ -166,6 +166,24 @@ Builds a dataset from already validated loader output and keeps the resulting ta
 
 - `validated_inputs`: validated loader output from `DatasetLoader.validate(...)`
 - `comparisons`: validated against the schema carried by `validated_inputs`
+
+### `dataset.total_df_view` / `dataset.phospho_df_view`
+
+```python
+dataset.total_df_view -> pd.DataFrame
+dataset.phospho_df_view -> pd.DataFrame
+```
+
+Return the owned validated total and phospho input tables directly. Mutating either returned frame mutates the dataset's owned workspace state.
+
+### `dataset.total_df_copy` / `dataset.phospho_df_copy`
+
+```python
+dataset.total_df_copy -> pd.DataFrame
+dataset.phospho_df_copy -> pd.DataFrame
+```
+
+Return detached deep copies of the validated total and phospho input tables.
 
 ### `dataset.copy_inputs()`
 

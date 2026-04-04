@@ -35,11 +35,12 @@ class PhosphoDataset:
 
     `PhosphoDataset` is an owned in-memory processing workspace, not an immutable
     snapshot. It validates raw constructor inputs at the boundary, stores owned
-    mutable pandas tables, and exposes those owned tables directly through
-    `total_df` and `phospho_df`.
+    mutable pandas tables, and exposes them through explicit `*_view` and
+    `*_copy` accessors.
 
-    Use `copy_inputs()` when you need detached caller-owned copies instead of the
-    dataset's shared workspace state.
+    Use `total_df_view` / `phospho_df_view` when you intentionally want shared
+    workspace state. Use `total_df_copy` / `phospho_df_copy` or `copy_inputs()`
+    when you need detached caller-owned copies.
     """
 
     __slots__ = ("_inputs", "_schema", "_comparisons")
@@ -85,7 +86,7 @@ class PhosphoDataset:
         self._comparisons = validated_request.comparisons
 
     @property
-    def total_df(self) -> pd.DataFrame:
+    def total_df_view(self) -> pd.DataFrame:
         """Return the owned validated total-protein workspace table.
 
         Mutating the returned frame mutates this dataset's owned workspace state.
@@ -93,16 +94,26 @@ class PhosphoDataset:
         return self.inputs.total_df
 
     @property
-    def phospho_df(self) -> pd.DataFrame:
+    def phospho_df_view(self) -> pd.DataFrame:
         """Return the owned validated phosphoproteomics workspace table.
 
         Mutating the returned frame mutates this dataset's owned workspace state.
         """
         return self.inputs.phospho_df
 
+    @property
+    def total_df_copy(self) -> pd.DataFrame:
+        """Return a detached deep copy of the validated total-protein table."""
+        return self.inputs.total_df.copy(deep=True)
+
+    @property
+    def phospho_df_copy(self) -> pd.DataFrame:
+        """Return a detached deep copy of the validated phosphoproteomics table."""
+        return self.inputs.phospho_df.copy(deep=True)
+
     def copy_inputs(self) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Return detached deep copies suitable for caller-owned mutation."""
-        return self.inputs.copy_frames()
+        return self.total_df_copy, self.phospho_df_copy
 
     @property
     def preprocessing(self) -> DatasetPreprocessing:

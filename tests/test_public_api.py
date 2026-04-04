@@ -126,8 +126,8 @@ def test_phospho_dataset_preprocessing_facade_is_bound_and_typed() -> None:
     preprocessing = dataset.preprocessing
 
     assert isinstance(preprocessing, DatasetPreprocessing)
-    assert preprocessing.total_df.equals(dataset.total_df)
-    assert preprocessing.phospho_df.equals(dataset.phospho_df)
+    assert preprocessing.total_df.equals(dataset.total_df_view)
+    assert preprocessing.phospho_df.equals(dataset.phospho_df_view)
     assert preprocessing.schema == dataset.schema
     assert preprocessing.comparisons == tuple(EXAMPLE_COMPARISONS)
 
@@ -172,8 +172,8 @@ def test_phospho_dataset_preprocessing_run_matches_core_processor() -> None:
         schema=dataset.schema,
         comparisons=dataset.comparisons,
     ).process(
-        dataset.total_df,
-        dataset.phospho_df,
+        dataset.total_df_view,
+        dataset.phospho_df_view,
         config=CorePreprocessingConfig(max_unmatched_fraction=0.1),
     )
 
@@ -241,8 +241,8 @@ def test_phospho_dataset_from_validated_inputs_builds_without_revalidation() -> 
     )
 
     assert isinstance(validated_inputs, ValidatedCoreInputs)
-    assert dataset.total_df is validated_inputs.total_df
-    assert dataset.phospho_df is validated_inputs.phospho_df
+    assert dataset.total_df_view is validated_inputs.total_df
+    assert dataset.phospho_df_view is validated_inputs.phospho_df
     assert dataset.schema == validated_inputs.schema
     assert dataset.comparisons == tuple(EXAMPLE_COMPARISONS)
 
@@ -267,11 +267,11 @@ def test_phospho_dataset_owns_an_isolated_workspace_copy_of_constructor_inputs()
     total_df.loc[0, "group1"] = 999.0
     phospho_df.loc[0, "p_group1"] = 999.0
 
-    assert dataset.total_df.loc[0, "group1"] != 999.0
-    assert dataset.phospho_df.loc[0, "p_group1"] != 999.0
+    assert dataset.total_df_view.loc[0, "group1"] != 999.0
+    assert dataset.phospho_df_view.loc[0, "p_group1"] != 999.0
 
 
-def test_phospho_dataset_accessors_expose_owned_workspace_frames_without_copying() -> (
+def test_phospho_dataset_view_accessors_expose_owned_workspace_frames_without_copying() -> (
     None
 ):
     dataset = PhosphoDataset(
@@ -280,30 +280,39 @@ def test_phospho_dataset_accessors_expose_owned_workspace_frames_without_copying
         comparisons=EXAMPLE_COMPARISONS,
     )
 
-    assert dataset.total_df is dataset.inputs.total_df
-    assert dataset.phospho_df is dataset.inputs.phospho_df
-    assert dataset.preprocessing.total_df is dataset.total_df
-    assert dataset.preprocessing.phospho_df is dataset.phospho_df
+    assert dataset.total_df_view is dataset.inputs.total_df
+    assert dataset.phospho_df_view is dataset.inputs.phospho_df
+    assert dataset.preprocessing.total_df is dataset.total_df_view
+    assert dataset.preprocessing.phospho_df is dataset.phospho_df_view
+    assert not hasattr(dataset, "total_df")
+    assert not hasattr(dataset, "phospho_df")
 
 
 def test_phospho_dataset_is_not_a_frozen_dataclass_workspace() -> None:
     assert not hasattr(PhosphoDataset, "__dataclass_fields__")
 
 
-def test_phospho_dataset_copy_inputs_returns_mutation_safe_copies() -> None:
+def test_phospho_dataset_copy_accessors_and_copy_inputs_return_mutation_safe_copies() -> (
+    None
+):
     dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
 
-    total_copy, phospho_copy = dataset.copy_inputs()
+    total_copy = dataset.total_df_copy
+    phospho_copy = dataset.phospho_df_copy
 
     total_copy.loc[0, "group1"] = 999.0
     phospho_copy.loc[0, "p_group1"] = 999.0
 
-    assert dataset.total_df.loc[0, "group1"] != 999.0
-    assert dataset.phospho_df.loc[0, "p_group1"] != 999.0
+    total_copy_via_pair, phospho_copy_via_pair = dataset.copy_inputs()
+    pd.testing.assert_frame_equal(total_copy_via_pair, dataset.total_df_copy)
+    pd.testing.assert_frame_equal(phospho_copy_via_pair, dataset.phospho_df_copy)
+
+    assert dataset.total_df_view.loc[0, "group1"] != 999.0
+    assert dataset.phospho_df_view.loc[0, "p_group1"] != 999.0
 
 
 def test_dataset_preprocessing_run_does_not_mutate_owned_dataset_inputs() -> None:
@@ -312,12 +321,13 @@ def test_dataset_preprocessing_run_does_not_mutate_owned_dataset_inputs() -> Non
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
-    original_total, original_phospho = dataset.copy_inputs()
+    original_total = dataset.total_df_copy
+    original_phospho = dataset.phospho_df_copy
 
     dataset.preprocessing.run(max_unmatched_fraction=0.1)
 
-    pd.testing.assert_frame_equal(dataset.total_df, original_total)
-    pd.testing.assert_frame_equal(dataset.phospho_df, original_phospho)
+    pd.testing.assert_frame_equal(dataset.total_df_view, original_total)
+    pd.testing.assert_frame_equal(dataset.phospho_df_view, original_phospho)
 
 
 def test_core_output_writer_writes_csv_outputs(tmp_path) -> None:
@@ -657,12 +667,12 @@ def test_pipeline_propagates_sentinel_configuration(tmp_path) -> None:
 
     processor = CoreProcessor(schema=pipeline.dataset.schema)
     total_unique, total_filtered = processor.prepare_total(
-        pipeline.dataset.total_df,
+        pipeline.dataset.total_df_view,
         sentinel=pipeline.preprocessing_config.total_sentinel,
         min_observed=pipeline.preprocessing_config.min_observed,
     )
     phospho_filtered = processor.prepare_phospho(
-        pipeline.dataset.phospho_df,
+        pipeline.dataset.phospho_df_view,
         localization_threshold=pipeline.preprocessing_config.localization_threshold,
         sentinel=pipeline.preprocessing_config.phospho_sentinel,
         min_observed=pipeline.preprocessing_config.min_observed,
@@ -732,7 +742,7 @@ def test_dataset_from_files_validates_inputs_once(monkeypatch, tmp_path) -> None
         total_path=total_path, phospho_path=phospho_path
     )
 
-    assert dataset.total_df.shape[0] == 4
+    assert dataset.total_df_view.shape[0] == 4
     assert total_calls == 1
     assert phospho_calls == 1
 
@@ -770,7 +780,7 @@ def test_pipeline_from_request_validates_inputs_once(monkeypatch, tmp_path) -> N
     )
     pipeline = PhosRPipeline.from_request(request)
 
-    assert pipeline.dataset.total_df.shape[0] == 4
+    assert pipeline.dataset.total_df_view.shape[0] == 4
     assert total_calls == 1
     assert phospho_calls == 1
 
