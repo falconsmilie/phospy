@@ -15,10 +15,11 @@ from .validation.errors import RequestValidationError, TableSchemaError
 class ValidatedCoreInputs:
     """Validated dataset tables produced by :class:`DatasetLoader`.
 
-    The loader is the boundary owner for validated dataset frames. The stored
-    frames are the single trusted in-memory snapshot that downstream code may
-    read directly. Call :meth:`copy_frames` before mutating them outside the
-    dataset-bound processing path.
+    The loader validates and materializes trusted in-memory frames, but it does
+    not transfer ownership to downstream workspace objects automatically.
+    Call :meth:`copy_frames` when you need detached caller-owned mutation, and
+    note that :meth:`phospy.PhosphoDataset.from_validated_inputs` copies these
+    frames once when taking dataset ownership.
     """
 
     schema: DatasetSchema

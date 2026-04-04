@@ -53,7 +53,11 @@ class PhosphoDataset:
         schema: DatasetSchema | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> None:
-        """Validate raw inputs and take ownership of mutable workspace tables."""
+        """Validate raw inputs and take ownership of isolated mutable workspace tables.
+
+        Raw caller-supplied frames are isolated at this boundary so later mutation of
+        the caller's original inputs does not affect the dataset workspace.
+        """
         validated_request = validate_dataset_request(
             total_df=total_df,
             phospho_df=phospho_df,
@@ -84,6 +88,16 @@ class PhosphoDataset:
         )
         self._schema = validated_request.schema
         self._comparisons = validated_request.comparisons
+
+    @classmethod
+    def _from_owned_validated_request(
+        cls,
+        validated_request: ValidatedDatasetInputs,
+    ) -> PhosphoDataset:
+        """Build a dataset from already-owned validated frames without copying again."""
+        instance = cls.__new__(cls)
+        instance._set_state(validated_request=validated_request)
+        return instance
 
     @property
     def total_df_view(self) -> pd.DataFrame:
@@ -137,23 +151,27 @@ class PhosphoDataset:
         *,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> PhosphoDataset:
-        """Build a dataset workspace from trusted validated inputs."""
+        """Build a dataset workspace from trusted validated inputs.
+
+        This boundary takes ownership by copying the validated frames once, so later
+        mutation of the caller-owned validated bundle does not affect the dataset
+        workspace.
+        """
         if not isinstance(validated_inputs, ValidatedCoreInputs):
             msg = (
                 "from_validated_inputs requires a ValidatedCoreInputs instance. "
                 "Call DatasetLoader.validate(...) or DatasetLoader.load(...) first."
             )
             raise TypeError(msg)
+        owned_total_df, owned_phospho_df = validated_inputs.copy_frames()
         validated_request = build_validated_dataset_inputs(
             schema=validated_inputs.schema,
-            total_df=validated_inputs.total_df,
-            phospho_df=validated_inputs.phospho_df,
+            total_df=owned_total_df,
+            phospho_df=owned_phospho_df,
             comparisons=comparisons,
             context="PhosphoDataset",
         )
-        instance = cls.__new__(cls)
-        instance._set_state(validated_request=validated_request)
-        return instance
+        return cls._from_owned_validated_request(validated_request)
 
     @classmethod
     def from_files(

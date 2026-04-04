@@ -241,8 +241,10 @@ def test_phospho_dataset_from_validated_inputs_builds_without_revalidation() -> 
     )
 
     assert isinstance(validated_inputs, ValidatedCoreInputs)
-    assert dataset.total_df_view is validated_inputs.total_df
-    assert dataset.phospho_df_view is validated_inputs.phospho_df
+    assert dataset.total_df_view is not validated_inputs.total_df
+    assert dataset.phospho_df_view is not validated_inputs.phospho_df
+    pd.testing.assert_frame_equal(dataset.total_df_view, validated_inputs.total_df)
+    pd.testing.assert_frame_equal(dataset.phospho_df_view, validated_inputs.phospho_df)
     assert dataset.schema == validated_inputs.schema
     assert dataset.comparisons == tuple(EXAMPLE_COMPARISONS)
 
@@ -271,6 +273,27 @@ def test_phospho_dataset_owns_an_isolated_workspace_copy_of_constructor_inputs()
     assert dataset.phospho_df_view.loc[0, "p_group1"] != 999.0
 
 
+def test_phospho_dataset_from_validated_inputs_isolates_owned_workspace_from_validated_bundle() -> (
+    None
+):
+    loader = DatasetLoader()
+    validated_inputs = loader.validate(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+
+    dataset = PhosphoDataset.from_validated_inputs(
+        validated_inputs,
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+
+    validated_inputs.total_df.loc[0, "group1"] = 999.0
+    validated_inputs.phospho_df.loc[0, "p_group1"] = 999.0
+
+    assert dataset.total_df_view.loc[0, "group1"] != 999.0
+    assert dataset.phospho_df_view.loc[0, "p_group1"] != 999.0
+
+
 def test_phospho_dataset_view_accessors_expose_owned_workspace_frames_without_copying() -> (
     None
 ):
@@ -286,6 +309,20 @@ def test_phospho_dataset_view_accessors_expose_owned_workspace_frames_without_co
     assert dataset.preprocessing.phospho_df is dataset.phospho_df_view
     assert not hasattr(dataset, "total_df")
     assert not hasattr(dataset, "phospho_df")
+
+
+def test_phospho_dataset_view_mutation_updates_owned_workspace_state() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+
+    dataset.total_df_view.loc[0, "group1"] = 777.0
+    dataset.phospho_df_view.loc[0, "p_group1"] = 888.0
+
+    assert dataset.inputs.total_df.loc[0, "group1"] == 777.0
+    assert dataset.inputs.phospho_df.loc[0, "p_group1"] == 888.0
 
 
 def test_phospho_dataset_is_not_a_frozen_dataclass_workspace() -> None:

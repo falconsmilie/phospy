@@ -98,7 +98,7 @@ PhosphoDataset(
 )
 ```
 
-Creates a dataset from in-memory pandas data frames and makes them part of the dataset's owned processing state.
+Creates a dataset from in-memory pandas data frames, isolates from later caller mutation at construction time, and makes the resulting tables part of the dataset's owned processing state.
 
 #### Parameters and Validation
 
@@ -160,7 +160,7 @@ PhosphoDataset.from_validated_inputs(
 ) -> PhosphoDataset
 ```
 
-Builds a dataset from already validated loader output and keeps the resulting tables as dataset-owned processing state.
+Builds a dataset from already validated loader output, copies those validated frames once to take dataset ownership, and keeps the resulting tables as dataset-owned processing state.
 
 #### Parameters and Validation
 

@@ -53,6 +53,8 @@ Examples include:
 When caller-supplied pandas tables enter trusted application state, PhosPy should make the
 ownership transfer explicit at the construction or validation boundary.
 
+For workspace constructors such as `PhosphoDataset`, that means the workspace takes
+ownership by isolating itself from caller-managed frames once at construction time.
 After that boundary, internal code should treat the resulting tables as owned application
 state.
 
@@ -89,6 +91,7 @@ Trade-offs:
 
 - `dataset.total_df_view` returns the owned validated total table
 - `dataset.phospho_df_view` returns the owned validated phospho table
+- constructing a dataset isolates it from later caller mutation of the original input frames
 - `dataset.total_df_copy` and `dataset.phospho_df_copy` return detached deep copies
 - `dataset.copy_inputs()` returns detached deep copies for caller-owned mutation
 
