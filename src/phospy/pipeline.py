@@ -11,7 +11,7 @@ from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
 from .constants import ComparisonSpec
 from .core_processing import CorePreprocessingConfig, CoreProcessingResult
 from .dataset import PhosphoDataset
-from .dataset_loader import DatasetLoader
+from .dataset_loader import _DatasetLoader
 from .dataset_schema import DatasetSchema
 from .io import load_pred_mat
 from .publishing import OutputPublisher, RunManifestWriter
@@ -36,10 +36,10 @@ class PipelineRequestLoader:
     def __init__(
         self,
         *,
-        dataset_loader_factory: Callable[[DatasetSchema], DatasetLoader] | None = None,
+        dataset_loader_factory: Callable[[DatasetSchema], _DatasetLoader] | None = None,
         pred_mat_loader: Callable[[str | Path], pd.DataFrame] | None = None,
     ) -> None:
-        self.dataset_loader_factory = dataset_loader_factory or DatasetLoader
+        self.dataset_loader_factory = dataset_loader_factory or _DatasetLoader
         self.pred_mat_loader = (
             load_pred_mat if pred_mat_loader is None else pred_mat_loader
         )
@@ -52,7 +52,7 @@ class PipelineRequestLoader:
             request.phospho_path,
             phospho_encoding=request.phospho_encoding,
         )
-        dataset = PhosphoDataset.from_validated_inputs(
+        dataset = PhosphoDataset._from_loaded_inputs(
             validated_inputs,
             comparisons=request.comparisons,
         )

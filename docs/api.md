@@ -150,23 +150,6 @@ File-loading rules:
 - duplicate raw headers that collapse to the same cleaned name are rejected
 - the same table rules used by the in-memory constructor then apply
 
-### `PhosphoDataset.from_validated_inputs(validated_inputs, *, comparisons=None)`
-
-```python
-PhosphoDataset.from_validated_inputs(
-    validated_inputs: ValidatedCoreInputs,
-    *,
-    comparisons: Sequence[tuple[str, str]] | None = None,
-) -> PhosphoDataset
-```
-
-Builds a dataset from already validated loader output, copies those validated frames once to take dataset ownership, and keeps the resulting tables as dataset-owned processing state.
-
-#### Parameters and Validation
-
-- `validated_inputs`: validated loader output from `DatasetLoader.validate(...)`
-- `comparisons`: validated against the schema carried by `validated_inputs`
-
 ### `dataset.total_df_copy` / `dataset.phospho_df_copy`
 
 ```python

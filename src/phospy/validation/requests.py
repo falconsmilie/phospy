@@ -8,7 +8,7 @@ from .workflow import KinaseWorkflowRequest, ValidatedWorkflowRequest
 """Compatibility re-exports for legacy validation request imports.
 
 New validation rules should live in the categorized boundary modules:
-- phospy.validation.dataset
+- internal dataset validation helpers live behind dataset construction boundaries
 - phospy.validation.pipeline
 - phospy.validation.workflow
 - phospy.validation.analysis

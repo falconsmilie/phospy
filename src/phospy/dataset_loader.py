@@ -5,21 +5,19 @@ from pathlib import Path
 
 import pandas as pd
 
+from ._dataset_validation import _validate_dataset_file_paths, _validate_dataset_frames
 from .dataset_schema import DatasetSchema
 from .io import read_table
-from .validation.dataset import validate_dataset_file_paths, validate_dataset_frames
 from .validation.errors import RequestValidationError, TableSchemaError
 
 
 @dataclass(frozen=True, slots=True)
-class ValidatedCoreInputs:
-    """Validated dataset tables produced by :class:`DatasetLoader`.
+class _LoadedDatasetInputs:
+    """Validated dataset tables produced by the internal file loader.
 
     The loader validates and materializes trusted in-memory frames, but it does
     not transfer ownership to downstream workspace objects automatically.
-    Call :meth:`copy_frames` when you need detached caller-owned mutation, and
-    note that :meth:`phospy.PhosphoDataset.from_validated_inputs` copies these
-    frames once when taking dataset ownership.
+    Call :meth:`copy_frames` when you need detached caller-owned mutation.
     """
 
     schema: DatasetSchema
@@ -31,8 +29,8 @@ class ValidatedCoreInputs:
         return self.total_df.copy(deep=True), self.phospho_df.copy(deep=True)
 
 
-class DatasetLoader:
-    """Load and validate dataset frames from memory or disk."""
+class _DatasetLoader:
+    """Internal loader that reads and validates dataset frames from memory or disk."""
 
     def __init__(
         self,
@@ -41,18 +39,18 @@ class DatasetLoader:
     ) -> None:
         self.schema = schema or DatasetSchema()
 
-    def validate(
+    def validate_inputs(
         self,
         *,
         total_df: pd.DataFrame,
         phospho_df: pd.DataFrame,
-    ) -> ValidatedCoreInputs:
-        validated_total, validated_phospho = validate_dataset_frames(
+    ) -> _LoadedDatasetInputs:
+        validated_total, validated_phospho = _validate_dataset_frames(
             total_df=total_df,
             phospho_df=phospho_df,
             schema=self.schema,
         )
-        return ValidatedCoreInputs(
+        return _LoadedDatasetInputs(
             total_df=validated_total,
             phospho_df=validated_phospho,
             schema=self.schema,
@@ -64,8 +62,8 @@ class DatasetLoader:
         phospho_path: str | Path,
         *,
         phospho_encoding: str | None = None,
-    ) -> ValidatedCoreInputs:
-        validated_paths = validate_dataset_file_paths(
+    ) -> _LoadedDatasetInputs:
+        validated_paths = _validate_dataset_file_paths(
             total_path,
             phospho_path,
         )
@@ -80,10 +78,10 @@ class DatasetLoader:
             context="phospho input table",
             encoding=phospho_encoding,
         )
-        return self.validate(total_df=total_df, phospho_df=phospho_df)
+        return self.validate_inputs(total_df=total_df, phospho_df=phospho_df)
 
+    @staticmethod
     def _read_input_table(
-        self,
         path: Path,
         *,
         context: str,

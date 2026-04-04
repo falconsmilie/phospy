@@ -11,7 +11,7 @@ Validation now lives under `src/phospy/validation/` and is organised by responsi
 
 - `tables.py` for dataframe and schema validation
 - `compatibility.py` for cross-input compatibility rules
-- `dataset.py` for dataset-boundary validation helpers
+- dataset validation runs inside the `PhosphoDataset` construction boundaries
 - `pipeline.py` for pipeline request validation
 - `workflow.py` for native workflow request validation
 - `analysis.py` for kinase activity request validation
@@ -20,12 +20,13 @@ Validation now lives under `src/phospy/validation/` and is organised by responsi
 
 New validation rules should be added to the module that matches their responsibility instead of extending a generic catch-all validator file.
 
-Each supported public entry point now has one trusted boundary object:
+Each supported public orchestration entry point now has one trusted boundary object where that boundary is part of the supported API:
 
-- `ValidatedDatasetInputs` for `PhosphoDataset`
 - `ValidatedPipelineRequest` for `PhosRPipeline`
 - `ValidatedWorkflowRequest` for `KinaseWorkflow`
 - `ValidatedAnalysisRequest` for `KinaseActivityAnalyzer`
+
+`PhosphoDataset` validates internally from its raw-input constructor and `from_files(...)` boundary instead of exposing dataset validation artifacts as part of the normal user workflow.
 
 Raw option models such as `CorePipelineRequest`, `KinaseWorkflowRequest`, and `KinaseActivityRequest` still exist where they help with parsing, but orchestration now hands off trusted validated request objects downstream.
 

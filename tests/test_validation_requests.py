@@ -412,12 +412,8 @@ def test_validation_modules_expose_use_case_boundaries() -> None:
     assert PredictionRequest.__module__ == "phospy.validation.prediction"
 
 
-def test_validated_dataset_and_pipeline_requests_can_be_created() -> None:
+def test_pipeline_request_can_be_created_from_public_dataset_boundary() -> None:
     from phospy import PhosphoDataset
-    from phospy.validation.dataset import (
-        ValidatedDatasetInputs,
-        validate_dataset_request,
-    )
 
     total_df = pd.DataFrame(
         {
@@ -446,14 +442,20 @@ def test_validated_dataset_and_pipeline_requests_can_be_created() -> None:
         }
     )
 
-    dataset_request = validate_dataset_request(total_df=total_df, phospho_df=phospho_df)
-    assert isinstance(dataset_request, ValidatedDatasetInputs)
-
     pipeline_request = validate_pipeline_request(
         dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
         pred_mat=pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"]),
     )
     assert isinstance(pipeline_request, ValidatedPipelineRequest)
+
+
+def test_dataset_validation_internals_are_not_exported_from_validation_package() -> (
+    None
+):
+    import phospy.validation as validation
+
+    assert not hasattr(validation, "validate_dataset_request")
+    assert not hasattr(validation, "ValidatedDatasetInputs")
 
 
 def test_validated_workflow_and_analysis_requests_can_be_created() -> None:

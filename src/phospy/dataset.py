@@ -6,16 +6,16 @@ from pathlib import Path
 
 import pandas as pd
 
+from ._dataset_validation import (
+    _build_validated_dataset_inputs,
+    _validate_dataset_request,
+    _ValidatedDatasetInputs,
+)
 from .constants import ComparisonSpec
-from .dataset_loader import DatasetLoader, ValidatedCoreInputs
+from .dataset_loader import _DatasetLoader, _LoadedDatasetInputs
 from .dataset_preprocessing import DatasetPreprocessing
 from .dataset_schema import DatasetSchema
 from .dataset_site_matrix import DatasetSiteMatrix
-from .validation.dataset import (
-    ValidatedDatasetInputs,
-    build_validated_dataset_inputs,
-    validate_dataset_request,
-)
 
 
 @dataclass(slots=True)
@@ -58,7 +58,7 @@ class PhosphoDataset:
         Raw caller-supplied frames are isolated at this boundary so later mutation of
         the caller's original inputs does not affect the dataset workspace.
         """
-        validated_request = validate_dataset_request(
+        validated_request = _validate_dataset_request(
             total_df=total_df,
             phospho_df=phospho_df,
             schema=schema,
@@ -81,7 +81,7 @@ class PhosphoDataset:
         """Return the owned comparison specs bound to this dataset workspace."""
         return self._comparisons
 
-    def _set_state(self, *, validated_request: ValidatedDatasetInputs) -> None:
+    def _set_state(self, *, validated_request: _ValidatedDatasetInputs) -> None:
         self._inputs = CoreInputs(
             total_df=validated_request.total_df,
             phospho_df=validated_request.phospho_df,
@@ -92,7 +92,7 @@ class PhosphoDataset:
     @classmethod
     def _from_owned_validated_request(
         cls,
-        validated_request: ValidatedDatasetInputs,
+        validated_request: _ValidatedDatasetInputs,
     ) -> PhosphoDataset:
         """Build a dataset from already-owned validated frames without copying again."""
         instance = cls.__new__(cls)
@@ -147,27 +147,28 @@ class PhosphoDataset:
         return DatasetSiteMatrix(schema=self.schema)
 
     @classmethod
-    def from_validated_inputs(
+    def _from_loaded_inputs(
         cls,
-        validated_inputs: ValidatedCoreInputs,
+        loaded_inputs: _LoadedDatasetInputs,
         *,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> PhosphoDataset:
-        """Build a dataset workspace from trusted validated inputs.
+        """Build a dataset workspace from internal trusted loader output.
 
-        This boundary takes ownership by copying the validated frames once, so later
-        mutation of the caller-owned validated bundle does not affect the dataset
-        workspace.
+        This internal boundary takes ownership by copying the loaded frames once, so
+        later mutation of the loader-managed bundle does not affect the dataset
+        workspace. Public callers should use ``PhosphoDataset(...)`` or
+        ``PhosphoDataset.from_files(...)``.
         """
-        if not isinstance(validated_inputs, ValidatedCoreInputs):
+        if not isinstance(loaded_inputs, _LoadedDatasetInputs):
             msg = (
-                "from_validated_inputs requires a ValidatedCoreInputs instance. "
-                "Call DatasetLoader.validate(...) or DatasetLoader.load(...) first."
+                "_from_loaded_inputs requires an internal _LoadedDatasetInputs "
+                "instance."
             )
             raise TypeError(msg)
-        owned_total_df, owned_phospho_df = validated_inputs.copy_frames()
-        validated_request = build_validated_dataset_inputs(
-            schema=validated_inputs.schema,
+        owned_total_df, owned_phospho_df = loaded_inputs.copy_frames()
+        validated_request = _build_validated_dataset_inputs(
+            schema=loaded_inputs.schema,
             total_df=owned_total_df,
             phospho_df=owned_phospho_df,
             comparisons=comparisons,
@@ -184,14 +185,14 @@ class PhosphoDataset:
         comparisons: Sequence[ComparisonSpec] | None = None,
         schema: DatasetSchema | None = None,
     ) -> PhosphoDataset:
-        """Load validated files and return a dataset workspace owning their tables."""
-        loader = DatasetLoader(schema=schema)
+        """Load files through the public dataset boundary and return an owned workspace."""
+        loader = _DatasetLoader(schema=schema)
         validated_inputs = loader.load(
             total_path,
             phospho_path,
             phospho_encoding=phospho_encoding,
         )
-        return cls.from_validated_inputs(
+        return cls._from_loaded_inputs(
             validated_inputs,
             comparisons=comparisons,
         )

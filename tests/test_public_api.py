@@ -13,7 +13,6 @@ from phospy.constants import (
     RUN_MANIFEST_FILENAME,
 )
 from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
-from phospy.dataset_loader import DatasetLoader, ValidatedCoreInputs
 from phospy.dataset_preprocessing import DatasetPreprocessing
 from phospy.dataset_schema import DatasetSchema
 from phospy.dataset_site_matrix import DatasetSiteMatrix
@@ -230,30 +229,8 @@ def test_phospho_dataset_does_not_expose_legacy_direct_preprocessing_methods() -
     assert not hasattr(dataset.preprocessing, "add_pairwise_comparisons")
 
 
-def test_phospho_dataset_from_validated_inputs_builds_without_revalidation() -> None:
-    loader = DatasetLoader()
-    validated_inputs = loader.validate(
-        total_df=make_total_df(),
-        phospho_df=make_phospho_df(),
-    )
-
-    dataset = PhosphoDataset.from_validated_inputs(
-        validated_inputs,
-        comparisons=EXAMPLE_COMPARISONS,
-    )
-
-    assert isinstance(validated_inputs, ValidatedCoreInputs)
-    assert dataset.total_df_view is not validated_inputs.total_df
-    assert dataset.phospho_df_view is not validated_inputs.phospho_df
-    pd.testing.assert_frame_equal(dataset.total_df_view, validated_inputs.total_df)
-    pd.testing.assert_frame_equal(dataset.phospho_df_view, validated_inputs.phospho_df)
-    assert dataset.schema == validated_inputs.schema
-    assert dataset.comparisons == tuple(EXAMPLE_COMPARISONS)
-
-
-def test_phospho_dataset_from_validated_inputs_rejects_raw_dataframes() -> None:
-    with pytest.raises(TypeError, match="ValidatedCoreInputs"):
-        PhosphoDataset.from_validated_inputs(make_total_df())
+def test_dataset_validation_internals_are_not_part_of_public_api_surface() -> None:
+    assert not hasattr(PhosphoDataset, "from_validated_inputs")
 
 
 def test_phospho_dataset_owns_an_isolated_workspace_copy_of_constructor_inputs() -> (
@@ -270,27 +247,6 @@ def test_phospho_dataset_owns_an_isolated_workspace_copy_of_constructor_inputs()
 
     total_df.loc[0, "group1"] = 999.0
     phospho_df.loc[0, "p_group1"] = 999.0
-
-    assert dataset.total_df_view.loc[0, "group1"] != 999.0
-    assert dataset.phospho_df_view.loc[0, "p_group1"] != 999.0
-
-
-def test_phospho_dataset_from_validated_inputs_isolates_owned_workspace_from_validated_bundle() -> (
-    None
-):
-    loader = DatasetLoader()
-    validated_inputs = loader.validate(
-        total_df=make_total_df(),
-        phospho_df=make_phospho_df(),
-    )
-
-    dataset = PhosphoDataset.from_validated_inputs(
-        validated_inputs,
-        comparisons=EXAMPLE_COMPARISONS,
-    )
-
-    validated_inputs.total_df.loc[0, "group1"] = 999.0
-    validated_inputs.phospho_df.loc[0, "p_group1"] = 999.0
 
     assert dataset.total_df_view.loc[0, "group1"] != 999.0
     assert dataset.phospho_df_view.loc[0, "p_group1"] != 999.0
@@ -759,13 +715,11 @@ def test_pipeline_propagates_sentinel_configuration(tmp_path) -> None:
 
 
 def test_dataset_components_work_together() -> None:
-    loader = DatasetLoader()
-    validated_inputs = loader.validate(
+    dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
     )
-    total_df = validated_inputs.total_df
-    phospho_df = validated_inputs.phospho_df
     processor = CoreProcessor(
         schema=DatasetSchema(),
         site_matrix_builder=SiteMatrixBuilder(
@@ -780,7 +734,11 @@ def test_dataset_components_work_together() -> None:
         ),
     )
 
-    result = processor.process(total_df, phospho_df, config=pipeline_config())
+    result = processor.process(
+        dataset.total_df_copy,
+        dataset.phospho_df_copy,
+        config=pipeline_config(),
+    )
 
     assert "PRKACA;S339;" in result.site_matrix.matrix.index
 
