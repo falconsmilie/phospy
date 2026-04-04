@@ -31,6 +31,17 @@ Raw option models such as `CorePipelineRequest`, `KinaseWorkflowRequest`, and `K
 
 For kinase activity analysis, the preferred flow is `KinaseActivityAnalyzer.validate_request(...)` followed by `KinaseActivityAnalyzer.analyze_validated_request(...)` when you need an explicit trusted boundary object.
 
+## Data Ownership Policy
+
+Validation and runtime state follow different contracts:
+
+- validated request/configuration objects are immutable
+- pandas-backed workspace objects are mutable unless docs say otherwise
+- ownership transfers at the validation/construction boundary
+- detached copies must be requested explicitly
+
+See [`docs/adr/0001-data-ownership-and-mutability.md`](adr/0001-data-ownership-and-mutability.md) for the project-wide policy and its application to `PhosphoDataset`.
+
 ## File Types
 
 When you load from files:

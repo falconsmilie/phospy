@@ -20,7 +20,7 @@ from .validation.dataset import (
 
 @dataclass(frozen=True, slots=True)
 class CoreInputs:
-    """Owned dataset tables used by the core preprocessing pipeline."""
+    """Owned mutable dataset tables used by the core preprocessing pipeline."""
 
     total_df: pd.DataFrame
     phospho_df: pd.DataFrame
@@ -32,7 +32,7 @@ class CoreInputs:
 
 @dataclass(frozen=True, slots=True, init=False)
 class PhosphoDataset:
-    """Explicit owner around validated phosphoproteomics inputs."""
+    """Owner around validated phosphoproteomics inputs and their mutable tables."""
 
     inputs: CoreInputs
     schema: DatasetSchema
@@ -68,12 +68,12 @@ class PhosphoDataset:
 
     @property
     def total_df(self) -> pd.DataFrame:
-        """Return the owned validated total-protein table."""
+        """Return the owned validated total-protein table. Mutating it mutates the dataset state."""
         return self.inputs.total_df
 
     @property
     def phospho_df(self) -> pd.DataFrame:
-        """Return the owned validated phosphoproteomics table."""
+        """Return the owned validated phosphoproteomics table. Mutating it mutates the dataset state."""
         return self.inputs.phospho_df
 
     def copy_inputs(self) -> tuple[pd.DataFrame, pd.DataFrame]:

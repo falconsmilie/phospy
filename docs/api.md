@@ -78,7 +78,13 @@ schema = DatasetSchema(
 
 ## `PhosphoDataset`
 
-Use `PhosphoDataset` when you want one validated in-memory dataset snapshot and the bound preprocessing helpers that go with it.
+Use `PhosphoDataset` when you want one validated in-memory dataset owner and the bound preprocessing helpers that go with it. It owns mutable pandas tables; the dataset object is not a detached immutable snapshot.
+
+### Data Ownership and Mutation
+
+`PhosphoDataset` owns the validated total and phospho input tables. The current `dataset.total_df` and `dataset.phospho_df` accessors return those owned pandas `DataFrame` instances directly, so mutating them mutates the dataset's owned state.
+
+Use `dataset.copy_inputs()` when you need detached caller-owned copies instead of shared dataset state. See [`docs/adr/0001-data-ownership-and-mutability.md`](adr/0001-data-ownership-and-mutability.md) for the project-wide policy.
 
 ### `PhosphoDataset(total_df, phospho_df, *, schema=None, comparisons=None)`
 
@@ -92,7 +98,7 @@ PhosphoDataset(
 )
 ```
 
-Creates a dataset from in-memory pandas data frames.
+Creates a dataset from in-memory pandas data frames and makes them part of the dataset's owned processing state.
 
 #### Parameters and Validation
 
@@ -154,7 +160,7 @@ PhosphoDataset.from_validated_inputs(
 ) -> PhosphoDataset
 ```
 
-Builds a dataset from already validated loader output.
+Builds a dataset from already validated loader output and keeps the resulting tables as dataset-owned processing state.
 
 #### Parameters and Validation
 
@@ -177,7 +183,7 @@ Use this when you want caller-owned mutable copies.
 dataset.preprocessing -> DatasetPreprocessing
 ```
 
-Returns the bound preprocessing facade for the dataset.
+Returns the bound preprocessing facade for the dataset. The facade operates on dataset-owned tables rather than detached snapshots.
 
 This is the preferred public entry point for core preprocessing.
 

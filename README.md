@@ -24,7 +24,7 @@ The file paths below use `examples/data/...`, so they assume a repository checko
 
 ### 1. Core preprocessing from total and phospho tables
 
-Use `PhosphoDataset` when you want validated inputs and the standard preprocessing flow.
+Use `PhosphoDataset` when you want validated inputs and the standard preprocessing flow. `PhosphoDataset` owns mutable pandas tables; `dataset.total_df` and `dataset.phospho_df` expose that owned state directly, while `dataset.copy_inputs()` returns detached copies when you need caller-owned mutation.
 
 ```python
 from phospy import PhosphoDataset
