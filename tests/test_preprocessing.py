@@ -698,6 +698,51 @@ def test_protein_correction_service_applies_correction_and_pairwise_augmentation
     assert with_comparisons["p_group1_group4"].iloc[0] == 3.0
 
 
+def test_protein_correction_service_does_not_route_through_public_facade(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.preprocessing_services as preprocessing_services_module
+
+    phospho_df = pd.DataFrame(
+        {
+            "gene_names": ["PRKACA"],
+            "p_group1": [8.0],
+            "p_group2": [7.0],
+            "p_group3": [6.0],
+            "p_group4": [5.0],
+            "p_group5": [4.0],
+            "p_group6": [3.0],
+        }
+    )
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+
+    def _boom(*args: object, **kwargs: object) -> object:
+        raise AssertionError("service should not call the public preprocessing facade")
+
+    monkeypatch.setattr(
+        preprocessing_services_module,
+        "correct_phospho_to_protein",
+        _boom,
+        raising=False,
+    )
+
+    service = ProteinCorrectionService(schema=DatasetSchema())
+
+    corrected = service.correct(phospho_df, total_df)
+
+    assert corrected["phospho_corrected_1"].iloc[0] == 7.0
+
+
 def test_add_pairwise_comparisons_uses_schema_group_names() -> None:
     corrected = pd.DataFrame(
         {
