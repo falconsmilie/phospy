@@ -252,7 +252,9 @@ def test_phospho_dataset_from_validated_inputs_rejects_raw_dataframes() -> None:
         PhosphoDataset.from_validated_inputs(make_total_df())
 
 
-def test_phospho_dataset_owns_a_validated_snapshot_of_constructor_inputs() -> None:
+def test_phospho_dataset_owns_an_isolated_workspace_copy_of_constructor_inputs() -> (
+    None
+):
     total_df = make_total_df()
     phospho_df = make_phospho_df()
 
@@ -269,7 +271,9 @@ def test_phospho_dataset_owns_a_validated_snapshot_of_constructor_inputs() -> No
     assert dataset.phospho_df.loc[0, "p_group1"] != 999.0
 
 
-def test_phospho_dataset_accessors_expose_owned_frames_without_copying() -> None:
+def test_phospho_dataset_accessors_expose_owned_workspace_frames_without_copying() -> (
+    None
+):
     dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
@@ -280,6 +284,10 @@ def test_phospho_dataset_accessors_expose_owned_frames_without_copying() -> None
     assert dataset.phospho_df is dataset.inputs.phospho_df
     assert dataset.preprocessing.total_df is dataset.total_df
     assert dataset.preprocessing.phospho_df is dataset.phospho_df
+
+
+def test_phospho_dataset_is_not_a_frozen_dataclass_workspace() -> None:
+    assert not hasattr(PhosphoDataset, "__dataclass_fields__")
 
 
 def test_phospho_dataset_copy_inputs_returns_mutation_safe_copies() -> None:

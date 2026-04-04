@@ -18,7 +18,7 @@ from .validation.dataset import (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class CoreInputs:
     """Owned mutable dataset tables used by the core preprocessing pipeline."""
 
@@ -30,13 +30,19 @@ class CoreInputs:
         return self.total_df.copy(deep=True), self.phospho_df.copy(deep=True)
 
 
-@dataclass(frozen=True, slots=True, init=False)
 class PhosphoDataset:
-    """Owner around validated phosphoproteomics inputs and their mutable tables."""
+    """Mutable workspace that owns validated phosphoproteomics input tables.
 
-    inputs: CoreInputs
-    schema: DatasetSchema
-    comparisons: tuple[ComparisonSpec, ...] | None
+    `PhosphoDataset` is an owned in-memory processing workspace, not an immutable
+    snapshot. It validates raw constructor inputs at the boundary, stores owned
+    mutable pandas tables, and exposes those owned tables directly through
+    `total_df` and `phospho_df`.
+
+    Use `copy_inputs()` when you need detached caller-owned copies instead of the
+    dataset's shared workspace state.
+    """
+
+    __slots__ = ("_inputs", "_schema", "_comparisons")
 
     def __init__(
         self,
@@ -46,6 +52,7 @@ class PhosphoDataset:
         schema: DatasetSchema | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> None:
+        """Validate raw inputs and take ownership of mutable workspace tables."""
         validated_request = validate_dataset_request(
             total_df=total_df,
             phospho_df=phospho_df,
@@ -54,35 +61,52 @@ class PhosphoDataset:
         )
         self._set_state(validated_request=validated_request)
 
+    @property
+    def inputs(self) -> CoreInputs:
+        """Return the owned mutable input bundle for advanced internal workflows."""
+        return self._inputs
+
+    @property
+    def schema(self) -> DatasetSchema:
+        """Return the schema governing the owned workspace tables."""
+        return self._schema
+
+    @property
+    def comparisons(self) -> tuple[ComparisonSpec, ...] | None:
+        """Return the owned comparison specs bound to this dataset workspace."""
+        return self._comparisons
+
     def _set_state(self, *, validated_request: ValidatedDatasetInputs) -> None:
-        object.__setattr__(
-            self,
-            "inputs",
-            CoreInputs(
-                total_df=validated_request.total_df,
-                phospho_df=validated_request.phospho_df,
-            ),
+        self._inputs = CoreInputs(
+            total_df=validated_request.total_df,
+            phospho_df=validated_request.phospho_df,
         )
-        object.__setattr__(self, "schema", validated_request.schema)
-        object.__setattr__(self, "comparisons", validated_request.comparisons)
+        self._schema = validated_request.schema
+        self._comparisons = validated_request.comparisons
 
     @property
     def total_df(self) -> pd.DataFrame:
-        """Return the owned validated total-protein table. Mutating it mutates the dataset state."""
+        """Return the owned validated total-protein workspace table.
+
+        Mutating the returned frame mutates this dataset's owned workspace state.
+        """
         return self.inputs.total_df
 
     @property
     def phospho_df(self) -> pd.DataFrame:
-        """Return the owned validated phosphoproteomics table. Mutating it mutates the dataset state."""
+        """Return the owned validated phosphoproteomics workspace table.
+
+        Mutating the returned frame mutates this dataset's owned workspace state.
+        """
         return self.inputs.phospho_df
 
     def copy_inputs(self) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Return deep copies suitable for caller-owned mutation."""
+        """Return detached deep copies suitable for caller-owned mutation."""
         return self.inputs.copy_frames()
 
     @property
     def preprocessing(self) -> DatasetPreprocessing:
-        """Return the bound preprocessing facade for this dataset."""
+        """Return the bound preprocessing facade for this dataset workspace."""
         return DatasetPreprocessing(
             total_df=self.inputs.total_df,
             phospho_df=self.inputs.phospho_df,
@@ -92,7 +116,7 @@ class PhosphoDataset:
 
     @property
     def site_matrix(self) -> DatasetSiteMatrix:
-        """Return the bound site-matrix facade for this dataset."""
+        """Return the bound site-matrix facade for this dataset workspace."""
         return DatasetSiteMatrix(schema=self.schema)
 
     @classmethod
@@ -102,7 +126,7 @@ class PhosphoDataset:
         *,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> PhosphoDataset:
-        """Build a dataset from validated inputs produced by ``DatasetLoader``."""
+        """Build a dataset workspace from trusted validated inputs."""
         if not isinstance(validated_inputs, ValidatedCoreInputs):
             msg = (
                 "from_validated_inputs requires a ValidatedCoreInputs instance. "
@@ -129,6 +153,7 @@ class PhosphoDataset:
         comparisons: Sequence[ComparisonSpec] | None = None,
         schema: DatasetSchema | None = None,
     ) -> PhosphoDataset:
+        """Load validated files and return a dataset workspace owning their tables."""
         loader = DatasetLoader(schema=schema)
         validated_inputs = loader.load(
             total_path,

@@ -92,15 +92,14 @@ owner of mutable tabular state.
 - `dataset.phospho_df` returns the owned validated phospho table
 - `dataset.copy_inputs()` returns detached deep copies for caller-owned mutation
 
-In other words, `PhosphoDataset` is not an immutable snapshot, even if its current Python
-container type suggests otherwise. Future refactors should make that contract clearer in the
-API itself.
+In other words, `PhosphoDataset` is a mutable workspace owner, not an immutable snapshot.
+Follow-on refactors should keep making that contract clearer in the API itself, especially
+around how callers choose between shared views and detached copies.
 
 ## Follow-on work
 
-Future tickets should align implementation and naming with this policy by:
+Future tickets should align naming and access patterns with this policy by:
 
-- removing false immutability from `PhosphoDataset`
 - introducing clearer explicit view/copy accessors
 - auditing other DataFrame-carrying types for the same problem
 - standardising ownership-transfer and copy behaviour across public boundaries
