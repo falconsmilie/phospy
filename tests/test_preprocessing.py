@@ -846,8 +846,8 @@ def test_dataset_preprocessing_facade_shares_live_workspace_state_with_dataset()
     )
     preprocessing = dataset.preprocessing
 
-    dataset.total_df_view.loc[0, "group1"] = 111.0
-    dataset.phospho_df_view.loc[0, "p_group1"] = 222.0
+    dataset.total_df_live.loc[0, "group1"] = 111.0
+    dataset.phospho_df_live.loc[0, "p_group1"] = 222.0
 
     assert preprocessing.total_df.loc[0, "group1"] == 111.0
     assert preprocessing.phospho_df.loc[0, "p_group1"] == 222.0
@@ -855,5 +855,5 @@ def test_dataset_preprocessing_facade_shares_live_workspace_state_with_dataset()
     preprocessing.total_df.loc[1, "group2"] = 333.0
     preprocessing.phospho_df.loc[1, "p_group2"] = 444.0
 
-    assert dataset.total_df_view.loc[1, "group2"] == 333.0
-    assert dataset.phospho_df_view.loc[1, "p_group2"] == 444.0
+    assert dataset.total_df_live.loc[1, "group2"] == 333.0
+    assert dataset.phospho_df_live.loc[1, "p_group2"] == 444.0

@@ -84,7 +84,7 @@ Use `PhosphoDataset` when you want one validated in-memory dataset owner and the
 
 `PhosphoDataset` owns the validated total and phospho input tables. Prefer `dataset.total_df_copy`, `dataset.phospho_df_copy`, or `dataset.copy_inputs()` for inspection, export, reporting, and other read-oriented work.
 
-`dataset.total_df_view` and `dataset.phospho_df_view` return the owned pandas `DataFrame` instances directly, so mutating them mutates the dataset's owned state. Use those explicit shared-state accessors only when you intentionally want in-memory mutation against the dataset workspace. See [`docs/adr/0001-data-ownership-and-mutability.md`](adr/0001-data-ownership-and-mutability.md) for the project-wide policy.
+`dataset.total_df_live` and `dataset.phospho_df_live` return the owned pandas `DataFrame` instances directly, so mutating them mutates the dataset's owned state. Use those explicit shared-state accessors only when you intentionally want in-memory mutation against the dataset workspace. See [`docs/adr/0001-data-ownership-and-mutability.md`](adr/0001-data-ownership-and-mutability.md) for the project-wide policy.
 
 ### `PhosphoDataset(total_df, phospho_df, *, schema=None, comparisons=None)`
 
@@ -159,11 +159,11 @@ dataset.phospho_df_copy -> pd.DataFrame
 
 Return detached deep copies of the validated total and phospho input tables. This is the preferred public access path for inspection, export, reporting, and any caller-owned downstream work.
 
-### `dataset.total_df_view` / `dataset.phospho_df_view`
+### `dataset.total_df_live` / `dataset.phospho_df_live`
 
 ```python
-dataset.total_df_view -> pd.DataFrame
-dataset.phospho_df_view -> pd.DataFrame
+dataset.total_df_live -> pd.DataFrame
+dataset.phospho_df_live -> pd.DataFrame
 ```
 
 Return the owned validated total and phospho input tables directly. Mutating either returned frame mutates the dataset's owned workspace state, so these accessors are intended for advanced shared-state workflows rather than routine read-oriented access.
