@@ -809,3 +809,51 @@ def test_dataset_preprocessing_run_rejects_mixed_config_styles() -> None:
             config=CorePreprocessingConfig(),
             min_observed=1,
         )
+
+
+def test_dataset_preprocessing_facade_shares_live_workspace_state_with_dataset() -> (
+    None
+):
+    from phospy import PhosphoDataset
+
+    dataset = PhosphoDataset(
+        total_df=pd.DataFrame(
+            {
+                "genes": ["PRKACA", "BTK"],
+                "group1": [1.0, 2.0],
+                "group2": [1.0, 2.0],
+                "group3": [1.0, 2.0],
+                "group4": [1.0, 2.0],
+                "group5": [1.0, 2.0],
+                "group6": [1.0, 2.0],
+            }
+        ),
+        phospho_df=pd.DataFrame(
+            {
+                "uid": ["u1", "u2"],
+                "gene_names": ["PRKACA", "BTK"],
+                "gene_p_site": ["PRKACA_S339", "BTK_Y551"],
+                "localization_prob": [0.95, 0.95],
+                "centralized_sequence": ["AAAAAA", "BBBBBB"],
+                "p_group1": [1.0, 2.0],
+                "p_group2": [1.0, 2.0],
+                "p_group3": [1.0, 2.0],
+                "p_group4": [1.0, 2.0],
+                "p_group5": [1.0, 2.0],
+                "p_group6": [1.0, 2.0],
+            }
+        ),
+    )
+    preprocessing = dataset.preprocessing
+
+    dataset.total_df_view.loc[0, "group1"] = 111.0
+    dataset.phospho_df_view.loc[0, "p_group1"] = 222.0
+
+    assert preprocessing.total_df.loc[0, "group1"] == 111.0
+    assert preprocessing.phospho_df.loc[0, "p_group1"] == 222.0
+
+    preprocessing.total_df.loc[1, "group2"] = 333.0
+    preprocessing.phospho_df.loc[1, "p_group2"] = 444.0
+
+    assert dataset.total_df_view.loc[1, "group2"] == 333.0
+    assert dataset.phospho_df_view.loc[1, "p_group2"] == 444.0

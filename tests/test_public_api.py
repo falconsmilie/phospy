@@ -327,6 +327,40 @@ def test_phospho_dataset_view_mutation_updates_owned_workspace_state() -> None:
     assert dataset.inputs.phospho_df.loc[0, "p_group1"] == 888.0
 
 
+def test_total_df_view_is_live_but_total_df_copy_is_detached() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+
+    live_total = dataset.total_df_view
+    detached_total = dataset.total_df_copy
+
+    live_total.loc[0, "group2"] = 123.0
+    detached_total.loc[1, "group2"] = 456.0
+
+    assert dataset.inputs.total_df.loc[0, "group2"] == 123.0
+    assert dataset.inputs.total_df.loc[1, "group2"] != 456.0
+
+
+def test_phospho_df_view_is_live_but_phospho_df_copy_is_detached() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+
+    live_phospho = dataset.phospho_df_view
+    detached_phospho = dataset.phospho_df_copy
+
+    live_phospho.loc[0, "p_group2"] = 321.0
+    detached_phospho.loc[1, "p_group2"] = 654.0
+
+    assert dataset.inputs.phospho_df.loc[0, "p_group2"] == 321.0
+    assert dataset.inputs.phospho_df.loc[1, "p_group2"] != 654.0
+
+
 def test_phospho_dataset_is_not_a_frozen_dataclass_workspace() -> None:
     assert not hasattr(PhosphoDataset, "__dataclass_fields__")
 
