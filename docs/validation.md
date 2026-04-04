@@ -29,6 +29,8 @@ Each supported public entry point now has one trusted boundary object:
 
 Raw option models such as `CorePipelineRequest`, `KinaseWorkflowRequest`, and `KinaseActivityRequest` still exist where they help with parsing, but orchestration now hands off trusted validated request objects downstream.
 
+For kinase activity analysis, the preferred flow is `KinaseActivityAnalyzer.validate_request(...)` followed by `KinaseActivityAnalyzer.analyze_validated_request(...)` when you need an explicit trusted boundary object.
+
 ## File Types
 
 When you load from files:

@@ -432,6 +432,34 @@ Loads and validates a prediction matrix from disk.
   - the matrix must contain at least one row and at least one kinase column
   - the phosphosite index must be unique and non-null
 
+### `validate_request(pred_mat, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20)`
+
+```python
+analyzer.validate_request(
+    *,
+    pred_mat: pd.DataFrame,
+    phospho_matrix: pd.DataFrame,
+    threshold: float = 0.6,
+    min_substrates: int = 3,
+    top_n_substrates: int = 20,
+) -> ValidatedAnalysisRequest
+```
+
+Validates raw analysis inputs and returns the trusted request object consumed by `analyze_validated_request(...)`.
+
+Use this when you want to validate once at the boundary and pass a trusted request deeper into orchestration code.
+
+### `analyze_validated_request(request)`
+
+```python
+KinaseActivityAnalyzer.analyze_validated_request(
+    *,
+    request: ValidatedAnalysisRequest,
+) -> KinaseActivityResult
+```
+
+Executes downstream kinase analysis from a trusted validated request.
+
 ### `analyze(pred_mat, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20)`
 
 ```python

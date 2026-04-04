@@ -161,7 +161,7 @@ def test_load_and_analyze_does_not_revalidate_loaded_prediction_matrix(
     assert matrix_calls == ["phospho_matrix"]
 
 
-def test_analyze_request_uses_validated_boundary_request(
+def test_analyze_validated_request_uses_validated_boundary_request(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     pred_calls: list[str] = []
@@ -196,7 +196,7 @@ def test_analyze_request_uses_validated_boundary_request(
         min_substrates=2,
         top_n_substrates=20,
     )
-    result = analyzer.analyze_request(request=request)
+    result = analyzer.analyze_validated_request(request=request)
 
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
     assert pred_calls == ["pred_mat"]
@@ -214,14 +214,3 @@ def test_analyze_validated_request_rejects_raw_request_objects() -> None:
         KinaseActivityAnalyzer.analyze_validated_request(
             request=request  # type: ignore[arg-type]
         )
-
-
-def test_analyze_request_rejects_raw_request_objects() -> None:
-    request = KinaseActivityRequest.validate_request(
-        threshold=0.6,
-        min_substrates=2,
-        top_n_substrates=20,
-    )
-
-    with pytest.raises(TypeError, match="ValidatedAnalysisRequest"):
-        KinaseActivityAnalyzer.analyze_request(request=request)  # type: ignore[arg-type]

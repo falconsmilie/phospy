@@ -15,10 +15,7 @@ from .dataset_loader import DatasetLoader
 from .dataset_schema import DatasetSchema
 from .io import load_pred_mat
 from .publishing import OutputPublisher, RunManifestWriter
-from .validation.analysis import (
-    KinaseActivityRequest,
-    build_runtime_analysis_request,
-)
+from .validation.analysis import KinaseActivityRequest, ValidatedAnalysisRequest
 from .validation.errors import RequestValidationError, TableSchemaError
 from .validation.pipeline import (
     CorePipelineRequest,
@@ -104,10 +101,10 @@ class PipelineExecutionRunner:
 
         kinase_activity = None
         if request.pred_mat is not None:
-            kinase_activity_request = build_runtime_analysis_request(
+            kinase_activity_request = ValidatedAnalysisRequest.from_trusted_inputs(
                 request=KinaseActivityRequest.validate_request(),
-                validated_pred_mat=request.pred_mat,
-                validated_phospho_matrix=core.site_matrix.matrix,
+                pred_mat=request.pred_mat,
+                phospho_matrix=core.site_matrix.matrix,
                 pred_context="pred_mat",
                 matrix_context="site matrix",
             )

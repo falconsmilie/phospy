@@ -15,9 +15,9 @@ from .io import load_pred_mat
 from .validation.analysis import (
     KinaseActivityRequest,
     ValidatedAnalysisRequest,
-    build_loaded_analysis_request,
     validate_analysis_request,
 )
+from .validation.tables import SiteMatrixSchema
 from .writers import KinaseActivityResultWriter, KinaseActivityWriter
 
 
@@ -80,19 +80,6 @@ class KinaseActivityAnalyzer:
         return analyzer.analyze_validated_request(request=request)
 
     @staticmethod
-    def analyze_request(
-        *,
-        request: ValidatedAnalysisRequest,
-    ) -> KinaseActivityResult:
-        if not isinstance(request, ValidatedAnalysisRequest):
-            msg = (
-                "analyze_request requires a ValidatedAnalysisRequest. "
-                "Call validate_request(...) first."
-            )
-            raise TypeError(msg)
-        return KinaseActivityAnalyzer.analyze_validated_request(request=request)
-
-    @staticmethod
     def analyze_validated_request(
         *, request: ValidatedAnalysisRequest
     ) -> KinaseActivityResult:
@@ -142,15 +129,19 @@ class KinaseActivityAnalyzer:
         """Load a prediction matrix from disk and compute downstream kinase summaries."""
 
         validated_pred_mat = self.load_pred_mat(pred_mat_path)
+        validated_matrix = SiteMatrixSchema.validate(
+            phospho_matrix,
+            context="phospho_matrix",
+        )
         raw_request = KinaseActivityRequest.validate_request(
             threshold=threshold,
             min_substrates=min_substrates,
             top_n_substrates=top_n_substrates,
         )
-        request = build_loaded_analysis_request(
+        request = ValidatedAnalysisRequest.from_trusted_inputs(
             request=raw_request,
-            validated_pred_mat=validated_pred_mat,
-            phospho_matrix=phospho_matrix,
+            pred_mat=validated_pred_mat,
+            phospho_matrix=validated_matrix,
             pred_context="pred_mat",
             matrix_context="phospho_matrix",
             min_overlap=1,
