@@ -96,6 +96,26 @@ def test_phospho_dataset_preprocessing_run() -> None:
     )
 
 
+def test_pipeline_rejects_mixed_preprocessing_config_styles() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+
+    with pytest.raises(
+        RequestValidationError,
+        match=(
+            r"Invalid pipeline request: pass either preprocessing_config or scalar "
+            r"preprocessing options, not both\."
+        ),
+    ):
+        PhosRPipeline(
+            dataset=dataset,
+            preprocessing_config=CorePreprocessingConfig(),
+            min_observed=1,
+        )
+
+
 def test_phospho_dataset_preprocessing_facade_is_bound_and_typed() -> None:
     dataset = PhosphoDataset(
         total_df=make_total_df(),

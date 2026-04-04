@@ -14,6 +14,7 @@ from .core_processing import (
     CorePreprocessingConfig,
     CoreProcessingResult,
     CoreProcessor,
+    resolve_core_preprocessing_config,
 )
 from .dataset_schema import DatasetSchema
 
@@ -73,12 +74,15 @@ class DatasetPreprocessing:
         phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
         config: CorePreprocessingConfig | None = None,
     ) -> CoreProcessingResult:
-        resolved = config or CorePreprocessingConfig(
+        resolved = resolve_core_preprocessing_config(
+            config=config,
             localization_threshold=localization_threshold,
             min_observed=min_observed,
-            total_sentinel=float(total_sentinel),
-            phospho_sentinel=float(phospho_sentinel),
+            total_sentinel=total_sentinel,
+            phospho_sentinel=phospho_sentinel,
             max_unmatched_fraction=max_unmatched_fraction,
+            context="DatasetPreprocessing.run()",
+            config_param_name="config",
         )
         return self._core_processor().process(
             self.total_df,

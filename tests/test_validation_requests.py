@@ -483,3 +483,48 @@ def test_validate_pipeline_request_rejects_non_dataset_inputs() -> None:
         RequestValidationError, match="dataset must be a PhosphoDataset"
     ):
         validate_pipeline_request(dataset=object())
+
+
+def test_validate_pipeline_request_rejects_mixed_preprocessing_config_styles() -> None:
+    from phospy import PhosphoDataset
+    from phospy.core_processing import CorePreprocessingConfig
+
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+
+    with pytest.raises(
+        RequestValidationError,
+        match=(
+            r"Invalid pipeline request: pass either preprocessing_config or scalar "
+            r"preprocessing options, not both\."
+        ),
+    ):
+        validate_pipeline_request(
+            dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
+            preprocessing_config=CorePreprocessingConfig(),
+            min_observed=1,
+        )

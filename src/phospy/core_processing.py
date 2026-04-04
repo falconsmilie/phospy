@@ -40,6 +40,53 @@ class CorePreprocessingConfig:
     max_unmatched_fraction: float = 0.0
 
 
+def resolve_core_preprocessing_config(
+    *,
+    config: CorePreprocessingConfig | None = None,
+    localization_threshold: float = 0.75,
+    min_observed: int = 4,
+    total_sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
+    phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
+    max_unmatched_fraction: float = 0.0,
+    context: str,
+    config_param_name: str,
+) -> CorePreprocessingConfig:
+    default_config = CorePreprocessingConfig()
+    has_scalar_overrides = any(
+        (
+            localization_threshold != default_config.localization_threshold,
+            min_observed != default_config.min_observed,
+            float(total_sentinel) != default_config.total_sentinel,
+            float(phospho_sentinel) != default_config.phospho_sentinel,
+            max_unmatched_fraction != default_config.max_unmatched_fraction,
+        )
+    )
+
+    if config is not None and not isinstance(config, CorePreprocessingConfig):
+        msg = (
+            f"{context}: {config_param_name} must be a CorePreprocessingConfig instance"
+        )
+        raise TypeError(msg)
+
+    if config is not None and has_scalar_overrides:
+        msg = (
+            f"{context}: pass either {config_param_name} or scalar "
+            "preprocessing options, not both."
+        )
+        raise ValueError(msg)
+
+    if config is not None:
+        return config
+
+    return CorePreprocessingConfig(
+        localization_threshold=localization_threshold,
+        min_observed=min_observed,
+        total_sentinel=float(total_sentinel),
+        phospho_sentinel=float(phospho_sentinel),
+        max_unmatched_fraction=max_unmatched_fraction,
+    )
+
+
 @dataclass(slots=True)
 class CoreProcessingResult:
     total_unique: pd.DataFrame

@@ -8,7 +8,10 @@ import pandas as pd
 from pydantic import Field, ValidationError, field_validator, model_validator
 
 from ..constants import ComparisonSpec
-from ..core_processing import CorePreprocessingConfig
+from ..core_processing import (
+    CorePreprocessingConfig,
+    resolve_core_preprocessing_config,
+)
 from ..dataset_schema import DatasetSchema
 from ._models import PhospyRequestModel
 from .errors import InputCompatibilityError, RequestValidationError
@@ -95,22 +98,19 @@ def build_validated_pipeline_request(
         msg = "Invalid pipeline request: dataset must be a PhosphoDataset instance"
         raise RequestValidationError(msg)
 
-    if preprocessing_config is None:
-        resolved_config = CorePreprocessingConfig(
+    try:
+        resolved_config = resolve_core_preprocessing_config(
+            config=preprocessing_config,
             localization_threshold=localization_threshold,
             min_observed=min_observed,
             max_unmatched_fraction=max_unmatched_fraction,
             total_sentinel=total_sentinel,
             phospho_sentinel=phospho_sentinel,
+            context="Invalid pipeline request",
+            config_param_name="preprocessing_config",
         )
-    elif isinstance(preprocessing_config, CorePreprocessingConfig):
-        resolved_config = preprocessing_config
-    else:
-        msg = (
-            "Invalid pipeline request: preprocessing_config must be a "
-            "CorePreprocessingConfig instance"
-        )
-        raise RequestValidationError(msg)
+    except (TypeError, ValueError) as error:
+        raise RequestValidationError(str(error)) from error
 
     if validated_pred_mat is not None and not isinstance(
         validated_pred_mat, pd.DataFrame

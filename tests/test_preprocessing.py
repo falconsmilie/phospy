@@ -763,3 +763,49 @@ def test_add_pairwise_comparisons_uses_schema_group_names() -> None:
     )
 
     assert with_comparisons["p_sample_a_sample_b"].iloc[0] == 3.0
+
+
+def test_dataset_preprocessing_run_rejects_mixed_config_styles() -> None:
+    from phospy import PhosphoDataset
+    from phospy.core_processing import CorePreprocessingConfig
+
+    dataset = PhosphoDataset(
+        total_df=pd.DataFrame(
+            {
+                "genes": ["PRKACA"],
+                "group1": [1.0],
+                "group2": [1.0],
+                "group3": [1.0],
+                "group4": [1.0],
+                "group5": [1.0],
+                "group6": [1.0],
+            }
+        ),
+        phospho_df=pd.DataFrame(
+            {
+                "uid": ["u1"],
+                "gene_names": ["PRKACA"],
+                "gene_p_site": ["PRKACA_S339"],
+                "localization_prob": [0.95],
+                "centralized_sequence": ["AAAAAA"],
+                "p_group1": [1.0],
+                "p_group2": [1.0],
+                "p_group3": [1.0],
+                "p_group4": [1.0],
+                "p_group5": [1.0],
+                "p_group6": [1.0],
+            }
+        ),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            r"DatasetPreprocessing.run\(\): pass either config or scalar "
+            r"preprocessing options, not both\."
+        ),
+    ):
+        dataset.preprocessing.run(
+            config=CorePreprocessingConfig(),
+            min_observed=1,
+        )
