@@ -166,7 +166,7 @@ class PhosRPipeline:
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
     ) -> None:
-        self.request = validate_pipeline_request(
+        request = validate_pipeline_request(
             dataset=dataset,
             pred_mat=pred_mat,
             preprocessing_config=preprocessing_config,
@@ -176,26 +176,66 @@ class PhosRPipeline:
             total_sentinel=total_sentinel,
             phospho_sentinel=phospho_sentinel,
         )
-        self.dataset = self.request.dataset
-        self.pred_mat = self.request.pred_mat
-        self.preprocessing_config = self.request.preprocessing_config
-        self.kinase_activity_analyzer = KinaseActivityAnalyzer()
-        self.manifest_writer = manifest_writer or RunManifestWriter()
-        self.output_publisher = output_publisher or OutputPublisher()
-        self.execution_runner = PipelineExecutionRunner(
-            kinase_activity_analyzer=self.kinase_activity_analyzer
+        initialized = self._build_from_validated_request(
+            request=request,
+            manifest_writer=manifest_writer,
+            output_publisher=output_publisher,
         )
-        self.output_coordinator = PipelineOutputCoordinator()
+
+        object.__setattr__(self, "request", initialized.request)
+        self.dataset = initialized.dataset
+        self.pred_mat = initialized.pred_mat
+        self.preprocessing_config = initialized.preprocessing_config
+        self.kinase_activity_analyzer = initialized.kinase_activity_analyzer
+        self.manifest_writer = initialized.manifest_writer
+        self.output_publisher = initialized.output_publisher
+        self.execution_runner = initialized.execution_runner
+        self.output_coordinator = initialized.output_coordinator
 
     @classmethod
-    def from_request(cls, request: CorePipelineRequest) -> PhosRPipeline:
+    def _build_from_validated_request(
+        cls,
+        *,
+        request: ValidatedPipelineRequest,
+        manifest_writer: RunManifestWriter | None = None,
+        output_publisher: OutputPublisher | None = None,
+    ) -> PhosRPipeline:
+        instance = cls.__new__(cls)
+        object.__setattr__(instance, "request", request)
+        instance.dataset = request.dataset
+        instance.pred_mat = request.pred_mat
+        instance.preprocessing_config = request.preprocessing_config
+        instance.kinase_activity_analyzer = KinaseActivityAnalyzer()
+        instance.manifest_writer = manifest_writer or RunManifestWriter()
+        instance.output_publisher = output_publisher or OutputPublisher()
+        instance.execution_runner = PipelineExecutionRunner(
+            kinase_activity_analyzer=instance.kinase_activity_analyzer
+        )
+        instance.output_coordinator = PipelineOutputCoordinator()
+        return instance
+
+    @classmethod
+    def from_request(
+        cls,
+        request: CorePipelineRequest,
+        *,
+        manifest_writer: RunManifestWriter | None = None,
+        output_publisher: OutputPublisher | None = None,
+    ) -> PhosRPipeline:
         validated_request = PipelineRequestLoader().load(request)
-        return cls.from_validated_request(validated_request)
+        return cls.from_validated_request(
+            validated_request,
+            manifest_writer=manifest_writer,
+            output_publisher=output_publisher,
+        )
 
     @classmethod
     def from_validated_request(
         cls,
         request: ValidatedPipelineRequest,
+        *,
+        manifest_writer: RunManifestWriter | None = None,
+        output_publisher: OutputPublisher | None = None,
     ) -> PhosRPipeline:
         if not isinstance(request, ValidatedPipelineRequest):
             msg = (
@@ -203,19 +243,11 @@ class PhosRPipeline:
                 "Call validate_pipeline_request(...) or from_request(...) first."
             )
             raise TypeError(msg)
-        instance = cls.__new__(cls)
-        object.__setattr__(instance, "request", request)
-        instance.dataset = request.dataset
-        instance.pred_mat = request.pred_mat
-        instance.preprocessing_config = request.preprocessing_config
-        instance.kinase_activity_analyzer = KinaseActivityAnalyzer()
-        instance.manifest_writer = RunManifestWriter()
-        instance.output_publisher = OutputPublisher()
-        instance.execution_runner = PipelineExecutionRunner(
-            kinase_activity_analyzer=instance.kinase_activity_analyzer
+        return cls._build_from_validated_request(
+            request=request,
+            manifest_writer=manifest_writer,
+            output_publisher=output_publisher,
         )
-        instance.output_coordinator = PipelineOutputCoordinator()
-        return instance
 
     @classmethod
     def from_files(
@@ -231,6 +263,9 @@ class PhosRPipeline:
         max_unmatched_fraction: float = 0.0,
         total_sentinel: float = 10.0,
         phospho_sentinel: float = 12.0,
+        *,
+        manifest_writer: RunManifestWriter | None = None,
+        output_publisher: OutputPublisher | None = None,
     ) -> PhosRPipeline:
         request = CorePipelineRequest.validate_request(
             total_path=Path(total_path),
@@ -245,7 +280,11 @@ class PhosRPipeline:
             phospho_sentinel=phospho_sentinel,
             max_unmatched_fraction=max_unmatched_fraction,
         )
-        return cls.from_request(request)
+        return cls.from_request(
+            request,
+            manifest_writer=manifest_writer,
+            output_publisher=output_publisher,
+        )
 
     def run(self, outdir: str | Path | None = None) -> CoreOutputs:
         outputs = self.execution_runner.run(self.request)

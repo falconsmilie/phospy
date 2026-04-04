@@ -17,8 +17,10 @@ from phospy.dataset_loader import DatasetLoader, ValidatedCoreInputs
 from phospy.dataset_preprocessing import DatasetPreprocessing
 from phospy.dataset_schema import DatasetSchema
 from phospy.dataset_site_matrix import DatasetSiteMatrix
+from phospy.publishing import OutputPublisher, RunManifestWriter
 from phospy.site_matrix_builder import SiteMatrixBuilder
 from phospy.validation.errors import RequestValidationError
+from phospy.validation.pipeline import CorePipelineRequest, validate_pipeline_request
 from phospy.writers import CoreOutputWriter
 
 EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
@@ -748,6 +750,94 @@ def test_pipeline_from_request_validates_inputs_once(monkeypatch, tmp_path) -> N
 def test_pipeline_from_validated_request_rejects_raw_request_objects() -> None:
     with pytest.raises(TypeError, match="ValidatedPipelineRequest"):
         PhosRPipeline.from_validated_request(object())  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("builder_name", "builder"),
+    [
+        (
+            "__init__",
+            lambda dataset, total_path, phospho_path, pred_path, manifest_writer, output_publisher: (
+                PhosRPipeline(
+                    dataset=dataset,
+                    pred_mat=make_pred_mat(),
+                    manifest_writer=manifest_writer,
+                    output_publisher=output_publisher,
+                )
+            ),
+        ),
+        (
+            "from_request",
+            lambda dataset, total_path, phospho_path, pred_path, manifest_writer, output_publisher: (
+                PhosRPipeline.from_request(
+                    CorePipelineRequest.validate_request(
+                        total_path=total_path,
+                        phospho_path=phospho_path,
+                        pred_mat_path=pred_path,
+                    ),
+                    manifest_writer=manifest_writer,
+                    output_publisher=output_publisher,
+                )
+            ),
+        ),
+        (
+            "from_validated_request",
+            lambda dataset, total_path, phospho_path, pred_path, manifest_writer, output_publisher: (
+                PhosRPipeline.from_validated_request(
+                    validate_pipeline_request(
+                        dataset=dataset, pred_mat=make_pred_mat()
+                    ),
+                    manifest_writer=manifest_writer,
+                    output_publisher=output_publisher,
+                )
+            ),
+        ),
+        (
+            "from_files",
+            lambda dataset, total_path, phospho_path, pred_path, manifest_writer, output_publisher: (
+                PhosRPipeline.from_files(
+                    total_path=total_path,
+                    phospho_path=phospho_path,
+                    pred_mat_path=pred_path,
+                    manifest_writer=manifest_writer,
+                    output_publisher=output_publisher,
+                )
+            ),
+        ),
+    ],
+    ids=lambda case: case if isinstance(case, str) else None,
+)
+def test_pipeline_constructors_preserve_injected_collaborators(
+    builder_name,
+    builder,
+    tmp_path: Path,
+) -> None:
+    total_path = tmp_path / f"{builder_name}-total.tsv"
+    phospho_path = tmp_path / f"{builder_name}-phospho.tsv"
+    pred_path = tmp_path / f"{builder_name}-predMat.csv"
+
+    make_total_df().to_csv(total_path, sep="\t", index=False)
+    make_phospho_df().to_csv(phospho_path, sep="\t", index=False)
+    make_pred_mat().to_csv(pred_path)
+
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+    manifest_writer = RunManifestWriter(package_version_resolver=lambda: "1.0.0-test")
+    output_publisher = OutputPublisher()
+
+    pipeline = builder(
+        dataset,
+        total_path,
+        phospho_path,
+        pred_path,
+        manifest_writer,
+        output_publisher,
+    )
+
+    assert pipeline.manifest_writer is manifest_writer
+    assert pipeline.output_publisher is output_publisher
 
 
 def test_pipeline_writes_run_manifest(tmp_path) -> None:
