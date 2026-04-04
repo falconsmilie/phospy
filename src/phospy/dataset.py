@@ -38,9 +38,9 @@ class PhosphoDataset:
     mutable pandas tables, and exposes them through explicit `*_view` and
     `*_copy` accessors.
 
-    Use `total_df_view` / `phospho_df_view` when you intentionally want shared
-    workspace state. Use `total_df_copy` / `phospho_df_copy` or `copy_inputs()`
-    when you need detached caller-owned copies.
+    Prefer `total_df_copy` / `phospho_df_copy` or `copy_inputs()` for caller-owned
+    inspection, export, and other read-oriented work. Use `total_df_view` /
+    `phospho_df_view` only when you intentionally want shared workspace state.
     """
 
     __slots__ = ("_inputs", "_schema", "_comparisons")
@@ -104,6 +104,7 @@ class PhosphoDataset:
         """Return the owned validated total-protein workspace table.
 
         Mutating the returned frame mutates this dataset's owned workspace state.
+        Prefer `total_df_copy` for read-oriented caller work.
         """
         return self.inputs.total_df
 
@@ -112,6 +113,7 @@ class PhosphoDataset:
         """Return the owned validated phosphoproteomics workspace table.
 
         Mutating the returned frame mutates this dataset's owned workspace state.
+        Prefer `phospho_df_copy` for read-oriented caller work.
         """
         return self.inputs.phospho_df
 
@@ -126,15 +128,15 @@ class PhosphoDataset:
         return self.inputs.phospho_df.copy(deep=True)
 
     def copy_inputs(self) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Return detached deep copies suitable for caller-owned mutation."""
+        """Return detached deep copies suitable for caller-owned mutation and read use."""
         return self.total_df_copy, self.phospho_df_copy
 
     @property
     def preprocessing(self) -> DatasetPreprocessing:
         """Return the bound preprocessing facade for this dataset workspace."""
         return DatasetPreprocessing(
-            total_df=self.inputs.total_df,
-            phospho_df=self.inputs.phospho_df,
+            total_df=self.total_df_view,
+            phospho_df=self.phospho_df_view,
             schema=self.schema,
             comparisons=self.comparisons,
         )

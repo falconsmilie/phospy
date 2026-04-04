@@ -33,8 +33,11 @@ class DatasetPreprocessing:
 
     `run()` is the single preferred public entrypoint for dataset-bound core
     preprocessing. Advanced stepwise orchestration lives in the lower-level
-    processing modules rather than being re-exposed here as overlapping bound
-    methods.
+    processing modules.
+
+    When created from :class:`phospy.PhosphoDataset`, this facade is bound to
+    the dataset's explicit `total_df_view` and `phospho_df_view` accessors so
+    in-memory processing works against the owned workspace state intentionally.
     """
 
     total_df: pd.DataFrame

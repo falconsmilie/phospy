@@ -116,7 +116,9 @@ def test_pipeline_rejects_mixed_preprocessing_config_styles() -> None:
         )
 
 
-def test_phospho_dataset_preprocessing_facade_is_bound_and_typed() -> None:
+def test_phospho_dataset_preprocessing_facade_is_bound_to_explicit_workspace_views() -> (
+    None
+):
     dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
@@ -126,8 +128,8 @@ def test_phospho_dataset_preprocessing_facade_is_bound_and_typed() -> None:
     preprocessing = dataset.preprocessing
 
     assert isinstance(preprocessing, DatasetPreprocessing)
-    assert preprocessing.total_df.equals(dataset.total_df_view)
-    assert preprocessing.phospho_df.equals(dataset.phospho_df_view)
+    assert preprocessing.total_df is dataset.total_df_view
+    assert preprocessing.phospho_df is dataset.phospho_df_view
     assert preprocessing.schema == dataset.schema
     assert preprocessing.comparisons == tuple(EXAMPLE_COMPARISONS)
 
@@ -779,7 +781,7 @@ def test_dataset_from_files_validates_inputs_once(monkeypatch, tmp_path) -> None
         total_path=total_path, phospho_path=phospho_path
     )
 
-    assert dataset.total_df_view.shape[0] == 4
+    assert dataset.total_df_copy.shape[0] == 4
     assert total_calls == 1
     assert phospho_calls == 1
 
@@ -817,7 +819,7 @@ def test_pipeline_from_request_validates_inputs_once(monkeypatch, tmp_path) -> N
     )
     pipeline = PhosRPipeline.from_request(request)
 
-    assert pipeline.dataset.total_df_view.shape[0] == 4
+    assert pipeline.dataset.total_df_copy.shape[0] == 4
     assert total_calls == 1
     assert phospho_calls == 1
 

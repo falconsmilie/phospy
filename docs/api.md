@@ -82,9 +82,9 @@ Use `PhosphoDataset` when you want one validated in-memory dataset owner and the
 
 ### Data Ownership and Mutation
 
-`PhosphoDataset` owns the validated total and phospho input tables. `dataset.total_df_view` and `dataset.phospho_df_view` return those owned pandas `DataFrame` instances directly, so mutating them mutates the dataset's owned state.
+`PhosphoDataset` owns the validated total and phospho input tables. Prefer `dataset.total_df_copy`, `dataset.phospho_df_copy`, or `dataset.copy_inputs()` for inspection, export, reporting, and other read-oriented work.
 
-Use `dataset.total_df_copy`, `dataset.phospho_df_copy`, or `dataset.copy_inputs()` when you need detached caller-owned copies instead of shared dataset state. See [`docs/adr/0001-data-ownership-and-mutability.md`](adr/0001-data-ownership-and-mutability.md) for the project-wide policy.
+`dataset.total_df_view` and `dataset.phospho_df_view` return the owned pandas `DataFrame` instances directly, so mutating them mutates the dataset's owned state. Use those explicit shared-state accessors only when you intentionally want in-memory mutation against the dataset workspace. See [`docs/adr/0001-data-ownership-and-mutability.md`](adr/0001-data-ownership-and-mutability.md) for the project-wide policy.
 
 ### `PhosphoDataset(total_df, phospho_df, *, schema=None, comparisons=None)`
 
@@ -167,15 +167,6 @@ Builds a dataset from already validated loader output, copies those validated fr
 - `validated_inputs`: validated loader output from `DatasetLoader.validate(...)`
 - `comparisons`: validated against the schema carried by `validated_inputs`
 
-### `dataset.total_df_view` / `dataset.phospho_df_view`
-
-```python
-dataset.total_df_view -> pd.DataFrame
-dataset.phospho_df_view -> pd.DataFrame
-```
-
-Return the owned validated total and phospho input tables directly. Mutating either returned frame mutates the dataset's owned workspace state.
-
 ### `dataset.total_df_copy` / `dataset.phospho_df_copy`
 
 ```python
@@ -183,7 +174,16 @@ dataset.total_df_copy -> pd.DataFrame
 dataset.phospho_df_copy -> pd.DataFrame
 ```
 
-Return detached deep copies of the validated total and phospho input tables.
+Return detached deep copies of the validated total and phospho input tables. This is the preferred public access path for inspection, export, reporting, and any caller-owned downstream work.
+
+### `dataset.total_df_view` / `dataset.phospho_df_view`
+
+```python
+dataset.total_df_view -> pd.DataFrame
+dataset.phospho_df_view -> pd.DataFrame
+```
+
+Return the owned validated total and phospho input tables directly. Mutating either returned frame mutates the dataset's owned workspace state, so these accessors are intended for advanced shared-state workflows rather than routine read-oriented access.
 
 ### `dataset.copy_inputs()`
 
