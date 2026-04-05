@@ -23,6 +23,13 @@ from .writers import KinaseActivityResultWriter, KinaseActivityWriter
 
 @dataclass(slots=True)
 class KinaseActivityResult:
+    """Detached snapshot bundle for downstream kinase-activity outputs.
+
+    The tables and series stored here are produced result tables, not live views
+    into analyzer request inputs or dataset workspace state. Mutating them only
+    affects this result instance.
+    """
+
     weighted_activity: pd.DataFrame
     ksea_scores: pd.DataFrame
     ksea_counts: pd.Series

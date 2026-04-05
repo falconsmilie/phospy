@@ -13,6 +13,12 @@ from .validation.tables import SiteMatrixSchema
 
 @dataclass(slots=True)
 class SiteMatrixResult:
+    """Detached snapshot bundle for derived site-matrix outputs.
+
+    The returned tables and series are derived from corrected phosphosite rows
+    and are safe to treat as standalone result outputs.
+    """
+
     phosr_input: pd.DataFrame
     matrix: pd.DataFrame
     sequences: pd.Series

@@ -28,6 +28,12 @@ from .writers import CoreOutputWriter, KinaseActivityWriter
 
 @dataclass(slots=True)
 class CoreOutputs:
+    """Detached snapshot bundle returned by ``PhosRPipeline.run()``.
+
+    ``core`` and ``kinase_activity`` are result bundles produced for the current
+    run. They are not live views into ``pipeline.dataset`` workspace state.
+    """
+
     core: CoreProcessingResult
     kinase_activity: KinaseActivityResult | None = None
 

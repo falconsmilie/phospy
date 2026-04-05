@@ -10,6 +10,13 @@ from .validation.primitives import validate_positive_int
 
 @dataclass(slots=True)
 class KinaseProfileResult:
+    """Detached snapshot bundle for kinase substrate-profile outputs.
+
+    The contained tables and lookup structures are produced workflow outputs, not
+    live views into the input phosphosite matrix. Mutating them only affects this
+    result instance.
+    """
+
     profile_matrix: pd.DataFrame
     substrate_counts: pd.Series
     quantified_substrates: dict[str, list[str]]

@@ -134,3 +134,19 @@ def test_score_phosphosite_motifs_filters_by_minimum_motif_size() -> None:
 
 def test_validated_motif_library_is_not_a_frozen_dataclass() -> None:
     assert ValidatedMotifLibrary.__dataclass_params__.frozen is False
+
+
+def test_motif_scoring_result_is_detached_from_input_sequences() -> None:
+    seqs = pd.Series({"SITE_A": "QQAAAAAYY", "SITE_B": "QQTTTTTYY"})
+    original = seqs.copy(deep=True)
+    scorer = KinaseMotifScorer.from_substrate_sequences(
+        {"KINASE_A": ["AAAAA"], "KINASE_B": ["TTTTT"]},
+        flank_size=2,
+    )
+
+    result = scorer.score_sequences(seqs=seqs, min_motif_size=1)
+
+    result.motif_scores.loc["SITE_A", "KINASE_A"] = -999.0
+    result.sequence_windows.loc["SITE_A"] = "CHANGED"
+
+    pd.testing.assert_series_equal(seqs, original)

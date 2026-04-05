@@ -11,6 +11,12 @@ from .validation.errors import InputCompatibilityError
 
 @dataclass(slots=True)
 class KinaseScoringResult:
+    """Detached snapshot bundle for kinase scoring outputs.
+
+    The stored score matrices are generated result tables. They are not shared
+    live views into scorer internals or the input phosphosite matrix.
+    """
+
     profile_scores: pd.DataFrame
     combined_scores: pd.DataFrame | None = None
     weights: pd.DataFrame | None = None

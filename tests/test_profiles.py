@@ -73,3 +73,18 @@ def test_build_kinase_substrate_profiles_returns_expected_profile_rows() -> None
 
     assert list(result.profile_matrix.index) == ["KINASE_A"]
     assert float(result.profile_matrix.loc["KINASE_A", "s1"]) == pytest.approx(2.0)
+
+
+def test_kinase_profile_result_is_detached_from_input_matrix() -> None:
+    phospho_matrix = make_phospho_matrix()
+    original = phospho_matrix.copy(deep=True)
+
+    result = build_kinase_substrate_profiles(
+        substrate_map={"KINASE_A": ["SITE_1", "SITE_2"]},
+        phospho_matrix=phospho_matrix,
+    )
+
+    result.profile_matrix.loc["KINASE_A", "s1"] = -999.0
+    result.substrate_counts.loc["KINASE_A"] = 999
+
+    pd.testing.assert_frame_equal(phospho_matrix, original)

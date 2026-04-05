@@ -221,3 +221,40 @@ def test_combine_profile_and_motif_scores_preserves_profile_only_kinases_on_part
     assert float(weights.loc["KINASE_C", "profile_weight"]) == pytest.approx(1.0)
     assert float(weights.loc["KINASE_C", "motif_rank_weight"]) == pytest.approx(0.0)
     assert float(weights.loc["KINASE_C", "profile_rank_weight"]) == pytest.approx(1.0)
+
+
+def test_kinase_scoring_result_tables_are_detached_from_input_matrix() -> None:
+    scorer = KinaseScorer(make_kinase_profiles())
+    phospho_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 3.0],
+            "sample_2": [2.0, 2.0],
+            "sample_3": [3.0, 1.0],
+        },
+        index=["SITE_A", "SITE_B"],
+    )
+    motif_scores = pd.DataFrame(
+        {
+            "KINASE_A": [0.9, 0.1],
+            "KINASE_B": [0.2, 0.8],
+        },
+        index=phospho_matrix.index.copy(),
+    )
+    motif_sizes = pd.Series({"KINASE_A": 10, "KINASE_B": 20}, dtype=float)
+    profile_sizes = pd.Series({"KINASE_A": 30, "KINASE_B": 5}, dtype=float)
+    original = phospho_matrix.copy(deep=True)
+
+    result = scorer.score(
+        phospho_matrix=phospho_matrix,
+        motif_scores=motif_scores,
+        motif_sizes=motif_sizes,
+        profile_sizes=profile_sizes,
+    )
+
+    result.profile_scores.loc["SITE_A", "KINASE_A"] = -999.0
+    assert result.combined_scores is not None
+    result.combined_scores.loc["SITE_A", "KINASE_A"] = -999.0
+    assert result.weights is not None
+    result.weights.loc["KINASE_A", "motif_weight"] = -999.0
+
+    pd.testing.assert_frame_equal(phospho_matrix, original)

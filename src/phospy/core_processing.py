@@ -89,6 +89,13 @@ def resolve_core_preprocessing_config(
 
 @dataclass(slots=True)
 class CoreProcessingResult:
+    """Detached snapshot bundle for core preprocessing outputs.
+
+    These tables are produced preprocessing results and the nested
+    ``SiteMatrixResult`` is derived output. They are not live views into the
+    originating ``PhosphoDataset`` workspace.
+    """
+
     total_unique: pd.DataFrame
     total_filtered: pd.DataFrame
     phospho_filtered: pd.DataFrame

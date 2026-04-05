@@ -44,6 +44,14 @@ class KinasePredictionDebugTrace:
 
 @dataclass(slots=True)
 class KinasePredictionResult:
+    """Detached snapshot bundle for prediction outputs and optional traces.
+
+    ``pred_matrix`` and ``debug_traces`` are produced outputs of a completed
+    prediction run. They are not live views into predictor internals or the
+    input score matrix, although ``trace_sink`` may still own external runtime
+    resources until ``close()`` is called.
+    """
+
     pred_matrix: pd.DataFrame
     substrate_list: dict[str, list[str]]
     debug_traces: dict[str, KinasePredictionDebugTrace] | None = None

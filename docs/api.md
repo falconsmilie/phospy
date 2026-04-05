@@ -547,7 +547,7 @@ Writes the downstream kinase-analysis tables to disk.
 
 #### Return Example
 
-`KinaseActivityResult` exposes:
+`KinaseActivityResult` is a detached snapshot-style result bundle. It exposes:
 
 - `weighted_activity`
 - `ksea_scores`
@@ -624,6 +624,9 @@ Returns `CoreOutputs` with:
 
 - `core`: `CoreProcessingResult`
 - `kinase_activity`: `KinaseActivityResult | None`
+
+`CoreOutputs` is a detached snapshot-style result bundle. Mutating its tables does not mutate
+`pipeline.dataset` workspace state.
 
 When `outdir` is provided, the published bundle includes the core tables, any downstream kinase-analysis tables, and `run_manifest.json`.
 
@@ -722,7 +725,7 @@ Runs the native workflow end to end.
 workflow.run_request(request: ValidatedWorkflowRequest) -> KinaseWorkflowResult
 ```
 
-Runs the workflow from a trusted validated workflow bundle. `KinaseWorkflowRequest` is still accepted for compatibility and is upgraded to `ValidatedWorkflowRequest` at the boundary.
+Runs the workflow from a trusted validated workflow bundle. Use `validate_request(...)` to build the `ValidatedWorkflowRequest` boundary object before calling this entrypoint directly.
 
 #### Return Value
 
@@ -732,6 +735,10 @@ Returns `KinaseWorkflowResult` with:
 - `motif_result`
 - `scoring_result`
 - `prediction_result`
+
+`KinaseWorkflowResult` is a detached snapshot-style result bundle. Its nested result objects
+are produced workflow outputs, not live views into the input phosphosite matrix or predictor
+runtime state.
 
 `prediction_result` is a `KinasePredictionResult`. The most commonly used fields are:
 
@@ -756,9 +763,14 @@ pred_matrix = result.prediction_result.pred_matrix
 
 ## Result Objects
 
-The main result objects returned by the public workflows are small dataclasses. The attributes below are the ones you are most likely to use. Import them from their defining modules only when you need explicit type references.
+The main result objects returned by the public workflows are small dataclasses. Unless a type
+explicitly says otherwise, treat them as detached snapshot-style outputs: mutating their tables
+affects only that result instance and does not feed back into mutable dataset workspace state.
+Import them from their defining modules only when you need explicit type references.
 
 ### `CoreProcessingResult`
+
+Detached snapshot bundle for core preprocessing outputs.
 
 ```python
 CoreProcessingResult(
@@ -772,6 +784,8 @@ CoreProcessingResult(
 
 ### `SiteMatrixResult`
 
+Detached snapshot bundle for derived site-matrix outputs.
+
 ```python
 SiteMatrixResult(
     phosr_input: pd.DataFrame,
@@ -783,6 +797,8 @@ SiteMatrixResult(
 
 ### `CoreOutputs`
 
+Detached snapshot bundle returned by `PhosRPipeline.run()`.
+
 ```python
 CoreOutputs(
     core: CoreProcessingResult,
@@ -792,11 +808,13 @@ CoreOutputs(
 
 ### `KinaseActivityResult`
 
+Detached snapshot bundle for downstream kinase-activity outputs.
+
 ```python
 KinaseActivityResult(
     weighted_activity: pd.DataFrame,
     ksea_scores: pd.DataFrame,
-    ksea_counts: pd.DataFrame,
+    ksea_counts: pd.Series,
     target_counts: pd.Series,
     target_table: pd.DataFrame,
 )
@@ -804,9 +822,11 @@ KinaseActivityResult(
 
 ### `KinasePredictionResult`
 
-The most commonly used fields are `pred_matrix` and `substrate_list`.
+Detached snapshot bundle for prediction outputs and optional traces. The most commonly used fields are `pred_matrix` and `substrate_list`.
 
 ### `KinaseWorkflowResult`
+
+Detached snapshot bundle for native workflow outputs.
 
 ```python
 KinaseWorkflowResult(

@@ -58,6 +58,28 @@ def test_analyzer_analyze_returns_expected_result() -> None:
     assert result.target_counts.to_dict() == {"PRKACA": 3, "BTK": 2}
 
 
+def test_kinase_activity_result_tables_are_detached_snapshots_from_inputs() -> None:
+    pred_mat = make_pred_mat()
+    phospho_matrix = make_phospho_matrix()
+
+    result = KinaseActivityAnalyzer().analyze(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+        threshold=0.6,
+        min_substrates=2,
+    )
+
+    original_pred_mat = pred_mat.copy(deep=True)
+    original_phospho_matrix = phospho_matrix.copy(deep=True)
+
+    result.weighted_activity.loc["PRKACA", "phospho_corrected_1"] = -999.0
+    result.ksea_scores.loc["PRKACA", "ksea_score"] = -999.0
+    result.target_table.loc[result.target_table.index[0], "kinase"] = "CHANGED"
+
+    pd.testing.assert_frame_equal(pred_mat, original_pred_mat)
+    pd.testing.assert_frame_equal(phospho_matrix, original_phospho_matrix)
+
+
 def test_analyzer_load_and_analyze_runs_end_to_end(tmp_path) -> None:
     pred_mat_path = tmp_path / "predMat.csv"
     make_pred_mat().to_csv(pred_mat_path)

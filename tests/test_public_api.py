@@ -527,6 +527,30 @@ def test_kinase_activity_analyzer_write_outputs(tmp_path) -> None:
     assert expected_files.issubset({path.name for path in outdir.iterdir()})
 
 
+def test_pipeline_run_returns_core_outputs_detached_from_dataset_workspace() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+    pipeline = PhosRPipeline(dataset, pred_mat=make_pred_mat())
+    original_total = dataset.total_df_copy
+    original_phospho = dataset.phospho_df_copy
+
+    outputs = pipeline.run()
+
+    outputs.core.total_filtered.loc[0, "group1"] = -999.0
+    outputs.core.phospho_corrected.loc[0, "phospho_corrected_1"] = -999.0
+    outputs.core.site_matrix.matrix.loc[
+        outputs.core.site_matrix.matrix.index[0], "phospho_corrected_1"
+    ] = -999.0
+    assert outputs.kinase_activity is not None
+    outputs.kinase_activity.ksea_scores.loc["PRKACA", "ksea_score"] = -999.0
+
+    pd.testing.assert_frame_equal(dataset.total_df_live, original_total)
+    pd.testing.assert_frame_equal(dataset.phospho_df_live, original_phospho)
+
+
 def test_pipeline_runs_with_class_api(tmp_path) -> None:
     total_path = tmp_path / "total.tsv"
     phospho_path = tmp_path / "phospho.tsv"

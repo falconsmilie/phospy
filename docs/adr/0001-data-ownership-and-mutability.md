@@ -67,6 +67,17 @@ When an API returns a detached copy for caller-owned mutation or inspection, tha
 explicit operation. Snapshots should never be implied accidentally by vague naming or by a
 class presenting itself as immutable when it is not.
 
+### 6. Result bundles are detached snapshot-style outputs
+
+Public result bundles such as analysis, scoring, pipeline, workflow, and prediction results
+should be treated as detached snapshot-style outputs. Their tables and series are produced
+outputs of an operation, not live views into mutable workspace state.
+
+That means callers may inspect or mutate returned result tables without feeding those changes
+back into the originating dataset workspace or runtime internals. Result bundles do not need
+live/copy accessor pairs by default because they are already snapshot-style outputs by
+contract.
+
 ## Consequences
 
 Positive consequences:
@@ -75,6 +86,7 @@ Positive consequences:
 - internal processing code can work on owned tables without copy theatre
 - future performance work can reduce duplicate copying without weakening boundary rules
 - future API changes can distinguish explicit live-access paths from explicit copies more clearly
+- public result objects have a clearer contract distinct from mutable workspaces
 
 Trade-offs:
 
@@ -96,6 +108,13 @@ Trade-offs:
 In other words, `PhosphoDataset` is a mutable workspace owner, not an immutable snapshot.
 Follow-on refactors should keep making that contract clearer in the API itself, especially
 around how callers choose between explicit live-access paths and explicit copies.
+
+## Current application to result bundles
+
+The main public result objects in analysis, profiling, scoring, pipeline execution, workflow
+runs, and prediction should be understood as detached snapshot-style outputs. They expose the
+produced tables directly, but those tables are not intended to share state with the mutable
+``PhosphoDataset`` workspace or predictor runtime internals.
 
 ## Follow-on work
 

@@ -92,6 +92,26 @@ def test_kinase_predictor_returns_probability_matrix() -> None:
     )
 
 
+def test_prediction_result_matrix_is_detached_from_combined_scores_input() -> None:
+    predictor = KinasePredictor()
+    combined_scores = make_combined_scores()
+    original = combined_scores.copy(deep=True)
+
+    result = predictor.predict(
+        combined_scores=combined_scores,
+        ensemble_size=2,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=5,
+    )
+
+    result.pred_matrix.loc["SITE_1", "KINASE_A"] = -999.0
+
+    pd.testing.assert_frame_equal(combined_scores, original)
+
+
 def test_predict_from_scoring_result_uses_combined_scores() -> None:
     predictor = KinasePredictor()
     scoring_result = KinaseScoringResult(

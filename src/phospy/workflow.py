@@ -18,6 +18,13 @@ from .validation.workflow import (
 
 @dataclass(slots=True)
 class KinaseWorkflowResult:
+    """Detached snapshot bundle for native workflow outputs.
+
+    The nested result objects are produced outputs of a workflow run. They are
+    not live views into workflow request inputs or mutable scorer/predictor
+    internals.
+    """
+
     profile_result: KinaseProfileResult
     motif_result: MotifScoringResult | None
     scoring_result: KinaseScoringResult

@@ -50,6 +50,12 @@ _ALLOWED_SEQUENCE_CHARACTERS: frozenset[str] = frozenset(AMINO_ACIDS) | frozense
 
 @dataclass(slots=True)
 class MotifScoringResult:
+    """Detached snapshot bundle for motif-scoring outputs.
+
+    The matrices and sequence windows stored here are generated scoring outputs,
+    not live views into the scorer configuration or caller-owned sequence input.
+    """
+
     motif_scores: pd.DataFrame
     motif_sizes: pd.Series
     sequence_windows: pd.Series

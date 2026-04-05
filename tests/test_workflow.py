@@ -88,6 +88,45 @@ def test_kinase_workflow_runs_native_end_to_end_path() -> None:
     )
 
 
+def test_kinase_workflow_result_tables_are_detached_from_input_matrix() -> None:
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
+        make_workflow_inputs()
+    )
+    workflow = KinaseWorkflow(flank_size=2)
+    original = phospho_matrix.copy(deep=True)
+
+    result = workflow.run(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        min_substrates=2,
+        min_motif_size=2,
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.75,
+        inclusion=3,
+        n_iterations=2,
+        random_state=17,
+    )
+
+    result.profile_result.profile_matrix.loc[
+        "KINASE_A", phospho_matrix.columns[0]
+    ] = -999.0
+    if result.motif_result is not None:
+        result.motif_result.motif_scores.loc[
+            phospho_matrix.index[0], "KINASE_A"
+        ] = -999.0
+    result.scoring_result.profile_scores.loc[
+        phospho_matrix.index[0], "KINASE_A"
+    ] = -999.0
+    result.prediction_result.pred_matrix.loc[
+        phospho_matrix.index[0], "KINASE_A"
+    ] = -999.0
+
+    pd.testing.assert_frame_equal(phospho_matrix, original)
+
+
 def test_kinase_workflow_can_fall_back_to_profile_only_prediction() -> None:
     phospho_matrix, substrate_map, _, _ = make_workflow_inputs()
     workflow = KinaseWorkflow()
