@@ -12,12 +12,13 @@ from phospy.validation.analysis import (
     validate_analysis_request,
 )
 from phospy.validation.dataset import ValidatedDatasetInputs
-from phospy.validation.errors import RequestValidationError
+from phospy.validation.errors import InputCompatibilityError, RequestValidationError
 from phospy.validation.pipeline import (
     CorePipelineRequest,
-    ValidatedPipelineRequest,
-    build_validated_pipeline_request,
-    validate_pipeline_request,
+    ValidatedPipelineConstructionRequest,
+    build_validated_pipeline_construction_request,
+    validate_pipeline_construction_request,
+    validate_pipeline_runtime_compatibility,
 )
 from phospy.validation.prediction import PredictionRequest
 from phospy.validation.workflow import (
@@ -446,11 +447,11 @@ def test_pipeline_request_can_be_created_from_public_dataset_boundary() -> None:
         }
     )
 
-    pipeline_request = validate_pipeline_request(
+    pipeline_request = validate_pipeline_construction_request(
         dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
         pred_mat=pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"]),
     )
-    assert isinstance(pipeline_request, ValidatedPipelineRequest)
+    assert isinstance(pipeline_request, ValidatedPipelineConstructionRequest)
 
 
 def test_dataset_validation_internals_are_not_exported_from_validation_package() -> (
@@ -484,14 +485,16 @@ def test_validated_workflow_and_analysis_requests_can_be_created() -> None:
     assert isinstance(analysis_request, ValidatedAnalysisRequest)
 
 
-def test_validate_pipeline_request_rejects_non_dataset_inputs() -> None:
+def test_validate_pipeline_construction_request_rejects_non_dataset_inputs() -> None:
     with pytest.raises(
         RequestValidationError, match="dataset must be a PhosphoDataset"
     ):
-        validate_pipeline_request(dataset=object())
+        validate_pipeline_construction_request(dataset=object())
 
 
-def test_validate_pipeline_request_rejects_mixed_preprocessing_config_styles() -> None:
+def test_validate_pipeline_construction_request_rejects_mixed_preprocessing_config_styles() -> (
+    None
+):
     from phospy import PhosphoDataset
     from phospy.core_processing import CorePreprocessingConfig
 
@@ -525,11 +528,11 @@ def test_validate_pipeline_request_rejects_mixed_preprocessing_config_styles() -
     with pytest.raises(
         RequestValidationError,
         match=(
-            r"Invalid pipeline request: pass either preprocessing_config or scalar "
+            r"Invalid pipeline construction request: pass either preprocessing_config or scalar "
             r"preprocessing options, not both\."
         ),
     ):
-        validate_pipeline_request(
+        validate_pipeline_construction_request(
             dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
             preprocessing_config=CorePreprocessingConfig(),
             min_observed=1,
@@ -671,7 +674,9 @@ def test_validate_workflow_request_detaches_series_backed_site_sequences() -> No
     assert request.request.site_sequences.loc["SITE_1"] == "QQAAAAAYY"
 
 
-def test_validate_pipeline_request_takes_ownership_of_raw_pred_mat_input() -> None:
+def test_validate_pipeline_construction_request_takes_ownership_of_raw_pred_mat_input() -> (
+    None
+):
     total_df = pd.DataFrame(
         {
             "genes": ["PRKACA"],
@@ -700,7 +705,7 @@ def test_validate_pipeline_request_takes_ownership_of_raw_pred_mat_input() -> No
     )
     pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"])
 
-    request = validate_pipeline_request(
+    request = validate_pipeline_construction_request(
         dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
         pred_mat=pred_mat,
     )
@@ -711,49 +716,7 @@ def test_validate_pipeline_request_takes_ownership_of_raw_pred_mat_input() -> No
     assert request.pred_mat.loc["PRKACA;S339;", "PRKACA"] == 0.9
 
 
-def test_validate_pipeline_request_builds_explicit_kinase_activity_config() -> None:
-    total_df = pd.DataFrame(
-        {
-            "genes": ["PRKACA"],
-            "group1": [1.0],
-            "group2": [1.0],
-            "group3": [1.0],
-            "group4": [1.0],
-            "group5": [1.0],
-            "group6": [1.0],
-        }
-    )
-    phospho_df = pd.DataFrame(
-        {
-            "uid": ["u1"],
-            "gene_names": ["PRKACA"],
-            "gene_p_site": ["PRKACA_S339"],
-            "localization_prob": [0.95],
-            "centralized_sequence": ["AAAAAA"],
-            "p_group1": [1.0],
-            "p_group2": [1.0],
-            "p_group3": [1.0],
-            "p_group4": [1.0],
-            "p_group5": [1.0],
-            "p_group6": [1.0],
-        }
-    )
-
-    request = validate_pipeline_request(
-        dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
-        pred_mat=pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"]),
-        kinase_activity_threshold=0.8,
-        kinase_activity_min_substrates=5,
-        kinase_activity_top_n_substrates=7,
-    )
-
-    assert request.kinase_activity_request is not None
-    assert request.kinase_activity_request.threshold == 0.8
-    assert request.kinase_activity_request.min_substrates == 5
-    assert request.kinase_activity_request.top_n_substrates == 7
-
-
-def test_validate_pipeline_request_skips_kinase_activity_config_without_pred_mat() -> (
+def test_validate_pipeline_construction_request_builds_explicit_kinase_activity_config() -> (
     None
 ):
     total_df = pd.DataFrame(
@@ -783,7 +746,51 @@ def test_validate_pipeline_request_skips_kinase_activity_config_without_pred_mat
         }
     )
 
-    request = validate_pipeline_request(
+    request = validate_pipeline_construction_request(
+        dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
+        pred_mat=pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"]),
+        kinase_activity_threshold=0.8,
+        kinase_activity_min_substrates=5,
+        kinase_activity_top_n_substrates=7,
+    )
+
+    assert request.kinase_activity_request is not None
+    assert request.kinase_activity_request.threshold == 0.8
+    assert request.kinase_activity_request.min_substrates == 5
+    assert request.kinase_activity_request.top_n_substrates == 7
+
+
+def test_validate_pipeline_construction_request_skips_kinase_activity_config_without_pred_mat() -> (
+    None
+):
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+
+    request = validate_pipeline_construction_request(
         dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
         pred_mat=None,
         kinase_activity_threshold=0.8,
@@ -795,7 +802,9 @@ def test_validate_pipeline_request_skips_kinase_activity_config_without_pred_mat
     assert request.kinase_activity_request is None
 
 
-def test_build_validated_pipeline_request_reuses_owned_dataset_and_pred_mat() -> None:
+def test_build_validated_pipeline_construction_request_reuses_owned_dataset_and_pred_mat() -> (
+    None
+):
     total_df = pd.DataFrame(
         {
             "genes": ["PRKACA"],
@@ -825,13 +834,151 @@ def test_build_validated_pipeline_request_reuses_owned_dataset_and_pred_mat() ->
     dataset = PhosphoDataset(total_df=total_df, phospho_df=phospho_df)
     validated_pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"])
 
-    request = build_validated_pipeline_request(
+    request = build_validated_pipeline_construction_request(
         dataset=dataset,
         validated_pred_mat=validated_pred_mat,
     )
 
     assert request.dataset is dataset
     assert request.pred_mat is validated_pred_mat
+
+
+def test_validate_pipeline_runtime_compatibility_builds_analysis_request_after_preprocessing() -> (
+    None
+):
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+
+    request = validate_pipeline_construction_request(
+        dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
+        pred_mat=pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"]),
+    )
+
+    analysis_request = validate_pipeline_runtime_compatibility(
+        request=request,
+        site_matrix=pd.DataFrame({"sample_1": [1.0]}, index=["PRKACA;S339;"]),
+    )
+
+    assert analysis_request is not None
+    assert analysis_request.pred_mat.index.tolist() == ["PRKACA;S339;"]
+    assert analysis_request.phospho_matrix.index.tolist() == ["PRKACA;S339;"]
+
+
+def test_validate_pipeline_runtime_compatibility_reports_post_preprocessing_overlap_failures() -> (
+    None
+):
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+
+    request = validate_pipeline_construction_request(
+        dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
+        pred_mat=pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"]),
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=(
+            r"Pipeline runtime compatibility failed after preprocessing: "
+            r"pipeline pred_mat and preprocessed site matrix have no overlapping "
+            r"phosphosite IDs"
+        ),
+    ):
+        validate_pipeline_runtime_compatibility(
+            request=request,
+            site_matrix=pd.DataFrame({"sample_1": [1.0]}, index=["OTHER;S1;"]),
+        )
+
+
+def test_validate_pipeline_runtime_compatibility_skips_when_pipeline_has_no_pred_mat() -> (
+    None
+):
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+
+    request = validate_pipeline_construction_request(
+        dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
+        pred_mat=None,
+    )
+
+    assert (
+        validate_pipeline_runtime_compatibility(
+            request=request,
+            site_matrix=pd.DataFrame({"sample_1": [1.0]}, index=["PRKACA;S339;"]),
+        )
+        is None
+    )
 
 
 def test_prediction_request_takes_ownership_of_raw_combined_scores() -> None:
@@ -857,6 +1004,6 @@ def test_validated_request_bundles_with_pandas_state_are_not_frozen_dataclasses(
     None
 ):
     assert ValidatedAnalysisRequest.__dataclass_params__.frozen is False
-    assert ValidatedPipelineRequest.__dataclass_params__.frozen is False
+    assert ValidatedPipelineConstructionRequest.__dataclass_params__.frozen is False
     assert ValidatedWorkflowRequest.__dataclass_params__.frozen is False
     assert ValidatedDatasetInputs.__dataclass_params__.frozen is False

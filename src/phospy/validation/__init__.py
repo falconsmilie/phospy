@@ -20,8 +20,10 @@ from .errors import (
 )
 from .pipeline import (
     CorePipelineRequest,
-    ValidatedPipelineRequest,
-    validate_pipeline_request,
+    ValidatedPipelineConstructionRequest,
+    build_validated_pipeline_construction_request,
+    validate_pipeline_construction_request,
+    validate_pipeline_runtime_compatibility,
 )
 from .prediction import PredictionRequest
 from .primitives import validate_non_negative_int, validate_positive_int
@@ -64,14 +66,16 @@ __all__ = [
     "TraceError",
     "ValidatedAnalysisRequest",
     "ValidatedKinaseWorkflowInputs",
-    "ValidatedPipelineRequest",
+    "ValidatedPipelineConstructionRequest",
     "ValidatedWorkflowRequest",
     "build_validated_workflow_request",
     "build_workflow_request_inputs",
     "validate_analysis_request",
     "validate_core_column_alignment",
     "validate_non_negative_int",
-    "validate_pipeline_request",
+    "build_validated_pipeline_construction_request",
+    "validate_pipeline_construction_request",
+    "validate_pipeline_runtime_compatibility",
     "validate_positive_int",
     "validate_pred_mat_overlap",
     "validate_protein_correction_inputs",

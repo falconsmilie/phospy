@@ -15,13 +15,13 @@ from .dataset_loader import _DatasetLoader
 from .dataset_schema import DatasetSchema
 from .io import load_pred_mat
 from .publishing import OutputPublisher, RunManifestWriter
-from .validation.analysis import ValidatedAnalysisRequest
 from .validation.errors import RequestValidationError, TableSchemaError
 from .validation.pipeline import (
     CorePipelineRequest,
-    ValidatedPipelineRequest,
-    build_validated_pipeline_request,
-    validate_pipeline_request,
+    ValidatedPipelineConstructionRequest,
+    build_validated_pipeline_construction_request,
+    validate_pipeline_construction_request,
+    validate_pipeline_runtime_compatibility,
 )
 from .writers import CoreOutputWriter, KinaseActivityWriter
 
@@ -52,7 +52,9 @@ class _PipelineRequestLoader:
             load_pred_mat if pred_mat_loader is None else pred_mat_loader
         )
 
-    def load(self, request: CorePipelineRequest) -> ValidatedPipelineRequest:
+    def load(
+        self, request: CorePipelineRequest
+    ) -> ValidatedPipelineConstructionRequest:
         validated_inputs = self.dataset_loader_factory(
             schema=request.dataset_schema
         ).load(
@@ -64,7 +66,7 @@ class _PipelineRequestLoader:
             validated_inputs,
             comparisons=request.comparisons,
         )
-        return build_validated_pipeline_request(
+        return build_validated_pipeline_construction_request(
             dataset=dataset,
             validated_pred_mat=self._load_pred_mat(request),
             localization_threshold=request.localization_threshold,
@@ -101,18 +103,15 @@ class _PipelineExecutionRunner:
     def __init__(self, *, kinase_activity_analyzer: KinaseActivityAnalyzer) -> None:
         self.kinase_activity_analyzer = kinase_activity_analyzer
 
-    def run(self, request: ValidatedPipelineRequest) -> CoreOutputs:
+    def run(self, request: ValidatedPipelineConstructionRequest) -> CoreOutputs:
         core = request.dataset.preprocessing.run(config=request.preprocessing_config)
 
         kinase_activity = None
-        if request.pred_mat is not None and request.kinase_activity_request is not None:
-            kinase_activity_request = ValidatedAnalysisRequest.from_trusted_inputs(
-                request=request.kinase_activity_request,
-                pred_mat=request.pred_mat,
-                phospho_matrix=core.site_matrix.matrix,
-                pred_context="pred_mat",
-                matrix_context="site matrix",
-            )
+        kinase_activity_request = validate_pipeline_runtime_compatibility(
+            request=request,
+            site_matrix=core.site_matrix.matrix,
+        )
+        if kinase_activity_request is not None:
             kinase_activity = self.kinase_activity_analyzer._analyze_validated_request(
                 request=kinase_activity_request
             )
@@ -174,7 +173,7 @@ class PhosRPipeline:
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
     ) -> None:
-        request = validate_pipeline_request(
+        request = validate_pipeline_construction_request(
             dataset=dataset,
             pred_mat=pred_mat,
             preprocessing_config=preprocessing_config,
@@ -207,7 +206,7 @@ class PhosRPipeline:
     def _build_from_validated_request(
         cls,
         *,
-        request: ValidatedPipelineRequest,
+        request: ValidatedPipelineConstructionRequest,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
     ) -> PhosRPipeline:
@@ -244,7 +243,7 @@ class PhosRPipeline:
     @classmethod
     def _from_validated_request(
         cls,
-        request: ValidatedPipelineRequest,
+        request: ValidatedPipelineConstructionRequest,
         *,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,

@@ -104,7 +104,7 @@ def test_pipeline_rejects_mixed_preprocessing_config_styles() -> None:
     with pytest.raises(
         RequestValidationError,
         match=(
-            r"Invalid pipeline request: pass either preprocessing_config or scalar "
+            r"Invalid pipeline construction request: pass either preprocessing_config or scalar "
             r"preprocessing options, not both\."
         ),
     ):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .analysis import KinaseActivityRequest, ValidatedAnalysisRequest
-from .pipeline import CorePipelineRequest, ValidatedPipelineRequest
+from .pipeline import CorePipelineRequest, ValidatedPipelineConstructionRequest
 from .prediction import PredictionRequest
 from .workflow import KinaseWorkflowRequest, ValidatedWorkflowRequest
 
@@ -21,6 +21,6 @@ __all__ = [
     "KinaseWorkflowRequest",
     "PredictionRequest",
     "ValidatedAnalysisRequest",
-    "ValidatedPipelineRequest",
+    "ValidatedPipelineConstructionRequest",
     "ValidatedWorkflowRequest",
 ]
