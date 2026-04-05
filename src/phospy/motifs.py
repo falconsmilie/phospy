@@ -390,7 +390,7 @@ def _coerce_sequence_series(
     flank_size: int | None = 7,
 ) -> pd.Series:
     if isinstance(seqs, pd.Series):
-        series = seqs.copy()
+        series = seqs
     elif isinstance(seqs, Mapping):
         series = pd.Series(dict(seqs), dtype=object)
     else:
@@ -408,7 +408,7 @@ def _coerce_sequence_series(
         if missing:
             msg = f"seqs is missing entries for: {', '.join(missing)}"
             raise TableSchemaError(msg)
-        series = series.loc[list(site_index)].copy()
+        series = series.loc[list(site_index)]
 
     return series.map(lambda value: _extract_sequence_window(value, flank_size))
 

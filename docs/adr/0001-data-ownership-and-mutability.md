@@ -70,6 +70,8 @@ In practice this means:
   instead of copying them again by default
 - file-backed loaders may already materialise fresh in-memory tables, so later boundaries
   should only add another copy when ownership truly changes
+- internal numeric-normalisation paths should prefer no-copy coercion when they only
+  need a typed view over already-owned trusted tables
 
 ### 5. Snapshots must be explicit
 

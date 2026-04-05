@@ -42,6 +42,7 @@ Validation and runtime state follow different contracts:
 - raw dataframe boundaries copy once when taking ownership
 - trusted builders are expected to reuse already-owned validated tables
 - detached copies must be requested explicitly
+- trusted read-only numeric normalisation should avoid extra copying where possible
 
 See [`docs/adr/0001-data-ownership-and-mutability.md`](adr/0001-data-ownership-and-mutability.md) for the project-wide policy and its application to `PhosphoDataset`.
 
