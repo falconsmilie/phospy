@@ -11,13 +11,14 @@ from .io import read_table
 from .validation.errors import RequestValidationError, TableSchemaError
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class _LoadedDatasetInputs:
-    """Validated dataset tables produced by the internal file loader.
+    """Validated internal dataset bundle produced by the file loader.
 
-    The loader validates and materializes trusted in-memory frames, but it does
-    not transfer ownership to downstream workspace objects automatically.
-    Call :meth:`copy_frames` when you need detached caller-owned mutation.
+    The loader materializes trusted in-memory frames, but it does not transfer
+    ownership to downstream workspace objects automatically. This is a trusted
+    internal bundle, not a truly immutable value object. Call :meth:`copy_frames`
+    when you need detached caller-owned mutation.
     """
 
     schema: DatasetSchema

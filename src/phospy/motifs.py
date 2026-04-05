@@ -55,8 +55,14 @@ class MotifScoringResult:
     sequence_windows: pd.Series
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ValidatedMotifLibrary:
+    """Trusted validated motif library bundle used by motif scoring setup.
+
+    The contained frequency matrices and size series remain mutable pandas data,
+    so this wrapper is not presented as an immutable value object.
+    """
+
     motif_frequency_matrices: dict[str, pd.DataFrame]
     motif_sizes: pd.Series
 

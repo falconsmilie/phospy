@@ -36,7 +36,7 @@ For kinase activity analysis, the preferred flow is `KinaseActivityAnalyzer.vali
 
 Validation and runtime state follow different contracts:
 
-- validated request/configuration objects are immutable
+- validated request bundles carrying pandas state are trusted by convention, not truly immutable value objects
 - pandas-backed workspace objects are mutable unless docs say otherwise
 - ownership transfers at the validation/construction boundary
 - detached copies must be requested explicitly

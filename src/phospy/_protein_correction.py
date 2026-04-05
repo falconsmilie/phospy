@@ -28,9 +28,13 @@ class ProteinCorrectionSummary:
     unmatched_gene_preview: tuple[str, ...]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ProteinCorrectionResult:
-    """Corrected phosphosite rows together with protein-match metadata."""
+    """Protein-correction result bundle with corrected phosphosite rows.
+
+    The corrected table is mutable pandas state; this wrapper does not imply
+    immutable snapshot semantics.
+    """
 
     corrected: pd.DataFrame
     summary: ProteinCorrectionSummary

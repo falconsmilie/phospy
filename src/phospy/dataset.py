@@ -35,12 +35,12 @@ class PhosphoDataset:
 
     `PhosphoDataset` is an owned in-memory processing workspace, not an immutable
     snapshot. It validates raw constructor inputs at the boundary, stores owned
-    mutable pandas tables, and exposes them through explicit `*_live` and
+    mutable pandas tables, and exposes them through explicit `*_view` and
     `*_copy` accessors.
 
     Prefer `total_df_copy` / `phospho_df_copy` or `copy_inputs()` for caller-owned
-    inspection, export, and other read-oriented work. Use `total_df_live` /
-    `phospho_df_live` only when you intentionally want shared workspace state.
+    inspection, export, and other read-oriented work. Use `total_df_view` /
+    `phospho_df_view` only when you intentionally want shared workspace state.
     """
 
     __slots__ = ("_inputs", "_schema", "_comparisons")
@@ -100,7 +100,7 @@ class PhosphoDataset:
         return instance
 
     @property
-    def total_df_live(self) -> pd.DataFrame:
+    def total_df_view(self) -> pd.DataFrame:
         """Return the owned validated total-protein workspace table.
 
         Mutating the returned frame mutates this dataset's owned workspace state.
@@ -109,7 +109,7 @@ class PhosphoDataset:
         return self.inputs.total_df
 
     @property
-    def phospho_df_live(self) -> pd.DataFrame:
+    def phospho_df_view(self) -> pd.DataFrame:
         """Return the owned validated phosphoproteomics workspace table.
 
         Mutating the returned frame mutates this dataset's owned workspace state.
@@ -135,8 +135,8 @@ class PhosphoDataset:
     def preprocessing(self) -> DatasetPreprocessing:
         """Return the bound preprocessing facade for this dataset workspace."""
         return DatasetPreprocessing(
-            total_df=self.total_df_live,
-            phospho_df=self.phospho_df_live,
+            total_df=self.total_df_view,
+            phospho_df=self.phospho_df_view,
             schema=self.schema,
             comparisons=self.comparisons,
         )

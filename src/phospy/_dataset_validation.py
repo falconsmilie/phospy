@@ -21,9 +21,13 @@ class _ValidatedDatasetPaths:
     phospho_path: Path
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class _ValidatedDatasetInputs:
-    """Trusted internal dataset inputs for dataset construction boundaries."""
+    """Trusted internal dataset bundle for dataset construction boundaries.
+
+    This internal helper carries validated pandas tables into dataset creation.
+    It is trusted by convention, not structurally immutable.
+    """
 
     schema: DatasetSchema
     total_df: pd.DataFrame

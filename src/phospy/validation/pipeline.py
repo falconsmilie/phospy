@@ -70,9 +70,14 @@ class CorePipelineRequest(PhospyRequestModel):
             ) from error
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ValidatedPipelineRequest:
-    """Trusted in-memory pipeline request for the public :class:`phospy.PhosRPipeline` boundary."""
+    """Trusted validated bundle for the public :class:`phospy.PhosRPipeline` boundary.
+
+    This object carries a mutable dataset workspace and optional validated
+    analysis tables. It is trusted by downstream orchestration, not a truly
+    immutable value object.
+    """
 
     dataset: PhosphoDataset
     pred_mat: pd.DataFrame | None

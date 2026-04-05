@@ -97,9 +97,14 @@ class KinaseWorkflowRequest(PhospyRequestModel):
             ) from error
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ValidatedWorkflowRequest:
-    """Trusted boundary request for the public :class:`phospy.KinaseWorkflow` API."""
+    """Trusted validated bundle for the public :class:`phospy.KinaseWorkflow` API.
+
+    This class carries validated pandas workflow inputs and resolved runtime
+    collaborators. It is trusted downstream, but it is not a truly immutable
+    value object.
+    """
 
     request: KinaseWorkflowRequest
     phospho_matrix: pd.DataFrame

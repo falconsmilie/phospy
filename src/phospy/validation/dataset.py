@@ -21,9 +21,13 @@ class ValidatedDatasetPaths:
     phospho_path: Path
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ValidatedDatasetInputs:
-    """Trusted dataset inputs for the public :class:`phospy.PhosphoDataset` boundary."""
+    """Trusted validated bundle for the public :class:`phospy.PhosphoDataset` boundary.
+
+    This class carries validated pandas tables for dataset construction. It is a
+    trusted boundary bundle, not a truly immutable value object.
+    """
 
     schema: DatasetSchema
     total_df: pd.DataFrame

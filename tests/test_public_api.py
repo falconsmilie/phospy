@@ -115,7 +115,7 @@ def test_pipeline_rejects_mixed_preprocessing_config_styles() -> None:
         )
 
 
-def test_phospho_dataset_preprocessing_facade_is_bound_to_explicit_workspace_live_accessors() -> (
+def test_phospho_dataset_preprocessing_facade_is_bound_to_explicit_workspace_views() -> (
     None
 ):
     dataset = PhosphoDataset(
@@ -127,8 +127,8 @@ def test_phospho_dataset_preprocessing_facade_is_bound_to_explicit_workspace_liv
     preprocessing = dataset.preprocessing
 
     assert isinstance(preprocessing, DatasetPreprocessing)
-    assert preprocessing.total_df is dataset.total_df_live
-    assert preprocessing.phospho_df is dataset.phospho_df_live
+    assert preprocessing.total_df is dataset.total_df_view
+    assert preprocessing.phospho_df is dataset.phospho_df_view
     assert preprocessing.schema == dataset.schema
     assert preprocessing.comparisons == tuple(EXAMPLE_COMPARISONS)
 
@@ -173,8 +173,8 @@ def test_phospho_dataset_preprocessing_run_matches_core_processor() -> None:
         schema=dataset.schema,
         comparisons=dataset.comparisons,
     ).process(
-        dataset.total_df_live,
-        dataset.phospho_df_live,
+        dataset.total_df_view,
+        dataset.phospho_df_view,
         config=CorePreprocessingConfig(max_unmatched_fraction=0.1),
     )
 
@@ -248,11 +248,11 @@ def test_phospho_dataset_owns_an_isolated_workspace_copy_of_constructor_inputs()
     total_df.loc[0, "group1"] = 999.0
     phospho_df.loc[0, "p_group1"] = 999.0
 
-    assert dataset.total_df_live.loc[0, "group1"] != 999.0
-    assert dataset.phospho_df_live.loc[0, "p_group1"] != 999.0
+    assert dataset.total_df_view.loc[0, "group1"] != 999.0
+    assert dataset.phospho_df_view.loc[0, "p_group1"] != 999.0
 
 
-def test_phospho_dataset_live_accessors_expose_owned_workspace_frames_without_copying() -> (
+def test_phospho_dataset_view_accessors_expose_owned_workspace_frames_without_copying() -> (
     None
 ):
     dataset = PhosphoDataset(
@@ -261,36 +261,36 @@ def test_phospho_dataset_live_accessors_expose_owned_workspace_frames_without_co
         comparisons=EXAMPLE_COMPARISONS,
     )
 
-    assert dataset.total_df_live is dataset.inputs.total_df
-    assert dataset.phospho_df_live is dataset.inputs.phospho_df
-    assert dataset.preprocessing.total_df is dataset.total_df_live
-    assert dataset.preprocessing.phospho_df is dataset.phospho_df_live
+    assert dataset.total_df_view is dataset.inputs.total_df
+    assert dataset.phospho_df_view is dataset.inputs.phospho_df
+    assert dataset.preprocessing.total_df is dataset.total_df_view
+    assert dataset.preprocessing.phospho_df is dataset.phospho_df_view
     assert not hasattr(dataset, "total_df")
     assert not hasattr(dataset, "phospho_df")
 
 
-def test_phospho_dataset_live_mutation_updates_owned_workspace_state() -> None:
+def test_phospho_dataset_view_mutation_updates_owned_workspace_state() -> None:
     dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
 
-    dataset.total_df_live.loc[0, "group1"] = 777.0
-    dataset.phospho_df_live.loc[0, "p_group1"] = 888.0
+    dataset.total_df_view.loc[0, "group1"] = 777.0
+    dataset.phospho_df_view.loc[0, "p_group1"] = 888.0
 
     assert dataset.inputs.total_df.loc[0, "group1"] == 777.0
     assert dataset.inputs.phospho_df.loc[0, "p_group1"] == 888.0
 
 
-def test_total_df_live_is_live_but_total_df_copy_is_detached() -> None:
+def test_total_df_view_is_live_but_total_df_copy_is_detached() -> None:
     dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
 
-    live_total = dataset.total_df_live
+    live_total = dataset.total_df_view
     detached_total = dataset.total_df_copy
 
     live_total.loc[0, "group2"] = 123.0
@@ -300,14 +300,14 @@ def test_total_df_live_is_live_but_total_df_copy_is_detached() -> None:
     assert dataset.inputs.total_df.loc[1, "group2"] != 456.0
 
 
-def test_phospho_df_live_is_live_but_phospho_df_copy_is_detached() -> None:
+def test_phospho_df_view_is_live_but_phospho_df_copy_is_detached() -> None:
     dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
 
-    live_phospho = dataset.phospho_df_live
+    live_phospho = dataset.phospho_df_view
     detached_phospho = dataset.phospho_df_copy
 
     live_phospho.loc[0, "p_group2"] = 321.0
@@ -340,8 +340,8 @@ def test_phospho_dataset_copy_accessors_and_copy_inputs_return_mutation_safe_cop
     pd.testing.assert_frame_equal(total_copy_via_pair, dataset.total_df_copy)
     pd.testing.assert_frame_equal(phospho_copy_via_pair, dataset.phospho_df_copy)
 
-    assert dataset.total_df_live.loc[0, "group1"] != 999.0
-    assert dataset.phospho_df_live.loc[0, "p_group1"] != 999.0
+    assert dataset.total_df_view.loc[0, "group1"] != 999.0
+    assert dataset.phospho_df_view.loc[0, "p_group1"] != 999.0
 
 
 def test_dataset_preprocessing_run_does_not_mutate_owned_dataset_inputs() -> None:
@@ -355,8 +355,8 @@ def test_dataset_preprocessing_run_does_not_mutate_owned_dataset_inputs() -> Non
 
     dataset.preprocessing.run(max_unmatched_fraction=0.1)
 
-    pd.testing.assert_frame_equal(dataset.total_df_live, original_total)
-    pd.testing.assert_frame_equal(dataset.phospho_df_live, original_phospho)
+    pd.testing.assert_frame_equal(dataset.total_df_view, original_total)
+    pd.testing.assert_frame_equal(dataset.phospho_df_view, original_phospho)
 
 
 def test_core_output_writer_writes_csv_outputs(tmp_path) -> None:
@@ -696,12 +696,12 @@ def test_pipeline_propagates_sentinel_configuration(tmp_path) -> None:
 
     processor = CoreProcessor(schema=pipeline.dataset.schema)
     total_unique, total_filtered = processor.prepare_total(
-        pipeline.dataset.total_df_live,
+        pipeline.dataset.total_df_view,
         sentinel=pipeline.preprocessing_config.total_sentinel,
         min_observed=pipeline.preprocessing_config.min_observed,
     )
     phospho_filtered = processor.prepare_phospho(
-        pipeline.dataset.phospho_df_live,
+        pipeline.dataset.phospho_df_view,
         localization_threshold=pipeline.preprocessing_config.localization_threshold,
         sentinel=pipeline.preprocessing_config.phospho_sentinel,
         min_observed=pipeline.preprocessing_config.min_observed,

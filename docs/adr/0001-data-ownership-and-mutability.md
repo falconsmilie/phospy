@@ -5,12 +5,12 @@
 
 ## Context
 
-PhosPy mixes immutable request and configuration models with pandas-backed processing objects.
+PhosPy mixes trusted request and configuration models with pandas-backed processing objects.
 That is reasonable, but the project has not had one explicit policy for how ownership,
 copying, and mutation should work across those different layers.
 
 The clearest example is `PhosphoDataset`. The class owns validated pandas `DataFrame`
-instances and exposes them through explicit `*_live` and `*_copy` accessors. That
+instances and exposes them through explicit `*_view` and `*_copy` accessors. That
 means callers can mutate the dataset's owned state through those accessors. Without an
 explicit policy, different modules can drift into conflicting assumptions about whether a
 pandas-backed object is immutable, mutable, copied, or shared.
@@ -26,16 +26,14 @@ This confusion also affects:
 
 PhosPy adopts the following data ownership and mutability policy.
 
-### 1. Validated request and configuration objects are immutable
+### 1. Configuration objects and small value records should be immutable
 
-Objects that represent validated user intent, execution options, or configuration should be
-immutable value objects.
+Objects that represent execution options or small metadata without owning pandas
+tables should be immutable value objects where practical.
 
-Examples include:
-
-- validated request models
-- execution configuration objects
-- small metadata/value records that do not own working pandas tables
+Validated request bundles that carry pandas tables are different: they are
+trusted boundary bundles by convention, but they are not truly immutable value
+objects just because they wrap mutable pandas state.
 
 ### 2. DataFrame-carrying workspace objects are mutable
 
@@ -76,7 +74,7 @@ Positive consequences:
 - the mutability contract becomes honest
 - internal processing code can work on owned tables without copy theatre
 - future performance work can reduce duplicate copying without weakening boundary rules
-- future API changes can distinguish explicit live access from explicit copies more clearly
+- future API changes can distinguish explicit views from explicit copies more clearly
 
 Trade-offs:
 
@@ -89,15 +87,15 @@ Trade-offs:
 
 `PhosphoDataset` should be understood as an owner of mutable tabular state.
 
-- `dataset.total_df_live` returns the owned validated total table
-- `dataset.phospho_df_live` returns the owned validated phospho table
+- `dataset.total_df_view` returns the owned validated total table
+- `dataset.phospho_df_view` returns the owned validated phospho table
 - constructing a dataset isolates it from later caller mutation of the original input frames
 - `dataset.total_df_copy` and `dataset.phospho_df_copy` return detached deep copies
 - `dataset.copy_inputs()` returns detached deep copies for caller-owned mutation
 
 In other words, `PhosphoDataset` is a mutable workspace owner, not an immutable snapshot.
 Follow-on refactors should keep making that contract clearer in the API itself, especially
-around how callers choose between explicit live access and explicit copies.
+around how callers choose between explicit views and explicit copies.
 
 ## Follow-on work
 

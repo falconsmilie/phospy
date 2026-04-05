@@ -10,6 +10,7 @@ from phospy.validation.analysis import (
     ValidatedAnalysisRequest,
     validate_analysis_request,
 )
+from phospy.validation.dataset import ValidatedDatasetInputs
 from phospy.validation.errors import RequestValidationError
 from phospy.validation.pipeline import (
     CorePipelineRequest,
@@ -530,3 +531,12 @@ def test_validate_pipeline_request_rejects_mixed_preprocessing_config_styles() -
             preprocessing_config=CorePreprocessingConfig(),
             min_observed=1,
         )
+
+
+def test_validated_request_bundles_with_pandas_state_are_not_frozen_dataclasses() -> (
+    None
+):
+    assert ValidatedAnalysisRequest.__dataclass_params__.frozen is False
+    assert ValidatedPipelineRequest.__dataclass_params__.frozen is False
+    assert ValidatedWorkflowRequest.__dataclass_params__.frozen is False
+    assert ValidatedDatasetInputs.__dataclass_params__.frozen is False

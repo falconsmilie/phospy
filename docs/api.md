@@ -84,7 +84,7 @@ Use `PhosphoDataset` when you want one validated in-memory dataset owner and the
 
 `PhosphoDataset` owns the validated total and phospho input tables. Prefer `dataset.total_df_copy`, `dataset.phospho_df_copy`, or `dataset.copy_inputs()` for inspection, export, reporting, and other read-oriented work.
 
-`dataset.total_df_live` and `dataset.phospho_df_live` return the owned pandas `DataFrame` instances directly, so mutating them mutates the dataset's owned state. Use those explicit shared-state accessors only when you intentionally want in-memory mutation against the dataset workspace. See [`docs/adr/0001-data-ownership-and-mutability.md`](adr/0001-data-ownership-and-mutability.md) for the project-wide policy.
+`dataset.total_df_view` and `dataset.phospho_df_view` return the owned pandas `DataFrame` instances directly, so mutating them mutates the dataset's owned state. Use those explicit shared-state accessors only when you intentionally want in-memory mutation against the dataset workspace. See [`docs/adr/0001-data-ownership-and-mutability.md`](adr/0001-data-ownership-and-mutability.md) for the project-wide policy.
 
 ### `PhosphoDataset(total_df, phospho_df, *, schema=None, comparisons=None)`
 
@@ -159,11 +159,11 @@ dataset.phospho_df_copy -> pd.DataFrame
 
 Return detached deep copies of the validated total and phospho input tables. This is the preferred public access path for inspection, export, reporting, and any caller-owned downstream work.
 
-### `dataset.total_df_live` / `dataset.phospho_df_live`
+### `dataset.total_df_view` / `dataset.phospho_df_view`
 
 ```python
-dataset.total_df_live -> pd.DataFrame
-dataset.phospho_df_live -> pd.DataFrame
+dataset.total_df_view -> pd.DataFrame
+dataset.phospho_df_view -> pd.DataFrame
 ```
 
 Return the owned validated total and phospho input tables directly. Mutating either returned frame mutates the dataset's owned workspace state, so these accessors are intended for advanced shared-state workflows rather than routine read-oriented access.
@@ -184,7 +184,7 @@ Use this when you want caller-owned mutable copies.
 dataset.preprocessing -> DatasetPreprocessing
 ```
 
-Returns the bound preprocessing facade for the dataset. The facade operates on dataset-owned tables rather than detached snapshots.
+Returns the bound preprocessing facade for the dataset. The facade operates on dataset-owned live tables rather than detached snapshots.
 
 This is the preferred public entry point for core preprocessing.
 
@@ -452,9 +452,9 @@ analyzer.validate_request(
 ) -> ValidatedAnalysisRequest
 ```
 
-Validates raw analysis inputs and returns the trusted request object consumed by `analyze_validated_request(...)`.
+Validates raw analysis inputs and returns the trusted validated bundle consumed by `analyze_validated_request(...)`.
 
-Use this when you want to validate once at the boundary and pass a trusted request deeper into orchestration code.
+Use this when you want to validate once at the boundary and pass a trusted validated bundle deeper into orchestration code.
 
 ### `analyze_validated_request(request)`
 
@@ -600,7 +600,7 @@ PhosRPipeline.from_request(request: CorePipelineRequest) -> PhosRPipeline
 
 Builds a pipeline from an already validated file-backed request object.
 
-For an already materialised in-memory pipeline boundary, use `PhosRPipeline.from_validated_request(request)` with `ValidatedPipelineRequest`.
+For an already materialised in-memory pipeline boundary, use `PhosRPipeline.from_validated_request(request)` with the trusted `ValidatedPipelineRequest` bundle.
 
 ### `pipeline.run(outdir=None)`
 
@@ -722,7 +722,7 @@ Runs the native workflow end to end.
 workflow.run_request(request: ValidatedWorkflowRequest) -> KinaseWorkflowResult
 ```
 
-Runs the workflow from a trusted validated workflow request. `KinaseWorkflowRequest` is still accepted for compatibility and is upgraded to `ValidatedWorkflowRequest` at the boundary.
+Runs the workflow from a trusted validated workflow bundle. `KinaseWorkflowRequest` is still accepted for compatibility and is upgraded to `ValidatedWorkflowRequest` at the boundary.
 
 #### Return Value
 

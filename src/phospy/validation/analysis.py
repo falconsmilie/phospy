@@ -29,9 +29,13 @@ class KinaseActivityRequest(PhospyRequestModel):
             ) from error
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ValidatedAnalysisRequest:
-    """Trusted boundary request for the public :class:`phospy.KinaseActivityAnalyzer` API."""
+    """Trusted validated bundle for the public :class:`phospy.KinaseActivityAnalyzer` API.
+
+    This class carries validated pandas inputs for downstream execution. It is a
+    trusted boundary object by convention, not a truly immutable value object.
+    """
 
     request: KinaseActivityRequest
     pred_mat: pd.DataFrame

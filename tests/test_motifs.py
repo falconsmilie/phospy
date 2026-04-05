@@ -7,6 +7,7 @@ import pytest
 import phospy.motifs as motifs
 from phospy.motifs import (
     KinaseMotifScorer,
+    ValidatedMotifLibrary,
     create_frequency_matrix,
     frequency_scoring,
     score_phosphosite_motifs,
@@ -129,3 +130,7 @@ def test_score_phosphosite_motifs_filters_by_minimum_motif_size() -> None:
 
     assert list(result.motif_scores.columns) == ["KINASE_A"]
     assert list(result.motif_sizes.index) == ["KINASE_A"]
+
+
+def test_validated_motif_library_is_not_a_frozen_dataclass() -> None:
+    assert ValidatedMotifLibrary.__dataclass_params__.frozen is False

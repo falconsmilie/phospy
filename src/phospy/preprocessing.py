@@ -47,9 +47,13 @@ class LocalizationFilterSummary:
     localization_col: str
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class LocalizationFilterResult:
-    """Filtered phosphosites together with a localisation filter summary."""
+    """Localisation filter result bundle with the filtered phosphosite table.
+
+    The contained DataFrame is mutable pandas state; this wrapper does not imply
+    immutable snapshot semantics.
+    """
 
     filtered: pd.DataFrame
     summary: LocalizationFilterSummary
@@ -68,9 +72,13 @@ class CoverageFilterSummary:
     value_columns: tuple[str, ...]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class CoverageFilterResult:
-    """Filtered phosphosites together with a coverage filter summary."""
+    """Coverage filter result bundle with the filtered phosphosite table.
+
+    The contained DataFrame is mutable pandas state; this wrapper does not imply
+    immutable snapshot semantics.
+    """
 
     filtered: pd.DataFrame
     summary: CoverageFilterSummary
