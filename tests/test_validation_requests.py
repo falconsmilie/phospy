@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy import PhosphoDataset
 from phospy.dataset_schema import DatasetSchema
 from phospy.prediction.traces import TraceSink
 from phospy.validation.analysis import (
@@ -15,12 +16,14 @@ from phospy.validation.errors import RequestValidationError
 from phospy.validation.pipeline import (
     CorePipelineRequest,
     ValidatedPipelineRequest,
+    build_validated_pipeline_request,
     validate_pipeline_request,
 )
 from phospy.validation.prediction import PredictionRequest
 from phospy.validation.workflow import (
     KinaseWorkflowRequest,
     ValidatedWorkflowRequest,
+    build_validated_workflow_request,
     validate_workflow_request,
 )
 
@@ -531,6 +534,163 @@ def test_validate_pipeline_request_rejects_mixed_preprocessing_config_styles() -
             preprocessing_config=CorePreprocessingConfig(),
             min_observed=1,
         )
+
+
+def test_validate_analysis_request_takes_ownership_of_raw_dataframe_inputs() -> None:
+    pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"])
+    phospho_matrix = pd.DataFrame({"sample_1": [1.0]}, index=["PRKACA;S339;"])
+
+    request = validate_analysis_request(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+    )
+
+    pred_mat.loc["PRKACA;S339;", "PRKACA"] = 0.1
+    phospho_matrix.loc["PRKACA;S339;", "sample_1"] = 9.0
+
+    assert request.pred_mat.loc["PRKACA;S339;", "PRKACA"] == 0.9
+    assert request.phospho_matrix.loc["PRKACA;S339;", "sample_1"] == 1.0
+
+
+def test_validate_workflow_request_takes_ownership_of_raw_dataframe_inputs() -> None:
+    phospho_matrix = pd.DataFrame(
+        {"sample_1": [1.0], "sample_2": [2.0]},
+        index=["SITE_1"],
+    )
+
+    request = validate_workflow_request(
+        phospho_matrix=phospho_matrix,
+        substrate_map={"KINASE_A": ["SITE_1"]},
+        site_sequences={"SITE_1": "QQAAAAAYY"},
+        motif_sequences={"KINASE_A": ["QQAAAAAYY"]},
+        allow_profile_only_fallback=False,
+        flank_size=2,
+        default_svm_mode="default",
+    )
+
+    phospho_matrix.loc["SITE_1", "sample_1"] = 99.0
+
+    assert request.phospho_matrix.loc["SITE_1", "sample_1"] == 1.0
+    assert request.request.phospho_matrix is request.phospho_matrix
+
+
+def test_build_validated_workflow_request_reuses_owned_validated_matrix() -> None:
+    raw_request = KinaseWorkflowRequest.validate_request(
+        phospho_matrix=pd.DataFrame(
+            {"sample_1": [1.0], "sample_2": [2.0]},
+            index=["SITE_1"],
+        ),
+        substrate_map={"KINASE_A": ["SITE_1"]},
+        site_sequences={"SITE_1": "QQAAAAAYY"},
+        motif_sequences={"KINASE_A": ["QQAAAAAYY"]},
+        allow_profile_only_fallback=False,
+    )
+
+    request = build_validated_workflow_request(
+        raw_request,
+        flank_size=2,
+        default_svm_mode="default",
+    )
+
+    assert request.request.phospho_matrix is request.phospho_matrix
+
+
+def test_validate_pipeline_request_takes_ownership_of_raw_pred_mat_input() -> None:
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+    pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"])
+
+    request = validate_pipeline_request(
+        dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
+        pred_mat=pred_mat,
+    )
+
+    pred_mat.loc["PRKACA;S339;", "PRKACA"] = 0.1
+
+    assert request.pred_mat is not None
+    assert request.pred_mat.loc["PRKACA;S339;", "PRKACA"] == 0.9
+
+
+def test_build_validated_pipeline_request_reuses_owned_dataset_and_pred_mat() -> None:
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+    dataset = PhosphoDataset(total_df=total_df, phospho_df=phospho_df)
+    validated_pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"])
+
+    request = build_validated_pipeline_request(
+        dataset=dataset,
+        validated_pred_mat=validated_pred_mat,
+    )
+
+    assert request.dataset is dataset
+    assert request.pred_mat is validated_pred_mat
+
+
+def test_prediction_request_takes_ownership_of_raw_combined_scores() -> None:
+    combined_scores = pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"])
+
+    request = PredictionRequest.validate_request(
+        combined_scores=combined_scores,
+        ensemble_size=2,
+        top=2,
+        score_threshold=0.8,
+        inclusion=1,
+        n_iterations=2,
+        debug_top_n=1,
+        default_svm_mode="default",
+    )
+
+    combined_scores.loc["SITE_1", "KINASE_A"] = 0.1
+
+    assert request.combined_scores.loc["SITE_1", "KINASE_A"] == 0.9
 
 
 def test_validated_request_bundles_with_pandas_state_are_not_frozen_dataclasses() -> (

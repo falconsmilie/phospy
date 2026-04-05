@@ -74,9 +74,10 @@ class CorePipelineRequest(PhospyRequestModel):
 class ValidatedPipelineRequest:
     """Trusted validated bundle for the public :class:`phospy.PhosRPipeline` boundary.
 
-    This object carries a mutable dataset workspace and optional validated
-    analysis tables. It is trusted by downstream orchestration, not a truly
-    immutable value object.
+    The dataset workspace is already owned application state. Optional
+    ``pred_mat`` tables arrive here only after the raw pipeline boundary has
+    schema-validated and copied them once. Trusted pipeline orchestration then
+    reuses those owned objects without copying again by default.
     """
 
     dataset: PhosphoDataset
@@ -95,7 +96,12 @@ def build_validated_pipeline_request(
     total_sentinel: float = 10.0,
     phospho_sentinel: float = 12.0,
 ) -> ValidatedPipelineRequest:
-    """Build a trusted pipeline request from already validated inputs."""
+    """Build a trusted pipeline request from already-owned validated inputs.
+
+    This helper expects a dataset workspace and optional validated ``pred_mat``
+    table that are already owned trusted state. It does not copy them again.
+    Use :func:`validate_pipeline_request` at raw public boundaries.
+    """
 
     from ..dataset import PhosphoDataset
 
@@ -141,7 +147,12 @@ def validate_pipeline_request(
     total_sentinel: float = 10.0,
     phospho_sentinel: float = 12.0,
 ) -> ValidatedPipelineRequest:
-    """Validate raw in-memory pipeline inputs for the public pipeline boundary."""
+    """Validate raw in-memory pipeline inputs for the public pipeline boundary.
+
+    The dataset argument is already an owned workspace. When a raw ``pred_mat``
+    is supplied, this boundary takes ownership by schema-validating and copying
+    it once before handing trusted state downstream.
+    """
 
     validated_pred_mat = None
     if pred_mat is not None:

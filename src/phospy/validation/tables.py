@@ -221,10 +221,16 @@ class SiteMatrixSchema:
 
 
 def _ensure_dataframe(frame: pd.DataFrame, *, context: str) -> pd.DataFrame:
+    """Validate the raw boundary object type without taking ownership yet.
+
+    Schema validators copy once later when they coerce numeric columns. Keeping
+    the raw type check and the ownership-transfer copy separate avoids taking
+    multiple defensive copies inside the same validation boundary.
+    """
     if not isinstance(frame, pd.DataFrame):
         msg = f"{context} must be a pandas DataFrame"
         raise TableSchemaError(msg)
-    return frame.copy()
+    return frame
 
 
 def _ensure_required_columns(

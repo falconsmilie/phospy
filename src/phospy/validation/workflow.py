@@ -101,9 +101,10 @@ class KinaseWorkflowRequest(PhospyRequestModel):
 class ValidatedWorkflowRequest:
     """Trusted validated bundle for the public :class:`phospy.KinaseWorkflow` API.
 
-    This class carries validated pandas workflow inputs and resolved runtime
-    collaborators. It is trusted downstream, but it is not a truly immutable
-    value object.
+    Raw workflow boundaries take ownership of pandas inputs by validating and
+    copying them once. This trusted bundle then carries the owned validated
+    phosphosite matrix and resolved runtime collaborators downstream without
+    re-copying the matrix again.
     """
 
     request: KinaseWorkflowRequest
@@ -123,11 +124,22 @@ def build_validated_workflow_request(
     default_svm_mode: PredictionSvmMode,
     context: str = "Kinase workflow inputs",
 ) -> ValidatedWorkflowRequest:
+    """Build a trusted workflow request from raw validated options.
+
+    This is the raw workflow ownership-transfer point for pandas inputs. It
+    schema-validates the phosphosite matrix, copies it once, and stores that
+    owned validated matrix on both the trusted request bundle and the copied raw
+    request model that travels with it.
+    """
     validated_matrix = _validate_workflow_matrix_inputs(
         request.phospho_matrix,
         request.substrate_map,
         request.site_sequences,
         context=context,
+    )
+    owned_request = _copy_workflow_request_pandas_state(
+        request,
+        phospho_matrix=validated_matrix,
     )
     motif_scorer = (
         None
@@ -138,7 +150,7 @@ def build_validated_workflow_request(
         )
     )
     return ValidatedWorkflowRequest(
-        request=request,
+        request=owned_request,
         phospho_matrix=validated_matrix,
         motif_scorer=motif_scorer,
         predictor_svm_mode=(
@@ -229,6 +241,31 @@ def validate_workflow_inputs(
             flank_size=flank_size,
         )
     return validated_matrix
+
+
+def _copy_workflow_request_pandas_state(
+    request: KinaseWorkflowRequest,
+    *,
+    phospho_matrix: pd.DataFrame,
+) -> KinaseWorkflowRequest:
+    """Return a trusted request model that owns its pandas boundary state.
+
+    The workflow raw request model is convenient for option parsing, but it may
+    still reference caller-managed pandas inputs. This helper replaces those
+    fields with the owned validated matrix and a detached site-sequence series
+    copy when needed.
+    """
+
+    site_sequences = request.site_sequences
+    if isinstance(site_sequences, pd.Series):
+        site_sequences = site_sequences.copy(deep=True)
+
+    return request.model_copy(
+        update={
+            "phospho_matrix": phospho_matrix,
+            "site_sequences": site_sequences,
+        }
+    )
 
 
 def _validate_workflow_matrix_inputs(

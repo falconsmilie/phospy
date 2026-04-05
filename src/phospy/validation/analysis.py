@@ -33,8 +33,9 @@ class KinaseActivityRequest(PhospyRequestModel):
 class ValidatedAnalysisRequest:
     """Trusted validated bundle for the public :class:`phospy.KinaseActivityAnalyzer` API.
 
-    This class carries validated pandas inputs for downstream execution. It is a
-    trusted boundary object by convention, not a truly immutable value object.
+    Raw analysis boundaries take ownership by schema-validating and copying the
+    incoming pandas tables once. This trusted bundle then reuses those owned
+    validated tables downstream without taking additional defensive copies.
     """
 
     request: KinaseActivityRequest
@@ -53,7 +54,12 @@ class ValidatedAnalysisRequest:
         min_overlap: int = 1,
         min_fraction: float = 0.1,
     ) -> ValidatedAnalysisRequest:
-        """Build a validated analysis request from already schema-validated matrices."""
+        """Build a validated analysis request from already-owned validated matrices.
+
+        This trusted path validates cross-input compatibility but does not copy
+        the provided tables again. Call :func:`validate_analysis_request` when
+        entering from raw caller-managed DataFrames.
+        """
 
         validate_pred_mat_overlap(
             pred_mat,
@@ -82,7 +88,12 @@ def validate_analysis_request(
     min_overlap: int = 1,
     min_fraction: float = 0.1,
 ) -> ValidatedAnalysisRequest:
-    """Validate raw analysis inputs and return a trusted analysis request."""
+    """Validate raw analysis inputs and return a trusted analysis request.
+
+    This raw boundary takes ownership by copying the caller-managed pandas
+    tables once during schema validation. Downstream trusted flows reuse the
+    resulting owned validated tables.
+    """
 
     request = KinaseActivityRequest.validate_request(
         threshold=threshold,

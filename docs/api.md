@@ -454,7 +454,7 @@ analyzer.validate_request(
 
 Validates raw analysis inputs and returns the trusted validated bundle consumed by `analyze_validated_request(...)`.
 
-Use this when you want to validate once at the boundary and pass a trusted validated bundle deeper into orchestration code.
+This raw boundary schema-validates the incoming tables and takes ownership by copying them once. Use this when you want to validate once at the boundary and pass a trusted validated bundle deeper into orchestration code.
 
 ### `analyze_validated_request(request)`
 
@@ -600,7 +600,7 @@ PhosRPipeline.from_request(request: CorePipelineRequest) -> PhosRPipeline
 
 Builds a pipeline from an already validated file-backed request object.
 
-For an already materialised in-memory pipeline boundary, use `PhosRPipeline.from_validated_request(request)` with the trusted `ValidatedPipelineRequest` bundle.
+For an already materialised in-memory pipeline boundary, use `PhosRPipeline.from_validated_request(request)` with the trusted `ValidatedPipelineRequest` bundle. Raw in-memory `predMat` input is copied once when `validate_pipeline_request(...)` takes ownership; trusted pipeline bundles then reuse that owned state.
 
 ### `pipeline.run(outdir=None)`
 
@@ -725,7 +725,7 @@ Runs the native workflow end to end.
 workflow.run_request(request: ValidatedWorkflowRequest) -> KinaseWorkflowResult
 ```
 
-Runs the workflow from a trusted validated workflow bundle. Use `validate_request(...)` to build the `ValidatedWorkflowRequest` boundary object before calling this entrypoint directly.
+Runs the workflow from a trusted validated workflow bundle. Use `validate_request(...)` to build the `ValidatedWorkflowRequest` boundary object before calling this entrypoint directly. The raw workflow boundary copies the phosphosite matrix once when taking ownership, then trusted workflow execution reuses that owned validated matrix.
 
 #### Return Value
 
