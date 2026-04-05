@@ -6,16 +6,16 @@ from pathlib import Path
 
 import pandas as pd
 
-from ._dataset_validation import (
-    _build_validated_dataset_inputs,
-    _validate_dataset_request,
-    _ValidatedDatasetInputs,
-)
 from .constants import ComparisonSpec
-from .dataset_loader import _DatasetLoader, _LoadedDatasetInputs
+from .dataset_loader import DatasetLoader, LoadedDatasetInputs
 from .dataset_preprocessing import DatasetPreprocessing
 from .dataset_schema import DatasetSchema
 from .dataset_site_matrix import DatasetSiteMatrix
+from .validation.dataset import (
+    ValidatedDatasetInputs,
+    build_validated_dataset_inputs,
+    validate_dataset_request,
+)
 
 
 @dataclass(slots=True)
@@ -58,7 +58,7 @@ class PhosphoDataset:
         Raw caller-supplied frames are isolated at this boundary so later mutation of
         the caller's original inputs does not affect the dataset workspace.
         """
-        validated_request = _validate_dataset_request(
+        validated_request = validate_dataset_request(
             total_df=total_df,
             phospho_df=phospho_df,
             schema=schema,
@@ -81,7 +81,7 @@ class PhosphoDataset:
         """Return the owned comparison specs bound to this dataset workspace."""
         return self._comparisons
 
-    def _set_state(self, *, validated_request: _ValidatedDatasetInputs) -> None:
+    def _set_state(self, *, validated_request: ValidatedDatasetInputs) -> None:
         self._inputs = CoreInputs(
             total_df=validated_request.total_df,
             phospho_df=validated_request.phospho_df,
@@ -92,7 +92,7 @@ class PhosphoDataset:
     @classmethod
     def _from_owned_validated_request(
         cls,
-        validated_request: _ValidatedDatasetInputs,
+        validated_request: ValidatedDatasetInputs,
     ) -> PhosphoDataset:
         """Build a dataset from already-owned validated frames without copying again."""
         instance = cls.__new__(cls)
@@ -149,7 +149,7 @@ class PhosphoDataset:
     @classmethod
     def _from_loaded_inputs(
         cls,
-        loaded_inputs: _LoadedDatasetInputs,
+        loaded_inputs: LoadedDatasetInputs,
         *,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> PhosphoDataset:
@@ -159,13 +159,12 @@ class PhosphoDataset:
         directly into the dataset workspace. Public callers should use
         ``PhosphoDataset(...)`` or ``PhosphoDataset.from_files(...)``.
         """
-        if not isinstance(loaded_inputs, _LoadedDatasetInputs):
+        if not isinstance(loaded_inputs, LoadedDatasetInputs):
             msg = (
-                "_from_loaded_inputs requires an internal _LoadedDatasetInputs "
-                "instance."
+                "_from_loaded_inputs requires an internal LoadedDatasetInputs instance."
             )
             raise TypeError(msg)
-        validated_request = _build_validated_dataset_inputs(
+        validated_request = build_validated_dataset_inputs(
             schema=loaded_inputs.schema,
             total_df=loaded_inputs.total_df,
             phospho_df=loaded_inputs.phospho_df,
@@ -184,7 +183,7 @@ class PhosphoDataset:
         schema: DatasetSchema | None = None,
     ) -> PhosphoDataset:
         """Load files through the public dataset boundary and return an owned workspace."""
-        loader = _DatasetLoader(schema=schema)
+        loader = DatasetLoader(schema=schema)
         validated_inputs = loader.load(
             total_path,
             phospho_path,

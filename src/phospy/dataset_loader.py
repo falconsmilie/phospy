@@ -5,19 +5,21 @@ from pathlib import Path
 
 import pandas as pd
 
-from ._dataset_validation import _validate_dataset_file_paths, _validate_dataset_frames
 from .dataset_schema import DatasetSchema
 from .io import read_table
+from .validation.dataset import validate_dataset_file_paths, validate_dataset_frames
 from .validation.errors import RequestValidationError, TableSchemaError
+
+__all__ = ["DatasetLoader", "LoadedDatasetInputs"]
 
 
 @dataclass(slots=True)
-class _LoadedDatasetInputs:
-    """Validated internal dataset bundle produced by the file loader.
+class LoadedDatasetInputs:
+    """Package-internal bundle produced by :class:`DatasetLoader`.
 
     The loader materializes owned validated frames exactly once. Downstream
-    internal constructors may take ownership of these frames directly instead
-    of copying them again.
+    package-internal constructors may take ownership of these frames directly
+    instead of copying them again.
     """
 
     schema: DatasetSchema
@@ -25,8 +27,8 @@ class _LoadedDatasetInputs:
     phospho_df: pd.DataFrame
 
 
-class _DatasetLoader:
-    """Internal loader that reads and validates dataset frames from memory or disk."""
+class DatasetLoader:
+    """Package-internal loader contract for reading validated dataset frames."""
 
     def __init__(
         self,
@@ -40,13 +42,13 @@ class _DatasetLoader:
         *,
         total_df: pd.DataFrame,
         phospho_df: pd.DataFrame,
-    ) -> _LoadedDatasetInputs:
-        validated_total, validated_phospho = _validate_dataset_frames(
+    ) -> LoadedDatasetInputs:
+        validated_total, validated_phospho = validate_dataset_frames(
             total_df=total_df,
             phospho_df=phospho_df,
             schema=self.schema,
         )
-        return _LoadedDatasetInputs(
+        return LoadedDatasetInputs(
             total_df=validated_total,
             phospho_df=validated_phospho,
             schema=self.schema,
@@ -58,8 +60,8 @@ class _DatasetLoader:
         phospho_path: str | Path,
         *,
         phospho_encoding: str | None = None,
-    ) -> _LoadedDatasetInputs:
-        validated_paths = _validate_dataset_file_paths(
+    ) -> LoadedDatasetInputs:
+        validated_paths = validate_dataset_file_paths(
             total_path,
             phospho_path,
         )

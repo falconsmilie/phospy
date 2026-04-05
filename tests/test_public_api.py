@@ -13,7 +13,7 @@ from phospy.constants import (
     RUN_MANIFEST_FILENAME,
 )
 from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
-from phospy.dataset_loader import _DatasetLoader
+from phospy.dataset_loader import DatasetLoader
 from phospy.dataset_preprocessing import DatasetPreprocessing
 from phospy.dataset_schema import DatasetSchema
 from phospy.dataset_site_matrix import DatasetSiteMatrix
@@ -228,6 +228,15 @@ def test_phospho_dataset_does_not_expose_legacy_direct_preprocessing_methods() -
     assert not hasattr(dataset.preprocessing, "prepare_phospho")
     assert not hasattr(dataset.preprocessing, "correct_to_protein")
     assert not hasattr(dataset.preprocessing, "add_pairwise_comparisons")
+
+
+def test_dataset_loader_exposes_explicit_package_internal_contract_names() -> None:
+    import phospy.dataset_loader as dataset_loader_module
+
+    assert hasattr(dataset_loader_module, "DatasetLoader")
+    assert hasattr(dataset_loader_module, "LoadedDatasetInputs")
+    assert not hasattr(dataset_loader_module, "_DatasetLoader")
+    assert not hasattr(dataset_loader_module, "_LoadedDatasetInputs")
 
 
 def test_dataset_validation_internals_are_not_part_of_public_api_surface() -> None:
@@ -806,7 +815,7 @@ def test_dataset_from_files_validates_inputs_once(monkeypatch, tmp_path) -> None
 def test_phospho_dataset_from_loaded_inputs_transfers_loader_owned_frames_without_extra_copying(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    loader = _DatasetLoader(schema=DatasetSchema())
+    loader = DatasetLoader(schema=DatasetSchema())
     loaded_inputs = loader.validate_inputs(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
