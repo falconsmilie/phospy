@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pandas.testing as pdt
+import pytest
 
 from phospy.activities import (
     build_kinase_target_table,
@@ -328,3 +329,25 @@ def test_ksea_scores_match_reference_on_large_sparse_input() -> None:
 
     pdt.assert_frame_equal(scores.sort_index(), expected_scores.sort_index())
     pdt.assert_series_equal(counts.sort_index(), expected_counts.sort_index())
+
+
+def test_compute_weighted_kinase_activity_avoids_series_nlargest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pred_mat = make_pred_mat()
+    phospho_matrix = make_phospho_matrix()
+
+    def raising_nlargest(self, *args, **kwargs):
+        msg = "Series.nlargest should not be used in weighted activity execution"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(pd.Series, "nlargest", raising_nlargest)
+
+    result = compute_weighted_kinase_activity(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+        top_n_substrates=3,
+        min_substrates=3,
+    )
+
+    assert set(result.index) == {"PRKACA", "BTK"}

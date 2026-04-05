@@ -88,3 +88,22 @@ def test_kinase_profile_result_is_detached_from_input_matrix() -> None:
     result.substrate_counts.loc["KINASE_A"] = 999
 
     pd.testing.assert_frame_equal(phospho_matrix, original)
+
+
+def test_build_kinase_substrate_profiles_uses_vectorized_median(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    phospho_matrix = make_phospho_matrix()
+
+    def raising_apply(self, *args, **kwargs):
+        msg = "DataFrame.apply should not be used for profile aggregation"
+        raise AssertionError(msg)
+
+    monkeypatch.setattr(pd.DataFrame, "apply", raising_apply)
+
+    result = build_kinase_substrate_profiles(
+        substrate_map={"KINASE_A": ["SITE_1", "SITE_2"]},
+        phospho_matrix=phospho_matrix,
+    )
+
+    assert float(result.profile_matrix.loc["KINASE_A", "s1"]) == pytest.approx(2.0)

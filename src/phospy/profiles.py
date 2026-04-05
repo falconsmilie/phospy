@@ -85,10 +85,7 @@ def _aggregate_quantified_sites(quantified_matrix: pd.DataFrame) -> pd.Series:
     if quantified_matrix.shape[0] == 1:
         return quantified_matrix.iloc[0].astype(float)
 
-    return quantified_matrix.apply(
-        lambda column: column.median(skipna=False),
-        axis=0,
-    ).astype(float)
+    return quantified_matrix.median(axis=0, skipna=False).astype(float)
 
 
 def _quantified_sites(

@@ -27,33 +27,39 @@ def compute_weighted_kinase_activity(
 
     phospho_values = phospho_matrix.to_numpy(dtype=float, copy=False)
     phospho_site_positions = _build_site_position_lookup(phospho_matrix.index)
+    pred_values = pred_mat.to_numpy(dtype=float, copy=False)
+    pred_site_positions = np.asarray(
+        [phospho_site_positions.get(site_id, -1) for site_id in pred_mat.index],
+        dtype=int,
+    )
+    valid_prediction_mask = ~np.isnan(pred_values)
+    non_nan_counts = valid_prediction_mask.sum(axis=0)
+    sortable_pred_values = np.where(valid_prediction_mask, pred_values, -np.inf)
+    sorted_site_positions = np.argsort(-sortable_pred_values, axis=0, kind="stable")
 
-    for kinase in kinases:
-        top_substrates = pred_mat[kinase].nlargest(top_n_substrates)
-        substrate_positions: list[int] = []
-        weights: list[float] = []
-
-        for site_id, weight in top_substrates.items():
-            site_position = phospho_site_positions.get(site_id)
-            if site_position is None:
-                continue
-            substrate_positions.append(site_position)
-            weights.append(float(weight))
-
-        if len(substrate_positions) < min_substrates:
+    for kinase_position, kinase_name in enumerate(kinases):
+        top_count = min(top_n_substrates, int(non_nan_counts[kinase_position]))
+        if top_count == 0:
             continue
 
-        weights_array = np.asarray(weights, dtype=float)
-        weight_sum = float(weights_array.sum())
-        if weight_sum <= 0.0:
+        top_pred_positions = sorted_site_positions[:top_count, kinase_position]
+        aligned_site_positions = pred_site_positions[top_pred_positions]
+        aligned_mask = aligned_site_positions >= 0
+        substrate_positions = aligned_site_positions[aligned_mask]
+
+        if substrate_positions.size < min_substrates:
             continue
 
-        substrate_values = phospho_values[np.asarray(substrate_positions, dtype=int), :]
+        weights_array = pred_values[top_pred_positions[aligned_mask], kinase_position]
+        if float(weights_array.sum()) <= 0.0:
+            continue
+
+        substrate_values = phospho_values[substrate_positions, :]
         weighted_values = _nan_aware_weighted_average(substrate_values, weights_array)
         if np.isnan(weighted_values).all():
             continue
 
-        kinase_names.append(kinase)
+        kinase_names.append(kinase_name)
         kinase_rows.append(weighted_values)
 
     if not kinase_rows:
