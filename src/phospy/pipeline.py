@@ -112,8 +112,8 @@ class _PipelineExecutionRunner:
             site_matrix=core.site_matrix.matrix,
         )
         if kinase_activity_request is not None:
-            kinase_activity = self.kinase_activity_analyzer._analyze_validated_request(
-                request=kinase_activity_request
+            kinase_activity = self.kinase_activity_analyzer._run_request(
+                kinase_activity_request
             )
 
         return CoreOutputs(core=core, kinase_activity=kinase_activity)
@@ -140,7 +140,7 @@ class _PipelineOutputCoordinator:
             staging_dir = Path(staging_dir_str)
             CoreOutputWriter().write(outputs.core, staging_dir)
             if outputs.kinase_activity is not None:
-                KinaseActivityWriter.write(outputs.kinase_activity, staging_dir)
+                KinaseActivityWriter().write(outputs.kinase_activity, staging_dir)
             manifest_writer.write(
                 outdir=staging_dir,
                 core=outputs.core,

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -44,8 +46,8 @@ def test_analyzer_load_pred_mat_validates_input(tmp_path) -> None:
         load_pred_mat(pred_mat_path)
 
 
-def test_analyzer_analyze_returns_expected_result() -> None:
-    result = KinaseActivityAnalyzer().analyze(
+def test_analyzer_run_returns_expected_result() -> None:
+    result = KinaseActivityAnalyzer().run(
         pred_mat=make_pred_mat(),
         phospho_matrix=make_phospho_matrix(),
         threshold=0.6,
@@ -62,7 +64,7 @@ def test_kinase_activity_result_tables_are_detached_snapshots_from_inputs() -> N
     pred_mat = make_pred_mat()
     phospho_matrix = make_phospho_matrix()
 
-    result = KinaseActivityAnalyzer().analyze(
+    result = KinaseActivityAnalyzer().run(
         pred_mat=pred_mat,
         phospho_matrix=phospho_matrix,
         threshold=0.6,
@@ -80,11 +82,11 @@ def test_kinase_activity_result_tables_are_detached_snapshots_from_inputs() -> N
     pd.testing.assert_frame_equal(phospho_matrix, original_phospho_matrix)
 
 
-def test_analyzer_analyze_runs_end_to_end_with_loaded_pred_mat(tmp_path) -> None:
+def test_analyzer_run_runs_end_to_end_with_loaded_pred_mat(tmp_path) -> None:
     pred_mat_path = tmp_path / "predMat.csv"
     make_pred_mat().to_csv(pred_mat_path)
 
-    result = KinaseActivityAnalyzer().analyze(
+    result = KinaseActivityAnalyzer().run(
         pred_mat=load_pred_mat(pred_mat_path),
         phospho_matrix=make_phospho_matrix(),
         threshold=0.6,
@@ -95,9 +97,85 @@ def test_analyzer_analyze_runs_end_to_end_with_loaded_pred_mat(tmp_path) -> None
     assert set(result.target_table["kinase"]) == {"PRKACA", "BTK"}
 
 
+def test_analyzer_load_pred_mat_uses_injected_loader(tmp_path) -> None:
+    pred_mat_path = tmp_path / "predMat.csv"
+    expected = make_pred_mat()
+    calls: list[Path] = []
+
+    def fake_loader(path: str | Path) -> pd.DataFrame:
+        resolved = Path(path)
+        calls.append(resolved)
+        return expected
+
+    analyzer = KinaseActivityAnalyzer(pred_mat_loader=fake_loader)
+
+    loaded = analyzer.load_pred_mat(pred_mat_path)
+
+    assert loaded is expected
+    assert calls == [pred_mat_path]
+
+
+def test_analyzer_run_uses_injected_execution_runner() -> None:
+    expected = KinaseActivityAnalyzer().run(
+        pred_mat=make_pred_mat(),
+        phospho_matrix=make_phospho_matrix(),
+        threshold=0.6,
+        min_substrates=2,
+    )
+
+    class StubRunner:
+        def __init__(self) -> None:
+            self.request = None
+
+        def execute(self, request):
+            self.request = request
+            return expected
+
+    runner = StubRunner()
+    analyzer = KinaseActivityAnalyzer(execution_runner=runner)
+
+    result = analyzer.run(
+        pred_mat=make_pred_mat(),
+        phospho_matrix=make_phospho_matrix(),
+        threshold=0.7,
+        min_substrates=4,
+        top_n_substrates=9,
+    )
+
+    assert result is expected
+    assert runner.request is not None
+    assert runner.request.request.threshold == 0.7
+    assert runner.request.request.min_substrates == 4
+    assert runner.request.request.top_n_substrates == 9
+
+
+def test_analyzer_write_outputs_uses_injected_writer(tmp_path) -> None:
+    result = KinaseActivityAnalyzer().run(
+        pred_mat=make_pred_mat(),
+        phospho_matrix=make_phospho_matrix(),
+        threshold=0.6,
+        min_substrates=2,
+    )
+
+    class StubWriter:
+        def __init__(self) -> None:
+            self.calls: list[tuple[object, Path]] = []
+
+        def write(self, written_result, outdir: str | Path) -> None:
+            self.calls.append((written_result, Path(outdir)))
+
+    writer = StubWriter()
+    analyzer = KinaseActivityAnalyzer(result_writer=writer)
+    outdir = tmp_path / "kinase-output"
+
+    analyzer.write_outputs(result, outdir)
+
+    assert writer.calls == [(result, outdir)]
+
+
 def test_analyzer_write_outputs_writes_expected_files(tmp_path) -> None:
     analyzer = KinaseActivityAnalyzer()
-    result = analyzer.analyze(
+    result = analyzer.run(
         pred_mat=make_pred_mat(),
         phospho_matrix=make_phospho_matrix(),
         threshold=0.6,
@@ -113,7 +191,7 @@ def test_analyzer_write_outputs_writes_expected_files(tmp_path) -> None:
 
 def test_analyzer_rejects_invalid_request_threshold() -> None:
     with pytest.raises(RequestValidationError, match="threshold"):
-        KinaseActivityAnalyzer().analyze(
+        KinaseActivityAnalyzer().run(
             pred_mat=make_pred_mat(),
             phospho_matrix=make_phospho_matrix(),
             threshold=1.5,
@@ -135,13 +213,13 @@ def test_analyzer_load_pred_mat_validates_through_loader_once(
 
     monkeypatch.setattr(PredMatSchema, "validate", staticmethod(counting_validate))
 
-    loaded = load_pred_mat(pred_mat_path)
+    loaded = KinaseActivityAnalyzer().load_pred_mat(pred_mat_path)
 
     assert loaded.equals(make_pred_mat())
     assert calls == [f"pred_mat ({pred_mat_path})"]
 
 
-def test_analyze_revalidates_public_inputs_loaded_from_disk(
+def test_run_revalidates_public_inputs_loaded_from_disk(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     pred_mat_path = tmp_path / "predMat.csv"
@@ -171,7 +249,7 @@ def test_analyze_revalidates_public_inputs_loaded_from_disk(
         staticmethod(counting_matrix_validate),
     )
 
-    result = KinaseActivityAnalyzer().analyze(
+    result = KinaseActivityAnalyzer().run(
         pred_mat=load_pred_mat(pred_mat_path),
         phospho_matrix=make_phospho_matrix(),
         threshold=0.6,
@@ -183,7 +261,7 @@ def test_analyze_revalidates_public_inputs_loaded_from_disk(
     assert matrix_calls == ["phospho_matrix"]
 
 
-def test_analyze_validated_request_uses_validated_boundary_request(
+def test_run_request_uses_validated_boundary_request(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     pred_calls: list[str] = []
@@ -218,7 +296,7 @@ def test_analyze_validated_request_uses_validated_boundary_request(
         min_substrates=2,
         top_n_substrates=20,
     )
-    result = analyzer._analyze_validated_request(request=request)
+    result = analyzer._run_request(request)
 
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
     assert pred_calls == ["pred_mat"]

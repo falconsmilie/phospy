@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pandas as pd
@@ -13,14 +14,15 @@ from .activities import (
 )
 from .io import load_pred_mat
 from .validation.analysis import (
-    KinaseActivityRequest,
     ValidatedAnalysisRequest,
     validate_analysis_request,
 )
-from .validation.tables import SiteMatrixSchema
 from .writers import KinaseActivityResultWriter, KinaseActivityWriter
 
 __all__ = ["KinaseActivityAnalyzer", "KinaseActivityResult"]
+
+
+PredMatLoader = Callable[[str | Path], pd.DataFrame]
 
 
 @dataclass(slots=True)
@@ -39,58 +41,10 @@ class KinaseActivityResult:
     target_table: pd.DataFrame
 
 
-@dataclass(slots=True)
-class KinaseActivityAnalyzer:
-    """Application service for downstream kinase activity analysis."""
-
-    result_writer: type[KinaseActivityResultWriter] = KinaseActivityWriter
-
-    @staticmethod
-    def _load_pred_mat(pred_mat_path: str | Path) -> pd.DataFrame:
-        """Load and validate a kinase prediction matrix from disk."""
-
-        return load_pred_mat(pred_mat_path)
-
-    def _validate_request(
+class _KinaseActivityExecutionRunner:
+    def execute(
         self,
-        *,
-        pred_mat: pd.DataFrame,
-        phospho_matrix: pd.DataFrame,
-        threshold: float = 0.6,
-        min_substrates: int = 3,
-        top_n_substrates: int = 20,
-    ) -> ValidatedAnalysisRequest:
-        return validate_analysis_request(
-            pred_mat=pred_mat,
-            phospho_matrix=phospho_matrix,
-            threshold=threshold,
-            min_substrates=min_substrates,
-            top_n_substrates=top_n_substrates,
-        )
-
-    @staticmethod
-    def analyze(
-        pred_mat: pd.DataFrame,
-        phospho_matrix: pd.DataFrame,
-        threshold: float = 0.6,
-        min_substrates: int = 3,
-        top_n_substrates: int = 20,
-    ) -> KinaseActivityResult:
-        """Compute downstream kinase summaries from raw public inputs."""
-
-        analyzer = KinaseActivityAnalyzer()
-        request = analyzer._validate_request(
-            pred_mat=pred_mat,
-            phospho_matrix=phospho_matrix,
-            threshold=threshold,
-            min_substrates=min_substrates,
-            top_n_substrates=top_n_substrates,
-        )
-        return analyzer._analyze_validated_request(request=request)
-
-    @staticmethod
-    def _analyze_validated_request(
-        *, request: ValidatedAnalysisRequest
+        request: ValidatedAnalysisRequest,
     ) -> KinaseActivityResult:
         weighted_activity = compute_weighted_kinase_activity(
             pred_mat=request.pred_mat,
@@ -121,36 +75,65 @@ class KinaseActivityAnalyzer:
             target_table=target_table,
         )
 
-    def _load_and_analyze(
+
+@dataclass(slots=True)
+class KinaseActivityAnalyzer:
+    """Run downstream kinase activity analysis from validated tabular inputs."""
+
+    pred_mat_loader: PredMatLoader = load_pred_mat
+    result_writer: KinaseActivityResultWriter = field(
+        default_factory=KinaseActivityWriter
+    )
+    execution_runner: _KinaseActivityExecutionRunner = field(
+        default_factory=_KinaseActivityExecutionRunner
+    )
+
+    def load_pred_mat(self, pred_mat_path: str | Path) -> pd.DataFrame:
+        """Load and validate a kinase prediction matrix from disk."""
+
+        return self.pred_mat_loader(pred_mat_path)
+
+    def _validate_request(
         self,
-        pred_mat_path: str | Path,
+        *,
+        pred_mat: pd.DataFrame,
+        phospho_matrix: pd.DataFrame,
+        threshold: float = 0.6,
+        min_substrates: int = 3,
+        top_n_substrates: int = 20,
+    ) -> ValidatedAnalysisRequest:
+        return validate_analysis_request(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+            threshold=threshold,
+            min_substrates=min_substrates,
+            top_n_substrates=top_n_substrates,
+        )
+
+    def run(
+        self,
+        pred_mat: pd.DataFrame,
         phospho_matrix: pd.DataFrame,
         threshold: float = 0.6,
         min_substrates: int = 3,
         top_n_substrates: int = 20,
     ) -> KinaseActivityResult:
-        """Load a prediction matrix from disk and compute downstream kinase summaries."""
+        """Compute downstream kinase summaries from raw public inputs."""
 
-        validated_pred_mat = self._load_pred_mat(pred_mat_path)
-        validated_matrix = SiteMatrixSchema.validate(
-            phospho_matrix,
-            context="phospho_matrix",
-        )
-        raw_request = KinaseActivityRequest.validate_request(
+        request = self._validate_request(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
             threshold=threshold,
             min_substrates=min_substrates,
             top_n_substrates=top_n_substrates,
         )
-        request = ValidatedAnalysisRequest.from_trusted_inputs(
-            request=raw_request,
-            pred_mat=validated_pred_mat,
-            phospho_matrix=validated_matrix,
-            pred_context="pred_mat",
-            matrix_context="phospho_matrix",
-            min_overlap=1,
-            min_fraction=0.1,
-        )
-        return self._analyze_validated_request(request=request)
+        return self._run_request(request)
+
+    def _run_request(
+        self,
+        request: ValidatedAnalysisRequest,
+    ) -> KinaseActivityResult:
+        return self.execution_runner.execute(request)
 
     def write_outputs(self, result: KinaseActivityResult, outdir: str | Path) -> None:
         self.result_writer.write(result, outdir)

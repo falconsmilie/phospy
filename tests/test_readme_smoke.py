@@ -9,7 +9,6 @@ from phospy.constants import (
     CORE_OUTPUT_ARTIFACT_BASENAMES,
     KINASE_OUTPUT_FILENAMES,
 )
-from phospy.io import load_pred_mat
 
 EXAMPLE_OUTPUT_FILES = {
     *(f"{basename}.csv" for basename in CORE_OUTPUT_ARTIFACT_BASENAMES),
@@ -28,8 +27,10 @@ def test_readme_example_analyzer_runs_end_to_end(tmp_path) -> None:
     core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
 
     analyzer = KinaseActivityAnalyzer()
-    result = analyzer.analyze(
-        pred_mat=load_pred_mat(repo_root / "examples" / "data" / "predMat.csv"),
+    result = analyzer.run(
+        pred_mat=analyzer.load_pred_mat(
+            repo_root / "examples" / "data" / "predMat.csv"
+        ),
         phospho_matrix=core.site_matrix.matrix,
         threshold=0.6,
         min_substrates=1,

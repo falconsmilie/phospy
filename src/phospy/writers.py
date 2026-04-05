@@ -59,8 +59,7 @@ class CoreProcessingResultWriter(Protocol):
 class KinaseActivityResultWriter(Protocol):
     """Writer contract for persisted kinase activity outputs."""
 
-    @staticmethod
-    def write(result: KinaseActivityResult, outdir: str | Path) -> None: ...
+    def write(self, result: KinaseActivityResult, outdir: str | Path) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,11 +189,11 @@ class CoreOutputWriter:
         )
 
 
+@dataclass(frozen=True, slots=True)
 class KinaseActivityWriter:
     """Persist downstream kinase activity summaries to disk."""
 
-    @staticmethod
-    def write(result: KinaseActivityResult, outdir: str | Path) -> None:
+    def write(self, result: KinaseActivityResult, outdir: str | Path) -> None:
         target_dir = Path(outdir)
         target_dir.mkdir(parents=True, exist_ok=True)
         result.weighted_activity.to_csv(target_dir / KINASE_ACTIVITY_MATRIX_FILENAME)

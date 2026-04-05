@@ -424,7 +424,7 @@ Use `KinaseActivityAnalyzer` when you already have a phosphosite matrix and a `p
 ### `load_pred_mat(pred_mat_path)`
 
 ```python
-KinaseActivityAnalyzer.load_pred_mat(pred_mat_path: str | Path) -> pd.DataFrame
+analyzer.load_pred_mat(pred_mat_path: str | Path) -> pd.DataFrame
 ```
 
 Loads and validates a prediction matrix from disk.
@@ -439,10 +439,10 @@ Loads and validates a prediction matrix from disk.
   - the matrix must contain at least one row and at least one kinase column
   - the phosphosite index must be unique and non-null
 
-### `analyze(pred_mat, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20)`
+### `run(pred_mat, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20)`
 
 ```python
-KinaseActivityAnalyzer.analyze(
+KinaseActivityAnalyzer.run(
     pred_mat: pd.DataFrame,
     phospho_matrix: pd.DataFrame,
     threshold: float = 0.6,
@@ -475,17 +475,15 @@ Compatibility validation:
 - `pred_mat` and `phospho_matrix` must overlap by at least one phosphosite row
 - that overlap must cover at least 10% of the phosphosite matrix
 
-For file-backed prediction matrices, load the matrix first and then call `analyze(...)`.
+For file-backed prediction matrices, load the matrix first and then call `run(...)`.
 
 #### Example
 
 ```python
 from phospy import KinaseActivityAnalyzer
-from phospy.io import load_pred_mat
-
 analyzer = KinaseActivityAnalyzer()
-result = analyzer.analyze(
-    pred_mat=load_pred_mat("predMat.csv"),
+result = analyzer.run(
+    pred_mat=analyzer.load_pred_mat("predMat.csv"),
     phospho_matrix=core.site_matrix.matrix,
     threshold=0.6,
     min_substrates=1,

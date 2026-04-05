@@ -5,7 +5,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from phospy import KinaseActivityAnalyzer, PhosphoDataset
-from phospy.io import load_pred_mat
 
 
 def main() -> None:
@@ -18,8 +17,10 @@ def main() -> None:
     core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
 
     analyzer = KinaseActivityAnalyzer()
-    result = analyzer.analyze(
-        pred_mat=load_pred_mat(repo_root / "examples" / "data" / "predMat.csv"),
+    result = analyzer.run(
+        pred_mat=analyzer.load_pred_mat(
+            repo_root / "examples" / "data" / "predMat.csv"
+        ),
         phospho_matrix=core.site_matrix.matrix,
         threshold=0.6,
         min_substrates=1,

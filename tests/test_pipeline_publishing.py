@@ -316,7 +316,7 @@ def test_pipeline_delegates_manifest_and_publish_to_publishing_layer(
 
 def test_run_manifest_writer_serializes_expected_metadata(tmp_path: Path) -> None:
     core = _build_core_result()
-    kinase_activity = KinaseActivityAnalyzer().analyze(
+    kinase_activity = KinaseActivityAnalyzer().run(
         pred_mat=make_pred_mat(),
         phospho_matrix=core.site_matrix.matrix,
     )

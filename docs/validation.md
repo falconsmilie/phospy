@@ -24,7 +24,7 @@ Validated request objects still exist inside the orchestration layer, but they a
 
 `PhosphoDataset` validates internally from its raw-input constructor and `from_files(...)` boundary instead of exposing dataset validation artifacts as part of the normal user workflow.
 
-Raw option models such as `CorePipelineRequest`, `KinaseWorkflowRequest`, and `KinaseActivityRequest` still exist where they help with parsing and testing, but normal user code should prefer `PhosRPipeline.from_files(...)`, `KinaseWorkflow.run(...)`, and `KinaseActivityAnalyzer.analyze(...)`.
+Raw option models such as `CorePipelineRequest`, `KinaseWorkflowRequest`, and `KinaseActivityRequest` still exist where they help with parsing and testing, but normal user code should prefer `PhosRPipeline.from_files(...)`, `KinaseWorkflow.run(...)`, and `KinaseActivityAnalyzer.run(...)`.
 
 ## Data Ownership Policy
 

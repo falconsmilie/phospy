@@ -476,7 +476,7 @@ def test_core_output_writer_raises_clear_error_without_parquet_engine(
         )
 
 
-def test_kinase_activity_analyzer_analyze() -> None:
+def test_kinase_activity_analyzer_run() -> None:
     phospho_matrix = pd.DataFrame(
         {
             "phospho_corrected_1": [4.0, 4.0, 4.0],
@@ -484,7 +484,7 @@ def test_kinase_activity_analyzer_analyze() -> None:
         },
         index=["PRKACA;S339;", "BTK;Y551;", "LYN;Y397;"],
     )
-    result = KinaseActivityAnalyzer().analyze(
+    result = KinaseActivityAnalyzer().run(
         pred_mat=make_pred_mat(),
         phospho_matrix=phospho_matrix,
         threshold=0.6,
@@ -494,7 +494,7 @@ def test_kinase_activity_analyzer_analyze() -> None:
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
 
 
-def test_kinase_activity_analyzer_analyze_with_loaded_pred_mat(tmp_path) -> None:
+def test_kinase_activity_analyzer_run_with_loaded_pred_mat(tmp_path) -> None:
     pred_mat_path = tmp_path / "predMat.csv"
     make_pred_mat().to_csv(pred_mat_path)
     phospho_matrix = pd.DataFrame(
@@ -505,7 +505,7 @@ def test_kinase_activity_analyzer_analyze_with_loaded_pred_mat(tmp_path) -> None
         index=["PRKACA;S339;", "BTK;Y551;", "LYN;Y397;"],
     )
 
-    result = KinaseActivityAnalyzer().analyze(
+    result = KinaseActivityAnalyzer().run(
         pred_mat=load_pred_mat(pred_mat_path),
         phospho_matrix=phospho_matrix,
         threshold=0.6,
@@ -523,7 +523,7 @@ def test_kinase_activity_analyzer_write_outputs(tmp_path) -> None:
         },
         index=["PRKACA;S339;", "BTK;Y551;", "LYN;Y397;"],
     )
-    result = KinaseActivityAnalyzer().analyze(
+    result = KinaseActivityAnalyzer().run(
         pred_mat=make_pred_mat(),
         phospho_matrix=phospho_matrix,
         threshold=0.6,
@@ -880,6 +880,7 @@ def test_pipeline_does_not_expose_request_specific_builders() -> None:
     assert not hasattr(KinaseWorkflow, "validate_request")
     assert not hasattr(KinaseWorkflow, "run_request")
     assert not hasattr(KinaseActivityAnalyzer, "validate_request")
+    assert not hasattr(KinaseActivityAnalyzer, "analyze")
     assert not hasattr(KinaseActivityAnalyzer, "analyze_validated_request")
     assert not hasattr(KinaseActivityAnalyzer, "load_and_analyze")
 
@@ -899,18 +900,18 @@ def test_pipeline_run_uses_explicit_kinase_activity_settings(monkeypatch) -> Non
     )
 
     captured: dict[str, float | int] = {}
-    original = KinaseActivityAnalyzer._analyze_validated_request
+    original = KinaseActivityAnalyzer._run_request
 
-    def capturing_analyze_validated_request(*, request):
+    def capturing_run_request(self, request):
         captured["threshold"] = request.request.threshold
         captured["min_substrates"] = request.request.min_substrates
         captured["top_n_substrates"] = request.request.top_n_substrates
-        return original(request=request)
+        return original(self, request)
 
     monkeypatch.setattr(
         KinaseActivityAnalyzer,
-        "_analyze_validated_request",
-        staticmethod(capturing_analyze_validated_request),
+        "_run_request",
+        capturing_run_request,
     )
 
     outputs = pipeline.run()

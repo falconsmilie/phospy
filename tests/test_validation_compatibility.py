@@ -24,7 +24,7 @@ def test_kinase_activity_analyzer_rejects_zero_overlap() -> None:
     )
 
     with pytest.raises(InputCompatibilityError, match="no overlapping phosphosite IDs"):
-        KinaseActivityAnalyzer().analyze(
+        KinaseActivityAnalyzer().run(
             pred_mat=pred_mat,
             phospho_matrix=phospho_matrix,
         )
@@ -170,7 +170,7 @@ def test_kinase_activity_analyzer_rejects_insufficient_overlap_fraction() -> Non
     with pytest.raises(
         InputCompatibilityError, match="insufficient overlapping phosphosite IDs"
     ):
-        KinaseActivityAnalyzer().analyze(
+        KinaseActivityAnalyzer().run(
             pred_mat=pred_mat,
             phospho_matrix=phospho_matrix,
         )

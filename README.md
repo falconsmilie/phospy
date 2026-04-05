@@ -62,7 +62,6 @@ Use `KinaseActivityAnalyzer` when you already have a phosphosite matrix and a `p
 
 ```python
 from phospy import KinaseActivityAnalyzer, PhosphoDataset
-from phospy.io import load_pred_mat
 
 dataset = PhosphoDataset.from_files(
     "examples/data/total.tsv",
@@ -72,8 +71,8 @@ dataset = PhosphoDataset.from_files(
 core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
 
 analyzer = KinaseActivityAnalyzer()
-result = analyzer.analyze(
-    pred_mat=load_pred_mat("examples/data/predMat.csv"),
+result = analyzer.run(
+    pred_mat=analyzer.load_pred_mat("examples/data/predMat.csv"),
     phospho_matrix=core.site_matrix.matrix,
     threshold=0.6,
     min_substrates=1,

@@ -371,7 +371,7 @@ def test_kinase_outputs_match_r_reference() -> None:
     core = dataset.preprocessing.run()
 
     pred_mat = _read_indexed_table("predMat.csv")
-    result = KinaseActivityAnalyzer().analyze(
+    result = KinaseActivityAnalyzer().run(
         pred_mat=pred_mat, phospho_matrix=core.site_matrix.matrix
     )
 
@@ -418,7 +418,7 @@ def test_l6_kinase_outputs_match_r_reference() -> None:
     )
     pred_mat = _read_indexed_table("predMat.csv", fixture_dir=R_FIXTURES_L6)
 
-    result = KinaseActivityAnalyzer().analyze(
+    result = KinaseActivityAnalyzer().run(
         pred_mat=pred_mat,
         phospho_matrix=phospho_matrix,
         threshold=0.6,
