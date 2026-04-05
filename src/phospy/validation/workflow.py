@@ -14,12 +14,18 @@ from .tables import SiteMatrixSchema
 
 
 class KinaseWorkflowRequest(PhospyRequestModel):
-    """Raw boundary request for native kinase workflow execution."""
+    """Raw boundary request for native kinase workflow execution.
+
+    The validated request model owns all non-scalar workflow inputs except the
+    phosphosite matrix, which is copied later at the trusted workflow boundary.
+    Mapping-backed sequence collections are normalized into detached concrete
+    containers so caller mutation cannot change validated request state.
+    """
 
     phospho_matrix: pd.DataFrame
-    substrate_map: Mapping[str, Sequence[str]]
-    site_sequences: Mapping[str, str] | pd.Series | None = None
-    motif_sequences: Mapping[str, Sequence[str]] | None = None
+    substrate_map: dict[str, tuple[str, ...]]
+    site_sequences: pd.Series | None = None
+    motif_sequences: dict[str, tuple[str, ...]] | None = None
     min_substrates: int = Field(default=1, ge=1)
     min_motif_size: int = Field(default=1, ge=1)
     allow_profile_only_fallback: bool = False
@@ -31,25 +37,36 @@ class KinaseWorkflowRequest(PhospyRequestModel):
     random_state: int | None = None
     svm_mode: PredictionSvmMode | None = None
 
-    @field_validator("substrate_map")
+    @field_validator("substrate_map", mode="before")
     @classmethod
     def validate_substrate_map(
         cls,
         value: Mapping[str, Sequence[str]],
-    ) -> Mapping[str, Sequence[str]]:
-        if not value:
-            msg = "substrate_map must not be empty"
-            raise ValueError(msg)
-        return value
+    ) -> dict[str, tuple[str, ...]]:
+        return _freeze_sequence_mapping(
+            value,
+            field_name="substrate_map",
+            empty_message="substrate_map must not be empty",
+        )
 
     @field_validator("site_sequences", mode="before")
     @classmethod
     def validate_site_sequences(
         cls,
         value: Mapping[str, str] | pd.Series | None,
-    ) -> Mapping[str, str] | pd.Series | None:
-        if value is None or isinstance(value, (pd.Series, Mapping)):
-            return value
+    ) -> pd.Series | None:
+        if value is None:
+            return None
+        if isinstance(value, pd.Series):
+            normalized = value.copy(deep=True).astype(object)
+            normalized.index = normalized.index.map(str)
+            normalized[:] = normalized.map(str)
+            return normalized
+        if isinstance(value, Mapping):
+            normalized = {
+                str(site_id): str(sequence) for site_id, sequence in value.items()
+            }
+            return pd.Series(normalized, dtype=object)
         msg = (
             "site_sequences must be provided as a mapping keyed by phosphosite ID "
             "or as a pandas Series with an explicit phosphosite index; plain "
@@ -57,19 +74,22 @@ class KinaseWorkflowRequest(PhospyRequestModel):
         )
         raise ValueError(msg)
 
-    @field_validator("motif_sequences")
+    @field_validator("motif_sequences", mode="before")
     @classmethod
     def validate_motif_sequences(
         cls,
         value: Mapping[str, Sequence[str]] | None,
-    ) -> Mapping[str, Sequence[str]] | None:
-        if value is not None and not value:
-            msg = (
+    ) -> dict[str, tuple[str, ...]] | None:
+        if value is None:
+            return None
+        return _freeze_sequence_mapping(
+            value,
+            field_name="motif_sequences",
+            empty_message=(
                 "motif_sequences must not be empty; pass None and set "
                 "allow_profile_only_fallback=True for profile-only prediction"
-            )
-            raise ValueError(msg)
-        return value
+            ),
+        )
 
     @model_validator(mode="after")
     def validate_cross_field_requirements(self) -> KinaseWorkflowRequest:
@@ -137,7 +157,7 @@ def build_validated_workflow_request(
         request.site_sequences,
         context=context,
     )
-    owned_request = _copy_workflow_request_pandas_state(
+    owned_request = _copy_workflow_request_owned_state(
         request,
         phospho_matrix=validated_matrix,
     )
@@ -243,21 +263,22 @@ def validate_workflow_inputs(
     return validated_matrix
 
 
-def _copy_workflow_request_pandas_state(
+def _copy_workflow_request_owned_state(
     request: KinaseWorkflowRequest,
     *,
     phospho_matrix: pd.DataFrame,
 ) -> KinaseWorkflowRequest:
-    """Return a trusted request model that owns its pandas boundary state.
+    """Return a trusted request model that fully owns workflow boundary state.
 
-    The workflow raw request model is convenient for option parsing, but it may
-    still reference caller-managed pandas inputs. This helper replaces those
-    fields with the owned validated matrix and a detached site-sequence series
-    copy when needed.
+    ``KinaseWorkflowRequest`` already normalizes mapping-backed collections into
+    detached concrete containers. This helper completes the ownership transfer by
+    replacing the caller-managed phosphosite matrix and cloning the normalized
+    site-sequence series so the trusted request bundle has no shared mutable
+    boundary state left.
     """
 
     site_sequences = request.site_sequences
-    if isinstance(site_sequences, pd.Series):
+    if site_sequences is not None:
         site_sequences = site_sequences.copy(deep=True)
 
     return request.model_copy(
@@ -318,6 +339,30 @@ def _extract_sequence_index(
         "sequences are not supported"
     )
     raise InputCompatibilityError(msg)
+
+
+def _freeze_sequence_mapping(
+    value: Mapping[str, Sequence[str]],
+    *,
+    field_name: str,
+    empty_message: str,
+) -> dict[str, tuple[str, ...]]:
+    if not isinstance(value, Mapping):
+        msg = f"{field_name} must be provided as a mapping"
+        raise ValueError(msg)
+    if not value:
+        raise ValueError(empty_message)
+
+    normalized: dict[str, tuple[str, ...]] = {}
+    for key, raw_sequences in value.items():
+        if isinstance(raw_sequences, (str, bytes)):
+            msg = (
+                f"{field_name}[{key!r}] must be a sequence of values, "
+                "not a plain string"
+            )
+            raise ValueError(msg)
+        normalized[str(key)] = tuple(str(item) for item in raw_sequences)
+    return normalized
 
 
 __all__ = [

@@ -595,6 +595,82 @@ def test_build_validated_workflow_request_reuses_owned_validated_matrix() -> Non
     assert request.request.phospho_matrix is request.phospho_matrix
 
 
+def test_kinase_workflow_request_detaches_mapping_backed_sequence_inputs() -> None:
+    substrate_map = {"KINASE_A": ["SITE_1"]}
+    site_sequences = {"SITE_1": "QQAAAAAYY"}
+    motif_sequences = {"KINASE_A": ["QQAAAAAYY"]}
+
+    request = KinaseWorkflowRequest.validate_request(
+        phospho_matrix=pd.DataFrame(
+            {"sample_1": [1.0], "sample_2": [2.0]},
+            index=["SITE_1"],
+        ),
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        allow_profile_only_fallback=False,
+    )
+
+    substrate_map["KINASE_A"].append("SITE_2")
+    site_sequences["SITE_1"] = "CHANGED"
+    motif_sequences["KINASE_A"].append("CHANGED")
+
+    assert request.substrate_map == {"KINASE_A": ("SITE_1",)}
+    assert request.site_sequences is not None
+    assert request.site_sequences.to_dict() == {"SITE_1": "QQAAAAAYY"}
+    assert request.motif_sequences == {"KINASE_A": ("QQAAAAAYY",)}
+
+
+def test_validate_workflow_request_detaches_mapping_backed_runtime_inputs() -> None:
+    substrate_map = {"KINASE_A": ["SITE_1"]}
+    site_sequences = {"SITE_1": "QQAAAAAYY"}
+    motif_sequences = {"KINASE_A": ["QQAAAAAYY"]}
+
+    request = validate_workflow_request(
+        phospho_matrix=pd.DataFrame(
+            {"sample_1": [1.0], "sample_2": [2.0]},
+            index=["SITE_1"],
+        ),
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        allow_profile_only_fallback=False,
+        flank_size=2,
+        default_svm_mode="default",
+    )
+
+    substrate_map["KINASE_A"].append("SITE_2")
+    site_sequences["SITE_1"] = "CHANGED"
+    motif_sequences["KINASE_A"].append("CHANGED")
+
+    assert request.request.substrate_map == {"KINASE_A": ("SITE_1",)}
+    assert request.request.site_sequences is not None
+    assert request.request.site_sequences.to_dict() == {"SITE_1": "QQAAAAAYY"}
+    assert request.request.motif_sequences == {"KINASE_A": ("QQAAAAAYY",)}
+
+
+def test_validate_workflow_request_detaches_series_backed_site_sequences() -> None:
+    site_sequences = pd.Series({"SITE_1": "QQAAAAAYY"}, dtype=object)
+
+    request = validate_workflow_request(
+        phospho_matrix=pd.DataFrame(
+            {"sample_1": [1.0], "sample_2": [2.0]},
+            index=["SITE_1"],
+        ),
+        substrate_map={"KINASE_A": ["SITE_1"]},
+        site_sequences=site_sequences,
+        motif_sequences={"KINASE_A": ["QQAAAAAYY"]},
+        allow_profile_only_fallback=False,
+        flank_size=2,
+        default_svm_mode="default",
+    )
+
+    site_sequences.loc["SITE_1"] = "CHANGED"
+
+    assert request.request.site_sequences is not None
+    assert request.request.site_sequences.loc["SITE_1"] == "QQAAAAAYY"
+
+
 def test_validate_pipeline_request_takes_ownership_of_raw_pred_mat_input() -> None:
     total_df = pd.DataFrame(
         {
