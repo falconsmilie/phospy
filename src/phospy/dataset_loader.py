@@ -15,19 +15,14 @@ from .validation.errors import RequestValidationError, TableSchemaError
 class _LoadedDatasetInputs:
     """Validated internal dataset bundle produced by the file loader.
 
-    The loader materializes trusted in-memory frames, but it does not transfer
-    ownership to downstream workspace objects automatically. This is a trusted
-    internal bundle, not a truly immutable value object. Call :meth:`copy_frames`
-    when you need detached caller-owned mutation.
+    The loader materializes owned validated frames exactly once. Downstream
+    internal constructors may take ownership of these frames directly instead
+    of copying them again.
     """
 
     schema: DatasetSchema
     total_df: pd.DataFrame
     phospho_df: pd.DataFrame
-
-    def copy_frames(self) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Return deep copies suitable for caller-owned mutation."""
-        return self.total_df.copy(deep=True), self.phospho_df.copy(deep=True)
 
 
 class _DatasetLoader:

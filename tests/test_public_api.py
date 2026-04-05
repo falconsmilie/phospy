@@ -13,6 +13,7 @@ from phospy.constants import (
     RUN_MANIFEST_FILENAME,
 )
 from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
+from phospy.dataset_loader import _DatasetLoader
 from phospy.dataset_preprocessing import DatasetPreprocessing
 from phospy.dataset_schema import DatasetSchema
 from phospy.dataset_site_matrix import DatasetSiteMatrix
@@ -800,6 +801,32 @@ def test_dataset_from_files_validates_inputs_once(monkeypatch, tmp_path) -> None
     assert dataset.total_df_copy.shape[0] == 4
     assert total_calls == 1
     assert phospho_calls == 1
+
+
+def test_phospho_dataset_from_loaded_inputs_transfers_loader_owned_frames_without_extra_copying(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    loader = _DatasetLoader(schema=DatasetSchema())
+    loaded_inputs = loader.validate_inputs(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+
+    copy_calls = 0
+    original_copy = pd.DataFrame.copy
+
+    def counting_copy(self, *args, **kwargs):
+        nonlocal copy_calls
+        copy_calls += 1
+        return original_copy(self, *args, **kwargs)
+
+    monkeypatch.setattr(pd.DataFrame, "copy", counting_copy)
+
+    dataset = PhosphoDataset._from_loaded_inputs(loaded_inputs)
+
+    assert dataset.total_df_live is loaded_inputs.total_df
+    assert dataset.phospho_df_live is loaded_inputs.phospho_df
+    assert copy_calls == 0
 
 
 def test_pipeline_from_files_validates_inputs_once(monkeypatch, tmp_path) -> None:

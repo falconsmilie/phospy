@@ -228,18 +228,21 @@ class CoreProcessor:
         *,
         config: CorePreprocessingConfig,
     ) -> CoreProcessingResult:
-        total_unique, total_filtered = self.prepare_total(
-            total_df,
+        total_work = total_df.copy()
+        phospho_work = phospho_df.copy()
+
+        total_unique, total_filtered = self.total_preprocessor._prepare_owned(
+            total_work,
             min_observed=config.min_observed,
             sentinel=config.total_sentinel,
         )
-        phospho_filtered = self.prepare_phospho(
-            phospho_df,
+        phospho_filtered = self.phospho_preprocessor._prepare_owned(
+            phospho_work,
             localization_threshold=config.localization_threshold,
             min_observed=config.min_observed,
             sentinel=config.phospho_sentinel,
         )
-        phospho_corrected = self.correct_to_protein(
+        phospho_corrected = self.protein_correction_service._correct_owned(
             phospho_filtered,
             total_filtered,
             max_unmatched_fraction=config.max_unmatched_fraction,

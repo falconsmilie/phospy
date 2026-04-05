@@ -155,10 +155,9 @@ class PhosphoDataset:
     ) -> PhosphoDataset:
         """Build a dataset workspace from internal trusted loader output.
 
-        This internal boundary takes ownership by copying the loaded frames once, so
-        later mutation of the loader-managed bundle does not affect the dataset
-        workspace. Public callers should use ``PhosphoDataset(...)`` or
-        ``PhosphoDataset.from_files(...)``.
+        This internal boundary transfers ownership of the loader-managed frames
+        directly into the dataset workspace. Public callers should use
+        ``PhosphoDataset(...)`` or ``PhosphoDataset.from_files(...)``.
         """
         if not isinstance(loaded_inputs, _LoadedDatasetInputs):
             msg = (
@@ -166,11 +165,10 @@ class PhosphoDataset:
                 "instance."
             )
             raise TypeError(msg)
-        owned_total_df, owned_phospho_df = loaded_inputs.copy_frames()
         validated_request = _build_validated_dataset_inputs(
             schema=loaded_inputs.schema,
-            total_df=owned_total_df,
-            phospho_df=owned_phospho_df,
+            total_df=loaded_inputs.total_df,
+            phospho_df=loaded_inputs.phospho_df,
             comparisons=comparisons,
             context="PhosphoDataset",
         )

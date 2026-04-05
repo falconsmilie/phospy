@@ -12,7 +12,7 @@ from ._preprocessing_primitives import (
     _filter_min_observed_without_copy,
     _replace_sentinel_with_nan_in_place,
 )
-from ._protein_correction import run_protein_correction
+from ._protein_correction import run_protein_correction, run_protein_correction_owned
 from .constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
@@ -47,14 +47,29 @@ class TotalPreprocessor:
         min_observed: int = 4,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         total = total_df.copy()
-        total[gene_col] = total[gene_col].astype("string")
-        _replace_sentinel_with_nan_in_place(
+        return self._prepare_owned(
             total,
+            gene_col=gene_col,
+            sentinel=sentinel,
+            min_observed=min_observed,
+        )
+
+    def _prepare_owned(
+        self,
+        total_df: pd.DataFrame,
+        *,
+        gene_col: str = TOTAL_GENE_COLUMN,
+        sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
+        min_observed: int = 4,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        total_df[gene_col] = total_df[gene_col].astype("string")
+        _replace_sentinel_with_nan_in_place(
+            total_df,
             self.schema.total_cols,
             sentinel=sentinel,
         )
         total_unique = _collapse_duplicate_genes_owned(
-            total,
+            total_df,
             gene_col=gene_col,
             value_cols=self.schema.total_cols,
         )
@@ -84,21 +99,42 @@ class PhosphoPreprocessor:
         min_observed: int = 4,
     ) -> pd.DataFrame:
         phospho = phospho_df.copy()
-        phospho[gene_col] = phospho[gene_col].astype("string").str.upper()
-        phospho[site_col] = phospho[site_col].astype("string")
-
-        phospho = _filter_localized_sites_without_copy(
+        return self._prepare_owned(
             phospho,
+            gene_col=gene_col,
+            site_col=site_col,
             localization_col=localization_col,
-            threshold=localization_threshold,
+            localization_threshold=localization_threshold,
+            sentinel=sentinel,
+            min_observed=min_observed,
         )
+
+    def _prepare_owned(
+        self,
+        phospho_df: pd.DataFrame,
+        *,
+        gene_col: str = PHOSPHO_GENE_COLUMN,
+        site_col: str = GENE_P_SITE_COLUMN,
+        localization_col: str = LOCALIZATION_PROB_COLUMN,
+        localization_threshold: float = 0.75,
+        sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
+        min_observed: int = 4,
+    ) -> pd.DataFrame:
+        phospho_df[gene_col] = phospho_df[gene_col].astype("string").str.upper()
+        phospho_df[site_col] = phospho_df[site_col].astype("string")
+
         _replace_sentinel_with_nan_in_place(
-            phospho,
+            phospho_df,
             self.schema.phospho_cols,
             sentinel=sentinel,
         )
+        phospho_filtered = _filter_localized_sites_without_copy(
+            phospho_df,
+            localization_col=localization_col,
+            threshold=localization_threshold,
+        )
         return _filter_min_observed_without_copy(
-            phospho,
+            phospho_filtered,
             self.schema.phospho_cols,
             min_observed=min_observed,
         )
@@ -137,6 +173,26 @@ class ProteinCorrectionService:
         max_unmatched_fraction: float = 0.0,
     ) -> pd.DataFrame:
         return run_protein_correction(
+            df_phospho=phospho_df,
+            df_total=total_df,
+            phospho_gene_col=phospho_gene_col,
+            total_gene_col=total_gene_col,
+            phospho_cols=self.schema.phospho_cols,
+            protein_cols=self.schema.total_cols,
+            corrected_cols=self.schema.corrected_cols,
+            max_unmatched_fraction=max_unmatched_fraction,
+        )
+
+    def _correct_owned(
+        self,
+        phospho_df: pd.DataFrame,
+        total_df: pd.DataFrame,
+        *,
+        phospho_gene_col: str = PHOSPHO_GENE_COLUMN,
+        total_gene_col: str = TOTAL_GENE_COLUMN,
+        max_unmatched_fraction: float = 0.0,
+    ) -> pd.DataFrame:
+        return run_protein_correction_owned(
             df_phospho=phospho_df,
             df_total=total_df,
             phospho_gene_col=phospho_gene_col,
