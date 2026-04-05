@@ -90,7 +90,7 @@ class PredictionExecutionRunner:
         if not substrate_list:
             return self.prediction_aggregator.empty_result(request=request)
 
-        feature_mat = request.combined_scores.astype(float)
+        feature_mat = request.combined_scores
         pred_matrix = self.prediction_aggregator.initialize_prediction_matrix(
             feature_mat=feature_mat,
             substrate_list=substrate_list,

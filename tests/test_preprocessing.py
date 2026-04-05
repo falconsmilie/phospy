@@ -248,6 +248,44 @@ def test_replace_sentinel_with_nan_and_filter_min_observed() -> None:
     assert filtered["gene"].tolist() == ["A"]
 
 
+def test_replace_sentinel_with_nan_uses_block_numeric_conversion(monkeypatch) -> None:
+    df = pd.DataFrame(
+        {
+            "x1": [1.0, 12.0],
+            "x2": [2.0, 12.0],
+            "x3": [3.0, 4.0],
+        }
+    )
+
+    dataframe_astype_calls = 0
+    series_astype_calls = 0
+    original_dataframe_astype = pd.DataFrame.astype
+    original_series_astype = pd.Series.astype
+
+    def counting_dataframe_astype(
+        self, dtype=None, copy: bool = False, errors: str = "raise"
+    ):
+        nonlocal dataframe_astype_calls
+        dataframe_astype_calls += 1
+        return original_dataframe_astype(self, dtype=dtype, errors=errors)
+
+    def counting_series_astype(
+        self, dtype, copy: bool | None = None, errors: str = "raise"
+    ):
+        nonlocal series_astype_calls
+        series_astype_calls += 1
+        return original_series_astype(self, dtype=dtype, errors=errors)
+
+    monkeypatch.setattr(pd.DataFrame, "astype", counting_dataframe_astype)
+    monkeypatch.setattr(pd.Series, "astype", counting_series_astype)
+
+    cleaned = replace_sentinel_with_nan(df, ["x1", "x2", "x3"], sentinel=12)
+
+    assert dataframe_astype_calls == 1
+    assert series_astype_calls == 0
+    assert cleaned.isna().sum().to_dict() == {"x1": 1, "x2": 1, "x3": 0}
+
+
 def test_collapse_duplicate_genes_keeps_highest_mean_signal() -> None:
     df = pd.DataFrame(
         {

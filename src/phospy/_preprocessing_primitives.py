@@ -72,8 +72,12 @@ def _replace_sentinel_with_nan_in_place(
     sentinel: float | int,
 ) -> pd.DataFrame:
     cols = list(columns)
-    for col in cols:
-        df[col] = df[col].astype(float).replace(sentinel, np.nan)
+    if not cols:
+        return df
+
+    numeric_block = df.loc[:, cols].astype(float)
+    cleaned_block = numeric_block.mask(numeric_block == float(sentinel), np.nan)
+    df[cols] = cleaned_block
     return df
 
 

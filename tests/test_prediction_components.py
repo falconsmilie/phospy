@@ -86,3 +86,107 @@ def test_prediction_execution_runner_returns_empty_result_without_candidates() -
 
     assert result.substrate_list == {}
     assert result.pred_matrix.empty
+
+
+def test_prediction_execution_runner_uses_validated_combined_scores_without_recasting(
+    monkeypatch,
+) -> None:
+    class RecordingAggregator:
+        def __init__(self) -> None:
+            self.seen_feature_mat: pd.DataFrame | None = None
+
+        def initialize_prediction_matrix(
+            self,
+            *,
+            feature_mat: pd.DataFrame,
+            substrate_list: dict[str, list[str]],
+        ) -> pd.DataFrame:
+            self.seen_feature_mat = feature_mat
+            return pd.DataFrame(
+                0.0,
+                index=feature_mat.index.copy(),
+                columns=list(substrate_list),
+                dtype=float,
+            )
+
+        def add_kinase_scores(self, *, pred_matrix: pd.DataFrame, batch) -> None:
+            pred_matrix.loc[:, batch.kinase] = batch.scores
+
+        def finalize(
+            self,
+            *,
+            pred_matrix: pd.DataFrame,
+            substrate_list,
+            request,
+            trace_state,
+        ):
+            return type(
+                "PredictionResultStub",
+                (),
+                {"pred_matrix": pred_matrix, "substrate_list": substrate_list},
+            )()
+
+    class RecordingTraceRecorder:
+        def create_state(
+            self, *, substrate_list, trace_level, debug_kinases, trace_sink
+        ):
+            return object()
+
+        def flush_final(self, *, trace_state) -> None:
+            return None
+
+    class RecordingEnsemblePredictor:
+        def predict_kinase(
+            self,
+            *,
+            kinase: str,
+            substrates: list[str],
+            feature_mat: pd.DataFrame,
+            request: PredictionRequest,
+            master_rng,
+            trace_state,
+        ):
+            return type(
+                "BatchStub",
+                (),
+                {
+                    "kinase": kinase,
+                    "scores": pd.Series(
+                        0.0,
+                        index=feature_mat.index.copy(),
+                        dtype=float,
+                    ),
+                },
+            )()
+
+    scores = pd.DataFrame({"K1": ["0.95", "0.91", "0.40"]}, index=["s1", "s2", "s3"])
+    request = PredictionRequest.validate_request(
+        combined_scores=scores,
+        ensemble_size=2,
+        top=3,
+        score_threshold=0.8,
+        inclusion=2,
+        n_iterations=1,
+        random_state=3,
+        capture_debug_trace=False,
+        default_svm_mode="default",
+    )
+
+    def forbid_dataframe_astype(self, dtype=None, copy=None, errors="raise"):
+        raise AssertionError(
+            "prediction runner should not recast validated combined_scores"
+        )
+
+    monkeypatch.setattr(pd.DataFrame, "astype", forbid_dataframe_astype)
+    aggregator = RecordingAggregator()
+    runner = PredictionExecutionRunner(
+        candidate_selector=CandidateSelector(),
+        prediction_aggregator=aggregator,
+        trace_recorder=RecordingTraceRecorder(),
+        ensemble_predictor=RecordingEnsemblePredictor(),
+    )
+
+    result = runner.run(request)
+
+    assert aggregator.seen_feature_mat is request.combined_scores
+    assert list(result.pred_matrix.columns) == ["K1"]
