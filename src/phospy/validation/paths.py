@@ -10,7 +10,7 @@ def validate_existing_file_path(
     *,
     context: str,
 ) -> Path:
-    """Validate that ``path`` exists and refers to a readable file boundary.
+    """Validate that ``path`` exists and refers to a file.
 
     Public file-based entry points should use this helper so missing or invalid
     file paths fail with a consistent package-level validation error.
