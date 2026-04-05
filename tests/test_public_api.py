@@ -16,10 +16,10 @@ from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
 from phospy.dataset_preprocessing import DatasetPreprocessing
 from phospy.dataset_schema import DatasetSchema
 from phospy.dataset_site_matrix import DatasetSiteMatrix
+from phospy.io import load_pred_mat
 from phospy.publishing import OutputPublisher, RunManifestWriter
 from phospy.site_matrix_builder import SiteMatrixBuilder
 from phospy.validation.errors import RequestValidationError
-from phospy.validation.pipeline import CorePipelineRequest, validate_pipeline_request
 from phospy.writers import CoreOutputWriter
 
 EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
@@ -484,7 +484,7 @@ def test_kinase_activity_analyzer_analyze() -> None:
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
 
 
-def test_kinase_activity_analyzer_load_and_analyze(tmp_path) -> None:
+def test_kinase_activity_analyzer_analyze_with_loaded_pred_mat(tmp_path) -> None:
     pred_mat_path = tmp_path / "predMat.csv"
     make_pred_mat().to_csv(pred_mat_path)
     phospho_matrix = pd.DataFrame(
@@ -495,8 +495,8 @@ def test_kinase_activity_analyzer_load_and_analyze(tmp_path) -> None:
         index=["PRKACA;S339;", "BTK;Y551;", "LYN;Y397;"],
     )
 
-    result = KinaseActivityAnalyzer().load_and_analyze(
-        pred_mat_path=pred_mat_path,
+    result = KinaseActivityAnalyzer().analyze(
+        pred_mat=load_pred_mat(pred_mat_path),
         phospho_matrix=phospho_matrix,
         threshold=0.6,
         min_substrates=2,
@@ -802,13 +802,12 @@ def test_dataset_from_files_validates_inputs_once(monkeypatch, tmp_path) -> None
     assert phospho_calls == 1
 
 
-def test_pipeline_from_request_validates_inputs_once(monkeypatch, tmp_path) -> None:
+def test_pipeline_from_files_validates_inputs_once(monkeypatch, tmp_path) -> None:
     total_path = tmp_path / "total.tsv"
     phospho_path = tmp_path / "phospho.tsv"
     make_total_df().to_csv(total_path, sep="	", index=False)
     make_phospho_df().to_csv(phospho_path, sep="	", index=False)
 
-    from phospy.validation.requests import CorePipelineRequest
     from phospy.validation.tables import PhosphoInputSchema, TotalInputSchema
 
     total_calls = 0
@@ -829,20 +828,24 @@ def test_pipeline_from_request_validates_inputs_once(monkeypatch, tmp_path) -> N
     monkeypatch.setattr(TotalInputSchema, "validate", counting_total_validate)
     monkeypatch.setattr(PhosphoInputSchema, "validate", counting_phospho_validate)
 
-    request = CorePipelineRequest.validate_request(
+    pipeline = PhosRPipeline.from_files(
         total_path=total_path,
         phospho_path=phospho_path,
     )
-    pipeline = PhosRPipeline.from_request(request)
 
     assert pipeline.dataset.total_df_copy.shape[0] == 4
     assert total_calls == 1
     assert phospho_calls == 1
 
 
-def test_pipeline_from_validated_request_rejects_raw_request_objects() -> None:
-    with pytest.raises(TypeError, match="ValidatedPipelineRequest"):
-        PhosRPipeline.from_validated_request(object())  # type: ignore[arg-type]
+def test_pipeline_does_not_expose_request_specific_builders() -> None:
+    assert not hasattr(PhosRPipeline, "from_request")
+    assert not hasattr(PhosRPipeline, "from_validated_request")
+    assert not hasattr(KinaseWorkflow, "validate_request")
+    assert not hasattr(KinaseWorkflow, "run_request")
+    assert not hasattr(KinaseActivityAnalyzer, "validate_request")
+    assert not hasattr(KinaseActivityAnalyzer, "analyze_validated_request")
+    assert not hasattr(KinaseActivityAnalyzer, "load_and_analyze")
 
 
 @pytest.mark.parametrize(
@@ -854,32 +857,6 @@ def test_pipeline_from_validated_request_rejects_raw_request_objects() -> None:
                 PhosRPipeline(
                     dataset=dataset,
                     pred_mat=make_pred_mat(),
-                    manifest_writer=manifest_writer,
-                    output_publisher=output_publisher,
-                )
-            ),
-        ),
-        (
-            "from_request",
-            lambda dataset, total_path, phospho_path, pred_path, manifest_writer, output_publisher: (
-                PhosRPipeline.from_request(
-                    CorePipelineRequest.validate_request(
-                        total_path=total_path,
-                        phospho_path=phospho_path,
-                        pred_mat_path=pred_path,
-                    ),
-                    manifest_writer=manifest_writer,
-                    output_publisher=output_publisher,
-                )
-            ),
-        ),
-        (
-            "from_validated_request",
-            lambda dataset, total_path, phospho_path, pred_path, manifest_writer, output_publisher: (
-                PhosRPipeline.from_validated_request(
-                    validate_pipeline_request(
-                        dataset=dataset, pred_mat=make_pred_mat()
-                    ),
                     manifest_writer=manifest_writer,
                     output_publisher=output_publisher,
                 )

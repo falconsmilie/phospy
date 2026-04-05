@@ -4,7 +4,6 @@ import argparse
 
 from .pipeline import PhosRPipeline
 from .validation.errors import RequestValidationError
-from .validation.pipeline import CorePipelineRequest
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -63,7 +62,7 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        request = CorePipelineRequest.validate_request(
+        pipeline = PhosRPipeline.from_files(
             total_path=args.total,
             phospho_path=args.phospho,
             pred_mat_path=args.pred_mat,
@@ -77,7 +76,6 @@ def main() -> None:
     except RequestValidationError as error:
         parser.error(str(error))
 
-    pipeline = PhosRPipeline.from_request(request)
     pipeline.run(outdir=args.outdir)
 
 

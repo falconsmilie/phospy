@@ -12,7 +12,7 @@ from phospy import KinaseActivityAnalyzer, PhosRPipeline
 from phospy.constants import RUN_MANIFEST_FILENAME
 from phospy.core_processing import CorePreprocessingConfig
 from phospy.dataset import PhosphoDataset
-from phospy.pipeline import PipelineRequestLoader
+from phospy.pipeline import _PipelineRequestLoader
 from phospy.publishing import OutputPublisher, RunManifestWriter, package_version
 from phospy.validation.requests import CorePipelineRequest
 from phospy.validation.tables import PredMatSchema
@@ -409,7 +409,7 @@ def test_pipeline_request_loader_builds_dataset_and_config(
         pred_mat_path=pred_path,
     )
 
-    inputs = PipelineRequestLoader().load(request)
+    inputs = _PipelineRequestLoader().load(request)
 
     assert inputs.pred_mat is not None
     assert inputs.preprocessing_config.min_observed == 4

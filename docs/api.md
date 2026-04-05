@@ -439,34 +439,6 @@ Loads and validates a prediction matrix from disk.
   - the matrix must contain at least one row and at least one kinase column
   - the phosphosite index must be unique and non-null
 
-### `validate_request(pred_mat, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20)`
-
-```python
-analyzer.validate_request(
-    *,
-    pred_mat: pd.DataFrame,
-    phospho_matrix: pd.DataFrame,
-    threshold: float = 0.6,
-    min_substrates: int = 3,
-    top_n_substrates: int = 20,
-) -> ValidatedAnalysisRequest
-```
-
-Validates raw analysis inputs and returns the trusted validated bundle consumed by `analyze_validated_request(...)`.
-
-This raw boundary schema-validates the incoming tables and takes ownership by copying them once. Use this when you want to validate once at the boundary and pass a trusted validated bundle deeper into orchestration code.
-
-### `analyze_validated_request(request)`
-
-```python
-KinaseActivityAnalyzer.analyze_validated_request(
-    *,
-    request: ValidatedAnalysisRequest,
-) -> KinaseActivityResult
-```
-
-Executes downstream kinase analysis from a trusted validated request.
-
 ### `analyze(pred_mat, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20)`
 
 ```python
@@ -503,28 +475,17 @@ Compatibility validation:
 - `pred_mat` and `phospho_matrix` must overlap by at least one phosphosite row
 - that overlap must cover at least 10% of the phosphosite matrix
 
-### `load_and_analyze(pred_mat_path, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20)`
-
-```python
-analyzer.load_and_analyze(
-    pred_mat_path: str | Path,
-    phospho_matrix: pd.DataFrame,
-    threshold: float = 0.6,
-    min_substrates: int = 3,
-    top_n_substrates: int = 20,
-) -> KinaseActivityResult
-```
-
-Convenience method that combines `load_pred_mat(...)` and `analyze(...)`.
+For file-backed prediction matrices, load the matrix first and then call `analyze(...)`.
 
 #### Example
 
 ```python
 from phospy import KinaseActivityAnalyzer
+from phospy.io import load_pred_mat
 
 analyzer = KinaseActivityAnalyzer()
-result = analyzer.load_and_analyze(
-    pred_mat_path="predMat.csv",
+result = analyzer.analyze(
+    pred_mat=load_pred_mat("predMat.csv"),
     phospho_matrix=core.site_matrix.matrix,
     threshold=0.6,
     min_substrates=1,
@@ -591,16 +552,6 @@ Builds a pipeline from file paths.
   - when supplied, it must point to a CSV `predMat`
   - it is validated when downstream kinase analysis runs
 - `localization_threshold`, `min_observed`, `max_unmatched_fraction`, `total_sentinel`, and `phospho_sentinel` follow the same rules as `dataset.preprocessing.run(...)`
-
-### `PhosRPipeline.from_request(request)`
-
-```python
-PhosRPipeline.from_request(request: CorePipelineRequest) -> PhosRPipeline
-```
-
-Builds a pipeline from an already validated file-backed request object.
-
-For an already materialised in-memory pipeline boundary, use `PhosRPipeline.from_validated_request(request)` with the trusted `ValidatedPipelineRequest` bundle. Raw in-memory `predMat` input is copied once when `validate_pipeline_request(...)` takes ownership; trusted pipeline bundles then reuse that owned state.
 
 ### `pipeline.run(outdir=None)`
 
@@ -718,14 +669,6 @@ Runs the native workflow end to end.
 - `random_state`: optional integer seed
 - `svm_mode`:
   - optional per-run override for the workflow's default SVM mode
-
-### `workflow.run_request(request)`
-
-```python
-workflow.run_request(request: ValidatedWorkflowRequest) -> KinaseWorkflowResult
-```
-
-Runs the workflow from a trusted validated workflow bundle. Use `validate_request(...)` to build the `ValidatedWorkflowRequest` boundary object before calling this entrypoint directly. The raw workflow boundary copies the phosphosite matrix once when taking ownership, then trusted workflow execution reuses that owned validated matrix.
 
 #### Return Value
 

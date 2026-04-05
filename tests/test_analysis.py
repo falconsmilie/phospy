@@ -5,6 +5,7 @@ import pytest
 
 from phospy import KinaseActivityAnalyzer
 from phospy.constants import KINASE_OUTPUT_FILENAMES
+from phospy.io import load_pred_mat
 from phospy.validation.errors import RequestValidationError, TableSchemaError
 from phospy.validation.requests import KinaseActivityRequest
 from phospy.validation.tables import PredMatSchema, SiteMatrixSchema
@@ -41,7 +42,7 @@ def test_analyzer_load_pred_mat_validates_input(tmp_path) -> None:
     ).to_csv(pred_mat_path)
 
     with pytest.raises(TableSchemaError, match="outside the allowed range"):
-        KinaseActivityAnalyzer().load_pred_mat(pred_mat_path)
+        load_pred_mat(pred_mat_path)
 
 
 def test_analyzer_analyze_returns_expected_result() -> None:
@@ -80,12 +81,12 @@ def test_kinase_activity_result_tables_are_detached_snapshots_from_inputs() -> N
     pd.testing.assert_frame_equal(phospho_matrix, original_phospho_matrix)
 
 
-def test_analyzer_load_and_analyze_runs_end_to_end(tmp_path) -> None:
+def test_analyzer_analyze_runs_end_to_end_with_loaded_pred_mat(tmp_path) -> None:
     pred_mat_path = tmp_path / "predMat.csv"
     make_pred_mat().to_csv(pred_mat_path)
 
-    result = KinaseActivityAnalyzer().load_and_analyze(
-        pred_mat_path=pred_mat_path,
+    result = KinaseActivityAnalyzer().analyze(
+        pred_mat=load_pred_mat(pred_mat_path),
         phospho_matrix=make_phospho_matrix(),
         threshold=0.6,
         min_substrates=2,
@@ -135,13 +136,13 @@ def test_analyzer_load_pred_mat_validates_through_loader_once(
 
     monkeypatch.setattr(PredMatSchema, "validate", staticmethod(counting_validate))
 
-    loaded = KinaseActivityAnalyzer().load_pred_mat(pred_mat_path)
+    loaded = load_pred_mat(pred_mat_path)
 
     assert loaded.equals(make_pred_mat())
     assert calls == [f"pred_mat ({pred_mat_path})"]
 
 
-def test_load_and_analyze_does_not_revalidate_loaded_prediction_matrix(
+def test_analyze_revalidates_public_inputs_loaded_from_disk(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     pred_mat_path = tmp_path / "predMat.csv"
@@ -171,15 +172,15 @@ def test_load_and_analyze_does_not_revalidate_loaded_prediction_matrix(
         staticmethod(counting_matrix_validate),
     )
 
-    result = KinaseActivityAnalyzer().load_and_analyze(
-        pred_mat_path=pred_mat_path,
+    result = KinaseActivityAnalyzer().analyze(
+        pred_mat=load_pred_mat(pred_mat_path),
         phospho_matrix=make_phospho_matrix(),
         threshold=0.6,
         min_substrates=2,
     )
 
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
-    assert pred_calls == [f"pred_mat ({pred_mat_path})"]
+    assert pred_calls == [f"pred_mat ({pred_mat_path})", "pred_mat"]
     assert matrix_calls == ["phospho_matrix"]
 
 
@@ -211,14 +212,14 @@ def test_analyze_validated_request_uses_validated_boundary_request(
     )
 
     analyzer = KinaseActivityAnalyzer()
-    request = analyzer.validate_request(
+    request = analyzer._validate_request(
         pred_mat=make_pred_mat(),
         phospho_matrix=make_phospho_matrix(),
         threshold=0.6,
         min_substrates=2,
         top_n_substrates=20,
     )
-    result = analyzer.analyze_validated_request(request=request)
+    result = analyzer._analyze_validated_request(request=request)
 
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
     assert pred_calls == ["pred_mat"]
@@ -233,6 +234,6 @@ def test_analyze_validated_request_rejects_raw_request_objects() -> None:
     )
 
     with pytest.raises(TypeError, match="ValidatedAnalysisRequest"):
-        KinaseActivityAnalyzer.analyze_validated_request(
+        KinaseActivityAnalyzer._analyze_validated_request(
             request=request  # type: ignore[arg-type]
         )

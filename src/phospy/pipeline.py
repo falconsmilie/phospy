@@ -25,6 +25,8 @@ from .validation.pipeline import (
 )
 from .writers import CoreOutputWriter, KinaseActivityWriter
 
+__all__ = ["CoreOutputs", "PhosRPipeline"]
+
 
 @dataclass(slots=True)
 class CoreOutputs:
@@ -38,7 +40,7 @@ class CoreOutputs:
     kinase_activity: KinaseActivityResult | None = None
 
 
-class PipelineRequestLoader:
+class _PipelineRequestLoader:
     def __init__(
         self,
         *,
@@ -92,14 +94,14 @@ class PipelineRequestLoader:
             raise RequestValidationError(msg) from error
 
 
-class PipelineExecutionRunner:
+class _PipelineExecutionRunner:
     def __init__(self, *, kinase_activity_analyzer: KinaseActivityAnalyzer) -> None:
         self.kinase_activity_analyzer = kinase_activity_analyzer
 
     def run(self, request: ValidatedPipelineRequest) -> CoreOutputs:
         if not isinstance(request, ValidatedPipelineRequest):
             msg = (
-                "PipelineExecutionRunner.run requires a ValidatedPipelineRequest. "
+                "_PipelineExecutionRunner.run requires a ValidatedPipelineRequest. "
                 "Call validate_pipeline_request(...) first."
             )
             raise TypeError(msg)
@@ -114,14 +116,14 @@ class PipelineExecutionRunner:
                 pred_context="pred_mat",
                 matrix_context="site matrix",
             )
-            kinase_activity = self.kinase_activity_analyzer.analyze_validated_request(
+            kinase_activity = self.kinase_activity_analyzer._analyze_validated_request(
                 request=kinase_activity_request
             )
 
         return CoreOutputs(core=core, kinase_activity=kinase_activity)
 
 
-class PipelineOutputCoordinator:
+class _PipelineOutputCoordinator:
     def publish(
         self,
         *,
@@ -214,29 +216,29 @@ class PhosRPipeline:
         instance.kinase_activity_analyzer = KinaseActivityAnalyzer()
         instance.manifest_writer = manifest_writer or RunManifestWriter()
         instance.output_publisher = output_publisher or OutputPublisher()
-        instance.execution_runner = PipelineExecutionRunner(
+        instance.execution_runner = _PipelineExecutionRunner(
             kinase_activity_analyzer=instance.kinase_activity_analyzer
         )
-        instance.output_coordinator = PipelineOutputCoordinator()
+        instance.output_coordinator = _PipelineOutputCoordinator()
         return instance
 
     @classmethod
-    def from_request(
+    def _from_request(
         cls,
         request: CorePipelineRequest,
         *,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
     ) -> PhosRPipeline:
-        validated_request = PipelineRequestLoader().load(request)
-        return cls.from_validated_request(
+        validated_request = _PipelineRequestLoader().load(request)
+        return cls._from_validated_request(
             validated_request,
             manifest_writer=manifest_writer,
             output_publisher=output_publisher,
         )
 
     @classmethod
-    def from_validated_request(
+    def _from_validated_request(
         cls,
         request: ValidatedPipelineRequest,
         *,
@@ -245,8 +247,8 @@ class PhosRPipeline:
     ) -> PhosRPipeline:
         if not isinstance(request, ValidatedPipelineRequest):
             msg = (
-                "from_validated_request requires a ValidatedPipelineRequest. "
-                "Call validate_pipeline_request(...) or from_request(...) first."
+                "_from_validated_request requires a ValidatedPipelineRequest. "
+                "Call validate_pipeline_request(...) or _from_request(...) first."
             )
             raise TypeError(msg)
         return cls._build_from_validated_request(
@@ -286,7 +288,7 @@ class PhosRPipeline:
             phospho_sentinel=phospho_sentinel,
             max_unmatched_fraction=max_unmatched_fraction,
         )
-        return cls.from_request(
+        return cls._from_request(
             request,
             manifest_writer=manifest_writer,
             output_publisher=output_publisher,

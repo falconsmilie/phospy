@@ -20,6 +20,8 @@ from .validation.analysis import (
 from .validation.tables import SiteMatrixSchema
 from .writers import KinaseActivityResultWriter, KinaseActivityWriter
 
+__all__ = ["KinaseActivityAnalyzer", "KinaseActivityResult"]
+
 
 @dataclass(slots=True)
 class KinaseActivityResult:
@@ -44,12 +46,12 @@ class KinaseActivityAnalyzer:
     result_writer: type[KinaseActivityResultWriter] = KinaseActivityWriter
 
     @staticmethod
-    def load_pred_mat(pred_mat_path: str | Path) -> pd.DataFrame:
+    def _load_pred_mat(pred_mat_path: str | Path) -> pd.DataFrame:
         """Load and validate a kinase prediction matrix from disk."""
 
         return load_pred_mat(pred_mat_path)
 
-    def validate_request(
+    def _validate_request(
         self,
         *,
         pred_mat: pd.DataFrame,
@@ -77,23 +79,23 @@ class KinaseActivityAnalyzer:
         """Compute downstream kinase summaries from raw public inputs."""
 
         analyzer = KinaseActivityAnalyzer()
-        request = analyzer.validate_request(
+        request = analyzer._validate_request(
             pred_mat=pred_mat,
             phospho_matrix=phospho_matrix,
             threshold=threshold,
             min_substrates=min_substrates,
             top_n_substrates=top_n_substrates,
         )
-        return analyzer.analyze_validated_request(request=request)
+        return analyzer._analyze_validated_request(request=request)
 
     @staticmethod
-    def analyze_validated_request(
+    def _analyze_validated_request(
         *, request: ValidatedAnalysisRequest
     ) -> KinaseActivityResult:
         if not isinstance(request, ValidatedAnalysisRequest):
             msg = (
-                "analyze_validated_request requires a ValidatedAnalysisRequest. "
-                "Call validate_request(...) first."
+                "_analyze_validated_request requires a ValidatedAnalysisRequest. "
+                "Call _validate_request(...) first."
             )
             raise TypeError(msg)
         weighted_activity = compute_weighted_kinase_activity(
@@ -125,7 +127,7 @@ class KinaseActivityAnalyzer:
             target_table=target_table,
         )
 
-    def load_and_analyze(
+    def _load_and_analyze(
         self,
         pred_mat_path: str | Path,
         phospho_matrix: pd.DataFrame,
@@ -135,7 +137,7 @@ class KinaseActivityAnalyzer:
     ) -> KinaseActivityResult:
         """Load a prediction matrix from disk and compute downstream kinase summaries."""
 
-        validated_pred_mat = self.load_pred_mat(pred_mat_path)
+        validated_pred_mat = self._load_pred_mat(pred_mat_path)
         validated_matrix = SiteMatrixSchema.validate(
             phospho_matrix,
             context="phospho_matrix",
@@ -154,7 +156,7 @@ class KinaseActivityAnalyzer:
             min_overlap=1,
             min_fraction=0.1,
         )
-        return self.analyze_validated_request(request=request)
+        return self._analyze_validated_request(request=request)
 
     def write_outputs(self, result: KinaseActivityResult, outdir: str | Path) -> None:
         self.result_writer.write(result, outdir)

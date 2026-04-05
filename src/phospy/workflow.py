@@ -15,6 +15,8 @@ from .validation.workflow import (
     validate_workflow_request,
 )
 
+__all__ = ["KinaseWorkflow", "KinaseWorkflowResult"]
+
 
 @dataclass(slots=True)
 class KinaseWorkflowResult:
@@ -32,7 +34,7 @@ class KinaseWorkflowResult:
 
 
 @dataclass(frozen=True, slots=True)
-class WorkflowExecutionPlan:
+class _WorkflowExecutionPlan:
     request: ValidatedWorkflowRequest
     kernel: str
     predictor_svm_mode: PredictionSvmMode
@@ -43,7 +45,7 @@ class WorkflowExecutionPlan:
         return self.request
 
 
-class WorkflowExecutionPlanner:
+class _WorkflowExecutionPlanner:
     def __init__(
         self,
         *,
@@ -58,22 +60,22 @@ class WorkflowExecutionPlanner:
     def plan(
         self,
         request: ValidatedWorkflowRequest,
-    ) -> WorkflowExecutionPlan:
+    ) -> _WorkflowExecutionPlan:
         if not isinstance(request, ValidatedWorkflowRequest):
             msg = (
-                "WorkflowExecutionPlanner.plan requires a ValidatedWorkflowRequest. "
-                "Call KinaseWorkflow.validate_request(...) first."
+                "_WorkflowExecutionPlanner.plan requires a ValidatedWorkflowRequest. "
+                "Call KinaseWorkflow._validate_request(...) first."
             )
             raise TypeError(msg)
-        return WorkflowExecutionPlan(
+        return _WorkflowExecutionPlan(
             request=request,
             kernel=self.kernel,
             predictor_svm_mode=request.predictor_svm_mode,
         )
 
 
-class WorkflowExecutionRunner:
-    def execute(self, plan: WorkflowExecutionPlan) -> KinaseWorkflowResult:
+class _WorkflowExecutionRunner:
+    def execute(self, plan: _WorkflowExecutionPlan) -> KinaseWorkflowResult:
         request = plan.request.request
         phospho_matrix = plan.request.phospho_matrix
 
@@ -138,14 +140,14 @@ class KinaseWorkflow:
         self.flank_size = flank_size
         self.kernel = kernel
         self.svm_mode = svm_mode
-        self.execution_planner = WorkflowExecutionPlanner(
+        self.execution_planner = _WorkflowExecutionPlanner(
             flank_size=flank_size,
             kernel=kernel,
             default_svm_mode=svm_mode,
         )
-        self.execution_runner = WorkflowExecutionRunner()
+        self.execution_runner = _WorkflowExecutionRunner()
 
-    def validate_request(
+    def _validate_request(
         self,
         *,
         phospho_matrix: pd.DataFrame,
@@ -199,7 +201,7 @@ class KinaseWorkflow:
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
     ) -> KinaseWorkflowResult:
-        request = self.validate_request(
+        request = self._validate_request(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
             site_sequences=site_sequences,
@@ -215,16 +217,16 @@ class KinaseWorkflow:
             random_state=random_state,
             svm_mode=svm_mode,
         )
-        return self.run_request(request)
+        return self._run_request(request)
 
-    def run_request(
+    def _run_request(
         self,
         request: ValidatedWorkflowRequest,
     ) -> KinaseWorkflowResult:
         if not isinstance(request, ValidatedWorkflowRequest):
             msg = (
-                "run_request requires a ValidatedWorkflowRequest. "
-                "Call validate_request(...) first."
+                "_run_request requires a ValidatedWorkflowRequest. "
+                "Call _validate_request(...) first."
             )
             raise TypeError(msg)
         return self.execution_runner.execute(self.execution_planner.plan(request))

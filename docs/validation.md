@@ -20,17 +20,11 @@ Validation now lives under `src/phospy/validation/` and is organised by responsi
 
 New validation rules should be added to the module that matches their responsibility instead of extending a generic catch-all validator file.
 
-Each supported public orchestration entry point now has one trusted boundary object where that boundary is part of the supported API:
-
-- `ValidatedPipelineRequest` for `PhosRPipeline`
-- `ValidatedWorkflowRequest` for `KinaseWorkflow`
-- `ValidatedAnalysisRequest` for `KinaseActivityAnalyzer`
+Validated request objects still exist inside the orchestration layer, but they are implementation details for the main workflow APIs rather than first-class user entry points.
 
 `PhosphoDataset` validates internally from its raw-input constructor and `from_files(...)` boundary instead of exposing dataset validation artifacts as part of the normal user workflow.
 
-Raw option models such as `CorePipelineRequest`, `KinaseWorkflowRequest`, and `KinaseActivityRequest` still exist where they help with parsing, but orchestration now hands off trusted validated request objects downstream.
-
-For kinase activity analysis, the preferred flow is `KinaseActivityAnalyzer.validate_request(...)` followed by `KinaseActivityAnalyzer.analyze_validated_request(...)` when you need an explicit trusted boundary object.
+Raw option models such as `CorePipelineRequest`, `KinaseWorkflowRequest`, and `KinaseActivityRequest` still exist where they help with parsing and testing, but normal user code should prefer `PhosRPipeline.from_files(...)`, `KinaseWorkflow.run(...)`, and `KinaseActivityAnalyzer.analyze(...)`.
 
 ## Data Ownership Policy
 

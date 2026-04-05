@@ -7,7 +7,7 @@ from phospy.motifs import KinaseMotifScorer
 from phospy.validation.errors import InputCompatibilityError, RequestValidationError
 from phospy.validation.requests import KinaseWorkflowRequest
 from phospy.validation.tables import SiteMatrixSchema
-from phospy.workflow import KinaseWorkflow, WorkflowExecutionPlanner
+from phospy.workflow import KinaseWorkflow, _WorkflowExecutionPlanner
 
 
 def make_workflow_inputs() -> tuple[
@@ -271,7 +271,7 @@ def test_kinase_workflow_run_request_uses_validated_boundary_request(
         classmethod(counting_from_sequences),
     )
 
-    request = workflow.validate_request(
+    request = workflow._validate_request(
         phospho_matrix=phospho_matrix,
         substrate_map=substrate_map,
         site_sequences=site_sequences,
@@ -285,7 +285,7 @@ def test_kinase_workflow_run_request_uses_validated_boundary_request(
         n_iterations=2,
         random_state=17,
     )
-    result = workflow.run_request(request)
+    result = workflow._run_request(request)
 
     assert list(result.prediction_result.pred_matrix.columns) == [
         "KINASE_A",
@@ -316,7 +316,7 @@ def test_kinase_workflow_run_request_rejects_raw_request_objects() -> None:
     )
 
     with pytest.raises(TypeError, match="ValidatedWorkflowRequest"):
-        workflow.run_request(request)  # type: ignore[arg-type]
+        workflow._run_request(request)  # type: ignore[arg-type]
 
 
 def test_kinase_workflow_rejects_inconsistent_motif_widths_at_boundary() -> None:
@@ -350,7 +350,7 @@ def test_workflow_execution_planner_resolves_predictor_mode_from_request() -> No
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
         make_workflow_inputs()
     )
-    request = KinaseWorkflow(flank_size=2).validate_request(
+    request = KinaseWorkflow(flank_size=2)._validate_request(
         phospho_matrix=phospho_matrix,
         substrate_map=substrate_map,
         site_sequences=site_sequences,
@@ -366,7 +366,7 @@ def test_workflow_execution_planner_resolves_predictor_mode_from_request() -> No
         svm_mode="r_parity",
     )
 
-    plan = WorkflowExecutionPlanner(
+    plan = _WorkflowExecutionPlanner(
         flank_size=2,
         kernel="rbf",
         default_svm_mode="default",
