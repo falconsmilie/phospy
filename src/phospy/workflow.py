@@ -61,12 +61,6 @@ class _WorkflowExecutionPlanner:
         self,
         request: ValidatedWorkflowRequest,
     ) -> _WorkflowExecutionPlan:
-        if not isinstance(request, ValidatedWorkflowRequest):
-            msg = (
-                "_WorkflowExecutionPlanner.plan requires a ValidatedWorkflowRequest. "
-                "Call KinaseWorkflow._validate_request(...) first."
-            )
-            raise TypeError(msg)
         return _WorkflowExecutionPlan(
             request=request,
             kernel=self.kernel,
@@ -223,10 +217,4 @@ class KinaseWorkflow:
         self,
         request: ValidatedWorkflowRequest,
     ) -> KinaseWorkflowResult:
-        if not isinstance(request, ValidatedWorkflowRequest):
-            msg = (
-                "_run_request requires a ValidatedWorkflowRequest. "
-                "Call _validate_request(...) first."
-            )
-            raise TypeError(msg)
         return self.execution_runner.execute(self.execution_planner.plan(request))

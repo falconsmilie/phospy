@@ -7,7 +7,6 @@ from phospy import KinaseActivityAnalyzer
 from phospy.constants import KINASE_OUTPUT_FILENAMES
 from phospy.io import load_pred_mat
 from phospy.validation.errors import RequestValidationError, TableSchemaError
-from phospy.validation.requests import KinaseActivityRequest
 from phospy.validation.tables import PredMatSchema, SiteMatrixSchema
 
 
@@ -224,16 +223,3 @@ def test_analyze_validated_request_uses_validated_boundary_request(
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
     assert pred_calls == ["pred_mat"]
     assert matrix_calls == ["phospho_matrix"]
-
-
-def test_analyze_validated_request_rejects_raw_request_objects() -> None:
-    request = KinaseActivityRequest.validate_request(
-        threshold=0.6,
-        min_substrates=2,
-        top_n_substrates=20,
-    )
-
-    with pytest.raises(TypeError, match="ValidatedAnalysisRequest"):
-        KinaseActivityAnalyzer._analyze_validated_request(
-            request=request  # type: ignore[arg-type]
-        )

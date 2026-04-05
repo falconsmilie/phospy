@@ -5,7 +5,6 @@ import pytest
 
 from phospy.motifs import KinaseMotifScorer
 from phospy.validation.errors import InputCompatibilityError, RequestValidationError
-from phospy.validation.requests import KinaseWorkflowRequest
 from phospy.validation.tables import SiteMatrixSchema
 from phospy.workflow import KinaseWorkflow, _WorkflowExecutionPlanner
 
@@ -293,30 +292,6 @@ def test_kinase_workflow_run_request_uses_validated_boundary_request(
     ]
     assert matrix_calls == ["phospho_matrix"]
     assert motif_calls == [2]
-
-
-def test_kinase_workflow_run_request_rejects_raw_request_objects() -> None:
-    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
-        make_workflow_inputs()
-    )
-    workflow = KinaseWorkflow(flank_size=2)
-    request = KinaseWorkflowRequest.validate_request(
-        phospho_matrix=phospho_matrix,
-        substrate_map=substrate_map,
-        site_sequences=site_sequences,
-        motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
-    )
-
-    with pytest.raises(TypeError, match="ValidatedWorkflowRequest"):
-        workflow._run_request(request)  # type: ignore[arg-type]
 
 
 def test_kinase_workflow_rejects_inconsistent_motif_widths_at_boundary() -> None:
