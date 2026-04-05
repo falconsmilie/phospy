@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from numbers import Real
 
 import pandas as pd
 
-from .errors import InputCompatibilityError, PhospyValidationError, TableSchemaError
+from ._helpers import require_columns, validate_fraction
+from .errors import InputCompatibilityError
 from .normalization import normalize_identifier_series
 
 
@@ -19,44 +19,6 @@ class ProteinCorrectionMatchSummary:
     unmatched_rows: int
     unmatched_fraction: float
     unmatched_gene_preview: tuple[str, ...]
-
-
-def _validate_fraction(
-    value: float,
-    *,
-    name: str,
-) -> float:
-    if isinstance(value, bool) or not isinstance(value, Real):
-        raise PhospyValidationError(
-            f"{name} must be a finite numeric value between 0 and 1"
-        )
-
-    resolved = float(value)
-    if (
-        not 0.0 <= resolved <= 1.0
-        or resolved != resolved
-        or resolved in {float("inf"), float("-inf")}
-    ):
-        raise PhospyValidationError(
-            f"{name} must be a finite numeric value between 0 and 1"
-        )
-    return resolved
-
-
-def _require_columns(
-    frame: pd.DataFrame,
-    *,
-    required_columns: Sequence[str],
-    context: str,
-) -> None:
-    missing_columns = [
-        column for column in required_columns if column not in frame.columns
-    ]
-    if missing_columns:
-        joined_columns = ", ".join(missing_columns)
-        raise TableSchemaError(
-            f"{context} is missing required columns: {joined_columns}"
-        )
 
 
 def validate_core_column_alignment(
@@ -92,7 +54,7 @@ def validate_protein_correction_inputs(
 ) -> ProteinCorrectionMatchSummary:
     """Validate phosphosite/protein correction inputs and matching coverage."""
 
-    resolved_max_unmatched_fraction = _validate_fraction(
+    resolved_max_unmatched_fraction = validate_fraction(
         max_unmatched_fraction,
         name="max_unmatched_fraction",
     )
@@ -106,12 +68,12 @@ def validate_protein_correction_inputs(
         msg = f"{context} contain no protein rows after filtering"
         raise InputCompatibilityError(msg)
 
-    _require_columns(
+    require_columns(
         phospho_df,
         required_columns=[phospho_gene_col, *phospho_cols],
         context=f"{context} phospho input",
     )
-    _require_columns(
+    require_columns(
         total_df,
         required_columns=[total_gene_col, *protein_cols],
         context=f"{context} total input",

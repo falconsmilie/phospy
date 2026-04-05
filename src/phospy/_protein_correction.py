@@ -1,18 +1,21 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal, overload
 
 import pandas as pd
 
-from ._preprocessing_primitives import _require_columns, _require_numeric_series
+from .validation._helpers import (
+    require_columns,
+    require_numeric_columns,
+    resolve_required_columns,
+)
 from .validation.compatibility import (
     ProteinCorrectionMatchSummary,
     validate_core_column_alignment,
     validate_protein_correction_inputs,
 )
-from .validation.errors import PhospyValidationError
 from .validation.normalization import normalize_identifier_series
 
 
@@ -41,34 +44,6 @@ class ProteinCorrectionResult:
     summary: ProteinCorrectionSummary
 
 
-def _resolve_required_columns(
-    columns: Iterable[str],
-    *,
-    argument_name: str,
-    context: str,
-) -> list[str]:
-    resolved_columns = list(columns)
-    if not resolved_columns:
-        raise PhospyValidationError(
-            f"{context} requires at least one column name in '{argument_name}'"
-        )
-    return resolved_columns
-
-
-def _require_numeric_columns(
-    df: pd.DataFrame,
-    *,
-    columns: Sequence[str],
-    context: str,
-) -> None:
-    for column in columns:
-        df[column] = _require_numeric_series(
-            df[column],
-            column=column,
-            context=context,
-        )
-
-
 def _resolve_correction_columns(
     *,
     phospho_cols: Sequence[str],
@@ -77,12 +52,12 @@ def _resolve_correction_columns(
     output_prefix: str,
     context: str,
 ) -> tuple[list[str], list[str], list[str]]:
-    resolved_phospho_cols = _resolve_required_columns(
+    resolved_phospho_cols = resolve_required_columns(
         phospho_cols,
         argument_name="phospho_cols",
         context=context,
     )
-    resolved_protein_cols = _resolve_required_columns(
+    resolved_protein_cols = resolve_required_columns(
         protein_cols,
         argument_name="protein_cols",
         context=context,
@@ -223,12 +198,12 @@ def run_protein_correction(
         )
     )
 
-    _require_columns(
+    require_columns(
         df_phospho,
         required_columns=[phospho_gene_col, *resolved_phospho_cols],
         context=f"{context} phospho input",
     )
-    _require_columns(
+    require_columns(
         df_total,
         required_columns=[total_gene_col, *resolved_protein_cols],
         context=f"{context} total input",
@@ -236,12 +211,12 @@ def run_protein_correction(
 
     phospho_work = df_phospho.copy()
     total_work = df_total.copy()
-    _require_numeric_columns(
+    require_numeric_columns(
         phospho_work,
         columns=resolved_phospho_cols,
         context=f"{context} phospho input",
     )
-    _require_numeric_columns(
+    require_numeric_columns(
         total_work,
         columns=resolved_protein_cols,
         context=f"{context} total input",
@@ -302,12 +277,12 @@ def run_protein_correction_owned(
             context=context,
         )
     )
-    _require_columns(
+    require_columns(
         df_phospho,
         required_columns=[phospho_gene_col, *resolved_phospho_cols],
         context=f"{context} phospho input",
     )
-    _require_columns(
+    require_columns(
         df_total,
         required_columns=[total_gene_col, *resolved_protein_cols],
         context=f"{context} total input",

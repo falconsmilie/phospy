@@ -7,7 +7,7 @@ import pandas as pd
 
 from .constants import ComparisonSpec
 from .dataset_schema import DatasetSchema
-from .validation.errors import TableSchemaError
+from .validation._helpers import require_columns, require_numeric_series
 
 """Internal preprocessing transformation primitives.
 
@@ -16,37 +16,6 @@ both the public preprocessing façade and the internal preprocessing service
 layer. They are intentionally kept out of the public helper module so the
 service layer does not depend on public-module internals.
 """
-
-
-def _require_columns(
-    df: pd.DataFrame,
-    *,
-    required_columns: Sequence[str],
-    context: str,
-) -> None:
-    missing_columns = [
-        column for column in required_columns if column not in df.columns
-    ]
-    if missing_columns:
-        joined_columns = ", ".join(missing_columns)
-        msg = f"{context} is missing required columns: {joined_columns}"
-        raise TableSchemaError(msg)
-
-
-def _require_numeric_series(
-    values: pd.Series,
-    *,
-    column: str,
-    context: str,
-) -> pd.Series:
-    try:
-        numeric_values = pd.to_numeric(values, errors="raise")
-    except (TypeError, ValueError) as exc:
-        raise TableSchemaError(
-            f"{context} requires numeric values in column '{column}'"
-        ) from exc
-
-    return pd.Series(numeric_values, index=values.index, copy=False)
 
 
 def _filter_localized_sites_without_copy(
@@ -58,7 +27,7 @@ def _filter_localized_sites_without_copy(
 ) -> pd.DataFrame:
     values = localization_values
     if values is None:
-        values = _require_numeric_series(
+        values = require_numeric_series(
             df[localization_col],
             column=localization_col,
             context="filter_localized_sites()",
@@ -111,7 +80,7 @@ def _collapse_duplicate_genes_owned(
     winning row is selected so all-missing groups do not survive deduplication.
     The top-ranked remaining row for each gene is retained.
     """
-    _require_columns(
+    require_columns(
         df,
         required_columns=[gene_col, *value_cols],
         context="collapse_duplicate_genes() input",

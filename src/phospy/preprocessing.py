@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from numbers import Integral, Real
+from numbers import Integral
 from typing import Literal, overload
 
 import pandas as pd
@@ -14,8 +14,6 @@ from ._preprocessing_primitives import (
     _filter_localized_sites_without_copy,
     _filter_min_observed_without_copy,
     _replace_sentinel_with_nan_in_place,
-    _require_columns,
-    _require_numeric_series,
 )
 from ._protein_correction import (
     ProteinCorrectionResult,
@@ -24,6 +22,13 @@ from ._protein_correction import (
 )
 from .constants import LOCALIZATION_PROB_COLUMN, ComparisonSpec
 from .dataset_schema import DatasetSchema
+from .validation._helpers import (
+    require_columns,
+    require_numeric_columns,
+    require_numeric_series,
+    resolve_required_columns,
+    validate_fraction,
+)
 from .validation.errors import PhospyValidationError
 from .validation.primitives import validate_non_negative_int
 
@@ -84,35 +89,6 @@ class CoverageFilterResult:
     summary: CoverageFilterSummary
 
 
-def _validate_probability_threshold(value: float, *, name: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, Real):
-        raise PhospyValidationError(
-            f"{name} must be a finite numeric value between 0 and 1"
-        )
-
-    resolved = float(value)
-    if not math.isfinite(resolved) or not 0.0 <= resolved <= 1.0:
-        raise PhospyValidationError(
-            f"{name} must be a finite numeric value between 0 and 1"
-        )
-
-    return resolved
-
-
-def _resolve_required_columns(
-    columns: Iterable[str],
-    *,
-    argument_name: str,
-    context: str,
-) -> list[str]:
-    resolved_columns = list(columns)
-    if not resolved_columns:
-        raise PhospyValidationError(
-            f"{context} requires at least one column name in '{argument_name}'"
-        )
-    return resolved_columns
-
-
 def _validate_non_negative_integer(value: int, *, name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, Integral):
         raise PhospyValidationError(f"{name} must be a non-negative integer")
@@ -123,20 +99,6 @@ def _validate_non_negative_integer(value: int, *, name: str) -> int:
     except PhospyValidationError as exc:
         raise PhospyValidationError(f"{name} must be a non-negative integer") from exc
     return resolved
-
-
-def _require_numeric_columns(
-    df: pd.DataFrame,
-    *,
-    columns: Sequence[str],
-    context: str,
-) -> None:
-    for column in columns:
-        df[column] = _require_numeric_series(
-            df[column],
-            column=column,
-            context=context,
-        )
 
 
 @overload
@@ -172,16 +134,16 @@ def filter_localized_sites(
     equal to ``threshold`` and returns a copy of the retained rows.
     """
 
-    _require_columns(
+    require_columns(
         df,
         required_columns=[localization_col],
         context="filter_localized_sites() input",
     )
-    resolved_threshold = _validate_probability_threshold(
+    resolved_threshold = validate_fraction(
         threshold,
         name="threshold",
     )
-    localization_values = _require_numeric_series(
+    localization_values = require_numeric_series(
         df[localization_col],
         column=localization_col,
         context="filter_localized_sites()",
@@ -244,17 +206,17 @@ def filter_sites_by_coverage(
     fraction of non-missing values among the selected sample columns.
     """
 
-    resolved_columns = _resolve_required_columns(
+    resolved_columns = resolve_required_columns(
         columns,
         argument_name="columns",
         context="filter_sites_by_coverage()",
     )
-    _require_columns(
+    require_columns(
         df,
         required_columns=resolved_columns,
         context="filter_sites_by_coverage() input",
     )
-    resolved_min_coverage = _validate_probability_threshold(
+    resolved_min_coverage = validate_fraction(
         min_coverage,
         name="min_coverage",
     )
@@ -288,18 +250,18 @@ def replace_sentinel_with_nan(
     columns: Iterable[str],
     sentinel: float | int,
 ) -> pd.DataFrame:
-    resolved_columns = _resolve_required_columns(
+    resolved_columns = resolve_required_columns(
         columns,
         argument_name="columns",
         context="replace_sentinel_with_nan()",
     )
-    _require_columns(
+    require_columns(
         df,
         required_columns=resolved_columns,
         context="replace_sentinel_with_nan() input",
     )
     result = df.copy()
-    _require_numeric_columns(
+    require_numeric_columns(
         result,
         columns=resolved_columns,
         context="replace_sentinel_with_nan()",
@@ -316,12 +278,12 @@ def filter_min_observed(
     columns: Sequence[str],
     min_observed: int,
 ) -> pd.DataFrame:
-    resolved_columns = _resolve_required_columns(
+    resolved_columns = resolve_required_columns(
         columns,
         argument_name="columns",
         context="filter_min_observed()",
     )
-    _require_columns(
+    require_columns(
         df,
         required_columns=resolved_columns,
         context="filter_min_observed() input",
