@@ -540,6 +540,9 @@ PhosRPipeline.from_files(
     max_unmatched_fraction: float = 0.0,
     total_sentinel: float = 10.0,
     phospho_sentinel: float = 12.0,
+    kinase_activity_threshold: float = 0.6,
+    kinase_activity_min_substrates: int = 3,
+    kinase_activity_top_n_substrates: int = 20,
 ) -> PhosRPipeline
 ```
 
@@ -552,6 +555,7 @@ Builds a pipeline from file paths.
   - when supplied, it must point to a CSV `predMat`
   - it is validated when downstream kinase analysis runs
 - `localization_threshold`, `min_observed`, `max_unmatched_fraction`, `total_sentinel`, and `phospho_sentinel` follow the same rules as `dataset.preprocessing.run(...)`
+- `kinase_activity_threshold`, `kinase_activity_min_substrates`, and `kinase_activity_top_n_substrates` control downstream kinase activity analysis when `pred_mat_path` is supplied
 
 ### `pipeline.run(outdir=None)`
 
@@ -567,7 +571,7 @@ Runs the pipeline and optionally publishes files.
   - when provided, PhosPy writes the output bundle to disk
   - when `None`, PhosPy returns in-memory results only
 
-If `pred_mat_path` was supplied, the run includes downstream kinase analysis. Otherwise it returns only the core outputs.
+If `pred_mat_path` was supplied, the run includes downstream kinase analysis using the validated `kinase_activity_*` settings stored on the pipeline request. Otherwise it returns only the core outputs.
 
 #### Return Value
 
@@ -591,6 +595,9 @@ pipeline = PhosRPipeline.from_files(
     phospho_path="phospho.tsv",
     pred_mat_path="predMat.csv",
     max_unmatched_fraction=0.1,
+    kinase_activity_threshold=0.6,
+    kinase_activity_min_substrates=3,
+    kinase_activity_top_n_substrates=20,
 )
 outputs = pipeline.run(outdir="output")
 ```

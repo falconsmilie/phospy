@@ -711,6 +711,90 @@ def test_validate_pipeline_request_takes_ownership_of_raw_pred_mat_input() -> No
     assert request.pred_mat.loc["PRKACA;S339;", "PRKACA"] == 0.9
 
 
+def test_validate_pipeline_request_builds_explicit_kinase_activity_config() -> None:
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+
+    request = validate_pipeline_request(
+        dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
+        pred_mat=pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"]),
+        kinase_activity_threshold=0.8,
+        kinase_activity_min_substrates=5,
+        kinase_activity_top_n_substrates=7,
+    )
+
+    assert request.kinase_activity_request is not None
+    assert request.kinase_activity_request.threshold == 0.8
+    assert request.kinase_activity_request.min_substrates == 5
+    assert request.kinase_activity_request.top_n_substrates == 7
+
+
+def test_validate_pipeline_request_skips_kinase_activity_config_without_pred_mat() -> (
+    None
+):
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+
+    request = validate_pipeline_request(
+        dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
+        pred_mat=None,
+        kinase_activity_threshold=0.8,
+        kinase_activity_min_substrates=5,
+        kinase_activity_top_n_substrates=7,
+    )
+
+    assert request.pred_mat is None
+    assert request.kinase_activity_request is None
+
+
 def test_build_validated_pipeline_request_reuses_owned_dataset_and_pred_mat() -> None:
     total_df = pd.DataFrame(
         {

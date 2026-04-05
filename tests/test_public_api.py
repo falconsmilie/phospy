@@ -848,6 +848,65 @@ def test_pipeline_does_not_expose_request_specific_builders() -> None:
     assert not hasattr(KinaseActivityAnalyzer, "load_and_analyze")
 
 
+def test_pipeline_run_uses_explicit_kinase_activity_settings(monkeypatch) -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+    pipeline = PhosRPipeline(
+        dataset=dataset,
+        pred_mat=make_pred_mat(),
+        kinase_activity_threshold=0.95,
+        kinase_activity_min_substrates=9,
+        kinase_activity_top_n_substrates=11,
+    )
+
+    captured: dict[str, float | int] = {}
+    original = KinaseActivityAnalyzer._analyze_validated_request
+
+    def capturing_analyze_validated_request(*, request):
+        captured["threshold"] = request.request.threshold
+        captured["min_substrates"] = request.request.min_substrates
+        captured["top_n_substrates"] = request.request.top_n_substrates
+        return original(request=request)
+
+    monkeypatch.setattr(
+        KinaseActivityAnalyzer,
+        "_analyze_validated_request",
+        staticmethod(capturing_analyze_validated_request),
+    )
+
+    outputs = pipeline.run()
+
+    assert outputs.kinase_activity is not None
+    assert captured == {
+        "threshold": 0.95,
+        "min_substrates": 9,
+        "top_n_substrates": 11,
+    }
+
+
+def test_pipeline_exposes_explicit_kinase_activity_request_on_validated_input() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+
+    pipeline = PhosRPipeline(
+        dataset=dataset,
+        pred_mat=make_pred_mat(),
+        kinase_activity_threshold=0.75,
+        kinase_activity_min_substrates=4,
+        kinase_activity_top_n_substrates=6,
+    )
+
+    assert pipeline.request.kinase_activity_request is not None
+    assert pipeline.request.kinase_activity_request.threshold == 0.75
+    assert pipeline.request.kinase_activity_request.min_substrates == 4
+    assert pipeline.request.kinase_activity_request.top_n_substrates == 6
+
+
 @pytest.mark.parametrize(
     ("builder_name", "builder"),
     [

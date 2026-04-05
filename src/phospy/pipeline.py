@@ -15,7 +15,7 @@ from .dataset_loader import _DatasetLoader
 from .dataset_schema import DatasetSchema
 from .io import load_pred_mat
 from .publishing import OutputPublisher, RunManifestWriter
-from .validation.analysis import KinaseActivityRequest, ValidatedAnalysisRequest
+from .validation.analysis import ValidatedAnalysisRequest
 from .validation.errors import RequestValidationError, TableSchemaError
 from .validation.pipeline import (
     CorePipelineRequest,
@@ -72,6 +72,9 @@ class _PipelineRequestLoader:
             max_unmatched_fraction=request.max_unmatched_fraction,
             total_sentinel=request.total_sentinel,
             phospho_sentinel=request.phospho_sentinel,
+            kinase_activity_threshold=request.kinase_activity_threshold,
+            kinase_activity_min_substrates=request.kinase_activity_min_substrates,
+            kinase_activity_top_n_substrates=request.kinase_activity_top_n_substrates,
         )
 
     def _load_pred_mat(self, request: CorePipelineRequest) -> pd.DataFrame | None:
@@ -102,9 +105,9 @@ class _PipelineExecutionRunner:
         core = request.dataset.preprocessing.run(config=request.preprocessing_config)
 
         kinase_activity = None
-        if request.pred_mat is not None:
+        if request.pred_mat is not None and request.kinase_activity_request is not None:
             kinase_activity_request = ValidatedAnalysisRequest.from_trusted_inputs(
-                request=KinaseActivityRequest.validate_request(),
+                request=request.kinase_activity_request,
                 pred_mat=request.pred_mat,
                 phospho_matrix=core.site_matrix.matrix,
                 pred_context="pred_mat",
@@ -164,6 +167,9 @@ class PhosRPipeline:
         max_unmatched_fraction: float = 0.0,
         total_sentinel: float = 10.0,
         phospho_sentinel: float = 12.0,
+        kinase_activity_threshold: float = 0.6,
+        kinase_activity_min_substrates: int = 3,
+        kinase_activity_top_n_substrates: int = 20,
         *,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
@@ -177,6 +183,9 @@ class PhosRPipeline:
             max_unmatched_fraction=max_unmatched_fraction,
             total_sentinel=total_sentinel,
             phospho_sentinel=phospho_sentinel,
+            kinase_activity_threshold=kinase_activity_threshold,
+            kinase_activity_min_substrates=kinase_activity_min_substrates,
+            kinase_activity_top_n_substrates=kinase_activity_top_n_substrates,
         )
         initialized = self._build_from_validated_request(
             request=request,
@@ -207,6 +216,7 @@ class PhosRPipeline:
         instance.dataset = request.dataset
         instance.pred_mat = request.pred_mat
         instance.preprocessing_config = request.preprocessing_config
+        instance.kinase_activity_request = request.kinase_activity_request
         instance.kinase_activity_analyzer = KinaseActivityAnalyzer()
         instance.manifest_writer = manifest_writer or RunManifestWriter()
         instance.output_publisher = output_publisher or OutputPublisher()
@@ -259,6 +269,9 @@ class PhosRPipeline:
         max_unmatched_fraction: float = 0.0,
         total_sentinel: float = 10.0,
         phospho_sentinel: float = 12.0,
+        kinase_activity_threshold: float = 0.6,
+        kinase_activity_min_substrates: int = 3,
+        kinase_activity_top_n_substrates: int = 20,
         *,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
@@ -275,6 +288,9 @@ class PhosRPipeline:
             total_sentinel=total_sentinel,
             phospho_sentinel=phospho_sentinel,
             max_unmatched_fraction=max_unmatched_fraction,
+            kinase_activity_threshold=kinase_activity_threshold,
+            kinase_activity_min_substrates=kinase_activity_min_substrates,
+            kinase_activity_top_n_substrates=kinase_activity_top_n_substrates,
         )
         return cls._from_request(
             request,

@@ -46,6 +46,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Sentinel value to treat as missing in the phosphoproteome table.",
     )
     parser.add_argument(
+        "--kinase-activity-threshold",
+        type=float,
+        default=0.6,
+        help="Score threshold used for downstream kinase activity summaries.",
+    )
+    parser.add_argument(
+        "--kinase-activity-min-substrates",
+        type=int,
+        default=3,
+        help="Minimum substrate count used for downstream kinase activity summaries.",
+    )
+    parser.add_argument(
+        "--kinase-activity-top-n-substrates",
+        type=int,
+        default=20,
+        help="Top-N substrates used for weighted downstream kinase activity summaries.",
+    )
+    parser.add_argument(
         "--max-unmatched-fraction",
         type=float,
         default=0.0,
@@ -72,6 +90,9 @@ def main() -> None:
             total_sentinel=args.total_sentinel,
             phospho_sentinel=args.phospho_sentinel,
             max_unmatched_fraction=args.max_unmatched_fraction,
+            kinase_activity_threshold=args.kinase_activity_threshold,
+            kinase_activity_min_substrates=args.kinase_activity_min_substrates,
+            kinase_activity_top_n_substrates=args.kinase_activity_top_n_substrates,
         )
     except RequestValidationError as error:
         parser.error(str(error))

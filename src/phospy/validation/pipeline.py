@@ -14,6 +14,7 @@ from ..core_processing import (
 )
 from ..dataset_schema import DatasetSchema
 from ._models import PhospyRequestModel
+from .analysis import KinaseActivityRequest
 from .errors import InputCompatibilityError, RequestValidationError
 from .paths import validate_existing_file_path
 from .tables import PredMatSchema
@@ -36,6 +37,9 @@ class CorePipelineRequest(PhospyRequestModel):
     total_sentinel: float = 10.0
     phospho_sentinel: float = 12.0
     max_unmatched_fraction: float = Field(default=0.0, ge=0.0, le=1.0)
+    kinase_activity_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+    kinase_activity_min_substrates: int = Field(default=3, ge=1)
+    kinase_activity_top_n_substrates: int = Field(default=20, ge=1)
 
     @field_validator("total_path", "phospho_path", "pred_mat_path")
     @classmethod
@@ -83,6 +87,7 @@ class ValidatedPipelineRequest:
     dataset: PhosphoDataset
     pred_mat: pd.DataFrame | None
     preprocessing_config: CorePreprocessingConfig
+    kinase_activity_request: KinaseActivityRequest | None
 
 
 def build_validated_pipeline_request(
@@ -95,6 +100,9 @@ def build_validated_pipeline_request(
     max_unmatched_fraction: float = 0.0,
     total_sentinel: float = 10.0,
     phospho_sentinel: float = 12.0,
+    kinase_activity_threshold: float = 0.6,
+    kinase_activity_min_substrates: int = 3,
+    kinase_activity_top_n_substrates: int = 20,
 ) -> ValidatedPipelineRequest:
     """Build a trusted pipeline request from already-owned validated inputs.
 
@@ -129,10 +137,19 @@ def build_validated_pipeline_request(
         msg = "Invalid pipeline request: pred_mat must be a pandas DataFrame when provided"
         raise RequestValidationError(msg)
 
+    kinase_activity_request = None
+    if validated_pred_mat is not None:
+        kinase_activity_request = KinaseActivityRequest.validate_request(
+            threshold=kinase_activity_threshold,
+            min_substrates=kinase_activity_min_substrates,
+            top_n_substrates=kinase_activity_top_n_substrates,
+        )
+
     return ValidatedPipelineRequest(
         dataset=dataset,
         pred_mat=validated_pred_mat,
         preprocessing_config=resolved_config,
+        kinase_activity_request=kinase_activity_request,
     )
 
 
@@ -146,6 +163,9 @@ def validate_pipeline_request(
     max_unmatched_fraction: float = 0.0,
     total_sentinel: float = 10.0,
     phospho_sentinel: float = 12.0,
+    kinase_activity_threshold: float = 0.6,
+    kinase_activity_min_substrates: int = 3,
+    kinase_activity_top_n_substrates: int = 20,
 ) -> ValidatedPipelineRequest:
     """Validate raw in-memory pipeline inputs for the public pipeline boundary.
 
@@ -167,6 +187,9 @@ def validate_pipeline_request(
         max_unmatched_fraction=max_unmatched_fraction,
         total_sentinel=total_sentinel,
         phospho_sentinel=phospho_sentinel,
+        kinase_activity_threshold=kinase_activity_threshold,
+        kinase_activity_min_substrates=kinase_activity_min_substrates,
+        kinase_activity_top_n_substrates=kinase_activity_top_n_substrates,
     )
 
 

@@ -59,6 +59,9 @@ def test_readme_example_pipeline_runs_end_to_end(tmp_path) -> None:
         pred_mat_path=repo_root / "examples" / "data" / "predMat.csv",
         phospho_encoding="utf-16le",
         max_unmatched_fraction=0.1,
+        kinase_activity_threshold=0.6,
+        kinase_activity_min_substrates=1,
+        kinase_activity_top_n_substrates=1,
     )
     outputs = pipeline.run(outdir=outdir)
 

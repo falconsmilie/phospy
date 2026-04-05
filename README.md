@@ -100,11 +100,14 @@ pipeline = PhosRPipeline.from_files(
     pred_mat_path="examples/data/predMat.csv",
     phospho_encoding="utf-16le",
     max_unmatched_fraction=0.1,
+    kinase_activity_threshold=0.6,
+    kinase_activity_min_substrates=1,
+    kinase_activity_top_n_substrates=1,
 )
 outputs = pipeline.run(outdir="examples/output")
 ```
 
-This writes the core CSV outputs and, when `pred_mat_path` is provided, the downstream kinase-analysis tables as well.
+This writes the core CSV outputs and, when `pred_mat_path` is provided, the downstream kinase-analysis tables using the explicit `kinase_activity_*` settings carried on the pipeline request.
 A pipeline run also writes `run_manifest.json`.
 
 ### 4. Native Python kinase workflow
