@@ -15,7 +15,12 @@ from .validation.workflow import (
     validate_workflow_request,
 )
 
-__all__ = ["KinaseWorkflow", "KinaseWorkflowResult"]
+__all__ = [
+    "KinaseWorkflow",
+    "KinaseWorkflowResult",
+    "PredMatWorkflow",
+    "PredMatWorkflowResult",
+]
 
 
 @dataclass(slots=True)
@@ -26,6 +31,20 @@ class KinaseWorkflowResult:
     motif_result: MotifScoringResult | None
     scoring_result: KinaseScoringResult
     prediction_result: KinasePredictionResult
+
+
+@dataclass(slots=True)
+class PredMatWorkflowResult:
+    """Stable result bundle for one public predMat generation run."""
+
+    scoring_result: KinaseScoringResult
+    prediction_result: KinasePredictionResult
+
+    @property
+    def pred_mat(self) -> pd.DataFrame:
+        """Return the generated predMat."""
+
+        return self.prediction_result.pred_mat
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,9 +125,7 @@ class _WorkflowRunner:
         )
 
 
-class KinaseWorkflow:
-    """Run the native kinase scoring and prediction workflow end to end."""
-
+class _WorkflowFacadeBase:
     def __init__(
         self,
         flank_size: int = 7,
@@ -158,6 +175,28 @@ class KinaseWorkflow:
             default_svm_mode=self.svm_mode,
         )
 
+    def _execute_request(
+        self,
+        request: ValidatedWorkflowRequest,
+    ) -> KinaseWorkflowResult:
+        return self.runner.execute(self.planner.plan(request))
+
+
+class KinaseWorkflow(_WorkflowFacadeBase):
+    """Run the native kinase scoring and prediction workflow end to end."""
+
+    def __init__(
+        self,
+        flank_size: int = 7,
+        kernel: str = "rbf",
+        svm_mode: PredictionSvmMode = "default",
+    ) -> None:
+        super().__init__(
+            flank_size=flank_size,
+            kernel=kernel,
+            svm_mode=svm_mode,
+        )
+
     def run(
         self,
         phospho_matrix: pd.DataFrame,
@@ -197,4 +236,65 @@ class KinaseWorkflow:
         self,
         request: ValidatedWorkflowRequest,
     ) -> KinaseWorkflowResult:
-        return self.runner.execute(self.planner.plan(request))
+        return self._execute_request(request)
+
+
+class PredMatWorkflow(_WorkflowFacadeBase):
+    """Generate a predMat from phosphosite and sequence inputs."""
+
+    def __init__(
+        self,
+        flank_size: int = 7,
+        kernel: str = "rbf",
+        svm_mode: PredictionSvmMode = "default",
+    ) -> None:
+        super().__init__(
+            flank_size=flank_size,
+            kernel=kernel,
+            svm_mode=svm_mode,
+        )
+
+    def run(
+        self,
+        phospho_matrix: pd.DataFrame,
+        substrate_map: Mapping[str, Sequence[str]],
+        site_sequences: Mapping[str, str] | pd.Series | None = None,
+        motif_sequences: Mapping[str, Sequence[str]] | None = None,
+        min_substrates: int = 1,
+        min_motif_size: int = 1,
+        allow_profile_only_fallback: bool = False,
+        ensemble_size: int = 10,
+        top: int = 50,
+        score_threshold: float = 0.8,
+        inclusion: int = 20,
+        n_iterations: int = 5,
+        random_state: int | None = None,
+        svm_mode: PredictionSvmMode | None = None,
+    ) -> PredMatWorkflowResult:
+        request = self._validate_request(
+            phospho_matrix=phospho_matrix,
+            substrate_map=substrate_map,
+            site_sequences=site_sequences,
+            motif_sequences=motif_sequences,
+            min_substrates=min_substrates,
+            min_motif_size=min_motif_size,
+            allow_profile_only_fallback=allow_profile_only_fallback,
+            ensemble_size=ensemble_size,
+            top=top,
+            score_threshold=score_threshold,
+            inclusion=inclusion,
+            n_iterations=n_iterations,
+            random_state=random_state,
+            svm_mode=svm_mode,
+        )
+        return self._run_request(request)
+
+    def _run_request(
+        self,
+        request: ValidatedWorkflowRequest,
+    ) -> PredMatWorkflowResult:
+        result = self._execute_request(request)
+        return PredMatWorkflowResult(
+            scoring_result=result.scoring_result,
+            prediction_result=result.prediction_result,
+        )

@@ -57,6 +57,12 @@ class KinasePredictionResult:
     trace_sink: TraceSink | None = None
     owns_trace_sink: bool = False
 
+    @property
+    def pred_mat(self) -> pd.DataFrame:
+        """Return the prediction matrix using the package-level ``pred_mat`` name."""
+
+        return self.pred_matrix
+
     def close(self) -> None:
         if not self.owns_trace_sink or self.trace_sink is None:
             return

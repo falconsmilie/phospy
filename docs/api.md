@@ -10,6 +10,7 @@ from phospy import (
     KinaseWorkflow,
     PhosphoDataset,
     PhosRPipeline,
+    PredMatWorkflow,
 )
 ```
 
@@ -18,6 +19,7 @@ Use:
 - `PhosphoDataset` for validated inputs and core preprocessing
 - `KinaseActivityAnalyzer` for analysis from an existing `predMat`
 - `PhosRPipeline` for file loading plus publishing
+- `PredMatWorkflow` for one obvious public predMat generation path
 - `KinaseWorkflow` for the native end-to-end prediction flow
 
 ## Common File Rules
@@ -396,9 +398,83 @@ pipeline.run(outdir: str | Path | None = None) -> CoreOutputs
 
 When `outdir` is set, the output bundle also includes `run_manifest.json`.
 
+## `PredMatWorkflow`
+
+Use `PredMatWorkflow` when your goal is to generate a `predMat` from one documented public workflow.
+
+### Constructor
+
+```python
+PredMatWorkflow(
+    flank_size: int = 7,
+    kernel: str = "rbf",
+    svm_mode: str = "default",
+)
+```
+
+Supported public `svm_mode` values:
+
+- `"default"`
+- `"r_parity"`
+
+### `run(...)`
+
+```python
+workflow.run(
+    phospho_matrix: pd.DataFrame,
+    substrate_map: Mapping[str, Sequence[str]],
+    site_sequences: Mapping[str, str] | pd.Series | None = None,
+    motif_sequences: Mapping[str, Sequence[str]] | None = None,
+    min_substrates: int = 1,
+    min_motif_size: int = 1,
+    allow_profile_only_fallback: bool = False,
+    ensemble_size: int = 10,
+    top: int = 50,
+    score_threshold: float = 0.8,
+    inclusion: int = 20,
+    n_iterations: int = 5,
+    random_state: int | None = None,
+    svm_mode: str | None = None,
+) -> PredMatWorkflowResult
+```
+
+Validation highlights:
+
+- `phospho_matrix` must be a numeric phosphosite matrix with a unique, non-null index
+- `substrate_map` must not be empty and must overlap with `phospho_matrix`
+- `site_sequences`, when supplied, must be a mapping or a pandas `Series` keyed by phosphosite ID
+- `motif_sequences` is required unless `allow_profile_only_fallback=True`
+- when `motif_sequences` is provided, `site_sequences` is also required
+- `min_substrates`, `min_motif_size`, `ensemble_size`, `top`, `inclusion`, and `n_iterations` must be `>= 1`
+- `score_threshold` must be in `[0, 1]`
+
+The returned `PredMatWorkflowResult` exposes:
+
+- `scoring_result`
+- `prediction_result`
+- `pred_mat`
+
+`pred_mat` is the generated prediction matrix and is the same table exposed on `prediction_result.pred_mat`.
+
+Example:
+
+```python
+from phospy import PredMatWorkflow
+
+workflow = PredMatWorkflow(svm_mode="default")
+result = workflow.run(
+    phospho_matrix=phospho_matrix,
+    substrate_map=substrate_map,
+    site_sequences=site_sequences,
+    motif_sequences=motif_sequences,
+)
+
+pred_mat = result.pred_mat
+```
+
 ## `KinaseWorkflow`
 
-Use `KinaseWorkflow` for the native Python scoring and prediction workflow.
+Use `KinaseWorkflow` when you want the fuller native Python scoring and prediction result, including profile and motif scoring outputs.
 
 ### Constructor
 
@@ -528,6 +604,22 @@ CoreOutputs(
     core: CoreProcessingResult,
     kinase_activity: KinaseActivityResult | None,
 )
+
+PredMatWorkflowResult(
+    scoring_result: KinaseScoringResult,
+    prediction_result: KinasePredictionResult,
+)
+
+# convenience property
+PredMatWorkflowResult.pred_mat -> pd.DataFrame
+
+KinasePredictionResult(
+    pred_matrix: pd.DataFrame,
+    substrate_list: dict[str, list[str]],
+)
+
+# alias
+KinasePredictionResult.pred_mat -> pd.DataFrame
 
 KinaseActivityResult(
     weighted_activity: pd.DataFrame,

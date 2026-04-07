@@ -6,7 +6,13 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import KinaseActivityAnalyzer, KinaseWorkflow, PhosphoDataset, PhosRPipeline
+from phospy import (
+    KinaseActivityAnalyzer,
+    KinaseWorkflow,
+    PhosphoDataset,
+    PhosRPipeline,
+    PredMatWorkflow,
+)
 from phospy.constants import (
     CORE_OUTPUT_ARTIFACT_BASENAMES,
     KINASE_OUTPUT_FILENAMES,
@@ -76,6 +82,7 @@ def test_public_root_exports() -> None:
         "KinaseWorkflow",
         "PhosphoDataset",
         "PhosRPipeline",
+        "PredMatWorkflow",
     }
     assert set(phospy.__all__) == expected
 
@@ -620,6 +627,46 @@ def test_kinase_workflow_runs_with_class_api() -> None:
     assert result.prediction_result.pred_matrix.shape[1] == 2
 
 
+def test_pred_mat_workflow_runs_with_class_api() -> None:
+    phospho_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 2.0, 10.0, 11.0],
+            "sample_2": [1.5, 2.5, 10.5, 11.5],
+        },
+        index=["SITE_1", "SITE_2", "SITE_3", "SITE_4"],
+    )
+
+    workflow = PredMatWorkflow()
+    result = workflow.run(
+        phospho_matrix=phospho_matrix,
+        substrate_map={
+            "KINASE_A": ["SITE_1", "SITE_2"],
+            "KINASE_B": ["SITE_3", "SITE_4"],
+        },
+        site_sequences={
+            "SITE_1": "QQAAAAAYY",
+            "SITE_2": "QQAAAAAYY",
+            "SITE_3": "QQTTTTTYY",
+            "SITE_4": "QQTTTTTYY",
+        },
+        motif_sequences={
+            "KINASE_A": ["QQAAAAAYY", "QQAAAAAYY"],
+            "KINASE_B": ["QQTTTTTYY", "QQTTTTTYY"],
+        },
+        min_substrates=2,
+        min_motif_size=1,
+        top=2,
+        score_threshold=0.5,
+        inclusion=1,
+        ensemble_size=2,
+        n_iterations=1,
+        random_state=7,
+    )
+
+    assert result.pred_mat.shape[1] == 2
+    pd.testing.assert_frame_equal(result.pred_mat, result.prediction_result.pred_mat)
+
+
 def test_pipeline_propagates_max_unmatched_fraction(tmp_path) -> None:
     total_df = pd.DataFrame(
         {
@@ -879,6 +926,8 @@ def test_pipeline_does_not_expose_request_specific_builders() -> None:
     assert not hasattr(PhosRPipeline, "from_validated_request")
     assert not hasattr(KinaseWorkflow, "validate_request")
     assert not hasattr(KinaseWorkflow, "run_request")
+    assert not hasattr(PredMatWorkflow, "validate_request")
+    assert not hasattr(PredMatWorkflow, "run_request")
     assert not hasattr(KinaseActivityAnalyzer, "validate_request")
     assert not hasattr(KinaseActivityAnalyzer, "analyze")
     assert not hasattr(KinaseActivityAnalyzer, "analyze_validated_request")

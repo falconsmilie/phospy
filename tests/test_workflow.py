@@ -6,7 +6,7 @@ import pytest
 from phospy.motifs import KinaseMotifScorer
 from phospy.validation.errors import InputCompatibilityError, RequestValidationError
 from phospy.validation.tables import SiteMatrixSchema
-from phospy.workflow import KinaseWorkflow, _WorkflowPlanner
+from phospy.workflow import KinaseWorkflow, PredMatWorkflow, _WorkflowPlanner
 
 
 def make_workflow_inputs() -> tuple[
@@ -85,6 +85,40 @@ def test_kinase_workflow_runs_native_end_to_end_path() -> None:
             ["SITE_5", "SITE_6", "SITE_7", "SITE_8"], "KINASE_A"
         ].mean()
     )
+
+
+def test_pred_mat_workflow_runs_native_end_to_end_path() -> None:
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
+        make_workflow_inputs()
+    )
+
+    workflow = PredMatWorkflow(flank_size=2)
+
+    result = workflow.run(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        min_substrates=2,
+        min_motif_size=2,
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.75,
+        inclusion=3,
+        n_iterations=2,
+        random_state=17,
+    )
+
+    assert list(result.scoring_result.combined_scores.columns) == [
+        "KINASE_A",
+        "KINASE_B",
+    ]
+    assert list(result.prediction_result.pred_matrix.columns) == [
+        "KINASE_A",
+        "KINASE_B",
+    ]
+    pd.testing.assert_frame_equal(result.pred_mat, result.prediction_result.pred_mat)
+    assert set(result.prediction_result.substrate_list) == {"KINASE_A", "KINASE_B"}
 
 
 def test_kinase_workflow_result_tables_are_detached_from_input_matrix() -> None:
