@@ -139,4 +139,4 @@ phospy \
 - [`docs/validation.md`](docs/validation.md) for the validation checklist
 - [`docs/parity.md`](docs/parity.md) for PhosR parity scope
 - [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace directories
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) for local development
+- [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) for local development

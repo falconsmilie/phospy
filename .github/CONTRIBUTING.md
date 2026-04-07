@@ -43,7 +43,7 @@ pytest -m parity
 - the non-parity suite covers the normal Python tests
 - the parity suite covers fixture-backed seam checks
 
-For parity scope, see [`docs/parity.md`](docs/parity.md).
+For parity scope, see [`docs/parity.md`](../docs/parity.md).
 
 ## Release Gate
 
@@ -69,4 +69,4 @@ If you intentionally change fixture-producing behaviour, regenerate the affected
 
 ## Good Starting Areas
 
-The public roadmap lives in [`docs/roadmap.md`](docs/roadmap.md). Good contributions usually improve the supported surface without over-claiming: clearer diagnostics, better validation, tighter docs, and carefully scoped PhosR-inspired additions.
+The public roadmap lives in [`docs/roadmap.md`](../docs/roadmap.md). Good contributions usually improve the supported surface without over-claiming: clearer diagnostics, better validation, tighter docs, and carefully scoped PhosR-inspired additions.
