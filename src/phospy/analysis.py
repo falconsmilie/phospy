@@ -27,12 +27,7 @@ PredMatLoader = Callable[[str | Path], pd.DataFrame]
 
 @dataclass(slots=True)
 class KinaseActivityResult:
-    """Detached snapshot bundle for downstream kinase-activity outputs.
-
-    The tables and series stored here are produced result tables, not live views
-    into analyzer request inputs or dataset workspace state. Mutating them only
-    affects this result instance.
-    """
+    """Kinase activity tables produced by one analyzer run."""
 
     weighted_activity: pd.DataFrame
     ksea_scores: pd.DataFrame
@@ -41,7 +36,7 @@ class KinaseActivityResult:
     target_table: pd.DataFrame
 
 
-class _KinaseActivityExecutionRunner:
+class _ActivityRunner:
     def execute(
         self,
         request: ValidatedAnalysisRequest,
@@ -84,9 +79,7 @@ class KinaseActivityAnalyzer:
     result_writer: KinaseActivityResultWriter = field(
         default_factory=KinaseActivityWriter
     )
-    execution_runner: _KinaseActivityExecutionRunner = field(
-        default_factory=_KinaseActivityExecutionRunner
-    )
+    runner: _ActivityRunner = field(default_factory=_ActivityRunner)
 
     def load_pred_mat(self, pred_mat_path: str | Path) -> pd.DataFrame:
         """Load and validate a kinase prediction matrix from disk."""
@@ -133,7 +126,7 @@ class KinaseActivityAnalyzer:
         self,
         request: ValidatedAnalysisRequest,
     ) -> KinaseActivityResult:
-        return self.execution_runner.execute(request)
+        return self.runner.execute(request)
 
     def write_outputs(self, result: KinaseActivityResult, outdir: str | Path) -> None:
         self.result_writer.write(result, outdir)

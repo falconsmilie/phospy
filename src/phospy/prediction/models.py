@@ -44,15 +44,10 @@ class KinasePredictionDebugTrace:
 
 @dataclass(slots=True)
 class KinasePredictionResult:
-    """Detached snapshot bundle for prediction outputs and optional traces.
+    """Prediction outputs and optional traces for one prediction run.
 
-    ``pred_matrix`` and ``debug_traces`` are produced outputs of a completed
-    prediction run. They are not live views into predictor internals or the
-    input score matrix.
-
-    When ``owns_trace_sink`` is ``True``, the result owns an external trace
-    sink resource. Call ``close()`` explicitly or use the result as a context
-    manager to release that resource deterministically.
+    When ``owns_trace_sink`` is ``True``, call ``close()`` or use a context
+    manager to release the trace sink deterministically.
     """
 
     pred_matrix: pd.DataFrame

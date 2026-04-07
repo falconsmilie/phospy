@@ -119,14 +119,7 @@ class KinaseWorkflowRequest(PhospyRequestModel):
 
 @dataclass(slots=True)
 class ValidatedWorkflowRequest:
-    """Trusted validated bundle for the public :class:`phospy.KinaseWorkflow` API.
-
-    Raw workflow boundaries take ownership of pandas inputs by validating and
-    copying them once. This trusted bundle then carries the owned validated
-    phosphosite matrix, the subset of phosphosites that can be scored for
-    motif-aware prediction, and resolved runtime collaborators downstream
-    without re-copying the matrix again.
-    """
+    """Trusted workflow inputs owned by the workflow boundary."""
 
     request: KinaseWorkflowRequest
     phospho_matrix: pd.DataFrame
@@ -146,13 +139,7 @@ def build_validated_workflow_request(
     default_svm_mode: PredictionSvmMode,
     context: str = "Kinase workflow inputs",
 ) -> ValidatedWorkflowRequest:
-    """Build a trusted workflow request from raw validated options.
-
-    This is the raw workflow ownership-transfer point for pandas inputs. It
-    schema-validates the phosphosite matrix, copies it once, and stores that
-    owned validated matrix on both the trusted request bundle and the copied raw
-    request model that travels with it.
-    """
+    """Build a trusted workflow request from validated raw options."""
     validated_matrix, scoring_site_index = _validate_workflow_matrix_inputs(
         request.phospho_matrix,
         request.substrate_map,

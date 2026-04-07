@@ -66,7 +66,7 @@ In practice this means:
 - raw dataframe boundaries such as dataset construction and analysis/workflow/pipeline
   validation should take ownership once
 - trusted builders such as ``ValidatedAnalysisRequest.from_trusted_inputs(...)`` and
-  ``build_validated_pipeline_construction_request(...)`` should reuse already-owned validated tables
+  ``build_pipeline_request(...)`` should reuse already-owned validated tables
   instead of copying them again by default
 - file-backed loaders may already materialise fresh in-memory tables, so later boundaries
   should only add another copy when ownership truly changes

@@ -115,7 +115,7 @@ def test_analyzer_load_pred_mat_uses_injected_loader(tmp_path) -> None:
     assert calls == [pred_mat_path]
 
 
-def test_analyzer_run_uses_injected_execution_runner() -> None:
+def test_analyzer_run_uses_injected_runner() -> None:
     expected = KinaseActivityAnalyzer().run(
         pred_mat=make_pred_mat(),
         phospho_matrix=make_phospho_matrix(),
@@ -132,7 +132,7 @@ def test_analyzer_run_uses_injected_execution_runner() -> None:
             return expected
 
     runner = StubRunner()
-    analyzer = KinaseActivityAnalyzer(execution_runner=runner)
+    analyzer = KinaseActivityAnalyzer(runner=runner)
 
     result = analyzer.run(
         pred_mat=make_pred_mat(),

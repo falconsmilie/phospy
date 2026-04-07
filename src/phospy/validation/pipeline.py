@@ -78,15 +78,8 @@ class CorePipelineRequest(PhospyRequestModel):
 
 
 @dataclass(slots=True)
-class ValidatedPipelineConstructionRequest:
-    """Trusted pipeline inputs after raw construction validation.
-
-    The dataset workspace is already owned application state. Optional
-    ``pred_mat`` tables arrive here only after the raw pipeline construction
-    boundary has schema-validated and copied them once. Runtime compatibility
-    with the eventual preprocessed site matrix is validated later, after core
-    preprocessing produces that matrix.
-    """
+class ValidatedPipelineRequest:
+    """Trusted pipeline inputs owned by the pipeline boundary."""
 
     dataset: PhosphoDataset
     pred_mat: pd.DataFrame | None
@@ -94,7 +87,7 @@ class ValidatedPipelineConstructionRequest:
     kinase_activity_request: KinaseActivityRequest | None
 
 
-def build_validated_pipeline_construction_request(
+def build_pipeline_request(
     *,
     dataset: PhosphoDataset,
     validated_pred_mat: pd.DataFrame | None = None,
@@ -107,15 +100,8 @@ def build_validated_pipeline_construction_request(
     kinase_activity_threshold: float = 0.6,
     kinase_activity_min_substrates: int = 3,
     kinase_activity_top_n_substrates: int = 20,
-) -> ValidatedPipelineConstructionRequest:
-    """Build trusted pipeline construction inputs from already-owned state.
-
-    This helper expects a dataset workspace and optional validated ``pred_mat``
-    table that are already owned trusted state. It does not copy them again.
-    Use :func:`validate_pipeline_construction_request` at raw public boundaries.
-    Runtime compatibility with the preprocessed site matrix belongs to
-    :func:`validate_pipeline_runtime_compatibility`.
-    """
+) -> ValidatedPipelineRequest:
+    """Build a trusted pipeline request from already-owned inputs."""
 
     from ..dataset import PhosphoDataset
 
@@ -157,7 +143,7 @@ def build_validated_pipeline_construction_request(
             top_n_substrates=kinase_activity_top_n_substrates,
         )
 
-    return ValidatedPipelineConstructionRequest(
+    return ValidatedPipelineRequest(
         dataset=dataset,
         pred_mat=validated_pred_mat,
         preprocessing_config=resolved_config,
@@ -178,14 +164,8 @@ def validate_pipeline_construction_request(
     kinase_activity_threshold: float = 0.6,
     kinase_activity_min_substrates: int = 3,
     kinase_activity_top_n_substrates: int = 20,
-) -> ValidatedPipelineConstructionRequest:
-    """Validate raw in-memory pipeline inputs for construction only.
-
-    This raw boundary takes ownership by copying the caller-managed ``pred_mat``
-    once during schema validation. It intentionally does not validate runtime
-    compatibility against the eventual preprocessed site matrix, because that
-    matrix does not exist until core preprocessing has run.
-    """
+) -> ValidatedPipelineRequest:
+    """Validate raw in-memory inputs for pipeline construction only."""
 
     validated_pred_mat = None
     if pred_mat is not None:
@@ -194,7 +174,7 @@ def validate_pipeline_construction_request(
             context="pipeline pred_mat",
         )
 
-    return build_validated_pipeline_construction_request(
+    return build_pipeline_request(
         dataset=dataset,
         validated_pred_mat=validated_pred_mat,
         preprocessing_config=preprocessing_config,
@@ -211,15 +191,10 @@ def validate_pipeline_construction_request(
 
 def validate_pipeline_runtime_compatibility(
     *,
-    request: ValidatedPipelineConstructionRequest,
+    request: ValidatedPipelineRequest,
     site_matrix: pd.DataFrame,
 ) -> ValidatedAnalysisRequest | None:
-    """Validate post-preprocessing runtime compatibility for pipeline analysis.
-
-    This second validation phase runs only after preprocessing has produced the
-    site matrix needed to check overlap against ``pred_mat``. It returns a
-    trusted downstream analysis request when kinase activity analysis should run.
-    """
+    """Validate post-preprocessing overlap before kinase analysis runs."""
 
     if request.pred_mat is None or request.kinase_activity_request is None:
         return None
@@ -240,8 +215,8 @@ def validate_pipeline_runtime_compatibility(
 
 __all__ = [
     "CorePipelineRequest",
-    "ValidatedPipelineConstructionRequest",
-    "build_validated_pipeline_construction_request",
+    "ValidatedPipelineRequest",
+    "build_pipeline_request",
     "validate_pipeline_construction_request",
     "validate_pipeline_runtime_compatibility",
 ]

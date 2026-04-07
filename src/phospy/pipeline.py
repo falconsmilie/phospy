@@ -18,8 +18,8 @@ from .publishing import OutputPublisher, RunManifestWriter
 from .validation.errors import RequestValidationError, TableSchemaError
 from .validation.pipeline import (
     CorePipelineRequest,
-    ValidatedPipelineConstructionRequest,
-    build_validated_pipeline_construction_request,
+    ValidatedPipelineRequest,
+    build_pipeline_request,
     validate_pipeline_construction_request,
     validate_pipeline_runtime_compatibility,
 )
@@ -30,11 +30,7 @@ __all__ = ["CoreOutputs", "PhosRPipeline"]
 
 @dataclass(slots=True)
 class CoreOutputs:
-    """Detached snapshot bundle returned by ``PhosRPipeline.run()``.
-
-    ``core`` and ``kinase_activity`` are result bundles produced for the current
-    run. They are not live views into ``pipeline.dataset`` workspace state.
-    """
+    """Outputs returned by ``PhosRPipeline.run()`` for one pipeline run."""
 
     core: CoreProcessingResult
     kinase_activity: KinaseActivityResult | None = None
@@ -52,9 +48,7 @@ class _PipelineRequestLoader:
             load_pred_mat if pred_mat_loader is None else pred_mat_loader
         )
 
-    def load(
-        self, request: CorePipelineRequest
-    ) -> ValidatedPipelineConstructionRequest:
+    def load(self, request: CorePipelineRequest) -> ValidatedPipelineRequest:
         validated_inputs = self.dataset_loader_factory(
             schema=request.dataset_schema
         ).load(
@@ -66,7 +60,7 @@ class _PipelineRequestLoader:
             validated_inputs,
             comparisons=request.comparisons,
         )
-        return build_validated_pipeline_construction_request(
+        return build_pipeline_request(
             dataset=dataset,
             validated_pred_mat=self._load_pred_mat(request),
             localization_threshold=request.localization_threshold,
@@ -99,11 +93,11 @@ class _PipelineRequestLoader:
             raise RequestValidationError(msg) from error
 
 
-class _PipelineExecutionRunner:
+class _PipelineRunner:
     def __init__(self, *, kinase_activity_analyzer: KinaseActivityAnalyzer) -> None:
         self.kinase_activity_analyzer = kinase_activity_analyzer
 
-    def run(self, request: ValidatedPipelineConstructionRequest) -> CoreOutputs:
+    def run(self, request: ValidatedPipelineRequest) -> CoreOutputs:
         core = request.dataset.preprocessing.run(config=request.preprocessing_config)
 
         kinase_activity = None
@@ -199,14 +193,14 @@ class PhosRPipeline:
         self.kinase_activity_analyzer = initialized.kinase_activity_analyzer
         self.manifest_writer = initialized.manifest_writer
         self.output_publisher = initialized.output_publisher
-        self.execution_runner = initialized.execution_runner
+        self.runner = initialized.runner
         self.output_coordinator = initialized.output_coordinator
 
     @classmethod
     def _build_from_validated_request(
         cls,
         *,
-        request: ValidatedPipelineConstructionRequest,
+        request: ValidatedPipelineRequest,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
     ) -> PhosRPipeline:
@@ -219,7 +213,7 @@ class PhosRPipeline:
         instance.kinase_activity_analyzer = KinaseActivityAnalyzer()
         instance.manifest_writer = manifest_writer or RunManifestWriter()
         instance.output_publisher = output_publisher or OutputPublisher()
-        instance.execution_runner = _PipelineExecutionRunner(
+        instance.runner = _PipelineRunner(
             kinase_activity_analyzer=instance.kinase_activity_analyzer
         )
         instance.output_coordinator = _PipelineOutputCoordinator()
@@ -243,7 +237,7 @@ class PhosRPipeline:
     @classmethod
     def _from_validated_request(
         cls,
-        request: ValidatedPipelineConstructionRequest,
+        request: ValidatedPipelineRequest,
         *,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
@@ -298,7 +292,7 @@ class PhosRPipeline:
         )
 
     def run(self, outdir: str | Path | None = None) -> CoreOutputs:
-        outputs = self.execution_runner.run(self.request)
+        outputs = self.runner.run(self.request)
 
         if outdir is not None:
             self.output_coordinator.publish(

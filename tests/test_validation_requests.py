@@ -15,8 +15,8 @@ from phospy.validation.dataset import ValidatedDatasetInputs
 from phospy.validation.errors import InputCompatibilityError, RequestValidationError
 from phospy.validation.pipeline import (
     CorePipelineRequest,
-    ValidatedPipelineConstructionRequest,
-    build_validated_pipeline_construction_request,
+    ValidatedPipelineRequest,
+    build_pipeline_request,
     validate_pipeline_construction_request,
     validate_pipeline_runtime_compatibility,
 )
@@ -451,7 +451,7 @@ def test_pipeline_request_can_be_created_from_public_dataset_boundary() -> None:
         dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
         pred_mat=pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"]),
     )
-    assert isinstance(pipeline_request, ValidatedPipelineConstructionRequest)
+    assert isinstance(pipeline_request, ValidatedPipelineRequest)
 
 
 def test_dataset_validation_internals_are_not_exported_from_validation_package() -> (
@@ -802,9 +802,7 @@ def test_validate_pipeline_construction_request_skips_kinase_activity_config_wit
     assert request.kinase_activity_request is None
 
 
-def test_build_validated_pipeline_construction_request_reuses_owned_dataset_and_pred_mat() -> (
-    None
-):
+def test_build_pipeline_request_reuses_owned_dataset_and_pred_mat() -> None:
     total_df = pd.DataFrame(
         {
             "genes": ["PRKACA"],
@@ -834,7 +832,7 @@ def test_build_validated_pipeline_construction_request_reuses_owned_dataset_and_
     dataset = PhosphoDataset(total_df=total_df, phospho_df=phospho_df)
     validated_pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"])
 
-    request = build_validated_pipeline_construction_request(
+    request = build_pipeline_request(
         dataset=dataset,
         validated_pred_mat=validated_pred_mat,
     )
@@ -1004,6 +1002,6 @@ def test_validated_request_bundles_with_pandas_state_are_not_frozen_dataclasses(
     None
 ):
     assert ValidatedAnalysisRequest.__dataclass_params__.frozen is False
-    assert ValidatedPipelineConstructionRequest.__dataclass_params__.frozen is False
+    assert ValidatedPipelineRequest.__dataclass_params__.frozen is False
     assert ValidatedWorkflowRequest.__dataclass_params__.frozen is False
     assert ValidatedDatasetInputs.__dataclass_params__.frozen is False

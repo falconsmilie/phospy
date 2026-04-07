@@ -713,13 +713,13 @@ pred_matrix = result.prediction_result.pred_matrix
 ## Result Objects
 
 The main result objects returned by the public workflows are small dataclasses. Unless a type
-explicitly says otherwise, treat them as detached snapshot-style outputs: mutating their tables
-affects only that result instance and does not feed back into mutable dataset workspace state.
+explicitly says otherwise, treat them as standalone outputs: mutating their tables affects
+only that result instance and does not feed back into mutable dataset workspace state.
 Import them from their defining modules only when you need explicit type references.
 
 ### `CoreProcessingResult`
 
-Detached snapshot bundle for core preprocessing outputs.
+Core preprocessing tables for one dataset run.
 
 ```python
 CoreProcessingResult(
@@ -733,7 +733,7 @@ CoreProcessingResult(
 
 ### `SiteMatrixResult`
 
-Detached snapshot bundle for derived site-matrix outputs.
+Derived site-matrix tables built from corrected phosphosite rows.
 
 ```python
 SiteMatrixResult(
@@ -746,7 +746,7 @@ SiteMatrixResult(
 
 ### `CoreOutputs`
 
-Detached snapshot bundle returned by `PhosRPipeline.run()`.
+Outputs returned by `PhosRPipeline.run()` for one pipeline run.
 
 ```python
 CoreOutputs(
@@ -757,7 +757,7 @@ CoreOutputs(
 
 ### `KinaseActivityResult`
 
-Detached snapshot bundle for downstream kinase-activity outputs.
+Kinase activity tables produced by one analyzer run.
 
 ```python
 KinaseActivityResult(
@@ -771,11 +771,11 @@ KinaseActivityResult(
 
 ### `KinasePredictionResult`
 
-Detached snapshot bundle for prediction outputs and optional traces. The most commonly used fields are `pred_matrix` and `substrate_list`. When the result owns a trace sink, call `close()` explicitly or use `with predictor.predict(...) as result:` so trace resources are released deterministically.
+Prediction outputs and optional traces for one prediction run. The most commonly used fields are `pred_matrix` and `substrate_list`. When the result owns a trace sink, call `close()` explicitly or use `with predictor.predict(...) as result:` so trace resources are released deterministically.
 
 ### `KinaseWorkflowResult`
 
-Detached snapshot bundle for native workflow outputs.
+Workflow outputs for a single native scoring and prediction run.
 
 ```python
 KinaseWorkflowResult(

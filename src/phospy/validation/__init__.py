@@ -20,8 +20,8 @@ from .errors import (
 )
 from .pipeline import (
     CorePipelineRequest,
-    ValidatedPipelineConstructionRequest,
-    build_validated_pipeline_construction_request,
+    ValidatedPipelineRequest,
+    build_pipeline_request,
     validate_pipeline_construction_request,
     validate_pipeline_runtime_compatibility,
 )
@@ -66,14 +66,14 @@ __all__ = [
     "TraceError",
     "ValidatedAnalysisRequest",
     "ValidatedKinaseWorkflowInputs",
-    "ValidatedPipelineConstructionRequest",
+    "ValidatedPipelineRequest",
     "ValidatedWorkflowRequest",
     "build_validated_workflow_request",
     "build_workflow_request_inputs",
     "validate_analysis_request",
     "validate_core_column_alignment",
     "validate_non_negative_int",
-    "build_validated_pipeline_construction_request",
+    "build_pipeline_request",
     "validate_pipeline_construction_request",
     "validate_pipeline_runtime_compatibility",
     "validate_positive_int",

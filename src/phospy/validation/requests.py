@@ -1,19 +1,11 @@
 from __future__ import annotations
 
 from .analysis import KinaseActivityRequest, ValidatedAnalysisRequest
-from .pipeline import CorePipelineRequest, ValidatedPipelineConstructionRequest
+from .pipeline import CorePipelineRequest, ValidatedPipelineRequest
 from .prediction import PredictionRequest
 from .workflow import KinaseWorkflowRequest, ValidatedWorkflowRequest
 
-"""Compatibility re-exports for legacy validation request imports.
-
-New validation rules should live in the categorized boundary modules:
-- internal dataset validation helpers live behind dataset construction boundaries
-- phospy.validation.pipeline
-- phospy.validation.workflow
-- phospy.validation.analysis
-- phospy.validation.prediction
-"""
+"""Convenience re-exports for common validation request types."""
 
 __all__ = [
     "CorePipelineRequest",
@@ -21,6 +13,6 @@ __all__ = [
     "KinaseWorkflowRequest",
     "PredictionRequest",
     "ValidatedAnalysisRequest",
-    "ValidatedPipelineConstructionRequest",
+    "ValidatedPipelineRequest",
     "ValidatedWorkflowRequest",
 ]

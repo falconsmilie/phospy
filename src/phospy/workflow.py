@@ -20,12 +20,7 @@ __all__ = ["KinaseWorkflow", "KinaseWorkflowResult"]
 
 @dataclass(slots=True)
 class KinaseWorkflowResult:
-    """Detached snapshot bundle for native workflow outputs.
-
-    The nested result objects are produced outputs of a workflow run. They are
-    not live views into workflow request inputs or mutable scorer/predictor
-    internals.
-    """
+    """Workflow outputs for a single native scoring and prediction run."""
 
     profile_result: KinaseProfileResult
     motif_result: MotifScoringResult | None
@@ -34,42 +29,29 @@ class KinaseWorkflowResult:
 
 
 @dataclass(frozen=True, slots=True)
-class _WorkflowExecutionPlan:
+class _WorkflowPlan:
     request: ValidatedWorkflowRequest
     kernel: str
     predictor_svm_mode: PredictionSvmMode
 
-    @property
-    def validated_inputs(self) -> ValidatedWorkflowRequest:
-        """Backward-compatible alias for older planner consumers."""
-        return self.request
 
-
-class _WorkflowExecutionPlanner:
-    def __init__(
-        self,
-        *,
-        flank_size: int,
-        kernel: str,
-        default_svm_mode: PredictionSvmMode,
-    ) -> None:
-        self.flank_size = flank_size
+class _WorkflowPlanner:
+    def __init__(self, *, kernel: str) -> None:
         self.kernel = kernel
-        self.default_svm_mode = default_svm_mode
 
     def plan(
         self,
         request: ValidatedWorkflowRequest,
-    ) -> _WorkflowExecutionPlan:
-        return _WorkflowExecutionPlan(
+    ) -> _WorkflowPlan:
+        return _WorkflowPlan(
             request=request,
             kernel=self.kernel,
             predictor_svm_mode=request.predictor_svm_mode,
         )
 
 
-class _WorkflowExecutionRunner:
-    def execute(self, plan: _WorkflowExecutionPlan) -> KinaseWorkflowResult:
+class _WorkflowRunner:
+    def execute(self, plan: _WorkflowPlan) -> KinaseWorkflowResult:
         request = plan.request.request
         phospho_matrix = plan.request.phospho_matrix
 
@@ -136,12 +118,8 @@ class KinaseWorkflow:
         self.flank_size = flank_size
         self.kernel = kernel
         self.svm_mode = svm_mode
-        self.execution_planner = _WorkflowExecutionPlanner(
-            flank_size=flank_size,
-            kernel=kernel,
-            default_svm_mode=svm_mode,
-        )
-        self.execution_runner = _WorkflowExecutionRunner()
+        self.planner = _WorkflowPlanner(kernel=kernel)
+        self.runner = _WorkflowRunner()
 
     def _validate_request(
         self,
@@ -219,4 +197,4 @@ class KinaseWorkflow:
         self,
         request: ValidatedWorkflowRequest,
     ) -> KinaseWorkflowResult:
-        return self.execution_runner.execute(self.execution_planner.plan(request))
+        return self.runner.execute(self.planner.plan(request))
