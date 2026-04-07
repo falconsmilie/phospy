@@ -92,7 +92,7 @@ These are the checks most users hit first:
 - comparison pairs must use known schema groups and must not be duplicated
 - downstream kinase analysis requires overlap between `predMat` and the phosphosite matrix
 - native workflow runs require shared phosphosite IDs across the matrix, substrate map, and sequence inputs
-- motif-aware native workflow runs require both `motif_sequences` and matching `site_sequences`
+- motif-aware native workflow runs require both `motif_sequences` and `site_sequences`, but sequence coverage only needs to exist for the phosphosite rows that will actually be scored
 
 ## Useful Behaviour to Know
 

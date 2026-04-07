@@ -660,7 +660,8 @@ Runs the native workflow end to end.
 - `site_sequences`:
   - optional
   - when supplied, must be a mapping keyed by phosphosite ID or a pandas `Series` indexed by phosphosite ID
-  - when supplied, it must contain an entry for every phosphosite row in `phospho_matrix`
+  - when motif-aware prediction is enabled, PhosPy scores and predicts only the phosphosite rows that have matching site-sequence entries
+  - motif-aware workflow runs require at least one overlapping phosphosite ID between `site_sequences` and `phospho_matrix`
 - `motif_sequences`:
   - optional only when `allow_profile_only_fallback=True`
   - if provided, it must not be empty

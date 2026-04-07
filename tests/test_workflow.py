@@ -126,6 +126,59 @@ def test_kinase_workflow_result_tables_are_detached_from_input_matrix() -> None:
     pd.testing.assert_frame_equal(phospho_matrix, original)
 
 
+def test_kinase_workflow_limits_motif_and_prediction_outputs_to_sites_with_sequences() -> (
+    None
+):
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
+        make_workflow_inputs()
+    )
+    workflow = KinaseWorkflow(flank_size=2)
+    partial_site_sequences = {
+        site_id: site_sequences[site_id]
+        for site_id in ["SITE_1", "SITE_2", "SITE_5", "SITE_6"]
+    }
+
+    result = workflow.run(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=partial_site_sequences,
+        motif_sequences=motif_sequences,
+        min_substrates=2,
+        min_motif_size=2,
+        ensemble_size=2,
+        top=2,
+        score_threshold=0.0,
+        inclusion=1,
+        n_iterations=1,
+        random_state=17,
+    )
+
+    assert list(result.motif_result.motif_scores.index) == [
+        "SITE_1",
+        "SITE_2",
+        "SITE_5",
+        "SITE_6",
+    ]
+    assert list(result.scoring_result.profile_scores.index) == [
+        "SITE_1",
+        "SITE_2",
+        "SITE_5",
+        "SITE_6",
+    ]
+    assert list(result.scoring_result.combined_scores.index) == [
+        "SITE_1",
+        "SITE_2",
+        "SITE_5",
+        "SITE_6",
+    ]
+    assert list(result.prediction_result.pred_matrix.index) == [
+        "SITE_1",
+        "SITE_2",
+        "SITE_5",
+        "SITE_6",
+    ]
+
+
 def test_kinase_workflow_can_fall_back_to_profile_only_prediction() -> None:
     phospho_matrix, substrate_map, _, _ = make_workflow_inputs()
     workflow = KinaseWorkflow()

@@ -81,22 +81,24 @@ class _WorkflowExecutionRunner:
 
         scorer = KinaseScorer(profile_result.profile_matrix)
         motif_result: MotifScoringResult | None = None
+        scoring_matrix = phospho_matrix
 
         if plan.request.motif_scorer is not None:
+            scoring_matrix = phospho_matrix.loc[list(plan.request.scoring_site_index)]
             motif_result = plan.request.motif_scorer.score_sequences(
                 seqs=request.site_sequences,
-                site_index=phospho_matrix.index,
+                site_index=plan.request.scoring_site_index,
                 min_motif_size=request.min_motif_size,
             )
             scoring_result = scorer.score(
-                phospho_matrix=phospho_matrix,
+                phospho_matrix=scoring_matrix,
                 motif_scores=motif_result.motif_scores,
                 motif_sizes=motif_result.motif_sizes,
                 profile_sizes=profile_result.substrate_counts.astype(float),
                 allow_profile_only_fallback=request.allow_profile_only_fallback,
             )
         else:
-            scoring_result = scorer.score(phospho_matrix=phospho_matrix)
+            scoring_result = scorer.score(phospho_matrix=scoring_matrix)
 
         predictor = KinasePredictor(
             kernel=plan.kernel,

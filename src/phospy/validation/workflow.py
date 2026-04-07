@@ -123,12 +123,14 @@ class ValidatedWorkflowRequest:
 
     Raw workflow boundaries take ownership of pandas inputs by validating and
     copying them once. This trusted bundle then carries the owned validated
-    phosphosite matrix and resolved runtime collaborators downstream without
-    re-copying the matrix again.
+    phosphosite matrix, the subset of phosphosites that can be scored for
+    motif-aware prediction, and resolved runtime collaborators downstream
+    without re-copying the matrix again.
     """
 
     request: KinaseWorkflowRequest
     phospho_matrix: pd.DataFrame
+    scoring_site_index: tuple[str, ...]
     motif_scorer: KinaseMotifScorer | None
     predictor_svm_mode: PredictionSvmMode
 
@@ -151,10 +153,11 @@ def build_validated_workflow_request(
     owned validated matrix on both the trusted request bundle and the copied raw
     request model that travels with it.
     """
-    validated_matrix = _validate_workflow_matrix_inputs(
+    validated_matrix, scoring_site_index = _validate_workflow_matrix_inputs(
         request.phospho_matrix,
         request.substrate_map,
         request.site_sequences,
+        require_site_sequences_for_prediction=request.motif_sequences is not None,
         context=context,
     )
     owned_request = _copy_workflow_request_owned_state(
@@ -172,6 +175,7 @@ def build_validated_workflow_request(
     return ValidatedWorkflowRequest(
         request=owned_request,
         phospho_matrix=validated_matrix,
+        scoring_site_index=scoring_site_index,
         motif_scorer=motif_scorer,
         predictor_svm_mode=(
             default_svm_mode if request.svm_mode is None else request.svm_mode
@@ -249,10 +253,11 @@ def validate_workflow_inputs(
     flank_size: int = 7,
     context: str = "Kinase workflow inputs",
 ) -> pd.DataFrame:
-    validated_matrix = _validate_workflow_matrix_inputs(
+    validated_matrix, _ = _validate_workflow_matrix_inputs(
         phospho_matrix,
         substrate_map,
         site_sequences,
+        require_site_sequences_for_prediction=motif_sequences is not None,
         context=context,
     )
     if motif_sequences is not None:
@@ -294,8 +299,9 @@ def _validate_workflow_matrix_inputs(
     substrate_map: Mapping[str, Sequence[str]],
     site_sequences: Mapping[str, str] | pd.Series | None,
     *,
+    require_site_sequences_for_prediction: bool,
     context: str,
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, tuple[str, ...]]:
     validated_matrix = SiteMatrixSchema.validate(
         phospho_matrix,
         context="phospho_matrix",
@@ -311,19 +317,22 @@ def _validate_workflow_matrix_inputs(
         msg = f"{context} contain no overlap between substrate_map and phospho_matrix"
         raise InputCompatibilityError(msg)
 
-    if site_sequences is not None:
-        sequence_index = _extract_sequence_index(site_sequences)
-        missing = [
-            site for site in validated_matrix.index if site not in sequence_index
-        ]
-        if missing:
-            missing_preview = ", ".join(missing[:5])
-            msg = (
-                f"site_sequences is missing entries for phosphosites: {missing_preview}"
-            )
+    scoring_site_index = tuple(str(site) for site in validated_matrix.index)
+
+    if require_site_sequences_for_prediction:
+        if site_sequences is None:
+            msg = "site_sequences are required when motif_sequences are provided"
             raise InputCompatibilityError(msg)
 
-    return validated_matrix
+        sequence_index = _extract_sequence_index(site_sequences)
+        scoring_site_index = tuple(
+            site for site in validated_matrix.index if str(site) in sequence_index
+        )
+        if not scoring_site_index:
+            msg = f"{context} contain no overlap between site_sequences and phospho_matrix"
+            raise InputCompatibilityError(msg)
+
+    return validated_matrix, scoring_site_index
 
 
 def _extract_sequence_index(

@@ -30,31 +30,35 @@ def test_kinase_activity_analyzer_rejects_zero_overlap() -> None:
         )
 
 
-def test_kinase_workflow_rejects_missing_site_sequence_coverage() -> None:
+def test_kinase_workflow_accepts_partial_site_sequence_coverage() -> None:
     workflow = KinaseWorkflow()
     phospho_matrix = pd.DataFrame(
         {
             "sample_1": [1.0, 2.0],
+            "sample_2": [1.1, 2.1],
         },
         index=["SITE_1", "SITE_2"],
     )
 
-    with pytest.raises(
-        InputCompatibilityError, match="site_sequences is missing entries"
-    ):
-        workflow.run(
-            phospho_matrix=phospho_matrix,
-            substrate_map={"KINASE_A": ["SITE_1", "SITE_2"]},
-            site_sequences={"SITE_1": "QQAAAAAYY"},
-            motif_sequences={"KINASE_A": ["QQAAAAAYY", "QQAAAAAYY"]},
-            min_substrates=1,
-            min_motif_size=1,
-            ensemble_size=2,
-            top=2,
-            score_threshold=0.5,
-            inclusion=1,
-            n_iterations=1,
-        )
+    result = workflow.run(
+        phospho_matrix=phospho_matrix,
+        substrate_map={"KINASE_A": ["SITE_1", "SITE_2"]},
+        site_sequences={"SITE_1": "QQAAAAAYY"},
+        motif_sequences={"KINASE_A": ["QQAAAAAYY", "QQAAAAAYY"]},
+        min_substrates=1,
+        min_motif_size=1,
+        ensemble_size=2,
+        top=1,
+        score_threshold=0.0,
+        inclusion=1,
+        n_iterations=1,
+        random_state=7,
+    )
+
+    assert list(result.motif_result.motif_scores.index) == ["SITE_1"]
+    assert list(result.scoring_result.profile_scores.index) == ["SITE_1"]
+    assert list(result.scoring_result.combined_scores.index) == ["SITE_1"]
+    assert list(result.prediction_result.pred_matrix.index) == ["SITE_1"]
 
 
 def test_kinase_workflow_rejects_zero_substrate_overlap() -> None:
@@ -222,4 +226,34 @@ def test_validate_protein_correction_inputs_uses_same_normalization_as_merge() -
             phospho_cols=["p_group1"],
             protein_cols=["group1"],
             max_unmatched_fraction=0.0,
+        )
+
+
+def test_kinase_workflow_rejects_zero_site_sequence_overlap_when_motifs_are_enabled() -> (
+    None
+):
+    workflow = KinaseWorkflow()
+    phospho_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0],
+        },
+        index=["SITE_1"],
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match="no overlap between site_sequences and phospho_matrix",
+    ):
+        workflow.run(
+            phospho_matrix=phospho_matrix,
+            substrate_map={"KINASE_A": ["SITE_1"]},
+            site_sequences={"SITE_9": "QQAAAAAYY"},
+            motif_sequences={"KINASE_A": ["QQAAAAAYY", "QQAAAAAYY"]},
+            min_substrates=1,
+            min_motif_size=1,
+            ensemble_size=2,
+            top=1,
+            score_threshold=0.0,
+            inclusion=1,
+            n_iterations=1,
         )
