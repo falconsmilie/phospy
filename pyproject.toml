@@ -4,23 +4,39 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phospy"
-version = "1.2.1"
-description = "Python-native implementation of selected PhosR-style phosphoproteomics workflows."
+version = "1.2.2"
+description = "Python native implementation of selected PhosR style workflows for phosphoproteomics."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE", "NOTICE.md"]
-keywords = ["phosphoproteomics", "proteomics", "bioinformatics", "phosphorylation", "kinase"]
+
+keywords = [
+  "phosphoproteomics",
+  "proteomics",
+  "bioinformatics",
+  "phosphorylation",
+  "phosphosite",
+  "kinase",
+  "ksea",
+  "mass-spectrometry",
+  "phosr",
+]
+
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
+
 dependencies = [
   "numpy>=1.24",
   "pandas>=2.0",
@@ -34,7 +50,6 @@ Repository = "https://github.com/falconsmilie/phospy"
 Documentation = "https://github.com/falconsmilie/phospy/tree/main/docs"
 Issues = "https://github.com/falconsmilie/phospy/issues"
 Changelog = "https://github.com/falconsmilie/phospy/blob/main/CHANGELOG.md"
-
 
 [project.optional-dependencies]
 parquet = [
