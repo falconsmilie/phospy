@@ -1,64 +1,26 @@
 # Validation Quick Guide
 
-This page is a short validation guide for common PhosPy inputs.
+This is the short version of what PhosPy checks.
 
-For parity to the R `PhosR` package, see [`docs/parity.md`](parity.md).
-For method signatures and parameter-by-parameter validation, see [`docs/api.md`](api.md).
-
-## Validation Package Layout
-
-Validation now lives under `src/phospy/validation/` and is organised by responsibility:
-
-- `tables.py` for dataframe and schema validation
-- `compatibility.py` for cross-input compatibility rules
-- dataset validation runs inside the `PhosphoDataset` construction boundaries
-- `pipeline.py` for pipeline request validation
-- `workflow.py` for native workflow request validation
-- `analysis.py` for kinase activity request validation
-- `prediction.py` for prediction request validation used by workflow internals
-- `errors.py` for shared validation exceptions
-
-New validation rules should be added to the module that matches their responsibility instead of extending a generic catch-all validator file.
-
-Validated request objects still exist inside the orchestration layer, but they are implementation details for the main workflow APIs rather than first-class user entry points.
-
-`PhosphoDataset` validates internally from its raw-input constructor and `from_files(...)` boundary instead of exposing dataset validation artifacts as part of the normal user workflow.
-
-Raw option models such as `CorePipelineRequest`, `KinaseWorkflowRequest`, and `KinaseActivityRequest` still exist where they help with parsing and testing, but normal user code should prefer `PhosRPipeline.from_files(...)`, `KinaseWorkflow.run(...)`, and `KinaseActivityAnalyzer.run(...)`.
-
-## Data Ownership Policy
-
-Validation and runtime state follow different contracts:
-
-- validated request bundles carrying pandas state are trusted by convention, not truly immutable value objects
-- pandas-backed workspace objects are mutable unless docs say otherwise
-- ownership transfers at the validation/construction boundary
-- raw dataframe boundaries copy once when taking ownership
-- trusted builders are expected to reuse already-owned validated tables
-- detached copies must be requested explicitly
-- trusted read-only numeric normalisation should avoid extra copying where possible
-
-See [`docs/adr/0001-data-ownership-and-mutability.md`](adr/0001-data-ownership-and-mutability.md) for the project-wide policy and its application to `PhosphoDataset`.
+For method signatures and parameter-by-parameter details, see [`api.md`](api.md).
+For parity scope, see [`parity.md`](parity.md).
 
 ## File Types
 
-When you load from files:
+- total input: TSV
+- phospho input: TSV
+- `predMat`: CSV, with the first column used as the phosphosite index
 
-- total input is read as TSV
-- phospho input is read as TSV
-- `predMat` is read as CSV, using the first column as the phosphosite index
+When total and phospho tables are loaded from files, headers are normalised to lowercase snake case first. Loading fails if two raw headers collapse to the same cleaned name.
 
-File-loaded total and phospho headers are normalised to lowercase snake case before validation.
-Loading fails if two raw headers collapse to the same cleaned name.
-
-## Required Input Shape
+## Required Table Shape
 
 ### Total table
 
 Required columns:
 
 - `genes`
-- `group1` to `group6` by default, or the schema's configured total columns
+- `group1` to `group6` by default, or your schema's `total_cols`
 
 ### Phospho table
 
@@ -69,37 +31,43 @@ Required columns:
 - `gene_p_site`
 - `localization_prob`
 - `centralized_sequence`
-- `p_group1` to `p_group6` by default, or the schema's configured phospho columns
+- `p_group1` to `p_group6` by default, or your schema's `phospho_cols`
 
-`gene_p_site` must split cleanly into a gene and site, such as `BTK_Y551`.
+`gene_p_site` must split cleanly into gene and site parts such as `BTK_Y551`.
 
 ### `predMat`
 
-`predMat` must be numeric and must have:
+A valid `predMat` must have:
 
 - phosphosite IDs as the index, such as `BTK;Y551;`
 - kinase names as columns
-- scores in the range `[0, 1]`
+- numeric scores in `[0, 1]`
+- a unique, non-null index
 
-## Common Validation Rules
+## Checks You Will Hit Most Often
 
-These are the checks most users hit first:
-
-- total and phospho sample columns must be numeric
+- required columns must exist
+- required identifier columns must not be null
+- numeric sample columns must be numeric after coercion
 - `localization_prob` must stay in `[0, 1]`
-- `predMat` values must stay in `[0, 1]`
+- `predMat` scores must stay in `[0, 1]`
 - file paths must exist and point to files
 - comparison pairs must use known schema groups and must not be duplicated
-- downstream kinase analysis requires overlap between `predMat` and the phosphosite matrix
-- native workflow runs require shared phosphosite IDs across the matrix, substrate map, and sequence inputs
-- motif-aware native workflow runs require both `motif_sequences` and `site_sequences`, but sequence coverage only needs to exist for the phosphosite rows that will actually be scored
+- downstream kinase analysis needs overlap between `predMat` and the phosphosite matrix
+- native workflow runs need overlap across the matrix, substrate map, and sequence inputs
+- motif-aware native workflow runs need both `motif_sequences` and `site_sequences`
 
 ## Useful Behaviour to Know
 
-- By default, protein correction does not allow silent phosphosite row loss.
-- Site-matrix building drops rows with missing sequence information or incomplete corrected values.
-- If the same phosphosite appears more than once after correction, PhosPy keeps the row with the highest mean corrected signal.
+- by default, protein correction allows no silent phosphosite row loss
+- site-matrix building can drop rows with missing sequence data or incomplete corrected values
+- if the same phosphosite appears more than once after correction, PhosPy keeps the row with the highest mean corrected signal
 
-## Next Step
+## Good Starting Point
 
-Use [`docs/api.md`](api.md) when you need the exact validation rules for a specific class or method.
+If you are unsure where validation happens, start here:
+
+- `PhosphoDataset.from_files(...)` for the standard preprocessing path
+- `KinaseActivityAnalyzer.run(...)` for analysis from an existing `predMat`
+- `PhosRPipeline.from_files(...)` for the file-based one-shot flow
+- `KinaseWorkflow.run(...)` for native prediction

@@ -1,13 +1,8 @@
 # Public API Reference
 
-This page documents the supported Python API.
+PhosPy does not expose HTTP endpoints. The supported public surface is the Python API below plus the `phospy` CLI.
 
-PhosPy does not expose HTTP endpoints. The supported public surface is the Python API described here together with the
-small `phospy` CLI described in the README.
-
-The signatures below match the current code.
-
-## Supported Root Imports
+## Root Imports
 
 ```python
 from phospy import (
@@ -18,53 +13,24 @@ from phospy import (
 )
 ```
 
-These are the supported package-root entry points. Lower-level helpers and result types remain available through explicit module imports when needed, but they are not part of the root API.
+Use:
 
-## Pick the Right Entry Point
+- `PhosphoDataset` for validated inputs and core preprocessing
+- `KinaseActivityAnalyzer` for analysis from an existing `predMat`
+- `PhosRPipeline` for file loading plus publishing
+- `KinaseWorkflow` for the native end-to-end prediction flow
 
-- Use `PhosphoDataset` for validated in-memory inputs and core preprocessing.
-- Use `KinaseActivityAnalyzer` when you already have a phosphosite matrix and a `predMat`.
-- Use `PhosRPipeline` when you want file loading, preprocessing, optional kinase analysis, and output publishing in one place.
-- Use `KinaseWorkflow` for the native end-to-end scoring and prediction workflow.
+## Common File Rules
+
+- total input: TSV
+- phospho input: TSV
+- `predMat`: CSV, with the first column used as the phosphosite index
+- file-loaded total and phospho headers are normalised to lowercase snake case
+- duplicate cleaned headers are rejected
 
 ## `DatasetSchema`
 
-Use `DatasetSchema` when your sample/value columns do not use the default group names.
-
-### Signature
-
-```python
-DatasetSchema(
-    total_cols=("group1", "group2", "group3", "group4", "group5", "group6"),
-    phospho_cols=("p_group1", "p_group2", "p_group3", "p_group4", "p_group5", "p_group6"),
-    corrected_cols=(
-        "phospho_corrected_1",
-        "phospho_corrected_2",
-        "phospho_corrected_3",
-        "phospho_corrected_4",
-        "phospho_corrected_5",
-        "phospho_corrected_6",
-    ),
-)
-```
-
-### What it Does
-
-Defines the aligned numeric column groups used by dataset validation, protein correction, and site-matrix building.
-
-### Parameters and Validation
-
-- `total_cols`: total-proteome sample columns. Must align one-for-one with `phospho_cols` and `corrected_cols`.
-- `phospho_cols`: phosphoproteome sample columns. Must align one-for-one with `total_cols` and `corrected_cols`.
-- `corrected_cols`: corrected phosphosite output columns. Must align one-for-one with `total_cols` and `phospho_cols`.
-
-Validation rules:
-
-- all three groups must have the same length
-- the aligned column groups must be compatible with each other
-- structural columns such as `genes`, `gene_names`, `gene_p_site`, `localization_prob`, and `centralized_sequence` are fixed package columns and are not configured here
-
-### Example
+Use `DatasetSchema` when your numeric sample columns do not use the default names.
 
 ```python
 from phospy.dataset_schema import DatasetSchema
@@ -76,17 +42,17 @@ schema = DatasetSchema(
 )
 ```
 
+Rules:
+
+- all three column groups must have the same length
+- the groups must align one-for-one
+- structural columns such as `genes`, `gene_names`, `gene_p_site`, `localization_prob`, and `centralized_sequence` are fixed package columns
+
 ## `PhosphoDataset`
 
-Use `PhosphoDataset` when you want one validated in-memory dataset owner and the bound preprocessing helpers that go with it. It owns mutable pandas tables; the dataset object is not a detached immutable snapshot.
+Use `PhosphoDataset` when you want one validated dataset owner and the bound helpers that go with it.
 
-### Data Ownership and Mutation
-
-`PhosphoDataset` owns the validated total and phospho input tables. Prefer `dataset.total_df_copy`, `dataset.phospho_df_copy`, or `dataset.copy_inputs()` for inspection, export, reporting, and other read-oriented work.
-
-`dataset.total_df_live` and `dataset.phospho_df_live` return the owned pandas `DataFrame` instances directly, so mutating them mutates the dataset's owned state. Use those explicit shared-state accessors only when you intentionally want in-memory mutation against the dataset workspace. See [`docs/adr/0001-data-ownership-and-mutability.md`](adr/0001-data-ownership-and-mutability.md) for the project-wide policy.
-
-### `PhosphoDataset(total_df, phospho_df, *, schema=None, comparisons=None)`
+### Constructor
 
 ```python
 PhosphoDataset(
@@ -98,28 +64,17 @@ PhosphoDataset(
 )
 ```
 
-Creates a dataset from in-memory pandas data frames, isolates from later caller mutation at construction time, and makes the resulting tables part of the dataset's owned processing state.
+Validation highlights:
 
-#### Parameters and Validation
+- `total_df` must include `genes` and the schema's `total_cols`
+- `phospho_df` must include `uid`, `gene_names`, `gene_p_site`, `localization_prob`, `centralized_sequence`, and the schema's `phospho_cols`
+- required identifier columns must not contain null values
+- numeric sample columns are coerced to numeric and fail if non-numeric values remain
+- `localization_prob` must stay in `[0, 1]`
+- `gene_p_site` must split cleanly into gene and site parts such as `BTK_Y551`
+- comparison pairs must use known schema group names and must not be duplicated
 
-- `total_df`: total-proteome input table.
-  - must be a pandas `DataFrame`
-  - must include `genes` plus the schema's `total_cols`
-  - `genes` must not contain null values
-  - sample columns are coerced to numeric and fail if non-numeric values remain
-- `phospho_df`: phosphoproteome input table.
-  - must be a pandas `DataFrame`
-  - must include `uid`, `gene_names`, `gene_p_site`, `localization_prob`, `centralized_sequence`, and the schema's `phospho_cols`
-  - `uid`, `gene_names`, and `gene_p_site` must not contain null values
-  - `localization_prob` and phospho sample columns are coerced to numeric and fail if non-numeric values remain
-  - `localization_prob` must stay in `[0, 1]`
-  - `gene_p_site` must split cleanly into gene and site parts such as `BTK_Y551`
-- `schema`: optional `DatasetSchema`. Defaults to the package standard six-group schema.
-- `comparisons`: optional pairwise comparisons such as `[("group1", "group4")]`.
-  - each group name must exist in the schema
-  - duplicate comparison pairs are rejected
-
-### `PhosphoDataset.from_files(total_path, phospho_path, phospho_encoding=None, comparisons=None, schema=None)`
+### `from_files(...)`
 
 ```python
 PhosphoDataset.from_files(
@@ -131,78 +86,22 @@ PhosphoDataset.from_files(
 ) -> PhosphoDataset
 ```
 
-Loads the input tables from disk and validates them.
+Use this for the normal file-based workflow.
 
-#### Parameters and Validation
-
-- `total_path`: path to the total table.
-  - must point to a tab-delimited text file
-- `phospho_path`: path to the phospho table.
-  - must point to a tab-delimited text file
-- `phospho_encoding`: optional file encoding for the phospho table. Defaults to UTF-8 when omitted.
-- `comparisons`: same validation as the in-memory constructor.
-- `schema`: same validation as the in-memory constructor.
-
-File-loading rules:
-
-- total and phospho files are read as TSV
-- file-loaded headers are cleaned to lowercase snake case before validation
-- duplicate raw headers that collapse to the same cleaned name are rejected
-- the same table rules used by the in-memory constructor then apply
-
-### `dataset.total_df_copy` / `dataset.phospho_df_copy`
+### Data Access
 
 ```python
 dataset.total_df_copy -> pd.DataFrame
 dataset.phospho_df_copy -> pd.DataFrame
-```
-
-Return detached deep copies of the validated total and phospho input tables. This is the preferred public access path for inspection, export, reporting, and any caller-owned downstream work.
-
-### `dataset.total_df_live` / `dataset.phospho_df_live`
-
-```python
 dataset.total_df_live -> pd.DataFrame
 dataset.phospho_df_live -> pd.DataFrame
-```
-
-Return the owned validated total and phospho input tables directly. Mutating either returned frame mutates the dataset's owned workspace state, so these accessors are intended for advanced shared-state workflows rather than routine read-oriented access.
-
-### `dataset.copy_inputs()`
-
-```python
 dataset.copy_inputs() -> tuple[pd.DataFrame, pd.DataFrame]
 ```
 
-Returns deep copies of the validated total and phospho input tables.
+- `*_copy` and `copy_inputs()` return detached copies
+- `*_live` returns the dataset-owned DataFrames directly
 
-Use this when you want caller-owned mutable copies.
-
-### `dataset.preprocessing`
-
-```python
-dataset.preprocessing -> DatasetPreprocessing
-```
-
-Returns the bound preprocessing facade for the dataset. The facade operates on dataset-owned live tables rather than detached snapshots.
-
-This is the preferred public entry point for core preprocessing.
-
-### `dataset.site_matrix`
-
-```python
-dataset.site_matrix -> DatasetSiteMatrix
-```
-
-Returns the bound site-matrix facade for the dataset.
-
-Use this when you already have a corrected phosphosite table and want to build the site matrix directly.
-
-## `DatasetPreprocessing`
-
-`DatasetPreprocessing` is the bound preprocessing facade returned by `dataset.preprocessing`. It is part of the public API, but you normally access it through `PhosphoDataset` rather than constructing it yourself.
-
-### `dataset.preprocessing.run(...)`
+### Preprocessing
 
 ```python
 dataset.preprocessing.run(
@@ -215,28 +114,14 @@ dataset.preprocessing.run(
 ) -> CoreProcessingResult
 ```
 
-Runs the full core preprocessing flow: total cleanup, phosphosite filtering, protein correction, optional pairwise comparisons, and site-matrix construction.
+This runs the full core preprocessing path.
 
-#### Parameters and Validation
+Rules:
 
-- `localization_threshold`:
-  - finite numeric value in `[0, 1]`
-  - phosphosite rows are retained when `localization_prob >= localization_threshold`
-- `min_observed`:
-  - integer with value `>= 1`
-  - used in the total and phospho preprocessing steps
-- `max_unmatched_fraction`:
-  - finite numeric value in `[0, 1]`
-  - `0.0` is strict and rejects any silent phosphosite row loss during protein correction
-- `total_sentinel`:
-  - numeric value used as the total-table sentinel before missing-value handling
-- `phospho_sentinel`:
-  - numeric value used as the phospho-table sentinel before missing-value handling
-- `config`:
-  - optional `CorePreprocessingConfig`
-  - when supplied, it is used instead of the individual scalar arguments above
-
-#### Return Value
+- `localization_threshold` and `max_unmatched_fraction` must be in `[0, 1]`
+- `min_observed` must be `>= 1`
+- `config` can replace the scalar arguments, but cannot be combined with them when you override values
+- `max_unmatched_fraction=0.0` is the strict mode and rejects silent row loss during protein correction
 
 Returns `CoreProcessingResult` with:
 
@@ -246,7 +131,7 @@ Returns `CoreProcessingResult` with:
 - `phospho_corrected`
 - `site_matrix`
 
-#### Example
+Example:
 
 ```python
 from phospy import PhosphoDataset
@@ -258,11 +143,7 @@ matrix = core.site_matrix.matrix
 corrected = core.phospho_corrected
 ```
 
-## `DatasetSiteMatrix`
-
-`DatasetSiteMatrix` is the bound site-matrix facade returned by `dataset.site_matrix`.
-
-### `dataset.site_matrix.build(corrected_df, *, gene_p_site_col="gene_p_site", sequence_col="centralized_sequence")`
+### Site Matrix Builder
 
 ```python
 dataset.site_matrix.build(
@@ -273,74 +154,72 @@ dataset.site_matrix.build(
 ) -> SiteMatrixResult
 ```
 
-Builds a PhosR-style phosphosite matrix from corrected phosphosite rows.
+Use this when you already have a corrected phosphosite table.
 
-#### Parameters and Validation
+Rules:
 
-- `corrected_df`:
-  - must be a pandas `DataFrame`
-  - must include `gene_p_site_col`, `sequence_col`, and the dataset schema's `corrected_cols`
-  - `gene_p_site_col` must not contain null values
-  - the corrected value columns must be numeric
-  - `gene_p_site_col` must split cleanly into gene and site parts
-- `gene_p_site_col`: source phosphosite identifier column. Defaults to `gene_p_site`.
-- `sequence_col`: source central sequence column. Defaults to `centralized_sequence`.
-
-#### Return Value
+- `corrected_df` must include `gene_p_site_col`, `sequence_col`, and the schema's `corrected_cols`
+- corrected value columns must be numeric
+- `gene_p_site_col` must split cleanly into gene and site parts
 
 Returns `SiteMatrixResult` with:
 
-- `phosr_input`: intermediate table used to build the matrix
-- `matrix`: phosphosite-by-sample numeric matrix
-- `sequences`: centralized sequences indexed by phosphosite ID
-- `row_drop_stats`: retained and dropped row counts
+- `phosr_input`
+- `matrix`
+- `sequences`
+- `row_drop_stats`
 
-#### Example
+## `CorePreprocessingConfig`
+
+`CorePreprocessingConfig` lets you pass one preprocessing object instead of individual scalar options.
 
 ```python
-core = dataset.preprocessing.run()
-site_matrix = dataset.site_matrix.build(core.phospho_corrected)
+from phospy.core_processing import CorePreprocessingConfig
+
+config = CorePreprocessingConfig(
+    localization_threshold=0.75,
+    min_observed=4,
+    total_sentinel=10.0,
+    phospho_sentinel=12.0,
+    max_unmatched_fraction=0.1,
+)
 ```
+
+You can use it with `dataset.preprocessing.run(config=...)` or `PhosRPipeline(..., preprocessing_config=...)`.
 
 ## `CoreOutputWriter`
-
-Use `CoreOutputWriter` to write a `CoreProcessingResult` to disk.
-
-### `CoreOutputWriter.write(result, outdir, *, format="csv")`
-
-```python
-CoreOutputWriter.write(
-    result: CoreProcessingResult,
-    outdir: str | Path,
-    *,
-    format: str = "csv",
-) -> None
-```
-
-Writes the core preprocessing outputs to a directory.
-
-#### Parameters and Validation
-
-- `result`: a `CoreProcessingResult`
-- `outdir`: output directory path
-- `format`:
-  - supported values are `"csv"`, `"tsv"`, and `"parquet"`
-  - parquet output requires an installed pandas parquet engine such as `pyarrow`
-
-#### Example
 
 ```python
 from phospy.writers import CoreOutputWriter
 
-writer = CoreOutputWriter()
-writer.write(core, outdir="results", format="parquet")
+CoreOutputWriter().write(
+    result=core,
+    outdir="results",
+    format="csv",
+)
 ```
 
-## Standalone Preprocessing Helpers
+Supported formats:
 
-These are public helpers for targeted preprocessing work. They are useful when you do not want the full dataset-bound preprocessing path.
+- `csv`
+- `tsv`
+- `parquet` (requires a parquet engine such as `pyarrow`)
 
-### `filter_localized_sites(df, *, localization_col="localization_prob", threshold=0.75, return_summary=False)`
+Core outputs written to disk are:
+
+- `df_total_unique`
+- `df_total_filtered`
+- `df_phospho_filtered`
+- `df_phospho_corrected`
+- `phosr_input`
+- `mat_phospho_corrected`
+- `site_sequences`
+
+## Targeted Preprocessing Helpers
+
+These helpers are public, but most users should start with `PhosphoDataset.preprocessing.run()`.
+
+### `filter_localized_sites(...)`
 
 ```python
 filter_localized_sites(
@@ -349,34 +228,12 @@ filter_localized_sites(
     localization_col: str = "localization_prob",
     threshold: float = 0.75,
     return_summary: bool = False,
-) -> pd.DataFrame | LocalizationFilterResult
+)
 ```
 
-Keeps rows where the localisation score is greater than or equal to `threshold`.
+Keeps rows where `localization_col >= threshold`.
 
-#### Parameters and Validation
-
-- `df`: must be a pandas `DataFrame`
-- `localization_col`:
-  - column must exist in `df`
-  - column values must be numeric
-- `threshold`:
-  - finite numeric value in `[0, 1]`
-- `return_summary`:
-  - `False` returns only the filtered frame
-  - `True` returns `LocalizationFilterResult(filtered=..., summary=...)`
-
-#### Example
-
-```python
-from phospy.preprocessing import filter_localized_sites
-
-result = filter_localized_sites(phospho_df, threshold=0.75, return_summary=True)
-filtered = result.filtered
-removed_rows = result.summary.removed_rows
-```
-
-### `filter_sites_by_coverage(df, *, columns, min_coverage=0.0, return_summary=False)`
+### `filter_sites_by_coverage(...)`
 
 ```python
 filter_sites_by_coverage(
@@ -385,64 +242,33 @@ filter_sites_by_coverage(
     columns: Sequence[str],
     min_coverage: float = 0.0,
     return_summary: bool = False,
-) -> pd.DataFrame | CoverageFilterResult
-```
-
-Keeps rows whose observed-value proportion across the selected columns is greater than or equal to `min_coverage`.
-
-#### Parameters and Validation
-
-- `df`: must be a pandas `DataFrame`
-- `columns`:
-  - must contain at least one column name
-  - every listed column must exist in `df`
-  - selected columns must be numeric
-- `min_coverage`:
-  - finite numeric value in `[0, 1]`
-- `return_summary`:
-  - `False` returns only the filtered frame
-  - `True` returns `CoverageFilterResult(filtered=..., summary=...)`
-
-#### Example
-
-```python
-from phospy.preprocessing import filter_sites_by_coverage
-
-result = filter_sites_by_coverage(
-    phospho_df,
-    columns=["p_group1", "p_group2", "p_group3", "p_group4", "p_group5", "p_group6"],
-    min_coverage=0.5,
-    return_summary=True,
 )
-required_count = result.summary.required_observed_count
 ```
+
+Keeps rows whose observed-value fraction across `columns` is at least `min_coverage`.
 
 ## `KinaseActivityAnalyzer`
 
-Use `KinaseActivityAnalyzer` when you already have a phosphosite matrix and a `predMat` and want downstream kinase summaries.
+Use `KinaseActivityAnalyzer` when you already have a phosphosite matrix and a `predMat`.
 
-### `load_pred_mat(pred_mat_path)`
+### `load_pred_mat(...)`
 
 ```python
 analyzer.load_pred_mat(pred_mat_path: str | Path) -> pd.DataFrame
 ```
 
-Loads and validates a prediction matrix from disk.
+Rules:
 
-#### Parameters and Validation
+- the file must be a CSV
+- the first column becomes the phosphosite index
+- kinase score columns must be numeric
+- scores must stay in `[0, 1]`
+- the index must be unique and non-null
 
-- `pred_mat_path`:
-  - must point to a CSV file
-  - the first column is used as the phosphosite index
-  - kinase score columns must be numeric
-  - scores must stay in `[0, 1]`
-  - the matrix must contain at least one row and at least one kinase column
-  - the phosphosite index must be unique and non-null
-
-### `run(pred_mat, phospho_matrix, threshold=0.6, min_substrates=3, top_n_substrates=20)`
+### `run(...)`
 
 ```python
-KinaseActivityAnalyzer.run(
+analyzer.run(
     pred_mat: pd.DataFrame,
     phospho_matrix: pd.DataFrame,
     threshold: float = 0.6,
@@ -451,36 +277,20 @@ KinaseActivityAnalyzer.run(
 ) -> KinaseActivityResult
 ```
 
-Computes weighted activity scores, KSEA-style summaries, and kinase target summaries from in-memory inputs.
+Rules:
 
-#### Parameters and Validation
-
-- `pred_mat`:
-  - must satisfy the public `predMat` schema
-  - must have a unique, non-null phosphosite index
-  - scores must be numeric and in `[0, 1]`
-- `phospho_matrix`:
-  - must be a numeric phosphosite matrix
-  - must have a unique, non-null phosphosite index
-  - must contain at least one row and at least one numeric column
-- `threshold`:
-  - finite numeric value in `[0, 1]`
-- `min_substrates`:
-  - integer with value `>= 1`
-- `top_n_substrates`:
-  - integer with value `>= 1`
-
-Compatibility validation:
-
+- `pred_mat` must be a valid `predMat`
+- `phospho_matrix` must be a numeric phosphosite matrix with a unique, non-null index
+- `threshold` must be in `[0, 1]`
+- `min_substrates` and `top_n_substrates` must be `>= 1`
 - `pred_mat` and `phospho_matrix` must overlap by at least one phosphosite row
 - that overlap must cover at least 10% of the phosphosite matrix
 
-For file-backed prediction matrices, load the matrix first and then call `run(...)`.
-
-#### Example
+Example:
 
 ```python
 from phospy import KinaseActivityAnalyzer
+
 analyzer = KinaseActivityAnalyzer()
 result = analyzer.run(
     pred_mat=analyzer.load_pred_mat("predMat.csv"),
@@ -491,22 +301,21 @@ result = analyzer.run(
 )
 ```
 
-### `write_outputs(result, outdir)`
+### `write_outputs(...)`
 
 ```python
 analyzer.write_outputs(result: KinaseActivityResult, outdir: str | Path) -> None
 ```
 
-Writes the downstream kinase-analysis tables to disk.
+This writes:
 
-#### Parameters
+- `kinase_activity_matrix.csv`
+- `ksea_scores.csv`
+- `ksea_counts.csv`
+- `kinase_target_counts.csv`
+- `kinase_target_table.csv`
 
-- `result`: `KinaseActivityResult`
-- `outdir`: output directory path
-
-#### Return Example
-
-`KinaseActivityResult` is a detached snapshot-style result bundle. It exposes:
+`KinaseActivityResult` exposes:
 
 - `weighted_activity`
 - `ksea_scores`
@@ -514,16 +323,37 @@ Writes the downstream kinase-analysis tables to disk.
 - `target_counts`
 - `target_table`
 
-```python
-target_counts = result.target_counts
-ksea_scores = result.ksea_scores
-```
-
 ## `PhosRPipeline`
 
-Use `PhosRPipeline` when you want file loading, preprocessing, optional `predMat` analysis, and bundle publishing in one place.
+Use `PhosRPipeline` when you want preprocessing and optional kinase analysis in one place.
 
-### `PhosRPipeline.from_files(...)`
+### Constructor
+
+```python
+PhosRPipeline(
+    dataset: PhosphoDataset,
+    pred_mat: pd.DataFrame | None = None,
+    preprocessing_config: CorePreprocessingConfig | None = None,
+    localization_threshold: float = 0.75,
+    min_observed: int = 4,
+    max_unmatched_fraction: float = 0.0,
+    total_sentinel: float = 10.0,
+    phospho_sentinel: float = 12.0,
+    kinase_activity_threshold: float = 0.6,
+    kinase_activity_min_substrates: int = 3,
+    kinase_activity_top_n_substrates: int = 20,
+) -> PhosRPipeline
+```
+
+Use this when your dataset is already in memory.
+
+Rules:
+
+- `dataset` must be a `PhosphoDataset`
+- `pred_mat`, when provided, must already be a valid in-memory `predMat`
+- `preprocessing_config` cannot be mixed with overridden scalar preprocessing options
+
+### `from_files(...)`
 
 ```python
 PhosRPipeline.from_files(
@@ -544,67 +374,33 @@ PhosRPipeline.from_files(
 ) -> PhosRPipeline
 ```
 
-Builds a pipeline from file paths.
+Notes:
 
-#### Parameters and Validation
+- `total_path` and `phospho_path` follow the same rules as `PhosphoDataset.from_files(...)`
+- `pred_mat_path`, when provided, is loaded and schema-validated during pipeline construction
+- overlap between `predMat` and the processed site matrix is checked at runtime after preprocessing
 
-- `total_path`, `phospho_path`, `phospho_encoding`, `comparisons`, and `schema` follow the same rules as `PhosphoDataset.from_files(...)`
-- `pred_mat_path` is optional
-  - when supplied, it must point to a CSV `predMat`
-  - it is validated when downstream kinase analysis runs
-- `localization_threshold`, `min_observed`, `max_unmatched_fraction`, `total_sentinel`, and `phospho_sentinel` follow the same rules as `dataset.preprocessing.run(...)`
-- `kinase_activity_threshold`, `kinase_activity_min_substrates`, and `kinase_activity_top_n_substrates` control downstream kinase activity analysis when `pred_mat_path` is supplied
-
-### `pipeline.run(outdir=None)`
+### `run(...)`
 
 ```python
 pipeline.run(outdir: str | Path | None = None) -> CoreOutputs
 ```
 
-Runs the pipeline and optionally publishes files.
+- when `outdir` is set, files are published to disk
+- when `outdir` is `None`, PhosPy returns only the in-memory results
 
-#### Parameters and Behaviour
+`CoreOutputs` exposes:
 
-- `outdir`:
-  - when provided, PhosPy writes the output bundle to disk
-  - when `None`, PhosPy returns in-memory results only
+- `core`
+- `kinase_activity`
 
-If `pred_mat_path` was supplied, the run includes downstream kinase analysis using the validated `kinase_activity_*` settings stored on the pipeline request. Otherwise it returns only the core outputs.
-
-#### Return Value
-
-Returns `CoreOutputs` with:
-
-- `core`: `CoreProcessingResult`
-- `kinase_activity`: `KinaseActivityResult | None`
-
-`CoreOutputs` is a detached snapshot-style result bundle. Mutating its tables does not mutate
-`pipeline.dataset` workspace state.
-
-When `outdir` is provided, the published bundle includes the core tables, any downstream kinase-analysis tables, and `run_manifest.json`.
-
-#### Example
-
-```python
-from phospy import PhosRPipeline
-
-pipeline = PhosRPipeline.from_files(
-    total_path="total.tsv",
-    phospho_path="phospho.tsv",
-    pred_mat_path="predMat.csv",
-    max_unmatched_fraction=0.1,
-    kinase_activity_threshold=0.6,
-    kinase_activity_min_substrates=3,
-    kinase_activity_top_n_substrates=20,
-)
-outputs = pipeline.run(outdir="output")
-```
+When `outdir` is set, the output bundle also includes `run_manifest.json`.
 
 ## `KinaseWorkflow`
 
-Use `KinaseWorkflow` for the native Python end-to-end scoring and prediction workflow.
+Use `KinaseWorkflow` for the native Python scoring and prediction workflow.
 
-### `KinaseWorkflow(flank_size=7, kernel="rbf", svm_mode="default")`
+### Constructor
 
 ```python
 KinaseWorkflow(
@@ -614,18 +410,12 @@ KinaseWorkflow(
 )
 ```
 
-Creates a workflow runner.
+Supported public `svm_mode` values:
 
-#### Parameters and Validation
+- `"default"`
+- `"r_parity"`
 
-- `flank_size`: flank size used by motif scoring
-- `kernel`: SVM kernel name passed to the prediction layer
-- `svm_mode`:
-  - supported public values are `"default"` and `"r_parity"`
-  - `"default"` is the normal native mode
-  - `"r_parity"` is a narrower learner-seam comparison mode used in PhosR parity work
-
-### `workflow.run(...)`
+### `run(...)`
 
 ```python
 workflow.run(
@@ -646,55 +436,29 @@ workflow.run(
 ) -> KinaseWorkflowResult
 ```
 
-Runs the native workflow end to end.
+Validation highlights:
 
-#### Parameters and Validation
+- `phospho_matrix` must be a numeric phosphosite matrix with a unique, non-null index
+- `substrate_map` must not be empty and must overlap with `phospho_matrix`
+- `site_sequences`, when supplied, must be a mapping or a pandas `Series` keyed by phosphosite ID
+- `motif_sequences` is required unless `allow_profile_only_fallback=True`
+- when `motif_sequences` is provided, `site_sequences` is also required
+- `min_substrates`, `min_motif_size`, `ensemble_size`, `top`, `inclusion`, and `n_iterations` must be `>= 1`
+- `score_threshold` must be in `[0, 1]`
 
-- `phospho_matrix`:
-  - must be a numeric phosphosite matrix
-  - must contain at least one row and at least one numeric column
-  - must have a unique, non-null phosphosite index
-- `substrate_map`:
-  - must not be empty
-  - must overlap with the phosphosite IDs in `phospho_matrix`
-- `site_sequences`:
-  - optional
-  - when supplied, must be a mapping keyed by phosphosite ID or a pandas `Series` indexed by phosphosite ID
-  - when motif-aware prediction is enabled, PhosPy scores and predicts only the phosphosite rows that have matching site-sequence entries
-  - motif-aware workflow runs require at least one overlapping phosphosite ID between `site_sequences` and `phospho_matrix`
-- `motif_sequences`:
-  - optional only when `allow_profile_only_fallback=True`
-  - if provided, it must not be empty
-  - if provided, `site_sequences` is also required
-- `min_substrates`, `min_motif_size`, `ensemble_size`, `top`, `inclusion`, `n_iterations`:
-  - integers with value `>= 1`
-- `allow_profile_only_fallback`:
-  - set to `True` to allow prediction without motif data
-- `score_threshold`:
-  - finite numeric value in `[0, 1]`
-- `random_state`: optional integer seed
-- `svm_mode`:
-  - optional per-run override for the workflow's default SVM mode
-
-#### Return Value
-
-Returns `KinaseWorkflowResult` with:
+The returned `KinaseWorkflowResult` exposes:
 
 - `profile_result`
 - `motif_result`
 - `scoring_result`
 - `prediction_result`
 
-`KinaseWorkflowResult` is a detached snapshot-style result bundle. Its nested result objects
-are produced workflow outputs, not live views into the input phosphosite matrix or predictor
-runtime state.
-
-`prediction_result` is a `KinasePredictionResult`. The most commonly used fields are:
+The most commonly used fields on `prediction_result` are:
 
 - `pred_matrix`
 - `substrate_list`
 
-#### Example
+Example:
 
 ```python
 from phospy import KinaseWorkflow
@@ -710,16 +474,39 @@ result = workflow.run(
 pred_matrix = result.prediction_result.pred_matrix
 ```
 
+## CLI
+
+Use `phospy --help` for the full help text.
+
+Main options:
+
+- `--total` required TSV path
+- `--phospho` required TSV path
+- `--outdir` required output directory
+- `--pred-mat` optional `predMat` CSV path
+- `--phospho-encoding` optional encoding for the phospho table
+- `--localization-threshold` default `0.75`
+- `--min-observed` default `4`
+- `--total-sentinel` default `10.0`
+- `--phospho-sentinel` default `12.0`
+- `--max-unmatched-fraction` default `0.0`
+- `--kinase-activity-threshold` default `0.6`
+- `--kinase-activity-min-substrates` default `3`
+- `--kinase-activity-top-n-substrates` default `20`
+
+Example:
+
+```bash
+phospy \
+  --total total.tsv \
+  --phospho phospho.tsv \
+  --pred-mat predMat.csv \
+  --outdir output
+```
+
 ## Result Objects
 
-The main result objects returned by the public workflows are small dataclasses. Unless a type
-explicitly says otherwise, treat them as standalone outputs: mutating their tables affects
-only that result instance and does not feed back into mutable dataset workspace state.
-Import them from their defining modules only when you need explicit type references.
-
-### `CoreProcessingResult`
-
-Core preprocessing tables for one dataset run.
+The main public workflows return small dataclasses that hold output tables. Treat them as standalone results.
 
 ```python
 CoreProcessingResult(
@@ -729,37 +516,19 @@ CoreProcessingResult(
     phospho_corrected: pd.DataFrame,
     site_matrix: SiteMatrixResult,
 )
-```
 
-### `SiteMatrixResult`
-
-Derived site-matrix tables built from corrected phosphosite rows.
-
-```python
 SiteMatrixResult(
     phosr_input: pd.DataFrame,
     matrix: pd.DataFrame,
     sequences: pd.Series,
-    row_drop_stats: object,
+    row_drop_stats: dict[str, int],
 )
-```
 
-### `CoreOutputs`
-
-Outputs returned by `PhosRPipeline.run()` for one pipeline run.
-
-```python
 CoreOutputs(
     core: CoreProcessingResult,
     kinase_activity: KinaseActivityResult | None,
 )
-```
 
-### `KinaseActivityResult`
-
-Kinase activity tables produced by one analyzer run.
-
-```python
 KinaseActivityResult(
     weighted_activity: pd.DataFrame,
     ksea_scores: pd.DataFrame,
@@ -767,36 +536,22 @@ KinaseActivityResult(
     target_counts: pd.Series,
     target_table: pd.DataFrame,
 )
-```
 
-### `KinasePredictionResult`
-
-Prediction outputs and optional traces for one prediction run. The most commonly used fields are `pred_matrix` and `substrate_list`. When the result owns a trace sink, call `close()` explicitly or use `with predictor.predict(...) as result:` so trace resources are released deterministically.
-
-### `KinaseWorkflowResult`
-
-Workflow outputs for a single native scoring and prediction run.
-
-```python
 KinaseWorkflowResult(
-    profile_result: object,
-    motif_result: object | None,
-    scoring_result: object,
+    profile_result: KinaseProfileResult,
+    motif_result: MotifScoringResult | None,
+    scoring_result: KinaseScoringResult,
     prediction_result: KinasePredictionResult,
 )
 ```
 
-## Validation Summary
+## Validation in One Glance
 
-These checks come up most often across the public API:
+These checks come up most often:
 
-- total and phospho file inputs are TSV; `predMat` file input is CSV with the first column used as the index
-- file-loaded total and phospho headers are cleaned to lowercase snake case before validation
-- duplicate cleaned column names are rejected
-- `gene_p_site` must split into gene and site parts such as `BTK_Y551`
+- total and phospho files are TSV; `predMat` is CSV
+- `gene_p_site` must look like `BTK_Y551`
 - `localization_prob` and `predMat` scores must stay in `[0, 1]`
 - by default, protein correction allows no silent row loss
-- downstream kinase analysis requires overlapping phosphosite IDs between `predMat` and the phosphosite matrix
-- native workflow inputs must share phosphosite IDs across the matrix, substrate map, and sequence inputs
-
-For the short guide to validation rules and the PhosR parity scope, see [`validation.md`](validation.md).
+- kinase activity analysis requires overlap between `predMat` and the phosphosite matrix
+- native workflow inputs must share phosphosite IDs across matrix, substrate map, and sequence data

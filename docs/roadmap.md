@@ -1,51 +1,77 @@
 # Roadmap
 
-This roadmap is a guide to direction, not a release promise. It highlights the next steps that fit the current
-codebase most naturally.
+This page is direction, not a release promise.
 
 ## Most Likely Next Steps
 
+### First-Class `predMat` Workflow
+
+User feedback is strongest around creating `predMat` in a clear, supported way. The next priority is to make that a
+first-class workflow rather than a lower-level assembly of scoring and prediction pieces.
+
+This likely includes:
+
+- one obvious public entry point for `predMat` generation
+- a canonical result contract for `predMat`
+- validation tied to the actual scoring and prediction subset requirements
+- a short end-to-end example showing the recommended path
+
 ### Native `KinaseWorkflow` CLI Support
 
-`KinaseWorkflow` is already part of the supported Python API, but the CLI currently stops at the core preprocessing and
-`predMat` path. A natural next step is to expose the native workflow from the command line with explicit workflow
-inputs and prediction outputs.
+The Python API already supports the native workflow. The CLI does not yet expose it.
 
 ### Broader Native Workflow Validation
 
-The repository already includes L6 references, prediction traces, and a curated fragile-support dataset. Extending that
-evidence to more kinases, more fixture shapes, and more seam-specific assertions would strengthen confidence while
-keeping the parity claim narrow and honest.
+The repository already contains L6 references, prediction traces, and curated seam fixtures. Extending that coverage
+would increase confidence without widening the parity claim.
 
 ### Better Diagnostic Tooling
 
-The current trace-export and comparison scripts are already useful when Python and R diverge. Another likely step is to
-make them easier to run, compare, and interpret.
+The current trace-export scripts are useful, but they could be easier to run and compare.
 
 ## Likely PhosR-Inspired Ports
 
+### Signalome Construction and Outputs
+
+After `predMat` becomes a first-class workflow, the most likely next PhosR-inspired feature is signalome support.
+
+This likely includes:
+
+- a dedicated public workflow for signalome construction
+- a stable result model for signalome outputs
+- signalome map-ready output generation
+- kinase-network outputs derived from signalome results
+- concise user-facing examples for the recommended workflow
+
+### Site- and Gene-Centric Downstream Analysis
+
+Once `predMat` and signalome workflows are in place, the next likely layer is broader interpretation support, such as:
+
+- phosphosite-to-gene collapsing
+- over-representation pathway analysis
+- rank-based pathway enrichment
+
 ### Wider Preprocessing Helpers
 
-The current release line focuses on the core path from total and phospho tables to corrected phosphosite matrices. A
-sensible next wave would be carefully chosen preprocessing helpers that fit the current dataset model.
+The current release line focuses on the core path from total and phospho inputs to corrected phosphosite matrices. More
+targeted preprocessing helpers remain a natural future direction, but they are not the current headline priority.
 
 ### Richer Downstream Kinase Summaries
 
-The current downstream analysis is centred on `predMat`, weighted activity, KSEA-style summaries, and target counts. A
-natural extension would be a broader reporting layer for interpretation and export.
+The downstream layer already covers weighted activity, KSEA-style summaries, and target counts. Reporting and export can
+continue to grow from there.
 
 ### Smoother Workflow Inputs and Outputs
 
-The native workflow already covers profile construction, motif scoring, score combination, candidate selection, and
-adaptive SVM prediction. A practical next step is to make it easier to move between raw tables, validated request
-objects, reproducible configuration, and saved output bundles.
+The native workflow would benefit from easier movement between raw tables, validated requests, reproducible
+configuration, and saved output bundles. This remains an ongoing direction, especially around prediction and export
+contracts.
 
 ## Less Likely Near-Term Work
 
-PhosPy is still intentionally narrow. Large package-wide parity claims, a rushed attempt to mirror all of PhosR, or a
-wide public API expansion without fixture-backed evidence are all less likely than incremental, well-tested growth.
+Large package-wide parity claims, a rush to mirror all of PhosR, or a wide public API expansion without fixture-backed
+evidence are all unlikely near-term directions.
 
-## Reading This Roadmap
-
-Treat the items above as direction rather than commitment. The most credible next work is the work that keeps PhosPy
-small, test-backed, and clear about which seams are validated.
+Deep SPS- and RUV-style normalisation work is also less likely near-term. It is valuable, but it is broader, harder to
+validate well, and lower priority than making `predMat` generation and downstream signalome analysis feel native in
+Python.

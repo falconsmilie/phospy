@@ -1,14 +1,14 @@
 # PhosPy
 
-`PhosPy` is a small Python library for selected phosphoproteomics workflows inspired by the R `PhosR` package.
+PhosPy is a focused Python library for selected phosphoproteomics workflows inspired by `PhosR`.
 
 Use it when you want to:
 
 - preprocess total and phospho tables
-- analyse kinase activity from a `predMat`
+- analyse kinase activity from an existing `predMat`
 - run the native Python kinase workflow
 
-It is intentionally narrow. It does not aim to reproduce all of `PhosR`.
+It is intentionally narrow. It is not a full `PhosR` replacement.
 
 ## Install
 
@@ -18,15 +18,19 @@ PhosPy supports Python 3.10 and newer.
 pip install phospy
 ```
 
-The file paths below use `examples/data/...`, so they assume a repository checkout. If you installed from PyPI, use your own input-file paths instead.
+For parquet output:
 
-## Pick the Method You Need
+```bash
+pip install "phospy[parquet]"
+```
 
-### 1. Core preprocessing from total and phospho tables
+The examples below use repository paths such as `examples/data/...`. If you installed from PyPI, use your own file paths.
 
-Use `PhosphoDataset` when you want validated inputs and the standard preprocessing flow. `PhosphoDataset` owns mutable pandas tables and isolates itself from caller-managed inputs at construction time. Prefer `dataset.total_df_copy`, `dataset.phospho_df_copy`, and `dataset.copy_inputs()` for inspection, reporting, and other read-oriented work. Use `dataset.total_df_live` and `dataset.phospho_df_live` only when you intentionally want shared workspace state.
+## Choose the Right Entry Point
 
-Result bundles returned by the public analyzers, pipeline, and workflow are detached snapshot-style outputs. Mutating those result tables affects only the returned result bundle and does not feed changes back into dataset workspace state.
+### `PhosphoDataset`
+
+Use `PhosphoDataset` for validated total and phospho inputs plus the standard preprocessing flow.
 
 ```python
 from phospy import PhosphoDataset
@@ -39,24 +43,13 @@ dataset = PhosphoDataset.from_files(
 )
 core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
 
-writer = CoreOutputWriter()
-writer.write(core, outdir="examples/output", format="csv")
+CoreOutputWriter().write(core, outdir="examples/output", format="csv")
 
 site_matrix = core.site_matrix.matrix
 corrected = core.phospho_corrected
 ```
 
-`dataset.preprocessing.run(...)` returns a `CoreProcessingResult` with:
-
-- `total_unique`
-- `total_filtered`
-- `phospho_filtered`
-- `phospho_corrected`
-- `site_matrix`
-
-Use `CoreOutputWriter` from `phospy.writers` when you want to write the core outputs to disk.
-
-### 2. Kinase activity analysis from an existing `predMat`
+### `KinaseActivityAnalyzer`
 
 Use `KinaseActivityAnalyzer` when you already have a phosphosite matrix and a `predMat`.
 
@@ -78,17 +71,15 @@ result = analyzer.run(
     min_substrates=1,
     top_n_substrates=1,
 )
-analyzer.write_outputs(result, outdir="examples/output")
 
 ksea_scores = result.ksea_scores
-target_counts = result.target_counts
 ```
 
-The bundled example uses `min_substrates=1` and `top_n_substrates=1` because the example data is very small.
+The bundled example data is tiny, so it uses `min_substrates=1` and `top_n_substrates=1`.
 
-### 3. One-shot pipeline from files
+### `PhosRPipeline`
 
-Use `PhosRPipeline` when you want file loading, preprocessing, optional kinase analysis, and output writing in one call.
+Use `PhosRPipeline` when you want file loading, preprocessing, optional kinase analysis, and output publishing in one call.
 
 ```python
 from phospy import PhosRPipeline
@@ -106,34 +97,31 @@ pipeline = PhosRPipeline.from_files(
 outputs = pipeline.run(outdir="examples/output")
 ```
 
-This writes the core CSV outputs and, when `pred_mat_path` is provided, the downstream kinase-analysis tables using the explicit `kinase_activity_*` settings carried on the pipeline request.
-A pipeline run also writes `run_manifest.json`.
+When `outdir` is set, the pipeline writes the core outputs, any kinase-analysis outputs, and `run_manifest.json`.
 
-### 4. Native Python kinase workflow
+### `KinaseWorkflow`
 
-Use `KinaseWorkflow` for the native end-to-end prediction workflow.
+Use `KinaseWorkflow` for the native Python end-to-end scoring and prediction workflow.
 
-A complete runnable example lives in [`examples/native_workflow_demo.py`](examples/native_workflow_demo.py).
+A runnable example lives in [`examples/native_workflow_demo.py`](examples/native_workflow_demo.py).
 
-From a repository checkout, run:
+From a repository checkout:
 
 ```bash
 make native-workflow-demo
 ```
 
-## Input Files
+## File Inputs
 
-For file-based workflows:
+- total input: TSV
+- phospho input: TSV
+- `predMat`: CSV with the first column used as the phosphosite index
 
-- total input is read as TSV
-- phospho input is read as TSV
-- `predMat` is read as CSV, using the first column as the phosphosite index
-
-For the default schema, the expected columns are documented in [`docs/api.md`](docs/api.md).
+For the default table schema and method-level validation rules, see [`docs/api.md`](docs/api.md).
 
 ## CLI
 
-After installation, you can run the CLI on your own files.
+PhosPy also ships with a small CLI for the file-based preprocessing path and optional `predMat` analysis.
 
 ```bash
 phospy \
@@ -145,12 +133,10 @@ phospy \
   --outdir examples/output
 ```
 
-The CLI covers the file-based preprocessing path and optional `predMat` analysis.
+## Read Next
 
-## Where to Read Next
-
-- [`docs/api.md`](docs/api.md) for method signatures, parameters, validation, and examples
-- [`docs/validation.md`](docs/validation.md) for the validation quick guide
-- [`docs/parity.md`](docs/parity.md) for parity to the R `PhosR` package
-- [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace layout
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) for local development and test commands
+- [`docs/api.md`](docs/api.md) for the public Python API and CLI options
+- [`docs/validation.md`](docs/validation.md) for the validation checklist
+- [`docs/parity.md`](docs/parity.md) for PhosR parity scope
+- [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace directories
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) for local development
