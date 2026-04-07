@@ -2,13 +2,13 @@
 
 PhosPy is a focused Python library for selected phosphoproteomics workflows inspired by `PhosR`.
 
-Use it when you want to:
+It is designed for users who want to:
 
 - preprocess total and phospho tables
 - analyse kinase activity from an existing `predMat`
 - run the native Python kinase workflow
 
-It is intentionally narrow. It is not a full `PhosR` replacement.
+PhosPy is intentionally narrow. It is not a full `PhosR` replacement.
 
 ## Install
 
@@ -24,13 +24,13 @@ For parquet output:
 pip install "phospy[parquet]"
 ```
 
-The examples below use repository paths such as `examples/data/...`. If you installed from PyPI, use your own file paths.
+The examples below use repository paths such as `examples/data/...`. If you installed from PyPI, use your own local file paths.
 
 ## Choose the Right Entry Point
 
 ### `PhosphoDataset`
 
-Use `PhosphoDataset` for validated total and phospho inputs plus the standard preprocessing flow.
+Use `PhosphoDataset` when you want validated total and phospho inputs plus the standard preprocessing flow.
 
 ```python
 from phospy import PhosphoDataset
@@ -113,9 +113,11 @@ make native-workflow-demo
 
 ## File Inputs
 
-- total input: TSV
-- phospho input: TSV
-- `predMat`: CSV with the first column used as the phosphosite index
+PhosPy works with:
+
+- total input as TSV
+- phospho input as TSV
+- `predMat` as CSV, with the first column used as the phosphosite index
 
 For the default table schema and method-level validation rules, see [`docs/api.md`](docs/api.md).
 
@@ -137,6 +139,6 @@ phospy \
 
 - [`docs/api.md`](docs/api.md) for the public Python API and CLI options
 - [`docs/validation.md`](docs/validation.md) for the validation checklist
-- [`docs/parity.md`](docs/parity.md) for PhosR parity scope
+- [`docs/parity.md`](docs/parity.md) for the PhosR parity scope
 - [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace directories
 - [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) for local development
