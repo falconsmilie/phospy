@@ -770,7 +770,7 @@ KinaseActivityResult(
 
 ### `KinasePredictionResult`
 
-Detached snapshot bundle for prediction outputs and optional traces. The most commonly used fields are `pred_matrix` and `substrate_list`.
+Detached snapshot bundle for prediction outputs and optional traces. The most commonly used fields are `pred_matrix` and `substrate_list`. When the result owns a trace sink, call `close()` explicitly or use `with predictor.predict(...) as result:` so trace resources are released deterministically.
 
 ### `KinaseWorkflowResult`
 

@@ -1163,6 +1163,36 @@ def test_prediction_result_close_is_idempotent_for_owned_trace_sink() -> None:
     assert not output_dir.exists()
 
 
+def test_prediction_result_context_manager_closes_owned_trace_sink() -> None:
+    predictor = KinasePredictor()
+
+    with predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=1,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=5,
+        capture_debug_trace=True,
+        debug_kinases=["KINASE_A"],
+        debug_top_n=3,
+        trace_level="full",
+        trace_sink=None,
+    ) as result:
+        assert result.trace_sink is not None
+        assert result.owns_trace_sink is True
+        output_dir = result.trace_sink.output_dir
+        assert output_dir.exists()
+
+    assert not output_dir.exists()
+    assert result.owns_trace_sink is False
+
+
+def test_prediction_result_does_not_define_destructor_cleanup() -> None:
+    assert "__del__" not in KinasePredictionResult.__dict__
+
+
 def test_predict_rejects_invalid_request_at_boundary() -> None:
     predictor = KinasePredictor()
 

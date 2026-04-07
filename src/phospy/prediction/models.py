@@ -48,8 +48,11 @@ class KinasePredictionResult:
 
     ``pred_matrix`` and ``debug_traces`` are produced outputs of a completed
     prediction run. They are not live views into predictor internals or the
-    input score matrix, although ``trace_sink`` may still own external runtime
-    resources until ``close()`` is called.
+    input score matrix.
+
+    When ``owns_trace_sink`` is ``True``, the result owns an external trace
+    sink resource. Call ``close()`` explicitly or use the result as a context
+    manager to release that resource deterministically.
     """
 
     pred_matrix: pd.DataFrame
@@ -75,12 +78,6 @@ class KinasePredictionResult:
         tb: object | None,
     ) -> None:
         self.close()
-
-    def __del__(self) -> None:
-        try:
-            self.close()
-        except Exception:
-            return None
 
 
 @dataclass(slots=True)
