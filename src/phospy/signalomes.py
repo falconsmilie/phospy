@@ -3,13 +3,17 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 
-from . import SignalomeMapData
 from .validation.errors import InputCompatibilityError
+
+if TYPE_CHECKING:
+    from .signalome_maps import SignalomeMapData
+    from .signalome_networks import SignalomeNetworkData
 
 __all__ = [
     "ExpandedSignalome",
@@ -222,6 +226,13 @@ class SignalomeResult:
         from .signalome_maps import build_signalome_map_data
 
         return build_signalome_map_data(self)
+
+    def to_network_data(self) -> SignalomeNetworkData:
+        """Build graph-friendly kinase-network data from this result."""
+
+        from .signalome_networks import build_signalome_network_data
+
+        return build_signalome_network_data(self)
 
     def to_frames(
         self,
@@ -595,9 +606,13 @@ def _build_kinase_network(
         msg = "scoring_matrix must contain at least one kinase column"
         raise InputCompatibilityError(msg)
 
-    kinase_correlation_matrix = kinase_correlation_matrix.copy(deep=True)
-    diagonal_positions = np.arange(len(kinase_correlation_matrix))
-    kinase_correlation_matrix.iloc[diagonal_positions, diagonal_positions] = 0.0
+    kinase_correlation_values = kinase_correlation_matrix.to_numpy(copy=True)
+    np.fill_diagonal(kinase_correlation_values, 0.0)
+    kinase_correlation_matrix = pd.DataFrame(
+        kinase_correlation_values,
+        index=kinase_correlation_matrix.index.copy(),
+        columns=kinase_correlation_matrix.columns.copy(),
+    )
 
     kinase_network: dict[str, tuple[str, ...]] = {}
     for kinase in kinase_correlation_matrix.columns.astype(str):

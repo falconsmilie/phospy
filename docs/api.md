@@ -13,6 +13,7 @@ from phospy import (
     PredMatResult,
     PredMatWorkflow,
     SignalomeMapData,
+    SignalomeNetworkData,
     SignalomeResult,
     SignalomeWorkflow,
 )
@@ -28,6 +29,7 @@ Use:
 - `KinaseWorkflow` for the native end-to-end prediction flow
 - `SignalomeWorkflow` for validated signalome construction from scoring and prediction outputs
 - `SignalomeResult` for the canonical in-memory and export contract of a constructed signalome
+- `SignalomeNetworkData` for graph-friendly kinase-network tables derived from a signalome result
 
 ## Common File Rules
 
@@ -622,6 +624,7 @@ Use:
 - `result.network` for graph-friendly kinase-network tables
 - `result.expanded_signalomes` for kinase-of-interest views built from the canonical module assignments
 - `result.to_map_data()` for serialisable map-ready plotting data derived from the canonical result
+- `result.to_network_data()` for graph-friendly kinase-network tables derived from the canonical result
 
 The older convenience attributes remain available:
 
@@ -714,6 +717,58 @@ By default, `to_frames(...)` and `to_csv(...)` return or write only the stable u
 Pass `include_inputs=True` to also include the aligned `scoring_matrix`, `pred_mat`, and `expression_matrix` that fed the signalome construction step.
 
 The CSV export uses UTF-8, deterministic newline handling, and stable float formatting.
+
+## `SignalomeNetworkData`
+
+Build graph-friendly kinase-network data from a signalome result:
+
+```python
+network_data = result.to_network_data()
+```
+
+This step is intentionally separate from signalome construction. `SignalomeNetworkData` contains deterministic node, edge, and adjacency outputs that graph or plotting code can consume without binding the public API to one graph library.
+
+### Canonical Access Paths
+
+```python
+network_data.nodes(copy: bool = True) -> pd.DataFrame
+network_data.edges(copy: bool = True) -> pd.DataFrame
+network_data.adjacency(copy: bool = True) -> pd.DataFrame
+```
+
+`network_data.nodes()` returns the canonical node table with:
+
+- index: `kinase`
+- `degree`
+- `n_substrates`
+- `module_count`
+- `total_share_percent`
+- `is_kinase_of_interest`
+
+`network_data.edges()` returns the canonical edge list with:
+
+- `source_kinase`
+- `target_kinase`
+- `correlation`
+- `shared_module_count`
+- `shared_modules` (serialized module-id list such as `[1,2]`)
+- `source_is_kinase_of_interest`
+- `target_is_kinase_of_interest`
+
+`network_data.adjacency()` returns the kinase correlation matrix used to derive the edge list.
+
+### Export Contract
+
+```python
+network_data.to_frames(copy: bool = True) -> dict[str, pd.DataFrame]
+network_data.to_csv(directory: str | Path) -> dict[str, Path]
+```
+
+The named network exports are:
+
+- `signalome_network_nodes`
+- `signalome_network_edges`
+- `signalome_network_adjacency`
 
 ## `SignalomeMapData`
 
@@ -880,6 +935,13 @@ SignalomeResult(
 )
 
 SignalomeResult.to_map_data() -> SignalomeMapData
+SignalomeResult.to_network_data() -> SignalomeNetworkData
+
+SignalomeNetworkData(
+    adjacency_matrix: pd.DataFrame,
+    node_table: pd.DataFrame,
+    edge_table: pd.DataFrame,
+)
 
 SignalomeMapData(
     module_positions: pd.DataFrame,
@@ -890,6 +952,9 @@ SignalomeMapData(
 
 SignalomeMapData.to_frames(copy: bool = True) -> dict[str, pd.DataFrame]
 SignalomeMapData.to_csv(directory: str | Path) -> dict[str, Path]
+
+SignalomeNetworkData.to_frames(copy: bool = True) -> dict[str, pd.DataFrame]
+SignalomeNetworkData.to_csv(directory: str | Path) -> dict[str, Path]
 
 # canonical signalome result views
 SignalomeResult.modules -> SignalomeModules

@@ -86,6 +86,7 @@ def test_public_root_exports() -> None:
         "PredMatResult",
         "PredMatWorkflow",
         "SignalomeMapData",
+        "SignalomeNetworkData",
         "SignalomeResult",
         "SignalomeWorkflow",
     }
