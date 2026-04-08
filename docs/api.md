@@ -724,6 +724,9 @@ result.assignments.proteins(copy: bool = True) -> pd.DataFrame
 - `protein_id`
 - `module_id`
 - `top_kinase`
+- `top_kinase_candidates`
+- `top_kinase_tie_count`
+- `top_kinase_is_ambiguous`
 - `top_score`
 
 `result.assignments.proteins()` returns the protein assignment table with:
@@ -862,6 +865,9 @@ map_data.links(copy: bool = True) -> pd.DataFrame
 - `protein_id`
 - `module_id`
 - `top_kinase`
+- `top_kinase_candidates`
+- `top_kinase_tie_count`
+- `top_kinase_is_ambiguous`
 - `top_score`
 - `x`
 - `y`

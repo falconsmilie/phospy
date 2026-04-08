@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 
 import pandas as pd
@@ -149,26 +150,47 @@ def build_site_assignments(
     protein_modules: pd.Series,
     site_to_protein: pd.Series,
 ) -> pd.DataFrame:
-    """Build the site-level assignment table from prediction outputs."""
+    """Build the site-level assignment table from prediction outputs.
+
+    Tied top-kinase assignments are resolved deterministically by sorting the
+    tied kinase names alphabetically. The full tie set is preserved in
+    ``top_kinase_candidates`` and summarised by the tie-count diagnostics.
+    """
 
     rows: list[dict[str, object]] = []
     for site_id in pred_mat.index.astype(str):
         protein_id = str(site_to_protein.loc[site_id])
         scores = pred_mat.loc[site_id]
         top_score = float(scores.max())
-        top_kinases = [str(kinase) for kinase in scores.index[scores == top_score]]
+        top_kinases = sorted(
+            str(kinase) for kinase in scores.index[scores.eq(top_score)]
+        )
         rows.append(
             {
                 "site_id": site_id,
                 "protein_id": protein_id,
                 "module_id": int(protein_modules.loc[protein_id]),
                 "top_kinase": top_kinases[0],
+                "top_kinase_candidates": json.dumps(top_kinases),
+                "top_kinase_tie_count": len(top_kinases),
+                "top_kinase_is_ambiguous": len(top_kinases) > 1,
                 "top_score": top_score,
             }
         )
 
     site_assignments = pd.DataFrame.from_records(rows).set_index("site_id")
     site_assignments.index.name = "site_id"
+    site_assignments = site_assignments.astype(
+        {
+            "protein_id": str,
+            "module_id": int,
+            "top_kinase": str,
+            "top_kinase_candidates": str,
+            "top_kinase_tie_count": int,
+            "top_kinase_is_ambiguous": bool,
+            "top_score": float,
+        }
+    )
     return site_assignments
 
 

@@ -102,6 +102,9 @@ def test_signalome_workflow_constructs_signalomes_from_scoring_and_prediction_re
         "protein_id",
         "module_id",
         "top_kinase",
+        "top_kinase_candidates",
+        "top_kinase_tie_count",
+        "top_kinase_is_ambiguous",
         "top_score",
     }
     assert set(result.site_assignments.loc[:, "module_id"]) == {1, 2}
@@ -296,6 +299,96 @@ def test_build_signalome_result_uses_explicit_site_to_protein_mapping_for_groupi
     ]
     assert result.protein_assignments.loc["PROTEIN_1", "site_count"] == 2
     assert result.site_assignments.loc["SITE_1", "protein_id"] == "PROTEIN_1"
+
+
+def test_build_site_assignments_tracks_tied_top_kinases_deterministically() -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 1.0],
+            "KINASE_B": [1.0, 1.0],
+        },
+        index=["PROTEIN_1;S1;", "PROTEIN_2;S2;"],
+    )
+    pred_mat = pd.DataFrame(
+        {
+            "KINASE_B": [0.8, 0.2],
+            "KINASE_A": [0.8, 0.9],
+        },
+        index=scoring_matrix.index.copy(),
+    )
+    expression_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 2.0],
+            "sample_2": [1.1, 2.1],
+        },
+        index=scoring_matrix.index.copy(),
+    )
+
+    result = build_signalome_result(
+        scoring_matrix=scoring_matrix,
+        pred_mat=pred_mat,
+        expression_matrix=expression_matrix,
+        kinases_of_interest=["KINASE_A"],
+        signalome_cutoff=0.5,
+        module_count=1,
+    )
+
+    tied_row = result.site_assignments.loc["PROTEIN_1;S1;"]
+    clear_row = result.site_assignments.loc["PROTEIN_2;S2;"]
+
+    assert tied_row["top_kinase"] == "KINASE_A"
+    assert tied_row["top_kinase_candidates"] == '["KINASE_A", "KINASE_B"]'
+    assert tied_row["top_kinase_tie_count"] == 2
+    assert bool(tied_row["top_kinase_is_ambiguous"])
+
+    assert clear_row["top_kinase"] == "KINASE_A"
+    assert clear_row["top_kinase_candidates"] == '["KINASE_A"]'
+    assert clear_row["top_kinase_tie_count"] == 1
+    assert not bool(clear_row["top_kinase_is_ambiguous"])
+
+
+def test_build_site_assignments_is_stable_when_pred_mat_columns_are_reordered() -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 1.0],
+            "KINASE_B": [1.0, 1.0],
+        },
+        index=["PROTEIN_1;S1;", "PROTEIN_2;S2;"],
+    )
+    expression_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 2.0],
+            "sample_2": [1.1, 2.1],
+        },
+        index=scoring_matrix.index.copy(),
+    )
+    pred_mat_left = pd.DataFrame(
+        {
+            "KINASE_A": [0.8, 0.9],
+            "KINASE_B": [0.8, 0.2],
+        },
+        index=scoring_matrix.index.copy(),
+    )
+    pred_mat_right = pred_mat_left.loc[:, ["KINASE_B", "KINASE_A"]]
+
+    left = build_signalome_result(
+        scoring_matrix=scoring_matrix,
+        pred_mat=pred_mat_left,
+        expression_matrix=expression_matrix,
+        kinases_of_interest=["KINASE_A"],
+        signalome_cutoff=0.5,
+        module_count=1,
+    )
+    right = build_signalome_result(
+        scoring_matrix=scoring_matrix,
+        pred_mat=pred_mat_right,
+        expression_matrix=expression_matrix,
+        kinases_of_interest=["KINASE_A"],
+        signalome_cutoff=0.5,
+        module_count=1,
+    )
+
+    pd.testing.assert_frame_equal(left.site_assignments, right.site_assignments)
 
 
 def test_signalome_result_exposes_canonical_module_assignment_and_network_views() -> (
