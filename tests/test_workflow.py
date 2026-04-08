@@ -5,7 +5,11 @@ import pytest
 
 from phospy.motifs import KinaseMotifScorer
 from phospy.prediction import PredMatResult
-from phospy.validation.errors import InputCompatibilityError, RequestValidationError
+from phospy.validation.errors import (
+    InputCompatibilityError,
+    NoCandidateKinasesError,
+    RequestValidationError,
+)
 from phospy.validation.tables import SiteMatrixSchema
 from phospy.workflow import KinaseWorkflow, PredMatWorkflow, _WorkflowPlanner
 
@@ -120,6 +124,36 @@ def test_pred_mat_workflow_runs_native_end_to_end_path() -> None:
     ]
     assert result.pred_mat_result is result.prediction_result.pred_mat_result
     assert set(result.prediction_result.substrate_list) == {"KINASE_A", "KINASE_B"}
+
+
+def test_pred_mat_workflow_raises_domain_error_when_no_candidate_kinases_qualify() -> (
+    None
+):
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
+        make_workflow_inputs()
+    )
+
+    with pytest.raises(
+        NoCandidateKinasesError,
+        match=(
+            r"No candidate kinases qualified for prediction from combined_scores "
+            r"using top=2, score_threshold=0\.0, and inclusion=3"
+        ),
+    ):
+        PredMatWorkflow(flank_size=2).run(
+            phospho_matrix=phospho_matrix,
+            substrate_map=substrate_map,
+            site_sequences=site_sequences,
+            motif_sequences=motif_sequences,
+            min_substrates=2,
+            min_motif_size=2,
+            ensemble_size=2,
+            top=2,
+            score_threshold=0.0,
+            inclusion=3,
+            n_iterations=2,
+            random_state=17,
+        )
 
 
 def test_pred_mat_workflow_result_has_canonical_pred_mat_result() -> None:

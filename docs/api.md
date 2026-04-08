@@ -413,6 +413,8 @@ When `outdir` is set, the output bundle also includes `run_manifest.json`.
 
 Use `PredMatWorkflow` when your goal is to generate a `predMat` from one documented public workflow. For the shortest file-backed example, see [`examples/predmat_workflow_demo.py`](../examples/predmat_workflow_demo.py).
 
+When prediction thresholds are too strict and no kinase candidates qualify, `PredMatWorkflow.run(...)` and `KinasePredictor.predict(...)` raise `NoCandidateKinasesError` instead of returning an invalid zero-column `predMat`.
+
 ### Constructor
 
 ```python

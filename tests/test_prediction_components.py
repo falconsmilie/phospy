@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from phospy.prediction.aggregation import PredictionAggregator
 from phospy.prediction.candidates import CandidateSelector
 from phospy.prediction.execution import TraceRecorder
 from phospy.prediction.service import PredictionExecutionRunner
+from phospy.validation.errors import NoCandidateKinasesError
 from phospy.validation.requests import PredictionRequest
 
 
@@ -56,7 +58,7 @@ def test_trace_recorder_create_state_traces_all_kinases_by_default() -> None:
     assert state.debug_traces == {}
 
 
-def test_prediction_execution_runner_returns_empty_result_without_candidates() -> None:
+def test_prediction_execution_runner_raises_domain_error_without_candidates() -> None:
     scores = pd.DataFrame({"K1": [0.2, 0.1]}, index=["s1", "s2"])
     request = PredictionRequest.validate_request(
         combined_scores=scores,
@@ -77,15 +79,14 @@ def test_prediction_execution_runner_returns_empty_result_without_candidates() -
         ensemble_predictor=None,
     )
 
-    try:
-        result = runner.run(request)
-    except AttributeError as error:
-        raise AssertionError(
-            "runner should short-circuit before ensemble execution"
-        ) from error
-
-    assert result.substrate_list == {}
-    assert result.pred_matrix.empty
+    with pytest.raises(
+        NoCandidateKinasesError,
+        match=(
+            r"No candidate kinases qualified for prediction from combined_scores "
+            r"using top=1, score_threshold=0\.9, and inclusion=1"
+        ),
+    ):
+        runner.run(request)
 
 
 def test_prediction_execution_runner_uses_validated_combined_scores_without_recasting(

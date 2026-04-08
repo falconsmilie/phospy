@@ -35,6 +35,10 @@ class InputCompatibilityError(PhospyValidationError):
     """Raised when otherwise valid inputs are incompatible with each other."""
 
 
+class NoCandidateKinasesError(InputCompatibilityError):
+    """Raised when prediction thresholds leave no kinase candidates to score."""
+
+
 class PredictionConfigurationError(PhospyValidationError):
     """Raised when predictor configuration cannot produce a valid training run."""
 

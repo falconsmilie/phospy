@@ -9,7 +9,11 @@ from pydantic import Field, ValidationError, field_validator
 from ..prediction.models import KinasePredictionResult, PredMatResult
 from ..scoring import KinaseScoringResult
 from ._models import PhospyRequestModel
-from .errors import InputCompatibilityError, RequestValidationError
+from .errors import (
+    InputCompatibilityError,
+    NoCandidateKinasesError,
+    RequestValidationError,
+)
 from .tables import PredictionScoreMatrixSchema, PredMatSchema, SiteMatrixSchema
 
 __all__ = [
@@ -90,10 +94,7 @@ def validate_signalome_request(
         _resolve_scoring_matrix(scoring_result),
         context="scoring_result",
     )
-    pred_mat = PredMatSchema.validate(
-        _resolve_pred_mat(prediction_result),
-        context="prediction_result",
-    )
+    pred_mat = _validate_prediction_result_pred_mat(prediction_result)
     validated_expression_matrix = SiteMatrixSchema.validate(
         expression_matrix,
         context="expression_matrix",
@@ -150,6 +151,20 @@ def _resolve_scoring_matrix(scoring_result: KinaseScoringResult) -> pd.DataFrame
     if scoring_result.combined_scores is not None:
         return scoring_result.combined_scores
     return scoring_result.profile_scores
+
+
+def _validate_prediction_result_pred_mat(
+    prediction_result: KinasePredictionResult | PredMatResult,
+) -> pd.DataFrame:
+    pred_mat = _resolve_pred_mat(prediction_result)
+    if pred_mat.shape[1] == 0:
+        msg = (
+            "prediction_result does not contain any kinase columns because no "
+            "candidate kinases qualified for prediction. Regenerate predMat with "
+            "less restrictive top, score_threshold, or inclusion settings."
+        )
+        raise NoCandidateKinasesError(msg)
+    return PredMatSchema.validate(pred_mat, context="prediction_result")
 
 
 def _resolve_pred_mat(

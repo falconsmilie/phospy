@@ -8,7 +8,11 @@ import pytest
 from phospy import KinaseActivityAnalyzer, PredMatResult
 from phospy.constants import KINASE_OUTPUT_FILENAMES
 from phospy.io import load_pred_mat
-from phospy.validation.errors import RequestValidationError, TableSchemaError
+from phospy.validation.errors import (
+    NoCandidateKinasesError,
+    RequestValidationError,
+    TableSchemaError,
+)
 from phospy.validation.tables import PredMatSchema, SiteMatrixSchema
 
 
@@ -301,6 +305,24 @@ def test_run_request_uses_validated_boundary_request(
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
     assert pred_calls == ["pred_mat"]
     assert matrix_calls == ["phospho_matrix"]
+
+
+def test_analyzer_rejects_pred_mat_without_candidate_kinases() -> None:
+    analyzer = KinaseActivityAnalyzer()
+    phospho_matrix = make_phospho_matrix()
+    empty_pred_mat = make_pred_mat().iloc[:, 0:0]
+
+    with pytest.raises(
+        NoCandidateKinasesError,
+        match=(
+            "pred_mat does not contain any kinase columns because no candidate "
+            "kinases qualified for prediction"
+        ),
+    ):
+        analyzer.run(
+            pred_mat=empty_pred_mat,
+            phospho_matrix=phospho_matrix,
+        )
 
 
 def test_analyzer_passes_pred_mat_result_to_validation_boundary(

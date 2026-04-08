@@ -102,7 +102,7 @@ class PredMatSchema:
     ) -> pd.DataFrame:
         validated = _ensure_dataframe(frame, context=context)
         _ensure_unique_columns(validated.columns, context=context)
-        if validated.empty:
+        if validated.shape[0] == 0:
             msg = f"{context} must contain at least one row"
             raise TableSchemaError(msg)
         if validated.shape[1] == 0:
@@ -138,7 +138,7 @@ class PredictionScoreMatrixSchema:
         validated = _ensure_dataframe(frame, context=context)
         _ensure_unique_columns(validated.columns, context=context)
         _ensure_non_null_columns(validated.columns, context=context)
-        if validated.empty:
+        if validated.shape[0] == 0:
             msg = f"{context} must contain at least one phosphosite row"
             raise TableSchemaError(msg)
         if validated.shape[1] == 0:
@@ -204,7 +204,7 @@ class SiteMatrixSchema:
     ) -> pd.DataFrame:
         validated = _ensure_dataframe(frame, context=context)
         _ensure_unique_columns(validated.columns, context=context)
-        if validated.empty:
+        if validated.shape[0] == 0:
             msg = f"{context} must contain at least one phosphosite row"
             raise TableSchemaError(msg)
         if validated.shape[1] == 0:

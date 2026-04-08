@@ -32,7 +32,11 @@ from phospy.prediction.svm import (
 from phospy.prediction.trace_runtime import TraceSink
 from phospy.prediction.traces import DirectoryTraceSink, create_trace_sink
 from phospy.scoring import KinaseScoringResult
-from phospy.validation.errors import RequestValidationError, TableSchemaError
+from phospy.validation.errors import (
+    NoCandidateKinasesError,
+    RequestValidationError,
+    TableSchemaError,
+)
 from phospy.validation.requests import PredictionRequest
 
 
@@ -205,21 +209,25 @@ def test_predict_from_scoring_result_requires_explicit_profile_fallback() -> Non
     assert list(result.pred_matrix.columns) == ["KINASE_A", "KINASE_B"]
 
 
-def test_predict_returns_empty_matrix_when_no_kinases_pass_inclusion() -> None:
+def test_predict_raises_domain_error_when_no_kinases_pass_inclusion() -> None:
     predictor = KinasePredictor()
-    result = predictor.predict(
-        combined_scores=make_combined_scores(),
-        ensemble_size=2,
-        top=2,
-        score_threshold=0.99,
-        inclusion=2,
-        n_iterations=2,
-        random_state=3,
-    )
 
-    assert result.substrate_list == {}
-    assert result.pred_matrix.empty
-    assert list(result.pred_matrix.index) == list(make_combined_scores().index)
+    with pytest.raises(
+        NoCandidateKinasesError,
+        match=(
+            r"No candidate kinases qualified for prediction from combined_scores "
+            r"using top=2, score_threshold=0\.99, and inclusion=2"
+        ),
+    ):
+        predictor.predict(
+            combined_scores=make_combined_scores(),
+            ensemble_size=2,
+            top=2,
+            score_threshold=0.99,
+            inclusion=2,
+            n_iterations=2,
+            random_state=3,
+        )
 
 
 def test_predict_uses_summary_trace_level_by_default_when_debug_is_enabled() -> None:

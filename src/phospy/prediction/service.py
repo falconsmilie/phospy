@@ -88,7 +88,7 @@ class PredictionExecutionRunner:
             inclusion=request.inclusion,
         )
         if not substrate_list:
-            return self.prediction_aggregator.empty_result(request=request)
+            self.prediction_aggregator.raise_no_candidate_kinases(request=request)
 
         feature_mat = request.combined_scores
         pred_matrix = self.prediction_aggregator.initialize_prediction_matrix(

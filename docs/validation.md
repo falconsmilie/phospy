@@ -83,6 +83,7 @@ When your goal is to generate a `predMat`, the recommended path is:
 3. run `PredMatWorkflow.run(...)`
 4. access the canonical result through `result.pred_mat_result`
 5. export with `result.pred_mat_result.to_csv("predMat.csv")`
+When no kinase candidates qualify under the chosen prediction thresholds, predMat generation raises `NoCandidateKinasesError` instead of returning an invalid empty `predMat`.
 
 A runnable example lives in [`../examples/predmat_workflow_demo.py`](../examples/predmat_workflow_demo.py).
 

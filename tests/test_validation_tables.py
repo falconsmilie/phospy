@@ -14,6 +14,7 @@ from phospy.io import (
 from phospy.validation.errors import TableSchemaError
 from phospy.validation.tables import (
     PhosphoInputSchema,
+    PredMatSchema,
     SiteMatrixSchema,
     SiteMatrixSourceSchema,
     TotalInputSchema,
@@ -116,6 +117,15 @@ def test_load_pred_mat_rejects_out_of_range_scores(tmp_path) -> None:
 
     with pytest.raises(TableSchemaError, match="outside the allowed range"):
         load_pred_mat(pred_path)
+
+
+def test_pred_mat_schema_rejects_zero_column_frames() -> None:
+    frame = pd.DataFrame(index=["SITE_1", "SITE_2"], dtype=float)
+
+    with pytest.raises(
+        TableSchemaError, match="pred_mat must contain at least one kinase column"
+    ):
+        PredMatSchema.validate(frame)
 
 
 def test_site_matrix_schema_rejects_duplicate_index() -> None:

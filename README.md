@@ -141,6 +141,8 @@ result = workflow.run(
 
 pred_mat = result.pred_mat_result.to_frame(copy=False)
 result.pred_mat_result.to_csv("predMat.csv")
+
+When prediction thresholds are too strict and no kinase candidates qualify, PhosPy raises `NoCandidateKinasesError` instead of returning an invalid empty `predMat`.
 ```
 
 ### `KinaseWorkflow`

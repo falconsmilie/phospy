@@ -14,6 +14,7 @@ from phospy.prediction import (
 from phospy.scoring import KinaseScorer
 from phospy.validation.errors import (
     InputCompatibilityError,
+    NoCandidateKinasesError,
     PhospyError,
     PhospyValidationError,
     PredictionConfigurationError,
@@ -103,6 +104,12 @@ def test_predict_rejects_missing_negative_pool_with_configuration_error() -> Non
 def test_prediction_configuration_error_is_a_package_validation_error() -> None:
     assert issubclass(PredictionConfigurationError, PhospyValidationError)
     assert issubclass(PredictionConfigurationError, PhospyError)
+
+
+def test_no_candidate_kinases_error_is_a_package_validation_error() -> None:
+    assert issubclass(NoCandidateKinasesError, InputCompatibilityError)
+    assert issubclass(NoCandidateKinasesError, PhospyValidationError)
+    assert issubclass(NoCandidateKinasesError, PhospyError)
 
 
 def test_predict_rejects_trace_sink_without_full_trace_level_with_package_error(

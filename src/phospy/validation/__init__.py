@@ -11,6 +11,7 @@ from .compatibility import (
 )
 from .errors import (
     InputCompatibilityError,
+    NoCandidateKinasesError,
     PhospyError,
     PhospyValidationError,
     PredictionConfigurationError,
@@ -53,6 +54,7 @@ from .workflow import (
 __all__ = [
     "CorePipelineRequest",
     "InputCompatibilityError",
+    "NoCandidateKinasesError",
     "KinaseActivityRequest",
     "KinaseWorkflowRequest",
     "PhosphoInputSchema",

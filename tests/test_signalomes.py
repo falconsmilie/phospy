@@ -5,8 +5,12 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import SignalomeResult
-from phospy.validation.errors import InputCompatibilityError, RequestValidationError
+from phospy import PredMatResult, SignalomeResult
+from phospy.validation.errors import (
+    InputCompatibilityError,
+    NoCandidateKinasesError,
+    RequestValidationError,
+)
 from phospy.workflow import PredMatWorkflow, SignalomeWorkflow
 
 
@@ -127,6 +131,27 @@ def test_signalome_workflow_accepts_canonical_pred_mat_result_input() -> None:
 
     assert result.kinases_of_interest == ("KINASE_B",)
     assert result.expanded_signalomes["KINASE_B"].regulated_module_ids == (2,)
+
+
+def test_signalome_workflow_rejects_pred_mat_without_candidate_kinases() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+    empty_pred_mat = PredMatResult(
+        pred_mat_result.pred_mat_result.to_frame(copy=True).iloc[:, 0:0]
+    )
+
+    with pytest.raises(
+        NoCandidateKinasesError,
+        match=(
+            "prediction_result does not contain any kinase columns because no "
+            "candidate kinases qualified for prediction"
+        ),
+    ):
+        SignalomeWorkflow().run(
+            scoring_result=pred_mat_result.scoring_result,
+            prediction_result=empty_pred_mat,
+            expression_matrix=phospho_matrix,
+            kinases_of_interest=["KINASE_A"],
+        )
 
 
 def test_signalome_result_exposes_canonical_module_assignment_and_network_views() -> (

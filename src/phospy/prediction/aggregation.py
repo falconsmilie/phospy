@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 import pandas as pd
 
+from ..validation.errors import NoCandidateKinasesError
 from ..validation.prediction import PredictionRequest
 from .models import KinasePredictionResult
 
@@ -13,18 +14,17 @@ if TYPE_CHECKING:
 
 class PredictionAggregator:
     @staticmethod
-    def empty_result(
+    def raise_no_candidate_kinases(
         *,
         request: PredictionRequest,
-    ) -> KinasePredictionResult:
-        empty = pd.DataFrame(index=request.combined_scores.index.copy(), dtype=float)
-        return KinasePredictionResult(
-            pred_matrix=empty,
-            substrate_list={},
-            debug_traces={} if request.trace_level != "none" else None,
-            trace_level=request.trace_level,
-            trace_sink=request.trace_sink,
+    ) -> NoReturn:
+        msg = (
+            "No candidate kinases qualified for prediction from combined_scores "
+            f"using top={request.top}, score_threshold={request.score_threshold}, "
+            f"and inclusion={request.inclusion}. Lower score_threshold or inclusion, "
+            "or increase top."
         )
+        raise NoCandidateKinasesError(msg)
 
     @staticmethod
     def initialize_prediction_matrix(

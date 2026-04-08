@@ -9,7 +9,7 @@ from ..prediction.models import PredMatResult
 from ._models import PhospyRequestModel
 from ._pred_mat import normalize_pred_mat_input
 from .compatibility import validate_pred_mat_overlap
-from .errors import RequestValidationError
+from .errors import NoCandidateKinasesError, RequestValidationError
 from .tables import PredMatSchema, SiteMatrixSchema
 
 
@@ -106,6 +106,13 @@ def validate_analysis_request(
     if normalized_pred_mat is None:
         msg = f"{pred_context} must be provided"
         raise RequestValidationError(msg)
+    if normalized_pred_mat.shape[1] == 0:
+        msg = (
+            f"{pred_context} does not contain any kinase columns because no "
+            "candidate kinases qualified for prediction. Regenerate predMat with "
+            "less restrictive top, score_threshold, or inclusion settings."
+        )
+        raise NoCandidateKinasesError(msg)
     validated_pred_mat = PredMatSchema.validate(
         normalized_pred_mat,
         context=pred_context,
