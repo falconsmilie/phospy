@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from ..types import PredictionSvmMode
+from .policies import PredictionSamplingPolicy, resolve_prediction_sampling_policy
 from .trace_replay import PredictionSamplingTrace
 
 
@@ -70,7 +70,8 @@ def normalize_probabilities(values: np.ndarray) -> np.ndarray | None:
 def transform_resampling_probabilities(
     values: np.ndarray,
     *,
-    svm_mode: PredictionSvmMode,
+    sampling_policy: PredictionSamplingPolicy | None = None,
+    svm_mode: str | None = None,
 ) -> np.ndarray:
     """Adjust class resampling weights before normalization.
 
@@ -81,8 +82,15 @@ def transform_resampling_probabilities(
     seam.
     """
 
+    resolved_policy = sampling_policy
+    if resolved_policy is None:
+        if svm_mode is None:
+            msg = "Either sampling_policy or svm_mode must be provided"
+            raise ValueError(msg)
+        resolved_policy = resolve_prediction_sampling_policy(svm_mode)
+
     weights = np.asarray(values, dtype=float)
-    if svm_mode == "default":
+    if resolved_policy.resampling_weight_mode == "default":
         return np.power(weights, 0.8)
     return weights
 

@@ -8,6 +8,7 @@ from .models import (
     PredMatResult,
     SamplingTraceOverrideEnsemble,
 )
+from .policies import PredictionSamplingPolicy, resolve_prediction_sampling_policy
 from .service import KinasePredictor, build_candidate_substrate_list
 from .traces import (
     DirectoryTraceSink,
@@ -23,8 +24,10 @@ __all__ = [
     "KinasePredictionResult",
     "PredMatResult",
     "DirectoryTraceSink",
+    "PredictionSamplingPolicy",
     "KinasePredictor",
     "PredictionSamplingTrace",
+    "resolve_prediction_sampling_policy",
     "TraceSink",
     "SamplingTraceOverrideEnsemble",
     "build_candidate_substrate_list",

@@ -427,8 +427,8 @@ PredMatWorkflow(
 
 Supported public `svm_mode` values:
 
-- `"default"`
-- `"r_parity"`
+- `"default"` for the recommended stable, column-order-invariant prediction path
+- `"r_parity"` for the closest supported PhosR-oriented learner, sampling, and final-scoring preset
 
 ### `run(...)`
 
@@ -541,8 +541,8 @@ KinaseWorkflow(
 
 Supported public `svm_mode` values:
 
-- `"default"`
-- `"r_parity"`
+- `"default"` for the recommended stable, column-order-invariant prediction path
+- `"r_parity"` for the closest supported PhosR-oriented learner, sampling, and final-scoring preset
 
 ### `run(...)`
 

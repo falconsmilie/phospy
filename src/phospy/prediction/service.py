@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from inspect import signature
 from pathlib import Path
 
 import numpy as np
@@ -11,7 +12,12 @@ from ..validation.errors import InputCompatibilityError, NoCandidateKinasesError
 from ..validation.prediction import PredictionRequest
 from .aggregation import PredictionAggregator
 from .candidates import CandidateSelector, build_candidate_substrate_list
-from .execution import EnsemblePredictor, NegativePoolSampler, TraceRecorder
+from .execution import (
+    EnsemblePredictor,
+    NegativePoolSampler,
+    PredictionSamplingSession,
+    TraceRecorder,
+)
 from .models import KinasePredictionResult
 from .traces import (
     PredictionSamplingTrace,
@@ -101,14 +107,21 @@ class PredictionExecutionRunner:
             debug_kinases=request.debug_kinases,
             trace_sink=request.trace_sink,
         )
+        sampling_session = PredictionSamplingSession.from_request(request)
+        predict_kinase_parameters = signature(
+            self.ensemble_predictor.predict_kinase
+        ).parameters
         for kinase, substrates in substrate_list.items():
-            batch = self.ensemble_predictor.predict_kinase(
-                kinase=kinase,
-                substrates=substrates,
-                feature_mat=feature_mat,
-                request=request,
-                trace_state=trace_state,
-            )
+            predict_kinase_kwargs = {
+                "kinase": kinase,
+                "substrates": substrates,
+                "feature_mat": feature_mat,
+                "request": request,
+                "trace_state": trace_state,
+            }
+            if "sampling_session" in predict_kinase_parameters:
+                predict_kinase_kwargs["sampling_session"] = sampling_session
+            batch = self.ensemble_predictor.predict_kinase(**predict_kinase_kwargs)
             self.prediction_aggregator.add_kinase_scores(
                 pred_matrix=pred_matrix,
                 batch=batch,
@@ -131,9 +144,10 @@ class KinasePredictor:
     substrates are selected from the combined score matrix, then an ensemble of
     adaptive SVM models is used to produce a kinase prediction matrix.
 
-    Use ``svm_mode='r_parity'`` when you want settings that more closely match
-    PhosR's e1071-based learner seam. The default mode preserves the standard
-    scikit-learn behaviour.
+    Use ``svm_mode='r_parity'`` when you want the closest supported
+    parity-oriented preset, including the R-like learner, sampling, and
+    final-scoring seams. The default mode preserves the recommended stable,
+    column-order-invariant behaviour.
     """
 
     def __init__(

@@ -213,5 +213,6 @@ phospy \
 - [`docs/api.md`](docs/api.md) for the public Python API and CLI options
 - [`docs/validation.md`](docs/validation.md) for the validation checklist
 - [`docs/parity.md`](docs/parity.md) for the PhosR parity scope
+- `svm_mode="default"` is the recommended stable prediction mode; use `svm_mode="r_parity"` when you want the closest supported parity-oriented learner, sampling, and final-scoring preset
 - [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace directories
 - [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) for local development

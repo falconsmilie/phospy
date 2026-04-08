@@ -9,8 +9,12 @@ from ..types import PredictionTraceLevel
 from ..validation.errors import PredictionConfigurationError
 from ..validation.prediction import PredictionRequest
 from .models import KinasePredictionDebugTrace
+from .policies import (
+    PredictionSamplingPolicy,
+    PredictionSamplingRandomSource,
+    resolve_prediction_sampling_policy,
+)
 from .sampling import (
-    make_kinase_prediction_random_generators,
     multi_ada_sampling,
     validate_override_sites,
 )
@@ -29,6 +33,23 @@ class PredictionTraceState:
     trace_sink: TraceSink | None
     traced_kinases: set[str]
     debug_traces: dict[str, KinasePredictionDebugTrace] | None
+
+
+@dataclass(frozen=True, slots=True)
+class PredictionSamplingSession:
+    policy: PredictionSamplingPolicy
+    random_source: PredictionSamplingRandomSource
+
+    @classmethod
+    def from_request(cls, request: PredictionRequest) -> PredictionSamplingSession:
+        policy = resolve_prediction_sampling_policy(request.svm_mode)
+        return cls(
+            policy=policy,
+            random_source=PredictionSamplingRandomSource(
+                policy=policy,
+                random_state=request.random_state,
+            ),
+        )
 
 
 class NegativePoolSampler:
@@ -209,12 +230,10 @@ class EnsemblePredictor:
         feature_mat: pd.DataFrame,
         request: PredictionRequest,
         trace_state: PredictionTraceState,
+        sampling_session: PredictionSamplingSession,
     ) -> KinasePredictionBatch:
         negative_sampling_rng, resampling_rng = (
-            make_kinase_prediction_random_generators(
-                random_state=request.random_state,
-                kinase=kinase,
-            )
+            sampling_session.random_source.generators_for_kinase(kinase=kinase)
         )
         positive_train = feature_mat.loc[substrates, :]
         negative_pool = feature_mat.loc[
@@ -287,6 +306,7 @@ class EnsemblePredictor:
                     initial_negative_sites=negative_sites,
                     debug_top_n=request.debug_top_n,
                     svm_mode=request.svm_mode,
+                    sampling_policy=sampling_session.policy,
                     sampling_override=ensemble_override,
                 )
                 self.trace_recorder.record_ensemble_trace(
@@ -310,6 +330,7 @@ class EnsemblePredictor:
                     initial_negative_sites=negative_sites,
                     debug_top_n=request.debug_top_n,
                     svm_mode=request.svm_mode,
+                    sampling_policy=sampling_session.policy,
                     sampling_override=ensemble_override,
                 )
             kinase_scores += series
@@ -323,5 +344,6 @@ __all__ = [
     "KinasePredictionBatch",
     "NegativePoolSampler",
     "PredictionTraceState",
+    "PredictionSamplingSession",
     "TraceRecorder",
 ]

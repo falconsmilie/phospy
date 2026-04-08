@@ -7,6 +7,7 @@ import pandas as pd
 
 from ..types import PredictionSvmMode, PredictionTraceLevel
 from .models import AdaptiveSamplingEnsembleTrace, SamplingTraceOverrideEnsemble
+from .policies import PredictionSamplingPolicy, resolve_prediction_sampling_policy
 from .sampling_runtime import (
     normalize_probabilities,
     resolve_sampled_site_positions,
@@ -72,14 +73,18 @@ def _compute_class_weights(
     base_y: np.ndarray,
     base_index: pd.Index,
     svm_mode: PredictionSvmMode,
+    sampling_policy: PredictionSamplingPolicy | None,
 ) -> dict[int, pd.Series | None]:
+    resolved_sampling_policy = sampling_policy or resolve_prediction_sampling_policy(
+        svm_mode
+    )
     weights_by_class: dict[int, pd.Series | None] = {}
     for class_idx, class_label in enumerate(model.classes_):
         class_mask = base_y == class_label
         class_index = base_index[class_mask]
         class_prob = transform_resampling_probabilities(
             prob_mat[class_mask, class_idx],
-            svm_mode=svm_mode,
+            sampling_policy=resolved_sampling_policy,
         )
         sample_prob = normalize_probabilities(class_prob)
         weights_by_class[int(class_label)] = (
@@ -88,6 +93,28 @@ def _compute_class_weights(
             else None
         )
     return weights_by_class
+
+
+def _resolve_final_score_series(
+    *,
+    pred_df: pd.DataFrame,
+    final_decision_values: pd.Series,
+    sampling_policy: PredictionSamplingPolicy,
+) -> pd.Series:
+    positive_probabilities = pd.Series(
+        pred_df.loc[:, "1"].to_numpy(dtype=float, copy=False),
+        index=pred_df.index.copy(),
+        dtype=float,
+    )
+    if sampling_policy.final_score_mode == "mean_probability":
+        return positive_probabilities
+
+    decision_vector = final_decision_values.to_numpy(dtype=float, copy=False)
+    return pd.Series(
+        1.0 / (1.0 + np.exp(-decision_vector)),
+        index=pred_df.index.copy(),
+        dtype=float,
+    )
 
 
 def _resample_training_rows(
@@ -161,7 +188,8 @@ def multi_ada_sampling(
     initial_negative_sites: list[str],
     debug_top_n: int,
     svm_mode: PredictionSvmMode,
-    sampling_override: SamplingTraceOverrideEnsemble | None,
+    sampling_policy: PredictionSamplingPolicy | None = None,
+    sampling_override: SamplingTraceOverrideEnsemble | None = None,
 ) -> tuple[pd.Series, AdaptiveSamplingEnsembleTrace | None]:
     StandardScaler, SVC = require_sklearn()
 
@@ -170,6 +198,9 @@ def multi_ada_sampling(
     base_index = train_mat.index.copy()
     current_x = base_x
     current_y = base_y
+    resolved_sampling_policy = sampling_policy or resolve_prediction_sampling_policy(
+        svm_mode
+    )
     if capture_trace and trace_level == "full" and trace_sink is None:
         msg = "full trace capture requires a trace sink"
         raise ValueError(msg)
@@ -203,6 +234,7 @@ def multi_ada_sampling(
             base_y=base_y,
             base_index=base_index,
             svm_mode=svm_mode,
+            sampling_policy=resolved_sampling_policy,
         )
         current_x, current_y, sampled_sites_by_class = _resample_training_rows(
             model=model,
@@ -248,22 +280,24 @@ def multi_ada_sampling(
             f"{model.classes_.tolist()}"
         )
         raise ValueError(msg)
-    positive_series = pd.Series(
-        pred[:, positive_idx[0]], index=test_mat.index.copy(), dtype=float
+    final_decision_values = aligned_binary_decision_values(
+        model=model,
+        values=test_x,
+        index=test_mat.index.copy(),
+        positive_probabilities=pred_df.get("1"),
+    )
+    final_score_series = _resolve_final_score_series(
+        pred_df=pred_df,
+        final_decision_values=final_decision_values,
+        sampling_policy=resolved_sampling_policy,
     )
 
     ensemble_trace = None
     if capture_trace:
         final_top_sites = (
-            positive_series.sort_values(ascending=False)
+            final_score_series.sort_values(ascending=False)
             .head(debug_top_n)
             .index.tolist()
-        )
-        final_decision_values = aligned_binary_decision_values(
-            model=model,
-            values=test_x,
-            index=test_mat.index.copy(),
-            positive_probabilities=pred_df.get("1"),
         )
         if trace_level == "full":
             write_final_trace_rows(
@@ -281,7 +315,7 @@ def multi_ada_sampling(
             final_top_sites=final_top_sites,
         )
 
-    return positive_series, ensemble_trace
+    return final_score_series, ensemble_trace
 
 
 __all__ = [

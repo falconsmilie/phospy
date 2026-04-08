@@ -16,12 +16,19 @@ from phospy.prediction import (
     build_candidate_substrate_list,
     prediction_debug_trace_tables,
 )
+from phospy.prediction.policies import (
+    PredictionSamplingRandomSource,
+    resolve_prediction_sampling_policy,
+)
 from phospy.prediction.sampling import (
     make_prediction_random_generators as _make_prediction_random_generators,
 )
 from phospy.prediction.sampling import multi_ada_sampling as _multi_ada_sampling
 from phospy.prediction.sampling import (
     transform_resampling_probabilities as _transform_resampling_probabilities,
+)
+from phospy.prediction.sampling_core import (
+    _resolve_final_score_series as _resolve_final_score_series,
 )
 from phospy.prediction.svm import _RLikeStandardScaler
 from phospy.prediction.svm import make_svm as _make_svm
@@ -1020,6 +1027,76 @@ def test_transform_resampling_probabilities_keeps_r_parity_weights() -> None:
     transformed = _transform_resampling_probabilities(values, svm_mode="r_parity")
 
     assert np.allclose(transformed, values)
+
+
+def test_resolve_prediction_sampling_policy_maps_public_modes() -> None:
+    default_policy = resolve_prediction_sampling_policy("default")
+    r_parity_policy = resolve_prediction_sampling_policy("r_parity")
+
+    assert default_policy.name == "default"
+    assert default_policy.seed_strategy == "stable_by_kinase"
+    assert default_policy.resampling_weight_mode == "default"
+    assert default_policy.final_score_mode == "mean_probability"
+    assert r_parity_policy.name == "r_parity"
+    assert r_parity_policy.seed_strategy == "global_parity"
+    assert r_parity_policy.resampling_weight_mode == "r_parity"
+    assert r_parity_policy.final_score_mode == "decision_sigmoid"
+
+
+def test_resolve_final_score_series_keeps_default_probability_scores() -> None:
+    policy = resolve_prediction_sampling_policy("default")
+    pred_df = pd.DataFrame(
+        {"1": [0.2, 0.8], "2": [0.8, 0.2]},
+        index=["SITE_1", "SITE_2"],
+    )
+    decision_values = pd.Series([0.0, 2.0], index=pred_df.index, dtype=float)
+
+    resolved = _resolve_final_score_series(
+        pred_df=pred_df,
+        final_decision_values=decision_values,
+        sampling_policy=policy,
+    )
+
+    pd.testing.assert_series_equal(resolved, pred_df.loc[:, "1"], check_names=False)
+
+
+def test_resolve_final_score_series_uses_decision_sigmoid_in_r_parity() -> None:
+    policy = resolve_prediction_sampling_policy("r_parity")
+    pred_df = pd.DataFrame(
+        {"1": [0.2, 0.8], "2": [0.8, 0.2]},
+        index=["SITE_1", "SITE_2"],
+    )
+    decision_values = pd.Series([-2.0, 1.0], index=pred_df.index, dtype=float)
+
+    resolved = _resolve_final_score_series(
+        pred_df=pred_df,
+        final_decision_values=decision_values,
+        sampling_policy=policy,
+    )
+
+    expected = pd.Series(
+        1.0 / (1.0 + np.exp(-decision_values.to_numpy(dtype=float))),
+        index=pred_df.index,
+        dtype=float,
+    )
+    pd.testing.assert_series_equal(resolved, expected, check_names=False)
+    assert ((resolved >= 0.0) & (resolved <= 1.0)).all()
+
+
+def test_prediction_sampling_random_source_uses_global_parity_call_order() -> None:
+    policy = resolve_prediction_sampling_policy("r_parity")
+    source_a = PredictionSamplingRandomSource(policy=policy, random_state=17)
+    source_b = PredictionSamplingRandomSource(policy=policy, random_state=17)
+
+    first_a = source_a.generators_for_kinase(kinase="KINASE_A")
+    second_a = source_a.generators_for_kinase(kinase="KINASE_B")
+    first_b = source_b.generators_for_kinase(kinase="KINASE_A")
+    second_b = source_b.generators_for_kinase(kinase="KINASE_B")
+
+    assert int(first_a[0].integers(0, 1000)) == int(first_b[0].integers(0, 1000))
+    assert int(first_a[1].integers(0, 1000)) == int(first_b[1].integers(0, 1000))
+    assert int(second_a[0].integers(0, 1000)) == int(second_b[0].integers(0, 1000))
+    assert int(second_a[1].integers(0, 1000)) == int(second_b[1].integers(0, 1000))
 
 
 def test_make_prediction_random_generators_returns_independent_streams() -> None:

@@ -1022,6 +1022,17 @@ def test_l6_native_prediction_mode_comparison_metrics() -> None:
         )
 
     assert default_metrics["n_kinases"] == r_parity_metrics["n_kinases"]
+    assert r_parity_metrics["mean_spearman"] >= default_metrics["mean_spearman"]
+    assert (
+        r_parity_metrics["mean_top10_overlap"] >= default_metrics["mean_top10_overlap"]
+    )
+    assert r_parity_metrics["mean_top10_overlap"] >= 0.82
+    assert (
+        r_parity_metrics["mean_top20_overlap"] >= default_metrics["mean_top20_overlap"]
+    )
+    assert (
+        r_parity_metrics["mean_top30_overlap"] >= default_metrics["mean_top30_overlap"]
+    )
 
 
 @pytest.mark.parity
@@ -1058,7 +1069,7 @@ def test_l6_replayed_prediction_trace_matches_r_sampling_path() -> None:
     assert metrics["iteration_decision_mae"] <= 1e-12
     assert metrics["iteration_prob_class1_corr"] >= 0.998
     assert metrics["iteration_prob_mae"] <= 0.015
-    assert metrics["final_top_site_matches"] >= 95
+    assert metrics["final_top_site_matches"] == metrics["final_top_total"]
 
 
 @pytest.mark.parity
@@ -1093,3 +1104,11 @@ def test_l6_replayed_prediction_mode_comparison_metrics() -> None:
         default_metrics["initial_total_rows"] == r_parity_metrics["initial_total_rows"]
     )
     assert default_metrics["sample_total_rows"] == r_parity_metrics["sample_total_rows"]
+    assert (
+        r_parity_metrics["iteration_decision_class1_corr"]
+        >= default_metrics["iteration_decision_class1_corr"]
+    )
+    assert (
+        r_parity_metrics["final_top_site_matches"]
+        >= default_metrics["final_top_site_matches"]
+    )
