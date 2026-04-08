@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 import pandas as pd
@@ -9,6 +10,7 @@ from phospy.constants import (
     CORE_OUTPUT_ARTIFACT_BASENAMES,
     KINASE_OUTPUT_FILENAMES,
 )
+from phospy.io import load_pred_mat
 
 EXAMPLE_OUTPUT_FILES = {
     *(f"{basename}.csv" for basename in CORE_OUTPUT_ARTIFACT_BASENAMES),
@@ -88,3 +90,29 @@ def test_readme_example_pipeline_runs_end_to_end(tmp_path) -> None:
         "kinase"
     ).reset_index(name="n_targets")
     pd.testing.assert_frame_equal(actual_target_counts, expected_target_counts)
+
+
+def _load_example_module(path: Path):
+    spec = spec_from_file_location(path.stem, path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_pred_mat_workflow_demo_runs_end_to_end(tmp_path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    module = _load_example_module(repo_root / "examples" / "predmat_workflow_demo.py")
+
+    result, export_path = module.run_demo(tmp_path)
+
+    assert export_path.name == "predMat.csv"
+    assert export_path.exists()
+
+    reloaded = load_pred_mat(export_path)
+    pd.testing.assert_frame_equal(reloaded, result.pred_mat_result.data_frame)
+    assert list(result.pred_mat_result.data_frame.columns) == [
+        "KINASE_A",
+        "KINASE_B",
+    ]

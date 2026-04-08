@@ -404,7 +404,7 @@ When `outdir` is set, the output bundle also includes `run_manifest.json`.
 
 ## `PredMatWorkflow`
 
-Use `PredMatWorkflow` when your goal is to generate a `predMat` from one documented public workflow.
+Use `PredMatWorkflow` when your goal is to generate a `predMat` from one documented public workflow. For the shortest file-backed example, see [`examples/predmat_workflow_demo.py`](../examples/predmat_workflow_demo.py).
 
 ### Constructor
 
@@ -481,18 +481,36 @@ CSV export:
 Example:
 
 ```python
+import json
+from pathlib import Path
+
+import pandas as pd
+
 from phospy import PredMatWorkflow
 from phospy.io import load_pred_mat
 
-workflow = PredMatWorkflow(svm_mode="default")
+phospho_matrix = pd.read_csv("predmat_phospho_matrix.csv", index_col=0)
+site_sequences = json.loads(Path("predmat_site_sequences.json").read_text())
+substrate_map = json.loads(Path("predmat_substrate_map.json").read_text())
+motif_sequences = json.loads(Path("predmat_motif_sequences.json").read_text())
+
+workflow = PredMatWorkflow(flank_size=2)
 result = workflow.run(
     phospho_matrix=phospho_matrix,
     substrate_map=substrate_map,
     site_sequences=site_sequences,
     motif_sequences=motif_sequences,
+    min_substrates=2,
+    min_motif_size=2,
+    ensemble_size=3,
+    top=4,
+    score_threshold=0.75,
+    inclusion=3,
+    n_iterations=2,
+    random_state=17,
 )
 
-pred_mat_result: PredMatResult = result.pred_mat_result
+pred_mat_result = result.pred_mat_result
 pred_mat = pred_mat_result.to_frame(copy=False)
 pred_mat_result.to_csv("predMat.csv")
 reloaded_pred_mat = load_pred_mat("predMat.csv")

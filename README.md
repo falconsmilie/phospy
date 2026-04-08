@@ -6,6 +6,7 @@ It is designed for users who want to:
 
 - preprocess total and phospho tables
 - analyse kinase activity from an existing `predMat`
+- generate a `predMat` from phosphosite inputs
 - run the native Python kinase workflow
 
 PhosPy is intentionally narrow. It is not a full `PhosR` replacement.
@@ -33,6 +34,8 @@ The examples below use repository paths such as `examples/data/...`. If you inst
 Use `PhosphoDataset` when you want validated total and phospho inputs plus the standard preprocessing flow.
 
 ```python
+from pathlib import Path
+
 from phospy import PhosphoDataset
 from phospy.writers import CoreOutputWriter
 
@@ -99,9 +102,48 @@ outputs = pipeline.run(outdir="examples/output")
 
 When `outdir` is set, the pipeline writes the core outputs, any kinase-analysis outputs, and `run_manifest.json`.
 
+### `PredMatWorkflow`
+
+Use `PredMatWorkflow` when your goal is to generate a `predMat` from phosphosite inputs and export it as CSV.
+
+A runnable end-to-end example lives in [`examples/predmat_workflow_demo.py`](examples/predmat_workflow_demo.py).
+
+```python
+import json
+from pathlib import Path
+
+import pandas as pd
+
+from phospy import PredMatWorkflow
+
+phospho_matrix = pd.read_csv("predmat_phospho_matrix.csv", index_col=0)
+site_sequences = json.loads(Path("predmat_site_sequences.json").read_text())
+substrate_map = json.loads(Path("predmat_substrate_map.json").read_text())
+motif_sequences = json.loads(Path("predmat_motif_sequences.json").read_text())
+
+workflow = PredMatWorkflow(flank_size=2)
+result = workflow.run(
+    phospho_matrix=phospho_matrix,
+    substrate_map=substrate_map,
+    site_sequences=site_sequences,
+    motif_sequences=motif_sequences,
+    min_substrates=2,
+    min_motif_size=2,
+    ensemble_size=3,
+    top=4,
+    score_threshold=0.75,
+    inclusion=3,
+    n_iterations=2,
+    random_state=17,
+)
+
+pred_mat = result.pred_mat_result.to_frame(copy=False)
+result.pred_mat_result.to_csv("predMat.csv")
+```
+
 ### `KinaseWorkflow`
 
-Use `KinaseWorkflow` for the native Python end-to-end scoring and prediction workflow.
+Use `KinaseWorkflow` for the fuller native Python scoring and prediction workflow when you want the intermediate profile, motif, and combined scoring outputs as well as the final prediction matrix.
 
 A runnable example lives in [`examples/native_workflow_demo.py`](examples/native_workflow_demo.py).
 

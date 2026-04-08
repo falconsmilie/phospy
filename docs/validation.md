@@ -71,4 +71,19 @@ If you are unsure where validation happens, start here:
 - `PhosphoDataset.from_files(...)` for the standard preprocessing path
 - `KinaseActivityAnalyzer.run(...)` for analysis from an existing `predMat`
 - `PhosRPipeline.from_files(...)` for the file-based one-shot flow
-- `KinaseWorkflow.run(...)` for native prediction
+- `PredMatWorkflow.run(...)` for native `predMat` generation
+- `KinaseWorkflow.run(...)` for the fuller native prediction result
+
+## Recommended predMat workflow
+
+When your goal is to generate a `predMat`, the recommended path is:
+
+1. load a numeric phosphosite matrix with phosphosite IDs as the index
+2. load `site_sequences`, `substrate_map`, and `motif_sequences` keyed by the same phosphosite or kinase identifiers
+3. run `PredMatWorkflow.run(...)`
+4. access the canonical result through `result.pred_mat_result`
+5. export with `result.pred_mat_result.to_csv("predMat.csv")`
+
+A runnable example lives in [`../examples/predmat_workflow_demo.py`](../examples/predmat_workflow_demo.py).
+
+For motif-aware prediction, PhosPy only requires sequence coverage for phosphosites that actually participate in scoring and prediction. It does not require full-matrix sequence coverage.
