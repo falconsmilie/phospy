@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+import pandas as pd
+
+from phospy import PredMatWorkflow, SignalomeMapData, SignalomeResult, SignalomeWorkflow
+
+
+def load_demo_inputs(
+    data_dir: Path,
+) -> tuple[pd.DataFrame, dict[str, list[str]], dict[str, str], dict[str, list[str]]]:
+    phospho_matrix = pd.read_csv(
+        data_dir / "predmat_phospho_matrix.csv",
+        index_col=0,
+    )
+    phospho_matrix.index = phospho_matrix.index.map(str)
+    substrate_map = json.loads(
+        (data_dir / "predmat_substrate_map.json").read_text(encoding="utf-8")
+    )
+    site_sequences = json.loads(
+        (data_dir / "predmat_site_sequences.json").read_text(encoding="utf-8")
+    )
+    motif_sequences = json.loads(
+        (data_dir / "predmat_motif_sequences.json").read_text(encoding="utf-8")
+    )
+    return phospho_matrix, substrate_map, site_sequences, motif_sequences
+
+
+def run_demo(
+    outdir: Path,
+) -> tuple[SignalomeResult, SignalomeMapData, dict[str, Path]]:
+    repo_root = Path(__file__).resolve().parents[1]
+    data_dir = repo_root / "examples" / "data"
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = load_demo_inputs(
+        data_dir
+    )
+
+    pred_mat_result = PredMatWorkflow(flank_size=2).run(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        min_substrates=2,
+        min_motif_size=2,
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.75,
+        inclusion=3,
+        n_iterations=2,
+        random_state=17,
+    )
+    signalome_result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A", "KINASE_B"],
+        signalome_cutoff=0.5,
+    )
+    map_data = signalome_result.to_map_data()
+    written = map_data.to_csv(outdir / "signalome_map")
+    return signalome_result, map_data, written
+
+
+def main() -> None:
+    with TemporaryDirectory(prefix="phospy-signalome-map-") as tmp_dir:
+        signalome_result, map_data, written = run_demo(Path(tmp_dir))
+        print(f"Wrote signalome map tables to {Path(tmp_dir) / 'signalome_map'}")
+        print("Signalome modules")
+        print(signalome_result.signalome_modules.round(2))
+        print("Map modules")
+        print(map_data.modules().round(3))
+        print("Written files")
+        print("\n".join(str(path) for path in written.values()))
+
+
+if __name__ == "__main__":
+    main()

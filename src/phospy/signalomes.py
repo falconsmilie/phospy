@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import AgglomerativeClustering
 
+from . import SignalomeMapData
 from .validation.errors import InputCompatibilityError
 
 __all__ = [
@@ -214,6 +215,13 @@ class SignalomeResult:
         """Return the canonical kinase network edge table."""
 
         return self.network.edge_table
+
+    def to_map_data(self) -> SignalomeMapData:
+        """Build serialisable map-ready plotting data from this result."""
+
+        from .signalome_maps import build_signalome_map_data
+
+        return build_signalome_map_data(self)
 
     def to_frames(
         self,

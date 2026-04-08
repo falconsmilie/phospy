@@ -85,6 +85,7 @@ def test_public_root_exports() -> None:
         "PhosRPipeline",
         "PredMatResult",
         "PredMatWorkflow",
+        "SignalomeMapData",
         "SignalomeResult",
         "SignalomeWorkflow",
     }

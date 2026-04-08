@@ -12,6 +12,7 @@ from phospy import (
     PhosRPipeline,
     PredMatResult,
     PredMatWorkflow,
+    SignalomeMapData,
     SignalomeResult,
     SignalomeWorkflow,
 )
@@ -620,6 +621,7 @@ Use:
 - `result.assignments` for site-level and protein-level assignments
 - `result.network` for graph-friendly kinase-network tables
 - `result.expanded_signalomes` for kinase-of-interest views built from the canonical module assignments
+- `result.to_map_data()` for serialisable map-ready plotting data derived from the canonical result
 
 The older convenience attributes remain available:
 
@@ -713,6 +715,87 @@ Pass `include_inputs=True` to also include the aligned `scoring_matrix`, `pred_m
 
 The CSV export uses UTF-8, deterministic newline handling, and stable float formatting.
 
+## `SignalomeMapData`
+
+Build map-ready plotting data from a signalome result:
+
+```python
+map_data = result.to_map_data()
+```
+
+This step is intentionally separate from signalome construction. `SignalomeMapData` contains deterministic coordinate and relationship tables that plotting code can consume without adding matplotlib or graph-library dependencies to the computational core.
+
+### Canonical Access Paths
+
+```python
+map_data.modules(copy: bool = True) -> pd.DataFrame
+map_data.sites(copy: bool = True) -> pd.DataFrame
+map_data.kinases(copy: bool = True) -> pd.DataFrame
+map_data.links(copy: bool = True) -> pd.DataFrame
+```
+
+`map_data.modules()` returns the module-position table with:
+
+- index: `module_id`
+- `x`
+- `y`
+- `n_sites`
+- `n_proteins`
+- `dominant_kinase`
+- `dominant_share_percent`
+
+`map_data.sites()` returns the site-position table with:
+
+- index: `site_id`
+- `protein_id`
+- `module_id`
+- `top_kinase`
+- `top_score`
+- `x`
+- `y`
+- `module_x`
+- `module_y`
+- `position_in_module`
+- `expression_mean`
+- `expression_std`
+
+`map_data.kinases()` returns the kinase-position table with:
+
+- index: `kinase`
+- `x`
+- `y`
+- `base_x`
+- `module_count`
+- `total_share_percent`
+- `degree`
+- `n_substrates`
+- `is_kinase_of_interest`
+
+`map_data.links()` returns the kinase-to-module plotting table with:
+
+- `kinase`
+- `module_id`
+- `share_percent`
+- `kinase_x`
+- `kinase_y`
+- `module_x`
+- `module_y`
+- `is_kinase_of_interest`
+
+### Export Contract
+
+```python
+map_data.to_frames(copy: bool = True) -> dict[str, pd.DataFrame]
+map_data.to_csv(directory: str | Path) -> dict[str, Path]
+```
+
+The named map exports are:
+
+- `signalome_map_modules`
+- `signalome_map_sites`
+- `signalome_map_kinases`
+- `signalome_map_links`
+
 ## CLI
 
 Use `phospy --help` for the full help text.
@@ -795,6 +878,18 @@ SignalomeResult(
     network: SignalomeKinaseNetwork,
     expanded_signalomes: dict[str, ExpandedSignalome],
 )
+
+SignalomeResult.to_map_data() -> SignalomeMapData
+
+SignalomeMapData(
+    module_positions: pd.DataFrame,
+    site_positions: pd.DataFrame,
+    kinase_positions: pd.DataFrame,
+    kinase_module_links: pd.DataFrame,
+)
+
+SignalomeMapData.to_frames(copy: bool = True) -> dict[str, pd.DataFrame]
+SignalomeMapData.to_csv(directory: str | Path) -> dict[str, Path]
 
 # canonical signalome result views
 SignalomeResult.modules -> SignalomeModules
