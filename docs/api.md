@@ -25,10 +25,10 @@ Use:
 - `KinaseActivityAnalyzer` for analysis from an existing `predMat`
 - `PhosRPipeline` for file loading plus publishing
 - `PredMatWorkflow` for one obvious public predMat generation path
-- `PredMatResult` for the canonical in-memory and export contract of a generated `predMat`
+- `PredMatResult` for the stable in-memory and export contract of a generated `predMat`
 - `KinaseWorkflow` for the native end-to-end prediction flow
 - `SignalomeWorkflow` for validated signalome construction from scoring and prediction outputs
-- `SignalomeResult` for the canonical in-memory and export contract of a constructed signalome
+- `SignalomeResult` for the stable in-memory and export contract of a constructed signalome
 - `SignalomeNetworkData` for graph-friendly kinase-network tables derived from a signalome result
 
 ## Common File Rules
@@ -466,7 +466,7 @@ The returned `PredMatWorkflowResult` exposes:
 - `prediction_result`
 - `pred_mat_result`
 
-`pred_mat_result` is the canonical predMat contract.
+`pred_mat_result` is the stable predMat result object.
 
 Row and column semantics:
 
@@ -585,7 +585,7 @@ The most commonly used fields on `prediction_result` are:
 - `pred_matrix`
 - `substrate_list`
 
-For the canonical predMat contract, prefer `PredMatWorkflowResult.pred_mat_result` or `KinasePredictionResult.pred_mat_result` over direct DataFrame access.
+For the stable predMat result, prefer `PredMatWorkflowResult.pred_mat_result` or `KinasePredictionResult.pred_mat_result` over direct DataFrame access.
 
 Example:
 
@@ -604,11 +604,65 @@ pred_matrix = result.prediction_result.pred_matrix
 ```
 
 
+## `SignalomeWorkflow`
+
+Use `SignalomeWorkflow` when you already have aligned scoring and prediction outputs and want one validated step that constructs signalomes before you derive map-ready or network-ready tables.
+
+A runnable end-to-end example lives in [`examples/signalome_workflow_demo.py`](../examples/signalome_workflow_demo.py).
+
+### `run(...)`
+
+```python
+SignalomeWorkflow().run(
+    *,
+    scoring_result: KinaseScoringResult,
+    prediction_result: KinasePredictionResult | PredMatResult,
+    expression_matrix: pd.DataFrame,
+    kinases_of_interest: Sequence[str],
+    kinase_network_threshold: float = 0.9,
+    signalome_cutoff: float = 0.5,
+    module_count: int | None = None,
+    min_kinase_module_share_percent: float = 1.0,
+) -> SignalomeResult
+```
+
+Validation highlights:
+
+- `scoring_result` and `prediction_result` must align to a shared phosphosite index
+- `prediction_result` can be either `KinasePredictionResult` or `PredMatResult`
+- `expression_matrix` must be a numeric phosphosite matrix with a unique, non-null index
+- `kinases_of_interest` must not be empty and must be present in the aligned kinase columns
+- `kinase_network_threshold` and `signalome_cutoff` must be in `[0, 1]`
+- `module_count`, when supplied, must be `>= 1`
+- `min_kinase_module_share_percent` must be `>= 0`
+
+The returned `SignalomeResult` gives you:
+
+- `result.modules` for module summaries and kinase-to-module relationships
+- `result.assignments` for site and protein assignments
+- `result.to_map_data()` for map-ready plotting tables
+- `result.to_network_data()` for graph-friendly kinase-network tables
+
+Example:
+
+```python
+signalome_result = SignalomeWorkflow().run(
+    scoring_result=pred_mat_result.scoring_result,
+    prediction_result=pred_mat_result.prediction_result,
+    expression_matrix=phospho_matrix,
+    kinases_of_interest=["KINASE_A", "KINASE_B"],
+    signalome_cutoff=0.5,
+)
+
+map_data = signalome_result.to_map_data()
+network_data = signalome_result.to_network_data()
+```
+
 ## `SignalomeResult`
 
 `SignalomeWorkflow.run(...)` returns `SignalomeResult`. Use the named result views below as the stable contract for downstream work.
 
-### Canonical Access Paths
+### Stable Access Paths
 
 ```python
 result.modules
@@ -622,9 +676,9 @@ Use:
 - `result.modules` for module-centric outputs
 - `result.assignments` for site-level and protein-level assignments
 - `result.network` for graph-friendly kinase-network tables
-- `result.expanded_signalomes` for kinase-of-interest views built from the canonical module assignments
-- `result.to_map_data()` for serialisable map-ready plotting data derived from the canonical result
-- `result.to_network_data()` for graph-friendly kinase-network tables derived from the canonical result
+- `result.expanded_signalomes` for kinase-of-interest views built from the module assignments
+- `result.to_map_data()` for serialisable map-ready plotting data derived from the signalome result
+- `result.to_network_data()` for graph-friendly kinase-network tables derived from the signalome result
 
 The older convenience attributes remain available:
 
@@ -646,7 +700,7 @@ result.modules.to_relationship_table(copy: bool = True) -> pd.DataFrame
 
 `result.modules.to_frame()` returns the wide module-by-kinase percentage matrix.
 
-`result.modules.to_relationship_table()` returns the canonical long relationship table with:
+`result.modules.to_relationship_table()` returns the long relationship table with:
 
 - `module_id`
 - `kinase`
@@ -661,7 +715,7 @@ result.assignments.sites(copy: bool = True) -> pd.DataFrame
 result.assignments.proteins(copy: bool = True) -> pd.DataFrame
 ```
 
-`result.assignments.sites()` returns the canonical site assignment table with:
+`result.assignments.sites()` returns the site assignment table with:
 
 - index: `site_id`
 - `protein_id`
@@ -669,7 +723,7 @@ result.assignments.proteins(copy: bool = True) -> pd.DataFrame
 - `top_kinase`
 - `top_score`
 
-`result.assignments.proteins()` returns the canonical protein assignment table with:
+`result.assignments.proteins()` returns the protein assignment table with:
 
 - index: `protein_id`
 - `module_id`
@@ -685,13 +739,13 @@ result.network.edges(copy: bool = True) -> pd.DataFrame
 
 `result.network.adjacency()` returns the kinase correlation matrix used to derive network edges.
 
-`result.network.nodes()` returns the canonical node table with:
+`result.network.nodes()` returns the node table with:
 
 - index: `kinase`
 - `degree`
 - `n_substrates`
 
-`result.network.edges()` returns the canonical edge table with:
+`result.network.edges()` returns the edge table with:
 
 - `source_kinase`
 - `target_kinase`
@@ -728,7 +782,7 @@ network_data = result.to_network_data()
 
 This step is intentionally separate from signalome construction. `SignalomeNetworkData` contains deterministic node, edge, and adjacency outputs that graph or plotting code can consume without binding the public API to one graph library.
 
-### Canonical Access Paths
+### Stable Access Paths
 
 ```python
 network_data.nodes(copy: bool = True) -> pd.DataFrame
@@ -736,7 +790,7 @@ network_data.edges(copy: bool = True) -> pd.DataFrame
 network_data.adjacency(copy: bool = True) -> pd.DataFrame
 ```
 
-`network_data.nodes()` returns the canonical node table with:
+`network_data.nodes()` returns the node table with:
 
 - index: `kinase`
 - `degree`
@@ -745,7 +799,7 @@ network_data.adjacency(copy: bool = True) -> pd.DataFrame
 - `total_share_percent`
 - `is_kinase_of_interest`
 
-`network_data.edges()` returns the canonical edge list with:
+`network_data.edges()` returns the edge list with:
 
 - `source_kinase`
 - `target_kinase`
@@ -780,7 +834,7 @@ map_data = result.to_map_data()
 
 This step is intentionally separate from signalome construction. `SignalomeMapData` contains deterministic coordinate and relationship tables that plotting code can consume without adding matplotlib or graph-library dependencies to the computational core.
 
-### Canonical Access Paths
+### Stable Access Paths
 
 ```python
 map_data.modules(copy: bool = True) -> pd.DataFrame
@@ -912,7 +966,7 @@ PredMatWorkflowResult(
     pred_mat_result: PredMatResult,
 )
 
-# canonical predMat contract
+# preferred predMat result object
 PredMatWorkflowResult.pred_mat_result -> PredMatResult
 
 PredMatResult(
@@ -922,7 +976,7 @@ PredMatResult(
 PredMatResult.to_frame(copy: bool = True) -> pd.DataFrame
 PredMatResult.to_csv(path: str | Path, index_label: str = "phosphosite") -> Path
 
-`SiteMatrixResult` is a separate preprocessing result for the corrected phosphosite site matrix. It is not the prediction-matrix contract. The canonical prediction-matrix result is `PredMatResult`.
+`SiteMatrixResult` is a separate preprocessing result for the corrected phosphosite site matrix. It is not the prediction-matrix contract. The preferred prediction-matrix result is `PredMatResult`.
 
 SignalomeResult(
     scoring_matrix: pd.DataFrame,
@@ -956,7 +1010,7 @@ SignalomeMapData.to_csv(directory: str | Path) -> dict[str, Path]
 SignalomeNetworkData.to_frames(copy: bool = True) -> dict[str, pd.DataFrame]
 SignalomeNetworkData.to_csv(directory: str | Path) -> dict[str, Path]
 
-# canonical signalome result views
+# stable signalome result views
 SignalomeResult.modules -> SignalomeModules
 SignalomeResult.assignments -> SignalomeAssignments
 SignalomeResult.network -> SignalomeKinaseNetwork
@@ -975,7 +1029,7 @@ KinasePredictionResult(
     substrate_list: dict[str, list[str]],
 )
 
-# canonical predMat contract on the lower-level result
+# preferred predMat result object on the lower-level result
 KinasePredictionResult.pred_mat_result -> PredMatResult
 
 KinaseActivityResult(

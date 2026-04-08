@@ -25,7 +25,8 @@ For parquet output:
 pip install "phospy[parquet]"
 ```
 
-The examples below use repository paths such as `examples/data/...`. If you installed from PyPI, use your own local file paths.
+The examples below use repository paths such as `examples/data/...`. If you installed from PyPI, use your own local file
+paths.
 
 ## Choose the Right Entry Point
 
@@ -82,7 +83,8 @@ The bundled example data is tiny, so it uses `min_substrates=1` and `top_n_subst
 
 ### `PhosRPipeline`
 
-Use `PhosRPipeline` when you want file loading, preprocessing, optional kinase analysis, and output publishing in one call.
+Use `PhosRPipeline` when you want file loading, preprocessing, optional kinase analysis, and output publishing in one
+call.
 
 ```python
 from phospy import PhosRPipeline
@@ -143,7 +145,8 @@ result.pred_mat_result.to_csv("predMat.csv")
 
 ### `KinaseWorkflow`
 
-Use `KinaseWorkflow` for the fuller native Python scoring and prediction workflow when you want the intermediate profile, motif, and combined scoring outputs as well as the final prediction matrix.
+Use `KinaseWorkflow` for the fuller native Python scoring and prediction workflow when you want the intermediate
+profile, motif, and combined scoring outputs as well as the final prediction matrix.
 
 A runnable example lives in [`examples/native_workflow_demo.py`](examples/native_workflow_demo.py).
 
@@ -152,6 +155,32 @@ From a repository checkout:
 ```bash
 make native-workflow-demo
 ```
+
+### `SignalomeWorkflow`
+
+Use `SignalomeWorkflow` when you already have scoring and prediction outputs and want the next downstream layer:
+signalome modules plus map-ready and network-ready derived outputs.
+
+A runnable end-to-end example lives in [`examples/signalome_workflow_demo.py`](examples/signalome_workflow_demo.py).
+
+```python
+from phospy import PredMatWorkflow, SignalomeWorkflow
+
+pred_mat_result = PredMatWorkflow(flank_size=2).run(...)
+signalome_result = SignalomeWorkflow().run(
+    scoring_result=pred_mat_result.scoring_result,
+    prediction_result=pred_mat_result.prediction_result,
+    expression_matrix=phospho_matrix,
+    kinases_of_interest=["KINASE_A", "KINASE_B"],
+    signalome_cutoff=0.5,
+)
+
+map_data = signalome_result.to_map_data()
+network_data = signalome_result.to_network_data()
+```
+
+Use `signalome_result.to_csv(...)`, `map_data.to_csv(...)`, and `network_data.to_csv(...)` when you want exportable
+tables.
 
 ## File Inputs
 

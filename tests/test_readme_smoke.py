@@ -116,3 +116,51 @@ def test_pred_mat_workflow_demo_runs_end_to_end(tmp_path) -> None:
         "KINASE_A",
         "KINASE_B",
     ]
+
+
+def test_signalome_workflow_demo_runs_end_to_end(tmp_path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    module = _load_example_module(repo_root / "examples" / "signalome_workflow_demo.py")
+
+    signalome_result, map_data, network_data, written = module.run_demo(tmp_path)
+
+    assert sorted(written) == ["map", "network", "signalome"]
+    assert signalome_result.modules.to_frame().shape == (2, 2)
+    assert map_data.modules().shape[0] == 2
+    assert list(network_data.nodes().index) == ["KINASE_A", "KINASE_B"]
+
+    signalome_modules_path = written["signalome"]["signalome_modules"]
+    signalome_map_modules_path = written["map"]["signalome_map_modules"]
+    signalome_network_nodes_path = written["network"]["signalome_network_nodes"]
+
+    assert signalome_modules_path.exists()
+    assert signalome_map_modules_path.exists()
+    assert signalome_network_nodes_path.exists()
+
+    reloaded_signalome_modules = pd.read_csv(signalome_modules_path, index_col=0)
+    reloaded_map_modules = pd.read_csv(signalome_map_modules_path, index_col=0)
+    reloaded_network_nodes = pd.read_csv(signalome_network_nodes_path, index_col=0)
+
+    reloaded_signalome_modules.index.name = (
+        signalome_result.modules.to_frame().index.name
+    )
+    reloaded_signalome_modules.columns.name = (
+        signalome_result.modules.to_frame().columns.name
+    )
+    reloaded_map_modules.index.name = map_data.modules().index.name
+    reloaded_network_nodes.index.name = network_data.nodes().index.name
+
+    pd.testing.assert_frame_equal(
+        reloaded_signalome_modules.astype(
+            signalome_result.modules.to_frame().dtypes.to_dict()
+        ),
+        signalome_result.modules.to_frame(),
+    )
+    pd.testing.assert_frame_equal(
+        reloaded_map_modules.astype(map_data.modules().dtypes.to_dict()),
+        map_data.modules(),
+    )
+    pd.testing.assert_frame_equal(
+        reloaded_network_nodes.astype(network_data.nodes().dtypes.to_dict()),
+        network_data.nodes(),
+    )
