@@ -254,6 +254,85 @@ def test_signalome_workflow_rejects_incomplete_site_to_protein_mapping() -> None
         )
 
 
+def test_signalome_workflow_rejects_malformed_supported_site_identifier_without_mapping() -> (
+    None
+):
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+    malformed_index = [
+        "PROTEIN_1;banana;",
+        *[f"PROTEIN_{i};S{i};" for i in range(2, phospho_matrix.shape[0] + 1)],
+    ]
+    malformed_expression_matrix = phospho_matrix.copy()
+    malformed_expression_matrix.index = malformed_index
+
+    scoring_result = pred_mat_result.scoring_result
+    scoring_result.combined_scores.index = malformed_index
+    scoring_result.profile_scores.index = malformed_index
+
+    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat.index = malformed_index
+    malformed_pred_mat_result = PredMatResult(pred_mat)
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=(
+            "Signalome construction requires either an explicit site_to_protein "
+            "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
+            "format"
+        ),
+    ):
+        SignalomeWorkflow().run(
+            scoring_result=scoring_result,
+            prediction_result=malformed_pred_mat_result,
+            expression_matrix=malformed_expression_matrix,
+            kinases_of_interest=["KINASE_A"],
+            signalome_cutoff=0.5,
+        )
+
+
+def test_build_signalome_result_rejects_malformed_supported_site_identifier_without_mapping() -> (
+    None
+):
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 1.0],
+            "KINASE_B": [1.0, 1.0],
+        },
+        index=["PROTEIN_1;banana;", "PROTEIN_2;S2;"],
+    )
+    pred_mat = pd.DataFrame(
+        {
+            "KINASE_A": [0.9, 0.2],
+            "KINASE_B": [0.1, 0.8],
+        },
+        index=scoring_matrix.index.copy(),
+    )
+    expression_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 2.0],
+            "sample_2": [1.1, 2.1],
+        },
+        index=scoring_matrix.index.copy(),
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=(
+            "Signalome construction requires either an explicit site_to_protein "
+            "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
+            "format"
+        ),
+    ):
+        build_signalome_result(
+            scoring_matrix=scoring_matrix,
+            pred_mat=pred_mat,
+            expression_matrix=expression_matrix,
+            kinases_of_interest=["KINASE_A"],
+            signalome_cutoff=0.5,
+            module_count=1,
+        )
+
+
 def test_build_signalome_result_uses_explicit_site_to_protein_mapping_for_grouping() -> (
     None
 ):

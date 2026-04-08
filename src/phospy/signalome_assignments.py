@@ -6,7 +6,11 @@ from collections.abc import Mapping, Sequence
 import pandas as pd
 
 from .signalome_models import ExpandedSignalome
-from .validation.errors import InputCompatibilityError
+from .signalome_site_ids import (
+    parse_supported_signalome_site_ids,
+    protein_id_from_supported_signalome_site_id,
+    resolve_signalome_site_to_protein,
+)
 
 __all__ = [
     "build_expanded_signalomes",
@@ -15,6 +19,8 @@ __all__ = [
     "build_signalome_module_table",
     "build_site_assignments",
     "derive_protein_modules",
+    "parse_supported_site_ids",
+    "protein_id_from_supported_site_id",
     "resolve_site_to_protein",
     "select_kinase_substrates",
 ]
@@ -27,93 +33,42 @@ def resolve_site_to_protein(
 ) -> pd.Series:
     """Resolve aligned phosphosite IDs to validated protein IDs."""
 
-    if site_to_protein is None:
-        return parse_supported_site_ids(site_ids)
-
-    if isinstance(site_to_protein, pd.Series):
-        mapping: Mapping[str, str] = {
-            str(site_id): str(protein_id)
-            for site_id, protein_id in site_to_protein.items()
-        }
-    else:
-        mapping = site_to_protein
-
-    missing_site_ids = [site_id for site_id in site_ids if site_id not in mapping]
-    if missing_site_ids:
-        preview = ", ".join(missing_site_ids[:3])
-        msg = (
+    return resolve_signalome_site_to_protein(
+        site_ids=site_ids,
+        site_to_protein=site_to_protein,
+        missing_mapping_context=(
             "site_to_protein must define a protein ID for every signalome site. "
-            f"Missing mappings for: {preview}"
-        )
-        if len(missing_site_ids) > 3:
-            msg += ", ..."
-        raise InputCompatibilityError(msg)
-
-    protein_ids = [str(mapping[site_id]).strip() for site_id in site_ids]
-    invalid_site_ids = [
-        site_id
-        for site_id, protein_id in zip(site_ids, protein_ids, strict=True)
-        if not protein_id
-    ]
-    if invalid_site_ids:
-        preview = ", ".join(invalid_site_ids[:3])
-        msg = (
+            "Missing mappings for"
+        ),
+        invalid_mapping_context=(
             "site_to_protein must map every signalome site to a non-empty protein "
-            f"ID. Invalid mappings for: {preview}"
-        )
-        if len(invalid_site_ids) > 3:
-            msg += ", ..."
-        raise InputCompatibilityError(msg)
-
-    series = pd.Series(
-        protein_ids, index=pd.Index(site_ids, dtype=object), dtype=object
+            "ID. Invalid mappings for"
+        ),
+        invalid_site_id_context=(
+            "Signalome construction requires either an explicit site_to_protein "
+            "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
+            "format. Invalid site IDs"
+        ),
     )
-    series.index.name = "site_id"
-    series.name = "protein_id"
-    return series
 
 
 def parse_supported_site_ids(site_ids: Sequence[str]) -> pd.Series:
     """Parse supported phosphosite identifiers into protein IDs."""
 
-    protein_ids: list[str] = []
-    invalid_site_ids: list[str] = []
-    for site_id in site_ids:
-        protein_id = protein_id_from_supported_site_id(site_id)
-        if protein_id is None:
-            invalid_site_ids.append(site_id)
-            continue
-        protein_ids.append(protein_id)
-
-    if invalid_site_ids:
-        preview = ", ".join(invalid_site_ids[:3])
-        msg = (
+    return parse_supported_signalome_site_ids(
+        site_ids,
+        invalid_site_id_context=(
             "Signalome construction requires either an explicit site_to_protein "
             "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
-            f"format. Invalid site IDs: {preview}"
-        )
-        if len(invalid_site_ids) > 3:
-            msg += ", ..."
-        raise InputCompatibilityError(msg)
-
-    series = pd.Series(
-        protein_ids, index=pd.Index(site_ids, dtype=object), dtype=object
+            "format. Invalid site IDs"
+        ),
     )
-    series.index.name = "site_id"
-    series.name = "protein_id"
-    return series
 
 
-def protein_id_from_supported_site_id(site_id: str) -> str | None:
+def protein_id_from_supported_site_id(site_id: object) -> str | None:
     """Extract a protein ID from a supported ``PROTEIN;SITE;...`` site ID."""
 
-    parts = [part.strip() for part in str(site_id).split(";")]
-    if len(parts) < 3:
-        return None
-    protein_id, residue = parts[0], parts[1]
-    if not protein_id or not residue:
-        return None
-    return protein_id
+    return protein_id_from_supported_signalome_site_id(site_id)
 
 
 def derive_protein_modules(

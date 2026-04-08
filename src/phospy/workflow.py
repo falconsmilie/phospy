@@ -9,7 +9,8 @@ from .motifs import MotifScoringResult
 from .prediction import KinasePredictionResult, KinasePredictor, PredMatResult
 from .profiles import KinaseProfileResult, build_kinase_substrate_profiles
 from .scoring import KinaseScorer, KinaseScoringResult
-from .signalomes import SignalomeResult, build_signalome_result
+from .signalome_construction import execute_validated_signalome_request
+from .signalomes import SignalomeResult
 from .types import PredictionSvmMode
 from .validation.signalomes import (
     ValidatedSignalomeRequest,
@@ -379,16 +380,4 @@ class SignalomeWorkflow:
         self,
         request: ValidatedSignalomeRequest,
     ) -> SignalomeResult:
-        return build_signalome_result(
-            scoring_matrix=request.scoring_matrix,
-            pred_mat=request.pred_mat,
-            expression_matrix=request.expression_matrix,
-            kinases_of_interest=request.request.kinases_of_interest,
-            site_to_protein=request.site_to_protein,
-            kinase_network_threshold=request.request.kinase_network_threshold,
-            signalome_cutoff=request.request.signalome_cutoff,
-            module_count=request.request.module_count,
-            min_kinase_module_share_percent=(
-                request.request.min_kinase_module_share_percent
-            ),
-        )
+        return execute_validated_signalome_request(request)

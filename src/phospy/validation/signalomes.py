@@ -9,6 +9,7 @@ from pydantic import Field, ValidationError, field_validator
 
 from ..prediction.models import KinasePredictionResult, PredMatResult
 from ..scoring import KinaseScoringResult
+from ..signalome_site_ids import resolve_signalome_site_to_protein
 from ._models import PhospyRequestModel
 from .errors import (
     InputCompatibilityError,
@@ -242,93 +243,23 @@ def _validate_signalome_site_grouping(
     site_ids: Sequence[str],
     site_to_protein: Mapping[str, str] | None,
 ) -> pd.Series:
-    if site_to_protein is not None:
-        return _validate_explicit_site_to_protein_mapping(
-            site_ids=site_ids,
-            site_to_protein=site_to_protein,
-        )
-    return _validate_supported_signalome_site_ids(site_ids)
-
-
-def _validate_explicit_site_to_protein_mapping(
-    *,
-    site_ids: Sequence[str],
-    site_to_protein: Mapping[str, str],
-) -> pd.Series:
-    missing_site_ids = [
-        site_id for site_id in site_ids if site_id not in site_to_protein
-    ]
-    if missing_site_ids:
-        preview = ", ".join(missing_site_ids[:3])
-        msg = (
+    return resolve_signalome_site_to_protein(
+        site_ids=site_ids,
+        site_to_protein=site_to_protein,
+        missing_mapping_context=(
             "site_to_protein must define a protein ID for every aligned phosphosite "
-            f"row. Missing mappings for: {preview}"
-        )
-        if len(missing_site_ids) > 3:
-            msg += ", ..."
-        raise InputCompatibilityError(msg)
-
-    protein_ids = [str(site_to_protein[site_id]).strip() for site_id in site_ids]
-    invalid_site_ids = [
-        site_id
-        for site_id, protein_id in zip(site_ids, protein_ids, strict=True)
-        if not protein_id
-    ]
-    if invalid_site_ids:
-        preview = ", ".join(invalid_site_ids[:3])
-        msg = (
+            "row. Missing mappings for"
+        ),
+        invalid_mapping_context=(
             "site_to_protein must map aligned phosphosite rows to non-empty protein "
-            f"IDs. Invalid mappings for: {preview}"
-        )
-        if len(invalid_site_ids) > 3:
-            msg += ", ..."
-        raise InputCompatibilityError(msg)
-
-    series = pd.Series(
-        protein_ids, index=pd.Index(site_ids, dtype=object), dtype=object
-    )
-    series.index.name = "site_id"
-    series.name = "protein_id"
-    return series
-
-
-def _validate_supported_signalome_site_ids(site_ids: Sequence[str]) -> pd.Series:
-    protein_ids: list[str] = []
-    invalid_site_ids: list[str] = []
-    for site_id in site_ids:
-        protein_id = _protein_id_from_supported_site_id(site_id)
-        if protein_id is None:
-            invalid_site_ids.append(site_id)
-            continue
-        protein_ids.append(protein_id)
-
-    if invalid_site_ids:
-        preview = ", ".join(invalid_site_ids[:3])
-        msg = (
+            "IDs. Invalid mappings for"
+        ),
+        invalid_site_id_context=(
             "Signalome construction requires either an explicit site_to_protein "
             "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
-            f"format. Invalid aligned site IDs: {preview}"
-        )
-        if len(invalid_site_ids) > 3:
-            msg += ", ..."
-        raise InputCompatibilityError(msg)
-
-    series = pd.Series(
-        protein_ids, index=pd.Index(site_ids, dtype=object), dtype=object
+            "format. Invalid aligned site IDs"
+        ),
     )
-    series.index.name = "site_id"
-    series.name = "protein_id"
-    return series
-
-
-def _protein_id_from_supported_site_id(site_id: str) -> str | None:
-    parts = [part.strip() for part in str(site_id).split(";")]
-    if len(parts) < 3:
-        return None
-    protein_id, residue = parts[0], parts[1]
-    if not protein_id or not residue:
-        return None
-    return protein_id
 
 
 def _resolve_scoring_matrix(scoring_result: KinaseScoringResult) -> pd.DataFrame:
