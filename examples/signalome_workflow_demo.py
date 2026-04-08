@@ -75,6 +75,8 @@ def run_demo(
         kinases_of_interest=["KINASE_A", "KINASE_B"],
         site_to_protein=build_site_to_protein(phospho_matrix.index),
         signalome_cutoff=0.5,
+        # For larger real-world datasets, set module_count explicitly to skip
+        # the extra automatic module-selection scoring pass.
     )
     map_data = signalome_result.to_map_data()
     network_data = signalome_result.to_network_data()

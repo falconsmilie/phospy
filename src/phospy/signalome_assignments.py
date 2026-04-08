@@ -157,29 +157,38 @@ def build_site_assignments(
     ``top_kinase_candidates`` and summarised by the tie-count diagnostics.
     """
 
-    rows: list[dict[str, object]] = []
-    for site_id in pred_mat.index.astype(str):
-        protein_id = str(site_to_protein.loc[site_id])
-        scores = pred_mat.loc[site_id]
-        top_score = float(scores.max())
-        top_kinases = sorted(
-            str(kinase) for kinase in scores.index[scores.eq(top_score)]
-        )
-        rows.append(
-            {
-                "site_id": site_id,
-                "protein_id": protein_id,
-                "module_id": int(protein_modules.loc[protein_id]),
-                "top_kinase": top_kinases[0],
-                "top_kinase_candidates": json.dumps(top_kinases),
-                "top_kinase_tie_count": len(top_kinases),
-                "top_kinase_is_ambiguous": len(top_kinases) > 1,
-                "top_score": top_score,
-            }
-        )
+    site_index = pd.Index(pred_mat.index.astype(str), name="site_id")
+    sorted_kinase_columns = sorted(str(kinase) for kinase in pred_mat.columns)
+    sorted_pred_mat = pred_mat.loc[:, sorted_kinase_columns]
 
-    site_assignments = pd.DataFrame.from_records(rows).set_index("site_id")
-    site_assignments.index.name = "site_id"
+    top_scores = sorted_pred_mat.max(axis=1).astype(float)
+    top_score_mask = sorted_pred_mat.eq(top_scores, axis=0)
+    top_score_mask_values = top_score_mask.to_numpy(dtype=bool, copy=False)
+    top_kinase_names = top_score_mask.columns.to_numpy(dtype=object, copy=False)
+
+    top_kinase_tie_count = top_score_mask_values.sum(axis=1).astype(int)
+    top_kinase_positions = top_score_mask_values.argmax(axis=1)
+    top_kinases = top_kinase_names[top_kinase_positions]
+    top_kinase_candidates = [
+        json.dumps(top_kinase_names[mask_row].tolist())
+        for mask_row in top_score_mask_values
+    ]
+
+    protein_ids = site_to_protein.loc[site_index].astype(str)
+    module_ids = protein_ids.map(protein_modules).astype(int)
+
+    site_assignments = pd.DataFrame(
+        {
+            "protein_id": protein_ids.to_numpy(dtype=object, copy=False),
+            "module_id": module_ids.to_numpy(dtype=int, copy=False),
+            "top_kinase": top_kinases,
+            "top_kinase_candidates": top_kinase_candidates,
+            "top_kinase_tie_count": top_kinase_tie_count,
+            "top_kinase_is_ambiguous": top_kinase_tie_count > 1,
+            "top_score": top_scores.to_numpy(dtype=float, copy=False),
+        },
+        index=site_index,
+    )
     site_assignments = site_assignments.astype(
         {
             "protein_id": str,

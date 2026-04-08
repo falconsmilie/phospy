@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+import phospy.signalome_clustering as signalome_clustering
 from phospy import PredMatResult, SignalomeResult
 from phospy.signalomes import build_signalome_result
 from phospy.validation.errors import (
@@ -345,6 +346,42 @@ def test_build_site_assignments_tracks_tied_top_kinases_deterministically() -> N
     assert clear_row["top_kinase_candidates"] == '["KINASE_A"]'
     assert clear_row["top_kinase_tie_count"] == 1
     assert not bool(clear_row["top_kinase_is_ambiguous"])
+
+
+def test_select_module_count_evaluates_each_cluster_count_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 1.1, 2.0, 2.1, 3.0, 3.1],
+            "KINASE_B": [1.2, 1.0, 2.2, 2.0, 3.2, 3.0],
+            "KINASE_C": [0.9, 1.2, 1.9, 2.2, 2.9, 3.2],
+        },
+        index=[f"PROTEIN_{i};S{i};" for i in range(1, 7)],
+    )
+
+    observed_cluster_counts: list[int] = []
+    original_fit_cluster_labels = signalome_clustering.fit_cluster_labels
+
+    def counting_fit_cluster_labels(
+        scoring_values: object,
+        cluster_count: int,
+    ) -> object:
+        observed_cluster_counts.append(cluster_count)
+        return original_fit_cluster_labels(scoring_values, cluster_count)
+
+    monkeypatch.setattr(
+        signalome_clustering,
+        "fit_cluster_labels",
+        counting_fit_cluster_labels,
+    )
+
+    selected = signalome_clustering.select_module_count(
+        scoring_matrix.to_numpy(dtype=float)
+    )
+
+    assert selected >= 1
+    assert observed_cluster_counts == [2, 3, 4, 5, 6]
 
 
 def test_build_site_assignments_is_stable_when_pred_mat_columns_are_reordered() -> None:
