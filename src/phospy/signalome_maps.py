@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
-    from .signalomes import SignalomeResult
+    from .signalome_models import SignalomeResult
 
 __all__ = [
     "SignalomeMapData",

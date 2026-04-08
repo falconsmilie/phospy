@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 if TYPE_CHECKING:
-    from .signalomes import SignalomeResult
+    from .signalome_models import SignalomeResult
 
 __all__ = [
     "SignalomeNetworkData",
