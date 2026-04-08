@@ -98,58 +98,56 @@ class _PipelineRequestLoader:
             raise RequestValidationError(msg) from error
 
 
-class _PipelineRunner:
-    def __init__(self, *, kinase_activity_analyzer: KinaseActivityAnalyzer) -> None:
-        self.kinase_activity_analyzer = kinase_activity_analyzer
+def _run_pipeline_request(
+    *,
+    request: ValidatedPipelineRequest,
+    kinase_activity_analyzer: KinaseActivityAnalyzer,
+) -> CoreOutputs:
+    core = request.dataset.preprocessing.run(config=request.preprocessing_config)
 
-    def run(self, request: ValidatedPipelineRequest) -> CoreOutputs:
-        core = request.dataset.preprocessing.run(config=request.preprocessing_config)
-
-        kinase_activity = None
-        kinase_activity_request = validate_pipeline_runtime_compatibility(
-            request=request,
-            site_matrix=core.site_matrix.matrix,
+    kinase_activity = None
+    kinase_activity_request = validate_pipeline_runtime_compatibility(
+        request=request,
+        site_matrix=core.site_matrix.matrix,
+    )
+    if kinase_activity_request is not None:
+        kinase_activity = kinase_activity_analyzer.run_validated(
+            kinase_activity_request
         )
-        if kinase_activity_request is not None:
-            kinase_activity = self.kinase_activity_analyzer.run_validated(
-                kinase_activity_request
-            )
 
-        return CoreOutputs(core=core, kinase_activity=kinase_activity)
+    return CoreOutputs(core=core, kinase_activity=kinase_activity)
 
 
-class _PipelineOutputCoordinator:
-    def publish(
-        self,
-        *,
-        outdir: str | Path,
-        outputs: CoreOutputs,
-        preprocessing_config: CorePreprocessingConfig,
-        manifest_writer: RunManifestWriter,
-        output_publisher: OutputPublisher,
-    ) -> None:
-        target_dir = Path(outdir)
-        parent_dir = target_dir.parent
-        parent_dir.mkdir(parents=True, exist_ok=True)
+def _publish_pipeline_outputs(
+    *,
+    outdir: str | Path,
+    outputs: CoreOutputs,
+    preprocessing_config: CorePreprocessingConfig,
+    manifest_writer: RunManifestWriter,
+    output_publisher: OutputPublisher,
+) -> None:
+    target_dir = Path(outdir)
+    parent_dir = target_dir.parent
+    parent_dir.mkdir(parents=True, exist_ok=True)
 
-        with TemporaryDirectory(
-            dir=parent_dir,
-            prefix=f".{target_dir.name}.tmp-",
-        ) as staging_dir_str:
-            staging_dir = Path(staging_dir_str)
-            CoreOutputWriter().write(outputs.core, staging_dir)
-            if outputs.kinase_activity is not None:
-                KinaseActivityWriter().write(outputs.kinase_activity, staging_dir)
-            manifest_writer.write(
-                outdir=staging_dir,
-                core=outputs.core,
-                kinase_activity=outputs.kinase_activity,
-                preprocessing_config=preprocessing_config,
-            )
-            output_publisher.publish(
-                staging_dir=staging_dir,
-                target_dir=target_dir,
-            )
+    with TemporaryDirectory(
+        dir=parent_dir,
+        prefix=f".{target_dir.name}.tmp-",
+    ) as staging_dir_str:
+        staging_dir = Path(staging_dir_str)
+        CoreOutputWriter().write(outputs.core, staging_dir)
+        if outputs.kinase_activity is not None:
+            KinaseActivityWriter().write(outputs.kinase_activity, staging_dir)
+        manifest_writer.write(
+            outdir=staging_dir,
+            core=outputs.core,
+            kinase_activity=outputs.kinase_activity,
+            preprocessing_config=preprocessing_config,
+        )
+        output_publisher.publish(
+            staging_dir=staging_dir,
+            target_dir=target_dir,
+        )
 
 
 class PhosRPipeline:
@@ -185,44 +183,26 @@ class PhosRPipeline:
             kinase_activity_min_substrates=kinase_activity_min_substrates,
             kinase_activity_top_n_substrates=kinase_activity_top_n_substrates,
         )
-        initialized = self._build_from_validated_request(
+        self._initialize_from_validated_request(
             request=request,
             manifest_writer=manifest_writer,
             output_publisher=output_publisher,
         )
 
-        object.__setattr__(self, "request", initialized.request)
-        self.dataset = initialized.dataset
-        self.pred_mat = initialized.pred_mat
-        self.preprocessing_config = initialized.preprocessing_config
-        self.kinase_activity_analyzer = initialized.kinase_activity_analyzer
-        self.manifest_writer = initialized.manifest_writer
-        self.output_publisher = initialized.output_publisher
-        self.runner = initialized.runner
-        self.output_coordinator = initialized.output_coordinator
-
-    @classmethod
-    def _build_from_validated_request(
-        cls,
+    def _initialize_from_validated_request(
+        self,
         *,
         request: ValidatedPipelineRequest,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
-    ) -> PhosRPipeline:
-        instance = cls.__new__(cls)
-        object.__setattr__(instance, "request", request)
-        instance.dataset = request.dataset
-        instance.pred_mat = request.pred_mat
-        instance.preprocessing_config = request.preprocessing_config
-        instance.kinase_activity_request = request.kinase_activity_request
-        instance.kinase_activity_analyzer = KinaseActivityAnalyzer()
-        instance.manifest_writer = manifest_writer or RunManifestWriter()
-        instance.output_publisher = output_publisher or OutputPublisher()
-        instance.runner = _PipelineRunner(
-            kinase_activity_analyzer=instance.kinase_activity_analyzer
-        )
-        instance.output_coordinator = _PipelineOutputCoordinator()
-        return instance
+    ) -> None:
+        object.__setattr__(self, "request", request)
+        self.dataset = request.dataset
+        self.pred_mat = request.pred_mat
+        self.preprocessing_config = request.preprocessing_config
+        self.kinase_activity_analyzer = KinaseActivityAnalyzer()
+        self.manifest_writer = manifest_writer or RunManifestWriter()
+        self.output_publisher = output_publisher or OutputPublisher()
 
     @classmethod
     def _from_request(
@@ -247,11 +227,13 @@ class PhosRPipeline:
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
     ) -> PhosRPipeline:
-        return cls._build_from_validated_request(
+        instance = cls.__new__(cls)
+        instance._initialize_from_validated_request(
             request=request,
             manifest_writer=manifest_writer,
             output_publisher=output_publisher,
         )
+        return instance
 
     @classmethod
     def from_files(
@@ -297,10 +279,13 @@ class PhosRPipeline:
         )
 
     def run(self, outdir: str | Path | None = None) -> CoreOutputs:
-        outputs = self.runner.run(self.request)
+        outputs = _run_pipeline_request(
+            request=self.request,
+            kinase_activity_analyzer=self.kinase_activity_analyzer,
+        )
 
         if outdir is not None:
-            self.output_coordinator.publish(
+            _publish_pipeline_outputs(
                 outdir=outdir,
                 outputs=outputs,
                 preprocessing_config=self.preprocessing_config,

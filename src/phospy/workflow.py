@@ -44,7 +44,7 @@ class KinaseWorkflowResult:
 class PredMatWorkflowResult:
     """Stable result bundle for one public predMat generation run.
 
-    The canonical predMat contract is exposed through ``pred_mat_result``.
+    The recommended predMat contract is exposed through ``pred_mat_result``.
     """
 
     scoring_result: KinaseScoringResult
@@ -68,85 +68,7 @@ class PredMatWorkflowResult:
         self.close()
 
 
-@dataclass(frozen=True, slots=True)
-class _WorkflowPlan:
-    request: ValidatedWorkflowRequest
-    kernel: str
-    predictor_svm_mode: PredictionSvmMode
-
-
-class _WorkflowPlanner:
-    def __init__(self, *, kernel: str) -> None:
-        self.kernel = kernel
-
-    def plan(
-        self,
-        request: ValidatedWorkflowRequest,
-    ) -> _WorkflowPlan:
-        return _WorkflowPlan(
-            request=request,
-            kernel=self.kernel,
-            predictor_svm_mode=request.predictor_svm_mode,
-        )
-
-
-class _WorkflowRunner:
-    def execute(self, plan: _WorkflowPlan) -> KinaseWorkflowResult:
-        request = plan.request.request
-        phospho_matrix = plan.request.phospho_matrix
-
-        profile_result = build_kinase_substrate_profiles(
-            substrate_map=request.substrate_map,
-            phospho_matrix=phospho_matrix,
-            min_substrates=request.min_substrates,
-        )
-
-        scorer = KinaseScorer(profile_result.profile_matrix)
-        motif_result: MotifScoringResult | None = None
-        scoring_matrix = phospho_matrix
-
-        if plan.request.motif_scorer is not None:
-            scoring_matrix = phospho_matrix.loc[list(plan.request.scoring_site_index)]
-            motif_result = plan.request.motif_scorer.score_sequences(
-                seqs=request.site_sequences,
-                site_index=plan.request.scoring_site_index,
-                min_motif_size=request.min_motif_size,
-            )
-            scoring_result = scorer.score(
-                phospho_matrix=scoring_matrix,
-                motif_scores=motif_result.motif_scores,
-                motif_sizes=motif_result.motif_sizes,
-                profile_sizes=profile_result.substrate_counts.astype(float),
-                allow_profile_only_fallback=request.allow_profile_only_fallback,
-            )
-        else:
-            scoring_result = scorer.score(phospho_matrix=scoring_matrix)
-
-        predictor = KinasePredictor(
-            kernel=plan.kernel,
-            svm_mode=plan.predictor_svm_mode,
-        )
-        prediction_result = predictor.predict_from_scoring_result(
-            scoring_result=scoring_result,
-            ensemble_size=request.ensemble_size,
-            top=request.top,
-            score_threshold=request.score_threshold,
-            inclusion=request.inclusion,
-            n_iterations=request.n_iterations,
-            random_state=request.random_state,
-            allow_profile_only_fallback=request.allow_profile_only_fallback,
-            svm_mode=request.svm_mode,
-        )
-
-        return KinaseWorkflowResult(
-            profile_result=profile_result,
-            motif_result=motif_result,
-            scoring_result=scoring_result,
-            prediction_result=prediction_result,
-        )
-
-
-class _WorkflowFacadeBase:
+class _WorkflowBase:
     def __init__(
         self,
         flank_size: int = 7,
@@ -156,8 +78,6 @@ class _WorkflowFacadeBase:
         self.flank_size = flank_size
         self.kernel = kernel
         self.svm_mode = svm_mode
-        self.planner = _WorkflowPlanner(kernel=kernel)
-        self.runner = _WorkflowRunner()
 
     def _validate_request(
         self,
@@ -196,28 +116,67 @@ class _WorkflowFacadeBase:
             default_svm_mode=self.svm_mode,
         )
 
-    def _execute_request(
+    def _execute_validated_request(
         self,
         request: ValidatedWorkflowRequest,
     ) -> KinaseWorkflowResult:
-        return self.runner.execute(self.planner.plan(request))
+        raw_request = request.request
+        phospho_matrix = request.phospho_matrix
+
+        profile_result = build_kinase_substrate_profiles(
+            substrate_map=raw_request.substrate_map,
+            phospho_matrix=phospho_matrix,
+            min_substrates=raw_request.min_substrates,
+        )
+
+        scorer = KinaseScorer(profile_result.profile_matrix)
+        motif_result: MotifScoringResult | None = None
+        scoring_matrix = phospho_matrix
+
+        if request.motif_scorer is not None:
+            scoring_matrix = phospho_matrix.loc[list(request.scoring_site_index)]
+            motif_result = request.motif_scorer.score_sequences(
+                seqs=raw_request.site_sequences,
+                site_index=request.scoring_site_index,
+                min_motif_size=raw_request.min_motif_size,
+            )
+            scoring_result = scorer.score(
+                phospho_matrix=scoring_matrix,
+                motif_scores=motif_result.motif_scores,
+                motif_sizes=motif_result.motif_sizes,
+                profile_sizes=profile_result.substrate_counts.astype(float),
+                allow_profile_only_fallback=raw_request.allow_profile_only_fallback,
+            )
+        else:
+            scoring_result = scorer.score(phospho_matrix=scoring_matrix)
+
+        predictor = KinasePredictor(
+            kernel=self.kernel,
+            svm_mode=request.predictor_svm_mode,
+        )
+        prediction_result = predictor.predict_from_scoring_result(
+            scoring_result=scoring_result,
+            ensemble_size=raw_request.ensemble_size,
+            top=raw_request.top,
+            score_threshold=raw_request.score_threshold,
+            inclusion=raw_request.inclusion,
+            n_iterations=raw_request.n_iterations,
+            random_state=raw_request.random_state,
+            allow_profile_only_fallback=raw_request.allow_profile_only_fallback,
+            svm_mode=raw_request.svm_mode,
+        )
+
+        return KinaseWorkflowResult(
+            profile_result=profile_result,
+            motif_result=motif_result,
+            scoring_result=scoring_result,
+            prediction_result=prediction_result,
+        )
 
 
-class KinaseWorkflow(_WorkflowFacadeBase):
+class KinaseWorkflow(_WorkflowBase):
     """Run the native kinase scoring and prediction workflow end to end."""
 
-    def __init__(
-        self,
-        flank_size: int = 7,
-        kernel: str = "rbf",
-        svm_mode: PredictionSvmMode = "default",
-    ) -> None:
-        super().__init__(
-            flank_size=flank_size,
-            kernel=kernel,
-            svm_mode=svm_mode,
-        )
-
     def run(
         self,
         phospho_matrix: pd.DataFrame,
@@ -257,24 +216,12 @@ class KinaseWorkflow(_WorkflowFacadeBase):
         self,
         request: ValidatedWorkflowRequest,
     ) -> KinaseWorkflowResult:
-        return self._execute_request(request)
+        return self._execute_validated_request(request)
 
 
-class PredMatWorkflow(_WorkflowFacadeBase):
+class PredMatWorkflow(_WorkflowBase):
     """Generate a predMat from phosphosite and sequence inputs."""
 
-    def __init__(
-        self,
-        flank_size: int = 7,
-        kernel: str = "rbf",
-        svm_mode: PredictionSvmMode = "default",
-    ) -> None:
-        super().__init__(
-            flank_size=flank_size,
-            kernel=kernel,
-            svm_mode=svm_mode,
-        )
-
     def run(
         self,
         phospho_matrix: pd.DataFrame,
@@ -314,7 +261,7 @@ class PredMatWorkflow(_WorkflowFacadeBase):
         self,
         request: ValidatedWorkflowRequest,
     ) -> PredMatWorkflowResult:
-        result = self._execute_request(request)
+        result = self._execute_validated_request(request)
         return PredMatWorkflowResult(
             scoring_result=result.scoring_result,
             prediction_result=result.prediction_result,

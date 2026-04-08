@@ -11,7 +11,7 @@ from phospy.validation.errors import (
     RequestValidationError,
 )
 from phospy.validation.tables import SiteMatrixSchema
-from phospy.workflow import KinaseWorkflow, PredMatWorkflow, _WorkflowPlanner
+from phospy.workflow import KinaseWorkflow, PredMatWorkflow
 
 
 def make_workflow_inputs() -> tuple[
@@ -505,7 +505,7 @@ def test_kinase_workflow_rejects_inconsistent_motif_widths_at_boundary() -> None
         )
 
 
-def test_workflow_planner_resolves_predictor_mode_from_request() -> None:
+def test_validated_workflow_request_resolves_predictor_mode_from_request() -> None:
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
         make_workflow_inputs()
     )
@@ -525,7 +525,5 @@ def test_workflow_planner_resolves_predictor_mode_from_request() -> None:
         svm_mode="r_parity",
     )
 
-    plan = _WorkflowPlanner(kernel="rbf").plan(request)
-
-    assert plan.predictor_svm_mode == "r_parity"
-    assert list(plan.request.phospho_matrix.index) == list(phospho_matrix.index)
+    assert request.predictor_svm_mode == "r_parity"
+    assert list(request.phospho_matrix.index) == list(phospho_matrix.index)
