@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -125,6 +127,123 @@ def test_signalome_workflow_accepts_canonical_pred_mat_result_input() -> None:
 
     assert result.kinases_of_interest == ("KINASE_B",)
     assert result.expanded_signalomes["KINASE_B"].regulated_module_ids == (2,)
+
+
+def test_signalome_result_exposes_canonical_module_assignment_and_network_views() -> (
+    None
+):
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A"],
+        signalome_cutoff=0.5,
+    )
+
+    assert result.modules.to_frame(copy=False) is result.signalome_modules
+    assert list(result.modules.to_relationship_table().columns) == [
+        "module_id",
+        "kinase",
+        "share_percent",
+    ]
+    assert result.modules.to_relationship_table().to_dict("records") == [
+        {"module_id": 1, "kinase": "KINASE_A", "share_percent": 100.0},
+        {"module_id": 2, "kinase": "KINASE_B", "share_percent": 100.0},
+    ]
+
+    assert result.assignments.sites(copy=False) is result.site_assignments
+    assert list(result.assignments.proteins().columns) == ["module_id", "site_count"]
+    assert result.assignments.proteins().loc["PROTEIN_1", "module_id"] == 1
+    assert result.assignments.proteins().loc["PROTEIN_1", "site_count"] == 1
+
+    assert list(result.network.nodes().columns) == ["degree", "n_substrates"]
+    assert result.network.nodes().loc["KINASE_A", "n_substrates"] == 4
+    assert list(result.network.edges().columns) == [
+        "source_kinase",
+        "target_kinase",
+        "correlation",
+    ]
+
+
+def test_signalome_result_to_frames_returns_stable_named_outputs() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A"],
+        signalome_cutoff=0.5,
+    )
+
+    frames = result.to_frames()
+
+    assert list(frames) == [
+        "signalome_modules",
+        "kinase_module_relationships",
+        "site_assignments",
+        "protein_assignments",
+        "kinase_network_nodes",
+        "kinase_network_edges",
+        "kinase_correlation_matrix",
+    ]
+    assert "scoring_matrix" not in frames
+    assert frames["signalome_modules"].equals(result.signalome_modules)
+    assert frames["protein_assignments"].equals(result.protein_assignments)
+
+    frames_with_inputs = result.to_frames(include_inputs=True)
+    assert list(frames_with_inputs)[-3:] == [
+        "scoring_matrix",
+        "pred_mat",
+        "expression_matrix",
+    ]
+
+
+def test_signalome_result_to_csv_exports_canonical_tables(tmp_path: Path) -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A"],
+        signalome_cutoff=0.5,
+    )
+
+    written = result.to_csv(tmp_path)
+
+    assert sorted(written) == [
+        "kinase_correlation_matrix",
+        "kinase_module_relationships",
+        "kinase_network_edges",
+        "kinase_network_nodes",
+        "protein_assignments",
+        "signalome_modules",
+        "site_assignments",
+    ]
+
+    reloaded_signalome_modules = pd.read_csv(
+        written["signalome_modules"],
+        index_col=0,
+    ).astype(float)
+    reloaded_site_assignments = pd.read_csv(
+        written["site_assignments"],
+        index_col=0,
+    )
+    reloaded_protein_assignments = pd.read_csv(
+        written["protein_assignments"],
+        index_col=0,
+    )
+
+    reloaded_signalome_modules.index.name = result.signalome_modules.index.name
+    reloaded_signalome_modules.columns.name = result.signalome_modules.columns.name
+    pd.testing.assert_frame_equal(reloaded_signalome_modules, result.signalome_modules)
+    pd.testing.assert_frame_equal(reloaded_site_assignments, result.site_assignments)
+    pd.testing.assert_frame_equal(
+        reloaded_protein_assignments, result.protein_assignments
+    )
 
 
 def test_signalome_workflow_rejects_empty_kinases_of_interest() -> None:

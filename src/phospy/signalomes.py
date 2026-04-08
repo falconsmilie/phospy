@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -11,6 +12,9 @@ from .validation.errors import InputCompatibilityError
 
 __all__ = [
     "ExpandedSignalome",
+    "SignalomeAssignments",
+    "SignalomeKinaseNetwork",
+    "SignalomeModules",
     "SignalomeResult",
     "build_signalome_result",
 ]
@@ -31,33 +35,118 @@ class ExpandedSignalome:
     site_annotations: pd.DataFrame
 
 
+@dataclass(frozen=True, slots=True)
+class SignalomeModules:
+    """Canonical module-centric signalome outputs.
+
+    ``module_table`` is the wide module-by-kinase percentage matrix.
+    ``kinase_module_relationships`` is the graph-friendly long table derived from
+    the non-zero cells of ``module_table``.
+    """
+
+    module_table: pd.DataFrame
+    kinase_module_relationships: pd.DataFrame
+
+    def to_frame(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return the canonical wide signalome module table."""
+
+        if copy:
+            return self.module_table.copy(deep=True)
+        return self.module_table
+
+    def to_relationship_table(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return the canonical long kinase-to-module relationship table."""
+
+        if copy:
+            return self.kinase_module_relationships.copy(deep=True)
+        return self.kinase_module_relationships
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeAssignments:
+    """Canonical site- and protein-level signalome assignments."""
+
+    site_assignments: pd.DataFrame
+    protein_assignments: pd.DataFrame
+
+    @property
+    def protein_modules(self) -> pd.Series:
+        """Return the protein-to-module assignment series for compatibility."""
+
+        return self.protein_assignments.loc[:, "module_id"]
+
+    def sites(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return the canonical site assignment table."""
+
+        if copy:
+            return self.site_assignments.copy(deep=True)
+        return self.site_assignments
+
+    def proteins(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return the canonical protein assignment table."""
+
+        if copy:
+            return self.protein_assignments.copy(deep=True)
+        return self.protein_assignments
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeKinaseNetwork:
+    """Canonical network-centric signalome outputs."""
+
+    correlation_matrix: pd.DataFrame
+    node_table: pd.DataFrame
+    edge_table: pd.DataFrame
+    neighbor_map: dict[str, tuple[str, ...]]
+
+    def adjacency(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return the kinase correlation matrix used to derive network edges."""
+
+        if copy:
+            return self.correlation_matrix.copy(deep=True)
+        return self.correlation_matrix
+
+    def nodes(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return the canonical kinase network node table."""
+
+        if copy:
+            return self.node_table.copy(deep=True)
+        return self.node_table
+
+    def edges(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return the canonical kinase network edge table."""
+
+        if copy:
+            return self.edge_table.copy(deep=True)
+        return self.edge_table
+
+
 @dataclass(slots=True)
 class SignalomeResult:
-    """Structured signalome outputs derived from scoring and prediction tables.
+    """Structured signalome outputs with stable access and export contracts.
 
-    The result keeps the major downstream signalome seams explicit:
+    Canonical access paths:
 
-    ``signalome_modules``
-        Module-by-kinase percentage table derived from predicted substrates.
-    ``site_assignments``
-        Site-level annotation table with protein, module, and top-kinase labels.
-    ``protein_modules``
-        Protein-to-module assignment series.
-    ``kinase_substrates``
-        Canonical kinase-to-site mapping after applying the signalome cutoff.
+    ``modules``
+        Wide module matrix plus long kinase-to-module relationships.
+    ``assignments``
+        Site-level and protein-level module assignments.
+    ``network``
+        Correlation matrix plus graph-friendly kinase node and edge tables.
     ``expanded_signalomes``
-        Kinase-of-interest specific views over the stable module assignments.
+        Kinase-of-interest views derived from the canonical module assignments.
+
+    The raw aligned scoring, prediction, and expression inputs remain available
+    for read-oriented workflows, but they are not part of the default export set.
     """
 
     scoring_matrix: pd.DataFrame
     pred_mat: pd.DataFrame
     expression_matrix: pd.DataFrame
-    signalome_modules: pd.DataFrame
-    site_assignments: pd.DataFrame
-    protein_modules: pd.Series
-    kinase_substrates: dict[str, tuple[str, ...]]
-    kinase_network: dict[str, tuple[str, ...]]
-    kinase_correlation_matrix: pd.DataFrame
+    modules: SignalomeModules
+    assignments: SignalomeAssignments
+    network: SignalomeKinaseNetwork
+    kinase_substrate_map: dict[str, tuple[str, ...]]
     expanded_signalomes: dict[str, ExpandedSignalome]
 
     @property
@@ -65,6 +154,131 @@ class SignalomeResult:
         """Return the kinases of interest included in ``expanded_signalomes``."""
 
         return tuple(self.expanded_signalomes)
+
+    @property
+    def signalome_modules(self) -> pd.DataFrame:
+        """Return the canonical module-by-kinase matrix."""
+
+        return self.modules.module_table
+
+    @property
+    def kinase_module_relationships(self) -> pd.DataFrame:
+        """Return the canonical long kinase-to-module relationship table."""
+
+        return self.modules.kinase_module_relationships
+
+    @property
+    def site_assignments(self) -> pd.DataFrame:
+        """Return the canonical site assignment table."""
+
+        return self.assignments.site_assignments
+
+    @property
+    def protein_assignments(self) -> pd.DataFrame:
+        """Return the canonical protein assignment table."""
+
+        return self.assignments.protein_assignments
+
+    @property
+    def protein_modules(self) -> pd.Series:
+        """Return the protein-to-module assignment series for compatibility."""
+
+        return self.assignments.protein_modules
+
+    @property
+    def kinase_substrates(self) -> dict[str, tuple[str, ...]]:
+        """Return kinase-to-site mappings derived from the relationship table."""
+
+        return dict(self.kinase_substrate_map)
+
+    @property
+    def kinase_network(self) -> dict[str, tuple[str, ...]]:
+        """Return the canonical kinase neighbor mapping for compatibility."""
+
+        return dict(self.network.neighbor_map)
+
+    @property
+    def kinase_correlation_matrix(self) -> pd.DataFrame:
+        """Return the canonical kinase correlation matrix."""
+
+        return self.network.correlation_matrix
+
+    @property
+    def kinase_network_nodes(self) -> pd.DataFrame:
+        """Return the canonical kinase network node table."""
+
+        return self.network.node_table
+
+    @property
+    def kinase_network_edges(self) -> pd.DataFrame:
+        """Return the canonical kinase network edge table."""
+
+        return self.network.edge_table
+
+    def to_frames(
+        self,
+        *,
+        copy: bool = True,
+        include_inputs: bool = False,
+    ) -> dict[str, pd.DataFrame]:
+        """Return the canonical signalome tables as named pandas objects.
+
+        By default, this returns only the stable user-facing outputs. Pass
+        ``include_inputs=True`` to also include the aligned input matrices that
+        fed signalome construction.
+        """
+
+        frames = {
+            "signalome_modules": self.modules.to_frame(copy=copy),
+            "kinase_module_relationships": self.modules.to_relationship_table(
+                copy=copy
+            ),
+            "site_assignments": self.assignments.sites(copy=copy),
+            "protein_assignments": self.assignments.proteins(copy=copy),
+            "kinase_network_nodes": self.network.nodes(copy=copy),
+            "kinase_network_edges": self.network.edges(copy=copy),
+            "kinase_correlation_matrix": self.network.adjacency(copy=copy),
+        }
+        if include_inputs:
+            frames.update(
+                {
+                    "scoring_matrix": self.scoring_matrix.copy(deep=True)
+                    if copy
+                    else self.scoring_matrix,
+                    "pred_mat": self.pred_mat.copy(deep=True)
+                    if copy
+                    else self.pred_mat,
+                    "expression_matrix": self.expression_matrix.copy(deep=True)
+                    if copy
+                    else self.expression_matrix,
+                }
+            )
+        return frames
+
+    def to_csv(
+        self,
+        directory: str | Path,
+        *,
+        include_inputs: bool = False,
+    ) -> dict[str, Path]:
+        """Export the canonical signalome tables to a directory of CSV files."""
+
+        target_dir = Path(directory)
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        written_paths: dict[str, Path] = {}
+        for name, frame in self.to_frames(
+            copy=True, include_inputs=include_inputs
+        ).items():
+            path = target_dir / f"{name}.csv"
+            frame.to_csv(
+                path,
+                encoding="utf-8",
+                float_format="%.17g",
+                lineterminator="\n",
+            )
+            written_paths[name] = path
+        return written_paths
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,7 +311,7 @@ class _SignalomeRunner:
             pred_mat=pred_mat,
             protein_modules=protein_modules,
         )
-        kinase_substrates = _select_kinase_substrates(
+        selected_kinase_substrates = _select_kinase_substrates(
             pred_mat=pred_mat,
             cutoff=plan.signalome_cutoff,
         )
@@ -107,12 +321,23 @@ class _SignalomeRunner:
         )
         signalome_modules = _build_signalome_module_table(
             site_assignments=site_assignments,
-            kinase_substrates=kinase_substrates,
+            kinase_substrates=selected_kinase_substrates,
+        )
+        protein_assignments = _build_protein_assignment_table(
+            site_assignments=site_assignments,
+        )
+        kinase_module_relationships = _build_kinase_module_relationship_table(
+            module_table=signalome_modules,
+        )
+        network = _build_kinase_network_view(
+            kinase_network=kinase_network,
+            kinase_correlation_matrix=kinase_correlation_matrix,
+            kinase_substrates=selected_kinase_substrates,
         )
         expanded_signalomes = _build_expanded_signalomes(
             kinases_of_interest=plan.kinases_of_interest,
             kinase_network=kinase_network,
-            kinase_substrates=kinase_substrates,
+            kinase_substrates=selected_kinase_substrates,
             signalome_modules=signalome_modules,
             site_assignments=site_assignments,
             expression_matrix=expression_matrix,
@@ -123,12 +348,16 @@ class _SignalomeRunner:
             scoring_matrix=scoring_matrix,
             pred_mat=pred_mat,
             expression_matrix=expression_matrix,
-            signalome_modules=signalome_modules,
-            site_assignments=site_assignments,
-            protein_modules=protein_modules,
-            kinase_substrates=kinase_substrates,
-            kinase_network=kinase_network,
-            kinase_correlation_matrix=kinase_correlation_matrix,
+            modules=SignalomeModules(
+                module_table=signalome_modules,
+                kinase_module_relationships=kinase_module_relationships,
+            ),
+            assignments=SignalomeAssignments(
+                site_assignments=site_assignments,
+                protein_assignments=protein_assignments,
+            ),
+            network=network,
+            kinase_substrate_map=selected_kinase_substrates,
             expanded_signalomes=expanded_signalomes,
         )
 
@@ -322,6 +551,20 @@ def _build_site_assignments(
     return site_assignments
 
 
+def _build_protein_assignment_table(*, site_assignments: pd.DataFrame) -> pd.DataFrame:
+    protein_assignments = (
+        site_assignments.groupby("protein_id", sort=True)
+        .agg(
+            module_id=("module_id", "first"),
+            site_count=("module_id", "size"),
+        )
+        .astype({"module_id": int, "site_count": int})
+        .sort_index()
+    )
+    protein_assignments.index.name = "protein_id"
+    return protein_assignments
+
+
 def _select_kinase_substrates(
     *,
     pred_mat: pd.DataFrame,
@@ -407,6 +650,96 @@ def _build_signalome_module_table(
         )
 
     return module_table.round(3)
+
+
+def _build_kinase_module_relationship_table(
+    *,
+    module_table: pd.DataFrame,
+) -> pd.DataFrame:
+    try:
+        relationships = (
+            module_table.stack(future_stack=True).rename("share_percent").reset_index()
+        )
+    except TypeError:
+        relationships = (
+            module_table.stack(dropna=False).rename("share_percent").reset_index()
+        )
+
+    relationships = relationships.loc[relationships["share_percent"] > 0.0]
+    relationships.columns = ["module_id", "kinase", "share_percent"]
+    relationships = relationships.astype(
+        {
+            "module_id": int,
+            "kinase": str,
+            "share_percent": float,
+        }
+    )
+    relationships = relationships.sort_values(
+        ["module_id", "share_percent", "kinase"],
+        ascending=[True, False, True],
+        kind="stable",
+    ).reset_index(drop=True)
+    return relationships
+
+
+def _build_kinase_network_view(
+    *,
+    kinase_network: Mapping[str, Sequence[str]],
+    kinase_correlation_matrix: pd.DataFrame,
+    kinase_substrates: Mapping[str, Sequence[str]],
+) -> SignalomeKinaseNetwork:
+    node_rows = [
+        {
+            "kinase": str(kinase),
+            "degree": len(tuple(neighbors)),
+            "n_substrates": len(tuple(kinase_substrates.get(str(kinase), ()))),
+        }
+        for kinase, neighbors in sorted(kinase_network.items())
+    ]
+    node_table = pd.DataFrame.from_records(node_rows).set_index("kinase")
+    node_table = node_table.astype({"degree": int, "n_substrates": int})
+    node_table.index.name = "kinase"
+
+    edge_rows: list[dict[str, object]] = []
+    columns = kinase_correlation_matrix.columns.astype(str)
+    for left_position, source in enumerate(columns):
+        for target in columns[left_position + 1 :]:
+            target_name = str(target)
+            if target_name not in set(kinase_network.get(source, ())):
+                continue
+            correlation = float(kinase_correlation_matrix.loc[source, target_name])
+            edge_rows.append(
+                {
+                    "source_kinase": source,
+                    "target_kinase": target_name,
+                    "correlation": correlation,
+                }
+            )
+
+    edge_table = pd.DataFrame.from_records(edge_rows)
+    if edge_table.empty:
+        edge_table = pd.DataFrame(
+            columns=["source_kinase", "target_kinase", "correlation"]
+        )
+    edge_table = edge_table.astype(
+        {
+            "source_kinase": str,
+            "target_kinase": str,
+            "correlation": float,
+        }
+    )
+    edge_table = edge_table.sort_values(
+        ["source_kinase", "target_kinase"],
+        ascending=[True, True],
+        kind="stable",
+    ).reset_index(drop=True)
+
+    return SignalomeKinaseNetwork(
+        correlation_matrix=kinase_correlation_matrix,
+        node_table=node_table,
+        edge_table=edge_table,
+        neighbor_map={str(key): tuple(value) for key, value in kinase_network.items()},
+    )
 
 
 def _build_expanded_signalomes(

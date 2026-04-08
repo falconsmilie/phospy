@@ -12,6 +12,8 @@ from phospy import (
     PhosRPipeline,
     PredMatResult,
     PredMatWorkflow,
+    SignalomeResult,
+    SignalomeWorkflow,
 )
 ```
 
@@ -23,6 +25,8 @@ Use:
 - `PredMatWorkflow` for one obvious public predMat generation path
 - `PredMatResult` for the canonical in-memory and export contract of a generated `predMat`
 - `KinaseWorkflow` for the native end-to-end prediction flow
+- `SignalomeWorkflow` for validated signalome construction from scoring and prediction outputs
+- `SignalomeResult` for the canonical in-memory and export contract of a constructed signalome
 
 ## Common File Rules
 
@@ -596,6 +600,119 @@ result = workflow.run(
 pred_matrix = result.prediction_result.pred_matrix
 ```
 
+
+## `SignalomeResult`
+
+`SignalomeWorkflow.run(...)` returns `SignalomeResult`. Use the named result views below as the stable contract for downstream work.
+
+### Canonical Access Paths
+
+```python
+result.modules
+result.assignments
+result.network
+result.expanded_signalomes
+```
+
+Use:
+
+- `result.modules` for module-centric outputs
+- `result.assignments` for site-level and protein-level assignments
+- `result.network` for graph-friendly kinase-network tables
+- `result.expanded_signalomes` for kinase-of-interest views built from the canonical module assignments
+
+The older convenience attributes remain available:
+
+- `result.signalome_modules`
+- `result.kinase_module_relationships`
+- `result.site_assignments`
+- `result.protein_assignments`
+- `result.protein_modules`
+- `result.kinase_network_nodes`
+- `result.kinase_network_edges`
+- `result.kinase_correlation_matrix`
+
+### `result.modules`
+
+```python
+result.modules.to_frame(copy: bool = True) -> pd.DataFrame
+result.modules.to_relationship_table(copy: bool = True) -> pd.DataFrame
+```
+
+`result.modules.to_frame()` returns the wide module-by-kinase percentage matrix.
+
+`result.modules.to_relationship_table()` returns the canonical long relationship table with:
+
+- `module_id`
+- `kinase`
+- `share_percent`
+
+The relationship table contains one row per non-zero kinase-to-module relationship and is sorted by `module_id`, descending `share_percent`, then `kinase`.
+
+### `result.assignments`
+
+```python
+result.assignments.sites(copy: bool = True) -> pd.DataFrame
+result.assignments.proteins(copy: bool = True) -> pd.DataFrame
+```
+
+`result.assignments.sites()` returns the canonical site assignment table with:
+
+- index: `site_id`
+- `protein_id`
+- `module_id`
+- `top_kinase`
+- `top_score`
+
+`result.assignments.proteins()` returns the canonical protein assignment table with:
+
+- index: `protein_id`
+- `module_id`
+- `site_count`
+
+### `result.network`
+
+```python
+result.network.adjacency(copy: bool = True) -> pd.DataFrame
+result.network.nodes(copy: bool = True) -> pd.DataFrame
+result.network.edges(copy: bool = True) -> pd.DataFrame
+```
+
+`result.network.adjacency()` returns the kinase correlation matrix used to derive network edges.
+
+`result.network.nodes()` returns the canonical node table with:
+
+- index: `kinase`
+- `degree`
+- `n_substrates`
+
+`result.network.edges()` returns the canonical edge table with:
+
+- `source_kinase`
+- `target_kinase`
+- `correlation`
+
+### Export Contract
+
+```python
+result.to_frames(copy: bool = True, include_inputs: bool = False) -> dict[str, pd.DataFrame]
+result.to_csv(directory: str | Path, include_inputs: bool = False) -> dict[str, Path]
+```
+
+By default, `to_frames(...)` and `to_csv(...)` return or write only the stable user-facing outputs:
+
+- `signalome_modules`
+- `kinase_module_relationships`
+- `site_assignments`
+- `protein_assignments`
+- `kinase_network_nodes`
+- `kinase_network_edges`
+- `kinase_correlation_matrix`
+
+Pass `include_inputs=True` to also include the aligned `scoring_matrix`, `pred_mat`, and `expression_matrix` that fed the signalome construction step.
+
+The CSV export uses UTF-8, deterministic newline handling, and stable float formatting.
+
 ## CLI
 
 Use `phospy --help` for the full help text.
@@ -668,6 +785,30 @@ PredMatResult.to_frame(copy: bool = True) -> pd.DataFrame
 PredMatResult.to_csv(path: str | Path, index_label: str = "phosphosite") -> Path
 
 `SiteMatrixResult` is a separate preprocessing result for the corrected phosphosite site matrix. It is not the prediction-matrix contract. The canonical prediction-matrix result is `PredMatResult`.
+
+SignalomeResult(
+    scoring_matrix: pd.DataFrame,
+    pred_mat: pd.DataFrame,
+    expression_matrix: pd.DataFrame,
+    modules: SignalomeModules,
+    assignments: SignalomeAssignments,
+    network: SignalomeKinaseNetwork,
+    expanded_signalomes: dict[str, ExpandedSignalome],
+)
+
+# canonical signalome result views
+SignalomeResult.modules -> SignalomeModules
+SignalomeResult.assignments -> SignalomeAssignments
+SignalomeResult.network -> SignalomeKinaseNetwork
+
+SignalomeResult.to_frames(
+    copy: bool = True,
+    include_inputs: bool = False,
+) -> dict[str, pd.DataFrame]
+SignalomeResult.to_csv(
+    directory: str | Path,
+    include_inputs: bool = False,
+) -> dict[str, Path]
 
 KinasePredictionResult(
     pred_matrix: pd.DataFrame,
