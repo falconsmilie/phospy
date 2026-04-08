@@ -5,6 +5,7 @@ from .models import (
     AdaptiveSamplingIterationTrace,
     KinasePredictionDebugTrace,
     KinasePredictionResult,
+    PredMatResult,
     SamplingTraceOverrideEnsemble,
 )
 from .service import KinasePredictor, build_candidate_substrate_list
@@ -20,6 +21,7 @@ __all__ = [
     "AdaptiveSamplingIterationTrace",
     "KinasePredictionDebugTrace",
     "KinasePredictionResult",
+    "PredMatResult",
     "DirectoryTraceSink",
     "KinasePredictor",
     "PredictionSamplingTrace",

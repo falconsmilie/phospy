@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from .motifs import MotifScoringResult
-from .prediction import KinasePredictionResult, KinasePredictor
+from .prediction import KinasePredictionResult, KinasePredictor, PredMatResult
 from .profiles import KinaseProfileResult, build_kinase_substrate_profiles
 from .scoring import KinaseScorer, KinaseScoringResult
 from .types import PredictionSvmMode
@@ -35,16 +35,30 @@ class KinaseWorkflowResult:
 
 @dataclass(slots=True)
 class PredMatWorkflowResult:
-    """Stable result bundle for one public predMat generation run."""
+    """Stable result bundle for one public predMat generation run.
+
+    The canonical predMat contract is exposed through ``pred_mat_result``.
+    """
 
     scoring_result: KinaseScoringResult
     prediction_result: KinasePredictionResult
+    pred_mat_result: PredMatResult
 
-    @property
-    def pred_mat(self) -> pd.DataFrame:
-        """Return the generated predMat."""
+    def close(self) -> None:
+        """Release owned trace resources, if any are attached downstream."""
 
-        return self.prediction_result.pred_mat
+        self.prediction_result.close()
+
+    def __enter__(self) -> PredMatWorkflowResult:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: object | None,
+    ) -> None:
+        self.close()
 
 
 @dataclass(frozen=True, slots=True)
@@ -297,4 +311,5 @@ class PredMatWorkflow(_WorkflowFacadeBase):
         return PredMatWorkflowResult(
             scoring_result=result.scoring_result,
             prediction_result=result.prediction_result,
+            pred_mat_result=result.prediction_result.pred_mat_result,
         )

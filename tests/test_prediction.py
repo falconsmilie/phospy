@@ -7,10 +7,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy.io import load_pred_mat
 from phospy.prediction import (
     KinasePredictionResult,
     KinasePredictor,
     PredictionSamplingTrace,
+    PredMatResult,
     build_candidate_substrate_list,
     prediction_debug_trace_tables,
 )
@@ -110,6 +112,56 @@ def test_prediction_result_matrix_is_detached_from_combined_scores_input() -> No
     result.pred_matrix.loc["SITE_1", "KINASE_A"] = -999.0
 
     pd.testing.assert_frame_equal(combined_scores, original)
+
+
+def test_prediction_result_exposes_canonical_pred_mat_result() -> None:
+    predictor = KinasePredictor()
+
+    result = predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=2,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=5,
+    )
+
+    assert isinstance(result.pred_mat_result, PredMatResult)
+    assert result.pred_mat_result.data_frame is result.pred_matrix
+    assert (
+        result.pred_mat_result.phosphosite_ids.tolist()
+        == result.pred_matrix.index.tolist()
+    )
+    assert (
+        result.pred_mat_result.kinase_names.tolist()
+        == result.pred_matrix.columns.tolist()
+    )
+    assert not hasattr(result, "pred_mat")
+
+
+def test_prediction_result_pred_mat_export_round_trips_through_loader(
+    tmp_path: Path,
+) -> None:
+    predictor = KinasePredictor()
+
+    result = predictor.predict(
+        combined_scores=make_combined_scores(),
+        ensemble_size=2,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=5,
+    )
+    export_path = result.pred_mat_result.to_csv(tmp_path / "predMat.csv")
+
+    reloaded = load_pred_mat(export_path)
+
+    pd.testing.assert_frame_equal(
+        reloaded,
+        result.pred_mat_result.to_frame(copy=False),
+    )
 
 
 def test_predict_from_scoring_result_uses_combined_scores() -> None:

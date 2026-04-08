@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import KinaseActivityAnalyzer, PhosRPipeline
+from phospy import KinaseActivityAnalyzer, PhosRPipeline, PredMatResult
 from phospy.constants import RUN_MANIFEST_FILENAME
 from phospy.core_processing import CorePreprocessingConfig
 from phospy.dataset import PhosphoDataset
@@ -415,3 +415,37 @@ def test_pipeline_request_loader_builds_dataset_and_config(
     assert inputs.preprocessing_config.min_observed == 4
     assert list(inputs.dataset.total_df_copy.columns) == list(make_total_df().columns)
     assert pred_calls == [f"pred_mat ({pred_path})"]
+
+
+def test_pipeline_passes_pred_mat_result_to_validation_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+    pred_mat_result = PredMatResult(make_pred_mat())
+    captured: list[object] = []
+    original_validate_request = PhosRPipeline.__init__.__globals__[
+        "validate_pipeline_construction_request"
+    ]
+
+    def capturing_validate_request(*, dataset, pred_mat=None, **kwargs):
+        captured.append(pred_mat)
+        return original_validate_request(
+            dataset=dataset,
+            pred_mat=pred_mat,
+            **kwargs,
+        )
+
+    monkeypatch.setitem(
+        PhosRPipeline.__init__.__globals__,
+        "validate_pipeline_construction_request",
+        capturing_validate_request,
+    )
+
+    pipeline = PhosRPipeline(dataset, pred_mat=pred_mat_result)
+
+    assert captured == [pred_mat_result]
+    pd.testing.assert_frame_equal(pipeline.pred_mat, pred_mat_result.data_frame)

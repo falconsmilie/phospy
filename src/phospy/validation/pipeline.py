@@ -13,7 +13,9 @@ from ..core_processing import (
     resolve_core_preprocessing_config,
 )
 from ..dataset_schema import DatasetSchema
+from ..prediction.models import PredMatResult
 from ._models import PhospyRequestModel
+from ._pred_mat import normalize_pred_mat_input
 from .analysis import (
     KinaseActivityRequest,
     ValidatedAnalysisRequest,
@@ -154,7 +156,7 @@ def build_pipeline_request(
 def validate_pipeline_construction_request(
     *,
     dataset: PhosphoDataset,
-    pred_mat: pd.DataFrame | None = None,
+    pred_mat: pd.DataFrame | PredMatResult | None = None,
     preprocessing_config: CorePreprocessingConfig | None = None,
     localization_threshold: float = 0.75,
     min_observed: int = 4,
@@ -167,10 +169,11 @@ def validate_pipeline_construction_request(
 ) -> ValidatedPipelineRequest:
     """Validate raw in-memory inputs for pipeline construction only."""
 
+    normalized_pred_mat = normalize_pred_mat_input(pred_mat)
     validated_pred_mat = None
-    if pred_mat is not None:
+    if normalized_pred_mat is not None:
         validated_pred_mat = PredMatSchema.validate(
-            pred_mat,
+            normalized_pred_mat,
             context="pipeline pred_mat",
         )
 

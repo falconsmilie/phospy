@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import PhosphoDataset
+from phospy import PhosphoDataset, PredMatResult
 from phospy.dataset_schema import DatasetSchema
 from phospy.prediction.traces import TraceSink
 from phospy.validation.analysis import (
@@ -555,6 +555,21 @@ def test_validate_analysis_request_takes_ownership_of_raw_dataframe_inputs() -> 
     assert request.phospho_matrix.loc["PRKACA;S339;", "sample_1"] == 1.0
 
 
+def test_validate_analysis_request_normalizes_pred_mat_result_at_boundary() -> None:
+    pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"])
+    phospho_matrix = pd.DataFrame({"sample_1": [1.0]}, index=["PRKACA;S339;"])
+    pred_mat_result = PredMatResult(pred_mat)
+
+    request = validate_analysis_request(
+        pred_mat=pred_mat_result,
+        phospho_matrix=phospho_matrix,
+    )
+
+    pred_mat.loc["PRKACA;S339;", "PRKACA"] = 0.1
+
+    assert request.pred_mat.loc["PRKACA;S339;", "PRKACA"] == 0.9
+
+
 def test_validate_workflow_request_takes_ownership_of_raw_dataframe_inputs() -> None:
     phospho_matrix = pd.DataFrame(
         {"sample_1": [1.0], "sample_2": [2.0]},
@@ -708,6 +723,49 @@ def test_validate_pipeline_construction_request_takes_ownership_of_raw_pred_mat_
     request = validate_pipeline_construction_request(
         dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
         pred_mat=pred_mat,
+    )
+
+    pred_mat.loc["PRKACA;S339;", "PRKACA"] = 0.1
+
+    assert request.pred_mat is not None
+    assert request.pred_mat.loc["PRKACA;S339;", "PRKACA"] == 0.9
+
+
+def test_validate_pipeline_construction_request_normalizes_pred_mat_result_at_boundary() -> (
+    None
+):
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+    pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"])
+    pred_mat_result = PredMatResult(pred_mat)
+
+    request = validate_pipeline_construction_request(
+        dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
+        pred_mat=pred_mat_result,
     )
 
     pred_mat.loc["PRKACA;S339;", "PRKACA"] = 0.1

@@ -5,7 +5,9 @@ from dataclasses import dataclass
 import pandas as pd
 from pydantic import Field, ValidationError
 
+from ..prediction.models import PredMatResult
 from ._models import PhospyRequestModel
+from ._pred_mat import normalize_pred_mat_input
 from .compatibility import validate_pred_mat_overlap
 from .errors import RequestValidationError
 from .tables import PredMatSchema, SiteMatrixSchema
@@ -78,7 +80,7 @@ class ValidatedAnalysisRequest:
 
 def validate_analysis_request(
     *,
-    pred_mat: pd.DataFrame,
+    pred_mat: pd.DataFrame | PredMatResult,
     phospho_matrix: pd.DataFrame,
     threshold: float = 0.6,
     min_substrates: int = 3,
@@ -100,7 +102,14 @@ def validate_analysis_request(
         min_substrates=min_substrates,
         top_n_substrates=top_n_substrates,
     )
-    validated_pred_mat = PredMatSchema.validate(pred_mat, context=pred_context)
+    normalized_pred_mat = normalize_pred_mat_input(pred_mat)
+    if normalized_pred_mat is None:
+        msg = f"{pred_context} must be provided"
+        raise RequestValidationError(msg)
+    validated_pred_mat = PredMatSchema.validate(
+        normalized_pred_mat,
+        context=pred_context,
+    )
     validated_matrix = SiteMatrixSchema.validate(phospho_matrix, context=matrix_context)
     return ValidatedAnalysisRequest.from_trusted_inputs(
         request=request,

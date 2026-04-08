@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import KinaseActivityAnalyzer
+from phospy import KinaseActivityAnalyzer, PredMatResult
 from phospy.constants import KINASE_OUTPUT_FILENAMES
 from phospy.io import load_pred_mat
 from phospy.validation.errors import RequestValidationError, TableSchemaError
@@ -301,3 +301,37 @@ def test_run_request_uses_validated_boundary_request(
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
     assert pred_calls == ["pred_mat"]
     assert matrix_calls == ["phospho_matrix"]
+
+
+def test_analyzer_passes_pred_mat_result_to_validation_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: list[object] = []
+    original_validate_request = KinaseActivityAnalyzer._validate_request.__globals__[
+        "validate_analysis_request"
+    ]
+
+    def capturing_validate_request(*, pred_mat, phospho_matrix, **kwargs):
+        captured.append(pred_mat)
+        return original_validate_request(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+            **kwargs,
+        )
+
+    monkeypatch.setitem(
+        KinaseActivityAnalyzer._validate_request.__globals__,
+        "validate_analysis_request",
+        capturing_validate_request,
+    )
+
+    pred_mat_result = PredMatResult(make_pred_mat())
+    result = KinaseActivityAnalyzer().run(
+        pred_mat=pred_mat_result,
+        phospho_matrix=make_phospho_matrix(),
+        threshold=0.6,
+        min_substrates=2,
+    )
+
+    assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
+    assert captured == [pred_mat_result]

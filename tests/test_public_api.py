@@ -11,6 +11,7 @@ from phospy import (
     KinaseWorkflow,
     PhosphoDataset,
     PhosRPipeline,
+    PredMatResult,
     PredMatWorkflow,
 )
 from phospy.constants import (
@@ -82,6 +83,7 @@ def test_public_root_exports() -> None:
         "KinaseWorkflow",
         "PhosphoDataset",
         "PhosRPipeline",
+        "PredMatResult",
         "PredMatWorkflow",
     }
     assert set(phospy.__all__) == expected
@@ -663,8 +665,106 @@ def test_pred_mat_workflow_runs_with_class_api() -> None:
         random_state=7,
     )
 
-    assert result.pred_mat.shape[1] == 2
-    pd.testing.assert_frame_equal(result.pred_mat, result.prediction_result.pred_mat)
+    assert result.pred_mat_result.data_frame.shape[1] == 2
+    assert result.pred_mat_result is result.prediction_result.pred_mat_result
+    assert not hasattr(result, "pred_mat")
+    assert not hasattr(result.prediction_result, "pred_mat")
+
+
+def test_pred_mat_workflow_exposes_canonical_result_and_export_contract(
+    tmp_path: Path,
+) -> None:
+    phospho_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 2.0, 10.0, 11.0],
+            "sample_2": [1.5, 2.5, 10.5, 11.5],
+        },
+        index=["SITE_1", "SITE_2", "SITE_3", "SITE_4"],
+    )
+
+    workflow = PredMatWorkflow()
+    result = workflow.run(
+        phospho_matrix=phospho_matrix,
+        substrate_map={
+            "KINASE_A": ["SITE_1", "SITE_2"],
+            "KINASE_B": ["SITE_3", "SITE_4"],
+        },
+        site_sequences={
+            "SITE_1": "QQAAAAAYY",
+            "SITE_2": "QQAAAAAYY",
+            "SITE_3": "QQTTTTTYY",
+            "SITE_4": "QQTTTTTYY",
+        },
+        motif_sequences={
+            "KINASE_A": ["QQAAAAAYY", "QQAAAAAYY"],
+            "KINASE_B": ["QQTTTTTYY", "QQTTTTTYY"],
+        },
+        min_substrates=2,
+        min_motif_size=1,
+        top=2,
+        score_threshold=0.5,
+        inclusion=1,
+        ensemble_size=2,
+        n_iterations=1,
+        random_state=7,
+    )
+
+    assert isinstance(result.pred_mat_result, PredMatResult)
+    assert result.pred_mat_result.data_frame is result.prediction_result.pred_matrix
+    pd.testing.assert_frame_equal(
+        result.pred_mat_result.to_frame(copy=False),
+        result.prediction_result.pred_mat_result.to_frame(copy=False),
+    )
+    assert not hasattr(result, "pred_mat")
+    assert not hasattr(result.prediction_result, "pred_mat")
+
+    export_path = result.pred_mat_result.to_csv(tmp_path / "predMat.csv")
+    reloaded = load_pred_mat(export_path)
+
+    pd.testing.assert_frame_equal(reloaded, result.pred_mat_result.data_frame)
+
+
+def test_pipeline_accepts_pred_mat_result_contract() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+    pred_mat_result = PredMatResult(make_pred_mat())
+
+    pipeline = PhosRPipeline(dataset, pred_mat=pred_mat_result)
+
+    pd.testing.assert_frame_equal(pipeline.pred_mat, pred_mat_result.data_frame)
+
+
+def test_kinase_activity_analyzer_accepts_pred_mat_result_contract() -> None:
+    analyzer = KinaseActivityAnalyzer()
+    phospho_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 2.0],
+            "sample_2": [1.5, 2.5],
+        },
+        index=["SITE_1", "SITE_2"],
+    )
+    pred_mat_result = PredMatResult(
+        pd.DataFrame(
+            {
+                "KINASE_A": [0.9, 0.1],
+                "KINASE_B": [0.2, 0.8],
+            },
+            index=["SITE_1", "SITE_2"],
+        )
+    )
+
+    result = analyzer.run(
+        pred_mat=pred_mat_result,
+        phospho_matrix=phospho_matrix,
+        threshold=0.0,
+        min_substrates=1,
+        top_n_substrates=1,
+    )
+
+    assert not result.weighted_activity.empty
 
 
 def test_pipeline_propagates_max_unmatched_fraction(tmp_path) -> None:

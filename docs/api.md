@@ -10,6 +10,7 @@ from phospy import (
     KinaseWorkflow,
     PhosphoDataset,
     PhosRPipeline,
+    PredMatResult,
     PredMatWorkflow,
 )
 ```
@@ -20,6 +21,7 @@ Use:
 - `KinaseActivityAnalyzer` for analysis from an existing `predMat`
 - `PhosRPipeline` for file loading plus publishing
 - `PredMatWorkflow` for one obvious public predMat generation path
+- `PredMatResult` for the canonical in-memory and export contract of a generated `predMat`
 - `KinaseWorkflow` for the native end-to-end prediction flow
 
 ## Common File Rules
@@ -281,7 +283,8 @@ analyzer.run(
 
 Rules:
 
-- `pred_mat` must be a valid `predMat`
+- `pred_mat` may be a valid `predMat` `DataFrame` or a `PredMatResult`
+- the public validation boundary normalizes `PredMatResult` to the internal validated `DataFrame` contract before analysis runs
 - `phospho_matrix` must be a numeric phosphosite matrix with a unique, non-null index
 - `threshold` must be in `[0, 1]`
 - `min_substrates` and `top_n_substrates` must be `>= 1`
@@ -352,7 +355,8 @@ Use this when your dataset is already in memory.
 Rules:
 
 - `dataset` must be a `PhosphoDataset`
-- `pred_mat`, when provided, must already be a valid in-memory `predMat`
+- `pred_mat`, when provided, may be a valid in-memory `predMat` `DataFrame` or a `PredMatResult`
+- pipeline construction normalizes `PredMatResult` at the validation boundary; downstream pipeline execution only sees the validated `DataFrame`
 - `preprocessing_config` cannot be mixed with overridden scalar preprocessing options
 
 ### `from_files(...)`
@@ -452,14 +456,32 @@ The returned `PredMatWorkflowResult` exposes:
 
 - `scoring_result`
 - `prediction_result`
-- `pred_mat`
+- `pred_mat_result`
 
-`pred_mat` is the generated prediction matrix and is the same table exposed on `prediction_result.pred_mat`.
+`pred_mat_result` is the canonical predMat contract.
+
+Row and column semantics:
+
+- rows are phosphosite identifiers
+- columns are kinase identifiers
+- values are prediction scores in `[0, 1]`
+
+In-memory access:
+
+- `result.pred_mat_result.data_frame` returns the owned in-memory `DataFrame`
+- `result.pred_mat_result.to_frame()` returns a detached copy
+
+CSV export:
+
+- `result.pred_mat_result.to_csv("predMat.csv")`
+- the export is UTF-8 CSV with a `phosphosite` index column and deterministic newline / float formatting
+- `load_pred_mat(...)` can read the exported file back as a validated `predMat`
 
 Example:
 
 ```python
 from phospy import PredMatWorkflow
+from phospy.io import load_pred_mat
 
 workflow = PredMatWorkflow(svm_mode="default")
 result = workflow.run(
@@ -469,7 +491,10 @@ result = workflow.run(
     motif_sequences=motif_sequences,
 )
 
-pred_mat = result.pred_mat
+pred_mat_result: PredMatResult = result.pred_mat_result
+pred_mat = pred_mat_result.to_frame(copy=False)
+pred_mat_result.to_csv("predMat.csv")
+reloaded_pred_mat = load_pred_mat("predMat.csv")
 ```
 
 ## `KinaseWorkflow`
@@ -533,6 +558,8 @@ The most commonly used fields on `prediction_result` are:
 
 - `pred_matrix`
 - `substrate_list`
+
+For the canonical predMat contract, prefer `PredMatWorkflowResult.pred_mat_result` or `KinasePredictionResult.pred_mat_result` over direct DataFrame access.
 
 Example:
 
@@ -608,18 +635,28 @@ CoreOutputs(
 PredMatWorkflowResult(
     scoring_result: KinaseScoringResult,
     prediction_result: KinasePredictionResult,
+    pred_mat_result: PredMatResult,
 )
 
-# convenience property
-PredMatWorkflowResult.pred_mat -> pd.DataFrame
+# canonical predMat contract
+PredMatWorkflowResult.pred_mat_result -> PredMatResult
+
+PredMatResult(
+    data_frame: pd.DataFrame,
+)
+
+PredMatResult.to_frame(copy: bool = True) -> pd.DataFrame
+PredMatResult.to_csv(path: str | Path, index_label: str = "phosphosite") -> Path
+
+`SiteMatrixResult` is a separate preprocessing result for the corrected phosphosite site matrix. It is not the prediction-matrix contract. The canonical prediction-matrix result is `PredMatResult`.
 
 KinasePredictionResult(
     pred_matrix: pd.DataFrame,
     substrate_list: dict[str, list[str]],
 )
 
-# alias
-KinasePredictionResult.pred_mat -> pd.DataFrame
+# canonical predMat contract on the lower-level result
+KinasePredictionResult.pred_mat_result -> PredMatResult
 
 KinaseActivityResult(
     weighted_activity: pd.DataFrame,

@@ -4,6 +4,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -26,6 +27,10 @@ from .validation.pipeline import (
 from .writers import CoreOutputWriter, KinaseActivityWriter
 
 __all__ = ["CoreOutputs", "PhosRPipeline"]
+
+
+if TYPE_CHECKING:
+    from .prediction.models import PredMatResult
 
 
 @dataclass(slots=True)
@@ -153,7 +158,7 @@ class PhosRPipeline:
     def __init__(
         self,
         dataset: PhosphoDataset,
-        pred_mat: pd.DataFrame | None = None,
+        pred_mat: pd.DataFrame | PredMatResult | None = None,
         preprocessing_config: CorePreprocessingConfig | None = None,
         localization_threshold: float = 0.75,
         min_observed: int = 4,

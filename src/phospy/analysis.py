@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -20,6 +21,10 @@ from .validation.analysis import (
 from .writers import KinaseActivityResultWriter, KinaseActivityWriter
 
 __all__ = ["KinaseActivityAnalyzer", "KinaseActivityResult"]
+
+
+if TYPE_CHECKING:
+    from .prediction.models import PredMatResult
 
 
 PredMatLoader = Callable[[str | Path], pd.DataFrame]
@@ -89,7 +94,7 @@ class KinaseActivityAnalyzer:
     def _validate_request(
         self,
         *,
-        pred_mat: pd.DataFrame,
+        pred_mat: pd.DataFrame | PredMatResult,
         phospho_matrix: pd.DataFrame,
         threshold: float = 0.6,
         min_substrates: int = 3,
@@ -105,7 +110,7 @@ class KinaseActivityAnalyzer:
 
     def run(
         self,
-        pred_mat: pd.DataFrame,
+        pred_mat: pd.DataFrame | PredMatResult,
         phospho_matrix: pd.DataFrame,
         threshold: float = 0.6,
         min_substrates: int = 3,
