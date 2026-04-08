@@ -416,7 +416,7 @@ def test_kinase_workflow_accepts_explicit_svm_mode() -> None:
     ]
 
 
-def test_kinase_workflow_run_request_uses_validated_boundary_request(
+def test_kinase_workflow_run_validated_uses_validated_boundary_request(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
@@ -468,7 +468,7 @@ def test_kinase_workflow_run_request_uses_validated_boundary_request(
         n_iterations=2,
         random_state=17,
     )
-    result = workflow._run_request(request)
+    result = workflow.run_validated(request)
 
     assert list(result.prediction_result.pred_matrix.columns) == [
         "KINASE_A",

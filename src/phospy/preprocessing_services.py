@@ -47,14 +47,14 @@ class TotalPreprocessor:
         min_observed: int = 4,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         total = total_df.copy()
-        return self._prepare_owned(
+        return self.prepare_owned(
             total,
             gene_col=gene_col,
             sentinel=sentinel,
             min_observed=min_observed,
         )
 
-    def _prepare_owned(
+    def prepare_owned(
         self,
         total_df: pd.DataFrame,
         *,
@@ -99,7 +99,7 @@ class PhosphoPreprocessor:
         min_observed: int = 4,
     ) -> pd.DataFrame:
         phospho = phospho_df.copy()
-        return self._prepare_owned(
+        return self.prepare_owned(
             phospho,
             gene_col=gene_col,
             site_col=site_col,
@@ -109,7 +109,7 @@ class PhosphoPreprocessor:
             min_observed=min_observed,
         )
 
-    def _prepare_owned(
+    def prepare_owned(
         self,
         phospho_df: pd.DataFrame,
         *,
@@ -183,7 +183,7 @@ class ProteinCorrectionService:
             max_unmatched_fraction=max_unmatched_fraction,
         )
 
-    def _correct_owned(
+    def correct_owned(
         self,
         phospho_df: pd.DataFrame,
         total_df: pd.DataFrame,

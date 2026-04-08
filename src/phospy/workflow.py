@@ -250,9 +250,9 @@ class KinaseWorkflow(_WorkflowFacadeBase):
             random_state=random_state,
             svm_mode=svm_mode,
         )
-        return self._run_request(request)
+        return self.run_validated(request)
 
-    def _run_request(
+    def run_validated(
         self,
         request: ValidatedWorkflowRequest,
     ) -> KinaseWorkflowResult:
@@ -307,9 +307,9 @@ class PredMatWorkflow(_WorkflowFacadeBase):
             random_state=random_state,
             svm_mode=svm_mode,
         )
-        return self._run_request(request)
+        return self.run_validated(request)
 
-    def _run_request(
+    def run_validated(
         self,
         request: ValidatedWorkflowRequest,
     ) -> PredMatWorkflowResult:
@@ -373,9 +373,9 @@ class SignalomeWorkflow:
             module_count=module_count,
             min_kinase_module_share_percent=min_kinase_module_share_percent,
         )
-        return self._run_request(request)
+        return self.run_validated(request)
 
-    def _run_request(
+    def run_validated(
         self,
         request: ValidatedSignalomeRequest,
     ) -> SignalomeResult:

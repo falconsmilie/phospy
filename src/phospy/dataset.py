@@ -147,7 +147,7 @@ class PhosphoDataset:
         return DatasetSiteMatrix(schema=self.schema)
 
     @classmethod
-    def _from_loaded_inputs(
+    def from_loaded_inputs(
         cls,
         loaded_inputs: LoadedDatasetInputs,
         *,
@@ -155,13 +155,13 @@ class PhosphoDataset:
     ) -> PhosphoDataset:
         """Build a dataset workspace from internal trusted loader output.
 
-        This internal boundary transfers ownership of the loader-managed frames
-        directly into the dataset workspace. Public callers should use
+        This explicit internal boundary transfers ownership of the loader-managed
+        frames directly into the dataset workspace. Public callers should use
         ``PhosphoDataset(...)`` or ``PhosphoDataset.from_files(...)``.
         """
         if not isinstance(loaded_inputs, LoadedDatasetInputs):
             msg = (
-                "_from_loaded_inputs requires an internal LoadedDatasetInputs instance."
+                "from_loaded_inputs requires an internal LoadedDatasetInputs instance."
             )
             raise TypeError(msg)
         validated_request = build_validated_dataset_inputs(
@@ -189,7 +189,7 @@ class PhosphoDataset:
             phospho_path,
             phospho_encoding=phospho_encoding,
         )
-        return cls._from_loaded_inputs(
+        return cls.from_loaded_inputs(
             validated_inputs,
             comparisons=comparisons,
         )

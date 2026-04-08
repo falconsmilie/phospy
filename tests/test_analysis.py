@@ -265,7 +265,7 @@ def test_run_revalidates_public_inputs_loaded_from_disk(
     assert matrix_calls == ["phospho_matrix"]
 
 
-def test_run_request_uses_validated_boundary_request(
+def test_run_validated_uses_validated_boundary_request(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     pred_calls: list[str] = []
@@ -300,7 +300,7 @@ def test_run_request_uses_validated_boundary_request(
         min_substrates=2,
         top_n_substrates=20,
     )
-    result = analyzer._run_request(request)
+    result = analyzer.run_validated(request)
 
     assert set(result.weighted_activity.index) == {"PRKACA", "BTK"}
     assert pred_calls == ["pred_mat"]

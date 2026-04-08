@@ -61,7 +61,7 @@ class _PipelineRequestLoader:
             request.phospho_path,
             phospho_encoding=request.phospho_encoding,
         )
-        dataset = PhosphoDataset._from_loaded_inputs(
+        dataset = PhosphoDataset.from_loaded_inputs(
             validated_inputs,
             comparisons=request.comparisons,
         )
@@ -111,7 +111,7 @@ class _PipelineRunner:
             site_matrix=core.site_matrix.matrix,
         )
         if kinase_activity_request is not None:
-            kinase_activity = self.kinase_activity_analyzer._run_request(
+            kinase_activity = self.kinase_activity_analyzer.run_validated(
                 kinase_activity_request
             )
 

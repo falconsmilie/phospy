@@ -125,9 +125,9 @@ class KinaseActivityAnalyzer:
             min_substrates=min_substrates,
             top_n_substrates=top_n_substrates,
         )
-        return self._run_request(request)
+        return self.run_validated(request)
 
-    def _run_request(
+    def run_validated(
         self,
         request: ValidatedAnalysisRequest,
     ) -> KinaseActivityResult:

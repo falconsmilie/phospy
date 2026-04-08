@@ -13,6 +13,7 @@ from phospy import (
     PhosRPipeline,
     PredMatResult,
     PredMatWorkflow,
+    SignalomeWorkflow,
 )
 from phospy.constants import (
     CORE_OUTPUT_ARTIFACT_BASENAMES,
@@ -982,7 +983,7 @@ def test_phospho_dataset_from_loaded_inputs_transfers_loader_owned_frames_withou
 
     monkeypatch.setattr(pd.DataFrame, "copy", counting_copy)
 
-    dataset = PhosphoDataset._from_loaded_inputs(loaded_inputs)
+    dataset = PhosphoDataset.from_loaded_inputs(loaded_inputs)
 
     assert dataset.total_df_live is loaded_inputs.total_df
     assert dataset.phospho_df_live is loaded_inputs.phospho_df
@@ -1028,11 +1029,17 @@ def test_pipeline_from_files_validates_inputs_once(monkeypatch, tmp_path) -> Non
 def test_pipeline_does_not_expose_request_specific_builders() -> None:
     assert not hasattr(PhosRPipeline, "from_request")
     assert not hasattr(PhosRPipeline, "from_validated_request")
+    assert not hasattr(PhosphoDataset, "_from_loaded_inputs")
     assert not hasattr(KinaseWorkflow, "validate_request")
     assert not hasattr(KinaseWorkflow, "run_request")
+    assert not hasattr(KinaseWorkflow, "_run_request")
     assert not hasattr(PredMatWorkflow, "validate_request")
     assert not hasattr(PredMatWorkflow, "run_request")
+    assert not hasattr(PredMatWorkflow, "_run_request")
+    assert not hasattr(SignalomeWorkflow, "run_request")
+    assert not hasattr(SignalomeWorkflow, "_run_request")
     assert not hasattr(KinaseActivityAnalyzer, "validate_request")
+    assert not hasattr(KinaseActivityAnalyzer, "_run_request")
     assert not hasattr(KinaseActivityAnalyzer, "analyze")
     assert not hasattr(KinaseActivityAnalyzer, "analyze_validated_request")
     assert not hasattr(KinaseActivityAnalyzer, "load_and_analyze")
@@ -1053,9 +1060,9 @@ def test_pipeline_run_uses_explicit_kinase_activity_settings(monkeypatch) -> Non
     )
 
     captured: dict[str, float | int] = {}
-    original = KinaseActivityAnalyzer._run_request
+    original = KinaseActivityAnalyzer.run_validated
 
-    def capturing_run_request(self, request):
+    def capturing_run_validated(self, request):
         captured["threshold"] = request.request.threshold
         captured["min_substrates"] = request.request.min_substrates
         captured["top_n_substrates"] = request.request.top_n_substrates
@@ -1063,8 +1070,8 @@ def test_pipeline_run_uses_explicit_kinase_activity_settings(monkeypatch) -> Non
 
     monkeypatch.setattr(
         KinaseActivityAnalyzer,
-        "_run_request",
-        capturing_run_request,
+        "run_validated",
+        capturing_run_validated,
     )
 
     outputs = pipeline.run()
