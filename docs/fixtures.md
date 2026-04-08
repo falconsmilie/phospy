@@ -67,6 +67,21 @@ python scripts/generate_synthetic_adaptive_sampling_edge_fixtures.py --outdir te
 make fixtures-synthetic-edge
 ```
 
+### `tests/fixtures/public_workflow_reference`
+
+Small committed benchmark outputs for the public `PredMatWorkflow` and `SignalomeWorkflow` demo paths.
+
+These fixtures are intentionally narrow. They protect the documented example-driven workflow contracts rather than every internal numeric seam.
+
+Generate with:
+
+```bash
+PYTHONPATH=src python examples/predmat_workflow_demo.py
+PYTHONPATH=src python examples/signalome_workflow_demo.py
+```
+
+Then promote the resulting workflow tables into `tests/fixtures/public_workflow_reference` when the benchmark contract changes intentionally.
+
 ## Trace Directories
 
 ### `tests/fixtures/r_reference_l6/prediction_trace`

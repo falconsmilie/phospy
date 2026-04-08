@@ -1,0 +1,3 @@
+module_id,x,y,n_sites,n_proteins,dominant_kinase,dominant_share_percent
+1,0.0,0.0,4,4,KINASE_A,100.0
+2,1.0,0.0,4,4,KINASE_B,100.0

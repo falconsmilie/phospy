@@ -24,6 +24,7 @@ The current parity layer covers selected seams, including:
 - downstream kinase-analysis outputs
 - selected native workflow seams
 - selected prediction trace and replay checks
+- end-to-end benchmark fixtures for the documented predMat and signalome workflow demos
 
 For fixture locations, see [`fixtures.md`](fixtures.md).
 
@@ -33,10 +34,10 @@ For fixture locations, see [`fixtures.md`](fixtures.md).
 
 Use:
 
-- `svm_mode="default"` for the normal native path
-- `svm_mode="r_parity"` for the narrower learner-seam comparison used in parity checks
+- `svm_mode="default"` for the recommended stable native path
+- `svm_mode="r_parity"` for the closest supported parity-oriented learner, sampling, and final-scoring preset
 
-Using `svm_mode="r_parity"` does not make the full workflow equivalent to `PhosR`.
+Using `svm_mode="r_parity"` does not make the full workflow equivalent to `PhosR`, but it is the preset used when parity-sensitive prediction checks need the closest supported reference-oriented path.
 
 ## Run the Parity Suite
 
