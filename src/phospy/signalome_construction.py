@@ -24,6 +24,7 @@ from .signalome_models import (
     SignalomeResult,
 )
 from .validation.errors import InputCompatibilityError
+from .validation.signalomes import SignalomeRequest, _build_validated_signalome_request
 
 __all__ = ["SignalomePlan", "SignalomeRunner", "build_signalome_result"]
 
@@ -127,21 +128,41 @@ def build_signalome_result(
     module_count: int | None = None,
     min_kinase_module_share_percent: float = 1.0,
 ) -> SignalomeResult:
-    """Build a structured signalome result from trusted aligned inputs."""
+    """Build a structured signalome result from validated aligned inputs."""
 
-    plan = SignalomePlan(
-        scoring_matrix=scoring_matrix,
-        pred_mat=pred_mat,
-        expression_matrix=expression_matrix,
-        site_to_protein=resolve_site_to_protein(
-            site_ids=scoring_matrix.index.astype(str).tolist(),
-            site_to_protein=site_to_protein,
-        ),
-        kinases_of_interest=tuple(kinases_of_interest),
+    request = SignalomeRequest.validate_request(
+        kinases_of_interest=kinases_of_interest,
+        site_to_protein=(None if site_to_protein is None else dict(site_to_protein)),
         kinase_network_threshold=kinase_network_threshold,
         signalome_cutoff=signalome_cutoff,
         module_count=module_count,
         min_kinase_module_share_percent=min_kinase_module_share_percent,
+    )
+    validated = _build_validated_signalome_request(
+        request=request,
+        scoring_matrix=scoring_matrix,
+        pred_mat=pred_mat,
+        expression_matrix=expression_matrix,
+        scoring_context="scoring_matrix",
+        pred_mat_context="pred_mat",
+        expression_context="expression_matrix",
+    )
+
+    plan = SignalomePlan(
+        scoring_matrix=validated.scoring_matrix,
+        pred_mat=validated.pred_mat,
+        expression_matrix=validated.expression_matrix,
+        site_to_protein=resolve_site_to_protein(
+            site_ids=validated.scoring_matrix.index.astype(str).tolist(),
+            site_to_protein=validated.site_to_protein,
+        ),
+        kinases_of_interest=validated.request.kinases_of_interest,
+        kinase_network_threshold=validated.request.kinase_network_threshold,
+        signalome_cutoff=validated.request.signalome_cutoff,
+        module_count=validated.request.module_count,
+        min_kinase_module_share_percent=(
+            validated.request.min_kinase_module_share_percent
+        ),
     )
     return SignalomeRunner().execute(plan)
 

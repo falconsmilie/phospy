@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
+import numpy as np
 import pandas as pd
 
 from ..constants import (
@@ -151,6 +152,11 @@ class PredictionScoreMatrixSchema:
         )
         _ensure_unique_index(validated, context=context)
         _ensure_non_null_index(validated, context=context)
+        _ensure_finite_numeric_values(
+            validated,
+            list(validated.columns),
+            context=context,
+        )
         return validated
 
 
@@ -217,6 +223,11 @@ class SiteMatrixSchema:
         )
         _ensure_unique_index(validated, context=context)
         _ensure_non_null_index(validated, context=context)
+        _ensure_finite_numeric_values(
+            validated,
+            list(validated.columns),
+            context=context,
+        )
         return validated
 
 
@@ -299,7 +310,7 @@ def _coerce_numeric_columns(
         invalid_mask = validated[column].notna() & converted.isna()
         if invalid_mask.any():
             sample_values = validated.loc[invalid_mask, column].astype(str).unique()[:3]
-            sample_preview = ", ".join(sample_values)
+            sample_preview = ", ".join(str(value) for value in sample_values)
             failures.append(f"{column} ({sample_preview})")
         validated[column] = converted
     if failures:
@@ -334,6 +345,26 @@ def _ensure_value_range(
         raise TableSchemaError(msg)
 
 
+def _ensure_finite_numeric_values(
+    frame: pd.DataFrame,
+    columns: Sequence[str],
+    *,
+    context: str,
+) -> None:
+    failures: list[str] = []
+    for column in columns:
+        series = frame[column]
+        invalid_mask = ~np.isfinite(series.to_numpy(dtype=float))
+        if invalid_mask.any():
+            sample_values = series.loc[invalid_mask].astype(str).unique()[:3]
+            sample_preview = ", ".join(str(value) for value in sample_values)
+            failures.append(f"{column} ({sample_preview})")
+    if failures:
+        failures_str = "; ".join(failures)
+        msg = f"{context} contains non-finite values in numeric columns: {failures_str}"
+        raise TableSchemaError(msg)
+
+
 def _ensure_splitable_gene_p_site(
     series: pd.Series,
     *,
@@ -356,7 +387,7 @@ def _ensure_splitable_gene_p_site(
         )
     if invalid_mask.any():
         sample_values = series.loc[invalid_mask].astype(str).unique()[:3]
-        sample_preview = ", ".join(sample_values)
+        sample_preview = ", ".join(str(value) for value in sample_values)
         msg = (
             f"{context} contains malformed {column_name} values that cannot be split "
             f"into non-empty gene and site parts using a single underscore: "

@@ -14,6 +14,7 @@ from phospy.io import (
 from phospy.validation.errors import TableSchemaError
 from phospy.validation.tables import (
     PhosphoInputSchema,
+    PredictionScoreMatrixSchema,
     PredMatSchema,
     SiteMatrixSchema,
     SiteMatrixSourceSchema,
@@ -193,3 +194,29 @@ def test_site_matrix_source_schema_rejects_empty_or_extra_delimiter_gene_p_site(
             sequence_col="centralized_sequence",
             value_cols=["sample_1"],
         )
+
+
+def test_prediction_score_matrix_schema_rejects_non_finite_scores() -> None:
+    frame = pd.DataFrame(
+        {
+            "KINASE_A": [0.8, float("nan")],
+            "KINASE_B": [0.2, 0.4],
+        },
+        index=["SITE_1", "SITE_2"],
+    )
+
+    with pytest.raises(TableSchemaError, match="non-finite values"):
+        PredictionScoreMatrixSchema.validate(frame)
+
+
+def test_site_matrix_schema_rejects_non_finite_values() -> None:
+    frame = pd.DataFrame(
+        {
+            "sample_1": [1.0, float("-inf")],
+            "sample_2": [1.1, 2.1],
+        },
+        index=["SITE_1", "SITE_2"],
+    )
+
+    with pytest.raises(TableSchemaError, match="non-finite values"):
+        SiteMatrixSchema.validate(frame)

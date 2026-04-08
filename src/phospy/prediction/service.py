@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from ..scoring import KinaseScoringResult
 from ..types import PredictionSvmMode, PredictionTraceFormat, PredictionTraceLevel
-from ..validation.errors import InputCompatibilityError
+from ..validation.errors import InputCompatibilityError, NoCandidateKinasesError
 from ..validation.prediction import PredictionRequest
 from .aggregation import PredictionAggregator
 from .candidates import CandidateSelector, build_candidate_substrate_list
@@ -233,12 +234,30 @@ class KinasePredictor:
     ) -> KinasePredictionResult:
         if scoring_result.combined_scores is not None:
             feature_mat = scoring_result.combined_scores
+            feature_name = "combined_scores"
         elif allow_profile_only_fallback:
             feature_mat = scoring_result.profile_scores
+            feature_name = "profile_scores"
         else:
             msg = (
                 "scoring_result does not contain combined_scores; pass "
                 "allow_profile_only_fallback=True to use profile_scores instead"
+            )
+            raise InputCompatibilityError(msg)
+
+        feature_values = feature_mat.to_numpy(dtype=float)
+        if not np.isfinite(feature_values).all():
+            if not np.isfinite(feature_values).any():
+                msg = (
+                    "No candidate kinases qualified for prediction from "
+                    f"{feature_name} using top={top}, score_threshold={score_threshold}, "
+                    f"and inclusion={inclusion}. Lower score_threshold or inclusion, "
+                    "or increase top."
+                )
+                raise NoCandidateKinasesError(msg)
+            msg = (
+                "scoring_result contains non-finite values in "
+                f"{feature_name}; regenerate scores with finite inputs before prediction"
             )
             raise InputCompatibilityError(msg)
 

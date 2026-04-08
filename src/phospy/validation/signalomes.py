@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
 from pydantic import Field, ValidationError, field_validator
 
@@ -125,36 +126,66 @@ def validate_signalome_request(
         min_kinase_module_share_percent=min_kinase_module_share_percent,
     )
 
-    scoring_matrix = PredictionScoreMatrixSchema.validate(
-        _resolve_scoring_matrix(scoring_result),
-        context="scoring_result",
+    return _build_validated_signalome_request(
+        request=request,
+        scoring_matrix=_resolve_scoring_matrix(scoring_result),
+        pred_mat=_validate_prediction_result_pred_mat(prediction_result),
+        expression_matrix=expression_matrix,
+        scoring_context="scoring_result",
+        pred_mat_context="prediction_result",
+        expression_context="expression_matrix",
     )
-    pred_mat = _validate_prediction_result_pred_mat(prediction_result)
+
+
+def _build_validated_signalome_request(
+    *,
+    request: SignalomeRequest,
+    scoring_matrix: pd.DataFrame,
+    pred_mat: pd.DataFrame,
+    expression_matrix: pd.DataFrame,
+    scoring_context: str,
+    pred_mat_context: str,
+    expression_context: str,
+) -> ValidatedSignalomeRequest:
+    validated_scoring_matrix = PredictionScoreMatrixSchema.validate(
+        scoring_matrix,
+        context=scoring_context,
+    )
+    validated_pred_mat = PredMatSchema.validate(
+        pred_mat,
+        context=pred_mat_context,
+    )
+    _ensure_finite_pred_mat(
+        validated_pred_mat,
+        context=pred_mat_context,
+    )
     validated_expression_matrix = SiteMatrixSchema.validate(
         expression_matrix,
-        context="expression_matrix",
+        context=expression_context,
     )
 
     common_sites = [
         site_id
-        for site_id in scoring_matrix.index.astype(str)
-        if site_id in pred_mat.index and site_id in validated_expression_matrix.index
+        for site_id in validated_scoring_matrix.index.astype(str)
+        if site_id in validated_pred_mat.index
+        and site_id in validated_expression_matrix.index
     ]
     if not common_sites:
         msg = (
-            "scoring_result, prediction_result, and expression_matrix must share "
-            "at least one phosphosite row"
+            f"{scoring_context}, {pred_mat_context}, and {expression_context} "
+            "must share at least one phosphosite row"
         )
         raise InputCompatibilityError(msg)
 
     common_kinases = [
         kinase
-        for kinase in scoring_matrix.columns.astype(str)
-        if kinase in pred_mat.columns
+        for kinase in validated_scoring_matrix.columns.astype(str)
+        if kinase in validated_pred_mat.columns
     ]
     if not common_kinases:
         msg = (
-            "scoring_result and prediction_result must share at least one kinase column"
+            f"{scoring_context} and {pred_mat_context} must share at least one "
+            "kinase column"
         )
         raise InputCompatibilityError(msg)
 
@@ -163,7 +194,10 @@ def validate_signalome_request(
     ]
     if missing_koi:
         missing = ", ".join(missing_koi)
-        msg = f"kinases_of_interest are not available in the aligned signalome inputs: {missing}"
+        msg = (
+            "kinases_of_interest are not available in the aligned signalome "
+            f"inputs: {missing}"
+        )
         raise InputCompatibilityError(msg)
 
     if request.module_count is not None and request.module_count > len(common_sites):
@@ -177,11 +211,30 @@ def validate_signalome_request(
 
     return ValidatedSignalomeRequest(
         request=request,
-        scoring_matrix=scoring_matrix.loc[common_sites, common_kinases],
-        pred_mat=pred_mat.loc[common_sites, common_kinases],
+        scoring_matrix=validated_scoring_matrix.loc[common_sites, common_kinases],
+        pred_mat=validated_pred_mat.loc[common_sites, common_kinases],
         expression_matrix=validated_expression_matrix.loc[common_sites],
         site_to_protein=validated_site_to_protein,
     )
+
+
+def _ensure_finite_pred_mat(
+    frame: pd.DataFrame,
+    *,
+    context: str,
+) -> None:
+    failures: list[str] = []
+    for column in frame.columns.astype(str):
+        series = frame.loc[:, column]
+        invalid_mask = ~np.isfinite(series.to_numpy(dtype=float))
+        if invalid_mask.any():
+            sample_values = series.loc[invalid_mask].astype(str).unique()[:3]
+            sample_preview = ", ".join(str(value) for value in sample_values)
+            failures.append(f"{column} ({sample_preview})")
+    if failures:
+        failures_str = "; ".join(failures)
+        msg = f"{context} contains non-finite values in numeric columns: {failures_str}"
+        raise InputCompatibilityError(msg)
 
 
 def _validate_signalome_site_grouping(

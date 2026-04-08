@@ -12,6 +12,7 @@ from phospy.validation.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
     RequestValidationError,
+    TableSchemaError,
 )
 from phospy.workflow import PredMatWorkflow, SignalomeWorkflow
 
@@ -566,4 +567,156 @@ def test_signalome_workflow_rejects_unknown_kinases_of_interest() -> None:
             prediction_result=pred_mat_result.prediction_result,
             expression_matrix=phospho_matrix,
             kinases_of_interest=["KINASE_X"],
+        )
+
+
+def test_build_signalome_result_rejects_non_finite_expression_values() -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 1.0],
+            "KINASE_B": [1.0, 1.0],
+        },
+        index=["PROTEIN_1;S1;", "PROTEIN_2;S2;"],
+    )
+    pred_mat = pd.DataFrame(
+        {
+            "KINASE_A": [0.9, 0.2],
+            "KINASE_B": [0.1, 0.8],
+        },
+        index=scoring_matrix.index.copy(),
+    )
+    expression_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, float("nan")],
+            "sample_2": [1.1, 2.1],
+        },
+        index=scoring_matrix.index.copy(),
+    )
+
+    with pytest.raises(
+        TableSchemaError, match="expression_matrix contains non-finite values"
+    ):
+        build_signalome_result(
+            scoring_matrix=scoring_matrix,
+            pred_mat=pred_mat,
+            expression_matrix=expression_matrix,
+            kinases_of_interest=["KINASE_A"],
+            signalome_cutoff=0.5,
+            module_count=1,
+        )
+
+
+def test_build_signalome_result_reports_domain_error_for_unaligned_inputs() -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 1.0],
+            "KINASE_B": [1.0, 1.0],
+        },
+        index=["PROTEIN_1;S1;", "PROTEIN_2;S2;"],
+    )
+    pred_mat = pd.DataFrame(
+        {
+            "KINASE_A": [0.9, 0.2],
+            "KINASE_B": [0.1, 0.8],
+        },
+        index=["OTHER_1;S1;", "OTHER_2;S2;"],
+    )
+    expression_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 2.0],
+            "sample_2": [1.1, 2.1],
+        },
+        index=scoring_matrix.index.copy(),
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=(
+            "scoring_matrix, pred_mat, and expression_matrix must share at least "
+            "one phosphosite row"
+        ),
+    ):
+        build_signalome_result(
+            scoring_matrix=scoring_matrix,
+            pred_mat=pred_mat,
+            expression_matrix=expression_matrix,
+            kinases_of_interest=["KINASE_A"],
+            signalome_cutoff=0.5,
+            module_count=1,
+        )
+
+
+def test_build_signalome_result_reports_domain_error_for_unaligned_kinase_columns() -> (
+    None
+):
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 1.0],
+            "KINASE_B": [1.0, 1.0],
+        },
+        index=["PROTEIN_1;S1;", "PROTEIN_2;S2;"],
+    )
+    pred_mat = pd.DataFrame(
+        {
+            "KINASE_X": [0.9, 0.2],
+            "KINASE_Y": [0.1, 0.8],
+        },
+        index=scoring_matrix.index.copy(),
+    )
+    expression_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 2.0],
+            "sample_2": [1.1, 2.1],
+        },
+        index=scoring_matrix.index.copy(),
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match="scoring_matrix and pred_mat must share at least one kinase column",
+    ):
+        build_signalome_result(
+            scoring_matrix=scoring_matrix,
+            pred_mat=pred_mat,
+            expression_matrix=expression_matrix,
+            kinases_of_interest=["KINASE_A"],
+            signalome_cutoff=0.5,
+            module_count=1,
+        )
+
+
+def test_build_signalome_result_rejects_non_finite_pred_mat_values() -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 1.0],
+            "KINASE_B": [1.0, 1.0],
+        },
+        index=["PROTEIN_1;S1;", "PROTEIN_2;S2;"],
+    )
+    pred_mat = pd.DataFrame(
+        {
+            "KINASE_A": [0.9, float("nan")],
+            "KINASE_B": [0.1, 0.8],
+        },
+        index=scoring_matrix.index.copy(),
+    )
+    expression_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 2.0],
+            "sample_2": [1.1, 2.1],
+        },
+        index=scoring_matrix.index.copy(),
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match="pred_mat contains non-finite values in numeric columns",
+    ):
+        build_signalome_result(
+            scoring_matrix=scoring_matrix,
+            pred_mat=pred_mat,
+            expression_matrix=expression_matrix,
+            kinases_of_interest=["KINASE_A"],
+            signalome_cutoff=0.5,
+            module_count=1,
         )
