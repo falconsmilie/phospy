@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from phospy import PredMatResult, SignalomeResult
+from phospy.signalomes import build_signalome_result
 from phospy.validation.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
@@ -152,6 +153,149 @@ def test_signalome_workflow_rejects_pred_mat_without_candidate_kinases() -> None
             expression_matrix=phospho_matrix,
             kinases_of_interest=["KINASE_A"],
         )
+
+
+def test_signalome_workflow_accepts_explicit_site_to_protein_mapping() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+    renamed_index = [f"SITE_{i}" for i in range(1, phospho_matrix.shape[0] + 1)]
+    renamed_expression_matrix = phospho_matrix.copy()
+    renamed_expression_matrix.index = renamed_index
+
+    scoring_result = pred_mat_result.scoring_result
+    scoring_result.combined_scores.index = renamed_index
+    scoring_result.profile_scores.index = renamed_index
+
+    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat.index = renamed_index
+    renamed_pred_mat_result = PredMatResult(pred_mat)
+
+    site_to_protein = {
+        "SITE_1": "PROTEIN_A",
+        "SITE_2": "PROTEIN_A",
+        "SITE_3": "PROTEIN_B",
+        "SITE_4": "PROTEIN_B",
+        "SITE_5": "PROTEIN_C",
+        "SITE_6": "PROTEIN_C",
+        "SITE_7": "PROTEIN_D",
+        "SITE_8": "PROTEIN_D",
+    }
+
+    result = SignalomeWorkflow().run(
+        scoring_result=scoring_result,
+        prediction_result=renamed_pred_mat_result,
+        expression_matrix=renamed_expression_matrix,
+        kinases_of_interest=["KINASE_A"],
+        site_to_protein=site_to_protein,
+        signalome_cutoff=0.5,
+    )
+
+    assert sorted(result.protein_assignments.index.tolist()) == [
+        "PROTEIN_A",
+        "PROTEIN_B",
+        "PROTEIN_C",
+        "PROTEIN_D",
+    ]
+    assert result.site_assignments.loc["SITE_1", "protein_id"] == "PROTEIN_A"
+    assert result.site_assignments.loc["SITE_2", "protein_id"] == "PROTEIN_A"
+
+
+def test_signalome_workflow_rejects_unsupported_site_identifier_format_without_mapping() -> (
+    None
+):
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+    renamed_index = [f"SITE_{i}" for i in range(1, phospho_matrix.shape[0] + 1)]
+    renamed_expression_matrix = phospho_matrix.copy()
+    renamed_expression_matrix.index = renamed_index
+
+    scoring_result = pred_mat_result.scoring_result
+    scoring_result.combined_scores.index = renamed_index
+    scoring_result.profile_scores.index = renamed_index
+
+    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat.index = renamed_index
+    renamed_pred_mat_result = PredMatResult(pred_mat)
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=(
+            "Signalome construction requires either an explicit site_to_protein "
+            "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
+            "format"
+        ),
+    ):
+        SignalomeWorkflow().run(
+            scoring_result=scoring_result,
+            prediction_result=renamed_pred_mat_result,
+            expression_matrix=renamed_expression_matrix,
+            kinases_of_interest=["KINASE_A"],
+            signalome_cutoff=0.5,
+        )
+
+
+def test_signalome_workflow_rejects_incomplete_site_to_protein_mapping() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match="site_to_protein must define a protein ID for every aligned phosphosite row",
+    ):
+        SignalomeWorkflow().run(
+            scoring_result=pred_mat_result.scoring_result,
+            prediction_result=pred_mat_result.prediction_result,
+            expression_matrix=phospho_matrix,
+            kinases_of_interest=["KINASE_A"],
+            site_to_protein={"PROTEIN_1;S1;": "PROTEIN_1"},
+            signalome_cutoff=0.5,
+        )
+
+
+def test_build_signalome_result_uses_explicit_site_to_protein_mapping_for_grouping() -> (
+    None
+):
+    site_ids = ["SITE_1", "SITE_2", "SITE_3", "SITE_4"]
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 1.0, 4.0, 4.0],
+            "KINASE_B": [1.1, 1.1, 4.1, 4.1],
+        },
+        index=site_ids,
+    )
+    pred_mat = pd.DataFrame(
+        {
+            "KINASE_A": [0.95, 0.93, 0.20, 0.25],
+            "KINASE_B": [0.10, 0.12, 0.91, 0.90],
+        },
+        index=site_ids,
+    )
+    expression_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 1.1, 3.0, 3.1],
+            "sample_2": [1.2, 1.0, 2.9, 3.0],
+        },
+        index=site_ids,
+    )
+
+    result = build_signalome_result(
+        scoring_matrix=scoring_matrix,
+        pred_mat=pred_mat,
+        expression_matrix=expression_matrix,
+        kinases_of_interest=["KINASE_A"],
+        site_to_protein={
+            "SITE_1": "PROTEIN_1",
+            "SITE_2": "PROTEIN_1",
+            "SITE_3": "PROTEIN_2",
+            "SITE_4": "PROTEIN_2",
+        },
+        signalome_cutoff=0.5,
+        module_count=2,
+    )
+
+    assert sorted(result.protein_assignments.index.tolist()) == [
+        "PROTEIN_1",
+        "PROTEIN_2",
+    ]
+    assert result.protein_assignments.loc["PROTEIN_1", "site_count"] == 2
+    assert result.site_assignments.loc["SITE_1", "protein_id"] == "PROTEIN_1"
 
 
 def test_signalome_result_exposes_canonical_module_assignment_and_network_views() -> (

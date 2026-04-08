@@ -305,6 +305,7 @@ class _SignalomePlan:
     scoring_matrix: pd.DataFrame
     pred_mat: pd.DataFrame
     expression_matrix: pd.DataFrame
+    site_to_protein: pd.Series
     kinases_of_interest: tuple[str, ...]
     kinase_network_threshold: float
     signalome_cutoff: float
@@ -324,11 +325,12 @@ class _SignalomeRunner:
         )
         protein_modules = _derive_protein_modules(
             site_clusters=site_clusters,
-            site_ids=scoring_matrix.index,
+            site_to_protein=plan.site_to_protein,
         )
         site_assignments = _build_site_assignments(
             pred_mat=pred_mat,
             protein_modules=protein_modules,
+            site_to_protein=plan.site_to_protein,
         )
         selected_kinase_substrates = _select_kinase_substrates(
             pred_mat=pred_mat,
@@ -387,6 +389,7 @@ def build_signalome_result(
     pred_mat: pd.DataFrame,
     expression_matrix: pd.DataFrame,
     kinases_of_interest: Sequence[str],
+    site_to_protein: Mapping[str, str] | pd.Series | None = None,
     kinase_network_threshold: float = 0.9,
     signalome_cutoff: float = 0.5,
     module_count: int | None = None,
@@ -398,6 +401,10 @@ def build_signalome_result(
         scoring_matrix=scoring_matrix,
         pred_mat=pred_mat,
         expression_matrix=expression_matrix,
+        site_to_protein=_resolve_site_to_protein(
+            site_ids=scoring_matrix.index.astype(str).tolist(),
+            site_to_protein=site_to_protein,
+        ),
         kinases_of_interest=tuple(kinases_of_interest),
         kinase_network_threshold=kinase_network_threshold,
         signalome_cutoff=signalome_cutoff,
@@ -405,6 +412,96 @@ def build_signalome_result(
         min_kinase_module_share_percent=min_kinase_module_share_percent,
     )
     return _SignalomeRunner().execute(plan)
+
+
+def _resolve_site_to_protein(
+    *,
+    site_ids: Sequence[str],
+    site_to_protein: Mapping[str, str] | pd.Series | None,
+) -> pd.Series:
+    if site_to_protein is None:
+        return _parse_supported_site_ids(site_ids)
+
+    if isinstance(site_to_protein, pd.Series):
+        mapping: Mapping[str, str] = {
+            str(site_id): str(protein_id)
+            for site_id, protein_id in site_to_protein.items()
+        }
+    else:
+        mapping = site_to_protein
+
+    missing_site_ids = [site_id for site_id in site_ids if site_id not in mapping]
+    if missing_site_ids:
+        preview = ", ".join(missing_site_ids[:3])
+        msg = (
+            "site_to_protein must define a protein ID for every signalome site. "
+            f"Missing mappings for: {preview}"
+        )
+        if len(missing_site_ids) > 3:
+            msg += ", ..."
+        raise InputCompatibilityError(msg)
+
+    protein_ids = [str(mapping[site_id]).strip() for site_id in site_ids]
+    invalid_site_ids = [
+        site_id
+        for site_id, protein_id in zip(site_ids, protein_ids, strict=True)
+        if not protein_id
+    ]
+    if invalid_site_ids:
+        preview = ", ".join(invalid_site_ids[:3])
+        msg = (
+            "site_to_protein must map every signalome site to a non-empty protein "
+            f"ID. Invalid mappings for: {preview}"
+        )
+        if len(invalid_site_ids) > 3:
+            msg += ", ..."
+        raise InputCompatibilityError(msg)
+
+    series = pd.Series(
+        protein_ids, index=pd.Index(site_ids, dtype=object), dtype=object
+    )
+    series.index.name = "site_id"
+    series.name = "protein_id"
+    return series
+
+
+def _parse_supported_site_ids(site_ids: Sequence[str]) -> pd.Series:
+    protein_ids: list[str] = []
+    invalid_site_ids: list[str] = []
+    for site_id in site_ids:
+        protein_id = _protein_id_from_supported_site_id(site_id)
+        if protein_id is None:
+            invalid_site_ids.append(site_id)
+            continue
+        protein_ids.append(protein_id)
+
+    if invalid_site_ids:
+        preview = ", ".join(invalid_site_ids[:3])
+        msg = (
+            "Signalome construction requires either an explicit site_to_protein "
+            "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
+            f"format. Invalid site IDs: {preview}"
+        )
+        if len(invalid_site_ids) > 3:
+            msg += ", ..."
+        raise InputCompatibilityError(msg)
+
+    series = pd.Series(
+        protein_ids, index=pd.Index(site_ids, dtype=object), dtype=object
+    )
+    series.index.name = "site_id"
+    series.name = "protein_id"
+    return series
+
+
+def _protein_id_from_supported_site_id(site_id: str) -> str | None:
+    parts = [part.strip() for part in str(site_id).split(";")]
+    if len(parts) < 3:
+        return None
+    protein_id, residue = parts[0], parts[1]
+    if not protein_id or not residue:
+        return None
+    return protein_id
 
 
 def _cluster_sites(
@@ -519,12 +616,10 @@ def _cluster_median_correlation(
 def _derive_protein_modules(
     *,
     site_clusters: pd.Series,
-    site_ids: pd.Index,
+    site_to_protein: pd.Series,
 ) -> pd.Series:
-    site_labels = pd.Index(site_ids.astype(str), dtype=object)
-    proteins = pd.Index(
-        [_protein_id_from_site(site_id) for site_id in site_labels], dtype=object
-    )
+    aligned_site_to_protein = site_to_protein.loc[site_clusters.index.astype(str)]
+    proteins = pd.Index(aligned_site_to_protein.tolist(), dtype=object)
     membership = pd.crosstab(site_clusters, proteins)
     membership = (membership > 0).astype(int)
 
@@ -548,10 +643,11 @@ def _build_site_assignments(
     *,
     pred_mat: pd.DataFrame,
     protein_modules: pd.Series,
+    site_to_protein: pd.Series,
 ) -> pd.DataFrame:
     rows: list[dict[str, object]] = []
     for site_id in pred_mat.index.astype(str):
-        protein_id = _protein_id_from_site(site_id)
+        protein_id = str(site_to_protein.loc[site_id])
         scores = pred_mat.loc[site_id]
         top_score = float(scores.max())
         top_kinases = [str(kinase) for kinase in scores.index[scores == top_score]]
@@ -808,7 +904,3 @@ def _build_expanded_signalomes(
         )
 
     return expanded
-
-
-def _protein_id_from_site(site_id: str) -> str:
-    return site_id.split(";", 1)[0] if ";" in site_id else site_id

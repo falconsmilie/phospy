@@ -30,6 +30,10 @@ def load_demo_inputs(
     return phospho_matrix, substrate_map, site_sequences, motif_sequences
 
 
+def build_site_to_protein(site_ids: pd.Index) -> dict[str, str]:
+    return {str(site_id): str(site_id).split(";", 1)[0] for site_id in site_ids}
+
+
 def run_demo(
     outdir: Path,
 ) -> tuple[SignalomeResult, SignalomeMapData, dict[str, Path]]:
@@ -58,6 +62,7 @@ def run_demo(
         prediction_result=pred_mat_result.prediction_result,
         expression_matrix=phospho_matrix,
         kinases_of_interest=["KINASE_A", "KINASE_B"],
+        site_to_protein=build_site_to_protein(phospho_matrix.index),
         signalome_cutoff=0.5,
     )
     map_data = signalome_result.to_map_data()

@@ -621,6 +621,7 @@ SignalomeWorkflow().run(
     prediction_result: KinasePredictionResult | PredMatResult,
     expression_matrix: pd.DataFrame,
     kinases_of_interest: Sequence[str],
+    site_to_protein: Mapping[str, str] | None = None,
     kinase_network_threshold: float = 0.9,
     signalome_cutoff: float = 0.5,
     module_count: int | None = None,

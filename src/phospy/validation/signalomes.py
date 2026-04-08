@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import pandas as pd
@@ -27,6 +27,7 @@ class SignalomeRequest(PhospyRequestModel):
     """Raw boundary request for public signalome construction."""
 
     kinases_of_interest: tuple[str, ...]
+    site_to_protein: dict[str, str] | None = None
     kinase_network_threshold: float = Field(default=0.9, ge=0.0, le=1.0)
     signalome_cutoff: float = Field(default=0.5, ge=0.0, le=1.0)
     module_count: int | None = Field(default=None, ge=1)
@@ -45,6 +46,37 @@ class SignalomeRequest(PhospyRequestModel):
         normalized = tuple(dict.fromkeys(str(kinase) for kinase in value))
         if not normalized:
             msg = "kinases_of_interest must contain at least one kinase name"
+            raise ValueError(msg)
+        return normalized
+
+    @field_validator("site_to_protein", mode="before")
+    @classmethod
+    def normalize_site_to_protein(
+        cls,
+        value: object,
+    ) -> dict[str, str] | None:
+        if value is None:
+            return None
+        if not isinstance(value, dict):
+            try:
+                value = dict(value)  # type: ignore[arg-type]
+            except (TypeError, ValueError) as error:
+                msg = "site_to_protein must be provided as a mapping of site IDs to protein IDs"
+                raise ValueError(msg) from error
+
+        normalized: dict[str, str] = {}
+        for raw_site_id, raw_protein_id in value.items():
+            site_id = str(raw_site_id)
+            protein_id = str(raw_protein_id).strip()
+            if not site_id:
+                msg = "site_to_protein keys must be non-empty site IDs"
+                raise ValueError(msg)
+            if not protein_id:
+                msg = "site_to_protein values must be non-empty protein IDs"
+                raise ValueError(msg)
+            normalized[site_id] = protein_id
+        if not normalized:
+            msg = "site_to_protein must contain at least one site-to-protein mapping"
             raise ValueError(msg)
         return normalized
 
@@ -67,6 +99,7 @@ class ValidatedSignalomeRequest:
     scoring_matrix: pd.DataFrame
     pred_mat: pd.DataFrame
     expression_matrix: pd.DataFrame
+    site_to_protein: pd.Series
 
 
 def validate_signalome_request(
@@ -75,6 +108,7 @@ def validate_signalome_request(
     prediction_result: KinasePredictionResult | PredMatResult,
     expression_matrix: pd.DataFrame,
     kinases_of_interest: Sequence[str],
+    site_to_protein: Mapping[str, str] | None = None,
     kinase_network_threshold: float = 0.9,
     signalome_cutoff: float = 0.5,
     module_count: int | None = None,
@@ -84,6 +118,7 @@ def validate_signalome_request(
 
     request = SignalomeRequest.validate_request(
         kinases_of_interest=kinases_of_interest,
+        site_to_protein=site_to_protein,
         kinase_network_threshold=kinase_network_threshold,
         signalome_cutoff=signalome_cutoff,
         module_count=module_count,
@@ -135,12 +170,112 @@ def validate_signalome_request(
         msg = "module_count cannot exceed the number of aligned phosphosite rows"
         raise InputCompatibilityError(msg)
 
+    validated_site_to_protein = _validate_signalome_site_grouping(
+        site_ids=common_sites,
+        site_to_protein=request.site_to_protein,
+    )
+
     return ValidatedSignalomeRequest(
         request=request,
         scoring_matrix=scoring_matrix.loc[common_sites, common_kinases],
         pred_mat=pred_mat.loc[common_sites, common_kinases],
         expression_matrix=validated_expression_matrix.loc[common_sites],
+        site_to_protein=validated_site_to_protein,
     )
+
+
+def _validate_signalome_site_grouping(
+    *,
+    site_ids: Sequence[str],
+    site_to_protein: Mapping[str, str] | None,
+) -> pd.Series:
+    if site_to_protein is not None:
+        return _validate_explicit_site_to_protein_mapping(
+            site_ids=site_ids,
+            site_to_protein=site_to_protein,
+        )
+    return _validate_supported_signalome_site_ids(site_ids)
+
+
+def _validate_explicit_site_to_protein_mapping(
+    *,
+    site_ids: Sequence[str],
+    site_to_protein: Mapping[str, str],
+) -> pd.Series:
+    missing_site_ids = [
+        site_id for site_id in site_ids if site_id not in site_to_protein
+    ]
+    if missing_site_ids:
+        preview = ", ".join(missing_site_ids[:3])
+        msg = (
+            "site_to_protein must define a protein ID for every aligned phosphosite "
+            f"row. Missing mappings for: {preview}"
+        )
+        if len(missing_site_ids) > 3:
+            msg += ", ..."
+        raise InputCompatibilityError(msg)
+
+    protein_ids = [str(site_to_protein[site_id]).strip() for site_id in site_ids]
+    invalid_site_ids = [
+        site_id
+        for site_id, protein_id in zip(site_ids, protein_ids, strict=True)
+        if not protein_id
+    ]
+    if invalid_site_ids:
+        preview = ", ".join(invalid_site_ids[:3])
+        msg = (
+            "site_to_protein must map aligned phosphosite rows to non-empty protein "
+            f"IDs. Invalid mappings for: {preview}"
+        )
+        if len(invalid_site_ids) > 3:
+            msg += ", ..."
+        raise InputCompatibilityError(msg)
+
+    series = pd.Series(
+        protein_ids, index=pd.Index(site_ids, dtype=object), dtype=object
+    )
+    series.index.name = "site_id"
+    series.name = "protein_id"
+    return series
+
+
+def _validate_supported_signalome_site_ids(site_ids: Sequence[str]) -> pd.Series:
+    protein_ids: list[str] = []
+    invalid_site_ids: list[str] = []
+    for site_id in site_ids:
+        protein_id = _protein_id_from_supported_site_id(site_id)
+        if protein_id is None:
+            invalid_site_ids.append(site_id)
+            continue
+        protein_ids.append(protein_id)
+
+    if invalid_site_ids:
+        preview = ", ".join(invalid_site_ids[:3])
+        msg = (
+            "Signalome construction requires either an explicit site_to_protein "
+            "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
+            f"format. Invalid aligned site IDs: {preview}"
+        )
+        if len(invalid_site_ids) > 3:
+            msg += ", ..."
+        raise InputCompatibilityError(msg)
+
+    series = pd.Series(
+        protein_ids, index=pd.Index(site_ids, dtype=object), dtype=object
+    )
+    series.index.name = "site_id"
+    series.name = "protein_id"
+    return series
+
+
+def _protein_id_from_supported_site_id(site_id: str) -> str | None:
+    parts = [part.strip() for part in str(site_id).split(";")]
+    if len(parts) < 3:
+        return None
+    protein_id, residue = parts[0], parts[1]
+    if not protein_id or not residue:
+        return None
+    return protein_id
 
 
 def _resolve_scoring_matrix(scoring_result: KinaseScoringResult) -> pd.DataFrame:
