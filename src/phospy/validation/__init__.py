@@ -27,6 +27,11 @@ from .pipeline import (
 )
 from .prediction import PredictionRequest
 from .primitives import validate_non_negative_int, validate_positive_int
+from .signalomes import (
+    SignalomeRequest,
+    ValidatedSignalomeRequest,
+    validate_signalome_request,
+)
 from .tables import (
     PhosphoInputSchema,
     PredictionScoreMatrixSchema,
@@ -55,11 +60,13 @@ __all__ = [
     "PhospyValidationError",
     "PredMatSchema",
     "PredictionConfigurationError",
+    "SignalomeRequest",
     "PredictionRequest",
     "PredictionScoreMatrixSchema",
     "ProteinCorrectionMatchSummary",
     "RequestValidationError",
     "SiteMatrixSchema",
+    "ValidatedSignalomeRequest",
     "SiteMatrixSourceSchema",
     "TableSchemaError",
     "TotalInputSchema",
@@ -77,6 +84,7 @@ __all__ = [
     "validate_pipeline_construction_request",
     "validate_pipeline_runtime_compatibility",
     "validate_positive_int",
+    "validate_signalome_request",
     "validate_pred_mat_overlap",
     "validate_protein_correction_inputs",
     "validate_workflow_inputs",

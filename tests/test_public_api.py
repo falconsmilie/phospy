@@ -85,6 +85,8 @@ def test_public_root_exports() -> None:
         "PhosRPipeline",
         "PredMatResult",
         "PredMatWorkflow",
+        "SignalomeResult",
+        "SignalomeWorkflow",
     }
     assert set(phospy.__all__) == expected
 

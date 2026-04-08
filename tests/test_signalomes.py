@@ -1,0 +1,151 @@
+from __future__ import annotations
+
+import pandas as pd
+import pytest
+
+from phospy import SignalomeResult
+from phospy.validation.errors import InputCompatibilityError, RequestValidationError
+from phospy.workflow import PredMatWorkflow, SignalomeWorkflow
+
+
+def make_workflow_inputs() -> tuple[
+    pd.DataFrame,
+    dict[str, list[str]],
+    dict[str, str],
+    dict[str, list[str]],
+]:
+    phospho_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 1.1, 0.9, 1.2, 3.0, 2.9, 3.1, 2.8],
+            "sample_2": [2.0, 2.1, 1.9, 2.2, 2.0, 2.1, 1.9, 2.2],
+            "sample_3": [3.0, 3.1, 2.9, 3.2, 1.0, 1.1, 0.9, 1.2],
+        },
+        index=[f"PROTEIN_{i};S{i};" for i in range(1, 9)],
+    )
+    substrate_map = {
+        "KINASE_A": [
+            "PROTEIN_1;S1;",
+            "PROTEIN_2;S2;",
+            "PROTEIN_3;S3;",
+            "PROTEIN_4;S4;",
+        ],
+        "KINASE_B": [
+            "PROTEIN_5;S5;",
+            "PROTEIN_6;S6;",
+            "PROTEIN_7;S7;",
+            "PROTEIN_8;S8;",
+        ],
+    }
+    site_sequences = {
+        "PROTEIN_1;S1;": "QQAAAAAYY",
+        "PROTEIN_2;S2;": "QQAAAAAYY",
+        "PROTEIN_3;S3;": "QQAAAAAYY",
+        "PROTEIN_4;S4;": "QQAAAAAYY",
+        "PROTEIN_5;S5;": "QQTTTTTYY",
+        "PROTEIN_6;S6;": "QQTTTTTYY",
+        "PROTEIN_7;S7;": "QQTTTTTYY",
+        "PROTEIN_8;S8;": "QQTTTTTYY",
+    }
+    motif_sequences = {
+        "KINASE_A": ["QQAAAAAYY", "QQAAAAAYY", "QQAAAAAYY"],
+        "KINASE_B": ["QQTTTTTYY", "QQTTTTTYY", "QQTTTTTYY"],
+    }
+    return phospho_matrix, substrate_map, site_sequences, motif_sequences
+
+
+def _build_pred_mat_workflow_result():
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
+        make_workflow_inputs()
+    )
+    result = PredMatWorkflow(flank_size=2).run(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        min_substrates=2,
+        min_motif_size=2,
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.75,
+        inclusion=3,
+        n_iterations=2,
+        random_state=17,
+    )
+    return phospho_matrix, result
+
+
+def test_signalome_workflow_constructs_signalomes_from_scoring_and_prediction_results() -> (
+    None
+):
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A"],
+        signalome_cutoff=0.5,
+    )
+
+    assert isinstance(result, SignalomeResult)
+    assert list(result.pred_mat.columns) == ["KINASE_A", "KINASE_B"]
+    assert list(result.signalome_modules.columns) == ["KINASE_A", "KINASE_B"]
+    assert set(result.kinase_substrates) == {"KINASE_A", "KINASE_B"}
+    assert set(result.site_assignments.columns) == {
+        "protein_id",
+        "module_id",
+        "top_kinase",
+        "top_score",
+    }
+    assert set(result.site_assignments.loc[:, "module_id"]) == {1, 2}
+    assert result.signalome_modules.loc[1, "KINASE_A"] == 100.0
+    assert result.signalome_modules.loc[2, "KINASE_B"] == 100.0
+
+    expanded = result.expanded_signalomes["KINASE_A"]
+    assert expanded.kinase == "KINASE_A"
+    assert expanded.linked_kinases[0] == "KINASE_A"
+    assert expanded.regulated_module_ids == (1,)
+    assert set(expanded.expression_matrix.index) == {
+        "PROTEIN_1;S1;",
+        "PROTEIN_2;S2;",
+        "PROTEIN_3;S3;",
+        "PROTEIN_4;S4;",
+    }
+
+
+def test_signalome_workflow_accepts_canonical_pred_mat_result_input() -> None:
+    phospho_matrix, pred_mat_workflow_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_workflow_result.scoring_result,
+        prediction_result=pred_mat_workflow_result.pred_mat_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_B"],
+    )
+
+    assert result.kinases_of_interest == ("KINASE_B",)
+    assert result.expanded_signalomes["KINASE_B"].regulated_module_ids == (2,)
+
+
+def test_signalome_workflow_rejects_empty_kinases_of_interest() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    with pytest.raises(RequestValidationError, match="kinases_of_interest"):
+        SignalomeWorkflow().run(
+            scoring_result=pred_mat_result.scoring_result,
+            prediction_result=pred_mat_result.prediction_result,
+            expression_matrix=phospho_matrix,
+            kinases_of_interest=[],
+        )
+
+
+def test_signalome_workflow_rejects_unknown_kinases_of_interest() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    with pytest.raises(InputCompatibilityError, match="kinases_of_interest"):
+        SignalomeWorkflow().run(
+            scoring_result=pred_mat_result.scoring_result,
+            prediction_result=pred_mat_result.prediction_result,
+            expression_matrix=phospho_matrix,
+            kinases_of_interest=["KINASE_X"],
+        )

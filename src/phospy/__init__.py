@@ -2,7 +2,8 @@ from .analysis import KinaseActivityAnalyzer
 from .dataset import PhosphoDataset
 from .pipeline import PhosRPipeline
 from .prediction import PredMatResult
-from .workflow import KinaseWorkflow, PredMatWorkflow
+from .signalomes import SignalomeResult
+from .workflow import KinaseWorkflow, PredMatWorkflow, SignalomeWorkflow
 
 __all__ = [
     "KinaseActivityAnalyzer",
@@ -11,4 +12,6 @@ __all__ = [
     "PhosRPipeline",
     "PredMatResult",
     "PredMatWorkflow",
+    "SignalomeResult",
+    "SignalomeWorkflow",
 ]

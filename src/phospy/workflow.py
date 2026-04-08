@@ -9,7 +9,12 @@ from .motifs import MotifScoringResult
 from .prediction import KinasePredictionResult, KinasePredictor, PredMatResult
 from .profiles import KinaseProfileResult, build_kinase_substrate_profiles
 from .scoring import KinaseScorer, KinaseScoringResult
+from .signalomes import SignalomeResult, build_signalome_result
 from .types import PredictionSvmMode
+from .validation.signalomes import (
+    ValidatedSignalomeRequest,
+    validate_signalome_request,
+)
 from .validation.workflow import (
     ValidatedWorkflowRequest,
     validate_workflow_request,
@@ -20,6 +25,7 @@ __all__ = [
     "KinaseWorkflowResult",
     "PredMatWorkflow",
     "PredMatWorkflowResult",
+    "SignalomeWorkflow",
 ]
 
 
@@ -312,4 +318,72 @@ class PredMatWorkflow(_WorkflowFacadeBase):
             scoring_result=result.scoring_result,
             prediction_result=result.prediction_result,
             pred_mat_result=result.prediction_result.pred_mat_result,
+        )
+
+
+class SignalomeWorkflow:
+    """Construct signalomes from validated scoring and prediction outputs."""
+
+    def _validate_request(
+        self,
+        *,
+        scoring_result: KinaseScoringResult,
+        prediction_result: KinasePredictionResult | PredMatResult,
+        expression_matrix: pd.DataFrame,
+        kinases_of_interest: Sequence[str],
+        kinase_network_threshold: float = 0.9,
+        signalome_cutoff: float = 0.5,
+        module_count: int | None = None,
+        min_kinase_module_share_percent: float = 1.0,
+    ) -> ValidatedSignalomeRequest:
+        return validate_signalome_request(
+            scoring_result=scoring_result,
+            prediction_result=prediction_result,
+            expression_matrix=expression_matrix,
+            kinases_of_interest=kinases_of_interest,
+            kinase_network_threshold=kinase_network_threshold,
+            signalome_cutoff=signalome_cutoff,
+            module_count=module_count,
+            min_kinase_module_share_percent=min_kinase_module_share_percent,
+        )
+
+    def run(
+        self,
+        *,
+        scoring_result: KinaseScoringResult,
+        prediction_result: KinasePredictionResult | PredMatResult,
+        expression_matrix: pd.DataFrame,
+        kinases_of_interest: Sequence[str],
+        kinase_network_threshold: float = 0.9,
+        signalome_cutoff: float = 0.5,
+        module_count: int | None = None,
+        min_kinase_module_share_percent: float = 1.0,
+    ) -> SignalomeResult:
+        request = self._validate_request(
+            scoring_result=scoring_result,
+            prediction_result=prediction_result,
+            expression_matrix=expression_matrix,
+            kinases_of_interest=kinases_of_interest,
+            kinase_network_threshold=kinase_network_threshold,
+            signalome_cutoff=signalome_cutoff,
+            module_count=module_count,
+            min_kinase_module_share_percent=min_kinase_module_share_percent,
+        )
+        return self._run_request(request)
+
+    def _run_request(
+        self,
+        request: ValidatedSignalomeRequest,
+    ) -> SignalomeResult:
+        return build_signalome_result(
+            scoring_matrix=request.scoring_matrix,
+            pred_mat=request.pred_mat,
+            expression_matrix=request.expression_matrix,
+            kinases_of_interest=request.request.kinases_of_interest,
+            kinase_network_threshold=request.request.kinase_network_threshold,
+            signalome_cutoff=request.request.signalome_cutoff,
+            module_count=request.request.module_count,
+            min_kinase_module_share_percent=(
+                request.request.min_kinase_module_share_percent
+            ),
         )
