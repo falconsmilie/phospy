@@ -316,7 +316,10 @@ def _validate_workflow_matrix_inputs(
             site for site in validated_matrix.index if str(site) in sequence_index
         )
         if not scoring_site_index:
-            msg = f"{context} contain no overlap between site_sequences and phospho_matrix"
+            msg = (
+                f"{context} contain no phosphosites with sequence coverage "
+                "required for scoring and prediction"
+            )
             raise InputCompatibilityError(msg)
 
     return validated_matrix, scoring_site_index

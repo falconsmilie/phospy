@@ -56,6 +56,7 @@ A valid `predMat` must have:
 - downstream kinase analysis needs overlap between `predMat` and the phosphosite matrix
 - native workflow runs need overlap across the matrix, substrate map, and sequence inputs
 - motif-aware native workflow runs need both `motif_sequences` and `site_sequences`
+- motif-aware workflow validation only requires sequence coverage for phosphosites that are actually scored and predicted; whole-matrix sequence coverage is not required
 
 ## Useful Behaviour to Know
 

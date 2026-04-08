@@ -449,6 +449,7 @@ Validation highlights:
 - `site_sequences`, when supplied, must be a mapping or a pandas `Series` keyed by phosphosite ID
 - `motif_sequences` is required unless `allow_profile_only_fallback=True`
 - when `motif_sequences` is provided, `site_sequences` is also required
+- when motif-aware prediction is enabled, sequence coverage is checked only for phosphosites that participate in scoring and prediction; full-matrix sequence coverage is not required
 - `min_substrates`, `min_motif_size`, `ensemble_size`, `top`, `inclusion`, and `n_iterations` must be `>= 1`
 - `score_threshold` must be in `[0, 1]`
 
