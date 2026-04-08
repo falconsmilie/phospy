@@ -1062,6 +1062,37 @@ def test_kinase_predictor_is_reproducible_for_same_random_state() -> None:
     pd.testing.assert_frame_equal(result_a.pred_matrix, result_b.pred_matrix)
 
 
+def test_kinase_predictor_is_invariant_to_kinase_column_order_for_fixed_seed() -> None:
+    predictor = KinasePredictor()
+    combined_scores = make_combined_scores()
+
+    result_original = predictor.predict(
+        combined_scores=combined_scores,
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=11,
+    )
+    result_reordered = predictor.predict(
+        combined_scores=combined_scores.loc[:, ["KINASE_B", "KINASE_A"]],
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.85,
+        inclusion=3,
+        n_iterations=2,
+        random_state=11,
+    )
+
+    pd.testing.assert_frame_equal(
+        result_original.pred_matrix,
+        result_reordered.pred_matrix.reindex(
+            columns=result_original.pred_matrix.columns
+        ),
+    )
+
+
 def test_create_trace_sink_owns_and_cleans_up_temp_directory() -> None:
     sink = create_trace_sink(None, fmt="csv")
     assert isinstance(sink, DirectoryTraceSink)

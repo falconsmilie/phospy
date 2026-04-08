@@ -3,6 +3,7 @@ from __future__ import annotations
 from .sampling_core import multi_ada_sampling
 from .sampling_runtime import (
     coerce_sampling_trace,
+    make_kinase_prediction_random_generators,
     make_prediction_random_generators,
     normalize_probabilities,
     resolve_sampled_site_positions,
@@ -12,6 +13,7 @@ from .sampling_runtime import (
 
 __all__ = [
     "coerce_sampling_trace",
+    "make_kinase_prediction_random_generators",
     "make_prediction_random_generators",
     "multi_ada_sampling",
     "normalize_probabilities",

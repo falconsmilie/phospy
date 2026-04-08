@@ -10,7 +10,7 @@ from ..validation.errors import PredictionConfigurationError
 from ..validation.prediction import PredictionRequest
 from .models import KinasePredictionDebugTrace
 from .sampling import (
-    make_prediction_random_generators,
+    make_kinase_prediction_random_generators,
     multi_ada_sampling,
     validate_override_sites,
 )
@@ -208,11 +208,13 @@ class EnsemblePredictor:
         substrates: list[str],
         feature_mat: pd.DataFrame,
         request: PredictionRequest,
-        master_rng: np.random.Generator,
         trace_state: PredictionTraceState,
     ) -> KinasePredictionBatch:
-        negative_sampling_rng, resampling_rng = make_prediction_random_generators(
-            master_rng
+        negative_sampling_rng, resampling_rng = (
+            make_kinase_prediction_random_generators(
+                random_state=request.random_state,
+                kinase=kinase,
+            )
         )
         positive_train = feature_mat.loc[substrates, :]
         negative_pool = feature_mat.loc[

@@ -144,7 +144,6 @@ def test_prediction_execution_runner_uses_validated_combined_scores_without_reca
             substrates: list[str],
             feature_mat: pd.DataFrame,
             request: PredictionRequest,
-            master_rng,
             trace_state,
         ):
             return type(

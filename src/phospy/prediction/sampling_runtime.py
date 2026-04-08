@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -17,6 +18,45 @@ def make_prediction_random_generators(
     return (
         np.random.default_rng(int(rng.integers(0, 2**31 - 1))),
         np.random.default_rng(int(rng.integers(0, 2**31 - 1))),
+    )
+
+
+def _derive_prediction_stream_seed(
+    *,
+    random_state: int,
+    kinase: str,
+    stream_name: str,
+) -> int:
+    seed_material = f"{random_state}:{kinase}:{stream_name}".encode()
+    digest = hashlib.blake2b(seed_material, digest_size=16).digest()
+    return int.from_bytes(digest, "little")
+
+
+def make_kinase_prediction_random_generators(
+    *,
+    random_state: int | None,
+    kinase: str,
+) -> tuple[np.random.Generator, np.random.Generator]:
+    """Create deterministic per-kinase RNG streams when a base seed is provided."""
+
+    if random_state is None:
+        return make_prediction_random_generators(np.random.default_rng())
+
+    return (
+        np.random.default_rng(
+            _derive_prediction_stream_seed(
+                random_state=random_state,
+                kinase=kinase,
+                stream_name="negative_sampling",
+            )
+        ),
+        np.random.default_rng(
+            _derive_prediction_stream_seed(
+                random_state=random_state,
+                kinase=kinase,
+                stream_name="resampling",
+            )
+        ),
     )
 
 
@@ -106,6 +146,7 @@ def validate_override_sites(
 
 __all__ = [
     "coerce_sampling_trace",
+    "make_kinase_prediction_random_generators",
     "make_prediction_random_generators",
     "normalize_probabilities",
     "resolve_sampled_site_positions",

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from ..scoring import KinaseScoringResult
@@ -101,15 +100,12 @@ class PredictionExecutionRunner:
             debug_kinases=request.debug_kinases,
             trace_sink=request.trace_sink,
         )
-        master_rng = np.random.default_rng(request.random_state)
-
         for kinase, substrates in substrate_list.items():
             batch = self.ensemble_predictor.predict_kinase(
                 kinase=kinase,
                 substrates=substrates,
                 feature_mat=feature_mat,
                 request=request,
-                master_rng=master_rng,
                 trace_state=trace_state,
             )
             self.prediction_aggregator.add_kinase_scores(
