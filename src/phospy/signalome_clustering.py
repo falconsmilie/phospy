@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from scipy.cluster.hierarchy import cut_tree, linkage
 from sklearn.cluster import AgglomerativeClustering
 
 __all__ = ["cluster_sites"]
@@ -95,11 +96,21 @@ def score_cluster_candidates(
     site_correlations: np.ndarray,
     cluster_range: Iterable[int],
 ) -> dict[int, ClusterCandidateScore]:
-    """Score candidate module counts using cached cluster fits."""
+    """Score candidate module counts using one cached Ward hierarchy."""
+
+    cluster_counts = [int(cluster_count) for cluster_count in cluster_range]
+    if not cluster_counts:
+        return {}
+
+    linkage_matrix = build_cluster_tree(scoring_values)
+    candidate_labels = build_cluster_labels_from_tree(
+        linkage_matrix=linkage_matrix,
+        cluster_counts=cluster_counts,
+    )
 
     candidates: dict[int, ClusterCandidateScore] = {}
-    for cluster_count in cluster_range:
-        labels = fit_cluster_labels(scoring_values, cluster_count)
+    for cluster_count in cluster_counts:
+        labels = candidate_labels[cluster_count]
         cluster_medians = [
             cluster_median_correlation(site_correlations, labels, label)
             for label in np.unique(labels)
@@ -111,6 +122,33 @@ def score_cluster_candidates(
             mean_median_correlation=float(np.mean(cluster_medians)),
         )
     return candidates
+
+
+def build_cluster_tree(scoring_values: np.ndarray) -> np.ndarray:
+    """Build one Ward hierarchical tree for candidate module evaluation."""
+
+    return linkage(np.asarray(scoring_values, dtype=float), method="ward")
+
+
+def build_cluster_labels_from_tree(
+    *,
+    linkage_matrix: np.ndarray,
+    cluster_counts: Iterable[int],
+) -> dict[int, np.ndarray]:
+    """Cut one cached hierarchy into labels for each candidate module count."""
+
+    cluster_count_list = [int(cluster_count) for cluster_count in cluster_counts]
+    if not cluster_count_list:
+        return {}
+
+    cut_labels = cut_tree(linkage_matrix, n_clusters=cluster_count_list)
+    if cut_labels.ndim == 1:
+        cut_labels = cut_labels.reshape(-1, 1)
+
+    return {
+        cluster_count: cut_labels[:, position].astype(int, copy=False)
+        for position, cluster_count in enumerate(cluster_count_list)
+    }
 
 
 def fit_cluster_labels(scoring_values: np.ndarray, cluster_count: int) -> np.ndarray:

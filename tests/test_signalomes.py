@@ -428,7 +428,7 @@ def test_build_site_assignments_tracks_tied_top_kinases_deterministically() -> N
     assert not bool(clear_row["top_kinase_is_ambiguous"])
 
 
-def test_select_module_count_evaluates_each_cluster_count_once(
+def test_select_module_count_builds_one_cluster_tree_for_candidate_scoring(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     scoring_matrix = pd.DataFrame(
@@ -440,20 +440,17 @@ def test_select_module_count_evaluates_each_cluster_count_once(
         index=[f"PROTEIN_{i};S{i};" for i in range(1, 7)],
     )
 
-    observed_cluster_counts: list[int] = []
-    original_fit_cluster_labels = signalome_clustering.fit_cluster_labels
+    observed_tree_builds: list[int] = []
+    original_build_cluster_tree = signalome_clustering.build_cluster_tree
 
-    def counting_fit_cluster_labels(
-        scoring_values: object,
-        cluster_count: int,
-    ) -> object:
-        observed_cluster_counts.append(cluster_count)
-        return original_fit_cluster_labels(scoring_values, cluster_count)
+    def counting_build_cluster_tree(scoring_values: object) -> object:
+        observed_tree_builds.append(1)
+        return original_build_cluster_tree(scoring_values)
 
     monkeypatch.setattr(
         signalome_clustering,
-        "fit_cluster_labels",
-        counting_fit_cluster_labels,
+        "build_cluster_tree",
+        counting_build_cluster_tree,
     )
 
     selected = signalome_clustering.select_module_count(
@@ -461,7 +458,7 @@ def test_select_module_count_evaluates_each_cluster_count_once(
     )
 
     assert selected >= 1
-    assert observed_cluster_counts == [2, 3, 4, 5, 6]
+    assert observed_tree_builds == [1]
 
 
 def test_build_site_assignments_is_stable_when_pred_mat_columns_are_reordered() -> None:

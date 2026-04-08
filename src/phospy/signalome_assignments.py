@@ -181,11 +181,14 @@ def select_kinase_substrates(
 ) -> dict[str, tuple[str, ...]]:
     """Select site substrates per kinase from the prediction matrix."""
 
-    selected: dict[str, tuple[str, ...]] = {}
-    for kinase in pred_mat.columns.astype(str):
-        mask = pred_mat.loc[:, kinase] > cutoff
-        selected[kinase] = tuple(pred_mat.index[mask].astype(str).tolist())
-    return selected
+    kinase_names = pred_mat.columns.astype(str).to_numpy(dtype=object, copy=False)
+    site_ids = pred_mat.index.astype(str).to_numpy(dtype=object, copy=False)
+    substrate_mask = pred_mat.to_numpy(dtype=float, copy=False) > cutoff
+
+    return {
+        str(kinase): tuple(site_ids[substrate_mask[:, position]].tolist())
+        for position, kinase in enumerate(kinase_names)
+    }
 
 
 def build_signalome_module_table(
@@ -199,33 +202,55 @@ def build_signalome_module_table(
         {int(value) for value in site_assignments["module_id"].tolist()}
     )
     kinase_names = list(kinase_substrates)
-    module_table = pd.DataFrame(
-        0.0,
-        index=pd.Index(module_ids, name="module_id"),
-        columns=pd.Index(kinase_names, name="kinase"),
-    )
+    module_index = pd.Index(module_ids, name="module_id")
+    kinase_index = pd.Index(kinase_names, name="kinase")
 
     protein_to_module = (
         site_assignments.loc[:, ["protein_id", "module_id"]]
         .drop_duplicates(subset=["protein_id"])
         .set_index("protein_id")
         .loc[:, "module_id"]
+        .astype(int)
     )
-    site_to_protein = site_assignments.loc[:, "protein_id"]
 
-    for kinase, substrates in kinase_substrates.items():
-        proteins = (
-            pd.Index(site_to_protein.loc[list(substrates)].drop_duplicates())
-            if substrates
-            else pd.Index([], dtype=object)
-        )
-        proteins = proteins.intersection(protein_to_module.index)
-        if proteins.empty:
-            continue
+    substrate_rows = [
+        {"kinase": str(kinase), "site_id": str(site_id)}
+        for kinase, substrates in kinase_substrates.items()
+        for site_id in substrates
+    ]
+    if not substrate_rows:
+        return pd.DataFrame(0.0, index=module_index, columns=kinase_index).round(3)
 
-        counts = protein_to_module.loc[proteins].value_counts().sort_index()
-        for module_id, count in counts.items():
-            module_table.loc[int(module_id), kinase] = float(count)
+    substrate_table = pd.DataFrame.from_records(substrate_rows)
+    substrate_table = substrate_table.astype({"kinase": str, "site_id": str})
+    substrate_table = substrate_table.drop_duplicates(subset=["kinase", "site_id"])
+
+    site_to_protein = site_assignments.loc[:, ["protein_id"]].copy()
+    site_to_protein.index = pd.Index(site_to_protein.index.astype(str), name="site_id")
+    site_to_protein["protein_id"] = site_to_protein["protein_id"].astype(str)
+
+    protein_hits = substrate_table.join(site_to_protein, on="site_id", how="left")
+    protein_hits = protein_hits.dropna(subset=["protein_id"])
+    protein_hits = protein_hits.drop_duplicates(subset=["kinase", "protein_id"])
+    protein_hits = protein_hits.join(
+        protein_to_module.rename("module_id"),
+        on="protein_id",
+        how="inner",
+    )
+
+    if protein_hits.empty:
+        return pd.DataFrame(0.0, index=module_index, columns=kinase_index).round(3)
+
+    counts = (
+        protein_hits.groupby(["module_id", "kinase"], sort=True)
+        .size()
+        .astype(float)
+        .unstack(fill_value=0.0)
+    )
+    module_table = counts.reindex(
+        index=module_index, columns=kinase_index, fill_value=0.0
+    )
+    module_table = module_table.astype(float)
 
     row_totals = module_table.sum(axis=1)
     non_zero = row_totals > 0

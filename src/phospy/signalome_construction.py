@@ -194,20 +194,23 @@ def build_kinase_network(
         msg = "scoring_matrix must contain at least one kinase column"
         raise InputCompatibilityError(msg)
 
-    kinase_correlation_values = kinase_correlation_matrix.to_numpy(copy=True)
+    kinase_names = kinase_correlation_matrix.columns.astype(str)
+    kinase_correlation_values = kinase_correlation_matrix.to_numpy(
+        dtype=float, copy=True
+    )
     np.fill_diagonal(kinase_correlation_values, 0.0)
     kinase_correlation_matrix = pd.DataFrame(
         kinase_correlation_values,
-        index=kinase_correlation_matrix.index.copy(),
-        columns=kinase_correlation_matrix.columns.copy(),
+        index=kinase_names.copy(),
+        columns=kinase_names.copy(),
     )
 
-    kinase_network: dict[str, tuple[str, ...]] = {}
-    for kinase in kinase_correlation_matrix.columns.astype(str):
-        correlated = kinase_correlation_matrix.index[
-            kinase_correlation_matrix.loc[:, kinase] > threshold
-        ].astype(str)
-        kinase_network[kinase] = tuple(correlated.tolist())
+    adjacency_mask = kinase_correlation_values > threshold
+    kinase_name_values = kinase_names.to_numpy(dtype=object, copy=False)
+    kinase_network = {
+        str(kinase_name): tuple(kinase_name_values[adjacency_mask[position]].tolist())
+        for position, kinase_name in enumerate(kinase_name_values)
+    }
 
     return kinase_network, kinase_correlation_matrix
 
@@ -220,33 +223,44 @@ def build_kinase_network_view(
 ) -> SignalomeKinaseNetwork:
     """Build the network-centric signalome view from derived network parts."""
 
+    neighbor_sets = {
+        str(kinase): frozenset(str(neighbor) for neighbor in neighbors)
+        for kinase, neighbors in kinase_network.items()
+    }
     node_rows = [
         {
-            "kinase": str(kinase),
-            "degree": len(tuple(neighbors)),
-            "n_substrates": len(tuple(kinase_substrates.get(str(kinase), ()))),
+            "kinase": kinase,
+            "degree": len(neighbor_sets[kinase]),
+            "n_substrates": len(tuple(kinase_substrates.get(kinase, ()))),
         }
-        for kinase, neighbors in sorted(kinase_network.items())
+        for kinase in sorted(neighbor_sets)
     ]
     node_table = pd.DataFrame.from_records(node_rows).set_index("kinase")
     node_table = node_table.astype({"degree": int, "n_substrates": int})
     node_table.index.name = "kinase"
 
-    edge_rows: list[dict[str, object]] = []
     columns = kinase_correlation_matrix.columns.astype(str)
-    for left_position, source in enumerate(columns):
-        for target in columns[left_position + 1 :]:
-            target_name = str(target)
-            if target_name not in set(kinase_network.get(source, ())):
-                continue
-            correlation = float(kinase_correlation_matrix.loc[source, target_name])
-            edge_rows.append(
-                {
-                    "source_kinase": source,
-                    "target_kinase": target_name,
-                    "correlation": correlation,
-                }
-            )
+    column_positions = {
+        str(column): position for position, column in enumerate(columns)
+    }
+    correlation_values = kinase_correlation_matrix.to_numpy(dtype=float, copy=False)
+    edge_rows = [
+        {
+            "source_kinase": source,
+            "target_kinase": target,
+            "correlation": float(
+                correlation_values[
+                    column_positions[source],
+                    column_positions[target],
+                ]
+            ),
+        }
+        for source, neighbors in neighbor_sets.items()
+        for target in sorted(neighbors)
+        if source in column_positions
+        and target in column_positions
+        and column_positions[source] < column_positions[target]
+    ]
 
     edge_table = pd.DataFrame.from_records(edge_rows)
     if edge_table.empty:
