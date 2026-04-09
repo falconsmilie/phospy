@@ -1,6 +1,9 @@
 # Fixtures and Traces
 
-This page is the quick map for the committed fixture and trace directories.
+This page is the quick map for committed fixture and trace directories.
+
+For fixture contract intent, protected seams, metrics, and mode coverage, see the parity contract matrix in [`parity.md`](parity.md).
+This page focuses on fixture provenance, rebuild commands, and promotion rules.
 
 Most commands assume the repository root.
 
@@ -25,7 +28,7 @@ make fixtures-r-small
 
 ### `tests/fixtures/r_reference_l6`
 
-The main committed L6 reference set for downstream kinase-analysis parity and selected native workflow seams.
+The main committed L6 reference set used for downstream kinase-analysis parity, native prediction seams, and committed R trace replay.
 
 Generate with:
 
@@ -36,7 +39,7 @@ make fixtures-r-l6
 
 ### `tests/fixtures/fragile_support_reference`
 
-A curated reference set used to widen seam coverage beyond the main L6 path.
+A curated L6-derived reference set used to widen support-screening and inclusion-boundary coverage.
 
 Generate with:
 
@@ -71,8 +74,6 @@ make fixtures-synthetic-edge
 
 Small committed benchmark outputs for the public `PredMatWorkflow` and `SignalomeWorkflow` demo paths.
 
-These fixtures are intentionally narrow. They protect the documented example-driven workflow contracts rather than every internal numeric seam.
-
 Generate with:
 
 ```bash
@@ -86,7 +87,7 @@ Then promote the resulting workflow tables into `tests/fixtures/public_workflow_
 
 ### `tests/fixtures/r_reference_l6/prediction_trace`
 
-Committed R prediction traces for seam-level debugging.
+Committed R prediction traces used by the `r_reference_l6` fixture family.
 
 Generate with:
 
@@ -100,7 +101,8 @@ make traces-r
 
 ### `tests/fixtures/python_reference_l6/prediction_trace`
 
-Committed Python prediction traces used alongside the R traces.
+Committed Python prediction traces used alongside the R traces for trace export and replay debugging.
+They support the same L6 prediction-trace contract rather than defining a separate fixture family.
 
 Generate with:
 
@@ -134,4 +136,5 @@ If a temporary trace becomes part of the supported seam contract:
 
 1. promote it into a committed fixture directory
 2. update the related tests
-3. update this page or [`parity.md`](parity.md)
+3. update [`parity.md`](parity.md) if the contract changes
+4. update this page if the rebuild or promotion workflow changes

@@ -16,6 +16,22 @@ It does not mean:
 - every `PhosR` feature is implemented
 - every native Python path should match `PhosR` numerically
 
+## Parity Contract Matrix
+
+This page is the single contract map for parity-sensitive fixture families.
+It answers the review question: “what does this fixture protect?”
+
+Trace directories such as `prediction_trace/` belong to the fixture family listed below. They are not separate fixture families.
+
+| Fixture family | Dataset origin | Protected workflow or seam | Protected metric or threshold class | Relevant mode or modes | Surface |
+| --- | --- | --- | --- | --- | --- |
+| `tests/fixtures/r_reference` | Small R-generated reference fixtures | Core preprocessing outputs, site-matrix construction, and downstream wrapper flow | Exact table equality or numeric equality within tight frame-comparison tolerances in parity tests | `default` and `r_parity` where applicable | Internal seam |
+| `tests/fixtures/r_reference_l6` | Main R-generated L6 reference dataset | Downstream kinase-analysis outputs, native profile and combined-score seams, candidate-substrate selection, prediction ranking agreement, and replay against committed R sampling traces | Exact or tolerance-based table equality, candidate membership equality, ranking-agreement checks, top-N overlap checks, and replay-path agreement checks | Primarily `r_parity`, with explicit `default` versus `r_parity` comparison where tests protect mode intent | Mixed: internal seam and parity-sensitive workflow behaviour |
+| `tests/fixtures/fragile_support_reference` | Curated L6-derived support-screening reference set | Boundary conditions around substrate support, profile construction, combined-score recomputation, and candidate-substrate inclusion cut-offs | Exact candidate-state expectations plus exact or tolerance-based seam recomputation checks | `default` and `r_parity` where applicable | Internal seam |
+| `tests/fixtures/r_reference_l6_seam_stress` | Filtered L6-derived seam-stress subset plus filtered R trace tables | Combined-score seam, candidate-substrate boundary selection, and replay of smaller seam-stress sampling paths | Exact or tolerance-based table equality, exact candidate membership equality, and replay-path agreement checks | Primarily `r_parity` | Internal seam |
+| `tests/fixtures/synthetic_adaptive_sampling_edge` | Fully synthetic deterministic edge-case data | Adaptive-sampling decision seams such as stable ordering, tiny pools, per-iteration overrides, and deterministic replay decisions | Exact trace-table equality and exact replay-decision checks | `r_parity` | Internal seam |
+| `tests/fixtures/public_workflow_reference` | Small committed benchmark outputs generated from the public demos under `examples/` | Public `PredMatWorkflow` and `SignalomeWorkflow` example paths | Exact benchmark-table equality and fixed end-to-end workflow assertions | `default` and `r_parity` | Public workflow |
+
 ## What Is Covered
 
 The current parity layer covers selected seams, including:
@@ -26,7 +42,7 @@ The current parity layer covers selected seams, including:
 - selected prediction trace and replay checks
 - end-to-end benchmark fixtures for the documented predMat and signalome workflow demos
 
-For fixture locations, see [`fixtures.md`](fixtures.md).
+For fixture generation and trace rebuild commands, see [`fixtures.md`](fixtures.md).
 
 ## `KinaseWorkflow` and `svm_mode`
 
@@ -58,6 +74,33 @@ Make targets:
 ```bash
 make test-parity
 make test-seams
+```
+
+## Benchmark the Public Prediction Modes
+
+Run the reproducible mode-comparison harness from the repository root:
+
+```bash
+python benchmarks/compare_prediction_modes.py
+```
+
+By default this writes two review artifacts under `benchmarks/reports/latest/`:
+
+- `compare_prediction_modes.json`
+- `compare_prediction_modes.md`
+
+The harness uses the selected parity fixture families rather than ad hoc inputs:
+
+- `tests/fixtures/r_reference_l6` for ranking parity and replayed sampling-trace fidelity
+- `tests/fixtures/public_workflow_reference` for the documented `PredMatWorkflow` and `SignalomeWorkflow` demo outputs
+
+It records the same metric classes protected in parity tests, plus wall-clock runtime for both `default` and `r_parity`.
+
+Useful variants:
+
+```bash
+python benchmarks/compare_prediction_modes.py --repeats 1
+python benchmarks/compare_prediction_modes.py --stdout-only
 ```
 
 ## Optional Debug Output
