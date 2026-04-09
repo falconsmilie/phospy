@@ -129,8 +129,4 @@ Trade-offs:
 
 ## Follow-on work
 
-Follow-on tickets should:
-
-- finalise the benchmark evidence review for release-candidate hardening
-- document the final threshold story for `default` and `r_parity` together
 - remove `r_parity` if future evidence no longer justifies public support
