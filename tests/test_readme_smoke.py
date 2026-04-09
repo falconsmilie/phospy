@@ -4,6 +4,7 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from phospy import KinaseActivityAnalyzer, PhosphoDataset, PhosRPipeline
 from phospy.constants import (
@@ -101,11 +102,12 @@ def _load_example_module(path: Path):
     return module
 
 
-def test_pred_mat_workflow_demo_runs_end_to_end(tmp_path) -> None:
+@pytest.mark.parametrize("svm_mode", ["default", "r_parity"])
+def test_pred_mat_workflow_demo_runs_end_to_end(tmp_path, svm_mode: str) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     module = _load_example_module(repo_root / "examples" / "predmat_workflow_demo.py")
 
-    result, export_path = module.run_demo(tmp_path)
+    result, export_path = module.run_demo(tmp_path / svm_mode, svm_mode=svm_mode)
 
     assert export_path.name == "predMat.csv"
     assert export_path.exists()
@@ -118,11 +120,14 @@ def test_pred_mat_workflow_demo_runs_end_to_end(tmp_path) -> None:
     ]
 
 
-def test_signalome_workflow_demo_runs_end_to_end(tmp_path) -> None:
+@pytest.mark.parametrize("svm_mode", ["default", "r_parity"])
+def test_signalome_workflow_demo_runs_end_to_end(tmp_path, svm_mode: str) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     module = _load_example_module(repo_root / "examples" / "signalome_workflow_demo.py")
 
-    signalome_result, map_data, network_data, written = module.run_demo(tmp_path)
+    signalome_result, map_data, network_data, written = module.run_demo(
+        tmp_path / svm_mode, svm_mode=svm_mode
+    )
 
     assert sorted(written) == ["map", "network", "signalome"]
     assert signalome_result.modules.to_frame().shape == (2, 2)

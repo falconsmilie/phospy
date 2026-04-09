@@ -53,9 +53,18 @@ Before a release or substantial PR, run:
 pre-commit run --all-files
 pytest -m "not parity"
 pytest -m parity
+pytest tests/test_readme_smoke.py tests/test_end_to_end_parity.py
 ```
 
-`make test-parity` prints the standard parity summary output.
+For parity-sensitive changes to prediction policy, sampling, scoring, or public workflow
+fixtures, also regenerate and review the lightweight mode-comparison benchmark artifact:
+
+```bash
+python benchmarks/compare_prediction_modes.py --repeats 1
+```
+
+`make test-parity` prints the standard parity summary output. The full release checklist
+and threshold story live in [`docs/parity.md`](../docs/parity.md).
 
 ## CI
 

@@ -41,7 +41,7 @@ def build_site_to_protein(site_ids: pd.Index) -> dict[str, str]:
 
 
 def run_demo(
-    outdir: Path,
+    outdir: Path, *, svm_mode: str = "default"
 ) -> tuple[
     SignalomeResult,
     SignalomeMapData,
@@ -53,8 +53,9 @@ def run_demo(
     phospho_matrix, substrate_map, site_sequences, motif_sequences = load_demo_inputs(
         data_dir
     )
+    outdir.mkdir(parents=True, exist_ok=True)
 
-    pred_mat_result = PredMatWorkflow(flank_size=2).run(
+    pred_mat_result = PredMatWorkflow(flank_size=2, svm_mode=svm_mode).run(
         phospho_matrix=phospho_matrix,
         substrate_map=substrate_map,
         site_sequences=site_sequences,
@@ -91,8 +92,10 @@ def run_demo(
 
 def main() -> None:
     with TemporaryDirectory(prefix="phospy-signalome-workflow-") as tmp_dir:
-        signalome_result, map_data, network_data, written = run_demo(Path(tmp_dir))
-        print(f"Wrote signalome workflow tables to {tmp_dir}")
+        signalome_result, map_data, network_data, written = run_demo(
+            Path(tmp_dir), svm_mode="default"
+        )
+        print(f"Wrote signalome workflow tables to {tmp_dir} using svm_mode=default")
         print("Signalome modules")
         print(signalome_result.modules.to_frame().round(2))
         print("Map modules")

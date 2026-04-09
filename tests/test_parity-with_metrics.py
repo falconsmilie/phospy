@@ -74,6 +74,30 @@ L6_NATIVE_FIXTURE_FILES = [
     "native_prediction_top30.csv",
 ]
 
+DEFAULT_RANKING_RELEASE_THRESHOLDS = {
+    "mean_spearman": 0.96,
+    "mean_top20_overlap": 0.85,
+    "mean_top30_overlap": 0.88,
+    "n_good_top10": 20,
+}
+
+R_PARITY_RANKING_RELEASE_THRESHOLDS = {
+    "mean_top10_overlap_floor": 0.82,
+    "must_match_or_exceed_default": (
+        "mean_spearman",
+        "mean_top10_overlap",
+        "mean_top20_overlap",
+        "mean_top30_overlap",
+    ),
+}
+
+R_PARITY_REPLAY_RELEASE_THRESHOLDS = {
+    "iteration_decision_class1_corr": 0.999999,
+    "iteration_decision_mae": 1e-12,
+    "iteration_prob_class1_corr": 0.998,
+    "iteration_prob_mae": 0.015,
+}
+
 
 def _require_fixture_files(names: list[str], fixture_dir: Path = R_FIXTURES) -> None:
     missing = [name for name in names if not (fixture_dir / name).exists()]
@@ -990,10 +1014,18 @@ def test_l6_native_prediction_rankings_agree_with_r_reference() -> None:
         ],
     )
 
-    assert metrics["mean_spearman"] >= 0.96
-    assert metrics["mean_top20_overlap"] >= 0.85
-    assert metrics["mean_top30_overlap"] >= 0.88
-    assert metrics["n_good_top10"] >= 20
+    assert (
+        metrics["mean_spearman"] >= DEFAULT_RANKING_RELEASE_THRESHOLDS["mean_spearman"]
+    )
+    assert (
+        metrics["mean_top20_overlap"]
+        >= DEFAULT_RANKING_RELEASE_THRESHOLDS["mean_top20_overlap"]
+    )
+    assert (
+        metrics["mean_top30_overlap"]
+        >= DEFAULT_RANKING_RELEASE_THRESHOLDS["mean_top30_overlap"]
+    )
+    assert metrics["n_good_top10"] >= DEFAULT_RANKING_RELEASE_THRESHOLDS["n_good_top10"]
 
 
 @pytest.mark.parity
@@ -1022,16 +1054,13 @@ def test_l6_native_prediction_mode_comparison_metrics() -> None:
         )
 
     assert default_metrics["n_kinases"] == r_parity_metrics["n_kinases"]
-    assert r_parity_metrics["mean_spearman"] >= default_metrics["mean_spearman"]
+    for metric_name in R_PARITY_RANKING_RELEASE_THRESHOLDS[
+        "must_match_or_exceed_default"
+    ]:
+        assert r_parity_metrics[metric_name] >= default_metrics[metric_name]
     assert (
-        r_parity_metrics["mean_top10_overlap"] >= default_metrics["mean_top10_overlap"]
-    )
-    assert r_parity_metrics["mean_top10_overlap"] >= 0.82
-    assert (
-        r_parity_metrics["mean_top20_overlap"] >= default_metrics["mean_top20_overlap"]
-    )
-    assert (
-        r_parity_metrics["mean_top30_overlap"] >= default_metrics["mean_top30_overlap"]
+        r_parity_metrics["mean_top10_overlap"]
+        >= R_PARITY_RANKING_RELEASE_THRESHOLDS["mean_top10_overlap_floor"]
     )
 
 
@@ -1065,10 +1094,22 @@ def test_l6_replayed_prediction_trace_matches_r_sampling_path() -> None:
 
     assert metrics["initial_exact_matches"] == metrics["initial_total_rows"]
     assert metrics["sample_exact_matches"] == metrics["sample_total_rows"]
-    assert metrics["iteration_decision_class1_corr"] >= 0.999999
-    assert metrics["iteration_decision_mae"] <= 1e-12
-    assert metrics["iteration_prob_class1_corr"] >= 0.998
-    assert metrics["iteration_prob_mae"] <= 0.015
+    assert (
+        metrics["iteration_decision_class1_corr"]
+        >= R_PARITY_REPLAY_RELEASE_THRESHOLDS["iteration_decision_class1_corr"]
+    )
+    assert (
+        metrics["iteration_decision_mae"]
+        <= R_PARITY_REPLAY_RELEASE_THRESHOLDS["iteration_decision_mae"]
+    )
+    assert (
+        metrics["iteration_prob_class1_corr"]
+        >= R_PARITY_REPLAY_RELEASE_THRESHOLDS["iteration_prob_class1_corr"]
+    )
+    assert (
+        metrics["iteration_prob_mae"]
+        <= R_PARITY_REPLAY_RELEASE_THRESHOLDS["iteration_prob_mae"]
+    )
     assert metrics["final_top_site_matches"] == metrics["final_top_total"]
 
 

@@ -123,7 +123,7 @@ site_sequences = json.loads(Path("predmat_site_sequences.json").read_text())
 substrate_map = json.loads(Path("predmat_substrate_map.json").read_text())
 motif_sequences = json.loads(Path("predmat_motif_sequences.json").read_text())
 
-workflow = PredMatWorkflow(flank_size=2)
+workflow = PredMatWorkflow(flank_size=2, svm_mode="default")
 result = workflow.run(
     phospho_matrix=phospho_matrix,
     substrate_map=substrate_map,
@@ -141,9 +141,11 @@ result = workflow.run(
 
 pred_mat = result.pred_mat_result.to_frame(copy=False)
 result.pred_mat_result.to_csv("predMat.csv")
+```
+
+Use `svm_mode="default"` for the recommended stable native path. Use `svm_mode="r_parity"` when you want the supported parity-oriented learner, sampling, and final-scoring preset for parity-sensitive comparisons.
 
 When prediction thresholds are too strict and no kinase candidates qualify, PhosPy raises `NoCandidateKinasesError` instead of returning an invalid empty `predMat`.
-```
 
 ### `KinaseWorkflow`
 
@@ -171,7 +173,7 @@ A runnable end-to-end example lives in [`examples/signalome_workflow_demo.py`](e
 ```python
 from phospy import PredMatWorkflow, SignalomeWorkflow
 
-pred_mat_result = PredMatWorkflow(flank_size=2).run(...)
+pred_mat_result = PredMatWorkflow(flank_size=2, svm_mode="default").run(...)
 signalome_result = SignalomeWorkflow().run(
     scoring_result=pred_mat_result.scoring_result,
     prediction_result=pred_mat_result.prediction_result,
@@ -185,7 +187,7 @@ network_data = signalome_result.to_network_data()
 ```
 
 Use `signalome_result.to_csv(...)`, `map_data.to_csv(...)`, and `network_data.to_csv(...)` when you want exportable
-tables.
+tables. The same `PredMatWorkflow` call can use `svm_mode="r_parity"` when you want the parity-oriented prediction preset before constructing downstream signalome outputs.
 
 ## File Inputs
 
@@ -215,8 +217,7 @@ phospy \
 
 - [`docs/api.md`](docs/api.md) for the public Python API and CLI options
 - [`docs/validation.md`](docs/validation.md) for the validation checklist
-- [`docs/parity.md`](docs/parity.md) for the PhosR parity scope
-- [`docs/parity.md`](docs/parity.md) for the PhosR parity scope and prediction-mode intent
+- [`docs/parity.md`](docs/parity.md) for the PhosR parity scope, release thresholds, and prediction-mode intent
 - [`docs/adr/0002-r-parity-public-preset.md`](docs/adr/0002-r-parity-public-preset.md) for the explicit public support decision on `r_parity`
 - [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace directories
 - [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) for local development

@@ -55,6 +55,83 @@ Use:
 
 Using `svm_mode="r_parity"` does not make the full workflow equivalent to `PhosR`, but it is the supported secondary preset used when parity-sensitive prediction checks need the closest supported reference-oriented path.
 
+## Release Thresholds by Mode
+
+The release bar is intentionally different for `default` and `r_parity`.
+That is deliberate, because the two presets have different jobs.
+
+### `default`
+
+`default` is the recommended stable native mode.
+A release is acceptable for `default` when it continues to satisfy all of the following:
+
+- the documented public workflow benchmarks still match their committed fixtures in
+  `tests/fixtures/public_workflow_reference`
+- the L6 ranking-parity floor in `tests/test_parity-with_metrics.py` still holds:
+  - mean Spearman rank agreement `>= 0.96`
+  - mean top-20 overlap `>= 0.85`
+  - mean top-30 overlap `>= 0.88`
+  - kinases with top-10 overlap of at least 70%: `>= 20`
+- non-parity tests and parity tests both continue to pass
+
+`default` is **not** required to match the replay-trace parity bar used to justify
+`r_parity` as a separate preset.
+
+### `r_parity`
+
+`r_parity` is the supported parity-oriented preset.
+A release is acceptable for `r_parity` only when it continues to satisfy all of the following:
+
+- the documented public workflow benchmarks still match their committed fixtures in
+  `tests/fixtures/public_workflow_reference`
+- on the L6 ranking benchmark, it remains at least as strong as `default` for:
+  - mean Spearman rank agreement
+  - mean top-10 overlap
+  - mean top-20 overlap
+  - mean top-30 overlap
+- on the same ranking benchmark, mean top-10 overlap remains `>= 0.82`
+- on the replayed L6 sampling-trace benchmark, it continues to meet the protected replay floor:
+  - initial negative rows: exact match
+  - iteration sample rows: exact match
+  - iteration decision class-1 Pearson correlation `>= 0.999999`
+  - iteration decision mean absolute difference `<= 1e-12`
+  - iteration probability class-1 Pearson correlation `>= 0.998`
+  - iteration probability mean absolute difference `<= 0.015`
+  - final top-site matches: exact match
+
+These are the release thresholds already enforced in parity tests. This page makes them
+explicit so review does not depend on reading assertions in isolation.
+
+### Threshold enforcement map
+
+| Surface | Mode | Fixture family | Required outcome | Enforced by |
+| --- | --- | --- | --- | --- |
+| Documented `PredMatWorkflow` benchmark | `default`, `r_parity` | `tests/fixtures/public_workflow_reference` | Exact committed benchmark match | `tests/test_end_to_end_parity.py` |
+| Documented `SignalomeWorkflow` benchmark | `default`, `r_parity` | `tests/fixtures/public_workflow_reference` | Exact committed benchmark match | `tests/test_end_to_end_parity.py` |
+| L6 ranking parity floor | `default` | `tests/fixtures/r_reference_l6` | Meets the explicit ranking floor listed above | `tests/test_parity-with_metrics.py` |
+| L6 ranking comparison | `r_parity` | `tests/fixtures/r_reference_l6` | Matches or exceeds `default` on protected ranking metrics and keeps top-10 overlap floor | `tests/test_parity-with_metrics.py` |
+| L6 replayed trace fidelity | `r_parity` | `tests/fixtures/r_reference_l6` | Meets the explicit replay floor listed above | `tests/test_parity-with_metrics.py` |
+
+### Parity-sensitive release review
+
+When a change touches prediction policy, sampling, scoring, fixture generation, or the
+public workflow examples, release review must check all of the following:
+
+1. `pytest -m "not parity"` passes.
+2. `pytest -m parity` passes.
+3. `pytest tests/test_readme_smoke.py tests/test_end_to_end_parity.py` passes.
+4. If prediction behaviour changed intentionally, regenerate the affected fixtures and explain
+   the contract change in the pull request.
+5. If prediction policy or sampling changed, regenerate and review the mode-comparison
+   benchmark report before release:
+
+   ```bash
+   python benchmarks/compare_prediction_modes.py --repeats 1
+   ```
+
+6. Confirm the public docs still describe `default` as the recommended native mode and
+   `r_parity` as the supported parity-oriented mode.
+
 ## Run the Parity Suite
 
 ```bash

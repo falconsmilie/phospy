@@ -32,14 +32,17 @@ def load_demo_inputs(
     return phospho_matrix, substrate_map, site_sequences, motif_sequences
 
 
-def run_demo(outdir: Path) -> tuple[PredMatWorkflowResult, Path]:
+def run_demo(
+    outdir: Path, *, svm_mode: str = "default"
+) -> tuple[PredMatWorkflowResult, Path]:
     repo_root = Path(__file__).resolve().parents[1]
     data_dir = repo_root / "examples" / "data"
     phospho_matrix, substrate_map, site_sequences, motif_sequences = load_demo_inputs(
         data_dir
     )
+    outdir.mkdir(parents=True, exist_ok=True)
 
-    workflow = PredMatWorkflow(flank_size=2)
+    workflow = PredMatWorkflow(flank_size=2, svm_mode=svm_mode)
     result = workflow.run(
         phospho_matrix=phospho_matrix,
         substrate_map=substrate_map,
@@ -66,8 +69,8 @@ def run_demo(outdir: Path) -> tuple[PredMatWorkflowResult, Path]:
 
 def main() -> None:
     with TemporaryDirectory(prefix="phospy-predmat-") as tmp_dir:
-        result, export_path = run_demo(Path(tmp_dir))
-        print(f"Wrote predMat to {export_path}")
+        result, export_path = run_demo(Path(tmp_dir), svm_mode="default")
+        print(f"Wrote predMat to {export_path} using svm_mode=default")
         print("predMat")
         print(result.pred_mat_result.data_frame.round(4))
 
