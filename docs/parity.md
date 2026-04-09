@@ -53,7 +53,7 @@ Use:
 - `svm_mode="default"` for the recommended stable native path
 - `svm_mode="r_parity"` for the closest supported parity-oriented learner, sampling, and final-scoring preset
 
-Using `svm_mode="r_parity"` does not make the full workflow equivalent to `PhosR`, but it is the preset used when parity-sensitive prediction checks need the closest supported reference-oriented path.
+Using `svm_mode="r_parity"` does not make the full workflow equivalent to `PhosR`, but it is the supported secondary preset used when parity-sensitive prediction checks need the closest supported reference-oriented path.
 
 ## Run the Parity Suite
 
@@ -75,6 +75,20 @@ Make targets:
 make test-parity
 make test-seams
 ```
+
+## Public Support Decision for `r_parity`
+
+PhosPy retains `svm_mode="r_parity"` as a supported public preset.
+
+Use:
+
+- `svm_mode="default"` for the recommended stable native path
+- `svm_mode="r_parity"` for the supported parity-oriented learner, sampling, and final-scoring preset
+
+This decision is explicit and tracked in [ADR 0002](adr/0002-r-parity-public-preset.md).
+The decision is evidence-driven: `r_parity` remains public because it is the mode used
+when parity-sensitive prediction checks need the closest supported reference-oriented path.
+It is not a claim of full package equivalence to `PhosR`.
 
 ## Benchmark the Public Prediction Modes
 

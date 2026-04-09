@@ -191,6 +191,13 @@ def _stable_json(value: dict[str, Any]) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
 def _format_runtime_stats(runs: list[float]) -> RuntimeStats:
     return RuntimeStats(
         runs=[round(value, 6) for value in runs],
@@ -1198,7 +1205,7 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_OUTPUT_DIR,
         help=(
             "Directory for the generated JSON and Markdown reports "
-            f"(default: {DEFAULT_OUTPUT_DIR.relative_to(REPO_ROOT)})"
+            f"(default: {_display_path(DEFAULT_OUTPUT_DIR)})"
         ),
     )
     parser.add_argument(
@@ -1231,8 +1238,8 @@ def main() -> int:
     )
     markdown_path.write_text(markdown, encoding="utf-8")
 
-    print(f"Wrote JSON report: {json_path.relative_to(REPO_ROOT)}")
-    print(f"Wrote Markdown report: {markdown_path.relative_to(REPO_ROOT)}")
+    print(f"Wrote JSON report: {_display_path(json_path)}")
+    print(f"Wrote Markdown report: {_display_path(markdown_path)}")
     print()
     print(markdown)
     return 0

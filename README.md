@@ -158,6 +158,9 @@ From a repository checkout:
 make native-workflow-demo
 ```
 
+Use `svm_mode="default"` for the recommended stable native path.
+Use `svm_mode="r_parity"` when you want the supported parity-oriented learner, sampling, and final-scoring preset.
+
 ### `SignalomeWorkflow`
 
 Use `SignalomeWorkflow` when you already have scoring and prediction outputs and want the next downstream layer:
@@ -213,6 +216,7 @@ phospy \
 - [`docs/api.md`](docs/api.md) for the public Python API and CLI options
 - [`docs/validation.md`](docs/validation.md) for the validation checklist
 - [`docs/parity.md`](docs/parity.md) for the PhosR parity scope
-- `svm_mode="default"` is the recommended stable prediction mode; use `svm_mode="r_parity"` when you want the closest supported parity-oriented learner, sampling, and final-scoring preset
+- [`docs/parity.md`](docs/parity.md) for the PhosR parity scope and prediction-mode intent
+- [`docs/adr/0002-r-parity-public-preset.md`](docs/adr/0002-r-parity-public-preset.md) for the explicit public support decision on `r_parity`
 - [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace directories
 - [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) for local development
