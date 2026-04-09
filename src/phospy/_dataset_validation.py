@@ -9,8 +9,8 @@ import pandas as pd
 from .constants import ComparisonSpec
 from .dataset_schema import DatasetSchema
 from .validation.errors import InputCompatibilityError
-from .validation.paths import validate_existing_file_path
-from .validation.tables import PhosphoInputSchema, TotalInputSchema
+from .validation.identifiers import validate_existing_file_path
+from .validation.schemas import PhosphoInputSchema, TotalInputSchema
 
 
 @dataclass(frozen=True, slots=True)

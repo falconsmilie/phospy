@@ -6,25 +6,21 @@ import pytest
 from phospy import PhosphoDataset, PredMatResult
 from phospy.dataset_schema import DatasetSchema
 from phospy.prediction.traces import TraceSink
-from phospy.validation.analysis import (
-    KinaseActivityRequest,
-    ValidatedAnalysisRequest,
-    validate_analysis_request,
-)
-from phospy.validation.dataset import ValidatedDatasetInputs
 from phospy.validation.errors import InputCompatibilityError, RequestValidationError
-from phospy.validation.pipeline import (
+from phospy.validation.requests import (
     CorePipelineRequest,
+    KinaseActivityRequest,
+    KinaseWorkflowRequest,
+    PredictionRequest,
+    ValidatedAnalysisRequest,
+    ValidatedDatasetInputs,
     ValidatedPipelineRequest,
+    ValidatedWorkflowRequest,
     build_pipeline_request,
+    build_validated_workflow_request,
+    validate_analysis_request,
     validate_pipeline_construction_request,
     validate_pipeline_runtime_compatibility,
-)
-from phospy.validation.prediction import PredictionRequest
-from phospy.validation.workflow import (
-    KinaseWorkflowRequest,
-    ValidatedWorkflowRequest,
-    build_validated_workflow_request,
     validate_workflow_request,
 )
 
@@ -411,10 +407,10 @@ def test_core_pipeline_request_does_not_mask_unexpected_comparison_validation_er
 
 
 def test_validation_modules_expose_use_case_boundaries() -> None:
-    assert CorePipelineRequest.__module__ == "phospy.validation.pipeline"
-    assert KinaseActivityRequest.__module__ == "phospy.validation.analysis"
-    assert KinaseWorkflowRequest.__module__ == "phospy.validation.workflow"
-    assert PredictionRequest.__module__ == "phospy.validation.prediction"
+    assert CorePipelineRequest.__module__ == "phospy.validation.requests"
+    assert KinaseActivityRequest.__module__ == "phospy.validation.requests"
+    assert KinaseWorkflowRequest.__module__ == "phospy.validation.requests"
+    assert PredictionRequest.__module__ == "phospy.validation.requests"
 
 
 def test_pipeline_request_can_be_created_from_public_dataset_boundary() -> None:

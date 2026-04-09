@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .validation.tables import PhosphoInputSchema, PredMatSchema, TotalInputSchema
+from .validation.schemas import PhosphoInputSchema, PredMatSchema, TotalInputSchema
 
 DEFAULT_TEXT_ENCODING = "utf-8"
 

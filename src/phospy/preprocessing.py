@@ -22,15 +22,14 @@ from ._protein_correction import (
 )
 from .constants import LOCALIZATION_PROB_COLUMN, ComparisonSpec
 from .dataset_schema import DatasetSchema
-from .validation._helpers import (
+from .validation.collections import resolve_required_columns
+from .validation.errors import PhospyValidationError
+from .validation.frames import (
     require_columns,
     require_numeric_columns,
     require_numeric_series,
-    resolve_required_columns,
-    validate_fraction,
 )
-from .validation.errors import PhospyValidationError
-from .validation.primitives import validate_non_negative_int
+from .validation.scalars import validate_fraction, validate_non_negative_int
 
 """Standalone preprocessing helpers.
 

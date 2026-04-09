@@ -23,7 +23,7 @@ from .signalome_models import (
     SignalomeResult,
 )
 from .validation.errors import InputCompatibilityError
-from .validation.signalomes import (
+from .validation.requests import (
     SignalomeRequest,
     ValidatedSignalomeRequest,
     _build_validated_signalome_request,

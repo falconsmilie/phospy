@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from ..validation.errors import TableSchemaError
-from ..validation.tables import PredictionScoreMatrixSchema
+from ..validation.schemas import PredictionScoreMatrixSchema
 from .validation import validate_positive_int
 
 

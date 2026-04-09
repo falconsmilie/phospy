@@ -7,8 +7,8 @@ import pandas as pd
 
 from .dataset_schema import DatasetSchema
 from .io import read_table
-from .validation.dataset import validate_dataset_file_paths, validate_dataset_frames
 from .validation.errors import RequestValidationError, TableSchemaError
+from .validation.requests import validate_dataset_file_paths, validate_dataset_frames
 
 __all__ = ["DatasetLoader", "LoadedDatasetInputs"]
 

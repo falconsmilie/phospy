@@ -15,7 +15,7 @@ from phospy.dataset import PhosphoDataset
 from phospy.pipeline import _PipelineRequestLoader
 from phospy.publishing import OutputPublisher, RunManifestWriter, package_version
 from phospy.validation.requests import CorePipelineRequest
-from phospy.validation.tables import PredMatSchema
+from phospy.validation.schemas import PredMatSchema
 
 EXAMPLE_COMPARISONS = (("group1", "group4"), ("group2", "group5"), ("group3", "group6"))
 

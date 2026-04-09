@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from .validation.primitives import validate_positive_int
+from .validation.scalars import validate_positive_int
 
 
 @dataclass(slots=True)

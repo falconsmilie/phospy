@@ -11,7 +11,7 @@ from .constants import (
     SITE_MATRIX_ID_COLUMN,
     SITE_MATRIX_P_SITE_COLUMN,
 )
-from .validation.tables import SiteMatrixSourceSchema
+from .validation.schemas import SiteMatrixSourceSchema
 
 
 def format_row_drop_diagnostics(row_drop_stats: Mapping[str, int]) -> str:

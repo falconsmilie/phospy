@@ -935,7 +935,7 @@ def test_dataset_from_files_validates_inputs_once(monkeypatch, tmp_path) -> None
     make_total_df().to_csv(total_path, sep="	", index=False)
     make_phospho_df().to_csv(phospho_path, sep="	", index=False)
 
-    from phospy.validation.tables import PhosphoInputSchema, TotalInputSchema
+    from phospy.validation.schemas import PhosphoInputSchema, TotalInputSchema
 
     total_calls = 0
     phospho_calls = 0
@@ -996,7 +996,7 @@ def test_pipeline_from_files_validates_inputs_once(monkeypatch, tmp_path) -> Non
     make_total_df().to_csv(total_path, sep="	", index=False)
     make_phospho_df().to_csv(phospho_path, sep="	", index=False)
 
-    from phospy.validation.tables import PhosphoInputSchema, TotalInputSchema
+    from phospy.validation.schemas import PhosphoInputSchema, TotalInputSchema
 
     total_calls = 0
     phospho_calls = 0

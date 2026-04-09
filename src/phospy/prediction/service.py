@@ -9,7 +9,7 @@ import pandas as pd
 from ..scoring import KinaseScoringResult
 from ..types import PredictionSvmMode, PredictionTraceFormat, PredictionTraceLevel
 from ..validation.errors import InputCompatibilityError, NoCandidateKinasesError
-from ..validation.prediction import PredictionRequest
+from ..validation.requests import PredictionRequest
 from .aggregation import PredictionAggregator
 from .candidates import CandidateSelector, build_candidate_substrate_list
 from .execution import (

@@ -17,7 +17,7 @@ from .dataset_schema import DatasetSchema
 from .io import load_pred_mat
 from .publishing import OutputPublisher, RunManifestWriter
 from .validation.errors import RequestValidationError, TableSchemaError
-from .validation.pipeline import (
+from .validation.requests import (
     CorePipelineRequest,
     ValidatedPipelineRequest,
     build_pipeline_request,

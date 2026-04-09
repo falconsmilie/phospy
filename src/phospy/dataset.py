@@ -11,7 +11,7 @@ from .dataset_loader import DatasetLoader, LoadedDatasetInputs
 from .dataset_preprocessing import DatasetPreprocessing
 from .dataset_schema import DatasetSchema
 from .dataset_site_matrix import DatasetSiteMatrix
-from .validation.dataset import (
+from .validation.requests import (
     ValidatedDatasetInputs,
     build_validated_dataset_inputs,
     validate_dataset_request,

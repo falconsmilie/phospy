@@ -12,7 +12,7 @@ from phospy.io import (
     load_total_table,
 )
 from phospy.validation.errors import TableSchemaError
-from phospy.validation.tables import (
+from phospy.validation.schemas import (
     PhosphoInputSchema,
     PredictionScoreMatrixSchema,
     PredMatSchema,

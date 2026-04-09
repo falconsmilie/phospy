@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, NoReturn
 import pandas as pd
 
 from ..validation.errors import NoCandidateKinasesError
-from ..validation.prediction import PredictionRequest
+from ..validation.requests import PredictionRequest
 from .models import KinasePredictionResult
 
 if TYPE_CHECKING:

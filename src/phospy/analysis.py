@@ -14,7 +14,7 @@ from .activities import (
     count_predicted_targets,
 )
 from .io import load_pred_mat
-from .validation.analysis import (
+from .validation.requests import (
     ValidatedAnalysisRequest,
     validate_analysis_request,
 )

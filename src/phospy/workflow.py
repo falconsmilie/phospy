@@ -12,12 +12,10 @@ from .scoring import KinaseScorer, KinaseScoringResult
 from .signalome_construction import execute_validated_signalome_request
 from .signalomes import SignalomeResult
 from .types import PredictionSvmMode
-from .validation.signalomes import (
+from .validation.requests import (
     ValidatedSignalomeRequest,
-    validate_signalome_request,
-)
-from .validation.workflow import (
     ValidatedWorkflowRequest,
+    validate_signalome_request,
     validate_workflow_request,
 )
 

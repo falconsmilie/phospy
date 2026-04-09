@@ -10,7 +10,7 @@ from .validation.errors import (
     InputCompatibilityError,
     TableSchemaError,
 )
-from .validation.primitives import validate_non_negative_int, validate_positive_int
+from .validation.scalars import validate_non_negative_int, validate_positive_int
 
 AMINO_ACIDS: tuple[str, ...] = (
     "A",
