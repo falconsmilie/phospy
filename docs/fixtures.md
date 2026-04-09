@@ -2,8 +2,7 @@
 
 This page is the quick map for committed fixture and trace directories.
 
-For fixture contract intent, protected seams, metrics, and mode coverage, see the parity contract matrix in [`parity.md`](parity.md).
-This page focuses on fixture provenance, rebuild commands, and promotion rules.
+For fixture intent, protected seams, metrics, and mode coverage, see [`parity.md`](parity.md). This page focuses on provenance, rebuild commands, and promotion rules.
 
 Most commands assume the repository root.
 
@@ -28,7 +27,7 @@ make fixtures-r-small
 
 ### `tests/fixtures/r_reference_l6`
 
-The main committed L6 reference set used for downstream kinase-analysis parity, native prediction seams, and committed R trace replay.
+Main committed L6 reference data for downstream kinase-analysis parity, native prediction seams, and committed R trace replay.
 
 Generate with:
 
@@ -39,7 +38,7 @@ make fixtures-r-l6
 
 ### `tests/fixtures/fragile_support_reference`
 
-A curated L6-derived reference set used to widen support-screening and inclusion-boundary coverage.
+Curated L6-derived support-screening fixtures used to widen coverage around support boundaries and inclusion cut-offs.
 
 Generate with:
 
@@ -101,8 +100,7 @@ make traces-r
 
 ### `tests/fixtures/python_reference_l6/prediction_trace`
 
-Committed Python prediction traces used alongside the R traces for trace export and replay debugging.
-They support the same L6 prediction-trace contract rather than defining a separate fixture family.
+Committed Python prediction traces used alongside the R traces for export and replay debugging.
 
 Generate with:
 

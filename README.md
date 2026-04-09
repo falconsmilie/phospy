@@ -2,12 +2,13 @@
 
 PhosPy is a focused Python library for selected phosphoproteomics workflows inspired by `PhosR`.
 
-It is designed for users who want to:
+It is built for a small set of jobs:
 
 - preprocess total and phospho tables
 - analyse kinase activity from an existing `predMat`
 - generate a `predMat` from phosphosite inputs
 - run the native Python kinase workflow
+- construct signalomes from scoring and prediction outputs
 
 PhosPy is intentionally narrow. It is not a full `PhosR` replacement.
 
@@ -25,18 +26,15 @@ For parquet output:
 pip install "phospy[parquet]"
 ```
 
-The examples below use repository paths such as `examples/data/...`. If you installed from PyPI, use your own local file
-paths.
+The examples below use repository paths such as `examples/data/...`. If you installed from PyPI, use your own local paths instead.
 
-## Choose the Right Entry Point
+## Pick the Right Entry Point
 
 ### `PhosphoDataset`
 
 Use `PhosphoDataset` when you want validated total and phospho inputs plus the standard preprocessing flow.
 
 ```python
-from pathlib import Path
-
 from phospy import PhosphoDataset
 from phospy.writers import CoreOutputWriter
 
@@ -83,8 +81,7 @@ The bundled example data is tiny, so it uses `min_substrates=1` and `top_n_subst
 
 ### `PhosRPipeline`
 
-Use `PhosRPipeline` when you want file loading, preprocessing, optional kinase analysis, and output publishing in one
-call.
+Use `PhosRPipeline` when you want file loading, preprocessing, optional kinase analysis, and output publishing in one call.
 
 ```python
 from phospy import PhosRPipeline
@@ -106,9 +103,7 @@ When `outdir` is set, the pipeline writes the core outputs, any kinase-analysis 
 
 ### `PredMatWorkflow`
 
-Use `PredMatWorkflow` when your goal is to generate a `predMat` from phosphosite inputs and export it as CSV.
-
-A runnable end-to-end example lives in [`examples/predmat_workflow_demo.py`](examples/predmat_workflow_demo.py).
+Use `PredMatWorkflow` when your goal is to generate a `predMat` from phosphosite inputs.
 
 ```python
 import json
@@ -118,10 +113,10 @@ import pandas as pd
 
 from phospy import PredMatWorkflow
 
-phospho_matrix = pd.read_csv("predmat_phospho_matrix.csv", index_col=0)
-site_sequences = json.loads(Path("predmat_site_sequences.json").read_text())
-substrate_map = json.loads(Path("predmat_substrate_map.json").read_text())
-motif_sequences = json.loads(Path("predmat_motif_sequences.json").read_text())
+phospho_matrix = pd.read_csv("examples/data/predmat_phospho_matrix.csv", index_col=0)
+site_sequences = json.loads(Path("examples/data/predmat_site_sequences.json").read_text())
+substrate_map = json.loads(Path("examples/data/predmat_substrate_map.json").read_text())
+motif_sequences = json.loads(Path("examples/data/predmat_motif_sequences.json").read_text())
 
 workflow = PredMatWorkflow(flank_size=2, svm_mode="default")
 result = workflow.run(
@@ -145,14 +140,15 @@ result.pred_mat_result.to_csv("predMat.csv")
 
 Use `svm_mode="default"` for the recommended stable native path. Use `svm_mode="r_parity"` when you want the supported parity-oriented learner, sampling, and final-scoring preset for parity-sensitive comparisons.
 
-When prediction thresholds are too strict and no kinase candidates qualify, PhosPy raises `NoCandidateKinasesError` instead of returning an invalid empty `predMat`.
+When thresholds are too strict and no kinase candidates qualify, PhosPy raises `NoCandidateKinasesError` instead of returning an empty invalid `predMat`.
+
+A runnable repository example lives in [`examples/predmat_workflow_demo.py`](examples/predmat_workflow_demo.py).
 
 ### `KinaseWorkflow`
 
-Use `KinaseWorkflow` for the fuller native Python scoring and prediction workflow when you want the intermediate
-profile, motif, and combined scoring outputs as well as the final prediction matrix.
+Use `KinaseWorkflow` when you want the fuller native Python scoring and prediction workflow, including intermediate profile and motif scoring outputs.
 
-A runnable example lives in [`examples/native_workflow_demo.py`](examples/native_workflow_demo.py).
+A runnable repository example lives in [`examples/native_workflow_demo.py`](examples/native_workflow_demo.py).
 
 From a repository checkout:
 
@@ -160,15 +156,9 @@ From a repository checkout:
 make native-workflow-demo
 ```
 
-Use `svm_mode="default"` for the recommended stable native path.
-Use `svm_mode="r_parity"` when you want the supported parity-oriented learner, sampling, and final-scoring preset.
-
 ### `SignalomeWorkflow`
 
-Use `SignalomeWorkflow` when you already have scoring and prediction outputs and want the next downstream layer:
-signalome modules plus map-ready and network-ready derived outputs.
-
-A runnable end-to-end example lives in [`examples/signalome_workflow_demo.py`](examples/signalome_workflow_demo.py).
+Use `SignalomeWorkflow` when you already have scoring and prediction outputs and want downstream signalome, map-ready, and network-ready outputs.
 
 ```python
 from phospy import PredMatWorkflow, SignalomeWorkflow
@@ -186,8 +176,9 @@ map_data = signalome_result.to_map_data()
 network_data = signalome_result.to_network_data()
 ```
 
-Use `signalome_result.to_csv(...)`, `map_data.to_csv(...)`, and `network_data.to_csv(...)` when you want exportable
-tables. The same `PredMatWorkflow` call can use `svm_mode="r_parity"` when you want the parity-oriented prediction preset before constructing downstream signalome outputs.
+Use `signalome_result.to_csv(...)`, `map_data.to_csv(...)`, and `network_data.to_csv(...)` when you want exportable tables.
+
+A runnable repository example lives in [`examples/signalome_workflow_demo.py`](examples/signalome_workflow_demo.py).
 
 ## File Inputs
 
@@ -197,7 +188,7 @@ PhosPy works with:
 - phospho input as TSV
 - `predMat` as CSV, with the first column used as the phosphosite index
 
-For the default table schema and method-level validation rules, see [`docs/api.md`](docs/api.md).
+For the default table schema and method-level validation rules, see [`docs/api.md`](docs/api.md) and [`docs/validation.md`](docs/validation.md).
 
 ## CLI
 
@@ -217,7 +208,5 @@ phospy \
 
 - [`docs/api.md`](docs/api.md) for the public Python API and CLI options
 - [`docs/validation.md`](docs/validation.md) for the validation checklist
-- [`docs/parity.md`](docs/parity.md) for the PhosR parity scope, release thresholds, and prediction-mode intent
-- [`docs/adr/0002-r-parity-public-preset.md`](docs/adr/0002-r-parity-public-preset.md) for the explicit public support decision on `r_parity`
-- [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace directories
-- [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) for local development
+- [`docs/parity.md`](docs/parity.md) for parity scope, supported prediction modes, and release thresholds
+- [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace rebuild commands

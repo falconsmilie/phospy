@@ -35,6 +35,8 @@ Repository rules live in:
 
 ## Tests
 
+Use:
+
 ```bash
 pytest -m "not parity"
 pytest -m parity
@@ -43,7 +45,7 @@ pytest -m parity
 - the non-parity suite covers the normal Python tests
 - the parity suite covers fixture-backed seam checks
 
-For parity scope, see [`docs/parity.md`](../docs/parity.md).
+For parity scope and release thresholds, see [`docs/parity.md`](../docs/parity.md).
 
 ## Release Gate
 
@@ -56,15 +58,13 @@ pytest -m parity
 pytest tests/test_readme_smoke.py tests/test_end_to_end_parity.py
 ```
 
-For parity-sensitive changes to prediction policy, sampling, scoring, or public workflow
-fixtures, also regenerate and review the lightweight mode-comparison benchmark artifact:
+For parity-sensitive changes to prediction policy, sampling, scoring, or public workflow fixtures, also review the lightweight mode-comparison benchmark:
 
 ```bash
 python benchmarks/compare_prediction_modes.py --repeats 1
 ```
 
-`make test-parity` prints the standard parity summary output. The full release checklist
-and threshold story live in [`docs/parity.md`](../docs/parity.md).
+`make test-parity` prints the standard parity summary output.
 
 ## CI
 

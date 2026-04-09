@@ -2,8 +2,8 @@
 
 This is the short version of what PhosPy checks.
 
-For method signatures and parameter-by-parameter details, see [`api.md`](api.md).
-For parity scope, see [`parity.md`](parity.md).
+For method signatures and parameter defaults, see [`api.md`](api.md).
+For parity-sensitive behaviour, see [`parity.md`](parity.md).
 
 ## File Types
 
@@ -54,15 +54,17 @@ A valid `predMat` must have:
 - file paths must exist and point to files
 - comparison pairs must use known schema groups and must not be duplicated
 - downstream kinase analysis needs overlap between `predMat` and the phosphosite matrix
+- that overlap must cover at least 10% of the phosphosite matrix
 - native workflow runs need overlap across the matrix, substrate map, and sequence inputs
-- motif-aware native workflow runs need both `motif_sequences` and `site_sequences`
-- motif-aware workflow validation only requires sequence coverage for phosphosites that are actually scored and predicted; whole-matrix sequence coverage is not required
+- motif-aware workflow runs need both `motif_sequences` and `site_sequences`, unless you enable `allow_profile_only_fallback=True`
+- motif-aware workflow validation only requires sequence coverage for phosphosites that are actually scored and predicted
 
 ## Useful Behaviour to Know
 
 - by default, protein correction allows no silent phosphosite row loss
 - site-matrix building can drop rows with missing sequence data or incomplete corrected values
 - if the same phosphosite appears more than once after correction, PhosPy keeps the row with the highest mean corrected signal
+- when prediction thresholds are too strict, `PredMatWorkflow` raises `NoCandidateKinasesError` instead of returning an empty invalid `predMat`
 
 ## Good Starting Point
 
@@ -72,19 +74,14 @@ If you are unsure where validation happens, start here:
 - `KinaseActivityAnalyzer.run(...)` for analysis from an existing `predMat`
 - `PhosRPipeline.from_files(...)` for the file-based one-shot flow
 - `PredMatWorkflow.run(...)` for native `predMat` generation
-- `KinaseWorkflow.run(...)` for the fuller native prediction result
+- `SignalomeWorkflow.run(...)` for downstream signalome construction
 
-## Recommended predMat workflow
+## Recommended `predMat` Path
 
-When your goal is to generate a `predMat`, the recommended path is:
-
-1. load a numeric phosphosite matrix with phosphosite IDs as the index
-2. load `site_sequences`, `substrate_map`, and `motif_sequences` keyed by the same phosphosite or kinase identifiers
-3. run `PredMatWorkflow.run(...)`
-4. access the canonical result through `result.pred_mat_result`
-5. export with `result.pred_mat_result.to_csv("predMat.csv")`
-When no kinase candidates qualify under the chosen prediction thresholds, predMat generation raises `NoCandidateKinasesError` instead of returning an invalid empty `predMat`.
+1. Load a numeric phosphosite matrix with phosphosite IDs as the index.
+2. Load `site_sequences`, `substrate_map`, and `motif_sequences` keyed by the matching phosphosite or kinase identifiers.
+3. Run `PredMatWorkflow.run(...)`.
+4. Read the result from `result.pred_mat_result`.
+5. Export with `result.pred_mat_result.to_csv("predMat.csv")`.
 
 A runnable example lives in [`../examples/predmat_workflow_demo.py`](../examples/predmat_workflow_demo.py).
-
-For motif-aware prediction, PhosPy only requires sequence coverage for phosphosites that actually participate in scoring and prediction. It does not require full-matrix sequence coverage.
