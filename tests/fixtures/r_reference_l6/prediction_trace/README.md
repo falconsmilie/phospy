@@ -3,7 +3,7 @@
 These files are generated from the bundled PhosR L6 example path.
 They are intended for direct comparison with Python-side prediction debug traces.
 
-Trace kinases: PRKAA1, MAPK1
+Trace kinases: PRKAA1, MAPK1, MAPK9, IRAK1, TBK1, LCK
 Per-ensemble top-N export: 10
 
 Files:

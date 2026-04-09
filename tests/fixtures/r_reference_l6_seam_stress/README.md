@@ -7,9 +7,9 @@ It is intentionally not a second independent biological source dataset. Instead,
 - retained exact R sampling replay for a smaller traced kinase subset
 - full overlap-kinase weight behaviour preserved by keeping the committed L6 score columns intact
 
-Row count: 416
+Row count: 580
 Kinase count: 28
-Trace kinases: MAPK1, PRKAA1
+Trace kinases: MAPK1, IRAK1, LCK, MAPK9, PRKAA1, TBK1
 Candidate-selection settings: top=50, score_threshold=0.8, inclusion=20
 Trace replay settings: top=30, score_threshold=0.6, inclusion=5, ensemble_size=10, n_iterations=5, random_state=1, debug_top_n=10
 
