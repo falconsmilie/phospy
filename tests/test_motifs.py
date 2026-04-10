@@ -6,6 +6,7 @@ import pytest
 
 import phospy.motifs as motifs
 from phospy.motifs import (
+    BundledReferenceProvider,
     KinaseMotifScorer,
     ReferenceBundle,
     ReferenceBundleProvenance,
@@ -233,3 +234,41 @@ def test_reference_provider_protocol_is_runtime_checkable() -> None:
             )
 
     assert isinstance(StaticReferenceProvider(), ReferenceProvider)
+
+
+def test_bundled_reference_provider_resolves_supported_rat_l6_bundle() -> None:
+    provider = BundledReferenceProvider()
+
+    bundle = provider.resolve(species="rat")
+
+    assert isinstance(provider, ReferenceProvider)
+    assert bundle.species == "rat"
+    assert bundle.source_metadata.source == "phospy-bundled"
+    assert bundle.source_metadata.reference == "l6_native"
+    assert bundle.provenance.provider == "BundledReferenceProvider"
+    assert "AKT1" in bundle.substrate_map
+    assert bundle.substrate_map["AKT1"]
+    assert len(bundle.motif_sequences["AKT1"]) == len(bundle.substrate_map["AKT1"])
+
+
+def test_bundled_reference_provider_rejects_unsupported_species() -> None:
+    provider = BundledReferenceProvider()
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=r"Unsupported bundled reference species 'human'\. Supported species: rat",
+    ):
+        provider.resolve(species="human")
+
+
+def test_bundled_reference_provider_rejects_unsupported_reference() -> None:
+    provider = BundledReferenceProvider()
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=(
+            r"Unsupported bundled reference 'unknown' for species 'rat'\. "
+            r"Supported references: l6_native"
+        ),
+    ):
+        provider.resolve(species="rat", reference="unknown")

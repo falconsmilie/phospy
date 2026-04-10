@@ -2,11 +2,22 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from importlib import resources
+from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 import numpy as np
 import pandas as pd
 
+from .constants import (
+    BUNDLED_REFERENCE_ALIASES,
+    BUNDLED_REFERENCE_AUTO,
+    BUNDLED_REFERENCE_DEFAULTS,
+    BUNDLED_REFERENCE_PROVIDER_NAME,
+    BUNDLED_REFERENCE_SOURCE,
+    BUNDLED_REFERENCE_SPECIES_ALIASES,
+    BUNDLED_REFERENCE_VERSION,
+)
 from .types import KinaseMotifSequenceMap, KinaseSubstrateMap
 from .validation.collections import normalize_sequence_mapping
 from .validation.errors import (
@@ -173,6 +184,105 @@ class ReferenceProvider(Protocol):
         species: str,
         reference: str = "auto",
     ) -> ReferenceBundle: ...
+
+
+@dataclass(frozen=True, slots=True)
+class BundledReferenceProvider:
+    """Resolve packaged kinase priors for the currently supported species lane."""
+
+    source: str = BUNDLED_REFERENCE_SOURCE
+    version: str = BUNDLED_REFERENCE_VERSION
+
+    def resolve(
+        self,
+        *,
+        species: str,
+        reference: str = BUNDLED_REFERENCE_AUTO,
+    ) -> ReferenceBundle:
+        resolved_species = _normalize_bundled_species(species)
+        resolved_reference = _normalize_bundled_reference(
+            species=resolved_species,
+            reference=reference,
+        )
+        substrate_map = self._load_substrate_map(
+            species=resolved_species,
+            reference=resolved_reference,
+        )
+        site_sequences = self._load_site_sequences(
+            species=resolved_species,
+            reference=resolved_reference,
+        )
+        motif_sequences = _build_reference_motif_sequences(
+            substrate_map=substrate_map,
+            site_sequences=site_sequences,
+            species=resolved_species,
+            reference=resolved_reference,
+        )
+        return ReferenceBundle(
+            substrate_map=substrate_map,
+            motif_sequences=motif_sequences,
+            species=resolved_species,
+            source_metadata=ReferenceBundleSourceMetadata(
+                source=self.source,
+                reference=resolved_reference,
+                version=self.version,
+            ),
+            provenance=ReferenceBundleProvenance(
+                provider=BUNDLED_REFERENCE_PROVIDER_NAME,
+                notes=(
+                    f"resolved species={resolved_species}",
+                    f"resolved reference={resolved_reference}",
+                ),
+            ),
+        )
+
+    @classmethod
+    def supported_species(cls) -> tuple[str, ...]:
+        return tuple(BUNDLED_REFERENCE_DEFAULTS)
+
+    @classmethod
+    def supported_references_for_species(cls, species: str) -> tuple[str, ...]:
+        resolved_species = _normalize_bundled_species(species)
+        canonical_references = {
+            resolved_reference
+            for resolved_reference in BUNDLED_REFERENCE_ALIASES[
+                resolved_species
+            ].values()
+            if resolved_reference != BUNDLED_REFERENCE_AUTO
+        }
+        return tuple(sorted(canonical_references))
+
+    def _load_substrate_map(
+        self,
+        *,
+        species: str,
+        reference: str,
+    ) -> dict[str, tuple[str, ...]]:
+        return _load_grouped_mapping_file(
+            _bundled_reference_resource_path(
+                species=species,
+                reference=reference,
+                filename="substrate_map.csv",
+            ),
+            group_column="kinase",
+            value_column="site_id",
+        )
+
+    def _load_site_sequences(
+        self,
+        *,
+        species: str,
+        reference: str,
+    ) -> dict[str, str]:
+        return _load_string_mapping_file(
+            _bundled_reference_resource_path(
+                species=species,
+                reference=reference,
+                filename="site_sequences.csv",
+            ),
+            key_column="site_id",
+            value_column="centralized_sequence",
+        )
 
 
 @dataclass(slots=True)
@@ -490,6 +600,116 @@ def _score_encoded_sequences(
     position_scores = frequency_values[safe_indices, position_indices]
     position_scores = np.where(valid_mask, position_scores, 0.0)
     return position_scores.sum(axis=1, dtype=float)
+
+
+def _load_grouped_mapping_file(
+    path: Path,
+    *,
+    group_column: str,
+    value_column: str,
+) -> dict[str, tuple[str, ...]]:
+    frame = pd.read_csv(path)
+    grouped: dict[str, list[str]] = {}
+    for group, value in frame.loc[:, [group_column, value_column]].itertuples(
+        index=False
+    ):
+        grouped.setdefault(str(group).strip(), []).append(str(value).strip())
+    return {key: tuple(values) for key, values in grouped.items()}
+
+
+def _load_string_mapping_file(
+    path: Path,
+    *,
+    key_column: str,
+    value_column: str,
+) -> dict[str, str]:
+    frame = pd.read_csv(path)
+    return {
+        str(key).strip(): str(value).strip()
+        for key, value in frame.loc[:, [key_column, value_column]].itertuples(
+            index=False
+        )
+    }
+
+
+def _build_reference_motif_sequences(
+    *,
+    substrate_map: Mapping[str, Sequence[str]],
+    site_sequences: Mapping[str, str],
+    species: str,
+    reference: str,
+) -> dict[str, tuple[str, ...]]:
+    motif_sequences: dict[str, tuple[str, ...]] = {}
+    missing_sites: set[str] = set()
+    for kinase, site_ids in substrate_map.items():
+        sequences: list[str] = []
+        for site_id in site_ids:
+            sequence = site_sequences.get(str(site_id))
+            if sequence is None:
+                missing_sites.add(str(site_id))
+                continue
+            sequences.append(str(sequence))
+        motif_sequences[str(kinase)] = tuple(sequences)
+    if missing_sites:
+        missing_text = ", ".join(sorted(missing_sites))
+        msg = (
+            "BundledReferenceProvider reference data is incomplete for "
+            f"species '{species}' and reference '{reference}'; missing site sequences for: {missing_text}"
+        )
+        raise InputCompatibilityError(msg)
+    return motif_sequences
+
+
+def _normalize_bundled_species(species: str) -> str:
+    normalized = str(species).strip().lower()
+    resolved_species = BUNDLED_REFERENCE_SPECIES_ALIASES.get(normalized)
+    if resolved_species is None:
+        supported = ", ".join(sorted(BUNDLED_REFERENCE_DEFAULTS))
+        msg = (
+            f"Unsupported bundled reference species '{species}'. "
+            f"Supported species: {supported}"
+        )
+        raise InputCompatibilityError(msg)
+    return resolved_species
+
+
+def _normalize_bundled_reference(*, species: str, reference: str) -> str:
+    resolved_reference = BUNDLED_REFERENCE_ALIASES[species].get(
+        str(reference).strip().lower()
+    )
+    if resolved_reference is None:
+        supported = ", ".join(
+            BundledReferenceProvider.supported_references_for_species(species)
+        )
+        msg = (
+            f"Unsupported bundled reference '{reference}' for species '{species}'. "
+            f"Supported references: {supported}"
+        )
+        raise InputCompatibilityError(msg)
+    return resolved_reference
+
+
+def _bundled_reference_resource_path(
+    *,
+    species: str,
+    reference: str,
+    filename: str,
+) -> Path:
+    resource = resources.files("phospy").joinpath(
+        "data",
+        "reference_bundles",
+        species,
+        reference,
+        filename,
+    )
+    if not resource.is_file():
+        msg = (
+            "BundledReferenceProvider could not find packaged reference data for "
+            f"species '{species}' and reference '{reference}' ({filename})"
+        )
+        raise InputCompatibilityError(msg)
+    with resources.as_file(resource) as resolved_path:
+        return resolved_path
 
 
 def _validate_reference_mapping_values(

@@ -8,6 +8,7 @@ import pytest
 
 from phospy import (
     AnalysisReadyPhosphoDataset,
+    BundledReferenceProvider,
     KinaseActivityAnalyzer,
     KinaseWorkflow,
     PhosphoDataset,
@@ -41,6 +42,8 @@ from phospy.site_matrix_builder import SiteMatrixBuilder
 from phospy.validation.errors import InputCompatibilityError, RequestValidationError
 from phospy.writers import CoreOutputWriter
 
+ROOT = Path(__file__).resolve().parents[1]
+L6_REFERENCE_DIR = ROOT / "tests" / "fixtures" / "r_reference_l6"
 EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
 
 
@@ -91,6 +94,7 @@ def test_public_root_exports() -> None:
 
     expected = {
         "AnalysisReadyPhosphoDataset",
+        "BundledReferenceProvider",
         "KinaseActivityAnalyzer",
         "KinaseWorkflow",
         "ReferenceBundle",
@@ -1620,3 +1624,40 @@ def test_public_reference_bundle_exports_and_protocol_runtime_check() -> None:
     assert isinstance(provider, ReferenceProvider)
     assert bundle.species == "human"
     assert bundle.source_metadata.reference == "auto"
+
+
+def test_public_bundled_reference_provider_runs_workflow_with_supported_bundle() -> (
+    None
+):
+    phospho_matrix = pd.read_csv(
+        L6_REFERENCE_DIR / "l6_phospho_matrix.csv", index_col=0
+    )
+    site_sequence_frame = pd.read_csv(L6_REFERENCE_DIR / "l6_site_sequences.csv")
+    site_sequence_frame["site_id"] = site_sequence_frame["site_id"].astype(str)
+    site_sequence_frame["site_id"] = (
+        site_sequence_frame["site_id"]
+        .str.split(";")
+        .map(lambda parts: f"{parts[1]};{parts[2]};" if len(parts) >= 3 else "")
+    )
+    site_sequences = site_sequence_frame.set_index("site_id")["centralized_sequence"]
+
+    provider = BundledReferenceProvider()
+    bundle = provider.resolve(species="rat", reference="auto")
+
+    result = PredMatWorkflow().run(
+        phospho_matrix=phospho_matrix,
+        site_sequences=site_sequences,
+        reference_bundle=bundle,
+        min_substrates=1,
+        min_motif_size=1,
+        ensemble_size=2,
+        top=10,
+        score_threshold=0.8,
+        inclusion=2,
+        n_iterations=2,
+        random_state=7,
+    )
+
+    assert bundle.source_metadata.reference == "l6_native"
+    assert not result.pred_mat_result.to_frame(copy=False).empty
+    assert set(result.pred_mat_result.kinase_names).issubset(set(bundle.substrate_map))

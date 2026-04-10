@@ -10,6 +10,7 @@ from phospy import (
     KinaseActivityAnalyzer,
     KinaseWorkflow,
     PhosphoDataset,
+    BundledReferenceProvider,
     ReferenceBundle,
     ReferenceBundleProvenance,
     ReferenceBundleSourceMetadata,
@@ -31,6 +32,7 @@ Use:
 - `KinaseActivityAnalyzer` for analysis from an existing `predMat`
 - `ReferenceBundle` for the kinase-prior boundary between reference resolution and workflow execution
 - `ReferenceProvider` for providers that resolve species and reference selections into a `ReferenceBundle`
+- `BundledReferenceProvider` for the first supported packaged species/reference lane
 - `PhosRPipeline` for file loading, preprocessing, optional kinase analysis, and publishing
 - `PredMatWorkflow` for the supported `predMat` generation path
 - `KinaseWorkflow` for the fuller native scoring and prediction path
@@ -345,6 +347,7 @@ Example:
 
 ```python
 from phospy import (
+    BundledReferenceProvider,
     ReferenceBundle,
     ReferenceBundleProvenance,
     ReferenceBundleSourceMetadata,
@@ -379,6 +382,28 @@ class ReferenceProvider(Protocol):
 ```
 
 This keeps kinase-prior assembly out of user code and gives later bundled or downloaded providers one stable contract.
+
+### `BundledReferenceProvider`
+
+Use `BundledReferenceProvider` when you want the first supported packaged reference lane instead of assembling kinase priors yourself.
+
+```python
+from phospy import BundledReferenceProvider
+
+provider = BundledReferenceProvider()
+reference_bundle = provider.resolve(
+    species="rat",
+    reference="auto",
+)
+```
+
+Current bundled support is intentionally narrow:
+
+- supported species: `rat`
+- supported references for `rat`: `auto`, `l6`, and `l6_native`
+- `auto` resolves to `l6_native`
+
+This is not a broad kinase-reference database. It is the first packaged provider lane that later high-level workflows can target without requiring callers to assemble `substrate_map` and `motif_sequences` manually. Unsupported species or reference selections fail with explicit validation errors.
 
 ## `CorePreprocessingConfig`
 

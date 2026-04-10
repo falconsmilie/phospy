@@ -78,3 +78,25 @@ DEFAULT_CORRECTED_COLS: tuple[str, ...] = tuple(
 )
 DEFAULT_TOTAL_SENTINEL: float = 10.0
 DEFAULT_PHOSPHO_SENTINEL: float = 12.0
+
+
+# Bundled kinase reference provider constants.
+BUNDLED_REFERENCE_PROVIDER_NAME: Final[str] = "BundledReferenceProvider"
+BUNDLED_REFERENCE_SOURCE: Final[str] = "phospy-bundled"
+BUNDLED_REFERENCE_VERSION: Final[str] = "2026.04"
+BUNDLED_REFERENCE_AUTO: Final[str] = "auto"
+BUNDLED_REFERENCE_SPECIES_ALIASES: Final[dict[str, str]] = {
+    "rat": "rat",
+    "rattus_norvegicus": "rat",
+    "rattus norvegicus": "rat",
+}
+BUNDLED_REFERENCE_DEFAULTS: Final[dict[str, str]] = {
+    "rat": "l6_native",
+}
+BUNDLED_REFERENCE_ALIASES: Final[dict[str, dict[str, str]]] = {
+    "rat": {
+        "auto": "l6_native",
+        "l6": "l6_native",
+        "l6_native": "l6_native",
+    },
+}

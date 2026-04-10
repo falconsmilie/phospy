@@ -11,6 +11,8 @@ These now exist in the supported public surface:
 - stable `PredMatResult`, `SignalomeResult`, `SignalomeMapData`, and `SignalomeNetworkData` contracts
 - public examples for `predMat` and signalome workflows
 - explicit `svm_mode` guidance for `default` and `r_parity`
+- `AnalysisReadyPhosphoDataset` as the preprocessing-to-inference boundary
+- `ReferenceBundle`, `ReferenceProvider`, and a first `BundledReferenceProvider` lane for `rat` / `l6_native`
 
 ## Most Likely Next Steps
 
@@ -25,6 +27,10 @@ The next useful improvements are clearer validation messages, easier debugging a
 ### Broader Native Workflow Validation
 
 The repository already includes L6 references, prediction traces, and public workflow benchmarks. Extending that coverage would raise confidence without widening the parity claim.
+
+### Broader Bundled Reference Coverage
+
+The first bundled provider lane is intentionally narrow. Expanding beyond `rat` / `l6_native` needs the same level of explicit provenance, validation, and fixture-backed evidence before it should be presented as supported.
 
 ### Smoother Workflow I/O
 

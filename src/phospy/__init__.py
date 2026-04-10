@@ -1,6 +1,7 @@
 from .analysis import KinaseActivityAnalyzer
 from .dataset import AnalysisReadyPhosphoDataset, PhosphoDataset
 from .motifs import (
+    BundledReferenceProvider,
     ReferenceBundle,
     ReferenceBundleProvenance,
     ReferenceBundleSourceMetadata,
@@ -15,6 +16,7 @@ from .workflow import KinaseWorkflow, PredMatWorkflow, SignalomeWorkflow
 
 __all__ = [
     "AnalysisReadyPhosphoDataset",
+    "BundledReferenceProvider",
     "KinaseActivityAnalyzer",
     "ReferenceBundle",
     "ReferenceBundleProvenance",
