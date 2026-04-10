@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
 
+from phospy import AnalysisReadyPhosphoDataset, PhosphoDataset
 from phospy.dataset_schema import DatasetSchema
 from phospy.preprocessing import (
     CoverageFilterResult,
@@ -903,3 +906,47 @@ def test_preprocessing_result_wrappers_with_pandas_state_are_not_frozen_dataclas
     assert LocalizationFilterResult.__dataclass_params__.frozen is False
     assert CoverageFilterResult.__dataclass_params__.frozen is False
     assert ProteinCorrectionResult.__dataclass_params__.frozen is False
+
+
+def test_dataset_preprocessing_run_analysis_ready_uses_example_fixture_data() -> None:
+    example_dir = Path(__file__).resolve().parents[1] / "examples" / "data"
+    dataset = PhosphoDataset.from_files(
+        total_path=example_dir / "total.tsv",
+        phospho_path=example_dir / "phospho.tsv",
+        phospho_encoding="utf-16le",
+    )
+
+    analysis_ready = dataset.preprocessing.run_analysis_ready(
+        max_unmatched_fraction=0.1,
+    )
+    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    expected = AnalysisReadyPhosphoDataset.from_core_processing_result(
+        core,
+        schema=dataset.schema,
+        comparisons=dataset.comparisons,
+        source="dataset preprocessing",
+    )
+
+    pd.testing.assert_frame_equal(
+        analysis_ready.phospho_matrix,
+        expected.phospho_matrix,
+    )
+    pd.testing.assert_frame_equal(
+        analysis_ready.site_metadata,
+        expected.site_metadata,
+    )
+    pd.testing.assert_series_equal(
+        analysis_ready.site_sequences,
+        expected.site_sequences,
+    )
+    pd.testing.assert_frame_equal(
+        analysis_ready.phospho_corrected,
+        expected.phospho_corrected,
+    )
+    assert analysis_ready.provenance == expected.provenance
+    assert analysis_ready.phospho_matrix.index.equals(
+        analysis_ready.site_metadata.index
+    )
+    assert analysis_ready.phospho_matrix.index.equals(
+        analysis_ready.site_sequences.index
+    )

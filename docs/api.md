@@ -178,6 +178,54 @@ matrix = core.site_matrix.matrix
 corrected = core.phospho_corrected
 ```
 
+### `dataset.preprocessing.to_analysis_ready(...)`
+
+```python
+dataset.preprocessing.to_analysis_ready(
+    result: CoreProcessingResult,
+    *,
+    source: str = "dataset preprocessing",
+) -> AnalysisReadyPhosphoDataset
+```
+
+Use this as the supported adapter from the bound preprocessing lane into `AnalysisReadyPhosphoDataset` when you already have a `CoreProcessingResult` from the same dataset.
+
+Rules:
+
+- `result` must be a `CoreProcessingResult`
+- the adapter reuses the existing site-matrix output from preprocessing rather than rebuilding it differently
+- schema and comparisons are taken from the bound dataset preprocessing facade, so callers do not need to pass them back in manually
+
+### `dataset.preprocessing.run_analysis_ready(...)`
+
+```python
+dataset.preprocessing.run_analysis_ready(
+    localization_threshold: float = 0.75,
+    min_observed: int = 4,
+    max_unmatched_fraction: float = 0.0,
+    total_sentinel: float | int = 10.0,
+    phospho_sentinel: float | int = 12.0,
+    config: CorePreprocessingConfig | None = None,
+    source: str = "dataset preprocessing",
+) -> AnalysisReadyPhosphoDataset
+```
+
+Use this when you want the normal preprocessing path and the analysis-ready boundary in one supported step.
+
+Example:
+
+```python
+from phospy import PhosphoDataset
+
+dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
+analysis_ready = dataset.preprocessing.run_analysis_ready(
+    max_unmatched_fraction=0.1,
+)
+
+phospho_matrix = analysis_ready.phospho_matrix
+site_sequences = analysis_ready.site_sequences
+```
+
 ## `AnalysisReadyPhosphoDataset`
 
 Use `AnalysisReadyPhosphoDataset` as the explicit boundary between preprocessing and kinase inference.
@@ -202,7 +250,7 @@ AnalysisReadyPhosphoDataset.from_core_processing_result(
 ) -> AnalysisReadyPhosphoDataset
 ```
 
-Use this when preprocessing has already completed and you want one owned, analysis-ready dataset object instead of passing lower-level tables around.
+Use this for advanced cases when preprocessing has already completed outside the bound dataset adapter path and you want one owned, analysis-ready dataset object instead of passing lower-level tables around.
 
 Rules:
 

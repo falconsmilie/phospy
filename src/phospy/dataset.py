@@ -8,10 +8,12 @@ import pandas as pd
 
 from .constants import (
     CENTRALIZED_SEQUENCE_COLUMN,
+    DEFAULT_PHOSPHO_SENTINEL,
+    DEFAULT_TOTAL_SENTINEL,
     SITE_MATRIX_ID_COLUMN,
     ComparisonSpec,
 )
-from .core_processing import CoreProcessingResult
+from .core_processing import CorePreprocessingConfig, CoreProcessingResult
 from .dataset_loader import DatasetLoader, LoadedDatasetInputs
 from .dataset_preprocessing import DatasetPreprocessing
 from .dataset_schema import DatasetSchema
@@ -293,6 +295,36 @@ class PhosphoDataset:
     def site_matrix(self) -> DatasetSiteMatrix:
         """Return the bound site-matrix facade for this dataset workspace."""
         return DatasetSiteMatrix(schema=self.schema)
+
+    def to_analysis_ready(
+        self,
+        result: CoreProcessingResult,
+        *,
+        source: str = "dataset preprocessing",
+    ) -> AnalysisReadyPhosphoDataset:
+        """Adapt a preprocessing result through the supported dataset-bound path."""
+        return self.preprocessing.to_analysis_ready(result, source=source)
+
+    def run_analysis_ready(
+        self,
+        localization_threshold: float = 0.75,
+        min_observed: int = 4,
+        max_unmatched_fraction: float = 0.0,
+        total_sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
+        phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
+        config: CorePreprocessingConfig | None = None,
+        source: str = "dataset preprocessing",
+    ) -> AnalysisReadyPhosphoDataset:
+        """Run preprocessing and return an analysis-ready phosphosite dataset."""
+        return self.preprocessing.run_analysis_ready(
+            localization_threshold=localization_threshold,
+            min_observed=min_observed,
+            max_unmatched_fraction=max_unmatched_fraction,
+            total_sentinel=total_sentinel,
+            phospho_sentinel=phospho_sentinel,
+            config=config,
+            source=source,
+        )
 
     @classmethod
     def from_loaded_inputs(

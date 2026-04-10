@@ -1361,6 +1361,29 @@ def test_analysis_ready_dataset_is_part_of_public_root_exports() -> None:
     assert "AnalysisReadyPhosphoDataset" in phospy.__all__
 
 
+def test_dataset_preprocessing_to_analysis_ready_binds_schema_and_comparisons() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+
+    analysis_ready = dataset.preprocessing.to_analysis_ready(core)
+
+    assert analysis_ready.provenance.source == "dataset preprocessing"
+    assert analysis_ready.provenance.schema == dataset.schema
+    assert analysis_ready.provenance.comparisons == tuple(EXAMPLE_COMPARISONS)
+    pd.testing.assert_frame_equal(
+        analysis_ready.phospho_matrix,
+        core.site_matrix.matrix,
+    )
+    pd.testing.assert_series_equal(
+        analysis_ready.site_sequences,
+        core.site_matrix.sequences,
+    )
+
+
 def test_analysis_ready_dataset_builds_from_core_processing_result() -> None:
     dataset = PhosphoDataset(
         total_df=make_total_df(),
@@ -1421,6 +1444,36 @@ def test_analysis_ready_dataset_builds_from_core_processing_result() -> None:
         ],
         retained_rows=core.site_matrix.row_drop_stats["retained_rows"],
     )
+
+
+def test_dataset_run_analysis_ready_matches_bound_preprocessing_adapter() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+
+    via_dataset = dataset.run_analysis_ready(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    via_adapter = dataset.preprocessing.to_analysis_ready(core)
+
+    pd.testing.assert_frame_equal(
+        via_dataset.phospho_matrix,
+        via_adapter.phospho_matrix,
+    )
+    pd.testing.assert_frame_equal(
+        via_dataset.site_metadata,
+        via_adapter.site_metadata,
+    )
+    pd.testing.assert_series_equal(
+        via_dataset.site_sequences,
+        via_adapter.site_sequences,
+    )
+    pd.testing.assert_frame_equal(
+        via_dataset.phospho_corrected,
+        via_adapter.phospho_corrected,
+    )
+    assert via_dataset.provenance == via_adapter.provenance
 
 
 def test_analysis_ready_dataset_owns_detached_copies_of_inputs() -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -18,6 +19,9 @@ from .core_processing import (
 )
 from .dataset_schema import DatasetSchema
 
+if TYPE_CHECKING:
+    from .dataset import AnalysisReadyPhosphoDataset
+
 """Bound dataset preprocessing facade.
 
 `DatasetPreprocessing` is the preferred public entrypoint for running the core
@@ -31,9 +35,9 @@ but are intentionally not mirrored as separate bound public methods here.
 class DatasetPreprocessing:
     """Bound preprocessing facade for a validated phosphoproteomics dataset.
 
-    `run()` is the single preferred public entrypoint for dataset-bound core
-    preprocessing. Advanced stepwise orchestration lives in the lower-level
-    processing modules.
+    `run()` and `run_analysis_ready()` are the preferred public entrypoints
+    for dataset-bound preprocessing. Advanced stepwise orchestration lives in
+    the lower-level processing modules.
 
     When created from :class:`phospy.PhosphoDataset`, this facade is bound to
     the dataset's explicit `total_df_live` and `phospho_df_live` accessors so
@@ -92,3 +96,46 @@ class DatasetPreprocessing:
             self.phospho_df,
             config=resolved,
         )
+
+    def to_analysis_ready(
+        self,
+        result: CoreProcessingResult,
+        *,
+        source: str = "dataset preprocessing",
+    ) -> AnalysisReadyPhosphoDataset:
+        """Adapt one preprocessing result into an analysis-ready dataset.
+
+        This is the supported bound adapter from the dataset preprocessing lane
+        into :class:`phospy.AnalysisReadyPhosphoDataset`. It reuses the current
+        core preprocessing and site-matrix behaviour and binds provenance to the
+        schema and comparisons already owned by this preprocessing facade.
+        """
+        from .dataset import AnalysisReadyPhosphoDataset
+
+        return AnalysisReadyPhosphoDataset.from_core_processing_result(
+            result,
+            schema=self.schema,
+            comparisons=self.comparisons,
+            source=source,
+        )
+
+    def run_analysis_ready(
+        self,
+        localization_threshold: float = 0.75,
+        min_observed: int = 4,
+        max_unmatched_fraction: float = 0.0,
+        total_sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
+        phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
+        config: CorePreprocessingConfig | None = None,
+        source: str = "dataset preprocessing",
+    ) -> AnalysisReadyPhosphoDataset:
+        """Run preprocessing and return the supported analysis-ready boundary."""
+        core_result = self.run(
+            localization_threshold=localization_threshold,
+            min_observed=min_observed,
+            max_unmatched_fraction=max_unmatched_fraction,
+            total_sentinel=total_sentinel,
+            phospho_sentinel=phospho_sentinel,
+            config=config,
+        )
+        return self.to_analysis_ready(core_result, source=source)
