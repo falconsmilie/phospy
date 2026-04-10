@@ -3,7 +3,12 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.motifs import KinaseMotifScorer
+from phospy.motifs import (
+    KinaseMotifScorer,
+    ReferenceBundle,
+    ReferenceBundleProvenance,
+    ReferenceBundleSourceMetadata,
+)
 from phospy.prediction import PredMatResult
 from phospy.validation.errors import (
     InputCompatibilityError,
@@ -527,3 +532,67 @@ def test_validated_workflow_request_resolves_predictor_mode_from_request() -> No
 
     assert request.predictor_svm_mode == "r_parity"
     assert list(request.phospho_matrix.index) == list(phospho_matrix.index)
+
+
+def make_reference_bundle() -> ReferenceBundle:
+    _, substrate_map, _, motif_sequences = make_workflow_inputs()
+    return ReferenceBundle(
+        substrate_map=substrate_map,
+        motif_sequences=motif_sequences,
+        species="human",
+        source_metadata=ReferenceBundleSourceMetadata(
+            source="bundled",
+            reference="phosr-like",
+            version="2026.04",
+        ),
+        provenance=ReferenceBundleProvenance(provider="BundledReferenceProvider"),
+    )
+
+
+def test_kinase_workflow_accepts_reference_bundle() -> None:
+    phospho_matrix, _, site_sequences, _ = make_workflow_inputs()
+    workflow = KinaseWorkflow(flank_size=2)
+
+    result = workflow.run(
+        phospho_matrix=phospho_matrix,
+        reference_bundle=make_reference_bundle(),
+        site_sequences=site_sequences,
+        min_substrates=2,
+        min_motif_size=2,
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.75,
+        inclusion=3,
+        n_iterations=2,
+        random_state=17,
+    )
+
+    assert list(result.prediction_result.pred_matrix.columns) == [
+        "KINASE_A",
+        "KINASE_B",
+    ]
+
+
+def test_pred_mat_workflow_rejects_mixed_reference_bundle_and_explicit_reference_inputs() -> (
+    None
+):
+    phospho_matrix, substrate_map, site_sequences, _ = make_workflow_inputs()
+
+    with pytest.raises(
+        RequestValidationError,
+        match=r"Pass either reference_bundle or substrate_map, not both",
+    ):
+        PredMatWorkflow(flank_size=2).run(
+            phospho_matrix=phospho_matrix,
+            substrate_map=substrate_map,
+            reference_bundle=make_reference_bundle(),
+            site_sequences=site_sequences,
+            min_substrates=2,
+            min_motif_size=2,
+            ensemble_size=3,
+            top=4,
+            score_threshold=0.75,
+            inclusion=3,
+            n_iterations=2,
+            random_state=17,
+        )

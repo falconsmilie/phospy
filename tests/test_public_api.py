@@ -14,6 +14,10 @@ from phospy import (
     PhosRPipeline,
     PredMatResult,
     PredMatWorkflow,
+    ReferenceBundle,
+    ReferenceBundleProvenance,
+    ReferenceBundleSourceMetadata,
+    ReferenceProvider,
     SignalomeWorkflow,
 )
 from phospy.constants import (
@@ -89,6 +93,10 @@ def test_public_root_exports() -> None:
         "AnalysisReadyPhosphoDataset",
         "KinaseActivityAnalyzer",
         "KinaseWorkflow",
+        "ReferenceBundle",
+        "ReferenceBundleProvenance",
+        "ReferenceBundleSourceMetadata",
+        "ReferenceProvider",
         "PhosphoDataset",
         "PhosRPipeline",
         "PredMatResult",
@@ -1531,3 +1539,31 @@ def test_analysis_ready_dataset_rejects_duplicate_site_ids() -> None:
             phospho_corrected=pd.DataFrame({"x": [1.0, 2.0]}),
             provenance=provenance,
         )
+
+
+def test_public_reference_bundle_exports_and_protocol_runtime_check() -> None:
+    class StaticReferenceProvider:
+        def resolve(
+            self,
+            *,
+            species: str,
+            reference: str = "auto",
+        ) -> ReferenceBundle:
+            return ReferenceBundle(
+                substrate_map={"KINASE_A": ["SITE_1"]},
+                motif_sequences={"KINASE_A": ["QQSQQ"]},
+                species=species,
+                source_metadata=ReferenceBundleSourceMetadata(
+                    source="bundled",
+                    reference=reference,
+                    version="v1",
+                ),
+                provenance=ReferenceBundleProvenance(provider=self.__class__.__name__),
+            )
+
+    provider = StaticReferenceProvider()
+    bundle = provider.resolve(species="human")
+
+    assert isinstance(provider, ReferenceProvider)
+    assert bundle.species == "human"
+    assert bundle.source_metadata.reference == "auto"

@@ -10,6 +10,10 @@ from phospy import (
     KinaseActivityAnalyzer,
     KinaseWorkflow,
     PhosphoDataset,
+    ReferenceBundle,
+    ReferenceBundleProvenance,
+    ReferenceBundleSourceMetadata,
+    ReferenceProvider,
     PhosRPipeline,
     PredMatResult,
     PredMatWorkflow,
@@ -25,6 +29,8 @@ Use:
 - `PhosphoDataset` for validated total and phospho inputs plus core preprocessing
 - `AnalysisReadyPhosphoDataset` for the analysis-ready phosphosite boundary between preprocessing and kinase inference
 - `KinaseActivityAnalyzer` for analysis from an existing `predMat`
+- `ReferenceBundle` for the kinase-prior boundary between reference resolution and workflow execution
+- `ReferenceProvider` for providers that resolve species and reference selections into a `ReferenceBundle`
 - `PhosRPipeline` for file loading, preprocessing, optional kinase analysis, and publishing
 - `PredMatWorkflow` for the supported `predMat` generation path
 - `KinaseWorkflow` for the fuller native scoring and prediction path
@@ -251,6 +257,81 @@ Returns `SiteMatrixResult` with:
 - `sequences`
 - `row_drop_stats`
 
+
+## `ReferenceBundle` and `ReferenceProvider`
+
+Use `ReferenceBundle` as the explicit kinase-prior boundary between reference resolution and workflow setup.
+
+A bundle owns:
+
+- `substrate_map`: kinase-to-site mappings used for profile scoring
+- `motif_sequences`: kinase-to-sequence-window mappings used for motif scoring
+- `species`: the resolved species label for the reference inputs
+- `source_metadata`: typed source metadata describing where the reference came from
+- `provenance`: typed provenance describing which provider resolved it
+
+### Constructor
+
+```python
+ReferenceBundle(
+    *,
+    substrate_map: Mapping[str, Sequence[str]],
+    motif_sequences: Mapping[str, Sequence[str]],
+    species: str,
+    source_metadata: ReferenceBundleSourceMetadata,
+    provenance: ReferenceBundleProvenance,
+)
+```
+
+Validation highlights:
+
+- `substrate_map` must not be empty
+- `motif_sequences` must not be empty
+- every kinase entry in both mappings must contain at least one value
+- the kinase sets in `substrate_map` and `motif_sequences` must match exactly
+- `species` must not be empty
+- source metadata and provenance fields must not be empty
+- motif sequences are validated as a unit through the package motif-library validation path
+
+Example:
+
+```python
+from phospy import (
+    ReferenceBundle,
+    ReferenceBundleProvenance,
+    ReferenceBundleSourceMetadata,
+)
+
+reference_bundle = ReferenceBundle(
+    substrate_map={"KINASE_A": ["SITE_1", "SITE_2"]},
+    motif_sequences={"KINASE_A": ["QQSQQ", "QQTQQ"]},
+    species="human",
+    source_metadata=ReferenceBundleSourceMetadata(
+        source="bundled",
+        reference="phosr-like",
+        version="2026.04",
+    ),
+    provenance=ReferenceBundleProvenance(
+        provider="BundledReferenceProvider",
+        notes=("validated",),
+    ),
+)
+```
+
+Use `ReferenceProvider` as the protocol for objects that resolve a species and reference selection into a `ReferenceBundle`:
+
+```python
+class ReferenceProvider(Protocol):
+    def resolve(
+        self,
+        *,
+        species: str,
+        reference: str = "auto",
+    ) -> ReferenceBundle: ...
+```
+
+This keeps kinase-prior assembly out of user code and gives later bundled or downloaded providers one stable contract.
+
 ## `CorePreprocessingConfig`
 
 Use `CorePreprocessingConfig` when you want one configuration object instead of scalar preprocessing options.
@@ -468,9 +549,10 @@ Supported public `svm_mode` values:
 ```python
 workflow.run(
     phospho_matrix: pd.DataFrame,
-    substrate_map: Mapping[str, Sequence[str]],
+    substrate_map: Mapping[str, Sequence[str]] | None = None,
     site_sequences: Mapping[str, str] | pd.Series | None = None,
     motif_sequences: Mapping[str, Sequence[str]] | None = None,
+    reference_bundle: ReferenceBundle | None = None,
     min_substrates: int = 1,
     min_motif_size: int = 1,
     allow_profile_only_fallback: bool = False,
@@ -487,6 +569,7 @@ workflow.run(
 Validation highlights:
 
 - `phospho_matrix` must be a numeric phosphosite matrix with a unique, non-null index
+- pass either explicit `substrate_map` / `motif_sequences` inputs or one `reference_bundle`
 - `substrate_map` must not be empty and must overlap with `phospho_matrix`
 - `site_sequences`, when supplied, must be a mapping or pandas `Series` keyed by phosphosite ID
 - `motif_sequences` is required unless `allow_profile_only_fallback=True`
@@ -551,9 +634,10 @@ Supported public `svm_mode` values:
 ```python
 workflow.run(
     phospho_matrix: pd.DataFrame,
-    substrate_map: Mapping[str, Sequence[str]],
+    substrate_map: Mapping[str, Sequence[str]] | None = None,
     site_sequences: Mapping[str, str] | pd.Series | None = None,
     motif_sequences: Mapping[str, Sequence[str]] | None = None,
+    reference_bundle: ReferenceBundle | None = None,
     min_substrates: int = 1,
     min_motif_size: int = 1,
     allow_profile_only_fallback: bool = False,
@@ -566,6 +650,8 @@ workflow.run(
     svm_mode: str | None = None,
 ) -> KinaseWorkflowResult
 ```
+
+You can supply kinase priors either as explicit `substrate_map` and `motif_sequences` inputs or as one `reference_bundle`. Mixed usage is rejected so the workflow boundary stays unambiguous.
 
 Returns `KinaseWorkflowResult` with:
 

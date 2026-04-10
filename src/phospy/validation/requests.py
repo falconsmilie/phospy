@@ -22,7 +22,7 @@ from ..core_processing import (
     resolve_core_preprocessing_config,
 )
 from ..dataset_schema import DatasetSchema
-from ..motifs import KinaseMotifScorer
+from ..motifs import KinaseMotifScorer, ReferenceBundle
 from ..signalome_site_ids import resolve_signalome_site_to_protein
 from ..types import (
     PredictionSvmMode,
@@ -524,9 +524,10 @@ def build_validated_workflow_request(
 def validate_workflow_request(
     *,
     phospho_matrix: pd.DataFrame,
-    substrate_map: Mapping[str, Sequence[str]],
+    substrate_map: Mapping[str, Sequence[str]] | None = None,
     site_sequences: Mapping[str, str] | pd.Series | None = None,
     motif_sequences: Mapping[str, Sequence[str]] | None = None,
+    reference_bundle: ReferenceBundle | None = None,
     min_substrates: int = 1,
     min_motif_size: int = 1,
     allow_profile_only_fallback: bool = False,
@@ -541,11 +542,16 @@ def validate_workflow_request(
     default_svm_mode: PredictionSvmMode = "default",
     context: str = "Kinase workflow inputs",
 ) -> ValidatedWorkflowRequest:
+    resolved_substrate_map, resolved_motif_sequences = _resolve_reference_bundle_inputs(
+        substrate_map=substrate_map,
+        motif_sequences=motif_sequences,
+        reference_bundle=reference_bundle,
+    )
     request = KinaseWorkflowRequest.validate_request(
         phospho_matrix=phospho_matrix,
-        substrate_map=substrate_map,
+        substrate_map=resolved_substrate_map,
         site_sequences=site_sequences,
-        motif_sequences=motif_sequences,
+        motif_sequences=resolved_motif_sequences,
         min_substrates=min_substrates,
         min_motif_size=min_motif_size,
         allow_profile_only_fallback=allow_profile_only_fallback,
@@ -584,26 +590,53 @@ def build_workflow_request_inputs(
 
 def validate_workflow_inputs(
     phospho_matrix: pd.DataFrame,
-    substrate_map: Mapping[str, Sequence[str]],
-    site_sequences: Mapping[str, str] | pd.Series | None,
-    motif_sequences: Mapping[str, Sequence[str]] | None,
+    substrate_map: Mapping[str, Sequence[str]] | None = None,
+    site_sequences: Mapping[str, str] | pd.Series | None = None,
+    motif_sequences: Mapping[str, Sequence[str]] | None = None,
     *,
+    reference_bundle: ReferenceBundle | None = None,
     flank_size: int = 7,
     context: str = "Kinase workflow inputs",
 ) -> pd.DataFrame:
+    resolved_substrate_map, resolved_motif_sequences = _resolve_reference_bundle_inputs(
+        substrate_map=substrate_map,
+        motif_sequences=motif_sequences,
+        reference_bundle=reference_bundle,
+    )
     validated_matrix, _ = validate_workflow_matrix_inputs(
         phospho_matrix,
-        substrate_map,
+        resolved_substrate_map,
         site_sequences,
-        require_site_sequences_for_prediction=motif_sequences is not None,
+        require_site_sequences_for_prediction=resolved_motif_sequences is not None,
         context=context,
     )
-    if motif_sequences is not None:
+    if resolved_motif_sequences is not None:
         KinaseMotifScorer.from_substrate_sequences(
-            motif_sequences=motif_sequences,
+            motif_sequences=resolved_motif_sequences,
             flank_size=flank_size,
         )
     return validated_matrix
+
+
+def _resolve_reference_bundle_inputs(
+    *,
+    substrate_map: Mapping[str, Sequence[str]] | None,
+    motif_sequences: Mapping[str, Sequence[str]] | None,
+    reference_bundle: ReferenceBundle | None,
+) -> tuple[Mapping[str, Sequence[str]], Mapping[str, Sequence[str]] | None]:
+    if reference_bundle is None:
+        if substrate_map is None:
+            msg = "substrate_map must be provided when reference_bundle is not used"
+            raise RequestValidationError(msg)
+        return substrate_map, motif_sequences
+
+    if substrate_map is not None:
+        msg = "Pass either reference_bundle or substrate_map, not both"
+        raise RequestValidationError(msg)
+    if motif_sequences is not None:
+        msg = "Pass either reference_bundle or motif_sequences, not both"
+        raise RequestValidationError(msg)
+    return reference_bundle.substrate_map, reference_bundle.motif_sequences
 
 
 class SignalomeRequest(PhospyRequestModel):

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from .motifs import MotifScoringResult
+from .motifs import MotifScoringResult, ReferenceBundle
 from .prediction import KinasePredictionResult, KinasePredictor, PredMatResult
 from .profiles import KinaseProfileResult, build_kinase_substrate_profiles
 from .scoring import KinaseScorer, KinaseScoringResult
@@ -81,9 +81,10 @@ class _WorkflowBase:
         self,
         *,
         phospho_matrix: pd.DataFrame,
-        substrate_map: Mapping[str, Sequence[str]],
+        substrate_map: Mapping[str, Sequence[str]] | None = None,
         site_sequences: Mapping[str, str] | pd.Series | None = None,
         motif_sequences: Mapping[str, Sequence[str]] | None = None,
+        reference_bundle: ReferenceBundle | None = None,
         min_substrates: int = 1,
         min_motif_size: int = 1,
         allow_profile_only_fallback: bool = False,
@@ -100,6 +101,7 @@ class _WorkflowBase:
             substrate_map=substrate_map,
             site_sequences=site_sequences,
             motif_sequences=motif_sequences,
+            reference_bundle=reference_bundle,
             min_substrates=min_substrates,
             min_motif_size=min_motif_size,
             allow_profile_only_fallback=allow_profile_only_fallback,
@@ -178,9 +180,10 @@ class KinaseWorkflow(_WorkflowBase):
     def run(
         self,
         phospho_matrix: pd.DataFrame,
-        substrate_map: Mapping[str, Sequence[str]],
+        substrate_map: Mapping[str, Sequence[str]] | None = None,
         site_sequences: Mapping[str, str] | pd.Series | None = None,
         motif_sequences: Mapping[str, Sequence[str]] | None = None,
+        reference_bundle: ReferenceBundle | None = None,
         min_substrates: int = 1,
         min_motif_size: int = 1,
         allow_profile_only_fallback: bool = False,
@@ -197,6 +200,7 @@ class KinaseWorkflow(_WorkflowBase):
             substrate_map=substrate_map,
             site_sequences=site_sequences,
             motif_sequences=motif_sequences,
+            reference_bundle=reference_bundle,
             min_substrates=min_substrates,
             min_motif_size=min_motif_size,
             allow_profile_only_fallback=allow_profile_only_fallback,
@@ -223,9 +227,10 @@ class PredMatWorkflow(_WorkflowBase):
     def run(
         self,
         phospho_matrix: pd.DataFrame,
-        substrate_map: Mapping[str, Sequence[str]],
+        substrate_map: Mapping[str, Sequence[str]] | None = None,
         site_sequences: Mapping[str, str] | pd.Series | None = None,
         motif_sequences: Mapping[str, Sequence[str]] | None = None,
+        reference_bundle: ReferenceBundle | None = None,
         min_substrates: int = 1,
         min_motif_size: int = 1,
         allow_profile_only_fallback: bool = False,
@@ -242,6 +247,7 @@ class PredMatWorkflow(_WorkflowBase):
             substrate_map=substrate_map,
             site_sequences=site_sequences,
             motif_sequences=motif_sequences,
+            reference_bundle=reference_bundle,
             min_substrates=min_substrates,
             min_motif_size=min_motif_size,
             allow_profile_only_fallback=allow_profile_only_fallback,

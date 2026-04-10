@@ -1,5 +1,11 @@
 from .analysis import KinaseActivityAnalyzer
 from .dataset import AnalysisReadyPhosphoDataset, PhosphoDataset
+from .motifs import (
+    ReferenceBundle,
+    ReferenceBundleProvenance,
+    ReferenceBundleSourceMetadata,
+    ReferenceProvider,
+)
 from .pipeline import PhosRPipeline
 from .prediction import PredMatResult
 from .signalome_maps import SignalomeMapData
@@ -10,6 +16,10 @@ from .workflow import KinaseWorkflow, PredMatWorkflow, SignalomeWorkflow
 __all__ = [
     "AnalysisReadyPhosphoDataset",
     "KinaseActivityAnalyzer",
+    "ReferenceBundle",
+    "ReferenceBundleProvenance",
+    "ReferenceBundleSourceMetadata",
+    "ReferenceProvider",
     "KinaseWorkflow",
     "PhosphoDataset",
     "PhosRPipeline",

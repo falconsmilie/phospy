@@ -7,12 +7,16 @@ import pytest
 import phospy.motifs as motifs
 from phospy.motifs import (
     KinaseMotifScorer,
+    ReferenceBundle,
+    ReferenceBundleProvenance,
+    ReferenceBundleSourceMetadata,
+    ReferenceProvider,
     ValidatedMotifLibrary,
     create_frequency_matrix,
     frequency_scoring,
     score_phosphosite_motifs,
 )
-from phospy.validation.errors import TableSchemaError
+from phospy.validation.errors import InputCompatibilityError, TableSchemaError
 
 
 def test_create_frequency_matrix_normalizes_counts_and_ignores_gaps() -> None:
@@ -150,3 +154,82 @@ def test_motif_scoring_result_is_detached_from_input_sequences() -> None:
     result.sequence_windows.loc["SITE_A"] = "CHANGED"
 
     pd.testing.assert_series_equal(seqs, original)
+
+
+def test_reference_bundle_constructs_validated_kinase_prior_contract() -> None:
+    bundle = ReferenceBundle(
+        substrate_map={"KINASE_A": ["SITE_1", "SITE_2"]},
+        motif_sequences={"KINASE_A": ["QQSQQ", "QQTQQ"]},
+        species="human",
+        source_metadata=ReferenceBundleSourceMetadata(
+            source="bundled",
+            reference="phosr-like",
+            version="2026.04",
+        ),
+        provenance=ReferenceBundleProvenance(
+            provider="BundledReferenceProvider",
+            notes=("validated",),
+        ),
+    )
+
+    assert bundle.species == "human"
+    assert bundle.substrate_map == {"KINASE_A": ("SITE_1", "SITE_2")}
+    assert bundle.motif_sequences == {"KINASE_A": ("QQSQQ", "QQTQQ")}
+
+
+def test_reference_bundle_rejects_mismatched_kinase_sets() -> None:
+    with pytest.raises(
+        InputCompatibilityError,
+        match=r"ReferenceBundle kinase sets must match exactly",
+    ):
+        ReferenceBundle(
+            substrate_map={"KINASE_A": ["SITE_1"]},
+            motif_sequences={"KINASE_B": ["QQSQQ"]},
+            species="human",
+            source_metadata=ReferenceBundleSourceMetadata(
+                source="bundled",
+                reference="phosr-like",
+            ),
+            provenance=ReferenceBundleProvenance(provider="BundledReferenceProvider"),
+        )
+
+
+def test_reference_bundle_rejects_empty_entries() -> None:
+    with pytest.raises(
+        InputCompatibilityError,
+        match=r"ReferenceBundle substrate_map entries must not be empty: KINASE_A",
+    ):
+        ReferenceBundle(
+            substrate_map={"KINASE_A": []},
+            motif_sequences={"KINASE_A": ["QQSQQ"]},
+            species="human",
+            source_metadata=ReferenceBundleSourceMetadata(
+                source="bundled",
+                reference="phosr-like",
+            ),
+            provenance=ReferenceBundleProvenance(provider="BundledReferenceProvider"),
+        )
+
+
+def test_reference_provider_protocol_is_runtime_checkable() -> None:
+    class StaticReferenceProvider:
+        def resolve(
+            self,
+            *,
+            species: str,
+            reference: str = "auto",
+        ) -> ReferenceBundle:
+            return ReferenceBundle(
+                substrate_map={"KINASE_A": ["SITE_1"]},
+                motif_sequences={"KINASE_A": ["QQSQQ"]},
+                species=species,
+                source_metadata=ReferenceBundleSourceMetadata(
+                    source="bundled",
+                    reference=reference,
+                ),
+                provenance=ReferenceBundleProvenance(
+                    provider="StaticReferenceProvider"
+                ),
+            )
+
+    assert isinstance(StaticReferenceProvider(), ReferenceProvider)
