@@ -9,6 +9,7 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     KinaseActivityAnalyzer,
     KinaseWorkflow,
+    SimpleKinaseWorkflow,
     PhosphoDataset,
     BundledReferenceProvider,
     ReferenceBundle,
@@ -33,6 +34,7 @@ Use:
 - `ReferenceBundle` for the kinase-prior boundary between reference resolution and workflow execution
 - `ReferenceProvider` for providers that resolve species and reference selections into a `ReferenceBundle`
 - `BundledReferenceProvider` for the first supported packaged species/reference lane
+- `SimpleKinaseWorkflow` for the high-level common lane from phospho input plus species, with optional total-proteome input
 - `PhosRPipeline` for file loading, preprocessing, optional kinase analysis, and publishing
 - `PredMatWorkflow` for the supported `predMat` generation path
 - `KinaseWorkflow` for the fuller native scoring and prediction path
@@ -526,6 +528,101 @@ Writes:
 - `ksea_counts`
 - `target_counts`
 - `target_table`
+
+## `SimpleKinaseWorkflow`
+
+Use `SimpleKinaseWorkflow` for the supported common end-to-end kinase inference lane.
+
+It accepts:
+
+- `phospho` as a DataFrame or file path
+- `species` as the minimum required biological selector
+- optional `total` as a DataFrame or file path
+
+The workflow then:
+
+1. builds `AnalysisReadyPhosphoDataset`
+2. resolves a `ReferenceBundle` through a `ReferenceProvider`
+3. runs `PredMatWorkflow`
+4. runs `KinaseActivityAnalyzer`
+
+### Constructor
+
+```python
+SimpleKinaseWorkflow(
+    flank_size: int = 7,
+    kernel: str = "rbf",
+    svm_mode: PredictionSvmMode = "default",
+    *,
+    reference_provider: ReferenceProvider | None = None,
+    activity_analyzer: KinaseActivityAnalyzer | None = None,
+)
+```
+
+### `run(...)`
+
+```python
+SimpleKinaseWorkflow().run(
+    phospho: pd.DataFrame | str | Path,
+    species: str,
+    total: pd.DataFrame | str | Path | None = None,
+    reference: str = "auto",
+    phospho_encoding: str | None = None,
+    comparisons: Sequence[tuple[str, str]] | None = None,
+    schema: DatasetSchema | None = None,
+    preprocessing_config: CorePreprocessingConfig | None = None,
+    localization_threshold: float = 0.75,
+    min_observed: int = 4,
+    max_unmatched_fraction: float = 0.0,
+    total_sentinel: float | int = 10.0,
+    phospho_sentinel: float | int = 12.0,
+    min_substrates: int = 1,
+    min_motif_size: int = 1,
+    allow_profile_only_fallback: bool = False,
+    ensemble_size: int = 10,
+    top: int = 50,
+    score_threshold: float = 0.8,
+    inclusion: int = 20,
+    n_iterations: int = 5,
+    random_state: int | None = None,
+    svm_mode: PredictionSvmMode | None = None,
+    kinase_activity_threshold: float = 0.6,
+    kinase_activity_min_substrates: int = 3,
+    kinase_activity_top_n_substrates: int = 20,
+) -> SimpleKinaseWorkflowResult
+```
+
+Notes:
+
+- `phospho` and `species` are the only required inputs
+- `total` is optional; when omitted, the workflow builds the analysis-ready dataset from the validated phospho table alone
+- when `total` is provided, the workflow reuses the existing dataset preprocessing path instead of rebuilding that logic
+- the default bundled provider currently supports `species="rat"` and `reference in {"auto", "l6", "l6_native"}`
+- `reference="auto"` currently resolves to `l6_native`
+
+Returned result bundle:
+
+- `analysis_ready_dataset`
+- `reference_bundle`
+- `workflow_result`
+- `kinase_activity_result`
+- convenience accessors for `pred_mat_result`, `scoring_result`, and `prediction_result`
+
+Example:
+
+```python
+from phospy import SimpleKinaseWorkflow
+
+result = SimpleKinaseWorkflow().run(
+    phospho="examples/data/phospho.tsv",
+    total="examples/data/total.tsv",
+    species="rat",
+    phospho_encoding="utf-16le",
+)
+
+pred_mat = result.pred_mat_result.to_frame()
+weighted_activity = result.kinase_activity_result.weighted_activity
+```
 
 ## `PhosRPipeline`
 

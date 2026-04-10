@@ -12,7 +12,12 @@ from .prediction import PredMatResult
 from .signalome_maps import SignalomeMapData
 from .signalome_networks import SignalomeNetworkData
 from .signalomes import SignalomeResult
-from .workflow import KinaseWorkflow, PredMatWorkflow, SignalomeWorkflow
+from .workflow import (
+    KinaseWorkflow,
+    PredMatWorkflow,
+    SignalomeWorkflow,
+    SimpleKinaseWorkflow,
+)
 
 __all__ = [
     "AnalysisReadyPhosphoDataset",
@@ -31,4 +36,5 @@ __all__ = [
     "SignalomeNetworkData",
     "SignalomeResult",
     "SignalomeWorkflow",
+    "SimpleKinaseWorkflow",
 ]

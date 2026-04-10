@@ -6,9 +6,11 @@ from pathlib import Path
 import pandas as pd
 
 from .dataset_schema import DatasetSchema
-from .io import read_table
+from .io import load_phospho_table, load_total_table, read_table
 from .validation.errors import RequestValidationError, TableSchemaError
+from .validation.identifiers import validate_existing_file_path
 from .validation.requests import validate_dataset_file_paths, validate_dataset_frames
+from .validation.schemas import PhosphoInputSchema, TotalInputSchema
 
 __all__ = ["DatasetLoader", "LoadedDatasetInputs"]
 
@@ -37,6 +39,19 @@ class DatasetLoader:
     ) -> None:
         self.schema = schema or DatasetSchema()
 
+    def validate_total(self, total_df: pd.DataFrame) -> pd.DataFrame:
+        """Validate one in-memory total-proteome input table."""
+
+        return TotalInputSchema.validate(total_df, total_cols=self.schema.total_cols)
+
+    def validate_phospho(self, phospho_df: pd.DataFrame) -> pd.DataFrame:
+        """Validate one in-memory phosphoproteome input table."""
+
+        return PhosphoInputSchema.validate(
+            phospho_df,
+            phospho_cols=self.schema.phospho_cols,
+        )
+
     def validate_inputs(
         self,
         *,
@@ -53,6 +68,54 @@ class DatasetLoader:
             phospho_df=validated_phospho,
             schema=self.schema,
         )
+
+    def load_total(
+        self,
+        total_path: str | Path,
+        *,
+        encoding: str | None = None,
+    ) -> pd.DataFrame:
+        """Load and validate one total-proteome input table from disk."""
+
+        validated_path = validate_existing_file_path(
+            total_path, context="total input table path"
+        )
+        try:
+            return load_total_table(validated_path, encoding=encoding)
+        except TableSchemaError:
+            raise
+        except (
+            OSError,
+            UnicodeError,
+            pd.errors.ParserError,
+            pd.errors.EmptyDataError,
+        ) as error:
+            msg = f"Invalid total input table ({validated_path}): unable to read file: {error}"
+            raise RequestValidationError(msg) from error
+
+    def load_phospho(
+        self,
+        phospho_path: str | Path,
+        *,
+        encoding: str | None = None,
+    ) -> pd.DataFrame:
+        """Load and validate one phosphoproteome input table from disk."""
+
+        validated_path = validate_existing_file_path(
+            phospho_path, context="phospho input table path"
+        )
+        try:
+            return load_phospho_table(validated_path, encoding=encoding)
+        except TableSchemaError:
+            raise
+        except (
+            OSError,
+            UnicodeError,
+            pd.errors.ParserError,
+            pd.errors.EmptyDataError,
+        ) as error:
+            msg = f"Invalid phospho input table ({validated_path}): unable to read file: {error}"
+            raise RequestValidationError(msg) from error
 
     def load(
         self,
