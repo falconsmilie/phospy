@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .errors import RequestValidationError
+from ..errors import RequestValidationError
 
 
 def validate_existing_file_path(
@@ -10,11 +10,7 @@ def validate_existing_file_path(
     *,
     context: str,
 ) -> Path:
-    """Validate that ``path`` exists and refers to a file.
-
-    Public file-based entry points should use this helper so missing or invalid
-    file paths fail with a consistent package-level validation error.
-    """
+    """Validate that ``path`` exists and refers to a file."""
 
     resolved = Path(path)
     if not resolved.exists():
@@ -24,3 +20,6 @@ def validate_existing_file_path(
         msg = f"Invalid {context}: Path is not a file: {resolved}"
         raise RequestValidationError(msg)
     return resolved
+
+
+__all__ = ["validate_existing_file_path"]

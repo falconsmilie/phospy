@@ -14,7 +14,7 @@ from pydantic import (
 
 from ...types import PredictionSvmMode, PredictionTraceFormat, PredictionTraceLevel
 from ..errors import RequestValidationError
-from ..schemas import PredictionScoreMatrixSchema
+from ..schema.tables import PredictionScoreMatrixSchema
 from .shared import PhospyRequestModel, validate_adapter_value
 
 _PREDICTION_SVM_MODE_ADAPTER = TypeAdapter(PredictionSvmMode)

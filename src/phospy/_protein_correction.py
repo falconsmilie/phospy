@@ -6,14 +6,14 @@ from typing import Literal, overload
 
 import pandas as pd
 
-from .validation.collections import resolve_required_columns
 from .validation.compatibility import (
     ProteinCorrectionMatchSummary,
     validate_core_column_alignment,
     validate_protein_correction_inputs,
 )
-from .validation.frames import require_columns, require_numeric_columns
-from .validation.identifiers import normalize_identifier_series
+from .validation.schema.frames import require_columns, require_numeric_columns
+from .validation.values.collections import resolve_required_columns
+from .validation.values.identifiers import normalize_identifier_series
 
 
 @dataclass(frozen=True, slots=True)

@@ -13,11 +13,12 @@ from ...core_processing import (
     resolve_core_preprocessing_config,
 )
 from ...dataset_schema import DatasetSchema
+from ..domain import validate_dataset_comparisons
 from ..errors import InputCompatibilityError, RequestValidationError
-from ..identifiers import validate_existing_file_path
-from ..schemas import PredMatSchema, normalize_pred_mat_input
+from ..schema.files import validate_existing_file_path
+from ..schema.tables import PredMatSchema
 from .analysis import KinaseActivityRequest, ValidatedAnalysisRequest
-from .shared import PhospyRequestModel
+from .shared import PhospyRequestModel, normalize_pred_mat_input
 
 if TYPE_CHECKING:
     from ...dataset import PhosphoDataset
@@ -55,8 +56,9 @@ class CorePipelineRequest(PhospyRequestModel):
     @model_validator(mode="after")
     def validate_comparisons(self) -> CorePipelineRequest:
         try:
-            validated = self.dataset_schema.validate_comparisons(
-                self.comparisons,
+            validated = validate_dataset_comparisons(
+                schema=self.dataset_schema,
+                comparisons=self.comparisons,
                 context="Core pipeline request",
             )
         except (InputCompatibilityError, TypeError, ValueError) as error:

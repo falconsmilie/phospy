@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from ..constants import (
+from ...constants import (
     DEFAULT_PHOSPHO_COLS,
     DEFAULT_TOTAL_COLS,
     GENE_P_SITE_COLUMN,
@@ -15,7 +14,8 @@ from ..constants import (
     PHOSPHO_UID_COLUMN,
     TOTAL_GENE_COLUMN,
 )
-from .errors import TableSchemaError
+from ..errors import TableSchemaError
+from ..values.identifiers import require_splitable_gene_p_site
 from .frames import (
     coerce_numeric_columns,
     require_columns,
@@ -28,10 +28,6 @@ from .frames import (
     require_unique_index,
     require_value_range,
 )
-from .identifiers import require_splitable_gene_p_site
-
-if TYPE_CHECKING:
-    from ..prediction.models import PredMatResult
 
 
 class TotalInputSchema:
@@ -257,18 +253,6 @@ class SiteMatrixSchema:
         return validated
 
 
-def normalize_pred_mat_input(
-    pred_mat: pd.DataFrame | PredMatResult | None,
-) -> pd.DataFrame | None:
-    """Normalize public predMat inputs to the internal DataFrame contract."""
-
-    from ..prediction.models import PredMatResult
-
-    if isinstance(pred_mat, PredMatResult):
-        return pred_mat.to_frame(copy=False)
-    return pred_mat
-
-
 __all__ = [
     "PhosphoInputSchema",
     "PredMatSchema",
@@ -276,5 +260,4 @@ __all__ = [
     "SiteMatrixSchema",
     "SiteMatrixSourceSchema",
     "TotalInputSchema",
-    "normalize_pred_mat_input",
 ]

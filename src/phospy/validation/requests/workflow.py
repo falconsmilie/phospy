@@ -8,9 +8,13 @@ from pydantic import Field, ValidationError, field_validator, model_validator
 
 from ...motifs import KinaseMotifScorer, ReferenceBundle
 from ...types import PredictionSvmMode
-from ..collections import normalize_sequence_mapping, normalize_site_sequence_series
 from ..compatibility import validate_workflow_matrix_inputs
+from ..domain import resolve_reference_bundle_inputs
 from ..errors import RequestValidationError
+from ..values.collections import (
+    normalize_sequence_mapping,
+    normalize_site_sequence_series,
+)
 from .shared import PhospyRequestModel
 
 
@@ -169,7 +173,7 @@ def validate_workflow_request(
     default_svm_mode: PredictionSvmMode = "default",
     context: str = "Kinase workflow inputs",
 ) -> ValidatedWorkflowRequest:
-    resolved_substrate_map, resolved_motif_sequences = _resolve_reference_bundle_inputs(
+    resolved_substrate_map, resolved_motif_sequences = resolve_reference_bundle_inputs(
         substrate_map=substrate_map,
         motif_sequences=motif_sequences,
         reference_bundle=reference_bundle,
@@ -225,7 +229,7 @@ def validate_workflow_inputs(
     flank_size: int = 7,
     context: str = "Kinase workflow inputs",
 ) -> pd.DataFrame:
-    resolved_substrate_map, resolved_motif_sequences = _resolve_reference_bundle_inputs(
+    resolved_substrate_map, resolved_motif_sequences = resolve_reference_bundle_inputs(
         substrate_map=substrate_map,
         motif_sequences=motif_sequences,
         reference_bundle=reference_bundle,
@@ -243,27 +247,6 @@ def validate_workflow_inputs(
             flank_size=flank_size,
         )
     return validated_matrix
-
-
-def _resolve_reference_bundle_inputs(
-    *,
-    substrate_map: Mapping[str, Sequence[str]] | None,
-    motif_sequences: Mapping[str, Sequence[str]] | None,
-    reference_bundle: ReferenceBundle | None,
-) -> tuple[Mapping[str, Sequence[str]], Mapping[str, Sequence[str]] | None]:
-    if reference_bundle is None:
-        if substrate_map is None:
-            msg = "substrate_map must be provided when reference_bundle is not used"
-            raise RequestValidationError(msg)
-        return substrate_map, motif_sequences
-
-    if substrate_map is not None:
-        msg = "Pass either reference_bundle or substrate_map, not both"
-        raise RequestValidationError(msg)
-    if motif_sequences is not None:
-        msg = "Pass either reference_bundle or motif_sequences, not both"
-        raise RequestValidationError(msg)
-    return reference_bundle.substrate_map, reference_bundle.motif_sequences
 
 
 def _copy_workflow_request_owned_state(

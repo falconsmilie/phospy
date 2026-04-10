@@ -15,7 +15,7 @@ from phospy.validation.errors import (
     NoCandidateKinasesError,
     RequestValidationError,
 )
-from phospy.validation.schemas import SiteMatrixSchema
+from phospy.validation.schema.tables import SiteMatrixSchema
 from phospy.workflow import KinaseWorkflow, PredMatWorkflow
 
 

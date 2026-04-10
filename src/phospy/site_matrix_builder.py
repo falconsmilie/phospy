@@ -8,7 +8,7 @@ import pandas as pd
 from .constants import CENTRALIZED_SEQUENCE_COLUMN, GENE_P_SITE_COLUMN
 from .matrices import build_site_matrix, format_row_drop_diagnostics
 from .validation.errors import TableSchemaError
-from .validation.schemas import SiteMatrixSchema
+from .validation.schema.tables import SiteMatrixSchema
 
 
 @dataclass(slots=True)

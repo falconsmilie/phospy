@@ -19,12 +19,12 @@ from .constants import (
     BUNDLED_REFERENCE_VERSION,
 )
 from .types import KinaseMotifSequenceMap, KinaseSubstrateMap
-from .validation.collections import normalize_sequence_mapping
 from .validation.errors import (
     InputCompatibilityError,
     TableSchemaError,
 )
-from .validation.scalars import validate_non_negative_int, validate_positive_int
+from .validation.values.collections import normalize_sequence_mapping
+from .validation.values.numeric import validate_non_negative_int, validate_positive_int
 
 AMINO_ACIDS: tuple[str, ...] = (
     "A",

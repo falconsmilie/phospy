@@ -8,9 +8,9 @@ import pandas as pd
 
 from ...constants import ComparisonSpec
 from ...dataset_schema import DatasetSchema
-from ..errors import InputCompatibilityError
-from ..identifiers import validate_existing_file_path
-from ..schemas import PhosphoInputSchema, TotalInputSchema
+from ..domain import validate_dataset_comparisons
+from ..schema.files import validate_existing_file_path
+from ..schema.tables import PhosphoInputSchema, TotalInputSchema
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,7 +84,7 @@ def validate_dataset_request(
         phospho_df=phospho_df,
         schema=resolved_schema,
     )
-    validated_comparisons = _validate_dataset_comparisons(
+    validated_comparisons = validate_dataset_comparisons(
         schema=resolved_schema,
         comparisons=comparisons,
         context=context,
@@ -111,21 +111,9 @@ def build_validated_dataset_inputs(
         schema=schema,
         total_df=total_df,
         phospho_df=phospho_df,
-        comparisons=_validate_dataset_comparisons(
+        comparisons=validate_dataset_comparisons(
             schema=schema,
             comparisons=comparisons,
             context=context,
         ),
     )
-
-
-def _validate_dataset_comparisons(
-    *,
-    schema: DatasetSchema,
-    comparisons: Sequence[ComparisonSpec] | None,
-    context: str,
-) -> tuple[ComparisonSpec, ...] | None:
-    try:
-        return schema.validate_comparisons(comparisons, context=context)
-    except (InputCompatibilityError, TypeError, ValueError):
-        raise

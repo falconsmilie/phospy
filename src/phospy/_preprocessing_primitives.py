@@ -7,7 +7,7 @@ import pandas as pd
 
 from .constants import ComparisonSpec
 from .dataset_schema import DatasetSchema
-from .validation.frames import require_columns, require_numeric_series
+from .validation.schema.frames import require_columns, require_numeric_series
 
 """Internal preprocessing transformation primitives.
 

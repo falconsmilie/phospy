@@ -8,8 +8,8 @@ from pydantic import Field, ValidationError
 
 from ..compatibility import validate_pred_mat_overlap
 from ..errors import NoCandidateKinasesError, RequestValidationError
-from ..schemas import PredMatSchema, SiteMatrixSchema, normalize_pred_mat_input
-from .shared import PhospyRequestModel
+from ..schema.tables import PredMatSchema, SiteMatrixSchema
+from .shared import PhospyRequestModel, normalize_pred_mat_input
 
 if TYPE_CHECKING:
     from ...prediction.models import PredMatResult

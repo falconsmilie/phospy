@@ -6,7 +6,6 @@ from .compatibility import (
     validate_signalome_alignment,
     validate_workflow_matrix_inputs,
 )
-from .enums import validate_svm_mode, validate_trace_format, validate_trace_level
 from .errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
@@ -38,18 +37,19 @@ from .requests import (
     validate_workflow_inputs,
     validate_workflow_request,
 )
-from .scalars import (
-    validate_fraction,
-    validate_non_negative_int,
-    validate_positive_int,
-)
-from .schemas import (
+from .schema.tables import (
     PhosphoInputSchema,
     PredictionScoreMatrixSchema,
     PredMatSchema,
     SiteMatrixSchema,
     SiteMatrixSourceSchema,
     TotalInputSchema,
+)
+from .values.enums import validate_svm_mode, validate_trace_format, validate_trace_level
+from .values.numeric import (
+    validate_fraction,
+    validate_non_negative_int,
+    validate_positive_int,
 )
 
 __all__ = [

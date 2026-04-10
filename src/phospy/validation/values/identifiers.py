@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pandas as pd
 
-from ..constants import GENE_P_SITE_COLUMN
-from .errors import RequestValidationError, TableSchemaError
+from ...constants import GENE_P_SITE_COLUMN
+from ..errors import TableSchemaError
 
 
 def normalize_identifier_series(series: pd.Series) -> pd.Series:
@@ -47,25 +45,4 @@ def require_splitable_gene_p_site(
         raise TableSchemaError(msg)
 
 
-def validate_existing_file_path(
-    path: str | Path,
-    *,
-    context: str,
-) -> Path:
-    """Validate that ``path`` exists and refers to a file."""
-
-    resolved = Path(path)
-    if not resolved.exists():
-        msg = f"Invalid {context}: Path does not exist: {resolved}"
-        raise RequestValidationError(msg)
-    if not resolved.is_file():
-        msg = f"Invalid {context}: Path is not a file: {resolved}"
-        raise RequestValidationError(msg)
-    return resolved
-
-
-__all__ = [
-    "normalize_identifier_series",
-    "require_splitable_gene_p_site",
-    "validate_existing_file_path",
-]
+__all__ = ["normalize_identifier_series", "require_splitable_gene_p_site"]

@@ -5,7 +5,7 @@ from collections.abc import Iterable, Sequence
 import numpy as np
 import pandas as pd
 
-from .errors import TableSchemaError
+from ..errors import TableSchemaError
 
 
 def require_dataframe(frame: pd.DataFrame, *, context: str) -> pd.DataFrame:

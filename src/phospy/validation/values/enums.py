@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ..types import PredictionSvmMode, PredictionTraceFormat, PredictionTraceLevel
-from .errors import PhospyValidationError
+from ...types import PredictionSvmMode, PredictionTraceFormat, PredictionTraceLevel
+from ..errors import PhospyValidationError
 
 
 def validate_svm_mode(value: PredictionSvmMode) -> PredictionSvmMode:

@@ -8,9 +8,9 @@ import pandas as pd
 from .dataset_schema import DatasetSchema
 from .io import load_phospho_table, load_total_table, read_table
 from .validation.errors import RequestValidationError, TableSchemaError
-from .validation.identifiers import validate_existing_file_path
 from .validation.requests import validate_dataset_file_paths, validate_dataset_frames
-from .validation.schemas import PhosphoInputSchema, TotalInputSchema
+from .validation.schema.files import validate_existing_file_path
+from .validation.schema.tables import PhosphoInputSchema, TotalInputSchema
 
 __all__ = ["DatasetLoader", "LoadedDatasetInputs"]
 

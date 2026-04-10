@@ -3,12 +3,12 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.validation.collections import resolve_required_columns
-from phospy.validation.enums import validate_svm_mode
 from phospy.validation.errors import PhospyValidationError, TableSchemaError
-from phospy.validation.frames import require_dataframe
-from phospy.validation.identifiers import require_splitable_gene_p_site
-from phospy.validation.scalars import validate_fraction
+from phospy.validation.schema.frames import require_dataframe
+from phospy.validation.values.collections import resolve_required_columns
+from phospy.validation.values.enums import validate_svm_mode
+from phospy.validation.values.identifiers import require_splitable_gene_p_site
+from phospy.validation.values.numeric import validate_fraction
 
 
 def test_validate_fraction_rejects_non_numeric_values() -> None:

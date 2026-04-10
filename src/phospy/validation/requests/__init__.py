@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..identifiers import validate_existing_file_path
+from ..schema.files import validate_existing_file_path
 from .analysis import (
     KinaseActivityRequest,
     ValidatedAnalysisRequest,
@@ -22,7 +22,7 @@ from .pipeline import (
     validate_pipeline_runtime_compatibility,
 )
 from .prediction import PredictionRequest
-from .shared import PhospyRequestModel, validate_adapter_value
+from .shared import PhospyRequestModel, normalize_pred_mat_input, validate_adapter_value
 from .signalome import (
     SignalomeRequest,
     ValidatedSignalomeRequest,
@@ -58,6 +58,7 @@ __all__ = [
     "build_validated_dataset_inputs",
     "build_validated_workflow_request",
     "build_workflow_request_inputs",
+    "normalize_pred_mat_input",
     "validate_adapter_value",
     "validate_analysis_request",
     "validate_dataset_file_paths",

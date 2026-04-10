@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from numbers import Real
 
-from .errors import PhospyValidationError
+from ..errors import PhospyValidationError
 
 
 def validate_non_negative_int(value: int, name: str) -> int:

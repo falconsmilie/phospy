@@ -13,7 +13,7 @@ from phospy.validation.errors import (
     RequestValidationError,
     TableSchemaError,
 )
-from phospy.validation.schemas import PredMatSchema, SiteMatrixSchema
+from phospy.validation.schema.tables import PredMatSchema, SiteMatrixSchema
 
 
 def make_pred_mat() -> pd.DataFrame:
