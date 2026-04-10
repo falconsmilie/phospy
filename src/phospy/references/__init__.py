@@ -4,4 +4,18 @@ This package owns bundled reference assets, species and reference resolution,
 substrate maps, motif resources, and site-sequence resources used across the
 application."""
 
-__all__: list[str] = []
+from ..motifs import (
+    BundledReferenceProvider,
+    ReferenceBundle,
+    ReferenceBundleProvenance,
+    ReferenceBundleSourceMetadata,
+    ReferenceProvider,
+)
+
+__all__ = [
+    "BundledReferenceProvider",
+    "ReferenceBundle",
+    "ReferenceBundleProvenance",
+    "ReferenceBundleSourceMetadata",
+    "ReferenceProvider",
+]

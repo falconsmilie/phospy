@@ -8,7 +8,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.workflow import PredMatWorkflow, SignalomeWorkflow
+from phospy.api import PredMatWorkflow, SignalomeWorkflow
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_DATA = ROOT / "examples" / "data"

@@ -1,29 +1,31 @@
 """PhosPy public package root.
 
-The root package currently exposes the supported public surface while the
-internal implementation is being reorganised around domain capability. New code
-should prefer the explicit domain packages over adding more flat root modules."""
+The root package exposes the supported public surface while implementation code
+is organised around domain capability packages such as ``api``, ``datasets``,
+``prediction``, ``preprocessing``, ``activities``, ``signalomes``, and
+``references``.
+"""
 
-from .analysis import KinaseActivityAnalyzer
-from .dataset import AnalysisReadyPhosphoDataset, PhosphoDataset
-from .motifs import (
+from .activities import KinaseActivityAnalyzer
+from .api import (
+    KinaseWorkflow,
+    PredMatWorkflow,
+    SignalomeWorkflow,
+    SimpleKinaseWorkflow,
+)
+from .datasets import AnalysisReadyPhosphoDataset, PhosphoDataset
+from .pipeline import PhosRPipeline
+from .prediction import PredMatResult
+from .references import (
     BundledReferenceProvider,
     ReferenceBundle,
     ReferenceBundleProvenance,
     ReferenceBundleSourceMetadata,
     ReferenceProvider,
 )
-from .pipeline import PhosRPipeline
-from .prediction import PredMatResult
 from .signalome_maps import SignalomeMapData
 from .signalome_networks import SignalomeNetworkData
 from .signalomes import SignalomeResult
-from .workflow import (
-    KinaseWorkflow,
-    PredMatWorkflow,
-    SignalomeWorkflow,
-    SimpleKinaseWorkflow,
-)
 
 __all__ = [
     "AnalysisReadyPhosphoDataset",

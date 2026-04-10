@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy import KinaseActivityAnalyzer, PhosphoDataset
+from phospy.api import KinaseWorkflow
 from phospy.validation import (
     validate_protein_correction_inputs,
     validate_workflow_request,
@@ -13,7 +14,6 @@ from phospy.validation.errors import (
     NoCandidateKinasesError,
     TableSchemaError,
 )
-from phospy.workflow import KinaseWorkflow
 
 
 def test_kinase_activity_analyzer_rejects_zero_overlap() -> None:

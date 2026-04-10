@@ -8,8 +8,8 @@ from tempfile import TemporaryDirectory
 import pandas as pd
 
 from phospy import PredMatWorkflow
+from phospy.api import PredMatWorkflowResult
 from phospy.io import load_pred_mat
-from phospy.workflow import PredMatWorkflowResult
 
 
 def load_demo_inputs(

@@ -21,6 +21,7 @@ from .traces import (
     TraceSink,
     prediction_debug_trace_tables,
 )
+from .workflows import KinaseWorkflowExecutionResult, KinaseWorkflowExecutor
 
 __all__ = [
     "AdaptiveSamplingEnsembleTrace",
@@ -31,6 +32,8 @@ __all__ = [
     "DirectoryTraceSink",
     "PredictionSamplingPolicy",
     "KinasePredictor",
+    "KinaseWorkflowExecutionResult",
+    "KinaseWorkflowExecutor",
     "PredictionSamplingTrace",
     "resolve_prediction_sampling_policy",
     "TraceSink",

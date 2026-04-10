@@ -7,6 +7,7 @@ import pytest
 
 import phospy.signalome_clustering as signalome_clustering
 from phospy import PredMatResult, SignalomeResult
+from phospy.api import PredMatWorkflow, SignalomeWorkflow
 from phospy.signalomes import build_signalome_result
 from phospy.validation.errors import (
     InputCompatibilityError,
@@ -14,7 +15,6 @@ from phospy.validation.errors import (
     RequestValidationError,
     TableSchemaError,
 )
-from phospy.workflow import PredMatWorkflow, SignalomeWorkflow
 
 
 def make_workflow_inputs() -> tuple[

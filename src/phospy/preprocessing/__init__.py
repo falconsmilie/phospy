@@ -36,6 +36,7 @@ from ..validation.schema.frames import (
 )
 from ..validation.values.collections import resolve_required_columns
 from ..validation.values.numeric import validate_fraction, validate_non_negative_int
+from .analysis_ready import build_analysis_ready_dataset
 
 """Standalone preprocessing helpers.
 
@@ -409,4 +410,5 @@ __all__ = [
     "filter_min_observed",
     "filter_sites_by_coverage",
     "replace_sentinel_with_nan",
+    "build_analysis_ready_dataset",
 ]

@@ -63,7 +63,7 @@ current `src/phospy/` tree.
 | `src/phospy/signalomes` | `src/phospy/signalomes/` | Created now, split later | The package now exists; later tickets can collapse the remaining signalome modules into it |
 | `src/phospy/site_matrix_builder.py` | `src/phospy/preprocessing/site_matrix_builder.py` | Move later | Site-matrix building belongs in preprocessing |
 | `src/phospy/types.py` | `src/phospy/internal/types.py` | Move later | Shared internal type aliases are infrastructure support rather than a user-facing domain |
-| `src/phospy/workflow.py` | `src/phospy/api/workflows.py` | Split later | This is one of the worst mixed-responsibility files because it blends public entry points with domain assembly |
+| `src/phospy/workflow.py` | `src/phospy/api/workflows.py` | Completed in ticket 2 | Supported public workflow entry points now live in `api/`; remaining domain helpers were pushed toward `prediction/`, `preprocessing/`, `references/`, `activities/`, and `signalomes/` |
 | `src/phospy/writers.py` | `src/phospy/io/writers.py` | Move later | Output writers belong in structured I/O |
 | `src/phospy/prediction/` | `src/phospy/prediction/` | Keep and continue refining | This domain package already exists and should remain the home for prediction logic |
 | `src/phospy/validation/` | `src/phospy/validation/` | Keep and continue refining | The validation refactor already established the right top-level direction |
@@ -73,9 +73,6 @@ current `src/phospy/` tree.
 
 These files should not be relocated intact.
 
-- `src/phospy/workflow.py`
-  - mixes supported public workflows with substantial domain orchestration
-  - should end as thin entry points in `api/` delegating into domain packages
 - `src/phospy/pipeline.py`
   - mixes public pipeline entry behaviour, request loading, and output publication coordination
   - should be split between `api/` and `io/`, with delegation into datasets, preprocessing, prediction, and activities
@@ -91,6 +88,6 @@ These files should not be relocated intact.
 
 ## Notes for follow-up tickets
 
-- No compatibility shims were added as part of ticket 1.
+- Ticket 2 moved the supported public workflows into `src/phospy/api/workflows.py` without adding compatibility shims.
 - The package skeleton is now in place so later tickets can move domain code into its long-term home incrementally.
 - Existing `prediction/` and `validation/` packages were retained and documented rather than recreated.

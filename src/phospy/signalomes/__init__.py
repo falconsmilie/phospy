@@ -6,7 +6,10 @@ of this package."""
 
 from __future__ import annotations
 
-from ..signalome_construction import build_signalome_result
+from ..signalome_construction import (
+    build_signalome_result,
+    execute_validated_signalome_request,
+)
 from ..signalome_models import (
     ExpandedSignalome,
     SignalomeAssignments,
@@ -22,4 +25,5 @@ __all__ = [
     "SignalomeModules",
     "SignalomeResult",
     "build_signalome_result",
+    "execute_validated_signalome_request",
 ]

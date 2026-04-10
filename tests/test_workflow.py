@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.api import KinaseWorkflow, PredMatWorkflow
 from phospy.motifs import (
     KinaseMotifScorer,
     ReferenceBundle,
@@ -16,7 +17,6 @@ from phospy.validation.errors import (
     RequestValidationError,
 )
 from phospy.validation.schema.tables import SiteMatrixSchema
-from phospy.workflow import KinaseWorkflow, PredMatWorkflow
 
 
 def make_workflow_inputs() -> tuple[

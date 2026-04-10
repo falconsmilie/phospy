@@ -9,6 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from ..analysis import KinaseActivityAnalyzer, KinaseActivityResult
 from ..constants import SITE_MATRIX_ID_COLUMN
 
 
@@ -230,3 +231,13 @@ def _nan_aware_mean_array(values: np.ndarray) -> np.ndarray:
     result = np.full(values.shape[1], np.nan, dtype=float)
     np.divide(sums, valid_counts, out=result, where=valid_counts > 0)
     return result
+
+
+__all__ = [
+    "KinaseActivityAnalyzer",
+    "KinaseActivityResult",
+    "build_kinase_target_table",
+    "compute_ksea_scores",
+    "compute_weighted_kinase_activity",
+    "count_predicted_targets",
+]

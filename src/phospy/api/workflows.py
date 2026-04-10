@@ -6,40 +6,34 @@ from pathlib import Path
 
 import pandas as pd
 
-from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
-from .constants import (
+from ..activities import KinaseActivityAnalyzer, KinaseActivityResult
+from ..constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
-    TOTAL_GENE_COLUMN,
     ComparisonSpec,
 )
-from .core_processing import (
-    CorePreprocessingConfig,
-    CoreProcessingResult,
-    resolve_core_preprocessing_config,
+from ..core_processing import CorePreprocessingConfig
+from ..datasets import AnalysisReadyPhosphoDataset, DatasetSchema
+from ..motifs import MotifScoringResult
+from ..prediction import (
+    KinasePredictionResult,
+    KinaseWorkflowExecutor,
+    PredMatResult,
 )
-from .dataset import AnalysisReadyPhosphoDataset, PhosphoDataset
-from .dataset_loader import DatasetLoader
-from .dataset_schema import DatasetSchema
-from .dataset_site_matrix import DatasetSiteMatrix
-from .motifs import (
+from ..preprocessing.analysis_ready import build_analysis_ready_dataset
+from ..profiles import KinaseProfileResult
+from ..references import (
     BundledReferenceProvider,
-    MotifScoringResult,
     ReferenceBundle,
     ReferenceProvider,
 )
-from .prediction import KinasePredictionResult, KinasePredictor, PredMatResult
-from .preprocessing_services import PhosphoPreprocessor, ProteinCorrectionService
-from .profiles import KinaseProfileResult, build_kinase_substrate_profiles
-from .scoring import KinaseScorer, KinaseScoringResult
-from .signalome_construction import execute_validated_signalome_request
-from .signalomes import SignalomeResult
-from .types import PredictionSvmMode
-from .validation.requests import (
+from ..scoring import KinaseScoringResult
+from ..signalomes import SignalomeResult, execute_validated_signalome_request
+from ..types import PredictionSvmMode
+from ..validation.requests import (
     ValidatedSignalomeRequest,
     ValidatedWorkflowRequest,
     validate_signalome_request,
-    validate_workflow_request,
 )
 
 __all__ = [
@@ -49,6 +43,7 @@ __all__ = [
     "PredMatWorkflowResult",
     "SignalomeWorkflow",
     "SimpleKinaseWorkflow",
+    "SimpleKinaseWorkflowResult",
 ]
 
 
@@ -126,16 +121,20 @@ class SimpleKinaseWorkflowResult:
         self.close()
 
 
-class _WorkflowBase:
+class KinaseWorkflow:
+    """Run the native kinase scoring and prediction workflow end to end."""
+
     def __init__(
         self,
         flank_size: int = 7,
         kernel: str = "rbf",
         svm_mode: PredictionSvmMode = "default",
     ) -> None:
-        self.flank_size = flank_size
-        self.kernel = kernel
-        self.svm_mode = svm_mode
+        self._executor = KinaseWorkflowExecutor(
+            flank_size=flank_size,
+            kernel=kernel,
+            svm_mode=svm_mode,
+        )
 
     def _validate_request(
         self,
@@ -156,7 +155,7 @@ class _WorkflowBase:
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
     ) -> ValidatedWorkflowRequest:
-        return validate_workflow_request(
+        return self._executor.validate_request(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
             site_sequences=site_sequences,
@@ -172,70 +171,7 @@ class _WorkflowBase:
             n_iterations=n_iterations,
             random_state=random_state,
             svm_mode=svm_mode,
-            flank_size=self.flank_size,
-            default_svm_mode=self.svm_mode,
         )
-
-    def _execute_validated_request(
-        self,
-        request: ValidatedWorkflowRequest,
-    ) -> KinaseWorkflowResult:
-        raw_request = request.request
-        phospho_matrix = request.phospho_matrix
-
-        profile_result = build_kinase_substrate_profiles(
-            substrate_map=raw_request.substrate_map,
-            phospho_matrix=phospho_matrix,
-            min_substrates=raw_request.min_substrates,
-        )
-
-        scorer = KinaseScorer(profile_result.profile_matrix)
-        motif_result: MotifScoringResult | None = None
-        scoring_matrix = phospho_matrix
-
-        if request.motif_scorer is not None:
-            scoring_matrix = phospho_matrix.loc[list(request.scoring_site_index)]
-            motif_result = request.motif_scorer.score_sequences(
-                seqs=raw_request.site_sequences,
-                site_index=request.scoring_site_index,
-                min_motif_size=raw_request.min_motif_size,
-            )
-            scoring_result = scorer.score(
-                phospho_matrix=scoring_matrix,
-                motif_scores=motif_result.motif_scores,
-                motif_sizes=motif_result.motif_sizes,
-                profile_sizes=profile_result.substrate_counts.astype(float),
-                allow_profile_only_fallback=raw_request.allow_profile_only_fallback,
-            )
-        else:
-            scoring_result = scorer.score(phospho_matrix=scoring_matrix)
-
-        predictor = KinasePredictor(
-            kernel=self.kernel,
-            svm_mode=request.predictor_svm_mode,
-        )
-        prediction_result = predictor.predict_from_scoring_result(
-            scoring_result=scoring_result,
-            ensemble_size=raw_request.ensemble_size,
-            top=raw_request.top,
-            score_threshold=raw_request.score_threshold,
-            inclusion=raw_request.inclusion,
-            n_iterations=raw_request.n_iterations,
-            random_state=raw_request.random_state,
-            allow_profile_only_fallback=raw_request.allow_profile_only_fallback,
-            svm_mode=raw_request.svm_mode,
-        )
-
-        return KinaseWorkflowResult(
-            profile_result=profile_result,
-            motif_result=motif_result,
-            scoring_result=scoring_result,
-            prediction_result=prediction_result,
-        )
-
-
-class KinaseWorkflow(_WorkflowBase):
-    """Run the native kinase scoring and prediction workflow end to end."""
 
     def run(
         self,
@@ -278,12 +214,67 @@ class KinaseWorkflow(_WorkflowBase):
         self,
         request: ValidatedWorkflowRequest,
     ) -> KinaseWorkflowResult:
-        return self._execute_validated_request(request)
+        result = self._executor.execute_validated_request(request)
+        return KinaseWorkflowResult(
+            profile_result=result.profile_result,
+            motif_result=result.motif_result,
+            scoring_result=result.scoring_result,
+            prediction_result=result.prediction_result,
+        )
 
 
-class PredMatWorkflow(_WorkflowBase):
+class PredMatWorkflow:
     """Generate a predMat from phosphosite and sequence inputs."""
 
+    def __init__(
+        self,
+        flank_size: int = 7,
+        kernel: str = "rbf",
+        svm_mode: PredictionSvmMode = "default",
+    ) -> None:
+        self._executor = KinaseWorkflowExecutor(
+            flank_size=flank_size,
+            kernel=kernel,
+            svm_mode=svm_mode,
+        )
+
+    def _validate_request(
+        self,
+        *,
+        phospho_matrix: pd.DataFrame,
+        substrate_map: Mapping[str, Sequence[str]] | None = None,
+        site_sequences: Mapping[str, str] | pd.Series | None = None,
+        motif_sequences: Mapping[str, Sequence[str]] | None = None,
+        reference_bundle: ReferenceBundle | None = None,
+        min_substrates: int = 1,
+        min_motif_size: int = 1,
+        allow_profile_only_fallback: bool = False,
+        ensemble_size: int = 10,
+        top: int = 50,
+        score_threshold: float = 0.8,
+        inclusion: int = 20,
+        n_iterations: int = 5,
+        random_state: int | None = None,
+        svm_mode: PredictionSvmMode | None = None,
+    ) -> ValidatedWorkflowRequest:
+        return self._executor.validate_request(
+            phospho_matrix=phospho_matrix,
+            substrate_map=substrate_map,
+            site_sequences=site_sequences,
+            motif_sequences=motif_sequences,
+            reference_bundle=reference_bundle,
+            min_substrates=min_substrates,
+            min_motif_size=min_motif_size,
+            allow_profile_only_fallback=allow_profile_only_fallback,
+            ensemble_size=ensemble_size,
+            top=top,
+            score_threshold=score_threshold,
+            inclusion=inclusion,
+            n_iterations=n_iterations,
+            random_state=random_state,
+            svm_mode=svm_mode,
+        )
+
     def run(
         self,
         phospho_matrix: pd.DataFrame,
@@ -325,7 +316,7 @@ class PredMatWorkflow(_WorkflowBase):
         self,
         request: ValidatedWorkflowRequest,
     ) -> PredMatWorkflowResult:
-        result = self._execute_validated_request(request)
+        result = self._executor.execute_validated_request(request)
         return PredMatWorkflowResult(
             scoring_result=result.scoring_result,
             prediction_result=result.prediction_result,
@@ -390,7 +381,7 @@ class SimpleKinaseWorkflow:
         kinase_activity_top_n_substrates: int = 20,
     ) -> SimpleKinaseWorkflowResult:
         resolved_schema = schema or DatasetSchema()
-        analysis_ready_dataset = self._build_analysis_ready_dataset(
+        analysis_ready_dataset = build_analysis_ready_dataset(
             phospho=phospho,
             total=total,
             phospho_encoding=phospho_encoding,
@@ -402,6 +393,8 @@ class SimpleKinaseWorkflow:
             max_unmatched_fraction=max_unmatched_fraction,
             total_sentinel=total_sentinel,
             phospho_sentinel=phospho_sentinel,
+            source="simple kinase workflow",
+            phospho_only_source="simple kinase workflow (phospho only)",
         )
         reference_bundle = self.reference_provider.resolve(
             species=species,
@@ -435,131 +428,6 @@ class SimpleKinaseWorkflow:
             workflow_result=workflow_result,
             kinase_activity_result=kinase_activity_result,
         )
-
-    def _build_analysis_ready_dataset(
-        self,
-        *,
-        phospho: pd.DataFrame | str | Path,
-        total: pd.DataFrame | str | Path | None,
-        phospho_encoding: str | None,
-        schema: DatasetSchema,
-        comparisons: Sequence[ComparisonSpec] | None,
-        preprocessing_config: CorePreprocessingConfig | None,
-        localization_threshold: float,
-        min_observed: int,
-        max_unmatched_fraction: float,
-        total_sentinel: float | int,
-        phospho_sentinel: float | int,
-    ) -> AnalysisReadyPhosphoDataset:
-        if total is None:
-            return self._build_phospho_only_analysis_ready_dataset(
-                phospho=phospho,
-                phospho_encoding=phospho_encoding,
-                schema=schema,
-                comparisons=comparisons,
-                preprocessing_config=preprocessing_config,
-                localization_threshold=localization_threshold,
-                min_observed=min_observed,
-                phospho_sentinel=phospho_sentinel,
-            )
-
-        dataset_loader = DatasetLoader(schema=schema)
-        phospho_df = self._resolve_phospho_input(
-            phospho,
-            dataset_loader=dataset_loader,
-            phospho_encoding=phospho_encoding,
-        )
-        total_df = self._resolve_total_input(total, dataset_loader=dataset_loader)
-        dataset = PhosphoDataset.from_loaded_inputs(
-            dataset_loader.validate_inputs(total_df=total_df, phospho_df=phospho_df),
-            comparisons=comparisons,
-        )
-        return dataset.run_analysis_ready(
-            localization_threshold=localization_threshold,
-            min_observed=min_observed,
-            max_unmatched_fraction=max_unmatched_fraction,
-            total_sentinel=total_sentinel,
-            phospho_sentinel=phospho_sentinel,
-            config=preprocessing_config,
-            source="simple kinase workflow",
-        )
-
-    def _build_phospho_only_analysis_ready_dataset(
-        self,
-        *,
-        phospho: pd.DataFrame | str | Path,
-        phospho_encoding: str | None,
-        schema: DatasetSchema,
-        comparisons: Sequence[ComparisonSpec] | None,
-        preprocessing_config: CorePreprocessingConfig | None,
-        localization_threshold: float,
-        min_observed: int,
-        phospho_sentinel: float | int,
-    ) -> AnalysisReadyPhosphoDataset:
-        dataset_loader = DatasetLoader(schema=schema)
-        phospho_df = self._resolve_phospho_input(
-            phospho,
-            dataset_loader=dataset_loader,
-            phospho_encoding=phospho_encoding,
-        )
-        resolved_config = resolve_core_preprocessing_config(
-            config=preprocessing_config,
-            localization_threshold=localization_threshold,
-            min_observed=min_observed,
-            phospho_sentinel=phospho_sentinel,
-            context="SimpleKinaseWorkflow.run()",
-            config_param_name="preprocessing_config",
-        )
-        phospho_filtered = PhosphoPreprocessor(schema=schema).prepare(
-            phospho_df,
-            localization_threshold=resolved_config.localization_threshold,
-            sentinel=resolved_config.phospho_sentinel,
-            min_observed=resolved_config.min_observed,
-        )
-        phospho_corrected = phospho_filtered.rename(
-            columns=dict(zip(schema.phospho_cols, schema.corrected_cols, strict=True))
-        )
-        phospho_corrected = ProteinCorrectionService(
-            schema=schema,
-            comparisons=comparisons,
-        ).add_pairwise_comparisons(phospho_corrected)
-        site_matrix = DatasetSiteMatrix(schema=schema).build(phospho_corrected)
-        core_result = CoreProcessingResult(
-            total_unique=pd.DataFrame(columns=[TOTAL_GENE_COLUMN, *schema.total_cols]),
-            total_filtered=pd.DataFrame(
-                columns=[TOTAL_GENE_COLUMN, *schema.total_cols]
-            ),
-            phospho_filtered=phospho_filtered,
-            phospho_corrected=phospho_corrected,
-            site_matrix=site_matrix,
-        )
-        return AnalysisReadyPhosphoDataset.from_core_processing_result(
-            core_result,
-            schema=schema,
-            comparisons=comparisons,
-            source="simple kinase workflow (phospho only)",
-        )
-
-    @staticmethod
-    def _resolve_total_input(
-        total: pd.DataFrame | str | Path,
-        *,
-        dataset_loader: DatasetLoader,
-    ) -> pd.DataFrame:
-        if isinstance(total, pd.DataFrame):
-            return dataset_loader.validate_total(total)
-        return dataset_loader.load_total(total)
-
-    @staticmethod
-    def _resolve_phospho_input(
-        phospho: pd.DataFrame | str | Path,
-        *,
-        dataset_loader: DatasetLoader,
-        phospho_encoding: str | None,
-    ) -> pd.DataFrame:
-        if isinstance(phospho, pd.DataFrame):
-            return dataset_loader.validate_phospho(phospho)
-        return dataset_loader.load_phospho(phospho, encoding=phospho_encoding)
 
 
 class SignalomeWorkflow:
