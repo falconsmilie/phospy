@@ -21,7 +21,7 @@ from ._protein_correction import (
     run_protein_correction,
 )
 from .constants import LOCALIZATION_PROB_COLUMN, ComparisonSpec
-from .dataset_schema import DatasetSchema
+from .datasets.schema import DatasetSchema
 from .validation.errors import PhospyValidationError
 from .validation.schema.frames import (
     require_columns,

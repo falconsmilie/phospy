@@ -14,7 +14,7 @@ from uuid import uuid4
 from .constants import RUN_MANIFEST_FILENAME
 
 if TYPE_CHECKING:
-    from .analysis import KinaseActivityResult
+    from .activities import KinaseActivityResult
     from .core_processing import CorePreprocessingConfig, CoreProcessingResult
 
 

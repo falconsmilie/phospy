@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset, PhosphoDataset, SimpleKinaseWorkflow
-from phospy.dataset_schema import DatasetSchema
+from phospy.datasets import DatasetSchema
 from phospy.preprocessing import (
     CoverageFilterResult,
     LocalizationFilterResult,

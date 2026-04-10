@@ -16,13 +16,10 @@ from ..core_processing import (
     CoreProcessingResult,
     resolve_core_preprocessing_config,
 )
-from ..dataset_site_matrix import DatasetSiteMatrix
-from ..datasets import (
-    AnalysisReadyPhosphoDataset,
-    DatasetLoader,
-    DatasetSchema,
-    PhosphoDataset,
-)
+from ..datasets import DatasetSiteMatrix
+from ..datasets.loaders import DatasetLoader
+from ..datasets.models import AnalysisReadyPhosphoDataset, PhosphoDataset
+from ..datasets.schema import DatasetSchema
 from ..preprocessing_services import PhosphoPreprocessor, ProteinCorrectionService
 
 

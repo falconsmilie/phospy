@@ -17,10 +17,10 @@ from .core_processing import (
     CoreProcessor,
     resolve_core_preprocessing_config,
 )
-from .dataset_schema import DatasetSchema
+from .datasets.schema import DatasetSchema
 
 if TYPE_CHECKING:
-    from .dataset import AnalysisReadyPhosphoDataset
+    from .datasets.models import AnalysisReadyPhosphoDataset
 
 """Bound dataset preprocessing facade.
 
@@ -110,7 +110,7 @@ class DatasetPreprocessing:
         core preprocessing and site-matrix behaviour and binds provenance to the
         schema and comparisons already owned by this preprocessing facade.
         """
-        from .dataset import AnalysisReadyPhosphoDataset
+        from .datasets.models import AnalysisReadyPhosphoDataset
 
         return AnalysisReadyPhosphoDataset.from_core_processing_result(
             result,

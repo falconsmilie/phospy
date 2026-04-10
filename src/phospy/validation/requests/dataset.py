@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from ...constants import ComparisonSpec
-from ...dataset_schema import DatasetSchema
+from ...datasets.schema import DatasetSchema
 from ..domain import validate_dataset_comparisons
 from ..schema.files import validate_existing_file_path
 from ..schema.tables import PhosphoInputSchema, TotalInputSchema

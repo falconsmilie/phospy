@@ -5,12 +5,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from .dataset_schema import DatasetSchema
-from .io import load_phospho_table, load_total_table, read_table
-from .validation.errors import RequestValidationError, TableSchemaError
-from .validation.requests import validate_dataset_file_paths, validate_dataset_frames
-from .validation.schema.files import validate_existing_file_path
-from .validation.schema.tables import PhosphoInputSchema, TotalInputSchema
+from ..io import load_phospho_table, load_total_table, read_table
+from ..validation.errors import RequestValidationError, TableSchemaError
+from ..validation.requests import validate_dataset_file_paths, validate_dataset_frames
+from ..validation.schema.files import validate_existing_file_path
+from ..validation.schema.tables import PhosphoInputSchema, TotalInputSchema
+from .schema import DatasetSchema
 
 __all__ = ["DatasetLoader", "LoadedDatasetInputs"]
 
@@ -78,7 +78,8 @@ class DatasetLoader:
         """Load and validate one total-proteome input table from disk."""
 
         validated_path = validate_existing_file_path(
-            total_path, context="total input table path"
+            total_path,
+            context="total input table path",
         )
         try:
             return load_total_table(validated_path, encoding=encoding)
@@ -90,7 +91,10 @@ class DatasetLoader:
             pd.errors.ParserError,
             pd.errors.EmptyDataError,
         ) as error:
-            msg = f"Invalid total input table ({validated_path}): unable to read file: {error}"
+            msg = (
+                f"Invalid total input table ({validated_path}): unable to read file: "
+                f"{error}"
+            )
             raise RequestValidationError(msg) from error
 
     def load_phospho(
@@ -102,7 +106,8 @@ class DatasetLoader:
         """Load and validate one phosphoproteome input table from disk."""
 
         validated_path = validate_existing_file_path(
-            phospho_path, context="phospho input table path"
+            phospho_path,
+            context="phospho input table path",
         )
         try:
             return load_phospho_table(validated_path, encoding=encoding)
@@ -114,7 +119,10 @@ class DatasetLoader:
             pd.errors.ParserError,
             pd.errors.EmptyDataError,
         ) as error:
-            msg = f"Invalid phospho input table ({validated_path}): unable to read file: {error}"
+            msg = (
+                f"Invalid phospho input table ({validated_path}): unable to read "
+                f"file: {error}"
+            )
             raise RequestValidationError(msg) from error
 
     def load(

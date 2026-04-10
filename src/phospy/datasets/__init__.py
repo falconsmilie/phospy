@@ -1,26 +1,42 @@
-"""Dataset models and dataset construction domain.
+"""Dataset models, dataset construction, and dataset result containers.
 
 This package owns dataset-shaped models, loaders, builders, and dataset result
-containers. It does not own preprocessing strategy."""
+containers. It does not own preprocessing strategy.
+"""
 
-from ..dataset import (
+from __future__ import annotations
+
+from importlib import import_module
+from typing import Any
+
+from .builders import DatasetSiteMatrix
+from .models import (
     AnalysisReadyPhosphoDataset,
     AnalysisReadyPreprocessingProvenance,
     AnalysisReadyRowCounts,
     AnalysisReadySiteMatrixStats,
+    CoreInputs,
     PhosphoDataset,
 )
-from ..dataset_loader import DatasetLoader
-from ..dataset_schema import DatasetSchema
-from ..dataset_site_matrix import DatasetSiteMatrix
+from .schema import DatasetSchema
 
 __all__ = [
     "AnalysisReadyPhosphoDataset",
     "AnalysisReadyPreprocessingProvenance",
     "AnalysisReadyRowCounts",
     "AnalysisReadySiteMatrixStats",
+    "CoreInputs",
     "DatasetLoader",
     "DatasetSchema",
     "DatasetSiteMatrix",
+    "LoadedDatasetInputs",
     "PhosphoDataset",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    if name in {"DatasetLoader", "LoadedDatasetInputs"}:
+        module = import_module(".loaders", __name__)
+        return getattr(module, name)
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)

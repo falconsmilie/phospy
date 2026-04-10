@@ -3,27 +3,36 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .constants import (
-    CENTRALIZED_SEQUENCE_COLUMN,
+from ..constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
-    SITE_MATRIX_ID_COLUMN,
     ComparisonSpec,
 )
-from .core_processing import CorePreprocessingConfig, CoreProcessingResult
-from .dataset_loader import DatasetLoader, LoadedDatasetInputs
-from .dataset_preprocessing import DatasetPreprocessing
-from .dataset_schema import DatasetSchema
-from .dataset_site_matrix import DatasetSiteMatrix
-from .validation.errors import InputCompatibilityError
-from .validation.requests import (
-    ValidatedDatasetInputs,
-    build_validated_dataset_inputs,
-    validate_dataset_request,
+from ..core_processing import CorePreprocessingConfig, CoreProcessingResult
+from ..dataset_preprocessing import DatasetPreprocessing
+from .builders import (
+    DatasetSiteMatrix,
+    _build_site_metadata,
+    _validate_analysis_ready_alignment,
 )
+from .schema import DatasetSchema
+
+if TYPE_CHECKING:
+    from ..validation.requests import ValidatedDatasetInputs
+    from .loaders import LoadedDatasetInputs
+
+__all__ = [
+    "AnalysisReadyPhosphoDataset",
+    "AnalysisReadyPreprocessingProvenance",
+    "AnalysisReadyRowCounts",
+    "AnalysisReadySiteMatrixStats",
+    "CoreInputs",
+    "PhosphoDataset",
+]
 
 
 @dataclass(slots=True)
@@ -207,6 +216,8 @@ class PhosphoDataset:
         schema: DatasetSchema | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> None:
+        from ..validation.requests import validate_dataset_request
+
         validated_request = validate_dataset_request(
             total_df=total_df,
             phospho_df=phospho_df,
@@ -339,6 +350,9 @@ class PhosphoDataset:
         frames directly into the dataset workspace. Public callers should use
         ``PhosphoDataset(...)`` or ``PhosphoDataset.from_files(...)``.
         """
+        from ..validation.requests import build_validated_dataset_inputs
+        from .loaders import LoadedDatasetInputs
+
         if not isinstance(loaded_inputs, LoadedDatasetInputs):
             msg = (
                 "from_loaded_inputs requires an internal LoadedDatasetInputs instance."
@@ -363,6 +377,8 @@ class PhosphoDataset:
         schema: DatasetSchema | None = None,
     ) -> PhosphoDataset:
         """Load files through the public dataset boundary and return an owned workspace."""
+        from .loaders import DatasetLoader
+
         loader = DatasetLoader(schema=schema)
         validated_inputs = loader.load(
             total_path,
@@ -373,73 +389,3 @@ class PhosphoDataset:
             validated_inputs,
             comparisons=comparisons,
         )
-
-
-def _build_site_metadata(
-    *,
-    phosr_input: pd.DataFrame,
-    corrected_cols: Sequence[str],
-) -> pd.DataFrame:
-    if SITE_MATRIX_ID_COLUMN not in phosr_input.columns:
-        msg = (
-            "Analysis-ready site metadata requires the site-matrix source table to "
-            f"include '{SITE_MATRIX_ID_COLUMN}'."
-        )
-        raise InputCompatibilityError(msg)
-
-    metadata = phosr_input.drop(
-        columns=[*tuple(corrected_cols), CENTRALIZED_SEQUENCE_COLUMN],
-        errors="ignore",
-    ).copy(deep=True)
-    metadata = metadata.set_index(SITE_MATRIX_ID_COLUMN)
-    metadata.index = pd.Index(
-        metadata.index.astype("string"),
-        name=SITE_MATRIX_ID_COLUMN,
-    )
-    return metadata
-
-
-def _validate_analysis_ready_alignment(
-    *,
-    phospho_matrix: pd.DataFrame,
-    site_metadata: pd.DataFrame,
-    site_sequences: pd.Series,
-) -> None:
-    matrix_index = pd.Index(
-        phospho_matrix.index.astype("string"),
-        name=SITE_MATRIX_ID_COLUMN,
-    )
-    metadata_index = pd.Index(
-        site_metadata.index.astype("string"),
-        name=SITE_MATRIX_ID_COLUMN,
-    )
-    sequence_index = pd.Index(
-        site_sequences.index.astype("string"),
-        name=SITE_MATRIX_ID_COLUMN,
-    )
-
-    duplicate_index_contexts = {
-        "phospho_matrix": matrix_index,
-        "site_metadata": metadata_index,
-        "site_sequences": sequence_index,
-    }
-    for name, index in duplicate_index_contexts.items():
-        if not index.is_unique:
-            msg = (
-                "AnalysisReadyPhosphoDataset requires unique site identifiers; "
-                f"{name} contains duplicate site IDs."
-            )
-            raise InputCompatibilityError(msg)
-
-    if not matrix_index.equals(metadata_index) or not matrix_index.equals(
-        sequence_index
-    ):
-        msg = (
-            "AnalysisReadyPhosphoDataset requires phospho_matrix, site_metadata, "
-            "and site_sequences to share the same aligned site_id index."
-        )
-        raise InputCompatibilityError(msg)
-
-    phospho_matrix.index = matrix_index
-    site_metadata.index = metadata_index
-    site_sequences.index = sequence_index

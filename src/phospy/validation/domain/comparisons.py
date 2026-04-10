@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from ...constants import ComparisonSpec
-from ...dataset_schema import DatasetSchema
+from ...datasets.schema import DatasetSchema
 from ..errors import InputCompatibilityError
 
 

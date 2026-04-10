@@ -107,7 +107,7 @@ Phospho table:
 Use `DatasetSchema` when your sample columns do not use the defaults.
 
 ```python
-from phospy.dataset_schema import DatasetSchema
+from phospy.datasets import DatasetSchema
 
 schema = DatasetSchema(
     total_cols=("sample_a", "sample_b"),

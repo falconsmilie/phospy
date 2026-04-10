@@ -3,23 +3,23 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from .constants import (
+from ..constants import (
     DEFAULT_CORRECTED_COLS,
     DEFAULT_PHOSPHO_COLS,
     DEFAULT_TOTAL_COLS,
 )
-from .validation.compatibility import validate_core_column_alignment
-from .validation.errors import InputCompatibilityError
+from ..validation.compatibility import validate_core_column_alignment
+from ..validation.errors import InputCompatibilityError
 
 
 @dataclass(frozen=True, slots=True)
 class DatasetSchema:
-    """Immutable aligned sample/value column groups used by dataset preprocessing.
+    """Immutable aligned sample/value column groups used by dataset processing.
 
     DatasetSchema intentionally models only the aligned numeric/sample columns.
     Core structural identifier columns such as gene_names, gene_p_site, and
-    localization_prob are fixed canonical package constants rather than
-    user-configurable schema fields.
+    localization_prob are fixed package constants rather than user-configurable
+    schema fields.
     """
 
     total_cols: tuple[str, ...] = DEFAULT_TOTAL_COLS

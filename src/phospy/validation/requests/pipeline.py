@@ -12,7 +12,7 @@ from ...core_processing import (
     CorePreprocessingConfig,
     resolve_core_preprocessing_config,
 )
-from ...dataset_schema import DatasetSchema
+from ...datasets.schema import DatasetSchema
 from ..domain import validate_dataset_comparisons
 from ..errors import InputCompatibilityError, RequestValidationError
 from ..schema.files import validate_existing_file_path
@@ -21,7 +21,7 @@ from .analysis import KinaseActivityRequest, ValidatedAnalysisRequest
 from .shared import PhospyRequestModel, normalize_pred_mat_input
 
 if TYPE_CHECKING:
-    from ...dataset import PhosphoDataset
+    from ...datasets.models import PhosphoDataset
     from ...prediction.models import PredMatResult
 
 
@@ -103,7 +103,7 @@ def build_pipeline_request(
 ) -> ValidatedPipelineRequest:
     """Build a trusted pipeline request from already-owned inputs."""
 
-    from ...dataset import PhosphoDataset
+    from ...datasets.models import PhosphoDataset
 
     if not isinstance(dataset, PhosphoDataset):
         msg = (

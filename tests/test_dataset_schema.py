@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy import PhosphoDataset
-from phospy.dataset_schema import DatasetSchema
+from phospy.datasets import DatasetSchema
 from phospy.validation.errors import InputCompatibilityError
 
 

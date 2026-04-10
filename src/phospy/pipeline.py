@@ -8,12 +8,10 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .analysis import KinaseActivityAnalyzer, KinaseActivityResult
+from .activities import KinaseActivityAnalyzer, KinaseActivityResult
 from .constants import ComparisonSpec
 from .core_processing import CorePreprocessingConfig, CoreProcessingResult
-from .dataset import PhosphoDataset
-from .dataset_loader import DatasetLoader
-from .dataset_schema import DatasetSchema
+from .datasets import DatasetLoader, DatasetSchema, PhosphoDataset
 from .io import load_pred_mat
 from .publishing import OutputPublisher, RunManifestWriter
 from .validation.errors import RequestValidationError, TableSchemaError

@@ -28,15 +28,15 @@ from phospy.constants import (
     RUN_MANIFEST_FILENAME,
 )
 from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
-from phospy.dataset import (
+from phospy.dataset_preprocessing import DatasetPreprocessing
+from phospy.datasets import (
     AnalysisReadyPreprocessingProvenance,
     AnalysisReadyRowCounts,
     AnalysisReadySiteMatrixStats,
+    DatasetLoader,
+    DatasetSchema,
+    DatasetSiteMatrix,
 )
-from phospy.dataset_loader import DatasetLoader
-from phospy.dataset_preprocessing import DatasetPreprocessing
-from phospy.dataset_schema import DatasetSchema
-from phospy.dataset_site_matrix import DatasetSiteMatrix
 from phospy.io import load_pred_mat
 from phospy.publishing import OutputPublisher, RunManifestWriter
 from phospy.site_matrix_builder import SiteMatrixBuilder
@@ -271,7 +271,7 @@ def test_phospho_dataset_does_not_expose_legacy_direct_preprocessing_methods() -
 
 
 def test_dataset_loader_exposes_explicit_package_internal_contract_names() -> None:
-    import phospy.dataset_loader as dataset_loader_module
+    import phospy.datasets.loaders as dataset_loader_module
 
     assert hasattr(dataset_loader_module, "DatasetLoader")
     assert hasattr(dataset_loader_module, "LoadedDatasetInputs")
@@ -1290,7 +1290,7 @@ def test_dataset_and_pipeline_from_files_wrap_raw_table_read_errors(
     total_path.write_text("placeholder")
     phospho_path.write_text("placeholder")
 
-    from phospy import dataset_loader as dataset_loader_module
+    import phospy.datasets.loaders as dataset_loader_module
 
     def blow_up(*args, **kwargs):
         raise pd.errors.ParserError("broken tsv")

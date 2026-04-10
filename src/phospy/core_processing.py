@@ -14,7 +14,7 @@ from .constants import (
     TOTAL_GENE_COLUMN,
     ComparisonSpec,
 )
-from .dataset_schema import DatasetSchema
+from .datasets.schema import DatasetSchema
 from .preprocessing_services import (
     PhosphoPreprocessor,
     ProteinCorrectionService,

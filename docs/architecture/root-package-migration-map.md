@@ -35,15 +35,15 @@ current `src/phospy/` tree.
 | `src/phospy/_preprocessing_primitives.py` | `src/phospy/preprocessing/primitives.py` | Move later | Internal preprocessing building blocks belong inside the preprocessing domain |
 | `src/phospy/_protein_correction.py` | `src/phospy/preprocessing/protein_correction.py` | Move later | Protein correction is a preprocessing concern |
 | `src/phospy/activities` | `src/phospy/activities/` | Created now, split later | The package now exists; later tickets should separate activity calculation modules from any convenience exports |
-| `src/phospy/analysis.py` | `src/phospy/activities/analyzer.py` | Move later | `KinaseActivityAnalyzer` is downstream activity orchestration rather than a root-level concern |
+| `src/phospy/analysis.py` | `src/phospy/activities/analyzer.py` | Completed during ticket 3 cleanup | `KinaseActivityAnalyzer` and `KinaseActivityResult` now live under `activities/`; the legacy flat module was removed to eliminate import-order hacks |
 | `src/phospy/cli.py` | `src/phospy/api/cli.py` | Move later | CLI is part of the supported entry surface |
 | `src/phospy/constants.py` | `src/phospy/internal/constants.py` | Move later | Shared constants are internal support code unless a clearer domain home emerges during later splits |
 | `src/phospy/core_processing.py` | `src/phospy/preprocessing/core.py` | Move later | Core preprocessing configuration and results belong in preprocessing |
-| `src/phospy/dataset.py` | `src/phospy/datasets/models.py` | Split later | Mixed dataset models and analysis-ready dataset construction need separation |
-| `src/phospy/dataset_loader.py` | `src/phospy/datasets/loaders.py` | Move later | Dataset file and frame loading belongs in datasets |
+| `src/phospy/dataset.py` | `src/phospy/datasets/models.py` | Completed in ticket 3 | Dataset models and analysis-ready dataset containers now live under `datasets/`; the legacy flat module was removed |
+| `src/phospy/dataset_loader.py` | `src/phospy/datasets/loaders.py` | Completed in ticket 3 | Dataset loading now lives under `datasets/`; the legacy flat module was removed |
 | `src/phospy/dataset_preprocessing.py` | `src/phospy/preprocessing/datasets.py` | Move later | This is preprocessing that is currently expressed through a dataset-shaped façade |
-| `src/phospy/dataset_schema.py` | `src/phospy/datasets/schema.py` | Move later | Dataset schema belongs with dataset construction |
-| `src/phospy/dataset_site_matrix.py` | `src/phospy/preprocessing/site_matrix_bindings.py` | Split later | The bound façade is dataset-shaped, but the site-matrix process belongs in preprocessing |
+| `src/phospy/dataset_schema.py` | `src/phospy/datasets/schema.py` | Completed in ticket 3 | Dataset schema now lives under `datasets/`; the legacy flat module was removed |
+| `src/phospy/dataset_site_matrix.py` | `src/phospy/datasets/builders.py` | Completed in ticket 3 | The dataset-bound site-matrix façade now lives under `datasets/`; the legacy flat module was removed |
 | `src/phospy/io` | `src/phospy/io/` | Created now, split later | The package now exists; later tickets can break reading helpers and mapping loaders into clearer submodules |
 | `src/phospy/matrices.py` | `src/phospy/preprocessing/site_matrix.py` | Move later | Site-matrix construction is preprocessing behaviour |
 | `src/phospy/motifs.py` | `src/phospy/references/` and `src/phospy/prediction/motif_scoring.py` | Split later | This file mixes bundled reference resolution with motif scoring and must be split rather than moved whole |
@@ -76,9 +76,9 @@ These files should not be relocated intact.
 - `src/phospy/pipeline.py`
   - mixes public pipeline entry behaviour, request loading, and output publication coordination
   - should be split between `api/` and `io/`, with delegation into datasets, preprocessing, prediction, and activities
-- `src/phospy/dataset.py`
-  - mixes dataset-shaped models with analysis-ready dataset construction behaviour
-  - should be split between dataset models and builder-oriented logic in `datasets/`
+- `src/phospy/dataset_preprocessing.py`
+  - still expresses preprocessing through a dataset-bound façade even though preprocessing strategy belongs in `preprocessing/`
+  - later work should move this façade under `preprocessing/` while keeping `datasets/` focused on dataset ownership and construction
 - `src/phospy/motifs.py`
   - mixes biological reference handling with motif-scoring behaviour used in prediction
   - should be split between `references/` and `prediction/`

@@ -7,24 +7,24 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .activities import (
+from ..io import load_pred_mat
+from ..validation.requests import (
+    ValidatedAnalysisRequest,
+    validate_analysis_request,
+)
+from ..writers import KinaseActivityResultWriter, KinaseActivityWriter
+from .scoring import (
     build_kinase_target_table,
     compute_ksea_scores,
     compute_weighted_kinase_activity,
     count_predicted_targets,
 )
-from .io import load_pred_mat
-from .validation.requests import (
-    ValidatedAnalysisRequest,
-    validate_analysis_request,
-)
-from .writers import KinaseActivityResultWriter, KinaseActivityWriter
 
 __all__ = ["KinaseActivityAnalyzer", "KinaseActivityResult"]
 
 
 if TYPE_CHECKING:
-    from .prediction.models import PredMatResult
+    from ..prediction.models import PredMatResult
 
 
 PredMatLoader = Callable[[str | Path], pd.DataFrame]
