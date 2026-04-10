@@ -28,7 +28,69 @@ pip install "phospy[parquet]"
 
 The examples below use repository paths such as `examples/data/...`. If you installed from PyPI, use your own local paths instead.
 
-## Pick the Right Entry Point
+## Two Supported Workflow Lanes
+
+### Simple lane: `SimpleKinaseWorkflow`
+
+Start here for the common end-to-end path.
+
+Use `SimpleKinaseWorkflow` when you already have a phospho table, know the species, and want PhosPy to handle:
+
+- preprocessing
+- the analysis-ready phosphosite boundary
+- bundled kinase reference resolution
+- `predMat` generation
+- kinase activity analysis
+
+```python
+from phospy import SimpleKinaseWorkflow
+
+result = SimpleKinaseWorkflow().run(
+    phospho="study_phospho.tsv",
+    total="study_total.tsv",
+    species="rat",
+    reference="auto",
+)
+
+pred_mat = result.pred_mat_result.to_frame()
+weighted_activity = result.kinase_activity_result.weighted_activity
+```
+
+Use this lane when you want the shortest supported public path.
+
+Today, the bundled reference lane is intentionally narrow:
+
+- species: `rat`
+- references: `auto`, `l6`, `l6_native`
+- `auto` currently resolves to `l6_native`
+
+A runnable repository example lives in [`examples/simple_workflow_demo.py`](examples/simple_workflow_demo.py).
+
+### Advanced lane: native workflow pieces
+
+Use the advanced lane when you need explicit control over workflow-shaped inputs or intermediate results.
+
+This is the right lane when you need to manage any of the following directly:
+
+- `site_sequences`
+- `substrate_map`
+- `motif_sequences`
+- `ReferenceBundle`
+- intermediate scoring and prediction outputs
+- downstream signalome construction
+
+The main advanced entry points are:
+
+- `PhosphoDataset` for validated input ownership and preprocessing
+- `AnalysisReadyPhosphoDataset` for the preprocessing-to-inference boundary
+- `ReferenceBundle` and `ReferenceProvider` for kinase-prior resolution
+- `PredMatWorkflow` for `predMat` generation
+- `KinaseWorkflow` for the fuller native scoring and prediction path
+- `SignalomeWorkflow` for downstream signalome construction
+
+A runnable repository example lives in [`examples/native_workflow_demo.py`](examples/native_workflow_demo.py).
+
+## Other Supported Entry Points
 
 ### `PhosphoDataset`
 
@@ -103,7 +165,7 @@ When `outdir` is set, the pipeline writes the core outputs, any kinase-analysis 
 
 ### `PredMatWorkflow`
 
-Use `PredMatWorkflow` when your goal is to generate a `predMat` from phosphosite inputs.
+Use `PredMatWorkflow` when your goal is to generate a `predMat` from phosphosite inputs and you want direct control over the workflow boundary.
 
 ```python
 import json
@@ -148,12 +210,10 @@ A runnable repository example lives in [`examples/predmat_workflow_demo.py`](exa
 
 Use `KinaseWorkflow` when you want the fuller native Python scoring and prediction workflow, including intermediate profile and motif scoring outputs.
 
-A runnable repository example lives in [`examples/native_workflow_demo.py`](examples/native_workflow_demo.py).
-
 From a repository checkout:
 
 ```bash
-make native-workflow-demo
+python examples/native_workflow_demo.py
 ```
 
 ### `SignalomeWorkflow`
@@ -206,7 +266,7 @@ phospy \
 
 ## Read Next
 
-- [`docs/api.md`](docs/api.md) for the public Python API and CLI options
+- [`docs/api.md`](docs/api.md) for the public Python API and the simple versus advanced lane split
 - [`docs/validation.md`](docs/validation.md) for the validation checklist
 - [`docs/parity.md`](docs/parity.md) for parity scope, supported prediction modes, and release thresholds
 - [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace rebuild commands

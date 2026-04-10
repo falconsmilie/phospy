@@ -9,12 +9,18 @@ These now exist in the supported public surface:
 - a first-class `PredMatWorkflow`
 - a first-class `SignalomeWorkflow`
 - stable `PredMatResult`, `SignalomeResult`, `SignalomeMapData`, and `SignalomeNetworkData` contracts
-- public examples for `predMat` and signalome workflows
-- explicit `svm_mode` guidance for `default` and `r_parity`
 - `AnalysisReadyPhosphoDataset` as the preprocessing-to-inference boundary
 - `ReferenceBundle`, `ReferenceProvider`, and a first `BundledReferenceProvider` lane for `rat` / `l6_native`
+- `SimpleKinaseWorkflow` as the supported common end-to-end kinase inference lane
+- separate documentation and examples for the simple lane and the advanced native lane
+- explicit `svm_mode` guidance for `default` and `r_parity`
+- public examples for predMat, simple workflow, native workflow, and signalome workflows
 
 ## Most Likely Next Steps
+
+### Fixture-Backed Hardening of the Simple Lane
+
+The simple workflow lane now exists as a supported public path. The next useful step is deeper fixture-backed regression coverage so the common path stays stable and reviewable as the package grows.
 
 ### Native Workflow CLI Support
 

@@ -102,6 +102,20 @@ def _load_example_module(path: Path):
     return module
 
 
+def test_simple_workflow_demo_runs_end_to_end(tmp_path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    module = _load_example_module(repo_root / "examples" / "simple_workflow_demo.py")
+
+    result, written = module.run_demo(tmp_path / "simple", use_files=True)
+
+    assert result.reference_bundle.species == "rat"
+    assert result.reference_bundle.source_metadata.reference == "l6_native"
+    assert not result.pred_mat_result.to_frame(copy=False).empty
+    assert not result.kinase_activity_result.weighted_activity.empty
+    assert set(written) == {"pred_mat", "weighted_activity", "ksea_scores"}
+    assert all(path.exists() for path in written.values())
+
+
 @pytest.mark.parametrize("svm_mode", ["default", "r_parity"])
 def test_pred_mat_workflow_demo_runs_end_to_end(tmp_path, svm_mode: str) -> None:
     repo_root = Path(__file__).resolve().parents[1]

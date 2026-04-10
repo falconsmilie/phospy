@@ -1,3 +1,11 @@
+"""Advanced native workflow demo.
+
+Use this lane when you want direct control over workflow-shaped inputs such as
+substrate_map, motif_sequences, site_sequences, and intermediate scoring or
+prediction outputs. For the shorter common end-to-end path, use
+examples/simple_workflow_demo.py and SimpleKinaseWorkflow instead.
+"""
+
 #!/usr/bin/env python3
 from __future__ import annotations
 

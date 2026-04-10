@@ -40,6 +40,33 @@ Use:
 - `KinaseWorkflow` for the fuller native scoring and prediction path
 - `SignalomeWorkflow` for downstream signalome construction
 
+## Workflow Lanes
+
+PhosPy supports two distinct workflow lanes.
+
+### Simple lane
+
+Use `SimpleKinaseWorkflow` for the common end-to-end path when you have user-shaped biological inputs and want one supported public entry point.
+
+This lane is built around three package-level boundaries:
+
+- `AnalysisReadyPhosphoDataset` for the preprocessing-to-inference handoff
+- `ReferenceBundle` for the kinase-prior handoff
+- `ReferenceProvider` for resolving species and reference choices into a `ReferenceBundle`
+
+### Advanced native lane
+
+Use the advanced lane when you need explicit control over workflow-shaped inputs such as `site_sequences`, `substrate_map`, `motif_sequences`, or intermediate scoring and prediction outputs.
+
+The main advanced entry points are:
+
+- `PhosphoDataset`
+- `PredMatWorkflow`
+- `KinaseWorkflow`
+- `SignalomeWorkflow`
+
+`PhosRPipeline` and `KinaseActivityAnalyzer` remain useful focused helpers, but they are not the new common end-to-end lane.
+
 ## Shared Input Rules
 
 ### File formats
@@ -73,7 +100,9 @@ Phospho table:
 - `localization_prob` and `predMat` scores must stay in `[0, 1]`
 - `gene_p_site` must split cleanly into gene and site parts such as `BTK_Y551`
 
-## `DatasetSchema`
+## Shared data and preprocessing
+
+### `DatasetSchema`
 
 Use `DatasetSchema` when your sample columns do not use the defaults.
 
@@ -93,7 +122,7 @@ Rules:
 - the groups must align one-for-one
 - structural columns stay fixed package columns
 
-## `PhosphoDataset`
+### `PhosphoDataset`
 
 Use `PhosphoDataset` when you want one validated dataset owner and the helpers bound to it.
 
@@ -230,7 +259,7 @@ phospho_matrix = analysis_ready.phospho_matrix
 site_sequences = analysis_ready.site_sequences
 ```
 
-## `AnalysisReadyPhosphoDataset`
+### `AnalysisReadyPhosphoDataset`
 
 Use `AnalysisReadyPhosphoDataset` as the explicit boundary between preprocessing and kinase inference.
 
@@ -310,7 +339,9 @@ Returns `SiteMatrixResult` with:
 - `row_drop_stats`
 
 
-## `ReferenceBundle` and `ReferenceProvider`
+## Reference resolution
+
+### `ReferenceBundle` and `ReferenceProvider`
 
 Use `ReferenceBundle` as the explicit kinase-prior boundary between reference resolution and workflow setup.
 
@@ -453,7 +484,9 @@ Written core outputs:
 - `mat_phospho_corrected`
 - `site_sequences`
 
-## `KinaseActivityAnalyzer`
+## Supporting utilities
+
+### `KinaseActivityAnalyzer`
 
 Use `KinaseActivityAnalyzer` when you already have a phosphosite matrix and a `predMat`.
 
@@ -529,9 +562,11 @@ Writes:
 - `target_counts`
 - `target_table`
 
-## `SimpleKinaseWorkflow`
+## Simple workflow lane
 
-Use `SimpleKinaseWorkflow` for the supported common end-to-end kinase inference lane.
+### `SimpleKinaseWorkflow`
+
+Use `SimpleKinaseWorkflow` for the supported common end-to-end kinase inference lane. This is the recommended public entry point for routine studies.
 
 It accepts:
 
@@ -614,17 +649,19 @@ Example:
 from phospy import SimpleKinaseWorkflow
 
 result = SimpleKinaseWorkflow().run(
-    phospho="examples/data/phospho.tsv",
-    total="examples/data/total.tsv",
+    phospho="study_phospho.tsv",
+    total="study_total.tsv",
     species="rat",
-    phospho_encoding="utf-16le",
+    reference="auto",
 )
 
 pred_mat = result.pred_mat_result.to_frame()
 weighted_activity = result.kinase_activity_result.weighted_activity
 ```
 
-## `PhosRPipeline`
+For a runnable repository example of the supported common lane, see `examples/simple_workflow_demo.py`.
+
+### `PhosRPipeline`
 
 Use `PhosRPipeline` when you want preprocessing and optional kinase analysis in one place.
 
@@ -695,9 +732,11 @@ pipeline.run(outdir: str | Path | None = None) -> CoreOutputs
 
 When `outdir` is set, the pipeline also writes `run_manifest.json`.
 
-## `PredMatWorkflow`
+## Advanced native workflow lane
 
-Use `PredMatWorkflow` when your goal is to generate a `predMat` from one supported public workflow.
+### `PredMatWorkflow`
+
+Use `PredMatWorkflow` when your goal is to generate a `predMat` from one supported advanced native workflow.
 
 ### Constructor
 
@@ -756,7 +795,7 @@ Returns `PredMatWorkflowResult` with:
 
 When thresholds are too strict and no kinase candidates qualify, PhosPy raises `NoCandidateKinasesError` instead of returning an empty invalid `predMat`.
 
-## `PredMatResult`
+### `PredMatResult`
 
 `PredMatResult` is the stable in-memory and export contract for a generated `predMat`.
 
@@ -780,9 +819,9 @@ Notes:
 - `data_frame` returns the owned in-memory table
 - `to_frame()` returns a detached copy by default
 
-## `KinaseWorkflow`
+### `KinaseWorkflow`
 
-Use `KinaseWorkflow` when you want the fuller native scoring and prediction path, including intermediate profile and motif outputs.
+Use `KinaseWorkflow` when you want the fuller advanced native scoring and prediction path, including intermediate profile and motif outputs.
 
 ### Constructor
 
@@ -836,7 +875,7 @@ The most commonly used fields on `prediction_result` are:
 - `substrate_list`
 - `pred_mat_result`
 
-## `SignalomeWorkflow`
+### `SignalomeWorkflow`
 
 Use `SignalomeWorkflow` when you already have aligned scoring and prediction outputs and want one validated signalome step.
 
