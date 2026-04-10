@@ -6,6 +6,7 @@ PhosPy has no HTTP API. The supported surface is the Python API below plus the `
 
 ```python
 from phospy import (
+    AnalysisReadyPhosphoDataset,
     KinaseActivityAnalyzer,
     KinaseWorkflow,
     PhosphoDataset,
@@ -22,6 +23,7 @@ from phospy import (
 Use:
 
 - `PhosphoDataset` for validated total and phospho inputs plus core preprocessing
+- `AnalysisReadyPhosphoDataset` for the analysis-ready phosphosite boundary between preprocessing and kinase inference
 - `KinaseActivityAnalyzer` for analysis from an existing `predMat`
 - `PhosRPipeline` for file loading, preprocessing, optional kinase analysis, and publishing
 - `PredMatWorkflow` for the supported `predMat` generation path
@@ -169,6 +171,58 @@ core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
 matrix = core.site_matrix.matrix
 corrected = core.phospho_corrected
 ```
+
+## `AnalysisReadyPhosphoDataset`
+
+Use `AnalysisReadyPhosphoDataset` as the explicit boundary between preprocessing and kinase inference.
+
+It owns:
+
+- `phospho_matrix`: the aligned phosphosite matrix keyed by stable site ID
+- `site_metadata`: aligned site metadata keyed by the same site ID
+- `site_sequences`: aligned site-centred sequences keyed by the same site ID
+- `phospho_corrected`: the corrected phosphosite table the analysis matrix was derived from
+- `provenance`: preprocessing provenance including schema, comparisons, row counts, and site-matrix row-drop diagnostics
+
+### `from_core_processing_result(...)`
+
+```python
+AnalysisReadyPhosphoDataset.from_core_processing_result(
+    result: CoreProcessingResult,
+    *,
+    schema: DatasetSchema,
+    comparisons: Sequence[tuple[str, str]] | None = None,
+    source: str = "core preprocessing",
+) -> AnalysisReadyPhosphoDataset
+```
+
+Use this when preprocessing has already completed and you want one owned, analysis-ready dataset object instead of passing lower-level tables around.
+
+Rules:
+
+- `result` must be a `CoreProcessingResult`
+- `schema` defines which corrected value columns belong to the analysis matrix
+- the resulting `phospho_matrix`, `site_metadata`, and `site_sequences` must stay exactly aligned on the same unique `site_id` index
+- the object owns deep copies of its matrix, metadata, sequences, and corrected source table
+
+Example:
+
+```python
+from phospy import AnalysisReadyPhosphoDataset, PhosphoDataset
+
+dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
+core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+analysis_ready = AnalysisReadyPhosphoDataset.from_core_processing_result(
+    core,
+    schema=dataset.schema,
+    comparisons=dataset.comparisons,
+)
+
+phospho_matrix = analysis_ready.phospho_matrix
+site_sequences = analysis_ready.site_sequences
+```
+
+This boundary keeps preprocessing outputs reusable without coupling new workflow layers directly to raw input tables or to the full `PhosphoDataset` workspace.
 
 ### `dataset.site_matrix.build(...)`
 

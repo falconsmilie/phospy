@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from phospy import (
+    AnalysisReadyPhosphoDataset,
     KinaseActivityAnalyzer,
     KinaseWorkflow,
     PhosphoDataset,
@@ -21,6 +22,11 @@ from phospy.constants import (
     RUN_MANIFEST_FILENAME,
 )
 from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
+from phospy.dataset import (
+    AnalysisReadyPreprocessingProvenance,
+    AnalysisReadyRowCounts,
+    AnalysisReadySiteMatrixStats,
+)
 from phospy.dataset_loader import DatasetLoader
 from phospy.dataset_preprocessing import DatasetPreprocessing
 from phospy.dataset_schema import DatasetSchema
@@ -28,7 +34,7 @@ from phospy.dataset_site_matrix import DatasetSiteMatrix
 from phospy.io import load_pred_mat
 from phospy.publishing import OutputPublisher, RunManifestWriter
 from phospy.site_matrix_builder import SiteMatrixBuilder
-from phospy.validation.errors import RequestValidationError
+from phospy.validation.errors import InputCompatibilityError, RequestValidationError
 from phospy.writers import CoreOutputWriter
 
 EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
@@ -80,6 +86,7 @@ def test_public_root_exports() -> None:
     import phospy
 
     expected = {
+        "AnalysisReadyPhosphoDataset",
         "KinaseActivityAnalyzer",
         "KinaseWorkflow",
         "PhosphoDataset",
@@ -1338,3 +1345,189 @@ def test_dataset_with_custom_schema_preserves_schema_named_comparisons() -> None
 
     assert dataset.comparisons == (("sample_a", "sample_b"),)
     assert result.phospho_corrected["p_sample_a_sample_b"].iloc[0] == 3.0
+
+
+def test_analysis_ready_dataset_is_part_of_public_root_exports() -> None:
+    import phospy
+
+    assert "AnalysisReadyPhosphoDataset" in phospy.__all__
+
+
+def test_analysis_ready_dataset_builds_from_core_processing_result() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+
+    analysis_ready = AnalysisReadyPhosphoDataset.from_core_processing_result(
+        core,
+        schema=dataset.schema,
+        comparisons=dataset.comparisons,
+    )
+
+    pd.testing.assert_frame_equal(
+        analysis_ready.phospho_matrix, core.site_matrix.matrix
+    )
+    pd.testing.assert_series_equal(
+        analysis_ready.site_sequences,
+        core.site_matrix.sequences,
+    )
+    pd.testing.assert_frame_equal(
+        analysis_ready.phospho_corrected,
+        core.phospho_corrected,
+    )
+    assert analysis_ready.site_metadata.index.equals(
+        analysis_ready.phospho_matrix.index
+    )
+    assert analysis_ready.site_sequences.index.equals(
+        analysis_ready.phospho_matrix.index
+    )
+    assert analysis_ready.site_metadata.columns.tolist() == [
+        "gene_names",
+        "gene",
+        "p_site",
+        "uid",
+    ]
+    assert analysis_ready.provenance.source == "core preprocessing"
+    assert analysis_ready.provenance.schema == dataset.schema
+    assert analysis_ready.provenance.comparisons == tuple(EXAMPLE_COMPARISONS)
+    assert analysis_ready.provenance.row_counts == AnalysisReadyRowCounts(
+        total_unique=len(core.total_unique),
+        total_filtered=len(core.total_filtered),
+        phospho_filtered=len(core.phospho_filtered),
+        phospho_corrected=len(core.phospho_corrected),
+        phospho_matrix_sites=len(core.site_matrix.matrix),
+    )
+    assert analysis_ready.provenance.site_matrix_stats == AnalysisReadySiteMatrixStats(
+        input_rows=core.site_matrix.row_drop_stats["input_rows"],
+        dropped_missing_sequence=core.site_matrix.row_drop_stats[
+            "dropped_missing_sequence"
+        ],
+        dropped_incomplete_values=core.site_matrix.row_drop_stats[
+            "dropped_incomplete_values"
+        ],
+        deduplicated_site_rows=core.site_matrix.row_drop_stats[
+            "deduplicated_site_rows"
+        ],
+        retained_rows=core.site_matrix.row_drop_stats["retained_rows"],
+    )
+
+
+def test_analysis_ready_dataset_owns_detached_copies_of_inputs() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    analysis_ready = AnalysisReadyPhosphoDataset.from_core_processing_result(
+        core,
+        schema=dataset.schema,
+    )
+
+    core.site_matrix.matrix.iloc[0, 0] = -999.0
+    core.site_matrix.sequences.iloc[0] = "MUTATED"
+    core.phospho_corrected.iloc[0, 0] = "mutated"
+
+    assert analysis_ready.phospho_matrix.iloc[0, 0] != -999.0
+    assert analysis_ready.site_sequences.iloc[0] != "MUTATED"
+    assert analysis_ready.phospho_corrected.iloc[0, 0] != "mutated"
+
+
+def test_analysis_ready_dataset_rejects_misaligned_indexes() -> None:
+    phospho_matrix = pd.DataFrame(
+        {"sample": [1.0]},
+        index=pd.Index(["PRKACA;S339;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {"gene": ["PRKACA"]},
+        index=pd.Index(["BTK;Y551;"], name="site_id"),
+    )
+    site_sequences = pd.Series(
+        ["AAAAAA"],
+        index=pd.Index(["PRKACA;S339;"], name="site_id"),
+    )
+    provenance = AnalysisReadyPreprocessingProvenance(
+        source="test",
+        schema=DatasetSchema(),
+        comparisons=None,
+        row_counts=AnalysisReadyRowCounts(
+            total_unique=1,
+            total_filtered=1,
+            phospho_filtered=1,
+            phospho_corrected=1,
+            phospho_matrix_sites=1,
+        ),
+        site_matrix_stats=AnalysisReadySiteMatrixStats(
+            input_rows=1,
+            dropped_missing_sequence=0,
+            dropped_incomplete_values=0,
+            deduplicated_site_rows=0,
+            retained_rows=1,
+        ),
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=(
+            "AnalysisReadyPhosphoDataset requires phospho_matrix, site_metadata, "
+            r"and site_sequences to share the same aligned site_id index\."
+        ),
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho_matrix=phospho_matrix,
+            site_metadata=site_metadata,
+            site_sequences=site_sequences,
+            phospho_corrected=pd.DataFrame({"x": [1.0]}),
+            provenance=provenance,
+        )
+
+
+def test_analysis_ready_dataset_rejects_duplicate_site_ids() -> None:
+    phospho_matrix = pd.DataFrame(
+        {"sample": [1.0, 2.0]},
+        index=pd.Index(["PRKACA;S339;", "PRKACA;S339;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {"gene": ["PRKACA", "PRKACA"]},
+        index=pd.Index(["PRKACA;S339;", "PRKACA;S339;"], name="site_id"),
+    )
+    site_sequences = pd.Series(
+        ["AAAAAA", "AAAAAA"],
+        index=pd.Index(["PRKACA;S339;", "PRKACA;S339;"], name="site_id"),
+    )
+    provenance = AnalysisReadyPreprocessingProvenance(
+        source="test",
+        schema=DatasetSchema(),
+        comparisons=None,
+        row_counts=AnalysisReadyRowCounts(
+            total_unique=1,
+            total_filtered=1,
+            phospho_filtered=1,
+            phospho_corrected=2,
+            phospho_matrix_sites=2,
+        ),
+        site_matrix_stats=AnalysisReadySiteMatrixStats(
+            input_rows=2,
+            dropped_missing_sequence=0,
+            dropped_incomplete_values=0,
+            deduplicated_site_rows=0,
+            retained_rows=2,
+        ),
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=(
+            "AnalysisReadyPhosphoDataset requires unique site identifiers; "
+            r"phospho_matrix contains duplicate site IDs\."
+        ),
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho_matrix=phospho_matrix,
+            site_metadata=site_metadata,
+            site_sequences=site_sequences,
+            phospho_corrected=pd.DataFrame({"x": [1.0, 2.0]}),
+            provenance=provenance,
+        )

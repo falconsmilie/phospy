@@ -6,11 +6,17 @@ from pathlib import Path
 
 import pandas as pd
 
-from .constants import ComparisonSpec
+from .constants import (
+    CENTRALIZED_SEQUENCE_COLUMN,
+    SITE_MATRIX_ID_COLUMN,
+    ComparisonSpec,
+)
+from .core_processing import CoreProcessingResult
 from .dataset_loader import DatasetLoader, LoadedDatasetInputs
 from .dataset_preprocessing import DatasetPreprocessing
 from .dataset_schema import DatasetSchema
 from .dataset_site_matrix import DatasetSiteMatrix
+from .validation.errors import InputCompatibilityError
 from .validation.requests import (
     ValidatedDatasetInputs,
     build_validated_dataset_inputs,
@@ -28,6 +34,152 @@ class CoreInputs:
     def copy_frames(self) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Return deep copies suitable for caller-owned mutation."""
         return self.total_df.copy(deep=True), self.phospho_df.copy(deep=True)
+
+
+@dataclass(frozen=True, slots=True)
+class AnalysisReadyRowCounts:
+    """Row counts captured across the core preprocessing stages."""
+
+    total_unique: int
+    total_filtered: int
+    phospho_filtered: int
+    phospho_corrected: int
+    phospho_matrix_sites: int
+
+
+@dataclass(frozen=True, slots=True)
+class AnalysisReadySiteMatrixStats:
+    """Typed row-drop diagnostics from site-matrix construction."""
+
+    input_rows: int
+    dropped_missing_sequence: int
+    dropped_incomplete_values: int
+    deduplicated_site_rows: int
+    retained_rows: int
+
+    @classmethod
+    def from_mapping(
+        cls,
+        row_drop_stats: dict[str, int],
+    ) -> AnalysisReadySiteMatrixStats:
+        return cls(
+            input_rows=int(row_drop_stats.get("input_rows", 0)),
+            dropped_missing_sequence=int(
+                row_drop_stats.get("dropped_missing_sequence", 0)
+            ),
+            dropped_incomplete_values=int(
+                row_drop_stats.get("dropped_incomplete_values", 0)
+            ),
+            deduplicated_site_rows=int(row_drop_stats.get("deduplicated_site_rows", 0)),
+            retained_rows=int(row_drop_stats.get("retained_rows", 0)),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class AnalysisReadyPreprocessingProvenance:
+    """Preprocessing provenance for one analysis-ready phosphosite dataset."""
+
+    source: str
+    schema: DatasetSchema
+    comparisons: tuple[ComparisonSpec, ...] | None
+    row_counts: AnalysisReadyRowCounts
+    site_matrix_stats: AnalysisReadySiteMatrixStats
+
+
+@dataclass(frozen=True, slots=True, init=False)
+class AnalysisReadyPhosphoDataset:
+    """Owned analysis-ready phosphosite state between preprocessing and inference.
+
+    This immutable boundary object carries the minimum phosphosite state needed
+    after preprocessing and before workflow-specific kinase inputs are resolved.
+    It intentionally separates:
+
+    - the phosphosite analysis matrix used for inference
+    - aligned site metadata keyed by site identifier
+    - aligned site-centred sequences
+    - the corrected phosphosite source table the matrix was derived from
+    - preprocessing provenance describing how the boundary was produced
+    """
+
+    phospho_matrix: pd.DataFrame
+    site_metadata: pd.DataFrame
+    site_sequences: pd.Series
+    phospho_corrected: pd.DataFrame
+    provenance: AnalysisReadyPreprocessingProvenance
+
+    def __init__(
+        self,
+        *,
+        phospho_matrix: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        site_sequences: pd.Series,
+        phospho_corrected: pd.DataFrame,
+        provenance: AnalysisReadyPreprocessingProvenance,
+    ) -> None:
+        owned_phospho_matrix = phospho_matrix.copy(deep=True)
+        owned_site_metadata = site_metadata.copy(deep=True)
+        owned_site_sequences = site_sequences.copy(deep=True)
+        owned_phospho_corrected = phospho_corrected.copy(deep=True)
+
+        _validate_analysis_ready_alignment(
+            phospho_matrix=owned_phospho_matrix,
+            site_metadata=owned_site_metadata,
+            site_sequences=owned_site_sequences,
+        )
+
+        object.__setattr__(self, "phospho_matrix", owned_phospho_matrix)
+        object.__setattr__(self, "site_metadata", owned_site_metadata)
+        object.__setattr__(self, "site_sequences", owned_site_sequences)
+        object.__setattr__(self, "phospho_corrected", owned_phospho_corrected)
+        object.__setattr__(self, "provenance", provenance)
+
+    @classmethod
+    def from_core_processing_result(
+        cls,
+        result: CoreProcessingResult,
+        *,
+        schema: DatasetSchema,
+        comparisons: Sequence[ComparisonSpec] | None = None,
+        source: str = "core preprocessing",
+    ) -> AnalysisReadyPhosphoDataset:
+        """Build an analysis-ready dataset from existing preprocessing output."""
+        if not isinstance(result, CoreProcessingResult):
+            msg = (
+                "AnalysisReadyPhosphoDataset.from_core_processing_result() "
+                "requires a CoreProcessingResult instance."
+            )
+            raise TypeError(msg)
+
+        site_metadata = _build_site_metadata(
+            phosr_input=result.site_matrix.phosr_input,
+            corrected_cols=schema.corrected_cols,
+        )
+        row_counts = AnalysisReadyRowCounts(
+            total_unique=len(result.total_unique),
+            total_filtered=len(result.total_filtered),
+            phospho_filtered=len(result.phospho_filtered),
+            phospho_corrected=len(result.phospho_corrected),
+            phospho_matrix_sites=len(result.site_matrix.matrix),
+        )
+        provenance = AnalysisReadyPreprocessingProvenance(
+            source=str(source),
+            schema=schema,
+            comparisons=schema.validate_comparisons(
+                comparisons,
+                context="AnalysisReadyPhosphoDataset provenance comparisons",
+            ),
+            row_counts=row_counts,
+            site_matrix_stats=AnalysisReadySiteMatrixStats.from_mapping(
+                result.site_matrix.row_drop_stats
+            ),
+        )
+        return cls(
+            phospho_matrix=result.site_matrix.matrix,
+            site_metadata=site_metadata,
+            site_sequences=result.site_matrix.sequences,
+            phospho_corrected=result.phospho_corrected,
+            provenance=provenance,
+        )
 
 
 class PhosphoDataset:
@@ -53,16 +205,12 @@ class PhosphoDataset:
         schema: DatasetSchema | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> None:
-        """Validate raw inputs and take ownership of isolated mutable workspace tables.
-
-        Raw caller-supplied frames are isolated at this boundary so later mutation of
-        the caller's original inputs does not affect the dataset workspace.
-        """
         validated_request = validate_dataset_request(
             total_df=total_df,
             phospho_df=phospho_df,
             schema=schema,
             comparisons=comparisons,
+            context="PhosphoDataset",
         )
         self._set_state(validated_request=validated_request)
 
@@ -193,3 +341,73 @@ class PhosphoDataset:
             validated_inputs,
             comparisons=comparisons,
         )
+
+
+def _build_site_metadata(
+    *,
+    phosr_input: pd.DataFrame,
+    corrected_cols: Sequence[str],
+) -> pd.DataFrame:
+    if SITE_MATRIX_ID_COLUMN not in phosr_input.columns:
+        msg = (
+            "Analysis-ready site metadata requires the site-matrix source table to "
+            f"include '{SITE_MATRIX_ID_COLUMN}'."
+        )
+        raise InputCompatibilityError(msg)
+
+    metadata = phosr_input.drop(
+        columns=[*tuple(corrected_cols), CENTRALIZED_SEQUENCE_COLUMN],
+        errors="ignore",
+    ).copy(deep=True)
+    metadata = metadata.set_index(SITE_MATRIX_ID_COLUMN)
+    metadata.index = pd.Index(
+        metadata.index.astype("string"),
+        name=SITE_MATRIX_ID_COLUMN,
+    )
+    return metadata
+
+
+def _validate_analysis_ready_alignment(
+    *,
+    phospho_matrix: pd.DataFrame,
+    site_metadata: pd.DataFrame,
+    site_sequences: pd.Series,
+) -> None:
+    matrix_index = pd.Index(
+        phospho_matrix.index.astype("string"),
+        name=SITE_MATRIX_ID_COLUMN,
+    )
+    metadata_index = pd.Index(
+        site_metadata.index.astype("string"),
+        name=SITE_MATRIX_ID_COLUMN,
+    )
+    sequence_index = pd.Index(
+        site_sequences.index.astype("string"),
+        name=SITE_MATRIX_ID_COLUMN,
+    )
+
+    duplicate_index_contexts = {
+        "phospho_matrix": matrix_index,
+        "site_metadata": metadata_index,
+        "site_sequences": sequence_index,
+    }
+    for name, index in duplicate_index_contexts.items():
+        if not index.is_unique:
+            msg = (
+                "AnalysisReadyPhosphoDataset requires unique site identifiers; "
+                f"{name} contains duplicate site IDs."
+            )
+            raise InputCompatibilityError(msg)
+
+    if not matrix_index.equals(metadata_index) or not matrix_index.equals(
+        sequence_index
+    ):
+        msg = (
+            "AnalysisReadyPhosphoDataset requires phospho_matrix, site_metadata, "
+            "and site_sequences to share the same aligned site_id index."
+        )
+        raise InputCompatibilityError(msg)
+
+    phospho_matrix.index = matrix_index
+    site_metadata.index = metadata_index
+    site_sequences.index = sequence_index
