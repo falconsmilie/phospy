@@ -407,10 +407,10 @@ def test_core_pipeline_request_does_not_mask_unexpected_comparison_validation_er
 
 
 def test_validation_modules_expose_use_case_boundaries() -> None:
-    assert CorePipelineRequest.__module__ == "phospy.validation.requests"
-    assert KinaseActivityRequest.__module__ == "phospy.validation.requests"
-    assert KinaseWorkflowRequest.__module__ == "phospy.validation.requests"
-    assert PredictionRequest.__module__ == "phospy.validation.requests"
+    assert CorePipelineRequest.__module__ == "phospy.validation.requests.pipeline"
+    assert KinaseActivityRequest.__module__ == "phospy.validation.requests.analysis"
+    assert KinaseWorkflowRequest.__module__ == "phospy.validation.requests.workflow"
+    assert PredictionRequest.__module__ == "phospy.validation.requests.prediction"
 
 
 def test_pipeline_request_can_be_created_from_public_dataset_boundary() -> None:
