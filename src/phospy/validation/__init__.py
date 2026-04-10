@@ -1,3 +1,9 @@
+"""Validation domain.
+
+This package owns validation concerns organised by validation type, including
+request validation, schema validation, compatibility checks, and validation
+errors."""
+
 from .compatibility import (
     ProteinCorrectionMatchSummary,
     validate_core_column_alignment,

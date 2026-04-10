@@ -1,3 +1,8 @@
+"""Prediction domain.
+
+This package owns kinase prediction engines, sampling behaviour, scoring
+components, prediction execution, and prediction result models."""
+
 from __future__ import annotations
 
 from .models import (

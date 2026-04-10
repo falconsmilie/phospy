@@ -1,3 +1,9 @@
+"""PhosPy public package root.
+
+The root package currently exposes the supported public surface while the
+internal implementation is being reorganised around domain capability. New code
+should prefer the explicit domain packages over adding more flat root modules."""
+
 from .analysis import KinaseActivityAnalyzer
 from .dataset import AnalysisReadyPhosphoDataset, PhosphoDataset
 from .motifs import (
