@@ -40,11 +40,16 @@ from phospy.dataset_site_matrix import DatasetSiteMatrix
 from phospy.io import load_pred_mat
 from phospy.publishing import OutputPublisher, RunManifestWriter
 from phospy.site_matrix_builder import SiteMatrixBuilder
-from phospy.validation.errors import InputCompatibilityError, RequestValidationError
+from phospy.validation.errors import (
+    InputCompatibilityError,
+    RequestValidationError,
+    TableSchemaError,
+)
 from phospy.writers import CoreOutputWriter
 
 ROOT = Path(__file__).resolve().parents[1]
 L6_REFERENCE_DIR = ROOT / "tests" / "fixtures" / "r_reference_l6"
+SIMPLE_WORKFLOW_FIXTURE_DIR = ROOT / "examples" / "data" / "simple_workflow"
 EXAMPLE_COMPARISONS = [("group1", "group4"), ("group2", "group5"), ("group3", "group6")]
 
 
@@ -1761,3 +1766,59 @@ def test_simple_kinase_workflow_runs_from_files_with_total(tmp_path: Path) -> No
     assert result.reference_bundle.source_metadata.reference == "l6_native"
     assert not result.pred_mat_result.to_frame().empty
     assert result.analysis_ready_dataset.provenance.source == "simple kinase workflow"
+
+
+def test_simple_kinase_workflow_runs_in_memory_from_example_fixtures() -> None:
+    total_df = pd.read_csv(SIMPLE_WORKFLOW_FIXTURE_DIR / "total.tsv", sep="	")
+    phospho_df = pd.read_csv(SIMPLE_WORKFLOW_FIXTURE_DIR / "phospho.tsv", sep="	")
+
+    with SimpleKinaseWorkflow(flank_size=7).run(
+        total=total_df,
+        phospho=phospho_df,
+        species="rat",
+        min_substrates=1,
+        min_motif_size=1,
+        ensemble_size=2,
+        top=3,
+        inclusion=2,
+        n_iterations=2,
+        random_state=7,
+        kinase_activity_threshold=0.1,
+        kinase_activity_min_substrates=1,
+        kinase_activity_top_n_substrates=3,
+    ) as result:
+        assert isinstance(result.analysis_ready_dataset, AnalysisReadyPhosphoDataset)
+        assert result.reference_bundle.species == "rat"
+        assert result.reference_bundle.source_metadata.reference == "l6_native"
+        assert (
+            result.analysis_ready_dataset.provenance.source == "simple kinase workflow"
+        )
+        assert result.pred_mat_result.to_frame(copy=False).shape == (5, 8)
+        assert result.pred_mat_result is result.workflow_result.pred_mat_result
+        assert result.scoring_result is result.workflow_result.scoring_result
+        assert result.prediction_result is result.workflow_result.prediction_result
+
+
+def test_simple_kinase_workflow_rejects_unsupported_reference_selection() -> None:
+    phospho_df = pd.read_csv(SIMPLE_WORKFLOW_FIXTURE_DIR / "phospho.tsv", sep="	")
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=r"Unsupported bundled reference 'unknown_reference' for species 'rat'",
+    ):
+        SimpleKinaseWorkflow(flank_size=7).run(
+            phospho=phospho_df,
+            species="rat",
+            reference="unknown_reference",
+        )
+
+
+def test_simple_kinase_workflow_rejects_incomplete_phospho_input_shape() -> None:
+    phospho_df = pd.read_csv(SIMPLE_WORKFLOW_FIXTURE_DIR / "phospho.tsv", sep="	")
+    incomplete_phospho_df = phospho_df.drop(columns=["centralized_sequence"])
+
+    with pytest.raises(TableSchemaError, match=r"centralized_sequence"):
+        SimpleKinaseWorkflow(flank_size=7).run(
+            phospho=incomplete_phospho_df,
+            species="rat",
+        )

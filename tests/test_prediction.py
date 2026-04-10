@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy import SimpleKinaseWorkflow
 from phospy.io import load_pred_mat
 from phospy.prediction import (
     KinasePredictionResult,
@@ -45,6 +46,10 @@ from phospy.validation.errors import (
     TableSchemaError,
 )
 from phospy.validation.requests import PredictionRequest
+
+SIMPLE_WORKFLOW_FIXTURE_DIR = (
+    Path(__file__).resolve().parents[1] / "examples" / "data" / "simple_workflow"
+)
 
 
 def make_combined_scores() -> pd.DataFrame:
@@ -1490,3 +1495,79 @@ def test_prediction_public_api_has_concrete_result_return_types() -> None:
         get_type_hints(KinasePredictor.predict_from_scoring_result)["return"]
         == KinasePredictionResult
     )
+
+
+def test_simple_kinase_workflow_runs_from_fixture_files_and_pins_result_invariants() -> (
+    None
+):
+    expected_site_ids = [
+        "EIF4B;S422;",
+        "GSK3B;S9;",
+        "TBC1D1;S231;",
+        "TBC1D1;T590;",
+        "TSC2;S939;",
+    ]
+    expected_kinases = [
+        "AKT1",
+        "AKT3",
+        "MAP4K5",
+        "PRKAA1",
+        "PRKACA",
+        "RPS6KA1",
+        "RPS6KB1",
+        "Yang.S6K",
+    ]
+
+    with SimpleKinaseWorkflow(flank_size=7).run(
+        total=SIMPLE_WORKFLOW_FIXTURE_DIR / "total.tsv",
+        phospho=SIMPLE_WORKFLOW_FIXTURE_DIR / "phospho.tsv",
+        species="rat",
+        min_substrates=1,
+        min_motif_size=1,
+        ensemble_size=2,
+        top=3,
+        inclusion=2,
+        n_iterations=2,
+        random_state=7,
+        kinase_activity_threshold=0.1,
+        kinase_activity_min_substrates=1,
+        kinase_activity_top_n_substrates=3,
+    ) as result:
+        pred_mat = result.pred_mat_result.to_frame(copy=False)
+
+        assert (
+            result.analysis_ready_dataset.phospho_matrix.index.tolist()
+            == expected_site_ids
+        )
+        assert result.pred_mat_result.phosphosite_ids.tolist() == expected_site_ids
+        assert result.pred_mat_result.kinase_names.tolist() == expected_kinases
+        assert pred_mat.shape == (5, 8)
+        assert pred_mat.index.tolist() == expected_site_ids
+        assert pred_mat.columns.tolist() == expected_kinases
+        assert result.reference_bundle.species == "rat"
+        assert result.reference_bundle.source_metadata.reference == "l6_native"
+        assert set(result.reference_bundle.substrate_map).issuperset(expected_kinases)
+        assert result.kinase_activity_result.weighted_activity.columns.tolist() == (
+            result.analysis_ready_dataset.phospho_matrix.columns.tolist()
+        )
+        assert result.kinase_activity_result.ksea_scores.columns.tolist() == (
+            result.analysis_ready_dataset.phospho_matrix.columns.tolist()
+        )
+        assert (
+            result.kinase_activity_result.weighted_activity.index.tolist()
+            == expected_kinases
+        )
+        assert set(result.kinase_activity_result.ksea_counts.index.tolist()) == set(
+            expected_kinases
+        )
+        assert set(result.kinase_activity_result.target_counts.index.tolist()) == set(
+            expected_kinases
+        )
+        assert result.kinase_activity_result.ksea_counts.is_monotonic_decreasing
+        assert result.kinase_activity_result.target_counts.is_monotonic_decreasing
+        assert set(result.kinase_activity_result.target_table["site_id"]) == set(
+            expected_site_ids
+        )
+        assert set(result.kinase_activity_result.target_table["kinase"]) == set(
+            expected_kinases
+        )

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset, PhosphoDataset
+from phospy import AnalysisReadyPhosphoDataset, PhosphoDataset, SimpleKinaseWorkflow
 from phospy.dataset_schema import DatasetSchema
 from phospy.preprocessing import (
     CoverageFilterResult,
@@ -950,3 +950,51 @@ def test_dataset_preprocessing_run_analysis_ready_uses_example_fixture_data() ->
     assert analysis_ready.phospho_matrix.index.equals(
         analysis_ready.site_sequences.index
     )
+
+
+def test_simple_kinase_workflow_reuses_bound_analysis_ready_adapter_on_fixture_files() -> (
+    None
+):
+    fixture_dir = (
+        Path(__file__).resolve().parents[1] / "examples" / "data" / "simple_workflow"
+    )
+    dataset = PhosphoDataset.from_files(
+        total_path=fixture_dir / "total.tsv",
+        phospho_path=fixture_dir / "phospho.tsv",
+    )
+    expected = dataset.run_analysis_ready(
+        source="simple kinase workflow",
+    )
+
+    with SimpleKinaseWorkflow(flank_size=7).run(
+        total=fixture_dir / "total.tsv",
+        phospho=fixture_dir / "phospho.tsv",
+        species="rat",
+        min_substrates=1,
+        min_motif_size=1,
+        ensemble_size=2,
+        top=3,
+        inclusion=2,
+        n_iterations=2,
+        random_state=7,
+        kinase_activity_threshold=0.1,
+        kinase_activity_min_substrates=1,
+        kinase_activity_top_n_substrates=3,
+    ) as result:
+        pd.testing.assert_frame_equal(
+            result.analysis_ready_dataset.phospho_matrix,
+            expected.phospho_matrix,
+        )
+        pd.testing.assert_frame_equal(
+            result.analysis_ready_dataset.site_metadata,
+            expected.site_metadata,
+        )
+        pd.testing.assert_series_equal(
+            result.analysis_ready_dataset.site_sequences,
+            expected.site_sequences,
+        )
+        pd.testing.assert_frame_equal(
+            result.analysis_ready_dataset.phospho_corrected,
+            expected.phospho_corrected,
+        )
+        assert result.analysis_ready_dataset.provenance == expected.provenance
