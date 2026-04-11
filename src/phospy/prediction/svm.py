@@ -66,6 +66,34 @@ class _RLikeStandardScaler:
         return self.fit(values, y=y).transform(values)
 
 
+def aligned_binary_decision_vector(
+    *,
+    model,
+    values: np.ndarray,
+    positive_probabilities: np.ndarray | None,
+) -> np.ndarray:
+    """Return binary decision values aligned so larger means more class 1-like."""
+
+    decision_values = np.asarray(model.decision_function(values), dtype=float).reshape(
+        -1
+    )
+    if positive_probabilities is None:
+        return decision_values
+
+    aligned_probabilities = np.asarray(positive_probabilities, dtype=float).reshape(-1)
+    finite_mask = np.isfinite(decision_values) & np.isfinite(aligned_probabilities)
+    if finite_mask.sum() < 2:
+        return decision_values
+
+    corr = np.corrcoef(
+        decision_values[finite_mask],
+        aligned_probabilities[finite_mask],
+    )[0, 1]
+    if np.isfinite(corr) and corr < 0:
+        return -decision_values
+    return decision_values
+
+
 def aligned_binary_decision_values(
     *,
     model,
@@ -75,17 +103,18 @@ def aligned_binary_decision_values(
 ) -> pd.Series:
     """Return binary decision values aligned so larger means more class 1-like."""
 
-    decision_values = np.asarray(model.decision_function(values), dtype=float).reshape(
-        -1
+    aligned_probability_vector = None
+    if positive_probabilities is not None:
+        aligned_probability_vector = positive_probabilities.reindex(index).to_numpy(
+            dtype=float,
+            copy=False,
+        )
+    decision_values = aligned_binary_decision_vector(
+        model=model,
+        values=values,
+        positive_probabilities=aligned_probability_vector,
     )
-    series = pd.Series(decision_values, index=index, dtype=float)
-    if positive_probabilities is None:
-        return series
-    aligned_probabilities = positive_probabilities.reindex(index)
-    corr = series.corr(aligned_probabilities, method="pearson")
-    if pd.notna(corr) and corr < 0:
-        return -series
-    return series
+    return pd.Series(decision_values, index=index, dtype=float)
 
 
 def make_svm(
@@ -162,6 +191,7 @@ def require_sklearn() -> tuple[type, type]:
 
 __all__ = [
     "aligned_binary_decision_values",
+    "aligned_binary_decision_vector",
     "extract_svm_probability_parameters",
     "make_svm",
     "require_sklearn",

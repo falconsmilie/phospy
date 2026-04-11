@@ -16,6 +16,7 @@ from .sampling_runtime import (
 from .sampling_trace_writer import write_final_trace_rows, write_iteration_trace_rows
 from .svm import (
     aligned_binary_decision_values,
+    aligned_binary_decision_vector,
     extract_svm_probability_parameters,
     make_svm,
     require_sklearn,
@@ -42,28 +43,64 @@ def _fit_sampling_model(
     return model
 
 
-def _extract_iteration_probabilities(
+def _build_probability_frame(
+    *,
+    prob_mat: np.ndarray,
+    index: pd.Index,
+    classes: np.ndarray,
+) -> pd.DataFrame:
+    return pd.DataFrame(
+        prob_mat,
+        index=index,
+        columns=[str(class_label) for class_label in classes],
+    )
+
+
+def _positive_probability_vector(
+    *,
+    prob_mat: np.ndarray,
+    classes: np.ndarray,
+) -> np.ndarray | None:
+    positive_idx = np.flatnonzero(classes == 1)
+    if len(positive_idx) != 1:
+        return None
+    return prob_mat[:, int(positive_idx[0])]
+
+
+def _extract_iteration_sampling_state(
     *,
     model: Any,
     base_x: np.ndarray,
-    base_y: np.ndarray,
-    base_index: pd.Index,
-) -> tuple[np.ndarray, pd.DataFrame, pd.Series, pd.DataFrame | None, pd.Series]:
+) -> tuple[np.ndarray, np.ndarray]:
     prob_mat = model.predict_proba(base_x)
-    prob_df = pd.DataFrame(
-        prob_mat,
-        index=base_index,
-        columns=[str(class_label) for class_label in model.classes_],
-    )
-    decision_series = aligned_binary_decision_values(
+    decision_values = aligned_binary_decision_vector(
         model=model,
         values=base_x,
-        index=base_index,
-        positive_probabilities=prob_df.get("1"),
+        positive_probabilities=_positive_probability_vector(
+            prob_mat=prob_mat,
+            classes=np.asarray(model.classes_),
+        ),
     )
+    return prob_mat, decision_values
+
+
+def _extract_iteration_trace_payload(
+    *,
+    model: Any,
+    prob_mat: np.ndarray,
+    decision_values: np.ndarray,
+    base_y: np.ndarray,
+    base_index: pd.Index,
+) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame | None, pd.Series]:
+    prob_df = _build_probability_frame(
+        prob_mat=prob_mat,
+        index=base_index,
+        classes=np.asarray(model.classes_),
+    )
+    decision_series = pd.Series(decision_values, index=base_index, dtype=float)
     probability_parameters = extract_svm_probability_parameters(model)
     label_series = pd.Series(base_y, index=base_index, dtype=int)
-    return prob_mat, prob_df, decision_series, probability_parameters, label_series
+    return prob_df, decision_series, probability_parameters, label_series
 
 
 def _compute_class_weights(
@@ -216,17 +253,9 @@ def multi_ada_sampling(
             StandardScaler=StandardScaler,
             SVC=SVC,
         )
-        (
-            prob_mat,
-            prob_df,
-            decision_series,
-            probability_parameters,
-            label_series,
-        ) = _extract_iteration_probabilities(
+        prob_mat, decision_values = _extract_iteration_sampling_state(
             model=model,
             base_x=base_x,
-            base_y=base_y,
-            base_index=base_index,
         )
         weights_by_class = _compute_class_weights(
             model=model,
@@ -249,6 +278,18 @@ def multi_ada_sampling(
         )
 
         if capture_trace and trace_level == "full" and trace_sink is not None:
+            (
+                prob_df,
+                decision_series,
+                probability_parameters,
+                label_series,
+            ) = _extract_iteration_trace_payload(
+                model=model,
+                prob_mat=prob_mat,
+                decision_values=decision_values,
+                base_y=base_y,
+                base_index=base_index,
+            )
             write_iteration_trace_rows(
                 trace_sink=trace_sink,
                 kinase=kinase,
@@ -268,10 +309,10 @@ def multi_ada_sampling(
 
     test_x = test_mat.to_numpy(dtype=float)
     pred = model.predict_proba(test_x)
-    pred_df = pd.DataFrame(
-        pred,
+    pred_df = _build_probability_frame(
+        prob_mat=pred,
         index=test_mat.index.copy(),
-        columns=[str(class_label) for class_label in model.classes_],
+        classes=np.asarray(model.classes_),
     )
     positive_idx = np.flatnonzero(model.classes_ == 1)
     if len(positive_idx) != 1:

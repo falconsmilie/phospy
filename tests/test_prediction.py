@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import phospy.prediction.sampling_core as _sampling_core
 from phospy import SimpleKinaseWorkflow
 from phospy.errors import (
     NoCandidateKinasesError,
@@ -412,6 +413,130 @@ def test_directory_trace_sink_rejects_non_positive_auto_flush_threshold(
 ) -> None:
     with pytest.raises(ValueError, match="max_buffer_rows"):
         DirectoryTraceSink(tmp_path / "trace_output", max_buffer_rows=0)
+
+
+def test_multi_ada_sampling_uses_numpy_iteration_path_when_trace_capture_is_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    train_mat = pd.DataFrame(
+        {
+            "feature_1": [1.0, 0.9, 0.1, 0.0],
+            "feature_2": [1.0, 0.8, 0.2, 0.1],
+        },
+        index=["SITE_1", "SITE_2", "SITE_3", "SITE_4"],
+    )
+    test_mat = train_mat.copy()
+    labels = np.asarray([1, 1, 2, 2], dtype=int)
+    calls = {"sampling": 0, "trace": 0}
+
+    original_sampling_state = _sampling_core._extract_iteration_sampling_state
+    original_trace_payload = _sampling_core._extract_iteration_trace_payload
+
+    def counting_sampling_state(**kwargs):
+        calls["sampling"] += 1
+        return original_sampling_state(**kwargs)
+
+    def counting_trace_payload(**kwargs):
+        calls["trace"] += 1
+        return original_trace_payload(**kwargs)
+
+    monkeypatch.setattr(
+        _sampling_core,
+        "_extract_iteration_sampling_state",
+        counting_sampling_state,
+    )
+    monkeypatch.setattr(
+        _sampling_core,
+        "_extract_iteration_trace_payload",
+        counting_trace_payload,
+    )
+
+    _multi_ada_sampling(
+        train_mat=train_mat,
+        test_mat=test_mat,
+        labels=labels,
+        kernel="rbf",
+        n_iterations=2,
+        resampling_rng=np.random.default_rng(7),
+        capture_trace=False,
+        trace_level="none",
+        trace_sink=None,
+        kinase="KINASE_A",
+        ensemble_index=1,
+        initial_negative_sites=["SITE_3", "SITE_4"],
+        debug_top_n=2,
+        svm_mode="default",
+        sampling_override=None,
+    )
+
+    assert calls == {"sampling": 2, "trace": 0}
+
+
+def test_multi_ada_sampling_builds_trace_payload_only_for_full_trace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    train_mat = pd.DataFrame(
+        {
+            "feature_1": [1.0, 0.9, 0.1, 0.0],
+            "feature_2": [1.0, 0.8, 0.2, 0.1],
+        },
+        index=["SITE_1", "SITE_2", "SITE_3", "SITE_4"],
+    )
+    test_mat = train_mat.copy()
+    labels = np.asarray([1, 1, 2, 2], dtype=int)
+    calls = {"sampling": 0, "trace": 0}
+
+    class MemoryTraceSink(TraceSink):
+        def __init__(self) -> None:
+            self.rows: dict[str, list[dict[str, object]]] = {}
+
+        def write_rows(self, table_name: str, rows: list[dict[str, object]]) -> None:
+            self.rows.setdefault(table_name, []).extend(rows)
+
+        def read_table(self, table_name: str) -> pd.DataFrame:
+            return pd.DataFrame(self.rows.get(table_name, []))
+
+    original_sampling_state = _sampling_core._extract_iteration_sampling_state
+    original_trace_payload = _sampling_core._extract_iteration_trace_payload
+
+    def counting_sampling_state(**kwargs):
+        calls["sampling"] += 1
+        return original_sampling_state(**kwargs)
+
+    def counting_trace_payload(**kwargs):
+        calls["trace"] += 1
+        return original_trace_payload(**kwargs)
+
+    monkeypatch.setattr(
+        _sampling_core,
+        "_extract_iteration_sampling_state",
+        counting_sampling_state,
+    )
+    monkeypatch.setattr(
+        _sampling_core,
+        "_extract_iteration_trace_payload",
+        counting_trace_payload,
+    )
+
+    _multi_ada_sampling(
+        train_mat=train_mat,
+        test_mat=test_mat,
+        labels=labels,
+        kernel="rbf",
+        n_iterations=2,
+        resampling_rng=np.random.default_rng(7),
+        capture_trace=True,
+        trace_level="full",
+        trace_sink=MemoryTraceSink(),
+        kinase="KINASE_A",
+        ensemble_index=1,
+        initial_negative_sites=["SITE_3", "SITE_4"],
+        debug_top_n=2,
+        svm_mode="default",
+        sampling_override=None,
+    )
+
+    assert calls == {"sampling": 2, "trace": 2}
 
 
 def test_multi_ada_sampling_requires_trace_sink_for_full_trace() -> None:
