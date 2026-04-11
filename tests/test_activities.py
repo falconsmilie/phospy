@@ -186,6 +186,25 @@ def test_build_kinase_target_table() -> None:
     assert table.shape[0] == 6
 
 
+@pytest.mark.parametrize("threshold", [-0.1, 1.1])
+def test_thresholded_activity_helpers_reject_invalid_threshold(
+    threshold: float,
+) -> None:
+    with pytest.raises(RequestValidationError, match="threshold"):
+        build_kinase_target_table(make_pred_mat(), threshold=threshold)
+
+    with pytest.raises(RequestValidationError, match="threshold"):
+        count_predicted_targets(make_pred_mat(), threshold=threshold)
+
+    with pytest.raises(RequestValidationError, match="threshold"):
+        compute_ksea_scores(
+            pred_mat=make_pred_mat(),
+            phospho_matrix=make_phospho_matrix(),
+            threshold=threshold,
+            min_substrates=1,
+        )
+
+
 def test_compute_weighted_kinase_activity_skips_zero_weight_kinases() -> None:
     pred_mat = pd.DataFrame(
         {

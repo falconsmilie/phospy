@@ -82,6 +82,7 @@ def build_kinase_target_table(
 ) -> pd.DataFrame:
     """Materialize a kinase-target edge table for reporting and export."""
 
+    threshold = _validate_threshold_request(threshold=threshold)
     filtered = pred_mat.where(pred_mat > threshold)
     try:
         edges = filtered.stack(future_stack=True).rename("score").reset_index()
@@ -98,6 +99,7 @@ def count_predicted_targets(
 ) -> pd.Series:
     """Count predicted kinase targets using matrix-native thresholding."""
 
+    threshold = _validate_threshold_request(threshold=threshold)
     counts = _prediction_mask(pred_mat, threshold=threshold).sum(axis=0)
     counts = counts.reindex(pred_mat.columns, fill_value=0).astype(int)
     counts.index.name = "kinase"
@@ -208,6 +210,10 @@ def _validate_thresholded_activity_request(
         threshold=threshold,
         min_substrates=min_substrates,
     )
+
+
+def _validate_threshold_request(*, threshold: float) -> float:
+    return KinaseActivityRequest.validate_request(threshold=threshold).threshold
 
 
 def _build_site_position_lookup(index: pd.Index) -> dict[object, int]:
