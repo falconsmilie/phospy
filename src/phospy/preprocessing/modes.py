@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from ..datasets.builders import DatasetSiteMatrix
-from ..datasets.loaders import DatasetLoader
+from ..datasets.loaders import DatasetLoader, LoadedDatasetInputs
 from ..datasets.models import AnalysisReadyPhosphoDataset, PhosphoDataset
 from ..datasets.schema import DatasetSchema
 from ..internal.constants import (
@@ -51,16 +51,14 @@ class FullAnalysisReadyPreprocessor:
         phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
         source: str = "analysis ready dataset builder",
     ) -> AnalysisReadyPhosphoDataset:
-        phospho_df = _resolve_phospho_input(
-            phospho,
+        loaded_inputs = _resolve_full_dataset_inputs(
+            total=total,
+            phospho=phospho,
             dataset_loader=self.dataset_loader,
             phospho_encoding=phospho_encoding,
         )
-        total_df = _resolve_total_input(total, dataset_loader=self.dataset_loader)
         dataset = PhosphoDataset.from_loaded_inputs(
-            self.dataset_loader.validate_inputs(
-                total_df=total_df, phospho_df=phospho_df
-            ),
+            loaded_inputs,
             comparisons=self.comparisons,
         )
         return dataset.run_analysis_ready(
@@ -220,3 +218,32 @@ def _resolve_phospho_input(
     if isinstance(phospho, pd.DataFrame):
         return dataset_loader.validate_phospho(phospho)
     return dataset_loader.load_phospho(phospho, encoding=phospho_encoding)
+
+
+def _resolve_full_dataset_inputs(
+    *,
+    total: pd.DataFrame | str | Path,
+    phospho: pd.DataFrame | str | Path,
+    dataset_loader: DatasetLoader,
+    phospho_encoding: str | None,
+) -> LoadedDatasetInputs:
+    if isinstance(total, pd.DataFrame) and isinstance(phospho, pd.DataFrame):
+        return dataset_loader.validate_inputs(total_df=total, phospho_df=phospho)
+    if not isinstance(total, pd.DataFrame) and not isinstance(phospho, pd.DataFrame):
+        return dataset_loader.load(
+            total,
+            phospho,
+            phospho_encoding=phospho_encoding,
+        )
+
+    total_df = _resolve_total_input(total, dataset_loader=dataset_loader)
+    phospho_df = _resolve_phospho_input(
+        phospho,
+        dataset_loader=dataset_loader,
+        phospho_encoding=phospho_encoding,
+    )
+    return LoadedDatasetInputs(
+        total_df=total_df,
+        phospho_df=phospho_df,
+        schema=dataset_loader.schema,
+    )

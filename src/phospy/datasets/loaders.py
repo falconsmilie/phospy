@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from ..errors import RequestValidationError, TableSchemaError
-from ..io import load_phospho_table, load_total_table, read_table
+from ..io import read_table
 from ..validation.requests import validate_dataset_file_paths, validate_dataset_frames
 from ..validation.schema.files import validate_existing_file_path
 from ..validation.schema.tables import PhosphoInputSchema, TotalInputSchema
@@ -69,6 +69,32 @@ class DatasetLoader:
             schema=self.schema,
         )
 
+    def _load_total_from_validated_path(
+        self,
+        path: Path,
+        *,
+        encoding: str | None = None,
+    ) -> pd.DataFrame:
+        frame = self._read_input_table(
+            path,
+            context="total input table",
+            encoding=encoding,
+        )
+        return self.validate_total(frame)
+
+    def _load_phospho_from_validated_path(
+        self,
+        path: Path,
+        *,
+        encoding: str | None = None,
+    ) -> pd.DataFrame:
+        frame = self._read_input_table(
+            path,
+            context="phospho input table",
+            encoding=encoding,
+        )
+        return self.validate_phospho(frame)
+
     def load_total(
         self,
         total_path: str | Path,
@@ -81,21 +107,10 @@ class DatasetLoader:
             total_path,
             context="total input table path",
         )
-        try:
-            return load_total_table(validated_path, encoding=encoding)
-        except TableSchemaError:
-            raise
-        except (
-            OSError,
-            UnicodeError,
-            pd.errors.ParserError,
-            pd.errors.EmptyDataError,
-        ) as error:
-            msg = (
-                f"Invalid total input table ({validated_path}): unable to read file: "
-                f"{error}"
-            )
-            raise RequestValidationError(msg) from error
+        return self._load_total_from_validated_path(
+            validated_path,
+            encoding=encoding,
+        )
 
     def load_phospho(
         self,
@@ -109,21 +124,10 @@ class DatasetLoader:
             phospho_path,
             context="phospho input table path",
         )
-        try:
-            return load_phospho_table(validated_path, encoding=encoding)
-        except TableSchemaError:
-            raise
-        except (
-            OSError,
-            UnicodeError,
-            pd.errors.ParserError,
-            pd.errors.EmptyDataError,
-        ) as error:
-            msg = (
-                f"Invalid phospho input table ({validated_path}): unable to read "
-                f"file: {error}"
-            )
-            raise RequestValidationError(msg) from error
+        return self._load_phospho_from_validated_path(
+            validated_path,
+            encoding=encoding,
+        )
 
     def load(
         self,
@@ -136,18 +140,16 @@ class DatasetLoader:
             total_path,
             phospho_path,
         )
-        validated_total_path = validated_paths.total_path
-        validated_phospho_path = validated_paths.phospho_path
-        total_df = self._read_input_table(
-            validated_total_path,
-            context="total input table",
-        )
-        phospho_df = self._read_input_table(
-            validated_phospho_path,
-            context="phospho input table",
+        total_df = self._load_total_from_validated_path(validated_paths.total_path)
+        phospho_df = self._load_phospho_from_validated_path(
+            validated_paths.phospho_path,
             encoding=phospho_encoding,
         )
-        return self.validate_inputs(total_df=total_df, phospho_df=phospho_df)
+        return LoadedDatasetInputs(
+            total_df=total_df,
+            phospho_df=phospho_df,
+            schema=self.schema,
+        )
 
     @staticmethod
     def _read_input_table(

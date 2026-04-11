@@ -1055,6 +1055,57 @@ def test_pipeline_from_files_validates_inputs_once(monkeypatch, tmp_path) -> Non
     assert phospho_calls == 1
 
 
+def test_simple_kinase_workflow_from_files_validates_inputs_once(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    total_df, phospho_df = make_simple_workflow_inputs()
+    total_df.to_csv(total_path, sep="	", index=False)
+    phospho_df.to_csv(phospho_path, sep="	", index=False)
+
+    from phospy.validation.schema.tables import PhosphoInputSchema, TotalInputSchema
+
+    total_calls = 0
+    phospho_calls = 0
+    original_total_validate = TotalInputSchema.validate
+    original_phospho_validate = PhosphoInputSchema.validate
+
+    def counting_total_validate(*args, **kwargs):
+        nonlocal total_calls
+        total_calls += 1
+        return original_total_validate(*args, **kwargs)
+
+    def counting_phospho_validate(*args, **kwargs):
+        nonlocal phospho_calls
+        phospho_calls += 1
+        return original_phospho_validate(*args, **kwargs)
+
+    monkeypatch.setattr(TotalInputSchema, "validate", counting_total_validate)
+    monkeypatch.setattr(PhosphoInputSchema, "validate", counting_phospho_validate)
+
+    result = SimpleKinaseWorkflow(flank_size=7).run(
+        total=total_path,
+        phospho=phospho_path,
+        species="rat",
+        min_substrates=1,
+        min_motif_size=1,
+        ensemble_size=2,
+        top=3,
+        inclusion=2,
+        n_iterations=2,
+        random_state=7,
+        kinase_activity_threshold=0.1,
+        kinase_activity_min_substrates=1,
+        kinase_activity_top_n_substrates=3,
+    )
+
+    assert isinstance(result.analysis_ready_dataset, AnalysisReadyPhosphoDataset)
+    assert total_calls == 1
+    assert phospho_calls == 1
+
+
 def test_pipeline_does_not_expose_request_specific_builders() -> None:
     assert not hasattr(PhosRPipeline, "from_request")
     assert not hasattr(PhosRPipeline, "from_validated_request")
