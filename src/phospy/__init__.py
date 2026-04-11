@@ -1,10 +1,11 @@
 """PhosPy public package root.
 
 The root package keeps a deliberately small convenience surface for supported
-high-level types while implementation code is organised around domain capability
-packages such as ``api``, ``datasets``, ``prediction``, ``preprocessing``,
-``activities``, ``signalomes``, and ``references``. New code should prefer
-those domain packages directly.
+high-level workflows, selected dataset and result types, and the main bundled
+reference entry points. Implementation code is organised around domain
+capability packages such as ``api``, ``datasets``, ``prediction``,
+``preprocessing``, ``activities``, ``signalomes``, and ``references``. New
+code should prefer those domain packages directly.
 """
 
 from .activities import KinaseActivityAnalyzer
@@ -28,6 +29,8 @@ from .signalomes import SignalomeResult
 from .signalomes.maps import SignalomeMapData
 from .signalomes.networks import SignalomeNetworkData
 
+# Intentionally retained convenience exports for simple public usage.
+# Keep this list small and prefer domain-package imports in new code.
 __all__ = [
     "AnalysisReadyPhosphoDataset",
     "BundledReferenceProvider",

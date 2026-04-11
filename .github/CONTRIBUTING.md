@@ -76,6 +76,25 @@ GitHub Actions currently runs:
 
 If you intentionally change fixture-producing behaviour, regenerate the affected fixtures and explain the change clearly in the pull request.
 
+
+## Package Layout
+
+PhosPy is organised by domain capability first. Use the package that owns the
+behaviour rather than adding new root-level modules.
+
+Start here:
+
+- [`docs/architecture/package-layout.md`](../docs/architecture/package-layout.md)
+- [`docs/adr/0004-reorganise-by-domain.md`](../docs/adr/0004-reorganise-by-domain.md)
+
+A few rules matter most:
+
+- keep `phospy.api` thin and orchestration-only
+- put preprocessing in `phospy.preprocessing`
+- put prediction and `predMat` execution in `phospy.prediction`
+- put bundled biological reference handling in `phospy.references`
+- keep `phospy.internal` narrow and internal-only
+
 ## Good Starting Areas
 
 The public roadmap lives in [`docs/roadmap.md`](../docs/roadmap.md). Good contributions usually improve the supported surface without over-claiming: clearer diagnostics, better validation, tighter docs, and carefully scoped PhosR-inspired additions.

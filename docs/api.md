@@ -31,6 +31,34 @@ from phospy.signalomes import (
 
 The root package still exposes a thin convenience surface for supported high-level types, but new code should prefer the domain packages above.
 
+
+## Root convenience surface
+
+`import phospy` remains intentionally supported for a small set of high-level
+entry points and result types:
+
+- `AnalysisReadyPhosphoDataset`
+- `PhosphoDataset`
+- `PhosRPipeline`
+- `KinaseActivityAnalyzer`
+- `KinaseWorkflow`
+- `PredMatWorkflow`
+- `SignalomeWorkflow`
+- `SimpleKinaseWorkflow`
+- `PredMatResult`
+- `ReferenceBundle`
+- `ReferenceBundleProvenance`
+- `ReferenceBundleSourceMetadata`
+- `ReferenceProvider`
+- `BundledReferenceProvider`
+- `SignalomeResult`
+- `SignalomeMapData`
+- `SignalomeNetworkData`
+
+That surface is intentionally small and convenience-oriented. New code should
+prefer the owning domain package unless a root import materially improves the
+public user experience.
+
 Use:
 
 - `PhosphoDataset` for validated total and phospho inputs plus core preprocessing

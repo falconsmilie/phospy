@@ -1,7 +1,8 @@
 # Root package migration map for ADR-0004
 
-This document turns ADR-0004 into a concrete first-pass migration map for the
-current `src/phospy/` tree.
+This document is the historical migration record for the ADR-0004 domain
+refactor. For the current contributor-facing package layout, use
+[`docs/architecture/package-layout.md`](./package-layout.md).
 
 ## Goals of ticket 1
 
@@ -97,23 +98,9 @@ These files should not be relocated intact.
 
 - Ticket 4 centralised the preprocessing implementation under `src/phospy/preprocessing/`, removed the flat preprocessing modules, and introduced explicit full-mode and phospho-only analysis-ready preprocessing paths used by the public workflow surface.
 
+## Final status
 
-## Ticket 8 notes
-
-- `ReferenceBundle`, `ReferenceProvider`, and bundled reference resolution moved from `motifs.py` into `references/models.py`, `references/resources.py`, and `references/resolution.py`.
-- `motifs.py` now owns motif scoring only; bundled reference assets and species resolution are owned by `references/`.
-
-
-## Ticket 9 notes
-
-- Shared table reading and mapping-file loading now live in `phospy.io.readers` and `phospy.io.mappings`.
-- Output publishing and persisted tabular writers now live in `phospy.io.publishing` and `phospy.io.writers`.
-- The shared application error hierarchy now lives in `phospy.errors`, and validation code imports those error classes instead of owning a separate `validation/errors.py` module.
-- Shared constants and internal type aliases now live in `phospy.internal.constants` and `phospy.internal.types`.
-
-## Ticket 10 cleanup notes
-
-- Internal source imports now use the domain package layout directly rather than removed flat module paths.
-- Repository examples and API documentation now prefer domain-package imports such as `phospy.api`, `phospy.datasets`, `phospy.activities`, `phospy.references`, and `phospy.signalomes`.
-- The root package remains a thin convenience surface for supported high-level types, but it is no longer the documented default import path for domain-owned classes.
-- Removed flat modules such as `phospy.core_processing` are no longer referenced in the docs or examples.
+The domain refactor is complete enough that this document should be treated as
+historical context rather than the main contributor guide. The current package
+layout and root-package policy are described in
+[`docs/architecture/package-layout.md`](./package-layout.md).
