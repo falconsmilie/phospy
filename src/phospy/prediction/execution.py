@@ -8,6 +8,7 @@ import pandas as pd
 from ..errors import PredictionConfigurationError
 from ..internal.types import PredictionTraceLevel
 from ..validation.requests import PredictionRequest
+from .contracts import EnsemblePredictorContract
 from .policies import (
     PredictionSamplingPolicy,
     PredictionSamplingRandomSource,
@@ -210,7 +211,7 @@ class TraceRecorder:
             trace_state.trace_sink.flush()
 
 
-class EnsemblePredictor:
+class EnsemblePredictor(EnsemblePredictorContract):
     def __init__(
         self,
         *,

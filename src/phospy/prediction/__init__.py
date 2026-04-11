@@ -5,6 +5,7 @@ components, prediction execution, and prediction result models."""
 
 from __future__ import annotations
 
+from .contracts import EnsemblePredictorContract
 from .engines import (
     KinasePredictor,
     KinaseWorkflowExecutionResult,
@@ -35,6 +36,7 @@ from .traces import (
 )
 
 __all__ = [
+    "EnsemblePredictorContract",
     "AdaptiveSamplingEnsembleTrace",
     "AdaptiveSamplingIterationTrace",
     "KinasePredictionDebugTrace",

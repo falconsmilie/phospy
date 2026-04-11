@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from inspect import signature
 from pathlib import Path
 
 import numpy as np
@@ -17,6 +16,7 @@ from ..internal.types import (
 from ..motifs import MotifScoringResult
 from ..profiles import KinaseProfileResult, build_kinase_substrate_profiles
 from ..references import ReferenceBundle
+from ..validation.domain.prediction import validate_ensemble_predictor
 from ..validation.requests import (
     PredictionRequest,
     ValidatedWorkflowRequest,
@@ -24,6 +24,7 @@ from ..validation.requests import (
 )
 from .aggregation import PredictionAggregator
 from .candidates import CandidateSelector, build_candidate_substrate_list
+from .contracts import EnsemblePredictorContract
 from .execution import (
     EnsemblePredictor,
     NegativePoolSampler,
@@ -92,12 +93,12 @@ class PredictionExecutionRunner:
         candidate_selector: CandidateSelector,
         prediction_aggregator: PredictionAggregator,
         trace_recorder: TraceRecorder,
-        ensemble_predictor: EnsemblePredictor | None,
+        ensemble_predictor: EnsemblePredictorContract | None,
     ) -> None:
         self.candidate_selector = candidate_selector
         self.prediction_aggregator = prediction_aggregator
         self.trace_recorder = trace_recorder
-        self.ensemble_predictor = ensemble_predictor
+        self.ensemble_predictor = validate_ensemble_predictor(ensemble_predictor)
 
     def run(self, request: PredictionRequest) -> KinasePredictionResult:
         substrate_list = self.candidate_selector.select(
@@ -125,20 +126,15 @@ class PredictionExecutionRunner:
             trace_sink=request.trace_sink,
         )
         sampling_session = PredictionSamplingSession.from_request(request)
-        predict_kinase_parameters = signature(
-            self.ensemble_predictor.predict_kinase
-        ).parameters
         for kinase, substrates in substrate_list.items():
-            predict_kinase_kwargs = {
-                "kinase": kinase,
-                "substrates": substrates,
-                "feature_mat": feature_mat,
-                "request": request,
-                "trace_state": trace_state,
-            }
-            if "sampling_session" in predict_kinase_parameters:
-                predict_kinase_kwargs["sampling_session"] = sampling_session
-            batch = self.ensemble_predictor.predict_kinase(**predict_kinase_kwargs)
+            batch = self.ensemble_predictor.predict_kinase(
+                kinase=kinase,
+                substrates=substrates,
+                feature_mat=feature_mat,
+                request=request,
+                trace_state=trace_state,
+                sampling_session=sampling_session,
+            )
             self.prediction_aggregator.add_kinase_scores(
                 pred_matrix=pred_matrix,
                 batch=batch,
@@ -177,7 +173,7 @@ class KinasePredictor:
         negative_pool_sampler: NegativePoolSampler | None = None,
         trace_recorder: TraceRecorder | None = None,
         prediction_aggregator: PredictionAggregator | None = None,
-        ensemble_predictor: EnsemblePredictor | None = None,
+        ensemble_predictor: EnsemblePredictorContract | None = None,
     ) -> None:
         self.kernel = kernel
         self.request_factory = request_factory or PredictionRequestFactory(

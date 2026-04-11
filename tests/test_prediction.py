@@ -15,6 +15,7 @@ from phospy.errors import (
 )
 from phospy.io import load_pred_mat
 from phospy.prediction import (
+    EnsemblePredictorContract,
     KinasePredictionResult,
     KinasePredictor,
     KinaseScoringResult,
@@ -1483,6 +1484,13 @@ def test_build_candidate_substrate_list_rejects_invalid_combined_scores_cleanly(
             score_threshold=0.8,
             inclusion=1,
         )
+
+
+def test_prediction_public_api_uses_explicit_ensemble_predictor_contract() -> None:
+    assert (
+        get_type_hints(KinasePredictor.__init__)["ensemble_predictor"]
+        == EnsemblePredictorContract | None
+    )
 
 
 def test_prediction_public_api_has_concrete_result_return_types() -> None:
