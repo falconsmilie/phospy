@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 
 from ..types import PredictionSvmMode, PredictionTraceLevel
-from .models import AdaptiveSamplingEnsembleTrace, SamplingTraceOverrideEnsemble
 from .policies import PredictionSamplingPolicy, resolve_prediction_sampling_policy
+from .results import AdaptiveSamplingEnsembleTrace, SamplingTraceOverrideEnsemble
 from .sampling_runtime import (
     normalize_probabilities,
     resolve_sampled_site_positions,

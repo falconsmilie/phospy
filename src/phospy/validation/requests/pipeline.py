@@ -22,7 +22,7 @@ from .shared import PhospyRequestModel, normalize_pred_mat_input
 
 if TYPE_CHECKING:
     from ...datasets.models import PhosphoDataset
-    from ...prediction.models import PredMatResult
+    from ...prediction.results import PredMatResult
 
 
 class CorePipelineRequest(PhospyRequestModel):

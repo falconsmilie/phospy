@@ -16,6 +16,7 @@ from ..datasets import AnalysisReadyPhosphoDataset, DatasetSchema
 from ..motifs import MotifScoringResult
 from ..prediction import (
     KinasePredictionResult,
+    KinaseScoringResult,
     KinaseWorkflowExecutor,
     PredMatResult,
 )
@@ -27,7 +28,6 @@ from ..references import (
     ReferenceBundle,
     ReferenceProvider,
 )
-from ..scoring import KinaseScoringResult
 from ..signalomes import SignalomeResult, execute_validated_signalome_request
 from ..types import PredictionSvmMode
 from ..validation.requests import (

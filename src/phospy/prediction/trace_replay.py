@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from ..validation.errors import TableSchemaError
-from .models import SamplingTraceOverrideEnsemble
+from .results import SamplingTraceOverrideEnsemble
 
 
 def _iter_trace_table_frames(

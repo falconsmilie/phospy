@@ -12,7 +12,7 @@ from phospy import (
     SignalomeResult,
     SignalomeWorkflow,
 )
-from phospy.scoring import KinaseScoringResult
+from phospy.prediction import KinaseScoringResult
 
 
 def build_demo_inputs() -> tuple[KinaseScoringResult, PredMatResult, pd.DataFrame]:

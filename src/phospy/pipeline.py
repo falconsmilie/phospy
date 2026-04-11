@@ -28,7 +28,7 @@ __all__ = ["CoreOutputs", "PhosRPipeline"]
 
 
 if TYPE_CHECKING:
-    from .prediction.models import PredMatResult
+    from .prediction.results import PredMatResult
 
 
 @dataclass(slots=True)

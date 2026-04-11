@@ -8,10 +8,10 @@ import pytest
 from phospy.motifs import KinaseMotifScorer, create_frequency_matrix
 from phospy.prediction import (
     KinasePredictor,
+    KinaseScorer,
     PredictionSamplingTrace,
     build_candidate_substrate_list,
 )
-from phospy.scoring import KinaseScorer
 from phospy.validation.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,

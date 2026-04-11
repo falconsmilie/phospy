@@ -6,7 +6,7 @@ import pandas as pd
 
 from ..validation.errors import NoCandidateKinasesError
 from ..validation.requests import PredictionRequest
-from .models import KinasePredictionResult
+from .results import KinasePredictionResult
 
 if TYPE_CHECKING:
     from .execution import KinasePredictionBatch, PredictionTraceState

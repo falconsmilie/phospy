@@ -22,12 +22,13 @@ from phospy.constants import (
 )
 from phospy.prediction import (
     KinasePredictor,
+    KinaseScorer,
     PredictionSamplingTrace,
     build_candidate_substrate_list,
+    combine_profile_and_motif_scores,
     prediction_debug_trace_tables,
 )
 from phospy.profiles import build_kinase_substrate_profiles
-from phospy.scoring import KinaseScorer, combine_profile_and_motif_scores
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_DATA = ROOT / "examples" / "data"

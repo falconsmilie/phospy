@@ -52,7 +52,7 @@ current `src/phospy/` tree.
 | `src/phospy/preprocessing_services.py` | `src/phospy/preprocessing/services.py` | Completed in ticket 4 | Preprocessing service objects now live inside the preprocessing domain; the legacy flat module was removed |
 | `src/phospy/profiles.py` | `src/phospy/prediction/profiles.py` | Move later | Kinase substrate profile generation feeds prediction scoring |
 | `src/phospy/publishing.py` | `src/phospy/io/publishing.py` | Move later | Output publication is a structured I/O concern |
-| `src/phospy/scoring.py` | `src/phospy/prediction/scoring.py` | Move later | Kinase scoring is part of prediction execution |
+| `src/phospy/scoring.py` | `src/phospy/prediction/scoring.py` | Moved | Kinase scoring now lives in the prediction domain |
 | `src/phospy/signalome_assignments.py` | `src/phospy/signalomes/assignments.py` | Move later | Signalome-specific process module |
 | `src/phospy/signalome_clustering.py` | `src/phospy/signalomes/clustering.py` | Move later | Signalome-specific process module |
 | `src/phospy/signalome_construction.py` | `src/phospy/signalomes/construction.py` | Move later | Signalome-specific process module |
@@ -65,6 +65,9 @@ current `src/phospy/` tree.
 | `src/phospy/types.py` | `src/phospy/internal/types.py` | Move later | Shared internal type aliases are infrastructure support rather than a user-facing domain |
 | `src/phospy/workflow.py` | `src/phospy/api/workflows.py` | Completed in ticket 2 | Supported public workflow entry points now live in `api/`; remaining domain helpers were pushed toward `prediction/`, `preprocessing/`, `references/`, `activities/`, and `signalomes/` |
 | `src/phospy/writers.py` | `src/phospy/io/writers.py` | Move later | Output writers belong in structured I/O |
+| `src/phospy/prediction/models.py` | `src/phospy/prediction/results.py` | Completed in ticket 5 | Prediction result models now live in an explicit `results.py` module |
+| `src/phospy/prediction/service.py` | `src/phospy/prediction/engines.py` | Completed in ticket 5 | Prediction execution services now live in `engines.py` with the rest of the execution layer |
+| `src/phospy/prediction/workflows.py` | `src/phospy/prediction/engines.py` | Completed in ticket 5 | Workflow-bound prediction execution now lives with the rest of the prediction engine code |
 | `src/phospy/prediction/` | `src/phospy/prediction/` | Keep and continue refining | This domain package already exists and should remain the home for prediction logic |
 | `src/phospy/validation/` | `src/phospy/validation/` | Keep and continue refining | The validation refactor already established the right top-level direction |
 | `src/phospy/data/` | `src/phospy/references/assets/` | Move later | Bundled biological reference assets should sit with the references domain |

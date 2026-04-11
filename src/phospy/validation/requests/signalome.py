@@ -21,8 +21,8 @@ from ..values.collections import (
 from .shared import PhospyRequestModel
 
 if TYPE_CHECKING:
-    from ...prediction.models import KinasePredictionResult, PredMatResult
-    from ...scoring import KinaseScoringResult
+    from ...prediction.results import KinasePredictionResult, PredMatResult
+    from ...prediction.scoring import KinaseScoringResult
 
 
 class SignalomeRequest(PhospyRequestModel):

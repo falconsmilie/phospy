@@ -24,7 +24,7 @@ __all__ = ["KinaseActivityAnalyzer", "KinaseActivityResult"]
 
 
 if TYPE_CHECKING:
-    from ..prediction.models import PredMatResult
+    from ..prediction.results import PredMatResult
 
 
 PredMatLoader = Callable[[str | Path], pd.DataFrame]

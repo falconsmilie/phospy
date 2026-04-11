@@ -171,8 +171,10 @@ def main() -> None:
     if str(SRC) not in sys.path:
         sys.path.insert(0, str(SRC))
 
-    from phospy.prediction import build_candidate_substrate_list
-    from phospy.scoring import combine_profile_and_motif_scores
+    from phospy.prediction import (
+        build_candidate_substrate_list,
+        combine_profile_and_motif_scores,
+    )
 
     outdir.mkdir(parents=True, exist_ok=True)
     trace_outdir = outdir / "prediction_trace"

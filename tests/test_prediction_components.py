@@ -5,8 +5,8 @@ import pytest
 
 from phospy.prediction.aggregation import PredictionAggregator
 from phospy.prediction.candidates import CandidateSelector
+from phospy.prediction.engines import PredictionExecutionRunner
 from phospy.prediction.execution import TraceRecorder
-from phospy.prediction.service import PredictionExecutionRunner
 from phospy.validation.errors import NoCandidateKinasesError
 from phospy.validation.requests import PredictionRequest
 

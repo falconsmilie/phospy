@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 from ..errors import RequestValidationError
 
 if TYPE_CHECKING:
-    from ...prediction.models import PredMatResult
+    from ...prediction.results import PredMatResult
 
 
 class PhospyRequestModel(BaseModel):
@@ -39,7 +39,7 @@ def normalize_pred_mat_input(
 ) -> pd.DataFrame | None:
     """Normalize public predMat inputs to the internal DataFrame contract."""
 
-    from ...prediction.models import PredMatResult
+    from ...prediction.results import PredMatResult
 
     if isinstance(pred_mat, PredMatResult):
         return pred_mat.to_frame(copy=False)

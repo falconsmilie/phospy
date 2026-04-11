@@ -12,6 +12,7 @@ from phospy.io import load_pred_mat
 from phospy.prediction import (
     KinasePredictionResult,
     KinasePredictor,
+    KinaseScoringResult,
     PredictionSamplingTrace,
     PredMatResult,
     build_candidate_substrate_list,
@@ -39,7 +40,6 @@ from phospy.prediction.svm import (
 )
 from phospy.prediction.trace_runtime import TraceSink
 from phospy.prediction.traces import DirectoryTraceSink, create_trace_sink
-from phospy.scoring import KinaseScoringResult
 from phospy.validation.errors import (
     NoCandidateKinasesError,
     RequestValidationError,

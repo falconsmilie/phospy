@@ -10,8 +10,8 @@ from ..errors import NoCandidateKinasesError, RequestValidationError
 from ..schema.tables import PredMatSchema
 
 if TYPE_CHECKING:
-    from ...prediction.models import KinasePredictionResult, PredMatResult
-    from ...scoring import KinaseScoringResult
+    from ...prediction.results import KinasePredictionResult, PredMatResult
+    from ...prediction.scoring import KinaseScoringResult
 
 
 def validate_signalome_site_grouping(
@@ -41,7 +41,7 @@ def validate_signalome_site_grouping(
 
 
 def resolve_scoring_matrix(scoring_result: KinaseScoringResult) -> pd.DataFrame:
-    from ...scoring import KinaseScoringResult
+    from ...prediction.scoring import KinaseScoringResult
 
     if not isinstance(scoring_result, KinaseScoringResult):
         msg = "scoring_result must be a KinaseScoringResult"
@@ -69,7 +69,7 @@ def validate_prediction_result_pred_mat(
 def resolve_pred_mat(
     prediction_result: KinasePredictionResult | PredMatResult,
 ) -> pd.DataFrame:
-    from ...prediction.models import KinasePredictionResult, PredMatResult
+    from ...prediction.results import KinasePredictionResult, PredMatResult
 
     if isinstance(prediction_result, KinasePredictionResult):
         return prediction_result.pred_mat_result.to_frame(copy=False)

@@ -12,7 +12,7 @@ from ..types import PredictionTraceFormat, PredictionTraceLevel
 
 if TYPE_CHECKING:
     from ..validation.requests import PredictionRequest
-    from .models import KinasePredictionResult
+    from .results import KinasePredictionResult
 
 TRACE_TABLE_NAMES: tuple[str, ...] = (
     "trace_selected_candidates",

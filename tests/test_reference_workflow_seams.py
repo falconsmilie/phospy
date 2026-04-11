@@ -11,9 +11,9 @@ from phospy.prediction import (
     KinasePredictor,
     PredictionSamplingTrace,
     build_candidate_substrate_list,
+    combine_profile_and_motif_scores,
     prediction_debug_trace_tables,
 )
-from phospy.scoring import combine_profile_and_motif_scores
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES_DIR = ROOT / "tests" / "fixtures"

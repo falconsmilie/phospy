@@ -8,12 +8,12 @@ import pandas as pd
 from ..types import PredictionTraceLevel
 from ..validation.errors import PredictionConfigurationError
 from ..validation.requests import PredictionRequest
-from .models import KinasePredictionDebugTrace
 from .policies import (
     PredictionSamplingPolicy,
     PredictionSamplingRandomSource,
     resolve_prediction_sampling_policy,
 )
+from .results import KinasePredictionDebugTrace
 from .sampling import (
     multi_ada_sampling,
     validate_override_sites,

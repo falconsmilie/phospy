@@ -5,7 +5,16 @@ components, prediction execution, and prediction result models."""
 
 from __future__ import annotations
 
-from .models import (
+from .engines import (
+    KinasePredictor,
+    KinaseWorkflowExecutionResult,
+    KinaseWorkflowExecutor,
+    PredictionExecutionRunner,
+    PredictionRequestFactory,
+    build_candidate_substrate_list,
+)
+from .policies import PredictionSamplingPolicy, resolve_prediction_sampling_policy
+from .results import (
     AdaptiveSamplingEnsembleTrace,
     AdaptiveSamplingIterationTrace,
     KinasePredictionDebugTrace,
@@ -13,15 +22,17 @@ from .models import (
     PredMatResult,
     SamplingTraceOverrideEnsemble,
 )
-from .policies import PredictionSamplingPolicy, resolve_prediction_sampling_policy
-from .service import KinasePredictor, build_candidate_substrate_list
+from .scoring import (
+    KinaseScorer,
+    KinaseScoringResult,
+    combine_profile_and_motif_scores,
+)
 from .traces import (
     DirectoryTraceSink,
     PredictionSamplingTrace,
     TraceSink,
     prediction_debug_trace_tables,
 )
-from .workflows import KinaseWorkflowExecutionResult, KinaseWorkflowExecutor
 
 __all__ = [
     "AdaptiveSamplingEnsembleTrace",
@@ -30,14 +41,19 @@ __all__ = [
     "KinasePredictionResult",
     "PredMatResult",
     "DirectoryTraceSink",
-    "PredictionSamplingPolicy",
     "KinasePredictor",
+    "KinaseScorer",
+    "KinaseScoringResult",
     "KinaseWorkflowExecutionResult",
     "KinaseWorkflowExecutor",
+    "PredictionExecutionRunner",
+    "PredictionRequestFactory",
+    "PredictionSamplingPolicy",
     "PredictionSamplingTrace",
-    "resolve_prediction_sampling_policy",
-    "TraceSink",
     "SamplingTraceOverrideEnsemble",
+    "TraceSink",
     "build_candidate_substrate_list",
+    "combine_profile_and_motif_scores",
     "prediction_debug_trace_tables",
+    "resolve_prediction_sampling_policy",
 ]
