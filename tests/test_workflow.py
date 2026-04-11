@@ -4,13 +4,13 @@ import pandas as pd
 import pytest
 
 from phospy.api import KinaseWorkflow, PredMatWorkflow
-from phospy.motifs import (
-    KinaseMotifScorer,
+from phospy.motifs import KinaseMotifScorer
+from phospy.prediction import PredMatResult
+from phospy.references import (
     ReferenceBundle,
     ReferenceBundleProvenance,
     ReferenceBundleSourceMetadata,
 )
-from phospy.prediction import PredMatResult
 from phospy.validation.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,

@@ -96,3 +96,9 @@ These files should not be relocated intact.
 - Existing `prediction/` and `validation/` packages were retained and documented rather than recreated.
 
 - Ticket 4 centralised the preprocessing implementation under `src/phospy/preprocessing/`, removed the flat preprocessing modules, and introduced explicit full-mode and phospho-only analysis-ready preprocessing paths used by the public workflow surface.
+
+
+## Ticket 8 notes
+
+- `ReferenceBundle`, `ReferenceProvider`, and bundled reference resolution moved from `motifs.py` into `references/models.py`, `references/resources.py`, and `references/resolution.py`.
+- `motifs.py` now owns motif scoring only; bundled reference assets and species resolution are owned by `references/`.

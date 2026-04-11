@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-from ...motifs import ReferenceBundle
+from ...references import ReferenceBundle
 from ..errors import RequestValidationError
 
 

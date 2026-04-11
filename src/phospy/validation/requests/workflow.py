@@ -6,7 +6,8 @@ from dataclasses import dataclass
 import pandas as pd
 from pydantic import Field, ValidationError, field_validator, model_validator
 
-from ...motifs import KinaseMotifScorer, ReferenceBundle
+from ...motifs import KinaseMotifScorer
+from ...references import ReferenceBundle
 from ...types import PredictionSvmMode
 from ..compatibility import validate_workflow_matrix_inputs
 from ..domain import resolve_reference_bundle_inputs

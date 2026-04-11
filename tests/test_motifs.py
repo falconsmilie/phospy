@@ -6,16 +6,18 @@ import pytest
 
 import phospy.motifs as motifs
 from phospy.motifs import (
-    BundledReferenceProvider,
     KinaseMotifScorer,
-    ReferenceBundle,
-    ReferenceBundleProvenance,
-    ReferenceBundleSourceMetadata,
-    ReferenceProvider,
     ValidatedMotifLibrary,
     create_frequency_matrix,
     frequency_scoring,
     score_phosphosite_motifs,
+)
+from phospy.references import (
+    BundledReferenceProvider,
+    ReferenceBundle,
+    ReferenceBundleProvenance,
+    ReferenceBundleSourceMetadata,
+    ReferenceProvider,
 )
 from phospy.validation.errors import InputCompatibilityError, TableSchemaError
 
