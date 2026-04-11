@@ -202,6 +202,24 @@ def test_analyzer_rejects_invalid_request_threshold() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("field_name", "field_value"),
+    [("min_substrates", 0), ("top_n_substrates", 0)],
+)
+def test_analyzer_rejects_invalid_activity_count_parameters(
+    field_name: str,
+    field_value: int,
+) -> None:
+    kwargs = {
+        "pred_mat": make_pred_mat(),
+        "phospho_matrix": make_phospho_matrix(),
+        field_name: field_value,
+    }
+
+    with pytest.raises(RequestValidationError, match=field_name):
+        KinaseActivityAnalyzer().run(**kwargs)
+
+
 def test_analyzer_load_pred_mat_validates_through_loader_once(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -85,6 +85,18 @@ def test_kinase_workflow_request_rejects_invalid_threshold() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("field_name", "field_value"),
+    [("min_substrates", 0), ("top_n_substrates", 0)],
+)
+def test_kinase_activity_request_rejects_invalid_positive_int_fields(
+    field_name: str,
+    field_value: int,
+) -> None:
+    with pytest.raises(RequestValidationError, match=field_name):
+        KinaseActivityRequest.validate_request(**{field_name: field_value})
+
+
 def test_kinase_workflow_request_requires_site_sequences_with_motifs() -> None:
     phospho_matrix = pd.DataFrame({"sample_1": [1.0]}, index=["SITE_1"])
 

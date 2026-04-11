@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from ..internal.constants import SITE_MATRIX_ID_COLUMN
+from ..validation.requests import KinaseActivityRequest
 
 
 def compute_weighted_kinase_activity(
@@ -19,6 +20,13 @@ def compute_weighted_kinase_activity(
     selected substrates contain no observed phosphosite values in any sample are
     omitted from the returned activity matrix.
     """
+
+    request = _validate_weighted_activity_request(
+        top_n_substrates=top_n_substrates,
+        min_substrates=min_substrates,
+    )
+    top_n_substrates = request.top_n_substrates
+    min_substrates = request.min_substrates
 
     kinases = pred_mat.columns.tolist()
     samples = phospho_matrix.columns.tolist()
@@ -110,6 +118,13 @@ def compute_ksea_scores(
     omitted from both returned outputs.
     """
 
+    request = _validate_thresholded_activity_request(
+        threshold=threshold,
+        min_substrates=min_substrates,
+    )
+    threshold = request.threshold
+    min_substrates = request.min_substrates
+
     aligned_pred_mat, aligned_matrix = _align_activity_inputs(
         pred_mat=pred_mat,
         phospho_matrix=phospho_matrix,
@@ -171,6 +186,28 @@ def _align_activity_inputs(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     common_sites = pred_mat.index.intersection(phospho_matrix.index)
     return pred_mat.loc[common_sites], phospho_matrix.loc[common_sites]
+
+
+def _validate_weighted_activity_request(
+    *,
+    top_n_substrates: int,
+    min_substrates: int,
+) -> KinaseActivityRequest:
+    return KinaseActivityRequest.validate_request(
+        top_n_substrates=top_n_substrates,
+        min_substrates=min_substrates,
+    )
+
+
+def _validate_thresholded_activity_request(
+    *,
+    threshold: float,
+    min_substrates: int,
+) -> KinaseActivityRequest:
+    return KinaseActivityRequest.validate_request(
+        threshold=threshold,
+        min_substrates=min_substrates,
+    )
 
 
 def _build_site_position_lookup(index: pd.Index) -> dict[object, int]:

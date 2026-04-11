@@ -11,6 +11,7 @@ from phospy.activities import (
     compute_weighted_kinase_activity,
     count_predicted_targets,
 )
+from phospy.errors import RequestValidationError
 
 
 def make_pred_mat() -> pd.DataFrame:
@@ -143,6 +144,40 @@ def test_compute_ksea_scores_and_target_counts() -> None:
     target_counts = count_predicted_targets(pred_mat, threshold=0.6)
     assert int(target_counts.loc["BTK"]) == 3
     assert int(counts.loc["PRKACA"]) == 3
+
+
+@pytest.mark.parametrize("top_n_substrates", [0, -1])
+def test_compute_weighted_kinase_activity_rejects_invalid_top_n_substrates(
+    top_n_substrates: int,
+) -> None:
+    with pytest.raises(RequestValidationError, match="top_n_substrates"):
+        compute_weighted_kinase_activity(
+            pred_mat=make_pred_mat(),
+            phospho_matrix=make_phospho_matrix(),
+            top_n_substrates=top_n_substrates,
+            min_substrates=1,
+        )
+
+
+@pytest.mark.parametrize("min_substrates", [0, -1])
+def test_activity_scoring_helpers_reject_invalid_min_substrates(
+    min_substrates: int,
+) -> None:
+    with pytest.raises(RequestValidationError, match="min_substrates"):
+        compute_weighted_kinase_activity(
+            pred_mat=make_pred_mat(),
+            phospho_matrix=make_phospho_matrix(),
+            top_n_substrates=1,
+            min_substrates=min_substrates,
+        )
+
+    with pytest.raises(RequestValidationError, match="min_substrates"):
+        compute_ksea_scores(
+            pred_mat=make_pred_mat(),
+            phospho_matrix=make_phospho_matrix(),
+            threshold=0.6,
+            min_substrates=min_substrates,
+        )
 
 
 def test_build_kinase_target_table() -> None:
