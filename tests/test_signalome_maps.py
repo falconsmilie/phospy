@@ -7,7 +7,7 @@ import pandas as pd
 
 from phospy import PredMatWorkflow, SignalomeMapData
 from phospy.api import SignalomeWorkflow
-from phospy.signalome_maps import build_signalome_map_data
+from phospy.signalomes.maps import build_signalome_map_data
 
 
 def make_workflow_inputs() -> tuple[

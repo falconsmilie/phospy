@@ -23,9 +23,9 @@ from .references import (
     ReferenceBundleSourceMetadata,
     ReferenceProvider,
 )
-from .signalome_maps import SignalomeMapData
-from .signalome_networks import SignalomeNetworkData
 from .signalomes import SignalomeResult
+from .signalomes.maps import SignalomeMapData
+from .signalomes.networks import SignalomeNetworkData
 
 __all__ = [
     "AnalysisReadyPhosphoDataset",

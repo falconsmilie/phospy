@@ -5,8 +5,8 @@ from collections.abc import Mapping, Sequence
 
 import pandas as pd
 
-from .signalome_models import ExpandedSignalome
-from .signalome_site_ids import (
+from .results import ExpandedSignalome
+from .site_ids import (
     parse_supported_signalome_site_ids,
     protein_id_from_supported_signalome_site_id,
     resolve_signalome_site_to_protein,

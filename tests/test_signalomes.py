@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-import phospy.signalome_clustering as signalome_clustering
+import phospy.signalomes.clustering as signalome_clustering
 from phospy import PredMatResult, SignalomeResult
 from phospy.api import PredMatWorkflow, SignalomeWorkflow
 from phospy.signalomes import build_signalome_result

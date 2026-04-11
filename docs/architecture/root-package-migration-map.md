@@ -53,13 +53,13 @@ current `src/phospy/` tree.
 | `src/phospy/profiles.py` | `src/phospy/prediction/profiles.py` | Move later | Kinase substrate profile generation feeds prediction scoring |
 | `src/phospy/publishing.py` | `src/phospy/io/publishing.py` | Move later | Output publication is a structured I/O concern |
 | `src/phospy/scoring.py` | `src/phospy/prediction/scoring.py` | Moved | Kinase scoring now lives in the prediction domain |
-| `src/phospy/signalome_assignments.py` | `src/phospy/signalomes/assignments.py` | Move later | Signalome-specific process module |
-| `src/phospy/signalome_clustering.py` | `src/phospy/signalomes/clustering.py` | Move later | Signalome-specific process module |
-| `src/phospy/signalome_construction.py` | `src/phospy/signalomes/construction.py` | Move later | Signalome-specific process module |
-| `src/phospy/signalome_maps.py` | `src/phospy/signalomes/maps.py` | Move later | Signalome map outputs belong inside the signalome domain |
-| `src/phospy/signalome_models.py` | `src/phospy/signalomes/models.py` | Move later | Signalome result models belong inside the signalome domain |
-| `src/phospy/signalome_networks.py` | `src/phospy/signalomes/networks.py` | Move later | Signalome network outputs belong inside the signalome domain |
-| `src/phospy/signalome_site_ids.py` | `src/phospy/signalomes/site_ids.py` | Move later | Signalome-specific site identifier parsing and resolution |
+| `src/phospy/signalome_assignments.py` | `src/phospy/signalomes/assignments.py` | Moved | Signalome-specific process module |
+| `src/phospy/signalome_clustering.py` | `src/phospy/signalomes/clustering.py` | Moved | Signalome-specific process module |
+| `src/phospy/signalome_construction.py` | `src/phospy/signalomes/analysis.py` | Moved | Signalome construction and execution now live inside the signalome domain |
+| `src/phospy/signalome_maps.py` | `src/phospy/signalomes/maps.py` | Moved | Signalome map outputs belong inside the signalome domain |
+| `src/phospy/signalome_models.py` | `src/phospy/signalomes/results.py` | Moved | Signalome result models belong inside the signalome domain |
+| `src/phospy/signalome_networks.py` | `src/phospy/signalomes/networks.py` | Moved | Signalome network outputs belong inside the signalome domain |
+| `src/phospy/signalome_site_ids.py` | `src/phospy/signalomes/site_ids.py` | Moved | Signalome-specific site identifier parsing and resolution |
 | `src/phospy/signalomes` | `src/phospy/signalomes/` | Created now, split later | The package now exists; later tickets can collapse the remaining signalome modules into it |
 | `src/phospy/site_matrix_builder.py` | `src/phospy/preprocessing/site_matrix.py` | Completed in ticket 4 | Site-matrix building now lives inside the preprocessing domain; the legacy flat module was removed |
 | `src/phospy/types.py` | `src/phospy/internal/types.py` | Move later | Shared internal type aliases are infrastructure support rather than a user-facing domain |

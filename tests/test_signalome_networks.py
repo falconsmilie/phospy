@@ -6,12 +6,12 @@ from pathlib import Path
 import pandas as pd
 
 from phospy import SignalomeNetworkData
-from phospy.signalome_networks import (
+from phospy.signalomes import build_signalome_result
+from phospy.signalomes.networks import (
     SignalomeNetworkEdge,
     SignalomeNetworkNode,
     build_signalome_network_data,
 )
-from phospy.signalomes import build_signalome_result
 
 
 def _build_signalome_result_with_network_edge():

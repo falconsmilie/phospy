@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 if TYPE_CHECKING:
-    from .signalome_maps import SignalomeMapData
-    from .signalome_networks import SignalomeNetworkData
+    from .maps import SignalomeMapData
+    from .networks import SignalomeNetworkData
 
 __all__ = [
     "ExpandedSignalome",
@@ -217,14 +217,14 @@ class SignalomeResult:
     def to_map_data(self) -> SignalomeMapData:
         """Build serialisable map-ready plotting data from this result."""
 
-        from .signalome_maps import build_signalome_map_data
+        from .maps import build_signalome_map_data
 
         return build_signalome_map_data(self)
 
     def to_network_data(self) -> SignalomeNetworkData:
         """Build graph-friendly kinase-network data from this result."""
 
-        from .signalome_networks import build_signalome_network_data
+        from .networks import build_signalome_network_data
 
         return build_signalome_network_data(self)
 

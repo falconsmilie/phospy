@@ -6,7 +6,13 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .signalome_assignments import (
+from ..validation.errors import InputCompatibilityError
+from ..validation.requests import (
+    SignalomeRequest,
+    ValidatedSignalomeRequest,
+    _build_validated_signalome_request,
+)
+from .assignments import (
     build_expanded_signalomes,
     build_kinase_module_relationship_table,
     build_protein_assignment_table,
@@ -15,18 +21,12 @@ from .signalome_assignments import (
     derive_protein_modules,
     select_kinase_substrates,
 )
-from .signalome_clustering import cluster_sites
-from .signalome_models import (
+from .clustering import cluster_sites
+from .results import (
     SignalomeAssignments,
     SignalomeKinaseNetwork,
     SignalomeModules,
     SignalomeResult,
-)
-from .validation.errors import InputCompatibilityError
-from .validation.requests import (
-    SignalomeRequest,
-    ValidatedSignalomeRequest,
-    _build_validated_signalome_request,
 )
 
 __all__ = ["SignalomePlan", "SignalomeRunner", "build_signalome_result"]
