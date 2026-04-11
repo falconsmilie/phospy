@@ -5,9 +5,9 @@ from collections.abc import Iterable, Sequence
 import numpy as np
 import pandas as pd
 
-from .constants import ComparisonSpec
-from .datasets.schema import DatasetSchema
-from .validation.schema.frames import require_columns, require_numeric_series
+from ..constants import ComparisonSpec
+from ..datasets.schema import DatasetSchema
+from ..validation.schema.frames import require_columns, require_numeric_series
 
 """Internal preprocessing transformation primitives.
 

@@ -10,7 +10,7 @@ from ..constants import (
     GENE_P_SITE_COLUMN,
     SITE_MATRIX_ID_COLUMN,
 )
-from ..site_matrix_builder import SiteMatrixBuilder, SiteMatrixResult
+from ..preprocessing.site_matrix import SiteMatrixBuilder, SiteMatrixResult
 from ..validation.errors import InputCompatibilityError
 from .schema import DatasetSchema
 

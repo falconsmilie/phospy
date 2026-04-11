@@ -25,7 +25,7 @@ from .constants import (
     KSEA_COUNTS_FILENAME,
     KSEA_SCORES_FILENAME,
 )
-from .core_processing import CoreProcessingResult
+from .preprocessing import CoreProcessingResult
 
 CoreOutputFormat: TypeAlias = Literal["csv", "tsv", "parquet"]
 

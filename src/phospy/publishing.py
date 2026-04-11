@@ -15,7 +15,7 @@ from .constants import RUN_MANIFEST_FILENAME
 
 if TYPE_CHECKING:
     from .activities import KinaseActivityResult
-    from .core_processing import CorePreprocessingConfig, CoreProcessingResult
+    from .preprocessing import CorePreprocessingConfig, CoreProcessingResult
 
 
 def package_version() -> str:

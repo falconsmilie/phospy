@@ -12,8 +12,8 @@ from ..constants import (
     DEFAULT_TOTAL_SENTINEL,
     ComparisonSpec,
 )
-from ..core_processing import CorePreprocessingConfig, CoreProcessingResult
-from ..dataset_preprocessing import DatasetPreprocessing
+from ..preprocessing.core import CorePreprocessingConfig, CoreProcessingResult
+from ..preprocessing.dataset import DatasetPreprocessing
 from .builders import (
     DatasetSiteMatrix,
     _build_site_metadata,

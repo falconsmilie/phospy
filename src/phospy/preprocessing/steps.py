@@ -8,28 +8,28 @@ from typing import Literal, overload
 
 import pandas as pd
 
-from ._preprocessing_primitives import (
+from ..constants import LOCALIZATION_PROB_COLUMN, ComparisonSpec
+from ..datasets.schema import DatasetSchema
+from ..validation.errors import PhospyValidationError
+from ..validation.schema.frames import (
+    require_columns,
+    require_numeric_columns,
+    require_numeric_series,
+)
+from ..validation.values.collections import resolve_required_columns
+from ..validation.values.numeric import validate_fraction, validate_non_negative_int
+from .primitives import (
     _add_pairwise_comparisons_in_place,
     _collapse_duplicate_genes_owned,
     _filter_localized_sites_without_copy,
     _filter_min_observed_without_copy,
     _replace_sentinel_with_nan_in_place,
 )
-from ._protein_correction import (
+from .protein_correction import (
     ProteinCorrectionResult,
     ProteinCorrectionSummary,
     run_protein_correction,
 )
-from .constants import LOCALIZATION_PROB_COLUMN, ComparisonSpec
-from .datasets.schema import DatasetSchema
-from .validation.errors import PhospyValidationError
-from .validation.schema.frames import (
-    require_columns,
-    require_numeric_columns,
-    require_numeric_series,
-)
-from .validation.values.collections import resolve_required_columns
-from .validation.values.numeric import validate_fraction, validate_non_negative_int
 
 """Standalone preprocessing helpers.
 

@@ -11,7 +11,10 @@ from phospy.datasets import DatasetSchema
 from phospy.preprocessing import (
     CoverageFilterResult,
     LocalizationFilterResult,
+    PhosphoPreprocessor,
     ProteinCorrectionResult,
+    ProteinCorrectionService,
+    TotalPreprocessor,
     add_pairwise_comparisons,
     collapse_duplicate_genes,
     correct_phospho_to_protein,
@@ -19,11 +22,6 @@ from phospy.preprocessing import (
     filter_min_observed,
     filter_sites_by_coverage,
     replace_sentinel_with_nan,
-)
-from phospy.preprocessing_services import (
-    PhosphoPreprocessor,
-    ProteinCorrectionService,
-    TotalPreprocessor,
 )
 from phospy.validation.errors import (
     InputCompatibilityError,
@@ -742,7 +740,7 @@ def test_protein_correction_service_applies_correction_and_pairwise_augmentation
 def test_protein_correction_service_does_not_route_through_public_facade(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import phospy.preprocessing_services as preprocessing_services_module
+    import phospy.preprocessing.services as preprocessing_services_module
 
     phospho_df = pd.DataFrame(
         {
@@ -808,7 +806,7 @@ def test_add_pairwise_comparisons_uses_schema_group_names() -> None:
 
 def test_dataset_preprocessing_run_rejects_mixed_config_styles() -> None:
     from phospy import PhosphoDataset
-    from phospy.core_processing import CorePreprocessingConfig
+    from phospy.preprocessing import CorePreprocessingConfig
 
     dataset = PhosphoDataset(
         total_df=pd.DataFrame(

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from .constants import (
+from ..constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
     GENE_P_SITE_COLUMN,
@@ -14,14 +14,14 @@ from .constants import (
     TOTAL_GENE_COLUMN,
     ComparisonSpec,
 )
-from .datasets.schema import DatasetSchema
-from .preprocessing_services import (
+from ..datasets.schema import DatasetSchema
+from ..validation.errors import InputCompatibilityError
+from .services import (
     PhosphoPreprocessor,
     ProteinCorrectionService,
     TotalPreprocessor,
 )
-from .site_matrix_builder import SiteMatrixBuilder, SiteMatrixResult
-from .validation.errors import InputCompatibilityError
+from .site_matrix import SiteMatrixBuilder, SiteMatrixResult
 
 """Advanced core preprocessing orchestration.
 

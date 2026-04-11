@@ -6,27 +6,27 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .constants import (
+from ..constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
     ComparisonSpec,
 )
-from .core_processing import (
+from ..datasets.schema import DatasetSchema
+from .core import (
     CorePreprocessingConfig,
     CoreProcessingResult,
     CoreProcessor,
     resolve_core_preprocessing_config,
 )
-from .datasets.schema import DatasetSchema
 
 if TYPE_CHECKING:
-    from .datasets.models import AnalysisReadyPhosphoDataset
+    from ..datasets.models import AnalysisReadyPhosphoDataset
 
 """Bound dataset preprocessing facade.
 
 `DatasetPreprocessing` is the preferred public entrypoint for running the core
 preprocessing path. Lower-level step services remain available in
-`phospy.core_processing` and `phospy.preprocessing_services` for advanced use,
+`phospy.preprocessing.core` and `phospy.preprocessing.services` for advanced use,
 but are intentionally not mirrored as separate bound public methods here.
 """
 
@@ -110,7 +110,7 @@ class DatasetPreprocessing:
         core preprocessing and site-matrix behaviour and binds provenance to the
         schema and comparisons already owned by this preprocessing facade.
         """
-        from .datasets.models import AnalysisReadyPhosphoDataset
+        from ..datasets.models import AnalysisReadyPhosphoDataset
 
         return AnalysisReadyPhosphoDataset.from_core_processing_result(
             result,

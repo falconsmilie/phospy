@@ -10,9 +10,9 @@ import pandas as pd
 
 from .activities import KinaseActivityAnalyzer, KinaseActivityResult
 from .constants import ComparisonSpec
-from .core_processing import CorePreprocessingConfig, CoreProcessingResult
 from .datasets import DatasetLoader, DatasetSchema, PhosphoDataset
 from .io import load_pred_mat
+from .preprocessing import CorePreprocessingConfig, CoreProcessingResult
 from .publishing import OutputPublisher, RunManifestWriter
 from .validation.errors import RequestValidationError, TableSchemaError
 from .validation.requests import (

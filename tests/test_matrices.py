@@ -94,7 +94,7 @@ def test_build_site_matrix_raises_table_schema_error_for_malformed_gene_p_site()
 def test_site_matrix_builder_reports_row_drop_diagnostics_when_all_rows_are_dropped() -> (
     None
 ):
-    from phospy.site_matrix_builder import SiteMatrixBuilder
+    from phospy.preprocessing import SiteMatrixBuilder
 
     df = pd.DataFrame(
         {

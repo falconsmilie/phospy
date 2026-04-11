@@ -492,7 +492,7 @@ def test_validate_pipeline_construction_request_rejects_mixed_preprocessing_conf
     None
 ):
     from phospy import PhosphoDataset
-    from phospy.core_processing import CorePreprocessingConfig
+    from phospy.preprocessing import CorePreprocessingConfig
 
     total_df = pd.DataFrame(
         {

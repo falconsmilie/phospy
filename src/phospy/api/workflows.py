@@ -12,7 +12,6 @@ from ..constants import (
     DEFAULT_TOTAL_SENTINEL,
     ComparisonSpec,
 )
-from ..core_processing import CorePreprocessingConfig
 from ..datasets import AnalysisReadyPhosphoDataset, DatasetSchema
 from ..motifs import MotifScoringResult
 from ..prediction import (
@@ -20,7 +19,8 @@ from ..prediction import (
     KinaseWorkflowExecutor,
     PredMatResult,
 )
-from ..preprocessing.analysis_ready import build_analysis_ready_dataset
+from ..preprocessing.core import CorePreprocessingConfig
+from ..preprocessing.modes import AnalysisReadyDatasetBuilder
 from ..profiles import KinaseProfileResult
 from ..references import (
     BundledReferenceProvider,
@@ -335,6 +335,7 @@ class SimpleKinaseWorkflow:
         *,
         reference_provider: ReferenceProvider | None = None,
         activity_analyzer: KinaseActivityAnalyzer | None = None,
+        analysis_ready_builder: AnalysisReadyDatasetBuilder | None = None,
     ) -> None:
         self.pred_mat_workflow = PredMatWorkflow(
             flank_size=flank_size,
@@ -348,6 +349,11 @@ class SimpleKinaseWorkflow:
         )
         self.activity_analyzer = (
             KinaseActivityAnalyzer() if activity_analyzer is None else activity_analyzer
+        )
+        self.analysis_ready_builder = (
+            AnalysisReadyDatasetBuilder()
+            if analysis_ready_builder is None
+            else analysis_ready_builder
         )
 
     def run(
@@ -381,7 +387,7 @@ class SimpleKinaseWorkflow:
         kinase_activity_top_n_substrates: int = 20,
     ) -> SimpleKinaseWorkflowResult:
         resolved_schema = schema or DatasetSchema()
-        analysis_ready_dataset = build_analysis_ready_dataset(
+        analysis_ready_dataset = self.analysis_ready_builder.build(
             phospho=phospho,
             total=total,
             phospho_encoding=phospho_encoding,

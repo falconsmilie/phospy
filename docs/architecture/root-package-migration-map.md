@@ -32,24 +32,24 @@ current `src/phospy/` tree.
 | --- | --- | --- | --- |
 | `src/phospy/__init__.py` | `src/phospy/__init__.py` | Keep and slim later | Remains the package root and public export boundary while the domain move proceeds |
 | `src/phospy/_dataset_validation.py` | `src/phospy/datasets/validation.py` | Move later | Dataset-loading validation helpers should live with dataset construction, while cross-cutting validation rules stay in `validation/` |
-| `src/phospy/_preprocessing_primitives.py` | `src/phospy/preprocessing/primitives.py` | Move later | Internal preprocessing building blocks belong inside the preprocessing domain |
-| `src/phospy/_protein_correction.py` | `src/phospy/preprocessing/protein_correction.py` | Move later | Protein correction is a preprocessing concern |
+| `src/phospy/_preprocessing_primitives.py` | `src/phospy/preprocessing/primitives.py` | Completed in ticket 4 | Internal preprocessing building blocks now live inside the preprocessing domain; the legacy flat module was removed |
+| `src/phospy/_protein_correction.py` | `src/phospy/preprocessing/protein_correction.py` | Completed in ticket 4 | Protein correction now lives inside the preprocessing domain; the legacy flat module was removed |
 | `src/phospy/activities` | `src/phospy/activities/` | Created now, split later | The package now exists; later tickets should separate activity calculation modules from any convenience exports |
 | `src/phospy/analysis.py` | `src/phospy/activities/analyzer.py` | Completed during ticket 3 cleanup | `KinaseActivityAnalyzer` and `KinaseActivityResult` now live under `activities/`; the legacy flat module was removed to eliminate import-order hacks |
 | `src/phospy/cli.py` | `src/phospy/api/cli.py` | Move later | CLI is part of the supported entry surface |
 | `src/phospy/constants.py` | `src/phospy/internal/constants.py` | Move later | Shared constants are internal support code unless a clearer domain home emerges during later splits |
-| `src/phospy/core_processing.py` | `src/phospy/preprocessing/core.py` | Move later | Core preprocessing configuration and results belong in preprocessing |
+| `src/phospy/core_processing.py` | `src/phospy/preprocessing/core.py` | Completed in ticket 4 | Core preprocessing configuration, orchestration, and results now live under `preprocessing/`; the legacy flat module was removed |
 | `src/phospy/dataset.py` | `src/phospy/datasets/models.py` | Completed in ticket 3 | Dataset models and analysis-ready dataset containers now live under `datasets/`; the legacy flat module was removed |
 | `src/phospy/dataset_loader.py` | `src/phospy/datasets/loaders.py` | Completed in ticket 3 | Dataset loading now lives under `datasets/`; the legacy flat module was removed |
-| `src/phospy/dataset_preprocessing.py` | `src/phospy/preprocessing/datasets.py` | Move later | This is preprocessing that is currently expressed through a dataset-shaped façade |
+| `src/phospy/dataset_preprocessing.py` | `src/phospy/preprocessing/dataset.py` | Completed in ticket 4 | The dataset-bound preprocessing façade now lives under `preprocessing/`; the legacy flat module was removed |
 | `src/phospy/dataset_schema.py` | `src/phospy/datasets/schema.py` | Completed in ticket 3 | Dataset schema now lives under `datasets/`; the legacy flat module was removed |
 | `src/phospy/dataset_site_matrix.py` | `src/phospy/datasets/builders.py` | Completed in ticket 3 | The dataset-bound site-matrix façade now lives under `datasets/`; the legacy flat module was removed |
 | `src/phospy/io` | `src/phospy/io/` | Created now, split later | The package now exists; later tickets can break reading helpers and mapping loaders into clearer submodules |
 | `src/phospy/matrices.py` | `src/phospy/preprocessing/site_matrix.py` | Move later | Site-matrix construction is preprocessing behaviour |
 | `src/phospy/motifs.py` | `src/phospy/references/` and `src/phospy/prediction/motif_scoring.py` | Split later | This file mixes bundled reference resolution with motif scoring and must be split rather than moved whole |
 | `src/phospy/pipeline.py` | `src/phospy/api/pipeline.py` and `src/phospy/io/publishing.py` | Split later | Contains public pipeline orchestration plus output publishing coordination |
-| `src/phospy/preprocessing` | `src/phospy/preprocessing/` | Created now, split later | The package now exists; later tickets should separate façade code from stable preprocessing process modules |
-| `src/phospy/preprocessing_services.py` | `src/phospy/preprocessing/services.py` | Move later | Preprocessing service objects belong inside the preprocessing domain |
+| `src/phospy/preprocessing` | `src/phospy/preprocessing/` | Expanded in ticket 4 | The preprocessing package now owns core orchestration, services, site-matrix building, primitives, protein correction, step helpers, dataset-bound preprocessing, and explicit analysis-ready modes |
+| `src/phospy/preprocessing_services.py` | `src/phospy/preprocessing/services.py` | Completed in ticket 4 | Preprocessing service objects now live inside the preprocessing domain; the legacy flat module was removed |
 | `src/phospy/profiles.py` | `src/phospy/prediction/profiles.py` | Move later | Kinase substrate profile generation feeds prediction scoring |
 | `src/phospy/publishing.py` | `src/phospy/io/publishing.py` | Move later | Output publication is a structured I/O concern |
 | `src/phospy/scoring.py` | `src/phospy/prediction/scoring.py` | Move later | Kinase scoring is part of prediction execution |
@@ -61,7 +61,7 @@ current `src/phospy/` tree.
 | `src/phospy/signalome_networks.py` | `src/phospy/signalomes/networks.py` | Move later | Signalome network outputs belong inside the signalome domain |
 | `src/phospy/signalome_site_ids.py` | `src/phospy/signalomes/site_ids.py` | Move later | Signalome-specific site identifier parsing and resolution |
 | `src/phospy/signalomes` | `src/phospy/signalomes/` | Created now, split later | The package now exists; later tickets can collapse the remaining signalome modules into it |
-| `src/phospy/site_matrix_builder.py` | `src/phospy/preprocessing/site_matrix_builder.py` | Move later | Site-matrix building belongs in preprocessing |
+| `src/phospy/site_matrix_builder.py` | `src/phospy/preprocessing/site_matrix.py` | Completed in ticket 4 | Site-matrix building now lives inside the preprocessing domain; the legacy flat module was removed |
 | `src/phospy/types.py` | `src/phospy/internal/types.py` | Move later | Shared internal type aliases are infrastructure support rather than a user-facing domain |
 | `src/phospy/workflow.py` | `src/phospy/api/workflows.py` | Completed in ticket 2 | Supported public workflow entry points now live in `api/`; remaining domain helpers were pushed toward `prediction/`, `preprocessing/`, `references/`, `activities/`, and `signalomes/` |
 | `src/phospy/writers.py` | `src/phospy/io/writers.py` | Move later | Output writers belong in structured I/O |
@@ -91,3 +91,5 @@ These files should not be relocated intact.
 - Ticket 2 moved the supported public workflows into `src/phospy/api/workflows.py` without adding compatibility shims.
 - The package skeleton is now in place so later tickets can move domain code into its long-term home incrementally.
 - Existing `prediction/` and `validation/` packages were retained and documented rather than recreated.
+
+- Ticket 4 centralised the preprocessing implementation under `src/phospy/preprocessing/`, removed the flat preprocessing modules, and introduced explicit full-mode and phospho-only analysis-ready preprocessing paths used by the public workflow surface.

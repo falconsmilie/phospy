@@ -10,9 +10,9 @@ import pytest
 
 from phospy import KinaseActivityAnalyzer, PhosRPipeline, PredMatResult
 from phospy.constants import RUN_MANIFEST_FILENAME
-from phospy.core_processing import CorePreprocessingConfig
 from phospy.datasets import PhosphoDataset
 from phospy.pipeline import _PipelineRequestLoader
+from phospy.preprocessing import CorePreprocessingConfig
 from phospy.publishing import OutputPublisher, RunManifestWriter, package_version
 from phospy.validation.requests import CorePipelineRequest
 from phospy.validation.schema.tables import PredMatSchema

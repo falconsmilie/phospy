@@ -27,8 +27,6 @@ from phospy.constants import (
     KINASE_OUTPUT_FILENAMES,
     RUN_MANIFEST_FILENAME,
 )
-from phospy.core_processing import CorePreprocessingConfig, CoreProcessor
-from phospy.dataset_preprocessing import DatasetPreprocessing
 from phospy.datasets import (
     AnalysisReadyPreprocessingProvenance,
     AnalysisReadyRowCounts,
@@ -38,8 +36,13 @@ from phospy.datasets import (
     DatasetSiteMatrix,
 )
 from phospy.io import load_pred_mat
+from phospy.preprocessing import (
+    CorePreprocessingConfig,
+    CoreProcessor,
+    DatasetPreprocessing,
+    SiteMatrixBuilder,
+)
 from phospy.publishing import OutputPublisher, RunManifestWriter
-from phospy.site_matrix_builder import SiteMatrixBuilder
 from phospy.validation.errors import (
     InputCompatibilityError,
     RequestValidationError,

@@ -8,11 +8,11 @@ import pandas as pd
 from pydantic import Field, ValidationError, field_validator, model_validator
 
 from ...constants import ComparisonSpec
-from ...core_processing import (
+from ...datasets.schema import DatasetSchema
+from ...preprocessing.core import (
     CorePreprocessingConfig,
     resolve_core_preprocessing_config,
 )
-from ...datasets.schema import DatasetSchema
 from ..domain import validate_dataset_comparisons
 from ..errors import InputCompatibilityError, RequestValidationError
 from ..schema.files import validate_existing_file_path
