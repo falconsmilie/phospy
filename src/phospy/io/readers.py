@@ -38,12 +38,6 @@ def default_text_encoding(path: str | Path | None = None) -> str:
     return DEFAULT_TEXT_ENCODING
 
 
-def infer_text_encoding(path: str | Path) -> str:
-    """Backward-compatible wrapper around :func:`default_text_encoding`."""
-
-    return default_text_encoding(path)
-
-
 def read_table_raw(
     path: str | Path,
     *,
@@ -125,7 +119,6 @@ __all__ = [
     "clean_columns",
     "clean_table_columns",
     "default_text_encoding",
-    "infer_text_encoding",
     "load_phospho_table",
     "load_pred_mat",
     "load_total_table",

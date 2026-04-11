@@ -3,11 +3,11 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+import phospy.io as io
 from phospy.errors import TableSchemaError
 from phospy.io import (
     DEFAULT_TEXT_ENCODING,
     default_text_encoding,
-    infer_text_encoding,
     load_phospho_table,
     load_pred_mat,
     load_total_table,
@@ -167,7 +167,10 @@ def test_load_phospho_table_uses_explicit_encoding_when_provided(tmp_path) -> No
 
     assert loaded.loc[0, "gene_names"] == "PRKACA"
     assert default_text_encoding(phospho_path) == DEFAULT_TEXT_ENCODING
-    assert infer_text_encoding(phospho_path) == DEFAULT_TEXT_ENCODING
+
+
+def test_io_package_no_longer_exports_infer_text_encoding() -> None:
+    assert not hasattr(io, "infer_text_encoding")
 
 
 def test_site_matrix_source_schema_rejects_empty_or_extra_delimiter_gene_p_site() -> (
