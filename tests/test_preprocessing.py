@@ -804,6 +804,51 @@ def test_add_pairwise_comparisons_uses_schema_group_names() -> None:
     assert with_comparisons["p_sample_a_sample_b"].iloc[0] == 3.0
 
 
+def test_add_pairwise_comparisons_rejects_self_comparisons_with_custom_mapping() -> (
+    None
+):
+    corrected = pd.DataFrame(
+        {
+            "corrected_a": [7.0],
+            "corrected_b": [4.0],
+        }
+    )
+
+    with pytest.raises(InputCompatibilityError, match="Self comparison pair"):
+        add_pairwise_comparisons(
+            corrected,
+            comparisons=[("sample_a", "sample_a")],
+            group_to_corrected_col={
+                "sample_a": "corrected_a",
+                "sample_b": "corrected_b",
+            },
+        )
+
+
+def test_add_pairwise_comparisons_rejects_reverse_duplicate_pairs_with_custom_mapping() -> (
+    None
+):
+    corrected = pd.DataFrame(
+        {
+            "corrected_a": [7.0],
+            "corrected_b": [4.0],
+        }
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match="Duplicate comparison pair regardless of direction",
+    ):
+        add_pairwise_comparisons(
+            corrected,
+            comparisons=[("sample_a", "sample_b"), ("sample_b", "sample_a")],
+            group_to_corrected_col={
+                "sample_a": "corrected_a",
+                "sample_b": "corrected_b",
+            },
+        )
+
+
 def test_dataset_preprocessing_run_rejects_mixed_config_styles() -> None:
     from phospy import PhosphoDataset
     from phospy.preprocessing import CorePreprocessingConfig

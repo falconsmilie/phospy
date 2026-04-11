@@ -3,13 +3,13 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from ..errors import InputCompatibilityError
 from ..internal.constants import (
     DEFAULT_CORRECTED_COLS,
     DEFAULT_PHOSPHO_COLS,
     DEFAULT_TOTAL_COLS,
 )
 from ..validation.compatibility import validate_core_column_alignment
+from ..validation.domain.comparisons import validate_comparison_specs
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,28 +56,11 @@ class DatasetSchema:
         *,
         context: str = "Dataset schema",
     ) -> tuple[tuple[str, str], ...] | None:
-        if comparisons is None:
-            return None
-
-        resolved = tuple(comparisons)
-        valid_groups = frozenset(self.comparison_groups)
-        seen: set[tuple[str, str]] = set()
-        for left_group, right_group in resolved:
-            if left_group not in valid_groups:
-                msg = f"{context} contains Unknown comparison group: {left_group}"
-                raise InputCompatibilityError(msg)
-            if right_group not in valid_groups:
-                msg = f"{context} contains Unknown comparison group: {right_group}"
-                raise InputCompatibilityError(msg)
-            pair = (left_group, right_group)
-            if pair in seen:
-                msg = (
-                    f"{context} contains Duplicate comparison pair: "
-                    f"{left_group!r}, {right_group!r}"
-                )
-                raise InputCompatibilityError(msg)
-            seen.add(pair)
-        return resolved
+        return validate_comparison_specs(
+            comparison_groups=self.comparison_groups,
+            comparisons=comparisons,
+            context=context,
+        )
 
     @classmethod
     def from_groups(

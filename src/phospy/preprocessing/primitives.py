@@ -6,7 +6,9 @@ import numpy as np
 import pandas as pd
 
 from ..datasets.schema import DatasetSchema
+from ..errors import InputCompatibilityError
 from ..internal.constants import ComparisonSpec
+from ..validation.domain.comparisons import validate_comparison_specs
 from ..validation.schema.frames import require_columns, require_numeric_series
 
 """Internal preprocessing transformation primitives.
@@ -122,16 +124,16 @@ def _add_pairwise_comparisons_in_place(
         )
         group_to_corrected_col = dict(resolved_schema.group_to_corrected_col)
     else:
-        resolved = tuple(comparisons)
-        valid_groups = frozenset(group_to_corrected_col)
-        seen: set[tuple[str, str]] = set()
-        for left, right in resolved:
-            if left not in valid_groups or right not in valid_groups:
-                raise KeyError(f"Missing group mapping for comparison: {(left, right)}")
-            pair = (left, right)
-            if pair in seen:
-                raise ValueError(f"Duplicate comparison pair: {left!r}, {right!r}")
-            seen.add(pair)
+        try:
+            validate_comparison_specs(
+                comparison_groups=tuple(group_to_corrected_col),
+                comparisons=comparisons,
+                context="Pairwise comparison configuration",
+            )
+        except InputCompatibilityError as error:
+            if "Unknown comparison group" in str(error):
+                raise KeyError(str(error)) from error
+            raise
 
     for left, right in comparisons:
         if left not in group_to_corrected_col or right not in group_to_corrected_col:

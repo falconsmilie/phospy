@@ -72,6 +72,37 @@ def test_core_pipeline_request_rejects_unknown_comparison_group(tmp_path) -> Non
         )
 
 
+def test_core_pipeline_request_rejects_self_comparisons(tmp_path) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    total_path.write_text("genes\tgroup1\nPRKACA\t1\n")
+    phospho_path.write_text("uid\tgene_names\n1\tPRKACA\n")
+
+    with pytest.raises(RequestValidationError, match="Self comparison pair"):
+        CorePipelineRequest.validate_request(
+            total_path=total_path,
+            phospho_path=phospho_path,
+            comparisons=(("group1", "group1"),),
+        )
+
+
+def test_core_pipeline_request_rejects_reverse_duplicate_comparisons(tmp_path) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    total_path.write_text("genes\tgroup1\nPRKACA\t1\n")
+    phospho_path.write_text("uid\tgene_names\n1\tPRKACA\n")
+
+    with pytest.raises(
+        RequestValidationError,
+        match="Duplicate comparison pair regardless of direction",
+    ):
+        CorePipelineRequest.validate_request(
+            total_path=total_path,
+            phospho_path=phospho_path,
+            comparisons=(("group1", "group4"), ("group4", "group1")),
+        )
+
+
 def test_kinase_workflow_request_rejects_invalid_threshold() -> None:
     phospho_matrix = pd.DataFrame({"sample_1": [1.0]}, index=["SITE_1"])
 
@@ -402,13 +433,16 @@ def test_core_pipeline_request_does_not_mask_unexpected_comparison_validation_er
 ) -> None:
     total_path = tmp_path / "total.tsv"
     phospho_path = tmp_path / "phospho.tsv"
-    total_path.write_text("genes	group1\nPRKACA	1\n")
-    phospho_path.write_text("uid	gene_names\n1	PRKACA\n")
+    total_path.write_text("genes\tgroup1\nPRKACA\t1\n")
+    phospho_path.write_text("uid\tgene_names\n1\tPRKACA\n")
 
-    def blow_up(self: DatasetSchema, comparisons, *, context: str = "Dataset schema"):
+    def blow_up(*, schema, comparisons, context: str):
         raise RuntimeError("comparison validator exploded")
 
-    monkeypatch.setattr(DatasetSchema, "validate_comparisons", blow_up)
+    monkeypatch.setattr(
+        "phospy.validation.requests.pipeline.validate_dataset_comparisons",
+        blow_up,
+    )
 
     with pytest.raises(RuntimeError, match="comparison validator exploded"):
         CorePipelineRequest.validate_request(

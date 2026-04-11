@@ -90,3 +90,30 @@ def test_dataset_schema_validates_comparisons_against_active_groups() -> None:
 
     with pytest.raises(InputCompatibilityError, match="Unknown comparison group"):
         schema.validate_comparisons((("group1", "sample_b"),))
+
+
+def test_dataset_schema_rejects_self_comparisons() -> None:
+    schema = DatasetSchema(
+        total_cols=("sample_a", "sample_b"),
+        phospho_cols=("p_sample_a", "p_sample_b"),
+        corrected_cols=("corrected_a", "corrected_b"),
+    )
+
+    with pytest.raises(InputCompatibilityError, match="Self comparison pair"):
+        schema.validate_comparisons((("sample_a", "sample_a"),))
+
+
+def test_dataset_schema_rejects_reverse_duplicate_comparisons() -> None:
+    schema = DatasetSchema(
+        total_cols=("sample_a", "sample_b"),
+        phospho_cols=("p_sample_a", "p_sample_b"),
+        corrected_cols=("corrected_a", "corrected_b"),
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match="Duplicate comparison pair regardless of direction",
+    ):
+        schema.validate_comparisons(
+            (("sample_a", "sample_b"), ("sample_b", "sample_a")),
+        )
