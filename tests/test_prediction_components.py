@@ -8,7 +8,12 @@ from phospy.prediction.aggregation import PredictionAggregator
 from phospy.prediction.candidates import CandidateSelector
 from phospy.prediction.contracts import EnsemblePredictorContract
 from phospy.prediction.engines import PredictionExecutionRunner
-from phospy.prediction.execution import TraceRecorder
+from phospy.prediction.execution import (
+    EnsemblePredictor,
+    NegativePoolSampler,
+    PredictionSamplingSession,
+    TraceRecorder,
+)
 from phospy.validation.requests import PredictionRequest
 
 
@@ -297,3 +302,130 @@ def test_prediction_execution_runner_passes_sampling_session_to_contract_predict
     runner.run(request)
 
     assert predictor.seen_sampling_session is not None
+
+
+def test_ensemble_predictor_precomputes_negative_pool_without_index_isin(
+    monkeypatch,
+) -> None:
+    feature_mat = pd.DataFrame(
+        {
+            "K1": [0.95, 0.91, 0.40, 0.10],
+            "K2": [0.10, 0.20, 0.30, 0.40],
+        },
+        index=["s1", "s2", "s3", "s4"],
+    )
+    request = PredictionRequest.validate_request(
+        combined_scores=feature_mat,
+        ensemble_size=2,
+        top=2,
+        score_threshold=0.8,
+        inclusion=2,
+        n_iterations=1,
+        random_state=3,
+        capture_debug_trace=False,
+        default_svm_mode="default",
+    )
+    predictor = EnsemblePredictor(
+        kernel="rbf",
+        negative_pool_sampler=NegativePoolSampler(),
+        trace_recorder=TraceRecorder(),
+    )
+    trace_state = predictor.trace_recorder.create_state(
+        substrate_list={"K1": ["s1", "s2"]},
+        trace_level="none",
+        debug_kinases=None,
+        trace_sink=None,
+    )
+    sampling_session = PredictionSamplingSession.from_request(request)
+
+    def forbid_index_isin(self, values, level=None):
+        raise AssertionError(
+            "predict_kinase should not build negative pools with Index.isin"
+        )
+
+    monkeypatch.setattr(pd.Index, "isin", forbid_index_isin)
+
+    batch = predictor.predict_kinase(
+        kinase="K1",
+        substrates=["s1", "s2"],
+        feature_mat=feature_mat,
+        request=request,
+        trace_state=trace_state,
+        sampling_session=sampling_session,
+    )
+
+    assert batch.kinase == "K1"
+    assert batch.scores.index.tolist() == feature_mat.index.tolist()
+
+
+def test_ensemble_predictor_reuses_indexed_feature_matrix_for_same_input(
+    monkeypatch,
+) -> None:
+    feature_mat = pd.DataFrame(
+        {
+            "K1": [0.95, 0.91, 0.40, 0.10],
+            "K2": [0.10, 0.12, 0.94, 0.92],
+        },
+        index=["s1", "s2", "s3", "s4"],
+    )
+    request = PredictionRequest.validate_request(
+        combined_scores=feature_mat,
+        ensemble_size=1,
+        top=2,
+        score_threshold=0.8,
+        inclusion=2,
+        n_iterations=1,
+        random_state=3,
+        capture_debug_trace=False,
+        default_svm_mode="default",
+    )
+    predictor = EnsemblePredictor(
+        kernel="rbf",
+        negative_pool_sampler=NegativePoolSampler(),
+        trace_recorder=TraceRecorder(),
+    )
+    trace_state = predictor.trace_recorder.create_state(
+        substrate_list={"K1": ["s1", "s2"], "K2": ["s3", "s4"]},
+        trace_level="none",
+        debug_kinases=None,
+        trace_sink=None,
+    )
+    sampling_session = PredictionSamplingSession.from_request(request)
+
+    original_from_feature_matrix = (
+        predictor._get_indexed_feature_matrix.__func__.__globals__[
+            "IndexedFeatureMatrix"
+        ].from_feature_matrix
+    )
+    call_count = {"count": 0}
+
+    def recording_from_feature_matrix(frame: pd.DataFrame):
+        call_count["count"] += 1
+        return original_from_feature_matrix(frame)
+
+    monkeypatch.setattr(
+        predictor._get_indexed_feature_matrix.__func__.__globals__[
+            "IndexedFeatureMatrix"
+        ],
+        "from_feature_matrix",
+        recording_from_feature_matrix,
+    )
+
+    predictor.predict_kinase(
+        kinase="K1",
+        substrates=["s1", "s2"],
+        feature_mat=feature_mat,
+        request=request,
+        trace_state=trace_state,
+        sampling_session=sampling_session,
+    )
+    predictor.predict_kinase(
+        kinase="K2",
+        substrates=["s3", "s4"],
+        feature_mat=feature_mat,
+        request=request,
+        trace_state=trace_state,
+        sampling_session=sampling_session,
+    )
+
+    assert call_count["count"] == 1

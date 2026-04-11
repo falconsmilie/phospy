@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 import numpy as np
@@ -53,7 +54,88 @@ class PredictionSamplingSession:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class IndexedFeatureMatrix:
+    feature_mat: pd.DataFrame
+    feature_values: np.ndarray
+    feature_index: pd.Index
+    feature_columns: pd.Index
+    site_positions: Mapping[object, int]
+    all_positions: np.ndarray
+
+    @classmethod
+    def from_feature_matrix(cls, feature_mat: pd.DataFrame) -> IndexedFeatureMatrix:
+        return cls(
+            feature_mat=feature_mat,
+            feature_values=feature_mat.to_numpy(copy=False),
+            feature_index=feature_mat.index,
+            feature_columns=feature_mat.columns,
+            site_positions={site: i for i, site in enumerate(feature_mat.index)},
+            all_positions=np.arange(len(feature_mat.index), dtype=int),
+        )
+
+    def prepare_kinase(self, *, substrates: list[str]) -> PreparedKinaseTrainingData:
+        positive_positions = np.fromiter(
+            (self.site_positions[site] for site in substrates),
+            dtype=int,
+            count=len(substrates),
+        )
+        negative_mask = np.ones(len(self.all_positions), dtype=bool)
+        negative_mask[positive_positions] = False
+        negative_positions = self.all_positions[negative_mask]
+        return PreparedKinaseTrainingData(
+            positive_positions=positive_positions,
+            negative_pool_positions=negative_positions,
+            positive_sites=self.feature_index.take(positive_positions),
+            negative_pool_sites=self.feature_index.take(negative_positions),
+            positive_values=self.feature_values[positive_positions, :],
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedKinaseTrainingData:
+    positive_positions: np.ndarray
+    negative_pool_positions: np.ndarray
+    positive_sites: pd.Index
+    negative_pool_sites: pd.Index
+    positive_values: np.ndarray
+
+
 class NegativePoolSampler:
+    @staticmethod
+    def sample_initial_negative_positions(
+        *,
+        negative_pool_sites: pd.Index,
+        negative_pool_positions: np.ndarray,
+        site_positions: Mapping[object, int],
+        positive_size: int,
+        negative_sampling_rng: np.random.Generator,
+        ensemble_override: object | None,
+        kinase: str,
+        ensemble_index: int,
+    ) -> np.ndarray:
+        override_sites = getattr(ensemble_override, "initial_negative_sites", None)
+        if override_sites is not None:
+            validated_sites = validate_override_sites(
+                available_sites=negative_pool_sites,
+                sampled_sites=override_sites,
+                expected_size=positive_size,
+                context=(
+                    f"initial negatives for kinase={kinase}, ensemble={ensemble_index}"
+                ),
+            )
+            return np.fromiter(
+                (site_positions[site] for site in validated_sites),
+                dtype=int,
+                count=len(validated_sites),
+            )
+
+        return negative_sampling_rng.choice(
+            negative_pool_positions,
+            size=positive_size,
+            replace=len(negative_pool_positions) < positive_size,
+        )
+
     @staticmethod
     def sample_initial_negative_sites(
         *,
@@ -64,23 +146,17 @@ class NegativePoolSampler:
         kinase: str,
         ensemble_index: int,
     ) -> list[str]:
-        override_sites = getattr(ensemble_override, "initial_negative_sites", None)
-        if override_sites is not None:
-            return validate_override_sites(
-                available_sites=negative_pool.index,
-                sampled_sites=override_sites,
-                expected_size=positive_size,
-                context=(
-                    f"initial negatives for kinase={kinase}, ensemble={ensemble_index}"
-                ),
-            )
-
-        negative_indices = negative_sampling_rng.choice(
-            negative_pool.index.to_numpy(),
-            size=positive_size,
-            replace=len(negative_pool) < positive_size,
+        negative_indices = NegativePoolSampler.sample_initial_negative_positions(
+            negative_pool_sites=negative_pool.index,
+            negative_pool_positions=np.arange(len(negative_pool.index), dtype=int),
+            site_positions={site: i for i, site in enumerate(negative_pool.index)},
+            positive_size=positive_size,
+            negative_sampling_rng=negative_sampling_rng,
+            ensemble_override=ensemble_override,
+            kinase=kinase,
+            ensemble_index=ensemble_index,
         )
-        return list(negative_indices.tolist())
+        return negative_pool.index.take(negative_indices).tolist()
 
 
 class TraceRecorder:
@@ -123,15 +199,16 @@ class TraceRecorder:
         trace_state: PredictionTraceState,
         kinase: str,
         substrates: list[str],
-        negative_pool: pd.DataFrame,
+        negative_pool_sites: pd.Index,
     ) -> None:
         if not self.is_traced_kinase(trace_state=trace_state, kinase=kinase):
             return
+        negative_pool_site_list = negative_pool_sites.tolist()
         if trace_state.debug_traces is not None:
             trace_state.debug_traces[kinase] = KinasePredictionDebugTrace(
                 kinase=kinase,
                 candidate_substrates=list(substrates),
-                negative_pool_sites=negative_pool.index.tolist(),
+                negative_pool_sites=negative_pool_site_list,
                 ensemble_traces=[],
             )
         if trace_state.trace_sink is not None:
@@ -154,9 +231,7 @@ class TraceRecorder:
                         "pool_index": pool_index,
                         "site": site,
                     }
-                    for pool_index, site in enumerate(
-                        negative_pool.index.tolist(), start=1
-                    )
+                    for pool_index, site in enumerate(negative_pool_site_list, start=1)
                 ],
             )
 
@@ -222,6 +297,18 @@ class EnsemblePredictor(EnsemblePredictorContract):
         self.kernel = kernel
         self.negative_pool_sampler = negative_pool_sampler
         self.trace_recorder = trace_recorder
+        self._indexed_feature_mat_cache: tuple[int, IndexedFeatureMatrix] | None = None
+
+    def _get_indexed_feature_matrix(
+        self,
+        feature_mat: pd.DataFrame,
+    ) -> IndexedFeatureMatrix:
+        cache = self._indexed_feature_mat_cache
+        if cache is not None and cache[0] == id(feature_mat):
+            return cache[1]
+        indexed_feature_mat = IndexedFeatureMatrix.from_feature_matrix(feature_mat)
+        self._indexed_feature_mat_cache = (id(feature_mat), indexed_feature_mat)
+        return indexed_feature_mat
 
     def predict_kinase(
         self,
@@ -236,12 +323,11 @@ class EnsemblePredictor(EnsemblePredictorContract):
         negative_sampling_rng, resampling_rng = (
             sampling_session.random_source.generators_for_kinase(kinase=kinase)
         )
-        positive_train = feature_mat.loc[substrates, :]
-        negative_pool = feature_mat.loc[
-            ~feature_mat.index.isin(substrates),
-            :,  # noqa: E203
-        ]
-        if negative_pool.empty:
+        indexed_feature_mat = self._get_indexed_feature_matrix(feature_mat)
+        prepared_training_data = indexed_feature_mat.prepare_kinase(
+            substrates=substrates
+        )
+        if len(prepared_training_data.negative_pool_positions) == 0:
             msg = f"No negative pool sites available to train predictor for {kinase}"
             raise PredictionConfigurationError(msg)
 
@@ -249,7 +335,7 @@ class EnsemblePredictor(EnsemblePredictorContract):
             trace_state=trace_state,
             kinase=kinase,
             substrates=substrates,
-            negative_pool=negative_pool,
+            negative_pool_sites=prepared_training_data.negative_pool_sites,
         )
 
         kinase_scores = pd.Series(0.0, index=feature_mat.index.copy(), dtype=float)
@@ -267,20 +353,39 @@ class EnsemblePredictor(EnsemblePredictorContract):
                     ensemble_index=ensemble_index,
                 )
 
-            negative_sites = self.negative_pool_sampler.sample_initial_negative_sites(
-                negative_pool=negative_pool,
-                positive_size=len(positive_train),
+            sampled_negative_positions = self.negative_pool_sampler.sample_initial_negative_positions(
+                negative_pool_sites=prepared_training_data.negative_pool_sites,
+                negative_pool_positions=prepared_training_data.negative_pool_positions,
+                site_positions=indexed_feature_mat.site_positions,
+                positive_size=len(prepared_training_data.positive_positions),
                 negative_sampling_rng=negative_sampling_rng,
                 ensemble_override=ensemble_override,
                 kinase=kinase,
                 ensemble_index=ensemble_index,
             )
-            negative_train = negative_pool.loc[negative_sites, :]
-            train_mat = pd.concat([positive_train, negative_train], axis=0)
+            negative_sites = indexed_feature_mat.feature_index.take(
+                sampled_negative_positions
+            ).tolist()
+            train_values = np.concatenate(
+                [
+                    prepared_training_data.positive_values,
+                    indexed_feature_mat.feature_values[sampled_negative_positions, :],
+                ],
+                axis=0,
+            )
+            train_index = prepared_training_data.positive_sites.append(
+                indexed_feature_mat.feature_index.take(sampled_negative_positions)
+            )
+            train_mat = pd.DataFrame(
+                train_values,
+                index=train_index,
+                columns=indexed_feature_mat.feature_columns,
+                copy=False,
+            )
             labels = np.concatenate(
                 [
-                    np.repeat(1, len(positive_train)),
-                    np.repeat(2, len(negative_train)),
+                    np.repeat(1, len(prepared_training_data.positive_positions)),
+                    np.repeat(2, len(sampled_negative_positions)),
                 ]
             )
 
