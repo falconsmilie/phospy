@@ -110,3 +110,10 @@ These files should not be relocated intact.
 - Output publishing and persisted tabular writers now live in `phospy.io.publishing` and `phospy.io.writers`.
 - The shared application error hierarchy now lives in `phospy.errors`, and validation code imports those error classes instead of owning a separate `validation/errors.py` module.
 - Shared constants and internal type aliases now live in `phospy.internal.constants` and `phospy.internal.types`.
+
+## Ticket 10 cleanup notes
+
+- Internal source imports now use the domain package layout directly rather than removed flat module paths.
+- Repository examples and API documentation now prefer domain-package imports such as `phospy.api`, `phospy.datasets`, `phospy.activities`, `phospy.references`, and `phospy.signalomes`.
+- The root package remains a thin convenience surface for supported high-level types, but it is no longer the documented default import path for domain-owned classes.
+- Removed flat modules such as `phospy.core_processing` are no longer referenced in the docs or examples.

@@ -7,12 +7,11 @@ from tempfile import TemporaryDirectory
 
 import pandas as pd
 
-from phospy import (
-    PredMatWorkflow,
+from phospy.api import PredMatWorkflow, SignalomeWorkflow
+from phospy.signalomes import (
     SignalomeMapData,
     SignalomeNetworkData,
     SignalomeResult,
-    SignalomeWorkflow,
 )
 
 

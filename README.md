@@ -43,7 +43,7 @@ Use `SimpleKinaseWorkflow` when you already have a phospho table, know the speci
 - kinase activity analysis
 
 ```python
-from phospy import SimpleKinaseWorkflow
+from phospy.api import SimpleKinaseWorkflow
 
 result = SimpleKinaseWorkflow().run(
     phospho="study_phospho.tsv",
@@ -97,7 +97,7 @@ A runnable repository example lives in [`examples/native_workflow_demo.py`](exam
 Use `PhosphoDataset` when you want validated total and phospho inputs plus the standard preprocessing flow.
 
 ```python
-from phospy import PhosphoDataset
+from phospy.datasets import PhosphoDataset
 from phospy.io.writers import CoreOutputWriter
 
 dataset = PhosphoDataset.from_files(
@@ -118,7 +118,8 @@ corrected = core.phospho_corrected
 Use `KinaseActivityAnalyzer` when you already have a phosphosite matrix and a `predMat`.
 
 ```python
-from phospy import KinaseActivityAnalyzer, PhosphoDataset
+from phospy.activities import KinaseActivityAnalyzer
+from phospy.datasets import PhosphoDataset
 
 dataset = PhosphoDataset.from_files(
     "examples/data/total.tsv",
@@ -146,7 +147,7 @@ The bundled example data is tiny, so it uses `min_substrates=1` and `top_n_subst
 Use `PhosRPipeline` when you want file loading, preprocessing, optional kinase analysis, and output publishing in one call.
 
 ```python
-from phospy import PhosRPipeline
+from phospy.pipeline import PhosRPipeline
 
 pipeline = PhosRPipeline.from_files(
     total_path="examples/data/total.tsv",
@@ -173,7 +174,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy import PredMatWorkflow
+from phospy.api import PredMatWorkflow
 
 phospho_matrix = pd.read_csv("examples/data/predmat_phospho_matrix.csv", index_col=0)
 site_sequences = json.loads(Path("examples/data/predmat_site_sequences.json").read_text())
@@ -221,7 +222,7 @@ python examples/native_workflow_demo.py
 Use `SignalomeWorkflow` when you already have scoring and prediction outputs and want downstream signalome, map-ready, and network-ready outputs.
 
 ```python
-from phospy import PredMatWorkflow, SignalomeWorkflow
+from phospy.api import PredMatWorkflow, SignalomeWorkflow
 
 pred_mat_result = PredMatWorkflow(flank_size=2, svm_mode="default").run(...)
 signalome_result = SignalomeWorkflow().run(

@@ -7,8 +7,7 @@ from tempfile import TemporaryDirectory
 
 import pandas as pd
 
-from phospy import PredMatWorkflow
-from phospy.api import PredMatWorkflowResult
+from phospy.api import PredMatWorkflow, PredMatWorkflowResult
 from phospy.io import load_pred_mat
 
 

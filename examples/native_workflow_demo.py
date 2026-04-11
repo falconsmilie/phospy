@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy import KinaseWorkflow
+from phospy.api import KinaseWorkflow
 
 
 def main() -> None:

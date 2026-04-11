@@ -4,7 +4,8 @@ from __future__ import annotations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from phospy import KinaseActivityAnalyzer, PhosphoDataset
+from phospy.activities import KinaseActivityAnalyzer
+from phospy.datasets import PhosphoDataset
 
 
 def main() -> None:

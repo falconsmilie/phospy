@@ -2,29 +2,34 @@
 
 PhosPy has no HTTP API. The supported surface is the Python API below plus the `phospy` CLI.
 
-## Root Imports
+## Preferred package imports
 
 ```python
-from phospy import (
-    AnalysisReadyPhosphoDataset,
-    KinaseActivityAnalyzer,
+from phospy.activities import KinaseActivityAnalyzer
+from phospy.api import (
     KinaseWorkflow,
+    PredMatWorkflow,
+    SignalomeWorkflow,
     SimpleKinaseWorkflow,
-    PhosphoDataset,
+)
+from phospy.datasets import AnalysisReadyPhosphoDataset, PhosphoDataset
+from phospy.pipeline import PhosRPipeline
+from phospy.prediction import PredMatResult
+from phospy.references import (
     BundledReferenceProvider,
     ReferenceBundle,
     ReferenceBundleProvenance,
     ReferenceBundleSourceMetadata,
     ReferenceProvider,
-    PhosRPipeline,
-    PredMatResult,
-    PredMatWorkflow,
+)
+from phospy.signalomes import (
     SignalomeMapData,
     SignalomeNetworkData,
     SignalomeResult,
-    SignalomeWorkflow,
 )
 ```
+
+The root package still exposes a thin convenience surface for supported high-level types, but new code should prefer the domain packages above.
 
 Use:
 
@@ -202,7 +207,7 @@ Returns `CoreProcessingResult` with:
 Example:
 
 ```python
-from phospy import PhosphoDataset
+from phospy.datasets import PhosphoDataset
 
 dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
 core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
@@ -248,7 +253,7 @@ Use this when you want the normal preprocessing path and the analysis-ready boun
 Example:
 
 ```python
-from phospy import PhosphoDataset
+from phospy.datasets import PhosphoDataset
 
 dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
 analysis_ready = dataset.preprocessing.run_analysis_ready(
@@ -295,7 +300,7 @@ Rules:
 Example:
 
 ```python
-from phospy import AnalysisReadyPhosphoDataset, PhosphoDataset
+from phospy.datasets import AnalysisReadyPhosphoDataset, PhosphoDataset
 
 dataset = PhosphoDataset.from_files("total.tsv", "phospho.tsv")
 core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
@@ -379,7 +384,7 @@ Validation highlights:
 Example:
 
 ```python
-from phospy import (
+from phospy.references import (
     BundledReferenceProvider,
     ReferenceBundle,
     ReferenceBundleProvenance,
@@ -421,7 +426,7 @@ This keeps kinase-prior assembly out of user code and gives later bundled or dow
 Use `BundledReferenceProvider` when you want the first supported packaged reference lane instead of assembling kinase priors yourself.
 
 ```python
-from phospy import BundledReferenceProvider
+from phospy.references import BundledReferenceProvider
 
 provider = BundledReferenceProvider()
 reference_bundle = provider.resolve(
@@ -443,7 +448,7 @@ This is not a broad kinase-reference database. It is the first packaged provider
 Use `CorePreprocessingConfig` when you want one configuration object instead of scalar preprocessing options.
 
 ```python
-from phospy.core_processing import CorePreprocessingConfig
+from phospy.preprocessing import CorePreprocessingConfig
 
 config = CorePreprocessingConfig(
     localization_threshold=0.75,
@@ -528,7 +533,7 @@ Rules:
 Example:
 
 ```python
-from phospy import KinaseActivityAnalyzer
+from phospy.activities import KinaseActivityAnalyzer
 
 analyzer = KinaseActivityAnalyzer()
 result = analyzer.run(
@@ -646,7 +651,7 @@ Returned result bundle:
 Example:
 
 ```python
-from phospy import SimpleKinaseWorkflow
+from phospy.api import SimpleKinaseWorkflow
 
 result = SimpleKinaseWorkflow().run(
     phospho="study_phospho.tsv",

@@ -7,7 +7,8 @@ from tempfile import TemporaryDirectory
 
 import pandas as pd
 
-from phospy import PredMatWorkflow, SignalomeMapData, SignalomeResult, SignalomeWorkflow
+from phospy.api import PredMatWorkflow, SignalomeWorkflow
+from phospy.signalomes import SignalomeMapData, SignalomeResult
 
 
 def load_demo_inputs(

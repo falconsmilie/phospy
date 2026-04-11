@@ -1,9 +1,10 @@
 """PhosPy public package root.
 
-The root package exposes the supported public surface while implementation code
-is organised around domain capability packages such as ``api``, ``datasets``,
-``prediction``, ``preprocessing``, ``activities``, ``signalomes``, and
-``references``.
+The root package keeps a deliberately small convenience surface for supported
+high-level types while implementation code is organised around domain capability
+packages such as ``api``, ``datasets``, ``prediction``, ``preprocessing``,
+``activities``, ``signalomes``, and ``references``. New code should prefer
+those domain packages directly.
 """
 
 from .activities import KinaseActivityAnalyzer

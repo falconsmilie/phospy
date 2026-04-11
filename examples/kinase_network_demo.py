@@ -6,13 +6,9 @@ from tempfile import TemporaryDirectory
 
 import pandas as pd
 
-from phospy import (
-    PredMatResult,
-    SignalomeNetworkData,
-    SignalomeResult,
-    SignalomeWorkflow,
-)
-from phospy.prediction import KinaseScoringResult
+from phospy.api import SignalomeWorkflow
+from phospy.prediction import KinaseScoringResult, PredMatResult
+from phospy.signalomes import SignalomeNetworkData, SignalomeResult
 
 
 def build_demo_inputs() -> tuple[KinaseScoringResult, PredMatResult, pd.DataFrame]:
