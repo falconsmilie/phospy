@@ -10,12 +10,13 @@ import pandas as pd
 
 from .activities import KinaseActivityAnalyzer
 from .activities.results import KinaseActivityResult
-from .constants import ComparisonSpec
 from .datasets import DatasetLoader, DatasetSchema, PhosphoDataset
+from .errors import RequestValidationError, TableSchemaError
+from .internal.constants import ComparisonSpec
 from .io import load_pred_mat
+from .io.publishing import OutputPublisher, RunManifestWriter
+from .io.writers import CoreOutputWriter, KinaseActivityWriter
 from .preprocessing import CorePreprocessingConfig, CoreProcessingResult
-from .publishing import OutputPublisher, RunManifestWriter
-from .validation.errors import RequestValidationError, TableSchemaError
 from .validation.requests import (
     CorePipelineRequest,
     ValidatedPipelineRequest,
@@ -23,7 +24,6 @@ from .validation.requests import (
     validate_pipeline_construction_request,
     validate_pipeline_runtime_compatibility,
 )
-from .writers import CoreOutputWriter, KinaseActivityWriter
 
 __all__ = ["CoreOutputs", "PhosRPipeline"]
 

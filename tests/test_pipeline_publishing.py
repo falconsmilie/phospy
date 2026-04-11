@@ -9,11 +9,11 @@ import pandas as pd
 import pytest
 
 from phospy import KinaseActivityAnalyzer, PhosRPipeline, PredMatResult
-from phospy.constants import RUN_MANIFEST_FILENAME
 from phospy.datasets import PhosphoDataset
+from phospy.internal.constants import RUN_MANIFEST_FILENAME
+from phospy.io.publishing import OutputPublisher, RunManifestWriter, package_version
 from phospy.pipeline import _PipelineRequestLoader
 from phospy.preprocessing import CorePreprocessingConfig
-from phospy.publishing import OutputPublisher, RunManifestWriter, package_version
 from phospy.validation.requests import CorePipelineRequest
 from phospy.validation.schema.tables import PredMatSchema
 
@@ -362,7 +362,7 @@ def test_package_version_returns_unknown_when_distribution_metadata_is_missing(
     def missing_distribution(_: str) -> str:
         raise PackageNotFoundError("phospy")
 
-    monkeypatch.setattr("phospy.publishing.version", missing_distribution)
+    monkeypatch.setattr("phospy.io.publishing.version", missing_distribution)
 
     assert package_version() == "unknown"
 
@@ -373,7 +373,7 @@ def test_package_version_propagates_unexpected_metadata_errors(
     def blow_up(_: str) -> str:
         raise RuntimeError("metadata backend failed")
 
-    monkeypatch.setattr("phospy.publishing.version", blow_up)
+    monkeypatch.setattr("phospy.io.publishing.version", blow_up)
 
     with pytest.raises(RuntimeError, match="metadata backend failed"):
         package_version()

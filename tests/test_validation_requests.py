@@ -5,8 +5,8 @@ import pytest
 
 from phospy import PhosphoDataset, PredMatResult
 from phospy.datasets import DatasetSchema
+from phospy.errors import InputCompatibilityError, RequestValidationError
 from phospy.prediction.traces import TraceSink
-from phospy.validation.errors import InputCompatibilityError, RequestValidationError
 from phospy.validation.requests import (
     CorePipelineRequest,
     KinaseActivityRequest,

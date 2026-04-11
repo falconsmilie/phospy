@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from ..types import PredictionTraceFormat, PredictionTraceLevel
+from ..internal.types import PredictionTraceFormat, PredictionTraceLevel
 
 if TYPE_CHECKING:
     from ..validation.requests import PredictionRequest

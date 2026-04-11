@@ -5,16 +5,16 @@ from pathlib import Path
 
 import pandas as pd
 
-from ..constants import (
+from ..datasets.builders import DatasetSiteMatrix
+from ..datasets.loaders import DatasetLoader
+from ..datasets.models import AnalysisReadyPhosphoDataset, PhosphoDataset
+from ..datasets.schema import DatasetSchema
+from ..internal.constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
     TOTAL_GENE_COLUMN,
     ComparisonSpec,
 )
-from ..datasets.builders import DatasetSiteMatrix
-from ..datasets.loaders import DatasetLoader
-from ..datasets.models import AnalysisReadyPhosphoDataset, PhosphoDataset
-from ..datasets.schema import DatasetSchema
 from .core import (
     CorePreprocessingConfig,
     CoreProcessingResult,

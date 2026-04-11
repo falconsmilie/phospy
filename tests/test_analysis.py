@@ -6,13 +6,13 @@ import pandas as pd
 import pytest
 
 from phospy import KinaseActivityAnalyzer, PredMatResult
-from phospy.constants import KINASE_OUTPUT_FILENAMES
-from phospy.io import load_pred_mat
-from phospy.validation.errors import (
+from phospy.errors import (
     NoCandidateKinasesError,
     RequestValidationError,
     TableSchemaError,
 )
+from phospy.internal.constants import KINASE_OUTPUT_FILENAMES
+from phospy.io import load_pred_mat
 from phospy.validation.schema.tables import PredMatSchema, SiteMatrixSchema
 
 

@@ -5,13 +5,13 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from ..constants import (
+from ..errors import InputCompatibilityError
+from ..internal.constants import (
     CENTRALIZED_SEQUENCE_COLUMN,
     GENE_P_SITE_COLUMN,
     SITE_MATRIX_ID_COLUMN,
 )
 from ..preprocessing.site_matrix import SiteMatrixBuilder, SiteMatrixResult
-from ..validation.errors import InputCompatibilityError
 from .schema import DatasetSchema
 
 __all__ = ["DatasetSiteMatrix"]

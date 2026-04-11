@@ -11,11 +11,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from .constants import RUN_MANIFEST_FILENAME
+from ..internal.constants import RUN_MANIFEST_FILENAME
 
 if TYPE_CHECKING:
-    from .activities.results import KinaseActivityResult
-    from .preprocessing import CorePreprocessingConfig, CoreProcessingResult
+    from ..activities.results import KinaseActivityResult
+    from ..preprocessing import CorePreprocessingConfig, CoreProcessingResult
 
 
 def package_version() -> str:

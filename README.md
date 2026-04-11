@@ -98,7 +98,7 @@ Use `PhosphoDataset` when you want validated total and phospho inputs plus the s
 
 ```python
 from phospy import PhosphoDataset
-from phospy.writers import CoreOutputWriter
+from phospy.io.writers import CoreOutputWriter
 
 dataset = PhosphoDataset.from_files(
     "examples/data/total.tsv",

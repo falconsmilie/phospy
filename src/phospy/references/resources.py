@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from ..validation.errors import InputCompatibilityError
+from ..errors import InputCompatibilityError
 
 
 def bundled_reference_resource_path(

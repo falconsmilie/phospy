@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from ..constants import SITE_MATRIX_ID_COLUMN
+from ..internal.constants import SITE_MATRIX_ID_COLUMN
 
 
 def compute_weighted_kinase_activity(

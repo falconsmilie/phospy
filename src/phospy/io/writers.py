@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias
 import pandas as pd
 
 if TYPE_CHECKING:
-    from .activities.results import KinaseActivityResult
+    from ..activities.results import KinaseActivityResult
 
-from .constants import (
+from ..internal.constants import (
     CENTRALIZED_SEQUENCE_COLUMN,
     CORE_PHOSPHO_CORRECTED_BASENAME,
     CORE_PHOSPHO_FILTERED_BASENAME,
@@ -25,7 +25,7 @@ from .constants import (
     KSEA_COUNTS_FILENAME,
     KSEA_SCORES_FILENAME,
 )
-from .preprocessing import CoreProcessingResult
+from ..preprocessing import CoreProcessingResult
 
 CoreOutputFormat: TypeAlias = Literal["csv", "tsv", "parquet"]
 

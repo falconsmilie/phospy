@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.validation.errors import PhospyValidationError, TableSchemaError
+from phospy.errors import PhospyValidationError, TableSchemaError
 from phospy.validation.schema.frames import require_dataframe
 from phospy.validation.values.collections import resolve_required_columns
 from phospy.validation.values.enums import validate_svm_mode

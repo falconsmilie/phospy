@@ -4,7 +4,7 @@ from collections.abc import Iterable, Mapping, Sequence
 
 import pandas as pd
 
-from ..errors import PhospyValidationError
+from ...errors import PhospyValidationError
 
 
 def resolve_required_columns(

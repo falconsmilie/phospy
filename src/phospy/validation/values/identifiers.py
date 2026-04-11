@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ...constants import GENE_P_SITE_COLUMN
-from ..errors import TableSchemaError
+from ...errors import TableSchemaError
+from ...internal.constants import GENE_P_SITE_COLUMN
 
 
 def normalize_identifier_series(series: pd.Series) -> pd.Series:

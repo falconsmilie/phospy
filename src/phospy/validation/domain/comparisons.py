@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from ...constants import ComparisonSpec
 from ...datasets.schema import DatasetSchema
-from ..errors import InputCompatibilityError
+from ...errors import InputCompatibilityError
+from ...internal.constants import ComparisonSpec
 
 
 def validate_dataset_comparisons(

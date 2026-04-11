@@ -6,12 +6,12 @@ from dataclasses import dataclass
 import pandas as pd
 from pydantic import Field, ValidationError, field_validator, model_validator
 
+from ...errors import RequestValidationError
+from ...internal.types import PredictionSvmMode
 from ...motifs import KinaseMotifScorer
 from ...references import ReferenceBundle
-from ...types import PredictionSvmMode
 from ..compatibility import validate_workflow_matrix_inputs
 from ..domain import resolve_reference_bundle_inputs
-from ..errors import RequestValidationError
 from ..values.collections import (
     normalize_sequence_mapping,
     normalize_site_sequence_series,

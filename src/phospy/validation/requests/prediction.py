@@ -12,8 +12,12 @@ from pydantic import (
     model_validator,
 )
 
-from ...types import PredictionSvmMode, PredictionTraceFormat, PredictionTraceLevel
-from ..errors import RequestValidationError
+from ...errors import RequestValidationError
+from ...internal.types import (
+    PredictionSvmMode,
+    PredictionTraceFormat,
+    PredictionTraceLevel,
+)
 from ..schema.tables import PredictionScoreMatrixSchema
 from .shared import PhospyRequestModel, validate_adapter_value
 

@@ -5,7 +5,7 @@ from typing import Literal
 
 import numpy as np
 
-from ..types import PredictionSvmMode
+from ..internal.types import PredictionSvmMode
 
 PredictionSamplingSeedStrategy = Literal["stable_by_kinase", "global_parity"]
 PredictionResamplingWeightMode = Literal["default", "r_parity"]

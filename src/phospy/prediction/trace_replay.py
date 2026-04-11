@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from ..validation.errors import TableSchemaError
+from ..errors import TableSchemaError
 from .results import SamplingTraceOverrideEnsemble
 
 

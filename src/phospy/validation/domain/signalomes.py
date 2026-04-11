@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from ...errors import NoCandidateKinasesError, RequestValidationError
 from ...signalomes.site_ids import resolve_signalome_site_to_protein
-from ..errors import NoCandidateKinasesError, RequestValidationError
 from ..schema.tables import PredMatSchema
 
 if TYPE_CHECKING:

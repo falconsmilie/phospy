@@ -5,7 +5,7 @@ import pytest
 
 from phospy import PhosphoDataset
 from phospy.datasets import DatasetSchema
-from phospy.validation.errors import InputCompatibilityError
+from phospy.errors import InputCompatibilityError
 
 
 def test_dataset_schema_validates_aligned_column_groups() -> None:

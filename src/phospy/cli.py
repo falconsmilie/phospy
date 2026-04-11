@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import argparse
 
+from .errors import RequestValidationError
 from .pipeline import PhosRPipeline
-from .validation.errors import RequestValidationError
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -8,6 +8,11 @@ import pytest
 
 from phospy import AnalysisReadyPhosphoDataset, PhosphoDataset, SimpleKinaseWorkflow
 from phospy.datasets import DatasetSchema
+from phospy.errors import (
+    InputCompatibilityError,
+    PhospyValidationError,
+    TableSchemaError,
+)
 from phospy.preprocessing import (
     CoverageFilterResult,
     LocalizationFilterResult,
@@ -22,11 +27,6 @@ from phospy.preprocessing import (
     filter_min_observed,
     filter_sites_by_coverage,
     replace_sentinel_with_nan,
-)
-from phospy.validation.errors import (
-    InputCompatibilityError,
-    PhospyValidationError,
-    TableSchemaError,
 )
 
 

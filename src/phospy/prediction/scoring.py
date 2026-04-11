@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from ..validation.errors import InputCompatibilityError
+from ..errors import InputCompatibilityError
 
 
 @dataclass(slots=True)

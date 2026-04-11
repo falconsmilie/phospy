@@ -3,8 +3,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.errors import TableSchemaError
 from phospy.matrices import build_site_matrix
-from phospy.validation.errors import TableSchemaError
 
 
 def test_build_site_matrix_creates_site_ids_and_deduplicates_by_mean() -> None:

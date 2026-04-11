@@ -5,7 +5,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from ..constants import (
+from ..datasets.schema import DatasetSchema
+from ..internal.constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
     GENE_P_SITE_COLUMN,
@@ -14,7 +15,6 @@ from ..constants import (
     TOTAL_GENE_COLUMN,
     ComparisonSpec,
 )
-from ..datasets.schema import DatasetSchema
 from .primitives import (
     _add_pairwise_comparisons_in_place,
     _collapse_duplicate_genes_owned,

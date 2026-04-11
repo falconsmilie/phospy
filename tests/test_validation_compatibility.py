@@ -5,14 +5,14 @@ import pytest
 
 from phospy import KinaseActivityAnalyzer, PhosphoDataset
 from phospy.api import KinaseWorkflow
-from phospy.validation import (
-    validate_protein_correction_inputs,
-    validate_workflow_request,
-)
-from phospy.validation.errors import (
+from phospy.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
     TableSchemaError,
+)
+from phospy.validation import (
+    validate_protein_correction_inputs,
+    validate_workflow_request,
 )
 
 

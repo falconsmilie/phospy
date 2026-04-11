@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from pydantic import Field, ValidationError, field_validator
 
+from ...errors import RequestValidationError
 from ..compatibility import validate_signalome_alignment
 from ..domain import (
     resolve_scoring_matrix,
     validate_prediction_result_pred_mat,
     validate_signalome_site_grouping,
 )
-from ..errors import RequestValidationError
 from ..values.collections import (
     normalize_site_to_protein_mapping,
     normalize_string_sequence,

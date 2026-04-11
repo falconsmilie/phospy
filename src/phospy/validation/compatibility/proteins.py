@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from ..errors import InputCompatibilityError
+from ...errors import InputCompatibilityError
 from ..schema.frames import require_columns
 from ..values.identifiers import normalize_identifier_series
 from ..values.numeric import validate_fraction

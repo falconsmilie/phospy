@@ -8,13 +8,13 @@ import pytest
 import phospy.signalomes.clustering as signalome_clustering
 from phospy import PredMatResult, SignalomeResult
 from phospy.api import PredMatWorkflow, SignalomeWorkflow
-from phospy.signalomes import build_signalome_result
-from phospy.validation.errors import (
+from phospy.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
     RequestValidationError,
     TableSchemaError,
 )
+from phospy.signalomes import build_signalome_result
 
 
 def make_workflow_inputs() -> tuple[

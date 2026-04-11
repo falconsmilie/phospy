@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from ..types import PredictionTraceLevel
+from ..internal.types import PredictionTraceLevel
 
 if TYPE_CHECKING:
     from .traces import TraceSink

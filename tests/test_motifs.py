@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 import phospy.motifs as motifs
+from phospy.errors import InputCompatibilityError, TableSchemaError
 from phospy.motifs import (
     KinaseMotifScorer,
     ValidatedMotifLibrary,
@@ -19,7 +20,6 @@ from phospy.references import (
     ReferenceBundleSourceMetadata,
     ReferenceProvider,
 )
-from phospy.validation.errors import InputCompatibilityError, TableSchemaError
 
 
 def test_create_frequency_matrix_normalizes_counts_and_ignores_gaps() -> None:

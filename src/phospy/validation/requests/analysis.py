@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from pydantic import Field, ValidationError
 
+from ...errors import NoCandidateKinasesError, RequestValidationError
 from ..compatibility import validate_pred_mat_overlap
-from ..errors import NoCandidateKinasesError, RequestValidationError
 from ..schema.tables import PredMatSchema, SiteMatrixSchema
 from .shared import PhospyRequestModel, normalize_pred_mat_input
 

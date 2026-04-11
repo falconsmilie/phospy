@@ -4,9 +4,7 @@ from collections.abc import Sequence
 
 from pydantic import ValidationError
 
-
-class PhospyError(Exception):
-    """Base class for phospy package errors."""
+from .base import PhospyError
 
 
 class PhospyValidationError(PhospyError, ValueError):
@@ -58,3 +56,14 @@ def _format_pydantic_errors(error: ValidationError) -> str:
 
 def _format_error_location(location: Sequence[object]) -> str:
     return ".".join(str(part) for part in location if part not in {None, ""})
+
+
+__all__ = [
+    "InputCompatibilityError",
+    "NoCandidateKinasesError",
+    "PhospyValidationError",
+    "PredictionConfigurationError",
+    "RequestValidationError",
+    "TableSchemaError",
+    "TraceError",
+]

@@ -1,18 +1,11 @@
 """Validation domain.
 
 This package owns validation concerns organised by validation type, including
-request validation, schema validation, compatibility checks, and validation
-errors."""
+request validation, schema validation, and compatibility checks. Shared
+validation error classes are imported from ``phospy.errors``.
+"""
 
-from .compatibility import (
-    ProteinCorrectionMatchSummary,
-    validate_core_column_alignment,
-    validate_pred_mat_overlap,
-    validate_protein_correction_inputs,
-    validate_signalome_alignment,
-    validate_workflow_matrix_inputs,
-)
-from .errors import (
+from ..errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
     PhospyError,
@@ -21,6 +14,14 @@ from .errors import (
     RequestValidationError,
     TableSchemaError,
     TraceError,
+)
+from .compatibility import (
+    ProteinCorrectionMatchSummary,
+    validate_core_column_alignment,
+    validate_pred_mat_overlap,
+    validate_protein_correction_inputs,
+    validate_signalome_alignment,
+    validate_workflow_matrix_inputs,
 )
 from .requests import (
     CorePipelineRequest,

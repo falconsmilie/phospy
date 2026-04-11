@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
-from ..errors import RequestValidationError
+from ...errors import RequestValidationError
 
 if TYPE_CHECKING:
     from ...prediction.results import PredMatResult

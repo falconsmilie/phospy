@@ -9,7 +9,7 @@ import pandas.testing as pdt
 import pytest
 
 from phospy import KinaseActivityAnalyzer, PhosphoDataset
-from phospy.constants import (
+from phospy.internal.constants import (
     CENTRALIZED_SEQUENCE_COLUMN,
     CORE_OUTPUT_ARTIFACT_BASENAMES,
     CORE_SITE_SEQUENCES_BASENAME,

@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from .constants import ComparisonSpec
 from .datasets.schema import DatasetSchema
-from .validation.errors import InputCompatibilityError
+from .errors import InputCompatibilityError
+from .internal.constants import ComparisonSpec
 from .validation.schema.files import validate_existing_file_path
 from .validation.schema.tables import PhosphoInputSchema, TotalInputSchema
 

@@ -5,8 +5,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from ..constants import DEFAULT_PHOSPHO_SENTINEL, DEFAULT_TOTAL_SENTINEL, ComparisonSpec
 from ..datasets.schema import DatasetSchema
+from ..internal.constants import (
+    DEFAULT_PHOSPHO_SENTINEL,
+    DEFAULT_TOTAL_SENTINEL,
+    ComparisonSpec,
+)
 from .core import CorePreprocessingConfig
 from .modes import AnalysisReadyDatasetBuilder
 

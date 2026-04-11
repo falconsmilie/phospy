@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 
 import pandas as pd
 
-from ..validation.errors import InputCompatibilityError
+from ..errors import InputCompatibilityError
 
 __all__ = [
     "parse_supported_signalome_site_ids",

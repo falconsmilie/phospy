@@ -4,7 +4,8 @@ from collections.abc import Sequence
 
 import pandas as pd
 
-from ...constants import (
+from ...errors import TableSchemaError
+from ...internal.constants import (
     DEFAULT_PHOSPHO_COLS,
     DEFAULT_TOTAL_COLS,
     GENE_P_SITE_COLUMN,
@@ -14,7 +15,6 @@ from ...constants import (
     PHOSPHO_UID_COLUMN,
     TOTAL_GENE_COLUMN,
 )
-from ..errors import TableSchemaError
 from ..values.identifiers import require_splitable_gene_p_site
 from .frames import (
     coerce_numeric_columns,

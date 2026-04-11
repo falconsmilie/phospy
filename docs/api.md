@@ -459,7 +459,7 @@ You can pass it to `dataset.preprocessing.run(config=...)` or `PhosRPipeline(...
 ## `CoreOutputWriter`
 
 ```python
-from phospy.writers import CoreOutputWriter
+from phospy.io.writers import CoreOutputWriter
 
 CoreOutputWriter().write(
     result=core,

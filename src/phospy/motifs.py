@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .validation.errors import (
+from .errors import (
     InputCompatibilityError,
     TableSchemaError,
 )

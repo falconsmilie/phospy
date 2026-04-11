@@ -5,8 +5,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from ..types import PredictionTraceLevel
-from ..validation.errors import PredictionConfigurationError
+from ..errors import PredictionConfigurationError
+from ..internal.types import PredictionTraceLevel
 from ..validation.requests import PredictionRequest
 from .policies import (
     PredictionSamplingPolicy,

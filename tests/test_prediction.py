@@ -8,6 +8,11 @@ import pandas as pd
 import pytest
 
 from phospy import SimpleKinaseWorkflow
+from phospy.errors import (
+    NoCandidateKinasesError,
+    RequestValidationError,
+    TableSchemaError,
+)
 from phospy.io import load_pred_mat
 from phospy.prediction import (
     KinasePredictionResult,
@@ -40,11 +45,6 @@ from phospy.prediction.svm import (
 )
 from phospy.prediction.trace_runtime import TraceSink
 from phospy.prediction.traces import DirectoryTraceSink, create_trace_sink
-from phospy.validation.errors import (
-    NoCandidateKinasesError,
-    RequestValidationError,
-    TableSchemaError,
-)
 from phospy.validation.requests import PredictionRequest
 
 SIMPLE_WORKFLOW_FIXTURE_DIR = (

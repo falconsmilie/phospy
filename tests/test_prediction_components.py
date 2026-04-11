@@ -3,11 +3,11 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.errors import NoCandidateKinasesError
 from phospy.prediction.aggregation import PredictionAggregator
 from phospy.prediction.candidates import CandidateSelector
 from phospy.prediction.engines import PredictionExecutionRunner
 from phospy.prediction.execution import TraceRecorder
-from phospy.validation.errors import NoCandidateKinasesError
 from phospy.validation.requests import PredictionRequest
 
 

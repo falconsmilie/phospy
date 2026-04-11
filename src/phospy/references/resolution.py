@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..constants import (
+from ..errors import InputCompatibilityError
+from ..internal.constants import (
     BUNDLED_REFERENCE_ALIASES,
     BUNDLED_REFERENCE_AUTO,
     BUNDLED_REFERENCE_DEFAULTS,
@@ -11,7 +12,6 @@ from ..constants import (
     BUNDLED_REFERENCE_SPECIES_ALIASES,
     BUNDLED_REFERENCE_VERSION,
 )
-from ..validation.errors import InputCompatibilityError
 from .models import (
     ReferenceBundle,
     ReferenceBundleProvenance,

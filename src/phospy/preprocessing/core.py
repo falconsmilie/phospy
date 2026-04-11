@@ -5,7 +5,9 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from ..constants import (
+from ..datasets.schema import DatasetSchema
+from ..errors import InputCompatibilityError
+from ..internal.constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
     GENE_P_SITE_COLUMN,
@@ -14,8 +16,6 @@ from ..constants import (
     TOTAL_GENE_COLUMN,
     ComparisonSpec,
 )
-from ..datasets.schema import DatasetSchema
-from ..validation.errors import InputCompatibilityError
 from .services import (
     PhosphoPreprocessor,
     ProteinCorrectionService,

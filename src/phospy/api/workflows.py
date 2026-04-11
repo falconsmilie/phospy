@@ -8,12 +8,13 @@ import pandas as pd
 
 from ..activities import KinaseActivityAnalyzer
 from ..activities.results import KinaseActivityResult
-from ..constants import (
+from ..datasets import AnalysisReadyPhosphoDataset, DatasetSchema
+from ..internal.constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
     ComparisonSpec,
 )
-from ..datasets import AnalysisReadyPhosphoDataset, DatasetSchema
+from ..internal.types import PredictionSvmMode
 from ..motifs import MotifScoringResult
 from ..prediction import (
     KinasePredictionResult,
@@ -30,7 +31,6 @@ from ..references import (
     ReferenceProvider,
 )
 from ..signalomes import SignalomeResult, execute_validated_signalome_request
-from ..types import PredictionSvmMode
 from ..validation.requests import (
     ValidatedSignalomeRequest,
     ValidatedWorkflowRequest,

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from ...errors import RequestValidationError
 from ...references import ReferenceBundle
-from ..errors import RequestValidationError
 
 
 def resolve_reference_bundle_inputs(

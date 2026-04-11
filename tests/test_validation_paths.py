@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from phospy.validation.errors import RequestValidationError
+from phospy.errors import RequestValidationError
 from phospy.validation.requests import validate_existing_file_path
 
 

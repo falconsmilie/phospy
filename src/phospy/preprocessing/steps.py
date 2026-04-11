@@ -8,9 +8,9 @@ from typing import Literal, overload
 
 import pandas as pd
 
-from ..constants import LOCALIZATION_PROB_COLUMN, ComparisonSpec
 from ..datasets.schema import DatasetSchema
-from ..validation.errors import PhospyValidationError
+from ..errors import PhospyValidationError
+from ..internal.constants import LOCALIZATION_PROB_COLUMN, ComparisonSpec
 from ..validation.schema.frames import (
     require_columns,
     require_numeric_columns,

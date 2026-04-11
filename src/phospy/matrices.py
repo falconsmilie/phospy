@@ -4,7 +4,7 @@ from collections.abc import Mapping, Sequence
 
 import pandas as pd
 
-from .constants import (
+from .internal.constants import (
     PHOSPHO_GENE_COLUMN,
     PHOSPHO_UID_COLUMN,
     SITE_MATRIX_GENE_COLUMN,

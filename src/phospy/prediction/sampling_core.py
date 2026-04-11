@@ -5,7 +5,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ..types import PredictionSvmMode, PredictionTraceLevel
+from ..internal.types import PredictionSvmMode, PredictionTraceLevel
 from .policies import PredictionSamplingPolicy, resolve_prediction_sampling_policy
 from .results import AdaptiveSamplingEnsembleTrace, SamplingTraceOverrideEnsemble
 from .sampling_runtime import (

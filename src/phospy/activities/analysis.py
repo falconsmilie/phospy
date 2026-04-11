@@ -8,11 +8,11 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 from ..io import load_pred_mat
+from ..io.writers import KinaseActivityResultWriter, KinaseActivityWriter
 from ..validation.requests import (
     ValidatedAnalysisRequest,
     validate_analysis_request,
 )
-from ..writers import KinaseActivityResultWriter, KinaseActivityWriter
 from .results import KinaseActivityResult
 from .scoring import (
     build_kinase_target_table,

@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from ..errors import InputCompatibilityError
+from ...errors import InputCompatibilityError
 from ..schema.tables import PredictionScoreMatrixSchema, PredMatSchema, SiteMatrixSchema
 
 

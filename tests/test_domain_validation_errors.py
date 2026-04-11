@@ -5,14 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy.motifs import KinaseMotifScorer, create_frequency_matrix
-from phospy.prediction import (
-    KinasePredictor,
-    KinaseScorer,
-    PredictionSamplingTrace,
-    build_candidate_substrate_list,
-)
-from phospy.validation.errors import (
+from phospy.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
     PhospyError,
@@ -20,6 +13,13 @@ from phospy.validation.errors import (
     PredictionConfigurationError,
     RequestValidationError,
     TableSchemaError,
+)
+from phospy.motifs import KinaseMotifScorer, create_frequency_matrix
+from phospy.prediction import (
+    KinasePredictor,
+    KinaseScorer,
+    PredictionSamplingTrace,
+    build_candidate_substrate_list,
 )
 
 

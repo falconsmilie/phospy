@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from ..types import PredictionSvmMode
-from ..validation.errors import InputCompatibilityError
+from ..errors import InputCompatibilityError
+from ..internal.types import PredictionSvmMode
 
 
 class _RLikeStandardScaler:

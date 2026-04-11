@@ -8,11 +8,15 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from ..errors import InputCompatibilityError, NoCandidateKinasesError
+from ..internal.types import (
+    PredictionSvmMode,
+    PredictionTraceFormat,
+    PredictionTraceLevel,
+)
 from ..motifs import MotifScoringResult
 from ..profiles import KinaseProfileResult, build_kinase_substrate_profiles
 from ..references import ReferenceBundle
-from ..types import PredictionSvmMode, PredictionTraceFormat, PredictionTraceLevel
-from ..validation.errors import InputCompatibilityError, NoCandidateKinasesError
 from ..validation.requests import (
     PredictionRequest,
     ValidatedWorkflowRequest,

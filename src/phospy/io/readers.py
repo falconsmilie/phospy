@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .validation.schema.tables import (
+from ..validation.schema.tables import (
     PhosphoInputSchema,
     PredMatSchema,
     TotalInputSchema,
@@ -30,9 +30,8 @@ def default_text_encoding(path: str | Path | None = None) -> str:
     """Return the package default text encoding.
 
     The loader does not infer encodings from file contents. Callers should pass
-    an explicit encoding when they need something other than the package default.
-    The optional ``path`` argument is accepted for API convenience and backward
-    compatibility with earlier helper usage.
+    an explicit encoding when they need something other than the package
+    default. The optional ``path`` argument is accepted for API convenience.
     """
 
     _ = path
@@ -71,7 +70,7 @@ def read_table(
     usecols: Sequence[str | int] | None = None,
 ) -> pd.DataFrame:
     frame = read_table_raw(path, encoding=encoding, usecols=usecols)
-    return _clean_table_columns(frame)
+    return clean_table_columns(frame)
 
 
 def load_total_table(
@@ -80,7 +79,7 @@ def load_total_table(
     encoding: str | None = None,
     usecols: Sequence[str | int] | None = None,
 ) -> pd.DataFrame:
-    frame = _clean_table_columns(
+    frame = clean_table_columns(
         read_table_raw(path, encoding=encoding, usecols=usecols)
     )
     return TotalInputSchema.validate(frame, context=f"total input table ({path})")
@@ -92,7 +91,7 @@ def load_phospho_table(
     encoding: str | None = None,
     usecols: Sequence[str | int] | None = None,
 ) -> pd.DataFrame:
-    frame = _clean_table_columns(
+    frame = clean_table_columns(
         read_table_raw(path, encoding=encoding, usecols=usecols)
     )
     return PhosphoInputSchema.validate(frame, context=f"phospho input table ({path})")
@@ -116,52 +115,20 @@ def load_pred_mat(
     return PredMatSchema.validate(frame, context=f"pred_mat ({path})")
 
 
-def load_grouped_mapping(
-    path: str | Path,
-    *,
-    group_column: str,
-    value_column: str,
-    sep: str = ",",
-    encoding: str | None = None,
-) -> dict[str, tuple[str, ...]]:
-    frame = _clean_table_columns(read_table_raw(path, sep=sep, encoding=encoding))
-    group_key = clean_columns([group_column])[0]
-    value_key = clean_columns([value_column])[0]
-    missing = [
-        column for column in (group_key, value_key) if column not in frame.columns
-    ]
-    if missing:
-        msg = f"Grouped mapping file is missing required columns: {', '.join(missing)}"
-        raise ValueError(msg)
-    grouped: dict[str, list[str]] = {}
-    for group, value in frame.loc[:, [group_key, value_key]].itertuples(index=False):
-        grouped.setdefault(str(group).strip(), []).append(str(value).strip())
-    return {key: tuple(values) for key, values in grouped.items()}
-
-
-def load_string_mapping(
-    path: str | Path,
-    *,
-    key_column: str,
-    value_column: str,
-    sep: str = ",",
-    encoding: str | None = None,
-) -> dict[str, str]:
-    frame = _clean_table_columns(read_table_raw(path, sep=sep, encoding=encoding))
-    key_name = clean_columns([key_column])[0]
-    value_name = clean_columns([value_column])[0]
-    missing = [
-        column for column in (key_name, value_name) if column not in frame.columns
-    ]
-    if missing:
-        msg = f"String mapping file is missing required columns: {', '.join(missing)}"
-        raise ValueError(msg)
-    return {
-        str(key).strip(): str(value).strip()
-        for key, value in frame.loc[:, [key_name, value_name]].itertuples(index=False)
-    }
-
-
-def _clean_table_columns(frame: pd.DataFrame) -> pd.DataFrame:
+def clean_table_columns(frame: pd.DataFrame) -> pd.DataFrame:
     frame.columns = clean_columns(str(column) for column in frame.columns)
     return frame
+
+
+__all__ = [
+    "DEFAULT_TEXT_ENCODING",
+    "clean_columns",
+    "clean_table_columns",
+    "default_text_encoding",
+    "infer_text_encoding",
+    "load_phospho_table",
+    "load_pred_mat",
+    "load_total_table",
+    "read_table",
+    "read_table_raw",
+]

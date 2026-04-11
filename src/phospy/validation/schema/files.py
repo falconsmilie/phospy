@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ..errors import RequestValidationError
+from ...errors import RequestValidationError
 
 
 def validate_existing_file_path(

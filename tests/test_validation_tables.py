@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.errors import TableSchemaError
 from phospy.io import (
     DEFAULT_TEXT_ENCODING,
     default_text_encoding,
@@ -11,7 +12,6 @@ from phospy.io import (
     load_pred_mat,
     load_total_table,
 )
-from phospy.validation.errors import TableSchemaError
 from phospy.validation.schema.tables import (
     PhosphoInputSchema,
     PredictionScoreMatrixSchema,

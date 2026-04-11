@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from phospy import KinaseActivityAnalyzer, PhosphoDataset, PhosRPipeline
-from phospy.constants import (
+from phospy.internal.constants import (
     CORE_OUTPUT_ARTIFACT_BASENAMES,
     KINASE_OUTPUT_FILENAMES,
 )

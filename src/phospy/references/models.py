@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
+from ..errors import InputCompatibilityError
+from ..internal.types import KinaseMotifSequenceMap, KinaseSubstrateMap
 from ..motifs import build_validated_motif_library
-from ..types import KinaseMotifSequenceMap, KinaseSubstrateMap
-from ..validation.errors import InputCompatibilityError
 from ..validation.values.collections import normalize_sequence_mapping
 
 
