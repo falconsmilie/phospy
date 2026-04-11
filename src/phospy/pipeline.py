@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .activities import KinaseActivityAnalyzer, KinaseActivityResult
+from .activities import KinaseActivityAnalyzer
+from .activities.results import KinaseActivityResult
 from .constants import ComparisonSpec
 from .datasets import DatasetLoader, DatasetSchema, PhosphoDataset
 from .io import load_pred_mat

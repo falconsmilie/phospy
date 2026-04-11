@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from ..activities import KinaseActivityAnalyzer, KinaseActivityResult
+from ..activities import KinaseActivityAnalyzer
+from ..activities.results import KinaseActivityResult
 from ..constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,

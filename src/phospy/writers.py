@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias
 import pandas as pd
 
 if TYPE_CHECKING:
-    from .activities import KinaseActivityResult
+    from .activities.results import KinaseActivityResult
 
 from .constants import (
     CENTRALIZED_SEQUENCE_COLUMN,

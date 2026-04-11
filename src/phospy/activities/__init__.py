@@ -5,7 +5,8 @@ compatible phospho-derived inputs. It should remain focused on activity
 analysis behaviour and result models, not public workflow orchestration.
 """
 
-from .analyzer import KinaseActivityAnalyzer, KinaseActivityResult
+from .analysis import KinaseActivityAnalyzer
+from .results import KinaseActivityResult
 from .scoring import (
     build_kinase_target_table,
     compute_ksea_scores,

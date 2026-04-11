@@ -13,6 +13,7 @@ from ..validation.requests import (
     validate_analysis_request,
 )
 from ..writers import KinaseActivityResultWriter, KinaseActivityWriter
+from .results import KinaseActivityResult
 from .scoring import (
     build_kinase_target_table,
     compute_ksea_scores,
@@ -20,7 +21,7 @@ from .scoring import (
     count_predicted_targets,
 )
 
-__all__ = ["KinaseActivityAnalyzer", "KinaseActivityResult"]
+__all__ = ["KinaseActivityAnalyzer"]
 
 
 if TYPE_CHECKING:
@@ -28,17 +29,6 @@ if TYPE_CHECKING:
 
 
 PredMatLoader = Callable[[str | Path], pd.DataFrame]
-
-
-@dataclass(slots=True)
-class KinaseActivityResult:
-    """Kinase activity tables produced by one analyzer run."""
-
-    weighted_activity: pd.DataFrame
-    ksea_scores: pd.DataFrame
-    ksea_counts: pd.Series
-    target_counts: pd.Series
-    target_table: pd.DataFrame
 
 
 class _ActivityRunner:
