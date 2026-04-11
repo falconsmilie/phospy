@@ -253,7 +253,40 @@ class SiteMatrixSchema:
         return validated
 
 
+class ActivitySiteMatrixSchema:
+    """Validate phosphosite matrices used by downstream activity analysis.
+
+    Missing numeric values are allowed because activity scoring ignores them on a
+    per-sample basis.
+    """
+
+    @classmethod
+    def validate(
+        cls,
+        frame: pd.DataFrame,
+        *,
+        context: str = "phospho_matrix",
+    ) -> pd.DataFrame:
+        validated = require_dataframe(frame, context=context)
+        require_unique_columns(validated.columns, context=context)
+        if validated.shape[0] == 0:
+            msg = f"{context} must contain at least one phosphosite row"
+            raise TableSchemaError(msg)
+        if validated.shape[1] == 0:
+            msg = f"{context} must contain at least one numeric value column"
+            raise TableSchemaError(msg)
+        validated = coerce_numeric_columns(
+            validated,
+            columns=list(validated.columns),
+            context=context,
+        )
+        require_unique_index(validated, context=context)
+        require_non_null_index(validated, context=context)
+        return validated
+
+
 __all__ = [
+    "ActivitySiteMatrixSchema",
     "PhosphoInputSchema",
     "PredMatSchema",
     "PredictionScoreMatrixSchema",

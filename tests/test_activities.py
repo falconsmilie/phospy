@@ -11,7 +11,7 @@ from phospy.activities import (
     compute_weighted_kinase_activity,
     count_predicted_targets,
 )
-from phospy.errors import RequestValidationError
+from phospy.errors import InputCompatibilityError, RequestValidationError
 
 
 def make_pred_mat() -> pd.DataFrame:
@@ -405,3 +405,59 @@ def test_compute_weighted_kinase_activity_avoids_series_nlargest(
     )
 
     assert set(result.index) == {"PRKACA", "BTK"}
+
+
+@pytest.mark.parametrize(
+    "helper",
+    [compute_weighted_kinase_activity, compute_ksea_scores],
+)
+def test_activity_scoring_helpers_reject_zero_site_overlap(helper) -> None:
+    pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["SITE_A"])
+    phospho_matrix = pd.DataFrame({"sample_1": [1.0]}, index=["SITE_B"])
+
+    with pytest.raises(InputCompatibilityError, match="no overlapping phosphosite IDs"):
+        if helper is compute_weighted_kinase_activity:
+            helper(
+                pred_mat=pred_mat,
+                phospho_matrix=phospho_matrix,
+                top_n_substrates=1,
+                min_substrates=1,
+            )
+        else:
+            helper(
+                pred_mat=pred_mat,
+                phospho_matrix=phospho_matrix,
+                threshold=0.6,
+                min_substrates=1,
+            )
+
+
+@pytest.mark.parametrize(
+    "helper",
+    [compute_weighted_kinase_activity, compute_ksea_scores],
+)
+def test_activity_scoring_helpers_reject_insufficient_overlap_fraction(helper) -> None:
+    pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["SITE_1"])
+    phospho_matrix = pd.DataFrame(
+        {"sample_1": [1.0] * 20},
+        index=[f"SITE_{idx}" for idx in range(1, 21)],
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match="insufficient overlapping phosphosite IDs",
+    ):
+        if helper is compute_weighted_kinase_activity:
+            helper(
+                pred_mat=pred_mat,
+                phospho_matrix=phospho_matrix,
+                top_n_substrates=1,
+                min_substrates=1,
+            )
+        else:
+            helper(
+                pred_mat=pred_mat,
+                phospho_matrix=phospho_matrix,
+                threshold=0.6,
+                min_substrates=1,
+            )

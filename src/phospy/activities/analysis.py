@@ -15,9 +15,9 @@ from ..validation.requests import (
 )
 from .results import KinaseActivityResult
 from .scoring import (
+    _compute_ksea_scores_validated,
+    _compute_weighted_kinase_activity_validated,
     build_kinase_target_table,
-    compute_ksea_scores,
-    compute_weighted_kinase_activity,
     count_predicted_targets,
 )
 
@@ -36,18 +36,8 @@ class _ActivityRunner:
         self,
         request: ValidatedAnalysisRequest,
     ) -> KinaseActivityResult:
-        weighted_activity = compute_weighted_kinase_activity(
-            pred_mat=request.pred_mat,
-            phospho_matrix=request.phospho_matrix,
-            top_n_substrates=request.request.top_n_substrates,
-            min_substrates=request.request.min_substrates,
-        )
-        ksea_scores, ksea_counts = compute_ksea_scores(
-            pred_mat=request.pred_mat,
-            phospho_matrix=request.phospho_matrix,
-            threshold=request.request.threshold,
-            min_substrates=request.request.min_substrates,
-        )
+        weighted_activity = _compute_weighted_kinase_activity_validated(request)
+        ksea_scores, ksea_counts = _compute_ksea_scores_validated(request)
         target_counts = count_predicted_targets(
             request.pred_mat,
             threshold=request.request.threshold,

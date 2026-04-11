@@ -13,7 +13,10 @@ from phospy.errors import (
 )
 from phospy.internal.constants import KINASE_OUTPUT_FILENAMES
 from phospy.io import load_pred_mat
-from phospy.validation.schema.tables import PredMatSchema, SiteMatrixSchema
+from phospy.validation.schema.tables import (
+    ActivitySiteMatrixSchema,
+    PredMatSchema,
+)
 
 
 def make_pred_mat() -> pd.DataFrame:
@@ -250,7 +253,7 @@ def test_run_revalidates_public_inputs_loaded_from_disk(
     pred_calls: list[str] = []
     matrix_calls: list[str] = []
     original_pred_validate = PredMatSchema.validate
-    original_matrix_validate = SiteMatrixSchema.validate
+    original_matrix_validate = ActivitySiteMatrixSchema.validate
 
     def counting_pred_validate(df: pd.DataFrame, *, context: str) -> pd.DataFrame:
         pred_calls.append(context)
@@ -266,7 +269,7 @@ def test_run_revalidates_public_inputs_loaded_from_disk(
         staticmethod(counting_pred_validate),
     )
     monkeypatch.setattr(
-        SiteMatrixSchema,
+        ActivitySiteMatrixSchema,
         "validate",
         staticmethod(counting_matrix_validate),
     )
@@ -289,7 +292,7 @@ def test_run_validated_uses_validated_boundary_request(
     pred_calls: list[str] = []
     matrix_calls: list[str] = []
     original_pred_validate = PredMatSchema.validate
-    original_matrix_validate = SiteMatrixSchema.validate
+    original_matrix_validate = ActivitySiteMatrixSchema.validate
 
     def counting_pred_validate(df: pd.DataFrame, *, context: str) -> pd.DataFrame:
         pred_calls.append(context)
@@ -305,7 +308,7 @@ def test_run_validated_uses_validated_boundary_request(
         staticmethod(counting_pred_validate),
     )
     monkeypatch.setattr(
-        SiteMatrixSchema,
+        ActivitySiteMatrixSchema,
         "validate",
         staticmethod(counting_matrix_validate),
     )

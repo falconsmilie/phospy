@@ -1113,3 +1113,31 @@ def test_validated_request_bundles_with_pandas_state_are_not_frozen_dataclasses(
     assert ValidatedPipelineRequest.__dataclass_params__.frozen is False
     assert ValidatedWorkflowRequest.__dataclass_params__.frozen is False
     assert ValidatedDatasetInputs.__dataclass_params__.frozen is False
+
+
+def test_validate_analysis_request_rejects_zero_overlap() -> None:
+    pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["SITE_A"])
+    phospho_matrix = pd.DataFrame({"sample_1": [1.0]}, index=["SITE_B"])
+
+    with pytest.raises(InputCompatibilityError, match="no overlapping phosphosite IDs"):
+        validate_analysis_request(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+        )
+
+
+def test_validate_analysis_request_rejects_insufficient_overlap_fraction() -> None:
+    pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["SITE_1"])
+    phospho_matrix = pd.DataFrame(
+        {"sample_1": [1.0] * 20},
+        index=[f"SITE_{idx}" for idx in range(1, 21)],
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match="insufficient overlapping phosphosite IDs",
+    ):
+        validate_analysis_request(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+        )

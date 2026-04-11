@@ -16,6 +16,7 @@ from .frames import (
     require_value_range,
 )
 from .tables import (
+    ActivitySiteMatrixSchema,
     PhosphoInputSchema,
     PredictionScoreMatrixSchema,
     PredMatSchema,
@@ -25,6 +26,7 @@ from .tables import (
 )
 
 __all__ = [
+    "ActivitySiteMatrixSchema",
     "PhosphoInputSchema",
     "PredMatSchema",
     "PredictionScoreMatrixSchema",

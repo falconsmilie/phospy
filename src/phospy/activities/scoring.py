@@ -4,7 +4,11 @@ import numpy as np
 import pandas as pd
 
 from ..internal.constants import SITE_MATRIX_ID_COLUMN
-from ..validation.requests import KinaseActivityRequest
+from ..validation.requests import (
+    KinaseActivityRequest,
+    ValidatedAnalysisRequest,
+    validate_analysis_request,
+)
 
 
 def compute_weighted_kinase_activity(
@@ -21,12 +25,75 @@ def compute_weighted_kinase_activity(
     omitted from the returned activity matrix.
     """
 
-    request = _validate_weighted_activity_request(
+    validated = _validate_weighted_activity_inputs(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
         top_n_substrates=top_n_substrates,
         min_substrates=min_substrates,
     )
-    top_n_substrates = request.top_n_substrates
-    min_substrates = request.min_substrates
+    return _compute_weighted_kinase_activity_validated(validated)
+
+
+def build_kinase_target_table(
+    pred_mat: pd.DataFrame,
+    threshold: float = 0.6,
+) -> pd.DataFrame:
+    """Materialize a kinase-target edge table for reporting and export."""
+
+    threshold = _validate_threshold_request(threshold=threshold)
+    filtered = pred_mat.where(pred_mat > threshold)
+    try:
+        edges = filtered.stack(future_stack=True).rename("score").reset_index()
+        edges = edges.loc[edges["score"].notna()]
+    except TypeError:
+        edges = filtered.stack(dropna=True).rename("score").reset_index()
+    edges.columns = [SITE_MATRIX_ID_COLUMN, "kinase", "score"]
+    return edges.sort_values(["kinase", "score"], ascending=[True, False])
+
+
+def count_predicted_targets(
+    pred_mat: pd.DataFrame,
+    threshold: float = 0.6,
+) -> pd.Series:
+    """Count predicted kinase targets using matrix-native thresholding."""
+
+    threshold = _validate_threshold_request(threshold=threshold)
+    counts = _prediction_mask(pred_mat, threshold=threshold).sum(axis=0)
+    counts = counts.reindex(pred_mat.columns, fill_value=0).astype(int)
+    counts.index.name = "kinase"
+    return counts.rename("n_targets").sort_values(ascending=False)
+
+
+def compute_ksea_scores(
+    pred_mat: pd.DataFrame,
+    phospho_matrix: pd.DataFrame,
+    threshold: float = 0.6,
+    min_substrates: int = 3,
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Compute KSEA-style downstream kinase scores.
+
+    Missing phosphosite values are ignored on a per-sample basis. Each sample score
+    is the arithmetic mean across the observed substrates only. Kinases whose
+    selected substrates contain no observed phosphosite values in any sample are
+    omitted from both returned outputs.
+    """
+
+    validated = _validate_thresholded_activity_inputs(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+        threshold=threshold,
+        min_substrates=min_substrates,
+    )
+    return _compute_ksea_scores_validated(validated)
+
+
+def _compute_weighted_kinase_activity_validated(
+    validated: ValidatedAnalysisRequest,
+) -> pd.DataFrame:
+    pred_mat = validated.pred_mat
+    phospho_matrix = validated.phospho_matrix
+    top_n_substrates = validated.request.top_n_substrates
+    min_substrates = validated.request.min_substrates
 
     kinases = pred_mat.columns.tolist()
     samples = phospho_matrix.columns.tolist()
@@ -76,67 +143,25 @@ def compute_weighted_kinase_activity(
     return pd.DataFrame(kinase_rows, index=kinase_names, columns=samples, dtype=float)
 
 
-def build_kinase_target_table(
-    pred_mat: pd.DataFrame,
-    threshold: float = 0.6,
-) -> pd.DataFrame:
-    """Materialize a kinase-target edge table for reporting and export."""
-
-    threshold = _validate_threshold_request(threshold=threshold)
-    filtered = pred_mat.where(pred_mat > threshold)
-    try:
-        edges = filtered.stack(future_stack=True).rename("score").reset_index()
-        edges = edges.loc[edges["score"].notna()]
-    except TypeError:
-        edges = filtered.stack(dropna=True).rename("score").reset_index()
-    edges.columns = [SITE_MATRIX_ID_COLUMN, "kinase", "score"]
-    return edges.sort_values(["kinase", "score"], ascending=[True, False])
-
-
-def count_predicted_targets(
-    pred_mat: pd.DataFrame,
-    threshold: float = 0.6,
-) -> pd.Series:
-    """Count predicted kinase targets using matrix-native thresholding."""
-
-    threshold = _validate_threshold_request(threshold=threshold)
-    counts = _prediction_mask(pred_mat, threshold=threshold).sum(axis=0)
-    counts = counts.reindex(pred_mat.columns, fill_value=0).astype(int)
-    counts.index.name = "kinase"
-    return counts.rename("n_targets").sort_values(ascending=False)
-
-
-def compute_ksea_scores(
-    pred_mat: pd.DataFrame,
-    phospho_matrix: pd.DataFrame,
-    threshold: float = 0.6,
-    min_substrates: int = 3,
+def _compute_ksea_scores_validated(
+    validated: ValidatedAnalysisRequest,
 ) -> tuple[pd.DataFrame, pd.Series]:
-    """Compute KSEA-style downstream kinase scores.
-
-    Missing phosphosite values are ignored on a per-sample basis. Each sample score
-    is the arithmetic mean across the observed substrates only. Kinases whose
-    selected substrates contain no observed phosphosite values in any sample are
-    omitted from both returned outputs.
-    """
-
-    request = _validate_thresholded_activity_request(
-        threshold=threshold,
-        min_substrates=min_substrates,
-    )
-    threshold = request.threshold
-    min_substrates = request.min_substrates
+    threshold = validated.request.threshold
+    min_substrates = validated.request.min_substrates
 
     aligned_pred_mat, aligned_matrix = _align_activity_inputs(
-        pred_mat=pred_mat,
-        phospho_matrix=phospho_matrix,
+        pred_mat=validated.pred_mat,
+        phospho_matrix=validated.phospho_matrix,
     )
     substrate_mask = _prediction_mask_array(aligned_pred_mat, threshold=threshold)
     substrate_counts = substrate_mask.sum(axis=0)
     candidate_kinase_positions = np.flatnonzero(substrate_counts >= min_substrates)
 
     if len(candidate_kinase_positions) == 0:
-        empty_scores = pd.DataFrame(columns=list(phospho_matrix.columns), dtype=float)
+        empty_scores = pd.DataFrame(
+            columns=list(validated.phospho_matrix.columns),
+            dtype=float,
+        )
         empty_counts = pd.Series(dtype=int, name="n_substrates")
         empty_counts.index.name = "kinase"
         return empty_scores, empty_counts
@@ -166,7 +191,10 @@ def compute_ksea_scores(
             dtype=float,
         )
     else:
-        score_frame = pd.DataFrame(columns=list(phospho_matrix.columns), dtype=float)
+        score_frame = pd.DataFrame(
+            columns=list(validated.phospho_matrix.columns),
+            dtype=float,
+        )
 
     count_series = pd.Series(counts, name="n_substrates").sort_values(ascending=False)
     count_series.index.name = "kinase"
@@ -201,6 +229,26 @@ def _validate_weighted_activity_request(
     )
 
 
+def _validate_weighted_activity_inputs(
+    *,
+    pred_mat: pd.DataFrame,
+    phospho_matrix: pd.DataFrame,
+    top_n_substrates: int,
+    min_substrates: int,
+) -> ValidatedAnalysisRequest:
+    request = _validate_weighted_activity_request(
+        top_n_substrates=top_n_substrates,
+        min_substrates=min_substrates,
+    )
+    return validate_analysis_request(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+        threshold=request.threshold,
+        min_substrates=request.min_substrates,
+        top_n_substrates=request.top_n_substrates,
+    )
+
+
 def _validate_thresholded_activity_request(
     *,
     threshold: float,
@@ -209,6 +257,26 @@ def _validate_thresholded_activity_request(
     return KinaseActivityRequest.validate_request(
         threshold=threshold,
         min_substrates=min_substrates,
+    )
+
+
+def _validate_thresholded_activity_inputs(
+    *,
+    pred_mat: pd.DataFrame,
+    phospho_matrix: pd.DataFrame,
+    threshold: float,
+    min_substrates: int,
+) -> ValidatedAnalysisRequest:
+    request = _validate_thresholded_activity_request(
+        threshold=threshold,
+        min_substrates=min_substrates,
+    )
+    return validate_analysis_request(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+        threshold=request.threshold,
+        min_substrates=request.min_substrates,
+        top_n_substrates=request.top_n_substrates,
     )
 
 

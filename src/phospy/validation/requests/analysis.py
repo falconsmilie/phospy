@@ -8,7 +8,7 @@ from pydantic import Field, ValidationError
 
 from ...errors import NoCandidateKinasesError, RequestValidationError
 from ..compatibility import validate_pred_mat_overlap
-from ..schema.tables import PredMatSchema, SiteMatrixSchema
+from ..schema.tables import ActivitySiteMatrixSchema, PredMatSchema
 from .shared import PhospyRequestModel, normalize_pred_mat_input
 
 if TYPE_CHECKING:
@@ -104,7 +104,9 @@ def validate_analysis_request(
         normalized_pred_mat,
         context=pred_context,
     )
-    validated_matrix = SiteMatrixSchema.validate(phospho_matrix, context=matrix_context)
+    validated_matrix = ActivitySiteMatrixSchema.validate(
+        phospho_matrix, context=matrix_context
+    )
     return ValidatedAnalysisRequest.from_trusted_inputs(
         request=request,
         pred_mat=validated_pred_mat,
