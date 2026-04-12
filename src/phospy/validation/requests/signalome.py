@@ -74,20 +74,29 @@ class SignalomeRequest(PhospyRequestModel):
 class SignalomeInputs:
     """Trusted aligned signalome inputs owned by the signalome boundary."""
 
-    request: SignalomeRequest
     scoring_matrix: pd.DataFrame
     pred_mat: pd.DataFrame
     expression_matrix: pd.DataFrame
     site_to_protein: pd.Series
+    kinases_of_interest: tuple[str, ...]
+    kinase_network_threshold: float
+    signalome_cutoff: float
+    module_count: int | None
+    min_kinase_module_share_percent: float
 
     @classmethod
     def from_trusted_inputs(
         cls,
         *,
-        request: SignalomeRequest,
         scoring_matrix: pd.DataFrame,
         pred_mat: pd.DataFrame,
         expression_matrix: pd.DataFrame,
+        kinases_of_interest: Sequence[str],
+        site_to_protein: Mapping[str, str] | pd.Series | None = None,
+        kinase_network_threshold: float,
+        signalome_cutoff: float,
+        module_count: int | None,
+        min_kinase_module_share_percent: float,
         scoring_context: str,
         pred_mat_context: str,
         expression_context: str,
@@ -101,8 +110,8 @@ class SignalomeInputs:
             scoring_matrix=scoring_matrix,
             pred_mat=pred_mat,
             expression_matrix=expression_matrix,
-            kinases_of_interest=request.kinases_of_interest,
-            module_count=request.module_count,
+            kinases_of_interest=kinases_of_interest,
+            module_count=module_count,
             scoring_context=scoring_context,
             pred_mat_context=pred_mat_context,
             expression_context=expression_context,
@@ -110,15 +119,19 @@ class SignalomeInputs:
 
         validated_site_to_protein = validate_signalome_site_grouping(
             site_ids=common_sites,
-            site_to_protein=request.site_to_protein,
+            site_to_protein=site_to_protein,
         )
 
         return cls(
-            request=request,
             scoring_matrix=validated_scoring_matrix,
             pred_mat=validated_pred_mat,
             expression_matrix=validated_expression_matrix,
             site_to_protein=validated_site_to_protein,
+            kinases_of_interest=tuple(kinases_of_interest),
+            kinase_network_threshold=kinase_network_threshold,
+            signalome_cutoff=signalome_cutoff,
+            module_count=module_count,
+            min_kinase_module_share_percent=min_kinase_module_share_percent,
         )
 
 
@@ -146,10 +159,15 @@ def validate_signalome_request(
     )
 
     return SignalomeInputs.from_trusted_inputs(
-        request=request,
         scoring_matrix=resolve_scoring_matrix(scoring_result),
         pred_mat=validate_prediction_result_pred_mat(prediction_result),
         expression_matrix=expression_matrix,
+        kinases_of_interest=request.kinases_of_interest,
+        site_to_protein=request.site_to_protein,
+        kinase_network_threshold=request.kinase_network_threshold,
+        signalome_cutoff=request.signalome_cutoff,
+        module_count=request.module_count,
+        min_kinase_module_share_percent=request.min_kinase_module_share_percent,
         scoring_context="scoring_result",
         pred_mat_context="prediction_result",
         expression_context="expression_matrix",

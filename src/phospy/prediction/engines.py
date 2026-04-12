@@ -376,13 +376,12 @@ class KinaseWorkflowExecutor:
         self,
         request: WorkflowInputs,
     ) -> KinaseWorkflowExecutionResult:
-        raw_request = request.request
         phospho_matrix = request.phospho_matrix
 
         profile_result = build_kinase_substrate_profiles(
-            substrate_map=raw_request.substrate_map,
+            substrate_map=request.substrate_map,
             phospho_matrix=phospho_matrix,
-            min_substrates=raw_request.min_substrates,
+            min_substrates=request.min_substrates,
         )
 
         scorer = KinaseScorer(profile_result.profile_matrix)
@@ -392,16 +391,16 @@ class KinaseWorkflowExecutor:
         if request.motif_scorer is not None:
             scoring_matrix = phospho_matrix.loc[list(request.scoring_site_index)]
             motif_result = request.motif_scorer.score_sequences(
-                seqs=raw_request.site_sequences,
+                seqs=request.site_sequences,
                 site_index=request.scoring_site_index,
-                min_motif_size=raw_request.min_motif_size,
+                min_motif_size=request.min_motif_size,
             )
             scoring_result = scorer.score(
                 phospho_matrix=scoring_matrix,
                 motif_scores=motif_result.motif_scores,
                 motif_sizes=motif_result.motif_sizes,
                 profile_sizes=profile_result.substrate_counts.astype(float),
-                allow_profile_only_fallback=raw_request.allow_profile_only_fallback,
+                allow_profile_only_fallback=request.allow_profile_only_fallback,
             )
         else:
             scoring_result = scorer.score(phospho_matrix=scoring_matrix)
@@ -412,14 +411,14 @@ class KinaseWorkflowExecutor:
         )
         prediction_result = predictor.predict_from_scoring_result(
             scoring_result=scoring_result,
-            ensemble_size=raw_request.ensemble_size,
-            top=raw_request.top,
-            score_threshold=raw_request.score_threshold,
-            inclusion=raw_request.inclusion,
-            n_iterations=raw_request.n_iterations,
-            random_state=raw_request.random_state,
-            allow_profile_only_fallback=raw_request.allow_profile_only_fallback,
-            svm_mode=raw_request.svm_mode,
+            ensemble_size=request.ensemble_size,
+            top=request.top,
+            score_threshold=request.score_threshold,
+            inclusion=request.inclusion,
+            n_iterations=request.n_iterations,
+            random_state=request.random_state,
+            allow_profile_only_fallback=request.allow_profile_only_fallback,
+            svm_mode=request.svm_mode,
         )
 
         return KinaseWorkflowExecutionResult(

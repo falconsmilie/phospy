@@ -34,8 +34,8 @@ def compute_weighted_kinase_activity(
     return _compute_weighted_kinase_activity(
         pred_mat=inputs.pred_mat,
         phospho_matrix=inputs.phospho_matrix,
-        top_n_substrates=inputs.request.top_n_substrates,
-        min_substrates=inputs.request.min_substrates,
+        top_n_substrates=inputs.top_n_substrates,
+        min_substrates=inputs.min_substrates,
     )
 
 
@@ -92,8 +92,8 @@ def compute_ksea_scores(
     return _compute_ksea_scores(
         pred_mat=inputs.pred_mat,
         phospho_matrix=inputs.phospho_matrix,
-        threshold=inputs.request.threshold,
-        min_substrates=inputs.request.min_substrates,
+        threshold=inputs.threshold,
+        min_substrates=inputs.min_substrates,
     )
 
 
@@ -105,14 +105,14 @@ def compute_activity_from_inputs(
     weighted_activity = _compute_weighted_kinase_activity(
         pred_mat=inputs.pred_mat,
         phospho_matrix=inputs.phospho_matrix,
-        top_n_substrates=inputs.request.top_n_substrates,
-        min_substrates=inputs.request.min_substrates,
+        top_n_substrates=inputs.top_n_substrates,
+        min_substrates=inputs.min_substrates,
     )
     ksea_scores, ksea_counts = _compute_ksea_scores(
         pred_mat=inputs.pred_mat,
         phospho_matrix=inputs.phospho_matrix,
-        threshold=inputs.request.threshold,
-        min_substrates=inputs.request.min_substrates,
+        threshold=inputs.threshold,
+        min_substrates=inputs.min_substrates,
     )
     return weighted_activity, ksea_scores, ksea_counts
 

@@ -151,9 +151,9 @@ def test_analyzer_run_uses_injected_runner() -> None:
 
     assert result is expected
     assert runner.request is not None
-    assert runner.request.request.threshold == 0.7
-    assert runner.request.request.min_substrates == 4
-    assert runner.request.request.top_n_substrates == 9
+    assert runner.request.threshold == 0.7
+    assert runner.request.min_substrates == 4
+    assert runner.request.top_n_substrates == 9
 
 
 def test_analyzer_write_outputs_uses_injected_writer(tmp_path) -> None:

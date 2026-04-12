@@ -37,11 +37,11 @@ class _ActivityRunner:
         )
         target_counts = count_predicted_targets(
             inputs.pred_mat,
-            threshold=inputs.request.threshold,
+            threshold=inputs.threshold,
         )
         target_table = build_kinase_target_table(
             inputs.pred_mat,
-            threshold=inputs.request.threshold,
+            threshold=inputs.threshold,
         )
 
         return KinaseActivityResult(

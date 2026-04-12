@@ -104,10 +104,21 @@ class KinaseWorkflowRequest(PhospyRequestModel):
 class WorkflowInputs:
     """Trusted workflow inputs owned by the workflow boundary."""
 
-    request: KinaseWorkflowRequest
     phospho_matrix: pd.DataFrame
+    substrate_map: dict[str, tuple[str, ...]]
+    site_sequences: pd.Series | None
     scoring_site_index: tuple[str, ...]
     motif_scorer: KinaseMotifScorer | None
+    min_substrates: int
+    min_motif_size: int
+    allow_profile_only_fallback: bool
+    ensemble_size: int
+    top: int
+    score_threshold: float
+    inclusion: int
+    n_iterations: int
+    random_state: int | None
+    svm_mode: PredictionSvmMode | None
     predictor_svm_mode: PredictionSvmMode
 
 
@@ -127,10 +138,9 @@ def build_workflow_inputs(
         require_site_sequences_for_prediction=request.motif_sequences is not None,
         context=context,
     )
-    owned_request = _copy_workflow_request_owned_state(
-        request,
-        phospho_matrix=validated_matrix,
-    )
+    owned_site_sequences = request.site_sequences
+    if owned_site_sequences is not None:
+        owned_site_sequences = owned_site_sequences.copy(deep=True)
     motif_scorer = (
         None
         if request.motif_sequences is None
@@ -140,10 +150,21 @@ def build_workflow_inputs(
         )
     )
     return WorkflowInputs(
-        request=owned_request,
         phospho_matrix=validated_matrix,
+        substrate_map=dict(request.substrate_map),
+        site_sequences=owned_site_sequences,
         scoring_site_index=scoring_site_index,
         motif_scorer=motif_scorer,
+        min_substrates=request.min_substrates,
+        min_motif_size=request.min_motif_size,
+        allow_profile_only_fallback=request.allow_profile_only_fallback,
+        ensemble_size=request.ensemble_size,
+        top=request.top,
+        score_threshold=request.score_threshold,
+        inclusion=request.inclusion,
+        n_iterations=request.n_iterations,
+        random_state=request.random_state,
+        svm_mode=request.svm_mode,
         predictor_svm_mode=(
             default_svm_mode if request.svm_mode is None else request.svm_mode
         ),
@@ -232,20 +253,3 @@ def validate_workflow_inputs(
             flank_size=flank_size,
         )
     return validated_matrix
-
-
-def _copy_workflow_request_owned_state(
-    request: KinaseWorkflowRequest,
-    *,
-    phospho_matrix: pd.DataFrame,
-) -> KinaseWorkflowRequest:
-    site_sequences = request.site_sequences
-    if site_sequences is not None:
-        site_sequences = site_sequences.copy(deep=True)
-
-    return request.model_copy(
-        update={
-            "phospho_matrix": phospho_matrix,
-            "site_sequences": site_sequences,
-        }
-    )

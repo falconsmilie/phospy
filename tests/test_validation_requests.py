@@ -653,7 +653,7 @@ def test_validate_workflow_request_takes_ownership_of_raw_dataframe_inputs() -> 
     phospho_matrix.loc["SITE_1", "sample_1"] = 99.0
 
     assert request.phospho_matrix.loc["SITE_1", "sample_1"] == 1.0
-    assert request.request.phospho_matrix is request.phospho_matrix
+    assert request.phospho_matrix is not phospho_matrix
 
 
 def test_build_workflow_inputs_reuses_owned_validated_matrix() -> None:
@@ -674,7 +674,7 @@ def test_build_workflow_inputs_reuses_owned_validated_matrix() -> None:
         default_svm_mode="default",
     )
 
-    assert request.request.phospho_matrix is request.phospho_matrix
+    pd.testing.assert_frame_equal(request.phospho_matrix, raw_request.phospho_matrix)
 
 
 def test_kinase_workflow_request_detaches_mapping_backed_sequence_inputs() -> None:
@@ -725,10 +725,10 @@ def test_validate_workflow_request_detaches_mapping_backed_runtime_inputs() -> N
     site_sequences["SITE_1"] = "CHANGED"
     motif_sequences["KINASE_A"].append("CHANGED")
 
-    assert request.request.substrate_map == {"KINASE_A": ("SITE_1",)}
-    assert request.request.site_sequences is not None
-    assert request.request.site_sequences.to_dict() == {"SITE_1": "QQAAAAAYY"}
-    assert request.request.motif_sequences == {"KINASE_A": ("QQAAAAAYY",)}
+    assert request.substrate_map == {"KINASE_A": ("SITE_1",)}
+    assert request.site_sequences is not None
+    assert request.site_sequences.to_dict() == {"SITE_1": "QQAAAAAYY"}
+    assert request.motif_scorer is not None
 
 
 def test_validate_workflow_request_detaches_series_backed_site_sequences() -> None:
@@ -749,8 +749,8 @@ def test_validate_workflow_request_detaches_series_backed_site_sequences() -> No
 
     site_sequences.loc["SITE_1"] = "CHANGED"
 
-    assert request.request.site_sequences is not None
-    assert request.request.site_sequences.loc["SITE_1"] == "QQAAAAAYY"
+    assert request.site_sequences is not None
+    assert request.site_sequences.loc["SITE_1"] == "QQAAAAAYY"
 
 
 def test_validate_pipeline_construction_request_takes_ownership_of_raw_pred_mat_input() -> (
@@ -876,10 +876,9 @@ def test_validate_pipeline_construction_request_builds_explicit_kinase_activity_
         kinase_activity_top_n_substrates=7,
     )
 
-    assert request.kinase_activity_request is not None
-    assert request.kinase_activity_request.threshold == 0.8
-    assert request.kinase_activity_request.min_substrates == 5
-    assert request.kinase_activity_request.top_n_substrates == 7
+    assert request.kinase_activity_threshold == 0.8
+    assert request.kinase_activity_min_substrates == 5
+    assert request.kinase_activity_top_n_substrates == 7
 
 
 def test_validate_pipeline_construction_request_skips_kinase_activity_config_without_pred_mat() -> (
@@ -921,7 +920,9 @@ def test_validate_pipeline_construction_request_skips_kinase_activity_config_wit
     )
 
     assert request.pred_mat is None
-    assert request.kinase_activity_request is None
+    assert request.kinase_activity_threshold is None
+    assert request.kinase_activity_min_substrates is None
+    assert request.kinase_activity_top_n_substrates is None
 
 
 def test_build_pipeline_inputs_reuses_owned_dataset_and_pred_mat() -> None:

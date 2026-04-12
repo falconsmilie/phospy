@@ -37,17 +37,21 @@ class KinaseActivityRequest(PhospyRequestModel):
 class AnalysisInputs:
     """Trusted analysis inputs owned by the activity-analysis boundary."""
 
-    request: KinaseActivityRequest
     pred_mat: pd.DataFrame
     phospho_matrix: pd.DataFrame
+    threshold: float
+    min_substrates: int
+    top_n_substrates: int
 
     @classmethod
     def from_trusted_inputs(
         cls,
         *,
-        request: KinaseActivityRequest,
         pred_mat: pd.DataFrame,
         phospho_matrix: pd.DataFrame,
+        threshold: float,
+        min_substrates: int,
+        top_n_substrates: int,
         pred_context: str = "pred_mat",
         matrix_context: str = "phospho_matrix",
         min_overlap: int = 1,
@@ -64,9 +68,11 @@ class AnalysisInputs:
             min_fraction=min_fraction,
         )
         return cls(
-            request=request,
             pred_mat=pred_mat,
             phospho_matrix=phospho_matrix,
+            threshold=threshold,
+            min_substrates=min_substrates,
+            top_n_substrates=top_n_substrates,
         )
 
 
@@ -109,9 +115,11 @@ def validate_analysis_request(
         context=matrix_context,
     )
     return AnalysisInputs.from_trusted_inputs(
-        request=request,
         pred_mat=validated_pred_mat,
         phospho_matrix=validated_matrix,
+        threshold=request.threshold,
+        min_substrates=request.min_substrates,
+        top_n_substrates=request.top_n_substrates,
         pred_context=pred_context,
         matrix_context=matrix_context,
         min_overlap=min_overlap,

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from pydantic import Field, ValidationError, field_validator, model_validator
 
+from ...datasets.models import PhosphoDataset
 from ...datasets.schema import DatasetSchema
 from ...errors import InputCompatibilityError, RequestValidationError
 from ...internal.constants import ComparisonSpec
@@ -21,13 +22,10 @@ from .analysis import AnalysisInputs, KinaseActivityRequest
 from .shared import PhospyRequestModel, normalize_pred_mat_input
 
 if TYPE_CHECKING:
-    from ...datasets.models import PhosphoDataset
     from ...prediction.results import PredMatResult
 
 
 class CorePipelineRequest(PhospyRequestModel):
-    """Raw file-backed request for pipeline construction."""
-
     total_path: Path
     phospho_path: Path
     pred_mat_path: Path | None = None
@@ -84,7 +82,9 @@ class PipelineInputs:
     dataset: PhosphoDataset
     pred_mat: pd.DataFrame | None
     preprocessing_config: CorePreprocessingConfig
-    kinase_activity_request: KinaseActivityRequest | None
+    kinase_activity_threshold: float | None
+    kinase_activity_min_substrates: int | None
+    kinase_activity_top_n_substrates: int | None
 
 
 def build_pipeline_inputs(
@@ -133,19 +133,26 @@ def build_pipeline_inputs(
         )
         raise RequestValidationError(msg)
 
-    kinase_activity_request = None
+    resolved_threshold: float | None = None
+    resolved_min_substrates: int | None = None
+    resolved_top_n_substrates: int | None = None
     if pred_mat is not None:
         kinase_activity_request = KinaseActivityRequest.validate_request(
             threshold=kinase_activity_threshold,
             min_substrates=kinase_activity_min_substrates,
             top_n_substrates=kinase_activity_top_n_substrates,
         )
+        resolved_threshold = kinase_activity_request.threshold
+        resolved_min_substrates = kinase_activity_request.min_substrates
+        resolved_top_n_substrates = kinase_activity_request.top_n_substrates
 
     return PipelineInputs(
         dataset=dataset,
         pred_mat=pred_mat,
         preprocessing_config=resolved_config,
-        kinase_activity_request=kinase_activity_request,
+        kinase_activity_threshold=resolved_threshold,
+        kinase_activity_min_substrates=resolved_min_substrates,
+        kinase_activity_top_n_substrates=resolved_top_n_substrates,
     )
 
 
@@ -195,14 +202,21 @@ def validate_pipeline_runtime_compatibility(
 ) -> AnalysisInputs | None:
     """Validate post-preprocessing overlap before kinase analysis runs."""
 
-    if request.pred_mat is None or request.kinase_activity_request is None:
+    if (
+        request.pred_mat is None
+        or request.kinase_activity_threshold is None
+        or request.kinase_activity_min_substrates is None
+        or request.kinase_activity_top_n_substrates is None
+    ):
         return None
 
     try:
         return AnalysisInputs.from_trusted_inputs(
-            request=request.kinase_activity_request,
             pred_mat=request.pred_mat,
             phospho_matrix=site_matrix,
+            threshold=request.kinase_activity_threshold,
+            min_substrates=request.kinase_activity_min_substrates,
+            top_n_substrates=request.kinase_activity_top_n_substrates,
             pred_context="pipeline pred_mat",
             matrix_context="preprocessed site matrix",
         )

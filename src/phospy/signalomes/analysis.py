@@ -38,11 +38,9 @@ class SignalomeRunner:
         scoring_matrix = inputs.scoring_matrix
         pred_mat = inputs.pred_mat
         expression_matrix = inputs.expression_matrix
-        request = inputs.request
-
         site_clusters = cluster_sites(
             scoring_matrix=scoring_matrix,
-            requested_module_count=request.module_count,
+            requested_module_count=inputs.module_count,
         )
         protein_modules = derive_protein_modules(
             site_clusters=site_clusters,
@@ -55,11 +53,11 @@ class SignalomeRunner:
         )
         selected_kinase_substrates = select_kinase_substrates(
             pred_mat=pred_mat,
-            cutoff=request.signalome_cutoff,
+            cutoff=inputs.signalome_cutoff,
         )
         kinase_network, kinase_correlation_matrix = build_kinase_network(
             scoring_matrix=scoring_matrix,
-            threshold=request.kinase_network_threshold,
+            threshold=inputs.kinase_network_threshold,
         )
         signalome_modules = build_signalome_module_table(
             site_assignments=site_assignments,
@@ -77,13 +75,13 @@ class SignalomeRunner:
             kinase_substrates=selected_kinase_substrates,
         )
         expanded_signalomes = build_expanded_signalomes(
-            kinases_of_interest=request.kinases_of_interest,
+            kinases_of_interest=inputs.kinases_of_interest,
             kinase_network=kinase_network,
             kinase_substrates=selected_kinase_substrates,
             signalome_modules=signalome_modules,
             site_assignments=site_assignments,
             expression_matrix=expression_matrix,
-            min_kinase_module_share_percent=request.min_kinase_module_share_percent,
+            min_kinase_module_share_percent=inputs.min_kinase_module_share_percent,
         )
 
         return SignalomeResult(
@@ -133,10 +131,15 @@ def build_signalome_result(
         min_kinase_module_share_percent=min_kinase_module_share_percent,
     )
     inputs = SignalomeInputs.from_trusted_inputs(
-        request=request,
         scoring_matrix=scoring_matrix,
         pred_mat=pred_mat,
         expression_matrix=expression_matrix,
+        kinases_of_interest=request.kinases_of_interest,
+        site_to_protein=request.site_to_protein,
+        kinase_network_threshold=request.kinase_network_threshold,
+        signalome_cutoff=request.signalome_cutoff,
+        module_count=request.module_count,
+        min_kinase_module_share_percent=request.min_kinase_module_share_percent,
         scoring_context="scoring_matrix",
         pred_mat_context="pred_mat",
         expression_context="expression_matrix",
