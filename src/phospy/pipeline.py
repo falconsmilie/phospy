@@ -197,7 +197,7 @@ class PhosRPipeline:
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
     ) -> None:
-        object.__setattr__(self, "request", request)
+        self.request = request
         self.dataset = request.dataset
         self.pred_mat = request.pred_mat
         self.preprocessing_config = request.preprocessing_config

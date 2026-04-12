@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -31,7 +30,7 @@ but are intentionally not mirrored as separate bound public methods here.
 """
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class DatasetPreprocessing:
     """Bound preprocessing facade for a validated phosphoproteomics dataset.
 
@@ -49,21 +48,9 @@ class DatasetPreprocessing:
     schema: DatasetSchema
     comparisons: tuple[ComparisonSpec, ...] | None = None
 
-    def __init__(
-        self,
-        *,
-        total_df: pd.DataFrame,
-        phospho_df: pd.DataFrame,
-        schema: DatasetSchema,
-        comparisons: Sequence[ComparisonSpec] | None = None,
-    ) -> None:
-        object.__setattr__(self, "total_df", total_df)
-        object.__setattr__(self, "phospho_df", phospho_df)
-        object.__setattr__(self, "schema", schema)
-        object.__setattr__(
-            self,
-            "comparisons",
-            tuple(comparisons) if comparisons is not None else None,
+    def __post_init__(self) -> None:
+        self.comparisons = (
+            tuple(self.comparisons) if self.comparisons is not None else None
         )
 
     def _core_processor(self) -> CoreProcessor:

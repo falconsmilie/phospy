@@ -15,6 +15,7 @@ from phospy.errors import (
 )
 from phospy.preprocessing import (
     CoverageFilterResult,
+    DatasetPreprocessing,
     LocalizationFilterResult,
     PhosphoPreprocessor,
     ProteinCorrectionResult,
@@ -950,6 +951,11 @@ def test_preprocessing_result_wrappers_with_pandas_state_are_not_frozen_dataclas
     assert LocalizationFilterResult.__dataclass_params__.frozen is False
     assert CoverageFilterResult.__dataclass_params__.frozen is False
     assert ProteinCorrectionResult.__dataclass_params__.frozen is False
+
+
+def test_preprocessing_facades_and_services_use_plain_dataclass_construction() -> None:
+    assert DatasetPreprocessing.__dataclass_params__.frozen is False
+    assert ProteinCorrectionService.__dataclass_params__.frozen is False
 
 
 def test_dataset_preprocessing_run_analysis_ready_uses_example_fixture_data() -> None:

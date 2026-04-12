@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 
 import pandas as pd
@@ -140,27 +139,17 @@ class PhosphoPreprocessor:
         )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ProteinCorrectionService:
     """Correct phosphosite intensities against total protein and add contrasts."""
 
     schema: DatasetSchema
     comparisons: tuple[ComparisonSpec, ...] | None = None
 
-    def __init__(
-        self,
-        *,
-        schema: DatasetSchema,
-        comparisons: Sequence[ComparisonSpec] | None = None,
-    ) -> None:
-        object.__setattr__(self, "schema", schema)
-        object.__setattr__(
-            self,
-            "comparisons",
-            schema.validate_comparisons(
-                comparisons,
-                context="Protein correction service",
-            ),
+    def __post_init__(self) -> None:
+        self.comparisons = self.schema.validate_comparisons(
+            self.comparisons,
+            context="Protein correction service",
         )
 
     def correct(
