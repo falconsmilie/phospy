@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 if TYPE_CHECKING:
-    from ..validation.requests import PredictionRequest
+    from ..validation.requests.prediction import PredictionRequest
     from .execution import (
         KinasePredictionBatch,
         PredictionSamplingSession,

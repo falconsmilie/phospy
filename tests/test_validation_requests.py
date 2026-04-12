@@ -523,8 +523,31 @@ def test_dataset_validation_internals_are_not_exported_from_validation_package()
     assert not hasattr(request_exports, "AnalysisInputs")
     assert not hasattr(request_exports, "PipelineInputs")
     assert not hasattr(request_exports, "WorkflowInputs")
+    assert not hasattr(validation, "validate_workflow_inputs")
+    assert not hasattr(request_exports, "PhospyRequestModel")
     assert not hasattr(request_exports, "build_pipeline_inputs")
     assert not hasattr(request_exports, "build_workflow_inputs")
+    assert not hasattr(request_exports, "normalize_pred_mat_input")
+    assert not hasattr(request_exports, "validate_adapter_value")
+    assert not hasattr(request_exports, "validate_existing_file_path")
+    assert not hasattr(request_exports, "validate_workflow_inputs")
+
+
+def test_validation_request_package_exports_match_supported_surface() -> None:
+    import phospy.validation.requests as request_exports
+
+    assert set(request_exports.__all__) == {
+        "CorePipelineRequest",
+        "KinaseActivityRequest",
+        "KinaseWorkflowRequest",
+        "PredictionRequest",
+        "SignalomeRequest",
+        "validate_analysis_request",
+        "validate_pipeline_construction_request",
+        "validate_pipeline_runtime_compatibility",
+        "validate_signalome_request",
+        "validate_workflow_request",
+    }
 
 
 def test_validated_workflow_and_analysis_requests_can_be_created() -> None:

@@ -8,7 +8,7 @@ import pandas as pd
 
 from ..errors import PredictionConfigurationError
 from ..internal.types import PredictionTraceLevel
-from ..validation.requests import PredictionRequest
+from ..validation.requests.prediction import PredictionRequest
 from .contracts import EnsemblePredictorContract
 from .policies import (
     PredictionSamplingPolicy,

@@ -11,7 +11,7 @@ import pandas as pd
 from ..internal.types import PredictionTraceFormat, PredictionTraceLevel
 
 if TYPE_CHECKING:
-    from ..validation.requests import PredictionRequest
+    from ..validation.requests.prediction import PredictionRequest
     from .results import KinasePredictionResult
 
 TRACE_TABLE_NAMES: tuple[str, ...] = (

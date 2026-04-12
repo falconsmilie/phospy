@@ -17,7 +17,7 @@ from ..motifs import MotifScoringResult
 from ..profiles import KinaseProfileResult, build_kinase_substrate_profiles
 from ..references import ReferenceBundle
 from ..validation.domain.prediction import validate_ensemble_predictor
-from ..validation.requests import PredictionRequest
+from ..validation.requests.prediction import PredictionRequest
 from ..validation.requests.workflow import (
     WorkflowInputs,
     validate_workflow_request,

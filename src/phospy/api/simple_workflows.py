@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from ..activities import KinaseActivityAnalyzer
-from ..datasets import DatasetSchema
+from ..activities.analysis import KinaseActivityAnalyzer
+from ..datasets.schema import DatasetSchema
 from ..internal.constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,

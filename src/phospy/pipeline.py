@@ -8,22 +8,22 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .activities import KinaseActivityAnalyzer
+from .activities.analysis import KinaseActivityAnalyzer
 from .activities.results import KinaseActivityResult
-from .datasets import DatasetLoader, DatasetSchema, PhosphoDataset
+from .datasets.loaders import DatasetLoader
+from .datasets.models import PhosphoDataset
+from .datasets.schema import DatasetSchema
 from .errors import RequestValidationError, TableSchemaError
 from .internal.constants import ComparisonSpec
 from .io import load_pred_mat
 from .io.publishing import OutputPublisher, RunManifestWriter
 from .io.writers import CoreOutputWriter, KinaseActivityWriter
-from .preprocessing import CorePreprocessingConfig, CoreProcessingResult
-from .validation.requests import (
-    CorePipelineRequest,
-    validate_pipeline_construction_request,
-)
+from .preprocessing.core import CorePreprocessingConfig, CoreProcessingResult
 from .validation.requests.pipeline import (
+    CorePipelineRequest,
     PipelineInputs,
     build_pipeline_inputs,
+    validate_pipeline_construction_request,
     validate_pipeline_runtime_compatibility,
 )
 

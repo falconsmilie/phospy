@@ -44,3 +44,9 @@ def test_api_package_exports_only_supported_workflows() -> None:
     assert not hasattr(api, "KinaseWorkflowResult")
     assert not hasattr(api, "PredMatWorkflowResult")
     assert not hasattr(api, "SimpleKinaseWorkflowResult")
+
+
+def test_signalomes_package_does_not_export_trusted_execution_helper() -> None:
+    import phospy.signalomes as signalomes
+
+    assert not hasattr(signalomes, "execute_signalome_inputs")

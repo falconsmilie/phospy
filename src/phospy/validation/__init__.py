@@ -5,8 +5,9 @@ request validation, schema validation, and compatibility checks. Shared
 validation error classes are imported from ``phospy.errors``.
 
 The supported import surface here is intentionally narrower than the owning
-submodules. Use the validator functions and request models below. Trusted
-validated bundles stay in their owning modules.
+submodules. Use the request models and primary validator entry points below.
+Trusted input bundles and low-level helper utilities stay in their owning
+modules.
 """
 
 from ..errors import (
@@ -37,7 +38,6 @@ from .requests import (
     validate_pipeline_construction_request,
     validate_pipeline_runtime_compatibility,
     validate_signalome_request,
-    validate_workflow_inputs,
     validate_workflow_request,
 )
 from .schema.tables import (
@@ -90,7 +90,6 @@ __all__ = [
     "validate_svm_mode",
     "validate_trace_format",
     "validate_trace_level",
-    "validate_workflow_inputs",
     "validate_workflow_matrix_inputs",
     "validate_workflow_request",
 ]

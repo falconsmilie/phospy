@@ -5,9 +5,7 @@ from collections.abc import Mapping, Sequence
 import pandas as pd
 
 from ..internal.types import PredictionSvmMode
-from ..prediction import (
-    KinaseWorkflowExecutor,
-)
+from ..prediction.engines import KinaseWorkflowExecutor
 from ..references import ReferenceBundle
 from ..validation.requests.workflow import WorkflowInputs
 from .workflow_results import KinaseWorkflowResult, PredMatWorkflowResult

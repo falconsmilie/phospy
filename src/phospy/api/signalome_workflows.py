@@ -4,8 +4,10 @@ from collections.abc import Mapping, Sequence
 
 import pandas as pd
 
-from ..prediction import KinasePredictionResult, KinaseScoringResult, PredMatResult
-from ..signalomes import SignalomeResult, execute_signalome_inputs
+from ..prediction.results import KinasePredictionResult, PredMatResult
+from ..prediction.scoring import KinaseScoringResult
+from ..signalomes.analysis import execute_signalome_inputs
+from ..signalomes.results import SignalomeResult
 from ..validation.requests.signalome import SignalomeInputs, validate_signalome_request
 
 __all__ = ["SignalomeWorkflow"]

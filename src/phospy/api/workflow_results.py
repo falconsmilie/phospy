@@ -3,9 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..activities.results import KinaseActivityResult
-from ..datasets import AnalysisReadyPhosphoDataset
+from ..datasets.models import AnalysisReadyPhosphoDataset
 from ..motifs import MotifScoringResult
-from ..prediction import KinasePredictionResult, KinaseScoringResult, PredMatResult
+from ..prediction.results import KinasePredictionResult, PredMatResult
+from ..prediction.scoring import KinaseScoringResult
 from ..profiles import KinaseProfileResult
 from ..references import ReferenceBundle
 

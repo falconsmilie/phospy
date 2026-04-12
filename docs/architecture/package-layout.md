@@ -40,6 +40,8 @@ contributor-facing documentation.
 - Put implementation code in the domain package that owns the behaviour.
 - Keep `phospy.api` thin. It coordinates work; it does not own preprocessing,
   prediction, reference resolution, activity analysis, or signalome logic.
+- Keep package `__init__` surfaces narrow. Do not re-export trusted input bundles,
+  low-level validators, or orchestration-only helpers from convenience barrels.
 - Keep `phospy.internal` narrow. Do not turn it into a general-purpose helper
   bucket.
 - Put shared file and table access in `phospy.io` only when it is genuinely

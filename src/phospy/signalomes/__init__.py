@@ -31,14 +31,6 @@ def build_signalome_result(*args: object, **kwargs: object) -> SignalomeResult:
     return _build_signalome_result(*args, **kwargs)
 
 
-def execute_signalome_inputs(*args: object, **kwargs: object) -> SignalomeResult:
-    """Build a signalome result from trusted signalome inputs."""
-
-    from .analysis import execute_signalome_inputs as _execute_signalome_inputs
-
-    return _execute_signalome_inputs(*args, **kwargs)
-
-
 __all__ = [
     "ExpandedSignalome",
     "SignalomeAssignments",
@@ -52,5 +44,4 @@ __all__ = [
     "build_signalome_map_data",
     "build_signalome_network_data",
     "build_signalome_result",
-    "execute_signalome_inputs",
 ]
