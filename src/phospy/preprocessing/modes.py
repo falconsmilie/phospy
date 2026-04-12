@@ -6,13 +6,12 @@ from pathlib import Path
 import pandas as pd
 
 from ..datasets.builders import DatasetSiteMatrix
-from ..datasets.loaders import DatasetLoader, LoadedDatasetInputs
+from ..datasets.loaders import DatasetLoader
 from ..datasets.models import AnalysisReadyPhosphoDataset, PhosphoDataset
 from ..datasets.schema import DatasetSchema
 from ..internal.constants import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
-    TOTAL_GENE_COLUMN,
     ComparisonSpec,
 )
 from .core import (
@@ -51,10 +50,9 @@ class FullAnalysisReadyPreprocessor:
         phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
         source: str = "analysis ready dataset builder",
     ) -> AnalysisReadyPhosphoDataset:
-        loaded_inputs = _resolve_full_dataset_inputs(
+        loaded_inputs = self.dataset_loader.resolve_inputs(
             total=total,
             phospho=phospho,
-            dataset_loader=self.dataset_loader,
             phospho_encoding=phospho_encoding,
         )
         dataset = PhosphoDataset.from_loaded_inputs(
@@ -97,10 +95,9 @@ class PhosphoOnlyAnalysisReadyPreprocessor:
         phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
         source: str = "analysis ready dataset builder (phospho only)",
     ) -> AnalysisReadyPhosphoDataset:
-        phospho_df = _resolve_phospho_input(
+        phospho_df = self.dataset_loader.resolve_phospho(
             phospho,
-            dataset_loader=self.dataset_loader,
-            phospho_encoding=phospho_encoding,
+            encoding=phospho_encoding,
         )
         resolved_config = resolve_core_preprocessing_config(
             config=preprocessing_config,
@@ -126,13 +123,8 @@ class PhosphoOnlyAnalysisReadyPreprocessor:
             comparisons=self.comparisons,
         ).add_pairwise_comparisons(phospho_corrected)
         site_matrix = DatasetSiteMatrix(schema=self.schema).build(phospho_corrected)
-        core_result = CoreProcessingResult(
-            total_unique=pd.DataFrame(
-                columns=[TOTAL_GENE_COLUMN, *self.schema.total_cols]
-            ),
-            total_filtered=pd.DataFrame(
-                columns=[TOTAL_GENE_COLUMN, *self.schema.total_cols]
-            ),
+        core_result = CoreProcessingResult.from_phospho_only(
+            schema=self.schema,
             phospho_filtered=phospho_filtered,
             phospho_corrected=phospho_corrected,
             site_matrix=site_matrix,
@@ -197,53 +189,3 @@ class AnalysisReadyDatasetBuilder:
             phospho_sentinel=phospho_sentinel,
             source=source,
         )
-
-
-def _resolve_total_input(
-    total: pd.DataFrame | str | Path,
-    *,
-    dataset_loader: DatasetLoader,
-) -> pd.DataFrame:
-    if isinstance(total, pd.DataFrame):
-        return dataset_loader.validate_total(total)
-    return dataset_loader.load_total(total)
-
-
-def _resolve_phospho_input(
-    phospho: pd.DataFrame | str | Path,
-    *,
-    dataset_loader: DatasetLoader,
-    phospho_encoding: str | None,
-) -> pd.DataFrame:
-    if isinstance(phospho, pd.DataFrame):
-        return dataset_loader.validate_phospho(phospho)
-    return dataset_loader.load_phospho(phospho, encoding=phospho_encoding)
-
-
-def _resolve_full_dataset_inputs(
-    *,
-    total: pd.DataFrame | str | Path,
-    phospho: pd.DataFrame | str | Path,
-    dataset_loader: DatasetLoader,
-    phospho_encoding: str | None,
-) -> LoadedDatasetInputs:
-    if isinstance(total, pd.DataFrame) and isinstance(phospho, pd.DataFrame):
-        return dataset_loader.validate_inputs(total_df=total, phospho_df=phospho)
-    if not isinstance(total, pd.DataFrame) and not isinstance(phospho, pd.DataFrame):
-        return dataset_loader.load(
-            total,
-            phospho,
-            phospho_encoding=phospho_encoding,
-        )
-
-    total_df = _resolve_total_input(total, dataset_loader=dataset_loader)
-    phospho_df = _resolve_phospho_input(
-        phospho,
-        dataset_loader=dataset_loader,
-        phospho_encoding=phospho_encoding,
-    )
-    return LoadedDatasetInputs(
-        total_df=total_df,
-        phospho_df=phospho_df,
-        schema=dataset_loader.schema,
-    )

@@ -97,6 +97,26 @@ class CoreProcessingResult:
     phospho_corrected: pd.DataFrame
     site_matrix: SiteMatrixResult
 
+    @classmethod
+    def from_phospho_only(
+        cls,
+        *,
+        schema: DatasetSchema,
+        phospho_filtered: pd.DataFrame,
+        phospho_corrected: pd.DataFrame,
+        site_matrix: SiteMatrixResult,
+    ) -> CoreProcessingResult:
+        """Build a core-style result for phospho-only preprocessing runs."""
+
+        empty_total = pd.DataFrame(columns=[TOTAL_GENE_COLUMN, *schema.total_cols])
+        return cls(
+            total_unique=empty_total.copy(),
+            total_filtered=empty_total,
+            phospho_filtered=phospho_filtered,
+            phospho_corrected=phospho_corrected,
+            site_matrix=site_matrix,
+        )
+
 
 class CoreProcessor:
     """Run the core preprocessing pipeline over validated dataset frames.

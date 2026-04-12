@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -45,14 +46,23 @@ class DatasetLoader:
     def validate_total(self, total_df: pd.DataFrame) -> pd.DataFrame:
         """Validate one in-memory total-proteome input table."""
 
-        return TotalInputSchema.validate(total_df, total_cols=self.schema.total_cols)
+        return self._validate_table(
+            total_df,
+            validator=lambda frame: TotalInputSchema.validate(
+                frame,
+                total_cols=self.schema.total_cols,
+            ),
+        )
 
     def validate_phospho(self, phospho_df: pd.DataFrame) -> pd.DataFrame:
         """Validate one in-memory phosphoproteome input table."""
 
-        return PhosphoInputSchema.validate(
+        return self._validate_table(
             phospho_df,
-            phospho_cols=self.schema.phospho_cols,
+            validator=lambda frame: PhosphoInputSchema.validate(
+                frame,
+                phospho_cols=self.schema.phospho_cols,
+            ),
         )
 
     def validate_inputs(
@@ -66,37 +76,56 @@ class DatasetLoader:
             phospho_df=phospho_df,
             schema=self.schema,
         )
-        return LoadedDatasetInputs(
+        return self._build_loaded_inputs(
             total_df=validated_total,
             phospho_df=validated_phospho,
-            schema=self.schema,
         )
 
-    def _load_total_from_validated_path(
+    def resolve_total(self, total: pd.DataFrame | str | Path) -> pd.DataFrame:
+        """Resolve one total input from memory or disk into a validated frame."""
+
+        if isinstance(total, pd.DataFrame):
+            return self.validate_total(total)
+        return self.load_total(total)
+
+    def resolve_phospho(
         self,
-        path: Path,
+        phospho: pd.DataFrame | str | Path,
         *,
         encoding: str | None = None,
     ) -> pd.DataFrame:
-        frame = self._read_input_table(
-            path,
-            context="total input table",
-            encoding=encoding,
-        )
-        return self.validate_total(frame)
+        """Resolve one phospho input from memory or disk into a validated frame."""
 
-    def _load_phospho_from_validated_path(
+        if isinstance(phospho, pd.DataFrame):
+            return self.validate_phospho(phospho)
+        return self.load_phospho(phospho, encoding=encoding)
+
+    def resolve_inputs(
         self,
-        path: Path,
         *,
-        encoding: str | None = None,
-    ) -> pd.DataFrame:
-        frame = self._read_input_table(
-            path,
-            context="phospho input table",
-            encoding=encoding,
+        total: pd.DataFrame | str | Path,
+        phospho: pd.DataFrame | str | Path,
+        phospho_encoding: str | None = None,
+    ) -> LoadedDatasetInputs:
+        """Resolve dataset inputs from file-backed, in-memory, or mixed sources."""
+
+        if isinstance(total, pd.DataFrame) and isinstance(phospho, pd.DataFrame):
+            return self.validate_inputs(total_df=total, phospho_df=phospho)
+        if not isinstance(total, pd.DataFrame) and not isinstance(
+            phospho, pd.DataFrame
+        ):
+            return self.load(
+                total,
+                phospho,
+                phospho_encoding=phospho_encoding,
+            )
+        return self._build_loaded_inputs(
+            total_df=self.resolve_total(total),
+            phospho_df=self.resolve_phospho(
+                phospho,
+                encoding=phospho_encoding,
+            ),
         )
-        return self.validate_phospho(frame)
 
     def load_total(
         self,
@@ -110,8 +139,10 @@ class DatasetLoader:
             total_path,
             context="total input table path",
         )
-        return self._load_total_from_validated_path(
+        return self._load_from_validated_path(
             validated_path,
+            context="total input table",
+            validator=self.validate_total,
             encoding=encoding,
         )
 
@@ -127,8 +158,10 @@ class DatasetLoader:
             phospho_path,
             context="phospho input table path",
         )
-        return self._load_phospho_from_validated_path(
+        return self._load_from_validated_path(
             validated_path,
+            context="phospho input table",
+            validator=self.validate_phospho,
             encoding=encoding,
         )
 
@@ -143,16 +176,54 @@ class DatasetLoader:
             total_path,
             phospho_path,
         )
-        total_df = self._load_total_from_validated_path(validated_paths.total_path)
-        phospho_df = self._load_phospho_from_validated_path(
-            validated_paths.phospho_path,
-            encoding=phospho_encoding,
+        return self._build_loaded_inputs(
+            total_df=self._load_from_validated_path(
+                validated_paths.total_path,
+                context="total input table",
+                validator=self.validate_total,
+            ),
+            phospho_df=self._load_from_validated_path(
+                validated_paths.phospho_path,
+                context="phospho input table",
+                validator=self.validate_phospho,
+                encoding=phospho_encoding,
+            ),
         )
+
+    def _build_loaded_inputs(
+        self,
+        *,
+        total_df: pd.DataFrame,
+        phospho_df: pd.DataFrame,
+    ) -> LoadedDatasetInputs:
         return LoadedDatasetInputs(
             total_df=total_df,
             phospho_df=phospho_df,
             schema=self.schema,
         )
+
+    @staticmethod
+    def _validate_table(
+        frame: pd.DataFrame,
+        *,
+        validator: Callable[[pd.DataFrame], pd.DataFrame],
+    ) -> pd.DataFrame:
+        return validator(frame)
+
+    def _load_from_validated_path(
+        self,
+        path: Path,
+        *,
+        context: str,
+        validator: Callable[[pd.DataFrame], pd.DataFrame],
+        encoding: str | None = None,
+    ) -> pd.DataFrame:
+        frame = self._read_input_table(
+            path,
+            context=context,
+            encoding=encoding,
+        )
+        return self._validate_table(frame, validator=validator)
 
     @staticmethod
     def _read_input_table(

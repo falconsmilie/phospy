@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset, PhosphoDataset, SimpleKinaseWorkflow
-from phospy.datasets import DatasetSchema
+from phospy.datasets import DatasetLoader, DatasetSchema
 from phospy.errors import (
     InputCompatibilityError,
     PhospyValidationError,
@@ -28,6 +28,7 @@ from phospy.preprocessing import (
     filter_sites_by_coverage,
     replace_sentinel_with_nan,
 )
+from phospy.preprocessing.analysis_ready import build_analysis_ready_dataset
 
 
 def test_filter_localized_sites_filters_inclusive_threshold_and_returns_summary() -> (
@@ -1041,3 +1042,54 @@ def test_simple_kinase_workflow_reuses_bound_analysis_ready_adapter_on_fixture_f
             expected.phospho_corrected,
         )
         assert result.analysis_ready_dataset.provenance == expected.provenance
+
+
+def test_dataset_loader_resolve_inputs_converges_in_memory_file_and_mixed_sources() -> (
+    None
+):
+    fixture_dir = (
+        Path(__file__).resolve().parents[1] / "examples" / "data" / "simple_workflow"
+    )
+    total_path = fixture_dir / "total.tsv"
+    phospho_path = fixture_dir / "phospho.tsv"
+    total_df = pd.read_csv(total_path, sep="\t")
+    phospho_df = pd.read_csv(phospho_path, sep="\t")
+    loader = DatasetLoader(schema=DatasetSchema())
+
+    in_memory_inputs = loader.resolve_inputs(total=total_df, phospho=phospho_df)
+    file_inputs = loader.resolve_inputs(total=total_path, phospho=phospho_path)
+    mixed_inputs = loader.resolve_inputs(total=total_path, phospho=phospho_df)
+
+    pd.testing.assert_frame_equal(in_memory_inputs.total_df, file_inputs.total_df)
+    pd.testing.assert_frame_equal(in_memory_inputs.phospho_df, file_inputs.phospho_df)
+    pd.testing.assert_frame_equal(mixed_inputs.total_df, file_inputs.total_df)
+    pd.testing.assert_frame_equal(mixed_inputs.phospho_df, file_inputs.phospho_df)
+
+
+def test_build_analysis_ready_dataset_accepts_mixed_input_sources() -> None:
+    fixture_dir = (
+        Path(__file__).resolve().parents[1] / "examples" / "data" / "simple_workflow"
+    )
+    total_path = fixture_dir / "total.tsv"
+    phospho_path = fixture_dir / "phospho.tsv"
+    phospho_df = pd.read_csv(phospho_path, sep="\t")
+
+    expected = build_analysis_ready_dataset(
+        total=total_path,
+        phospho=phospho_path,
+        source="analysis ready dataset builder",
+    )
+    result = build_analysis_ready_dataset(
+        total=total_path,
+        phospho=phospho_df,
+        source="analysis ready dataset builder",
+    )
+
+    pd.testing.assert_frame_equal(result.phospho_matrix, expected.phospho_matrix)
+    pd.testing.assert_frame_equal(result.site_metadata, expected.site_metadata)
+    pd.testing.assert_series_equal(result.site_sequences, expected.site_sequences)
+    pd.testing.assert_frame_equal(
+        result.phospho_corrected,
+        expected.phospho_corrected,
+    )
+    assert result.provenance == expected.provenance
