@@ -245,6 +245,143 @@ def test_output_publisher_quarantines_malformed_marker_object_and_continues_publ
     }
 
 
+def test_output_publisher_refuses_marker_with_backup_outside_target_parent(
+    tmp_path: Path,
+) -> None:
+    target_dir = tmp_path / "published"
+    staging_dir = tmp_path / "staging"
+    marker_path = tmp_path / ".published.publish-state.json"
+    poisoned_backup_dir = tmp_path.parent / ".published.backup-poisoned"
+
+    target_dir.mkdir()
+    staging_dir.mkdir()
+    (target_dir / "old.txt").write_text("old", encoding="utf-8")
+    (staging_dir / "new.txt").write_text("new", encoding="utf-8")
+    marker_path.write_text(
+        json.dumps(
+            {
+                "target_dir": str(target_dir.resolve()),
+                "backup_dir": str(poisoned_backup_dir.resolve()),
+                "created_at_utc": "2026-04-02T08:00:00+00:00",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(OSError, match="outside target parent directory"):
+        OutputPublisher().publish(staging_dir=staging_dir, target_dir=target_dir)
+
+    assert target_dir.exists()
+    assert (target_dir / "old.txt").read_text(encoding="utf-8") == "old"
+    assert staging_dir.exists()
+    assert (staging_dir / "new.txt").read_text(encoding="utf-8") == "new"
+    assert marker_path.exists()
+
+
+def test_output_publisher_refuses_marker_with_unexpected_backup_name(
+    tmp_path: Path,
+) -> None:
+    target_dir = tmp_path / "published"
+    staging_dir = tmp_path / "staging"
+    marker_path = tmp_path / ".published.publish-state.json"
+    poisoned_backup_dir = tmp_path / ".other.backup-poisoned"
+
+    target_dir.mkdir()
+    staging_dir.mkdir()
+    (target_dir / "old.txt").write_text("old", encoding="utf-8")
+    (staging_dir / "new.txt").write_text("new", encoding="utf-8")
+    marker_path.write_text(
+        json.dumps(
+            {
+                "target_dir": str(target_dir.resolve()),
+                "backup_dir": str(poisoned_backup_dir.resolve()),
+                "created_at_utc": "2026-04-02T08:00:00+00:00",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(OSError, match="unexpected backup directory name"):
+        OutputPublisher().publish(staging_dir=staging_dir, target_dir=target_dir)
+
+    assert target_dir.exists()
+    assert (target_dir / "old.txt").read_text(encoding="utf-8") == "old"
+    assert staging_dir.exists()
+    assert (staging_dir / "new.txt").read_text(encoding="utf-8") == "new"
+    assert marker_path.exists()
+
+
+def test_output_publisher_refuses_marker_for_different_target_directory(
+    tmp_path: Path,
+) -> None:
+    target_dir = tmp_path / "published"
+    staging_dir = tmp_path / "staging"
+    marker_path = tmp_path / ".published.publish-state.json"
+    backup_dir = tmp_path / ".published.backup-stale"
+
+    target_dir.mkdir()
+    staging_dir.mkdir()
+    backup_dir.mkdir()
+    (target_dir / "old.txt").write_text("old", encoding="utf-8")
+    (staging_dir / "new.txt").write_text("new", encoding="utf-8")
+    marker_path.write_text(
+        json.dumps(
+            {
+                "target_dir": str((tmp_path / "different-published").resolve()),
+                "backup_dir": str(backup_dir.resolve()),
+                "created_at_utc": "2026-04-02T08:00:00+00:00",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(OSError, match="does not match target directory"):
+        OutputPublisher().publish(staging_dir=staging_dir, target_dir=target_dir)
+
+    assert target_dir.exists()
+    assert (target_dir / "old.txt").read_text(encoding="utf-8") == "old"
+    assert staging_dir.exists()
+    assert (staging_dir / "new.txt").read_text(encoding="utf-8") == "new"
+    assert backup_dir.exists()
+    assert marker_path.exists()
+
+
+def test_output_publisher_removes_marker_when_backup_is_missing(
+    tmp_path: Path,
+) -> None:
+    target_dir = tmp_path / "published"
+    staging_dir = tmp_path / "staging"
+    backup_dir = tmp_path / ".published.backup-missing"
+    marker_path = tmp_path / ".published.publish-state.json"
+
+    target_dir.mkdir()
+    staging_dir.mkdir()
+    (target_dir / "old.txt").write_text("old", encoding="utf-8")
+    (staging_dir / "new.txt").write_text("new", encoding="utf-8")
+    marker_path.write_text(
+        json.dumps(
+            {
+                "target_dir": str(target_dir.resolve()),
+                "backup_dir": str(backup_dir.resolve()),
+                "created_at_utc": "2026-04-02T08:00:00+00:00",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    OutputPublisher().publish(staging_dir=staging_dir, target_dir=target_dir)
+
+    assert target_dir.exists()
+    assert (target_dir / "new.txt").read_text(encoding="utf-8") == "new"
+    assert not (target_dir / "old.txt").exists()
+    assert not backup_dir.exists()
+    assert not marker_path.exists()
+
+
 def test_pipeline_delegates_manifest_and_publish_to_publishing_layer(
     tmp_path: Path,
 ) -> None:

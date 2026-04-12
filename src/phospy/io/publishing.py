@@ -82,6 +82,8 @@ class OutputPublisher:
     """
 
     def publish(self, *, staging_dir: Path, target_dir: Path) -> None:
+        target_dir = self._resolve_path(target_dir)
+        staging_dir = self._resolve_path(staging_dir)
         self._recover_if_needed(target_dir)
         if not target_dir.exists():
             self._replace_directory(staging_dir, target_dir)
@@ -106,6 +108,7 @@ class OutputPublisher:
             self._remove_recovery_marker(recovery_marker)
 
     def _recover_if_needed(self, target_dir: Path) -> None:
+        target_dir = self._resolve_path(target_dir)
         marker_path = self._recovery_marker_for(target_dir)
         if not marker_path.exists():
             return
@@ -116,12 +119,11 @@ class OutputPublisher:
             self._quarantine_recovery_marker(marker_path)
             return
 
-        backup_dir = Path(recovery_state["backup_dir"])
-        expected_target_dir = Path(recovery_state["target_dir"])
-        if expected_target_dir != target_dir:
-            raise OSError(
-                f"Recovery marker {marker_path} does not match target directory {target_dir}."
-            )
+        backup_dir = self._validated_backup_dir(
+            marker_path=marker_path,
+            target_dir=target_dir,
+            recovery_state=recovery_state,
+        )
 
         if not target_dir.exists() and backup_dir.exists():
             self._replace_directory(backup_dir, target_dir)
@@ -159,8 +161,8 @@ class OutputPublisher:
         marker_path.write_text(
             json.dumps(
                 {
-                    "target_dir": str(target_dir),
-                    "backup_dir": str(backup_dir),
+                    "target_dir": str(OutputPublisher._resolve_path(target_dir)),
+                    "backup_dir": str(OutputPublisher._resolve_path(backup_dir)),
                     "created_at_utc": datetime.now(timezone.utc).isoformat(),
                 },
                 indent=2,
@@ -195,6 +197,37 @@ class OutputPublisher:
         }
 
     @staticmethod
+    def _validated_backup_dir(
+        *,
+        marker_path: Path,
+        target_dir: Path,
+        recovery_state: dict[str, str],
+    ) -> Path:
+        resolved_target_dir = OutputPublisher._resolve_path(target_dir)
+        expected_target_dir = OutputPublisher._resolve_path(
+            Path(recovery_state["target_dir"])
+        )
+        backup_dir = OutputPublisher._resolve_path(Path(recovery_state["backup_dir"]))
+
+        if expected_target_dir != resolved_target_dir:
+            raise OSError(
+                f"Recovery marker {marker_path} does not match target directory {resolved_target_dir}."
+            )
+
+        if backup_dir.parent != resolved_target_dir.parent:
+            raise OSError(
+                f"Recovery marker {marker_path} points outside target parent directory {resolved_target_dir.parent}."
+            )
+
+        expected_backup_prefix = f".{resolved_target_dir.name}.backup-"
+        if not backup_dir.name.startswith(expected_backup_prefix):
+            raise OSError(
+                f"Recovery marker {marker_path} has unexpected backup directory name {backup_dir.name}."
+            )
+
+        return backup_dir
+
+    @staticmethod
     def _quarantine_recovery_marker(marker_path: Path) -> Path:
         quarantined_path = marker_path.with_suffix(marker_path.suffix + ".corrupt")
         counter = 1
@@ -217,3 +250,7 @@ class OutputPublisher:
     @staticmethod
     def _remove_directory(target: Path) -> None:
         shutil.rmtree(target)
+
+    @staticmethod
+    def _resolve_path(path: Path) -> Path:
+        return path.resolve(strict=False)
