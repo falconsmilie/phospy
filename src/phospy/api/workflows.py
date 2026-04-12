@@ -31,11 +31,11 @@ from ..references import (
     ReferenceProvider,
 )
 from ..signalomes import SignalomeResult, execute_validated_signalome_request
-from ..validation.requests import (
+from ..validation.requests.signalome import (
     ValidatedSignalomeRequest,
-    ValidatedWorkflowRequest,
     validate_signalome_request,
 )
+from ..validation.requests.workflow import ValidatedWorkflowRequest
 
 __all__ = [
     "KinaseWorkflow",

@@ -31,6 +31,8 @@ from phospy.signalomes import (
 
 The root package still exposes a thin convenience surface for supported high-level types, but new code should prefer the domain packages above.
 
+The package-level public seams are intentionally narrow. In particular, `phospy.api` exports workflow classes, while workflow result bundle classes stay in `phospy.api.workflows`. Likewise, `phospy.validation` and `phospy.validation.requests` export request models and validator entry points, not trusted validated-bundle internals.
+
 
 ## Root convenience surface
 
@@ -657,7 +659,7 @@ SimpleKinaseWorkflow().run(
     kinase_activity_threshold: float = 0.6,
     kinase_activity_min_substrates: int = 3,
     kinase_activity_top_n_substrates: int = 20,
-) -> SimpleKinaseWorkflowResult
+) -> object
 ```
 
 Notes:
@@ -752,13 +754,13 @@ Notes:
 ### `run(...)`
 
 ```python
-pipeline.run(outdir: str | Path | None = None) -> CoreOutputs
+pipeline.run(outdir: str | Path | None = None) -> object
 ```
 
 - when `outdir` is set, files are published to disk
 - when `outdir` is `None`, only the in-memory result bundle is returned
 
-`CoreOutputs` exposes:
+The returned in-memory output bundle exposes:
 
 - `core`
 - `kinase_activity`
@@ -805,7 +807,7 @@ workflow.run(
     n_iterations: int = 5,
     random_state: int | None = None,
     svm_mode: str | None = None,
-) -> PredMatWorkflowResult
+) -> object
 ```
 
 Validation highlights:
@@ -820,7 +822,7 @@ Validation highlights:
 - `min_substrates`, `min_motif_size`, `ensemble_size`, `top`, `inclusion`, and `n_iterations` must be `>= 1`
 - `score_threshold` must be in `[0, 1]`
 
-Returns `PredMatWorkflowResult` with:
+Returns a structured result bundle with:
 
 - `scoring_result`
 - `prediction_result`
@@ -890,12 +892,12 @@ workflow.run(
     n_iterations: int = 5,
     random_state: int | None = None,
     svm_mode: str | None = None,
-) -> KinaseWorkflowResult
+) -> object
 ```
 
 You can supply kinase priors either as explicit `substrate_map` and `motif_sequences` inputs or as one `reference_bundle`. Mixed usage is rejected so the workflow boundary stays unambiguous.
 
-Returns `KinaseWorkflowResult` with:
+Returns a structured result bundle with:
 
 - `profile_result`
 - `motif_result`

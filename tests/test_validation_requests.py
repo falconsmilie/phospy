@@ -12,16 +12,20 @@ from phospy.validation.requests import (
     KinaseActivityRequest,
     KinaseWorkflowRequest,
     PredictionRequest,
-    ValidatedAnalysisRequest,
-    ValidatedDatasetInputs,
-    ValidatedPipelineRequest,
-    ValidatedWorkflowRequest,
-    build_pipeline_request,
-    build_validated_workflow_request,
     validate_analysis_request,
     validate_pipeline_construction_request,
     validate_pipeline_runtime_compatibility,
     validate_workflow_request,
+)
+from phospy.validation.requests.analysis import ValidatedAnalysisRequest
+from phospy.validation.requests.dataset import ValidatedDatasetInputs
+from phospy.validation.requests.pipeline import (
+    ValidatedPipelineRequest,
+    build_pipeline_request,
+)
+from phospy.validation.requests.workflow import (
+    ValidatedWorkflowRequest,
+    build_validated_workflow_request,
 )
 
 
@@ -508,9 +512,19 @@ def test_dataset_validation_internals_are_not_exported_from_validation_package()
     None
 ):
     import phospy.validation as validation
+    import phospy.validation.requests as request_exports
 
     assert not hasattr(validation, "validate_dataset_request")
     assert not hasattr(validation, "ValidatedDatasetInputs")
+    assert not hasattr(validation, "ValidatedAnalysisRequest")
+    assert not hasattr(validation, "ValidatedPipelineRequest")
+    assert not hasattr(validation, "ValidatedWorkflowRequest")
+    assert not hasattr(request_exports, "ValidatedDatasetInputs")
+    assert not hasattr(request_exports, "ValidatedAnalysisRequest")
+    assert not hasattr(request_exports, "ValidatedPipelineRequest")
+    assert not hasattr(request_exports, "ValidatedWorkflowRequest")
+    assert not hasattr(request_exports, "build_pipeline_request")
+    assert not hasattr(request_exports, "build_validated_workflow_request")
 
 
 def test_validated_workflow_and_analysis_requests_can_be_created() -> None:

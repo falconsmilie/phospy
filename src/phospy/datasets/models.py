@@ -22,7 +22,7 @@ from .builders import (
 from .schema import DatasetSchema
 
 if TYPE_CHECKING:
-    from ..validation.requests import ValidatedDatasetInputs
+    from ..validation.requests.dataset import ValidatedDatasetInputs
     from .loaders import LoadedDatasetInputs
 
 __all__ = [
@@ -216,7 +216,7 @@ class PhosphoDataset:
         schema: DatasetSchema | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
     ) -> None:
-        from ..validation.requests import validate_dataset_request
+        from ..validation.requests.dataset import validate_dataset_request
 
         validated_request = validate_dataset_request(
             total_df=total_df,
@@ -350,7 +350,7 @@ class PhosphoDataset:
         frames directly into the dataset workspace. Public callers should use
         ``PhosphoDataset(...)`` or ``PhosphoDataset.from_files(...)``.
         """
-        from ..validation.requests import build_validated_dataset_inputs
+        from ..validation.requests.dataset import build_validated_dataset_inputs
         from .loaders import LoadedDatasetInputs
 
         if not isinstance(loaded_inputs, LoadedDatasetInputs):

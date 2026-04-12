@@ -9,11 +9,13 @@ import phospy
 import phospy.api.workflows as api_workflows_module
 from phospy.api import (
     KinaseWorkflow,
-    KinaseWorkflowResult,
     PredMatWorkflow,
-    PredMatWorkflowResult,
     SignalomeWorkflow,
     SimpleKinaseWorkflow,
+)
+from phospy.api.workflows import (
+    KinaseWorkflowResult,
+    PredMatWorkflowResult,
     SimpleKinaseWorkflowResult,
 )
 from phospy.internal.constants import DEFAULT_PHOSPHO_SENTINEL, DEFAULT_TOTAL_SENTINEL

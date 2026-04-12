@@ -7,7 +7,10 @@ import pandas as pd
 
 from ..errors import RequestValidationError, TableSchemaError
 from ..io import read_table
-from ..validation.requests import validate_dataset_file_paths, validate_dataset_frames
+from ..validation.requests.dataset import (
+    validate_dataset_file_paths,
+    validate_dataset_frames,
+)
 from ..validation.schema.files import validate_existing_file_path
 from ..validation.schema.tables import PhosphoInputSchema, TotalInputSchema
 from .schema import DatasetSchema

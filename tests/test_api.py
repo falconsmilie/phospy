@@ -8,7 +8,7 @@ from phospy import (
     SignalomeWorkflow,
     SimpleKinaseWorkflow,
 )
-from phospy.api import (
+from phospy.api.workflows import (
     KinaseWorkflowResult,
     PredMatWorkflowResult,
     SimpleKinaseWorkflowResult,
@@ -30,3 +30,17 @@ def test_legacy_workflow_module_has_been_removed() -> None:
         Path(__file__).resolve().parents[1] / "src" / "phospy" / "workflow.py"
     )
     assert not workflow_module.exists()
+
+
+def test_api_package_exports_only_supported_workflows() -> None:
+    import phospy.api as api
+
+    assert set(api.__all__) == {
+        "KinaseWorkflow",
+        "PredMatWorkflow",
+        "SignalomeWorkflow",
+        "SimpleKinaseWorkflow",
+    }
+    assert not hasattr(api, "KinaseWorkflowResult")
+    assert not hasattr(api, "PredMatWorkflowResult")
+    assert not hasattr(api, "SimpleKinaseWorkflowResult")

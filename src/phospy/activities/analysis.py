@@ -9,7 +9,7 @@ import pandas as pd
 
 from ..io import load_pred_mat
 from ..io.writers import KinaseActivityResultWriter, KinaseActivityWriter
-from ..validation.requests import (
+from ..validation.requests.analysis import (
     ValidatedAnalysisRequest,
     validate_analysis_request,
 )

@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from ..errors import InputCompatibilityError
-from ..validation.requests import (
+from ..validation.requests.signalome import (
     SignalomeRequest,
     ValidatedSignalomeRequest,
     _build_validated_signalome_request,

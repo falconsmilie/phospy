@@ -19,13 +19,15 @@ from .io.writers import CoreOutputWriter, KinaseActivityWriter
 from .preprocessing import CorePreprocessingConfig, CoreProcessingResult
 from .validation.requests import (
     CorePipelineRequest,
+    validate_pipeline_construction_request,
+)
+from .validation.requests.pipeline import (
     ValidatedPipelineRequest,
     build_pipeline_request,
-    validate_pipeline_construction_request,
     validate_pipeline_runtime_compatibility,
 )
 
-__all__ = ["CoreOutputs", "PhosRPipeline"]
+__all__ = ["PhosRPipeline"]
 
 
 if TYPE_CHECKING:

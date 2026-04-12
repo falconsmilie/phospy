@@ -25,7 +25,7 @@ from .results import (
 )
 
 if TYPE_CHECKING:
-    from ..validation.requests import ValidatedSignalomeRequest
+    from ..validation.requests.signalome import ValidatedSignalomeRequest
 
 
 def build_signalome_result(*args: object, **kwargs: object) -> SignalomeResult:

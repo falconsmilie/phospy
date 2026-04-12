@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from ..internal.constants import SITE_MATRIX_ID_COLUMN
-from ..validation.requests import (
+from ..validation.requests.analysis import (
     KinaseActivityRequest,
     ValidatedAnalysisRequest,
     validate_analysis_request,
