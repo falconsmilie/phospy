@@ -194,6 +194,37 @@ def test_core_processing_allows_row_loss_with_explicit_tolerance() -> None:
     assert result.phospho_corrected["gene_names"].tolist() == ["PRKACA"]
 
 
+def test_kinase_activity_analyzer_records_partial_overlap_above_default_fraction() -> (
+    None
+):
+    pred_mat = pd.DataFrame(
+        {
+            "PRKACA": [0.9, 0.8, 0.7, 0.6, 0.5],
+        },
+        index=[f"SITE_{idx}" for idx in range(1, 6)],
+    )
+    phospho_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0] * 8,
+        },
+        index=[f"SITE_{idx}" for idx in range(1, 9)],
+    )
+
+    result = KinaseActivityAnalyzer().run(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+        min_substrates=1,
+        top_n_substrates=5,
+    )
+
+    assert result.weighted_activity.index.tolist() == ["PRKACA"]
+    assert result.overlap_summary.is_partial is True
+    assert result.overlap_summary.message == (
+        "pred_mat and phospho_matrix partially overlap: using 5 shared "
+        "phosphosite row(s) (62.5% of phospho_matrix; 100.0% of pred_mat)"
+    )
+
+
 def test_kinase_activity_analyzer_rejects_insufficient_overlap_fraction() -> None:
     pred_mat = pd.DataFrame(
         {

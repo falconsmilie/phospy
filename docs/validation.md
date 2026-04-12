@@ -50,11 +50,13 @@ A valid `predMat` must have:
 - required identifier columns must not be null
 - numeric sample columns must be numeric after coercion
 - `localization_prob` must stay in `[0, 1]`
-- `predMat` scores must stay in `[0, 1]`
+- `predMat` scores must stay in `[0, 1]` where present
+- `predMat` may include `NaN` values to represent missing or unusable kinase scores, but infinite values are rejected
+- downstream consumers may tighten that rule when their assignment logic requires fully finite kinase scores
 - file paths must exist and point to files
 - comparison pairs must use known schema groups and must not be duplicated
 - downstream kinase analysis needs overlap between `predMat` and the phosphosite matrix
-- that overlap must cover at least 10% of the phosphosite matrix
+- that overlap must cover at least 50% of the phosphosite matrix
 - native workflow runs need overlap across the matrix, substrate map, and sequence inputs
 - motif-aware workflow runs need both `motif_sequences` and `site_sequences`, unless you enable `allow_profile_only_fallback=True`
 - motif-aware workflow validation only requires sequence coverage for phosphosites that are actually scored and predicted

@@ -557,8 +557,9 @@ Rules:
 - `phospho_matrix` must be a numeric phosphosite matrix with a unique, non-null index
 - `threshold` must be in `[0, 1]`
 - `min_substrates` and `top_n_substrates` must be `>= 1`
+- `pred_mat` may include `NaN` values to represent missing or unusable kinase scores
 - `pred_mat` and `phospho_matrix` must overlap by at least one phosphosite row
-- that overlap must cover at least 10% of the phosphosite matrix
+- that overlap must cover at least 50% of the phosphosite matrix
 
 Example:
 
@@ -936,6 +937,7 @@ Validation highlights:
 - `scoring_result` and `prediction_result` must align to a shared phosphosite index
 - `prediction_result` can be either `KinasePredictionResult` or `PredMatResult`
 - `expression_matrix` must be a numeric phosphosite matrix with a unique, non-null index
+- aligned `pred_mat` values must be finite because signalome site-assignment logic requires a concrete top kinase per row
 - `kinases_of_interest` must not be empty and must be present in the aligned kinase columns
 - `kinase_network_threshold` and `signalome_cutoff` must be in `[0, 1]`
 - `module_count`, when supplied, must be `>= 1`

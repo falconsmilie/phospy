@@ -7,7 +7,12 @@ import pandas as pd
 from pydantic import Field, ValidationError
 
 from ...errors import NoCandidateKinasesError, RequestValidationError
-from ..compatibility import validate_pred_mat_overlap
+from ..compatibility import (
+    DEFAULT_MIN_PRED_MAT_OVERLAP,
+    DEFAULT_MIN_PRED_MAT_OVERLAP_FRACTION,
+    PredMatOverlapSummary,
+    validate_pred_mat_overlap,
+)
 from ..schema.tables import ActivitySiteMatrixSchema, PredMatSchema
 from .shared import PhospyRequestModel, normalize_pred_mat_input
 
@@ -42,6 +47,7 @@ class AnalysisInputs:
     threshold: float
     min_substrates: int
     top_n_substrates: int
+    overlap_summary: PredMatOverlapSummary
 
     @classmethod
     def from_trusted_inputs(
@@ -54,12 +60,12 @@ class AnalysisInputs:
         top_n_substrates: int,
         pred_context: str = "pred_mat",
         matrix_context: str = "phospho_matrix",
-        min_overlap: int = 1,
-        min_fraction: float = 0.1,
+        min_overlap: int = DEFAULT_MIN_PRED_MAT_OVERLAP,
+        min_fraction: float = DEFAULT_MIN_PRED_MAT_OVERLAP_FRACTION,
     ) -> AnalysisInputs:
         """Build trusted analysis inputs from already-owned validated matrices."""
 
-        validate_pred_mat_overlap(
+        overlap_summary = validate_pred_mat_overlap(
             pred_mat,
             phospho_matrix,
             pred_context=pred_context,
@@ -73,6 +79,7 @@ class AnalysisInputs:
             threshold=threshold,
             min_substrates=min_substrates,
             top_n_substrates=top_n_substrates,
+            overlap_summary=overlap_summary,
         )
 
 
@@ -85,8 +92,8 @@ def validate_analysis_request(
     top_n_substrates: int = 20,
     pred_context: str = "pred_mat",
     matrix_context: str = "phospho_matrix",
-    min_overlap: int = 1,
-    min_fraction: float = 0.1,
+    min_overlap: int = DEFAULT_MIN_PRED_MAT_OVERLAP,
+    min_fraction: float = DEFAULT_MIN_PRED_MAT_OVERLAP_FRACTION,
 ) -> AnalysisInputs:
     """Validate raw analysis inputs and return trusted analysis inputs."""
 

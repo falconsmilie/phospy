@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from ..validation.compatibility import PredMatOverlapSummary
+
 __all__ = ["KinaseActivityResult"]
 
 
@@ -16,3 +18,4 @@ class KinaseActivityResult:
     ksea_counts: pd.Series
     target_counts: pd.Series
     target_table: pd.DataFrame
+    overlap_summary: PredMatOverlapSummary

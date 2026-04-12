@@ -1162,6 +1162,63 @@ def test_validate_analysis_request_rejects_zero_overlap() -> None:
         )
 
 
+def test_validate_analysis_request_records_partial_overlap_above_default_fraction() -> (
+    None
+):
+    pred_mat = pd.DataFrame(
+        {"PRKACA": [0.9, 0.8, 0.7, 0.6, 0.5]},
+        index=[f"SITE_{idx}" for idx in range(1, 6)],
+    )
+    phospho_matrix = pd.DataFrame(
+        {"sample_1": [1.0] * 8},
+        index=[f"SITE_{idx}" for idx in range(1, 9)],
+    )
+
+    inputs = validate_analysis_request(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+    )
+
+    assert inputs.pred_mat.index.tolist() == [f"SITE_{idx}" for idx in range(1, 6)]
+    assert inputs.overlap_summary.is_partial is True
+    assert inputs.overlap_summary.overlap_count == 5
+    assert inputs.overlap_summary.message == (
+        "pred_mat and phospho_matrix partially overlap: using 5 shared "
+        "phosphosite row(s) (62.5% of phospho_matrix; 100.0% of pred_mat)"
+    )
+
+
+def test_validate_analysis_request_allows_nan_pred_mat_values() -> None:
+    pred_mat = pd.DataFrame({"PRKACA": [0.9, float("nan")]}, index=["SITE_1", "SITE_2"])
+    phospho_matrix = pd.DataFrame(
+        {"sample_1": [1.0, 2.0]},
+        index=["SITE_1", "SITE_2"],
+    )
+
+    inputs = validate_analysis_request(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+    )
+
+    assert pd.isna(inputs.pred_mat.loc["SITE_2", "PRKACA"])
+
+
+def test_validate_analysis_request_accepts_full_overlap_without_partial_flag() -> None:
+    pred_mat = pd.DataFrame({"PRKACA": [0.9, 0.8]}, index=["SITE_1", "SITE_2"])
+    phospho_matrix = pd.DataFrame(
+        {"sample_1": [1.0, 2.0]},
+        index=["SITE_1", "SITE_2"],
+    )
+
+    inputs = validate_analysis_request(
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
+    )
+
+    assert inputs.overlap_summary.is_partial is False
+    assert inputs.phospho_matrix.index.tolist() == ["SITE_1", "SITE_2"]
+
+
 def test_validate_analysis_request_rejects_insufficient_overlap_fraction() -> None:
     pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["SITE_1"])
     phospho_matrix = pd.DataFrame(

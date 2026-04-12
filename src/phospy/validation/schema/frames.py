@@ -167,6 +167,29 @@ def require_value_range(
         raise TableSchemaError(msg)
 
 
+def require_no_infinite_numeric_values(
+    frame: pd.DataFrame,
+    *,
+    columns: Sequence[str],
+    context: str,
+) -> None:
+    """Reject positive or negative infinity in selected numeric columns."""
+
+    failures: list[str] = []
+    for column in columns:
+        series = frame[column]
+        values = series.to_numpy(dtype=float)
+        invalid_mask = np.isinf(values)
+        if invalid_mask.any():
+            sample_values = series.loc[invalid_mask].astype(str).unique()[:3]
+            sample_preview = ", ".join(str(value) for value in sample_values)
+            failures.append(f"{column} ({sample_preview})")
+    if failures:
+        failures_str = "; ".join(failures)
+        msg = f"{context} contains infinite values in numeric columns: {failures_str}"
+        raise TableSchemaError(msg)
+
+
 def require_finite_numeric_values(
     frame: pd.DataFrame,
     *,
@@ -213,6 +236,7 @@ __all__ = [
     "require_columns",
     "require_dataframe",
     "require_finite_numeric_values",
+    "require_no_infinite_numeric_values",
     "require_non_null_column_names",
     "require_non_null_index",
     "require_non_null_values",

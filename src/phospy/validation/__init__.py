@@ -21,6 +21,8 @@ from ..errors import (
     TraceError,
 )
 from .compatibility import (
+    DEFAULT_MIN_PRED_MAT_OVERLAP,
+    DEFAULT_MIN_PRED_MAT_OVERLAP_FRACTION,
     ProteinCorrectionMatchSummary,
     validate_core_column_alignment,
     validate_pred_mat_overlap,
@@ -65,6 +67,8 @@ __all__ = [
     "PhospyError",
     "PhospyValidationError",
     "PredMatSchema",
+    "DEFAULT_MIN_PRED_MAT_OVERLAP",
+    "DEFAULT_MIN_PRED_MAT_OVERLAP_FRACTION",
     "PredictionConfigurationError",
     "PredictionRequest",
     "PredictionScoreMatrixSchema",

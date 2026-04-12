@@ -1,12 +1,51 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 
-import numpy as np
 import pandas as pd
 
 from ...errors import InputCompatibilityError
+from ..schema import require_finite_numeric_values
 from ..schema.tables import PredictionScoreMatrixSchema, PredMatSchema, SiteMatrixSchema
+
+DEFAULT_MIN_PRED_MAT_OVERLAP = 1
+DEFAULT_MIN_PRED_MAT_OVERLAP_FRACTION = 0.5
+
+
+@dataclass(frozen=True, slots=True)
+class PredMatOverlapSummary:
+    """Resolved overlap details between a predMat and a phosphosite matrix."""
+
+    overlap_count: int
+    matrix_rows: int
+    pred_mat_rows: int
+    pred_context: str
+    matrix_context: str
+
+    @property
+    def matrix_fraction(self) -> float:
+        return self.overlap_count / max(self.matrix_rows, 1)
+
+    @property
+    def pred_mat_fraction(self) -> float:
+        return self.overlap_count / max(self.pred_mat_rows, 1)
+
+    @property
+    def is_partial(self) -> bool:
+        return (
+            self.overlap_count != self.matrix_rows
+            or self.overlap_count != self.pred_mat_rows
+        )
+
+    @property
+    def message(self) -> str:
+        return (
+            f"{self.pred_context} and {self.matrix_context} partially overlap: using "
+            f"{self.overlap_count} shared phosphosite row(s) "
+            f"({self.matrix_fraction * 100.0:.1f}% of {self.matrix_context}; "
+            f"{self.pred_mat_fraction * 100.0:.1f}% of {self.pred_context})"
+        )
 
 
 def validate_core_column_alignment(
@@ -35,9 +74,9 @@ def validate_pred_mat_overlap(
     *,
     pred_context: str = "pred_mat",
     matrix_context: str = "phospho_matrix",
-    min_overlap: int = 1,
-    min_fraction: float = 0.1,
-) -> None:
+    min_overlap: int = DEFAULT_MIN_PRED_MAT_OVERLAP,
+    min_fraction: float = DEFAULT_MIN_PRED_MAT_OVERLAP_FRACTION,
+) -> PredMatOverlapSummary:
     """Validate overlap between a prediction matrix and a phosphosite matrix."""
 
     overlap = pred_mat.index.intersection(phospho_matrix.index)
@@ -47,6 +86,7 @@ def validate_pred_mat_overlap(
         raise InputCompatibilityError(msg)
 
     matrix_rows = len(phospho_matrix.index)
+    pred_mat_rows = len(pred_mat.index)
     overlap_fraction = overlap_count / max(matrix_rows, 1)
     if overlap_count < min_overlap or overlap_fraction < min_fraction:
         percent = overlap_fraction * 100.0
@@ -55,6 +95,14 @@ def validate_pred_mat_overlap(
             f"phosphosite IDs: {overlap_count} row(s) ({percent:.1f}%)"
         )
         raise InputCompatibilityError(msg)
+
+    return PredMatOverlapSummary(
+        overlap_count=overlap_count,
+        matrix_rows=matrix_rows,
+        pred_mat_rows=pred_mat_rows,
+        pred_context=pred_context,
+        matrix_context=matrix_context,
+    )
 
 
 def validate_workflow_matrix_inputs(
@@ -124,7 +172,11 @@ def validate_signalome_alignment(
         pred_mat,
         context=pred_mat_context,
     )
-    _require_finite_pred_mat(validated_pred_mat, context=pred_mat_context)
+    require_finite_numeric_values(
+        validated_pred_mat,
+        columns=list(validated_pred_mat.columns),
+        context=pred_mat_context,
+    )
     validated_expression_matrix = SiteMatrixSchema.validate(
         expression_matrix,
         context=expression_context,
@@ -191,26 +243,10 @@ def _extract_sequence_index(site_sequences: Mapping[str, str] | pd.Series) -> se
     raise InputCompatibilityError(msg)
 
 
-def _require_finite_pred_mat(
-    frame: pd.DataFrame,
-    *,
-    context: str,
-) -> None:
-    failures: list[str] = []
-    for column in frame.columns.astype(str):
-        series = frame.loc[:, column]
-        invalid_mask = ~np.isfinite(series.to_numpy(dtype=float))
-        if invalid_mask.any():
-            sample_values = series.loc[invalid_mask].astype(str).unique()[:3]
-            sample_preview = ", ".join(str(value) for value in sample_values)
-            failures.append(f"{column} ({sample_preview})")
-    if failures:
-        failures_str = "; ".join(failures)
-        msg = f"{context} contains non-finite values in numeric columns: {failures_str}"
-        raise InputCompatibilityError(msg)
-
-
 __all__ = [
+    "DEFAULT_MIN_PRED_MAT_OVERLAP",
+    "DEFAULT_MIN_PRED_MAT_OVERLAP_FRACTION",
+    "PredMatOverlapSummary",
     "validate_core_column_alignment",
     "validate_pred_mat_overlap",
     "validate_signalome_alignment",

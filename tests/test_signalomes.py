@@ -785,7 +785,7 @@ def test_build_signalome_result_rejects_non_finite_pred_mat_values() -> None:
     )
 
     with pytest.raises(
-        InputCompatibilityError,
+        TableSchemaError,
         match="pred_mat contains non-finite values in numeric columns",
     ):
         build_signalome_result(

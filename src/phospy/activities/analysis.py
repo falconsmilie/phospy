@@ -50,6 +50,7 @@ class _ActivityRunner:
             ksea_counts=ksea_counts,
             target_counts=target_counts,
             target_table=target_table,
+            overlap_summary=inputs.overlap_summary,
         )
 
 

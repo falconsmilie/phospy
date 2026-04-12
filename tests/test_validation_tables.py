@@ -129,6 +129,33 @@ def test_pred_mat_schema_rejects_zero_column_frames() -> None:
         PredMatSchema.validate(frame)
 
 
+def test_pred_mat_schema_allows_nan_values() -> None:
+    frame = pd.DataFrame(
+        {
+            "PRKACA": [0.9, float("nan")],
+            "BTK": [0.8, 0.2],
+        },
+        index=["SITE_1", "SITE_2"],
+    )
+
+    validated = PredMatSchema.validate(frame)
+
+    assert pd.isna(validated.loc["SITE_2", "PRKACA"])
+
+
+def test_pred_mat_schema_rejects_infinite_values() -> None:
+    frame = pd.DataFrame(
+        {
+            "PRKACA": [0.9, float("inf")],
+            "BTK": [0.8, 0.2],
+        },
+        index=["SITE_1", "SITE_2"],
+    )
+
+    with pytest.raises(TableSchemaError, match="infinite values"):
+        PredMatSchema.validate(frame)
+
+
 def test_site_matrix_schema_rejects_duplicate_index() -> None:
     frame = pd.DataFrame(
         {

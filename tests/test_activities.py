@@ -436,6 +436,41 @@ def test_activity_scoring_helpers_reject_zero_site_overlap(helper) -> None:
     "helper",
     [compute_weighted_kinase_activity, compute_ksea_scores],
 )
+def test_activity_scoring_helpers_allow_partial_overlap_above_default_fraction(
+    helper,
+) -> None:
+    pred_mat = pd.DataFrame(
+        {"PRKACA": [0.9, 0.8, 0.7, 0.6, 0.5]},
+        index=[f"SITE_{idx}" for idx in range(1, 6)],
+    )
+    phospho_matrix = pd.DataFrame(
+        {"sample_1": [1.0] * 8},
+        index=[f"SITE_{idx}" for idx in range(1, 9)],
+    )
+
+    if helper is compute_weighted_kinase_activity:
+        result = helper(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+            top_n_substrates=5,
+            min_substrates=1,
+        )
+        assert result.index.tolist() == ["PRKACA"]
+    else:
+        scores, counts = helper(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+            threshold=0.6,
+            min_substrates=1,
+        )
+        assert scores.index.tolist() == ["PRKACA"]
+        assert counts.index.tolist() == ["PRKACA"]
+
+
+@pytest.mark.parametrize(
+    "helper",
+    [compute_weighted_kinase_activity, compute_ksea_scores],
+)
 def test_activity_scoring_helpers_reject_insufficient_overlap_fraction(helper) -> None:
     pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["SITE_1"])
     phospho_matrix = pd.DataFrame(

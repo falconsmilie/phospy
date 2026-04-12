@@ -21,6 +21,7 @@ from .frames import (
     require_columns,
     require_dataframe,
     require_finite_numeric_values,
+    require_no_infinite_numeric_values,
     require_non_null_column_names,
     require_non_null_index,
     require_non_null_values,
@@ -134,6 +135,11 @@ class PredMatSchema:
         )
         require_unique_index(validated, context=context)
         require_non_null_index(validated, context=context)
+        require_no_infinite_numeric_values(
+            validated,
+            columns=list(validated.columns),
+            context=context,
+        )
         require_value_range(
             validated,
             columns=list(validated.columns),
