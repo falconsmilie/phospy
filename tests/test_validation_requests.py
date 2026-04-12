@@ -17,15 +17,15 @@ from phospy.validation.requests import (
     validate_pipeline_runtime_compatibility,
     validate_workflow_request,
 )
-from phospy.validation.requests.analysis import ValidatedAnalysisRequest
-from phospy.validation.requests.dataset import ValidatedDatasetInputs
+from phospy.validation.requests.analysis import AnalysisInputs
+from phospy.validation.requests.dataset import DatasetInputs
 from phospy.validation.requests.pipeline import (
-    ValidatedPipelineRequest,
-    build_pipeline_request,
+    PipelineInputs,
+    build_pipeline_inputs,
 )
 from phospy.validation.requests.workflow import (
-    ValidatedWorkflowRequest,
-    build_validated_workflow_request,
+    WorkflowInputs,
+    build_workflow_inputs,
 )
 
 
@@ -505,7 +505,7 @@ def test_pipeline_request_can_be_created_from_public_dataset_boundary() -> None:
         dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
         pred_mat=pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"]),
     )
-    assert isinstance(pipeline_request, ValidatedPipelineRequest)
+    assert isinstance(pipeline_request, PipelineInputs)
 
 
 def test_dataset_validation_internals_are_not_exported_from_validation_package() -> (
@@ -515,16 +515,16 @@ def test_dataset_validation_internals_are_not_exported_from_validation_package()
     import phospy.validation.requests as request_exports
 
     assert not hasattr(validation, "validate_dataset_request")
-    assert not hasattr(validation, "ValidatedDatasetInputs")
-    assert not hasattr(validation, "ValidatedAnalysisRequest")
-    assert not hasattr(validation, "ValidatedPipelineRequest")
-    assert not hasattr(validation, "ValidatedWorkflowRequest")
-    assert not hasattr(request_exports, "ValidatedDatasetInputs")
-    assert not hasattr(request_exports, "ValidatedAnalysisRequest")
-    assert not hasattr(request_exports, "ValidatedPipelineRequest")
-    assert not hasattr(request_exports, "ValidatedWorkflowRequest")
-    assert not hasattr(request_exports, "build_pipeline_request")
-    assert not hasattr(request_exports, "build_validated_workflow_request")
+    assert not hasattr(validation, "DatasetInputs")
+    assert not hasattr(validation, "AnalysisInputs")
+    assert not hasattr(validation, "PipelineInputs")
+    assert not hasattr(validation, "WorkflowInputs")
+    assert not hasattr(request_exports, "DatasetInputs")
+    assert not hasattr(request_exports, "AnalysisInputs")
+    assert not hasattr(request_exports, "PipelineInputs")
+    assert not hasattr(request_exports, "WorkflowInputs")
+    assert not hasattr(request_exports, "build_pipeline_inputs")
+    assert not hasattr(request_exports, "build_workflow_inputs")
 
 
 def test_validated_workflow_and_analysis_requests_can_be_created() -> None:
@@ -540,13 +540,13 @@ def test_validated_workflow_and_analysis_requests_can_be_created() -> None:
         flank_size=2,
         default_svm_mode="default",
     )
-    assert isinstance(workflow_request, ValidatedWorkflowRequest)
+    assert isinstance(workflow_request, WorkflowInputs)
 
     analysis_request = validate_analysis_request(
         pred_mat=pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"]),
         phospho_matrix=pd.DataFrame({"sample_1": [1.0]}, index=["PRKACA;S339;"]),
     )
-    assert isinstance(analysis_request, ValidatedAnalysisRequest)
+    assert isinstance(analysis_request, AnalysisInputs)
 
 
 def test_validate_pipeline_construction_request_rejects_non_dataset_inputs() -> None:
@@ -656,7 +656,7 @@ def test_validate_workflow_request_takes_ownership_of_raw_dataframe_inputs() -> 
     assert request.request.phospho_matrix is request.phospho_matrix
 
 
-def test_build_validated_workflow_request_reuses_owned_validated_matrix() -> None:
+def test_build_workflow_inputs_reuses_owned_validated_matrix() -> None:
     raw_request = KinaseWorkflowRequest.validate_request(
         phospho_matrix=pd.DataFrame(
             {"sample_1": [1.0], "sample_2": [2.0]},
@@ -668,7 +668,7 @@ def test_build_validated_workflow_request_reuses_owned_validated_matrix() -> Non
         allow_profile_only_fallback=False,
     )
 
-    request = build_validated_workflow_request(
+    request = build_workflow_inputs(
         raw_request,
         flank_size=2,
         default_svm_mode="default",
@@ -924,7 +924,7 @@ def test_validate_pipeline_construction_request_skips_kinase_activity_config_wit
     assert request.kinase_activity_request is None
 
 
-def test_build_pipeline_request_reuses_owned_dataset_and_pred_mat() -> None:
+def test_build_pipeline_inputs_reuses_owned_dataset_and_pred_mat() -> None:
     total_df = pd.DataFrame(
         {
             "genes": ["PRKACA"],
@@ -952,15 +952,15 @@ def test_build_pipeline_request_reuses_owned_dataset_and_pred_mat() -> None:
         }
     )
     dataset = PhosphoDataset(total_df=total_df, phospho_df=phospho_df)
-    validated_pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"])
+    pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"])
 
-    request = build_pipeline_request(
+    request = build_pipeline_inputs(
         dataset=dataset,
-        validated_pred_mat=validated_pred_mat,
+        pred_mat=pred_mat,
     )
 
     assert request.dataset is dataset
-    assert request.pred_mat is validated_pred_mat
+    assert request.pred_mat is pred_mat
 
 
 def test_validate_pipeline_runtime_compatibility_builds_analysis_request_after_preprocessing() -> (
@@ -1120,13 +1120,11 @@ def test_prediction_request_takes_ownership_of_raw_combined_scores() -> None:
     assert request.combined_scores.loc["SITE_1", "KINASE_A"] == 0.9
 
 
-def test_validated_request_bundles_with_pandas_state_are_not_frozen_dataclasses() -> (
-    None
-):
-    assert ValidatedAnalysisRequest.__dataclass_params__.frozen is False
-    assert ValidatedPipelineRequest.__dataclass_params__.frozen is False
-    assert ValidatedWorkflowRequest.__dataclass_params__.frozen is False
-    assert ValidatedDatasetInputs.__dataclass_params__.frozen is False
+def test_dataset_inputs_bundles_with_pandas_state_are_not_frozen_dataclasses() -> None:
+    assert AnalysisInputs.__dataclass_params__.frozen is False
+    assert PipelineInputs.__dataclass_params__.frozen is False
+    assert WorkflowInputs.__dataclass_params__.frozen is False
+    assert DatasetInputs.__dataclass_params__.frozen is False
 
 
 def test_validate_analysis_request_rejects_zero_overlap() -> None:

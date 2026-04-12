@@ -14,7 +14,7 @@ from ..schema.tables import PhosphoInputSchema, TotalInputSchema
 
 
 @dataclass(frozen=True, slots=True)
-class ValidatedDatasetPaths:
+class DatasetFilePaths:
     """Validated file-backed dataset input paths."""
 
     total_path: Path
@@ -22,8 +22,8 @@ class ValidatedDatasetPaths:
 
 
 @dataclass(slots=True)
-class ValidatedDatasetInputs:
-    """Trusted validated bundle for the public :class:`phospy.PhosphoDataset` boundary."""
+class DatasetInputs:
+    """Trusted dataset inputs owned by the dataset boundary."""
 
     schema: DatasetSchema
     total_df: pd.DataFrame
@@ -34,10 +34,10 @@ class ValidatedDatasetInputs:
 def validate_dataset_file_paths(
     total_path: str | Path,
     phospho_path: str | Path,
-) -> ValidatedDatasetPaths:
+) -> DatasetFilePaths:
     """Validate dataset file paths before table loading."""
 
-    return ValidatedDatasetPaths(
+    return DatasetFilePaths(
         total_path=validate_existing_file_path(
             total_path,
             context="total input table path",
@@ -75,7 +75,7 @@ def validate_dataset_request(
     schema: DatasetSchema | None = None,
     comparisons: Sequence[ComparisonSpec] | None = None,
     context: str = "PhosphoDataset",
-) -> ValidatedDatasetInputs:
+) -> DatasetInputs:
     """Validate raw dataset inputs for the public dataset boundary."""
 
     resolved_schema = schema or DatasetSchema()
@@ -89,7 +89,7 @@ def validate_dataset_request(
         comparisons=comparisons,
         context=context,
     )
-    return ValidatedDatasetInputs(
+    return DatasetInputs(
         schema=resolved_schema,
         total_df=validated_total,
         phospho_df=validated_phospho,
@@ -97,17 +97,17 @@ def validate_dataset_request(
     )
 
 
-def build_validated_dataset_inputs(
+def build_dataset_inputs(
     *,
     schema: DatasetSchema,
     total_df: pd.DataFrame,
     phospho_df: pd.DataFrame,
     comparisons: Sequence[ComparisonSpec] | None = None,
     context: str = "PhosphoDataset",
-) -> ValidatedDatasetInputs:
-    """Build a validated dataset request from already validated frames."""
+) -> DatasetInputs:
+    """Build dataset-owned inputs from already validated tables."""
 
-    return ValidatedDatasetInputs(
+    return DatasetInputs(
         schema=schema,
         total_df=total_df,
         phospho_df=phospho_df,

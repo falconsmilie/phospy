@@ -22,7 +22,7 @@ from .builders import (
 from .schema import DatasetSchema
 
 if TYPE_CHECKING:
-    from ..validation.requests.dataset import ValidatedDatasetInputs
+    from ..validation.requests.dataset import DatasetInputs
     from .loaders import LoadedDatasetInputs
 
 __all__ = [
@@ -194,7 +194,7 @@ class AnalysisReadyPhosphoDataset:
 
 
 class PhosphoDataset:
-    """Mutable workspace that owns validated phosphoproteomics input tables.
+    """Mutable workspace that owns owned phosphoproteomics input tables.
 
     `PhosphoDataset` is an owned in-memory processing workspace, not an immutable
     snapshot. It validates raw constructor inputs at the boundary, stores owned
@@ -218,14 +218,14 @@ class PhosphoDataset:
     ) -> None:
         from ..validation.requests.dataset import validate_dataset_request
 
-        validated_request = validate_dataset_request(
+        dataset_inputs = validate_dataset_request(
             total_df=total_df,
             phospho_df=phospho_df,
             schema=schema,
             comparisons=comparisons,
             context="PhosphoDataset",
         )
-        self._set_state(validated_request=validated_request)
+        self._set_state(dataset_inputs=dataset_inputs)
 
     @property
     def inputs(self) -> CoreInputs:
@@ -242,27 +242,27 @@ class PhosphoDataset:
         """Return the owned comparison specs bound to this dataset workspace."""
         return self._comparisons
 
-    def _set_state(self, *, validated_request: ValidatedDatasetInputs) -> None:
+    def _set_state(self, *, dataset_inputs: DatasetInputs) -> None:
         self._inputs = CoreInputs(
-            total_df=validated_request.total_df,
-            phospho_df=validated_request.phospho_df,
+            total_df=dataset_inputs.total_df,
+            phospho_df=dataset_inputs.phospho_df,
         )
-        self._schema = validated_request.schema
-        self._comparisons = validated_request.comparisons
+        self._schema = dataset_inputs.schema
+        self._comparisons = dataset_inputs.comparisons
 
     @classmethod
-    def _from_owned_validated_request(
+    def _from_owned_dataset_inputs(
         cls,
-        validated_request: ValidatedDatasetInputs,
+        dataset_inputs: DatasetInputs,
     ) -> PhosphoDataset:
-        """Build a dataset from already-owned validated frames without copying again."""
+        """Build a dataset from already-owned input tables without copying again."""
         instance = cls.__new__(cls)
-        instance._set_state(validated_request=validated_request)
+        instance._set_state(dataset_inputs=dataset_inputs)
         return instance
 
     @property
     def total_df_live(self) -> pd.DataFrame:
-        """Return the owned validated total-protein workspace table.
+        """Return the owned total-protein workspace table.
 
         Mutating the returned frame mutates this dataset's owned workspace state.
         Prefer `total_df_copy` for read-oriented caller work.
@@ -271,7 +271,7 @@ class PhosphoDataset:
 
     @property
     def phospho_df_live(self) -> pd.DataFrame:
-        """Return the owned validated phosphoproteomics workspace table.
+        """Return the owned phosphoproteomics workspace table.
 
         Mutating the returned frame mutates this dataset's owned workspace state.
         Prefer `phospho_df_copy` for read-oriented caller work.
@@ -280,12 +280,12 @@ class PhosphoDataset:
 
     @property
     def total_df_copy(self) -> pd.DataFrame:
-        """Return a detached deep copy of the validated total-protein table."""
+        """Return a detached deep copy of the owned total-protein table."""
         return self.inputs.total_df.copy(deep=True)
 
     @property
     def phospho_df_copy(self) -> pd.DataFrame:
-        """Return a detached deep copy of the validated phosphoproteomics table."""
+        """Return a detached deep copy of the owned phosphoproteomics table."""
         return self.inputs.phospho_df.copy(deep=True)
 
     def copy_inputs(self) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -350,7 +350,7 @@ class PhosphoDataset:
         frames directly into the dataset workspace. Public callers should use
         ``PhosphoDataset(...)`` or ``PhosphoDataset.from_files(...)``.
         """
-        from ..validation.requests.dataset import build_validated_dataset_inputs
+        from ..validation.requests.dataset import build_dataset_inputs
         from .loaders import LoadedDatasetInputs
 
         if not isinstance(loaded_inputs, LoadedDatasetInputs):
@@ -358,14 +358,14 @@ class PhosphoDataset:
                 "from_loaded_inputs requires an internal LoadedDatasetInputs instance."
             )
             raise TypeError(msg)
-        validated_request = build_validated_dataset_inputs(
+        dataset_inputs = build_dataset_inputs(
             schema=loaded_inputs.schema,
             total_df=loaded_inputs.total_df,
             phospho_df=loaded_inputs.phospho_df,
             comparisons=comparisons,
             context="PhosphoDataset",
         )
-        return cls._from_owned_validated_request(validated_request)
+        return cls._from_owned_dataset_inputs(dataset_inputs)
 
     @classmethod
     def from_files(

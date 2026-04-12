@@ -35,7 +35,7 @@ from ..validation.requests.signalome import (
     ValidatedSignalomeRequest,
     validate_signalome_request,
 )
-from ..validation.requests.workflow import ValidatedWorkflowRequest
+from ..validation.requests.workflow import WorkflowInputs
 
 __all__ = [
     "KinaseWorkflow",
@@ -155,7 +155,7 @@ class KinaseWorkflow:
         n_iterations: int = 5,
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
-    ) -> ValidatedWorkflowRequest:
+    ) -> WorkflowInputs:
         return self._executor.validate_request(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
@@ -213,7 +213,7 @@ class KinaseWorkflow:
 
     def run_validated(
         self,
-        request: ValidatedWorkflowRequest,
+        request: WorkflowInputs,
     ) -> KinaseWorkflowResult:
         result = self._executor.execute_validated_request(request)
         return KinaseWorkflowResult(
@@ -257,7 +257,7 @@ class PredMatWorkflow:
         n_iterations: int = 5,
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
-    ) -> ValidatedWorkflowRequest:
+    ) -> WorkflowInputs:
         return self._executor.validate_request(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
@@ -315,7 +315,7 @@ class PredMatWorkflow:
 
     def run_validated(
         self,
-        request: ValidatedWorkflowRequest,
+        request: WorkflowInputs,
     ) -> PredMatWorkflowResult:
         result = self._executor.execute_validated_request(request)
         return PredMatWorkflowResult(

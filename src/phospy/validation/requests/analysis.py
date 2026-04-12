@@ -34,8 +34,8 @@ class KinaseActivityRequest(PhospyRequestModel):
 
 
 @dataclass(slots=True)
-class ValidatedAnalysisRequest:
-    """Trusted validated bundle for the public :class:`phospy.KinaseActivityAnalyzer` API."""
+class AnalysisInputs:
+    """Trusted analysis inputs owned by the activity-analysis boundary."""
 
     request: KinaseActivityRequest
     pred_mat: pd.DataFrame
@@ -52,8 +52,8 @@ class ValidatedAnalysisRequest:
         matrix_context: str = "phospho_matrix",
         min_overlap: int = 1,
         min_fraction: float = 0.1,
-    ) -> ValidatedAnalysisRequest:
-        """Build a validated analysis request from already-owned validated matrices."""
+    ) -> AnalysisInputs:
+        """Build trusted analysis inputs from already-owned validated matrices."""
 
         validate_pred_mat_overlap(
             pred_mat,
@@ -81,8 +81,8 @@ def validate_analysis_request(
     matrix_context: str = "phospho_matrix",
     min_overlap: int = 1,
     min_fraction: float = 0.1,
-) -> ValidatedAnalysisRequest:
-    """Validate raw analysis inputs and return a trusted analysis request."""
+) -> AnalysisInputs:
+    """Validate raw analysis inputs and return trusted analysis inputs."""
 
     request = KinaseActivityRequest.validate_request(
         threshold=threshold,
@@ -105,9 +105,10 @@ def validate_analysis_request(
         context=pred_context,
     )
     validated_matrix = ActivitySiteMatrixSchema.validate(
-        phospho_matrix, context=matrix_context
+        phospho_matrix,
+        context=matrix_context,
     )
-    return ValidatedAnalysisRequest.from_trusted_inputs(
+    return AnalysisInputs.from_trusted_inputs(
         request=request,
         pred_mat=validated_pred_mat,
         phospho_matrix=validated_matrix,

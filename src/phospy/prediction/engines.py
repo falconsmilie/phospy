@@ -19,7 +19,7 @@ from ..references import ReferenceBundle
 from ..validation.domain.prediction import validate_ensemble_predictor
 from ..validation.requests import PredictionRequest
 from ..validation.requests.workflow import (
-    ValidatedWorkflowRequest,
+    WorkflowInputs,
     validate_workflow_request,
 )
 from .aggregation import PredictionAggregator
@@ -351,7 +351,7 @@ class KinaseWorkflowExecutor:
         n_iterations: int = 5,
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
-    ) -> ValidatedWorkflowRequest:
+    ) -> WorkflowInputs:
         return validate_workflow_request(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
@@ -374,7 +374,7 @@ class KinaseWorkflowExecutor:
 
     def execute_validated_request(
         self,
-        request: ValidatedWorkflowRequest,
+        request: WorkflowInputs,
     ) -> KinaseWorkflowExecutionResult:
         raw_request = request.request
         phospho_matrix = request.phospho_matrix

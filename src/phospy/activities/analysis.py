@@ -10,7 +10,7 @@ import pandas as pd
 from ..io import load_pred_mat
 from ..io.writers import KinaseActivityResultWriter, KinaseActivityWriter
 from ..validation.requests.analysis import (
-    ValidatedAnalysisRequest,
+    AnalysisInputs,
     validate_analysis_request,
 )
 from .results import KinaseActivityResult
@@ -34,7 +34,7 @@ PredMatLoader = Callable[[str | Path], pd.DataFrame]
 class _ActivityRunner:
     def execute(
         self,
-        request: ValidatedAnalysisRequest,
+        request: AnalysisInputs,
     ) -> KinaseActivityResult:
         weighted_activity = _compute_weighted_kinase_activity_validated(request)
         ksea_scores, ksea_counts = _compute_ksea_scores_validated(request)
@@ -79,7 +79,7 @@ class KinaseActivityAnalyzer:
         threshold: float = 0.6,
         min_substrates: int = 3,
         top_n_substrates: int = 20,
-    ) -> ValidatedAnalysisRequest:
+    ) -> AnalysisInputs:
         return validate_analysis_request(
             pred_mat=pred_mat,
             phospho_matrix=phospho_matrix,
@@ -109,7 +109,7 @@ class KinaseActivityAnalyzer:
 
     def run_validated(
         self,
-        request: ValidatedAnalysisRequest,
+        request: AnalysisInputs,
     ) -> KinaseActivityResult:
         return self.runner.execute(request)
 

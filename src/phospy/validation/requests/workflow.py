@@ -101,7 +101,7 @@ class KinaseWorkflowRequest(PhospyRequestModel):
 
 
 @dataclass(slots=True)
-class ValidatedWorkflowRequest:
+class WorkflowInputs:
     """Trusted workflow inputs owned by the workflow boundary."""
 
     request: KinaseWorkflowRequest
@@ -111,17 +111,14 @@ class ValidatedWorkflowRequest:
     predictor_svm_mode: PredictionSvmMode
 
 
-ValidatedKinaseWorkflowInputs = ValidatedWorkflowRequest
-
-
-def build_validated_workflow_request(
+def build_workflow_inputs(
     request: KinaseWorkflowRequest,
     *,
     flank_size: int,
     default_svm_mode: PredictionSvmMode,
     context: str = "Kinase workflow inputs",
-) -> ValidatedWorkflowRequest:
-    """Build a trusted workflow request from validated raw options."""
+) -> WorkflowInputs:
+    """Build trusted workflow inputs from a validated raw request."""
 
     validated_matrix, scoring_site_index = validate_workflow_matrix_inputs(
         request.phospho_matrix,
@@ -142,7 +139,7 @@ def build_validated_workflow_request(
             flank_size=flank_size,
         )
     )
-    return ValidatedWorkflowRequest(
+    return WorkflowInputs(
         request=owned_request,
         phospho_matrix=validated_matrix,
         scoring_site_index=scoring_site_index,
@@ -173,7 +170,9 @@ def validate_workflow_request(
     flank_size: int = 7,
     default_svm_mode: PredictionSvmMode = "default",
     context: str = "Kinase workflow inputs",
-) -> ValidatedWorkflowRequest:
+) -> WorkflowInputs:
+    """Validate raw workflow inputs and return trusted workflow inputs."""
+
     resolved_substrate_map, resolved_motif_sequences = resolve_reference_bundle_inputs(
         substrate_map=substrate_map,
         motif_sequences=motif_sequences,
@@ -195,24 +194,7 @@ def validate_workflow_request(
         random_state=random_state,
         svm_mode=svm_mode,
     )
-    return build_validated_workflow_request(
-        request,
-        flank_size=flank_size,
-        default_svm_mode=default_svm_mode,
-        context=context,
-    )
-
-
-def build_workflow_request_inputs(
-    request: KinaseWorkflowRequest,
-    *,
-    flank_size: int,
-    default_svm_mode: PredictionSvmMode = "default",
-    context: str = "Kinase workflow inputs",
-) -> ValidatedWorkflowRequest:
-    """Compatibility wrapper around :func:`build_validated_workflow_request`."""
-
-    return build_validated_workflow_request(
+    return build_workflow_inputs(
         request,
         flank_size=flank_size,
         default_svm_mode=default_svm_mode,
@@ -230,6 +212,8 @@ def validate_workflow_inputs(
     flank_size: int = 7,
     context: str = "Kinase workflow inputs",
 ) -> pd.DataFrame:
+    """Validate workflow matrix compatibility without building runtime inputs."""
+
     resolved_substrate_map, resolved_motif_sequences = resolve_reference_bundle_inputs(
         substrate_map=substrate_map,
         motif_sequences=motif_sequences,

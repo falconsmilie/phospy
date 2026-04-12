@@ -17,7 +17,7 @@ from ...preprocessing.core import (
 from ..domain import validate_dataset_comparisons
 from ..schema.files import validate_existing_file_path
 from ..schema.tables import PredMatSchema
-from .analysis import KinaseActivityRequest, ValidatedAnalysisRequest
+from .analysis import AnalysisInputs, KinaseActivityRequest
 from .shared import PhospyRequestModel, normalize_pred_mat_input
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 class CorePipelineRequest(PhospyRequestModel):
-    """Validated file-backed boundary request for pipeline construction."""
+    """Raw file-backed request for pipeline construction."""
 
     total_path: Path
     phospho_path: Path
@@ -78,7 +78,7 @@ class CorePipelineRequest(PhospyRequestModel):
 
 
 @dataclass(slots=True)
-class ValidatedPipelineRequest:
+class PipelineInputs:
     """Trusted pipeline inputs owned by the pipeline boundary."""
 
     dataset: PhosphoDataset
@@ -87,10 +87,10 @@ class ValidatedPipelineRequest:
     kinase_activity_request: KinaseActivityRequest | None
 
 
-def build_pipeline_request(
+def build_pipeline_inputs(
     *,
     dataset: PhosphoDataset,
-    validated_pred_mat: pd.DataFrame | None = None,
+    pred_mat: pd.DataFrame | None = None,
     preprocessing_config: CorePreprocessingConfig | None = None,
     localization_threshold: float = 0.75,
     min_observed: int = 4,
@@ -100,8 +100,8 @@ def build_pipeline_request(
     kinase_activity_threshold: float = 0.6,
     kinase_activity_min_substrates: int = 3,
     kinase_activity_top_n_substrates: int = 20,
-) -> ValidatedPipelineRequest:
-    """Build a trusted pipeline request from already-owned inputs."""
+) -> PipelineInputs:
+    """Build trusted pipeline inputs from already-owned dataset state."""
 
     from ...datasets.models import PhosphoDataset
 
@@ -126,9 +126,7 @@ def build_pipeline_request(
     except (TypeError, ValueError) as error:
         raise RequestValidationError(str(error)) from error
 
-    if validated_pred_mat is not None and not isinstance(
-        validated_pred_mat, pd.DataFrame
-    ):
+    if pred_mat is not None and not isinstance(pred_mat, pd.DataFrame):
         msg = (
             "Invalid pipeline construction request: pred_mat must be a "
             "pandas DataFrame when provided"
@@ -136,16 +134,16 @@ def build_pipeline_request(
         raise RequestValidationError(msg)
 
     kinase_activity_request = None
-    if validated_pred_mat is not None:
+    if pred_mat is not None:
         kinase_activity_request = KinaseActivityRequest.validate_request(
             threshold=kinase_activity_threshold,
             min_substrates=kinase_activity_min_substrates,
             top_n_substrates=kinase_activity_top_n_substrates,
         )
 
-    return ValidatedPipelineRequest(
+    return PipelineInputs(
         dataset=dataset,
-        pred_mat=validated_pred_mat,
+        pred_mat=pred_mat,
         preprocessing_config=resolved_config,
         kinase_activity_request=kinase_activity_request,
     )
@@ -164,8 +162,8 @@ def validate_pipeline_construction_request(
     kinase_activity_threshold: float = 0.6,
     kinase_activity_min_substrates: int = 3,
     kinase_activity_top_n_substrates: int = 20,
-) -> ValidatedPipelineRequest:
-    """Validate raw in-memory inputs for pipeline construction only."""
+) -> PipelineInputs:
+    """Validate raw in-memory inputs for pipeline construction."""
 
     normalized_pred_mat = normalize_pred_mat_input(pred_mat)
     validated_pred_mat = None
@@ -175,9 +173,9 @@ def validate_pipeline_construction_request(
             context="pipeline pred_mat",
         )
 
-    return build_pipeline_request(
+    return build_pipeline_inputs(
         dataset=dataset,
-        validated_pred_mat=validated_pred_mat,
+        pred_mat=validated_pred_mat,
         preprocessing_config=preprocessing_config,
         localization_threshold=localization_threshold,
         min_observed=min_observed,
@@ -192,16 +190,16 @@ def validate_pipeline_construction_request(
 
 def validate_pipeline_runtime_compatibility(
     *,
-    request: ValidatedPipelineRequest,
+    request: PipelineInputs,
     site_matrix: pd.DataFrame,
-) -> ValidatedAnalysisRequest | None:
+) -> AnalysisInputs | None:
     """Validate post-preprocessing overlap before kinase analysis runs."""
 
     if request.pred_mat is None or request.kinase_activity_request is None:
         return None
 
     try:
-        return ValidatedAnalysisRequest.from_trusted_inputs(
+        return AnalysisInputs.from_trusted_inputs(
             request=request.kinase_activity_request,
             pred_mat=request.pred_mat,
             phospho_matrix=site_matrix,

@@ -5,8 +5,8 @@ import pandas as pd
 
 from ..internal.constants import SITE_MATRIX_ID_COLUMN
 from ..validation.requests.analysis import (
+    AnalysisInputs,
     KinaseActivityRequest,
-    ValidatedAnalysisRequest,
     validate_analysis_request,
 )
 
@@ -88,7 +88,7 @@ def compute_ksea_scores(
 
 
 def _compute_weighted_kinase_activity_validated(
-    validated: ValidatedAnalysisRequest,
+    validated: AnalysisInputs,
 ) -> pd.DataFrame:
     pred_mat = validated.pred_mat
     phospho_matrix = validated.phospho_matrix
@@ -144,7 +144,7 @@ def _compute_weighted_kinase_activity_validated(
 
 
 def _compute_ksea_scores_validated(
-    validated: ValidatedAnalysisRequest,
+    validated: AnalysisInputs,
 ) -> tuple[pd.DataFrame, pd.Series]:
     threshold = validated.request.threshold
     min_substrates = validated.request.min_substrates
@@ -235,7 +235,7 @@ def _validate_weighted_activity_inputs(
     phospho_matrix: pd.DataFrame,
     top_n_substrates: int,
     min_substrates: int,
-) -> ValidatedAnalysisRequest:
+) -> AnalysisInputs:
     request = _validate_weighted_activity_request(
         top_n_substrates=top_n_substrates,
         min_substrates=min_substrates,
@@ -266,7 +266,7 @@ def _validate_thresholded_activity_inputs(
     phospho_matrix: pd.DataFrame,
     threshold: float,
     min_substrates: int,
-) -> ValidatedAnalysisRequest:
+) -> AnalysisInputs:
     request = _validate_thresholded_activity_request(
         threshold=threshold,
         min_substrates=min_substrates,

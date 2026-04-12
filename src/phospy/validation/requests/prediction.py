@@ -27,7 +27,7 @@ _PREDICTION_TRACE_LEVEL_ADAPTER = TypeAdapter(PredictionTraceLevel)
 
 
 class PredictionRequest(PhospyRequestModel):
-    """Validated boundary request for prediction execution."""
+    """Raw boundary request for prediction execution."""
 
     combined_scores: pd.DataFrame
     ensemble_size: int = Field(ge=1)

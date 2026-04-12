@@ -22,8 +22,8 @@ from .validation.requests import (
     validate_pipeline_construction_request,
 )
 from .validation.requests.pipeline import (
-    ValidatedPipelineRequest,
-    build_pipeline_request,
+    PipelineInputs,
+    build_pipeline_inputs,
     validate_pipeline_runtime_compatibility,
 )
 
@@ -54,7 +54,7 @@ class _PipelineRequestLoader:
             load_pred_mat if pred_mat_loader is None else pred_mat_loader
         )
 
-    def load(self, request: CorePipelineRequest) -> ValidatedPipelineRequest:
+    def load(self, request: CorePipelineRequest) -> PipelineInputs:
         validated_inputs = self.dataset_loader_factory(
             schema=request.dataset_schema
         ).load(
@@ -66,9 +66,9 @@ class _PipelineRequestLoader:
             validated_inputs,
             comparisons=request.comparisons,
         )
-        return build_pipeline_request(
+        return build_pipeline_inputs(
             dataset=dataset,
-            validated_pred_mat=self._load_pred_mat(request),
+            pred_mat=self._load_pred_mat(request),
             localization_threshold=request.localization_threshold,
             min_observed=request.min_observed,
             max_unmatched_fraction=request.max_unmatched_fraction,
@@ -101,7 +101,7 @@ class _PipelineRequestLoader:
 
 def _run_pipeline_request(
     *,
-    request: ValidatedPipelineRequest,
+    request: PipelineInputs,
     kinase_activity_analyzer: KinaseActivityAnalyzer,
 ) -> CoreOutputs:
     core = request.dataset.preprocessing.run(config=request.preprocessing_config)
@@ -184,16 +184,16 @@ class PhosRPipeline:
             kinase_activity_min_substrates=kinase_activity_min_substrates,
             kinase_activity_top_n_substrates=kinase_activity_top_n_substrates,
         )
-        self._initialize_from_validated_request(
+        self._initialize_from_inputs(
             request=request,
             manifest_writer=manifest_writer,
             output_publisher=output_publisher,
         )
 
-    def _initialize_from_validated_request(
+    def _initialize_from_inputs(
         self,
         *,
-        request: ValidatedPipelineRequest,
+        request: PipelineInputs,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
     ) -> None:
@@ -213,23 +213,23 @@ class PhosRPipeline:
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
     ) -> PhosRPipeline:
-        validated_request = _PipelineRequestLoader().load(request)
-        return cls._from_validated_request(
-            validated_request,
+        inputs = _PipelineRequestLoader().load(request)
+        return cls._from_inputs(
+            inputs,
             manifest_writer=manifest_writer,
             output_publisher=output_publisher,
         )
 
     @classmethod
-    def _from_validated_request(
+    def _from_inputs(
         cls,
-        request: ValidatedPipelineRequest,
+        request: PipelineInputs,
         *,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
     ) -> PhosRPipeline:
         instance = cls.__new__(cls)
-        instance._initialize_from_validated_request(
+        instance._initialize_from_inputs(
             request=request,
             manifest_writer=manifest_writer,
             output_publisher=output_publisher,
