@@ -31,7 +31,7 @@ from phospy.signalomes import (
 
 The root package still exposes a thin convenience surface for supported high-level types, but new code should prefer the domain packages above.
 
-The package-level public seams are intentionally narrow. In particular, `phospy.api` exports workflow classes, while workflow result bundle classes stay in `phospy.api.workflows`. Likewise, `phospy.validation` and `phospy.validation.requests` export request models and validator entry points, not trusted validated-bundle internals.
+The package-level public seams are intentionally narrow. In particular, `phospy.api` exports workflow classes, while workflow result bundle classes stay in `phospy.api.workflow_results`. Likewise, `phospy.validation` and `phospy.validation.requests` export request models and validator entry points, not trusted validated-bundle internals.
 
 
 ## Root convenience surface

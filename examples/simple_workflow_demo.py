@@ -18,7 +18,7 @@ from tempfile import TemporaryDirectory
 import pandas as pd
 
 from phospy.api import SimpleKinaseWorkflow
-from phospy.api.workflows import SimpleKinaseWorkflowResult
+from phospy.api.workflow_results import SimpleKinaseWorkflowResult
 
 
 def build_demo_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:

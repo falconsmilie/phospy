@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pandas as pd
 
 import phospy
+import phospy.api.signalome_workflows as signalome_workflows_module
 import phospy.api.workflows as api_workflows_module
 from phospy.api import (
     KinaseWorkflow,
@@ -13,7 +14,7 @@ from phospy.api import (
     SignalomeWorkflow,
     SimpleKinaseWorkflow,
 )
-from phospy.api.workflows import (
+from phospy.api.workflow_results import (
     KinaseWorkflowResult,
     PredMatWorkflowResult,
     SimpleKinaseWorkflowResult,
@@ -358,12 +359,12 @@ def test_signalome_workflow_run_delegates_to_validation_and_execution(
         return signalome_result
 
     monkeypatch.setattr(
-        api_workflows_module,
+        signalome_workflows_module,
         "validate_signalome_request",
         fake_validate_signalome_request,
     )
     monkeypatch.setattr(
-        api_workflows_module,
+        signalome_workflows_module,
         "execute_signalome_inputs",
         fake_execute_signalome_inputs,
     )

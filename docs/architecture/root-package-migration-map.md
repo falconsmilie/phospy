@@ -64,7 +64,7 @@ refactor. For the current contributor-facing package layout, use
 | `src/phospy/signalomes` | `src/phospy/signalomes/` | Created now, split later | The package now exists; later tickets can collapse the remaining signalome modules into it |
 | `src/phospy/site_matrix_builder.py` | `src/phospy/preprocessing/site_matrix.py` | Completed in ticket 4 | Site-matrix building now lives inside the preprocessing domain; the legacy flat module was removed |
 | `src/phospy/types.py` | `src/phospy/internal/types.py` | Completed in ticket 9 | Shared internal type aliases now live under `internal/`; the legacy flat module was removed |
-| `src/phospy/workflow.py` | `src/phospy/api/workflows.py` | Completed in ticket 2 | Supported public workflow entry points now live in `api/`; remaining domain helpers were pushed toward `prediction/`, `preprocessing/`, `references/`, `activities/`, and `signalomes/` |
+| `src/phospy/workflow.py` | `src/phospy/api/` workflow modules | Completed in ticket 2 | Supported public workflow entry points now live in `api/`; remaining domain helpers were pushed toward `prediction/`, `preprocessing/`, `references/`, `activities/`, and `signalomes/` |
 | `src/phospy/writers.py` | `src/phospy/io/writers.py` | Completed in ticket 9 | Output writers now live under `io/writers.py`; the legacy flat module was removed |
 | `src/phospy/prediction/models.py` | `src/phospy/prediction/results.py` | Completed in ticket 5 | Prediction result models now live in an explicit `results.py` module |
 | `src/phospy/prediction/service.py` | `src/phospy/prediction/engines.py` | Completed in ticket 5 | Prediction execution services now live in `engines.py` with the rest of the execution layer |
@@ -92,7 +92,7 @@ These files should not be relocated intact.
 
 ## Notes for follow-up tickets
 
-- Ticket 2 moved the supported public workflows into `src/phospy/api/workflows.py` without adding compatibility shims.
+- Ticket 2 moved the supported public workflows into `src/phospy/api/` workflow modules without adding compatibility shims.
 - The package skeleton is now in place so later tickets can move domain code into its long-term home incrementally.
 - Existing `prediction/` and `validation/` packages were retained and documented rather than recreated.
 

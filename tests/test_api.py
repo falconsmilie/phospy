@@ -8,21 +8,21 @@ from phospy import (
     SignalomeWorkflow,
     SimpleKinaseWorkflow,
 )
-from phospy.api.workflows import (
+from phospy.api.workflow_results import (
     KinaseWorkflowResult,
     PredMatWorkflowResult,
     SimpleKinaseWorkflowResult,
 )
 
 
-def test_public_workflows_are_defined_under_api_package() -> None:
-    assert KinaseWorkflow.__module__ == "phospy.api.workflows"
-    assert PredMatWorkflow.__module__ == "phospy.api.workflows"
-    assert SignalomeWorkflow.__module__ == "phospy.api.workflows"
-    assert SimpleKinaseWorkflow.__module__ == "phospy.api.workflows"
-    assert KinaseWorkflowResult.__module__ == "phospy.api.workflows"
-    assert PredMatWorkflowResult.__module__ == "phospy.api.workflows"
-    assert SimpleKinaseWorkflowResult.__module__ == "phospy.api.workflows"
+def test_public_workflows_are_defined_under_owning_api_modules() -> None:
+    assert KinaseWorkflow.__module__ == "phospy.api.kinase_workflows"
+    assert PredMatWorkflow.__module__ == "phospy.api.kinase_workflows"
+    assert SignalomeWorkflow.__module__ == "phospy.api.signalome_workflows"
+    assert SimpleKinaseWorkflow.__module__ == "phospy.api.simple_workflows"
+    assert KinaseWorkflowResult.__module__ == "phospy.api.workflow_results"
+    assert PredMatWorkflowResult.__module__ == "phospy.api.workflow_results"
+    assert SimpleKinaseWorkflowResult.__module__ == "phospy.api.workflow_results"
 
 
 def test_legacy_workflow_module_has_been_removed() -> None:
