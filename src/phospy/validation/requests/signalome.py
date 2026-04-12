@@ -71,14 +71,55 @@ class SignalomeRequest(PhospyRequestModel):
 
 
 @dataclass(slots=True)
-class ValidatedSignalomeRequest:
-    """Trusted aligned inputs for signalome construction."""
+class SignalomeInputs:
+    """Trusted aligned signalome inputs owned by the signalome boundary."""
 
     request: SignalomeRequest
     scoring_matrix: pd.DataFrame
     pred_mat: pd.DataFrame
     expression_matrix: pd.DataFrame
     site_to_protein: pd.Series
+
+    @classmethod
+    def from_trusted_inputs(
+        cls,
+        *,
+        request: SignalomeRequest,
+        scoring_matrix: pd.DataFrame,
+        pred_mat: pd.DataFrame,
+        expression_matrix: pd.DataFrame,
+        scoring_context: str,
+        pred_mat_context: str,
+        expression_context: str,
+    ) -> SignalomeInputs:
+        (
+            validated_scoring_matrix,
+            validated_pred_mat,
+            validated_expression_matrix,
+            common_sites,
+        ) = validate_signalome_alignment(
+            scoring_matrix=scoring_matrix,
+            pred_mat=pred_mat,
+            expression_matrix=expression_matrix,
+            kinases_of_interest=request.kinases_of_interest,
+            module_count=request.module_count,
+            scoring_context=scoring_context,
+            pred_mat_context=pred_mat_context,
+            expression_context=expression_context,
+        )
+
+        validated_site_to_protein = validate_signalome_site_grouping(
+            site_ids=common_sites,
+            site_to_protein=request.site_to_protein,
+        )
+
+        return cls(
+            request=request,
+            scoring_matrix=validated_scoring_matrix,
+            pred_mat=validated_pred_mat,
+            expression_matrix=validated_expression_matrix,
+            site_to_protein=validated_site_to_protein,
+        )
 
 
 def validate_signalome_request(
@@ -92,8 +133,8 @@ def validate_signalome_request(
     signalome_cutoff: float = 0.5,
     module_count: int | None = None,
     min_kinase_module_share_percent: float = 1.0,
-) -> ValidatedSignalomeRequest:
-    """Validate raw signalome inputs and return a trusted aligned bundle."""
+) -> SignalomeInputs:
+    """Validate raw signalome inputs and return trusted aligned inputs."""
 
     request = SignalomeRequest.validate_request(
         kinases_of_interest=kinases_of_interest,
@@ -104,7 +145,7 @@ def validate_signalome_request(
         min_kinase_module_share_percent=min_kinase_module_share_percent,
     )
 
-    return _build_validated_signalome_request(
+    return SignalomeInputs.from_trusted_inputs(
         request=request,
         scoring_matrix=resolve_scoring_matrix(scoring_result),
         pred_mat=validate_prediction_result_pred_mat(prediction_result),
@@ -112,44 +153,4 @@ def validate_signalome_request(
         scoring_context="scoring_result",
         pred_mat_context="prediction_result",
         expression_context="expression_matrix",
-    )
-
-
-def _build_validated_signalome_request(
-    *,
-    request: SignalomeRequest,
-    scoring_matrix: pd.DataFrame,
-    pred_mat: pd.DataFrame,
-    expression_matrix: pd.DataFrame,
-    scoring_context: str,
-    pred_mat_context: str,
-    expression_context: str,
-) -> ValidatedSignalomeRequest:
-    (
-        validated_scoring_matrix,
-        validated_pred_mat,
-        validated_expression_matrix,
-        common_sites,
-    ) = validate_signalome_alignment(
-        scoring_matrix=scoring_matrix,
-        pred_mat=pred_mat,
-        expression_matrix=expression_matrix,
-        kinases_of_interest=request.kinases_of_interest,
-        module_count=request.module_count,
-        scoring_context=scoring_context,
-        pred_mat_context=pred_mat_context,
-        expression_context=expression_context,
-    )
-
-    validated_site_to_protein = validate_signalome_site_grouping(
-        site_ids=common_sites,
-        site_to_protein=request.site_to_protein,
-    )
-
-    return ValidatedSignalomeRequest(
-        request=request,
-        scoring_matrix=validated_scoring_matrix,
-        pred_mat=validated_pred_mat,
-        expression_matrix=validated_expression_matrix,
-        site_to_protein=validated_site_to_protein,
     )

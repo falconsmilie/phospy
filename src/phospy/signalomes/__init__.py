@@ -7,8 +7,6 @@ of this package.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from .maps import SignalomeMapData, build_signalome_map_data
 from .networks import (
     SignalomeNetworkData,
@@ -24,9 +22,6 @@ from .results import (
     SignalomeResult,
 )
 
-if TYPE_CHECKING:
-    from ..validation.requests.signalome import ValidatedSignalomeRequest
-
 
 def build_signalome_result(*args: object, **kwargs: object) -> SignalomeResult:
     """Build a structured signalome result from validated aligned inputs."""
@@ -36,16 +31,12 @@ def build_signalome_result(*args: object, **kwargs: object) -> SignalomeResult:
     return _build_signalome_result(*args, **kwargs)
 
 
-def execute_validated_signalome_request(
-    request: ValidatedSignalomeRequest,
-) -> SignalomeResult:
-    """Build a signalome result from a trusted validated request."""
+def execute_signalome_inputs(*args: object, **kwargs: object) -> SignalomeResult:
+    """Build a signalome result from trusted signalome inputs."""
 
-    from .analysis import (
-        execute_validated_signalome_request as _execute_validated_signalome_request,
-    )
+    from .analysis import execute_signalome_inputs as _execute_signalome_inputs
 
-    return _execute_validated_signalome_request(request)
+    return _execute_signalome_inputs(*args, **kwargs)
 
 
 __all__ = [
@@ -61,5 +52,5 @@ __all__ = [
     "build_signalome_map_data",
     "build_signalome_network_data",
     "build_signalome_result",
-    "execute_validated_signalome_request",
+    "execute_signalome_inputs",
 ]

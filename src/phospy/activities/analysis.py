@@ -9,15 +9,11 @@ import pandas as pd
 
 from ..io import load_pred_mat
 from ..io.writers import KinaseActivityResultWriter, KinaseActivityWriter
-from ..validation.requests.analysis import (
-    AnalysisInputs,
-    validate_analysis_request,
-)
+from ..validation.requests.analysis import AnalysisInputs, validate_analysis_request
 from .results import KinaseActivityResult
 from .scoring import (
-    _compute_ksea_scores_validated,
-    _compute_weighted_kinase_activity_validated,
     build_kinase_target_table,
+    compute_activity_from_inputs,
     count_predicted_targets,
 )
 
@@ -34,17 +30,18 @@ PredMatLoader = Callable[[str | Path], pd.DataFrame]
 class _ActivityRunner:
     def execute(
         self,
-        request: AnalysisInputs,
+        inputs: AnalysisInputs,
     ) -> KinaseActivityResult:
-        weighted_activity = _compute_weighted_kinase_activity_validated(request)
-        ksea_scores, ksea_counts = _compute_ksea_scores_validated(request)
+        weighted_activity, ksea_scores, ksea_counts = compute_activity_from_inputs(
+            inputs
+        )
         target_counts = count_predicted_targets(
-            request.pred_mat,
-            threshold=request.request.threshold,
+            inputs.pred_mat,
+            threshold=inputs.request.threshold,
         )
         target_table = build_kinase_target_table(
-            request.pred_mat,
-            threshold=request.request.threshold,
+            inputs.pred_mat,
+            threshold=inputs.request.threshold,
         )
 
         return KinaseActivityResult(
@@ -98,20 +95,20 @@ class KinaseActivityAnalyzer:
     ) -> KinaseActivityResult:
         """Compute downstream kinase summaries from raw public inputs."""
 
-        request = self._validate_request(
+        inputs = self._validate_request(
             pred_mat=pred_mat,
             phospho_matrix=phospho_matrix,
             threshold=threshold,
             min_substrates=min_substrates,
             top_n_substrates=top_n_substrates,
         )
-        return self.run_validated(request)
+        return self.run_validated(inputs)
 
     def run_validated(
         self,
-        request: AnalysisInputs,
+        inputs: AnalysisInputs,
     ) -> KinaseActivityResult:
-        return self.runner.execute(request)
+        return self.runner.execute(inputs)
 
     def write_outputs(self, result: KinaseActivityResult, outdir: str | Path) -> None:
         self.result_writer.write(result, outdir)

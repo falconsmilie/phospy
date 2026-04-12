@@ -25,13 +25,18 @@ def compute_weighted_kinase_activity(
     omitted from the returned activity matrix.
     """
 
-    validated = _validate_weighted_activity_inputs(
+    inputs = validate_analysis_request(
         pred_mat=pred_mat,
         phospho_matrix=phospho_matrix,
-        top_n_substrates=top_n_substrates,
         min_substrates=min_substrates,
+        top_n_substrates=top_n_substrates,
     )
-    return _compute_weighted_kinase_activity_validated(validated)
+    return _compute_weighted_kinase_activity(
+        pred_mat=inputs.pred_mat,
+        phospho_matrix=inputs.phospho_matrix,
+        top_n_substrates=inputs.request.top_n_substrates,
+        min_substrates=inputs.request.min_substrates,
+    )
 
 
 def build_kinase_target_table(
@@ -78,23 +83,47 @@ def compute_ksea_scores(
     omitted from both returned outputs.
     """
 
-    validated = _validate_thresholded_activity_inputs(
+    inputs = validate_analysis_request(
         pred_mat=pred_mat,
         phospho_matrix=phospho_matrix,
         threshold=threshold,
         min_substrates=min_substrates,
     )
-    return _compute_ksea_scores_validated(validated)
+    return _compute_ksea_scores(
+        pred_mat=inputs.pred_mat,
+        phospho_matrix=inputs.phospho_matrix,
+        threshold=inputs.request.threshold,
+        min_substrates=inputs.request.min_substrates,
+    )
 
 
-def _compute_weighted_kinase_activity_validated(
-    validated: AnalysisInputs,
+def compute_activity_from_inputs(
+    inputs: AnalysisInputs,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
+    """Compute weighted activity and KSEA outputs from trusted analysis inputs."""
+
+    weighted_activity = _compute_weighted_kinase_activity(
+        pred_mat=inputs.pred_mat,
+        phospho_matrix=inputs.phospho_matrix,
+        top_n_substrates=inputs.request.top_n_substrates,
+        min_substrates=inputs.request.min_substrates,
+    )
+    ksea_scores, ksea_counts = _compute_ksea_scores(
+        pred_mat=inputs.pred_mat,
+        phospho_matrix=inputs.phospho_matrix,
+        threshold=inputs.request.threshold,
+        min_substrates=inputs.request.min_substrates,
+    )
+    return weighted_activity, ksea_scores, ksea_counts
+
+
+def _compute_weighted_kinase_activity(
+    *,
+    pred_mat: pd.DataFrame,
+    phospho_matrix: pd.DataFrame,
+    top_n_substrates: int,
+    min_substrates: int,
 ) -> pd.DataFrame:
-    pred_mat = validated.pred_mat
-    phospho_matrix = validated.phospho_matrix
-    top_n_substrates = validated.request.top_n_substrates
-    min_substrates = validated.request.min_substrates
-
     kinases = pred_mat.columns.tolist()
     samples = phospho_matrix.columns.tolist()
     kinase_rows: list[np.ndarray] = []
@@ -143,15 +172,16 @@ def _compute_weighted_kinase_activity_validated(
     return pd.DataFrame(kinase_rows, index=kinase_names, columns=samples, dtype=float)
 
 
-def _compute_ksea_scores_validated(
-    validated: AnalysisInputs,
+def _compute_ksea_scores(
+    *,
+    pred_mat: pd.DataFrame,
+    phospho_matrix: pd.DataFrame,
+    threshold: float,
+    min_substrates: int,
 ) -> tuple[pd.DataFrame, pd.Series]:
-    threshold = validated.request.threshold
-    min_substrates = validated.request.min_substrates
-
     aligned_pred_mat, aligned_matrix = _align_activity_inputs(
-        pred_mat=validated.pred_mat,
-        phospho_matrix=validated.phospho_matrix,
+        pred_mat=pred_mat,
+        phospho_matrix=phospho_matrix,
     )
     substrate_mask = _prediction_mask_array(aligned_pred_mat, threshold=threshold)
     substrate_counts = substrate_mask.sum(axis=0)
@@ -159,7 +189,7 @@ def _compute_ksea_scores_validated(
 
     if len(candidate_kinase_positions) == 0:
         empty_scores = pd.DataFrame(
-            columns=list(validated.phospho_matrix.columns),
+            columns=list(phospho_matrix.columns),
             dtype=float,
         )
         empty_counts = pd.Series(dtype=int, name="n_substrates")
@@ -192,7 +222,7 @@ def _compute_ksea_scores_validated(
         )
     else:
         score_frame = pd.DataFrame(
-            columns=list(validated.phospho_matrix.columns),
+            columns=list(phospho_matrix.columns),
             dtype=float,
         )
 
@@ -216,68 +246,6 @@ def _align_activity_inputs(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     common_sites = pred_mat.index.intersection(phospho_matrix.index)
     return pred_mat.loc[common_sites], phospho_matrix.loc[common_sites]
-
-
-def _validate_weighted_activity_request(
-    *,
-    top_n_substrates: int,
-    min_substrates: int,
-) -> KinaseActivityRequest:
-    return KinaseActivityRequest.validate_request(
-        top_n_substrates=top_n_substrates,
-        min_substrates=min_substrates,
-    )
-
-
-def _validate_weighted_activity_inputs(
-    *,
-    pred_mat: pd.DataFrame,
-    phospho_matrix: pd.DataFrame,
-    top_n_substrates: int,
-    min_substrates: int,
-) -> AnalysisInputs:
-    request = _validate_weighted_activity_request(
-        top_n_substrates=top_n_substrates,
-        min_substrates=min_substrates,
-    )
-    return validate_analysis_request(
-        pred_mat=pred_mat,
-        phospho_matrix=phospho_matrix,
-        threshold=request.threshold,
-        min_substrates=request.min_substrates,
-        top_n_substrates=request.top_n_substrates,
-    )
-
-
-def _validate_thresholded_activity_request(
-    *,
-    threshold: float,
-    min_substrates: int,
-) -> KinaseActivityRequest:
-    return KinaseActivityRequest.validate_request(
-        threshold=threshold,
-        min_substrates=min_substrates,
-    )
-
-
-def _validate_thresholded_activity_inputs(
-    *,
-    pred_mat: pd.DataFrame,
-    phospho_matrix: pd.DataFrame,
-    threshold: float,
-    min_substrates: int,
-) -> AnalysisInputs:
-    request = _validate_thresholded_activity_request(
-        threshold=threshold,
-        min_substrates=min_substrates,
-    )
-    return validate_analysis_request(
-        pred_mat=pred_mat,
-        phospho_matrix=phospho_matrix,
-        threshold=request.threshold,
-        min_substrates=request.min_substrates,
-        top_n_substrates=request.top_n_substrates,
-    )
 
 
 def _validate_threshold_request(*, threshold: float) -> float:

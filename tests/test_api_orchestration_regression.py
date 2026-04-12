@@ -353,7 +353,7 @@ def test_signalome_workflow_run_delegates_to_validation_and_execution(
         calls.append(("validate", kwargs))
         return request
 
-    def fake_execute_validated_signalome_request(received_request: object) -> object:
+    def fake_execute_signalome_inputs(received_request: object) -> object:
         calls.append(("execute", received_request))
         return signalome_result
 
@@ -364,8 +364,8 @@ def test_signalome_workflow_run_delegates_to_validation_and_execution(
     )
     monkeypatch.setattr(
         api_workflows_module,
-        "execute_validated_signalome_request",
-        fake_execute_validated_signalome_request,
+        "execute_signalome_inputs",
+        fake_execute_signalome_inputs,
     )
 
     result = workflow.run(

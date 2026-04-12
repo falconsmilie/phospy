@@ -30,11 +30,8 @@ from ..references import (
     ReferenceBundle,
     ReferenceProvider,
 )
-from ..signalomes import SignalomeResult, execute_validated_signalome_request
-from ..validation.requests.signalome import (
-    ValidatedSignalomeRequest,
-    validate_signalome_request,
-)
+from ..signalomes import SignalomeResult, execute_signalome_inputs
+from ..validation.requests.signalome import SignalomeInputs, validate_signalome_request
 from ..validation.requests.workflow import WorkflowInputs
 
 __all__ = [
@@ -452,7 +449,7 @@ class SignalomeWorkflow:
         signalome_cutoff: float = 0.5,
         module_count: int | None = None,
         min_kinase_module_share_percent: float = 1.0,
-    ) -> ValidatedSignalomeRequest:
+    ) -> SignalomeInputs:
         return validate_signalome_request(
             scoring_result=scoring_result,
             prediction_result=prediction_result,
@@ -493,6 +490,6 @@ class SignalomeWorkflow:
 
     def run_validated(
         self,
-        request: ValidatedSignalomeRequest,
+        request: SignalomeInputs,
     ) -> SignalomeResult:
-        return execute_validated_signalome_request(request)
+        return execute_signalome_inputs(request)
