@@ -18,6 +18,8 @@ from phospy.signalomes import (
     SignalomeModuleSelectionPolicy,
     build_signalome_result,
 )
+from phospy.signalomes.analysis import build_kinase_network_view
+from phospy.signalomes.assignments import build_expanded_signalomes
 
 
 def make_workflow_inputs() -> tuple[
@@ -126,6 +128,124 @@ def test_signalome_workflow_constructs_signalomes_from_scoring_and_prediction_re
         "PROTEIN_3;S3;",
         "PROTEIN_4;S4;",
     }
+
+
+def test_build_kinase_network_view_builds_expected_neighbor_map_and_edges() -> None:
+    kinase_network = pd.DataFrame(
+        {
+            "KINASE_A": [0.0, 0.95, 0.0],
+            "KINASE_B": [0.95, 0.0, 0.91],
+            "KINASE_C": [0.0, 0.91, 0.0],
+        },
+        index=["KINASE_A", "KINASE_B", "KINASE_C"],
+    )
+    kinase_correlation_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 0.95, 0.45],
+            "KINASE_B": [0.95, 1.0, 0.91],
+            "KINASE_C": [0.45, 0.91, 1.0],
+        },
+        index=kinase_network.index.copy(),
+    )
+
+    network = build_kinase_network_view(
+        kinase_network=kinase_network,
+        kinase_correlation_matrix=kinase_correlation_matrix,
+        kinase_substrates={
+            "KINASE_A": ("SITE_1", "SITE_2"),
+            "KINASE_B": ("SITE_3",),
+            "KINASE_C": (),
+        },
+    )
+
+    assert network.neighbor_map == {
+        "KINASE_A": ("KINASE_B",),
+        "KINASE_B": ("KINASE_A", "KINASE_C"),
+        "KINASE_C": ("KINASE_B",),
+    }
+    pd.testing.assert_frame_equal(
+        network.node_table,
+        pd.DataFrame(
+            {
+                "degree": [1, 2, 1],
+                "n_substrates": [2, 1, 0],
+            },
+            index=pd.Index(["KINASE_A", "KINASE_B", "KINASE_C"], name="kinase"),
+        ).astype({"degree": int, "n_substrates": int}),
+    )
+    pd.testing.assert_frame_equal(
+        network.edge_table,
+        pd.DataFrame(
+            {
+                "source_kinase": ["KINASE_A", "KINASE_B"],
+                "target_kinase": ["KINASE_B", "KINASE_C"],
+                "correlation": [0.95, 0.91],
+            }
+        ).astype(
+            {
+                "source_kinase": str,
+                "target_kinase": str,
+                "correlation": float,
+            }
+        ),
+    )
+
+
+def test_build_expanded_signalomes_uses_neighbor_map_and_preserves_site_order() -> None:
+    site_assignments = pd.DataFrame(
+        {
+            "protein_id": ["PROTEIN_1", "PROTEIN_2", "PROTEIN_3", "PROTEIN_4"],
+            "module_id": [1, 2, 1, 3],
+            "top_kinase": ["KINASE_A", "KINASE_B", "KINASE_B", "KINASE_C"],
+            "top_kinase_candidates": [
+                '["KINASE_A"]',
+                '["KINASE_B"]',
+                '["KINASE_B"]',
+                '["KINASE_C"]',
+            ],
+            "top_kinase_tie_count": [1, 1, 1, 1],
+            "top_kinase_is_ambiguous": [False, False, False, False],
+            "top_score": [0.95, 0.92, 0.91, 0.90],
+        },
+        index=pd.Index(["SITE_3", "SITE_1", "SITE_4", "SITE_2"], name="site_id"),
+    )
+    expression_matrix = pd.DataFrame(
+        {
+            "sample_1": [3.0, 1.0, 4.0, 2.0],
+            "sample_2": [3.1, 1.1, 4.1, 2.1],
+        },
+        index=site_assignments.index.copy(),
+    )
+    signalome_modules = pd.DataFrame(
+        {
+            "KINASE_A": [10.0, 80.0, 0.0],
+            "KINASE_B": [90.0, 5.0, 0.0],
+            "KINASE_C": [0.0, 0.0, 95.0],
+        },
+        index=pd.Index([1, 2, 3], name="module_id"),
+    )
+
+    expanded = build_expanded_signalomes(
+        kinases_of_interest=["KINASE_A"],
+        kinase_network={"KINASE_A": ("KINASE_B",)},
+        kinase_substrates={
+            "KINASE_A": ("SITE_2", "SITE_1"),
+            "KINASE_B": ("SITE_3", "SITE_4"),
+        },
+        signalome_modules=signalome_modules,
+        site_assignments=site_assignments,
+        expression_matrix=expression_matrix,
+        min_kinase_module_share_percent=50.0,
+    )
+
+    kinase_a = expanded["KINASE_A"]
+    assert kinase_a.linked_kinases == ("KINASE_A", "KINASE_B")
+    assert kinase_a.regulated_module_ids == (2,)
+    assert kinase_a.site_assignments.index.tolist() == ["SITE_1"]
+    pd.testing.assert_frame_equal(
+        kinase_a.expression_matrix,
+        expression_matrix.loc[["SITE_1"]],
+    )
 
 
 def test_signalome_workflow_accepts_canonical_pred_mat_result_input() -> None:

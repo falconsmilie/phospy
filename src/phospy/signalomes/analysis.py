@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
 
 from ..errors import InputCompatibilityError
@@ -81,7 +82,7 @@ class SignalomeRunner:
         )
         expanded_signalomes = build_expanded_signalomes(
             kinases_of_interest=inputs.kinases_of_interest,
-            kinase_network=kinase_network,
+            kinase_network=network.neighbor_map,
             kinase_substrates=selected_kinase_substrates,
             signalome_modules=signalome_modules,
             site_assignments=site_assignments,
@@ -184,46 +185,52 @@ def build_kinase_network_view(
 ) -> SignalomeKinaseNetwork:
     """Wrap derived network tables and neighbour lookup in a structured result view."""
 
-    kinase_order = [str(kinase) for kinase in kinase_correlation_matrix.index]
-    node_rows: list[dict[str, object]] = []
-    neighbor_map: dict[str, tuple[str, ...]] = {}
+    kinase_index = pd.Index(kinase_correlation_matrix.index.astype(str), name="kinase")
+    aligned_network = kinase_network.loc[kinase_index, kinase_index]
+    aligned_correlation_matrix = kinase_correlation_matrix.loc[
+        kinase_index, kinase_index
+    ]
+    kinase_names = kinase_index.to_numpy(dtype=object, copy=False)
 
-    for kinase in kinase_order:
-        neighbors = tuple(
-            str(neighbor)
-            for neighbor, value in kinase_network.loc[kinase].items()
-            if float(value) > 0.0
-        )
-        neighbor_map[kinase] = neighbors
-        node_rows.append(
-            {
-                "kinase": kinase,
-                "degree": len(neighbors),
-                "n_substrates": len(tuple(kinase_substrates.get(kinase, ()))),
-            }
-        )
+    network_values = aligned_network.to_numpy(dtype=float, copy=False)
+    positive_edge_mask = network_values > 0.0
+    diagonal_positions = np.arange(len(kinase_names), dtype=int)
+    positive_edge_mask[diagonal_positions, diagonal_positions] = False
 
-    node_table = pd.DataFrame.from_records(node_rows).set_index("kinase")
-    node_table.index.name = "kinase"
-    node_table = node_table.astype({"degree": int, "n_substrates": int})
+    neighbor_map = {
+        str(kinase): tuple(str(neighbor) for neighbor in kinase_names[row_mask])
+        for kinase, row_mask in zip(kinase_names, positive_edge_mask, strict=True)
+    }
 
-    edge_rows: list[dict[str, object]] = []
-    for source_position, source_kinase in enumerate(kinase_order):
-        for target_kinase in kinase_order[source_position + 1 :]:
-            correlation = float(kinase_network.loc[source_kinase, target_kinase])
-            if correlation <= 0.0:
-                continue
-            edge_rows.append(
-                {
-                    "source_kinase": source_kinase,
-                    "target_kinase": target_kinase,
-                    "correlation": float(
-                        kinase_correlation_matrix.loc[source_kinase, target_kinase]
-                    ),
-                }
-            )
+    node_table = pd.DataFrame(
+        {
+            "degree": positive_edge_mask.sum(axis=1, dtype=int),
+            "n_substrates": np.asarray(
+                [
+                    len(tuple(kinase_substrates.get(str(kinase), ())))
+                    for kinase in kinase_names
+                ],
+                dtype=int,
+            ),
+        },
+        index=kinase_index,
+    ).astype({"degree": int, "n_substrates": int})
 
-    edge_table = pd.DataFrame.from_records(edge_rows)
+    upper_triangle_source, upper_triangle_target = np.triu_indices(
+        len(kinase_names),
+        k=1,
+    )
+    edge_mask = positive_edge_mask[upper_triangle_source, upper_triangle_target]
+    edge_table = pd.DataFrame(
+        {
+            "source_kinase": kinase_names[upper_triangle_source[edge_mask]],
+            "target_kinase": kinase_names[upper_triangle_target[edge_mask]],
+            "correlation": aligned_correlation_matrix.to_numpy(dtype=float, copy=False)[
+                upper_triangle_source[edge_mask],
+                upper_triangle_target[edge_mask],
+            ],
+        }
+    )
     if edge_table.empty:
         edge_table = pd.DataFrame(
             columns=["source_kinase", "target_kinase", "correlation"]

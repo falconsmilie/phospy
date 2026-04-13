@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 
+import numpy as np
 import pandas as pd
 
 from .results import ExpandedSignalome
@@ -311,35 +312,57 @@ def build_expanded_signalomes(
     """Build expanded kinase-specific signalome views."""
 
     expanded: dict[str, ExpandedSignalome] = {}
-    available_sites = pd.Index(site_assignments.index.astype(str), dtype=object)
+    available_sites = site_assignments.index.astype(str)
+    site_positions = {
+        str(site_id): position for position, site_id in enumerate(available_sites)
+    }
+    site_module_ids = site_assignments.loc[:, "module_id"].to_numpy(
+        dtype=int, copy=False
+    )
+    signalome_module_values = signalome_modules.to_numpy(dtype=float, copy=False)
+    signalome_module_ids = signalome_modules.index.to_numpy(dtype=int, copy=False)
+    signalome_kinase_positions = {
+        str(kinase): position
+        for position, kinase in enumerate(signalome_modules.columns.astype(str))
+    }
 
     for kinase in kinases_of_interest:
         linked_kinases = tuple(dict.fromkeys((kinase, *kinase_network.get(kinase, ()))))
+        kinase_position = signalome_kinase_positions[str(kinase)]
+        regulated_module_ids_array = signalome_module_ids[
+            signalome_module_values[:, kinase_position]
+            > min_kinase_module_share_percent
+        ]
         regulated_module_ids = tuple(
-            int(module_id)
-            for module_id in signalome_modules.index[
-                signalome_modules.loc[:, kinase] > min_kinase_module_share_percent
-            ].tolist()
+            int(module_id) for module_id in regulated_module_ids_array
         )
-        substrate_site_ids = tuple(
-            site_id
-            for linked_kinase in linked_kinases
-            for site_id in kinase_substrates.get(linked_kinase, ())
+
+        substrate_positions = np.fromiter(
+            (
+                site_positions[str(site_id)]
+                for linked_kinase in linked_kinases
+                for site_id in kinase_substrates.get(linked_kinase, ())
+                if str(site_id) in site_positions
+            ),
+            dtype=int,
         )
-        substrate_site_index = available_sites.intersection(
-            pd.Index(substrate_site_ids, dtype=object)
-        )
-        site_mask = site_assignments.loc[substrate_site_index, "module_id"].isin(
-            regulated_module_ids
-        )
-        selected_site_ids = site_mask.index[site_mask]
+        if substrate_positions.size > 0:
+            unique_substrate_positions = np.unique(substrate_positions)
+            selected_positions = unique_substrate_positions[
+                np.isin(
+                    site_module_ids[unique_substrate_positions],
+                    regulated_module_ids_array,
+                )
+            ]
+        else:
+            selected_positions = np.asarray([], dtype=int)
 
         expanded[kinase] = ExpandedSignalome(
             kinase=kinase,
             linked_kinases=linked_kinases,
             regulated_module_ids=regulated_module_ids,
-            expression_matrix=expression_matrix.loc[selected_site_ids].copy(deep=True),
-            site_assignments=site_assignments.loc[selected_site_ids].copy(deep=True),
+            expression_matrix=expression_matrix.take(selected_positions),
+            site_assignments=site_assignments.take(selected_positions),
         )
 
     return expanded
