@@ -13,6 +13,13 @@ main guide for where new code should live.
 | `phospy.api` | Supported public workflows and other thin public orchestration |
 | `phospy.datasets` | Dataset models, schema objects, loaders, and dataset-bound builders |
 | `phospy.preprocessing` | Raw-to-analysis-ready preprocessing, including filtering, correction, site-matrix preparation, and preprocessing result models |
+
+Preprocessing is intentionally organised around a small number of seams:
+
+1. `DatasetPreprocessing` binds one dataset workspace to the preprocessing path
+2. `CoreProcessor` orchestrates full or phospho-only preprocessing
+3. step services and `SiteMatrixBuilder` perform the concrete transforms
+4. `AnalysisReadyDatasetBuilder` adapts user-shaped inputs into the analysis-ready boundary
 | `phospy.prediction` | Prediction engines, scoring, `predMat` execution, and prediction result models |
 | `phospy.activities` | Kinase activity analysis and activity result models |
 | `phospy.signalomes` | Signalome construction plus map and network outputs |

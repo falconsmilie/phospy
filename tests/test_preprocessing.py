@@ -1072,6 +1072,95 @@ def test_dataset_loader_resolve_inputs_converges_in_memory_file_and_mixed_source
     pd.testing.assert_frame_equal(mixed_inputs.phospho_df, file_inputs.phospho_df)
 
 
+def test_analysis_ready_builder_full_inputs_reuses_dataset_preprocessing_seam(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.preprocessing.modes as preprocessing_modes_module
+
+    fixture_dir = (
+        Path(__file__).resolve().parents[1] / "examples" / "data" / "simple_workflow"
+    )
+    total_path = fixture_dir / "total.tsv"
+    phospho_path = fixture_dir / "phospho.tsv"
+    calls: list[dict[str, object]] = []
+    original_run_analysis_ready = (
+        preprocessing_modes_module.DatasetPreprocessing.run_analysis_ready
+    )
+
+    def counting_run_analysis_ready(self, **kwargs: object):
+        calls.append(
+            {
+                "schema": self.schema,
+                "comparisons": self.comparisons,
+                "kwargs": kwargs,
+            }
+        )
+        return original_run_analysis_ready(self, **kwargs)
+
+    monkeypatch.setattr(
+        preprocessing_modes_module.DatasetPreprocessing,
+        "run_analysis_ready",
+        counting_run_analysis_ready,
+    )
+
+    result = build_analysis_ready_dataset(
+        total=total_path,
+        phospho=phospho_path,
+        source="analysis ready dataset builder",
+    )
+
+    assert isinstance(result, AnalysisReadyPhosphoDataset)
+    assert len(calls) == 1
+    assert calls[0]["schema"] == DatasetSchema()
+    assert calls[0]["comparisons"] is None
+    assert calls[0]["kwargs"]["source"] == "analysis ready dataset builder"
+
+
+def test_analysis_ready_builder_phospho_only_reuses_core_processor_seam(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.preprocessing.modes as preprocessing_modes_module
+
+    fixture_dir = (
+        Path(__file__).resolve().parents[1] / "examples" / "data" / "simple_workflow"
+    )
+    phospho_path = fixture_dir / "phospho.tsv"
+    calls: list[dict[str, object]] = []
+    original_process_phospho_only = (
+        preprocessing_modes_module.CoreProcessor.process_phospho_only
+    )
+
+    def counting_process_phospho_only(self, phospho_df: pd.DataFrame, *, config=None):
+        calls.append(
+            {
+                "schema": self.schema,
+                "comparisons": self.comparisons,
+                "config": config,
+                "rows": len(phospho_df),
+            }
+        )
+        return original_process_phospho_only(self, phospho_df, config=config)
+
+    monkeypatch.setattr(
+        preprocessing_modes_module.CoreProcessor,
+        "process_phospho_only",
+        counting_process_phospho_only,
+    )
+
+    result = build_analysis_ready_dataset(
+        phospho=phospho_path,
+        phospho_only_source="analysis ready dataset builder (phospho only)",
+    )
+
+    assert isinstance(result, AnalysisReadyPhosphoDataset)
+    assert len(calls) == 1
+    assert calls[0]["schema"] == DatasetSchema()
+    assert calls[0]["comparisons"] is None
+    assert calls[0]["config"] is not None
+    assert calls[0]["rows"] > 0
+    assert result.provenance.source == "analysis ready dataset builder (phospho only)"
+
+
 def test_build_analysis_ready_dataset_accepts_mixed_input_sources() -> None:
     fixture_dir = (
         Path(__file__).resolve().parents[1] / "examples" / "data" / "simple_workflow"

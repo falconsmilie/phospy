@@ -24,9 +24,11 @@ if TYPE_CHECKING:
 """Bound dataset preprocessing facade.
 
 `DatasetPreprocessing` is the preferred public entrypoint for running the core
-preprocessing path. Lower-level step services remain available in
-`phospy.preprocessing.core` and `phospy.preprocessing.services` for advanced use,
-but are intentionally not mirrored as separate bound public methods here.
+preprocessing path over an owned dataset workspace. The reduced flow is:
+
+1. resolve one preprocessing config
+2. run `CoreProcessor` over the bound dataset tables
+3. optionally adapt the result into `AnalysisReadyPhosphoDataset`
 """
 
 
@@ -53,12 +55,6 @@ class DatasetPreprocessing:
             tuple(self.comparisons) if self.comparisons is not None else None
         )
 
-    def _core_processor(self) -> CoreProcessor:
-        return CoreProcessor(
-            schema=self.schema,
-            comparisons=self.comparisons,
-        )
-
     def run(
         self,
         localization_threshold: float = 0.75,
@@ -78,7 +74,11 @@ class DatasetPreprocessing:
             context="DatasetPreprocessing.run()",
             config_param_name="config",
         )
-        return self._core_processor().process(
+        processor = CoreProcessor(
+            schema=self.schema,
+            comparisons=self.comparisons,
+        )
+        return processor.process(
             self.total_df,
             self.phospho_df,
             config=resolved,

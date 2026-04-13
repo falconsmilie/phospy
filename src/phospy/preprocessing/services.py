@@ -23,11 +23,16 @@ from .primitives import (
 )
 from .protein_correction import run_protein_correction, run_protein_correction_owned
 
-"""Internal preprocessing service layer.
+"""Concrete preprocessing transform services.
 
-These classes back the preferred dataset-bound preprocessing path and the core
-processor. They remain available for advanced use, but they are not the
-preferred public entrypoint for routine preprocessing.
+These classes do the real table-level work for the reduced preprocessing stack:
+
+- `DatasetPreprocessing` binds a dataset workspace to the core path
+- `CoreProcessor` orchestrates full and phospho-only runs
+- these services perform the concrete table transforms used by that path
+
+They remain available for advanced use, but they are not the preferred public
+entrypoint for routine preprocessing.
 """
 
 

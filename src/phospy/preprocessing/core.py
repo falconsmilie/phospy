@@ -23,11 +23,18 @@ from .services import (
 )
 from .site_matrix import SiteMatrixBuilder, SiteMatrixPolicy, SiteMatrixResult
 
-"""Advanced core preprocessing orchestration.
+"""Core preprocessing seam for validated phosphoproteomics inputs.
 
-`CoreProcessor` powers the preferred dataset-bound preprocessing path. Most
-users should start with `PhosphoDataset.preprocessing.run()` and only reach for
-this module when they need lower-level orchestration control.
+The preprocessing domain now revolves around three layers:
+
+1. ``DatasetPreprocessing`` binds a dataset workspace to the core path.
+2. ``CoreProcessor`` orchestrates the real preprocessing steps for full or
+   phospho-only inputs.
+3. The step services and site-matrix builder perform the concrete transforms.
+
+Most callers should start with ``PhosphoDataset.preprocessing.run()`` or the
+analysis-ready builder and only reach for this module when they need explicit
+control over the core orchestration.
 """
 
 
@@ -122,8 +129,8 @@ class CoreProcessingResult:
 class CoreProcessor:
     """Run the core preprocessing pipeline over validated dataset frames.
 
-    This is the advanced orchestration layer used underneath
-    `PhosphoDataset.preprocessing.run()`.
+    This is the orchestration layer used underneath the dataset-bound
+    preprocessing facade and the analysis-ready builder.
     """
 
     def __init__(
@@ -237,6 +244,27 @@ class CoreProcessor:
             output_prefix=output_prefix,
         )
 
+    def _build_site_matrix(
+        self,
+        phospho_corrected: pd.DataFrame,
+        *,
+        policy: SiteMatrixPolicy,
+    ) -> SiteMatrixResult:
+        return self.site_matrix_builder.build(
+            phospho_corrected,
+            policy=policy,
+        )
+
+    def _rename_phospho_to_corrected_columns(
+        self,
+        phospho_filtered: pd.DataFrame,
+    ) -> pd.DataFrame:
+        return phospho_filtered.rename(
+            columns=dict(
+                zip(self.schema.phospho_cols, self.schema.corrected_cols, strict=True)
+            )
+        )
+
     def process(
         self,
         total_df: pd.DataFrame,
@@ -262,13 +290,41 @@ class CoreProcessor:
             max_unmatched_fraction=resolved_config.max_unmatched_fraction,
         )
         phospho_corrected = self.add_pairwise_comparisons(phospho_corrected)
-        site_matrix = self.site_matrix_builder.build(
+        site_matrix = self._build_site_matrix(
             phospho_corrected,
             policy=resolved_config.site_matrix_policy,
         )
         return CoreProcessingResult(
             total_unique=total_unique,
             total_filtered=total_filtered,
+            phospho_filtered=phospho_filtered,
+            phospho_corrected=phospho_corrected,
+            site_matrix=site_matrix,
+        )
+
+    def process_phospho_only(
+        self,
+        phospho_df: pd.DataFrame,
+        *,
+        config: CorePreprocessingConfig | None = None,
+    ) -> CoreProcessingResult:
+        """Run the phospho-only core lane without rebuilding orchestration elsewhere."""
+
+        resolved_config = config or CorePreprocessingConfig()
+        phospho_filtered = self.prepare_phospho(
+            phospho_df,
+            localization_threshold=resolved_config.localization_threshold,
+            sentinel=resolved_config.phospho_sentinel,
+            min_observed=resolved_config.min_observed,
+        )
+        phospho_corrected = self._rename_phospho_to_corrected_columns(phospho_filtered)
+        phospho_corrected = self.add_pairwise_comparisons(phospho_corrected)
+        site_matrix = self._build_site_matrix(
+            phospho_corrected,
+            policy=resolved_config.site_matrix_policy,
+        )
+        return CoreProcessingResult.from_phospho_only(
+            schema=self.schema,
             phospho_filtered=phospho_filtered,
             phospho_corrected=phospho_corrected,
             site_matrix=site_matrix,
