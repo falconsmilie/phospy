@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -63,11 +64,48 @@ class IndexedFeatureMatrix:
     site_positions: Mapping[object, int]
     all_positions: np.ndarray
 
+    @staticmethod
+    def cache_signature_for(
+        feature_mat: pd.DataFrame,
+        *,
+        feature_values: np.ndarray,
+    ) -> tuple[int, int, int, tuple[int, int], int, tuple[int, ...]]:
+        """Return a cheap cache signature for indexed feature reuse.
+
+        The cached indexed matrix is safe to reuse only while the caller keeps
+        the same frame object, row and column labels, shape, and underlying
+        numeric buffer layout. Structural mutation or buffer replacement forces
+        a rebuild, while value-only updates can reuse the cached numeric view.
+        """
+
+        array_interface = cast(
+            tuple[int, bool],
+            feature_values.__array_interface__["data"],
+        )
+        return (
+            id(feature_mat),
+            id(feature_mat.index),
+            id(feature_mat.columns),
+            feature_values.shape,
+            int(array_interface[0]),
+            tuple(feature_values.strides),
+        )
+
     @classmethod
-    def from_feature_matrix(cls, feature_mat: pd.DataFrame) -> IndexedFeatureMatrix:
+    def from_feature_matrix(
+        cls,
+        feature_mat: pd.DataFrame,
+        *,
+        feature_values: np.ndarray | None = None,
+    ) -> IndexedFeatureMatrix:
+        resolved_feature_values = (
+            feature_mat.to_numpy(copy=False)
+            if feature_values is None
+            else np.asarray(feature_values)
+        )
         return cls(
             feature_mat=feature_mat,
-            feature_values=feature_mat.to_numpy(copy=False),
+            feature_values=resolved_feature_values,
             feature_index=feature_mat.index,
             feature_columns=feature_mat.columns,
             site_positions={site: i for i, site in enumerate(feature_mat.index)},
@@ -89,6 +127,12 @@ class IndexedFeatureMatrix:
             positive_sites=self.feature_index.take(positive_positions),
             negative_pool_sites=self.feature_index.take(negative_positions),
             positive_values=self.feature_values[positive_positions, :],
+            labels=np.concatenate(
+                [
+                    np.repeat(1, len(positive_positions)),
+                    np.repeat(2, len(positive_positions)),
+                ]
+            ),
         )
 
 
@@ -99,6 +143,7 @@ class PreparedKinaseTrainingData:
     positive_sites: pd.Index
     negative_pool_sites: pd.Index
     positive_values: np.ndarray
+    labels: np.ndarray
 
 
 class NegativePoolSampler:
@@ -297,17 +342,31 @@ class EnsemblePredictor(EnsemblePredictorContract):
         self.kernel = kernel
         self.negative_pool_sampler = negative_pool_sampler
         self.trace_recorder = trace_recorder
-        self._indexed_feature_mat_cache: tuple[int, IndexedFeatureMatrix] | None = None
+        self._indexed_feature_mat_cache: (
+            tuple[
+                tuple[int, int, int, tuple[int, int], int, tuple[int, ...]],
+                IndexedFeatureMatrix,
+            ]
+            | None
+        ) = None
 
     def _get_indexed_feature_matrix(
         self,
         feature_mat: pd.DataFrame,
     ) -> IndexedFeatureMatrix:
+        feature_values = feature_mat.to_numpy(copy=False)
+        cache_signature = IndexedFeatureMatrix.cache_signature_for(
+            feature_mat,
+            feature_values=feature_values,
+        )
         cache = self._indexed_feature_mat_cache
-        if cache is not None and cache[0] == id(feature_mat):
+        if cache is not None and cache[0] == cache_signature:
             return cache[1]
-        indexed_feature_mat = IndexedFeatureMatrix.from_feature_matrix(feature_mat)
-        self._indexed_feature_mat_cache = (id(feature_mat), indexed_feature_mat)
+        indexed_feature_mat = IndexedFeatureMatrix.from_feature_matrix(
+            feature_mat,
+            feature_values=feature_values,
+        )
+        self._indexed_feature_mat_cache = (cache_signature, indexed_feature_mat)
         return indexed_feature_mat
 
     def predict_kinase(
@@ -338,7 +397,7 @@ class EnsemblePredictor(EnsemblePredictorContract):
             negative_pool_sites=prepared_training_data.negative_pool_sites,
         )
 
-        kinase_scores = pd.Series(0.0, index=feature_mat.index.copy(), dtype=float)
+        kinase_scores = np.zeros(len(feature_mat.index), dtype=float)
         is_traced_kinase = self.trace_recorder.is_traced_kinase(
             trace_state=trace_state,
             kinase=kinase,
@@ -376,18 +435,6 @@ class EnsemblePredictor(EnsemblePredictorContract):
             train_index = prepared_training_data.positive_sites.append(
                 indexed_feature_mat.feature_index.take(sampled_negative_positions)
             )
-            train_mat = pd.DataFrame(
-                train_values,
-                index=train_index,
-                columns=indexed_feature_mat.feature_columns,
-                copy=False,
-            )
-            labels = np.concatenate(
-                [
-                    np.repeat(1, len(prepared_training_data.positive_positions)),
-                    np.repeat(2, len(sampled_negative_positions)),
-                ]
-            )
 
             self.trace_recorder.record_initial_negatives(
                 trace_state=trace_state,
@@ -398,9 +445,9 @@ class EnsemblePredictor(EnsemblePredictorContract):
 
             if is_traced_kinase and trace_state.debug_traces is not None:
                 series, ensemble_trace = multi_ada_sampling(
-                    train_mat=train_mat,
-                    test_mat=feature_mat,
-                    labels=labels,
+                    train_mat=None,
+                    test_mat=None,
+                    labels=prepared_training_data.labels,
                     kernel=self.kernel,
                     n_iterations=request.n_iterations,
                     resampling_rng=resampling_rng,
@@ -414,6 +461,10 @@ class EnsemblePredictor(EnsemblePredictorContract):
                     svm_mode=request.svm_mode,
                     sampling_policy=sampling_session.policy,
                     sampling_override=ensemble_override,
+                    train_values=train_values,
+                    train_index=train_index,
+                    test_values=indexed_feature_mat.feature_values,
+                    test_index=indexed_feature_mat.feature_index,
                 )
                 self.trace_recorder.record_ensemble_trace(
                     trace_state=trace_state,
@@ -422,9 +473,9 @@ class EnsemblePredictor(EnsemblePredictorContract):
                 )
             else:
                 series, _ = multi_ada_sampling(
-                    train_mat=train_mat,
-                    test_mat=feature_mat,
-                    labels=labels,
+                    train_mat=None,
+                    test_mat=None,
+                    labels=prepared_training_data.labels,
                     kernel=self.kernel,
                     n_iterations=request.n_iterations,
                     resampling_rng=resampling_rng,
@@ -438,11 +489,22 @@ class EnsemblePredictor(EnsemblePredictorContract):
                     svm_mode=request.svm_mode,
                     sampling_policy=sampling_session.policy,
                     sampling_override=ensemble_override,
+                    train_values=train_values,
+                    train_index=train_index,
+                    test_values=indexed_feature_mat.feature_values,
+                    test_index=indexed_feature_mat.feature_index,
                 )
-            kinase_scores += series
+            kinase_scores += series.to_numpy(dtype=float, copy=False)
 
         self.trace_recorder.flush_kinase(trace_state=trace_state, kinase=kinase)
-        return KinasePredictionBatch(kinase=kinase, scores=kinase_scores)
+        return KinasePredictionBatch(
+            kinase=kinase,
+            scores=pd.Series(
+                kinase_scores,
+                index=feature_mat.index.copy(),
+                dtype=float,
+            ),
+        )
 
 
 __all__ = [

@@ -539,6 +539,55 @@ def test_multi_ada_sampling_builds_trace_payload_only_for_full_trace(
     assert calls == {"sampling": 2, "trace": 2}
 
 
+def test_multi_ada_sampling_uses_precomputed_arrays_without_dataframe_extraction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    train_mat = pd.DataFrame(
+        {
+            "feature_1": [1.0, 0.9, 0.1, 0.0],
+            "feature_2": [1.0, 0.8, 0.2, 0.1],
+        },
+        index=["SITE_1", "SITE_2", "SITE_3", "SITE_4"],
+    )
+    test_mat = train_mat.copy()
+    labels = np.asarray([1, 1, 2, 2], dtype=int)
+    train_values = train_mat.to_numpy(dtype=float)
+    test_values = test_mat.to_numpy(dtype=float)
+
+    def forbid_to_numpy(self, dtype=None, copy=False, na_value=None):
+        raise AssertionError(
+            "multi_ada_sampling should use the supplied precomputed arrays"
+        )
+
+    monkeypatch.setattr(pd.DataFrame, "to_numpy", forbid_to_numpy)
+
+    scores, trace = _multi_ada_sampling(
+        train_mat=None,
+        test_mat=None,
+        labels=labels,
+        kernel="rbf",
+        n_iterations=2,
+        resampling_rng=np.random.default_rng(7),
+        capture_trace=False,
+        trace_level="none",
+        trace_sink=None,
+        kinase="KINASE_A",
+        ensemble_index=1,
+        initial_negative_sites=["SITE_3", "SITE_4"],
+        debug_top_n=2,
+        svm_mode="default",
+        sampling_override=None,
+        train_values=train_values,
+        train_index=train_mat.index,
+        test_values=test_values,
+        test_index=test_mat.index,
+    )
+
+    assert trace is None
+    assert scores.index.tolist() == test_mat.index.tolist()
+    assert ((scores >= 0.0) & (scores <= 1.0)).all()
+
+
 def test_multi_ada_sampling_requires_trace_sink_for_full_trace() -> None:
     train_mat = pd.DataFrame(
         {

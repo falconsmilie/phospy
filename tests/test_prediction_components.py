@@ -399,9 +399,16 @@ def test_ensemble_predictor_reuses_indexed_feature_matrix_for_same_input(
     )
     call_count = {"count": 0}
 
-    def recording_from_feature_matrix(frame: pd.DataFrame):
+    def recording_from_feature_matrix(
+        frame: pd.DataFrame,
+        *,
+        feature_values=None,
+    ):
         call_count["count"] += 1
-        return original_from_feature_matrix(frame)
+        return original_from_feature_matrix(
+            frame,
+            feature_values=feature_values,
+        )
 
     monkeypatch.setattr(
         predictor._get_indexed_feature_matrix.__func__.__globals__[
@@ -429,3 +436,86 @@ def test_ensemble_predictor_reuses_indexed_feature_matrix_for_same_input(
     )
 
     assert call_count["count"] == 1
+
+
+def test_ensemble_predictor_rebuilds_indexed_feature_matrix_after_structural_mutation(
+    monkeypatch,
+) -> None:
+    feature_mat = pd.DataFrame(
+        {
+            "K1": [0.95, 0.91, 0.40, 0.10],
+            "K2": [0.10, 0.12, 0.94, 0.92],
+        },
+        index=["s1", "s2", "s3", "s4"],
+    )
+    request = PredictionRequest.validate_request(
+        combined_scores=feature_mat,
+        ensemble_size=1,
+        top=2,
+        score_threshold=0.8,
+        inclusion=2,
+        n_iterations=1,
+        random_state=3,
+        capture_debug_trace=False,
+        default_svm_mode="default",
+    )
+    predictor = EnsemblePredictor(
+        kernel="rbf",
+        negative_pool_sampler=NegativePoolSampler(),
+        trace_recorder=TraceRecorder(),
+    )
+    trace_state = predictor.trace_recorder.create_state(
+        substrate_list={"K1": ["s1", "s2"], "K2": ["s3", "s4"]},
+        trace_level="none",
+        debug_kinases=None,
+        trace_sink=None,
+    )
+    sampling_session = PredictionSamplingSession.from_request(request)
+
+    original_from_feature_matrix = (
+        predictor._get_indexed_feature_matrix.__func__.__globals__[
+            "IndexedFeatureMatrix"
+        ].from_feature_matrix
+    )
+    call_count = {"count": 0}
+
+    def recording_from_feature_matrix(
+        frame: pd.DataFrame,
+        *,
+        feature_values=None,
+    ):
+        call_count["count"] += 1
+        return original_from_feature_matrix(
+            frame,
+            feature_values=feature_values,
+        )
+
+    monkeypatch.setattr(
+        predictor._get_indexed_feature_matrix.__func__.__globals__[
+            "IndexedFeatureMatrix"
+        ],
+        "from_feature_matrix",
+        recording_from_feature_matrix,
+    )
+
+    predictor.predict_kinase(
+        kinase="K1",
+        substrates=["s1", "s2"],
+        feature_mat=feature_mat,
+        request=request,
+        trace_state=trace_state,
+        sampling_session=sampling_session,
+    )
+
+    feature_mat.loc["s5"] = [0.05, 0.99]
+
+    predictor.predict_kinase(
+        kinase="K2",
+        substrates=["s3", "s4"],
+        feature_mat=feature_mat,
+        request=request,
+        trace_state=trace_state,
+        sampling_session=sampling_session,
+    )
+
+    assert call_count["count"] == 2

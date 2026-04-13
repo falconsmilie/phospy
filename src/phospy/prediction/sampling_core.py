@@ -15,7 +15,6 @@ from .sampling_runtime import (
 )
 from .sampling_trace_writer import write_final_trace_rows, write_iteration_trace_rows
 from .svm import (
-    aligned_binary_decision_values,
     aligned_binary_decision_vector,
     extract_svm_probability_parameters,
     make_svm,
@@ -54,6 +53,40 @@ def _build_probability_frame(
         index=index,
         columns=[str(class_label) for class_label in classes],
     )
+
+
+def _resolve_matrix_values(
+    *,
+    frame: pd.DataFrame | None,
+    values: np.ndarray | None,
+    index: pd.Index | None,
+    context: str,
+) -> tuple[np.ndarray, pd.Index]:
+    """Resolve numeric matrix values and aligned row index for sampling.
+
+    The public DataFrame path remains supported, but internal prediction callers
+    can pass precomputed NumPy arrays and indexes to avoid repeated DataFrame
+    materialisation inside the ensemble loop.
+    """
+
+    if values is None:
+        if frame is None:
+            msg = f"{context} requires either a DataFrame or precomputed values"
+            raise ValueError(msg)
+        return frame.to_numpy(dtype=float), frame.index.copy()
+
+    if index is None:
+        msg = f"{context} precomputed values require a matching index"
+        raise ValueError(msg)
+
+    resolved_values = np.asarray(values, dtype=float)
+    if resolved_values.ndim != 2:
+        msg = f"{context} precomputed values must be two-dimensional"
+        raise ValueError(msg)
+    if resolved_values.shape[0] != len(index):
+        msg = f"{context} precomputed values row count must match the provided index"
+        raise ValueError(msg)
+    return resolved_values, index.copy()
 
 
 def _positive_probability_vector(
@@ -154,6 +187,35 @@ def _resolve_final_score_series(
     )
 
 
+def _resolve_final_score_series(
+    *,
+    pred_df: pd.DataFrame,
+    final_decision_values: pd.Series,
+    sampling_policy: PredictionSamplingPolicy,
+) -> pd.Series:
+    """Return the final per-site score series for the configured sampling mode.
+
+    This helper remains the public review seam for tests and diagnostics. The
+    hot prediction path now bypasses the surrounding DataFrame materialisation
+    when full trace capture is disabled.
+    """
+
+    positive_probabilities = pd.Series(
+        pred_df.loc[:, "1"].to_numpy(dtype=float, copy=False),
+        index=pred_df.index.copy(),
+        dtype=float,
+    )
+    if sampling_policy.final_score_mode == "mean_probability":
+        return positive_probabilities
+
+    decision_vector = final_decision_values.to_numpy(dtype=float, copy=False)
+    return pd.Series(
+        1.0 / (1.0 + np.exp(-decision_vector)),
+        index=pred_df.index.copy(),
+        dtype=float,
+    )
+
+
 def _resample_training_rows(
     *,
     model: Any,
@@ -211,8 +273,8 @@ def _resample_training_rows(
 
 
 def multi_ada_sampling(
-    train_mat: pd.DataFrame,
-    test_mat: pd.DataFrame,
+    train_mat: pd.DataFrame | None,
+    test_mat: pd.DataFrame | None,
     labels: np.ndarray,
     kernel: str,
     n_iterations: int,
@@ -227,12 +289,20 @@ def multi_ada_sampling(
     svm_mode: PredictionSvmMode,
     sampling_policy: PredictionSamplingPolicy | None = None,
     sampling_override: SamplingTraceOverrideEnsemble | None = None,
+    train_values: np.ndarray | None = None,
+    train_index: pd.Index | None = None,
+    test_values: np.ndarray | None = None,
+    test_index: pd.Index | None = None,
 ) -> tuple[pd.Series, AdaptiveSamplingEnsembleTrace | None]:
     StandardScaler, SVC = require_sklearn()
 
-    base_x = train_mat.to_numpy(dtype=float)
+    base_x, base_index = _resolve_matrix_values(
+        frame=train_mat,
+        values=train_values,
+        index=train_index,
+        context="train_mat",
+    )
     base_y = np.asarray(labels, dtype=int)
-    base_index = train_mat.index.copy()
     current_x = base_x
     current_y = base_y
     resolved_sampling_policy = sampling_policy or resolve_prediction_sampling_policy(
@@ -307,30 +377,36 @@ def multi_ada_sampling(
         msg = "n_iterations must be at least 1"
         raise ValueError(msg)
 
-    test_x = test_mat.to_numpy(dtype=float)
+    test_x, resolved_test_index = _resolve_matrix_values(
+        frame=test_mat,
+        values=test_values,
+        index=test_index,
+        context="test_mat",
+    )
     pred = model.predict_proba(test_x)
-    pred_df = _build_probability_frame(
+    positive_probabilities = _positive_probability_vector(
         prob_mat=pred,
-        index=test_mat.index.copy(),
         classes=np.asarray(model.classes_),
     )
-    positive_idx = np.flatnonzero(model.classes_ == 1)
-    if len(positive_idx) != 1:
-        msg = (
-            "Expected exactly one positive class labelled 1; found "
-            f"{model.classes_.tolist()}"
-        )
-        raise ValueError(msg)
-    final_decision_values = aligned_binary_decision_values(
+    final_decision_vector = aligned_binary_decision_vector(
         model=model,
         values=test_x,
-        index=test_mat.index.copy(),
-        positive_probabilities=pred_df.get("1"),
+        positive_probabilities=positive_probabilities,
     )
-    final_score_series = _resolve_final_score_series(
-        pred_df=pred_df,
-        final_decision_values=final_decision_values,
-        sampling_policy=resolved_sampling_policy,
+    if resolved_sampling_policy.final_score_mode == "mean_probability":
+        if positive_probabilities is None:
+            msg = (
+                "Expected exactly one positive class labelled 1; found "
+                f"{np.asarray(model.classes_).tolist()}"
+            )
+            raise ValueError(msg)
+        final_score_values = positive_probabilities
+    else:
+        final_score_values = 1.0 / (1.0 + np.exp(-final_decision_vector))
+    final_score_series = pd.Series(
+        np.asarray(final_score_values, dtype=float),
+        index=resolved_test_index,
+        dtype=float,
     )
 
     ensemble_trace = None
@@ -341,6 +417,16 @@ def multi_ada_sampling(
             .index.tolist()
         )
         if trace_level == "full":
+            pred_df = _build_probability_frame(
+                prob_mat=pred,
+                index=resolved_test_index,
+                classes=np.asarray(model.classes_),
+            )
+            final_decision_values = pd.Series(
+                final_decision_vector,
+                index=resolved_test_index,
+                dtype=float,
+            )
             write_final_trace_rows(
                 trace_sink=trace_sink,
                 kinase=kinase,

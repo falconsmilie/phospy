@@ -44,7 +44,10 @@ class PredictionAggregator:
         pred_matrix: pd.DataFrame,
         batch: KinasePredictionBatch,
     ) -> None:
-        pred_matrix.loc[:, batch.kinase] += batch.scores
+        pred_matrix.loc[:, batch.kinase] += batch.scores.to_numpy(
+            dtype=float,
+            copy=False,
+        )
 
     @staticmethod
     def finalize(
