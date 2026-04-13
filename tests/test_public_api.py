@@ -374,6 +374,11 @@ def test_phospho_dataset_is_not_a_frozen_dataclass_workspace() -> None:
     assert not hasattr(PhosphoDataset, "__dataclass_fields__")
 
 
+def test_public_mutable_wrappers_with_pandas_state_are_not_frozen_dataclasses() -> None:
+    assert AnalysisReadyPhosphoDataset.__dataclass_params__.frozen is False
+    assert PredMatResult.__dataclass_params__.frozen is False
+
+
 def test_phospho_dataset_copy_accessors_and_copy_inputs_return_mutation_safe_copies() -> (
     None
 ):

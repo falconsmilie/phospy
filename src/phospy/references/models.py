@@ -29,7 +29,7 @@ class ReferenceBundleSourceMetadata:
             raise InputCompatibilityError(msg)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ReferenceBundleProvenance:
     """Provenance describing how a kinase reference bundle was resolved."""
 
@@ -44,12 +44,16 @@ class ReferenceBundleProvenance:
         if any(not note.strip() for note in normalized_notes):
             msg = "ReferenceBundle provenance.notes must not contain empty entries"
             raise InputCompatibilityError(msg)
-        object.__setattr__(self, "notes", normalized_notes)
+        self.notes = normalized_notes
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(slots=True, init=False)
 class ReferenceBundle:
-    """Typed kinase-prior contract between reference resolution and workflow setup."""
+    """Typed kinase-prior contract between reference resolution and workflow setup.
+
+    The constructor normalizes caller-provided mappings into owned dictionary and
+    tuple state so downstream workflows can rely on a stable, validated bundle.
+    """
 
     substrate_map: dict[str, tuple[str, ...]]
     motif_sequences: dict[str, tuple[str, ...]]
@@ -114,11 +118,11 @@ class ReferenceBundle:
             context="ReferenceBundle motif_sequences",
         )
 
-        object.__setattr__(self, "substrate_map", dict(normalized_substrate_map))
-        object.__setattr__(self, "motif_sequences", dict(normalized_motif_sequences))
-        object.__setattr__(self, "species", resolved_species)
-        object.__setattr__(self, "source_metadata", source_metadata)
-        object.__setattr__(self, "provenance", provenance)
+        self.substrate_map = dict(normalized_substrate_map)
+        self.motif_sequences = dict(normalized_motif_sequences)
+        self.species = resolved_species
+        self.source_metadata = source_metadata
+        self.provenance = provenance
 
 
 @runtime_checkable

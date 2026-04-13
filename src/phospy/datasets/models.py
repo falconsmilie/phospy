@@ -101,7 +101,7 @@ class AnalysisReadyPreprocessingProvenance:
     site_matrix_stats: AnalysisReadySiteMatrixStats
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(slots=True, init=False)
 class AnalysisReadyPhosphoDataset:
     """Owned analysis-ready phosphosite state between preprocessing and inference.
 
@@ -131,6 +131,13 @@ class AnalysisReadyPhosphoDataset:
         phospho_corrected: pd.DataFrame,
         provenance: AnalysisReadyPreprocessingProvenance,
     ) -> None:
+        """Create an owned analysis-ready dataset from caller-supplied inputs.
+
+        The constructor is an explicit ownership boundary: all pandas inputs are
+        deep-copied before alignment validation so later caller mutation cannot
+        affect the stored analysis-ready state.
+        """
+
         owned_phospho_matrix = phospho_matrix.copy(deep=True)
         owned_site_metadata = site_metadata.copy(deep=True)
         owned_site_sequences = site_sequences.copy(deep=True)
@@ -142,11 +149,11 @@ class AnalysisReadyPhosphoDataset:
             site_sequences=owned_site_sequences,
         )
 
-        object.__setattr__(self, "phospho_matrix", owned_phospho_matrix)
-        object.__setattr__(self, "site_metadata", owned_site_metadata)
-        object.__setattr__(self, "site_sequences", owned_site_sequences)
-        object.__setattr__(self, "phospho_corrected", owned_phospho_corrected)
-        object.__setattr__(self, "provenance", provenance)
+        self.phospho_matrix = owned_phospho_matrix
+        self.site_metadata = owned_site_metadata
+        self.site_sequences = owned_site_sequences
+        self.phospho_corrected = owned_phospho_corrected
+        self.provenance = provenance
 
     @classmethod
     def from_core_processing_result(

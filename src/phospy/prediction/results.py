@@ -43,14 +43,16 @@ class KinasePredictionDebugTrace:
     ensemble_traces: list[AdaptiveSamplingEnsembleTrace]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class PredMatResult:
     """Stable predMat contract with explicit in-memory and CSV access.
 
     Rows are phosphosite identifiers, columns are kinase identifiers, and each
     value is the final predicted score for that phosphosite-kinase pair. The
     wrapped DataFrame is the owned in-memory predMat produced by the package.
-    Use ``to_frame(copy=True)`` when you need a detached copy.
+    This wrapper is intentionally a plain mutable container around that owned
+    frame rather than a frozen value object. Use ``to_frame(copy=True)`` when
+    you need a detached copy.
     """
 
     data_frame: pd.DataFrame

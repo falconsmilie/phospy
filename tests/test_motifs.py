@@ -159,6 +159,11 @@ def test_motif_scoring_result_is_detached_from_input_sequences() -> None:
     pd.testing.assert_series_equal(seqs, original)
 
 
+def test_reference_bundle_types_use_plain_dataclass_construction() -> None:
+    assert ReferenceBundleProvenance.__dataclass_params__.frozen is False
+    assert ReferenceBundle.__dataclass_params__.frozen is False
+
+
 def test_reference_bundle_constructs_validated_kinase_prior_contract() -> None:
     bundle = ReferenceBundle(
         substrate_map={"KINASE_A": ["SITE_1", "SITE_2"]},
