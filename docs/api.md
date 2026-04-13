@@ -2,7 +2,21 @@
 
 PhosPy has **no HTTP API**. The supported surface is the Python API plus the `phospy` CLI.
 
-## Start With the Right Import
+## Table of Contents
+
+- [Import Guide](#import-guide)
+- [API Index](#api-index)
+- [Configuration Contracts (`phospy.api`)](#configuration-contracts-phospyapi)
+- [Datasets and Preprocessing](#datasets-and-preprocessing)
+- [Reference Resolution](#reference-resolution)
+- [Kinase Activity Utility](#kinase-activity-utility)
+- [Workflow Entry Points](#workflow-entry-points)
+- [File-Based Pipeline](#file-based-pipeline)
+- [Result Objects](#result-objects)
+- [CLI](#cli)
+- [Common Exceptions](#common-exceptions)
+
+## Import Guide
 
 Preferred imports:
 
@@ -10,8 +24,8 @@ Preferred imports:
 from phospy.activities import KinaseActivityAnalyzer
 from phospy.api import (
     DatasetLoadOptions,
-    KinaseWorkflow,
     KinaseActivityConfig,
+    KinaseWorkflow,
     PredMatWorkflow,
     PredictionRunConfig,
     SignalomeRunConfig,
@@ -37,106 +51,106 @@ from phospy.references import (
 from phospy.signalomes import SignalomeMapData, SignalomeNetworkData, SignalomeResult
 ```
 
-The root package still exposes a small convenience surface, but new code should usually import from the owning domain package.
+## API Index
 
-## Pick an Entry Point
+| Symbol | Import | Purpose |
+| --- | --- | --- |
+| `SimpleKinaseWorkflow` | `phospy.api` | Recommended end-to-end kinase lane |
+| `PredMatWorkflow` | `phospy.api` | Build `predMat` from native workflow inputs |
+| `KinaseWorkflow` | `phospy.api` | Native scoring + prediction with intermediates |
+| `SignalomeWorkflow` | `phospy.api` | Build signalomes from aligned kinase outputs |
+| `PhosphoDataset` | `phospy.datasets` | Validated dataset workspace and preprocessing facade |
+| `KinaseActivityAnalyzer` | `phospy.activities` | Activity analysis from matrix + `predMat` |
+| `PhosRPipeline` | `phospy.pipeline` | One-shot file loading + preprocessing + optional activity |
+| `PredMatResult` | `phospy.prediction` | Stable in-memory/export contract for generated `predMat` |
 
-Use:
+## Configuration Contracts (`phospy.api`)
 
-- `SimpleKinaseWorkflow` for the shortest supported end-to-end lane
-- `PhosphoDataset` for validated inputs plus preprocessing
-- `KinaseActivityAnalyzer` when you already have a `predMat`
-- `PhosRPipeline` for one-shot file loading, preprocessing, optional activity analysis, and publishing
-- `PredMatWorkflow` for native `predMat` generation
-- `KinaseWorkflow` for the fuller native scoring and prediction path
-- `SignalomeWorkflow` for downstream signalome construction
+### `DatasetLoadOptions`
 
-## Root Convenience Surface
-
-`import phospy` intentionally re-exports a small set of high-level types:
-
-- `AnalysisReadyPhosphoDataset`
-- `BundledReferenceProvider`
-- `KinaseActivityAnalyzer`
-- `KinaseWorkflow`
-- `PhosphoDataset`
-- `PhosRPipeline`
-- `PredMatResult`
-- `PredMatWorkflow`
-- `ReferenceBundle`
-- `ReferenceBundleProvenance`
-- `ReferenceBundleSourceMetadata`
-- `ReferenceProvider`
-- `SignalomeMapData`
-- `SignalomeNetworkData`
-- `SignalomeResult`
-- `SignalomeWorkflow`
-- `SimpleKinaseWorkflow`
-
-That surface is for convenience, not for broad re-exporting of internals.
-
-## Shared Input Rules
-
-### File Formats
-
-- total input: TSV
-- phospho input: TSV
-- `predMat`: CSV, with the first column used as the phosphosite index
-
-### Default Required Columns
-
-Total table:
-
-- `genes`
-- `group1` to `group6`
-
-Phospho table:
-
-- `uid`
-- `gene_names`
-- `gene_p_site`
-- `localization_prob`
-- `centralized_sequence`
-- `p_group1` to `p_group6`
-
-### Common Validation Rules
-
-- file-loaded headers are cleaned to lowercase snake case
-- duplicate cleaned headers are rejected
-- required identifier columns must not be null
-- numeric sample columns must stay numeric after coercion
-- `localization_prob` and `predMat` scores must be in `[0, 1]`
-- `gene_p_site` must split cleanly into gene and site parts such as `BTK_Y551`
-
-For the short checklist, see [`validation.md`](validation.md).
-
-## Shared Data and Preprocessing
-
-### `DatasetSchema`
-
-Use this when your sample columns do not match the defaults.
+**Signature**
 
 ```python
-from phospy.datasets import DatasetSchema
-
-schema = DatasetSchema(
-    total_cols=("sample_a", "sample_b"),
-    phospho_cols=("p_sample_a", "p_sample_b"),
-    corrected_cols=("corrected_a", "corrected_b"),
+DatasetLoadOptions(
+    phospho_encoding: str | None = None,
+    schema: DatasetSchema = DatasetSchema(),
+    comparisons: tuple[tuple[str, str], ...] | None = None,
 )
 ```
 
-Rules:
+Use for dataset-loading options in high-level workflows and pipeline constructors.
 
-- all three column groups must have the same length
-- the groups must align one-for-one
-- structural columns stay fixed package columns
+### `PredictionRunConfig`
+
+**Signature**
+
+```python
+PredictionRunConfig(
+    min_substrates: int = 1,
+    min_motif_size: int = 1,
+    allow_profile_only_fallback: bool = False,
+    ensemble_size: int = 10,
+    top: int = 50,
+    score_threshold: float = 0.8,
+    inclusion: int = 20,
+    n_iterations: int = 5,
+    random_state: int | None = None,
+    svm_mode: PredictionSvmMode | None = None,
+    profile_policy: KinaseProfilePolicy = KinaseProfilePolicy(),
+)
+```
+
+Use for prediction and workflow tuning (`PredMatWorkflow`, `KinaseWorkflow`, `SimpleKinaseWorkflow`).
+
+### `KinaseActivityConfig`
+
+**Signature**
+
+```python
+KinaseActivityConfig(
+    threshold: float = 0.6,
+    min_substrates: int = 3,
+    top_n_substrates: int = 20,
+)
+```
+
+Use for downstream kinase activity analysis configuration.
+
+### `SignalomeRunConfig`
+
+**Signature**
+
+```python
+SignalomeRunConfig(
+    kinase_network_threshold: float = 0.9,
+    signalome_cutoff: float = 0.5,
+    module_count: int | None = None,
+    min_kinase_module_share_percent: float = 1.0,
+    module_selection_policy: SignalomeModuleSelectionPolicy = SignalomeModuleSelectionPolicy(),
+)
+```
+
+Use for signalome construction tuning in `SignalomeWorkflow`.
+
+## Datasets and Preprocessing
+
+### `DatasetSchema`
+
+**Signature**
+
+```python
+DatasetSchema(
+    total_cols: tuple[str, ...] = ("group1", ..., "group6"),
+    phospho_cols: tuple[str, ...] = ("p_group1", ..., "p_group6"),
+    corrected_cols: tuple[str, ...] = ("phospho_corrected_1", ..., "phospho_corrected_6"),
+)
+```
+
+Use this when your sample columns differ from defaults.
 
 ### `PhosphoDataset`
 
-Use `PhosphoDataset` when you want one validated dataset owner plus bound helpers.
-
-Constructor:
+**Constructor**
 
 ```python
 PhosphoDataset(
@@ -145,10 +159,10 @@ PhosphoDataset(
     *,
     schema: DatasetSchema | None = None,
     comparisons: Sequence[tuple[str, str]] | None = None,
-) -> None
+)
 ```
 
-`from_files(...)`:
+**`from_files(...)`**
 
 ```python
 PhosphoDataset.from_files(
@@ -160,26 +174,17 @@ PhosphoDataset.from_files(
 ) -> PhosphoDataset
 ```
 
-Key rules:
+**Useful accessors**
 
-- `total_df` must include `genes` and the schema's `total_cols`
-- `phospho_df` must include required structural columns plus the schema's `phospho_cols`
-- comparison pairs must use known schema groups and must not be duplicated
-
-Useful data access:
-
-```python
-dataset.total_df_copy -> pd.DataFrame
-dataset.phospho_df_copy -> pd.DataFrame
-dataset.total_df_live -> pd.DataFrame
-dataset.phospho_df_live -> pd.DataFrame
-dataset.copy_inputs() -> tuple[pd.DataFrame, pd.DataFrame]
-```
-
-- `*_copy` and `copy_inputs()` return detached copies
-- `*_live` returns dataset-owned DataFrames directly
+- `dataset.total_df_copy`
+- `dataset.phospho_df_copy`
+- `dataset.total_df_live`
+- `dataset.phospho_df_live`
+- `dataset.copy_inputs()`
 
 ### `dataset.preprocessing.run(...)`
+
+**Signature**
 
 ```python
 dataset.preprocessing.run(
@@ -188,21 +193,15 @@ dataset.preprocessing.run(
 ) -> CoreProcessingResult
 ```
 
-Key rules:
+**Notes**
 
-- `config` is required and must be a `CorePreprocessingConfig` instance
-- `config.site_matrix_policy` controls duplicate phosphosite collapse during site-matrix creation
-- `config.max_unmatched_fraction=0.0` is strict mode and rejects silent row loss during protein correction
-
-Returns `CoreProcessingResult` with:
-
-- `total_unique`
-- `total_filtered`
-- `phospho_filtered`
-- `phospho_corrected`
-- `site_matrix`
+- `config` is required.
+- `config.site_matrix_policy` controls duplicate phosphosite collapse.
+- `config.max_unmatched_fraction=0.0` is strict mode for protein-correction row loss.
 
 ### `dataset.preprocessing.to_analysis_ready(...)`
+
+**Signature**
 
 ```python
 dataset.preprocessing.to_analysis_ready(
@@ -212,9 +211,9 @@ dataset.preprocessing.to_analysis_ready(
 ) -> AnalysisReadyPhosphoDataset
 ```
 
-Use this to adapt an existing preprocessing result from the same dataset into the stable analysis-ready boundary.
-
 ### `dataset.preprocessing.run_analysis_ready(...)`
+
+**Signature**
 
 ```python
 dataset.preprocessing.run_analysis_ready(
@@ -224,21 +223,21 @@ dataset.preprocessing.run_analysis_ready(
 ) -> AnalysisReadyPhosphoDataset
 ```
 
-Use this when you want preprocessing and the analysis-ready boundary in one step.
+### `PhosphoDataset.run_analysis_ready(...)`
 
-### `AnalysisReadyPhosphoDataset`
+**Signature**
 
-Use this as the explicit handoff between preprocessing and kinase inference.
+```python
+dataset.run_analysis_ready(
+    *,
+    config: CorePreprocessingConfig,
+    source: str = "dataset preprocessing",
+) -> AnalysisReadyPhosphoDataset
+```
 
-It owns:
+### `AnalysisReadyPhosphoDataset.from_core_processing_result(...)`
 
-- `phospho_matrix`
-- `site_metadata`
-- `site_sequences`
-- `phospho_corrected`
-- `provenance`
-
-`from_core_processing_result(...)`:
+**Signature**
 
 ```python
 AnalysisReadyPhosphoDataset.from_core_processing_result(
@@ -250,33 +249,67 @@ AnalysisReadyPhosphoDataset.from_core_processing_result(
 ) -> AnalysisReadyPhosphoDataset
 ```
 
-### `dataset.site_matrix.build(...)`
+### `CorePreprocessingConfig`
+
+**Signature**
 
 ```python
-dataset.site_matrix.build(
-    corrected_df: pd.DataFrame,
-    *,
-    gene_p_site_col: str = "gene_p_site",
-    sequence_col: str = "centralized_sequence",
-) -> SiteMatrixResult
+CorePreprocessingConfig(
+    localization_threshold: float = 0.75,
+    min_observed: int = 4,
+    total_sentinel: float = 10.0,
+    phospho_sentinel: float = 12.0,
+    max_unmatched_fraction: float = 0.0,
+    site_matrix_policy: SiteMatrixPolicy = SiteMatrixPolicy(),
+)
 ```
 
-Use this when you already have a corrected phosphosite table.
+### `build_analysis_ready_dataset(...)`
 
-Returns `SiteMatrixResult` with:
+**Signature**
 
+```python
+build_analysis_ready_dataset(
+    *,
+    phospho: pd.DataFrame | str | Path,
+    preprocessing_config: CorePreprocessingConfig,
+    total: pd.DataFrame | str | Path | None = None,
+    phospho_encoding: str | None = None,
+    schema: DatasetSchema | None = None,
+    comparisons: Sequence[tuple[str, str]] | None = None,
+    source: str = "analysis ready dataset builder",
+    phospho_only_source: str = "analysis ready dataset builder (phospho only)",
+) -> AnalysisReadyPhosphoDataset
+```
+
+### `CoreOutputWriter.write(...)`
+
+**Signature**
+
+```python
+CoreOutputWriter().write(
+    result: CoreProcessingResult,
+    outdir: str | Path,
+    *,
+    format: Literal["csv", "tsv", "parquet"] = "csv",
+) -> None
+```
+
+Core outputs:
+
+- `df_total_unique`
+- `df_total_filtered`
+- `df_phospho_filtered`
+- `df_phospho_corrected`
 - `phosr_input`
-- `matrix`
-- `sequences`
-- `row_drop_stats`
+- `mat_phospho_corrected`
+- `site_sequences`
 
 ## Reference Resolution
 
 ### `ReferenceBundle`
 
-Use `ReferenceBundle` as the explicit kinase-prior boundary between reference resolution and workflow execution.
-
-Constructor:
+**Signature**
 
 ```python
 ReferenceBundle(
@@ -289,113 +322,50 @@ ReferenceBundle(
 )
 ```
 
-Key rules:
+**Rules**
 
-- `substrate_map` must not be empty
-- `motif_sequences` must not be empty
-- the kinase sets in both mappings must match exactly
-- `species`, source metadata, and provenance fields must not be empty
+- `substrate_map` and `motif_sequences` must be non-empty.
+- Kinase keys must match exactly across both mappings.
+- `species`, metadata, and provenance fields must be non-empty.
 
 ### `ReferenceProvider`
 
-Protocol:
+**Protocol**
 
 ```python
 class ReferenceProvider(Protocol):
-    def resolve(
-        self,
-        *,
-        species: str,
-        reference: str = "auto",
-    ) -> ReferenceBundle: ...
+    def resolve(self, *, species: str, reference: str = "auto") -> ReferenceBundle: ...
 ```
 
-### `BundledReferenceProvider`
+### `BundledReferenceProvider.resolve(...)`
 
-Use this when you want the supported packaged reference lane.
+**Signature**
 
 ```python
-from phospy.references import BundledReferenceProvider
-
-provider = BundledReferenceProvider()
-reference_bundle = provider.resolve(species="rat", reference="auto")
+BundledReferenceProvider().resolve(
+    *,
+    species: str,
+    reference: str = "auto",
+) -> ReferenceBundle
 ```
 
-Current bundled support is intentionally narrow:
+Current bundled support:
 
-- supported species: `rat`
-- supported references for `rat`: `auto`, `l6`, `l6_native`
+- species: `rat`
+- references: `auto`, `l6`, `l6_native`
 - `auto` resolves to `l6_native`
 
-Unsupported species or reference selections fail with explicit validation errors.
-
-## Configuration and Output Helpers
-
-### `CorePreprocessingConfig`
-
-Use this when you want one configuration object instead of individual preprocessing arguments.
-
-```python
-from phospy.preprocessing import CorePreprocessingConfig
-
-config = CorePreprocessingConfig(
-    localization_threshold=0.75,
-    min_observed=4,
-    total_sentinel=10.0,
-    phospho_sentinel=12.0,
-    max_unmatched_fraction=0.1,
-)
-```
-
-### `CoreOutputWriter`
-
-```python
-from phospy.io.writers import CoreOutputWriter
-
-CoreOutputWriter().write(
-    result=core,
-    outdir="results",
-    format="csv",
-)
-```
-
-Supported formats:
-
-- `csv`
-- `tsv`
-- `parquet` when a parquet engine such as `pyarrow` is installed
-
-Written core outputs:
-
-- `df_total_unique`
-- `df_total_filtered`
-- `df_phospho_filtered`
-- `df_phospho_corrected`
-- `phosr_input`
-- `mat_phospho_corrected`
-- `site_sequences`
-
-## Supporting Utility
+## Kinase Activity Utility
 
 ### `KinaseActivityAnalyzer`
 
-Use this when you already have a phosphosite matrix and a `predMat`.
-
-`load_pred_mat(...)`:
+**`load_pred_mat(...)`**
 
 ```python
 analyzer.load_pred_mat(pred_mat_path: str | Path) -> pd.DataFrame
 ```
 
-Rules:
-
-- the file must be a CSV
-- the first column becomes the phosphosite index
-- kinase score columns must be numeric
-- scores must stay in `[0, 1]`
-- the index must be unique and non-null
-
-`run(...)`:
+**`run(...)`**
 
 ```python
 analyzer.run(
@@ -407,16 +377,7 @@ analyzer.run(
 ) -> KinaseActivityResult
 ```
 
-Rules:
-
-- `pred_mat` may be a DataFrame or a `PredMatResult`
-- `phospho_matrix` must be a numeric phosphosite matrix with a unique, non-null index
-- `threshold` must be in `[0, 1]`
-- `min_substrates` and `top_n_substrates` must be `>= 1`
-- `pred_mat` and `phospho_matrix` must overlap by at least one row
-- that overlap must cover at least 50% of the phosphosite matrix
-
-`write_outputs(...)`:
+**`write_outputs(...)`**
 
 ```python
 analyzer.write_outputs(result: KinaseActivityResult, outdir: str | Path) -> None
@@ -430,13 +391,11 @@ Written files:
 - `kinase_target_counts.csv`
 - `kinase_target_table.csv`
 
-## Simple Workflow Lane
+## Workflow Entry Points
 
 ### `SimpleKinaseWorkflow`
 
-Use this for the recommended public end-to-end lane.
-
-Constructor:
+**Constructor**
 
 ```python
 SimpleKinaseWorkflow(
@@ -450,7 +409,7 @@ SimpleKinaseWorkflow(
 ) -> None
 ```
 
-`run(...)`:
+**`run(...)`**
 
 ```python
 SimpleKinaseWorkflow().run(
@@ -466,47 +425,84 @@ SimpleKinaseWorkflow().run(
 ) -> SimpleKinaseWorkflowResult
 ```
 
-Notes:
-
-- `phospho` and `species` are required
-- `total` is optional
-- when `total` is provided, the workflow reuses the dataset preprocessing path
-- pass `dataset_options` for `schema`, `comparisons`, and `phospho_encoding`
-- pass `prediction_config` for prediction controls (`min_substrates`, `top`, `score_threshold`, `svm_mode`, `profile_policy`, and related options)
-- pass `activity_config` for downstream kinase activity controls (`threshold`, `min_substrates`, `top_n_substrates`)
-- the default bundled provider currently supports only `species="rat"` and `reference in {"auto", "l6", "l6_native"}`
-
-Returned result bundle:
+Returns:
 
 - `analysis_ready_dataset`
 - `reference_bundle`
 - `workflow_result`
 - `kinase_activity_result`
-- convenience accessors for `pred_mat_result`, `scoring_result`, and `prediction_result`
 
-Example:
+### `PredMatWorkflow`
+
+**Constructor**
 
 ```python
-from phospy.api import SimpleKinaseWorkflow
-
-result = SimpleKinaseWorkflow().run(
-    phospho="study_phospho.tsv",
-    total="study_total.tsv",
-    species="rat",
-    reference="auto",
-)
-
-pred_mat = result.pred_mat_result.to_frame()
-weighted_activity = result.kinase_activity_result.weighted_activity
+PredMatWorkflow(
+    flank_size: int = 7,
+    kernel: str = "rbf",
+    svm_mode: PredictionSvmMode = "default",
+) -> None
 ```
 
-## File-Based Orchestration
+**`run(...)`**
+
+```python
+PredMatWorkflow().run(
+    phospho_matrix: pd.DataFrame,
+    substrate_map: Mapping[str, Sequence[str]] | None = None,
+    site_sequences: Mapping[str, str] | pd.Series | None = None,
+    motif_sequences: Mapping[str, Sequence[str]] | None = None,
+    reference_bundle: ReferenceBundle | None = None,
+    prediction_config: PredictionRunConfig | None = None,
+) -> PredMatWorkflowResult
+```
+
+### `KinaseWorkflow`
+
+**Constructor**
+
+```python
+KinaseWorkflow(
+    flank_size: int = 7,
+    kernel: str = "rbf",
+    svm_mode: PredictionSvmMode = "default",
+) -> None
+```
+
+**`run(...)`**
+
+```python
+KinaseWorkflow().run(
+    phospho_matrix: pd.DataFrame,
+    substrate_map: Mapping[str, Sequence[str]] | None = None,
+    site_sequences: Mapping[str, str] | pd.Series | None = None,
+    motif_sequences: Mapping[str, Sequence[str]] | None = None,
+    reference_bundle: ReferenceBundle | None = None,
+    prediction_config: PredictionRunConfig | None = None,
+) -> KinaseWorkflowResult
+```
+
+### `SignalomeWorkflow.run(...)`
+
+**Signature**
+
+```python
+SignalomeWorkflow().run(
+    *,
+    scoring_result: KinaseScoringResult,
+    prediction_result: KinasePredictionResult | PredMatResult,
+    expression_matrix: pd.DataFrame,
+    kinases_of_interest: Sequence[str],
+    site_to_protein: Mapping[str, str] | None = None,
+    config: SignalomeRunConfig | None = None,
+) -> SignalomeResult
+```
+
+## File-Based Pipeline
 
 ### `PhosRPipeline`
 
-Use this when you want preprocessing and optional kinase analysis in one place.
-
-Constructor:
+**Constructor**
 
 ```python
 PhosRPipeline(
@@ -520,7 +516,7 @@ PhosRPipeline(
 ) -> None
 ```
 
-`from_files(...)`:
+**`from_files(...)`**
 
 ```python
 PhosRPipeline.from_files(
@@ -536,240 +532,73 @@ PhosRPipeline.from_files(
 ) -> PhosRPipeline
 ```
 
-`run(...)`:
+**`run(...)`**
 
 ```python
 pipeline.run(outdir: str | Path | None = None) -> CoreOutputs
 ```
 
-The returned bundle exposes:
+Returned object fields:
 
 - `core`
 - `kinase_activity`
 
-When `outdir` is set, the pipeline also writes `run_manifest.json`.
+When `outdir` is set, writes pipeline outputs plus `run_manifest.json`.
 
-## Advanced Native Workflow Lane
-
-### `PredMatWorkflow`
-
-Use this when your goal is to generate a `predMat`.
-
-Constructor:
-
-```python
-PredMatWorkflow(
-    flank_size: int = 7,
-    kernel: str = "rbf",
-    svm_mode: PredictionSvmMode = "default",
-) -> None
-```
-
-Supported public `svm_mode` values:
-
-- `"default"` for the recommended stable native path
-- `"r_parity"` for the parity-oriented preset
-
-`run(...)`:
-
-```python
-workflow.run(
-    phospho_matrix: pd.DataFrame,
-    substrate_map: Mapping[str, Sequence[str]] | None = None,
-    site_sequences: Mapping[str, str] | pd.Series | None = None,
-    motif_sequences: Mapping[str, Sequence[str]] | None = None,
-    reference_bundle: ReferenceBundle | None = None,
-    prediction_config: PredictionRunConfig | None = None,
-) -> PredMatWorkflowResult
-```
-
-Key rules:
-
-- `phospho_matrix` must be numeric and indexed by unique phosphosite IDs
-- pass either `reference_bundle` or explicit reference inputs
-- pass `prediction_config` to control prediction and profile policy options
-- `motif_sequences` is required unless `allow_profile_only_fallback=True`
-- when `motif_sequences` is provided, `site_sequences` is also required
-- `PredictionRunConfig` validates `min_substrates`, `min_motif_size`, `ensemble_size`, `top`, `inclusion`, and `n_iterations` as `>= 1`
-- `PredictionRunConfig.score_threshold` must be in `[0, 1]`
-
-Returns:
-
-- `scoring_result`
-- `prediction_result`
-- `pred_mat_result`
-
-When thresholds are too strict and no kinase candidates qualify, PhosPy raises `NoCandidateKinasesError` instead of returning an empty invalid `predMat`.
+## Result Objects
 
 ### `PredMatResult`
 
-This is the stable in-memory and export contract for a generated `predMat`.
+**Constructor**
 
 ```python
 PredMatResult(data_frame: pd.DataFrame)
 ```
 
-Useful accessors:
+**Methods**
 
 ```python
-result.pred_mat_result.data_frame
-result.pred_mat_result.to_frame(copy: bool = True) -> pd.DataFrame
-result.pred_mat_result.to_csv(path: str | Path, index_label: str = "phosphosite") -> Path
+result.to_frame(copy: bool = True) -> pd.DataFrame
+result.to_csv(path: str | Path, index_label: str = "phosphosite") -> Path
 ```
 
-### `KinaseWorkflow`
+### `SignalomeResult`
 
-Use this when you want the fuller native scoring and prediction path, including intermediate profile and motif outputs.
+Common accessors:
 
-Constructor:
+- `result.modules`
+- `result.assignments`
+- `result.network`
+- `result.expanded_signalomes`
+- `result.to_map_data()`
+- `result.to_network_data()`
 
-```python
-KinaseWorkflow(
-    flank_size: int = 7,
-    kernel: str = "rbf",
-    svm_mode: PredictionSvmMode = "default",
-) -> None
-```
+CSV exports include module tables, assignments, and network outputs.
 
-`run(...)`:
+### `SignalomeMapData`
 
-```python
-workflow.run(
-    phospho_matrix: pd.DataFrame,
-    substrate_map: Mapping[str, Sequence[str]] | None = None,
-    site_sequences: Mapping[str, str] | pd.Series | None = None,
-    motif_sequences: Mapping[str, Sequence[str]] | None = None,
-    reference_bundle: ReferenceBundle | None = None,
-    prediction_config: PredictionRunConfig | None = None,
-) -> KinaseWorkflowResult
-```
+Common methods:
 
-Returns:
+- `modules(copy: bool = True)`
+- `sites(copy: bool = True)`
+- `kinases(copy: bool = True)`
+- `links(copy: bool = True)`
+- `to_frames(copy: bool = True)`
+- `to_csv(directory: str | Path)`
 
-- `profile_result`
-- `motif_result`
-- `scoring_result`
-- `prediction_result`
+### `SignalomeNetworkData`
 
-## Signalome Workflow
+Common methods:
 
-### `SignalomeWorkflow`
-
-Use this when you already have aligned scoring and prediction outputs and want one validated signalome step.
-
-`run(...)`:
-
-```python
-SignalomeWorkflow().run(
-    *,
-    scoring_result: KinaseScoringResult,
-    prediction_result: KinasePredictionResult | PredMatResult,
-    expression_matrix: pd.DataFrame,
-    kinases_of_interest: Sequence[str],
-    site_to_protein: Mapping[str, str] | None = None,
-    config: SignalomeRunConfig | None = None,
-) -> SignalomeResult
-```
-
-Key rules:
-
-- `scoring_result` and `prediction_result` must align to a shared phosphosite index
-- `prediction_result` may be `KinasePredictionResult` or `PredMatResult`
-- `expression_matrix` must be numeric and indexed by unique phosphosite IDs
-- aligned `pred_mat` values must be finite because signalome assignment needs a concrete top kinase per row
-- `kinases_of_interest` must not be empty and must be present in the aligned kinase columns
-- pass `config` to tune `kinase_network_threshold`, `signalome_cutoff`, `module_count`, `min_kinase_module_share_percent`, and `module_selection_policy`
-
-For larger datasets, set `module_count` explicitly if you want to skip the extra automatic module-selection scoring pass.
-
-## `SignalomeResult`
-
-Useful accessors:
-
-```python
-result.modules
-result.assignments
-result.network
-result.expanded_signalomes
-result.to_map_data()
-result.to_network_data()
-```
-
-Main helpers:
-
-```python
-result.modules.to_frame(copy: bool = True) -> pd.DataFrame
-result.modules.to_relationship_table(copy: bool = True) -> pd.DataFrame
-result.assignments.sites(copy: bool = True) -> pd.DataFrame
-result.assignments.proteins(copy: bool = True) -> pd.DataFrame
-result.network.adjacency(copy: bool = True) -> pd.DataFrame
-result.network.nodes(copy: bool = True) -> pd.DataFrame
-result.network.edges(copy: bool = True) -> pd.DataFrame
-result.to_frames(copy: bool = True, include_inputs: bool = False) -> dict[str, pd.DataFrame]
-result.to_csv(directory: str | Path, include_inputs: bool = False) -> dict[str, Path]
-```
-
-Default CSV exports:
-
-- `signalome_modules`
-- `kinase_module_relationships`
-- `site_assignments`
-- `protein_assignments`
-- `kinase_network_nodes`
-- `kinase_network_edges`
-- `kinase_correlation_matrix`
-
-Pass `include_inputs=True` to also export the aligned `scoring_matrix`, `pred_mat`, and `expression_matrix`.
-
-## `SignalomeMapData`
-
-```python
-map_data = result.to_map_data()
-```
-
-Methods:
-
-```python
-map_data.modules(copy: bool = True) -> pd.DataFrame
-map_data.sites(copy: bool = True) -> pd.DataFrame
-map_data.kinases(copy: bool = True) -> pd.DataFrame
-map_data.links(copy: bool = True) -> pd.DataFrame
-map_data.to_frames(copy: bool = True) -> dict[str, pd.DataFrame]
-map_data.to_csv(directory: str | Path) -> dict[str, Path]
-```
-
-CSV exports:
-
-- `signalome_map_modules`
-- `signalome_map_sites`
-- `signalome_map_kinases`
-- `signalome_map_links`
-
-## `SignalomeNetworkData`
-
-```python
-network_data = result.to_network_data()
-```
-
-Methods:
-
-```python
-network_data.nodes(copy: bool = True) -> pd.DataFrame
-network_data.edges(copy: bool = True) -> pd.DataFrame
-network_data.adjacency(copy: bool = True) -> pd.DataFrame
-network_data.to_frames(copy: bool = True) -> dict[str, pd.DataFrame]
-network_data.to_csv(directory: str | Path) -> dict[str, Path]
-```
-
-CSV exports:
-
-- `signalome_network_nodes`
-- `signalome_network_edges`
-- `signalome_network_adjacency`
+- `nodes(copy: bool = True)`
+- `edges(copy: bool = True)`
+- `adjacency(copy: bool = True)`
+- `to_frames(copy: bool = True)`
+- `to_csv(directory: str | Path)`
 
 ## CLI
 
-Use `phospy --help` for the full help text.
+Use `phospy --help` for full option details.
 
 Main options:
 
@@ -777,7 +606,7 @@ Main options:
 - `--phospho` required TSV path
 - `--outdir` required output directory
 - `--pred-mat` optional `predMat` CSV path
-- `--phospho-encoding` optional encoding for the phospho table
+- `--phospho-encoding` optional phospho table encoding
 - `--localization-threshold` default `0.75`
 - `--min-observed` default `4`
 - `--total-sentinel` default `10.0`
@@ -787,26 +616,16 @@ Main options:
 - `--kinase-activity-min-substrates` default `3`
 - `--kinase-activity-top-n-substrates` default `20`
 
-Example:
-
-```bash
-phospy \
-  --total total.tsv \
-  --phospho phospho.tsv \
-  --pred-mat predMat.csv \
-  --outdir output
-```
-
 ## Common Exceptions
 
-You will most often see:
+Most common public exceptions:
 
-- `RequestValidationError` for invalid public inputs or incompatible options
-- `NoCandidateKinasesError` when prediction thresholds leave no kinase candidates to score
+- `RequestValidationError` for invalid user/public inputs
+- `NoCandidateKinasesError` when prediction thresholds eliminate all candidate kinases
 
 ## Related Pages
 
-- [`validation.md`](validation.md) for the short validation checklist
-- [`parity.md`](parity.md) for parity scope and `svm_mode` guidance
-- [`../examples/predmat_workflow_demo.py`](../examples/predmat_workflow_demo.py) for a runnable `predMat` example
-- [`../examples/signalome_workflow_demo.py`](../examples/signalome_workflow_demo.py) for a runnable signalome example
+- [`validation.md`](validation.md)
+- [`parity.md`](parity.md)
+- [`../examples/predmat_workflow_demo.py`](../examples/predmat_workflow_demo.py)
+- [`../examples/signalome_workflow_demo.py`](../examples/signalome_workflow_demo.py)
