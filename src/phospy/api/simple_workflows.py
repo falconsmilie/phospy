@@ -68,6 +68,11 @@ class SimpleKinaseWorkflow:
         activity_config: KinaseActivityConfig | None = None,
     ) -> SimpleKinaseWorkflowResult:
         resolved_dataset_options = DatasetLoadOptions.from_value(dataset_options)
+        resolved_preprocessing_config = (
+            CorePreprocessingConfig()
+            if preprocessing_config is None
+            else preprocessing_config
+        )
         resolved_prediction_config = PredictionRunConfig.from_value(prediction_config)
         resolved_activity_config = KinaseActivityConfig.from_value(activity_config)
         analysis_ready_dataset = self.analysis_ready_builder.build(
@@ -76,7 +81,7 @@ class SimpleKinaseWorkflow:
             phospho_encoding=resolved_dataset_options.phospho_encoding,
             schema=resolved_dataset_options.schema,
             comparisons=resolved_dataset_options.comparisons,
-            preprocessing_config=preprocessing_config,
+            preprocessing_config=resolved_preprocessing_config,
             source="simple kinase workflow",
             phospho_only_source="simple kinase workflow (phospho only)",
         )

@@ -6,16 +6,11 @@ from typing import TYPE_CHECKING
 import pandas as pd
 
 from ..datasets.schema import DatasetSchema
-from ..internal.constants import (
-    DEFAULT_PHOSPHO_SENTINEL,
-    DEFAULT_TOTAL_SENTINEL,
-    ComparisonSpec,
-)
+from ..internal.constants import ComparisonSpec
 from .core import (
     CorePreprocessingConfig,
     CoreProcessingResult,
     CoreProcessor,
-    resolve_core_preprocessing_config,
 )
 
 if TYPE_CHECKING:
@@ -57,23 +52,12 @@ class DatasetPreprocessing:
 
     def run(
         self,
-        localization_threshold: float = 0.75,
-        min_observed: int = 4,
-        max_unmatched_fraction: float = 0.0,
-        total_sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
-        phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
-        config: CorePreprocessingConfig | None = None,
+        *,
+        config: CorePreprocessingConfig,
     ) -> CoreProcessingResult:
-        resolved = resolve_core_preprocessing_config(
-            config=config,
-            localization_threshold=localization_threshold,
-            min_observed=min_observed,
-            total_sentinel=total_sentinel,
-            phospho_sentinel=phospho_sentinel,
-            max_unmatched_fraction=max_unmatched_fraction,
-            context="DatasetPreprocessing.run()",
-            config_param_name="config",
-        )
+        if not isinstance(config, CorePreprocessingConfig):
+            msg = "DatasetPreprocessing.run(): config must be a CorePreprocessingConfig instance"
+            raise TypeError(msg)
         processor = CoreProcessor(
             schema=self.schema,
             comparisons=self.comparisons,
@@ -81,7 +65,7 @@ class DatasetPreprocessing:
         return processor.process(
             self.total_df,
             self.phospho_df,
-            config=resolved,
+            config=config,
         )
 
     def to_analysis_ready(
@@ -108,21 +92,10 @@ class DatasetPreprocessing:
 
     def run_analysis_ready(
         self,
-        localization_threshold: float = 0.75,
-        min_observed: int = 4,
-        max_unmatched_fraction: float = 0.0,
-        total_sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
-        phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
-        config: CorePreprocessingConfig | None = None,
+        *,
+        config: CorePreprocessingConfig,
         source: str = "dataset preprocessing",
     ) -> AnalysisReadyPhosphoDataset:
         """Run preprocessing and return the supported analysis-ready boundary."""
-        core_result = self.run(
-            localization_threshold=localization_threshold,
-            min_observed=min_observed,
-            max_unmatched_fraction=max_unmatched_fraction,
-            total_sentinel=total_sentinel,
-            phospho_sentinel=phospho_sentinel,
-            config=config,
-        )
+        core_result = self.run(config=config)
         return self.to_analysis_ready(core_result, source=source)

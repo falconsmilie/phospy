@@ -10,6 +10,7 @@ from phospy.errors import (
     NoCandidateKinasesError,
     TableSchemaError,
 )
+from phospy.preprocessing import CorePreprocessingConfig
 from phospy.validation import (
     validate_protein_correction_inputs,
     validate_workflow_request,
@@ -170,7 +171,7 @@ def test_core_processing_rejects_zero_gene_overlap_before_correction() -> None:
         InputCompatibilityError,
         match="no overlapping gene identifiers",
     ):
-        dataset.preprocessing.run()
+        dataset.preprocessing.run(config=CorePreprocessingConfig())
 
 
 def test_core_processing_rejects_row_loss_before_correction() -> None:
@@ -183,7 +184,7 @@ def test_core_processing_rejects_row_loss_before_correction() -> None:
         InputCompatibilityError,
         match=r"would drop 1 of 2 phosphosite rows \(50.0%\)",
     ):
-        dataset.preprocessing.run(min_observed=1)
+        dataset.preprocessing.run(config=CorePreprocessingConfig(min_observed=1))
 
 
 def test_core_processing_allows_row_loss_with_explicit_tolerance() -> None:
@@ -192,7 +193,9 @@ def test_core_processing_allows_row_loss_with_explicit_tolerance() -> None:
         phospho_df=_make_phospho_df(),
     )
 
-    result = dataset.preprocessing.run(min_observed=1, max_unmatched_fraction=0.5)
+    result = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(min_observed=1, max_unmatched_fraction=0.5)
+    )
 
     assert result.phospho_corrected.shape[0] == 1
     assert result.phospho_corrected["gene_names"].tolist() == ["PRKACA"]

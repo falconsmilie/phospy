@@ -183,22 +183,16 @@ dataset.copy_inputs() -> tuple[pd.DataFrame, pd.DataFrame]
 
 ```python
 dataset.preprocessing.run(
-    localization_threshold: float = 0.75,
-    min_observed: int = 4,
-    max_unmatched_fraction: float = 0.0,
-    total_sentinel: float | int = 10.0,
-    phospho_sentinel: float | int = 12.0,
-    config: CorePreprocessingConfig | None = None,
+    *,
+    config: CorePreprocessingConfig,
 ) -> CoreProcessingResult
 ```
 
 Key rules:
 
-- `localization_threshold` and `max_unmatched_fraction` must be in `[0, 1]`
-- `min_observed` must be `>= 1`
-- `config` can replace the scalar arguments, but should not be mixed with overridden scalar values
+- `config` is required and must be a `CorePreprocessingConfig` instance
 - `config.site_matrix_policy` controls duplicate phosphosite collapse during site-matrix creation
-- `max_unmatched_fraction=0.0` is strict mode and rejects silent row loss during protein correction
+- `config.max_unmatched_fraction=0.0` is strict mode and rejects silent row loss during protein correction
 
 Returns `CoreProcessingResult` with:
 
@@ -224,12 +218,8 @@ Use this to adapt an existing preprocessing result from the same dataset into th
 
 ```python
 dataset.preprocessing.run_analysis_ready(
-    localization_threshold: float = 0.75,
-    min_observed: int = 4,
-    max_unmatched_fraction: float = 0.0,
-    total_sentinel: float | int = 10.0,
-    phospho_sentinel: float | int = 12.0,
-    config: CorePreprocessingConfig | None = None,
+    *,
+    config: CorePreprocessingConfig,
     source: str = "dataset preprocessing",
 ) -> AnalysisReadyPhosphoDataset
 ```

@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 
 from phospy.activities import KinaseActivityAnalyzer
 from phospy.datasets import PhosphoDataset
+from phospy.preprocessing import CorePreprocessingConfig
 
 
 def main() -> None:
@@ -15,7 +16,9 @@ def main() -> None:
         repo_root / "examples" / "data" / "phospho.tsv",
         phospho_encoding="utf-16le",
     )
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
 
     analyzer = KinaseActivityAnalyzer()
     result = analyzer.run(

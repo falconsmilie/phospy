@@ -10,16 +10,8 @@ from ..datasets.loaders import DatasetLoader
 from ..datasets.models import AnalysisReadyPhosphoDataset
 from ..datasets.schema import DatasetSchema
 from ..errors import InputCompatibilityError
-from ..internal.constants import (
-    DEFAULT_PHOSPHO_SENTINEL,
-    DEFAULT_TOTAL_SENTINEL,
-    ComparisonSpec,
-)
-from .core import (
-    CorePreprocessingConfig,
-    CoreProcessor,
-    resolve_core_preprocessing_config,
-)
+from ..internal.constants import ComparisonSpec
+from .core import CorePreprocessingConfig, CoreProcessor
 from .dataset import DatasetPreprocessing
 
 """Analysis-ready preprocessing builder.
@@ -53,6 +45,18 @@ class AnalysisReadyDatasetBuilder:
             raise InputCompatibilityError(msg)
         return self.dataset_loader
 
+    def _validate_preprocessing_config(
+        self,
+        preprocessing_config: CorePreprocessingConfig,
+    ) -> CorePreprocessingConfig:
+        if not isinstance(preprocessing_config, CorePreprocessingConfig):
+            msg = (
+                "AnalysisReadyDatasetBuilder.build(): preprocessing_config must be "
+                "a CorePreprocessingConfig instance"
+            )
+            raise TypeError(msg)
+        return preprocessing_config
+
     def _build_from_full_inputs(
         self,
         *,
@@ -62,12 +66,7 @@ class AnalysisReadyDatasetBuilder:
         phospho: pd.DataFrame | str | Path,
         phospho_encoding: str | None,
         comparisons: Sequence[ComparisonSpec] | None,
-        preprocessing_config: CorePreprocessingConfig | None,
-        localization_threshold: float,
-        min_observed: int,
-        max_unmatched_fraction: float,
-        total_sentinel: float | int,
-        phospho_sentinel: float | int,
+        preprocessing_config: CorePreprocessingConfig,
         source: str,
     ) -> AnalysisReadyPhosphoDataset:
         loaded_inputs = loader.resolve_inputs(
@@ -82,11 +81,6 @@ class AnalysisReadyDatasetBuilder:
             comparisons=comparisons,
         )
         return preprocessing.run_analysis_ready(
-            localization_threshold=localization_threshold,
-            min_observed=min_observed,
-            max_unmatched_fraction=max_unmatched_fraction,
-            total_sentinel=total_sentinel,
-            phospho_sentinel=phospho_sentinel,
             config=preprocessing_config,
             source=source,
         )
@@ -99,30 +93,19 @@ class AnalysisReadyDatasetBuilder:
         phospho: pd.DataFrame | str | Path,
         phospho_encoding: str | None,
         comparisons: Sequence[ComparisonSpec] | None,
-        preprocessing_config: CorePreprocessingConfig | None,
-        localization_threshold: float,
-        min_observed: int,
-        phospho_sentinel: float | int,
+        preprocessing_config: CorePreprocessingConfig,
         source: str,
     ) -> AnalysisReadyPhosphoDataset:
         phospho_df = loader.resolve_phospho(
             phospho,
             encoding=phospho_encoding,
         )
-        resolved_config = resolve_core_preprocessing_config(
-            config=preprocessing_config,
-            localization_threshold=localization_threshold,
-            min_observed=min_observed,
-            phospho_sentinel=phospho_sentinel,
-            context="build_analysis_ready_dataset()",
-            config_param_name="preprocessing_config",
-        )
         core_result = CoreProcessor(
             schema=schema,
             comparisons=comparisons,
         ).process_phospho_only(
             phospho_df,
-            config=resolved_config,
+            config=preprocessing_config,
         )
         return AnalysisReadyPhosphoDataset.from_core_processing_result(
             core_result,
@@ -135,21 +118,19 @@ class AnalysisReadyDatasetBuilder:
         self,
         *,
         phospho: pd.DataFrame | str | Path,
+        preprocessing_config: CorePreprocessingConfig,
         total: pd.DataFrame | str | Path | None = None,
         phospho_encoding: str | None = None,
         schema: DatasetSchema | None = None,
         comparisons: Sequence[ComparisonSpec] | None = None,
-        preprocessing_config: CorePreprocessingConfig | None = None,
-        localization_threshold: float = 0.75,
-        min_observed: int = 4,
-        max_unmatched_fraction: float = 0.0,
-        total_sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
-        phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
         source: str = "analysis ready dataset builder",
         phospho_only_source: str = "analysis ready dataset builder (phospho only)",
     ) -> AnalysisReadyPhosphoDataset:
         resolved_schema = self._resolve_schema(schema)
         loader = self._resolve_loader(resolved_schema)
+        resolved_preprocessing_config = self._validate_preprocessing_config(
+            preprocessing_config
+        )
         if total is None:
             return self._build_from_phospho_only(
                 loader=loader,
@@ -157,10 +138,7 @@ class AnalysisReadyDatasetBuilder:
                 phospho=phospho,
                 phospho_encoding=phospho_encoding,
                 comparisons=comparisons,
-                preprocessing_config=preprocessing_config,
-                localization_threshold=localization_threshold,
-                min_observed=min_observed,
-                phospho_sentinel=phospho_sentinel,
+                preprocessing_config=resolved_preprocessing_config,
                 source=phospho_only_source,
             )
         return self._build_from_full_inputs(
@@ -170,11 +148,6 @@ class AnalysisReadyDatasetBuilder:
             phospho=phospho,
             phospho_encoding=phospho_encoding,
             comparisons=comparisons,
-            preprocessing_config=preprocessing_config,
-            localization_threshold=localization_threshold,
-            min_observed=min_observed,
-            max_unmatched_fraction=max_unmatched_fraction,
-            total_sentinel=total_sentinel,
-            phospho_sentinel=phospho_sentinel,
+            preprocessing_config=resolved_preprocessing_config,
             source=source,
         )

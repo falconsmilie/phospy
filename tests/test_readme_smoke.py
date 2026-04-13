@@ -29,7 +29,9 @@ def test_readme_example_analyzer_runs_end_to_end(tmp_path) -> None:
         repo_root / "examples" / "data" / "phospho.tsv",
         phospho_encoding="utf-16le",
     )
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
 
     analyzer = KinaseActivityAnalyzer()
     result = analyzer.run(

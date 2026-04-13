@@ -7,11 +7,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from ..internal.constants import (
-    DEFAULT_PHOSPHO_SENTINEL,
-    DEFAULT_TOTAL_SENTINEL,
-    ComparisonSpec,
-)
+from ..internal.constants import ComparisonSpec
 from ..preprocessing.core import CorePreprocessingConfig, CoreProcessingResult
 from ..preprocessing.dataset import DatasetPreprocessing
 from .builders import (
@@ -372,21 +368,12 @@ class PhosphoDataset:
 
     def run_analysis_ready(
         self,
-        localization_threshold: float = 0.75,
-        min_observed: int = 4,
-        max_unmatched_fraction: float = 0.0,
-        total_sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
-        phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
-        config: CorePreprocessingConfig | None = None,
+        *,
+        config: CorePreprocessingConfig,
         source: str = "dataset preprocessing",
     ) -> AnalysisReadyPhosphoDataset:
         """Run preprocessing and return an analysis-ready phosphosite dataset."""
         return self.preprocessing.run_analysis_ready(
-            localization_threshold=localization_threshold,
-            min_observed=min_observed,
-            max_unmatched_fraction=max_unmatched_fraction,
-            total_sentinel=total_sentinel,
-            phospho_sentinel=phospho_sentinel,
             config=config,
             source=source,
         )

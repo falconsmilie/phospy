@@ -101,13 +101,14 @@ Use this when you want validated total and phospho inputs plus the standard prep
 ```python
 from phospy.datasets import PhosphoDataset
 from phospy.io.writers import CoreOutputWriter
+from phospy.preprocessing import CorePreprocessingConfig
 
 dataset = PhosphoDataset.from_files(
     "examples/data/total.tsv",
     "examples/data/phospho.tsv",
     phospho_encoding="utf-16le",
 )
-core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+core = dataset.preprocessing.run(config=CorePreprocessingConfig(max_unmatched_fraction=0.1))
 
 CoreOutputWriter().write(core, outdir="examples/output", format="csv")
 
@@ -122,13 +123,14 @@ Use this when you already have a phosphosite matrix and a `predMat`.
 ```python
 from phospy.activities import KinaseActivityAnalyzer
 from phospy.datasets import PhosphoDataset
+from phospy.preprocessing import CorePreprocessingConfig
 
 dataset = PhosphoDataset.from_files(
     "examples/data/total.tsv",
     "examples/data/phospho.tsv",
     phospho_encoding="utf-16le",
 )
-core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+core = dataset.preprocessing.run(config=CorePreprocessingConfig(max_unmatched_fraction=0.1))
 
 analyzer = KinaseActivityAnalyzer()
 result = analyzer.run(
@@ -199,3 +201,4 @@ phospy \
 - [`docs/parity.md`](docs/parity.md) for parity scope and `svm_mode`
 - [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace rebuild commands
 - [`docs/architecture/package-layout.md`](docs/architecture/package-layout.md) for the contributor-facing package layout
+

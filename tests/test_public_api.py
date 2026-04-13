@@ -133,7 +133,7 @@ def test_phospho_dataset_preprocessing_run() -> None:
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
-    result = dataset.preprocessing.run()
+    result = dataset.preprocessing.run(config=CorePreprocessingConfig())
 
     assert sorted(result.total_unique["genes"].tolist()) == ["BTK", "LYN", "PRKACA"]
     assert "p_group1_group4" in result.phospho_corrected.columns
@@ -196,7 +196,9 @@ def test_phospho_dataset_site_matrix_build_matches_run_output() -> None:
         comparisons=EXAMPLE_COMPARISONS,
     )
 
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
     via_service = dataset.site_matrix.build(core.phospho_corrected)
 
     pd.testing.assert_frame_equal(via_service.phosr_input, core.site_matrix.phosr_input)
@@ -212,7 +214,9 @@ def test_phospho_dataset_preprocessing_run_matches_core_processor() -> None:
         comparisons=EXAMPLE_COMPARISONS,
     )
 
-    via_facade = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    via_facade = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
     via_processor = CoreProcessor(
         schema=dataset.schema,
         comparisons=dataset.comparisons,
@@ -411,7 +415,9 @@ def test_dataset_preprocessing_run_does_not_mutate_owned_dataset_inputs() -> Non
     original_total = dataset.total_df_copy
     original_phospho = dataset.phospho_df_copy
 
-    dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
 
     pd.testing.assert_frame_equal(dataset.total_df_live, original_total)
     pd.testing.assert_frame_equal(dataset.phospho_df_live, original_phospho)
@@ -423,7 +429,9 @@ def test_core_output_writer_writes_csv_outputs(tmp_path) -> None:
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
 
     outdir = tmp_path / "core-output-csv"
     CoreOutputWriter().write(core, outdir)
@@ -438,7 +446,9 @@ def test_core_output_writer_writes_tsv_outputs(tmp_path) -> None:
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
 
     outdir = tmp_path / "core-output-tsv"
     CoreOutputWriter().write(core, outdir, format="tsv")
@@ -456,7 +466,9 @@ def test_core_output_writer_writes_parquet_outputs(monkeypatch, tmp_path) -> Non
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
     written_paths: list[tuple[Path, bool]] = []
 
     def fake_to_parquet(
@@ -490,7 +502,9 @@ def test_core_output_writer_rejects_unknown_format(tmp_path) -> None:
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
 
     with pytest.raises(ValueError, match="Unsupported core output format"):
         CoreOutputWriter().write(core, tmp_path / "core-output-unknown", format="json")
@@ -505,7 +519,9 @@ def test_core_output_writer_raises_clear_error_without_parquet_engine(
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
 
     def blow_up(
         self: pd.DataFrame,
@@ -872,7 +888,7 @@ def test_phospho_dataset_honours_custom_corrected_columns() -> None:
         ),
     )
 
-    core = dataset.preprocessing.run()
+    core = dataset.preprocessing.run(config=CorePreprocessingConfig())
 
     expected = {"sample_a", "sample_b", "sample_c", "sample_d", "sample_e", "sample_f"}
     assert expected.issubset(core.phospho_corrected.columns)
@@ -1039,7 +1055,9 @@ def test_analysis_ready_from_core_processing_result_avoids_extra_frame_copying(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
     )
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
 
     copy_calls = 0
     series_copy_calls = 0
@@ -1473,7 +1491,7 @@ def test_dataset_with_custom_schema_preserves_schema_named_comparisons() -> None
         schema=schema,
         comparisons=[("sample_a", "sample_b")],
     )
-    result = dataset.preprocessing.run(min_observed=1)
+    result = dataset.preprocessing.run(config=CorePreprocessingConfig(min_observed=1))
 
     assert dataset.comparisons == (("sample_a", "sample_b"),)
     assert result.phospho_corrected["p_sample_a_sample_b"].iloc[0] == 3.0
@@ -1491,7 +1509,9 @@ def test_dataset_preprocessing_to_analysis_ready_binds_schema_and_comparisons() 
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
 
     analysis_ready = dataset.preprocessing.to_analysis_ready(core)
 
@@ -1514,7 +1534,9 @@ def test_analysis_ready_dataset_builds_from_core_processing_result() -> None:
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
 
     analysis_ready = AnalysisReadyPhosphoDataset.from_core_processing_result(
         core,
@@ -1575,7 +1597,9 @@ def test_analysis_ready_dataset_constructor_copies_external_inputs_once() -> Non
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
     )
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
     site_metadata = core.site_matrix.phosr_input.drop(
         columns=[*dataset.schema.corrected_cols, "centralized_sequence"],
         errors="ignore",
@@ -1620,8 +1644,12 @@ def test_dataset_run_analysis_ready_matches_bound_preprocessing_adapter() -> Non
         comparisons=EXAMPLE_COMPARISONS,
     )
 
-    via_dataset = dataset.run_analysis_ready(max_unmatched_fraction=0.1)
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    via_dataset = dataset.run_analysis_ready(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
     via_adapter = dataset.preprocessing.to_analysis_ready(core)
 
     pd.testing.assert_frame_equal(
@@ -1650,7 +1678,9 @@ def test_analysis_ready_dataset_from_core_processing_result_reuses_owned_frames(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
     )
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
     analysis_ready = AnalysisReadyPhosphoDataset.from_core_processing_result(
         core,
         schema=dataset.schema,

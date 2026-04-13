@@ -987,7 +987,7 @@ def test_add_pairwise_comparisons_rejects_reverse_duplicate_pairs_with_custom_ma
         )
 
 
-def test_dataset_preprocessing_run_rejects_mixed_config_styles() -> None:
+def test_dataset_preprocessing_run_rejects_scalar_kwargs() -> None:
     from phospy import PhosphoDataset
     from phospy.preprocessing import CorePreprocessingConfig
 
@@ -1020,13 +1020,7 @@ def test_dataset_preprocessing_run_rejects_mixed_config_styles() -> None:
         ),
     )
 
-    with pytest.raises(
-        ValueError,
-        match=(
-            r"DatasetPreprocessing.run\(\): pass either config or scalar "
-            r"preprocessing options, not both\."
-        ),
-    ):
+    with pytest.raises(TypeError, match="unexpected keyword argument 'min_observed'"):
         dataset.preprocessing.run(
             config=CorePreprocessingConfig(),
             min_observed=1,
@@ -1103,9 +1097,11 @@ def test_dataset_preprocessing_run_analysis_ready_uses_example_fixture_data() ->
     )
 
     analysis_ready = dataset.preprocessing.run_analysis_ready(
-        max_unmatched_fraction=0.1,
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
     )
-    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    core = dataset.preprocessing.run(
+        config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    )
     expected = AnalysisReadyPhosphoDataset.from_core_processing_result(
         core,
         schema=dataset.schema,
@@ -1149,6 +1145,7 @@ def test_simple_kinase_workflow_reuses_bound_analysis_ready_adapter_on_fixture_f
         phospho_path=fixture_dir / "phospho.tsv",
     )
     expected = dataset.run_analysis_ready(
+        config=CorePreprocessingConfig(),
         source="simple kinase workflow",
     )
 
@@ -1246,6 +1243,7 @@ def test_analysis_ready_builder_full_inputs_reuses_dataset_preprocessing_seam(
     result = build_analysis_ready_dataset(
         total=total_path,
         phospho=phospho_path,
+        preprocessing_config=CorePreprocessingConfig(),
         source="analysis ready dataset builder",
     )
 
@@ -1289,6 +1287,7 @@ def test_analysis_ready_builder_phospho_only_reuses_core_processor_seam(
 
     result = build_analysis_ready_dataset(
         phospho=phospho_path,
+        preprocessing_config=CorePreprocessingConfig(),
         phospho_only_source="analysis ready dataset builder (phospho only)",
     )
 
@@ -1312,11 +1311,13 @@ def test_build_analysis_ready_dataset_accepts_mixed_input_sources() -> None:
     expected = build_analysis_ready_dataset(
         total=total_path,
         phospho=phospho_path,
+        preprocessing_config=CorePreprocessingConfig(),
         source="analysis ready dataset builder",
     )
     result = build_analysis_ready_dataset(
         total=total_path,
         phospho=phospho_df,
+        preprocessing_config=CorePreprocessingConfig(),
         source="analysis ready dataset builder",
     )
 

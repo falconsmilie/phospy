@@ -18,6 +18,7 @@ from phospy.internal.constants import (
     KSEA_SCORES_FILENAME,
     SITE_MATRIX_ID_COLUMN,
 )
+from phospy.preprocessing import CorePreprocessingConfig
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_DATA = ROOT / "examples" / "data"
@@ -166,7 +167,7 @@ def test_core_outputs_match_r_reference() -> None:
         comparisons=EXAMPLE_COMPARISONS,
         phospho_encoding=PHOSPHO_FIXTURE_ENCODING,
     )
-    result = dataset.preprocessing.run()
+    result = dataset.preprocessing.run(config=CorePreprocessingConfig())
 
     actual_total_unique = _sort_table(result.total_unique, ["genes"])
     expected_total_unique = _sort_table(_read_table("df_total_unique.csv"), ["genes"])
@@ -221,7 +222,7 @@ def test_kinase_outputs_match_r_reference() -> None:
         comparisons=EXAMPLE_COMPARISONS,
         phospho_encoding=PHOSPHO_FIXTURE_ENCODING,
     )
-    core = dataset.preprocessing.run()
+    core = dataset.preprocessing.run(config=CorePreprocessingConfig())
 
     pred_mat = _read_indexed_table("predMat.csv")
     result = KinaseActivityAnalyzer().run(
