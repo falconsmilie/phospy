@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pandas as pd
 
@@ -21,7 +21,7 @@ from .services import (
     ProteinCorrectionService,
     TotalPreprocessor,
 )
-from .site_matrix import SiteMatrixBuilder, SiteMatrixResult
+from .site_matrix import SiteMatrixBuilder, SiteMatrixPolicy, SiteMatrixResult
 
 """Advanced core preprocessing orchestration.
 
@@ -38,6 +38,7 @@ class CorePreprocessingConfig:
     total_sentinel: float = DEFAULT_TOTAL_SENTINEL
     phospho_sentinel: float = DEFAULT_PHOSPHO_SENTINEL
     max_unmatched_fraction: float = 0.0
+    site_matrix_policy: SiteMatrixPolicy = field(default_factory=SiteMatrixPolicy)
 
 
 def resolve_core_preprocessing_config(
@@ -241,30 +242,30 @@ class CoreProcessor:
         total_df: pd.DataFrame,
         phospho_df: pd.DataFrame,
         *,
-        config: CorePreprocessingConfig,
+        config: CorePreprocessingConfig | None = None,
     ) -> CoreProcessingResult:
-        total_work = total_df.copy()
-        phospho_work = phospho_df.copy()
-
-        total_unique, total_filtered = self.total_preprocessor.prepare_owned(
-            total_work,
-            min_observed=config.min_observed,
-            sentinel=config.total_sentinel,
+        resolved_config = config or CorePreprocessingConfig()
+        total_unique, total_filtered = self.prepare_total(
+            total_df,
+            sentinel=resolved_config.total_sentinel,
+            min_observed=resolved_config.min_observed,
         )
-        phospho_filtered = self.phospho_preprocessor.prepare_owned(
-            phospho_work,
-            localization_threshold=config.localization_threshold,
-            min_observed=config.min_observed,
-            sentinel=config.phospho_sentinel,
+        phospho_filtered = self.prepare_phospho(
+            phospho_df,
+            localization_threshold=resolved_config.localization_threshold,
+            sentinel=resolved_config.phospho_sentinel,
+            min_observed=resolved_config.min_observed,
         )
-        phospho_corrected = self.protein_correction_service.correct_owned(
+        phospho_corrected = self.correct_to_protein(
             phospho_filtered,
             total_filtered,
-            max_unmatched_fraction=config.max_unmatched_fraction,
+            max_unmatched_fraction=resolved_config.max_unmatched_fraction,
         )
-        if self.comparisons:
-            phospho_corrected = self.add_pairwise_comparisons(phospho_corrected)
-        site_matrix = self.site_matrix_builder.build(phospho_corrected)
+        phospho_corrected = self.add_pairwise_comparisons(phospho_corrected)
+        site_matrix = self.site_matrix_builder.build(
+            phospho_corrected,
+            policy=resolved_config.site_matrix_policy,
+        )
         return CoreProcessingResult(
             total_unique=total_unique,
             total_filtered=total_filtered,

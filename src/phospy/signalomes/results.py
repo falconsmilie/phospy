@@ -6,39 +6,29 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-if TYPE_CHECKING:
-    from .maps import SignalomeMapData
-    from .networks import SignalomeNetworkData
+from .maps import SignalomeMapData
+from .networks import SignalomeNetworkData
 
-__all__ = [
-    "ExpandedSignalome",
-    "SignalomeAssignments",
-    "SignalomeKinaseNetwork",
-    "SignalomeModules",
-    "SignalomeResult",
-]
+if TYPE_CHECKING:
+    from .clustering import SignalomeModuleSelectionDiagnostics
 
 
 @dataclass(frozen=True, slots=True)
 class ExpandedSignalome:
-    """Expanded signalome view for one kinase of interest.
-
-    Each expanded signalome contains the subset of the expression matrix and the
-    aligned site annotation rows that support one kinase-of-interest view.
-    """
+    """One kinase-of-interest view over the global signalome state."""
 
     kinase: str
     linked_kinases: tuple[str, ...]
     regulated_module_ids: tuple[int, ...]
     expression_matrix: pd.DataFrame
-    site_annotations: pd.DataFrame
+    site_assignments: pd.DataFrame
 
 
 @dataclass(frozen=True, slots=True)
 class SignalomeModules:
-    """Module-centric signalome outputs.
+    """Module-centric wide and long signalome views.
 
-    ``module_table`` is the wide module-by-kinase percentage matrix.
+    ``module_table`` is the traditional module-by-kinase percentage table.
     ``kinase_module_relationships`` is the graph-friendly long table derived from
     the non-zero cells of ``module_table``.
     """
@@ -147,6 +137,7 @@ class SignalomeResult:
     network: SignalomeKinaseNetwork
     kinase_substrate_map: dict[str, tuple[str, ...]]
     expanded_signalomes: dict[str, ExpandedSignalome]
+    module_selection_diagnostics: SignalomeModuleSelectionDiagnostics
 
     @property
     def kinases_of_interest(self) -> tuple[str, ...]:
@@ -214,6 +205,42 @@ class SignalomeResult:
 
         return self.network.edge_table
 
+    def to_frames(self, *, include_inputs: bool = False) -> dict[str, pd.DataFrame]:
+        """Return the canonical named signalome tables."""
+
+        frames: dict[str, pd.DataFrame] = {
+            "signalome_modules": self.signalome_modules.copy(deep=True),
+            "kinase_module_relationships": self.kinase_module_relationships.copy(
+                deep=True
+            ),
+            "site_assignments": self.site_assignments.copy(deep=True),
+            "protein_assignments": self.protein_assignments.copy(deep=True),
+            "kinase_network_nodes": self.kinase_network_nodes.copy(deep=True),
+            "kinase_network_edges": self.kinase_network_edges.copy(deep=True),
+            "kinase_correlation_matrix": self.kinase_correlation_matrix.copy(deep=True),
+        }
+        if include_inputs:
+            frames.update(
+                {
+                    "scoring_matrix": self.scoring_matrix.copy(deep=True),
+                    "pred_mat": self.pred_mat.copy(deep=True),
+                    "expression_matrix": self.expression_matrix.copy(deep=True),
+                }
+            )
+        return frames
+
+    def to_csv(self, directory: str | Path) -> dict[str, Path]:
+        """Write the canonical signalome tables to CSV files."""
+
+        output_dir = Path(directory)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        written: dict[str, Path] = {}
+        for name, frame in self.to_frames().items():
+            path = output_dir / f"{name}.csv"
+            frame.to_csv(path)
+            written[name] = path
+        return written
+
     def to_map_data(self) -> SignalomeMapData:
         """Build serialisable map-ready plotting data from this result."""
 
@@ -222,69 +249,8 @@ class SignalomeResult:
         return build_signalome_map_data(self)
 
     def to_network_data(self) -> SignalomeNetworkData:
-        """Build graph-friendly kinase-network data from this result."""
+        """Build graph-ready plotting data from this result."""
 
         from .networks import build_signalome_network_data
 
         return build_signalome_network_data(self)
-
-    def to_frames(
-        self,
-        *,
-        copy: bool = True,
-        include_inputs: bool = False,
-    ) -> dict[str, pd.DataFrame]:
-        """Return the signalome tables as named pandas objects."""
-
-        frames = {
-            "signalome_modules": self.modules.to_frame(copy=copy),
-            "kinase_module_relationships": self.modules.to_relationship_table(
-                copy=copy
-            ),
-            "site_assignments": self.assignments.sites(copy=copy),
-            "protein_assignments": self.assignments.proteins(copy=copy),
-            "kinase_network_nodes": self.network.nodes(copy=copy),
-            "kinase_network_edges": self.network.edges(copy=copy),
-            "kinase_correlation_matrix": self.network.adjacency(copy=copy),
-        }
-
-        if include_inputs:
-            frames.update(
-                {
-                    "scoring_matrix": self.scoring_matrix.copy(deep=True)
-                    if copy
-                    else self.scoring_matrix,
-                    "pred_mat": self.pred_mat.copy(deep=True)
-                    if copy
-                    else self.pred_mat,
-                    "expression_matrix": self.expression_matrix.copy(deep=True)
-                    if copy
-                    else self.expression_matrix,
-                }
-            )
-        return frames
-
-    def to_csv(
-        self,
-        directory: str | Path,
-        *,
-        include_inputs: bool = False,
-    ) -> dict[str, Path]:
-        """Export the signalome tables to a directory of CSV files."""
-
-        target_dir = Path(directory)
-        target_dir.mkdir(parents=True, exist_ok=True)
-
-        written_paths: dict[str, Path] = {}
-        for name, frame in self.to_frames(
-            copy=True, include_inputs=include_inputs
-        ).items():
-            path = target_dir / f"{name}.csv"
-            frame.to_csv(
-                path,
-                encoding="utf-8",
-                float_format="%.17g",
-                lineterminator="\n",
-            )
-            written_paths[name] = path
-        return written_paths

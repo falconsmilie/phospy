@@ -288,6 +288,7 @@ def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
             "n_iterations": 5,
             "random_state": None,
             "svm_mode": None,
+            "profile_policy": None,
         }
     ]
     assert analyzer_calls == [

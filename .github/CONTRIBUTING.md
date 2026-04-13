@@ -98,3 +98,28 @@ A few rules matter most:
 ## Good Starting Areas
 
 The public roadmap lives in [`docs/roadmap.md`](../docs/roadmap.md). Good contributions usually improve the supported surface without over-claiming: clearer diagnostics, better validation, tighter docs, and carefully scoped PhosR-inspired additions.
+
+
+## Scientific policy defaults
+
+PhosPy now treats key scientific preprocessing heuristics as explicit policies.
+Do not bury these decisions in helper functions or silent defaults.
+
+Current policy objects are:
+
+- `SiteMatrixPolicy(duplicate_site_strategy="max_mean_signal")`
+  - owns duplicate phosphosite collapse during site-matrix creation
+  - `"max_mean_signal"` is the current PhosPy behaviour
+  - that default is not claimed as exact PhosR parity unless a parity test proves it
+- `KinaseProfilePolicy(missing_value_strategy="propagate_any_missing")`
+  - owns missing-value handling when aggregating kinase substrate profiles
+  - this keeps the current strict PhosPy behaviour and is the closest supported PhosR-style profile seam
+- `SignalomeModuleSelectionPolicy(strategy="correlation_thresholds")`
+  - owns automatic signalome module-count selection through the explicit `module_selection_strategy` field
+  - this is an explicit PhosPy heuristic with diagnostics, not a hidden claim of exact PhosR parity
+
+Keep these policies visible at the public boundary that owns them:
+
+- duplicate-site policy stays with preprocessing / site-matrix construction
+- missing-value aggregation policy stays with kinase profile aggregation
+- signalome module-selection policy stays with signalome clustering

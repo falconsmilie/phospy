@@ -339,7 +339,7 @@ def build_expanded_signalomes(
             linked_kinases=linked_kinases,
             regulated_module_ids=regulated_module_ids,
             expression_matrix=expression_matrix.loc[selected_site_ids].copy(deep=True),
-            site_annotations=site_assignments.loc[selected_site_ids].copy(deep=True),
+            site_assignments=site_assignments.loc[selected_site_ids].copy(deep=True),
         )
 
     return expanded

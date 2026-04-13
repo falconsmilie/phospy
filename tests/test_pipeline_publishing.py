@@ -489,6 +489,9 @@ def test_run_manifest_writer_serializes_expected_metadata(tmp_path: Path) -> Non
             "max_unmatched_fraction": 0.0,
             "total_sentinel": 10.0,
             "phospho_sentinel": 12.0,
+            "site_matrix_policy": {
+                "duplicate_site_strategy": "max_mean_signal",
+            },
         },
     }
 

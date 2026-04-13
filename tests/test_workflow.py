@@ -11,6 +11,7 @@ from phospy.errors import (
 )
 from phospy.motifs import KinaseMotifScorer
 from phospy.prediction import PredMatResult
+from phospy.profiles import KinaseProfilePolicy
 from phospy.references import (
     ReferenceBundle,
     ReferenceBundleProvenance,
@@ -596,3 +597,21 @@ def test_pred_mat_workflow_rejects_mixed_reference_bundle_and_explicit_reference
             n_iterations=2,
             random_state=17,
         )
+
+
+def test_validated_workflow_request_accepts_explicit_profile_policy() -> None:
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
+        make_workflow_inputs()
+    )
+
+    request = KinaseWorkflow(flank_size=2)._validate_request(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        min_substrates=2,
+        min_motif_size=2,
+        profile_policy=KinaseProfilePolicy(missing_value_strategy="median_skipna"),
+    )
+
+    assert request.profile_policy.missing_value_strategy == "median_skipna"

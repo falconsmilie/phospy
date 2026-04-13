@@ -14,7 +14,10 @@ from phospy.errors import (
     RequestValidationError,
     TableSchemaError,
 )
-from phospy.signalomes import build_signalome_result
+from phospy.signalomes import (
+    SignalomeModuleSelectionPolicy,
+    build_signalome_result,
+)
 
 
 def make_workflow_inputs() -> tuple[
@@ -796,3 +799,39 @@ def test_build_signalome_result_rejects_non_finite_pred_mat_values() -> None:
             signalome_cutoff=0.5,
             module_count=1,
         )
+
+
+def test_build_signalome_result_exposes_module_selection_diagnostics() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A"],
+        signalome_cutoff=0.5,
+    )
+
+    assert result.module_selection_diagnostics.used_automatic_selection
+    assert result.module_selection_diagnostics.selected_module_count >= 1
+    assert result.module_selection_diagnostics.strategy == "correlation_thresholds"
+    assert result.module_selection_diagnostics.reason
+
+
+def test_signalome_workflow_accepts_explicit_module_selection_policy() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A"],
+        signalome_cutoff=0.5,
+        module_selection_policy=SignalomeModuleSelectionPolicy(
+            strategy="single_module"
+        ),
+    )
+
+    assert result.module_selection_diagnostics.strategy == "single_module"
+    assert result.module_selection_diagnostics.selected_module_count == 1
+    assert set(result.site_assignments.loc[:, "module_id"]) == {1}

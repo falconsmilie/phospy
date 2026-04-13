@@ -6,6 +6,7 @@ import pandas as pd
 
 from ..internal.types import PredictionSvmMode
 from ..prediction.engines import KinaseWorkflowExecutor
+from ..profiles import KinaseProfilePolicy
 from ..references import ReferenceBundle
 from ..validation.requests.workflow import WorkflowInputs
 from .workflow_results import KinaseWorkflowResult, PredMatWorkflowResult
@@ -46,6 +47,7 @@ class KinaseWorkflow:
         n_iterations: int = 5,
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
+        profile_policy: KinaseProfilePolicy | None = None,
     ) -> WorkflowInputs:
         return self._executor.validate_request(
             phospho_matrix=phospho_matrix,
@@ -63,6 +65,7 @@ class KinaseWorkflow:
             n_iterations=n_iterations,
             random_state=random_state,
             svm_mode=svm_mode,
+            profile_policy=profile_policy,
         )
 
     def run(
@@ -82,6 +85,7 @@ class KinaseWorkflow:
         n_iterations: int = 5,
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
+        profile_policy: KinaseProfilePolicy | None = None,
     ) -> KinaseWorkflowResult:
         request = self._validate_request(
             phospho_matrix=phospho_matrix,
@@ -99,6 +103,7 @@ class KinaseWorkflow:
             n_iterations=n_iterations,
             random_state=random_state,
             svm_mode=svm_mode,
+            profile_policy=profile_policy,
         )
         return self.run_validated(request)
 
@@ -148,6 +153,7 @@ class PredMatWorkflow:
         n_iterations: int = 5,
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
+        profile_policy: KinaseProfilePolicy | None = None,
     ) -> WorkflowInputs:
         return self._executor.validate_request(
             phospho_matrix=phospho_matrix,
@@ -165,6 +171,7 @@ class PredMatWorkflow:
             n_iterations=n_iterations,
             random_state=random_state,
             svm_mode=svm_mode,
+            profile_policy=profile_policy,
         )
 
     def run(
@@ -184,6 +191,7 @@ class PredMatWorkflow:
         n_iterations: int = 5,
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
+        profile_policy: KinaseProfilePolicy | None = None,
     ) -> PredMatWorkflowResult:
         request = self._validate_request(
             phospho_matrix=phospho_matrix,
@@ -201,6 +209,7 @@ class PredMatWorkflow:
             n_iterations=n_iterations,
             random_state=random_state,
             svm_mode=svm_mode,
+            profile_policy=profile_policy,
         )
         return self.run_validated(request)
 

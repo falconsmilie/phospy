@@ -5,7 +5,50 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from .internal.types import KinaseProfileMissingValueStrategy
+from .validation.values.enums import validate_missing_value_strategy
 from .validation.values.numeric import validate_positive_int
+
+__all__ = [
+    "DEFAULT_KINASE_PROFILE_POLICY",
+    "KinaseProfilePolicy",
+    "KinaseProfileResult",
+    "build_kinase_substrate_profiles",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class KinaseProfilePolicy:
+    """Explicit policy for aggregating multiple quantified kinase substrates.
+
+    ``missing_value_strategy`` controls how column-wise aggregation handles
+    missing phosphosite values when more than one quantified substrate is
+    available for a kinase:
+
+    - ``"propagate_any_missing"`` keeps the current strict behaviour and returns
+      ``NaN`` for a sample whenever any contributing substrate is missing
+    - ``"median_skipna"`` ignores missing substrate values when computing the
+      column-wise median
+    """
+
+    missing_value_strategy: KinaseProfileMissingValueStrategy = "propagate_any_missing"
+
+    def __post_init__(self) -> None:
+        validate_missing_value_strategy(self.missing_value_strategy)
+
+    @classmethod
+    def from_value(cls, value: object) -> KinaseProfilePolicy:
+        if value is None:
+            return cls()
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, Mapping):
+            return cls(**dict(value))
+        msg = "profile_policy must be a KinaseProfilePolicy or mapping"
+        raise TypeError(msg)
+
+
+DEFAULT_KINASE_PROFILE_POLICY = KinaseProfilePolicy()
 
 
 @dataclass(slots=True)
@@ -21,6 +64,9 @@ def build_kinase_substrate_profiles(
     substrate_map: Mapping[str, Sequence[str]],
     phospho_matrix: pd.DataFrame,
     min_substrates: int = 1,
+    *,
+    policy: KinaseProfilePolicy | None = None,
+    missing_value_strategy: KinaseProfileMissingValueStrategy | None = None,
 ) -> KinaseProfileResult:
     """Build kinase substrate profiles from quantified phosphosite values.
 
@@ -28,9 +74,16 @@ def build_kinase_substrate_profiles(
     for each kinase, intersect its known substrates with the phosphosite matrix,
     use the single quantified row directly when exactly one site is available,
     and otherwise summarise quantified substrates column-wise with the median.
+
+    The aggregation policy is explicit so callers can review and override the
+    missing-value behaviour rather than relying on a silent hardcoded default.
     """
 
     validate_positive_int(min_substrates, name="min_substrates")
+    resolved_policy = _resolve_profile_policy(
+        policy=policy,
+        missing_value_strategy=missing_value_strategy,
+    )
 
     observed_sites = set(phospho_matrix.index)
     numeric_matrix = phospho_matrix.astype(float)
@@ -53,6 +106,7 @@ def build_kinase_substrate_profiles(
 
         profile_rows[kinase] = _aggregate_quantified_sites(
             numeric_matrix.loc[quantified_sites, :],
+            policy=resolved_policy,
         )
         quantified_substrates[kinase] = quantified_sites
 
@@ -76,11 +130,36 @@ def build_kinase_substrate_profiles(
     )
 
 
-def _aggregate_quantified_sites(quantified_matrix: pd.DataFrame) -> pd.Series:
+def _resolve_profile_policy(
+    *,
+    policy: KinaseProfilePolicy | None,
+    missing_value_strategy: KinaseProfileMissingValueStrategy | None,
+) -> KinaseProfilePolicy:
+    if policy is not None and missing_value_strategy is not None:
+        msg = (
+            "build_kinase_substrate_profiles() accepts either policy or "
+            "missing_value_strategy, not both"
+        )
+        raise ValueError(msg)
+    if policy is not None:
+        return KinaseProfilePolicy.from_value(policy)
+    if missing_value_strategy is not None:
+        return KinaseProfilePolicy(missing_value_strategy=missing_value_strategy)
+    return DEFAULT_KINASE_PROFILE_POLICY
+
+
+def _aggregate_quantified_sites(
+    quantified_matrix: pd.DataFrame,
+    *,
+    policy: KinaseProfilePolicy,
+) -> pd.Series:
     if quantified_matrix.shape[0] == 1:
         return quantified_matrix.iloc[0].astype(float)
 
-    return quantified_matrix.median(axis=0, skipna=False).astype(float)
+    if policy.missing_value_strategy == "propagate_any_missing":
+        return quantified_matrix.median(axis=0, skipna=False).astype(float)
+
+    return quantified_matrix.median(axis=0, skipna=True).astype(float)
 
 
 def _quantified_sites(

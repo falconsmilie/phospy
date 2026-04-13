@@ -42,3 +42,11 @@ def test_root_package_docstring_marks_root_surface_as_intentional() -> None:
 
     assert "deliberately small convenience surface" in contents
     assert "Intentionally retained convenience exports" in contents
+
+
+def test_contributing_documents_scientific_policy_expectations() -> None:
+    contents = (REPO_ROOT / ".github" / "CONTRIBUTING.md").read_text(encoding="utf-8")
+
+    assert "duplicate_site_strategy" in contents
+    assert "missing_value_strategy" in contents
+    assert "module_selection_strategy" in contents

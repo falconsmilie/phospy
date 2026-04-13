@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -67,11 +67,12 @@ class AnalysisReadySiteMatrixStats:
     dropped_incomplete_values: int
     deduplicated_site_rows: int
     retained_rows: int
+    duplicate_site_strategy: str = "max_mean_signal"
 
     @classmethod
     def from_mapping(
         cls,
-        row_drop_stats: dict[str, int],
+        row_drop_stats: Mapping[str, int | str],
     ) -> AnalysisReadySiteMatrixStats:
         return cls(
             input_rows=int(row_drop_stats.get("input_rows", 0)),
@@ -83,6 +84,9 @@ class AnalysisReadySiteMatrixStats:
             ),
             deduplicated_site_rows=int(row_drop_stats.get("deduplicated_site_rows", 0)),
             retained_rows=int(row_drop_stats.get("retained_rows", 0)),
+            duplicate_site_strategy=str(
+                row_drop_stats.get("duplicate_site_strategy", "max_mean_signal")
+            ),
         )
 
 

@@ -7,6 +7,10 @@ of this package.
 
 from __future__ import annotations
 
+from .clustering import (
+    SignalomeModuleSelectionDiagnostics,
+    SignalomeModuleSelectionPolicy,
+)
 from .maps import SignalomeMapData, build_signalome_map_data
 from .networks import (
     SignalomeNetworkData,
@@ -36,6 +40,8 @@ __all__ = [
     "SignalomeAssignments",
     "SignalomeKinaseNetwork",
     "SignalomeMapData",
+    "SignalomeModuleSelectionDiagnostics",
+    "SignalomeModuleSelectionPolicy",
     "SignalomeModules",
     "SignalomeNetworkData",
     "SignalomeNetworkEdge",

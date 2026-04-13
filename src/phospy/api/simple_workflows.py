@@ -15,6 +15,7 @@ from ..internal.constants import (
 from ..internal.types import PredictionSvmMode
 from ..preprocessing.core import CorePreprocessingConfig
 from ..preprocessing.modes import AnalysisReadyDatasetBuilder
+from ..profiles import KinaseProfilePolicy
 from ..references import (
     BundledReferenceProvider,
     ReferenceProvider,
@@ -83,6 +84,7 @@ class SimpleKinaseWorkflow:
         n_iterations: int = 5,
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
+        profile_policy: KinaseProfilePolicy | None = None,
         kinase_activity_threshold: float = 0.6,
         kinase_activity_min_substrates: int = 3,
         kinase_activity_top_n_substrates: int = 20,
@@ -121,6 +123,7 @@ class SimpleKinaseWorkflow:
             n_iterations=n_iterations,
             random_state=random_state,
             svm_mode=svm_mode,
+            profile_policy=profile_policy,
         )
         kinase_activity_result = self.activity_analyzer.run(
             pred_mat=workflow_result.pred_mat_result,

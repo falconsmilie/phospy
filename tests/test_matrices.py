@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy.errors import TableSchemaError
-from phospy.matrices import build_site_matrix
+from phospy.matrices import SiteMatrixPolicy, build_site_matrix
 
 
 def test_build_site_matrix_creates_site_ids_and_deduplicates_by_mean() -> None:
@@ -149,3 +149,71 @@ def test_build_site_matrix_rejects_empty_or_extra_delimiter_gene_p_site_values()
                 sequence_col="centralized_sequence",
                 value_cols=["phospho_corrected_1", "phospho_corrected_2"],
             )
+
+
+def test_build_site_matrix_can_keep_first_duplicate_row() -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_S339", "PRKACA_S339"],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "phospho_corrected_1": [1.0, 10.0],
+            "phospho_corrected_2": [1.0, 10.0],
+        }
+    )
+
+    phosr_input, matrix, _ = build_site_matrix(
+        df=df,
+        gene_p_site_col="gene_p_site",
+        sequence_col="centralized_sequence",
+        value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+        policy=SiteMatrixPolicy(duplicate_site_strategy="first"),
+    )
+
+    assert matrix.loc["PRKACA;S339;", "phospho_corrected_1"] == 1.0
+    assert phosr_input.attrs["row_drop_stats"]["duplicate_site_strategy"] == "first"
+
+
+def test_build_site_matrix_can_aggregate_duplicate_rows_by_mean() -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_S339", "PRKACA_S339"],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "phospho_corrected_1": [1.0, 3.0],
+            "phospho_corrected_2": [2.0, 4.0],
+        }
+    )
+
+    _, matrix, _ = build_site_matrix(
+        df=df,
+        gene_p_site_col="gene_p_site",
+        sequence_col="centralized_sequence",
+        value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+        policy=SiteMatrixPolicy(duplicate_site_strategy="aggregate_mean"),
+    )
+
+    assert float(matrix.loc["PRKACA;S339;", "phospho_corrected_1"]) == pytest.approx(
+        2.0
+    )
+    assert float(matrix.loc["PRKACA;S339;", "phospho_corrected_2"]) == pytest.approx(
+        3.0
+    )
+
+
+def test_build_site_matrix_can_reject_duplicate_rows_explicitly() -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_S339", "PRKACA_S339"],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "phospho_corrected_1": [1.0, 3.0],
+            "phospho_corrected_2": [2.0, 4.0],
+        }
+    )
+
+    with pytest.raises(TableSchemaError, match="duplicate_site_strategy='error'"):
+        build_site_matrix(
+            df=df,
+            gene_p_site_col="gene_p_site",
+            sequence_col="centralized_sequence",
+            value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+            policy=SiteMatrixPolicy(duplicate_site_strategy="error"),
+        )

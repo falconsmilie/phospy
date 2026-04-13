@@ -56,3 +56,16 @@ contributor-facing documentation.
   for the architecture decision
 - [`docs/architecture/root-package-migration-map.md`](./root-package-migration-map.md)
   for the historical migration record
+
+
+## Scientific policy placement
+
+Keep explicit scientific policies with the domain code that owns the behaviour.
+Do not hide them in generic utility modules.
+
+- duplicate-site policy belongs with preprocessing and site-matrix construction
+- profile missing-value policy belongs with kinase profile aggregation
+- signalome module-selection policy belongs with signalome clustering
+
+These policies should stay visible in the public workflow or builder boundary that
+owns them so PhosR parity and intentional divergence remain reviewable.

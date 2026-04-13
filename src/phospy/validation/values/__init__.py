@@ -7,7 +7,14 @@ from .collections import (
     normalize_string_sequence,
     resolve_required_columns,
 )
-from .enums import validate_svm_mode, validate_trace_format, validate_trace_level
+from .enums import (
+    validate_duplicate_site_strategy,
+    validate_missing_value_strategy,
+    validate_module_selection_strategy,
+    validate_svm_mode,
+    validate_trace_format,
+    validate_trace_level,
+)
 from .identifiers import normalize_identifier_series, require_splitable_gene_p_site
 from .numeric import (
     validate_fraction,
@@ -23,7 +30,10 @@ __all__ = [
     "normalize_string_sequence",
     "require_splitable_gene_p_site",
     "resolve_required_columns",
+    "validate_duplicate_site_strategy",
     "validate_fraction",
+    "validate_missing_value_strategy",
+    "validate_module_selection_strategy",
     "validate_non_negative_int",
     "validate_positive_int",
     "validate_svm_mode",

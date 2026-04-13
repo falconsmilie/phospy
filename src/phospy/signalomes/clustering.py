@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
 import numpy as np
@@ -8,7 +8,21 @@ import pandas as pd
 from scipy.cluster.hierarchy import cut_tree, linkage
 from sklearn.cluster import AgglomerativeClustering
 
-__all__ = ["cluster_sites"]
+from ..internal.types import SignalomeModuleSelectionStrategy
+from ..validation.values.enums import validate_module_selection_strategy
+from ..validation.values.numeric import validate_fraction, validate_positive_int
+
+__all__ = [
+    "ClusterCandidateScore",
+    "ClusterSitesResult",
+    "DEFAULT_SIGNALOME_MODULE_SELECTION_POLICY",
+    "SignalomeModuleSelectionDiagnostics",
+    "SignalomeModuleSelectionPolicy",
+    "cluster_sites",
+    "cluster_sites_with_diagnostics",
+    "select_module_count",
+    "select_module_count_with_diagnostics",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,46 +33,209 @@ class ClusterCandidateScore:
     mean_median_correlation: float
 
 
+@dataclass(frozen=True, slots=True)
+class SignalomeModuleSelectionPolicy:
+    """Explicit policy for automatic signalome module-count selection.
+
+    ``strategy`` controls how the automatic selector behaves:
+
+    - ``"correlation_thresholds"`` applies the current PhosPy correlation-based
+      heuristic using the configured primary and fallback thresholds.
+    - ``"single_module"`` bypasses automatic selection and forces one module
+      unless the caller explicitly requests a module count.
+    """
+
+    strategy: SignalomeModuleSelectionStrategy = "correlation_thresholds"
+    primary_threshold: float = 0.5
+    fallback_threshold: float = 0.1
+    max_clusters: int = 10
+
+    def __post_init__(self) -> None:
+        validate_module_selection_strategy(self.strategy)
+        validate_fraction(self.primary_threshold, name="primary_threshold")
+        validate_fraction(self.fallback_threshold, name="fallback_threshold")
+        validate_positive_int(self.max_clusters, name="max_clusters")
+
+    @classmethod
+    def from_value(cls, value: object) -> SignalomeModuleSelectionPolicy:
+        if value is None:
+            return cls()
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, Mapping):
+            return cls(**dict(value))
+        msg = "module_selection_policy must be a SignalomeModuleSelectionPolicy or mapping"
+        raise TypeError(msg)
+
+
+DEFAULT_SIGNALOME_MODULE_SELECTION_POLICY = SignalomeModuleSelectionPolicy()
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeModuleSelectionDiagnostics:
+    """Structured explanation of how a signalome module count was chosen."""
+
+    strategy: SignalomeModuleSelectionStrategy
+    selected_module_count: int
+    requested_module_count: int | None
+    threshold_used: float | None
+    max_clusters_evaluated: int
+    candidate_scores: dict[int, ClusterCandidateScore]
+    reason: str
+
+    @property
+    def used_automatic_selection(self) -> bool:
+        return self.requested_module_count is None
+
+
+@dataclass(frozen=True, slots=True)
+class ClusterSitesResult:
+    """Cluster labels plus module-selection diagnostics."""
+
+    site_clusters: pd.Series
+    module_selection_diagnostics: SignalomeModuleSelectionDiagnostics
+
+
 def cluster_sites(
     *,
     scoring_matrix: pd.DataFrame,
     requested_module_count: int | None,
+    policy: SignalomeModuleSelectionPolicy | None = None,
 ) -> pd.Series:
     """Cluster phosphosites into signalome site clusters."""
 
+    return cluster_sites_with_diagnostics(
+        scoring_matrix=scoring_matrix,
+        requested_module_count=requested_module_count,
+        policy=policy,
+    ).site_clusters
+
+
+def cluster_sites_with_diagnostics(
+    *,
+    scoring_matrix: pd.DataFrame,
+    requested_module_count: int | None,
+    policy: SignalomeModuleSelectionPolicy | None = None,
+) -> ClusterSitesResult:
+    """Cluster phosphosites and capture how the module count was chosen."""
+
     n_sites = scoring_matrix.shape[0]
     if n_sites == 1:
-        return pd.Series(
-            [1], index=scoring_matrix.index, dtype=int, name="site_cluster"
+        diagnostics = SignalomeModuleSelectionDiagnostics(
+            strategy=(
+                DEFAULT_SIGNALOME_MODULE_SELECTION_POLICY.strategy
+                if policy is None
+                else policy.strategy
+            ),
+            selected_module_count=1,
+            requested_module_count=requested_module_count,
+            threshold_used=None,
+            max_clusters_evaluated=1,
+            candidate_scores={},
+            reason="single phosphosite input only supports one signalome module",
+        )
+        return ClusterSitesResult(
+            site_clusters=pd.Series(
+                [1], index=scoring_matrix.index, dtype=int, name="site_cluster"
+            ),
+            module_selection_diagnostics=diagnostics,
         )
 
     scoring_values = scoring_matrix.to_numpy(dtype=float)
-    module_count = (
-        requested_module_count
-        if requested_module_count is not None
-        else select_module_count(scoring_values)
+    diagnostics = select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+        requested_module_count=requested_module_count,
+        policy=policy,
     )
-    module_count = max(1, min(module_count, n_sites))
+    module_count = max(1, min(diagnostics.selected_module_count, n_sites))
 
     if module_count == 1:
         labels = np.ones(n_sites, dtype=int)
     else:
         labels = fit_cluster_labels(scoring_values, module_count) + 1
 
-    return pd.Series(labels, index=scoring_matrix.index, dtype=int, name="site_cluster")
+    return ClusterSitesResult(
+        site_clusters=pd.Series(
+            labels,
+            index=scoring_matrix.index,
+            dtype=int,
+            name="site_cluster",
+        ),
+        module_selection_diagnostics=diagnostics,
+    )
 
 
-def select_module_count(scoring_values: pd.DataFrame | np.ndarray) -> int:
+def select_module_count(
+    scoring_values: pd.DataFrame | np.ndarray,
+    *,
+    requested_module_count: int | None = None,
+    policy: SignalomeModuleSelectionPolicy | None = None,
+) -> int:
     """Choose a signalome module count from the scoring matrix."""
 
+    return select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+        requested_module_count=requested_module_count,
+        policy=policy,
+    ).selected_module_count
+
+
+def select_module_count_with_diagnostics(
+    *,
+    scoring_values: pd.DataFrame | np.ndarray,
+    requested_module_count: int | None = None,
+    policy: SignalomeModuleSelectionPolicy | None = None,
+) -> SignalomeModuleSelectionDiagnostics:
+    """Choose a module count and explain why that count was selected."""
+
+    resolved_policy = SignalomeModuleSelectionPolicy.from_value(policy)
     scoring_array = np.asarray(scoring_values, dtype=float)
     n_sites = scoring_array.shape[0]
     if n_sites <= 1:
-        return 1
+        return SignalomeModuleSelectionDiagnostics(
+            strategy=resolved_policy.strategy,
+            selected_module_count=1,
+            requested_module_count=requested_module_count,
+            threshold_used=None,
+            max_clusters_evaluated=1,
+            candidate_scores={},
+            reason="single phosphosite input only supports one signalome module",
+        )
 
-    max_clusters = min(10, n_sites)
+    if requested_module_count is not None:
+        resolved_count = max(1, min(int(requested_module_count), n_sites))
+        return SignalomeModuleSelectionDiagnostics(
+            strategy=resolved_policy.strategy,
+            selected_module_count=resolved_count,
+            requested_module_count=int(requested_module_count),
+            threshold_used=None,
+            max_clusters_evaluated=min(resolved_policy.max_clusters, n_sites),
+            candidate_scores={},
+            reason="module_count was provided explicitly by the caller",
+        )
+
+    if resolved_policy.strategy == "single_module":
+        return SignalomeModuleSelectionDiagnostics(
+            strategy=resolved_policy.strategy,
+            selected_module_count=1,
+            requested_module_count=None,
+            threshold_used=None,
+            max_clusters_evaluated=1,
+            candidate_scores={},
+            reason="module_selection_strategy='single_module' forces one module",
+        )
+
+    max_clusters = min(resolved_policy.max_clusters, n_sites)
     if max_clusters < 2:
-        return 1
+        return SignalomeModuleSelectionDiagnostics(
+            strategy=resolved_policy.strategy,
+            selected_module_count=1,
+            requested_module_count=None,
+            threshold_used=None,
+            max_clusters_evaluated=max_clusters,
+            candidate_scores={},
+            reason="fewer than two cluster counts are available for evaluation",
+        )
 
     site_correlations = np.corrcoef(scoring_array)
     candidate_scores = score_cluster_candidates(
@@ -66,14 +243,62 @@ def select_module_count(scoring_values: pd.DataFrame | np.ndarray) -> int:
         site_correlations=site_correlations,
         cluster_range=range(2, max_clusters + 1),
     )
+    primary_candidates = filter_cluster_candidates(
+        candidate_scores,
+        threshold=resolved_policy.primary_threshold,
+    )
+    if primary_candidates:
+        selected_count = max(
+            primary_candidates.items(),
+            key=lambda item: (item[1], -item[0]),
+        )[0]
+        return SignalomeModuleSelectionDiagnostics(
+            strategy=resolved_policy.strategy,
+            selected_module_count=selected_count,
+            requested_module_count=None,
+            threshold_used=resolved_policy.primary_threshold,
+            max_clusters_evaluated=max_clusters,
+            candidate_scores=candidate_scores,
+            reason=(
+                "selected the highest-scoring candidate that satisfied the "
+                "primary within-cluster correlation threshold"
+            ),
+        )
 
-    candidates = filter_cluster_candidates(candidate_scores, threshold=0.5)
-    if not candidates:
-        candidates = filter_cluster_candidates(candidate_scores, threshold=0.1)
-    if not candidates:
-        return 1
+    fallback_candidates = filter_cluster_candidates(
+        candidate_scores,
+        threshold=resolved_policy.fallback_threshold,
+    )
+    if fallback_candidates:
+        selected_count = max(
+            fallback_candidates.items(),
+            key=lambda item: (item[1], -item[0]),
+        )[0]
+        return SignalomeModuleSelectionDiagnostics(
+            strategy=resolved_policy.strategy,
+            selected_module_count=selected_count,
+            requested_module_count=None,
+            threshold_used=resolved_policy.fallback_threshold,
+            max_clusters_evaluated=max_clusters,
+            candidate_scores=candidate_scores,
+            reason=(
+                "no candidate satisfied the primary threshold; selected the "
+                "highest-scoring fallback candidate"
+            ),
+        )
 
-    return max(candidates.items(), key=lambda item: (item[1], -item[0]))[0]
+    return SignalomeModuleSelectionDiagnostics(
+        strategy=resolved_policy.strategy,
+        selected_module_count=1,
+        requested_module_count=None,
+        threshold_used=None,
+        max_clusters_evaluated=max_clusters,
+        candidate_scores=candidate_scores,
+        reason=(
+            "no candidate module count satisfied the configured correlation "
+            "thresholds, so the workflow fell back to one module"
+        ),
+    )
 
 
 def filter_cluster_candidates(

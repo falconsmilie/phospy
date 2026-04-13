@@ -19,7 +19,10 @@ from .assignments import (
     derive_protein_modules,
     select_kinase_substrates,
 )
-from .clustering import cluster_sites
+from .clustering import (
+    SignalomeModuleSelectionPolicy,
+    cluster_sites_with_diagnostics,
+)
 from .results import (
     SignalomeAssignments,
     SignalomeKinaseNetwork,
@@ -38,10 +41,12 @@ class SignalomeRunner:
         scoring_matrix = inputs.scoring_matrix
         pred_mat = inputs.pred_mat
         expression_matrix = inputs.expression_matrix
-        site_clusters = cluster_sites(
+        clustering_result = cluster_sites_with_diagnostics(
             scoring_matrix=scoring_matrix,
             requested_module_count=inputs.module_count,
+            policy=inputs.module_selection_policy,
         )
+        site_clusters = clustering_result.site_clusters
         protein_modules = derive_protein_modules(
             site_clusters=site_clusters,
             site_to_protein=inputs.site_to_protein,
@@ -99,6 +104,7 @@ class SignalomeRunner:
             network=network,
             kinase_substrate_map=selected_kinase_substrates,
             expanded_signalomes=expanded_signalomes,
+            module_selection_diagnostics=clustering_result.module_selection_diagnostics,
         )
 
 
@@ -119,6 +125,7 @@ def build_signalome_result(
     signalome_cutoff: float = 0.5,
     module_count: int | None = None,
     min_kinase_module_share_percent: float = 1.0,
+    module_selection_policy: SignalomeModuleSelectionPolicy | None = None,
 ) -> SignalomeResult:
     """Build a structured signalome result from validated aligned inputs."""
 
@@ -129,6 +136,7 @@ def build_signalome_result(
         signalome_cutoff=signalome_cutoff,
         module_count=module_count,
         min_kinase_module_share_percent=min_kinase_module_share_percent,
+        module_selection_policy=module_selection_policy,
     )
     inputs = SignalomeInputs.from_trusted_inputs(
         scoring_matrix=scoring_matrix,
@@ -140,6 +148,7 @@ def build_signalome_result(
         signalome_cutoff=request.signalome_cutoff,
         module_count=request.module_count,
         min_kinase_module_share_percent=request.min_kinase_module_share_percent,
+        module_selection_policy=request.module_selection_policy,
         scoring_context="scoring_matrix",
         pred_mat_context="pred_mat",
         expression_context="expression_matrix",

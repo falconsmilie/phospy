@@ -7,7 +7,7 @@ import pandas as pd
 
 from ..errors import TableSchemaError
 from ..internal.constants import CENTRALIZED_SEQUENCE_COLUMN, GENE_P_SITE_COLUMN
-from ..matrices import build_site_matrix, format_row_drop_diagnostics
+from ..matrices import SiteMatrixPolicy, build_site_matrix, format_row_drop_diagnostics
 from ..validation.schema.tables import SiteMatrixSchema
 
 
@@ -18,7 +18,7 @@ class SiteMatrixResult:
     phosr_input: pd.DataFrame
     matrix: pd.DataFrame
     sequences: pd.Series
-    row_drop_stats: dict[str, int]
+    row_drop_stats: dict[str, int | str]
 
 
 class SiteMatrixBuilder:
@@ -33,12 +33,14 @@ class SiteMatrixBuilder:
         *,
         gene_p_site_col: str = GENE_P_SITE_COLUMN,
         sequence_col: str = CENTRALIZED_SEQUENCE_COLUMN,
+        policy: SiteMatrixPolicy | None = None,
     ) -> SiteMatrixResult:
         phosr_input, matrix, sequences = build_site_matrix(
             df=corrected_df,
             gene_p_site_col=gene_p_site_col,
             sequence_col=sequence_col,
             value_cols=self.value_cols,
+            policy=policy,
         )
         row_drop_stats = dict(phosr_input.attrs.get("row_drop_stats", {}))
         if matrix.empty:

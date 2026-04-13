@@ -9,6 +9,7 @@ from pydantic import Field, ValidationError, field_validator, model_validator
 from ...errors import RequestValidationError
 from ...internal.types import PredictionSvmMode
 from ...motifs import KinaseMotifScorer
+from ...profiles import KinaseProfilePolicy
 from ...references import ReferenceBundle
 from ..compatibility import validate_workflow_matrix_inputs
 from ..domain import resolve_reference_bundle_inputs
@@ -36,6 +37,7 @@ class KinaseWorkflowRequest(PhospyRequestModel):
     n_iterations: int = Field(default=5, ge=1)
     random_state: int | None = None
     svm_mode: PredictionSvmMode | None = None
+    profile_policy: KinaseProfilePolicy = Field(default_factory=KinaseProfilePolicy)
 
     @field_validator("substrate_map", mode="before")
     @classmethod
@@ -73,6 +75,11 @@ class KinaseWorkflowRequest(PhospyRequestModel):
                 "allow_profile_only_fallback=True for profile-only prediction"
             ),
         )
+
+    @field_validator("profile_policy", mode="before")
+    @classmethod
+    def validate_profile_policy(cls, value: object) -> KinaseProfilePolicy:
+        return KinaseProfilePolicy.from_value(value)
 
     @model_validator(mode="after")
     def validate_cross_field_requirements(self) -> KinaseWorkflowRequest:
@@ -120,6 +127,7 @@ class WorkflowInputs:
     random_state: int | None
     svm_mode: PredictionSvmMode | None
     predictor_svm_mode: PredictionSvmMode
+    profile_policy: KinaseProfilePolicy
 
 
 def build_workflow_inputs(
@@ -168,6 +176,7 @@ def build_workflow_inputs(
         predictor_svm_mode=(
             default_svm_mode if request.svm_mode is None else request.svm_mode
         ),
+        profile_policy=request.profile_policy,
     )
 
 
@@ -188,6 +197,7 @@ def validate_workflow_request(
     n_iterations: int = 5,
     random_state: int | None = None,
     svm_mode: PredictionSvmMode | None = None,
+    profile_policy: KinaseProfilePolicy | None = None,
     flank_size: int = 7,
     default_svm_mode: PredictionSvmMode = "default",
     context: str = "Kinase workflow inputs",
@@ -214,6 +224,7 @@ def validate_workflow_request(
         n_iterations=n_iterations,
         random_state=random_state,
         svm_mode=svm_mode,
+        profile_policy=profile_policy,
     )
     return build_workflow_inputs(
         request,

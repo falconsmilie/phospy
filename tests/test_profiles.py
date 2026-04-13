@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.profiles import build_kinase_substrate_profiles
+from phospy.profiles import KinaseProfilePolicy, build_kinase_substrate_profiles
 
 
 def make_phospho_matrix() -> pd.DataFrame:
@@ -107,3 +107,19 @@ def test_build_kinase_substrate_profiles_uses_vectorized_median(
     )
 
     assert float(result.profile_matrix.loc["KINASE_A", "s1"]) == pytest.approx(2.0)
+
+
+def test_build_kinase_substrate_profiles_can_skip_missing_values_when_requested() -> (
+    None
+):
+    phospho_matrix = make_phospho_matrix()
+
+    result = build_kinase_substrate_profiles(
+        substrate_map={"KINASE_A": ["SITE_1", "SITE_2"]},
+        phospho_matrix=phospho_matrix,
+        policy=KinaseProfilePolicy(missing_value_strategy="median_skipna"),
+    )
+
+    assert float(result.profile_matrix.loc["KINASE_A", "s1"]) == pytest.approx(2.0)
+    assert float(result.profile_matrix.loc["KINASE_A", "s2"]) == pytest.approx(3.0)
+    assert float(result.profile_matrix.loc["KINASE_A", "s3"]) == pytest.approx(3.0)

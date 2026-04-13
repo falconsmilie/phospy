@@ -6,6 +6,7 @@ import pandas as pd
 
 from ..prediction.results import KinasePredictionResult, PredMatResult
 from ..prediction.scoring import KinaseScoringResult
+from ..signalomes import SignalomeModuleSelectionPolicy
 from ..signalomes.analysis import execute_signalome_inputs
 from ..signalomes.results import SignalomeResult
 from ..validation.requests.signalome import SignalomeInputs, validate_signalome_request
@@ -28,6 +29,7 @@ class SignalomeWorkflow:
         signalome_cutoff: float = 0.5,
         module_count: int | None = None,
         min_kinase_module_share_percent: float = 1.0,
+        module_selection_policy: SignalomeModuleSelectionPolicy | None = None,
     ) -> SignalomeInputs:
         return validate_signalome_request(
             scoring_result=scoring_result,
@@ -39,6 +41,7 @@ class SignalomeWorkflow:
             signalome_cutoff=signalome_cutoff,
             module_count=module_count,
             min_kinase_module_share_percent=min_kinase_module_share_percent,
+            module_selection_policy=module_selection_policy,
         )
 
     def run(
@@ -53,6 +56,7 @@ class SignalomeWorkflow:
         signalome_cutoff: float = 0.5,
         module_count: int | None = None,
         min_kinase_module_share_percent: float = 1.0,
+        module_selection_policy: SignalomeModuleSelectionPolicy | None = None,
     ) -> SignalomeResult:
         request = self._validate_request(
             scoring_result=scoring_result,
@@ -64,6 +68,7 @@ class SignalomeWorkflow:
             signalome_cutoff=signalome_cutoff,
             module_count=module_count,
             min_kinase_module_share_percent=min_kinase_module_share_percent,
+            module_selection_policy=module_selection_policy,
         )
         return self.run_validated(request)
 

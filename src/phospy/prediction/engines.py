@@ -14,7 +14,11 @@ from ..internal.types import (
     PredictionTraceLevel,
 )
 from ..motifs import MotifScoringResult
-from ..profiles import KinaseProfileResult, build_kinase_substrate_profiles
+from ..profiles import (
+    KinaseProfilePolicy,
+    KinaseProfileResult,
+    build_kinase_substrate_profiles,
+)
 from ..references import ReferenceBundle
 from ..validation.domain.prediction import validate_ensemble_predictor
 from ..validation.requests.prediction import PredictionRequest
@@ -351,6 +355,7 @@ class KinaseWorkflowExecutor:
         n_iterations: int = 5,
         random_state: int | None = None,
         svm_mode: PredictionSvmMode | None = None,
+        profile_policy: KinaseProfilePolicy | None = None,
     ) -> WorkflowInputs:
         return validate_workflow_request(
             phospho_matrix=phospho_matrix,
@@ -368,6 +373,7 @@ class KinaseWorkflowExecutor:
             n_iterations=n_iterations,
             random_state=random_state,
             svm_mode=svm_mode,
+            profile_policy=profile_policy,
             flank_size=self.flank_size,
             default_svm_mode=self.svm_mode,
         )
@@ -382,6 +388,7 @@ class KinaseWorkflowExecutor:
             substrate_map=request.substrate_map,
             phospho_matrix=phospho_matrix,
             min_substrates=request.min_substrates,
+            policy=request.profile_policy,
         )
 
         scorer = KinaseScorer(profile_result.profile_matrix)

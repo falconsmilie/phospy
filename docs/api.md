@@ -102,6 +102,9 @@ The main advanced entry points are:
 
 `PhosRPipeline` and `KinaseActivityAnalyzer` remain useful focused helpers, but they are not the new common end-to-end lane.
 
+
+Workflow requests also accept `profile_policy=KinaseProfilePolicy(...)` when you need to make the kinase-profile missing-value policy explicit. The default is `missing_value_strategy="propagate_any_missing"`.
+
 ## Shared Input Rules
 
 ### File formats
@@ -224,6 +227,8 @@ Rules:
 - `localization_threshold` and `max_unmatched_fraction` must be in `[0, 1]`
 - `min_observed` must be `>= 1`
 - `config` can replace the scalar arguments, but cannot be mixed with overridden scalar values
+- `config.site_matrix_policy` controls duplicate phosphosite collapse during site-matrix creation
+- the default duplicate-site policy is `SiteMatrixPolicy(duplicate_site_strategy="max_mean_signal")`
 - `max_unmatched_fraction=0.0` is strict mode and rejects silent row loss during protein correction
 
 Returns `CoreProcessingResult` with:
@@ -1086,3 +1091,17 @@ You will most often see:
 - [`parity.md`](parity.md) for parity scope and `svm_mode` guidance
 - [`../examples/predmat_workflow_demo.py`](../examples/predmat_workflow_demo.py) for a runnable `predMat` example
 - [`../examples/signalome_workflow_demo.py`](../examples/signalome_workflow_demo.py) for a runnable signalome example
+
+
+## Signalome module-selection policy
+
+`SignalomeWorkflow.run(...)` and `build_signalome_result(...)` accept:
+
+```python
+module_selection_policy: SignalomeModuleSelectionPolicy | None = None
+```
+
+The default is `SignalomeModuleSelectionPolicy(strategy="correlation_thresholds")`.
+`SignalomeResult.module_selection_diagnostics` explains how the automatic module
+count was chosen, including the applied threshold and the fallback reason when
+PhosPy selects a conservative single-module result.

@@ -15,7 +15,7 @@ from .core import (
 from .dataset import DatasetPreprocessing
 from .protein_correction import ProteinCorrectionResult, ProteinCorrectionSummary
 from .services import PhosphoPreprocessor, ProteinCorrectionService, TotalPreprocessor
-from .site_matrix import SiteMatrixBuilder, SiteMatrixResult
+from .site_matrix import SiteMatrixBuilder, SiteMatrixPolicy, SiteMatrixResult
 from .steps import (
     CoverageFilterResult,
     CoverageFilterSummary,
@@ -44,6 +44,7 @@ __all__ = [
     "ProteinCorrectionService",
     "ProteinCorrectionSummary",
     "SiteMatrixBuilder",
+    "SiteMatrixPolicy",
     "SiteMatrixResult",
     "TotalPreprocessor",
     "add_pairwise_comparisons",

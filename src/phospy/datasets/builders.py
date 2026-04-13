@@ -11,7 +11,11 @@ from ..internal.constants import (
     GENE_P_SITE_COLUMN,
     SITE_MATRIX_ID_COLUMN,
 )
-from ..preprocessing.site_matrix import SiteMatrixBuilder, SiteMatrixResult
+from ..preprocessing.site_matrix import (
+    SiteMatrixBuilder,
+    SiteMatrixPolicy,
+    SiteMatrixResult,
+)
 from .schema import DatasetSchema
 
 __all__ = ["DatasetSiteMatrix"]
@@ -32,11 +36,13 @@ class DatasetSiteMatrix:
         *,
         gene_p_site_col: str = GENE_P_SITE_COLUMN,
         sequence_col: str = CENTRALIZED_SEQUENCE_COLUMN,
+        policy: SiteMatrixPolicy | None = None,
     ) -> SiteMatrixResult:
         return self._builder().build(
             corrected_df,
             gene_p_site_col=gene_p_site_col,
             sequence_col=sequence_col,
+            policy=policy,
         )
 
 

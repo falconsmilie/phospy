@@ -8,6 +8,7 @@ import pandas as pd
 from pydantic import Field, ValidationError, field_validator
 
 from ...errors import RequestValidationError
+from ...signalomes.clustering import SignalomeModuleSelectionPolicy
 from ..compatibility import validate_signalome_alignment
 from ..domain import (
     resolve_scoring_matrix,
@@ -34,6 +35,9 @@ class SignalomeRequest(PhospyRequestModel):
     signalome_cutoff: float = Field(default=0.5, ge=0.0, le=1.0)
     module_count: int | None = Field(default=None, ge=1)
     min_kinase_module_share_percent: float = Field(default=1.0, ge=0.0)
+    module_selection_policy: SignalomeModuleSelectionPolicy = Field(
+        default_factory=SignalomeModuleSelectionPolicy
+    )
 
     @field_validator("kinases_of_interest", mode="before")
     @classmethod
@@ -59,6 +63,14 @@ class SignalomeRequest(PhospyRequestModel):
     ) -> dict[str, str] | None:
         return normalize_site_to_protein_mapping(value)
 
+    @field_validator("module_selection_policy", mode="before")
+    @classmethod
+    def normalize_module_selection_policy(
+        cls,
+        value: object,
+    ) -> SignalomeModuleSelectionPolicy:
+        return SignalomeModuleSelectionPolicy.from_value(value)
+
     @classmethod
     def validate_request(cls, **data: object) -> SignalomeRequest:
         try:
@@ -83,6 +95,7 @@ class SignalomeInputs:
     signalome_cutoff: float
     module_count: int | None
     min_kinase_module_share_percent: float
+    module_selection_policy: SignalomeModuleSelectionPolicy
 
     @classmethod
     def from_trusted_inputs(
@@ -97,6 +110,7 @@ class SignalomeInputs:
         signalome_cutoff: float,
         module_count: int | None,
         min_kinase_module_share_percent: float,
+        module_selection_policy: SignalomeModuleSelectionPolicy,
         scoring_context: str,
         pred_mat_context: str,
         expression_context: str,
@@ -132,6 +146,7 @@ class SignalomeInputs:
             signalome_cutoff=signalome_cutoff,
             module_count=module_count,
             min_kinase_module_share_percent=min_kinase_module_share_percent,
+            module_selection_policy=module_selection_policy,
         )
 
 
@@ -146,6 +161,7 @@ def validate_signalome_request(
     signalome_cutoff: float = 0.5,
     module_count: int | None = None,
     min_kinase_module_share_percent: float = 1.0,
+    module_selection_policy: SignalomeModuleSelectionPolicy | None = None,
 ) -> SignalomeInputs:
     """Validate raw signalome inputs and return trusted aligned inputs."""
 
@@ -156,6 +172,7 @@ def validate_signalome_request(
         signalome_cutoff=signalome_cutoff,
         module_count=module_count,
         min_kinase_module_share_percent=min_kinase_module_share_percent,
+        module_selection_policy=module_selection_policy,
     )
 
     return SignalomeInputs.from_trusted_inputs(
@@ -168,6 +185,7 @@ def validate_signalome_request(
         signalome_cutoff=request.signalome_cutoff,
         module_count=request.module_count,
         min_kinase_module_share_percent=request.min_kinase_module_share_percent,
+        module_selection_policy=request.module_selection_policy,
         scoring_context="scoring_result",
         pred_mat_context="prediction_result",
         expression_context="expression_matrix",
