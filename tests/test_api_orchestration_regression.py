@@ -191,6 +191,12 @@ def test_pred_mat_workflow_run_delegates_to_prediction_executor(
     assert calls[1] == ("execute", request)
 
 
+def test_kinase_workflow_classes_share_internal_request_path() -> None:
+    assert KinaseWorkflow.run is PredMatWorkflow.run
+    assert KinaseWorkflow.run_validated is PredMatWorkflow.run_validated
+    assert KinaseWorkflow._validate_request is PredMatWorkflow._validate_request
+
+
 def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
     phospho = pd.DataFrame({"uid": ["u1"], "gene_names": ["PRKACA"]})
     total = pd.DataFrame({"genes": ["PRKACA"]})
