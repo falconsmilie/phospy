@@ -1,4 +1,4 @@
-# ADR 0001: Data ownership and mutability policy
+# ADR 0001: Data Ownership and Mutability Policy
 
 - Status: Accepted
 - Date: 2026-04-04
@@ -26,7 +26,7 @@ This confusion also affects:
 
 PhosPy adopts the following data ownership and mutability policy.
 
-### 1. Configuration objects and small value records should be immutable
+### 1. Configuration Objects and Small Value Records Should Be Immutable
 
 Objects that represent execution options or small metadata without owning pandas
 tables should be immutable value objects where practical.
@@ -35,7 +35,7 @@ Validated request bundles that carry pandas tables are different: they are
 trusted boundary bundles by convention, but they are not truly immutable value
 objects just because they wrap mutable pandas state.
 
-### 2. DataFrame-carrying workspace objects are mutable
+### 2. DataFrame-Carrying Workspace Objects Are Mutable
 
 Objects that own pandas `DataFrame` instances used for active processing are mutable
 workspace objects, not immutable snapshots.
@@ -46,7 +46,7 @@ Examples include:
 - preprocessing workspaces
 - other internal processing objects that own working tabular state
 
-### 3. Ownership transfers at construction and other boundary points
+### 3. Ownership Transfers at Construction and Other Boundary Points
 
 When caller-supplied pandas tables enter trusted application state, PhosPy should make the
 ownership transfer explicit at the construction or validation boundary.
@@ -56,7 +56,7 @@ ownership by isolating itself from caller-managed frames once at construction ti
 After that boundary, internal code should treat the resulting tables as owned application
 state.
 
-### 4. Copy once when taking ownership
+### 4. Copy Once When Taking Ownership
 
 PhosPy should copy external caller-owned tables when ownership transfer requires isolation.
 It should not repeatedly copy the same tables inside already trusted internal flows.
@@ -73,13 +73,13 @@ In practice this means:
 - internal numeric-normalisation paths should prefer no-copy coercion when they only
   need a typed view over already-owned trusted tables
 
-### 5. Snapshots must be explicit
+### 5. Snapshots Must Be Explicit
 
 When an API returns a detached copy for caller-owned mutation or inspection, that must be an
 explicit operation. Snapshots should never be implied accidentally by vague naming or by a
 class presenting itself as immutable when it is not.
 
-### 6. Result bundles are detached snapshot-style outputs
+### 6. Result Bundles Are Detached Snapshot-Style Outputs
 
 Public result bundles such as analysis, scoring, pipeline, workflow, and prediction results
 should be treated as detached snapshot-style outputs. Their tables and series are produced
@@ -108,7 +108,7 @@ Trade-offs:
 - APIs that expose owned frames must say so plainly
 - tests should pin aliasing and ownership-transfer behaviour directly
 
-## Current application to `PhosphoDataset`
+## Current Application to `PhosphoDataset`
 
 `PhosphoDataset` should be understood as an owner of mutable tabular state.
 
@@ -122,14 +122,14 @@ In other words, `PhosphoDataset` is a mutable workspace owner, not an immutable 
 Follow-on refactors should keep making that contract clearer in the API itself, especially
 around how callers choose between explicit live-access paths and explicit copies.
 
-## Current application to result bundles
+## Current Application to Result Bundles
 
 The main public result objects in analysis, profiling, scoring, pipeline execution, workflow
 runs, and prediction should be understood as detached snapshot-style outputs. They expose the
 produced tables directly, but those tables are not intended to share state with the mutable
 ``PhosphoDataset`` workspace or predictor runtime internals.
 
-## Follow-on work
+## Follow-On Work
 
 Future tickets should align naming and access patterns with this policy by:
 

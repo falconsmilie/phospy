@@ -1,17 +1,17 @@
-# Root package migration map for ADR-0004
+# Root Package Migration Map for ADR 0004
 
-This document is the historical migration record for the ADR-0004 domain
+This document is the historical migration record for the ADR 0004 domain
 refactor. For the current contributor-facing package layout, use
 [`docs/architecture/package-layout.md`](./package-layout.md).
 
-## Goals of ticket 1
+## Goals of Ticket 1
 
 - create the target top-level package skeleton
 - make package ownership explicit with package-level docstrings
 - map the current flat root modules into target domain packages
 - identify the files that must be split rather than moved intact
 
-## Top-level package responsibilities
+## Top-Level Package Responsibilities
 
 | Package | Responsibility |
 | --- | --- |
@@ -27,7 +27,7 @@ refactor. For the current contributor-facing package layout, use
 | `phospy.errors` | Shared non-validation application error hierarchy as it is extracted from existing modules |
 | `phospy.internal` | Truly internal support code only |
 
-## Current root module migration map
+## Current Root Module Migration Map
 
 | Current module or path | Target module or package | Action | Notes |
 | --- | --- | --- | --- |
@@ -73,7 +73,7 @@ refactor. For the current contributor-facing package layout, use
 | `src/phospy/validation/` | `src/phospy/validation/` | Keep and continue refining | The validation refactor already established the right top-level direction; shared validation error classes now live under `phospy.errors` |
 | `src/phospy/data/` | `src/phospy/references/assets/` | Move later | Bundled biological reference assets should sit with the references domain |
 
-## Worst mixed-responsibility files that must be split
+## Worst Mixed-Responsibility Files That Must Be Split
 
 These files should not be relocated intact.
 
@@ -90,7 +90,7 @@ These files should not be relocated intact.
   - mixes a dataset-bound façade with site-matrix building that belongs to preprocessing
   - should be split so site-matrix process logic lives under `preprocessing/`
 
-## Notes for follow-up tickets
+## Notes for Follow-Up Tickets
 
 - Ticket 2 moved the supported public workflows into `src/phospy/api/` workflow modules without adding compatibility shims.
 - The package skeleton is now in place so later tickets can move domain code into its long-term home incrementally.
@@ -98,7 +98,7 @@ These files should not be relocated intact.
 
 - Ticket 4 centralised the preprocessing implementation under `src/phospy/preprocessing/`, removed the flat preprocessing modules, and introduced explicit full-mode and phospho-only analysis-ready preprocessing paths used by the public workflow surface.
 
-## Final status
+## Final Status
 
 The domain refactor is complete enough that this document should be treated as
 historical context rather than the main contributor guide. The current package

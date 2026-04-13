@@ -1,4 +1,4 @@
-# ADR 0002: Public support decision for the `r_parity` preset
+# ADR 0002: Public Support Decision for the `r_parity` Preset
 
 - Status: Accepted
 - Date: 2026-04-09
@@ -53,7 +53,7 @@ It exists for users and maintainers who need the closest supported alignment to 
 protected learner, sampling, replay, and final-scoring contracts covered by the parity
 fixtures. It is not a claim of full package equivalence to `PhosR`.
 
-### 3. Benchmark evidence reviewed
+### 3. Benchmark Evidence Reviewed
 
 The decision is grounded in the benchmark harness and the existing parity test suite.
 The reviewed evidence source is the generated report from:
@@ -77,7 +77,7 @@ The protected metric classes include:
 - exact public workflow benchmark equality
 - wall-clock runtime
 
-### 4. Runtime trade-off
+### 4. Runtime Trade-Off
 
 A separate public preset is only justified if its parity benefit is real enough to offset
 its additional review and maintenance cost.
@@ -88,7 +88,7 @@ PhosPy therefore accepts that `r_parity` may be slower than `default`, provided 
 - the public workflow benchmarks still pass
 - the extra preset remains narrowly documented and fixture-backed
 
-### 5. Threshold for keeping a separate public preset
+### 5. Threshold for Keeping a Separate Public Preset
 
 `r_parity` remains public only while all of the following stay true:
 
@@ -102,7 +102,7 @@ PhosPy therefore accepts that `r_parity` may be slower than `default`, provided 
 If future benchmark evidence no longer shows a meaningful parity benefit, the project
 should demote or remove `r_parity` rather than keeping a second preset by inertia.
 
-### 6. Support expectation going forward
+### 6. Support Expectation Going Forward
 
 `r_parity` is a supported secondary preset, not the recommended default.
 
@@ -127,6 +127,6 @@ Trade-offs:
 - public docs must continue to explain that `r_parity` is narrow and evidence-driven
 - future refactors must preserve benchmarkability, not just test pass/fail behaviour
 
-## Follow-on work
+## Follow-On Work
 
 - remove `r_parity` if future evidence no longer justifies public support

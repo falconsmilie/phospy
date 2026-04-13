@@ -1,4 +1,4 @@
-# ADR-0004: Reorganise `src/phospy/` by domain capability and process
+# ADR 0004: Reorganise `src/phospy/` by Domain Capability and Process
 
 - **Status:** Proposed
 - **Date:** 2026-04-10
@@ -191,7 +191,7 @@ supported public surface.
 
 This package must remain narrow. It must not become a replacement dumping ground for miscellaneous logic.
 
-## Decision rules
+## Decision Rules
 
 The following rules will govern the reorganisation.
 
@@ -232,14 +232,14 @@ of prediction. Treating them as a distinct domain makes that relationship explic
 Creating an `api/` package also makes the supported user-facing surface easier to define. This helps distinguish between
 stable entry points and internal composition code.
 
-## Alternatives considered
+## Alternatives Considered
 
-### Keep the current flat root structure
+### Keep the Current Flat Root Structure
 
 This was rejected because the current layout is already showing the same symptoms previously seen in the validation
 layer: broad modules, unclear ownership, and growing review complexity.
 
-### Reorganise by technical layer
+### Reorganise by Technical Layer
 
 An alternative would be to structure the application using packages such as `models/`, `services/`, `managers/`, or
 `utils/`.
@@ -247,7 +247,7 @@ An alternative would be to structure the application using packages such as `mod
 This was rejected because those package names do not describe PhosPy’s product capabilities. In practice, they tend to
 become dumping grounds and make it harder, not easier, to understand where functionality belongs.
 
-### Reorganise by workflows only
+### Reorganise by Workflows Only
 
 Another alternative would be to keep the root structure mostly flat and group modules around specific workflows.
 
@@ -257,7 +257,7 @@ Organising by workflows would also risk repeating the same over-coupling problem
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - The package structure will better reflect the actual capabilities of the application.
 - Contributors will be able to navigate by domain and process more quickly.
@@ -266,7 +266,7 @@ Organising by workflows would also risk repeating the same over-coupling problem
 - Future growth will be less likely to recreate root-level dumping grounds.
 - The public API surface will be easier to define and protect.
 
-### Negative consequences
+### Negative Consequences
 
 - The refactor will touch a large number of imports.
 - Some files will need to be split rather than simply moved, which increases the size of the change.
@@ -281,7 +281,7 @@ and process.
 This ADR does not define the exact implementation of every moved module. It sets the target architecture and package
 responsibilities that subsequent tickets must follow.
 
-## Out of scope
+## Out of Scope
 
 The following are out of scope for this ADR:
 
@@ -290,7 +290,7 @@ The following are out of scope for this ADR:
 - eliminating all compatibility imports in one step
 - introducing new public workflows purely as part of the package move
 
-## Implementation notes
+## Implementation Notes
 
 Implementation should proceed incrementally rather than as one uncontrolled rename.
 
@@ -305,7 +305,7 @@ A sensible order is:
 Particular care should be taken with current orchestration-heavy modules so that the refactor improves boundaries rather
 than simply moving existing coupling into new folders.
 
-## Outcome sought
+## Outcome Sought
 
 The intended outcome is that `src/phospy/` becomes readable as a product architecture:
 

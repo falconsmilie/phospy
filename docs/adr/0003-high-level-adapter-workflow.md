@@ -1,4 +1,4 @@
-# ADR 0003: High-level adapter workflow for kinase inference
+# ADR 0003: High-Level Adapter Workflow for Kinase Inference
 
 - Status: Proposed
 - Date: 2026-04-10
@@ -116,7 +116,7 @@ Trade-offs:
 - the adapter must stay narrow enough to avoid becoming a god interface
 - some messy biological inputs will still require explicit user decisions
 
-## Scope boundaries
+## Scope Boundaries
 
 This decision does not remove the existing low-level workflow APIs.
 
@@ -133,7 +133,7 @@ This decision also does not require PhosPy to solve every raw import problem
 immediately. The adapter should cover the common phosphosite-to-workflow path first.
 Support for additional import styles can be added later through explicit adapters.
 
-## Follow-on work
+## Follow-On Work
 
 - define `AnalysisReadyPhosphoDataset`
 - define `ReferenceProvider` and a first reference bundle contract

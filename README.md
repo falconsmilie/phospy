@@ -1,16 +1,16 @@
 # PhosPy
 
-PhosPy is a focused Python library for selected phosphoproteomics workflows inspired by `PhosR`.
+PhosPy is a focused Python library for a small, supported set of phosphoproteomics workflows inspired by `PhosR`.
 
-It is built for a small set of jobs:
+It helps you do five things:
 
 - preprocess total and phospho tables
 - analyse kinase activity from an existing `predMat`
 - generate a `predMat` from phosphosite inputs
 - run the native Python kinase workflow
-- construct signalomes from scoring and prediction outputs
+- build downstream signalome outputs
 
-PhosPy is intentionally narrow. It is not a full `PhosR` replacement.
+PhosPy is intentionally narrow. It is **not** a full `PhosR` replacement.
 
 ## Install
 
@@ -26,21 +26,15 @@ For parquet output:
 pip install "phospy[parquet]"
 ```
 
-The examples below use repository paths such as `examples/data/...`. If you installed from PyPI, use your own local paths instead.
+Repository examples use paths like `examples/data/...`. If you installed from PyPI, point those examples at your own files instead.
 
-## Two Supported Workflow Lanes
+## Start Here
 
-### Simple lane: `SimpleKinaseWorkflow`
+Pick the lane that matches your job.
 
-Start here for the common end-to-end path.
+### Common Lane: `SimpleKinaseWorkflow`
 
-Use `SimpleKinaseWorkflow` when you already have a phospho table, know the species, and want PhosPy to handle:
-
-- preprocessing
-- the analysis-ready phosphosite boundary
-- bundled kinase reference resolution
-- `predMat` generation
-- kinase activity analysis
+Use this when you already have a phospho table, know the species, and want one supported end-to-end entry point.
 
 ```python
 from phospy.api import SimpleKinaseWorkflow
@@ -56,45 +50,53 @@ pred_mat = result.pred_mat_result.to_frame()
 weighted_activity = result.kinase_activity_result.weighted_activity
 ```
 
-Use this lane when you want the shortest supported public path.
+This lane handles:
 
-Today, the bundled reference lane is intentionally narrow:
+- preprocessing
+- the analysis-ready phosphosite boundary
+- bundled reference resolution
+- `predMat` generation
+- kinase activity analysis
 
-- species: `rat`
-- references: `auto`, `l6`, `l6_native`
+Today, the bundled reference lane is intentionally small:
+
+- supported species: `rat`
+- supported references: `auto`, `l6`, `l6_native`
 - `auto` currently resolves to `l6_native`
 
-A runnable repository example lives in [`examples/simple_workflow_demo.py`](examples/simple_workflow_demo.py).
+Runnable example: [`examples/simple_workflow_demo.py`](examples/simple_workflow_demo.py)
 
-### Advanced lane: native workflow pieces
+### Advanced Lane: Native Workflow Pieces
 
-Use the advanced lane when you need explicit control over workflow-shaped inputs or intermediate results.
-
-This is the right lane when you need to manage any of the following directly:
+Use this when you need direct control over workflow-shaped inputs such as:
 
 - `site_sequences`
 - `substrate_map`
 - `motif_sequences`
 - `ReferenceBundle`
 - intermediate scoring and prediction outputs
-- downstream signalome construction
+- signalome construction
 
-The main advanced entry points are:
+Main entry points:
 
-- `PhosphoDataset` for validated input ownership and preprocessing
-- `AnalysisReadyPhosphoDataset` for the preprocessing-to-inference boundary
-- `ReferenceBundle` and `ReferenceProvider` for kinase-prior resolution
-- `PredMatWorkflow` for `predMat` generation
-- `KinaseWorkflow` for the fuller native scoring and prediction path
-- `SignalomeWorkflow` for downstream signalome construction
+- `PhosphoDataset`
+- `AnalysisReadyPhosphoDataset`
+- `ReferenceBundle`
+- `PredMatWorkflow`
+- `KinaseWorkflow`
+- `SignalomeWorkflow`
 
-A runnable repository example lives in [`examples/native_workflow_demo.py`](examples/native_workflow_demo.py).
+Runnable examples:
 
-## Other Supported Entry Points
+- [`examples/native_workflow_demo.py`](examples/native_workflow_demo.py)
+- [`examples/predmat_workflow_demo.py`](examples/predmat_workflow_demo.py)
+- [`examples/signalome_workflow_demo.py`](examples/signalome_workflow_demo.py)
+
+## Other Useful Entry Points
 
 ### `PhosphoDataset`
 
-Use `PhosphoDataset` when you want validated total and phospho inputs plus the standard preprocessing flow.
+Use this when you want validated total and phospho inputs plus the standard preprocessing flow.
 
 ```python
 from phospy.datasets import PhosphoDataset
@@ -115,7 +117,7 @@ corrected = core.phospho_corrected
 
 ### `KinaseActivityAnalyzer`
 
-Use `KinaseActivityAnalyzer` when you already have a phosphosite matrix and a `predMat`.
+Use this when you already have a phosphosite matrix and a `predMat`.
 
 ```python
 from phospy.activities import KinaseActivityAnalyzer
@@ -136,15 +138,13 @@ result = analyzer.run(
     min_substrates=1,
     top_n_substrates=1,
 )
-
-ksea_scores = result.ksea_scores
 ```
 
 The bundled example data is tiny, so it uses `min_substrates=1` and `top_n_substrates=1`.
 
 ### `PhosRPipeline`
 
-Use `PhosRPipeline` when you want file loading, preprocessing, optional kinase analysis, and output publishing in one call.
+Use this when you want file loading, preprocessing, optional kinase analysis, and output publishing in one call.
 
 ```python
 from phospy.pipeline import PhosRPipeline
@@ -162,84 +162,7 @@ pipeline = PhosRPipeline.from_files(
 outputs = pipeline.run(outdir="examples/output")
 ```
 
-When `outdir` is set, the pipeline writes the core outputs, any kinase-analysis outputs, and `run_manifest.json`.
-
-### `PredMatWorkflow`
-
-Use `PredMatWorkflow` when your goal is to generate a `predMat` from phosphosite inputs and you want direct control over the workflow boundary.
-
-```python
-import json
-from pathlib import Path
-
-import pandas as pd
-
-from phospy.api import PredMatWorkflow
-
-phospho_matrix = pd.read_csv("examples/data/predmat_phospho_matrix.csv", index_col=0)
-site_sequences = json.loads(Path("examples/data/predmat_site_sequences.json").read_text())
-substrate_map = json.loads(Path("examples/data/predmat_substrate_map.json").read_text())
-motif_sequences = json.loads(Path("examples/data/predmat_motif_sequences.json").read_text())
-
-workflow = PredMatWorkflow(flank_size=2, svm_mode="default")
-result = workflow.run(
-    phospho_matrix=phospho_matrix,
-    substrate_map=substrate_map,
-    site_sequences=site_sequences,
-    motif_sequences=motif_sequences,
-    min_substrates=2,
-    min_motif_size=2,
-    ensemble_size=3,
-    top=4,
-    score_threshold=0.75,
-    inclusion=3,
-    n_iterations=2,
-    random_state=17,
-)
-
-pred_mat = result.pred_mat_result.to_frame(copy=False)
-result.pred_mat_result.to_csv("predMat.csv")
-```
-
-Use `svm_mode="default"` for the recommended stable native path. Use `svm_mode="r_parity"` when you want the supported parity-oriented learner, sampling, and final-scoring preset for parity-sensitive comparisons.
-
-When thresholds are too strict and no kinase candidates qualify, PhosPy raises `NoCandidateKinasesError` instead of returning an empty invalid `predMat`.
-
-A runnable repository example lives in [`examples/predmat_workflow_demo.py`](examples/predmat_workflow_demo.py).
-
-### `KinaseWorkflow`
-
-Use `KinaseWorkflow` when you want the fuller native Python scoring and prediction workflow, including intermediate profile and motif scoring outputs.
-
-From a repository checkout:
-
-```bash
-python examples/native_workflow_demo.py
-```
-
-### `SignalomeWorkflow`
-
-Use `SignalomeWorkflow` when you already have scoring and prediction outputs and want downstream signalome, map-ready, and network-ready outputs.
-
-```python
-from phospy.api import PredMatWorkflow, SignalomeWorkflow
-
-pred_mat_result = PredMatWorkflow(flank_size=2, svm_mode="default").run(...)
-signalome_result = SignalomeWorkflow().run(
-    scoring_result=pred_mat_result.scoring_result,
-    prediction_result=pred_mat_result.prediction_result,
-    expression_matrix=phospho_matrix,
-    kinases_of_interest=["KINASE_A", "KINASE_B"],
-    signalome_cutoff=0.5,
-)
-
-map_data = signalome_result.to_map_data()
-network_data = signalome_result.to_network_data()
-```
-
-Use `signalome_result.to_csv(...)`, `map_data.to_csv(...)`, and `network_data.to_csv(...)` when you want exportable tables.
-
-A runnable repository example lives in [`examples/signalome_workflow_demo.py`](examples/signalome_workflow_demo.py).
+When `outdir` is set, the pipeline writes core outputs, optional kinase-analysis outputs, and `run_manifest.json`.
 
 ## File Inputs
 
@@ -249,11 +172,11 @@ PhosPy works with:
 - phospho input as TSV
 - `predMat` as CSV, with the first column used as the phosphosite index
 
-For the default table schema and method-level validation rules, see [`docs/api.md`](docs/api.md) and [`docs/validation.md`](docs/validation.md).
+For required columns and common validation rules, see [`docs/validation.md`](docs/validation.md).
 
 ## CLI
 
-PhosPy also ships with a small CLI for the file-based preprocessing path and optional `predMat` analysis.
+PhosPy also ships with a small CLI for file-based preprocessing and optional `predMat` analysis.
 
 ```bash
 phospy \
@@ -267,7 +190,8 @@ phospy \
 
 ## Read Next
 
-- [`docs/api.md`](docs/api.md) for the public Python API and the simple versus advanced lane split
-- [`docs/validation.md`](docs/validation.md) for the validation checklist
-- [`docs/parity.md`](docs/parity.md) for parity scope, supported prediction modes, and release thresholds
+- [`docs/api.md`](docs/api.md) for the supported Python API
+- [`docs/validation.md`](docs/validation.md) for input rules and common failures
+- [`docs/parity.md`](docs/parity.md) for parity scope and `svm_mode`
 - [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace rebuild commands
+- [`docs/architecture/package-layout.md`](docs/architecture/package-layout.md) for the contributor-facing package layout
