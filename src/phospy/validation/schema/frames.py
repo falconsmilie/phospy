@@ -120,10 +120,17 @@ def coerce_numeric_columns(
     *,
     columns: Sequence[str],
     context: str,
+    copy_frame: bool = True,
 ) -> pd.DataFrame:
-    """Return a copied frame with the selected columns coerced to numeric."""
+    """Return a numeric frame, copying only when taking external ownership.
 
-    validated = frame.copy()
+    External validation boundaries should keep the default ``copy_frame=True`` so
+    callers retain isolation from later mutation. Internal trusted flows may pass
+    ``copy_frame=False`` when they already own the frame and want in-place numeric
+    coercion instead of another full-frame copy.
+    """
+
+    validated = frame.copy(deep=True) if copy_frame else frame
     failures: list[str] = []
     for column in columns:
         converted = pd.to_numeric(validated[column], errors="coerce")

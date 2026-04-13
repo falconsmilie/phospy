@@ -105,7 +105,7 @@ class AnalysisReadyPreprocessingProvenance:
 class AnalysisReadyPhosphoDataset:
     """Owned analysis-ready phosphosite state between preprocessing and inference.
 
-    This immutable boundary object carries the minimum phosphosite state needed
+    This owned boundary object carries the minimum phosphosite state needed
     after preprocessing and before workflow-specific kinase inputs are resolved.
     It intentionally separates:
 
@@ -133,27 +133,70 @@ class AnalysisReadyPhosphoDataset:
     ) -> None:
         """Create an owned analysis-ready dataset from caller-supplied inputs.
 
-        The constructor is an explicit ownership boundary: all pandas inputs are
-        deep-copied before alignment validation so later caller mutation cannot
-        affect the stored analysis-ready state.
+        The constructor is the external ownership boundary. It defensively
+        deep-copies caller-managed pandas inputs once, then delegates to the
+        owned fast path used by internal preprocessing results.
         """
 
-        owned_phospho_matrix = phospho_matrix.copy(deep=True)
-        owned_site_metadata = site_metadata.copy(deep=True)
-        owned_site_sequences = site_sequences.copy(deep=True)
-        owned_phospho_corrected = phospho_corrected.copy(deep=True)
+        owned = self.from_external(
+            phospho_matrix=phospho_matrix,
+            site_metadata=site_metadata,
+            site_sequences=site_sequences,
+            phospho_corrected=phospho_corrected,
+            provenance=provenance,
+        )
+        self.phospho_matrix = owned.phospho_matrix
+        self.site_metadata = owned.site_metadata
+        self.site_sequences = owned.site_sequences
+        self.phospho_corrected = owned.phospho_corrected
+        self.provenance = owned.provenance
 
-        _validate_analysis_ready_alignment(
-            phospho_matrix=owned_phospho_matrix,
-            site_metadata=owned_site_metadata,
-            site_sequences=owned_site_sequences,
+    @classmethod
+    def from_external(
+        cls,
+        *,
+        phospho_matrix: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        site_sequences: pd.Series,
+        phospho_corrected: pd.DataFrame,
+        provenance: AnalysisReadyPreprocessingProvenance,
+    ) -> AnalysisReadyPhosphoDataset:
+        """Create an analysis-ready dataset by taking ownership of external inputs.
+
+        This boundary isolates stored state from later caller mutation by copying
+        each pandas object once.
+        """
+        return cls.from_owned(
+            phospho_matrix=phospho_matrix.copy(deep=True),
+            site_metadata=site_metadata.copy(deep=True),
+            site_sequences=site_sequences.copy(deep=True),
+            phospho_corrected=phospho_corrected.copy(deep=True),
+            provenance=provenance,
         )
 
-        self.phospho_matrix = owned_phospho_matrix
-        self.site_metadata = owned_site_metadata
-        self.site_sequences = owned_site_sequences
-        self.phospho_corrected = owned_phospho_corrected
-        self.provenance = provenance
+    @classmethod
+    def from_owned(
+        cls,
+        *,
+        phospho_matrix: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        site_sequences: pd.Series,
+        phospho_corrected: pd.DataFrame,
+        provenance: AnalysisReadyPreprocessingProvenance,
+    ) -> AnalysisReadyPhosphoDataset:
+        """Create an analysis-ready dataset from already-owned aligned tables."""
+        _validate_analysis_ready_alignment(
+            phospho_matrix=phospho_matrix,
+            site_metadata=site_metadata,
+            site_sequences=site_sequences,
+        )
+        instance = cls.__new__(cls)
+        instance.phospho_matrix = phospho_matrix
+        instance.site_metadata = site_metadata
+        instance.site_sequences = site_sequences
+        instance.phospho_corrected = phospho_corrected
+        instance.provenance = provenance
+        return instance
 
     @classmethod
     def from_core_processing_result(
@@ -195,7 +238,7 @@ class AnalysisReadyPhosphoDataset:
                 result.site_matrix.row_drop_stats
             ),
         )
-        return cls(
+        return cls.from_owned(
             phospho_matrix=result.site_matrix.matrix,
             site_metadata=site_metadata,
             site_sequences=result.site_matrix.sequences,

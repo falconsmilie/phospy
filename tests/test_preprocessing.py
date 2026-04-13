@@ -14,6 +14,8 @@ from phospy.errors import (
     TableSchemaError,
 )
 from phospy.preprocessing import (
+    CorePreprocessingConfig,
+    CoreProcessor,
     CoverageFilterResult,
     DatasetPreprocessing,
     LocalizationFilterResult,
@@ -737,6 +739,139 @@ def test_protein_correction_service_applies_correction_and_pairwise_augmentation
 
     assert corrected["phospho_corrected_1"].iloc[0] == 7.0
     assert with_comparisons["p_group1_group4"].iloc[0] == 3.0
+
+
+def test_core_processor_process_copies_once_and_then_uses_owned_fast_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.preprocessing.core as preprocessing_core_module
+
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA", "BTK"],
+            "group1": [1.0, 2.0],
+            "group2": [1.0, 2.0],
+            "group3": [1.0, 2.0],
+            "group4": [1.0, 2.0],
+            "group5": [1.0, 2.0],
+            "group6": [1.0, 2.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1", "u2"],
+            "gene_names": ["PRKACA", "BTK"],
+            "gene_p_site": ["PRKACA_S339", "BTK_Y551"],
+            "sequence": ["AAAAAA", "BBBBBB"],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "localization_prob": [0.95, 0.95],
+            "p_group1": [8.0, 6.0],
+            "p_group2": [7.0, 5.0],
+            "p_group3": [6.0, 4.0],
+            "p_group4": [5.0, 3.0],
+            "p_group5": [4.0, 2.0],
+            "p_group6": [3.0, 1.0],
+        }
+    )
+    original_total = total_df.copy(deep=True)
+    original_phospho = phospho_df.copy(deep=True)
+
+    total_prepare_called = 0
+    phospho_prepare_called = 0
+    correction_called = 0
+    site_matrix_build_called = 0
+
+    original_total_prepare_owned = (
+        preprocessing_core_module.TotalPreprocessor.prepare_owned
+    )
+    original_phospho_prepare_owned = (
+        preprocessing_core_module.PhosphoPreprocessor.prepare_owned
+    )
+    original_correct_owned = (
+        preprocessing_core_module.ProteinCorrectionService.correct_owned
+    )
+    original_site_matrix_build_owned = (
+        preprocessing_core_module.SiteMatrixBuilder.build_owned
+    )
+
+    def fail_total_prepare(*args, **kwargs):
+        raise AssertionError("CoreProcessor.process() should use prepare_owned().")
+
+    def fail_phospho_prepare(*args, **kwargs):
+        raise AssertionError("CoreProcessor.process() should use prepare_owned().")
+
+    def count_total_prepare_owned(self, *args, **kwargs):
+        nonlocal total_prepare_called
+        total_prepare_called += 1
+        return original_total_prepare_owned(self, *args, **kwargs)
+
+    def count_phospho_prepare_owned(self, *args, **kwargs):
+        nonlocal phospho_prepare_called
+        phospho_prepare_called += 1
+        return original_phospho_prepare_owned(self, *args, **kwargs)
+
+    def fail_correction(*args, **kwargs):
+        raise AssertionError("CoreProcessor.process() should use correct_owned().")
+
+    def count_correct_owned(self, *args, **kwargs):
+        nonlocal correction_called
+        correction_called += 1
+        return original_correct_owned(self, *args, **kwargs)
+
+    def fail_site_matrix_build(*args, **kwargs):
+        raise AssertionError("CoreProcessor.process() should use build_owned().")
+
+    def count_site_matrix_build_owned(self, *args, **kwargs):
+        nonlocal site_matrix_build_called
+        site_matrix_build_called += 1
+        return original_site_matrix_build_owned(self, *args, **kwargs)
+
+    monkeypatch.setattr(
+        preprocessing_core_module.TotalPreprocessor, "prepare", fail_total_prepare
+    )
+    monkeypatch.setattr(
+        preprocessing_core_module.TotalPreprocessor,
+        "prepare_owned",
+        count_total_prepare_owned,
+    )
+    monkeypatch.setattr(
+        preprocessing_core_module.PhosphoPreprocessor, "prepare", fail_phospho_prepare
+    )
+    monkeypatch.setattr(
+        preprocessing_core_module.PhosphoPreprocessor,
+        "prepare_owned",
+        count_phospho_prepare_owned,
+    )
+    monkeypatch.setattr(
+        preprocessing_core_module.ProteinCorrectionService, "correct", fail_correction
+    )
+    monkeypatch.setattr(
+        preprocessing_core_module.ProteinCorrectionService,
+        "correct_owned",
+        count_correct_owned,
+    )
+    monkeypatch.setattr(
+        preprocessing_core_module.SiteMatrixBuilder, "build", fail_site_matrix_build
+    )
+    monkeypatch.setattr(
+        preprocessing_core_module.SiteMatrixBuilder,
+        "build_owned",
+        count_site_matrix_build_owned,
+    )
+
+    processor = CoreProcessor(
+        schema=DatasetSchema(),
+        comparisons=(("group1", "group4"),),
+    )
+    result = processor.process(total_df, phospho_df, config=CorePreprocessingConfig())
+
+    assert total_prepare_called == 1
+    assert phospho_prepare_called == 1
+    assert correction_called == 1
+    assert site_matrix_build_called == 1
+    pd.testing.assert_frame_equal(total_df, original_total)
+    pd.testing.assert_frame_equal(phospho_df, original_phospho)
+    assert not result.site_matrix.matrix.empty
 
 
 def test_protein_correction_service_does_not_route_through_public_facade(

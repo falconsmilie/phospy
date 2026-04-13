@@ -109,6 +109,7 @@ def build_site_matrix(
     *,
     policy: SiteMatrixPolicy | None = None,
     duplicate_site_strategy: DuplicateSiteStrategy | None = None,
+    copy_frame: bool = True,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     resolved_policy = _resolve_site_matrix_policy(
         policy=policy,
@@ -120,13 +121,38 @@ def build_site_matrix(
         sequence_col=sequence_col,
         value_cols=value_cols,
         context="site-matrix source table",
+        copy_frame=copy_frame,
     )
 
-    split_cols = work[gene_p_site_col].astype("string").str.split("_", n=1, expand=True)
-    work[gene_col_name] = split_cols[0].astype("string")
-    work[p_site_col_name] = split_cols[1].astype("string")
-    work[SITE_MATRIX_ID_COLUMN] = (
-        work[gene_col_name].str.upper() + ";" + work[p_site_col_name].str.upper() + ";"
+    source_cols = [
+        col
+        for col in [
+            PHOSPHO_GENE_COLUMN,
+            PHOSPHO_UID_COLUMN,
+            gene_p_site_col,
+            sequence_col,
+            *list(value_cols),
+        ]
+        if col in work.columns
+    ]
+    site_work = work.loc[:, source_cols].copy(deep=True)
+
+    split_cols = (
+        site_work[gene_p_site_col]
+        .astype("string")
+        .str.split(
+            "_",
+            n=1,
+            expand=True,
+        )
+    )
+    site_work[gene_col_name] = split_cols[0].astype("string")
+    site_work[p_site_col_name] = split_cols[1].astype("string")
+    site_work[SITE_MATRIX_ID_COLUMN] = (
+        site_work[gene_col_name].str.upper()
+        + ";"
+        + site_work[p_site_col_name].str.upper()
+        + ";"
     )
 
     base_cols = [
@@ -139,18 +165,18 @@ def build_site_matrix(
             sequence_col,
             SITE_MATRIX_ID_COLUMN,
         ]
-        if col in work.columns
+        if col in site_work.columns
     ]
     keep_cols: list[str] = [*base_cols, *list(value_cols)]
-    phosr_input = work.loc[:, keep_cols].copy()
+    base_input = site_work.loc[:, keep_cols]
 
-    total_rows = len(phosr_input)
-    with_sequence = phosr_input[phosr_input[sequence_col].notna()].copy()
+    total_rows = len(base_input)
+    with_sequence = base_input.loc[base_input[sequence_col].notna()]
     dropped_missing_sequence = total_rows - len(with_sequence)
 
-    complete_cases = with_sequence[
+    complete_cases = with_sequence.loc[
         with_sequence.loc[:, list(value_cols)].notna().all(axis=1)
-    ].copy()
+    ]
     dropped_incomplete_values = len(with_sequence) - len(complete_cases)
 
     phosr_input = _apply_duplicate_site_policy(
@@ -178,7 +204,7 @@ def build_site_matrix(
         SITE_MATRIX_ID_COLUMN
     )
     matrix.attrs["row_drop_stats"] = row_drop_stats.copy()
-    sequences = phosr_input.set_index(SITE_MATRIX_ID_COLUMN)[sequence_col].copy()
+    sequences = phosr_input.set_index(SITE_MATRIX_ID_COLUMN)[sequence_col]
     sequences.attrs["row_drop_stats"] = row_drop_stats.copy()
     phosr_input.attrs["row_drop_stats"] = row_drop_stats.copy()
     return phosr_input, matrix, sequences

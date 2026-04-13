@@ -1024,6 +1024,45 @@ def test_phospho_dataset_from_loaded_inputs_transfers_loader_owned_frames_withou
     assert copy_calls == 0
 
 
+def test_analysis_ready_from_core_processing_result_avoids_extra_frame_copying(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+
+    copy_calls = 0
+    series_copy_calls = 0
+    original_df_copy = pd.DataFrame.copy
+    original_series_copy = pd.Series.copy
+
+    def counting_df_copy(self, *args, **kwargs):
+        nonlocal copy_calls
+        copy_calls += 1
+        return original_df_copy(self, *args, **kwargs)
+
+    def counting_series_copy(self, *args, **kwargs):
+        nonlocal series_copy_calls
+        series_copy_calls += 1
+        return original_series_copy(self, *args, **kwargs)
+
+    monkeypatch.setattr(pd.DataFrame, "copy", counting_df_copy)
+    monkeypatch.setattr(pd.Series, "copy", counting_series_copy)
+
+    analysis_ready = AnalysisReadyPhosphoDataset.from_core_processing_result(
+        core,
+        schema=dataset.schema,
+    )
+
+    assert analysis_ready.phospho_matrix is core.site_matrix.matrix
+    assert analysis_ready.site_sequences is core.site_matrix.sequences
+    assert analysis_ready.phospho_corrected is core.phospho_corrected
+    assert copy_calls <= 1
+    assert series_copy_calls == 0
+
+
 def test_pipeline_from_files_validates_inputs_once(monkeypatch, tmp_path) -> None:
     total_path = tmp_path / "total.tsv"
     phospho_path = tmp_path / "phospho.tsv"
@@ -1515,6 +1554,49 @@ def test_analysis_ready_dataset_builds_from_core_processing_result() -> None:
     )
 
 
+def test_analysis_ready_dataset_constructor_copies_external_inputs_once() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+    )
+    core = dataset.preprocessing.run(max_unmatched_fraction=0.1)
+    site_metadata = core.site_matrix.phosr_input.drop(
+        columns=[*dataset.schema.corrected_cols, "centralized_sequence"],
+        errors="ignore",
+    ).set_index("site_id")
+    provenance = AnalysisReadyPreprocessingProvenance(
+        source="test",
+        schema=dataset.schema,
+        comparisons=None,
+        row_counts=AnalysisReadyRowCounts(
+            total_unique=len(core.total_unique),
+            total_filtered=len(core.total_filtered),
+            phospho_filtered=len(core.phospho_filtered),
+            phospho_corrected=len(core.phospho_corrected),
+            phospho_matrix_sites=len(core.site_matrix.matrix),
+        ),
+        site_matrix_stats=AnalysisReadySiteMatrixStats.from_mapping(
+            core.site_matrix.row_drop_stats
+        ),
+    )
+
+    analysis_ready = AnalysisReadyPhosphoDataset(
+        phospho_matrix=core.site_matrix.matrix,
+        site_metadata=site_metadata,
+        site_sequences=core.site_matrix.sequences,
+        phospho_corrected=core.phospho_corrected,
+        provenance=provenance,
+    )
+
+    core.site_matrix.matrix.iloc[0, 0] = -999.0
+    core.site_matrix.sequences.iloc[0] = "MUTATED"
+    core.phospho_corrected.iloc[0, 0] = "mutated"
+
+    assert analysis_ready.phospho_matrix.iloc[0, 0] != -999.0
+    assert analysis_ready.site_sequences.iloc[0] != "MUTATED"
+    assert analysis_ready.phospho_corrected.iloc[0, 0] != "mutated"
+
+
 def test_dataset_run_analysis_ready_matches_bound_preprocessing_adapter() -> None:
     dataset = PhosphoDataset(
         total_df=make_total_df(),
@@ -1545,7 +1627,9 @@ def test_dataset_run_analysis_ready_matches_bound_preprocessing_adapter() -> Non
     assert via_dataset.provenance == via_adapter.provenance
 
 
-def test_analysis_ready_dataset_owns_detached_copies_of_inputs() -> None:
+def test_analysis_ready_dataset_from_core_processing_result_reuses_owned_frames() -> (
+    None
+):
     dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
@@ -1556,13 +1640,9 @@ def test_analysis_ready_dataset_owns_detached_copies_of_inputs() -> None:
         schema=dataset.schema,
     )
 
-    core.site_matrix.matrix.iloc[0, 0] = -999.0
-    core.site_matrix.sequences.iloc[0] = "MUTATED"
-    core.phospho_corrected.iloc[0, 0] = "mutated"
-
-    assert analysis_ready.phospho_matrix.iloc[0, 0] != -999.0
-    assert analysis_ready.site_sequences.iloc[0] != "MUTATED"
-    assert analysis_ready.phospho_corrected.iloc[0, 0] != "mutated"
+    assert analysis_ready.phospho_matrix is core.site_matrix.matrix
+    assert analysis_ready.site_sequences is core.site_matrix.sequences
+    assert analysis_ready.phospho_corrected is core.phospho_corrected
 
 
 def test_analysis_ready_dataset_rejects_misaligned_indexes() -> None:

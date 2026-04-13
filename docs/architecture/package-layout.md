@@ -76,3 +76,25 @@ Do not hide them in generic utility modules.
 
 These policies should stay visible in the public workflow or builder boundary that
 owns them so PhosR parity and intentional divergence remain reviewable.
+
+## DataFrame ownership rule
+
+Preprocessing and validation follow one explicit ownership rule:
+
+1. external dataframe boundaries may copy once when taking ownership
+2. internal preprocessing services then work on owned tables without another
+   whole-frame defensive copy
+3. snapshot-style outputs must say clearly whether they reuse owned internal
+   tables or detach copies
+
+In practice this means:
+
+- schema validators keep their default defensive copy at public input boundaries
+- internal fast paths use explicit owned constructors such as
+  `prepare_owned()`, `correct_owned()`, `build_owned()`, and
+  `AnalysisReadyPhosphoDataset.from_owned()`
+- `CoreProcessor.process()` and `process_phospho_only()` copy caller-managed
+  input tables once at entry, then stay on the owned path
+
+This keeps mutation boundaries reviewable and reduces repeated full-frame copy
+churn through preprocessing.

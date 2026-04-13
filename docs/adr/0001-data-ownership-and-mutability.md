@@ -98,6 +98,7 @@ Positive consequences:
 - internal processing code can work on owned tables without copy theatre
 - future performance work can reduce duplicate copying without weakening boundary rules
 - future API changes can distinguish explicit live-access paths from explicit copies more clearly
+- internal preprocessing and site-matrix flows can use explicit `*_owned` fast paths once a boundary has already taken ownership
 - public result objects have a clearer contract distinct from mutable workspaces
 
 Trade-offs:

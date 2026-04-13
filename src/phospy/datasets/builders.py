@@ -61,7 +61,7 @@ def _build_site_metadata(
     metadata = phosr_input.drop(
         columns=[*tuple(corrected_cols), CENTRALIZED_SEQUENCE_COLUMN],
         errors="ignore",
-    ).copy(deep=True)
+    )
     metadata = metadata.set_index(SITE_MATRIX_ID_COLUMN)
     metadata.index = pd.Index(
         metadata.index.astype("string"),

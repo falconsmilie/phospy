@@ -217,3 +217,38 @@ def test_build_site_matrix_can_reject_duplicate_rows_explicitly() -> None:
             value_cols=["phospho_corrected_1", "phospho_corrected_2"],
             policy=SiteMatrixPolicy(duplicate_site_strategy="error"),
         )
+
+
+def test_site_matrix_builder_build_owned_routes_through_no_copy_validation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from phospy.preprocessing import SiteMatrixBuilder
+    from phospy.validation.schema.tables import SiteMatrixSourceSchema
+
+    source_df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_S339", "BTK_Y551"],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "phospho_corrected_1": [1.0, 2.0],
+            "phospho_corrected_2": [1.0, 2.0],
+        }
+    )
+    builder = SiteMatrixBuilder(
+        value_cols=["phospho_corrected_1", "phospho_corrected_2"]
+    )
+
+    seen_copy_frame: list[bool] = []
+    original_validate = SiteMatrixSourceSchema.validate
+
+    def counting_validate(*args, **kwargs):
+        seen_copy_frame.append(bool(kwargs.get("copy_frame", True)))
+        return original_validate(*args, **kwargs)
+
+    monkeypatch.setattr(SiteMatrixSourceSchema, "validate", counting_validate)
+
+    public_result = builder.build(source_df)
+    owned_result = builder.build_owned(source_df.copy(deep=True))
+
+    assert not public_result.matrix.empty
+    assert not owned_result.matrix.empty
+    assert seen_copy_frame == [True, False]

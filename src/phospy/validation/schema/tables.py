@@ -41,6 +41,7 @@ class TotalInputSchema:
         *,
         total_cols: Sequence[str] | None = None,
         context: str = "total input table",
+        copy_frame: bool = True,
     ) -> pd.DataFrame:
         total_columns = list(total_cols or DEFAULT_TOTAL_COLS)
         validated = require_dataframe(frame, context=context)
@@ -59,6 +60,7 @@ class TotalInputSchema:
             validated,
             columns=total_columns,
             context=context,
+            copy_frame=copy_frame,
         )
         return validated
 
@@ -73,6 +75,7 @@ class PhosphoInputSchema:
         *,
         phospho_cols: Sequence[str] | None = None,
         context: str = "phospho input table",
+        copy_frame: bool = True,
     ) -> pd.DataFrame:
         phospho_columns = list(phospho_cols or DEFAULT_PHOSPHO_COLS)
         validated = require_dataframe(frame, context=context)
@@ -94,6 +97,7 @@ class PhosphoInputSchema:
             validated,
             columns=[LOCALIZATION_PROB_COLUMN, *phospho_columns],
             context=context,
+            copy_frame=copy_frame,
         )
         require_value_range(
             validated,
@@ -119,6 +123,7 @@ class PredMatSchema:
         frame: pd.DataFrame,
         *,
         context: str = "pred_mat",
+        copy_frame: bool = True,
     ) -> pd.DataFrame:
         validated = require_dataframe(frame, context=context)
         require_unique_columns(validated.columns, context=context)
@@ -132,6 +137,7 @@ class PredMatSchema:
             validated,
             columns=list(validated.columns),
             context=context,
+            copy_frame=copy_frame,
         )
         require_unique_index(validated, context=context)
         require_non_null_index(validated, context=context)
@@ -159,6 +165,7 @@ class PredictionScoreMatrixSchema:
         frame: pd.DataFrame,
         *,
         context: str = "combined_scores",
+        copy_frame: bool = True,
     ) -> pd.DataFrame:
         validated = require_dataframe(frame, context=context)
         require_unique_columns(validated.columns, context=context)
@@ -173,6 +180,7 @@ class PredictionScoreMatrixSchema:
             validated,
             columns=list(validated.columns),
             context=context,
+            copy_frame=copy_frame,
         )
         require_unique_index(validated, context=context)
         require_non_null_index(validated, context=context)
@@ -196,6 +204,7 @@ class SiteMatrixSourceSchema:
         sequence_col: str,
         value_cols: Sequence[str],
         context: str = "site-matrix source table",
+        copy_frame: bool = True,
     ) -> pd.DataFrame:
         validated = require_dataframe(frame, context=context)
         require_unique_columns(validated.columns, context=context)
@@ -217,6 +226,7 @@ class SiteMatrixSourceSchema:
             validated,
             columns=requested_value_cols,
             context=context,
+            copy_frame=copy_frame,
         )
         require_splitable_gene_p_site(
             validated[gene_p_site_col],
@@ -235,6 +245,7 @@ class SiteMatrixSchema:
         frame: pd.DataFrame,
         *,
         context: str = "site matrix",
+        copy_frame: bool = True,
     ) -> pd.DataFrame:
         validated = require_dataframe(frame, context=context)
         require_unique_columns(validated.columns, context=context)
@@ -248,6 +259,7 @@ class SiteMatrixSchema:
             validated,
             columns=list(validated.columns),
             context=context,
+            copy_frame=copy_frame,
         )
         require_unique_index(validated, context=context)
         require_non_null_index(validated, context=context)
@@ -272,6 +284,7 @@ class ActivitySiteMatrixSchema:
         frame: pd.DataFrame,
         *,
         context: str = "phospho_matrix",
+        copy_frame: bool = True,
     ) -> pd.DataFrame:
         validated = require_dataframe(frame, context=context)
         require_unique_columns(validated.columns, context=context)
@@ -285,6 +298,7 @@ class ActivitySiteMatrixSchema:
             validated,
             columns=list(validated.columns),
             context=context,
+            copy_frame=copy_frame,
         )
         require_unique_index(validated, context=context)
         require_non_null_index(validated, context=context)

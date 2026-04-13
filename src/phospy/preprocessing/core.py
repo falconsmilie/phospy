@@ -250,7 +250,7 @@ class CoreProcessor:
         *,
         policy: SiteMatrixPolicy,
     ) -> SiteMatrixResult:
-        return self.site_matrix_builder.build(
+        return self.site_matrix_builder.build_owned(
             phospho_corrected,
             policy=policy,
         )
@@ -273,18 +273,20 @@ class CoreProcessor:
         config: CorePreprocessingConfig | None = None,
     ) -> CoreProcessingResult:
         resolved_config = config or CorePreprocessingConfig()
-        total_unique, total_filtered = self.prepare_total(
-            total_df,
+        total_work = total_df.copy(deep=True)
+        phospho_work = phospho_df.copy(deep=True)
+        total_unique, total_filtered = self.total_preprocessor.prepare_owned(
+            total_work,
             sentinel=resolved_config.total_sentinel,
             min_observed=resolved_config.min_observed,
         )
-        phospho_filtered = self.prepare_phospho(
-            phospho_df,
+        phospho_filtered = self.phospho_preprocessor.prepare_owned(
+            phospho_work,
             localization_threshold=resolved_config.localization_threshold,
             sentinel=resolved_config.phospho_sentinel,
             min_observed=resolved_config.min_observed,
         )
-        phospho_corrected = self.correct_to_protein(
+        phospho_corrected = self.protein_correction_service.correct_owned(
             phospho_filtered,
             total_filtered,
             max_unmatched_fraction=resolved_config.max_unmatched_fraction,
@@ -311,8 +313,9 @@ class CoreProcessor:
         """Run the phospho-only core lane without rebuilding orchestration elsewhere."""
 
         resolved_config = config or CorePreprocessingConfig()
-        phospho_filtered = self.prepare_phospho(
-            phospho_df,
+        phospho_work = phospho_df.copy(deep=True)
+        phospho_filtered = self.phospho_preprocessor.prepare_owned(
+            phospho_work,
             localization_threshold=resolved_config.localization_threshold,
             sentinel=resolved_config.phospho_sentinel,
             min_observed=resolved_config.min_observed,
