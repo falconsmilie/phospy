@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phospy"
-version = "1.2.3"
+version = "1.3.0"
 description = "Python native implementation of selected PhosR style workflows for phosphoproteomics."
 readme = "README.md"
 requires-python = ">=3.10"
