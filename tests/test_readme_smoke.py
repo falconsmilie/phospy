@@ -7,11 +7,13 @@ import pandas as pd
 import pytest
 
 from phospy import KinaseActivityAnalyzer, PhosphoDataset, PhosRPipeline
+from phospy.api import DatasetLoadOptions, KinaseActivityConfig
 from phospy.internal.constants import (
     CORE_OUTPUT_ARTIFACT_BASENAMES,
     KINASE_OUTPUT_FILENAMES,
 )
 from phospy.io import load_pred_mat
+from phospy.preprocessing import CorePreprocessingConfig
 
 EXAMPLE_OUTPUT_FILES = {
     *(f"{basename}.csv" for basename in CORE_OUTPUT_ARTIFACT_BASENAMES),
@@ -61,11 +63,13 @@ def test_readme_example_pipeline_runs_end_to_end(tmp_path) -> None:
         total_path=repo_root / "examples" / "data" / "total.tsv",
         phospho_path=repo_root / "examples" / "data" / "phospho.tsv",
         pred_mat_path=repo_root / "examples" / "data" / "predMat.csv",
-        phospho_encoding="utf-16le",
-        max_unmatched_fraction=0.1,
-        kinase_activity_threshold=0.6,
-        kinase_activity_min_substrates=1,
-        kinase_activity_top_n_substrates=1,
+        dataset_options=DatasetLoadOptions(phospho_encoding="utf-16le"),
+        preprocessing_config=CorePreprocessingConfig(max_unmatched_fraction=0.1),
+        activity_config=KinaseActivityConfig(
+            threshold=0.6,
+            min_substrates=1,
+            top_n_substrates=1,
+        ),
     )
     outputs = pipeline.run(outdir=outdir)
 

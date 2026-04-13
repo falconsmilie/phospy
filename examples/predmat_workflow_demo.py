@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 
 import pandas as pd
 
-from phospy.api import PredMatWorkflow
+from phospy.api import PredictionRunConfig, PredMatWorkflow
 from phospy.api.workflow_results import PredMatWorkflowResult
 from phospy.io import load_pred_mat
 
@@ -48,14 +48,16 @@ def run_demo(
         substrate_map=substrate_map,
         site_sequences=site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
+        prediction_config=PredictionRunConfig(
+            min_substrates=2,
+            min_motif_size=2,
+            ensemble_size=3,
+            top=4,
+            score_threshold=0.75,
+            inclusion=3,
+            n_iterations=2,
+            random_state=17,
+        ),
     )
 
     export_path = result.pred_mat_result.to_csv(outdir / "predMat.csv")

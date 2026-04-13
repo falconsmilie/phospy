@@ -9,8 +9,12 @@ import phospy
 import phospy.api.signalome_workflows as signalome_workflows_module
 import phospy.api.workflows as api_workflows_module
 from phospy.api import (
+    DatasetLoadOptions,
+    KinaseActivityConfig,
     KinaseWorkflow,
+    PredictionRunConfig,
     PredMatWorkflow,
+    SignalomeRunConfig,
     SignalomeWorkflow,
     SimpleKinaseWorkflow,
 )
@@ -19,7 +23,7 @@ from phospy.api.workflow_results import (
     PredMatWorkflowResult,
     SimpleKinaseWorkflowResult,
 )
-from phospy.internal.constants import DEFAULT_PHOSPHO_SENTINEL, DEFAULT_TOTAL_SENTINEL
+from phospy.preprocessing import CorePreprocessingConfig
 from phospy.references import ReferenceBundle
 
 
@@ -126,9 +130,11 @@ def test_kinase_workflow_run_delegates_to_prediction_executor(
     result = workflow.run(
         phospho_matrix=phospho_matrix,
         site_sequences={"SITE_1": "AAAA", "SITE_2": "BBBB"},
-        min_substrates=2,
-        ensemble_size=3,
-        random_state=17,
+        prediction_config=PredictionRunConfig(
+            min_substrates=2,
+            ensemble_size=3,
+            random_state=17,
+        ),
     )
 
     assert isinstance(result, KinaseWorkflowResult)
@@ -176,8 +182,10 @@ def test_pred_mat_workflow_run_delegates_to_prediction_executor(
     result = workflow.run(
         phospho_matrix=phospho_matrix,
         site_sequences={"SITE_1": "AAAA", "SITE_2": "BBBB"},
-        score_threshold=0.7,
-        inclusion=11,
+        prediction_config=PredictionRunConfig(
+            score_threshold=0.7,
+            inclusion=11,
+        ),
     )
 
     assert isinstance(result, PredMatWorkflowResult)
@@ -246,14 +254,20 @@ def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
         total=total,
         species="human",
         reference="ochoa",
-        phospho_encoding="utf-8",
-        min_observed=5,
-        max_unmatched_fraction=0.25,
-        min_substrates=3,
-        score_threshold=0.65,
-        kinase_activity_threshold=0.55,
-        kinase_activity_min_substrates=4,
-        kinase_activity_top_n_substrates=12,
+        dataset_options=DatasetLoadOptions(phospho_encoding="utf-8"),
+        preprocessing_config=CorePreprocessingConfig(
+            min_observed=5,
+            max_unmatched_fraction=0.25,
+        ),
+        prediction_config=PredictionRunConfig(
+            min_substrates=3,
+            score_threshold=0.65,
+        ),
+        activity_config=KinaseActivityConfig(
+            threshold=0.55,
+            min_substrates=4,
+            top_n_substrates=12,
+        ),
     )
 
     assert isinstance(result, SimpleKinaseWorkflowResult)
@@ -268,12 +282,10 @@ def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
             "phospho_encoding": "utf-8",
             "schema": builder_calls[0]["schema"],
             "comparisons": None,
-            "preprocessing_config": None,
-            "localization_threshold": 0.75,
-            "min_observed": 5,
-            "max_unmatched_fraction": 0.25,
-            "total_sentinel": DEFAULT_TOTAL_SENTINEL,
-            "phospho_sentinel": DEFAULT_PHOSPHO_SENTINEL,
+            "preprocessing_config": CorePreprocessingConfig(
+                min_observed=5,
+                max_unmatched_fraction=0.25,
+            ),
             "source": "simple kinase workflow",
             "phospho_only_source": "simple kinase workflow (phospho only)",
         }
@@ -284,17 +296,10 @@ def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
             "phospho_matrix": phospho_matrix,
             "site_sequences": site_sequences,
             "reference_bundle": reference_bundle,
-            "min_substrates": 3,
-            "min_motif_size": 1,
-            "allow_profile_only_fallback": False,
-            "ensemble_size": 10,
-            "top": 50,
-            "score_threshold": 0.65,
-            "inclusion": 20,
-            "n_iterations": 5,
-            "random_state": None,
-            "svm_mode": None,
-            "profile_policy": None,
+            "prediction_config": PredictionRunConfig(
+                min_substrates=3,
+                score_threshold=0.65,
+            ),
         }
     ]
     assert analyzer_calls == [
@@ -381,8 +386,10 @@ def test_signalome_workflow_run_delegates_to_validation_and_execution(
         prediction_result=prediction_result,
         expression_matrix=expression_matrix,
         kinases_of_interest=["PRKACA", "BTK"],
-        kinase_network_threshold=0.8,
-        signalome_cutoff=0.4,
+        config=SignalomeRunConfig(
+            kinase_network_threshold=0.8,
+            signalome_cutoff=0.4,
+        ),
     )
 
     assert result is signalome_result

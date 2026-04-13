@@ -7,7 +7,12 @@ import pytest
 
 import phospy.signalomes.clustering as signalome_clustering
 from phospy import PredMatResult, SignalomeResult
-from phospy.api import PredMatWorkflow, SignalomeWorkflow
+from phospy.api import (
+    PredictionRunConfig,
+    PredMatWorkflow,
+    SignalomeRunConfig,
+    SignalomeWorkflow,
+)
 from phospy.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
@@ -76,14 +81,16 @@ def _build_pred_mat_workflow_result():
         substrate_map=substrate_map,
         site_sequences=site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
+        prediction_config=PredictionRunConfig(
+            min_substrates=2,
+            min_motif_size=2,
+            ensemble_size=3,
+            top=4,
+            score_threshold=0.75,
+            inclusion=3,
+            n_iterations=2,
+            random_state=17,
+        ),
     )
     return phospho_matrix, result
 
@@ -98,7 +105,6 @@ def test_signalome_workflow_constructs_signalomes_from_scoring_and_prediction_re
         prediction_result=pred_mat_result.prediction_result,
         expression_matrix=phospho_matrix,
         kinases_of_interest=["KINASE_A"],
-        signalome_cutoff=0.5,
     )
 
     assert isinstance(result, SignalomeResult)
@@ -314,7 +320,6 @@ def test_signalome_workflow_accepts_explicit_site_to_protein_mapping() -> None:
         expression_matrix=renamed_expression_matrix,
         kinases_of_interest=["KINASE_A"],
         site_to_protein=site_to_protein,
-        signalome_cutoff=0.5,
     )
 
     assert sorted(result.protein_assignments.index.tolist()) == [
@@ -356,7 +361,6 @@ def test_signalome_workflow_rejects_unsupported_site_identifier_format_without_m
             prediction_result=renamed_pred_mat_result,
             expression_matrix=renamed_expression_matrix,
             kinases_of_interest=["KINASE_A"],
-            signalome_cutoff=0.5,
         )
 
 
@@ -373,7 +377,6 @@ def test_signalome_workflow_rejects_incomplete_site_to_protein_mapping() -> None
             expression_matrix=phospho_matrix,
             kinases_of_interest=["KINASE_A"],
             site_to_protein={"PROTEIN_1;S1;": "PROTEIN_1"},
-            signalome_cutoff=0.5,
         )
 
 
@@ -409,7 +412,6 @@ def test_signalome_workflow_rejects_malformed_supported_site_identifier_without_
             prediction_result=malformed_pred_mat_result,
             expression_matrix=malformed_expression_matrix,
             kinases_of_interest=["KINASE_A"],
-            signalome_cutoff=0.5,
         )
 
 
@@ -638,7 +640,6 @@ def test_signalome_result_exposes_canonical_module_assignment_and_network_views(
         prediction_result=pred_mat_result.prediction_result,
         expression_matrix=phospho_matrix,
         kinases_of_interest=["KINASE_A"],
-        signalome_cutoff=0.5,
     )
 
     assert result.modules.to_frame(copy=False) is result.signalome_modules
@@ -674,7 +675,6 @@ def test_signalome_result_to_frames_returns_stable_named_outputs() -> None:
         prediction_result=pred_mat_result.prediction_result,
         expression_matrix=phospho_matrix,
         kinases_of_interest=["KINASE_A"],
-        signalome_cutoff=0.5,
     )
 
     frames = result.to_frames()
@@ -708,7 +708,6 @@ def test_signalome_result_to_csv_exports_canonical_tables(tmp_path: Path) -> Non
         prediction_result=pred_mat_result.prediction_result,
         expression_matrix=phospho_matrix,
         kinases_of_interest=["KINASE_A"],
-        signalome_cutoff=0.5,
     )
 
     written = result.to_csv(tmp_path)
@@ -929,7 +928,6 @@ def test_build_signalome_result_exposes_module_selection_diagnostics() -> None:
         prediction_result=pred_mat_result.prediction_result,
         expression_matrix=phospho_matrix,
         kinases_of_interest=["KINASE_A"],
-        signalome_cutoff=0.5,
     )
 
     assert result.module_selection_diagnostics.used_automatic_selection
@@ -946,9 +944,10 @@ def test_signalome_workflow_accepts_explicit_module_selection_policy() -> None:
         prediction_result=pred_mat_result.prediction_result,
         expression_matrix=phospho_matrix,
         kinases_of_interest=["KINASE_A"],
-        signalome_cutoff=0.5,
-        module_selection_policy=SignalomeModuleSelectionPolicy(
-            strategy="single_module"
+        config=SignalomeRunConfig(
+            module_selection_policy=SignalomeModuleSelectionPolicy(
+                strategy="single_module"
+            )
         ),
     )
 

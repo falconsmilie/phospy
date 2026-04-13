@@ -148,16 +148,20 @@ Use this when you want file loading, preprocessing, optional kinase analysis, an
 
 ```python
 from phospy.pipeline import PhosRPipeline
+from phospy.api import DatasetLoadOptions, KinaseActivityConfig
+from phospy.preprocessing import CorePreprocessingConfig
 
 pipeline = PhosRPipeline.from_files(
     total_path="examples/data/total.tsv",
     phospho_path="examples/data/phospho.tsv",
     pred_mat_path="examples/data/predMat.csv",
-    phospho_encoding="utf-16le",
-    max_unmatched_fraction=0.1,
-    kinase_activity_threshold=0.6,
-    kinase_activity_min_substrates=1,
-    kinase_activity_top_n_substrates=1,
+    dataset_options=DatasetLoadOptions(phospho_encoding="utf-16le"),
+    preprocessing_config=CorePreprocessingConfig(max_unmatched_fraction=0.1),
+    activity_config=KinaseActivityConfig(
+        threshold=0.6,
+        min_substrates=1,
+        top_n_substrates=1,
+    ),
 )
 outputs = pipeline.run(outdir="examples/output")
 ```

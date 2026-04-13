@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from phospy import PredMatWorkflow, SignalomeMapData
-from phospy.api import SignalomeWorkflow
+from phospy.api import PredictionRunConfig, SignalomeWorkflow
 from phospy.signalomes.maps import build_signalome_map_data
 
 
@@ -64,21 +64,22 @@ def _build_signalome_result():
         substrate_map=substrate_map,
         site_sequences=site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
+        prediction_config=PredictionRunConfig(
+            min_substrates=2,
+            min_motif_size=2,
+            ensemble_size=3,
+            top=4,
+            score_threshold=0.75,
+            inclusion=3,
+            n_iterations=2,
+            random_state=17,
+        ),
     )
     return SignalomeWorkflow().run(
         scoring_result=pred_mat_result.scoring_result,
         prediction_result=pred_mat_result.prediction_result,
         expression_matrix=phospho_matrix,
         kinases_of_interest=["KINASE_A", "KINASE_B"],
-        signalome_cutoff=0.5,
     )
 
 

@@ -17,7 +17,11 @@ from tempfile import TemporaryDirectory
 
 import pandas as pd
 
-from phospy.api import SimpleKinaseWorkflow
+from phospy.api import (
+    KinaseActivityConfig,
+    PredictionRunConfig,
+    SimpleKinaseWorkflow,
+)
 from phospy.api.workflow_results import SimpleKinaseWorkflowResult
 
 
@@ -74,16 +78,20 @@ def run_demo(
     workflow = SimpleKinaseWorkflow(flank_size=7)
     shared_run_kwargs = {
         "species": "rat",
-        "min_substrates": 1,
-        "min_motif_size": 1,
-        "ensemble_size": 2,
-        "top": 3,
-        "inclusion": 2,
-        "n_iterations": 2,
-        "random_state": 7,
-        "kinase_activity_threshold": 0.1,
-        "kinase_activity_min_substrates": 1,
-        "kinase_activity_top_n_substrates": 3,
+        "prediction_config": PredictionRunConfig(
+            min_substrates=1,
+            min_motif_size=1,
+            ensemble_size=2,
+            top=3,
+            inclusion=2,
+            n_iterations=2,
+            random_state=7,
+        ),
+        "activity_config": KinaseActivityConfig(
+            threshold=0.1,
+            min_substrates=1,
+            top_n_substrates=3,
+        ),
     }
 
     if use_files:

@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from phospy import AnalysisReadyPhosphoDataset, PhosphoDataset, SimpleKinaseWorkflow
+from phospy.api import KinaseActivityConfig, PredictionRunConfig
 from phospy.datasets import DatasetLoader, DatasetSchema
 from phospy.errors import (
     InputCompatibilityError,
@@ -1155,16 +1156,20 @@ def test_simple_kinase_workflow_reuses_bound_analysis_ready_adapter_on_fixture_f
         total=fixture_dir / "total.tsv",
         phospho=fixture_dir / "phospho.tsv",
         species="rat",
-        min_substrates=1,
-        min_motif_size=1,
-        ensemble_size=2,
-        top=3,
-        inclusion=2,
-        n_iterations=2,
-        random_state=7,
-        kinase_activity_threshold=0.1,
-        kinase_activity_min_substrates=1,
-        kinase_activity_top_n_substrates=3,
+        prediction_config=PredictionRunConfig(
+            min_substrates=1,
+            min_motif_size=1,
+            ensemble_size=2,
+            top=3,
+            inclusion=2,
+            n_iterations=2,
+            random_state=7,
+        ),
+        activity_config=KinaseActivityConfig(
+            threshold=0.1,
+            min_substrates=1,
+            top_n_substrates=3,
+        ),
     ) as result:
         pd.testing.assert_frame_equal(
             result.analysis_ready_dataset.phospho_matrix,

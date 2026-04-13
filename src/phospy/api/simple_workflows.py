@@ -1,24 +1,21 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from pathlib import Path
 
 import pandas as pd
 
 from ..activities.analysis import KinaseActivityAnalyzer
-from ..datasets.schema import DatasetSchema
-from ..internal.constants import (
-    DEFAULT_PHOSPHO_SENTINEL,
-    DEFAULT_TOTAL_SENTINEL,
-    ComparisonSpec,
-)
 from ..internal.types import PredictionSvmMode
 from ..preprocessing.core import CorePreprocessingConfig
 from ..preprocessing.modes import AnalysisReadyDatasetBuilder
-from ..profiles import KinaseProfilePolicy
 from ..references import (
     BundledReferenceProvider,
     ReferenceProvider,
+)
+from .contracts import (
+    DatasetLoadOptions,
+    KinaseActivityConfig,
+    PredictionRunConfig,
 )
 from .kinase_workflows import PredMatWorkflow
 from .workflow_results import SimpleKinaseWorkflowResult
@@ -65,43 +62,21 @@ class SimpleKinaseWorkflow:
         species: str,
         total: pd.DataFrame | str | Path | None = None,
         reference: str = "auto",
-        phospho_encoding: str | None = None,
-        comparisons: Sequence[ComparisonSpec] | None = None,
-        schema: DatasetSchema | None = None,
+        dataset_options: DatasetLoadOptions | None = None,
         preprocessing_config: CorePreprocessingConfig | None = None,
-        localization_threshold: float = 0.75,
-        min_observed: int = 4,
-        max_unmatched_fraction: float = 0.0,
-        total_sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
-        phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
-        min_substrates: int = 1,
-        min_motif_size: int = 1,
-        allow_profile_only_fallback: bool = False,
-        ensemble_size: int = 10,
-        top: int = 50,
-        score_threshold: float = 0.8,
-        inclusion: int = 20,
-        n_iterations: int = 5,
-        random_state: int | None = None,
-        svm_mode: PredictionSvmMode | None = None,
-        profile_policy: KinaseProfilePolicy | None = None,
-        kinase_activity_threshold: float = 0.6,
-        kinase_activity_min_substrates: int = 3,
-        kinase_activity_top_n_substrates: int = 20,
+        prediction_config: PredictionRunConfig | None = None,
+        activity_config: KinaseActivityConfig | None = None,
     ) -> SimpleKinaseWorkflowResult:
-        resolved_schema = schema or DatasetSchema()
+        resolved_dataset_options = DatasetLoadOptions.from_value(dataset_options)
+        resolved_prediction_config = PredictionRunConfig.from_value(prediction_config)
+        resolved_activity_config = KinaseActivityConfig.from_value(activity_config)
         analysis_ready_dataset = self.analysis_ready_builder.build(
             phospho=phospho,
             total=total,
-            phospho_encoding=phospho_encoding,
-            schema=resolved_schema,
-            comparisons=comparisons,
+            phospho_encoding=resolved_dataset_options.phospho_encoding,
+            schema=resolved_dataset_options.schema,
+            comparisons=resolved_dataset_options.comparisons,
             preprocessing_config=preprocessing_config,
-            localization_threshold=localization_threshold,
-            min_observed=min_observed,
-            max_unmatched_fraction=max_unmatched_fraction,
-            total_sentinel=total_sentinel,
-            phospho_sentinel=phospho_sentinel,
             source="simple kinase workflow",
             phospho_only_source="simple kinase workflow (phospho only)",
         )
@@ -113,24 +88,14 @@ class SimpleKinaseWorkflow:
             phospho_matrix=analysis_ready_dataset.phospho_matrix,
             site_sequences=analysis_ready_dataset.site_sequences,
             reference_bundle=reference_bundle,
-            min_substrates=min_substrates,
-            min_motif_size=min_motif_size,
-            allow_profile_only_fallback=allow_profile_only_fallback,
-            ensemble_size=ensemble_size,
-            top=top,
-            score_threshold=score_threshold,
-            inclusion=inclusion,
-            n_iterations=n_iterations,
-            random_state=random_state,
-            svm_mode=svm_mode,
-            profile_policy=profile_policy,
+            prediction_config=resolved_prediction_config,
         )
         kinase_activity_result = self.activity_analyzer.run(
             pred_mat=workflow_result.pred_mat_result,
             phospho_matrix=analysis_ready_dataset.phospho_matrix,
-            threshold=kinase_activity_threshold,
-            min_substrates=kinase_activity_min_substrates,
-            top_n_substrates=kinase_activity_top_n_substrates,
+            threshold=resolved_activity_config.threshold,
+            min_substrates=resolved_activity_config.min_substrates,
+            top_n_substrates=resolved_activity_config.top_n_substrates,
         )
         return SimpleKinaseWorkflowResult(
             analysis_ready_dataset=analysis_ready_dataset,

@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 
 import pandas as pd
 
-from phospy.api import SignalomeWorkflow
+from phospy.api import SignalomeRunConfig, SignalomeWorkflow
 from phospy.prediction import KinaseScoringResult, PredMatResult
 from phospy.signalomes import SignalomeNetworkData, SignalomeResult
 
@@ -61,9 +61,11 @@ def run_demo(
         prediction_result=prediction_result,
         expression_matrix=expression_matrix,
         kinases_of_interest=["KINASE_A", "KINASE_B"],
-        kinase_network_threshold=0.9,
-        signalome_cutoff=0.75,
-        module_count=2,
+        config=SignalomeRunConfig(
+            kinase_network_threshold=0.9,
+            signalome_cutoff=0.75,
+            module_count=2,
+        ),
     )
     network_data = signalome_result.to_network_data()
     written = network_data.to_csv(outdir / "signalome_network")

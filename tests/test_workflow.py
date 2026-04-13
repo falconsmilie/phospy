@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.api import KinaseWorkflow, PredMatWorkflow
+from phospy.api import KinaseWorkflow, PredictionRunConfig, PredMatWorkflow
 from phospy.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
@@ -55,6 +55,21 @@ def make_workflow_inputs() -> tuple[
     return phospho_matrix, substrate_map, site_sequences, motif_sequences
 
 
+def make_prediction_config(**overrides: object) -> PredictionRunConfig:
+    defaults: dict[str, object] = {
+        "min_substrates": 2,
+        "min_motif_size": 2,
+        "ensemble_size": 3,
+        "top": 4,
+        "score_threshold": 0.75,
+        "inclusion": 3,
+        "n_iterations": 2,
+        "random_state": 17,
+    }
+    defaults.update(overrides)
+    return PredictionRunConfig(**defaults)
+
+
 def test_kinase_workflow_runs_native_end_to_end_path() -> None:
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
         make_workflow_inputs()
@@ -67,14 +82,7 @@ def test_kinase_workflow_runs_native_end_to_end_path() -> None:
         substrate_map=substrate_map,
         site_sequences=site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
+        prediction_config=make_prediction_config(),
     )
 
     assert list(result.profile_result.profile_matrix.index) == ["KINASE_A", "KINASE_B"]
@@ -110,14 +118,7 @@ def test_pred_mat_workflow_runs_native_end_to_end_path() -> None:
         substrate_map=substrate_map,
         site_sequences=site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
+        prediction_config=make_prediction_config(),
     )
 
     assert list(result.scoring_result.combined_scores.columns) == [
@@ -151,14 +152,11 @@ def test_pred_mat_workflow_raises_domain_error_when_no_candidate_kinases_qualify
             substrate_map=substrate_map,
             site_sequences=site_sequences,
             motif_sequences=motif_sequences,
-            min_substrates=2,
-            min_motif_size=2,
-            ensemble_size=2,
-            top=2,
-            score_threshold=0.0,
-            inclusion=3,
-            n_iterations=2,
-            random_state=17,
+            prediction_config=make_prediction_config(
+                ensemble_size=2,
+                top=2,
+                score_threshold=0.0,
+            ),
         )
 
 
@@ -173,14 +171,7 @@ def test_pred_mat_workflow_result_has_canonical_pred_mat_result() -> None:
         substrate_map=substrate_map,
         site_sequences=site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
+        prediction_config=make_prediction_config(),
     )
 
     assert isinstance(result.pred_mat_result, PredMatResult)
@@ -204,14 +195,7 @@ def test_kinase_workflow_result_tables_are_detached_from_input_matrix() -> None:
         substrate_map=substrate_map,
         site_sequences=site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
+        prediction_config=make_prediction_config(),
     )
 
     result.profile_result.profile_matrix.loc[
@@ -248,14 +232,13 @@ def test_kinase_workflow_limits_motif_and_prediction_outputs_to_sites_with_seque
         substrate_map=substrate_map,
         site_sequences=partial_site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=2,
-        top=2,
-        score_threshold=0.0,
-        inclusion=1,
-        n_iterations=1,
-        random_state=17,
+        prediction_config=make_prediction_config(
+            ensemble_size=2,
+            top=2,
+            score_threshold=0.0,
+            inclusion=1,
+            n_iterations=1,
+        ),
     )
 
     assert list(result.motif_result.motif_scores.index) == [
@@ -299,14 +282,13 @@ def test_pred_mat_workflow_accepts_partial_site_sequence_coverage() -> None:
         substrate_map=substrate_map,
         site_sequences=partial_site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=2,
-        top=2,
-        score_threshold=0.0,
-        inclusion=1,
-        n_iterations=1,
-        random_state=17,
+        prediction_config=make_prediction_config(
+            ensemble_size=2,
+            top=2,
+            score_threshold=0.0,
+            inclusion=1,
+            n_iterations=1,
+        ),
     )
 
     expected_index = ["SITE_1", "SITE_2", "SITE_5", "SITE_6"]
@@ -324,13 +306,10 @@ def test_kinase_workflow_can_fall_back_to_profile_only_prediction() -> None:
         phospho_matrix=phospho_matrix,
         substrate_map=substrate_map,
         motif_sequences=None,
-        allow_profile_only_fallback=True,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=23,
+        prediction_config=make_prediction_config(
+            allow_profile_only_fallback=True,
+            random_state=23,
+        ),
     )
 
     assert result.motif_result is None
@@ -361,7 +340,7 @@ def test_kinase_workflow_rejects_empty_substrate_map() -> None:
             phospho_matrix=phospho_matrix,
             substrate_map={},
             motif_sequences=None,
-            allow_profile_only_fallback=True,
+            prediction_config=make_prediction_config(allow_profile_only_fallback=True),
         )
 
 
@@ -405,15 +384,10 @@ def test_kinase_workflow_accepts_explicit_svm_mode() -> None:
         substrate_map=substrate_map,
         site_sequences=site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=2,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
-        svm_mode="r_parity",
+        prediction_config=make_prediction_config(
+            ensemble_size=2,
+            svm_mode="r_parity",
+        ),
     )
 
     assert list(result.prediction_result.pred_matrix.columns) == [
@@ -465,14 +439,7 @@ def test_kinase_workflow_run_validated_uses_validated_boundary_request(
         substrate_map=substrate_map,
         site_sequences=site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
+        prediction_config=make_prediction_config(),
     )
     result = workflow.run_validated(request)
 
@@ -500,14 +467,7 @@ def test_kinase_workflow_rejects_inconsistent_motif_widths_at_boundary() -> None
             substrate_map=substrate_map,
             site_sequences=site_sequences,
             motif_sequences=motif_sequences,
-            min_substrates=2,
-            min_motif_size=2,
-            ensemble_size=3,
-            top=4,
-            score_threshold=0.75,
-            inclusion=3,
-            n_iterations=2,
-            random_state=17,
+            prediction_config=make_prediction_config(),
         )
 
 
@@ -520,15 +480,7 @@ def test_validated_workflow_request_resolves_predictor_mode_from_request() -> No
         substrate_map=substrate_map,
         site_sequences=site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
-        svm_mode="r_parity",
+        prediction_config=make_prediction_config(svm_mode="r_parity"),
     )
 
     assert request.predictor_svm_mode == "r_parity"
@@ -558,14 +510,7 @@ def test_kinase_workflow_accepts_reference_bundle() -> None:
         phospho_matrix=phospho_matrix,
         reference_bundle=make_reference_bundle(),
         site_sequences=site_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
+        prediction_config=make_prediction_config(),
     )
 
     assert list(result.prediction_result.pred_matrix.columns) == [
@@ -588,14 +533,7 @@ def test_pred_mat_workflow_rejects_mixed_reference_bundle_and_explicit_reference
             substrate_map=substrate_map,
             reference_bundle=make_reference_bundle(),
             site_sequences=site_sequences,
-            min_substrates=2,
-            min_motif_size=2,
-            ensemble_size=3,
-            top=4,
-            score_threshold=0.75,
-            inclusion=3,
-            n_iterations=2,
-            random_state=17,
+            prediction_config=make_prediction_config(),
         )
 
 
@@ -609,9 +547,9 @@ def test_validated_workflow_request_accepts_explicit_profile_policy() -> None:
         substrate_map=substrate_map,
         site_sequences=site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        profile_policy=KinaseProfilePolicy(missing_value_strategy="median_skipna"),
+        prediction_config=make_prediction_config(
+            profile_policy=KinaseProfilePolicy(missing_value_strategy="median_skipna")
+        ),
     )
 
     assert request.profile_policy.missing_value_strategy == "median_skipna"

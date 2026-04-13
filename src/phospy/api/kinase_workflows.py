@@ -10,9 +10,9 @@ from ..prediction.engines import (
     KinaseWorkflowExecutionResult,
     KinaseWorkflowExecutor,
 )
-from ..profiles import KinaseProfilePolicy
 from ..references import ReferenceBundle
 from ..validation.requests.workflow import WorkflowInputs
+from .contracts import PredictionRunConfig
 from .workflow_results import KinaseWorkflowResult, PredMatWorkflowResult
 
 __all__ = ["KinaseWorkflow", "PredMatWorkflow"]
@@ -47,35 +47,26 @@ class _BaseKinaseWorkflow(Generic[_WorkflowResultT]):
         site_sequences: Mapping[str, str] | pd.Series | None = None,
         motif_sequences: Mapping[str, Sequence[str]] | None = None,
         reference_bundle: ReferenceBundle | None = None,
-        min_substrates: int = 1,
-        min_motif_size: int = 1,
-        allow_profile_only_fallback: bool = False,
-        ensemble_size: int = 10,
-        top: int = 50,
-        score_threshold: float = 0.8,
-        inclusion: int = 20,
-        n_iterations: int = 5,
-        random_state: int | None = None,
-        svm_mode: PredictionSvmMode | None = None,
-        profile_policy: KinaseProfilePolicy | None = None,
+        prediction_config: PredictionRunConfig | None = None,
     ) -> WorkflowInputs:
+        resolved_config = PredictionRunConfig.from_value(prediction_config)
         return self._executor.validate_request(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
             site_sequences=site_sequences,
             motif_sequences=motif_sequences,
             reference_bundle=reference_bundle,
-            min_substrates=min_substrates,
-            min_motif_size=min_motif_size,
-            allow_profile_only_fallback=allow_profile_only_fallback,
-            ensemble_size=ensemble_size,
-            top=top,
-            score_threshold=score_threshold,
-            inclusion=inclusion,
-            n_iterations=n_iterations,
-            random_state=random_state,
-            svm_mode=svm_mode,
-            profile_policy=profile_policy,
+            min_substrates=resolved_config.min_substrates,
+            min_motif_size=resolved_config.min_motif_size,
+            allow_profile_only_fallback=resolved_config.allow_profile_only_fallback,
+            ensemble_size=resolved_config.ensemble_size,
+            top=resolved_config.top,
+            score_threshold=resolved_config.score_threshold,
+            inclusion=resolved_config.inclusion,
+            n_iterations=resolved_config.n_iterations,
+            random_state=resolved_config.random_state,
+            svm_mode=resolved_config.svm_mode,
+            profile_policy=resolved_config.profile_policy,
         )
 
     def run(
@@ -85,17 +76,7 @@ class _BaseKinaseWorkflow(Generic[_WorkflowResultT]):
         site_sequences: Mapping[str, str] | pd.Series | None = None,
         motif_sequences: Mapping[str, Sequence[str]] | None = None,
         reference_bundle: ReferenceBundle | None = None,
-        min_substrates: int = 1,
-        min_motif_size: int = 1,
-        allow_profile_only_fallback: bool = False,
-        ensemble_size: int = 10,
-        top: int = 50,
-        score_threshold: float = 0.8,
-        inclusion: int = 20,
-        n_iterations: int = 5,
-        random_state: int | None = None,
-        svm_mode: PredictionSvmMode | None = None,
-        profile_policy: KinaseProfilePolicy | None = None,
+        prediction_config: PredictionRunConfig | None = None,
     ) -> _WorkflowResultT:
         request = self._validate_request(
             phospho_matrix=phospho_matrix,
@@ -103,17 +84,7 @@ class _BaseKinaseWorkflow(Generic[_WorkflowResultT]):
             site_sequences=site_sequences,
             motif_sequences=motif_sequences,
             reference_bundle=reference_bundle,
-            min_substrates=min_substrates,
-            min_motif_size=min_motif_size,
-            allow_profile_only_fallback=allow_profile_only_fallback,
-            ensemble_size=ensemble_size,
-            top=top,
-            score_threshold=score_threshold,
-            inclusion=inclusion,
-            n_iterations=n_iterations,
-            random_state=random_state,
-            svm_mode=svm_mode,
-            profile_policy=profile_policy,
+            prediction_config=prediction_config,
         )
         return self.run_validated(request)
 

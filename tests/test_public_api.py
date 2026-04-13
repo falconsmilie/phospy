@@ -22,6 +22,10 @@ from phospy import (
     SignalomeWorkflow,
     SimpleKinaseWorkflow,
 )
+from phospy.api import (
+    KinaseActivityConfig,
+    PredictionRunConfig,
+)
 from phospy.datasets import (
     AnalysisReadyPreprocessingProvenance,
     AnalysisReadyRowCounts,
@@ -139,7 +143,7 @@ def test_phospho_dataset_preprocessing_run() -> None:
     )
 
 
-def test_pipeline_rejects_mixed_preprocessing_config_styles() -> None:
+def test_pipeline_rejects_invalid_preprocessing_config_type() -> None:
     dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
@@ -147,15 +151,11 @@ def test_pipeline_rejects_mixed_preprocessing_config_styles() -> None:
 
     with pytest.raises(
         RequestValidationError,
-        match=(
-            r"Invalid pipeline construction request: pass either preprocessing_config or scalar "
-            r"preprocessing options, not both\."
-        ),
+        match=r"preprocessing_config must be a CorePreprocessingConfig instance",
     ):
         PhosRPipeline(
             dataset=dataset,
-            preprocessing_config=CorePreprocessingConfig(),
-            min_observed=1,
+            preprocessing_config="invalid",
         )
 
 
@@ -655,14 +655,16 @@ def test_kinase_workflow_runs_with_class_api() -> None:
             "KINASE_A": ["QQAAAAAYY", "QQAAAAAYY"],
             "KINASE_B": ["QQTTTTTYY", "QQTTTTTYY"],
         },
-        min_substrates=2,
-        min_motif_size=1,
-        top=2,
-        score_threshold=0.5,
-        inclusion=1,
-        ensemble_size=2,
-        n_iterations=1,
-        random_state=7,
+        prediction_config=PredictionRunConfig(
+            min_substrates=2,
+            min_motif_size=1,
+            top=2,
+            score_threshold=0.5,
+            inclusion=1,
+            ensemble_size=2,
+            n_iterations=1,
+            random_state=7,
+        ),
     )
 
     assert result.prediction_result.pred_matrix.shape[1] == 2
@@ -694,14 +696,16 @@ def test_pred_mat_workflow_runs_with_class_api() -> None:
             "KINASE_A": ["QQAAAAAYY", "QQAAAAAYY"],
             "KINASE_B": ["QQTTTTTYY", "QQTTTTTYY"],
         },
-        min_substrates=2,
-        min_motif_size=1,
-        top=2,
-        score_threshold=0.5,
-        inclusion=1,
-        ensemble_size=2,
-        n_iterations=1,
-        random_state=7,
+        prediction_config=PredictionRunConfig(
+            min_substrates=2,
+            min_motif_size=1,
+            top=2,
+            score_threshold=0.5,
+            inclusion=1,
+            ensemble_size=2,
+            n_iterations=1,
+            random_state=7,
+        ),
     )
 
     assert result.pred_mat_result.data_frame.shape[1] == 2
@@ -738,14 +742,16 @@ def test_pred_mat_workflow_exposes_canonical_result_and_export_contract(
             "KINASE_A": ["QQAAAAAYY", "QQAAAAAYY"],
             "KINASE_B": ["QQTTTTTYY", "QQTTTTTYY"],
         },
-        min_substrates=2,
-        min_motif_size=1,
-        top=2,
-        score_threshold=0.5,
-        inclusion=1,
-        ensemble_size=2,
-        n_iterations=1,
-        random_state=7,
+        prediction_config=PredictionRunConfig(
+            min_substrates=2,
+            min_motif_size=1,
+            top=2,
+            score_threshold=0.5,
+            inclusion=1,
+            ensemble_size=2,
+            n_iterations=1,
+            random_state=7,
+        ),
     )
 
     assert isinstance(result.pred_mat_result, PredMatResult)
@@ -842,7 +848,7 @@ def test_pipeline_propagates_max_unmatched_fraction(tmp_path) -> None:
     pipeline = PhosRPipeline.from_files(
         total_path=total_path,
         phospho_path=phospho_path,
-        max_unmatched_fraction=0.5,
+        preprocessing_config=CorePreprocessingConfig(max_unmatched_fraction=0.5),
     )
     outputs = pipeline.run()
 
@@ -909,9 +915,11 @@ def test_pipeline_propagates_sentinel_configuration(tmp_path) -> None:
     pipeline = PhosRPipeline.from_files(
         total_path=total_path,
         phospho_path=phospho_path,
-        min_observed=5,
-        total_sentinel=99.0,
-        phospho_sentinel=99.0,
+        preprocessing_config=CorePreprocessingConfig(
+            min_observed=5,
+            total_sentinel=99.0,
+            phospho_sentinel=99.0,
+        ),
     )
 
     processor = CoreProcessor(schema=pipeline.dataset.schema)
@@ -1133,16 +1141,20 @@ def test_simple_kinase_workflow_from_files_validates_inputs_once(
         total=total_path,
         phospho=phospho_path,
         species="rat",
-        min_substrates=1,
-        min_motif_size=1,
-        ensemble_size=2,
-        top=3,
-        inclusion=2,
-        n_iterations=2,
-        random_state=7,
-        kinase_activity_threshold=0.1,
-        kinase_activity_min_substrates=1,
-        kinase_activity_top_n_substrates=3,
+        prediction_config=PredictionRunConfig(
+            min_substrates=1,
+            min_motif_size=1,
+            ensemble_size=2,
+            top=3,
+            inclusion=2,
+            n_iterations=2,
+            random_state=7,
+        ),
+        activity_config=KinaseActivityConfig(
+            threshold=0.1,
+            min_substrates=1,
+            top_n_substrates=3,
+        ),
     )
 
     assert isinstance(result.analysis_ready_dataset, AnalysisReadyPhosphoDataset)
@@ -1178,9 +1190,11 @@ def test_pipeline_run_uses_explicit_kinase_activity_settings(monkeypatch) -> Non
     pipeline = PhosRPipeline(
         dataset=dataset,
         pred_mat=make_pred_mat(),
-        kinase_activity_threshold=0.95,
-        kinase_activity_min_substrates=9,
-        kinase_activity_top_n_substrates=11,
+        activity_config=KinaseActivityConfig(
+            threshold=0.95,
+            min_substrates=9,
+            top_n_substrates=11,
+        ),
     )
 
     captured: dict[str, float | int] = {}
@@ -1217,9 +1231,11 @@ def test_pipeline_exposes_explicit_kinase_activity_options_on_validated_input() 
     pipeline = PhosRPipeline(
         dataset=dataset,
         pred_mat=make_pred_mat(),
-        kinase_activity_threshold=0.75,
-        kinase_activity_min_substrates=4,
-        kinase_activity_top_n_substrates=6,
+        activity_config=KinaseActivityConfig(
+            threshold=0.75,
+            min_substrates=4,
+            top_n_substrates=6,
+        ),
     )
 
     assert pipeline.request.kinase_activity_threshold == 0.75
@@ -1793,14 +1809,16 @@ def test_public_bundled_reference_provider_runs_workflow_with_supported_bundle()
         phospho_matrix=phospho_matrix,
         site_sequences=site_sequences,
         reference_bundle=bundle,
-        min_substrates=1,
-        min_motif_size=1,
-        ensemble_size=2,
-        top=10,
-        score_threshold=0.8,
-        inclusion=2,
-        n_iterations=2,
-        random_state=7,
+        prediction_config=PredictionRunConfig(
+            min_substrates=1,
+            min_motif_size=1,
+            ensemble_size=2,
+            top=10,
+            score_threshold=0.8,
+            inclusion=2,
+            n_iterations=2,
+            random_state=7,
+        ),
     )
 
     assert bundle.source_metadata.reference == "l6_native"
@@ -1856,16 +1874,20 @@ def test_simple_kinase_workflow_runs_in_memory_without_total() -> None:
     result = SimpleKinaseWorkflow(flank_size=7).run(
         phospho=phospho_df,
         species="rat",
-        min_substrates=1,
-        min_motif_size=1,
-        ensemble_size=2,
-        top=3,
-        inclusion=2,
-        n_iterations=2,
-        random_state=7,
-        kinase_activity_threshold=0.1,
-        kinase_activity_min_substrates=1,
-        kinase_activity_top_n_substrates=3,
+        prediction_config=PredictionRunConfig(
+            min_substrates=1,
+            min_motif_size=1,
+            ensemble_size=2,
+            top=3,
+            inclusion=2,
+            n_iterations=2,
+            random_state=7,
+        ),
+        activity_config=KinaseActivityConfig(
+            threshold=0.1,
+            min_substrates=1,
+            top_n_substrates=3,
+        ),
     )
 
     assert isinstance(result.analysis_ready_dataset, AnalysisReadyPhosphoDataset)
@@ -1888,16 +1910,20 @@ def test_simple_kinase_workflow_runs_from_files_with_total(tmp_path: Path) -> No
         total=total_path,
         phospho=phospho_path,
         species="rat",
-        min_substrates=1,
-        min_motif_size=1,
-        ensemble_size=2,
-        top=3,
-        inclusion=2,
-        n_iterations=2,
-        random_state=7,
-        kinase_activity_threshold=0.1,
-        kinase_activity_min_substrates=1,
-        kinase_activity_top_n_substrates=3,
+        prediction_config=PredictionRunConfig(
+            min_substrates=1,
+            min_motif_size=1,
+            ensemble_size=2,
+            top=3,
+            inclusion=2,
+            n_iterations=2,
+            random_state=7,
+        ),
+        activity_config=KinaseActivityConfig(
+            threshold=0.1,
+            min_substrates=1,
+            top_n_substrates=3,
+        ),
     )
 
     assert isinstance(result.analysis_ready_dataset, AnalysisReadyPhosphoDataset)
@@ -1914,16 +1940,20 @@ def test_simple_kinase_workflow_runs_in_memory_from_example_fixtures() -> None:
         total=total_df,
         phospho=phospho_df,
         species="rat",
-        min_substrates=1,
-        min_motif_size=1,
-        ensemble_size=2,
-        top=3,
-        inclusion=2,
-        n_iterations=2,
-        random_state=7,
-        kinase_activity_threshold=0.1,
-        kinase_activity_min_substrates=1,
-        kinase_activity_top_n_substrates=3,
+        prediction_config=PredictionRunConfig(
+            min_substrates=1,
+            min_motif_size=1,
+            ensemble_size=2,
+            top=3,
+            inclusion=2,
+            n_iterations=2,
+            random_state=7,
+        ),
+        activity_config=KinaseActivityConfig(
+            threshold=0.1,
+            min_substrates=1,
+            top_n_substrates=3,
+        ),
     ) as result:
         assert isinstance(result.analysis_ready_dataset, AnalysisReadyPhosphoDataset)
         assert result.reference_bundle.species == "rat"

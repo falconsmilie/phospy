@@ -36,9 +36,13 @@ def test_api_package_exports_only_supported_workflows() -> None:
     import phospy.api as api
 
     assert set(api.__all__) == {
+        "DatasetLoadOptions",
         "KinaseWorkflow",
+        "KinaseActivityConfig",
         "PredMatWorkflow",
+        "PredictionRunConfig",
         "SignalomeWorkflow",
+        "SignalomeRunConfig",
         "SimpleKinaseWorkflow",
     }
     assert not hasattr(api, "KinaseWorkflowResult")

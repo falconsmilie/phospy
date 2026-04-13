@@ -8,7 +8,12 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.api import PredMatWorkflow, SignalomeWorkflow
+from phospy.api import (
+    PredictionRunConfig,
+    PredMatWorkflow,
+    SignalomeRunConfig,
+    SignalomeWorkflow,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_DATA = ROOT / "examples" / "data"
@@ -52,11 +57,7 @@ def _load_demo_inputs() -> tuple[
 
 def _run_public_predmat_workflow(*, svm_mode: str) -> pd.DataFrame:
     phospho_matrix, substrate_map, site_sequences, motif_sequences = _load_demo_inputs()
-    result = PredMatWorkflow(flank_size=2, svm_mode=svm_mode).run(
-        phospho_matrix=phospho_matrix,
-        substrate_map=substrate_map,
-        site_sequences=site_sequences,
-        motif_sequences=motif_sequences,
+    prediction_config = PredictionRunConfig(
         min_substrates=2,
         min_motif_size=2,
         ensemble_size=3,
@@ -66,6 +67,13 @@ def _run_public_predmat_workflow(*, svm_mode: str) -> pd.DataFrame:
         n_iterations=2,
         random_state=17,
     )
+    result = PredMatWorkflow(flank_size=2, svm_mode=svm_mode).run(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        prediction_config=prediction_config,
+    )
     return result.pred_mat_result.to_frame(copy=False)
 
 
@@ -73,11 +81,7 @@ def _run_public_signalome_workflow(
     *, svm_mode: str
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     phospho_matrix, substrate_map, site_sequences, motif_sequences = _load_demo_inputs()
-    pred_mat_result = PredMatWorkflow(flank_size=2, svm_mode=svm_mode).run(
-        phospho_matrix=phospho_matrix,
-        substrate_map=substrate_map,
-        site_sequences=site_sequences,
-        motif_sequences=motif_sequences,
+    prediction_config = PredictionRunConfig(
         min_substrates=2,
         min_motif_size=2,
         ensemble_size=3,
@@ -86,6 +90,13 @@ def _run_public_signalome_workflow(
         inclusion=3,
         n_iterations=2,
         random_state=17,
+    )
+    pred_mat_result = PredMatWorkflow(flank_size=2, svm_mode=svm_mode).run(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        prediction_config=prediction_config,
     )
     signalome_result = SignalomeWorkflow().run(
         scoring_result=pred_mat_result.scoring_result,
@@ -96,7 +107,7 @@ def _run_public_signalome_workflow(
             str(site_id): str(site_id).split(";", 1)[0]
             for site_id in phospho_matrix.index
         },
-        signalome_cutoff=0.5,
+        config=SignalomeRunConfig(signalome_cutoff=0.5),
     )
     map_data = signalome_result.to_map_data()
     network_data = signalome_result.to_network_data()
@@ -144,6 +155,16 @@ def test_public_predmat_workflow_matches_committed_benchmark(
 @pytest.mark.parity
 def test_public_predmat_workflow_default_mode_is_order_invariant_end_to_end() -> None:
     phospho_matrix, substrate_map, site_sequences, motif_sequences = _load_demo_inputs()
+    prediction_config = PredictionRunConfig(
+        min_substrates=2,
+        min_motif_size=2,
+        ensemble_size=3,
+        top=4,
+        score_threshold=0.75,
+        inclusion=3,
+        n_iterations=2,
+        random_state=17,
+    )
     reference = (
         PredMatWorkflow(flank_size=2, svm_mode="default")
         .run(
@@ -151,14 +172,7 @@ def test_public_predmat_workflow_default_mode_is_order_invariant_end_to_end() ->
             substrate_map=substrate_map,
             site_sequences=site_sequences,
             motif_sequences=motif_sequences,
-            min_substrates=2,
-            min_motif_size=2,
-            ensemble_size=3,
-            top=4,
-            score_threshold=0.75,
-            inclusion=3,
-            n_iterations=2,
-            random_state=17,
+            prediction_config=prediction_config,
         )
         .pred_mat_result.to_frame(copy=False)
     )
@@ -176,14 +190,7 @@ def test_public_predmat_workflow_default_mode_is_order_invariant_end_to_end() ->
             substrate_map=reordered_substrate_map,
             site_sequences=site_sequences,
             motif_sequences=reordered_motif_sequences,
-            min_substrates=2,
-            min_motif_size=2,
-            ensemble_size=3,
-            top=4,
-            score_threshold=0.75,
-            inclusion=3,
-            n_iterations=2,
-            random_state=17,
+            prediction_config=prediction_config,
         )
         .pred_mat_result.to_frame(copy=False)
     )

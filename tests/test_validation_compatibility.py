@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy import KinaseActivityAnalyzer, PhosphoDataset
-from phospy.api import KinaseWorkflow
+from phospy.api import KinaseWorkflow, PredictionRunConfig
 from phospy.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
@@ -58,14 +58,16 @@ def test_kinase_workflow_reports_no_candidates_for_partial_site_sequence_coverag
             substrate_map={"KINASE_A": ["SITE_1", "SITE_2"]},
             site_sequences={"SITE_1": "QQAAAAAYY"},
             motif_sequences={"KINASE_A": ["QQAAAAAYY", "QQAAAAAYY"]},
-            min_substrates=1,
-            min_motif_size=1,
-            ensemble_size=2,
-            top=1,
-            score_threshold=0.0,
-            inclusion=1,
-            n_iterations=1,
-            random_state=7,
+            prediction_config=PredictionRunConfig(
+                min_substrates=1,
+                min_motif_size=1,
+                ensemble_size=2,
+                top=1,
+                score_threshold=0.0,
+                inclusion=1,
+                n_iterations=1,
+                random_state=7,
+            ),
         )
 
 
@@ -115,12 +117,14 @@ def test_kinase_workflow_rejects_zero_substrate_overlap() -> None:
             phospho_matrix=phospho_matrix,
             substrate_map={"KINASE_A": ["SITE_9"]},
             motif_sequences=None,
-            allow_profile_only_fallback=True,
-            ensemble_size=2,
-            top=2,
-            score_threshold=0.5,
-            inclusion=1,
-            n_iterations=1,
+            prediction_config=PredictionRunConfig(
+                allow_profile_only_fallback=True,
+                ensemble_size=2,
+                top=2,
+                score_threshold=0.5,
+                inclusion=1,
+                n_iterations=1,
+            ),
         )
 
 
@@ -317,11 +321,13 @@ def test_kinase_workflow_rejects_zero_site_sequence_overlap_when_motifs_are_enab
             substrate_map={"KINASE_A": ["SITE_1"]},
             site_sequences={"SITE_9": "QQAAAAAYY"},
             motif_sequences={"KINASE_A": ["QQAAAAAYY", "QQAAAAAYY"]},
-            min_substrates=1,
-            min_motif_size=1,
-            ensemble_size=2,
-            top=1,
-            score_threshold=0.0,
-            inclusion=1,
-            n_iterations=1,
+            prediction_config=PredictionRunConfig(
+                min_substrates=1,
+                min_motif_size=1,
+                ensemble_size=2,
+                top=1,
+                score_threshold=0.0,
+                inclusion=1,
+                n_iterations=1,
+            ),
         )

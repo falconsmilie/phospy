@@ -7,7 +7,12 @@ from tempfile import TemporaryDirectory
 
 import pandas as pd
 
-from phospy.api import PredMatWorkflow, SignalomeWorkflow
+from phospy.api import (
+    PredictionRunConfig,
+    PredMatWorkflow,
+    SignalomeRunConfig,
+    SignalomeWorkflow,
+)
 from phospy.signalomes import (
     SignalomeMapData,
     SignalomeNetworkData,
@@ -59,14 +64,16 @@ def run_demo(
         substrate_map=substrate_map,
         site_sequences=site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
+        prediction_config=PredictionRunConfig(
+            min_substrates=2,
+            min_motif_size=2,
+            ensemble_size=3,
+            top=4,
+            score_threshold=0.75,
+            inclusion=3,
+            n_iterations=2,
+            random_state=17,
+        ),
     )
     signalome_result = SignalomeWorkflow().run(
         scoring_result=pred_mat_result.scoring_result,
@@ -74,7 +81,7 @@ def run_demo(
         expression_matrix=phospho_matrix,
         kinases_of_interest=["KINASE_A", "KINASE_B"],
         site_to_protein=build_site_to_protein(phospho_matrix.index),
-        signalome_cutoff=0.5,
+        config=SignalomeRunConfig(signalome_cutoff=0.5),
         # For larger real-world datasets, set module_count explicitly to skip
         # the extra automatic module-selection scoring pass.
     )

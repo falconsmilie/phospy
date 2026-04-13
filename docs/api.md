@@ -9,8 +9,12 @@ Preferred imports:
 ```python
 from phospy.activities import KinaseActivityAnalyzer
 from phospy.api import (
+    DatasetLoadOptions,
     KinaseWorkflow,
+    KinaseActivityConfig,
     PredMatWorkflow,
+    PredictionRunConfig,
+    SignalomeRunConfig,
     SignalomeWorkflow,
     SimpleKinaseWorkflow,
 )
@@ -465,29 +469,10 @@ SimpleKinaseWorkflow().run(
     species: str,
     total: pd.DataFrame | str | Path | None = None,
     reference: str = "auto",
-    phospho_encoding: str | None = None,
-    comparisons: Sequence[ComparisonSpec] | None = None,
-    schema: DatasetSchema | None = None,
+    dataset_options: DatasetLoadOptions | None = None,
     preprocessing_config: CorePreprocessingConfig | None = None,
-    localization_threshold: float = 0.75,
-    min_observed: int = 4,
-    max_unmatched_fraction: float = 0.0,
-    total_sentinel: float | int = 10.0,
-    phospho_sentinel: float | int = 12.0,
-    min_substrates: int = 1,
-    min_motif_size: int = 1,
-    allow_profile_only_fallback: bool = False,
-    ensemble_size: int = 10,
-    top: int = 50,
-    score_threshold: float = 0.8,
-    inclusion: int = 20,
-    n_iterations: int = 5,
-    random_state: int | None = None,
-    svm_mode: PredictionSvmMode | None = None,
-    profile_policy: KinaseProfilePolicy | None = None,
-    kinase_activity_threshold: float = 0.6,
-    kinase_activity_min_substrates: int = 3,
-    kinase_activity_top_n_substrates: int = 20,
+    prediction_config: PredictionRunConfig | None = None,
+    activity_config: KinaseActivityConfig | None = None,
 ) -> SimpleKinaseWorkflowResult
 ```
 
@@ -496,6 +481,9 @@ Notes:
 - `phospho` and `species` are required
 - `total` is optional
 - when `total` is provided, the workflow reuses the dataset preprocessing path
+- pass `dataset_options` for `schema`, `comparisons`, and `phospho_encoding`
+- pass `prediction_config` for prediction controls (`min_substrates`, `top`, `score_threshold`, `svm_mode`, `profile_policy`, and related options)
+- pass `activity_config` for downstream kinase activity controls (`threshold`, `min_substrates`, `top_n_substrates`)
 - the default bundled provider currently supports only `species="rat"` and `reference in {"auto", "l6", "l6_native"}`
 
 Returned result bundle:
@@ -535,14 +523,7 @@ PhosRPipeline(
     dataset: PhosphoDataset,
     pred_mat: pd.DataFrame | PredMatResult | None = None,
     preprocessing_config: CorePreprocessingConfig | None = None,
-    localization_threshold: float = 0.75,
-    min_observed: int = 4,
-    max_unmatched_fraction: float = 0.0,
-    total_sentinel: float = 10.0,
-    phospho_sentinel: float = 12.0,
-    kinase_activity_threshold: float = 0.6,
-    kinase_activity_min_substrates: int = 3,
-    kinase_activity_top_n_substrates: int = 20,
+    activity_config: KinaseActivityConfig | None = None,
     *,
     manifest_writer: RunManifestWriter | None = None,
     output_publisher: OutputPublisher | None = None,
@@ -556,17 +537,9 @@ PhosRPipeline.from_files(
     total_path: str | Path,
     phospho_path: str | Path,
     pred_mat_path: str | Path | None = None,
-    comparisons: Sequence[ComparisonSpec] | None = None,
-    phospho_encoding: str | None = None,
-    schema: DatasetSchema | None = None,
-    localization_threshold: float = 0.75,
-    min_observed: int = 4,
-    max_unmatched_fraction: float = 0.0,
-    total_sentinel: float = 10.0,
-    phospho_sentinel: float = 12.0,
-    kinase_activity_threshold: float = 0.6,
-    kinase_activity_min_substrates: int = 3,
-    kinase_activity_top_n_substrates: int = 20,
+    dataset_options: DatasetLoadOptions | None = None,
+    preprocessing_config: CorePreprocessingConfig | None = None,
+    activity_config: KinaseActivityConfig | None = None,
     *,
     manifest_writer: RunManifestWriter | None = None,
     output_publisher: OutputPublisher | None = None,
@@ -616,17 +589,7 @@ workflow.run(
     site_sequences: Mapping[str, str] | pd.Series | None = None,
     motif_sequences: Mapping[str, Sequence[str]] | None = None,
     reference_bundle: ReferenceBundle | None = None,
-    min_substrates: int = 1,
-    min_motif_size: int = 1,
-    allow_profile_only_fallback: bool = False,
-    ensemble_size: int = 10,
-    top: int = 50,
-    score_threshold: float = 0.8,
-    inclusion: int = 20,
-    n_iterations: int = 5,
-    random_state: int | None = None,
-    svm_mode: PredictionSvmMode | None = None,
-    profile_policy: KinaseProfilePolicy | None = None,
+    prediction_config: PredictionRunConfig | None = None,
 ) -> PredMatWorkflowResult
 ```
 
@@ -634,10 +597,11 @@ Key rules:
 
 - `phospho_matrix` must be numeric and indexed by unique phosphosite IDs
 - pass either `reference_bundle` or explicit reference inputs
+- pass `prediction_config` to control prediction and profile policy options
 - `motif_sequences` is required unless `allow_profile_only_fallback=True`
 - when `motif_sequences` is provided, `site_sequences` is also required
-- `min_substrates`, `min_motif_size`, `ensemble_size`, `top`, `inclusion`, and `n_iterations` must be `>= 1`
-- `score_threshold` must be in `[0, 1]`
+- `PredictionRunConfig` validates `min_substrates`, `min_motif_size`, `ensemble_size`, `top`, `inclusion`, and `n_iterations` as `>= 1`
+- `PredictionRunConfig.score_threshold` must be in `[0, 1]`
 
 Returns:
 
@@ -686,17 +650,7 @@ workflow.run(
     site_sequences: Mapping[str, str] | pd.Series | None = None,
     motif_sequences: Mapping[str, Sequence[str]] | None = None,
     reference_bundle: ReferenceBundle | None = None,
-    min_substrates: int = 1,
-    min_motif_size: int = 1,
-    allow_profile_only_fallback: bool = False,
-    ensemble_size: int = 10,
-    top: int = 50,
-    score_threshold: float = 0.8,
-    inclusion: int = 20,
-    n_iterations: int = 5,
-    random_state: int | None = None,
-    svm_mode: PredictionSvmMode | None = None,
-    profile_policy: KinaseProfilePolicy | None = None,
+    prediction_config: PredictionRunConfig | None = None,
 ) -> KinaseWorkflowResult
 ```
 
@@ -723,11 +677,7 @@ SignalomeWorkflow().run(
     expression_matrix: pd.DataFrame,
     kinases_of_interest: Sequence[str],
     site_to_protein: Mapping[str, str] | None = None,
-    kinase_network_threshold: float = 0.9,
-    signalome_cutoff: float = 0.5,
-    module_count: int | None = None,
-    min_kinase_module_share_percent: float = 1.0,
-    module_selection_policy: SignalomeModuleSelectionPolicy | None = None,
+    config: SignalomeRunConfig | None = None,
 ) -> SignalomeResult
 ```
 
@@ -738,9 +688,7 @@ Key rules:
 - `expression_matrix` must be numeric and indexed by unique phosphosite IDs
 - aligned `pred_mat` values must be finite because signalome assignment needs a concrete top kinase per row
 - `kinases_of_interest` must not be empty and must be present in the aligned kinase columns
-- `kinase_network_threshold` and `signalome_cutoff` must be in `[0, 1]`
-- `module_count`, when supplied, must be `>= 1`
-- `min_kinase_module_share_percent` must be `>= 0`
+- pass `config` to tune `kinase_network_threshold`, `signalome_cutoff`, `module_count`, `min_kinase_module_share_percent`, and `module_selection_policy`
 
 For larger datasets, set `module_count` explicitly if you want to skip the extra automatic module-selection scoring pass.
 

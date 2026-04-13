@@ -9,6 +9,7 @@ import pytest
 
 import phospy.prediction.sampling_core as _sampling_core
 from phospy import SimpleKinaseWorkflow
+from phospy.api import KinaseActivityConfig, PredictionRunConfig
 from phospy.errors import (
     NoCandidateKinasesError,
     RequestValidationError,
@@ -1704,16 +1705,20 @@ def test_simple_kinase_workflow_runs_from_fixture_files_and_pins_result_invarian
         total=SIMPLE_WORKFLOW_FIXTURE_DIR / "total.tsv",
         phospho=SIMPLE_WORKFLOW_FIXTURE_DIR / "phospho.tsv",
         species="rat",
-        min_substrates=1,
-        min_motif_size=1,
-        ensemble_size=2,
-        top=3,
-        inclusion=2,
-        n_iterations=2,
-        random_state=7,
-        kinase_activity_threshold=0.1,
-        kinase_activity_min_substrates=1,
-        kinase_activity_top_n_substrates=3,
+        prediction_config=PredictionRunConfig(
+            min_substrates=1,
+            min_motif_size=1,
+            ensemble_size=2,
+            top=3,
+            inclusion=2,
+            n_iterations=2,
+            random_state=7,
+        ),
+        activity_config=KinaseActivityConfig(
+            threshold=0.1,
+            min_substrates=1,
+            top_n_substrates=3,
+        ),
     ) as result:
         pred_mat = result.pred_mat_result.to_frame(copy=False)
 

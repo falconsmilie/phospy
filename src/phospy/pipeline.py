@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -10,11 +10,11 @@ import pandas as pd
 
 from .activities.analysis import KinaseActivityAnalyzer
 from .activities.results import KinaseActivityResult
+from .api.contracts import DatasetLoadOptions, KinaseActivityConfig
 from .datasets.loaders import DatasetLoader
 from .datasets.models import PhosphoDataset
 from .datasets.schema import DatasetSchema
 from .errors import RequestValidationError, TableSchemaError
-from .internal.constants import ComparisonSpec
 from .io import load_pred_mat
 from .io.publishing import OutputPublisher, RunManifestWriter
 from .io.writers import CoreOutputWriter, KinaseActivityWriter
@@ -159,30 +159,19 @@ class PhosRPipeline:
         dataset: PhosphoDataset,
         pred_mat: pd.DataFrame | PredMatResult | None = None,
         preprocessing_config: CorePreprocessingConfig | None = None,
-        localization_threshold: float = 0.75,
-        min_observed: int = 4,
-        max_unmatched_fraction: float = 0.0,
-        total_sentinel: float = 10.0,
-        phospho_sentinel: float = 12.0,
-        kinase_activity_threshold: float = 0.6,
-        kinase_activity_min_substrates: int = 3,
-        kinase_activity_top_n_substrates: int = 20,
+        activity_config: KinaseActivityConfig | None = None,
         *,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
     ) -> None:
+        resolved_activity_config = KinaseActivityConfig.from_value(activity_config)
         request = validate_pipeline_construction_request(
             dataset=dataset,
             pred_mat=pred_mat,
             preprocessing_config=preprocessing_config,
-            localization_threshold=localization_threshold,
-            min_observed=min_observed,
-            max_unmatched_fraction=max_unmatched_fraction,
-            total_sentinel=total_sentinel,
-            phospho_sentinel=phospho_sentinel,
-            kinase_activity_threshold=kinase_activity_threshold,
-            kinase_activity_min_substrates=kinase_activity_min_substrates,
-            kinase_activity_top_n_substrates=kinase_activity_top_n_substrates,
+            kinase_activity_threshold=resolved_activity_config.threshold,
+            kinase_activity_min_substrates=resolved_activity_config.min_substrates,
+            kinase_activity_top_n_substrates=resolved_activity_config.top_n_substrates,
         )
         self._initialize_from_inputs(
             request=request,
@@ -242,36 +231,35 @@ class PhosRPipeline:
         total_path: str | Path,
         phospho_path: str | Path,
         pred_mat_path: str | Path | None = None,
-        comparisons: Sequence[ComparisonSpec] | None = None,
-        phospho_encoding: str | None = None,
-        schema: DatasetSchema | None = None,
-        localization_threshold: float = 0.75,
-        min_observed: int = 4,
-        max_unmatched_fraction: float = 0.0,
-        total_sentinel: float = 10.0,
-        phospho_sentinel: float = 12.0,
-        kinase_activity_threshold: float = 0.6,
-        kinase_activity_min_substrates: int = 3,
-        kinase_activity_top_n_substrates: int = 20,
+        dataset_options: DatasetLoadOptions | None = None,
+        preprocessing_config: CorePreprocessingConfig | None = None,
+        activity_config: KinaseActivityConfig | None = None,
         *,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
     ) -> PhosRPipeline:
+        resolved_dataset_options = DatasetLoadOptions.from_value(dataset_options)
+        resolved_preprocessing_config = (
+            CorePreprocessingConfig()
+            if preprocessing_config is None
+            else preprocessing_config
+        )
+        resolved_activity_config = KinaseActivityConfig.from_value(activity_config)
         request = CorePipelineRequest.validate_request(
             total_path=Path(total_path),
             phospho_path=Path(phospho_path),
             pred_mat_path=Path(pred_mat_path) if pred_mat_path is not None else None,
-            phospho_encoding=phospho_encoding,
-            schema=schema or DatasetSchema(),
-            comparisons=tuple(comparisons) if comparisons is not None else None,
-            localization_threshold=localization_threshold,
-            min_observed=min_observed,
-            total_sentinel=total_sentinel,
-            phospho_sentinel=phospho_sentinel,
-            max_unmatched_fraction=max_unmatched_fraction,
-            kinase_activity_threshold=kinase_activity_threshold,
-            kinase_activity_min_substrates=kinase_activity_min_substrates,
-            kinase_activity_top_n_substrates=kinase_activity_top_n_substrates,
+            phospho_encoding=resolved_dataset_options.phospho_encoding,
+            schema=resolved_dataset_options.schema,
+            comparisons=resolved_dataset_options.comparisons,
+            localization_threshold=resolved_preprocessing_config.localization_threshold,
+            min_observed=resolved_preprocessing_config.min_observed,
+            total_sentinel=resolved_preprocessing_config.total_sentinel,
+            phospho_sentinel=resolved_preprocessing_config.phospho_sentinel,
+            max_unmatched_fraction=resolved_preprocessing_config.max_unmatched_fraction,
+            kinase_activity_threshold=resolved_activity_config.threshold,
+            kinase_activity_min_substrates=resolved_activity_config.min_substrates,
+            kinase_activity_top_n_substrates=resolved_activity_config.top_n_substrates,
         )
         return cls._from_request(
             request,
