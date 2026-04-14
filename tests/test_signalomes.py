@@ -25,7 +25,7 @@ from phospy.signalomes import (
     SignalomeResult,
     build_signalome_result,
 )
-from phospy.signalomes.analysis import build_kinase_network_view
+from phospy.signalomes.analysis import build_kinase_network, build_kinase_network_view
 from phospy.signalomes.assignments import (
     build_expanded_signalomes,
     build_site_assignments,
@@ -200,6 +200,70 @@ def test_build_kinase_network_view_builds_expected_neighbor_map_and_edges() -> N
             }
         ),
     )
+
+
+def test_build_kinase_network_policies_apply_expected_thresholding() -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 2.0, 3.0, 4.0],
+            "KINASE_B": [4.0, 3.0, 2.0, 1.0],
+        }
+    )
+
+    positive_only, _ = build_kinase_network(
+        scoring_matrix=scoring_matrix,
+        threshold=0.9,
+        policy="positive_only",
+    )
+    absolute_threshold, _ = build_kinase_network(
+        scoring_matrix=scoring_matrix,
+        threshold=0.9,
+        policy="absolute_threshold",
+    )
+    signed, _ = build_kinase_network(
+        scoring_matrix=scoring_matrix,
+        threshold=0.9,
+        policy="signed",
+    )
+
+    assert positive_only.loc["KINASE_A", "KINASE_B"] == 0.0
+    assert absolute_threshold.loc["KINASE_A", "KINASE_B"] == 1.0
+    assert signed.loc["KINASE_A", "KINASE_B"] == -1.0
+
+
+def test_build_kinase_network_view_includes_negative_edges_for_signed_policy() -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 2.0, 3.0, 4.0],
+            "KINASE_B": [4.0, 3.0, 2.0, 1.0],
+        }
+    )
+    signed_network, correlation_matrix = build_kinase_network(
+        scoring_matrix=scoring_matrix,
+        threshold=0.9,
+        policy="signed",
+    )
+
+    network = build_kinase_network_view(
+        kinase_network=signed_network,
+        kinase_correlation_matrix=correlation_matrix,
+        kinase_substrates={
+            "KINASE_A": ("SITE_1",),
+            "KINASE_B": ("SITE_2",),
+        },
+    )
+
+    assert network.neighbor_map == {
+        "KINASE_A": ("KINASE_B",),
+        "KINASE_B": ("KINASE_A",),
+    }
+    assert network.edge_table.to_dict("records") == [
+        {
+            "source_kinase": "KINASE_A",
+            "target_kinase": "KINASE_B",
+            "correlation": -1.0,
+        }
+    ]
 
 
 def test_build_expanded_signalomes_uses_neighbor_map_and_preserves_site_order() -> None:

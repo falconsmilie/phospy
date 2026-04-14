@@ -21,6 +21,11 @@ SignalomeModuleSelectionStrategy = Literal[
     "correlation_thresholds",
     "single_module",
 ]
+SignalomeKinaseNetworkPolicy = Literal[
+    "positive_only",
+    "absolute_threshold",
+    "signed",
+]
 
 KinaseSubstrateMap = Mapping[str, Sequence[str]]
 KinaseMotifSequenceMap = Mapping[str, Sequence[str]]
@@ -33,5 +38,6 @@ __all__ = [
     "PredictionSvmMode",
     "PredictionTraceFormat",
     "PredictionTraceLevel",
+    "SignalomeKinaseNetworkPolicy",
     "SignalomeModuleSelectionStrategy",
 ]

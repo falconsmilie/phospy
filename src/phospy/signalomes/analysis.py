@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from ..errors import InputCompatibilityError
+from ..internal.types import SignalomeKinaseNetworkPolicy
 from ..validation.requests.signalome import (
     SignalomeInputs,
     SignalomeRequest,
@@ -140,6 +141,7 @@ class SignalomeRunner:
         kinase_network, kinase_correlation_matrix = build_kinase_network(
             scoring_matrix=inputs.scoring_matrix,
             threshold=inputs.kinase_network_threshold,
+            policy=inputs.kinase_network_policy,
         )
         network = build_kinase_network_view(
             kinase_network=kinase_network,
@@ -204,6 +206,7 @@ def build_signalome_result(
     kinases_of_interest: Sequence[str],
     site_to_protein: Mapping[str, str] | pd.Series | None = None,
     kinase_network_threshold: float = 0.9,
+    kinase_network_policy: SignalomeKinaseNetworkPolicy = "positive_only",
     signalome_cutoff: float = 0.5,
     module_count: int | None = None,
     min_kinase_module_share_percent: float = 1.0,
@@ -215,6 +218,7 @@ def build_signalome_result(
         kinases_of_interest=kinases_of_interest,
         site_to_protein=(None if site_to_protein is None else dict(site_to_protein)),
         kinase_network_threshold=kinase_network_threshold,
+        kinase_network_policy=kinase_network_policy,
         signalome_cutoff=signalome_cutoff,
         module_count=module_count,
         min_kinase_module_share_percent=min_kinase_module_share_percent,
@@ -227,6 +231,7 @@ def build_signalome_result(
         kinases_of_interest=request.kinases_of_interest,
         site_to_protein=request.site_to_protein,
         kinase_network_threshold=request.kinase_network_threshold,
+        kinase_network_policy=request.kinase_network_policy,
         signalome_cutoff=request.signalome_cutoff,
         module_count=request.module_count,
         min_kinase_module_share_percent=request.min_kinase_module_share_percent,
@@ -243,14 +248,42 @@ def build_kinase_network(
     *,
     scoring_matrix: pd.DataFrame,
     threshold: float = 0.9,
+    policy: SignalomeKinaseNetworkPolicy = "positive_only",
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Build a thresholded kinase-kinase co-correlation adjacency matrix."""
+    """Build a thresholded kinase-kinase co-correlation adjacency matrix.
+
+    ``policy`` controls how correlations are converted into network weights:
+
+    - ``positive_only``: keep only positive correlations ``>= threshold``.
+    - ``absolute_threshold``: keep edges where ``abs(correlation) >= threshold``
+      and store unsigned absolute weights.
+    - ``signed``: keep edges where ``abs(correlation) >= threshold`` and store
+      signed correlation weights.
+    """
 
     correlation_matrix = scoring_matrix.corr(method="pearson")
-    thresholded_network = correlation_matrix.where(
-        correlation_matrix >= threshold,
-        0.0,
-    ).copy()
+    if policy == "positive_only":
+        thresholded_network = correlation_matrix.where(
+            correlation_matrix >= threshold,
+            0.0,
+        ).copy()
+    elif policy == "absolute_threshold":
+        thresholded_network = (
+            correlation_matrix.abs()
+            .where(
+                correlation_matrix.abs() >= threshold,
+                0.0,
+            )
+            .copy()
+        )
+    elif policy == "signed":
+        thresholded_network = correlation_matrix.where(
+            correlation_matrix.abs() >= threshold,
+            0.0,
+        ).copy()
+    else:
+        msg = "policy must be one of: 'positive_only', 'absolute_threshold', 'signed'"
+        raise InputCompatibilityError(msg)
 
     for kinase in thresholded_network.index:
         thresholded_network.loc[kinase, kinase] = 0.0
@@ -274,18 +307,18 @@ def build_kinase_network_view(
     kinase_names = kinase_index.to_numpy(dtype=object, copy=False)
 
     network_values = aligned_network.to_numpy(dtype=float, copy=False)
-    positive_edge_mask = network_values > 0.0
+    edge_mask = network_values != 0.0
     diagonal_positions = np.arange(len(kinase_names), dtype=int)
-    positive_edge_mask[diagonal_positions, diagonal_positions] = False
+    edge_mask[diagonal_positions, diagonal_positions] = False
 
     neighbor_map = {
         str(kinase): tuple(str(neighbor) for neighbor in kinase_names[row_mask])
-        for kinase, row_mask in zip(kinase_names, positive_edge_mask, strict=True)
+        for kinase, row_mask in zip(kinase_names, edge_mask, strict=True)
     }
 
     node_table = pd.DataFrame(
         {
-            "degree": positive_edge_mask.sum(axis=1, dtype=int),
+            "degree": edge_mask.sum(axis=1, dtype=int),
             "n_substrates": np.asarray(
                 [
                     len(tuple(kinase_substrates.get(str(kinase), ())))
@@ -301,14 +334,18 @@ def build_kinase_network_view(
         len(kinase_names),
         k=1,
     )
-    edge_mask = positive_edge_mask[upper_triangle_source, upper_triangle_target]
+    upper_triangle_edge_mask = edge_mask[upper_triangle_source, upper_triangle_target]
     edge_table = pd.DataFrame(
         {
-            "source_kinase": kinase_names[upper_triangle_source[edge_mask]],
-            "target_kinase": kinase_names[upper_triangle_target[edge_mask]],
+            "source_kinase": kinase_names[
+                upper_triangle_source[upper_triangle_edge_mask]
+            ],
+            "target_kinase": kinase_names[
+                upper_triangle_target[upper_triangle_edge_mask]
+            ],
             "correlation": aligned_correlation_matrix.to_numpy(dtype=float, copy=False)[
-                upper_triangle_source[edge_mask],
-                upper_triangle_target[edge_mask],
+                upper_triangle_source[upper_triangle_edge_mask],
+                upper_triangle_target[upper_triangle_edge_mask],
             ],
         }
     )

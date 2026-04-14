@@ -35,6 +35,7 @@ class SignalomeWorkflow:
             kinases_of_interest=kinases_of_interest,
             site_to_protein=site_to_protein,
             kinase_network_threshold=resolved_config.kinase_network_threshold,
+            kinase_network_policy=resolved_config.kinase_network_policy,
             signalome_cutoff=resolved_config.signalome_cutoff,
             module_count=resolved_config.module_count,
             min_kinase_module_share_percent=(

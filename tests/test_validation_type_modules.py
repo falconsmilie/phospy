@@ -6,7 +6,10 @@ import pytest
 from phospy.errors import PhospyValidationError, TableSchemaError
 from phospy.validation.schema.frames import require_dataframe
 from phospy.validation.values.collections import resolve_required_columns
-from phospy.validation.values.enums import validate_svm_mode
+from phospy.validation.values.enums import (
+    validate_kinase_network_policy,
+    validate_svm_mode,
+)
 from phospy.validation.values.identifiers import require_splitable_gene_p_site
 from phospy.validation.values.numeric import validate_fraction
 
@@ -18,6 +21,10 @@ def test_validate_fraction_rejects_non_numeric_values() -> None:
 
 def test_validate_svm_mode_accepts_supported_value() -> None:
     assert validate_svm_mode("default") == "default"
+
+
+def test_validate_kinase_network_policy_accepts_supported_value() -> None:
+    assert validate_kinase_network_policy("signed") == "signed"
 
 
 def test_resolve_required_columns_rejects_empty_collection() -> None:

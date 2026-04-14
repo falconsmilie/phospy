@@ -7,6 +7,7 @@ from ...internal.types import (
     PredictionSvmMode,
     PredictionTraceFormat,
     PredictionTraceLevel,
+    SignalomeKinaseNetworkPolicy,
     SignalomeModuleSelectionStrategy,
 )
 
@@ -59,6 +60,20 @@ def validate_module_selection_strategy(
     return value
 
 
+def validate_kinase_network_policy(
+    value: SignalomeKinaseNetworkPolicy,
+) -> SignalomeKinaseNetworkPolicy:
+    """Validate the configured signalome kinase-network edge policy."""
+
+    if value not in {"positive_only", "absolute_threshold", "signed"}:
+        msg = (
+            "kinase_network_policy must be one of: 'positive_only', "
+            "'absolute_threshold', 'signed'"
+        )
+        raise PhospyValidationError(msg)
+    return value
+
+
 def validate_svm_mode(value: PredictionSvmMode) -> PredictionSvmMode:
     """Validate the configured prediction SVM mode."""
 
@@ -88,6 +103,7 @@ def validate_trace_format(value: PredictionTraceFormat) -> PredictionTraceFormat
 
 __all__ = [
     "validate_duplicate_site_strategy",
+    "validate_kinase_network_policy",
     "validate_missing_value_strategy",
     "validate_module_selection_strategy",
     "validate_svm_mode",
