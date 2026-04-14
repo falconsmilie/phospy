@@ -114,8 +114,8 @@ def test_signalome_result_to_map_data_returns_canonical_plotting_tables() -> Non
     assert list(map_data.sites().columns) == [
         "protein_id",
         "module_id",
-        "top_kinase",
         "top_kinase_candidates",
+        "top_kinase_weights",
         "top_kinase_tie_count",
         "top_kinase_is_ambiguous",
         "top_score",

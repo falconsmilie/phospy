@@ -142,9 +142,10 @@ def build_site_assignments(
 ) -> pd.DataFrame:
     """Build the site-level assignment table from prediction outputs.
 
-    Tied top-kinase assignments are resolved deterministically by sorting the
-    tied kinase names alphabetically. The full tie set is preserved in
-    ``top_kinase_candidates`` and summarised by the tie-count diagnostics.
+    Tied top-kinase assignments are preserved as weighted multi-assignments.
+    Kinases sharing the top score for a site receive equal fractional weight in
+    ``top_kinase_weights`` (e.g. two-way tie -> 0.5 each), while the full tie
+    set remains available in ``top_kinase_candidates``.
     """
 
     if pred_mat.shape[1] == 0:
@@ -210,12 +211,19 @@ def build_site_assignments(
     top_kinase_names = top_score_mask.columns.to_numpy(dtype=object, copy=False)
 
     top_kinase_tie_count = top_score_mask_values.sum(axis=1).astype(int)
-    top_kinase_positions = top_score_mask_values.argmax(axis=1)
-    top_kinases = top_kinase_names[top_kinase_positions]
     top_kinase_candidates = [
         json.dumps(top_kinase_names[mask_row].tolist())
         for mask_row in top_score_mask_values
     ]
+    top_kinase_weights = []
+    for mask_row, tie_count in zip(
+        top_score_mask_values, top_kinase_tie_count, strict=True
+    ):
+        tied_kinases = top_kinase_names[mask_row].tolist()
+        weight = 1.0 / float(tie_count)
+        top_kinase_weights.append(
+            json.dumps({str(kinase): weight for kinase in tied_kinases})
+        )
 
     module_ids = protein_ids.map(resolved_protein_modules).astype(int)
 
@@ -223,8 +231,8 @@ def build_site_assignments(
         {
             "protein_id": protein_ids.to_numpy(dtype=object, copy=False),
             "module_id": module_ids.to_numpy(dtype=int, copy=False),
-            "top_kinase": top_kinases,
             "top_kinase_candidates": top_kinase_candidates,
+            "top_kinase_weights": top_kinase_weights,
             "top_kinase_tie_count": top_kinase_tie_count,
             "top_kinase_is_ambiguous": top_kinase_tie_count > 1,
             "top_score": top_scores.to_numpy(dtype=float, copy=False),
@@ -235,8 +243,8 @@ def build_site_assignments(
         {
             "protein_id": str,
             "module_id": int,
-            "top_kinase": str,
             "top_kinase_candidates": str,
+            "top_kinase_weights": str,
             "top_kinase_tie_count": int,
             "top_kinase_is_ambiguous": bool,
             "top_score": float,

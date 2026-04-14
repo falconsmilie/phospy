@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -118,8 +119,8 @@ def test_signalome_workflow_constructs_signalomes_from_scoring_and_prediction_re
     assert set(result.site_assignments.columns) == {
         "protein_id",
         "module_id",
-        "top_kinase",
         "top_kinase_candidates",
+        "top_kinase_weights",
         "top_kinase_tie_count",
         "top_kinase_is_ambiguous",
         "top_score",
@@ -206,12 +207,17 @@ def test_build_expanded_signalomes_uses_neighbor_map_and_preserves_site_order() 
         {
             "protein_id": ["PROTEIN_1", "PROTEIN_2", "PROTEIN_3", "PROTEIN_4"],
             "module_id": [1, 2, 1, 3],
-            "top_kinase": ["KINASE_A", "KINASE_B", "KINASE_B", "KINASE_C"],
             "top_kinase_candidates": [
                 '["KINASE_A"]',
                 '["KINASE_B"]',
                 '["KINASE_B"]',
                 '["KINASE_C"]',
+            ],
+            "top_kinase_weights": [
+                '{"KINASE_A": 1.0}',
+                '{"KINASE_B": 1.0}',
+                '{"KINASE_B": 1.0}',
+                '{"KINASE_C": 1.0}',
             ],
             "top_kinase_tie_count": [1, 1, 1, 1],
             "top_kinase_is_ambiguous": [False, False, False, False],
@@ -511,7 +517,9 @@ def test_build_signalome_result_uses_explicit_site_to_protein_mapping_for_groupi
     assert result.site_assignments.loc["SITE_1", "protein_id"] == "PROTEIN_1"
 
 
-def test_build_site_assignments_tracks_tied_top_kinases_deterministically() -> None:
+def test_build_site_assignments_tracks_tied_top_kinases_as_weighted_multi_assignments() -> (
+    None
+):
     scoring_matrix = pd.DataFrame(
         {
             "KINASE_A": [1.0, 1.0],
@@ -546,13 +554,16 @@ def test_build_site_assignments_tracks_tied_top_kinases_deterministically() -> N
     tied_row = result.site_assignments.loc["PROTEIN_1;S1;"]
     clear_row = result.site_assignments.loc["PROTEIN_2;S2;"]
 
-    assert tied_row["top_kinase"] == "KINASE_A"
     assert tied_row["top_kinase_candidates"] == '["KINASE_A", "KINASE_B"]'
+    assert json.loads(tied_row["top_kinase_weights"]) == {
+        "KINASE_A": 0.5,
+        "KINASE_B": 0.5,
+    }
     assert tied_row["top_kinase_tie_count"] == 2
     assert bool(tied_row["top_kinase_is_ambiguous"])
 
-    assert clear_row["top_kinase"] == "KINASE_A"
     assert clear_row["top_kinase_candidates"] == '["KINASE_A"]'
+    assert json.loads(clear_row["top_kinase_weights"]) == {"KINASE_A": 1.0}
     assert clear_row["top_kinase_tie_count"] == 1
     assert not bool(clear_row["top_kinase_is_ambiguous"])
 
