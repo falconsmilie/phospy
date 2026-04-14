@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping, Sequence
 
 import numpy as np
@@ -144,8 +143,9 @@ def build_site_assignments(
 
     Tied top-kinase assignments are preserved as weighted multi-assignments.
     Kinases sharing the top score for a site receive equal fractional weight in
-    ``top_kinase_weights`` (e.g. two-way tie -> 0.5 each), while the full tie
-    set remains available in ``top_kinase_candidates``.
+    ``top_kinase_weights`` as ordered ``(kinase, weight)`` tuples (e.g. two-way
+    tie -> ``(("A", 0.5), ("B", 0.5))``), while the full tie set remains
+    available in ``top_kinase_candidates``.
     """
 
     if pred_mat.shape[1] == 0:
@@ -211,19 +211,15 @@ def build_site_assignments(
     top_kinase_names = top_score_mask.columns.to_numpy(dtype=object, copy=False)
 
     top_kinase_tie_count = top_score_mask_values.sum(axis=1).astype(int)
-    top_kinase_candidates = [
-        json.dumps(top_kinase_names[mask_row].tolist())
-        for mask_row in top_score_mask_values
-    ]
-    top_kinase_weights = []
+    top_kinase_candidates: list[tuple[str, ...]] = []
+    top_kinase_weights: list[tuple[tuple[str, float], ...]] = []
     for mask_row, tie_count in zip(
         top_score_mask_values, top_kinase_tie_count, strict=True
     ):
-        tied_kinases = top_kinase_names[mask_row].tolist()
+        tied_kinases = tuple(str(kinase) for kinase in top_kinase_names[mask_row])
         weight = 1.0 / float(tie_count)
-        top_kinase_weights.append(
-            json.dumps({str(kinase): weight for kinase in tied_kinases})
-        )
+        top_kinase_candidates.append(tied_kinases)
+        top_kinase_weights.append(tuple((kinase, weight) for kinase in tied_kinases))
 
     module_ids = protein_ids.map(resolved_protein_modules).astype(int)
 
@@ -243,8 +239,6 @@ def build_site_assignments(
         {
             "protein_id": str,
             "module_id": int,
-            "top_kinase_candidates": str,
-            "top_kinase_weights": str,
             "top_kinase_tie_count": int,
             "top_kinase_is_ambiguous": bool,
             "top_score": float,

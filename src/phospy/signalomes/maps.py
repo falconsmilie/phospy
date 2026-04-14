@@ -7,6 +7,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
+from .serialization import (
+    serialize_top_kinase_candidates,
+    serialize_top_kinase_weights,
+)
+
 if TYPE_CHECKING:
     from .results import SignalomeResult
 
@@ -176,8 +181,12 @@ def _build_site_positions(
                     "site_id": site_id,
                     "protein_id": str(row["protein_id"]),
                     "module_id": int(row["module_id"]),
-                    "top_kinase_candidates": str(row["top_kinase_candidates"]),
-                    "top_kinase_weights": str(row["top_kinase_weights"]),
+                    "top_kinase_candidates": serialize_top_kinase_candidates(
+                        row["top_kinase_candidates"]
+                    ),
+                    "top_kinase_weights": serialize_top_kinase_weights(
+                        row["top_kinase_weights"]
+                    ),
                     "top_kinase_tie_count": int(row["top_kinase_tie_count"]),
                     "top_kinase_is_ambiguous": bool(row["top_kinase_is_ambiguous"]),
                     "top_score": float(row["top_score"]),

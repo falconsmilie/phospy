@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pandas as pd
@@ -30,6 +29,7 @@ from phospy.signalomes.assignments import (
     build_expanded_signalomes,
     build_site_assignments,
 )
+from phospy.signalomes.serialization import serialize_site_assignments_for_export
 
 
 def make_workflow_inputs() -> tuple[
@@ -618,16 +618,13 @@ def test_build_site_assignments_tracks_tied_top_kinases_as_weighted_multi_assign
     tied_row = result.site_assignments.loc["PROTEIN_1;S1;"]
     clear_row = result.site_assignments.loc["PROTEIN_2;S2;"]
 
-    assert tied_row["top_kinase_candidates"] == '["KINASE_A", "KINASE_B"]'
-    assert json.loads(tied_row["top_kinase_weights"]) == {
-        "KINASE_A": 0.5,
-        "KINASE_B": 0.5,
-    }
+    assert tied_row["top_kinase_candidates"] == ("KINASE_A", "KINASE_B")
+    assert tied_row["top_kinase_weights"] == (("KINASE_A", 0.5), ("KINASE_B", 0.5))
     assert tied_row["top_kinase_tie_count"] == 2
     assert bool(tied_row["top_kinase_is_ambiguous"])
 
-    assert clear_row["top_kinase_candidates"] == '["KINASE_A"]'
-    assert json.loads(clear_row["top_kinase_weights"]) == {"KINASE_A": 1.0}
+    assert clear_row["top_kinase_candidates"] == ("KINASE_A",)
+    assert clear_row["top_kinase_weights"] == (("KINASE_A", 1.0),)
     assert clear_row["top_kinase_tie_count"] == 1
     assert not bool(clear_row["top_kinase_is_ambiguous"])
 
@@ -833,7 +830,10 @@ def test_signalome_result_to_csv_exports_canonical_tables(tmp_path: Path) -> Non
     reloaded_signalome_modules.index.name = result.signalome_modules.index.name
     reloaded_signalome_modules.columns.name = result.signalome_modules.columns.name
     pd.testing.assert_frame_equal(reloaded_signalome_modules, result.signalome_modules)
-    pd.testing.assert_frame_equal(reloaded_site_assignments, result.site_assignments)
+    pd.testing.assert_frame_equal(
+        reloaded_site_assignments,
+        serialize_site_assignments_for_export(result.site_assignments),
+    )
     pd.testing.assert_frame_equal(
         reloaded_protein_assignments, result.protein_assignments
     )

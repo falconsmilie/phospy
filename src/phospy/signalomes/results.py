@@ -8,6 +8,7 @@ import pandas as pd
 
 from .maps import SignalomeMapData
 from .networks import SignalomeNetworkData
+from .serialization import serialize_site_assignments_for_export
 
 if TYPE_CHECKING:
     from .clustering import SignalomeModuleSelectionDiagnostics
@@ -237,7 +238,10 @@ class SignalomeResult:
         written: dict[str, Path] = {}
         for name, frame in self.to_frames().items():
             path = output_dir / f"{name}.csv"
-            frame.to_csv(path)
+            if name == "site_assignments":
+                serialize_site_assignments_for_export(frame).to_csv(path)
+            else:
+                frame.to_csv(path)
             written[name] = path
         return written
 
