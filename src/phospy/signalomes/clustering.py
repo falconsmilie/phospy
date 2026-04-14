@@ -24,6 +24,9 @@ __all__ = [
     "select_module_count_with_diagnostics",
 ]
 
+MAX_FULL_CORRELATION_SITE_COUNT = 2000
+MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER = 256
+
 
 @dataclass(frozen=True, slots=True)
 class ClusterCandidateScore:
@@ -237,12 +240,25 @@ def select_module_count_with_diagnostics(
             reason="fewer than two cluster counts are available for evaluation",
         )
 
-    site_correlations = np.corrcoef(scoring_array)
-    candidate_scores = score_cluster_candidates(
-        scoring_values=scoring_array,
-        site_correlations=site_correlations,
-        cluster_range=range(2, max_clusters + 1),
-    )
+    candidate_range = range(2, max_clusters + 1)
+    approximation_note = ""
+    if n_sites <= MAX_FULL_CORRELATION_SITE_COUNT:
+        site_correlations = np.corrcoef(scoring_array)
+        candidate_scores = score_cluster_candidates(
+            scoring_values=scoring_array,
+            site_correlations=site_correlations,
+            cluster_range=candidate_range,
+        )
+    else:
+        candidate_scores = score_cluster_candidates_approximate(
+            scoring_values=scoring_array,
+            cluster_range=candidate_range,
+            max_sites_per_cluster=MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
+        )
+        approximation_note = (
+            " Used sampled within-cluster correlation estimates to avoid "
+            "materializing a full site-by-site correlation matrix."
+        )
     primary_candidates = filter_cluster_candidates(
         candidate_scores,
         threshold=resolved_policy.primary_threshold,
@@ -262,7 +278,8 @@ def select_module_count_with_diagnostics(
             reason=(
                 "selected the highest-scoring candidate that satisfied the "
                 "primary within-cluster correlation threshold"
-            ),
+            )
+            + approximation_note,
         )
 
     fallback_candidates = filter_cluster_candidates(
@@ -284,7 +301,8 @@ def select_module_count_with_diagnostics(
             reason=(
                 "no candidate satisfied the primary threshold; selected the "
                 "highest-scoring fallback candidate"
-            ),
+            )
+            + approximation_note,
         )
 
     return SignalomeModuleSelectionDiagnostics(
@@ -297,7 +315,8 @@ def select_module_count_with_diagnostics(
         reason=(
             "no candidate module count satisfied the configured correlation "
             "thresholds, so the workflow fell back to one module"
-        ),
+        )
+        + approximation_note,
     )
 
 
@@ -338,6 +357,49 @@ def score_cluster_candidates(
         labels = candidate_labels[cluster_count]
         cluster_medians = [
             cluster_median_correlation(site_correlations, labels, label)
+            for label in np.unique(labels)
+        ]
+        if not cluster_medians:
+            continue
+        candidates[cluster_count] = ClusterCandidateScore(
+            min_median_correlation=float(min(cluster_medians)),
+            mean_median_correlation=float(np.mean(cluster_medians)),
+        )
+    return candidates
+
+
+def score_cluster_candidates_approximate(
+    *,
+    scoring_values: np.ndarray,
+    cluster_range: Iterable[int],
+    max_sites_per_cluster: int,
+) -> dict[int, ClusterCandidateScore]:
+    """Score candidate counts using sampled cluster-local correlations.
+
+    This avoids materializing a full site-by-site correlation matrix for very
+    large phosphosite sets.
+    """
+
+    cluster_counts = [int(cluster_count) for cluster_count in cluster_range]
+    if not cluster_counts:
+        return {}
+
+    linkage_matrix = build_cluster_tree(scoring_values)
+    candidate_labels = build_cluster_labels_from_tree(
+        linkage_matrix=linkage_matrix,
+        cluster_counts=cluster_counts,
+    )
+
+    candidates: dict[int, ClusterCandidateScore] = {}
+    for cluster_count in cluster_counts:
+        labels = candidate_labels[cluster_count]
+        cluster_medians = [
+            cluster_median_correlation_approximate(
+                scoring_values=scoring_values,
+                labels=labels,
+                label=label,
+                max_sites_per_cluster=max_sites_per_cluster,
+            )
             for label in np.unique(labels)
         ]
         if not cluster_medians:
@@ -404,6 +466,38 @@ def cluster_median_correlation(
         np.ix_(cluster_positions, cluster_positions)
     ]
     cluster_correlations = cluster_correlations.copy()
+    np.fill_diagonal(cluster_correlations, np.nan)
+    values = cluster_correlations[~np.isnan(cluster_correlations)]
+    if values.size == 0:
+        return 0.0
+    return float(np.median(values))
+
+
+def cluster_median_correlation_approximate(
+    *,
+    scoring_values: np.ndarray,
+    labels: np.ndarray,
+    label: int,
+    max_sites_per_cluster: int,
+) -> float:
+    """Approximate the within-cluster median correlation for one label."""
+
+    cluster_positions = np.flatnonzero(labels == label)
+    if cluster_positions.size <= 1:
+        return 0.0
+
+    if cluster_positions.size > max_sites_per_cluster:
+        sampled_positions = np.linspace(
+            0,
+            cluster_positions.size - 1,
+            num=max_sites_per_cluster,
+            dtype=int,
+        )
+        cluster_positions = cluster_positions[sampled_positions]
+
+    cluster_values = scoring_values[cluster_positions]
+    cluster_correlations = np.corrcoef(cluster_values)
+    cluster_correlations = np.asarray(cluster_correlations, dtype=float).copy()
     np.fill_diagonal(cluster_correlations, np.nan)
     values = cluster_correlations[~np.isnan(cluster_correlations)]
     if values.size == 0:

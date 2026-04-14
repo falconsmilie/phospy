@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+import phospy.signalomes.analysis as signalome_analysis
 import phospy.signalomes.clustering as signalome_clustering
 from phospy.api import (
     PredictionRunConfig,
@@ -809,6 +810,81 @@ def test_select_module_count_builds_one_cluster_tree_for_candidate_scoring(
 
     assert selected >= 1
     assert observed_tree_builds == [1]
+
+
+def test_select_module_count_avoids_full_correlation_matrix_for_large_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(signalome_clustering, "MAX_FULL_CORRELATION_SITE_COUNT", 20)
+    monkeypatch.setattr(
+        signalome_clustering,
+        "MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER",
+        5,
+    )
+    scoring_values = pd.DataFrame(
+        {
+            "KINASE_A": [float(index) / 10.0 for index in range(40)],
+            "KINASE_B": [float((index * 7 + 3) % 97) / 11.0 for index in range(40)],
+            "KINASE_C": [
+                float((index * index + 5) % 101) / 13.0 for index in range(40)
+            ],
+        }
+    ).to_numpy(dtype=float)
+    original_corrcoef = signalome_clustering.np.corrcoef
+    observed_rows: list[int] = []
+
+    def guarded_corrcoef(values: object) -> object:
+        shape = getattr(values, "shape", None)
+        if shape is not None and len(shape) >= 1:
+            observed_rows.append(int(shape[0]))
+            if int(shape[0]) == scoring_values.shape[0]:
+                msg = "full correlation matrix materialization should be skipped"
+                raise AssertionError(msg)
+        return original_corrcoef(values)
+
+    monkeypatch.setattr(signalome_clustering.np, "corrcoef", guarded_corrcoef)
+
+    diagnostics = signalome_clustering.select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+    )
+
+    assert diagnostics.selected_module_count >= 1
+    assert "sampled within-cluster correlation estimates" in diagnostics.reason
+    assert observed_rows
+    assert max(observed_rows) < scoring_values.shape[0]
+
+
+def test_build_kinase_network_zeros_diagonal_with_numpy_fill_diagonal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 2.0, 3.0, 4.0],
+            "KINASE_B": [1.1, 2.1, 3.1, 4.1],
+        }
+    )
+    original_fill_diagonal = signalome_analysis.np.fill_diagonal
+    observed_calls: list[float] = []
+
+    def counting_fill_diagonal(array: object, value: float) -> None:
+        observed_calls.append(float(value))
+        original_fill_diagonal(array, value)
+
+    monkeypatch.setattr(
+        signalome_analysis.np,
+        "fill_diagonal",
+        counting_fill_diagonal,
+    )
+
+    network, _ = build_kinase_network(
+        scoring_matrix=scoring_matrix,
+        threshold=0.0,
+        policy="signed",
+    )
+
+    assert observed_calls == [0.0]
+    assert float(network.loc["KINASE_A", "KINASE_A"]) == 0.0
+    assert float(network.loc["KINASE_B", "KINASE_B"]) == 0.0
 
 
 def test_build_site_assignments_is_stable_when_pred_mat_columns_are_reordered() -> None:

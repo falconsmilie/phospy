@@ -164,43 +164,90 @@ def _build_site_positions(
     )
     expression_matrix = signalome_result.expression_matrix
 
-    records: list[dict[str, object]] = []
-    for module_id, group in site_assignments.groupby("module_id", sort=True):
-        module_x = float(module_positions.loc[module_id, "x"])
-        module_y = float(module_positions.loc[module_id, "y"])
-        offsets = _centered_offsets(len(group), span=0.6)
+    if site_assignments.empty:
+        site_positions = pd.DataFrame(
+            columns=[
+                "protein_id",
+                "module_id",
+                "top_kinase_candidates",
+                "top_kinase_weights",
+                "top_kinase_tie_count",
+                "top_kinase_is_ambiguous",
+                "top_score",
+                "x",
+                "y",
+                "module_x",
+                "module_y",
+                "position_in_module",
+                "expression_mean",
+                "expression_std",
+            ]
+        )
+        site_positions.index = pd.Index([], name="site_id", dtype=object)
+        return site_positions
 
-        for position_in_module, ((_, row), offset) in enumerate(
-            zip(group.iterrows(), offsets, strict=True),
-            start=1,
-        ):
-            site_id = str(row["site_id"])
-            expression_values = expression_matrix.loc[site_id].to_numpy(dtype=float)
-            records.append(
-                {
-                    "site_id": site_id,
-                    "protein_id": str(row["protein_id"]),
-                    "module_id": int(row["module_id"]),
-                    "top_kinase_candidates": serialize_top_kinase_candidates(
-                        row["top_kinase_candidates"]
-                    ),
-                    "top_kinase_weights": serialize_top_kinase_weights(
-                        row["top_kinase_weights"]
-                    ),
-                    "top_kinase_tie_count": int(row["top_kinase_tie_count"]),
-                    "top_kinase_is_ambiguous": bool(row["top_kinase_is_ambiguous"]),
-                    "top_score": float(row["top_score"]),
-                    "x": module_x + float(offset),
-                    "y": -0.25 - (position_in_module - 1) * 0.15,
-                    "module_x": module_x,
-                    "module_y": module_y,
-                    "position_in_module": position_in_module,
-                    "expression_mean": float(np.mean(expression_values)),
-                    "expression_std": float(np.std(expression_values, ddof=0)),
-                }
-            )
+    module_sizes = (
+        site_assignments.groupby("module_id", sort=True)["site_id"]
+        .transform("size")
+        .to_numpy(dtype=int, copy=False)
+    )
+    position_zero_based = (
+        site_assignments.groupby("module_id", sort=True)
+        .cumcount()
+        .to_numpy(dtype=int, copy=False)
+    )
+    offsets = np.zeros(len(site_assignments), dtype=float)
+    multi_member_mask = module_sizes > 1
+    offsets[multi_member_mask] = -0.3 + position_zero_based[multi_member_mask] * (
+        0.6 / (module_sizes[multi_member_mask] - 1)
+    )
 
-    site_positions = pd.DataFrame.from_records(records).set_index("site_id")
+    module_x = (
+        site_assignments["module_id"]
+        .map(module_positions["x"])
+        .to_numpy(dtype=float, copy=False)
+    )
+    module_y = (
+        site_assignments["module_id"]
+        .map(module_positions["y"])
+        .to_numpy(dtype=float, copy=False)
+    )
+    site_ids = site_assignments["site_id"].astype(str)
+    expression_values = expression_matrix.loc[site_ids].to_numpy(
+        dtype=float, copy=False
+    )
+
+    site_positions = pd.DataFrame(
+        {
+            "protein_id": site_assignments["protein_id"]
+            .astype(str)
+            .to_numpy(dtype=object, copy=False),
+            "module_id": site_assignments["module_id"].to_numpy(dtype=int, copy=False),
+            "top_kinase_candidates": site_assignments["top_kinase_candidates"].map(
+                serialize_top_kinase_candidates
+            ),
+            "top_kinase_weights": site_assignments["top_kinase_weights"].map(
+                serialize_top_kinase_weights
+            ),
+            "top_kinase_tie_count": site_assignments["top_kinase_tie_count"].to_numpy(
+                dtype=int, copy=False
+            ),
+            "top_kinase_is_ambiguous": site_assignments[
+                "top_kinase_is_ambiguous"
+            ].to_numpy(dtype=bool, copy=False),
+            "top_score": site_assignments["top_score"].to_numpy(
+                dtype=float, copy=False
+            ),
+            "x": module_x + offsets,
+            "y": -0.25 - position_zero_based * 0.15,
+            "module_x": module_x,
+            "module_y": module_y,
+            "position_in_module": position_zero_based + 1,
+            "expression_mean": np.mean(expression_values, axis=1),
+            "expression_std": np.std(expression_values, axis=1, ddof=0),
+        },
+        index=pd.Index(site_ids.to_numpy(dtype=object, copy=False), name="site_id"),
+    )
     site_positions.index.name = "site_id"
     return site_positions
 

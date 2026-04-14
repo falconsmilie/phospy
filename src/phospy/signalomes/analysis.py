@@ -297,8 +297,9 @@ def build_kinase_network(
         msg = "policy must be one of: 'positive_only', 'absolute_threshold', 'signed'"
         raise InputCompatibilityError(msg)
 
-    for kinase in thresholded_network.index:
-        thresholded_network.loc[kinase, kinase] = 0.0
+    thresholded_values = thresholded_network.to_numpy(dtype=float, copy=True)
+    np.fill_diagonal(thresholded_values, 0.0)
+    thresholded_network.iloc[:, :] = thresholded_values
 
     return thresholded_network, correlation_matrix
 
