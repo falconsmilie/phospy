@@ -94,13 +94,11 @@ def build_kinase_substrate_profiles(
 
     for kinase, substrates in substrate_map.items():
         substrate_sequence = list(substrates)
-        substrate_counts[kinase] = sum(
-            substrate in observed_sites for substrate in substrate_sequence
-        )
         quantified_sites = _quantified_sites(
             substrates=substrate_sequence,
             observed_sites=observed_sites,
         )
+        substrate_counts[kinase] = len(quantified_sites)
         if len(quantified_sites) < min_substrates:
             continue
 

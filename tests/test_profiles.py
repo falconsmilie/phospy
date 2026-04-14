@@ -40,7 +40,7 @@ def test_build_kinase_substrate_profiles_matches_phosr_summary_rules() -> None:
     assert float(result.profile_matrix.loc["KINASE_B", "s2"]) == pytest.approx(3.0)
     assert np.isnan(result.profile_matrix.loc["KINASE_B", "s3"])
     assert result.quantified_substrates["KINASE_D"] == ["SITE_1", "SITE_3"]
-    assert int(result.substrate_counts.loc["KINASE_D"]) == 3
+    assert int(result.substrate_counts.loc["KINASE_D"]) == 2
     assert "KINASE_C" not in result.profile_matrix.index
     assert int(result.substrate_counts.loc["KINASE_C"]) == 0
 

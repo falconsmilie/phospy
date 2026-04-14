@@ -213,6 +213,17 @@ def build_site_assignments(
     top_kinase_names = top_score_mask.columns.to_numpy(dtype=object, copy=False)
 
     top_kinase_tie_count = top_score_mask_values.sum(axis=1).astype(int)
+    zero_tie_mask = top_kinase_tie_count == 0
+    if zero_tie_mask.any():
+        zero_tie_sites = sorted(site_index[zero_tie_mask].tolist())
+        preview = ", ".join(zero_tie_sites[:3])
+        suffix = "..." if len(zero_tie_sites) > 3 else ""
+        msg = (
+            "pred_mat contains phosphosite rows with no top-kinase assignment "
+            f"(all scores missing). Offending site IDs: {preview}{suffix}"
+        )
+        raise InputCompatibilityError(msg)
+
     top_kinase_candidates: list[tuple[str, ...]] = []
     top_kinase_weights: list[tuple[tuple[str, float], ...]] = []
     for mask_row, tie_count in zip(

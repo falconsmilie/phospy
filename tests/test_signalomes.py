@@ -756,6 +756,28 @@ def test_build_site_assignments_rejects_missing_site_to_protein_mapping() -> Non
         )
 
 
+def test_build_site_assignments_rejects_rows_without_top_kinase_assignment() -> None:
+    pred_mat = pd.DataFrame(
+        {"KINASE_A": [float("nan")], "KINASE_B": [float("nan")]},
+        index=["SITE_1"],
+    )
+    protein_modules = pd.Series({"PROTEIN_1": 1}, name="module_id")
+    site_to_protein = pd.Series({"SITE_1": "PROTEIN_1"})
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=(
+            "pred_mat contains phosphosite rows with no top-kinase assignment "
+            r"\(all scores missing\). Offending site IDs: SITE_1"
+        ),
+    ):
+        build_site_assignments(
+            pred_mat=pred_mat,
+            protein_modules=protein_modules,
+            site_to_protein=site_to_protein,
+        )
+
+
 def test_select_module_count_builds_one_cluster_tree_for_candidate_scoring(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
