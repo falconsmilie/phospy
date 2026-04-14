@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -60,6 +60,7 @@ def resolve_core_preprocessing_config(
     total_sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
     phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
     max_unmatched_fraction: float = 0.0,
+    site_matrix_policy: SiteMatrixPolicy | Mapping[str, object] | None = None,
     context: str,
     config_param_name: str,
 ) -> CorePreprocessingConfig:
@@ -71,6 +72,7 @@ def resolve_core_preprocessing_config(
             float(total_sentinel) != default_config.total_sentinel,
             float(phospho_sentinel) != default_config.phospho_sentinel,
             max_unmatched_fraction != default_config.max_unmatched_fraction,
+            site_matrix_policy is not None,
         )
     )
 
@@ -90,12 +92,19 @@ def resolve_core_preprocessing_config(
     if config is not None:
         return config
 
+    resolved_site_matrix_policy = (
+        default_config.site_matrix_policy
+        if site_matrix_policy is None
+        else SiteMatrixPolicy.from_value(site_matrix_policy)
+    )
+
     return CorePreprocessingConfig(
         localization_threshold=localization_threshold,
         min_observed=min_observed,
         total_sentinel=float(total_sentinel),
         phospho_sentinel=float(phospho_sentinel),
         max_unmatched_fraction=max_unmatched_fraction,
+        site_matrix_policy=resolved_site_matrix_policy,
     )
 
 

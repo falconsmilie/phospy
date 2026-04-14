@@ -48,5 +48,6 @@ def test_contributing_documents_scientific_policy_expectations() -> None:
     contents = (REPO_ROOT / ".github" / "CONTRIBUTING.md").read_text(encoding="utf-8")
 
     assert "duplicate_site_strategy" in contents
+    assert "missing_data_policy" in contents
     assert "missing_value_strategy" in contents
     assert "module_selection_strategy" in contents

@@ -93,8 +93,8 @@ PhosPy keeps key scientific heuristics explicit. Do not bury these decisions in 
 
 Current policy objects are:
 
-- `SiteMatrixPolicy(duplicate_site_strategy="max_mean_signal")`
-  - owns duplicate phosphosite collapse during site-matrix creation
+- `SiteMatrixPolicy(duplicate_site_strategy="max_mean_signal", missing_data_policy="drop_any_missing")`
+  - owns duplicate phosphosite collapse and missing-data filtering during site-matrix creation
 - `KinaseProfilePolicy(missing_value_strategy="propagate_any_missing")`
   - owns missing-value handling during kinase substrate profile aggregation
 - `SignalomeModuleSelectionPolicy(strategy="correlation_thresholds")`

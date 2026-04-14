@@ -10,6 +10,7 @@ from ...internal.types import (
     SignalomeAssignmentPolicy,
     SignalomeKinaseNetworkPolicy,
     SignalomeModuleSelectionStrategy,
+    SiteMatrixMissingDataPolicy,
 )
 
 
@@ -28,6 +29,24 @@ def validate_duplicate_site_strategy(
         msg = (
             "duplicate_site_strategy must be one of: 'max_mean_signal', 'first', "
             "'aggregate_mean', 'aggregate_median', 'error'"
+        )
+        raise PhospyValidationError(msg)
+    return value
+
+
+def validate_site_matrix_missing_data_policy(
+    value: SiteMatrixMissingDataPolicy,
+) -> SiteMatrixMissingDataPolicy:
+    """Validate the configured site-matrix missing-data policy."""
+
+    if value not in {
+        "drop_any_missing",
+        "retain_missing",
+        "require_min_observed_values",
+    }:
+        msg = (
+            "missing_data_policy must be one of: 'drop_any_missing', "
+            "'retain_missing', 'require_min_observed_values'"
         )
         raise PhospyValidationError(msg)
     return value
@@ -118,6 +137,7 @@ __all__ = [
     "validate_kinase_network_policy",
     "validate_missing_value_strategy",
     "validate_module_selection_strategy",
+    "validate_site_matrix_missing_data_policy",
     "validate_signalome_assignment_policy",
     "validate_svm_mode",
     "validate_trace_format",

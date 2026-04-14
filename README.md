@@ -30,7 +30,7 @@ pip install "phospy[parquet]"
 
 ```python
 from phospy.datasets import PhosphoDataset
-from phospy.preprocessing import CorePreprocessingConfig
+from phospy.preprocessing import CorePreprocessingConfig, SiteMatrixPolicy
 
 dataset = PhosphoDataset.from_files(
     "examples/data/total.tsv",
@@ -38,7 +38,13 @@ dataset = PhosphoDataset.from_files(
     phospho_encoding="utf-16le",
 )
 core = dataset.preprocessing.run(
-    config=CorePreprocessingConfig(max_unmatched_fraction=0.1)
+    config=CorePreprocessingConfig(
+        max_unmatched_fraction=0.1,
+        site_matrix_policy=SiteMatrixPolicy(
+            missing_data_policy="require_min_observed_values",
+            minimum_observed_values=2,
+        ),
+    )
 )
 
 analysis_ready = dataset.preprocessing.run_analysis_ready(

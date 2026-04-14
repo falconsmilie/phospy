@@ -16,6 +16,7 @@ from phospy.internal.pipeline import (
     build_pipeline_inputs_from_request,
 )
 from phospy.io.publishing import OutputPublisher, RunManifestWriter, package_version
+from phospy.matrices import SiteMatrixPolicy
 from phospy.prediction import PredMatResult
 from phospy.preprocessing import CorePreprocessingConfig
 from phospy.validation.requests import CorePipelineRequest
@@ -495,6 +496,8 @@ def test_run_manifest_writer_serializes_expected_metadata(tmp_path: Path) -> Non
             "phospho_sentinel": 12.0,
             "site_matrix_policy": {
                 "duplicate_site_strategy": "max_mean_signal",
+                "missing_data_policy": "drop_any_missing",
+                "minimum_observed_values": None,
             },
         },
     }
@@ -561,6 +564,31 @@ def test_pipeline_request_builder_builds_dataset_and_config(
     assert pred_calls == [f"pred_mat ({pred_path})"]
 
 
+def test_pipeline_request_builder_preserves_site_matrix_policy_from_request(
+    tmp_path: Path,
+) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    make_total_df().to_csv(total_path, sep="	", index=False)
+    make_phospho_df().to_csv(phospho_path, sep="	", index=False)
+
+    request = CorePipelineRequest.validate_request(
+        total_path=total_path,
+        phospho_path=phospho_path,
+        site_matrix_policy={
+            "missing_data_policy": "require_min_observed_values",
+            "minimum_observed_values": 2,
+        },
+    )
+
+    inputs = build_pipeline_inputs_from_request(request)
+
+    assert inputs.preprocessing_config.site_matrix_policy == SiteMatrixPolicy(
+        missing_data_policy="require_min_observed_values",
+        minimum_observed_values=2,
+    )
+
+
 def test_pipeline_passes_pred_mat_result_to_validation_boundary(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -593,6 +621,31 @@ def test_pipeline_passes_pred_mat_result_to_validation_boundary(
 
     assert captured == [pred_mat_result]
     pd.testing.assert_frame_equal(pipeline.pred_mat, pred_mat_result.data_frame)
+
+
+def test_pipeline_runner_from_files_preserves_site_matrix_policy(
+    tmp_path: Path,
+) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    make_total_df().to_csv(total_path, sep="	", index=False)
+    make_phospho_df().to_csv(phospho_path, sep="	", index=False)
+
+    pipeline = PipelineRunner.from_files(
+        total_path=total_path,
+        phospho_path=phospho_path,
+        preprocessing_config=CorePreprocessingConfig(
+            site_matrix_policy=SiteMatrixPolicy(
+                missing_data_policy="require_min_observed_values",
+                minimum_observed_values=2,
+            )
+        ),
+    )
+
+    assert pipeline.preprocessing_config.site_matrix_policy == SiteMatrixPolicy(
+        missing_data_policy="require_min_observed_values",
+        minimum_observed_values=2,
+    )
 
 
 def test_pipeline_run_delegates_to_shared_orchestration_service() -> None:

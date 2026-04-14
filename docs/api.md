@@ -97,6 +97,22 @@ CorePreprocessingConfig(
 )
 ```
 
+`SiteMatrixPolicy` controls scientifically important phosphosite matrix decisions:
+
+```python
+SiteMatrixPolicy(
+    duplicate_site_strategy: DuplicateSiteStrategy = "max_mean_signal",
+    missing_data_policy: SiteMatrixMissingDataPolicy = "drop_any_missing",
+    minimum_observed_values: int | None = None,
+)
+```
+
+Missing-data policy trade-offs:
+
+- `drop_any_missing`: strict complete-case matrix rows (default; reproducible legacy behavior).
+- `retain_missing`: keeps partially observed rows, preserving coverage but allowing `NaN` in the site matrix.
+- `require_min_observed_values`: compromise between coverage and completeness; set `minimum_observed_values` (for example `2`) to require at least that many observed corrected columns per row.
+
 ### `PredictionRunConfig` (`phospy.api`)
 
 ```python

@@ -13,6 +13,11 @@ DuplicateSiteStrategy = Literal[
     "aggregate_median",
     "error",
 ]
+SiteMatrixMissingDataPolicy = Literal[
+    "drop_any_missing",
+    "retain_missing",
+    "require_min_observed_values",
+]
 KinaseProfileMissingValueStrategy = Literal[
     "propagate_any_missing",
     "median_skipna",
@@ -42,6 +47,7 @@ __all__ = [
     "PredictionSvmMode",
     "PredictionTraceFormat",
     "PredictionTraceLevel",
+    "SiteMatrixMissingDataPolicy",
     "SignalomeAssignmentPolicy",
     "SignalomeKinaseNetworkPolicy",
     "SignalomeModuleSelectionStrategy",

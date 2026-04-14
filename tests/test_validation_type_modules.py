@@ -9,6 +9,7 @@ from phospy.validation.values.collections import resolve_required_columns
 from phospy.validation.values.enums import (
     validate_kinase_network_policy,
     validate_signalome_assignment_policy,
+    validate_site_matrix_missing_data_policy,
     validate_svm_mode,
 )
 from phospy.validation.values.identifiers import require_splitable_gene_p_site
@@ -30,6 +31,12 @@ def test_validate_kinase_network_policy_accepts_supported_value() -> None:
 
 def test_validate_signalome_assignment_policy_accepts_supported_value() -> None:
     assert validate_signalome_assignment_policy("weighted_top") == "weighted_top"
+
+
+def test_validate_site_matrix_missing_data_policy_accepts_supported_value() -> None:
+    assert (
+        validate_site_matrix_missing_data_policy("retain_missing") == "retain_missing"
+    )
 
 
 def test_resolve_required_columns_rejects_empty_collection() -> None:

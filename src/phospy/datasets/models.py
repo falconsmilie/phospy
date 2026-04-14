@@ -76,6 +76,8 @@ class AnalysisReadySiteMatrixStats:
     dropped_incomplete_values: int
     deduplicated_site_rows: int
     retained_rows: int
+    missing_data_policy: str = "drop_any_missing"
+    required_observed_count: int = 0
     duplicate_site_strategy: str = "max_mean_signal"
 
     @classmethod
@@ -90,6 +92,12 @@ class AnalysisReadySiteMatrixStats:
             ),
             dropped_incomplete_values=int(
                 row_drop_stats.get("dropped_incomplete_values", 0)
+            ),
+            missing_data_policy=str(
+                row_drop_stats.get("missing_data_policy", "drop_any_missing")
+            ),
+            required_observed_count=int(
+                row_drop_stats.get("required_observed_count", 0)
             ),
             deduplicated_site_rows=int(row_drop_stats.get("deduplicated_site_rows", 0)),
             retained_rows=int(row_drop_stats.get("retained_rows", 0)),

@@ -13,10 +13,14 @@ from .internal.constants import (
     SITE_MATRIX_ID_COLUMN,
     SITE_MATRIX_P_SITE_COLUMN,
 )
-from .internal.types import DuplicateSiteStrategy
+from .internal.types import DuplicateSiteStrategy, SiteMatrixMissingDataPolicy
 from .validation.schema.tables import SiteMatrixSourceSchema
-from .validation.values.enums import validate_duplicate_site_strategy
+from .validation.values.enums import (
+    validate_duplicate_site_strategy,
+    validate_site_matrix_missing_data_policy,
+)
 from .validation.values.identifiers import build_canonical_site_id
+from .validation.values.numeric import validate_positive_int
 
 __all__ = [
     "DEFAULT_SITE_MATRIX_POLICY",
@@ -30,6 +34,13 @@ __all__ = [
 class SiteMatrixPolicy:
     """Explicit policy for duplicate phosphosite rows during site-matrix building.
 
+    ``missing_data_policy`` controls how missing corrected values are handled:
+
+    - ``"drop_any_missing"`` keeps only complete rows across all value columns
+    - ``"retain_missing"`` keeps rows even when some corrected values are missing
+    - ``"require_min_observed_values"`` keeps rows with at least
+      ``minimum_observed_values`` non-missing corrected values
+
     ``duplicate_site_strategy`` controls how multiple corrected phosphosite rows
     that resolve to the same site identifier are collapsed:
 
@@ -41,9 +52,32 @@ class SiteMatrixPolicy:
     """
 
     duplicate_site_strategy: DuplicateSiteStrategy = "max_mean_signal"
+    missing_data_policy: SiteMatrixMissingDataPolicy = "drop_any_missing"
+    minimum_observed_values: int | None = None
 
     def __post_init__(self) -> None:
         validate_duplicate_site_strategy(self.duplicate_site_strategy)
+        validate_site_matrix_missing_data_policy(self.missing_data_policy)
+
+        if self.missing_data_policy == "require_min_observed_values":
+            if self.minimum_observed_values is None:
+                msg = (
+                    "minimum_observed_values is required when "
+                    "missing_data_policy='require_min_observed_values'"
+                )
+                raise ValueError(msg)
+            validate_positive_int(
+                self.minimum_observed_values,
+                name="minimum_observed_values",
+            )
+            return
+
+        if self.minimum_observed_values is not None:
+            msg = (
+                "minimum_observed_values may only be provided when "
+                "missing_data_policy='require_min_observed_values'"
+            )
+            raise ValueError(msg)
 
     @classmethod
     def from_value(cls, value: object) -> SiteMatrixPolicy:
@@ -71,6 +105,15 @@ def format_row_drop_diagnostics(row_drop_stats: Mapping[str, int | str]) -> str:
         "dropped_incomplete_values": int(
             row_drop_stats.get("dropped_incomplete_values", 0)
         ),
+        "missing_data_policy": str(
+            row_drop_stats.get(
+                "missing_data_policy",
+                DEFAULT_SITE_MATRIX_POLICY.missing_data_policy,
+            )
+        ),
+        "required_observed_count": int(
+            row_drop_stats.get("required_observed_count", 0)
+        ),
         "deduplicated_site_rows": int(row_drop_stats.get("deduplicated_site_rows", 0)),
         "retained_rows": int(row_drop_stats.get("retained_rows", 0)),
         "duplicate_site_strategy": str(
@@ -93,6 +136,8 @@ def format_row_drop_diagnostics(row_drop_stats: Mapping[str, int | str]) -> str:
         f"input_rows={stats['input_rows']}, "
         f"dropped_missing_sequence={stats['dropped_missing_sequence']}, "
         f"dropped_incomplete_values={stats['dropped_incomplete_values']}, "
+        f"missing_data_policy={stats['missing_data_policy']}, "
+        f"required_observed_count={stats['required_observed_count']}, "
         f"deduplicated_site_rows={stats['deduplicated_site_rows']}, "
         f"duplicate_site_strategy={stats['duplicate_site_strategy']}, "
         f"other_dropped_rows={other_dropped_rows}, "
@@ -110,11 +155,15 @@ def build_site_matrix(
     *,
     policy: SiteMatrixPolicy | None = None,
     duplicate_site_strategy: DuplicateSiteStrategy | None = None,
+    missing_data_policy: SiteMatrixMissingDataPolicy | None = None,
+    minimum_observed_values: int | None = None,
     copy_frame: bool = True,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     resolved_policy = _resolve_site_matrix_policy(
         policy=policy,
         duplicate_site_strategy=duplicate_site_strategy,
+        missing_data_policy=missing_data_policy,
+        minimum_observed_values=minimum_observed_values,
     )
     work = SiteMatrixSourceSchema.validate(
         df,
@@ -181,13 +230,16 @@ def build_site_matrix(
     with_sequence = base_input.loc[base_input[sequence_col].notna()]
     dropped_missing_sequence = total_rows - len(with_sequence)
 
-    complete_cases = with_sequence.loc[
-        with_sequence.loc[:, list(value_cols)].notna().all(axis=1)
-    ]
-    dropped_incomplete_values = len(with_sequence) - len(complete_cases)
+    policy_filtered_rows, dropped_incomplete_values, required_observed_count = (
+        _apply_missing_data_policy(
+            with_sequence=with_sequence,
+            value_cols=value_cols,
+            policy=resolved_policy,
+        )
+    )
 
     phosr_input = _apply_duplicate_site_policy(
-        complete_cases=complete_cases,
+        source_rows=policy_filtered_rows,
         value_cols=value_cols,
         policy=resolved_policy,
     )
@@ -196,12 +248,14 @@ def build_site_matrix(
         ascending=True,
         kind="stable",
     ).reset_index(drop=True)
-    deduplicated_site_rows = len(complete_cases) - len(phosr_input)
+    deduplicated_site_rows = len(policy_filtered_rows) - len(phosr_input)
 
     row_drop_stats: dict[str, int | str] = {
         "input_rows": total_rows,
         "dropped_missing_sequence": dropped_missing_sequence,
         "dropped_incomplete_values": dropped_incomplete_values,
+        "missing_data_policy": resolved_policy.missing_data_policy,
+        "required_observed_count": required_observed_count,
         "deduplicated_site_rows": deduplicated_site_rows,
         "duplicate_site_strategy": resolved_policy.duplicate_site_strategy,
         "retained_rows": len(phosr_input),
@@ -221,36 +275,123 @@ def _resolve_site_matrix_policy(
     *,
     policy: SiteMatrixPolicy | None,
     duplicate_site_strategy: DuplicateSiteStrategy | None,
+    missing_data_policy: SiteMatrixMissingDataPolicy | None,
+    minimum_observed_values: int | None,
 ) -> SiteMatrixPolicy:
-    if policy is not None and duplicate_site_strategy is not None:
+    has_policy_overrides = any(
+        (
+            duplicate_site_strategy is not None,
+            missing_data_policy is not None,
+            minimum_observed_values is not None,
+        )
+    )
+    if policy is not None and has_policy_overrides:
         msg = (
-            "build_site_matrix() accepts either policy or duplicate_site_strategy, "
-            "not both"
+            "build_site_matrix() accepts either policy or individual site-matrix "
+            "policy overrides, not both"
         )
         raise ValueError(msg)
     if policy is not None:
         return SiteMatrixPolicy.from_value(policy)
-    if duplicate_site_strategy is not None:
-        return SiteMatrixPolicy(duplicate_site_strategy=duplicate_site_strategy)
-    return DEFAULT_SITE_MATRIX_POLICY
+
+    if not has_policy_overrides:
+        return DEFAULT_SITE_MATRIX_POLICY
+
+    resolved_missing_data_policy = missing_data_policy
+    if resolved_missing_data_policy is None and minimum_observed_values is not None:
+        resolved_missing_data_policy = "require_min_observed_values"
+
+    return SiteMatrixPolicy(
+        duplicate_site_strategy=(
+            duplicate_site_strategy
+            or DEFAULT_SITE_MATRIX_POLICY.duplicate_site_strategy
+        ),
+        missing_data_policy=(
+            resolved_missing_data_policy
+            or DEFAULT_SITE_MATRIX_POLICY.missing_data_policy
+        ),
+        minimum_observed_values=minimum_observed_values,
+    )
+
+
+def _apply_missing_data_policy(
+    *,
+    with_sequence: pd.DataFrame,
+    value_cols: Sequence[str],
+    policy: SiteMatrixPolicy,
+) -> tuple[pd.DataFrame, int, int]:
+    value_col_list = list(value_cols)
+    required_observed_count = _resolve_required_observed_count(
+        policy=policy,
+        value_column_count=len(value_col_list),
+    )
+
+    if policy.missing_data_policy == "drop_any_missing":
+        filtered_rows = with_sequence.loc[
+            with_sequence.loc[:, value_col_list].notna().all(axis=1)
+        ]
+    elif policy.missing_data_policy == "retain_missing":
+        filtered_rows = with_sequence
+    elif policy.missing_data_policy == "require_min_observed_values":
+        observed_counts = with_sequence.loc[:, value_col_list].notna().sum(axis=1)
+        filtered_rows = with_sequence.loc[observed_counts >= required_observed_count]
+    else:
+        msg = f"Unsupported missing_data_policy: {policy.missing_data_policy}"
+        raise TableSchemaError(msg)
+
+    dropped_rows = len(with_sequence) - len(filtered_rows)
+    return (
+        filtered_rows.copy().reset_index(drop=True),
+        dropped_rows,
+        required_observed_count,
+    )
+
+
+def _resolve_required_observed_count(
+    *,
+    policy: SiteMatrixPolicy,
+    value_column_count: int,
+) -> int:
+    if policy.missing_data_policy == "drop_any_missing":
+        return value_column_count
+    if policy.missing_data_policy == "retain_missing":
+        return 0
+    if policy.missing_data_policy != "require_min_observed_values":
+        msg = f"Unsupported missing_data_policy: {policy.missing_data_policy}"
+        raise TableSchemaError(msg)
+
+    required = policy.minimum_observed_values
+    if required is None:
+        msg = (
+            "minimum_observed_values is required when "
+            "missing_data_policy='require_min_observed_values'"
+        )
+        raise ValueError(msg)
+    if required > value_column_count:
+        msg = (
+            "minimum_observed_values cannot exceed the number of site-matrix "
+            f"value columns ({value_column_count})"
+        )
+        raise ValueError(msg)
+    return required
 
 
 def _apply_duplicate_site_policy(
     *,
-    complete_cases: pd.DataFrame,
+    source_rows: pd.DataFrame,
     value_cols: Sequence[str],
     policy: SiteMatrixPolicy,
 ) -> pd.DataFrame:
-    if complete_cases.empty:
-        return complete_cases.copy().reset_index(drop=True)
+    if source_rows.empty:
+        return source_rows.copy().reset_index(drop=True)
 
-    duplicate_mask = complete_cases.duplicated(SITE_MATRIX_ID_COLUMN, keep=False)
+    duplicate_mask = source_rows.duplicated(SITE_MATRIX_ID_COLUMN, keep=False)
     if not bool(duplicate_mask.any()):
-        return complete_cases.copy().reset_index(drop=True)
+        return source_rows.copy().reset_index(drop=True)
 
     if policy.duplicate_site_strategy == "error":
         duplicate_sites = (
-            complete_cases.loc[duplicate_mask, SITE_MATRIX_ID_COLUMN]
+            source_rows.loc[duplicate_mask, SITE_MATRIX_ID_COLUMN]
             .astype(str)
             .drop_duplicates()
             .tolist()
@@ -263,21 +404,37 @@ def _apply_duplicate_site_policy(
         raise TableSchemaError(msg)
 
     if policy.duplicate_site_strategy == "max_mean_signal":
-        work = complete_cases.copy()
+        work = source_rows.copy()
+        work["__observed_values"] = work.loc[:, list(value_cols)].notna().sum(axis=1)
         work["__mean_signal"] = work.loc[:, list(value_cols)].mean(axis=1, skipna=True)
-        idx = work.groupby(SITE_MATRIX_ID_COLUMN, sort=False)["__mean_signal"].idxmax()
-        return work.loc[idx].drop(columns="__mean_signal").copy().reset_index(drop=True)
+        work["__row_order"] = range(len(work))
+        selected = work.sort_values(
+            [
+                SITE_MATRIX_ID_COLUMN,
+                "__observed_values",
+                "__mean_signal",
+                "__row_order",
+            ],
+            ascending=[True, False, False, True],
+            kind="stable",
+            na_position="last",
+        ).drop_duplicates(SITE_MATRIX_ID_COLUMN, keep="first")
+        return (
+            selected.drop(columns=["__observed_values", "__mean_signal", "__row_order"])
+            .copy()
+            .reset_index(drop=True)
+        )
 
     if policy.duplicate_site_strategy == "first":
         return (
-            complete_cases.drop_duplicates(SITE_MATRIX_ID_COLUMN, keep="first")
+            source_rows.drop_duplicates(SITE_MATRIX_ID_COLUMN, keep="first")
             .copy()
             .reset_index(drop=True)
         )
 
     if policy.duplicate_site_strategy in {"aggregate_mean", "aggregate_median"}:
         return _aggregate_duplicate_sites(
-            complete_cases=complete_cases,
+            source_rows=source_rows,
             value_cols=value_cols,
             strategy=policy.duplicate_site_strategy,
         )
@@ -288,12 +445,12 @@ def _apply_duplicate_site_policy(
 
 def _aggregate_duplicate_sites(
     *,
-    complete_cases: pd.DataFrame,
+    source_rows: pd.DataFrame,
     value_cols: Sequence[str],
     strategy: DuplicateSiteStrategy,
 ) -> pd.DataFrame:
     value_col_list = list(value_cols)
-    ordered_columns = list(complete_cases.columns)
+    ordered_columns = list(source_rows.columns)
     metadata_columns = [
         column
         for column in ordered_columns
@@ -301,11 +458,11 @@ def _aggregate_duplicate_sites(
     ]
 
     metadata = (
-        complete_cases.loc[:, [SITE_MATRIX_ID_COLUMN, *metadata_columns]]
+        source_rows.loc[:, [SITE_MATRIX_ID_COLUMN, *metadata_columns]]
         .groupby(SITE_MATRIX_ID_COLUMN, sort=False)
         .first()
     )
-    grouped_values = complete_cases.groupby(SITE_MATRIX_ID_COLUMN, sort=False)[
+    grouped_values = source_rows.groupby(SITE_MATRIX_ID_COLUMN, sort=False)[
         value_col_list
     ]
     if strategy == "aggregate_mean":

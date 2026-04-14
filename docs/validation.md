@@ -77,7 +77,11 @@ A valid `predMat` must have:
 ## Useful Behaviour to Know
 
 - by default, protein correction allows no silent phosphosite row loss
-- site-matrix building can drop rows with missing sequence data or incomplete corrected values
+- site-matrix building always drops rows with missing sequence data
+- site-matrix missing-value handling is explicit through `SiteMatrixPolicy.missing_data_policy`:
+  - `drop_any_missing` keeps only complete corrected rows (legacy/default behavior)
+  - `retain_missing` keeps partial rows and preserves `NaN` in the matrix
+  - `require_min_observed_values` keeps rows meeting a minimum observed-value count
 - if the same phosphosite appears more than once after correction, PhosPy keeps the row with the highest mean corrected signal
 - when prediction thresholds are too strict, prediction raises `NoCandidateKinasesError` instead of returning an empty invalid `predMat`
 

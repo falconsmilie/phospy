@@ -5,6 +5,7 @@ import pytest
 
 from phospy.datasets import DatasetSchema, PhosphoDataset
 from phospy.errors import InputCompatibilityError, RequestValidationError
+from phospy.matrices import SiteMatrixPolicy
 from phospy.prediction import PredMatResult
 from phospy.prediction.traces import TraceSink
 from phospy.validation.requests import (
@@ -259,6 +260,27 @@ def test_core_pipeline_request_accepts_explicit_sentinel_configuration(
 
     assert request.total_sentinel == 99.0
     assert request.phospho_sentinel == 88.0
+
+
+def test_core_pipeline_request_accepts_site_matrix_policy_mapping(tmp_path) -> None:
+    total_path = tmp_path / "total.tsv"
+    phospho_path = tmp_path / "phospho.tsv"
+    total_path.write_text("genes\tgroup1\nPRKACA\t1\n")
+    phospho_path.write_text("uid\tgene_names\n1\tPRKACA\n")
+
+    request = CorePipelineRequest.validate_request(
+        total_path=total_path,
+        phospho_path=phospho_path,
+        site_matrix_policy={
+            "duplicate_site_strategy": "first",
+            "missing_data_policy": "retain_missing",
+        },
+    )
+
+    assert request.site_matrix_policy == SiteMatrixPolicy(
+        duplicate_site_strategy="first",
+        missing_data_policy="retain_missing",
+    )
 
 
 def test_prediction_request_rejects_invalid_trace_level() -> None:
@@ -676,6 +698,53 @@ def test_validate_pipeline_construction_request_rejects_mixed_preprocessing_conf
         )
 
 
+def test_validate_pipeline_construction_request_rejects_mixed_site_matrix_policy_styles() -> (
+    None
+):
+    from phospy.datasets import PhosphoDataset
+    from phospy.preprocessing import CorePreprocessingConfig
+
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+
+    with pytest.raises(
+        RequestValidationError,
+        match=(
+            r"Invalid pipeline construction request: pass either preprocessing_config or scalar "
+            r"preprocessing options, not both\."
+        ),
+    ):
+        validate_pipeline_construction_request(
+            dataset=PhosphoDataset(total_df=total_df, phospho_df=phospho_df),
+            preprocessing_config=CorePreprocessingConfig(),
+            site_matrix_policy=SiteMatrixPolicy(missing_data_policy="retain_missing"),
+        )
+
+
 def test_validate_analysis_request_takes_ownership_of_raw_dataframe_inputs() -> None:
     pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["PRKACA;S339;"])
     phospho_matrix = pd.DataFrame({"sample_1": [1.0]}, index=["PRKACA;S339;"])
@@ -1035,6 +1104,46 @@ def test_build_pipeline_inputs_reuses_owned_dataset_and_pred_mat() -> None:
 
     assert request.dataset is dataset
     assert request.pred_mat is pred_mat
+
+
+def test_build_pipeline_inputs_applies_site_matrix_policy_override() -> None:
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1"],
+            "gene_names": ["PRKACA"],
+            "gene_p_site": ["PRKACA_S339"],
+            "localization_prob": [0.95],
+            "centralized_sequence": ["AAAAAA"],
+            "p_group1": [1.0],
+            "p_group2": [1.0],
+            "p_group3": [1.0],
+            "p_group4": [1.0],
+            "p_group5": [1.0],
+            "p_group6": [1.0],
+        }
+    )
+    dataset = PhosphoDataset(total_df=total_df, phospho_df=phospho_df)
+
+    request = build_pipeline_inputs(
+        dataset=dataset,
+        site_matrix_policy=SiteMatrixPolicy(missing_data_policy="retain_missing"),
+    )
+
+    assert (
+        request.preprocessing_config.site_matrix_policy.missing_data_policy
+        == "retain_missing"
+    )
 
 
 def test_validate_pipeline_runtime_compatibility_builds_analysis_request_after_preprocessing() -> (

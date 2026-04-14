@@ -59,6 +59,8 @@ def test_build_site_matrix_exposes_row_drop_stats() -> None:
     assert stats["input_rows"] == 3
     assert stats["dropped_missing_sequence"] == 1
     assert stats["dropped_incomplete_values"] == 1
+    assert stats["missing_data_policy"] == "drop_any_missing"
+    assert stats["required_observed_count"] == 2
     assert stats["retained_rows"] == 1
     assert matrix.attrs["row_drop_stats"] == stats
     assert sequences.attrs["row_drop_stats"] == stats
@@ -239,6 +241,118 @@ def test_build_site_matrix_can_aggregate_duplicate_rows_by_mean() -> None:
     assert float(matrix.loc["PRKACA;S339;", "phospho_corrected_2"]) == pytest.approx(
         3.0
     )
+
+
+def test_build_site_matrix_explicit_drop_any_missing_matches_default_behavior() -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_S339", "BTK_Y551"],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "phospho_corrected_1": [1.0, 2.0],
+            "phospho_corrected_2": [1.0, None],
+        }
+    )
+
+    _, default_matrix, _ = build_site_matrix(
+        df=df,
+        gene_p_site_col="gene_p_site",
+        sequence_col="centralized_sequence",
+        value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+    )
+    _, explicit_matrix, _ = build_site_matrix(
+        df=df,
+        gene_p_site_col="gene_p_site",
+        sequence_col="centralized_sequence",
+        value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+        policy=SiteMatrixPolicy(missing_data_policy="drop_any_missing"),
+    )
+
+    pd.testing.assert_frame_equal(default_matrix, explicit_matrix)
+
+
+def test_build_site_matrix_can_retain_rows_with_missing_values() -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_S339", "BTK_Y551"],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "phospho_corrected_1": [1.0, 2.0],
+            "phospho_corrected_2": [None, 5.0],
+        }
+    )
+
+    phosr_input, matrix, _ = build_site_matrix(
+        df=df,
+        gene_p_site_col="gene_p_site",
+        sequence_col="centralized_sequence",
+        value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+        policy=SiteMatrixPolicy(missing_data_policy="retain_missing"),
+    )
+
+    assert matrix.index.tolist() == ["BTK;Y551;", "PRKACA;S339;"]
+    assert pd.isna(matrix.loc["PRKACA;S339;", "phospho_corrected_2"])
+    assert phosr_input.attrs["row_drop_stats"]["dropped_incomplete_values"] == 0
+    assert (
+        phosr_input.attrs["row_drop_stats"]["missing_data_policy"] == "retain_missing"
+    )
+    assert phosr_input.attrs["row_drop_stats"]["required_observed_count"] == 0
+
+
+def test_build_site_matrix_can_require_minimum_observed_values() -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_S339", "BTK_Y551", "LYN_Y397"],
+            "centralized_sequence": ["AAAAAA", "BBBBBB", "CCCCCC"],
+            "phospho_corrected_1": [1.0, None, 3.0],
+            "phospho_corrected_2": [None, None, 4.0],
+        }
+    )
+
+    phosr_input, matrix, _ = build_site_matrix(
+        df=df,
+        gene_p_site_col="gene_p_site",
+        sequence_col="centralized_sequence",
+        value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+        policy=SiteMatrixPolicy(
+            missing_data_policy="require_min_observed_values",
+            minimum_observed_values=1,
+        ),
+    )
+
+    assert matrix.index.tolist() == ["LYN;Y397;", "PRKACA;S339;"]
+    assert phosr_input.attrs["row_drop_stats"]["dropped_incomplete_values"] == 1
+    assert (
+        phosr_input.attrs["row_drop_stats"]["missing_data_policy"]
+        == "require_min_observed_values"
+    )
+    assert phosr_input.attrs["row_drop_stats"]["required_observed_count"] == 1
+
+
+def test_build_site_matrix_rejects_minimum_observed_values_above_value_columns() -> (
+    None
+):
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_S339"],
+            "centralized_sequence": ["AAAAAA"],
+            "phospho_corrected_1": [1.0],
+            "phospho_corrected_2": [2.0],
+        }
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="minimum_observed_values cannot exceed the number of site-matrix value columns",
+    ):
+        build_site_matrix(
+            df=df,
+            gene_p_site_col="gene_p_site",
+            sequence_col="centralized_sequence",
+            value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+            policy=SiteMatrixPolicy(
+                missing_data_policy="require_min_observed_values",
+                minimum_observed_values=3,
+            ),
+        )
 
 
 def test_build_site_matrix_can_reject_duplicate_rows_explicitly() -> None:
