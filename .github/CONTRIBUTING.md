@@ -89,7 +89,7 @@ The public roadmap lives in [`docs/roadmap.md`](../docs/roadmap.md). Good contri
 
 ## Scientific Policy Defaults
 
-PhosPy treats key scientific heuristics as explicit policies. Do not bury these decisions in helper functions or silent defaults.
+PhosPy keeps key scientific heuristics explicit. Do not bury these decisions in helper functions or silent defaults.
 
 Current policy objects are:
 

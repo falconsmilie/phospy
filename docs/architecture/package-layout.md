@@ -2,7 +2,7 @@
 
 PhosPy is organised by domain capability first.
 
-Use this as the contributor-facing guide for where new code should live. The migration map in this directory is historical context, not the main guide.
+Use this as the main contributor guide for where new code should live. The migration map in this directory is historical context, not the main guide.
 
 ## Domain Packages
 
@@ -29,11 +29,9 @@ Preprocessing is intentionally split across a small number of seams:
 
 ## Root Package Policy
 
-`phospy.__init__` is intentionally small.
+`phospy.__init__` is intentionally small and does **not** re-export domain APIs.
 
-The root package keeps a supported convenience surface for a limited set of high-level workflow and result types. New code should prefer the owning domain package directly.
-
-Use root imports only when a short user-facing entry point is genuinely helpful, such as examples or interactive sessions.
+Import from the owning package directly, for example `phospy.api`, `phospy.datasets`, `phospy.preprocessing`, or `phospy.signalomes`.
 
 ## Placement Rules
 

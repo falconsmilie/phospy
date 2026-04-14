@@ -1,4 +1,4 @@
-# Validation Quick Guide
+# Validation Guide
 
 This is the short version of what PhosPy checks.
 
@@ -43,6 +43,8 @@ A valid `predMat` must have:
 - numeric scores in `[0, 1]`
 - a unique, non-null index
 
+`NaN` values are allowed for missing or unusable kinase scores. Infinite values are rejected.
+
 ## Checks You Will Hit Most Often
 
 - required columns must exist
@@ -50,7 +52,6 @@ A valid `predMat` must have:
 - numeric sample columns must still be numeric after coercion
 - `localization_prob` must be in `[0, 1]`
 - `predMat` scores must be in `[0, 1]` where present
-- `predMat` may include `NaN` values to represent missing or unusable kinase scores, but infinite values are rejected
 - file paths must exist and point to files
 - comparison pairs must use known schema groups and must not be duplicated
 - downstream kinase analysis needs overlap between `predMat` and the phosphosite matrix
@@ -58,6 +59,7 @@ A valid `predMat` must have:
 - native workflow runs need overlap across the matrix, substrate map, and sequence inputs
 - motif-aware runs need both `motif_sequences` and `site_sequences`, unless `allow_profile_only_fallback=True`
 - motif-aware validation only requires sequence coverage for phosphosites that are actually scored and predicted
+- signalome assignment needs fully finite aligned `predMat` values because each row needs a concrete top kinase
 
 ## Useful Behaviour to Know
 
@@ -65,7 +67,6 @@ A valid `predMat` must have:
 - site-matrix building can drop rows with missing sequence data or incomplete corrected values
 - if the same phosphosite appears more than once after correction, PhosPy keeps the row with the highest mean corrected signal
 - when prediction thresholds are too strict, `PredMatWorkflow` raises `NoCandidateKinasesError` instead of returning an empty invalid `predMat`
-- signalome assignment requires fully finite aligned `predMat` values because each row needs a concrete top kinase
 
 ## Good Starting Points
 
@@ -76,6 +77,16 @@ Start at the boundary closest to your input:
 - `PhosRPipeline.from_files(...)` for the file-based one-shot flow
 - `PredMatWorkflow.run(...)` for native `predMat` generation
 - `SignalomeWorkflow.run(...)` for downstream signalome construction
+
+## Quick Troubleshooting
+
+| Problem | Usually means | Good next step |
+| --- | --- | --- |
+| Missing required columns | Your input headers do not match the expected schema | Check cleaned column names and, if needed, pass a custom `DatasetSchema` |
+| `predMat` overlap error | The phosphosite IDs do not line up between the matrix and `predMat` | Confirm both sides use the same phosphosite identifier format |
+| `NoCandidateKinasesError` | Thresholds or inclusion settings filtered out every kinase | Relax the prediction config and rerun |
+| Sequence coverage error | `site_sequences` or `motif_sequences` do not cover the scored sites | Check keys and confirm you passed the right reference inputs |
+| Signalome top-kinase failure | Your aligned prediction values contain non-finite rows | Clean or regenerate the prediction output before signalome construction |
 
 ## Recommended `predMat` Path
 

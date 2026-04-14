@@ -18,8 +18,6 @@ make fixtures-all
 
 Small R-backed fixtures for deterministic preprocessing, site-matrix construction, and the downstream wrapper flow.
 
-Generate with:
-
 ```bash
 Rscript scripts/generate_r_fixtures.R
 make fixtures-r-small
@@ -28,8 +26,6 @@ make fixtures-r-small
 ### `tests/fixtures/r_reference_l6`
 
 Main committed L6 reference data for downstream kinase-analysis parity, native prediction seams, and committed R trace replay.
-
-Generate with:
 
 ```bash
 Rscript scripts/generate_r_l6_fixtures.R
@@ -40,8 +36,6 @@ make fixtures-r-l6
 
 Curated L6-derived support-screening fixtures used to widen coverage around support boundaries and inclusion cut-offs.
 
-Generate with:
-
 ```bash
 python scripts/generate_fragile_support_reference.py
 make fixtures-fragile
@@ -49,9 +43,7 @@ make fixtures-fragile
 
 ### `tests/fixtures/r_reference_l6_seam_stress`
 
-A smaller L6-derived seam-stress fixture family.
-
-Generate with:
+Smaller L6-derived seam-stress fixtures.
 
 ```bash
 python scripts/generate_l6_seam_stress_reference.py --outdir tests/fixtures/r_reference_l6_seam_stress
@@ -60,9 +52,7 @@ make fixtures-r-l6-seam-stress
 
 ### `tests/fixtures/synthetic_adaptive_sampling_edge`
 
-A fully synthetic set for deterministic adaptive-sampling edge cases.
-
-Generate with:
+Fully synthetic fixtures for deterministic adaptive-sampling edge cases.
 
 ```bash
 python scripts/generate_synthetic_adaptive_sampling_edge_fixtures.py --outdir tests/fixtures/synthetic_adaptive_sampling_edge
@@ -73,22 +63,18 @@ make fixtures-synthetic-edge
 
 Small committed benchmark outputs for the public `PredMatWorkflow` and `SignalomeWorkflow` demo paths.
 
-Generate with:
-
 ```bash
 PYTHONPATH=src python examples/predmat_workflow_demo.py
 PYTHONPATH=src python examples/signalome_workflow_demo.py
 ```
 
-Then promote the resulting workflow tables into `tests/fixtures/public_workflow_reference` when the benchmark contract changes intentionally.
+Promote the resulting workflow tables into `tests/fixtures/public_workflow_reference` only when the public workflow contract changed intentionally.
 
 ## Trace Directories
 
 ### `tests/fixtures/r_reference_l6/prediction_trace`
 
 Committed R prediction traces used by the `r_reference_l6` fixture family.
-
-Generate with:
 
 ```bash
 Rscript scripts/generate_r_l6_fixtures.R \
@@ -101,8 +87,6 @@ make traces-r
 ### `tests/fixtures/python_reference_l6/prediction_trace`
 
 Committed Python prediction traces used alongside the R traces for export and replay debugging.
-
-Generate with:
 
 ```bash
 python scripts/export_python_prediction_traces.py \
