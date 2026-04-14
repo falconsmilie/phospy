@@ -11,8 +11,8 @@ from pydantic import (
     ConfigDict,
     Field,
     ValidationError,
+    ValidationInfo,
     field_validator,
-    model_validator,
 )
 
 from ...datasets.models import PhosphoDataset
@@ -98,18 +98,24 @@ class CorePipelineRequest(BaseModel):
         except (TypeError, ValueError) as error:
             raise ValueError(str(error)) from error
 
-    @model_validator(mode="after")
-    def validate_comparisons(self) -> CorePipelineRequest:
+    @field_validator("comparisons")
+    @classmethod
+    def validate_comparisons(
+        cls,
+        value: tuple[ComparisonSpec, ...] | None,
+        info: ValidationInfo,
+    ) -> tuple[ComparisonSpec, ...] | None:
+        dataset_schema = info.data.get("dataset_schema")
+        if dataset_schema is None:
+            dataset_schema = DatasetSchema()
         try:
-            validated = validate_dataset_comparisons(
-                schema=self.dataset_schema,
-                comparisons=self.comparisons,
+            return validate_dataset_comparisons(
+                schema=dataset_schema,
+                comparisons=value,
                 context="Core pipeline request",
             )
         except (InputCompatibilityError, TypeError, ValueError) as error:
             raise ValueError(str(error)) from error
-        object.__setattr__(self, "comparisons", validated)
-        return self
 
     @classmethod
     def validate_request(cls, **data: object) -> CorePipelineRequest:

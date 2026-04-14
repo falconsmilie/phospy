@@ -116,3 +116,22 @@ def test_dataset_schema_rejects_reverse_duplicate_comparisons() -> None:
         schema.validate_comparisons(
             (("sample_a", "sample_b"), ("sample_b", "sample_a")),
         )
+
+
+def test_dataset_schema_normalizes_sequence_inputs_to_tuples() -> None:
+    schema = DatasetSchema(
+        total_cols=["sample_a", "sample_b"],
+        phospho_cols=["p_sample_a", "p_sample_b"],
+        corrected_cols=["corrected_a", "corrected_b"],
+    )
+
+    assert schema.total_cols == ("sample_a", "sample_b")
+    assert schema.phospho_cols == ("p_sample_a", "p_sample_b")
+    assert schema.corrected_cols == ("corrected_a", "corrected_b")
+
+
+def test_dataset_schema_is_immutable() -> None:
+    schema = DatasetSchema()
+
+    with pytest.raises(AttributeError, match="immutable"):
+        schema.total_cols = ("sample_a",)
