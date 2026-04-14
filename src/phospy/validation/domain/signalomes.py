@@ -34,7 +34,7 @@ def validate_signalome_site_grouping(
         ),
         invalid_site_id_context=(
             "Signalome construction requires either an explicit site_to_protein "
-            "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
+            "mapping or phosphosite identifiers in canonical 'ENTITY;SITE;' "
             "format. Invalid aligned site IDs"
         ),
     )

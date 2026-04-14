@@ -151,6 +151,48 @@ def test_build_site_matrix_rejects_empty_or_extra_delimiter_gene_p_site_values()
             )
 
 
+def test_build_site_matrix_rejects_invalid_site_token_in_gene_p_site() -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["PRKACA_339"],
+            "centralized_sequence": ["AAAAAA"],
+            "phospho_corrected_1": [1.0],
+            "phospho_corrected_2": [1.0],
+        }
+    )
+
+    with pytest.raises(
+        TableSchemaError,
+        match="site token like 'S123'",
+    ):
+        build_site_matrix(
+            df=df,
+            gene_p_site_col="gene_p_site",
+            sequence_col="centralized_sequence",
+            value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+        )
+
+
+def test_build_site_matrix_normalizes_site_ids_to_canonical_uppercase_format() -> None:
+    df = pd.DataFrame(
+        {
+            "gene_p_site": ["btk_y551"],
+            "centralized_sequence": ["AAAAAA"],
+            "phospho_corrected_1": [1.0],
+            "phospho_corrected_2": [2.0],
+        }
+    )
+
+    _, matrix, _ = build_site_matrix(
+        df=df,
+        gene_p_site_col="gene_p_site",
+        sequence_col="centralized_sequence",
+        value_cols=["phospho_corrected_1", "phospho_corrected_2"],
+    )
+
+    assert matrix.index.tolist() == ["BTK;Y551;"]
+
+
 def test_build_site_matrix_can_keep_first_duplicate_row() -> None:
     df = pd.DataFrame(
         {

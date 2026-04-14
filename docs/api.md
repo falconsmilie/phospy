@@ -202,6 +202,11 @@ SignalomeWorkflow().run_from_analysis_ready(
 ) -> SignalomeResult
 ```
 
+If `site_to_protein` is omitted, signalome grouping falls back to parsing canonical
+site IDs in `ENTITY;SITE;` format (for example `BTK;Y551;`). For non-canonical IDs,
+pass `site_to_protein` explicitly or use `run_from_analysis_ready(...)` to resolve
+from dataset metadata.
+
 ## Preferred Imports
 
 ```python

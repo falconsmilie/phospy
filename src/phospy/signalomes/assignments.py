@@ -82,7 +82,7 @@ def resolve_site_to_protein(
         ),
         invalid_site_id_context=(
             "Signalome construction requires either an explicit site_to_protein "
-            "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
+            "mapping or phosphosite identifiers in canonical 'ENTITY;SITE;' "
             "format. Invalid site IDs"
         ),
     )
@@ -95,14 +95,14 @@ def parse_supported_site_ids(site_ids: Sequence[str]) -> pd.Series:
         site_ids,
         invalid_site_id_context=(
             "Signalome construction requires either an explicit site_to_protein "
-            "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
+            "mapping or phosphosite identifiers in canonical 'ENTITY;SITE;' "
             "format. Invalid site IDs"
         ),
     )
 
 
 def protein_id_from_supported_site_id(site_id: object) -> str | None:
-    """Extract a protein ID from a supported ``PROTEIN;SITE;...`` site ID."""
+    """Extract a protein ID from a canonical ``ENTITY;SITE;`` site ID."""
 
     return protein_id_from_supported_signalome_site_id(site_id)
 

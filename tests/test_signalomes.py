@@ -577,7 +577,7 @@ def test_signalome_workflow_rejects_unsupported_site_identifier_format_without_m
         InputCompatibilityError,
         match=(
             "Signalome construction requires either an explicit site_to_protein "
-            "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
+            "mapping or phosphosite identifiers in canonical 'ENTITY;SITE;' "
             "format"
         ),
     ):
@@ -649,7 +649,7 @@ def test_signalome_workflow_rejects_malformed_supported_site_identifier_without_
         InputCompatibilityError,
         match=(
             "Signalome construction requires either an explicit site_to_protein "
-            "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
+            "mapping or phosphosite identifiers in canonical 'ENTITY;SITE;' "
             "format"
         ),
     ):
@@ -690,7 +690,7 @@ def test_build_signalome_result_rejects_malformed_supported_site_identifier_with
         InputCompatibilityError,
         match=(
             "Signalome construction requires either an explicit site_to_protein "
-            "mapping or phosphosite identifiers in the supported 'PROTEIN;SITE;...' "
+            "mapping or phosphosite identifiers in canonical 'ENTITY;SITE;' "
             "format"
         ),
     ):
@@ -701,6 +701,41 @@ def test_build_signalome_result_rejects_malformed_supported_site_identifier_with
             kinases_of_interest=["KINASE_A"],
             signalome_cutoff=0.5,
             module_count=1,
+        )
+
+
+def test_signalome_workflow_rejects_non_canonical_multi_token_site_ids_without_mapping() -> (
+    None
+):
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+    malformed_index = [
+        "P0C1X8;AAK1;S677;AEASLSKSKSATTTPSGSPRTSQQNVSNASE",
+        *[f"PROTEIN_{i};S{i};" for i in range(2, phospho_matrix.shape[0] + 1)],
+    ]
+    malformed_expression_matrix = phospho_matrix.copy()
+    malformed_expression_matrix.index = malformed_index
+
+    scoring_result = pred_mat_result.scoring_result
+    scoring_result.combined_scores.index = malformed_index
+    scoring_result.profile_scores.index = malformed_index
+
+    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat.index = malformed_index
+    malformed_pred_mat_result = PredMatResult(pred_mat)
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=(
+            "Signalome construction requires either an explicit site_to_protein "
+            "mapping or phosphosite identifiers in canonical 'ENTITY;SITE;' "
+            "format"
+        ),
+    ):
+        SignalomeWorkflow().run(
+            scoring_result=scoring_result,
+            prediction_result=malformed_pred_mat_result,
+            expression_matrix=malformed_expression_matrix,
+            kinases_of_interest=["KINASE_A"],
         )
 
 

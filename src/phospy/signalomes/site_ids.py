@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping, Sequence
 
 import pandas as pd
 
 from ..errors import InputCompatibilityError
+from ..validation.values.identifiers import parse_canonical_site_id
 
 __all__ = [
     "parse_supported_signalome_site_ids",
@@ -13,27 +13,20 @@ __all__ = [
     "resolve_signalome_site_to_protein",
 ]
 
-_SUPPORTED_SIGNALOME_SITE_TOKEN_PATTERN = re.compile(r"^[A-Za-z]+\d+$")
-
 
 def protein_id_from_supported_signalome_site_id(site_id: object) -> str | None:
     """Extract the protein identifier from a supported signalome site ID.
 
-    Supported IDs use the ``PROTEIN;SITE;...`` shape where the site token must
-    contain at least one letter followed by at least one digit, such as ``S1``
-    or ``T308``.
+    Supported IDs use canonical ``ENTITY;SITE;`` shape where the site token
+    contains at least one letter followed by at least one digit, such as
+    ``S1`` or ``T308``.
     """
 
-    parts = [part.strip() for part in str(site_id).split(";")]
-    if len(parts) < 3:
+    parsed = parse_canonical_site_id(site_id)
+    if parsed is None:
         return None
-
-    protein_id, site_token = parts[0], parts[1]
-    if not protein_id or not site_token:
-        return None
-    if _SUPPORTED_SIGNALOME_SITE_TOKEN_PATTERN.fullmatch(site_token) is None:
-        return None
-    return protein_id
+    entity, _ = parsed
+    return entity
 
 
 def parse_supported_signalome_site_ids(

@@ -16,6 +16,7 @@ from .internal.constants import (
 from .internal.types import DuplicateSiteStrategy
 from .validation.schema.tables import SiteMatrixSourceSchema
 from .validation.values.enums import validate_duplicate_site_strategy
+from .validation.values.identifiers import build_canonical_site_id
 
 __all__ = [
     "DEFAULT_SITE_MATRIX_POLICY",
@@ -148,12 +149,18 @@ def build_site_matrix(
     )
     site_work[gene_col_name] = split_cols[0].astype("string")
     site_work[p_site_col_name] = split_cols[1].astype("string")
-    site_work[SITE_MATRIX_ID_COLUMN] = (
-        site_work[gene_col_name].str.upper()
-        + ";"
-        + site_work[p_site_col_name].str.upper()
-        + ";"
-    )
+    site_work[SITE_MATRIX_ID_COLUMN] = [
+        build_canonical_site_id(
+            entity=gene,
+            site_token=site,
+            context="site-matrix source table",
+        )
+        for gene, site in zip(
+            site_work[gene_col_name],
+            site_work[p_site_col_name],
+            strict=True,
+        )
+    ]
 
     base_cols = [
         col
