@@ -171,28 +171,6 @@ def _resolve_final_score_series(
     final_decision_values: pd.Series,
     sampling_policy: PredictionSamplingPolicy,
 ) -> pd.Series:
-    positive_probabilities = pd.Series(
-        pred_df.loc[:, "1"].to_numpy(dtype=float, copy=False),
-        index=pred_df.index.copy(),
-        dtype=float,
-    )
-    if sampling_policy.final_score_mode == "mean_probability":
-        return positive_probabilities
-
-    decision_vector = final_decision_values.to_numpy(dtype=float, copy=False)
-    return pd.Series(
-        1.0 / (1.0 + np.exp(-decision_vector)),
-        index=pred_df.index.copy(),
-        dtype=float,
-    )
-
-
-def _resolve_final_score_series(
-    *,
-    pred_df: pd.DataFrame,
-    final_decision_values: pd.Series,
-    sampling_policy: PredictionSamplingPolicy,
-) -> pd.Series:
     """Return the final per-site score series for the configured sampling mode.
 
     This helper remains the public review seam for tests and diagnostics. The

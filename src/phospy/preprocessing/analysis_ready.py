@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -9,6 +10,9 @@ from ..datasets.schema import DatasetSchema
 from ..internal.constants import ComparisonSpec
 from .core import CorePreprocessingConfig
 from .modes import AnalysisReadyDatasetBuilder
+
+if TYPE_CHECKING:
+    from ..datasets.models import AnalysisReadyPhosphoDataset
 
 
 def build_analysis_ready_dataset(
@@ -21,7 +25,7 @@ def build_analysis_ready_dataset(
     comparisons: Sequence[ComparisonSpec] | None = None,
     source: str = "analysis ready dataset builder",
     phospho_only_source: str = "analysis ready dataset builder (phospho only)",
-):
+) -> AnalysisReadyPhosphoDataset:
     """Build the analysis-ready phosphosite boundary from user-shaped inputs."""
 
     return AnalysisReadyDatasetBuilder().build(
