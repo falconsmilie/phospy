@@ -12,7 +12,7 @@ from phospy.activities import KinaseActivityAnalyzer
 from phospy.datasets import PhosphoDataset
 from phospy.internal.constants import RUN_MANIFEST_FILENAME
 from phospy.io.publishing import OutputPublisher, RunManifestWriter, package_version
-from phospy.pipeline import PhosRPipeline, _PipelineRequestLoader
+from phospy.pipeline import PhosRPipeline, _build_pipeline_inputs_from_request
 from phospy.prediction import PredMatResult
 from phospy.preprocessing import CorePreprocessingConfig
 from phospy.validation.requests import CorePipelineRequest
@@ -520,7 +520,7 @@ def test_package_version_propagates_unexpected_metadata_errors(
         package_version()
 
 
-def test_pipeline_request_loader_builds_dataset_and_config(
+def test_pipeline_request_builder_builds_dataset_and_config(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -550,7 +550,7 @@ def test_pipeline_request_loader_builds_dataset_and_config(
         pred_mat_path=pred_path,
     )
 
-    inputs = _PipelineRequestLoader().load(request)
+    inputs = _build_pipeline_inputs_from_request(request)
 
     assert inputs.pred_mat is not None
     assert inputs.preprocessing_config.min_observed == 4

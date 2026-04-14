@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -13,7 +12,6 @@ from .activities.results import KinaseActivityResult
 from .api.contracts import DatasetLoadOptions, KinaseActivityConfig
 from .datasets.loaders import DatasetLoader
 from .datasets.models import PhosphoDataset
-from .datasets.schema import DatasetSchema
 from .errors import RequestValidationError, TableSchemaError
 from .io import load_pred_mat
 from .io.publishing import OutputPublisher, RunManifestWriter
@@ -42,61 +40,48 @@ class CoreOutputs:
     kinase_activity: KinaseActivityResult | None = None
 
 
-class _PipelineRequestLoader:
-    def __init__(
-        self,
-        *,
-        dataset_loader_factory: Callable[[DatasetSchema], DatasetLoader] | None = None,
-        pred_mat_loader: Callable[[str | Path], pd.DataFrame] | None = None,
-    ) -> None:
-        self.dataset_loader_factory = dataset_loader_factory or DatasetLoader
-        self.pred_mat_loader = (
-            load_pred_mat if pred_mat_loader is None else pred_mat_loader
+def _load_pred_mat_for_request(request: CorePipelineRequest) -> pd.DataFrame | None:
+    if request.pred_mat_path is None:
+        return None
+    try:
+        return load_pred_mat(request.pred_mat_path)
+    except TableSchemaError:
+        raise
+    except (
+        OSError,
+        UnicodeError,
+        pd.errors.ParserError,
+        pd.errors.EmptyDataError,
+    ) as error:
+        msg = (
+            f"Invalid core pipeline request: pred_mat_path: "
+            f"unable to read pred_mat ({request.pred_mat_path}): {error}"
         )
+        raise RequestValidationError(msg) from error
 
-    def load(self, request: CorePipelineRequest) -> PipelineInputs:
-        validated_inputs = self.dataset_loader_factory(
-            schema=request.dataset_schema
-        ).load(
-            request.total_path,
-            request.phospho_path,
-            phospho_encoding=request.phospho_encoding,
-        )
-        dataset = PhosphoDataset.from_loaded_inputs(
-            validated_inputs,
-            comparisons=request.comparisons,
-        )
-        return build_pipeline_inputs(
-            dataset=dataset,
-            pred_mat=self._load_pred_mat(request),
-            localization_threshold=request.localization_threshold,
-            min_observed=request.min_observed,
-            max_unmatched_fraction=request.max_unmatched_fraction,
-            total_sentinel=request.total_sentinel,
-            phospho_sentinel=request.phospho_sentinel,
-            kinase_activity_threshold=request.kinase_activity_threshold,
-            kinase_activity_min_substrates=request.kinase_activity_min_substrates,
-            kinase_activity_top_n_substrates=request.kinase_activity_top_n_substrates,
-        )
 
-    def _load_pred_mat(self, request: CorePipelineRequest) -> pd.DataFrame | None:
-        if request.pred_mat_path is None:
-            return None
-        try:
-            return self.pred_mat_loader(request.pred_mat_path)
-        except TableSchemaError:
-            raise
-        except (
-            OSError,
-            UnicodeError,
-            pd.errors.ParserError,
-            pd.errors.EmptyDataError,
-        ) as error:
-            msg = (
-                f"Invalid core pipeline request: pred_mat_path: "
-                f"unable to read pred_mat ({request.pred_mat_path}): {error}"
-            )
-            raise RequestValidationError(msg) from error
+def _build_pipeline_inputs_from_request(request: CorePipelineRequest) -> PipelineInputs:
+    validated_inputs = DatasetLoader(schema=request.dataset_schema).load(
+        request.total_path,
+        request.phospho_path,
+        phospho_encoding=request.phospho_encoding,
+    )
+    dataset = PhosphoDataset.from_loaded_inputs(
+        validated_inputs,
+        comparisons=request.comparisons,
+    )
+    return build_pipeline_inputs(
+        dataset=dataset,
+        pred_mat=_load_pred_mat_for_request(request),
+        localization_threshold=request.localization_threshold,
+        min_observed=request.min_observed,
+        max_unmatched_fraction=request.max_unmatched_fraction,
+        total_sentinel=request.total_sentinel,
+        phospho_sentinel=request.phospho_sentinel,
+        kinase_activity_threshold=request.kinase_activity_threshold,
+        kinase_activity_min_substrates=request.kinase_activity_min_substrates,
+        kinase_activity_top_n_substrates=request.kinase_activity_top_n_substrates,
+    )
 
 
 def _run_pipeline_request(
@@ -195,21 +180,6 @@ class PhosRPipeline:
         self.output_publisher = output_publisher or OutputPublisher()
 
     @classmethod
-    def _from_request(
-        cls,
-        request: CorePipelineRequest,
-        *,
-        manifest_writer: RunManifestWriter | None = None,
-        output_publisher: OutputPublisher | None = None,
-    ) -> PhosRPipeline:
-        inputs = _PipelineRequestLoader().load(request)
-        return cls._from_inputs(
-            inputs,
-            manifest_writer=manifest_writer,
-            output_publisher=output_publisher,
-        )
-
-    @classmethod
     def _from_inputs(
         cls,
         request: PipelineInputs,
@@ -261,8 +231,8 @@ class PhosRPipeline:
             kinase_activity_min_substrates=resolved_activity_config.min_substrates,
             kinase_activity_top_n_substrates=resolved_activity_config.top_n_substrates,
         )
-        return cls._from_request(
-            request,
+        return cls._from_inputs(
+            _build_pipeline_inputs_from_request(request),
             manifest_writer=manifest_writer,
             output_publisher=output_publisher,
         )
