@@ -33,10 +33,10 @@ def run_demo(
         ),
     )
     kinases_of_interest = list(simple_result.pred_mat_result.kinase_names[:2])
-    signalome_result = SignalomeWorkflow().run(
+    signalome_result = SignalomeWorkflow().run_from_analysis_ready(
+        dataset=simple_result.analysis_ready_dataset,
         scoring_result=simple_result.scoring_result,
         prediction_result=simple_result.prediction_result,
-        expression_matrix=simple_result.analysis_ready_dataset.phospho_matrix,
         kinases_of_interest=kinases_of_interest,
         config=SignalomeRunConfig(signalome_cutoff=0.5),
     )

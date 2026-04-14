@@ -142,10 +142,10 @@ def test_signalome_workflow_runs_from_simple_workflow_outputs() -> None:
         ),
     )
 
-    signalome_result = SignalomeWorkflow().run(
+    signalome_result = SignalomeWorkflow().run_from_analysis_ready(
+        dataset=simple_result.analysis_ready_dataset,
         scoring_result=simple_result.scoring_result,
         prediction_result=simple_result.prediction_result,
-        expression_matrix=simple_result.analysis_ready_dataset.phospho_matrix,
         kinases_of_interest=list(
             simple_result.pred_mat_result.to_frame(copy=False).columns[:2]
         ),

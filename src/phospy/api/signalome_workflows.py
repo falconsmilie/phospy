@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -10,6 +11,9 @@ from ..signalomes.analysis import execute_signalome_inputs
 from ..signalomes.results import SignalomeResult
 from ..validation.requests.signalome import SignalomeInputs, validate_signalome_request
 from .contracts import SignalomeRunConfig
+
+if TYPE_CHECKING:
+    from ..datasets.models import AnalysisReadyPhosphoDataset
 
 __all__ = ["SignalomeWorkflow"]
 
@@ -64,6 +68,43 @@ class SignalomeWorkflow:
             config=config,
         )
         return self.run_validated(request)
+
+    def run_from_analysis_ready(
+        self,
+        *,
+        dataset: AnalysisReadyPhosphoDataset,
+        scoring_result: KinaseScoringResult,
+        prediction_result: KinasePredictionResult | PredMatResult,
+        kinases_of_interest: Sequence[str],
+        site_to_protein: Mapping[str, str] | None = None,
+        metadata_protein_columns: Sequence[str] | None = None,
+        config: SignalomeRunConfig | None = None,
+    ) -> SignalomeResult:
+        """Run signalome analysis from an analysis-ready dataset boundary."""
+        from ..datasets.models import AnalysisReadyPhosphoDataset
+
+        if not isinstance(dataset, AnalysisReadyPhosphoDataset):
+            msg = (
+                "dataset must be an AnalysisReadyPhosphoDataset for "
+                "run_from_analysis_ready()."
+            )
+            raise TypeError(msg)
+
+        resolved_site_to_protein = (
+            dict(site_to_protein)
+            if site_to_protein is not None
+            else dataset.resolve_site_to_protein_mapping(
+                metadata_columns=metadata_protein_columns
+            ).to_dict()
+        )
+        return self.run(
+            scoring_result=scoring_result,
+            prediction_result=prediction_result,
+            expression_matrix=dataset.phospho_matrix,
+            kinases_of_interest=kinases_of_interest,
+            site_to_protein=resolved_site_to_protein,
+            config=config,
+        )
 
     def run_validated(
         self,

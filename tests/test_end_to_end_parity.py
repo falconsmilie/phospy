@@ -104,8 +104,7 @@ def _run_public_signalome_workflow(
         expression_matrix=phospho_matrix,
         kinases_of_interest=["KINASE_A", "KINASE_B"],
         site_to_protein={
-            str(site_id): str(site_id).split(";", 1)[0]
-            for site_id in phospho_matrix.index
+            str(site_id): str(site_id) for site_id in phospho_matrix.index
         },
         config=SignalomeRunConfig(signalome_cutoff=0.5),
     )

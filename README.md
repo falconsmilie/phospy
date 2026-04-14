@@ -77,10 +77,10 @@ This path handles preprocessing, analysis-ready adaptation, bundled reference se
 ```python
 from phospy.api import SignalomeRunConfig, SignalomeWorkflow
 
-signalome = SignalomeWorkflow().run(
+signalome = SignalomeWorkflow().run_from_analysis_ready(
+    dataset=result.analysis_ready_dataset,
     scoring_result=result.scoring_result,
     prediction_result=result.prediction_result,
-    expression_matrix=result.analysis_ready_dataset.phospho_matrix,
     kinases_of_interest=list(result.pred_mat_result.kinase_names[:2]),
     config=SignalomeRunConfig(signalome_cutoff=0.5),
 )

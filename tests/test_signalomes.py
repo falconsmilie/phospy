@@ -12,6 +12,13 @@ from phospy.api import (
     SignalomeRunConfig,
     SignalomeWorkflow,
 )
+from phospy.datasets import (
+    AnalysisReadyPhosphoDataset,
+    AnalysisReadyPreprocessingProvenance,
+    AnalysisReadyRowCounts,
+    AnalysisReadySiteMatrixStats,
+    DatasetSchema,
+)
 from phospy.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
@@ -103,6 +110,58 @@ def _build_pred_mat_workflow_result():
         ),
     )
     return phospho_matrix, result
+
+
+def _make_analysis_ready_dataset(
+    *,
+    phospho_matrix: pd.DataFrame,
+    protein_ids: dict[str, str],
+    metadata_column: str = "gene",
+) -> AnalysisReadyPhosphoDataset:
+    site_index = pd.Index(
+        [str(site_id) for site_id in phospho_matrix.index],
+        name="site_id",
+    )
+    aligned_matrix = phospho_matrix.copy(deep=True)
+    aligned_matrix.index = site_index
+    site_metadata = pd.DataFrame(
+        {
+            metadata_column: [protein_ids[str(site_id)] for site_id in site_index],
+        },
+        index=site_index,
+    )
+    site_sequences = pd.Series(
+        ["SEQUENCE"] * len(site_index),
+        index=site_index,
+        dtype="string",
+        name="centralized_sequence",
+    )
+    provenance = AnalysisReadyPreprocessingProvenance(
+        source="signalome workflow test",
+        schema=DatasetSchema(),
+        comparisons=None,
+        row_counts=AnalysisReadyRowCounts(
+            total_unique=0,
+            total_filtered=0,
+            phospho_filtered=0,
+            phospho_corrected=0,
+            phospho_matrix_sites=len(site_index),
+        ),
+        site_matrix_stats=AnalysisReadySiteMatrixStats(
+            input_rows=len(site_index),
+            dropped_missing_sequence=0,
+            dropped_incomplete_values=0,
+            deduplicated_site_rows=0,
+            retained_rows=len(site_index),
+        ),
+    )
+    return AnalysisReadyPhosphoDataset.from_external(
+        phospho_matrix=aligned_matrix,
+        site_metadata=site_metadata,
+        site_sequences=site_sequences,
+        phospho_corrected=pd.DataFrame(index=site_index),
+        provenance=provenance,
+    )
 
 
 def test_signalome_workflow_constructs_signalomes_from_scoring_and_prediction_results() -> (
@@ -409,6 +468,93 @@ def test_signalome_workflow_accepts_explicit_site_to_protein_mapping() -> None:
     ]
     assert result.site_assignments.loc["SITE_1", "protein_id"] == "PROTEIN_A"
     assert result.site_assignments.loc["SITE_2", "protein_id"] == "PROTEIN_A"
+
+
+def test_signalome_workflow_run_from_analysis_ready_uses_site_metadata_mapping() -> (
+    None
+):
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+    renamed_index = [f"SITE_{i}" for i in range(1, phospho_matrix.shape[0] + 1)]
+    renamed_expression_matrix = phospho_matrix.copy()
+    renamed_expression_matrix.index = renamed_index
+
+    scoring_result = pred_mat_result.scoring_result
+    scoring_result.combined_scores.index = renamed_index
+    scoring_result.profile_scores.index = renamed_index
+
+    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat.index = renamed_index
+    renamed_pred_mat_result = PredMatResult(pred_mat)
+    protein_ids = {
+        "SITE_1": "PROTEIN_A",
+        "SITE_2": "PROTEIN_A",
+        "SITE_3": "PROTEIN_B",
+        "SITE_4": "PROTEIN_B",
+        "SITE_5": "PROTEIN_C",
+        "SITE_6": "PROTEIN_C",
+        "SITE_7": "PROTEIN_D",
+        "SITE_8": "PROTEIN_D",
+    }
+    analysis_ready = _make_analysis_ready_dataset(
+        phospho_matrix=renamed_expression_matrix,
+        protein_ids=protein_ids,
+    )
+
+    result = SignalomeWorkflow().run_from_analysis_ready(
+        dataset=analysis_ready,
+        scoring_result=scoring_result,
+        prediction_result=renamed_pred_mat_result,
+        kinases_of_interest=["KINASE_A"],
+    )
+
+    assert sorted(result.protein_assignments.index.tolist()) == [
+        "PROTEIN_A",
+        "PROTEIN_B",
+        "PROTEIN_C",
+        "PROTEIN_D",
+    ]
+    assert result.site_assignments.loc["SITE_1", "protein_id"] == "PROTEIN_A"
+    assert result.site_assignments.loc["SITE_2", "protein_id"] == "PROTEIN_A"
+
+
+def test_signalome_workflow_run_from_analysis_ready_reports_missing_mapping_metadata() -> (
+    None
+):
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+    renamed_index = [f"SITE_{i}" for i in range(1, phospho_matrix.shape[0] + 1)]
+    renamed_expression_matrix = phospho_matrix.copy()
+    renamed_expression_matrix.index = renamed_index
+
+    scoring_result = pred_mat_result.scoring_result
+    scoring_result.combined_scores.index = renamed_index
+    scoring_result.profile_scores.index = renamed_index
+
+    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat.index = renamed_index
+    renamed_pred_mat_result = PredMatResult(pred_mat)
+    protein_ids = {
+        f"SITE_{index}": f"PROTEIN_{index}"
+        for index in range(1, phospho_matrix.shape[0] + 1)
+    }
+    analysis_ready = _make_analysis_ready_dataset(
+        phospho_matrix=renamed_expression_matrix,
+        protein_ids=protein_ids,
+        metadata_column="uid",
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match=(
+            "AnalysisReadyPhosphoDataset.site_metadata does not include a usable "
+            "site-to-protein column"
+        ),
+    ):
+        SignalomeWorkflow().run_from_analysis_ready(
+            dataset=analysis_ready,
+            scoring_result=scoring_result,
+            prediction_result=renamed_pred_mat_result,
+            kinases_of_interest=["KINASE_A"],
+        )
 
 
 def test_signalome_workflow_rejects_unsupported_site_identifier_format_without_mapping() -> (

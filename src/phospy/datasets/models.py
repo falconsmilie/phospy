@@ -7,7 +7,13 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from ..internal.constants import ComparisonSpec
+from ..errors import InputCompatibilityError
+from ..internal.constants import (
+    PHOSPHO_GENE_COLUMN,
+    SITE_MATRIX_GENE_COLUMN,
+    SITE_MATRIX_ID_COLUMN,
+    ComparisonSpec,
+)
 from ..preprocessing.core import CorePreprocessingConfig, CoreProcessingResult
 from ..preprocessing.dataset import DatasetPreprocessing
 from .builders import (
@@ -29,6 +35,13 @@ __all__ = [
     "CoreInputs",
     "PhosphoDataset",
 ]
+
+_DEFAULT_SITE_TO_PROTEIN_METADATA_COLUMNS: tuple[str, ...] = (
+    "protein_id",
+    "protein",
+    SITE_MATRIX_GENE_COLUMN,
+    PHOSPHO_GENE_COLUMN,
+)
 
 
 @dataclass(slots=True)
@@ -241,6 +254,112 @@ class AnalysisReadyPhosphoDataset:
             phospho_corrected=result.phospho_corrected,
             provenance=provenance,
         )
+
+    def resolve_site_to_protein_mapping(
+        self,
+        *,
+        metadata_columns: Sequence[str] | None = None,
+    ) -> pd.Series:
+        """Resolve an aligned site-to-protein mapping from site metadata."""
+
+        resolved_candidates = (
+            _DEFAULT_SITE_TO_PROTEIN_METADATA_COLUMNS
+            if metadata_columns is None
+            else tuple(metadata_columns)
+        )
+        candidate_columns = tuple(
+            str(column).strip()
+            for column in resolved_candidates
+            if column is not None and str(column).strip()
+        )
+        if not candidate_columns:
+            msg = (
+                "metadata_columns must contain at least one non-empty column name "
+                "when resolving site-to-protein mapping."
+            )
+            raise ValueError(msg)
+
+        site_index = pd.Index(
+            self.phospho_matrix.index.astype("string"),
+            name=SITE_MATRIX_ID_COLUMN,
+        )
+        metadata_index = pd.Index(
+            self.site_metadata.index.astype("string"),
+            name=SITE_MATRIX_ID_COLUMN,
+        )
+        if not site_index.equals(metadata_index):
+            msg = (
+                "AnalysisReadyPhosphoDataset.site_metadata must remain aligned with "
+                "phospho_matrix to resolve site-to-protein mapping."
+            )
+            raise InputCompatibilityError(msg)
+
+        available_columns = {
+            str(column): column for column in self.site_metadata.columns
+        }
+        checked_columns: list[str] = []
+        incomplete_column_diagnostics: list[str] = []
+
+        for candidate in candidate_columns:
+            original_column = available_columns.get(candidate)
+            if original_column is None:
+                continue
+            checked_columns.append(candidate)
+
+            raw_values = self.site_metadata.loc[:, original_column]
+            normalized_values = raw_values.astype("string")
+            stripped_values = normalized_values.str.strip()
+            invalid_mask = normalized_values.isna() | stripped_values.eq("")
+            if bool(invalid_mask.any()):
+                invalid_site_ids = metadata_index[invalid_mask].astype(str).tolist()
+                preview = ", ".join(invalid_site_ids[:3])
+                diagnostic = (
+                    f"column '{candidate}' has missing/empty values for: {preview}"
+                )
+                if len(invalid_site_ids) > 3:
+                    diagnostic += ", ..."
+                incomplete_column_diagnostics.append(diagnostic)
+                continue
+
+            resolved_index = pd.Index(
+                site_index.astype(str),
+                dtype=object,
+                name=SITE_MATRIX_ID_COLUMN,
+            )
+            return pd.Series(
+                stripped_values.astype(object).tolist(),
+                index=resolved_index,
+                dtype=object,
+                name="protein_id",
+            )
+
+        checked_preview = ", ".join(candidate_columns)
+        if not checked_columns:
+            available_preview = ", ".join(
+                str(column) for column in self.site_metadata.columns[:5]
+            )
+            if len(self.site_metadata.columns) > 5:
+                available_preview += ", ..."
+            msg = (
+                "AnalysisReadyPhosphoDataset.site_metadata does not include a usable "
+                "site-to-protein column. "
+                f"Checked columns: {checked_preview}. "
+            )
+            if available_preview:
+                msg += f"Available columns: {available_preview}. "
+            else:
+                msg += "site_metadata has no columns. "
+            msg += "Provide site_to_protein explicitly when running signalome analysis."
+            raise InputCompatibilityError(msg)
+
+        diagnostics = "; ".join(incomplete_column_diagnostics)
+        msg = (
+            "AnalysisReadyPhosphoDataset.site_metadata does not contain a complete "
+            "site-to-protein mapping. "
+            f"Checked columns: {checked_preview}. {diagnostics}. "
+            "Provide site_to_protein explicitly when running signalome analysis."
+        )
+        raise InputCompatibilityError(msg)
 
 
 class PhosphoDataset:
