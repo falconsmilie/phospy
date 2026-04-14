@@ -21,10 +21,12 @@ from .assignments import (
     select_kinase_substrates,
 )
 from .clustering import (
+    SignalomeModuleSelectionDiagnostics,
     SignalomeModuleSelectionPolicy,
     cluster_sites_with_diagnostics,
 )
 from .results import (
+    ExpandedSignalome,
     SignalomeAssignments,
     SignalomeKinaseNetwork,
     SignalomeModules,
@@ -38,74 +40,153 @@ __all__ = ["SignalomeRunner", "build_signalome_result", "execute_signalome_input
 class SignalomeRunner:
     """Construct a signalome result from trusted aligned signalome inputs."""
 
+    @dataclass(frozen=True, slots=True)
+    class _ClusteringStage:
+        site_clusters: pd.Series
+        protein_modules: pd.Series
+        module_selection_diagnostics: SignalomeModuleSelectionDiagnostics
+
+    @dataclass(frozen=True, slots=True)
+    class _AssignmentsStage:
+        site_assignments: pd.DataFrame
+        kinase_substrates: dict[str, tuple[str, ...]]
+
+    @dataclass(frozen=True, slots=True)
+    class _NetworkStage:
+        kinase_network: pd.DataFrame
+        kinase_correlation_matrix: pd.DataFrame
+        network: SignalomeKinaseNetwork
+
+    @dataclass(frozen=True, slots=True)
+    class _ModulesStage:
+        module_table: pd.DataFrame
+        protein_assignments: pd.DataFrame
+        kinase_module_relationships: pd.DataFrame
+
     def execute(self, inputs: SignalomeInputs) -> SignalomeResult:
-        scoring_matrix = inputs.scoring_matrix
-        pred_mat = inputs.pred_mat
-        expression_matrix = inputs.expression_matrix
+        clustering_stage = self._cluster_sites(inputs)
+        assignments_stage = self._assign_sites(inputs, clustering_stage)
+        network_stage = self._build_network(inputs, assignments_stage)
+        modules_stage = self._build_modules(assignments_stage)
+        expanded_signalomes = self._expand_signalomes(
+            inputs=inputs,
+            assignments_stage=assignments_stage,
+            network_stage=network_stage,
+            modules_stage=modules_stage,
+        )
+
+        return SignalomeResult(
+            scoring_matrix=inputs.scoring_matrix,
+            pred_mat=inputs.pred_mat,
+            expression_matrix=inputs.expression_matrix,
+            modules=SignalomeModules(
+                module_table=modules_stage.module_table,
+                kinase_module_relationships=modules_stage.kinase_module_relationships,
+            ),
+            assignments=SignalomeAssignments(
+                site_assignments=assignments_stage.site_assignments,
+                protein_assignments=modules_stage.protein_assignments,
+            ),
+            network=network_stage.network,
+            kinase_substrate_map=assignments_stage.kinase_substrates,
+            expanded_signalomes=expanded_signalomes,
+            module_selection_diagnostics=(
+                clustering_stage.module_selection_diagnostics
+            ),
+        )
+
+    def _cluster_sites(self, inputs: SignalomeInputs) -> _ClusteringStage:
         clustering_result = cluster_sites_with_diagnostics(
-            scoring_matrix=scoring_matrix,
+            scoring_matrix=inputs.scoring_matrix,
             requested_module_count=inputs.module_count,
             policy=inputs.module_selection_policy,
         )
-        site_clusters = clustering_result.site_clusters
         protein_modules = derive_protein_modules(
-            site_clusters=site_clusters,
+            site_clusters=clustering_result.site_clusters,
             site_to_protein=inputs.site_to_protein,
         )
-        site_assignments = build_site_assignments(
-            pred_mat=pred_mat,
+
+        return self._ClusteringStage(
+            site_clusters=clustering_result.site_clusters,
             protein_modules=protein_modules,
+            module_selection_diagnostics=clustering_result.module_selection_diagnostics,
+        )
+
+    def _assign_sites(
+        self,
+        inputs: SignalomeInputs,
+        clustering_stage: _ClusteringStage,
+    ) -> _AssignmentsStage:
+        site_assignments = build_site_assignments(
+            pred_mat=inputs.pred_mat,
+            protein_modules=clustering_stage.protein_modules,
             site_to_protein=inputs.site_to_protein,
         )
-        selected_kinase_substrates = select_kinase_substrates(
-            pred_mat=pred_mat,
+        kinase_substrates = select_kinase_substrates(
+            pred_mat=inputs.pred_mat,
             cutoff=inputs.signalome_cutoff,
         )
+
+        return self._AssignmentsStage(
+            site_assignments=site_assignments,
+            kinase_substrates=kinase_substrates,
+        )
+
+    def _build_network(
+        self,
+        inputs: SignalomeInputs,
+        assignments_stage: _AssignmentsStage,
+    ) -> _NetworkStage:
         kinase_network, kinase_correlation_matrix = build_kinase_network(
-            scoring_matrix=scoring_matrix,
+            scoring_matrix=inputs.scoring_matrix,
             threshold=inputs.kinase_network_threshold,
-        )
-        signalome_modules = build_signalome_module_table(
-            site_assignments=site_assignments,
-            kinase_substrates=selected_kinase_substrates,
-        )
-        protein_assignments = build_protein_assignment_table(
-            site_assignments=site_assignments,
-        )
-        kinase_module_relationships = build_kinase_module_relationship_table(
-            module_table=signalome_modules,
         )
         network = build_kinase_network_view(
             kinase_network=kinase_network,
             kinase_correlation_matrix=kinase_correlation_matrix,
-            kinase_substrates=selected_kinase_substrates,
-        )
-        expanded_signalomes = build_expanded_signalomes(
-            kinases_of_interest=inputs.kinases_of_interest,
-            kinase_network=network.neighbor_map,
-            kinase_substrates=selected_kinase_substrates,
-            signalome_modules=signalome_modules,
-            site_assignments=site_assignments,
-            expression_matrix=expression_matrix,
-            min_kinase_module_share_percent=inputs.min_kinase_module_share_percent,
+            kinase_substrates=assignments_stage.kinase_substrates,
         )
 
-        return SignalomeResult(
-            scoring_matrix=scoring_matrix,
-            pred_mat=pred_mat,
-            expression_matrix=expression_matrix,
-            modules=SignalomeModules(
-                module_table=signalome_modules,
-                kinase_module_relationships=kinase_module_relationships,
-            ),
-            assignments=SignalomeAssignments(
-                site_assignments=site_assignments,
-                protein_assignments=protein_assignments,
-            ),
+        return self._NetworkStage(
+            kinase_network=kinase_network,
+            kinase_correlation_matrix=kinase_correlation_matrix,
             network=network,
-            kinase_substrate_map=selected_kinase_substrates,
-            expanded_signalomes=expanded_signalomes,
-            module_selection_diagnostics=clustering_result.module_selection_diagnostics,
+        )
+
+    def _build_modules(self, assignments_stage: _AssignmentsStage) -> _ModulesStage:
+        module_table = build_signalome_module_table(
+            site_assignments=assignments_stage.site_assignments,
+            kinase_substrates=assignments_stage.kinase_substrates,
+        )
+        protein_assignments = build_protein_assignment_table(
+            site_assignments=assignments_stage.site_assignments,
+        )
+        kinase_module_relationships = build_kinase_module_relationship_table(
+            module_table=module_table,
+        )
+
+        return self._ModulesStage(
+            module_table=module_table,
+            protein_assignments=protein_assignments,
+            kinase_module_relationships=kinase_module_relationships,
+        )
+
+    def _expand_signalomes(
+        self,
+        *,
+        inputs: SignalomeInputs,
+        assignments_stage: _AssignmentsStage,
+        network_stage: _NetworkStage,
+        modules_stage: _ModulesStage,
+    ) -> dict[str, ExpandedSignalome]:
+        return build_expanded_signalomes(
+            kinases_of_interest=inputs.kinases_of_interest,
+            kinase_network=network_stage.network.neighbor_map,
+            kinase_substrates=assignments_stage.kinase_substrates,
+            signalome_modules=modules_stage.module_table,
+            site_assignments=assignments_stage.site_assignments,
+            expression_matrix=inputs.expression_matrix,
+            min_kinase_module_share_percent=inputs.min_kinase_module_share_percent,
         )
 
 
@@ -276,20 +357,27 @@ def build_signalome_support_matrix(
     """Build a kinase-by-protein support matrix from aligned assignments."""
 
     support_rows: dict[str, list[int]] = {}
-    site_index = site_assignments.index
+    site_index = pd.Index(site_assignments.index.astype(str), name="site_id")
+    if site_index.has_duplicates:
+        msg = "site_assignments index must contain unique site IDs"
+        raise InputCompatibilityError(msg)
+    site_values = site_index.to_numpy(dtype=object, copy=False)
+    site_id_set = set(site_values.tolist())
 
     for kinase in kinases_of_interest:
         substrates = kinase_substrates.get(kinase, ())
-        aligned_sites = [site for site in substrates if site in site_index]
-        if len(aligned_sites) == 0:
+        aligned_site_set = {
+            str(site_id) for site_id in substrates if str(site_id) in site_id_set
+        }
+        if len(aligned_site_set) == 0:
             msg = (
                 f"No aligned phosphosites were found for kinase '{kinase}' in the "
                 "signalome assignment table"
             )
             raise InputCompatibilityError(msg)
 
-        support_rows[kinase] = [
-            1 if site in aligned_sites else 0 for site in site_index
-        ]
+        support_rows[kinase] = (
+            np.isin(site_values, list(aligned_site_set)).astype(int).tolist()
+        )
 
     return pd.DataFrame.from_dict(support_rows, orient="index", columns=site_index)

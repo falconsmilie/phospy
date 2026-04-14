@@ -3,9 +3,9 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import PhosphoDataset, PredMatResult
-from phospy.datasets import DatasetSchema
+from phospy.datasets import DatasetSchema, PhosphoDataset
 from phospy.errors import InputCompatibilityError, RequestValidationError
+from phospy.prediction import PredMatResult
 from phospy.prediction.traces import TraceSink
 from phospy.validation.requests import (
     CorePipelineRequest,
@@ -472,7 +472,7 @@ def test_validation_modules_expose_use_case_boundaries() -> None:
 
 
 def test_pipeline_request_can_be_created_from_public_dataset_boundary() -> None:
-    from phospy import PhosphoDataset
+    from phospy.datasets import PhosphoDataset
 
     total_df = pd.DataFrame(
         {
@@ -582,7 +582,7 @@ def test_validate_pipeline_construction_request_rejects_non_dataset_inputs() -> 
 def test_validate_pipeline_construction_request_rejects_mixed_preprocessing_config_styles() -> (
     None
 ):
-    from phospy import PhosphoDataset
+    from phospy.datasets import PhosphoDataset
     from phospy.preprocessing import CorePreprocessingConfig
 
     total_df = pd.DataFrame(

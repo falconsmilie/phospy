@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy import PredMatWorkflow, SignalomeMapData
-from phospy.api import PredictionRunConfig, SignalomeWorkflow
+from phospy.api import PredictionRunConfig, PredMatWorkflow, SignalomeWorkflow
+from phospy.signalomes import SignalomeMapData
 from phospy.signalomes.maps import build_signalome_map_data
 
 

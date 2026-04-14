@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Advanced native workflow demo.
 
 Use this lane when you want direct control over workflow-shaped inputs such as
@@ -6,15 +7,15 @@ prediction outputs. For the shorter common end-to-end path, use
 examples/simple_workflow_demo.py and SimpleKinaseWorkflow instead.
 """
 
-#!/usr/bin/env python3
 from __future__ import annotations
 
 import pandas as pd
 
-from phospy.api import KinaseWorkflow
+from phospy.api import KinaseWorkflow, PredictionRunConfig
+from phospy.api.workflow_results import KinaseWorkflowResult
 
 
-def main() -> None:
+def run_demo() -> KinaseWorkflowResult:
     phospho_matrix = pd.DataFrame(
         {
             "sample_1": [1.0, 1.1, 0.9, 1.2, 3.0, 2.9, 3.1, 2.8],
@@ -48,16 +49,22 @@ def main() -> None:
         substrate_map=substrate_map,
         site_sequences=site_sequences,
         motif_sequences=motif_sequences,
-        min_substrates=2,
-        min_motif_size=2,
-        ensemble_size=3,
-        top=4,
-        score_threshold=0.75,
-        inclusion=3,
-        n_iterations=2,
-        random_state=17,
+        prediction_config=PredictionRunConfig(
+            min_substrates=2,
+            min_motif_size=2,
+            ensemble_size=3,
+            top=4,
+            score_threshold=0.75,
+            inclusion=3,
+            n_iterations=2,
+            random_state=17,
+        ),
     )
+    return result
 
+
+def main() -> None:
+    result = run_demo()
     print("Prediction matrix")
     print(result.prediction_result.pred_matrix.round(4))
     print()

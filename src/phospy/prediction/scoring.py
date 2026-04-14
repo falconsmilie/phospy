@@ -36,6 +36,13 @@ class KinaseScorer:
         self.correlation_batch_size = _validate_correlation_batch_size(
             correlation_batch_size
         )
+        self._profile_columns = self.kinase_profiles.columns.copy()
+        profile_values = self.kinase_profiles.loc[:, self._profile_columns].to_numpy(
+            dtype=float
+        )
+        self._profile_centered, self._profile_scale = _center_and_norm_rows(
+            profile_values
+        )
 
     @classmethod
     def from_profile_dict(
@@ -68,19 +75,21 @@ class KinaseScorer:
         """
 
         sample_cols = list(phospho_matrix.columns)
-        if set(sample_cols) != set(self.kinase_profiles.columns):
+        if set(sample_cols) != set(self._profile_columns):
             msg = (
                 "phospho_matrix columns must match kinase profile columns exactly; "
                 "the order may differ, but the sets must be equal"
             )
             raise InputCompatibilityError(msg)
 
-        phospho_values = phospho_matrix.loc[:, sample_cols].to_numpy(dtype=float)
-        profile_values = self.kinase_profiles.loc[:, sample_cols].to_numpy(dtype=float)
+        phospho_values = phospho_matrix.loc[:, self._profile_columns].to_numpy(
+            dtype=float
+        )
 
         correlation_matrix = _rowwise_correlation_matrix(
             left=phospho_values,
-            right=profile_values,
+            right_centered=self._profile_centered,
+            right_scale=self._profile_scale,
             batch_size=_resolve_correlation_batch_size(
                 requested_batch_size=correlation_batch_size,
                 default_batch_size=self.correlation_batch_size,
@@ -252,17 +261,25 @@ def _require_index_members(
 
 def _rowwise_correlation_matrix(
     left: np.ndarray,
-    right: np.ndarray,
+    right: np.ndarray | None = None,
+    right_centered: np.ndarray | None = None,
+    right_scale: np.ndarray | None = None,
     batch_size: int | None = None,
 ) -> np.ndarray:
     resolved_batch_size = _validate_correlation_batch_size(batch_size)
     if resolved_batch_size is None:
         resolved_batch_size = left.shape[0] or 1
 
-    right_centered = right - right.mean(axis=1, keepdims=True)
-    right_scale = np.linalg.norm(right_centered, axis=1)
+    if right_centered is None or right_scale is None:
+        if right is None:
+            msg = (
+                "right must be provided when right_centered/right_scale are not "
+                "supplied"
+            )
+            raise ValueError(msg)
+        right_centered, right_scale = _center_and_norm_rows(right)
 
-    correlation = np.empty((left.shape[0], right.shape[0]), dtype=float)
+    correlation = np.empty((left.shape[0], right_centered.shape[0]), dtype=float)
 
     for start in range(0, left.shape[0], resolved_batch_size):
         stop = min(start + resolved_batch_size, left.shape[0])
@@ -278,6 +295,12 @@ def _rowwise_correlation_matrix(
         correlation[start:stop, :] = chunk_correlation
 
     return correlation
+
+
+def _center_and_norm_rows(values: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    centered = values - values.mean(axis=1, keepdims=True)
+    scale = np.linalg.norm(centered, axis=1)
+    return centered, scale
 
 
 def _resolve_correlation_batch_size(

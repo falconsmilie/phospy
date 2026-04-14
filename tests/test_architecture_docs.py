@@ -35,13 +35,13 @@ def test_contributing_links_to_package_layout_guidance() -> None:
     assert "phospy.internal" in contents
 
 
-def test_root_package_docstring_marks_root_surface_as_intentional() -> None:
+def test_root_package_docstring_marks_no_reexport_policy_as_intentional() -> None:
     contents = (REPO_ROOT / "src" / "phospy" / "__init__.py").read_text(
         encoding="utf-8"
     )
 
-    assert "deliberately small convenience surface" in contents
-    assert "Intentionally retained convenience exports" in contents
+    assert "does not re-export domain APIs" in contents
+    assert "phospy.api" in contents
 
 
 def test_contributing_documents_scientific_policy_expectations() -> None:

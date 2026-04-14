@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 
+from .api.contracts import DatasetLoadOptions, KinaseActivityConfig
 from .errors import RequestValidationError
 from .pipeline import PhosRPipeline
+from .preprocessing import CorePreprocessingConfig
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -75,24 +77,42 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def build_cli_configs(
+    args: argparse.Namespace,
+) -> tuple[DatasetLoadOptions, CorePreprocessingConfig, KinaseActivityConfig]:
+    """Build typed pipeline config objects from parsed CLI arguments."""
+
+    dataset_options = DatasetLoadOptions(
+        phospho_encoding=args.phospho_encoding,
+    )
+    preprocessing_config = CorePreprocessingConfig(
+        localization_threshold=args.localization_threshold,
+        min_observed=args.min_observed,
+        total_sentinel=args.total_sentinel,
+        phospho_sentinel=args.phospho_sentinel,
+        max_unmatched_fraction=args.max_unmatched_fraction,
+    )
+    activity_config = KinaseActivityConfig(
+        threshold=args.kinase_activity_threshold,
+        min_substrates=args.kinase_activity_min_substrates,
+        top_n_substrates=args.kinase_activity_top_n_substrates,
+    )
+    return dataset_options, preprocessing_config, activity_config
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
     try:
+        dataset_options, preprocessing_config, activity_config = build_cli_configs(args)
         pipeline = PhosRPipeline.from_files(
             total_path=args.total,
             phospho_path=args.phospho,
             pred_mat_path=args.pred_mat,
-            phospho_encoding=args.phospho_encoding,
-            localization_threshold=args.localization_threshold,
-            min_observed=args.min_observed,
-            total_sentinel=args.total_sentinel,
-            phospho_sentinel=args.phospho_sentinel,
-            max_unmatched_fraction=args.max_unmatched_fraction,
-            kinase_activity_threshold=args.kinase_activity_threshold,
-            kinase_activity_min_substrates=args.kinase_activity_min_substrates,
-            kinase_activity_top_n_substrates=args.kinase_activity_top_n_substrates,
+            dataset_options=dataset_options,
+            preprocessing_config=preprocessing_config,
+            activity_config=activity_config,
         )
     except RequestValidationError as error:
         parser.error(str(error))

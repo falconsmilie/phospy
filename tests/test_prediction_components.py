@@ -304,6 +304,52 @@ def test_prediction_execution_runner_passes_sampling_session_to_contract_predict
     assert predictor.seen_sampling_session is not None
 
 
+def test_prediction_execution_runner_clears_predictor_cache_after_failure() -> None:
+    class FailingPredictor(EnsemblePredictorContract):
+        def __init__(self) -> None:
+            self.cache_cleared = False
+
+        def predict_kinase(
+            self,
+            *,
+            kinase: str,
+            substrates: list[str],
+            feature_mat: pd.DataFrame,
+            request: PredictionRequest,
+            trace_state,
+            sampling_session,
+        ):
+            raise RuntimeError("boom")
+
+        def clear_cache(self) -> None:
+            self.cache_cleared = True
+
+    scores = pd.DataFrame({"K1": [0.95, 0.91, 0.40]}, index=["s1", "s2", "s3"])
+    request = PredictionRequest.validate_request(
+        combined_scores=scores,
+        ensemble_size=2,
+        top=3,
+        score_threshold=0.8,
+        inclusion=2,
+        n_iterations=1,
+        random_state=3,
+        capture_debug_trace=False,
+        default_svm_mode="default",
+    )
+    predictor = FailingPredictor()
+    runner = PredictionExecutionRunner(
+        candidate_selector=CandidateSelector(),
+        prediction_aggregator=PredictionAggregator(),
+        trace_recorder=TraceRecorder(),
+        ensemble_predictor=predictor,
+    )
+
+    with pytest.raises(RuntimeError, match="boom"):
+        runner.run(request)
+
+    assert predictor.cache_cleared is True
+
+
 def test_ensemble_predictor_precomputes_negative_pool_without_index_isin(
     monkeypatch,
 ) -> None:

@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from phospy import KinaseActivityAnalyzer
-from phospy.activities import KinaseActivityResult
+from phospy.activities import KinaseActivityAnalyzer, KinaseActivityResult
 
 
 def test_activity_analysis_and_result_models_live_under_activities_package() -> None:

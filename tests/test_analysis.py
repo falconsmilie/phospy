@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import KinaseActivityAnalyzer, PredMatResult
+from phospy.activities import KinaseActivityAnalyzer
 from phospy.errors import (
     NoCandidateKinasesError,
     RequestValidationError,
@@ -13,6 +13,7 @@ from phospy.errors import (
 )
 from phospy.internal.constants import KINASE_OUTPUT_FILENAMES
 from phospy.io import load_pred_mat
+from phospy.prediction import PredMatResult
 from phospy.validation.schema.tables import (
     ActivitySiteMatrixSchema,
     PredMatSchema,

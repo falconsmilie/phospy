@@ -369,6 +369,9 @@ class EnsemblePredictor(EnsemblePredictorContract):
         self._indexed_feature_mat_cache = (cache_signature, indexed_feature_mat)
         return indexed_feature_mat
 
+    def clear_cache(self) -> None:
+        self._indexed_feature_mat_cache = None
+
     def predict_kinase(
         self,
         *,

@@ -2,8 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from phospy import AnalysisReadyPhosphoDataset, PhosphoDataset
-from phospy.datasets import DatasetLoader, DatasetSchema, DatasetSiteMatrix
+from phospy.datasets import (
+    AnalysisReadyPhosphoDataset,
+    DatasetLoader,
+    DatasetSchema,
+    DatasetSiteMatrix,
+    PhosphoDataset,
+)
 
 
 def test_public_dataset_types_are_defined_under_datasets_package() -> None:

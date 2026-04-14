@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from phospy import (
+from phospy.api import (
     KinaseWorkflow,
     PredMatWorkflow,
     SignalomeWorkflow,
@@ -28,6 +28,13 @@ def test_public_workflows_are_defined_under_owning_api_modules() -> None:
 def test_legacy_workflow_module_has_been_removed() -> None:
     workflow_module = (
         Path(__file__).resolve().parents[1] / "src" / "phospy" / "workflow.py"
+    )
+    assert not workflow_module.exists()
+
+
+def test_legacy_api_workflow_shim_module_has_been_removed() -> None:
+    workflow_module = (
+        Path(__file__).resolve().parents[1] / "src" / "phospy" / "api" / "workflows.py"
     )
     assert not workflow_module.exists()
 

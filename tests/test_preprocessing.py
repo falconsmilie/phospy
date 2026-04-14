@@ -6,9 +6,17 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset, PhosphoDataset, SimpleKinaseWorkflow
-from phospy.api import KinaseActivityConfig, PredictionRunConfig
-from phospy.datasets import DatasetLoader, DatasetSchema
+from phospy.api import (
+    KinaseActivityConfig,
+    PredictionRunConfig,
+    SimpleKinaseWorkflow,
+)
+from phospy.datasets import (
+    AnalysisReadyPhosphoDataset,
+    DatasetLoader,
+    DatasetSchema,
+    PhosphoDataset,
+)
 from phospy.errors import (
     InputCompatibilityError,
     PhospyValidationError,
@@ -988,7 +996,7 @@ def test_add_pairwise_comparisons_rejects_reverse_duplicate_pairs_with_custom_ma
 
 
 def test_dataset_preprocessing_run_rejects_scalar_kwargs() -> None:
-    from phospy import PhosphoDataset
+    from phospy.datasets import PhosphoDataset
     from phospy.preprocessing import CorePreprocessingConfig
 
     dataset = PhosphoDataset(
@@ -1030,7 +1038,7 @@ def test_dataset_preprocessing_run_rejects_scalar_kwargs() -> None:
 def test_dataset_preprocessing_facade_shares_live_workspace_state_with_dataset() -> (
     None
 ):
-    from phospy import PhosphoDataset
+    from phospy.datasets import PhosphoDataset
 
     dataset = PhosphoDataset(
         total_df=pd.DataFrame(

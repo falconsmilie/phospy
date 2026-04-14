@@ -7,7 +7,6 @@ import pandas as pd
 
 import phospy
 import phospy.api.signalome_workflows as signalome_workflows_module
-import phospy.api.workflows as api_workflows_module
 from phospy.api import (
     DatasetLoadOptions,
     KinaseActivityConfig,
@@ -403,8 +402,8 @@ def test_signalome_workflow_run_delegates_to_validation_and_execution(
     assert calls[1] == ("execute", request)
 
 
-def test_root_convenience_exports_remain_thin_aliases() -> None:
-    assert phospy.KinaseWorkflow is api_workflows_module.KinaseWorkflow
-    assert phospy.PredMatWorkflow is api_workflows_module.PredMatWorkflow
-    assert phospy.SignalomeWorkflow is api_workflows_module.SignalomeWorkflow
-    assert phospy.SimpleKinaseWorkflow is api_workflows_module.SimpleKinaseWorkflow
+def test_root_package_does_not_reexport_workflow_aliases() -> None:
+    assert not hasattr(phospy, "KinaseWorkflow")
+    assert not hasattr(phospy, "PredMatWorkflow")
+    assert not hasattr(phospy, "SignalomeWorkflow")
+    assert not hasattr(phospy, "SimpleKinaseWorkflow")

@@ -8,8 +8,7 @@ import pandas as pd
 import pytest
 
 import phospy.prediction.sampling_core as _sampling_core
-from phospy import SimpleKinaseWorkflow
-from phospy.api import KinaseActivityConfig, PredictionRunConfig
+from phospy.api import KinaseActivityConfig, PredictionRunConfig, SimpleKinaseWorkflow
 from phospy.errors import (
     NoCandidateKinasesError,
     RequestValidationError,

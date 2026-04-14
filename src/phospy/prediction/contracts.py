@@ -30,5 +30,10 @@ class EnsemblePredictorContract(ABC):
     ) -> KinasePredictionBatch:
         raise NotImplementedError
 
+    def clear_cache(self) -> None:
+        """Release any optional temporary caches held across kinase runs."""
+
+        return None
+
 
 __all__ = ["EnsemblePredictorContract"]

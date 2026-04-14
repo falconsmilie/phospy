@@ -6,13 +6,15 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import KinaseActivityAnalyzer, PhosphoDataset, PhosRPipeline
+from phospy.activities import KinaseActivityAnalyzer
 from phospy.api import DatasetLoadOptions, KinaseActivityConfig
+from phospy.datasets import PhosphoDataset
 from phospy.internal.constants import (
     CORE_OUTPUT_ARTIFACT_BASENAMES,
     KINASE_OUTPUT_FILENAMES,
 )
 from phospy.io import load_pred_mat
+from phospy.pipeline import PhosRPipeline
 from phospy.preprocessing import CorePreprocessingConfig
 
 EXAMPLE_OUTPUT_FILES = {
@@ -138,6 +140,20 @@ def test_pred_mat_workflow_demo_runs_end_to_end(tmp_path, svm_mode: str) -> None
         "KINASE_A",
         "KINASE_B",
     ]
+
+
+def test_native_workflow_demo_runs_end_to_end() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    module = _load_example_module(repo_root / "examples" / "native_workflow_demo.py")
+
+    result = module.run_demo()
+
+    assert list(result.prediction_result.pred_matrix.columns) == [
+        "KINASE_A",
+        "KINASE_B",
+    ]
+    assert result.prediction_result.pred_matrix.shape == (8, 2)
+    assert set(result.prediction_result.substrate_list) == {"KINASE_A", "KINASE_B"}
 
 
 @pytest.mark.parametrize("svm_mode", ["default", "r_parity"])

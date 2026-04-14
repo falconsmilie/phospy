@@ -9,17 +9,6 @@ from __future__ import annotations
 from importlib import import_module
 from typing import Any
 
-from .builders import DatasetSiteMatrix
-from .models import (
-    AnalysisReadyPhosphoDataset,
-    AnalysisReadyPreprocessingProvenance,
-    AnalysisReadyRowCounts,
-    AnalysisReadySiteMatrixStats,
-    CoreInputs,
-    PhosphoDataset,
-)
-from .schema import DatasetSchema
-
 __all__ = [
     "AnalysisReadyPhosphoDataset",
     "AnalysisReadyPreprocessingProvenance",
@@ -34,9 +23,30 @@ __all__ = [
 ]
 
 
+_EXPORT_MODULES: dict[str, tuple[str, str]] = {
+    "AnalysisReadyPhosphoDataset": (".models", "AnalysisReadyPhosphoDataset"),
+    "AnalysisReadyPreprocessingProvenance": (
+        ".models",
+        "AnalysisReadyPreprocessingProvenance",
+    ),
+    "AnalysisReadyRowCounts": (".models", "AnalysisReadyRowCounts"),
+    "AnalysisReadySiteMatrixStats": (".models", "AnalysisReadySiteMatrixStats"),
+    "CoreInputs": (".models", "CoreInputs"),
+    "DatasetLoader": (".loaders", "DatasetLoader"),
+    "DatasetSchema": (".schema", "DatasetSchema"),
+    "DatasetSiteMatrix": (".builders", "DatasetSiteMatrix"),
+    "LoadedDatasetInputs": (".loaders", "LoadedDatasetInputs"),
+    "PhosphoDataset": (".models", "PhosphoDataset"),
+}
+
+
 def __getattr__(name: str) -> Any:
-    if name in {"DatasetLoader", "LoadedDatasetInputs"}:
-        module = import_module(".loaders", __name__)
-        return getattr(module, name)
+    module_export = _EXPORT_MODULES.get(name)
+    if module_export is not None:
+        module_name, export_name = module_export
+        module = import_module(module_name, __name__)
+        value = getattr(module, export_name)
+        globals()[name] = value
+        return value
     msg = f"module {__name__!r} has no attribute {name!r}"
     raise AttributeError(msg)

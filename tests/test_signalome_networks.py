@@ -5,8 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy import SignalomeNetworkData
-from phospy.signalomes import build_signalome_result
+from phospy.signalomes import SignalomeNetworkData, build_signalome_result
 from phospy.signalomes.networks import (
     SignalomeNetworkEdge,
     SignalomeNetworkNode,

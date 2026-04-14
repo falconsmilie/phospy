@@ -6,33 +6,24 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import (
-    AnalysisReadyPhosphoDataset,
-    BundledReferenceProvider,
-    KinaseActivityAnalyzer,
+from phospy.activities import KinaseActivityAnalyzer
+from phospy.api import (
+    KinaseActivityConfig,
     KinaseWorkflow,
-    PhosphoDataset,
-    PhosRPipeline,
-    PredMatResult,
+    PredictionRunConfig,
     PredMatWorkflow,
-    ReferenceBundle,
-    ReferenceBundleProvenance,
-    ReferenceBundleSourceMetadata,
-    ReferenceProvider,
     SignalomeWorkflow,
     SimpleKinaseWorkflow,
 )
-from phospy.api import (
-    KinaseActivityConfig,
-    PredictionRunConfig,
-)
 from phospy.datasets import (
+    AnalysisReadyPhosphoDataset,
     AnalysisReadyPreprocessingProvenance,
     AnalysisReadyRowCounts,
     AnalysisReadySiteMatrixStats,
     DatasetLoader,
     DatasetSchema,
     DatasetSiteMatrix,
+    PhosphoDataset,
 )
 from phospy.errors import (
     InputCompatibilityError,
@@ -47,11 +38,20 @@ from phospy.internal.constants import (
 from phospy.io import load_pred_mat
 from phospy.io.publishing import OutputPublisher, RunManifestWriter
 from phospy.io.writers import CoreOutputWriter
+from phospy.pipeline import PhosRPipeline
+from phospy.prediction import PredMatResult
 from phospy.preprocessing import (
     CorePreprocessingConfig,
     CoreProcessor,
     DatasetPreprocessing,
     SiteMatrixBuilder,
+)
+from phospy.references import (
+    BundledReferenceProvider,
+    ReferenceBundle,
+    ReferenceBundleProvenance,
+    ReferenceBundleSourceMetadata,
+    ReferenceProvider,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -105,26 +105,9 @@ def make_pred_mat() -> pd.DataFrame:
 def test_public_root_exports() -> None:
     import phospy
 
-    expected = {
-        "AnalysisReadyPhosphoDataset",
-        "BundledReferenceProvider",
-        "KinaseActivityAnalyzer",
-        "KinaseWorkflow",
-        "ReferenceBundle",
-        "ReferenceBundleProvenance",
-        "ReferenceBundleSourceMetadata",
-        "ReferenceProvider",
-        "PhosphoDataset",
-        "PhosRPipeline",
-        "PredMatResult",
-        "PredMatWorkflow",
-        "SignalomeMapData",
-        "SignalomeNetworkData",
-        "SignalomeResult",
-        "SignalomeWorkflow",
-        "SimpleKinaseWorkflow",
-    }
-    assert set(phospy.__all__) == expected
+    assert phospy.__all__ == []
+    assert not hasattr(phospy, "PhosphoDataset")
+    assert not hasattr(phospy, "KinaseWorkflow")
 
 
 def test_phospho_dataset_preprocessing_run() -> None:
@@ -1366,7 +1349,7 @@ def test_pipeline_run_does_not_publish_partial_outputs_on_failure(
         pred_mat_path=pred_path,
     )
 
-    from phospy import pipeline as pipeline_module
+    import phospy.pipeline as pipeline_module
 
     def blow_up(*args, **kwargs) -> None:
         raise RuntimeError("boom")
@@ -1445,7 +1428,7 @@ def test_pipeline_from_files_wraps_raw_pred_mat_read_errors(
     make_phospho_df().to_csv(phospho_path, sep="	", index=False)
     pred_path.write_text("placeholder")
 
-    from phospy import pipeline as pipeline_module
+    import phospy.pipeline as pipeline_module
 
     def blow_up(*args, **kwargs):
         raise pd.errors.ParserError("broken csv")
@@ -1497,10 +1480,11 @@ def test_dataset_with_custom_schema_preserves_schema_named_comparisons() -> None
     assert result.phospho_corrected["p_sample_a_sample_b"].iloc[0] == 3.0
 
 
-def test_analysis_ready_dataset_is_part_of_public_root_exports() -> None:
+def test_analysis_ready_dataset_is_not_reexported_from_package_root() -> None:
     import phospy
 
-    assert "AnalysisReadyPhosphoDataset" in phospy.__all__
+    assert "AnalysisReadyPhosphoDataset" not in phospy.__all__
+    assert not hasattr(phospy, "AnalysisReadyPhosphoDataset")
 
 
 def test_dataset_preprocessing_to_analysis_ready_binds_schema_and_comparisons() -> None:

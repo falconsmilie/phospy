@@ -8,11 +8,12 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from phospy import KinaseActivityAnalyzer, PhosRPipeline, PredMatResult
+from phospy.activities import KinaseActivityAnalyzer
 from phospy.datasets import PhosphoDataset
 from phospy.internal.constants import RUN_MANIFEST_FILENAME
 from phospy.io.publishing import OutputPublisher, RunManifestWriter, package_version
-from phospy.pipeline import _PipelineRequestLoader
+from phospy.pipeline import PhosRPipeline, _PipelineRequestLoader
+from phospy.prediction import PredMatResult
 from phospy.preprocessing import CorePreprocessingConfig
 from phospy.validation.requests import CorePipelineRequest
 from phospy.validation.schema.tables import PredMatSchema

@@ -6,7 +6,6 @@ import pandas as pd
 import pytest
 
 import phospy.signalomes.clustering as signalome_clustering
-from phospy import PredMatResult, SignalomeResult
 from phospy.api import (
     PredictionRunConfig,
     PredMatWorkflow,
@@ -19,12 +18,17 @@ from phospy.errors import (
     RequestValidationError,
     TableSchemaError,
 )
+from phospy.prediction import PredMatResult
 from phospy.signalomes import (
     SignalomeModuleSelectionPolicy,
+    SignalomeResult,
     build_signalome_result,
 )
 from phospy.signalomes.analysis import build_kinase_network_view
-from phospy.signalomes.assignments import build_expanded_signalomes
+from phospy.signalomes.assignments import (
+    build_expanded_signalomes,
+    build_site_assignments,
+)
 
 
 def make_workflow_inputs() -> tuple[
@@ -551,6 +555,22 @@ def test_build_site_assignments_tracks_tied_top_kinases_deterministically() -> N
     assert clear_row["top_kinase_candidates"] == '["KINASE_A"]'
     assert clear_row["top_kinase_tie_count"] == 1
     assert not bool(clear_row["top_kinase_is_ambiguous"])
+
+
+def test_build_site_assignments_rejects_missing_site_to_protein_mapping() -> None:
+    pred_mat = pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"])
+    protein_modules = pd.Series({"PROTEIN_1": 1}, name="module_id")
+    site_to_protein = pd.Series({"SITE_2": "PROTEIN_1"})
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match="site_to_protein must define a protein ID for every pred_mat site",
+    ):
+        build_site_assignments(
+            pred_mat=pred_mat,
+            protein_modules=protein_modules,
+            site_to_protein=site_to_protein,
+        )
 
 
 def test_select_module_count_builds_one_cluster_tree_for_candidate_scoring(

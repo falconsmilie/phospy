@@ -3,18 +3,17 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import KinaseActivityAnalyzer, PhosphoDataset
+from phospy.activities import KinaseActivityAnalyzer
 from phospy.api import KinaseWorkflow, PredictionRunConfig
+from phospy.datasets import PhosphoDataset
 from phospy.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
     TableSchemaError,
 )
 from phospy.preprocessing import CorePreprocessingConfig
-from phospy.validation import (
-    validate_protein_correction_inputs,
-    validate_workflow_request,
-)
+from phospy.validation.compatibility import validate_protein_correction_inputs
+from phospy.validation.requests import validate_workflow_request
 
 
 def test_kinase_activity_analyzer_rejects_zero_overlap() -> None:

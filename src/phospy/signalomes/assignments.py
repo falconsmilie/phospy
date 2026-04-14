@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 import pandas as pd
 
+from ..errors import InputCompatibilityError
 from .results import ExpandedSignalome
 from .site_ids import (
     parse_supported_signalome_site_ids,
@@ -25,6 +26,39 @@ __all__ = [
     "resolve_site_to_protein",
     "select_kinase_substrates",
 ]
+
+
+def _as_unique_string_index(
+    index: pd.Index,
+    *,
+    context: str,
+    label: str,
+) -> pd.Index:
+    resolved_index = pd.Index(index.astype(str), name=label)
+    if resolved_index.has_duplicates:
+        duplicates = sorted(
+            {str(site_id) for site_id in resolved_index[resolved_index.duplicated()]}
+        )
+        preview = ", ".join(duplicates[:3])
+        suffix = "..." if len(duplicates) > 3 else ""
+        msg = f"{context} contains duplicate {label} values: {preview}{suffix}"
+        raise InputCompatibilityError(msg)
+    return resolved_index
+
+
+def _as_unique_string_series_index(
+    series: pd.Series,
+    *,
+    context: str,
+    label: str,
+) -> pd.Series:
+    resolved = series.copy()
+    resolved.index = _as_unique_string_index(
+        resolved.index,
+        context=context,
+        label=label,
+    )
+    return resolved
 
 
 def resolve_site_to_protein(
@@ -113,7 +147,60 @@ def build_site_assignments(
     ``top_kinase_candidates`` and summarised by the tie-count diagnostics.
     """
 
-    site_index = pd.Index(pred_mat.index.astype(str), name="site_id")
+    if pred_mat.shape[1] == 0:
+        msg = "pred_mat must contain at least one kinase column"
+        raise InputCompatibilityError(msg)
+
+    site_index = _as_unique_string_index(
+        pred_mat.index,
+        context="pred_mat",
+        label="site_id",
+    )
+    resolved_site_to_protein = _as_unique_string_series_index(
+        site_to_protein,
+        context="site_to_protein",
+        label="site_id",
+    )
+    resolved_site_to_protein = resolved_site_to_protein.astype(str)
+    missing_site_ids = sorted(
+        {
+            site_id
+            for site_id in site_index
+            if site_id not in resolved_site_to_protein.index
+        }
+    )
+    if missing_site_ids:
+        preview = ", ".join(missing_site_ids[:3])
+        suffix = "..." if len(missing_site_ids) > 3 else ""
+        msg = (
+            "site_to_protein must define a protein ID for every pred_mat site. "
+            f"Missing mappings for: {preview}{suffix}"
+        )
+        raise InputCompatibilityError(msg)
+
+    resolved_protein_modules = _as_unique_string_series_index(
+        protein_modules,
+        context="protein_modules",
+        label="protein_id",
+    ).astype(int)
+
+    protein_ids = resolved_site_to_protein.loc[site_index]
+    missing_protein_ids = sorted(
+        {
+            str(protein_id)
+            for protein_id in protein_ids.tolist()
+            if str(protein_id) not in resolved_protein_modules.index
+        }
+    )
+    if missing_protein_ids:
+        preview = ", ".join(missing_protein_ids[:3])
+        suffix = "..." if len(missing_protein_ids) > 3 else ""
+        msg = (
+            "protein_modules must define module IDs for every protein mapped "
+            f"from pred_mat sites. Missing proteins: {preview}{suffix}"
+        )
+        raise InputCompatibilityError(msg)
+
     sorted_kinase_columns = sorted(str(kinase) for kinase in pred_mat.columns)
     sorted_pred_mat = pred_mat.loc[:, sorted_kinase_columns]
 
@@ -130,8 +217,7 @@ def build_site_assignments(
         for mask_row in top_score_mask_values
     ]
 
-    protein_ids = site_to_protein.loc[site_index].astype(str)
-    module_ids = protein_ids.map(protein_modules).astype(int)
+    module_ids = protein_ids.map(resolved_protein_modules).astype(int)
 
     site_assignments = pd.DataFrame(
         {

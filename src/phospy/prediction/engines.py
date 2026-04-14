@@ -130,19 +130,22 @@ class PredictionExecutionRunner:
             trace_sink=request.trace_sink,
         )
         sampling_session = PredictionSamplingSession.from_request(request)
-        for kinase, substrates in substrate_list.items():
-            batch = self.ensemble_predictor.predict_kinase(
-                kinase=kinase,
-                substrates=substrates,
-                feature_mat=feature_mat,
-                request=request,
-                trace_state=trace_state,
-                sampling_session=sampling_session,
-            )
-            self.prediction_aggregator.add_kinase_scores(
-                pred_matrix=pred_matrix,
-                batch=batch,
-            )
+        try:
+            for kinase, substrates in substrate_list.items():
+                batch = self.ensemble_predictor.predict_kinase(
+                    kinase=kinase,
+                    substrates=substrates,
+                    feature_mat=feature_mat,
+                    request=request,
+                    trace_state=trace_state,
+                    sampling_session=sampling_session,
+                )
+                self.prediction_aggregator.add_kinase_scores(
+                    pred_matrix=pred_matrix,
+                    batch=batch,
+                )
+        finally:
+            self.ensemble_predictor.clear_cache()
 
         self.trace_recorder.flush_final(trace_state=trace_state)
         return self.prediction_aggregator.finalize(

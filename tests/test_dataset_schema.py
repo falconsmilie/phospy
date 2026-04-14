@@ -3,8 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import PhosphoDataset
-from phospy.datasets import DatasetSchema
+from phospy.datasets import DatasetSchema, PhosphoDataset
 from phospy.errors import InputCompatibilityError
 
 
