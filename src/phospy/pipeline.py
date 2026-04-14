@@ -16,13 +16,13 @@ from .errors import RequestValidationError, TableSchemaError
 from .io import load_pred_mat
 from .io.publishing import OutputPublisher, RunManifestWriter
 from .io.writers import CoreOutputWriter, KinaseActivityWriter
+from .orchestration import KinaseOrchestrationService
 from .preprocessing.core import CorePreprocessingConfig, CoreProcessingResult
 from .validation.requests.pipeline import (
     CorePipelineRequest,
     PipelineInputs,
     build_pipeline_inputs,
     validate_pipeline_construction_request,
-    validate_pipeline_runtime_compatibility,
 )
 
 __all__ = ["PhosRPipeline"]
@@ -88,19 +88,15 @@ def _run_pipeline_request(
     *,
     request: PipelineInputs,
     kinase_activity_analyzer: KinaseActivityAnalyzer,
+    orchestration: KinaseOrchestrationService | None = None,
 ) -> CoreOutputs:
-    core = request.dataset.preprocessing.run(config=request.preprocessing_config)
-
-    kinase_activity = None
-    kinase_activity_request = validate_pipeline_runtime_compatibility(
-        request=request,
-        site_matrix=core.site_matrix.matrix,
+    orchestrator = (
+        KinaseOrchestrationService() if orchestration is None else orchestration
     )
-    if kinase_activity_request is not None:
-        kinase_activity = kinase_activity_analyzer.run_validated(
-            kinase_activity_request
-        )
-
+    core, kinase_activity = orchestrator.run_pipeline_runtime(
+        request=request,
+        kinase_activity_analyzer=kinase_activity_analyzer,
+    )
     return CoreOutputs(core=core, kinase_activity=kinase_activity)
 
 
@@ -176,6 +172,7 @@ class PhosRPipeline:
         self.pred_mat = request.pred_mat
         self.preprocessing_config = request.preprocessing_config
         self.kinase_activity_analyzer = KinaseActivityAnalyzer()
+        self._orchestration = KinaseOrchestrationService()
         self.manifest_writer = manifest_writer or RunManifestWriter()
         self.output_publisher = output_publisher or OutputPublisher()
 
@@ -241,6 +238,7 @@ class PhosRPipeline:
         outputs = _run_pipeline_request(
             request=self.request,
             kinase_activity_analyzer=self.kinase_activity_analyzer,
+            orchestration=self._orchestration,
         )
 
         if outdir is not None:

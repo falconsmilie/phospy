@@ -590,3 +590,29 @@ def test_pipeline_passes_pred_mat_result_to_validation_boundary(
 
     assert captured == [pred_mat_result]
     pd.testing.assert_frame_equal(pipeline.pred_mat, pred_mat_result.data_frame)
+
+
+def test_pipeline_run_delegates_to_shared_orchestration_service() -> None:
+    dataset = PhosphoDataset(
+        total_df=make_total_df(),
+        phospho_df=make_phospho_df(),
+        comparisons=EXAMPLE_COMPARISONS,
+    )
+    pipeline = PhosRPipeline(dataset, pred_mat=make_pred_mat())
+    expected_core = object()
+    expected_kinase_activity = object()
+    calls: list[dict[str, object]] = []
+
+    class _OrchestrationDouble:
+        def run_pipeline_runtime(self, **kwargs: object) -> tuple[object, object]:
+            calls.append(kwargs)
+            return expected_core, expected_kinase_activity
+
+    pipeline._orchestration = _OrchestrationDouble()
+    outputs = pipeline.run()
+
+    assert outputs.core is expected_core
+    assert outputs.kinase_activity is expected_kinase_activity
+    assert len(calls) == 1
+    assert calls[0]["request"] is pipeline.request
+    assert calls[0]["kinase_activity_analyzer"] is pipeline.kinase_activity_analyzer

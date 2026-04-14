@@ -350,6 +350,30 @@ def test_simple_kinase_workflow_uses_builder_for_phospho_only_mode() -> None:
     assert len(analyzer_calls) == 1
 
 
+def test_simple_kinase_workflow_run_delegates_to_shared_orchestration_service() -> None:
+    workflow = SimpleKinaseWorkflow()
+    expected_result = object()
+    calls: list[dict[str, object]] = []
+
+    class _OrchestrationDouble:
+        def run_simple_workflow(self, **kwargs: object) -> object:
+            calls.append(kwargs)
+            return expected_result
+
+    workflow._orchestration = _OrchestrationDouble()
+    result = workflow.run(
+        phospho=pd.DataFrame({"uid": ["u1"]}),
+        species="rat",
+    )
+
+    assert result is expected_result
+    assert len(calls) == 1
+    assert calls[0]["analysis_ready_builder"] is workflow.analysis_ready_builder
+    assert calls[0]["reference_provider"] is workflow.reference_provider
+    assert calls[0]["pred_mat_workflow"] is workflow.pred_mat_workflow
+    assert calls[0]["activity_analyzer"] is workflow.activity_analyzer
+
+
 def test_signalome_workflow_run_delegates_to_validation_and_execution(
     monkeypatch,
 ) -> None:

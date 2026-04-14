@@ -6,6 +6,7 @@ import pandas as pd
 
 from ..activities.analysis import KinaseActivityAnalyzer
 from ..internal.types import PredictionSvmMode
+from ..orchestration import KinaseOrchestrationService
 from ..preprocessing.core import CorePreprocessingConfig
 from ..preprocessing.modes import AnalysisReadyDatasetBuilder
 from ..references import (
@@ -54,6 +55,7 @@ class SimpleKinaseWorkflow:
             if analysis_ready_builder is None
             else analysis_ready_builder
         )
+        self._orchestration = KinaseOrchestrationService()
 
     def run(
         self,
@@ -67,44 +69,17 @@ class SimpleKinaseWorkflow:
         prediction_config: PredictionRunConfig | None = None,
         activity_config: KinaseActivityConfig | None = None,
     ) -> SimpleKinaseWorkflowResult:
-        resolved_dataset_options = DatasetLoadOptions.from_value(dataset_options)
-        resolved_preprocessing_config = (
-            CorePreprocessingConfig()
-            if preprocessing_config is None
-            else preprocessing_config
-        )
-        resolved_prediction_config = PredictionRunConfig.from_value(prediction_config)
-        resolved_activity_config = KinaseActivityConfig.from_value(activity_config)
-        analysis_ready_dataset = self.analysis_ready_builder.build(
+        return self._orchestration.run_simple_workflow(
             phospho=phospho,
-            total=total,
-            phospho_encoding=resolved_dataset_options.phospho_encoding,
-            schema=resolved_dataset_options.schema,
-            comparisons=resolved_dataset_options.comparisons,
-            preprocessing_config=resolved_preprocessing_config,
-            source="simple kinase workflow",
-            phospho_only_source="simple kinase workflow (phospho only)",
-        )
-        reference_bundle = self.reference_provider.resolve(
             species=species,
+            total=total,
             reference=reference,
-        )
-        workflow_result = self.pred_mat_workflow.run(
-            phospho_matrix=analysis_ready_dataset.phospho_matrix,
-            site_sequences=analysis_ready_dataset.site_sequences,
-            reference_bundle=reference_bundle,
-            prediction_config=resolved_prediction_config,
-        )
-        kinase_activity_result = self.activity_analyzer.run(
-            pred_mat=workflow_result.pred_mat_result,
-            phospho_matrix=analysis_ready_dataset.phospho_matrix,
-            threshold=resolved_activity_config.threshold,
-            min_substrates=resolved_activity_config.min_substrates,
-            top_n_substrates=resolved_activity_config.top_n_substrates,
-        )
-        return SimpleKinaseWorkflowResult(
-            analysis_ready_dataset=analysis_ready_dataset,
-            reference_bundle=reference_bundle,
-            workflow_result=workflow_result,
-            kinase_activity_result=kinase_activity_result,
+            prediction_config=prediction_config,
+            dataset_options=dataset_options,
+            preprocessing_config=preprocessing_config,
+            activity_config=activity_config,
+            analysis_ready_builder=self.analysis_ready_builder,
+            reference_provider=self.reference_provider,
+            pred_mat_workflow=self.pred_mat_workflow,
+            activity_analyzer=self.activity_analyzer,
         )
