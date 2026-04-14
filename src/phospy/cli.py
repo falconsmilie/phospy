@@ -4,7 +4,7 @@ import argparse
 
 from .api.contracts import DatasetLoadOptions, KinaseActivityConfig
 from .errors import RequestValidationError
-from .pipeline import PhosRPipeline
+from .internal.pipeline import PipelineRunner
 from .preprocessing import CorePreprocessingConfig
 
 
@@ -106,7 +106,7 @@ def main() -> None:
 
     try:
         dataset_options, preprocessing_config, activity_config = build_cli_configs(args)
-        pipeline = PhosRPipeline.from_files(
+        pipeline = PipelineRunner.from_files(
             total_path=args.total,
             phospho_path=args.phospho,
             pred_mat_path=args.pred_mat,

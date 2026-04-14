@@ -9,7 +9,6 @@ import phospy.signalomes.analysis as signalome_analysis
 import phospy.signalomes.clustering as signalome_clustering
 from phospy.api import (
     PredictionRunConfig,
-    PredMatWorkflow,
     SignalomeRunConfig,
     SignalomeWorkflow,
 )
@@ -19,6 +18,7 @@ from phospy.errors import (
     RequestValidationError,
     TableSchemaError,
 )
+from phospy.internal.kinase_workflows import PredMatWorkflow
 from phospy.prediction import PredMatResult
 from phospy.signalomes import (
     SignalomeModuleSelectionPolicy,

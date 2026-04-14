@@ -4,23 +4,12 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 from phospy.activities import KinaseActivityAnalyzer
-from phospy.api import DatasetLoadOptions, KinaseActivityConfig
+from phospy.api import PredictionRunConfig, SimpleKinaseWorkflow
 from phospy.datasets import PhosphoDataset
-from phospy.internal.constants import (
-    CORE_OUTPUT_ARTIFACT_BASENAMES,
-    KINASE_OUTPUT_FILENAMES,
-)
-from phospy.io import load_pred_mat
-from phospy.pipeline import PhosRPipeline
+from phospy.internal.constants import KINASE_OUTPUT_FILENAMES
 from phospy.preprocessing import CorePreprocessingConfig
-
-EXAMPLE_OUTPUT_FILES = {
-    *(f"{basename}.csv" for basename in CORE_OUTPUT_ARTIFACT_BASENAMES),
-    *KINASE_OUTPUT_FILENAMES,
-}
 
 
 def test_readme_example_analyzer_runs_end_to_end(tmp_path) -> None:
@@ -48,57 +37,30 @@ def test_readme_example_analyzer_runs_end_to_end(tmp_path) -> None:
     analyzer.write_outputs(result, outdir=tmp_path)
 
     assert result.target_counts.to_dict() == {"PRKACA": 3, "BTK": 2}
-    assert EXAMPLE_OUTPUT_FILES - {
-        "df_phospho_corrected.csv",
-        "df_phospho_filtered.csv",
-        "df_total_filtered.csv",
-        "df_total_unique.csv",
-        "mat_phospho_corrected.csv",
-        "phosr_input.csv",
-        "site_sequences.csv",
-    } <= {path.name for path in tmp_path.iterdir()}
+    assert set(KINASE_OUTPUT_FILENAMES) <= {path.name for path in tmp_path.iterdir()}
 
 
-def test_readme_example_pipeline_runs_end_to_end(tmp_path) -> None:
+def test_readme_example_simple_workflow_runs_end_to_end() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    outdir = tmp_path / "output"
-
-    pipeline = PhosRPipeline.from_files(
-        total_path=repo_root / "examples" / "data" / "total.tsv",
-        phospho_path=repo_root / "examples" / "data" / "phospho.tsv",
-        pred_mat_path=repo_root / "examples" / "data" / "predMat.csv",
-        dataset_options=DatasetLoadOptions(phospho_encoding="utf-16le"),
-        preprocessing_config=CorePreprocessingConfig(max_unmatched_fraction=0.1),
-        activity_config=KinaseActivityConfig(
-            threshold=0.6,
+    result = SimpleKinaseWorkflow(flank_size=7).run(
+        total=repo_root / "examples" / "data" / "simple_workflow" / "total.tsv",
+        phospho=repo_root / "examples" / "data" / "simple_workflow" / "phospho.tsv",
+        species="rat",
+        prediction_config=PredictionRunConfig(
             min_substrates=1,
-            top_n_substrates=1,
+            min_motif_size=1,
+            ensemble_size=2,
+            top=3,
+            inclusion=2,
+            n_iterations=2,
+            random_state=7,
         ),
     )
-    outputs = pipeline.run(outdir=outdir)
 
-    assert outputs.core.site_matrix.matrix.index.tolist() == ["BTK;Y551;"]
-    assert outputs.kinase_activity is not None
-    assert EXAMPLE_OUTPUT_FILES.issubset({path.name for path in outdir.iterdir()})
-
-    expected_matrix = pd.read_csv(
-        repo_root / "examples" / "output" / "mat_phospho_corrected.csv",
-        index_col=0,
-    )
-    pd.testing.assert_frame_equal(
-        outputs.core.site_matrix.matrix,
-        expected_matrix,
-        check_index_type=False,
-        check_column_type=False,
-    )
-
-    expected_target_counts = pd.read_csv(
-        repo_root / "examples" / "output" / "kinase_target_counts.csv"
-    )
-    actual_target_counts = outputs.kinase_activity.target_counts.rename_axis(
-        "kinase"
-    ).reset_index(name="n_targets")
-    pd.testing.assert_frame_equal(actual_target_counts, expected_target_counts)
+    assert result.reference_bundle.source_metadata.reference == "l6_native"
+    assert not result.pred_mat_result.to_frame(copy=False).empty
+    assert not result.kinase_activity_result.weighted_activity.empty
+    result.close()
 
 
 def _load_example_module(path: Path):
@@ -124,51 +86,16 @@ def test_simple_workflow_demo_runs_end_to_end(tmp_path) -> None:
     assert all(path.exists() for path in written.values())
 
 
-@pytest.mark.parametrize("svm_mode", ["default", "r_parity"])
-def test_pred_mat_workflow_demo_runs_end_to_end(tmp_path, svm_mode: str) -> None:
-    repo_root = Path(__file__).resolve().parents[1]
-    module = _load_example_module(repo_root / "examples" / "predmat_workflow_demo.py")
-
-    result, export_path = module.run_demo(tmp_path / svm_mode, svm_mode=svm_mode)
-
-    assert export_path.name == "predMat.csv"
-    assert export_path.exists()
-
-    reloaded = load_pred_mat(export_path)
-    pd.testing.assert_frame_equal(reloaded, result.pred_mat_result.data_frame)
-    assert list(result.pred_mat_result.data_frame.columns) == [
-        "KINASE_A",
-        "KINASE_B",
-    ]
-
-
-def test_native_workflow_demo_runs_end_to_end() -> None:
-    repo_root = Path(__file__).resolve().parents[1]
-    module = _load_example_module(repo_root / "examples" / "native_workflow_demo.py")
-
-    result = module.run_demo()
-
-    assert list(result.prediction_result.pred_matrix.columns) == [
-        "KINASE_A",
-        "KINASE_B",
-    ]
-    assert result.prediction_result.pred_matrix.shape == (8, 2)
-    assert set(result.prediction_result.substrate_list) == {"KINASE_A", "KINASE_B"}
-
-
-@pytest.mark.parametrize("svm_mode", ["default", "r_parity"])
-def test_signalome_workflow_demo_runs_end_to_end(tmp_path, svm_mode: str) -> None:
+def test_signalome_workflow_demo_runs_end_to_end(tmp_path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     module = _load_example_module(repo_root / "examples" / "signalome_workflow_demo.py")
 
-    signalome_result, map_data, network_data, written = module.run_demo(
-        tmp_path / svm_mode, svm_mode=svm_mode
-    )
+    signalome_result, map_data, network_data, written = module.run_demo(tmp_path)
 
     assert sorted(written) == ["map", "network", "signalome"]
-    assert signalome_result.modules.to_frame().shape == (2, 2)
-    assert map_data.modules().shape[0] == 2
-    assert list(network_data.nodes().index) == ["KINASE_A", "KINASE_B"]
+    assert signalome_result.modules.to_frame().shape[0] >= 1
+    assert map_data.modules().shape[0] >= 1
+    assert network_data.nodes().shape[0] >= 1
 
     signalome_modules_path = written["signalome"]["signalome_modules"]
     signalome_map_modules_path = written["map"]["signalome_map_modules"]

@@ -25,7 +25,7 @@ Trace directories such as `prediction_trace/` belong to the fixture family liste
 - `tests/fixtures/fragile_support_reference`: curated support-screening fixtures protecting boundary conditions around support and inclusion rules
 - `tests/fixtures/r_reference_l6_seam_stress`: smaller seam-stress fixtures protecting combined-score and replay boundary behaviour
 - `tests/fixtures/synthetic_adaptive_sampling_edge`: synthetic fixtures protecting deterministic adaptive-sampling edge cases
-- `tests/fixtures/public_workflow_reference`: committed benchmark outputs for the public `PredMatWorkflow` and `SignalomeWorkflow` demos
+- `tests/fixtures/public_workflow_reference`: committed benchmark outputs for the public `SimpleKinaseWorkflow` and `SignalomeWorkflow` demos
 
 For fixture rebuild commands, see [`fixtures.md`](fixtures.md).
 
@@ -48,7 +48,7 @@ The current parity layer covers selected seams, including:
 - downstream kinase-analysis outputs
 - selected native workflow seams
 - selected prediction trace and replay checks
-- end-to-end benchmark fixtures for the documented `PredMatWorkflow` and `SignalomeWorkflow` demos
+- end-to-end benchmark fixtures for the documented `SimpleKinaseWorkflow` and `SignalomeWorkflow` demos
 
 ## Release Thresholds by Mode
 
@@ -141,7 +141,7 @@ By default this writes two review artifacts under `benchmarks/reports/latest/`:
 The harness uses:
 
 - `tests/fixtures/r_reference_l6` for ranking parity and replayed sampling-trace fidelity
-- `tests/fixtures/public_workflow_reference` for the documented `PredMatWorkflow` and `SignalomeWorkflow` demo outputs
+- `tests/fixtures/public_workflow_reference` for the documented `SimpleKinaseWorkflow` and `SignalomeWorkflow` demo outputs
 
 Useful variants:
 

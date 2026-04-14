@@ -4,10 +4,6 @@
 Use this lane when you have biologically shaped phospho input and want PhosPy to
 handle preprocessing, analysis-ready dataset construction, bundled reference
 resolution, predMat generation, and kinase activity analysis.
-
-For direct control over workflow-shaped inputs such as substrate_map,
-motif_sequences, or intermediate scoring results, use the advanced native lane
-shown in examples/native_workflow_demo.py instead.
 """
 
 from __future__ import annotations

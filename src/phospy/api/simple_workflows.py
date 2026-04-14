@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from ..activities.analysis import KinaseActivityAnalyzer
+from ..internal.kinase_workflows import PredMatWorkflow
 from ..internal.types import PredictionSvmMode
 from ..orchestration import KinaseOrchestrationService
 from ..preprocessing.core import CorePreprocessingConfig
@@ -18,7 +19,6 @@ from .contracts import (
     KinaseActivityConfig,
     PredictionRunConfig,
 )
-from .kinase_workflows import PredMatWorkflow
 from .workflow_results import SimpleKinaseWorkflowResult
 
 __all__ = ["SimpleKinaseWorkflow"]

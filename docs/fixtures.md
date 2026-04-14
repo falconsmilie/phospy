@@ -61,10 +61,10 @@ make fixtures-synthetic-edge
 
 ### `tests/fixtures/public_workflow_reference`
 
-Small committed benchmark outputs for the public `PredMatWorkflow` and `SignalomeWorkflow` demo paths.
+Small committed benchmark outputs for the supported `SimpleKinaseWorkflow` and `SignalomeWorkflow` demo paths.
 
 ```bash
-PYTHONPATH=src python examples/predmat_workflow_demo.py
+PYTHONPATH=src python examples/simple_workflow_demo.py
 PYTHONPATH=src python examples/signalome_workflow_demo.py
 ```
 

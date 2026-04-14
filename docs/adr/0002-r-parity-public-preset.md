@@ -66,7 +66,7 @@ The benchmark compares `default` and `r_parity` on:
 
 - `tests/fixtures/r_reference_l6` for prediction ranking agreement
 - `tests/fixtures/r_reference_l6` for replayed sampling-trace fidelity
-- `tests/fixtures/public_workflow_reference` for the public `PredMatWorkflow` and
+- `tests/fixtures/public_workflow_reference` for the public `SimpleKinaseWorkflow` and
   `SignalomeWorkflow` demo outputs
 
 The protected metric classes include:

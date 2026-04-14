@@ -66,16 +66,15 @@ A valid `predMat` must have:
 - by default, protein correction allows no silent phosphosite row loss
 - site-matrix building can drop rows with missing sequence data or incomplete corrected values
 - if the same phosphosite appears more than once after correction, PhosPy keeps the row with the highest mean corrected signal
-- when prediction thresholds are too strict, `PredMatWorkflow` raises `NoCandidateKinasesError` instead of returning an empty invalid `predMat`
+- when prediction thresholds are too strict, prediction raises `NoCandidateKinasesError` instead of returning an empty invalid `predMat`
 
 ## Good Starting Points
 
 Start at the boundary closest to your input:
 
 - `PhosphoDataset.from_files(...)` for the standard preprocessing path
+- `SimpleKinaseWorkflow.run(...)` for end-to-end preprocessing, prediction, and kinase activity
 - `KinaseActivityAnalyzer.run(...)` for analysis from an existing `predMat`
-- `PhosRPipeline.from_files(...)` for the file-based one-shot flow
-- `PredMatWorkflow.run(...)` for native `predMat` generation
 - `SignalomeWorkflow.run(...)` for downstream signalome construction
 
 ## Quick Troubleshooting
@@ -88,12 +87,11 @@ Start at the boundary closest to your input:
 | Sequence coverage error | `site_sequences` or `motif_sequences` do not cover the scored sites | Check keys and confirm you passed the right reference inputs |
 | Signalome top-kinase failure | Your aligned prediction values contain non-finite rows | Clean or regenerate the prediction output before signalome construction |
 
-## Recommended `predMat` Path
+## Recommended Kinase-Scoring Path
 
-1. Load a numeric phosphosite matrix with phosphosite IDs as the index.
-2. Load `site_sequences`, `substrate_map`, and `motif_sequences` keyed by matching identifiers.
-3. Run `PredMatWorkflow.run(...)`.
-4. Read the result from `result.pred_mat_result`.
-5. Export with `result.pred_mat_result.to_csv("predMat.csv")`.
+1. Load phospho (and optional total) data with supported schema columns.
+2. Run `SimpleKinaseWorkflow.run(...)`.
+3. Read `result.pred_mat_result` and `result.kinase_activity_result`.
+4. Export with `result.pred_mat_result.to_csv("predMat.csv")` when needed.
 
-Runnable example: [`../examples/predmat_workflow_demo.py`](../examples/predmat_workflow_demo.py)
+Runnable example: [`../examples/simple_workflow_demo.py`](../examples/simple_workflow_demo.py)

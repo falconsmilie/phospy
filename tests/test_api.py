@@ -3,58 +3,48 @@ from __future__ import annotations
 from pathlib import Path
 
 from phospy.api import (
-    KinaseWorkflow,
-    PredMatWorkflow,
+    DatasetLoadOptions,
+    KinaseActivityConfig,
+    PredictionRunConfig,
+    SignalomeRunConfig,
     SignalomeWorkflow,
     SimpleKinaseWorkflow,
 )
-from phospy.api.workflow_results import (
-    KinaseWorkflowResult,
-    PredMatWorkflowResult,
-    SimpleKinaseWorkflowResult,
-)
+from phospy.api.workflow_results import SimpleKinaseWorkflowResult
 
 
-def test_public_workflows_are_defined_under_owning_api_modules() -> None:
-    assert KinaseWorkflow.__module__ == "phospy.api.kinase_workflows"
-    assert PredMatWorkflow.__module__ == "phospy.api.kinase_workflows"
-    assert SignalomeWorkflow.__module__ == "phospy.api.signalome_workflows"
+def test_supported_public_workflows_live_in_api_modules() -> None:
     assert SimpleKinaseWorkflow.__module__ == "phospy.api.simple_workflows"
-    assert KinaseWorkflowResult.__module__ == "phospy.api.workflow_results"
-    assert PredMatWorkflowResult.__module__ == "phospy.api.workflow_results"
+    assert SignalomeWorkflow.__module__ == "phospy.api.signalome_workflows"
     assert SimpleKinaseWorkflowResult.__module__ == "phospy.api.workflow_results"
 
 
-def test_legacy_workflow_module_has_been_removed() -> None:
-    workflow_module = (
-        Path(__file__).resolve().parents[1] / "src" / "phospy" / "workflow.py"
-    )
-    assert not workflow_module.exists()
-
-
-def test_legacy_api_workflow_shim_module_has_been_removed() -> None:
-    workflow_module = (
-        Path(__file__).resolve().parents[1] / "src" / "phospy" / "api" / "workflows.py"
-    )
-    assert not workflow_module.exists()
-
-
-def test_api_package_exports_only_supported_workflows() -> None:
+def test_api_package_exports_only_supported_surface() -> None:
     import phospy.api as api
 
     assert set(api.__all__) == {
         "DatasetLoadOptions",
-        "KinaseWorkflow",
         "KinaseActivityConfig",
-        "PredMatWorkflow",
         "PredictionRunConfig",
-        "SignalomeWorkflow",
         "SignalomeRunConfig",
+        "SignalomeWorkflow",
         "SimpleKinaseWorkflow",
     }
-    assert not hasattr(api, "KinaseWorkflowResult")
-    assert not hasattr(api, "PredMatWorkflowResult")
-    assert not hasattr(api, "SimpleKinaseWorkflowResult")
+    assert hasattr(api, "SimpleKinaseWorkflow")
+    assert hasattr(api, "SignalomeWorkflow")
+    assert not hasattr(api, "KinaseWorkflow")
+    assert not hasattr(api, "PredMatWorkflow")
+
+    assert DatasetLoadOptions.__module__ == "phospy.api.contracts"
+    assert PredictionRunConfig.__module__ == "phospy.api.contracts"
+    assert KinaseActivityConfig.__module__ == "phospy.api.contracts"
+    assert SignalomeRunConfig.__module__ == "phospy.api.contracts"
+
+
+def test_removed_public_workflow_modules_are_not_present() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    assert not (repo_root / "src" / "phospy" / "api" / "kinase_workflows.py").exists()
+    assert not (repo_root / "src" / "phospy" / "pipeline.py").exists()
 
 
 def test_signalomes_package_does_not_export_trusted_execution_helper() -> None:

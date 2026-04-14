@@ -6,15 +6,15 @@ This page is direction, not a release promise.
 
 These now exist in the supported public surface:
 
-- a first-class `PredMatWorkflow`
+- `PhosphoDataset` as the supported preprocessing entry point
+- a first-class `SimpleKinaseWorkflow`
 - a first-class `SignalomeWorkflow`
 - stable `PredMatResult`, `SignalomeResult`, `SignalomeMapData`, and `SignalomeNetworkData` contracts
 - `AnalysisReadyPhosphoDataset` as the preprocessing-to-inference boundary
 - `ReferenceBundle`, `ReferenceProvider`, and a first `BundledReferenceProvider` lane for `rat` / `l6_native`
-- `SimpleKinaseWorkflow` as the supported common end-to-end kinase inference lane
-- separate documentation and examples for the simple lane and the advanced native lane
+- separate documentation and examples for preprocessing, kinase scoring, and signalome lanes
 - explicit `svm_mode` guidance for `default` and `r_parity`
-- public examples for predMat, simple workflow, native workflow, and signalome workflows
+- public examples for simple workflow and signalome workflows
 
 ## Most Likely Next Steps
 
@@ -22,9 +22,9 @@ These now exist in the supported public surface:
 
 The simple workflow lane now exists as a supported public path. The next useful step is deeper fixture-backed regression coverage so the common path stays stable and reviewable as the package grows.
 
-### Native Workflow CLI Support
+### CLI Coverage
 
-The Python API supports `KinaseWorkflow`, but the CLI still covers the file-based preprocessing path plus optional `predMat` analysis.
+The CLI covers file-based preprocessing plus optional kinase activity analysis from an existing `predMat`.
 
 ### Better Diagnostics
 

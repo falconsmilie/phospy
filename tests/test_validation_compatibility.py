@@ -4,13 +4,14 @@ import pandas as pd
 import pytest
 
 from phospy.activities import KinaseActivityAnalyzer
-from phospy.api import KinaseWorkflow, PredictionRunConfig
+from phospy.api import PredictionRunConfig
 from phospy.datasets import PhosphoDataset
 from phospy.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
     TableSchemaError,
 )
+from phospy.internal.kinase_workflows import KinaseWorkflow
 from phospy.preprocessing import CorePreprocessingConfig
 from phospy.validation.compatibility import validate_protein_correction_inputs
 from phospy.validation.requests import validate_workflow_request

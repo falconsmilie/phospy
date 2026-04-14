@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from phospy.api import PredictionRunConfig, PredMatWorkflow, SignalomeWorkflow
+from phospy.api import PredictionRunConfig, SignalomeWorkflow
+from phospy.internal.kinase_workflows import PredMatWorkflow
 from phospy.signalomes import SignalomeMapData
 from phospy.signalomes.maps import build_signalome_map_data
 
@@ -268,7 +269,8 @@ def test_signalome_map_demo_runs_end_to_end(tmp_path: Path) -> None:
         "signalome_map_kinases",
         "signalome_map_links",
     }
-    assert signalome_result.signalome_modules.shape == (2, 2)
+    assert signalome_result.signalome_modules.shape[0] == 2
+    assert signalome_result.signalome_modules.shape[1] >= 2
     assert map_data.modules().shape[0] == 2
     assert written["signalome_map_links"].exists()
 

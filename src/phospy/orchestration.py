@@ -19,8 +19,8 @@ if TYPE_CHECKING:
         KinaseActivityConfig,
         PredictionRunConfig,
     )
-    from .api.kinase_workflows import PredMatWorkflow
     from .api.workflow_results import SimpleKinaseWorkflowResult
+    from .internal.kinase_workflows import PredMatWorkflow
     from .preprocessing.modes import AnalysisReadyDatasetBuilder
     from .references import ReferenceProvider
 
@@ -90,7 +90,9 @@ class KinaseOrchestrationService:
         return SimpleKinaseWorkflowResult(
             analysis_ready_dataset=analysis_ready_dataset,
             reference_bundle=reference_bundle,
-            workflow_result=workflow_result,
+            scoring_result=workflow_result.scoring_result,
+            prediction_result=workflow_result.prediction_result,
+            pred_mat_result=workflow_result.pred_mat_result,
             kinase_activity_result=kinase_activity_result,
         )
 

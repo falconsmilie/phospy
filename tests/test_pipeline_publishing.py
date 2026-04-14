@@ -11,8 +11,11 @@ import pytest
 from phospy.activities import KinaseActivityAnalyzer
 from phospy.datasets import PhosphoDataset
 from phospy.internal.constants import RUN_MANIFEST_FILENAME
+from phospy.internal.pipeline import (
+    PipelineRunner,
+    build_pipeline_inputs_from_request,
+)
 from phospy.io.publishing import OutputPublisher, RunManifestWriter, package_version
-from phospy.pipeline import PhosRPipeline, _build_pipeline_inputs_from_request
 from phospy.prediction import PredMatResult
 from phospy.preprocessing import CorePreprocessingConfig
 from phospy.validation.requests import CorePipelineRequest
@@ -425,7 +428,7 @@ def test_pipeline_delegates_manifest_and_publish_to_publishing_layer(
             )
             super().publish(staging_dir=staging_dir, target_dir=target_dir)
 
-    pipeline = PhosRPipeline.from_files(
+    pipeline = PipelineRunner.from_files(
         total_path=total_path,
         phospho_path=phospho_path,
         pred_mat_path=pred_path,
@@ -550,7 +553,7 @@ def test_pipeline_request_builder_builds_dataset_and_config(
         pred_mat_path=pred_path,
     )
 
-    inputs = _build_pipeline_inputs_from_request(request)
+    inputs = build_pipeline_inputs_from_request(request)
 
     assert inputs.pred_mat is not None
     assert inputs.preprocessing_config.min_observed == 4
@@ -568,7 +571,7 @@ def test_pipeline_passes_pred_mat_result_to_validation_boundary(
     )
     pred_mat_result = PredMatResult(make_pred_mat())
     captured: list[object] = []
-    original_validate_request = PhosRPipeline.__init__.__globals__[
+    original_validate_request = PipelineRunner.__init__.__globals__[
         "validate_pipeline_construction_request"
     ]
 
@@ -581,12 +584,12 @@ def test_pipeline_passes_pred_mat_result_to_validation_boundary(
         )
 
     monkeypatch.setitem(
-        PhosRPipeline.__init__.__globals__,
+        PipelineRunner.__init__.__globals__,
         "validate_pipeline_construction_request",
         capturing_validate_request,
     )
 
-    pipeline = PhosRPipeline(dataset, pred_mat=pred_mat_result)
+    pipeline = PipelineRunner(dataset, pred_mat=pred_mat_result)
 
     assert captured == [pred_mat_result]
     pd.testing.assert_frame_equal(pipeline.pred_mat, pred_mat_result.data_frame)
@@ -598,7 +601,7 @@ def test_pipeline_run_delegates_to_shared_orchestration_service() -> None:
         phospho_df=make_phospho_df(),
         comparisons=EXAMPLE_COMPARISONS,
     )
-    pipeline = PhosRPipeline(dataset, pred_mat=make_pred_mat())
+    pipeline = PipelineRunner(dataset, pred_mat=make_pred_mat())
     expected_core = object()
     expected_kinase_activity = object()
     calls: list[dict[str, object]] = []

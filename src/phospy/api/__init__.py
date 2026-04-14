@@ -2,8 +2,7 @@
 
 This package is the thin public entry point for PhosPy. It should coordinate
 domain operations without becoming a second implementation layer. Import the
-workflow classes from here; workflow result bundle types remain available
-from ``phospy.api.workflow_results`` for narrow internal and advanced use.
+supported workflow classes from here.
 """
 
 from .contracts import (
@@ -12,15 +11,12 @@ from .contracts import (
     PredictionRunConfig,
     SignalomeRunConfig,
 )
-from .kinase_workflows import KinaseWorkflow, PredMatWorkflow
 from .signalome_workflows import SignalomeWorkflow
 from .simple_workflows import SimpleKinaseWorkflow
 
 __all__ = [
     "DatasetLoadOptions",
-    "KinaseWorkflow",
     "KinaseActivityConfig",
-    "PredMatWorkflow",
     "PredictionRunConfig",
     "SignalomeWorkflow",
     "SignalomeRunConfig",

@@ -3,12 +3,13 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy.api import KinaseWorkflow, PredictionRunConfig, PredMatWorkflow
+from phospy.api import PredictionRunConfig
 from phospy.errors import (
     InputCompatibilityError,
     NoCandidateKinasesError,
     RequestValidationError,
 )
+from phospy.internal.kinase_workflows import KinaseWorkflow, PredMatWorkflow
 from phospy.motifs import KinaseMotifScorer
 from phospy.prediction import PredMatResult
 from phospy.profiles import KinaseProfilePolicy

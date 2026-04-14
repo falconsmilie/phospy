@@ -10,10 +10,10 @@ import pytest
 
 from phospy.api import (
     PredictionRunConfig,
-    PredMatWorkflow,
     SignalomeRunConfig,
     SignalomeWorkflow,
 )
+from phospy.internal.kinase_workflows import PredMatWorkflow
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_DATA = ROOT / "examples" / "data"
