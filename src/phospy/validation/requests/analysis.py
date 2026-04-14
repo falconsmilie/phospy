@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import pandas as pd
-from pydantic import Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ...errors import NoCandidateKinasesError, RequestValidationError
 from ..compatibility import (
@@ -14,14 +14,15 @@ from ..compatibility import (
     validate_pred_mat_overlap,
 )
 from ..schema.tables import ActivitySiteMatrixSchema, PredMatSchema
-from .shared import PhospyRequestModel, normalize_pred_mat_input
 
 if TYPE_CHECKING:
     from ...prediction.results import PredMatResult
 
 
-class KinaseActivityRequest(PhospyRequestModel):
+class KinaseActivityRequest(BaseModel):
     """Raw boundary options for downstream kinase activity analysis."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
 
     threshold: float = Field(default=0.6, ge=0.0, le=1.0)
     min_substrates: int = Field(default=3, ge=1)
@@ -102,7 +103,13 @@ def validate_analysis_request(
         min_substrates=min_substrates,
         top_n_substrates=top_n_substrates,
     )
-    normalized_pred_mat = normalize_pred_mat_input(pred_mat)
+    from ...prediction.results import PredMatResult
+
+    normalized_pred_mat = (
+        pred_mat.to_frame(copy=False)
+        if isinstance(pred_mat, PredMatResult)
+        else pred_mat
+    )
     if normalized_pred_mat is None:
         msg = f"{pred_context} must be provided"
         raise RequestValidationError(msg)

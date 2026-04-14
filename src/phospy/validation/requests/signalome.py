@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import pandas as pd
-from pydantic import Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from ...errors import RequestValidationError
 from ...internal.types import (
@@ -27,15 +27,16 @@ from ..values.enums import (
     validate_kinase_network_policy,
     validate_signalome_assignment_policy,
 )
-from .shared import PhospyRequestModel
 
 if TYPE_CHECKING:
     from ...prediction.results import KinasePredictionResult, PredMatResult
     from ...prediction.scoring import KinaseScoringResult
 
 
-class SignalomeRequest(PhospyRequestModel):
+class SignalomeRequest(BaseModel):
     """Raw boundary request for public signalome construction."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
 
     kinases_of_interest: tuple[str, ...]
     site_to_protein: dict[str, str] | None = None

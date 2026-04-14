@@ -5,7 +5,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
-from pydantic import Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from ...datasets.models import PhosphoDataset
 from ...datasets.schema import DatasetSchema
@@ -19,13 +26,14 @@ from ..domain import validate_dataset_comparisons
 from ..schema.files import validate_existing_file_path
 from ..schema.tables import PredMatSchema
 from .analysis import AnalysisInputs, KinaseActivityRequest
-from .shared import PhospyRequestModel, normalize_pred_mat_input
 
 if TYPE_CHECKING:
     from ...prediction.results import PredMatResult
 
 
-class CorePipelineRequest(PhospyRequestModel):
+class CorePipelineRequest(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
+
     total_path: Path
     phospho_path: Path
     pred_mat_path: Path | None = None
@@ -172,7 +180,13 @@ def validate_pipeline_construction_request(
 ) -> PipelineInputs:
     """Validate raw in-memory inputs for pipeline construction."""
 
-    normalized_pred_mat = normalize_pred_mat_input(pred_mat)
+    from ...prediction.results import PredMatResult
+
+    normalized_pred_mat = (
+        pred_mat.to_frame(copy=False)
+        if isinstance(pred_mat, PredMatResult)
+        else pred_mat
+    )
     validated_pred_mat = None
     if normalized_pred_mat is not None:
         validated_pred_mat = PredMatSchema.validate(

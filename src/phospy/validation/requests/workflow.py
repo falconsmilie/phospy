@@ -4,7 +4,14 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import pandas as pd
-from pydantic import Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from ...errors import RequestValidationError
 from ...internal.types import PredictionSvmMode
@@ -17,11 +24,12 @@ from ..values.collections import (
     normalize_sequence_mapping,
     normalize_site_sequence_series,
 )
-from .shared import PhospyRequestModel
 
 
-class KinaseWorkflowRequest(PhospyRequestModel):
+class KinaseWorkflowRequest(BaseModel):
     """Raw boundary request for native kinase workflow execution."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
 
     phospho_matrix: pd.DataFrame
     substrate_map: dict[str, tuple[str, ...]]

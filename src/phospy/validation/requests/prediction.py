@@ -5,6 +5,8 @@ from typing import Any
 
 import pandas as pd
 from pydantic import (
+    BaseModel,
+    ConfigDict,
     Field,
     TypeAdapter,
     ValidationError,
@@ -19,15 +21,16 @@ from ...internal.types import (
     PredictionTraceLevel,
 )
 from ..schema.tables import PredictionScoreMatrixSchema
-from .shared import PhospyRequestModel, validate_adapter_value
 
 _PREDICTION_SVM_MODE_ADAPTER = TypeAdapter(PredictionSvmMode)
 _PREDICTION_TRACE_FORMAT_ADAPTER = TypeAdapter(PredictionTraceFormat)
 _PREDICTION_TRACE_LEVEL_ADAPTER = TypeAdapter(PredictionTraceLevel)
 
 
-class PredictionRequest(PhospyRequestModel):
+class PredictionRequest(BaseModel):
     """Raw boundary request for prediction execution."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
 
     combined_scores: pd.DataFrame
     ensemble_size: int = Field(ge=1)
@@ -78,30 +81,46 @@ class PredictionRequest(PhospyRequestModel):
         trace_sink_format: PredictionTraceFormat = "csv",
         **data: object,
     ) -> PredictionRequest:
-        resolved_trace_level = validate_adapter_value(
-            value=(
+        try:
+            resolved_trace_level = _PREDICTION_TRACE_LEVEL_ADAPTER.validate_python(
                 "summary"
                 if data.get("trace_level") is None and capture_debug_trace
                 else data.get("trace_level") or "none"
-            ),
-            adapter=_PREDICTION_TRACE_LEVEL_ADAPTER,
-            field_name="trace_level",
-            context="Invalid prediction request",
-        )
-        resolved_trace_format = validate_adapter_value(
-            value=trace_sink_format,
-            adapter=_PREDICTION_TRACE_FORMAT_ADAPTER,
-            field_name="trace_sink_format",
-            context="Invalid prediction request",
-        )
-        resolved_svm_mode = validate_adapter_value(
-            value=(
+            )
+        except ValidationError as error:
+            details = error.errors(include_url=False)
+            message = (
+                str(details[0].get("msg", "Invalid value")) if details else str(error)
+            )
+            raise RequestValidationError(
+                f"Invalid prediction request: trace_level: {message}"
+            ) from error
+
+        try:
+            resolved_trace_format = _PREDICTION_TRACE_FORMAT_ADAPTER.validate_python(
+                trace_sink_format
+            )
+        except ValidationError as error:
+            details = error.errors(include_url=False)
+            message = (
+                str(details[0].get("msg", "Invalid value")) if details else str(error)
+            )
+            raise RequestValidationError(
+                f"Invalid prediction request: trace_sink_format: {message}"
+            ) from error
+
+        try:
+            resolved_svm_mode = _PREDICTION_SVM_MODE_ADAPTER.validate_python(
                 default_svm_mode if data.get("svm_mode") is None else data["svm_mode"]
-            ),
-            adapter=_PREDICTION_SVM_MODE_ADAPTER,
-            field_name="svm_mode",
-            context="Invalid prediction request",
-        )
+            )
+        except ValidationError as error:
+            details = error.errors(include_url=False)
+            message = (
+                str(details[0].get("msg", "Invalid value")) if details else str(error)
+            )
+            raise RequestValidationError(
+                f"Invalid prediction request: svm_mode: {message}"
+            ) from error
 
         request_data = dict(data)
         request_data["svm_mode"] = resolved_svm_mode
