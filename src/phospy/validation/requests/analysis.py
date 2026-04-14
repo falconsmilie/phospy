@@ -7,6 +7,11 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from ...errors import NoCandidateKinasesError, RequestValidationError
+from ...internal.defaults import (
+    DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
+    DEFAULT_KINASE_ACTIVITY_THRESHOLD,
+    DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
+)
 from ..compatibility import (
     DEFAULT_MIN_PRED_MAT_OVERLAP,
     DEFAULT_MIN_PRED_MAT_OVERLAP_FRACTION,
@@ -24,9 +29,11 @@ class KinaseActivityRequest(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True, frozen=True)
 
-    threshold: float = Field(default=0.6, ge=0.0, le=1.0)
-    min_substrates: int = Field(default=3, ge=1)
-    top_n_substrates: int = Field(default=20, ge=1)
+    threshold: float = Field(default=DEFAULT_KINASE_ACTIVITY_THRESHOLD, ge=0.0, le=1.0)
+    min_substrates: int = Field(default=DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES, ge=1)
+    top_n_substrates: int = Field(
+        default=DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES, ge=1
+    )
 
     @classmethod
     def validate_request(cls, **data: object) -> KinaseActivityRequest:
@@ -88,9 +95,9 @@ def validate_analysis_request(
     *,
     pred_mat: pd.DataFrame | PredMatResult,
     phospho_matrix: pd.DataFrame,
-    threshold: float = 0.6,
-    min_substrates: int = 3,
-    top_n_substrates: int = 20,
+    threshold: float = DEFAULT_KINASE_ACTIVITY_THRESHOLD,
+    min_substrates: int = DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
+    top_n_substrates: int = DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
     pred_context: str = "pred_mat",
     matrix_context: str = "phospho_matrix",
     min_overlap: int = DEFAULT_MIN_PRED_MAT_OVERLAP,

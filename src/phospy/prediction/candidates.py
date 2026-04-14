@@ -4,6 +4,11 @@ import numpy as np
 import pandas as pd
 
 from ..errors import TableSchemaError
+from ..internal.defaults import (
+    DEFAULT_PREDICTION_INCLUSION,
+    DEFAULT_PREDICTION_SCORE_THRESHOLD,
+    DEFAULT_PREDICTION_TOP,
+)
 from ..validation.schema.tables import PredictionScoreMatrixSchema
 from .validation import validate_positive_int
 
@@ -63,9 +68,9 @@ def _build_candidate_substrate_list(
 
 def build_candidate_substrate_list(
     combined_scores: pd.DataFrame,
-    top: int = 50,
-    score_threshold: float = 0.8,
-    inclusion: int = 20,
+    top: int = DEFAULT_PREDICTION_TOP,
+    score_threshold: float = DEFAULT_PREDICTION_SCORE_THRESHOLD,
+    inclusion: int = DEFAULT_PREDICTION_INCLUSION,
 ) -> dict[str, list[str]]:
     """Select candidate kinase substrates from the combined score matrix."""
 

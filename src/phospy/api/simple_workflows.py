@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from ..activities.analysis import KinaseActivityAnalyzer
+from ..internal.defaults import DEFAULT_MOTIF_FLANK_SIZE
 from ..internal.kinase_workflows import PredMatWorkflow
 from ..internal.types import PredictionSvmMode
 from ..orchestration import KinaseOrchestrationService
@@ -29,7 +30,7 @@ class SimpleKinaseWorkflow:
 
     def __init__(
         self,
-        flank_size: int = 7,
+        flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
         kernel: str = "rbf",
         svm_mode: PredictionSvmMode = "default",
         *,

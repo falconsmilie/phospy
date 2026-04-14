@@ -15,6 +15,7 @@ from pydantic import (
 )
 
 from ...errors import RequestValidationError
+from ...internal.defaults import DEFAULT_PREDICTION_DEBUG_TOP_N
 from ...internal.types import (
     PredictionSvmMode,
     PredictionTraceFormat,
@@ -40,7 +41,7 @@ class PredictionRequest(BaseModel):
     n_iterations: int = Field(ge=1)
     random_state: int | None = None
     debug_kinases: tuple[str, ...] | None = None
-    debug_top_n: int = Field(default=10, ge=1)
+    debug_top_n: int = Field(default=DEFAULT_PREDICTION_DEBUG_TOP_N, ge=1)
     svm_mode: PredictionSvmMode
     sampling_trace: Any | None = None
     trace_level: PredictionTraceLevel = "none"

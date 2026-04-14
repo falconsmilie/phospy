@@ -6,13 +6,18 @@ import pandas as pd
 
 from ..datasets.schema import DatasetSchema
 from ..internal.constants import (
-    DEFAULT_PHOSPHO_SENTINEL,
-    DEFAULT_TOTAL_SENTINEL,
     GENE_P_SITE_COLUMN,
     LOCALIZATION_PROB_COLUMN,
     PHOSPHO_GENE_COLUMN,
     TOTAL_GENE_COLUMN,
     ComparisonSpec,
+)
+from ..internal.defaults import (
+    DEFAULT_LOCALIZATION_THRESHOLD,
+    DEFAULT_MAX_UNMATCHED_FRACTION,
+    DEFAULT_MIN_OBSERVED_VALUES,
+    DEFAULT_PHOSPHO_SENTINEL,
+    DEFAULT_TOTAL_SENTINEL,
 )
 from .primitives import (
     _add_pairwise_comparisons_in_place,
@@ -48,7 +53,7 @@ class TotalPreprocessor:
         *,
         gene_col: str = TOTAL_GENE_COLUMN,
         sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
-        min_observed: int = 4,
+        min_observed: int = DEFAULT_MIN_OBSERVED_VALUES,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         total = total_df.copy()
         return self.prepare_owned(
@@ -64,7 +69,7 @@ class TotalPreprocessor:
         *,
         gene_col: str = TOTAL_GENE_COLUMN,
         sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
-        min_observed: int = 4,
+        min_observed: int = DEFAULT_MIN_OBSERVED_VALUES,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         total_df[gene_col] = total_df[gene_col].astype("string")
         _replace_sentinel_with_nan_in_place(
@@ -98,9 +103,9 @@ class PhosphoPreprocessor:
         gene_col: str = PHOSPHO_GENE_COLUMN,
         site_col: str = GENE_P_SITE_COLUMN,
         localization_col: str = LOCALIZATION_PROB_COLUMN,
-        localization_threshold: float = 0.75,
+        localization_threshold: float = DEFAULT_LOCALIZATION_THRESHOLD,
         sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
-        min_observed: int = 4,
+        min_observed: int = DEFAULT_MIN_OBSERVED_VALUES,
     ) -> pd.DataFrame:
         phospho = phospho_df.copy()
         return self.prepare_owned(
@@ -120,9 +125,9 @@ class PhosphoPreprocessor:
         gene_col: str = PHOSPHO_GENE_COLUMN,
         site_col: str = GENE_P_SITE_COLUMN,
         localization_col: str = LOCALIZATION_PROB_COLUMN,
-        localization_threshold: float = 0.75,
+        localization_threshold: float = DEFAULT_LOCALIZATION_THRESHOLD,
         sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
-        min_observed: int = 4,
+        min_observed: int = DEFAULT_MIN_OBSERVED_VALUES,
     ) -> pd.DataFrame:
         phospho_df[gene_col] = phospho_df[gene_col].astype("string").str.upper()
         phospho_df[site_col] = phospho_df[site_col].astype("string")
@@ -164,7 +169,7 @@ class ProteinCorrectionService:
         *,
         phospho_gene_col: str = PHOSPHO_GENE_COLUMN,
         total_gene_col: str = TOTAL_GENE_COLUMN,
-        max_unmatched_fraction: float = 0.0,
+        max_unmatched_fraction: float = DEFAULT_MAX_UNMATCHED_FRACTION,
     ) -> pd.DataFrame:
         return run_protein_correction(
             df_phospho=phospho_df,
@@ -184,7 +189,7 @@ class ProteinCorrectionService:
         *,
         phospho_gene_col: str = PHOSPHO_GENE_COLUMN,
         total_gene_col: str = TOTAL_GENE_COLUMN,
-        max_unmatched_fraction: float = 0.0,
+        max_unmatched_fraction: float = DEFAULT_MAX_UNMATCHED_FRACTION,
     ) -> pd.DataFrame:
         return run_protein_correction_owned(
             df_phospho=phospho_df,

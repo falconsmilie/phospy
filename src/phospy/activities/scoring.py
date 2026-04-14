@@ -4,6 +4,11 @@ import numpy as np
 import pandas as pd
 
 from ..internal.constants import SITE_MATRIX_ID_COLUMN
+from ..internal.defaults import (
+    DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
+    DEFAULT_KINASE_ACTIVITY_THRESHOLD,
+    DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
+)
 from ..validation.requests.analysis import (
     AnalysisInputs,
     KinaseActivityRequest,
@@ -14,8 +19,8 @@ from ..validation.requests.analysis import (
 def compute_weighted_kinase_activity(
     pred_mat: pd.DataFrame,
     phospho_matrix: pd.DataFrame,
-    top_n_substrates: int = 20,
-    min_substrates: int = 3,
+    top_n_substrates: int = DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
+    min_substrates: int = DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
 ) -> pd.DataFrame:
     """Compute weighted downstream kinase activity scores.
 
@@ -41,7 +46,7 @@ def compute_weighted_kinase_activity(
 
 def build_kinase_target_table(
     pred_mat: pd.DataFrame,
-    threshold: float = 0.6,
+    threshold: float = DEFAULT_KINASE_ACTIVITY_THRESHOLD,
 ) -> pd.DataFrame:
     """Materialize a kinase-target edge table for reporting and export."""
 
@@ -58,7 +63,7 @@ def build_kinase_target_table(
 
 def count_predicted_targets(
     pred_mat: pd.DataFrame,
-    threshold: float = 0.6,
+    threshold: float = DEFAULT_KINASE_ACTIVITY_THRESHOLD,
 ) -> pd.Series:
     """Count predicted kinase targets using matrix-native thresholding."""
 
@@ -72,8 +77,8 @@ def count_predicted_targets(
 def compute_ksea_scores(
     pred_mat: pd.DataFrame,
     phospho_matrix: pd.DataFrame,
-    threshold: float = 0.6,
-    min_substrates: int = 3,
+    threshold: float = DEFAULT_KINASE_ACTIVITY_THRESHOLD,
+    min_substrates: int = DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
 ) -> tuple[pd.DataFrame, pd.Series]:
     """Compute KSEA-style downstream kinase scores.
 

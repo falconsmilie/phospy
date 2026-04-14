@@ -4,6 +4,16 @@ import argparse
 
 from .api.contracts import DatasetLoadOptions, KinaseActivityConfig
 from .errors import RequestValidationError
+from .internal.defaults import (
+    DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
+    DEFAULT_KINASE_ACTIVITY_THRESHOLD,
+    DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
+    DEFAULT_LOCALIZATION_THRESHOLD,
+    DEFAULT_MAX_UNMATCHED_FRACTION,
+    DEFAULT_MIN_OBSERVED_VALUES,
+    DEFAULT_PHOSPHO_SENTINEL,
+    DEFAULT_TOTAL_SENTINEL,
+)
 from .internal.pipeline import PipelineRunner
 from .preprocessing import CorePreprocessingConfig
 
@@ -26,49 +36,49 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--localization-threshold",
         type=float,
-        default=0.75,
+        default=DEFAULT_LOCALIZATION_THRESHOLD,
         help="Minimum localisation probability to retain a phosphosite.",
     )
     parser.add_argument(
         "--min-observed",
         type=int,
-        default=4,
+        default=DEFAULT_MIN_OBSERVED_VALUES,
         help="Minimum number of observed values required per row.",
     )
     parser.add_argument(
         "--total-sentinel",
         type=float,
-        default=10.0,
+        default=DEFAULT_TOTAL_SENTINEL,
         help="Sentinel value to treat as missing in the total proteome table.",
     )
     parser.add_argument(
         "--phospho-sentinel",
         type=float,
-        default=12.0,
+        default=DEFAULT_PHOSPHO_SENTINEL,
         help="Sentinel value to treat as missing in the phosphoproteome table.",
     )
     parser.add_argument(
         "--kinase-activity-threshold",
         type=float,
-        default=0.6,
+        default=DEFAULT_KINASE_ACTIVITY_THRESHOLD,
         help="Score threshold used for downstream kinase activity summaries.",
     )
     parser.add_argument(
         "--kinase-activity-min-substrates",
         type=int,
-        default=3,
+        default=DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
         help="Minimum substrate count used for downstream kinase activity summaries.",
     )
     parser.add_argument(
         "--kinase-activity-top-n-substrates",
         type=int,
-        default=20,
+        default=DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
         help="Top-N substrates used for weighted downstream kinase activity summaries.",
     )
     parser.add_argument(
         "--max-unmatched-fraction",
         type=float,
-        default=0.0,
+        default=DEFAULT_MAX_UNMATCHED_FRACTION,
         help=(
             "Maximum allowed fraction of phosphosite rows that may be dropped "
             "during protein correction because no matching protein row exists."

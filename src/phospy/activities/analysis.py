@@ -7,6 +7,11 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from ..internal.defaults import (
+    DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
+    DEFAULT_KINASE_ACTIVITY_THRESHOLD,
+    DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
+)
 from ..io import load_pred_mat
 from ..io.writers import KinaseActivityResultWriter, KinaseActivityWriter
 from ..validation.requests.analysis import AnalysisInputs, validate_analysis_request
@@ -74,9 +79,9 @@ class KinaseActivityAnalyzer:
         *,
         pred_mat: pd.DataFrame | PredMatResult,
         phospho_matrix: pd.DataFrame,
-        threshold: float = 0.6,
-        min_substrates: int = 3,
-        top_n_substrates: int = 20,
+        threshold: float = DEFAULT_KINASE_ACTIVITY_THRESHOLD,
+        min_substrates: int = DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
+        top_n_substrates: int = DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
     ) -> AnalysisInputs:
         return validate_analysis_request(
             pred_mat=pred_mat,
@@ -90,9 +95,9 @@ class KinaseActivityAnalyzer:
         self,
         pred_mat: pd.DataFrame | PredMatResult,
         phospho_matrix: pd.DataFrame,
-        threshold: float = 0.6,
-        min_substrates: int = 3,
-        top_n_substrates: int = 20,
+        threshold: float = DEFAULT_KINASE_ACTIVITY_THRESHOLD,
+        min_substrates: int = DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
+        top_n_substrates: int = DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
     ) -> KinaseActivityResult:
         """Compute downstream kinase summaries from raw public inputs."""
 

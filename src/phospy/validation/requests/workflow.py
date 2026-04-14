@@ -14,6 +14,14 @@ from pydantic import (
 )
 
 from ...errors import RequestValidationError
+from ...internal.defaults import (
+    DEFAULT_MOTIF_FLANK_SIZE,
+    DEFAULT_PREDICTION_ENSEMBLE_SIZE,
+    DEFAULT_PREDICTION_INCLUSION,
+    DEFAULT_PREDICTION_N_ITERATIONS,
+    DEFAULT_PREDICTION_SCORE_THRESHOLD,
+    DEFAULT_PREDICTION_TOP,
+)
 from ...internal.types import PredictionSvmMode
 from ...motifs import KinaseMotifScorer
 from ...profiles import KinaseProfilePolicy
@@ -38,11 +46,13 @@ class KinaseWorkflowRequest(BaseModel):
     min_substrates: int = Field(default=1, ge=1)
     min_motif_size: int = Field(default=1, ge=1)
     allow_profile_only_fallback: bool = False
-    ensemble_size: int = Field(default=10, ge=1)
-    top: int = Field(default=50, ge=1)
-    score_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
-    inclusion: int = Field(default=20, ge=1)
-    n_iterations: int = Field(default=5, ge=1)
+    ensemble_size: int = Field(default=DEFAULT_PREDICTION_ENSEMBLE_SIZE, ge=1)
+    top: int = Field(default=DEFAULT_PREDICTION_TOP, ge=1)
+    score_threshold: float = Field(
+        default=DEFAULT_PREDICTION_SCORE_THRESHOLD, ge=0.0, le=1.0
+    )
+    inclusion: int = Field(default=DEFAULT_PREDICTION_INCLUSION, ge=1)
+    n_iterations: int = Field(default=DEFAULT_PREDICTION_N_ITERATIONS, ge=1)
     random_state: int | None = None
     svm_mode: PredictionSvmMode | None = None
     profile_policy: KinaseProfilePolicy = Field(default_factory=KinaseProfilePolicy)
@@ -198,15 +208,15 @@ def validate_workflow_request(
     min_substrates: int = 1,
     min_motif_size: int = 1,
     allow_profile_only_fallback: bool = False,
-    ensemble_size: int = 10,
-    top: int = 50,
-    score_threshold: float = 0.8,
-    inclusion: int = 20,
-    n_iterations: int = 5,
+    ensemble_size: int = DEFAULT_PREDICTION_ENSEMBLE_SIZE,
+    top: int = DEFAULT_PREDICTION_TOP,
+    score_threshold: float = DEFAULT_PREDICTION_SCORE_THRESHOLD,
+    inclusion: int = DEFAULT_PREDICTION_INCLUSION,
+    n_iterations: int = DEFAULT_PREDICTION_N_ITERATIONS,
     random_state: int | None = None,
     svm_mode: PredictionSvmMode | None = None,
     profile_policy: KinaseProfilePolicy | None = None,
-    flank_size: int = 7,
+    flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
     default_svm_mode: PredictionSvmMode = "default",
     context: str = "Kinase workflow inputs",
 ) -> WorkflowInputs:
@@ -249,7 +259,7 @@ def validate_workflow_inputs(
     motif_sequences: Mapping[str, Sequence[str]] | None = None,
     *,
     reference_bundle: ReferenceBundle | None = None,
-    flank_size: int = 7,
+    flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
     context: str = "Kinase workflow inputs",
 ) -> pd.DataFrame:
     """Validate workflow matrix compatibility without building runtime inputs."""

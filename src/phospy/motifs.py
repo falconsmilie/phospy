@@ -10,6 +10,7 @@ from .errors import (
     InputCompatibilityError,
     TableSchemaError,
 )
+from .internal.defaults import DEFAULT_MOTIF_FLANK_SIZE
 from .validation.values.numeric import validate_non_negative_int, validate_positive_int
 
 AMINO_ACIDS: tuple[str, ...] = (
@@ -76,7 +77,7 @@ class KinaseMotifScorer:
         self,
         motif_frequency_matrices: Mapping[str, pd.DataFrame],
         motif_sizes: pd.Series,
-        flank_size: int = 7,
+        flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
     ) -> None:
         validate_non_negative_int(flank_size, name="flank_size")
         if not motif_frequency_matrices:
@@ -115,7 +116,7 @@ class KinaseMotifScorer:
     def from_substrate_sequences(
         cls,
         motif_sequences: Mapping[str, Sequence[str]],
-        flank_size: int = 7,
+        flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
     ) -> KinaseMotifScorer:
         validated_library = build_validated_motif_library(
             motif_sequences=motif_sequences,
@@ -174,7 +175,7 @@ class KinaseMotifScorer:
 
 def create_frequency_matrix(
     substrates_seq: Sequence[str] | pd.Series,
-    flank_size: int = 7,
+    flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
 ) -> pd.DataFrame:
     """Create an amino-acid frequency matrix from substrate sequences."""
 
@@ -189,7 +190,7 @@ def create_frequency_matrix(
 def build_validated_motif_library(
     motif_sequences: Mapping[str, Sequence[str]],
     *,
-    flank_size: int = 7,
+    flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
     context: str = "motif_sequences",
 ) -> ValidatedMotifLibrary:
     validate_non_negative_int(flank_size, name="flank_size")
@@ -249,7 +250,7 @@ def score_phosphosite_motifs(
     motif_sizes: pd.Series,
     site_index: Sequence[str] | None = None,
     min_motif_size: int = 1,
-    flank_size: int = 7,
+    flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
 ) -> MotifScoringResult:
     scorer = KinaseMotifScorer(
         motif_frequency_matrices=motif_frequency_matrices,
@@ -383,7 +384,7 @@ def _coerce_frequency_matrix(frequency_mat: pd.DataFrame) -> pd.DataFrame:
 def _coerce_sequence_series(
     seqs: Mapping[str, str] | Sequence[str] | pd.Series,
     site_index: Sequence[str] | None = None,
-    flank_size: int | None = 7,
+    flank_size: int | None = DEFAULT_MOTIF_FLANK_SIZE,
 ) -> pd.Series:
     if isinstance(seqs, pd.Series):
         series = seqs

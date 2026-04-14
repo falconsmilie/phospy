@@ -5,6 +5,16 @@ from dataclasses import dataclass, field
 
 from ..datasets.schema import DatasetSchema
 from ..internal.constants import ComparisonSpec
+from ..internal.defaults import (
+    DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
+    DEFAULT_KINASE_ACTIVITY_THRESHOLD,
+    DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
+    DEFAULT_PREDICTION_ENSEMBLE_SIZE,
+    DEFAULT_PREDICTION_INCLUSION,
+    DEFAULT_PREDICTION_N_ITERATIONS,
+    DEFAULT_PREDICTION_SCORE_THRESHOLD,
+    DEFAULT_PREDICTION_TOP,
+)
 from ..internal.types import (
     PredictionSvmMode,
     SignalomeAssignmentPolicy,
@@ -66,11 +76,11 @@ class PredictionRunConfig:
     min_substrates: int = 1
     min_motif_size: int = 1
     allow_profile_only_fallback: bool = False
-    ensemble_size: int = 10
-    top: int = 50
-    score_threshold: float = 0.8
-    inclusion: int = 20
-    n_iterations: int = 5
+    ensemble_size: int = DEFAULT_PREDICTION_ENSEMBLE_SIZE
+    top: int = DEFAULT_PREDICTION_TOP
+    score_threshold: float = DEFAULT_PREDICTION_SCORE_THRESHOLD
+    inclusion: int = DEFAULT_PREDICTION_INCLUSION
+    n_iterations: int = DEFAULT_PREDICTION_N_ITERATIONS
     random_state: int | None = None
     svm_mode: PredictionSvmMode | None = None
     profile_policy: KinaseProfilePolicy = field(default_factory=KinaseProfilePolicy)
@@ -103,9 +113,9 @@ class PredictionRunConfig:
 class KinaseActivityConfig:
     """Downstream kinase activity analysis options."""
 
-    threshold: float = 0.6
-    min_substrates: int = 3
-    top_n_substrates: int = 20
+    threshold: float = DEFAULT_KINASE_ACTIVITY_THRESHOLD
+    min_substrates: int = DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES
+    top_n_substrates: int = DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES
 
     def __post_init__(self) -> None:
         validate_fraction(self.threshold, name="threshold")

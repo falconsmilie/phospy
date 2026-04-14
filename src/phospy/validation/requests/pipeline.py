@@ -19,6 +19,16 @@ from ...datasets.models import PhosphoDataset
 from ...datasets.schema import DatasetSchema
 from ...errors import InputCompatibilityError, RequestValidationError
 from ...internal.constants import ComparisonSpec
+from ...internal.defaults import (
+    DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
+    DEFAULT_KINASE_ACTIVITY_THRESHOLD,
+    DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
+    DEFAULT_LOCALIZATION_THRESHOLD,
+    DEFAULT_MAX_UNMATCHED_FRACTION,
+    DEFAULT_MIN_OBSERVED_VALUES,
+    DEFAULT_PHOSPHO_SENTINEL,
+    DEFAULT_TOTAL_SENTINEL,
+)
 from ...matrices import SiteMatrixPolicy
 from ...preprocessing.core import (
     CorePreprocessingConfig,
@@ -42,15 +52,33 @@ class CorePipelineRequest(BaseModel):
     phospho_encoding: str | None = None
     dataset_schema: DatasetSchema = Field(default_factory=DatasetSchema, alias="schema")
     comparisons: tuple[ComparisonSpec, ...] | None = None
-    localization_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
-    min_observed: int = Field(default=4, ge=1)
-    total_sentinel: float = 10.0
-    phospho_sentinel: float = 12.0
-    max_unmatched_fraction: float = Field(default=0.0, ge=0.0, le=1.0)
+    localization_threshold: float = Field(
+        default=DEFAULT_LOCALIZATION_THRESHOLD,
+        ge=0.0,
+        le=1.0,
+    )
+    min_observed: int = Field(default=DEFAULT_MIN_OBSERVED_VALUES, ge=1)
+    total_sentinel: float = DEFAULT_TOTAL_SENTINEL
+    phospho_sentinel: float = DEFAULT_PHOSPHO_SENTINEL
+    max_unmatched_fraction: float = Field(
+        default=DEFAULT_MAX_UNMATCHED_FRACTION,
+        ge=0.0,
+        le=1.0,
+    )
     site_matrix_policy: SiteMatrixPolicy = Field(default_factory=SiteMatrixPolicy)
-    kinase_activity_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
-    kinase_activity_min_substrates: int = Field(default=3, ge=1)
-    kinase_activity_top_n_substrates: int = Field(default=20, ge=1)
+    kinase_activity_threshold: float = Field(
+        default=DEFAULT_KINASE_ACTIVITY_THRESHOLD,
+        ge=0.0,
+        le=1.0,
+    )
+    kinase_activity_min_substrates: int = Field(
+        default=DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
+        ge=1,
+    )
+    kinase_activity_top_n_substrates: int = Field(
+        default=DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
+        ge=1,
+    )
 
     @field_validator("total_path", "phospho_path", "pred_mat_path")
     @classmethod
@@ -111,15 +139,15 @@ def build_pipeline_inputs(
     dataset: PhosphoDataset,
     pred_mat: pd.DataFrame | None = None,
     preprocessing_config: CorePreprocessingConfig | None = None,
-    localization_threshold: float = 0.75,
-    min_observed: int = 4,
-    max_unmatched_fraction: float = 0.0,
-    total_sentinel: float = 10.0,
-    phospho_sentinel: float = 12.0,
+    localization_threshold: float = DEFAULT_LOCALIZATION_THRESHOLD,
+    min_observed: int = DEFAULT_MIN_OBSERVED_VALUES,
+    max_unmatched_fraction: float = DEFAULT_MAX_UNMATCHED_FRACTION,
+    total_sentinel: float = DEFAULT_TOTAL_SENTINEL,
+    phospho_sentinel: float = DEFAULT_PHOSPHO_SENTINEL,
     site_matrix_policy: SiteMatrixPolicy | Mapping[str, object] | None = None,
-    kinase_activity_threshold: float = 0.6,
-    kinase_activity_min_substrates: int = 3,
-    kinase_activity_top_n_substrates: int = 20,
+    kinase_activity_threshold: float = DEFAULT_KINASE_ACTIVITY_THRESHOLD,
+    kinase_activity_min_substrates: int = DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
+    kinase_activity_top_n_substrates: int = DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
 ) -> PipelineInputs:
     """Build trusted pipeline inputs from already-owned dataset state."""
 
@@ -182,15 +210,15 @@ def validate_pipeline_construction_request(
     dataset: PhosphoDataset,
     pred_mat: pd.DataFrame | PredMatResult | None = None,
     preprocessing_config: CorePreprocessingConfig | None = None,
-    localization_threshold: float = 0.75,
-    min_observed: int = 4,
-    max_unmatched_fraction: float = 0.0,
-    total_sentinel: float = 10.0,
-    phospho_sentinel: float = 12.0,
+    localization_threshold: float = DEFAULT_LOCALIZATION_THRESHOLD,
+    min_observed: int = DEFAULT_MIN_OBSERVED_VALUES,
+    max_unmatched_fraction: float = DEFAULT_MAX_UNMATCHED_FRACTION,
+    total_sentinel: float = DEFAULT_TOTAL_SENTINEL,
+    phospho_sentinel: float = DEFAULT_PHOSPHO_SENTINEL,
     site_matrix_policy: SiteMatrixPolicy | Mapping[str, object] | None = None,
-    kinase_activity_threshold: float = 0.6,
-    kinase_activity_min_substrates: int = 3,
-    kinase_activity_top_n_substrates: int = 20,
+    kinase_activity_threshold: float = DEFAULT_KINASE_ACTIVITY_THRESHOLD,
+    kinase_activity_min_substrates: int = DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
+    kinase_activity_top_n_substrates: int = DEFAULT_KINASE_ACTIVITY_TOP_N_SUBSTRATES,
 ) -> PipelineInputs:
     """Validate raw in-memory inputs for pipeline construction."""
 

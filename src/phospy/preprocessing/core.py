@@ -8,13 +8,18 @@ import pandas as pd
 from ..datasets.schema import DatasetSchema
 from ..errors import InputCompatibilityError
 from ..internal.constants import (
-    DEFAULT_PHOSPHO_SENTINEL,
-    DEFAULT_TOTAL_SENTINEL,
     GENE_P_SITE_COLUMN,
     LOCALIZATION_PROB_COLUMN,
     PHOSPHO_GENE_COLUMN,
     TOTAL_GENE_COLUMN,
     ComparisonSpec,
+)
+from ..internal.defaults import (
+    DEFAULT_LOCALIZATION_THRESHOLD,
+    DEFAULT_MAX_UNMATCHED_FRACTION,
+    DEFAULT_MIN_OBSERVED_VALUES,
+    DEFAULT_PHOSPHO_SENTINEL,
+    DEFAULT_TOTAL_SENTINEL,
 )
 from .services import (
     PhosphoPreprocessor,
@@ -44,22 +49,22 @@ control over the core orchestration.
 
 @dataclass(frozen=True, slots=True)
 class CorePreprocessingConfig:
-    localization_threshold: float = 0.75
-    min_observed: int = 4
+    localization_threshold: float = DEFAULT_LOCALIZATION_THRESHOLD
+    min_observed: int = DEFAULT_MIN_OBSERVED_VALUES
     total_sentinel: float = DEFAULT_TOTAL_SENTINEL
     phospho_sentinel: float = DEFAULT_PHOSPHO_SENTINEL
-    max_unmatched_fraction: float = 0.0
+    max_unmatched_fraction: float = DEFAULT_MAX_UNMATCHED_FRACTION
     site_matrix_policy: SiteMatrixPolicy = field(default_factory=SiteMatrixPolicy)
 
 
 def resolve_core_preprocessing_config(
     *,
     config: CorePreprocessingConfig | None = None,
-    localization_threshold: float = 0.75,
-    min_observed: int = 4,
+    localization_threshold: float = DEFAULT_LOCALIZATION_THRESHOLD,
+    min_observed: int = DEFAULT_MIN_OBSERVED_VALUES,
     total_sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
     phospho_sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
-    max_unmatched_fraction: float = 0.0,
+    max_unmatched_fraction: float = DEFAULT_MAX_UNMATCHED_FRACTION,
     site_matrix_policy: SiteMatrixPolicy | Mapping[str, object] | None = None,
     context: str,
     config_param_name: str,
@@ -199,7 +204,7 @@ class CoreProcessor:
         *,
         gene_col: str = TOTAL_GENE_COLUMN,
         sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
-        min_observed: int = 4,
+        min_observed: int = DEFAULT_MIN_OBSERVED_VALUES,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         return self.total_preprocessor.prepare(
             total_df,
@@ -215,9 +220,9 @@ class CoreProcessor:
         gene_col: str = PHOSPHO_GENE_COLUMN,
         site_col: str = GENE_P_SITE_COLUMN,
         localization_col: str = LOCALIZATION_PROB_COLUMN,
-        localization_threshold: float = 0.75,
+        localization_threshold: float = DEFAULT_LOCALIZATION_THRESHOLD,
         sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
-        min_observed: int = 4,
+        min_observed: int = DEFAULT_MIN_OBSERVED_VALUES,
     ) -> pd.DataFrame:
         return self.phospho_preprocessor.prepare(
             phospho_df,
@@ -236,7 +241,7 @@ class CoreProcessor:
         *,
         phospho_gene_col: str = PHOSPHO_GENE_COLUMN,
         total_gene_col: str = TOTAL_GENE_COLUMN,
-        max_unmatched_fraction: float = 0.0,
+        max_unmatched_fraction: float = DEFAULT_MAX_UNMATCHED_FRACTION,
     ) -> pd.DataFrame:
         return self.protein_correction_service.correct(
             phospho_df,

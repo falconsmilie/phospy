@@ -11,6 +11,7 @@ import pandas as pd
 from ..datasets.schema import DatasetSchema
 from ..errors import PhospyValidationError
 from ..internal.constants import LOCALIZATION_PROB_COLUMN, ComparisonSpec
+from ..internal.defaults import DEFAULT_LOCALIZATION_THRESHOLD
 from ..validation.schema.frames import (
     require_columns,
     require_numeric_columns,
@@ -105,7 +106,7 @@ def filter_localized_sites(
     df: pd.DataFrame,
     *,
     localization_col: str = LOCALIZATION_PROB_COLUMN,
-    threshold: float = 0.75,
+    threshold: float = DEFAULT_LOCALIZATION_THRESHOLD,
     return_summary: Literal[False] = False,
 ) -> pd.DataFrame: ...
 
@@ -115,7 +116,7 @@ def filter_localized_sites(
     df: pd.DataFrame,
     *,
     localization_col: str = LOCALIZATION_PROB_COLUMN,
-    threshold: float = 0.75,
+    threshold: float = DEFAULT_LOCALIZATION_THRESHOLD,
     return_summary: Literal[True],
 ) -> LocalizationFilterResult: ...
 
@@ -124,7 +125,7 @@ def filter_localized_sites(
     df: pd.DataFrame,
     *,
     localization_col: str = LOCALIZATION_PROB_COLUMN,
-    threshold: float = 0.75,
+    threshold: float = DEFAULT_LOCALIZATION_THRESHOLD,
     return_summary: bool = False,
 ) -> pd.DataFrame | LocalizationFilterResult:
     """Filter phosphosites by localisation probability.

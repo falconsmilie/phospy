@@ -7,6 +7,7 @@ from typing import Generic, TypeVar
 import pandas as pd
 
 from ..api.contracts import PredictionRunConfig
+from ..internal.defaults import DEFAULT_MOTIF_FLANK_SIZE
 from ..internal.types import PredictionSvmMode
 from ..motifs import MotifScoringResult
 from ..prediction.engines import (
@@ -63,7 +64,7 @@ class _BaseKinaseWorkflow(Generic[_WorkflowResultT]):
 
     def __init__(
         self,
-        flank_size: int = 7,
+        flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
         kernel: str = "rbf",
         svm_mode: PredictionSvmMode = "default",
     ) -> None:
