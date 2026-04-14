@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from .clustering import SignalomeModuleSelectionDiagnostics
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ExpandedSignalome:
     """One kinase-of-interest view over the global signalome state."""
 
@@ -25,26 +25,29 @@ class ExpandedSignalome:
     site_assignments: pd.DataFrame
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class SignalomeModules:
     """Module-centric wide and long signalome views.
 
     ``module_table`` is the traditional module-by-kinase percentage table.
     ``kinase_module_relationships`` is the graph-friendly long table derived from
     the non-zero cells of ``module_table``.
+
+    The wrapped frames are mutable owned state. Accessors return the owned
+    frames by default; pass ``copy=True`` for detached safe copies.
     """
 
     module_table: pd.DataFrame
     kinase_module_relationships: pd.DataFrame
 
-    def to_frame(self, *, copy: bool = True) -> pd.DataFrame:
+    def to_frame(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the wide signalome module table."""
 
         if copy:
             return self.module_table.copy(deep=True)
         return self.module_table
 
-    def to_relationship_table(self, *, copy: bool = True) -> pd.DataFrame:
+    def to_relationship_table(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the long kinase-to-module relationship table."""
 
         if copy:
@@ -52,9 +55,13 @@ class SignalomeModules:
         return self.kinase_module_relationships
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class SignalomeAssignments:
-    """Site- and protein-level signalome assignments."""
+    """Site- and protein-level signalome assignments.
+
+    The wrapped frames are mutable owned state. Accessors return the owned
+    frames by default; pass ``copy=True`` for detached safe copies.
+    """
 
     site_assignments: pd.DataFrame
     protein_assignments: pd.DataFrame
@@ -65,14 +72,14 @@ class SignalomeAssignments:
 
         return self.protein_assignments.loc[:, "module_id"]
 
-    def sites(self, *, copy: bool = True) -> pd.DataFrame:
+    def sites(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the site assignment table."""
 
         if copy:
             return self.site_assignments.copy(deep=True)
         return self.site_assignments
 
-    def proteins(self, *, copy: bool = True) -> pd.DataFrame:
+    def proteins(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the protein assignment table."""
 
         if copy:
@@ -80,30 +87,34 @@ class SignalomeAssignments:
         return self.protein_assignments
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class SignalomeKinaseNetwork:
-    """Network-centric signalome outputs."""
+    """Network-centric signalome outputs.
+
+    The wrapped frames are mutable owned state. Accessors return the owned
+    frames by default; pass ``copy=True`` for detached safe copies.
+    """
 
     correlation_matrix: pd.DataFrame
     node_table: pd.DataFrame
     edge_table: pd.DataFrame
     neighbor_map: dict[str, tuple[str, ...]]
 
-    def adjacency(self, *, copy: bool = True) -> pd.DataFrame:
+    def adjacency(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the kinase correlation matrix used to derive network edges."""
 
         if copy:
             return self.correlation_matrix.copy(deep=True)
         return self.correlation_matrix
 
-    def nodes(self, *, copy: bool = True) -> pd.DataFrame:
+    def nodes(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the kinase network node table."""
 
         if copy:
             return self.node_table.copy(deep=True)
         return self.node_table
 
-    def edges(self, *, copy: bool = True) -> pd.DataFrame:
+    def edges(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the kinase network edge table."""
 
         if copy:
@@ -206,26 +217,45 @@ class SignalomeResult:
 
         return self.network.edge_table
 
-    def to_frames(self, *, include_inputs: bool = False) -> dict[str, pd.DataFrame]:
-        """Return the canonical named signalome tables."""
+    def to_frames(
+        self,
+        *,
+        include_inputs: bool = False,
+        copy: bool = False,
+    ) -> dict[str, pd.DataFrame]:
+        """Return the canonical named signalome tables.
+
+        Access is zero-copy by default for internal pipelines and plotting
+        adapters. Pass ``copy=True`` when callers need detached frames.
+        """
 
         frames: dict[str, pd.DataFrame] = {
-            "signalome_modules": self.signalome_modules.copy(deep=True),
-            "kinase_module_relationships": self.kinase_module_relationships.copy(
-                deep=True
+            "signalome_modules": self.modules.to_frame(copy=copy),
+            "kinase_module_relationships": self.modules.to_relationship_table(
+                copy=copy
             ),
-            "site_assignments": self.site_assignments.copy(deep=True),
-            "protein_assignments": self.protein_assignments.copy(deep=True),
-            "kinase_network_nodes": self.kinase_network_nodes.copy(deep=True),
-            "kinase_network_edges": self.kinase_network_edges.copy(deep=True),
-            "kinase_correlation_matrix": self.kinase_correlation_matrix.copy(deep=True),
+            "site_assignments": self.assignments.sites(copy=copy),
+            "protein_assignments": self.assignments.proteins(copy=copy),
+            "kinase_network_nodes": self.network.nodes(copy=copy),
+            "kinase_network_edges": self.network.edges(copy=copy),
+            "kinase_correlation_matrix": self.network.adjacency(copy=copy),
         }
         if include_inputs:
             frames.update(
                 {
-                    "scoring_matrix": self.scoring_matrix.copy(deep=True),
-                    "pred_mat": self.pred_mat.copy(deep=True),
-                    "expression_matrix": self.expression_matrix.copy(deep=True),
+                    "scoring_matrix": (
+                        self.scoring_matrix.copy(deep=True)
+                        if copy
+                        else self.scoring_matrix
+                    ),
+                    "pred_mat": self.pred_mat.copy(deep=True)
+                    if copy
+                    else self.pred_mat,
+                    "expression_matrix": (
+                        self.expression_matrix.copy(deep=True)
+                        if copy
+                        else self.expression_matrix
+                    ),
                 }
             )
         return frames
@@ -236,7 +266,7 @@ class SignalomeResult:
         output_dir = Path(directory)
         output_dir.mkdir(parents=True, exist_ok=True)
         written: dict[str, Path] = {}
-        for name, frame in self.to_frames().items():
+        for name, frame in self.to_frames(copy=False).items():
             path = output_dir / f"{name}.csv"
             if name == "site_assignments":
                 serialize_site_assignments_for_export(frame).to_csv(path)

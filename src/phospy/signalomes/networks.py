@@ -42,12 +42,14 @@ class SignalomeNetworkEdge:
     target_is_kinase_of_interest: bool
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class SignalomeNetworkData:
     """Graph-friendly kinase-network data derived from a signalome result.
 
     This model is intentionally render-free. It exposes deterministic node,
     edge, and adjacency outputs that graph or plotting layers can consume.
+    Accessors return owned frames by default; pass ``copy=True`` for detached
+    copies.
     """
 
     adjacency_matrix: pd.DataFrame
@@ -56,28 +58,28 @@ class SignalomeNetworkData:
     node_models: tuple[SignalomeNetworkNode, ...]
     edge_models: tuple[SignalomeNetworkEdge, ...]
 
-    def adjacency(self, *, copy: bool = True) -> pd.DataFrame:
+    def adjacency(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the canonical kinase adjacency matrix."""
 
         if copy:
             return self.adjacency_matrix.copy(deep=True)
         return self.adjacency_matrix
 
-    def nodes(self, *, copy: bool = True) -> pd.DataFrame:
+    def nodes(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the canonical kinase node table."""
 
         if copy:
             return self.node_table.copy(deep=True)
         return self.node_table
 
-    def edges(self, *, copy: bool = True) -> pd.DataFrame:
+    def edges(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the canonical kinase edge list."""
 
         if copy:
             return self.edge_table.copy(deep=True)
         return self.edge_table
 
-    def to_frames(self, *, copy: bool = True) -> dict[str, pd.DataFrame]:
+    def to_frames(self, *, copy: bool = False) -> dict[str, pd.DataFrame]:
         """Return the named graph-friendly network tables."""
 
         return {
@@ -93,7 +95,7 @@ class SignalomeNetworkData:
         target_dir.mkdir(parents=True, exist_ok=True)
 
         written_paths: dict[str, Path] = {}
-        for name, frame in self.to_frames(copy=True).items():
+        for name, frame in self.to_frames(copy=False).items():
             path = target_dir / f"{name}.csv"
             write_index = not isinstance(frame.index, pd.RangeIndex)
             frame.to_csv(
@@ -112,7 +114,7 @@ def build_signalome_network_data(
 ) -> SignalomeNetworkData:
     """Build graph-friendly kinase-network data from a canonical signalome result."""
 
-    adjacency_matrix = signalome_result.network.adjacency(copy=True)
+    adjacency_matrix = signalome_result.network.adjacency(copy=False)
     node_table, node_models = _build_node_outputs(signalome_result)
     edge_table, edge_models = _build_edge_outputs(signalome_result)
     return SignalomeNetworkData(
@@ -127,8 +129,8 @@ def build_signalome_network_data(
 def _build_node_outputs(
     signalome_result: SignalomeResult,
 ) -> tuple[pd.DataFrame, tuple[SignalomeNetworkNode, ...]]:
-    network_nodes = signalome_result.network.nodes(copy=True)
-    relationships = signalome_result.modules.to_relationship_table(copy=True)
+    network_nodes = signalome_result.network.nodes(copy=False)
+    relationships = signalome_result.modules.to_relationship_table(copy=False)
     kinases_of_interest = set(signalome_result.kinases_of_interest)
     kinase_order = [
         str(kinase) for kinase in signalome_result.signalome_modules.columns
@@ -185,8 +187,8 @@ def _build_node_outputs(
 def _build_edge_outputs(
     signalome_result: SignalomeResult,
 ) -> tuple[pd.DataFrame, tuple[SignalomeNetworkEdge, ...]]:
-    network_edges = signalome_result.network.edges(copy=True)
-    relationships = signalome_result.modules.to_relationship_table(copy=True)
+    network_edges = signalome_result.network.edges(copy=False)
+    relationships = signalome_result.modules.to_relationship_table(copy=False)
     kinases_of_interest = set(signalome_result.kinases_of_interest)
 
     if relationships.empty:

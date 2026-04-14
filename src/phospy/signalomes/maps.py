@@ -21,12 +21,13 @@ __all__ = [
 ]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class SignalomeMapData:
     """Serialisable map-ready plotting data derived from a signalome result.
 
     This model does not render charts. It exposes deterministic coordinate and
-    relationship tables that plotting or export layers can consume.
+    relationship tables that plotting or export layers can consume. Accessors
+    return owned frames by default; pass ``copy=True`` for detached copies.
     """
 
     module_positions: pd.DataFrame
@@ -34,35 +35,35 @@ class SignalomeMapData:
     kinase_positions: pd.DataFrame
     kinase_module_links: pd.DataFrame
 
-    def modules(self, *, copy: bool = True) -> pd.DataFrame:
+    def modules(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the canonical module-position table."""
 
         if copy:
             return self.module_positions.copy(deep=True)
         return self.module_positions
 
-    def sites(self, *, copy: bool = True) -> pd.DataFrame:
+    def sites(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the canonical site-position table."""
 
         if copy:
             return self.site_positions.copy(deep=True)
         return self.site_positions
 
-    def kinases(self, *, copy: bool = True) -> pd.DataFrame:
+    def kinases(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the canonical kinase-position table."""
 
         if copy:
             return self.kinase_positions.copy(deep=True)
         return self.kinase_positions
 
-    def links(self, *, copy: bool = True) -> pd.DataFrame:
+    def links(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the canonical kinase-to-module link table."""
 
         if copy:
             return self.kinase_module_links.copy(deep=True)
         return self.kinase_module_links
 
-    def to_frames(self, *, copy: bool = True) -> dict[str, pd.DataFrame]:
+    def to_frames(self, *, copy: bool = False) -> dict[str, pd.DataFrame]:
         """Return the named plotting tables that make up the map data."""
 
         return {
@@ -79,7 +80,7 @@ class SignalomeMapData:
         target_dir.mkdir(parents=True, exist_ok=True)
 
         written_paths: dict[str, Path] = {}
-        for name, frame in self.to_frames(copy=True).items():
+        for name, frame in self.to_frames(copy=False).items():
             path = target_dir / f"{name}.csv"
             write_index = not isinstance(frame.index, pd.RangeIndex)
             frame.to_csv(
@@ -113,10 +114,10 @@ def build_signalome_map_data(signalome_result: SignalomeResult) -> SignalomeMapD
 
 
 def _build_module_positions(signalome_result: SignalomeResult) -> pd.DataFrame:
-    module_table = signalome_result.modules.to_frame(copy=True).sort_index()
-    relationships = signalome_result.modules.to_relationship_table(copy=True)
-    site_assignments = signalome_result.assignments.sites(copy=True)
-    protein_assignments = signalome_result.assignments.proteins(copy=True)
+    module_table = signalome_result.modules.to_frame(copy=False).sort_index()
+    relationships = signalome_result.modules.to_relationship_table(copy=False)
+    site_assignments = signalome_result.assignments.sites(copy=False)
+    protein_assignments = signalome_result.assignments.proteins(copy=False)
 
     module_positions = pd.DataFrame(index=module_table.index.copy())
     module_positions.index.name = "module_id"
@@ -156,7 +157,7 @@ def _build_site_positions(
     signalome_result: SignalomeResult,
     module_positions: pd.DataFrame,
 ) -> pd.DataFrame:
-    site_assignments = signalome_result.assignments.sites(copy=True).reset_index()
+    site_assignments = signalome_result.assignments.sites(copy=False).reset_index()
     site_assignments = site_assignments.sort_values(
         ["module_id", "protein_id", "site_id"],
         ascending=[True, True, True],
@@ -256,8 +257,8 @@ def _build_kinase_positions(
     signalome_result: SignalomeResult,
     module_positions: pd.DataFrame,
 ) -> pd.DataFrame:
-    relationships = signalome_result.modules.to_relationship_table(copy=True)
-    network_nodes = signalome_result.network.nodes(copy=True)
+    relationships = signalome_result.modules.to_relationship_table(copy=False)
+    network_nodes = signalome_result.network.nodes(copy=False)
     kinases_of_interest = set(signalome_result.kinases_of_interest)
     kinase_order = [
         str(kinase) for kinase in signalome_result.signalome_modules.columns
@@ -329,7 +330,7 @@ def _build_kinase_module_links(
     module_positions: pd.DataFrame,
     kinase_positions: pd.DataFrame,
 ) -> pd.DataFrame:
-    relationships = signalome_result.modules.to_relationship_table(copy=True)
+    relationships = signalome_result.modules.to_relationship_table(copy=False)
     if relationships.empty:
         return pd.DataFrame(
             columns=[

@@ -243,6 +243,19 @@ def test_signalome_map_data_to_frames_and_csv_exports_stable_tables(
     pd.testing.assert_frame_equal(reloaded_links, map_data.links())
 
 
+def test_signalome_map_data_defaults_to_zero_copy_with_explicit_safe_copy() -> None:
+    map_data = _build_signalome_result().to_map_data()
+
+    shared_frames = map_data.to_frames(copy=False)
+    detached_frames = map_data.to_frames(copy=True)
+
+    assert SignalomeMapData.__dataclass_params__.frozen is False
+    assert shared_frames["signalome_map_modules"] is map_data.module_positions
+    assert shared_frames["signalome_map_sites"] is map_data.site_positions
+    assert detached_frames["signalome_map_modules"] is not map_data.module_positions
+    assert detached_frames["signalome_map_sites"] is not map_data.site_positions
+
+
 def test_signalome_map_demo_runs_end_to_end(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     module = _load_example_module(repo_root / "examples" / "signalome_map_demo.py")

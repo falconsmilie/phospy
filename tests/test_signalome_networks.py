@@ -167,6 +167,24 @@ def test_signalome_network_data_to_frames_and_csv_exports_stable_tables(
     pd.testing.assert_frame_equal(reloaded_adjacency, network_data.adjacency())
 
 
+def test_signalome_network_data_defaults_to_zero_copy_with_explicit_safe_copy() -> None:
+    network_data = _build_signalome_result_with_network_edge().to_network_data()
+
+    shared_frames = network_data.to_frames(copy=False)
+    detached_frames = network_data.to_frames(copy=True)
+
+    assert SignalomeNetworkData.__dataclass_params__.frozen is False
+    assert shared_frames["signalome_network_nodes"] is network_data.node_table
+    assert shared_frames["signalome_network_edges"] is network_data.edge_table
+    assert shared_frames["signalome_network_adjacency"] is network_data.adjacency_matrix
+    assert detached_frames["signalome_network_nodes"] is not network_data.node_table
+    assert detached_frames["signalome_network_edges"] is not network_data.edge_table
+    assert (
+        detached_frames["signalome_network_adjacency"]
+        is not network_data.adjacency_matrix
+    )
+
+
 def test_kinase_network_demo_runs_end_to_end(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[1]
     module = _load_example_module(repo_root / "examples" / "kinase_network_demo.py")

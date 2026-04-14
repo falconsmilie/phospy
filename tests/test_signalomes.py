@@ -1001,6 +1001,41 @@ def test_signalome_result_to_frames_returns_stable_named_outputs() -> None:
     ]
 
 
+def test_signalome_result_wrappers_with_pandas_state_are_not_frozen_dataclasses() -> (
+    None
+):
+    from phospy.signalomes import (
+        ExpandedSignalome,
+        SignalomeAssignments,
+        SignalomeKinaseNetwork,
+        SignalomeModules,
+    )
+
+    assert ExpandedSignalome.__dataclass_params__.frozen is False
+    assert SignalomeModules.__dataclass_params__.frozen is False
+    assert SignalomeAssignments.__dataclass_params__.frozen is False
+    assert SignalomeKinaseNetwork.__dataclass_params__.frozen is False
+
+
+def test_signalome_result_to_frames_supports_zero_copy_default_and_safe_copy() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A"],
+    )
+
+    shared_frames = result.to_frames(copy=False)
+    detached_frames = result.to_frames(copy=True)
+
+    assert shared_frames["signalome_modules"] is result.signalome_modules
+    assert shared_frames["site_assignments"] is result.site_assignments
+    assert detached_frames["signalome_modules"] is not result.signalome_modules
+    assert detached_frames["site_assignments"] is not result.site_assignments
+
+
 def test_signalome_result_to_csv_exports_canonical_tables(tmp_path: Path) -> None:
     phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
 
