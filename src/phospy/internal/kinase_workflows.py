@@ -1,21 +1,55 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Generic, TypeVar
 
 import pandas as pd
 
+from ..api.contracts import PredictionRunConfig
 from ..internal.types import PredictionSvmMode
+from ..motifs import MotifScoringResult
 from ..prediction.engines import (
     KinaseWorkflowExecutionResult,
     KinaseWorkflowExecutor,
 )
+from ..prediction.results import KinasePredictionResult, PredMatResult
+from ..prediction.scoring import KinaseScoringResult
+from ..profiles import KinaseProfileResult
 from ..references import ReferenceBundle
 from ..validation.requests.workflow import WorkflowInputs
-from .contracts import PredictionRunConfig
-from .workflow_results import KinaseWorkflowResult, PredMatWorkflowResult
 
 __all__ = ["KinaseWorkflow", "PredMatWorkflow"]
+
+
+@dataclass(slots=True)
+class KinaseWorkflowResult:
+    profile_result: KinaseProfileResult
+    motif_result: MotifScoringResult | None
+    scoring_result: KinaseScoringResult
+    prediction_result: KinasePredictionResult
+
+
+@dataclass(slots=True)
+class PredMatWorkflowResult:
+    scoring_result: KinaseScoringResult
+    prediction_result: KinasePredictionResult
+    pred_mat_result: PredMatResult
+
+    def close(self) -> None:
+        self.prediction_result.close()
+
+    def __enter__(self) -> PredMatWorkflowResult:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: object | None,
+    ) -> None:
+        self.close()
+
 
 _WorkflowResultT = TypeVar(
     "_WorkflowResultT",
@@ -25,7 +59,7 @@ _WorkflowResultT = TypeVar(
 
 
 class _BaseKinaseWorkflow(Generic[_WorkflowResultT]):
-    """Shared validated execution path for native kinase workflow adapters."""
+    """Shared validated execution path for internal kinase workflow adapters."""
 
     def __init__(
         self,

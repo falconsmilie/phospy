@@ -7,35 +7,30 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .activities.analysis import KinaseActivityAnalyzer
-from .activities.results import KinaseActivityResult
-from .api.contracts import DatasetLoadOptions, KinaseActivityConfig
-from .datasets.loaders import DatasetLoader
-from .datasets.models import PhosphoDataset
-from .errors import RequestValidationError, TableSchemaError
-from .io import load_pred_mat
-from .io.publishing import OutputPublisher, RunManifestWriter
-from .io.writers import CoreOutputWriter, KinaseActivityWriter
-from .orchestration import KinaseOrchestrationService
-from .preprocessing.core import CorePreprocessingConfig, CoreProcessingResult
-from .validation.requests.pipeline import (
+from ..activities.analysis import KinaseActivityAnalyzer
+from ..activities.results import KinaseActivityResult
+from ..api.contracts import DatasetLoadOptions, KinaseActivityConfig
+from ..datasets.loaders import DatasetLoader
+from ..datasets.models import PhosphoDataset
+from ..errors import RequestValidationError, TableSchemaError
+from ..io import load_pred_mat
+from ..io.publishing import OutputPublisher, RunManifestWriter
+from ..io.writers import CoreOutputWriter, KinaseActivityWriter
+from ..orchestration import KinaseOrchestrationService
+from ..preprocessing.core import CorePreprocessingConfig, CoreProcessingResult
+from ..validation.requests.pipeline import (
     CorePipelineRequest,
     PipelineInputs,
     build_pipeline_inputs,
     validate_pipeline_construction_request,
 )
 
-__all__ = ["PhosRPipeline"]
-
-
 if TYPE_CHECKING:
-    from .prediction.results import PredMatResult
+    from ..prediction.results import PredMatResult
 
 
 @dataclass(slots=True)
-class CoreOutputs:
-    """Outputs returned by ``PhosRPipeline.run()`` for one pipeline run."""
-
+class PipelineOutputs:
     core: CoreProcessingResult
     kinase_activity: KinaseActivityResult | None = None
 
@@ -60,7 +55,7 @@ def _load_pred_mat_for_request(request: CorePipelineRequest) -> pd.DataFrame | N
         raise RequestValidationError(msg) from error
 
 
-def _build_pipeline_inputs_from_request(request: CorePipelineRequest) -> PipelineInputs:
+def build_pipeline_inputs_from_request(request: CorePipelineRequest) -> PipelineInputs:
     validated_inputs = DatasetLoader(schema=request.dataset_schema).load(
         request.total_path,
         request.phospho_path,
@@ -89,7 +84,7 @@ def _run_pipeline_request(
     request: PipelineInputs,
     kinase_activity_analyzer: KinaseActivityAnalyzer,
     orchestration: KinaseOrchestrationService | None = None,
-) -> CoreOutputs:
+) -> PipelineOutputs:
     orchestrator = (
         KinaseOrchestrationService() if orchestration is None else orchestration
     )
@@ -97,13 +92,13 @@ def _run_pipeline_request(
         request=request,
         kinase_activity_analyzer=kinase_activity_analyzer,
     )
-    return CoreOutputs(core=core, kinase_activity=kinase_activity)
+    return PipelineOutputs(core=core, kinase_activity=kinase_activity)
 
 
 def _publish_pipeline_outputs(
     *,
     outdir: str | Path,
-    outputs: CoreOutputs,
+    outputs: PipelineOutputs,
     preprocessing_config: CorePreprocessingConfig,
     manifest_writer: RunManifestWriter,
     output_publisher: OutputPublisher,
@@ -132,8 +127,8 @@ def _publish_pipeline_outputs(
         )
 
 
-class PhosRPipeline:
-    """High-level orchestration around dataset processing and kinase analysis."""
+class PipelineRunner:
+    """Internal file-first orchestration for CLI and package internals."""
 
     def __init__(
         self,
@@ -183,7 +178,7 @@ class PhosRPipeline:
         *,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
-    ) -> PhosRPipeline:
+    ) -> PipelineRunner:
         instance = cls.__new__(cls)
         instance._initialize_from_inputs(
             request=request,
@@ -204,7 +199,7 @@ class PhosRPipeline:
         *,
         manifest_writer: RunManifestWriter | None = None,
         output_publisher: OutputPublisher | None = None,
-    ) -> PhosRPipeline:
+    ) -> PipelineRunner:
         resolved_dataset_options = DatasetLoadOptions.from_value(dataset_options)
         resolved_preprocessing_config = (
             CorePreprocessingConfig()
@@ -229,12 +224,12 @@ class PhosRPipeline:
             kinase_activity_top_n_substrates=resolved_activity_config.top_n_substrates,
         )
         return cls._from_inputs(
-            _build_pipeline_inputs_from_request(request),
+            build_pipeline_inputs_from_request(request),
             manifest_writer=manifest_writer,
             output_publisher=output_publisher,
         )
 
-    def run(self, outdir: str | Path | None = None) -> CoreOutputs:
+    def run(self, outdir: str | Path | None = None) -> PipelineOutputs:
         outputs = _run_pipeline_request(
             request=self.request,
             kinase_activity_analyzer=self.kinase_activity_analyzer,
