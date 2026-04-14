@@ -26,6 +26,7 @@ __all__ = [
 
 MAX_FULL_CORRELATION_SITE_COUNT = 2000
 MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER = 256
+NEAR_CONSTANT_PROFILE_VARIANCE_TOLERANCE = 1e-12
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +86,9 @@ class SignalomeModuleSelectionDiagnostics:
     max_clusters_evaluated: int
     candidate_scores: dict[int, ClusterCandidateScore]
     reason: str
+    zero_variance_profile_count: int = 0
+    near_constant_profile_count: int = 0
+    excluded_from_correlation_count: int = 0
 
     @property
     def used_automatic_selection(self) -> bool:
@@ -103,6 +107,14 @@ class ClusterSitesResult:
 class _ModuleSelectionComputation:
     diagnostics: SignalomeModuleSelectionDiagnostics
     candidate_labels: dict[int, np.ndarray]
+
+
+@dataclass(frozen=True, slots=True)
+class _ProfileDegeneracySummary:
+    zero_variance_count: int
+    near_constant_count: int
+    excluded_count: int
+    excluded_mask: np.ndarray
 
 
 def cluster_sites(
@@ -199,6 +211,9 @@ def _compute_module_selection(
     resolved_policy = SignalomeModuleSelectionPolicy.from_value(policy)
     scoring_array = np.asarray(scoring_values, dtype=float)
     n_sites = scoring_array.shape[0]
+    profile_degeneracy = summarize_profile_degeneracy(scoring_array)
+    zero_variance_count = profile_degeneracy.zero_variance_count
+    near_constant_count = profile_degeneracy.near_constant_count
     if n_sites <= 1:
         return _ModuleSelectionComputation(
             diagnostics=SignalomeModuleSelectionDiagnostics(
@@ -209,6 +224,9 @@ def _compute_module_selection(
                 max_clusters_evaluated=1,
                 candidate_scores={},
                 reason="single phosphosite input only supports one signalome module",
+                zero_variance_profile_count=zero_variance_count,
+                near_constant_profile_count=near_constant_count,
+                excluded_from_correlation_count=0,
             ),
             candidate_labels={},
         )
@@ -224,6 +242,9 @@ def _compute_module_selection(
                 max_clusters_evaluated=min(resolved_policy.max_clusters, n_sites),
                 candidate_scores={},
                 reason="module_count was provided explicitly by the caller",
+                zero_variance_profile_count=zero_variance_count,
+                near_constant_profile_count=near_constant_count,
+                excluded_from_correlation_count=0,
             ),
             candidate_labels={},
         )
@@ -238,6 +259,9 @@ def _compute_module_selection(
                 max_clusters_evaluated=1,
                 candidate_scores={},
                 reason="module_selection_strategy='single_module' forces one module",
+                zero_variance_profile_count=zero_variance_count,
+                near_constant_profile_count=near_constant_count,
+                excluded_from_correlation_count=0,
             ),
             candidate_labels={},
         )
@@ -253,14 +277,41 @@ def _compute_module_selection(
                 max_clusters_evaluated=max_clusters,
                 candidate_scores={},
                 reason="fewer than two cluster counts are available for evaluation",
+                zero_variance_profile_count=zero_variance_count,
+                near_constant_profile_count=near_constant_count,
+                excluded_from_correlation_count=0,
             ),
             candidate_labels={},
         )
 
     candidate_range = range(2, max_clusters + 1)
     approximation_note = ""
+    correlation_exclusion_note = build_correlation_exclusion_note(profile_degeneracy)
+    if n_sites - profile_degeneracy.excluded_count <= 1:
+        return _ModuleSelectionComputation(
+            diagnostics=SignalomeModuleSelectionDiagnostics(
+                strategy=resolved_policy.strategy,
+                selected_module_count=1,
+                requested_module_count=None,
+                threshold_used=None,
+                max_clusters_evaluated=1,
+                candidate_scores={},
+                reason=(
+                    "fewer than two non-degenerate phosphosite profiles remained "
+                    "after filtering degenerate rows for correlation scoring"
+                )
+                + correlation_exclusion_note,
+                zero_variance_profile_count=zero_variance_count,
+                near_constant_profile_count=near_constant_count,
+                excluded_from_correlation_count=profile_degeneracy.excluded_count,
+            ),
+            candidate_labels={},
+        )
     if n_sites <= MAX_FULL_CORRELATION_SITE_COUNT:
-        site_correlations = np.corrcoef(scoring_array)
+        site_correlations = build_correlation_matrix_with_exclusions(
+            scoring_array,
+            excluded_mask=profile_degeneracy.excluded_mask,
+        )
         candidate_scores, candidate_labels = score_cluster_candidates(
             scoring_values=scoring_array,
             site_correlations=site_correlations,
@@ -297,7 +348,11 @@ def _compute_module_selection(
                     "selected the highest-scoring candidate that satisfied the "
                     "primary within-cluster correlation threshold"
                 )
+                + correlation_exclusion_note
                 + approximation_note,
+                zero_variance_profile_count=zero_variance_count,
+                near_constant_profile_count=near_constant_count,
+                excluded_from_correlation_count=profile_degeneracy.excluded_count,
             ),
             candidate_labels=candidate_labels,
         )
@@ -323,7 +378,11 @@ def _compute_module_selection(
                     "no candidate satisfied the primary threshold; selected the "
                     "highest-scoring fallback candidate"
                 )
+                + correlation_exclusion_note
                 + approximation_note,
+                zero_variance_profile_count=zero_variance_count,
+                near_constant_profile_count=near_constant_count,
+                excluded_from_correlation_count=profile_degeneracy.excluded_count,
             ),
             candidate_labels=candidate_labels,
         )
@@ -340,10 +399,104 @@ def _compute_module_selection(
                 "no candidate module count satisfied the configured correlation "
                 "thresholds, so the workflow fell back to one module"
             )
+            + correlation_exclusion_note
             + approximation_note,
+            zero_variance_profile_count=zero_variance_count,
+            near_constant_profile_count=near_constant_count,
+            excluded_from_correlation_count=profile_degeneracy.excluded_count,
         ),
         candidate_labels=candidate_labels,
     )
+
+
+def summarize_profile_degeneracy(
+    scoring_values: np.ndarray,
+) -> _ProfileDegeneracySummary:
+    """Classify profiles that cannot support robust Pearson correlations."""
+
+    n_sites = int(np.asarray(scoring_values, dtype=float).shape[0])
+    if n_sites == 0:
+        return _ProfileDegeneracySummary(
+            zero_variance_count=0,
+            near_constant_count=0,
+            excluded_count=0,
+            excluded_mask=np.zeros(0, dtype=bool),
+        )
+
+    profile_variances = np.var(np.asarray(scoring_values, dtype=float), axis=1)
+    finite_mask = np.isfinite(profile_variances)
+    zero_variance_mask = finite_mask & (profile_variances == 0.0)
+    near_constant_mask = (
+        finite_mask
+        & (profile_variances > 0.0)
+        & (profile_variances <= NEAR_CONSTANT_PROFILE_VARIANCE_TOLERANCE)
+    )
+    excluded_mask = (~finite_mask) | zero_variance_mask | near_constant_mask
+    return _ProfileDegeneracySummary(
+        zero_variance_count=int(zero_variance_mask.sum(dtype=int)),
+        near_constant_count=int(near_constant_mask.sum(dtype=int)),
+        excluded_count=int(excluded_mask.sum(dtype=int)),
+        excluded_mask=excluded_mask,
+    )
+
+
+def build_correlation_exclusion_note(summary: _ProfileDegeneracySummary) -> str:
+    """Build a reason suffix describing degenerate profile exclusion."""
+
+    if summary.excluded_count <= 0:
+        return ""
+    profile_label = "profile" if summary.excluded_count == 1 else "profiles"
+    detail_tokens: list[str] = []
+    if summary.zero_variance_count > 0:
+        detail_tokens.append(f"{summary.zero_variance_count} zero-variance")
+    if summary.near_constant_count > 0:
+        detail_tokens.append(f"{summary.near_constant_count} near-constant")
+    detail_suffix = f" ({', '.join(detail_tokens)})" if detail_tokens else ""
+    return (
+        f" Excluded {summary.excluded_count} degenerate {profile_label} from "
+        f"correlation scoring{detail_suffix}."
+    )
+
+
+def build_correlation_matrix_with_exclusions(
+    scoring_values: np.ndarray,
+    *,
+    excluded_mask: np.ndarray | None = None,
+) -> np.ndarray:
+    """Compute a row-wise Pearson correlation matrix while excluding bad rows."""
+
+    values = np.asarray(scoring_values, dtype=float)
+    n_sites = int(values.shape[0])
+    correlations = np.full((n_sites, n_sites), np.nan, dtype=float)
+    if n_sites == 0:
+        return correlations
+
+    if excluded_mask is None:
+        excluded = np.zeros(n_sites, dtype=bool)
+    else:
+        excluded = np.asarray(excluded_mask, dtype=bool)
+        if excluded.shape != (n_sites,):
+            msg = "excluded_mask must be a boolean vector aligned with scoring_values rows"
+            raise ValueError(msg)
+
+    included_positions = np.flatnonzero(~excluded)
+    if included_positions.size == 0:
+        return correlations
+    if included_positions.size == 1:
+        correlations[included_positions[0], included_positions[0]] = 1.0
+        return correlations
+
+    included_correlations = np.corrcoef(values[included_positions])
+    included_correlations = np.asarray(included_correlations, dtype=float)
+    if included_correlations.ndim == 0:
+        included_correlations = np.asarray(
+            [[float(included_correlations)]],
+            dtype=float,
+        )
+    np.fill_diagonal(included_correlations, 1.0)
+    included_correlations = np.clip(included_correlations, -1.0, 1.0)
+    correlations[np.ix_(included_positions, included_positions)] = included_correlations
+    return correlations
 
 
 def filter_cluster_candidates(
@@ -522,8 +675,14 @@ def cluster_median_correlation_approximate(
         cluster_positions = cluster_positions[sampled_positions]
 
     cluster_values = scoring_values[cluster_positions]
-    cluster_correlations = np.corrcoef(cluster_values)
-    cluster_correlations = np.asarray(cluster_correlations, dtype=float).copy()
+    profile_degeneracy = summarize_profile_degeneracy(cluster_values)
+    if cluster_values.shape[0] - profile_degeneracy.excluded_count <= 1:
+        return 0.0
+
+    cluster_correlations = build_correlation_matrix_with_exclusions(
+        cluster_values,
+        excluded_mask=profile_degeneracy.excluded_mask,
+    ).copy()
     np.fill_diagonal(cluster_correlations, np.nan)
     values = cluster_correlations[~np.isnan(cluster_correlations)]
     if values.size == 0:

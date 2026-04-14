@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -1034,6 +1035,77 @@ def test_select_module_count_avoids_full_correlation_matrix_for_large_inputs(
     assert "sampled within-cluster correlation estimates" in diagnostics.reason
     assert observed_rows
     assert max(observed_rows) < scoring_values.shape[0]
+
+
+def test_select_module_count_excludes_constant_profiles_without_runtime_warnings() -> (
+    None
+):
+    scoring_values = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 1.0, 3.0, 4.0],
+            "KINASE_B": [1.0, 2.0, 2.0, 5.0],
+            "KINASE_C": [1.0, 3.0, 1.0, 6.0],
+        }
+    ).to_numpy(dtype=float)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        diagnostics = signalome_clustering.select_module_count_with_diagnostics(
+            scoring_values=scoring_values,
+        )
+
+    assert diagnostics.selected_module_count >= 1
+    assert diagnostics.zero_variance_profile_count == 1
+    assert diagnostics.near_constant_profile_count == 0
+    assert diagnostics.excluded_from_correlation_count == 1
+    assert (
+        "Excluded 1 degenerate profile from correlation scoring" in diagnostics.reason
+    )
+
+
+def test_select_module_count_reports_near_constant_profiles_in_diagnostics() -> None:
+    scoring_values = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 0.0, 2.0, 3.0],
+            "KINASE_B": [1.0 + 1e-8, 1.0, 2.5, 2.0],
+            "KINASE_C": [1.0 - 1e-8, 2.0, 3.0, 1.0],
+        }
+    ).to_numpy(dtype=float)
+
+    diagnostics = signalome_clustering.select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+    )
+
+    assert diagnostics.selected_module_count >= 1
+    assert diagnostics.zero_variance_profile_count == 0
+    assert diagnostics.near_constant_profile_count == 1
+    assert diagnostics.excluded_from_correlation_count == 1
+    assert "near-constant" in diagnostics.reason
+
+
+def test_select_module_count_falls_back_when_too_few_non_degenerate_profiles_remain() -> (
+    None
+):
+    scoring_values = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 2.0, 3.0],
+            "KINASE_B": [1.0, 2.0, 3.0 + 1e-8],
+            "KINASE_C": [1.0, 2.0, 3.0 - 1e-8],
+        }
+    ).to_numpy(dtype=float)
+
+    diagnostics = signalome_clustering.select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+    )
+
+    assert diagnostics.selected_module_count == 1
+    assert diagnostics.zero_variance_profile_count == 2
+    assert diagnostics.near_constant_profile_count == 1
+    assert diagnostics.excluded_from_correlation_count == 3
+    assert diagnostics.candidate_scores == {}
+    assert "fewer than two non-degenerate phosphosite profiles remained" in (
+        diagnostics.reason
+    )
 
 
 def test_cluster_sites_reuses_cached_candidate_labels_for_automatic_selection(
