@@ -7,6 +7,7 @@ from ...internal.types import (
     PredictionSvmMode,
     PredictionTraceFormat,
     PredictionTraceLevel,
+    SignalomeAssignmentPolicy,
     SignalomeKinaseNetworkPolicy,
     SignalomeModuleSelectionStrategy,
 )
@@ -74,6 +75,17 @@ def validate_kinase_network_policy(
     return value
 
 
+def validate_signalome_assignment_policy(
+    value: SignalomeAssignmentPolicy,
+) -> SignalomeAssignmentPolicy:
+    """Validate signalome assignment propagation policy."""
+
+    if value not in {"cutoff_binary", "weighted_top"}:
+        msg = "assignment_policy must be one of: 'cutoff_binary', 'weighted_top'"
+        raise PhospyValidationError(msg)
+    return value
+
+
 def validate_svm_mode(value: PredictionSvmMode) -> PredictionSvmMode:
     """Validate the configured prediction SVM mode."""
 
@@ -106,6 +118,7 @@ __all__ = [
     "validate_kinase_network_policy",
     "validate_missing_value_strategy",
     "validate_module_selection_strategy",
+    "validate_signalome_assignment_policy",
     "validate_svm_mode",
     "validate_trace_format",
     "validate_trace_level",

@@ -6,7 +6,9 @@ import numpy as np
 import pandas as pd
 
 from ..errors import InputCompatibilityError
+from ..internal.types import SignalomeAssignmentPolicy
 from .results import ExpandedSignalome
+from .serialization import normalize_top_kinase_weights
 from .site_ids import (
     parse_supported_signalome_site_ids,
     protein_id_from_supported_signalome_site_id,
@@ -284,8 +286,17 @@ def build_signalome_module_table(
     *,
     site_assignments: pd.DataFrame,
     kinase_substrates: Mapping[str, Sequence[str]],
+    assignment_policy: SignalomeAssignmentPolicy = "cutoff_binary",
 ) -> pd.DataFrame:
-    """Build the wide module-by-kinase signalome table."""
+    """Build the wide module-by-kinase signalome table.
+
+    ``assignment_policy`` controls attribution semantics:
+
+    - ``cutoff_binary``: count each protein once for kinases with at least one
+      substrate above ``signalome_cutoff`` (existing behaviour).
+    - ``weighted_top``: propagate ``top_kinase_weights`` from site assignments
+      as fractional protein contributions per module.
+    """
 
     module_ids = sorted(
         {int(value) for value in site_assignments["module_id"].tolist()}
@@ -302,6 +313,47 @@ def build_signalome_module_table(
         .astype(int)
     )
 
+    if assignment_policy == "cutoff_binary":
+        module_table = _build_cutoff_binary_module_table(
+            site_assignments=site_assignments,
+            protein_to_module=protein_to_module,
+            kinase_index=kinase_index,
+            module_index=module_index,
+            kinase_substrates=kinase_substrates,
+        )
+    elif assignment_policy == "weighted_top":
+        module_table = _build_weighted_top_module_table(
+            site_assignments=site_assignments,
+            protein_to_module=protein_to_module,
+            kinase_index=kinase_index,
+            module_index=module_index,
+        )
+    else:
+        msg = "assignment_policy must be one of: 'cutoff_binary', 'weighted_top'"
+        raise InputCompatibilityError(msg)
+
+    row_totals = module_table.sum(axis=1)
+    non_zero = row_totals > 0
+    if non_zero.any():
+        module_table.loc[non_zero] = (
+            module_table.loc[non_zero].div(
+                row_totals.loc[non_zero],
+                axis=0,
+            )
+            * 100.0
+        )
+
+    return module_table.round(3)
+
+
+def _build_cutoff_binary_module_table(
+    *,
+    site_assignments: pd.DataFrame,
+    protein_to_module: pd.Series,
+    kinase_index: pd.Index,
+    module_index: pd.Index,
+    kinase_substrates: Mapping[str, Sequence[str]],
+) -> pd.DataFrame:
     substrate_rows = [
         {"kinase": str(kinase), "site_id": str(site_id)}
         for kinase, substrates in kinase_substrates.items()
@@ -337,22 +389,90 @@ def build_signalome_module_table(
         .unstack(fill_value=0.0)
     )
     module_table = counts.reindex(
-        index=module_index, columns=kinase_index, fill_value=0.0
+        index=module_index,
+        columns=kinase_index,
+        fill_value=0.0,
     )
-    module_table = module_table.astype(float)
+    return module_table.astype(float)
 
-    row_totals = module_table.sum(axis=1)
-    non_zero = row_totals > 0
-    if non_zero.any():
-        module_table.loc[non_zero] = (
-            module_table.loc[non_zero].div(
-                row_totals.loc[non_zero],
-                axis=0,
-            )
-            * 100.0
+
+def _build_weighted_top_module_table(
+    *,
+    site_assignments: pd.DataFrame,
+    protein_to_module: pd.Series,
+    kinase_index: pd.Index,
+    module_index: pd.Index,
+) -> pd.DataFrame:
+    weighted_rows: list[dict[str, object]] = []
+    required_columns = {"protein_id", "top_kinase_weights"}
+    missing_columns = sorted(required_columns.difference(site_assignments.columns))
+    if missing_columns:
+        missing = ", ".join(missing_columns)
+        msg = (
+            "site_assignments must include columns required for weighted_top "
+            f"assignment_policy: {missing}"
         )
+        raise InputCompatibilityError(msg)
+    site_payload = site_assignments.loc[:, ["protein_id", "top_kinase_weights"]]
+    for row in site_payload.itertuples(index=False):
+        protein_id = str(row.protein_id)
+        if protein_id not in protein_to_module.index:
+            continue
+        module_id = int(protein_to_module.loc[protein_id])
+        try:
+            normalized_weights = normalize_top_kinase_weights(row.top_kinase_weights)
+        except (TypeError, ValueError) as error:
+            msg = (
+                "site_assignments['top_kinase_weights'] must contain mappings, "
+                "JSON objects, or (kinase, weight) sequences"
+            )
+            raise InputCompatibilityError(msg) from error
+        for kinase, weight in normalized_weights:
+            if kinase not in kinase_index:
+                continue
+            weighted_rows.append(
+                {
+                    "module_id": module_id,
+                    "kinase": kinase,
+                    "protein_id": protein_id,
+                    "weight": float(weight),
+                }
+            )
 
-    return module_table.round(3)
+    if not weighted_rows:
+        return pd.DataFrame(0.0, index=module_index, columns=kinase_index).round(3)
+
+    weighted_hits = pd.DataFrame.from_records(weighted_rows)
+    weighted_hits = weighted_hits.astype(
+        {
+            "module_id": int,
+            "kinase": str,
+            "protein_id": str,
+            "weight": float,
+        }
+    )
+
+    protein_level_weights = (
+        weighted_hits.groupby(
+            ["module_id", "kinase", "protein_id"],
+            sort=True,
+        )["weight"]
+        .max()
+        .astype(float)
+        .reset_index()
+    )
+    counts = (
+        protein_level_weights.groupby(["module_id", "kinase"], sort=True)["weight"]
+        .sum()
+        .astype(float)
+        .unstack(fill_value=0.0)
+    )
+    module_table = counts.reindex(
+        index=module_index,
+        columns=kinase_index,
+        fill_value=0.0,
+    )
+    return module_table.astype(float)
 
 
 def build_kinase_module_relationship_table(

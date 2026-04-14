@@ -24,7 +24,11 @@ from phospy.signalomes import (
     SignalomeResult,
     build_signalome_result,
 )
-from phospy.signalomes.analysis import build_kinase_network, build_kinase_network_view
+from phospy.signalomes.analysis import (
+    build_kinase_network,
+    build_kinase_network_view,
+    build_signalome_support_matrix,
+)
 from phospy.signalomes.assignments import (
     build_expanded_signalomes,
     build_site_assignments,
@@ -627,6 +631,92 @@ def test_build_site_assignments_tracks_tied_top_kinases_as_weighted_multi_assign
     assert clear_row["top_kinase_weights"] == (("KINASE_A", 1.0),)
     assert clear_row["top_kinase_tie_count"] == 1
     assert not bool(clear_row["top_kinase_is_ambiguous"])
+
+
+def test_weighted_top_assignment_policy_propagates_fractional_module_shares() -> None:
+    site_ids = ["PROTEIN_1;S1;", "PROTEIN_1;S2;", "PROTEIN_2;S3;", "PROTEIN_2;S4;"]
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 1.0, 4.0, 4.0],
+            "KINASE_B": [1.1, 1.1, 4.1, 4.1],
+        },
+        index=site_ids,
+    )
+    pred_mat = pd.DataFrame(
+        {
+            "KINASE_A": [0.95, 0.95, 0.10, 0.10],
+            "KINASE_B": [0.95, 0.95, 0.91, 0.91],
+        },
+        index=site_ids,
+    )
+    expression_matrix = pd.DataFrame(
+        {
+            "sample_1": [1.0, 1.1, 3.0, 3.1],
+            "sample_2": [1.2, 1.0, 2.9, 3.0],
+        },
+        index=site_ids,
+    )
+
+    weighted = build_signalome_result(
+        scoring_matrix=scoring_matrix,
+        pred_mat=pred_mat,
+        expression_matrix=expression_matrix,
+        kinases_of_interest=["KINASE_A"],
+        assignment_policy="weighted_top",
+        signalome_cutoff=0.99,
+        module_count=2,
+    )
+    binary = build_signalome_result(
+        scoring_matrix=scoring_matrix,
+        pred_mat=pred_mat,
+        expression_matrix=expression_matrix,
+        kinases_of_interest=["KINASE_A"],
+        assignment_policy="cutoff_binary",
+        signalome_cutoff=0.99,
+        module_count=2,
+    )
+
+    assert weighted.signalome_modules.loc[1, "KINASE_A"] == 50.0
+    assert weighted.signalome_modules.loc[1, "KINASE_B"] == 50.0
+    assert weighted.signalome_modules.loc[2, "KINASE_B"] == 100.0
+    assert binary.signalome_modules.loc[1, "KINASE_A"] == 0.0
+    assert binary.signalome_modules.loc[1, "KINASE_B"] == 0.0
+
+
+def test_build_signalome_support_matrix_supports_weighted_top_policy() -> None:
+    site_assignments = pd.DataFrame(
+        {
+            "protein_id": ["PROTEIN_1", "PROTEIN_1", "PROTEIN_2"],
+            "module_id": [1, 1, 2],
+            "top_kinase_candidates": [
+                ("KINASE_A", "KINASE_B"),
+                ("KINASE_A",),
+                ("KINASE_B",),
+            ],
+            "top_kinase_weights": [
+                (("KINASE_A", 0.5), ("KINASE_B", 0.5)),
+                (("KINASE_A", 1.0),),
+                (("KINASE_B", 1.0),),
+            ],
+            "top_kinase_tie_count": [2, 1, 1],
+            "top_kinase_is_ambiguous": [True, False, False],
+            "top_score": [0.95, 0.96, 0.92],
+        },
+        index=pd.Index(["SITE_1", "SITE_2", "SITE_3"], name="site_id"),
+    )
+
+    support = build_signalome_support_matrix(
+        site_assignments=site_assignments,
+        kinase_substrates={
+            "KINASE_A": ("SITE_2",),
+            "KINASE_B": ("SITE_1", "SITE_3"),
+        },
+        kinases_of_interest=["KINASE_A", "KINASE_B"],
+        assignment_policy="weighted_top",
+    )
+
+    assert support.loc["KINASE_A"].tolist() == [0.5, 1.0, 0.0]
+    assert support.loc["KINASE_B"].tolist() == [0.5, 0.0, 1.0]
 
 
 def test_build_site_assignments_rejects_missing_site_to_protein_mapping() -> None:

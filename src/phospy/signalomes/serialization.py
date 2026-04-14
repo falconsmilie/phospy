@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 import pandas as pd
 
 __all__ = [
+    "normalize_top_kinase_weights",
     "serialize_site_assignments_for_export",
     "serialize_top_kinase_candidates",
     "serialize_top_kinase_weights",
@@ -49,6 +50,34 @@ def serialize_top_kinase_weights(value: object) -> str:
         return json.dumps(dict(items))
 
     msg = "top_kinase_weights must be a mapping or sequence of (kinase, weight)"
+    raise TypeError(msg)
+
+
+def normalize_top_kinase_weights(value: object) -> tuple[tuple[str, float], ...]:
+    """Normalize top-kinase weights into an ordered tuple-of-pairs payload."""
+
+    if isinstance(value, str):
+        decoded = json.loads(value)
+        return normalize_top_kinase_weights(decoded)
+
+    if isinstance(value, Mapping):
+        return tuple((str(kinase), float(weight)) for kinase, weight in value.items())
+
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+        items: list[tuple[str, float]] = []
+        for pair in value:
+            if not (isinstance(pair, Sequence) and not isinstance(pair, (str, bytes))):
+                msg = "top_kinase_weights sequence entries must be (kinase, weight)"
+                raise TypeError(msg)
+            pair_values = tuple(pair)
+            if len(pair_values) != 2:
+                msg = "top_kinase_weights sequence entries must be (kinase, weight)"
+                raise TypeError(msg)
+            kinase, weight = pair_values
+            items.append((str(kinase), float(weight)))
+        return tuple(items)
+
+    msg = "top_kinase_weights must be a mapping, JSON object, or sequence"
     raise TypeError(msg)
 
 

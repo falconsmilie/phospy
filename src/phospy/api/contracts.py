@@ -5,11 +5,16 @@ from dataclasses import dataclass, field
 
 from ..datasets.schema import DatasetSchema
 from ..internal.constants import ComparisonSpec
-from ..internal.types import PredictionSvmMode, SignalomeKinaseNetworkPolicy
+from ..internal.types import (
+    PredictionSvmMode,
+    SignalomeAssignmentPolicy,
+    SignalomeKinaseNetworkPolicy,
+)
 from ..profiles import KinaseProfilePolicy
 from ..signalomes import SignalomeModuleSelectionPolicy
 from ..validation.values.enums import (
     validate_kinase_network_policy,
+    validate_signalome_assignment_policy,
     validate_svm_mode,
 )
 from ..validation.values.numeric import (
@@ -125,6 +130,7 @@ class SignalomeRunConfig:
 
     kinase_network_threshold: float = 0.9
     kinase_network_policy: SignalomeKinaseNetworkPolicy = "positive_only"
+    assignment_policy: SignalomeAssignmentPolicy = "cutoff_binary"
     signalome_cutoff: float = 0.5
     module_count: int | None = None
     min_kinase_module_share_percent: float = 1.0
@@ -137,6 +143,7 @@ class SignalomeRunConfig:
             self.kinase_network_threshold, name="kinase_network_threshold"
         )
         validate_kinase_network_policy(self.kinase_network_policy)
+        validate_signalome_assignment_policy(self.assignment_policy)
         validate_fraction(self.signalome_cutoff, name="signalome_cutoff")
         if self.module_count is not None:
             validate_positive_int(self.module_count, name="module_count")

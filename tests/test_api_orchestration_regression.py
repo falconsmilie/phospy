@@ -388,6 +388,7 @@ def test_signalome_workflow_run_delegates_to_validation_and_execution(
         config=SignalomeRunConfig(
             kinase_network_threshold=0.8,
             kinase_network_policy="signed",
+            assignment_policy="weighted_top",
             signalome_cutoff=0.4,
         ),
     )
@@ -400,6 +401,7 @@ def test_signalome_workflow_run_delegates_to_validation_and_execution(
     assert calls[0][1]["kinases_of_interest"] == ["PRKACA", "BTK"]
     assert calls[0][1]["kinase_network_threshold"] == 0.8
     assert calls[0][1]["kinase_network_policy"] == "signed"
+    assert calls[0][1]["assignment_policy"] == "weighted_top"
     assert calls[0][1]["signalome_cutoff"] == 0.4
     assert calls[1] == ("execute", request)
 

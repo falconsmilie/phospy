@@ -7,7 +7,10 @@ import numpy as np
 import pandas as pd
 
 from ..errors import InputCompatibilityError
-from ..internal.types import SignalomeKinaseNetworkPolicy
+from ..internal.types import (
+    SignalomeAssignmentPolicy,
+    SignalomeKinaseNetworkPolicy,
+)
 from ..validation.requests.signalome import (
     SignalomeInputs,
     SignalomeRequest,
@@ -33,6 +36,7 @@ from .results import (
     SignalomeModules,
     SignalomeResult,
 )
+from .serialization import normalize_top_kinase_weights
 
 __all__ = ["SignalomeRunner", "build_signalome_result", "execute_signalome_inputs"]
 
@@ -68,7 +72,7 @@ class SignalomeRunner:
         clustering_stage = self._cluster_sites(inputs)
         assignments_stage = self._assign_sites(inputs, clustering_stage)
         network_stage = self._build_network(inputs, assignments_stage)
-        modules_stage = self._build_modules(assignments_stage)
+        modules_stage = self._build_modules(inputs, assignments_stage)
         expanded_signalomes = self._expand_signalomes(
             inputs=inputs,
             assignments_stage=assignments_stage,
@@ -155,10 +159,15 @@ class SignalomeRunner:
             network=network,
         )
 
-    def _build_modules(self, assignments_stage: _AssignmentsStage) -> _ModulesStage:
+    def _build_modules(
+        self,
+        inputs: SignalomeInputs,
+        assignments_stage: _AssignmentsStage,
+    ) -> _ModulesStage:
         module_table = build_signalome_module_table(
             site_assignments=assignments_stage.site_assignments,
             kinase_substrates=assignments_stage.kinase_substrates,
+            assignment_policy=inputs.assignment_policy,
         )
         protein_assignments = build_protein_assignment_table(
             site_assignments=assignments_stage.site_assignments,
@@ -207,6 +216,7 @@ def build_signalome_result(
     site_to_protein: Mapping[str, str] | pd.Series | None = None,
     kinase_network_threshold: float = 0.9,
     kinase_network_policy: SignalomeKinaseNetworkPolicy = "positive_only",
+    assignment_policy: SignalomeAssignmentPolicy = "cutoff_binary",
     signalome_cutoff: float = 0.5,
     module_count: int | None = None,
     min_kinase_module_share_percent: float = 1.0,
@@ -219,6 +229,7 @@ def build_signalome_result(
         site_to_protein=(None if site_to_protein is None else dict(site_to_protein)),
         kinase_network_threshold=kinase_network_threshold,
         kinase_network_policy=kinase_network_policy,
+        assignment_policy=assignment_policy,
         signalome_cutoff=signalome_cutoff,
         module_count=module_count,
         min_kinase_module_share_percent=min_kinase_module_share_percent,
@@ -232,6 +243,7 @@ def build_signalome_result(
         site_to_protein=request.site_to_protein,
         kinase_network_threshold=request.kinase_network_threshold,
         kinase_network_policy=request.kinase_network_policy,
+        assignment_policy=request.assignment_policy,
         signalome_cutoff=request.signalome_cutoff,
         module_count=request.module_count,
         min_kinase_module_share_percent=request.min_kinase_module_share_percent,
@@ -390,6 +402,7 @@ def build_signalome_support_matrix(
     site_assignments: pd.DataFrame,
     kinase_substrates: Mapping[str, Sequence[str]],
     kinases_of_interest: Sequence[str],
+    assignment_policy: SignalomeAssignmentPolicy = "cutoff_binary",
 ) -> pd.DataFrame:
     """Build a kinase-by-protein support matrix from aligned assignments."""
 
@@ -401,20 +414,70 @@ def build_signalome_support_matrix(
     site_values = site_index.to_numpy(dtype=object, copy=False)
     site_id_set = set(site_values.tolist())
 
-    for kinase in kinases_of_interest:
-        substrates = kinase_substrates.get(kinase, ())
-        aligned_site_set = {
-            str(site_id) for site_id in substrates if str(site_id) in site_id_set
-        }
-        if len(aligned_site_set) == 0:
-            msg = (
-                f"No aligned phosphosites were found for kinase '{kinase}' in the "
-                "signalome assignment table"
-            )
-            raise InputCompatibilityError(msg)
+    if assignment_policy == "cutoff_binary":
+        for kinase in kinases_of_interest:
+            substrates = kinase_substrates.get(kinase, ())
+            aligned_site_set = {
+                str(site_id) for site_id in substrates if str(site_id) in site_id_set
+            }
+            if len(aligned_site_set) == 0:
+                msg = (
+                    f"No aligned phosphosites were found for kinase '{kinase}' in the "
+                    "signalome assignment table"
+                )
+                raise InputCompatibilityError(msg)
 
-        support_rows[kinase] = (
-            np.isin(site_values, list(aligned_site_set)).astype(int).tolist()
+            support_rows[kinase] = (
+                np.isin(site_values, list(aligned_site_set)).astype(int).tolist()
+            )
+    elif assignment_policy == "weighted_top":
+        site_weights = _build_weighted_top_site_support(
+            site_assignments=site_assignments,
+            kinases=kinases_of_interest,
         )
+        for kinase in kinases_of_interest:
+            kinase_weights = site_weights.get(kinase)
+            if kinase_weights is None or np.allclose(kinase_weights, 0.0):
+                msg = (
+                    f"No weighted top-kinase assignments were found for kinase "
+                    f"'{kinase}' in the signalome assignment table"
+                )
+                raise InputCompatibilityError(msg)
+            support_rows[kinase] = kinase_weights.tolist()
+    else:
+        msg = "assignment_policy must be one of: 'cutoff_binary', 'weighted_top'"
+        raise InputCompatibilityError(msg)
 
     return pd.DataFrame.from_dict(support_rows, orient="index", columns=site_index)
+
+
+def _build_weighted_top_site_support(
+    *,
+    site_assignments: pd.DataFrame,
+    kinases: Sequence[str],
+) -> dict[str, np.ndarray]:
+    site_index = pd.Index(site_assignments.index.astype(str), name="site_id")
+    if "top_kinase_weights" not in site_assignments.columns:
+        msg = (
+            "site_assignments must include 'top_kinase_weights' for "
+            "weighted_top assignment_policy"
+        )
+        raise InputCompatibilityError(msg)
+    kinase_set = {str(kinase) for kinase in kinases}
+    support_rows = {
+        str(kinase): np.zeros(len(site_index), dtype=float) for kinase in kinase_set
+    }
+    weight_values = site_assignments.loc[:, "top_kinase_weights"].to_numpy(copy=False)
+    for row_position, value in enumerate(weight_values):
+        try:
+            normalized_weights = normalize_top_kinase_weights(value)
+        except (TypeError, ValueError) as error:
+            msg = (
+                "site_assignments['top_kinase_weights'] must contain mappings, "
+                "JSON objects, or (kinase, weight) sequences"
+            )
+            raise InputCompatibilityError(msg) from error
+        for kinase, weight in normalized_weights:
+            if kinase in support_rows:
+                support_rows[kinase][row_position] = float(weight)
+    return support_rows
