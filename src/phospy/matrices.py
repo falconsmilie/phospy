@@ -9,6 +9,15 @@ from .errors import TableSchemaError
 from .internal.constants import (
     PHOSPHO_GENE_COLUMN,
     PHOSPHO_UID_COLUMN,
+    ROW_DROP_DEDUPLICATED_SITE_ROWS_KEY,
+    ROW_DROP_DROPPED_INCOMPLETE_VALUES_KEY,
+    ROW_DROP_DROPPED_MISSING_SEQUENCE_KEY,
+    ROW_DROP_DUPLICATE_SITE_STRATEGY_KEY,
+    ROW_DROP_INPUT_ROWS_KEY,
+    ROW_DROP_MISSING_DATA_POLICY_KEY,
+    ROW_DROP_REQUIRED_OBSERVED_COUNT_KEY,
+    ROW_DROP_RETAINED_ROWS_KEY,
+    ROW_DROP_STATS_ATTR,
     SITE_MATRIX_GENE_COLUMN,
     SITE_MATRIX_ID_COLUMN,
     SITE_MATRIX_P_SITE_COLUMN,
@@ -98,50 +107,61 @@ def format_row_drop_diagnostics(row_drop_stats: Mapping[str, int | str]) -> str:
     """Format human-readable site-matrix row-drop diagnostics."""
 
     stats = {
-        "input_rows": int(row_drop_stats.get("input_rows", 0)),
-        "dropped_missing_sequence": int(
-            row_drop_stats.get("dropped_missing_sequence", 0)
+        ROW_DROP_INPUT_ROWS_KEY: int(row_drop_stats.get(ROW_DROP_INPUT_ROWS_KEY, 0)),
+        ROW_DROP_DROPPED_MISSING_SEQUENCE_KEY: int(
+            row_drop_stats.get(ROW_DROP_DROPPED_MISSING_SEQUENCE_KEY, 0)
         ),
-        "dropped_incomplete_values": int(
-            row_drop_stats.get("dropped_incomplete_values", 0)
+        ROW_DROP_DROPPED_INCOMPLETE_VALUES_KEY: int(
+            row_drop_stats.get(ROW_DROP_DROPPED_INCOMPLETE_VALUES_KEY, 0)
         ),
-        "missing_data_policy": str(
+        ROW_DROP_MISSING_DATA_POLICY_KEY: str(
             row_drop_stats.get(
-                "missing_data_policy",
+                ROW_DROP_MISSING_DATA_POLICY_KEY,
                 DEFAULT_SITE_MATRIX_POLICY.missing_data_policy,
             )
         ),
-        "required_observed_count": int(
-            row_drop_stats.get("required_observed_count", 0)
+        ROW_DROP_REQUIRED_OBSERVED_COUNT_KEY: int(
+            row_drop_stats.get(ROW_DROP_REQUIRED_OBSERVED_COUNT_KEY, 0)
         ),
-        "deduplicated_site_rows": int(row_drop_stats.get("deduplicated_site_rows", 0)),
-        "retained_rows": int(row_drop_stats.get("retained_rows", 0)),
-        "duplicate_site_strategy": str(
+        ROW_DROP_DEDUPLICATED_SITE_ROWS_KEY: int(
+            row_drop_stats.get(ROW_DROP_DEDUPLICATED_SITE_ROWS_KEY, 0)
+        ),
+        ROW_DROP_RETAINED_ROWS_KEY: int(
+            row_drop_stats.get(ROW_DROP_RETAINED_ROWS_KEY, 0)
+        ),
+        ROW_DROP_DUPLICATE_SITE_STRATEGY_KEY: str(
             row_drop_stats.get(
-                "duplicate_site_strategy",
+                ROW_DROP_DUPLICATE_SITE_STRATEGY_KEY,
                 DEFAULT_SITE_MATRIX_POLICY.duplicate_site_strategy,
             )
         ),
     }
     known_drops = (
-        stats["dropped_missing_sequence"]
-        + stats["dropped_incomplete_values"]
-        + stats["deduplicated_site_rows"]
+        stats[ROW_DROP_DROPPED_MISSING_SEQUENCE_KEY]
+        + stats[ROW_DROP_DROPPED_INCOMPLETE_VALUES_KEY]
+        + stats[ROW_DROP_DEDUPLICATED_SITE_ROWS_KEY]
     )
     other_dropped_rows = max(
-        stats["input_rows"] - stats["retained_rows"] - known_drops, 0
+        stats[ROW_DROP_INPUT_ROWS_KEY]
+        - stats[ROW_DROP_RETAINED_ROWS_KEY]
+        - known_drops,
+        0,
     )
     return (
         "row-drop diagnostics: "
-        f"input_rows={stats['input_rows']}, "
-        f"dropped_missing_sequence={stats['dropped_missing_sequence']}, "
-        f"dropped_incomplete_values={stats['dropped_incomplete_values']}, "
-        f"missing_data_policy={stats['missing_data_policy']}, "
-        f"required_observed_count={stats['required_observed_count']}, "
-        f"deduplicated_site_rows={stats['deduplicated_site_rows']}, "
-        f"duplicate_site_strategy={stats['duplicate_site_strategy']}, "
+        f"{ROW_DROP_INPUT_ROWS_KEY}={stats[ROW_DROP_INPUT_ROWS_KEY]}, "
+        f"{ROW_DROP_DROPPED_MISSING_SEQUENCE_KEY}="
+        f"{stats[ROW_DROP_DROPPED_MISSING_SEQUENCE_KEY]}, "
+        f"{ROW_DROP_DROPPED_INCOMPLETE_VALUES_KEY}="
+        f"{stats[ROW_DROP_DROPPED_INCOMPLETE_VALUES_KEY]}, "
+        f"{ROW_DROP_MISSING_DATA_POLICY_KEY}={stats[ROW_DROP_MISSING_DATA_POLICY_KEY]}, "
+        f"{ROW_DROP_REQUIRED_OBSERVED_COUNT_KEY}="
+        f"{stats[ROW_DROP_REQUIRED_OBSERVED_COUNT_KEY]}, "
+        f"{ROW_DROP_DEDUPLICATED_SITE_ROWS_KEY}={stats[ROW_DROP_DEDUPLICATED_SITE_ROWS_KEY]}, "
+        f"{ROW_DROP_DUPLICATE_SITE_STRATEGY_KEY}="
+        f"{stats[ROW_DROP_DUPLICATE_SITE_STRATEGY_KEY]}, "
         f"other_dropped_rows={other_dropped_rows}, "
-        f"retained_rows={stats['retained_rows']}"
+        f"{ROW_DROP_RETAINED_ROWS_KEY}={stats[ROW_DROP_RETAINED_ROWS_KEY]}"
     )
 
 
@@ -251,23 +271,23 @@ def build_site_matrix(
     deduplicated_site_rows = len(policy_filtered_rows) - len(phosr_input)
 
     row_drop_stats: dict[str, int | str] = {
-        "input_rows": total_rows,
-        "dropped_missing_sequence": dropped_missing_sequence,
-        "dropped_incomplete_values": dropped_incomplete_values,
-        "missing_data_policy": resolved_policy.missing_data_policy,
-        "required_observed_count": required_observed_count,
-        "deduplicated_site_rows": deduplicated_site_rows,
-        "duplicate_site_strategy": resolved_policy.duplicate_site_strategy,
-        "retained_rows": len(phosr_input),
+        ROW_DROP_INPUT_ROWS_KEY: total_rows,
+        ROW_DROP_DROPPED_MISSING_SEQUENCE_KEY: dropped_missing_sequence,
+        ROW_DROP_DROPPED_INCOMPLETE_VALUES_KEY: dropped_incomplete_values,
+        ROW_DROP_MISSING_DATA_POLICY_KEY: resolved_policy.missing_data_policy,
+        ROW_DROP_REQUIRED_OBSERVED_COUNT_KEY: required_observed_count,
+        ROW_DROP_DEDUPLICATED_SITE_ROWS_KEY: deduplicated_site_rows,
+        ROW_DROP_DUPLICATE_SITE_STRATEGY_KEY: resolved_policy.duplicate_site_strategy,
+        ROW_DROP_RETAINED_ROWS_KEY: len(phosr_input),
     }
 
     matrix = phosr_input.loc[:, [SITE_MATRIX_ID_COLUMN, *value_cols]].set_index(
         SITE_MATRIX_ID_COLUMN
     )
-    matrix.attrs["row_drop_stats"] = row_drop_stats.copy()
+    matrix.attrs[ROW_DROP_STATS_ATTR] = row_drop_stats.copy()
     sequences = phosr_input.set_index(SITE_MATRIX_ID_COLUMN)[sequence_col]
-    sequences.attrs["row_drop_stats"] = row_drop_stats.copy()
-    phosr_input.attrs["row_drop_stats"] = row_drop_stats.copy()
+    sequences.attrs[ROW_DROP_STATS_ATTR] = row_drop_stats.copy()
+    phosr_input.attrs[ROW_DROP_STATS_ATTR] = row_drop_stats.copy()
     return phosr_input, matrix, sequences
 
 

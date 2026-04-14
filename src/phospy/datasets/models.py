@@ -10,6 +10,14 @@ import pandas as pd
 from ..errors import InputCompatibilityError
 from ..internal.constants import (
     PHOSPHO_GENE_COLUMN,
+    ROW_DROP_DEDUPLICATED_SITE_ROWS_KEY,
+    ROW_DROP_DROPPED_INCOMPLETE_VALUES_KEY,
+    ROW_DROP_DROPPED_MISSING_SEQUENCE_KEY,
+    ROW_DROP_DUPLICATE_SITE_STRATEGY_KEY,
+    ROW_DROP_INPUT_ROWS_KEY,
+    ROW_DROP_MISSING_DATA_POLICY_KEY,
+    ROW_DROP_REQUIRED_OBSERVED_COUNT_KEY,
+    ROW_DROP_RETAINED_ROWS_KEY,
     SITE_MATRIX_GENE_COLUMN,
     SITE_MATRIX_ID_COLUMN,
     ComparisonSpec,
@@ -86,23 +94,28 @@ class AnalysisReadySiteMatrixStats:
         row_drop_stats: Mapping[str, int | str],
     ) -> AnalysisReadySiteMatrixStats:
         return cls(
-            input_rows=int(row_drop_stats.get("input_rows", 0)),
+            input_rows=int(row_drop_stats.get(ROW_DROP_INPUT_ROWS_KEY, 0)),
             dropped_missing_sequence=int(
-                row_drop_stats.get("dropped_missing_sequence", 0)
+                row_drop_stats.get(ROW_DROP_DROPPED_MISSING_SEQUENCE_KEY, 0)
             ),
             dropped_incomplete_values=int(
-                row_drop_stats.get("dropped_incomplete_values", 0)
+                row_drop_stats.get(ROW_DROP_DROPPED_INCOMPLETE_VALUES_KEY, 0)
             ),
             missing_data_policy=str(
-                row_drop_stats.get("missing_data_policy", "drop_any_missing")
+                row_drop_stats.get(ROW_DROP_MISSING_DATA_POLICY_KEY, "drop_any_missing")
             ),
             required_observed_count=int(
-                row_drop_stats.get("required_observed_count", 0)
+                row_drop_stats.get(ROW_DROP_REQUIRED_OBSERVED_COUNT_KEY, 0)
             ),
-            deduplicated_site_rows=int(row_drop_stats.get("deduplicated_site_rows", 0)),
-            retained_rows=int(row_drop_stats.get("retained_rows", 0)),
+            deduplicated_site_rows=int(
+                row_drop_stats.get(ROW_DROP_DEDUPLICATED_SITE_ROWS_KEY, 0)
+            ),
+            retained_rows=int(row_drop_stats.get(ROW_DROP_RETAINED_ROWS_KEY, 0)),
             duplicate_site_strategy=str(
-                row_drop_stats.get("duplicate_site_strategy", "max_mean_signal")
+                row_drop_stats.get(
+                    ROW_DROP_DUPLICATE_SITE_STRATEGY_KEY,
+                    "max_mean_signal",
+                )
             ),
         )
 

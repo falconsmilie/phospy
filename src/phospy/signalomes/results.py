@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from .constants import MODULE_ID_COLUMN
 from .maps import SignalomeMapData
 from .networks import SignalomeNetworkData
 from .serialization import serialize_site_assignments_for_export
@@ -70,7 +71,7 @@ class SignalomeAssignments:
     def protein_modules(self) -> pd.Series:
         """Return the protein-to-module assignment series for compatibility."""
 
-        return self.protein_assignments.loc[:, "module_id"]
+        return self.protein_assignments.loc[:, MODULE_ID_COLUMN]
 
     def sites(self, *, copy: bool = False) -> pd.DataFrame:
         """Return the site assignment table."""

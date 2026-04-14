@@ -6,7 +6,11 @@ from dataclasses import dataclass
 import pandas as pd
 
 from ..errors import TableSchemaError
-from ..internal.constants import CENTRALIZED_SEQUENCE_COLUMN, GENE_P_SITE_COLUMN
+from ..internal.constants import (
+    CENTRALIZED_SEQUENCE_COLUMN,
+    GENE_P_SITE_COLUMN,
+    ROW_DROP_STATS_ATTR,
+)
 from ..matrices import SiteMatrixPolicy, build_site_matrix, format_row_drop_diagnostics
 from ..validation.schema.tables import SiteMatrixSchema
 
@@ -81,7 +85,7 @@ class SiteMatrixBuilder:
             policy=policy,
             copy_frame=copy_frame,
         )
-        row_drop_stats = dict(phosr_input.attrs.get("row_drop_stats", {}))
+        row_drop_stats = dict(phosr_input.attrs.get(ROW_DROP_STATS_ATTR, {}))
         if matrix.empty:
             diagnostics = format_row_drop_diagnostics(row_drop_stats)
             raise TableSchemaError(

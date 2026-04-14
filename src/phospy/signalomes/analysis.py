@@ -29,6 +29,11 @@ from .clustering import (
     SignalomeModuleSelectionPolicy,
     cluster_sites_with_diagnostics,
 )
+from .constants import (
+    KINASE_COLUMN,
+    SITE_ID_COLUMN,
+    TOP_KINASE_WEIGHTS_COLUMN,
+)
 from .results import (
     ExpandedSignalome,
     SignalomeAssignments,
@@ -312,7 +317,10 @@ def build_kinase_network_view(
 ) -> SignalomeKinaseNetwork:
     """Wrap derived network tables and neighbour lookup in a structured result view."""
 
-    kinase_index = pd.Index(kinase_correlation_matrix.index.astype(str), name="kinase")
+    kinase_index = pd.Index(
+        kinase_correlation_matrix.index.astype(str),
+        name=KINASE_COLUMN,
+    )
     aligned_network = kinase_network.loc[kinase_index, kinase_index]
     aligned_correlation_matrix = kinase_correlation_matrix.loc[
         kinase_index, kinase_index
@@ -408,7 +416,7 @@ def build_signalome_support_matrix(
     """Build a kinase-by-protein support matrix from aligned assignments."""
 
     support_rows: dict[str, list[int]] = {}
-    site_index = pd.Index(site_assignments.index.astype(str), name="site_id")
+    site_index = pd.Index(site_assignments.index.astype(str), name=SITE_ID_COLUMN)
     if site_index.has_duplicates:
         msg = "site_assignments index must contain unique site IDs"
         raise InputCompatibilityError(msg)
@@ -457,10 +465,10 @@ def _build_weighted_top_site_support(
     site_assignments: pd.DataFrame,
     kinases: Sequence[str],
 ) -> dict[str, np.ndarray]:
-    site_index = pd.Index(site_assignments.index.astype(str), name="site_id")
-    if "top_kinase_weights" not in site_assignments.columns:
+    site_index = pd.Index(site_assignments.index.astype(str), name=SITE_ID_COLUMN)
+    if TOP_KINASE_WEIGHTS_COLUMN not in site_assignments.columns:
         msg = (
-            "site_assignments must include 'top_kinase_weights' for "
+            f"site_assignments must include '{TOP_KINASE_WEIGHTS_COLUMN}' for "
             "weighted_top assignment_policy"
         )
         raise InputCompatibilityError(msg)
@@ -468,7 +476,9 @@ def _build_weighted_top_site_support(
     support_rows = {
         str(kinase): np.zeros(len(site_index), dtype=float) for kinase in kinase_set
     }
-    weight_values = site_assignments.loc[:, "top_kinase_weights"].to_numpy(copy=False)
+    weight_values = site_assignments.loc[:, TOP_KINASE_WEIGHTS_COLUMN].to_numpy(
+        copy=False
+    )
     for row_position, value in enumerate(weight_values):
         try:
             normalized_weights = normalize_top_kinase_weights(value)

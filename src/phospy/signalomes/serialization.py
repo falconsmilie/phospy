@@ -5,6 +5,8 @@ from collections.abc import Mapping, Sequence
 
 import pandas as pd
 
+from .constants import TOP_KINASE_CANDIDATES_COLUMN, TOP_KINASE_WEIGHTS_COLUMN
+
 __all__ = [
     "normalize_top_kinase_weights",
     "serialize_site_assignments_for_export",
@@ -21,7 +23,7 @@ def serialize_top_kinase_candidates(value: object) -> str:
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
         return json.dumps([str(kinase) for kinase in value])
 
-    msg = "top_kinase_candidates must be a sequence of kinase names"
+    msg = f"{TOP_KINASE_CANDIDATES_COLUMN} must be a sequence of kinase names"
     raise TypeError(msg)
 
 
@@ -39,17 +41,25 @@ def serialize_top_kinase_weights(value: object) -> str:
         items: list[tuple[str, float]] = []
         for pair in value:
             if not (isinstance(pair, Sequence) and not isinstance(pair, (str, bytes))):
-                msg = "top_kinase_weights sequence entries must be (kinase, weight)"
+                msg = (
+                    f"{TOP_KINASE_WEIGHTS_COLUMN} sequence entries must be "
+                    "(kinase, weight)"
+                )
                 raise TypeError(msg)
             pair_values = tuple(pair)
             if len(pair_values) != 2:
-                msg = "top_kinase_weights sequence entries must be (kinase, weight)"
+                msg = (
+                    f"{TOP_KINASE_WEIGHTS_COLUMN} sequence entries must be "
+                    "(kinase, weight)"
+                )
                 raise TypeError(msg)
             kinase, weight = pair_values
             items.append((str(kinase), float(weight)))
         return json.dumps(dict(items))
 
-    msg = "top_kinase_weights must be a mapping or sequence of (kinase, weight)"
+    msg = (
+        f"{TOP_KINASE_WEIGHTS_COLUMN} must be a mapping or sequence of (kinase, weight)"
+    )
     raise TypeError(msg)
 
 
@@ -67,17 +77,23 @@ def normalize_top_kinase_weights(value: object) -> tuple[tuple[str, float], ...]
         items: list[tuple[str, float]] = []
         for pair in value:
             if not (isinstance(pair, Sequence) and not isinstance(pair, (str, bytes))):
-                msg = "top_kinase_weights sequence entries must be (kinase, weight)"
+                msg = (
+                    f"{TOP_KINASE_WEIGHTS_COLUMN} sequence entries must be "
+                    "(kinase, weight)"
+                )
                 raise TypeError(msg)
             pair_values = tuple(pair)
             if len(pair_values) != 2:
-                msg = "top_kinase_weights sequence entries must be (kinase, weight)"
+                msg = (
+                    f"{TOP_KINASE_WEIGHTS_COLUMN} sequence entries must be "
+                    "(kinase, weight)"
+                )
                 raise TypeError(msg)
             kinase, weight = pair_values
             items.append((str(kinase), float(weight)))
         return tuple(items)
 
-    msg = "top_kinase_weights must be a mapping, JSON object, or sequence"
+    msg = f"{TOP_KINASE_WEIGHTS_COLUMN} must be a mapping, JSON object, or sequence"
     raise TypeError(msg)
 
 
@@ -87,12 +103,12 @@ def serialize_site_assignments_for_export(
     """Return a CSV-ready copy with tie fields encoded as JSON strings."""
 
     exported = site_assignments.copy(deep=True)
-    if "top_kinase_candidates" in exported.columns:
-        exported["top_kinase_candidates"] = exported["top_kinase_candidates"].map(
-            serialize_top_kinase_candidates
-        )
-    if "top_kinase_weights" in exported.columns:
-        exported["top_kinase_weights"] = exported["top_kinase_weights"].map(
+    if TOP_KINASE_CANDIDATES_COLUMN in exported.columns:
+        exported[TOP_KINASE_CANDIDATES_COLUMN] = exported[
+            TOP_KINASE_CANDIDATES_COLUMN
+        ].map(serialize_top_kinase_candidates)
+    if TOP_KINASE_WEIGHTS_COLUMN in exported.columns:
+        exported[TOP_KINASE_WEIGHTS_COLUMN] = exported[TOP_KINASE_WEIGHTS_COLUMN].map(
             serialize_top_kinase_weights
         )
     return exported

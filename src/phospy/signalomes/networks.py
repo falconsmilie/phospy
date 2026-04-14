@@ -6,6 +6,20 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from .constants import (
+    CORRELATION_COLUMN,
+    DEGREE_COLUMN,
+    IS_KINASE_OF_INTEREST_COLUMN,
+    KINASE_COLUMN,
+    MODULE_COUNT_COLUMN,
+    MODULE_ID_COLUMN,
+    N_SUBSTRATES_COLUMN,
+    SHARE_PERCENT_COLUMN,
+    SOURCE_KINASE_COLUMN,
+    TARGET_KINASE_COLUMN,
+    TOTAL_SHARE_PERCENT_COLUMN,
+)
+
 if TYPE_CHECKING:
     from .results import SignalomeResult
 
@@ -137,12 +151,12 @@ def _build_node_outputs(
     ]
 
     module_counts = (
-        relationships.groupby("kinase").size().astype(int)
+        relationships.groupby(KINASE_COLUMN).size().astype(int)
         if not relationships.empty
         else pd.Series(dtype=int)
     )
     total_share_percent = (
-        relationships.groupby("kinase")["share_percent"].sum().astype(float)
+        relationships.groupby(KINASE_COLUMN)[SHARE_PERCENT_COLUMN].sum().astype(float)
         if not relationships.empty
         else pd.Series(dtype=float)
     )
@@ -152,8 +166,8 @@ def _build_node_outputs(
     for kinase in kinase_order:
         node = SignalomeNetworkNode(
             kinase=kinase,
-            degree=int(network_nodes.loc[kinase, "degree"]),
-            n_substrates=int(network_nodes.loc[kinase, "n_substrates"]),
+            degree=int(network_nodes.loc[kinase, DEGREE_COLUMN]),
+            n_substrates=int(network_nodes.loc[kinase, N_SUBSTRATES_COLUMN]),
             module_count=int(module_counts.get(kinase, 0)),
             total_share_percent=float(total_share_percent.get(kinase, 0.0)),
             is_kinase_of_interest=kinase in kinases_of_interest,
@@ -161,24 +175,24 @@ def _build_node_outputs(
         models.append(node)
         rows.append(
             {
-                "kinase": node.kinase,
-                "degree": node.degree,
-                "n_substrates": node.n_substrates,
-                "module_count": node.module_count,
-                "total_share_percent": node.total_share_percent,
-                "is_kinase_of_interest": node.is_kinase_of_interest,
+                KINASE_COLUMN: node.kinase,
+                DEGREE_COLUMN: node.degree,
+                N_SUBSTRATES_COLUMN: node.n_substrates,
+                MODULE_COUNT_COLUMN: node.module_count,
+                TOTAL_SHARE_PERCENT_COLUMN: node.total_share_percent,
+                IS_KINASE_OF_INTEREST_COLUMN: node.is_kinase_of_interest,
             }
         )
 
-    node_table = pd.DataFrame.from_records(rows).set_index("kinase")
-    node_table.index.name = "kinase"
+    node_table = pd.DataFrame.from_records(rows).set_index(KINASE_COLUMN)
+    node_table.index.name = KINASE_COLUMN
     node_table = node_table.astype(
         {
-            "degree": int,
-            "n_substrates": int,
-            "module_count": int,
-            "total_share_percent": float,
-            "is_kinase_of_interest": bool,
+            DEGREE_COLUMN: int,
+            N_SUBSTRATES_COLUMN: int,
+            MODULE_COUNT_COLUMN: int,
+            TOTAL_SHARE_PERCENT_COLUMN: float,
+            IS_KINASE_OF_INTEREST_COLUMN: bool,
         }
     )
     return node_table, tuple(models)
@@ -195,8 +209,8 @@ def _build_edge_outputs(
         relationship_map: dict[str, tuple[int, ...]] = {}
     else:
         relationship_map = {
-            str(kinase): tuple(sorted(group["module_id"].astype(int).tolist()))
-            for kinase, group in relationships.groupby("kinase", sort=True)
+            str(kinase): tuple(sorted(group[MODULE_ID_COLUMN].astype(int).tolist()))
+            for kinase, group in relationships.groupby(KINASE_COLUMN, sort=True)
         }
 
     models: list[SignalomeNetworkEdge] = []
@@ -219,9 +233,9 @@ def _build_edge_outputs(
         models.append(edge)
         rows.append(
             {
-                "source_kinase": edge.source_kinase,
-                "target_kinase": edge.target_kinase,
-                "correlation": edge.correlation,
+                SOURCE_KINASE_COLUMN: edge.source_kinase,
+                TARGET_KINASE_COLUMN: edge.target_kinase,
+                CORRELATION_COLUMN: edge.correlation,
                 "shared_module_count": edge.shared_module_count,
                 "shared_modules": "["
                 + ",".join(str(module_id) for module_id in edge.shared_modules)
@@ -235,9 +249,9 @@ def _build_edge_outputs(
     if edge_table.empty:
         edge_table = pd.DataFrame(
             columns=[
-                "source_kinase",
-                "target_kinase",
-                "correlation",
+                SOURCE_KINASE_COLUMN,
+                TARGET_KINASE_COLUMN,
+                CORRELATION_COLUMN,
                 "shared_module_count",
                 "shared_modules",
                 "source_is_kinase_of_interest",
@@ -246,9 +260,9 @@ def _build_edge_outputs(
         )
     edge_table = edge_table.astype(
         {
-            "source_kinase": str,
-            "target_kinase": str,
-            "correlation": float,
+            SOURCE_KINASE_COLUMN: str,
+            TARGET_KINASE_COLUMN: str,
+            CORRELATION_COLUMN: float,
             "shared_module_count": int,
             "shared_modules": str,
             "source_is_kinase_of_interest": bool,
@@ -256,7 +270,7 @@ def _build_edge_outputs(
         }
     )
     edge_table = edge_table.sort_values(
-        ["source_kinase", "target_kinase"],
+        [SOURCE_KINASE_COLUMN, TARGET_KINASE_COLUMN],
         ascending=[True, True],
         kind="stable",
     ).reset_index(drop=True)

@@ -7,6 +7,22 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
+from .constants import (
+    DEGREE_COLUMN,
+    IS_KINASE_OF_INTEREST_COLUMN,
+    KINASE_COLUMN,
+    MODULE_ID_COLUMN,
+    N_SUBSTRATES_COLUMN,
+    PROTEIN_ID_COLUMN,
+    SHARE_PERCENT_COLUMN,
+    SITE_ID_COLUMN,
+    TOP_KINASE_CANDIDATES_COLUMN,
+    TOP_KINASE_IS_AMBIGUOUS_COLUMN,
+    TOP_KINASE_TIE_COUNT_COLUMN,
+    TOP_KINASE_WEIGHTS_COLUMN,
+    TOP_SCORE_COLUMN,
+    TOTAL_SHARE_PERCENT_COLUMN,
+)
 from .serialization import (
     serialize_top_kinase_candidates,
     serialize_top_kinase_weights,
@@ -127,17 +143,17 @@ def _build_module_positions(signalome_result: SignalomeResult) -> pd.DataFrame:
     protein_assignments = signalome_result.assignments.proteins(copy=False)
 
     module_positions = pd.DataFrame(index=module_table.index.copy())
-    module_positions.index.name = "module_id"
+    module_positions.index.name = MODULE_ID_COLUMN
     module_positions["x"] = np.arange(len(module_positions), dtype=float)
     module_positions["y"] = 0.0
     module_positions["n_sites"] = (
-        site_assignments.groupby("module_id")
+        site_assignments.groupby(MODULE_ID_COLUMN)
         .size()
         .reindex(module_positions.index, fill_value=0)
         .astype(int)
     )
     module_positions["n_proteins"] = (
-        protein_assignments.groupby("module_id")
+        protein_assignments.groupby(MODULE_ID_COLUMN)
         .size()
         .reindex(module_positions.index, fill_value=0)
         .astype(int)
@@ -145,17 +161,19 @@ def _build_module_positions(signalome_result: SignalomeResult) -> pd.DataFrame:
 
     dominant_relationships = (
         relationships.sort_values(
-            ["module_id", "share_percent", "kinase"],
+            [MODULE_ID_COLUMN, SHARE_PERCENT_COLUMN, KINASE_COLUMN],
             ascending=[True, False, True],
             kind="stable",
         )
-        .drop_duplicates(subset=["module_id"], keep="first")
-        .set_index("module_id")
+        .drop_duplicates(subset=[MODULE_ID_COLUMN], keep="first")
+        .set_index(MODULE_ID_COLUMN)
     )
     dominant_relationships = dominant_relationships.reindex(module_positions.index)
-    module_positions["dominant_kinase"] = dominant_relationships["kinase"].fillna("")
+    module_positions["dominant_kinase"] = dominant_relationships[KINASE_COLUMN].fillna(
+        ""
+    )
     module_positions["dominant_share_percent"] = (
-        dominant_relationships["share_percent"].fillna(0.0).astype(float)
+        dominant_relationships[SHARE_PERCENT_COLUMN].fillna(0.0).astype(float)
     )
     return module_positions
 
@@ -166,7 +184,7 @@ def _build_site_positions(
 ) -> pd.DataFrame:
     site_assignments = signalome_result.assignments.sites(copy=False).reset_index()
     site_assignments = site_assignments.sort_values(
-        ["module_id", "protein_id", "site_id"],
+        [MODULE_ID_COLUMN, PROTEIN_ID_COLUMN, SITE_ID_COLUMN],
         ascending=[True, True, True],
         kind="stable",
     )
@@ -175,13 +193,13 @@ def _build_site_positions(
     if site_assignments.empty:
         site_positions = pd.DataFrame(
             columns=[
-                "protein_id",
-                "module_id",
-                "top_kinase_candidates",
-                "top_kinase_weights",
-                "top_kinase_tie_count",
-                "top_kinase_is_ambiguous",
-                "top_score",
+                PROTEIN_ID_COLUMN,
+                MODULE_ID_COLUMN,
+                TOP_KINASE_CANDIDATES_COLUMN,
+                TOP_KINASE_WEIGHTS_COLUMN,
+                TOP_KINASE_TIE_COUNT_COLUMN,
+                TOP_KINASE_IS_AMBIGUOUS_COLUMN,
+                TOP_SCORE_COLUMN,
                 "x",
                 "y",
                 "module_x",
@@ -191,16 +209,16 @@ def _build_site_positions(
                 "expression_std",
             ]
         )
-        site_positions.index = pd.Index([], name="site_id", dtype=object)
+        site_positions.index = pd.Index([], name=SITE_ID_COLUMN, dtype=object)
         return site_positions
 
     module_sizes = (
-        site_assignments.groupby("module_id", sort=True)["site_id"]
+        site_assignments.groupby(MODULE_ID_COLUMN, sort=True)[SITE_ID_COLUMN]
         .transform("size")
         .to_numpy(dtype=int, copy=False)
     )
     position_zero_based = (
-        site_assignments.groupby("module_id", sort=True)
+        site_assignments.groupby(MODULE_ID_COLUMN, sort=True)
         .cumcount()
         .to_numpy(dtype=int, copy=False)
     )
@@ -211,39 +229,41 @@ def _build_site_positions(
     ] * (_SITE_POSITION_OFFSET_SPAN / (module_sizes[multi_member_mask] - 1))
 
     module_x = (
-        site_assignments["module_id"]
+        site_assignments[MODULE_ID_COLUMN]
         .map(module_positions["x"])
         .to_numpy(dtype=float, copy=False)
     )
     module_y = (
-        site_assignments["module_id"]
+        site_assignments[MODULE_ID_COLUMN]
         .map(module_positions["y"])
         .to_numpy(dtype=float, copy=False)
     )
-    site_ids = site_assignments["site_id"].astype(str)
+    site_ids = site_assignments[SITE_ID_COLUMN].astype(str)
     expression_values = expression_matrix.loc[site_ids].to_numpy(
         dtype=float, copy=False
     )
 
     site_positions = pd.DataFrame(
         {
-            "protein_id": site_assignments["protein_id"]
+            PROTEIN_ID_COLUMN: site_assignments[PROTEIN_ID_COLUMN]
             .astype(str)
             .to_numpy(dtype=object, copy=False),
-            "module_id": site_assignments["module_id"].to_numpy(dtype=int, copy=False),
-            "top_kinase_candidates": site_assignments["top_kinase_candidates"].map(
-                serialize_top_kinase_candidates
-            ),
-            "top_kinase_weights": site_assignments["top_kinase_weights"].map(
-                serialize_top_kinase_weights
-            ),
-            "top_kinase_tie_count": site_assignments["top_kinase_tie_count"].to_numpy(
+            MODULE_ID_COLUMN: site_assignments[MODULE_ID_COLUMN].to_numpy(
                 dtype=int, copy=False
             ),
-            "top_kinase_is_ambiguous": site_assignments[
-                "top_kinase_is_ambiguous"
+            TOP_KINASE_CANDIDATES_COLUMN: site_assignments[
+                TOP_KINASE_CANDIDATES_COLUMN
+            ].map(serialize_top_kinase_candidates),
+            TOP_KINASE_WEIGHTS_COLUMN: site_assignments[TOP_KINASE_WEIGHTS_COLUMN].map(
+                serialize_top_kinase_weights
+            ),
+            TOP_KINASE_TIE_COUNT_COLUMN: site_assignments[
+                TOP_KINASE_TIE_COUNT_COLUMN
+            ].to_numpy(dtype=int, copy=False),
+            TOP_KINASE_IS_AMBIGUOUS_COLUMN: site_assignments[
+                TOP_KINASE_IS_AMBIGUOUS_COLUMN
             ].to_numpy(dtype=bool, copy=False),
-            "top_score": site_assignments["top_score"].to_numpy(
+            TOP_SCORE_COLUMN: site_assignments[TOP_SCORE_COLUMN].to_numpy(
                 dtype=float, copy=False
             ),
             "x": module_x + offsets,
@@ -254,9 +274,11 @@ def _build_site_positions(
             "expression_mean": np.mean(expression_values, axis=1),
             "expression_std": np.std(expression_values, axis=1, ddof=0),
         },
-        index=pd.Index(site_ids.to_numpy(dtype=object, copy=False), name="site_id"),
+        index=pd.Index(
+            site_ids.to_numpy(dtype=object, copy=False), name=SITE_ID_COLUMN
+        ),
     )
-    site_positions.index.name = "site_id"
+    site_positions.index.name = SITE_ID_COLUMN
     return site_positions
 
 
@@ -273,16 +295,18 @@ def _build_kinase_positions(
 
     records: list[dict[str, object]] = []
     for default_position, kinase in enumerate(kinase_order):
-        kinase_links = relationships.loc[relationships.loc[:, "kinase"] == kinase]
-        total_share_percent = float(kinase_links.loc[:, "share_percent"].sum())
+        kinase_links = relationships.loc[relationships.loc[:, KINASE_COLUMN] == kinase]
+        total_share_percent = float(kinase_links.loc[:, SHARE_PERCENT_COLUMN].sum())
         if total_share_percent > 0.0:
             base_x = float(
                 np.average(
                     module_positions.loc[
-                        kinase_links.loc[:, "module_id"].to_numpy(dtype=int),
+                        kinase_links.loc[:, MODULE_ID_COLUMN].to_numpy(dtype=int),
                         "x",
                     ].to_numpy(dtype=float),
-                    weights=kinase_links.loc[:, "share_percent"].to_numpy(dtype=float),
+                    weights=kinase_links.loc[:, SHARE_PERCENT_COLUMN].to_numpy(
+                        dtype=float
+                    ),
                 )
             )
         else:
@@ -290,19 +314,21 @@ def _build_kinase_positions(
 
         records.append(
             {
-                "kinase": kinase,
+                KINASE_COLUMN: kinase,
                 "base_x": base_x,
                 "module_count": int(kinase_links.shape[0]),
-                "total_share_percent": total_share_percent,
-                "degree": int(network_nodes.loc[kinase, "degree"]),
-                "n_substrates": int(network_nodes.loc[kinase, "n_substrates"]),
-                "is_kinase_of_interest": kinase in kinases_of_interest,
+                TOTAL_SHARE_PERCENT_COLUMN: total_share_percent,
+                DEGREE_COLUMN: int(network_nodes.loc[kinase, DEGREE_COLUMN]),
+                N_SUBSTRATES_COLUMN: int(
+                    network_nodes.loc[kinase, N_SUBSTRATES_COLUMN]
+                ),
+                IS_KINASE_OF_INTEREST_COLUMN: kinase in kinases_of_interest,
             }
         )
 
     kinase_positions = pd.DataFrame.from_records(records)
     kinase_positions = kinase_positions.sort_values(
-        ["base_x", "kinase"],
+        ["base_x", KINASE_COLUMN],
         ascending=[True, True],
         kind="stable",
     )
@@ -311,12 +337,12 @@ def _build_kinase_positions(
     for base_x, group in kinase_positions.groupby("base_x", sort=True):
         offsets = _centered_offsets(len(group), span=_KINASE_COLLISION_AVOIDANCE_SPAN)
         for (_, row), offset in zip(group.iterrows(), offsets, strict=True):
-            adjusted_x[str(row["kinase"])] = float(base_x) + float(offset)
+            adjusted_x[str(row[KINASE_COLUMN])] = float(base_x) + float(offset)
 
-    kinase_positions["x"] = kinase_positions.loc[:, "kinase"].map(adjusted_x)
+    kinase_positions["x"] = kinase_positions.loc[:, KINASE_COLUMN].map(adjusted_x)
     kinase_positions["y"] = _KINASE_BASELINE_Y
-    kinase_positions = kinase_positions.set_index("kinase")
-    kinase_positions.index.name = "kinase"
+    kinase_positions = kinase_positions.set_index(KINASE_COLUMN)
+    kinase_positions.index.name = KINASE_COLUMN
     return kinase_positions.loc[
         kinase_order,
         [
@@ -324,10 +350,10 @@ def _build_kinase_positions(
             "y",
             "base_x",
             "module_count",
-            "total_share_percent",
-            "degree",
-            "n_substrates",
-            "is_kinase_of_interest",
+            TOTAL_SHARE_PERCENT_COLUMN,
+            DEGREE_COLUMN,
+            N_SUBSTRATES_COLUMN,
+            IS_KINASE_OF_INTEREST_COLUMN,
         ],
     ]
 
@@ -341,40 +367,40 @@ def _build_kinase_module_links(
     if relationships.empty:
         return pd.DataFrame(
             columns=[
-                "kinase",
-                "module_id",
-                "share_percent",
+                KINASE_COLUMN,
+                MODULE_ID_COLUMN,
+                SHARE_PERCENT_COLUMN,
                 "kinase_x",
                 "kinase_y",
                 "module_x",
                 "module_y",
-                "is_kinase_of_interest",
+                IS_KINASE_OF_INTEREST_COLUMN,
             ]
         )
 
     links = relationships.sort_values(
-        ["module_id", "share_percent", "kinase"],
+        [MODULE_ID_COLUMN, SHARE_PERCENT_COLUMN, KINASE_COLUMN],
         ascending=[True, False, True],
         kind="stable",
     ).reset_index(drop=True)
-    links["kinase_x"] = links.loc[:, "kinase"].map(kinase_positions.loc[:, "x"])
-    links["kinase_y"] = links.loc[:, "kinase"].map(kinase_positions.loc[:, "y"])
-    links["module_x"] = links.loc[:, "module_id"].map(module_positions.loc[:, "x"])
-    links["module_y"] = links.loc[:, "module_id"].map(module_positions.loc[:, "y"])
-    links["is_kinase_of_interest"] = links.loc[:, "kinase"].map(
-        kinase_positions.loc[:, "is_kinase_of_interest"]
+    links["kinase_x"] = links.loc[:, KINASE_COLUMN].map(kinase_positions.loc[:, "x"])
+    links["kinase_y"] = links.loc[:, KINASE_COLUMN].map(kinase_positions.loc[:, "y"])
+    links["module_x"] = links.loc[:, MODULE_ID_COLUMN].map(module_positions.loc[:, "x"])
+    links["module_y"] = links.loc[:, MODULE_ID_COLUMN].map(module_positions.loc[:, "y"])
+    links[IS_KINASE_OF_INTEREST_COLUMN] = links.loc[:, KINASE_COLUMN].map(
+        kinase_positions.loc[:, IS_KINASE_OF_INTEREST_COLUMN]
     )
     return links.loc[
         :,
         [
-            "kinase",
-            "module_id",
-            "share_percent",
+            KINASE_COLUMN,
+            MODULE_ID_COLUMN,
+            SHARE_PERCENT_COLUMN,
             "kinase_x",
             "kinase_y",
             "module_x",
             "module_y",
-            "is_kinase_of_interest",
+            IS_KINASE_OF_INTEREST_COLUMN,
         ],
     ]
 

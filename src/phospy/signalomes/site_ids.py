@@ -6,6 +6,7 @@ import pandas as pd
 
 from ..errors import InputCompatibilityError
 from ..validation.values.identifiers import parse_canonical_site_id
+from .constants import PROTEIN_ID_COLUMN, SITE_ID_COLUMN
 
 __all__ = [
     "parse_supported_signalome_site_ids",
@@ -113,6 +114,6 @@ def _build_site_to_protein_series(
         index=pd.Index([str(site_id) for site_id in site_ids], dtype=object),
         dtype=object,
     )
-    series.index.name = "site_id"
-    series.name = "protein_id"
+    series.index.name = SITE_ID_COLUMN
+    series.name = PROTEIN_ID_COLUMN
     return series

@@ -7,6 +7,19 @@ import pandas as pd
 
 from ..errors import InputCompatibilityError
 from ..internal.types import SignalomeAssignmentPolicy
+from .constants import (
+    KINASE_COLUMN,
+    MODULE_ID_COLUMN,
+    PROTEIN_ID_COLUMN,
+    SHARE_PERCENT_COLUMN,
+    SITE_ID_COLUMN,
+    TOP_KINASE_CANDIDATES_COLUMN,
+    TOP_KINASE_IS_AMBIGUOUS_COLUMN,
+    TOP_KINASE_TIE_COUNT_COLUMN,
+    TOP_KINASE_WEIGHTS_COLUMN,
+    TOP_SCORE_COLUMN,
+    WEIGHT_COLUMN,
+)
 from .results import ExpandedSignalome
 from .serialization import normalize_top_kinase_weights
 from .site_ids import (
@@ -130,8 +143,8 @@ def derive_protein_modules(
             next_module_id += 1
         assignments[str(protein)] = pattern_to_module[pattern]
 
-    protein_modules = pd.Series(assignments, dtype=int, name="module_id")
-    protein_modules.index.name = "protein_id"
+    protein_modules = pd.Series(assignments, dtype=int, name=MODULE_ID_COLUMN)
+    protein_modules.index.name = PROTEIN_ID_COLUMN
     return protein_modules
 
 
@@ -157,12 +170,12 @@ def build_site_assignments(
     site_index = _as_unique_string_index(
         pred_mat.index,
         context="pred_mat",
-        label="site_id",
+        label=SITE_ID_COLUMN,
     )
     resolved_site_to_protein = _as_unique_string_series_index(
         site_to_protein,
         context="site_to_protein",
-        label="site_id",
+        label=SITE_ID_COLUMN,
     )
     resolved_site_to_protein = resolved_site_to_protein.astype(str)
     missing_site_ids = sorted(
@@ -184,7 +197,7 @@ def build_site_assignments(
     resolved_protein_modules = _as_unique_string_series_index(
         protein_modules,
         context="protein_modules",
-        label="protein_id",
+        label=PROTEIN_ID_COLUMN,
     ).astype(int)
 
     protein_ids = resolved_site_to_protein.loc[site_index]
@@ -238,23 +251,23 @@ def build_site_assignments(
 
     site_assignments = pd.DataFrame(
         {
-            "protein_id": protein_ids.to_numpy(dtype=object, copy=False),
-            "module_id": module_ids.to_numpy(dtype=int, copy=False),
-            "top_kinase_candidates": top_kinase_candidates,
-            "top_kinase_weights": top_kinase_weights,
-            "top_kinase_tie_count": top_kinase_tie_count,
-            "top_kinase_is_ambiguous": top_kinase_tie_count > 1,
-            "top_score": top_scores.to_numpy(dtype=float, copy=False),
+            PROTEIN_ID_COLUMN: protein_ids.to_numpy(dtype=object, copy=False),
+            MODULE_ID_COLUMN: module_ids.to_numpy(dtype=int, copy=False),
+            TOP_KINASE_CANDIDATES_COLUMN: top_kinase_candidates,
+            TOP_KINASE_WEIGHTS_COLUMN: top_kinase_weights,
+            TOP_KINASE_TIE_COUNT_COLUMN: top_kinase_tie_count,
+            TOP_KINASE_IS_AMBIGUOUS_COLUMN: top_kinase_tie_count > 1,
+            TOP_SCORE_COLUMN: top_scores.to_numpy(dtype=float, copy=False),
         },
         index=site_index,
     )
     site_assignments = site_assignments.astype(
         {
-            "protein_id": str,
-            "module_id": int,
-            "top_kinase_tie_count": int,
-            "top_kinase_is_ambiguous": bool,
-            "top_score": float,
+            PROTEIN_ID_COLUMN: str,
+            MODULE_ID_COLUMN: int,
+            TOP_KINASE_TIE_COUNT_COLUMN: int,
+            TOP_KINASE_IS_AMBIGUOUS_COLUMN: bool,
+            TOP_SCORE_COLUMN: float,
         }
     )
     return site_assignments
@@ -264,15 +277,15 @@ def build_protein_assignment_table(*, site_assignments: pd.DataFrame) -> pd.Data
     """Build the protein-level assignment table from site assignments."""
 
     protein_assignments = (
-        site_assignments.groupby("protein_id", sort=True)
+        site_assignments.groupby(PROTEIN_ID_COLUMN, sort=True)
         .agg(
-            module_id=("module_id", "first"),
-            site_count=("module_id", "size"),
+            module_id=(MODULE_ID_COLUMN, "first"),
+            site_count=(MODULE_ID_COLUMN, "size"),
         )
-        .astype({"module_id": int, "site_count": int})
+        .astype({MODULE_ID_COLUMN: int, "site_count": int})
         .sort_index()
     )
-    protein_assignments.index.name = "protein_id"
+    protein_assignments.index.name = PROTEIN_ID_COLUMN
     return protein_assignments
 
 
@@ -310,17 +323,17 @@ def build_signalome_module_table(
     """
 
     module_ids = sorted(
-        {int(value) for value in site_assignments["module_id"].tolist()}
+        {int(value) for value in site_assignments[MODULE_ID_COLUMN].tolist()}
     )
     kinase_names = list(kinase_substrates)
-    module_index = pd.Index(module_ids, name="module_id")
-    kinase_index = pd.Index(kinase_names, name="kinase")
+    module_index = pd.Index(module_ids, name=MODULE_ID_COLUMN)
+    kinase_index = pd.Index(kinase_names, name=KINASE_COLUMN)
 
     protein_to_module = (
-        site_assignments.loc[:, ["protein_id", "module_id"]]
-        .drop_duplicates(subset=["protein_id"])
-        .set_index("protein_id")
-        .loc[:, "module_id"]
+        site_assignments.loc[:, [PROTEIN_ID_COLUMN, MODULE_ID_COLUMN]]
+        .drop_duplicates(subset=[PROTEIN_ID_COLUMN])
+        .set_index(PROTEIN_ID_COLUMN)
+        .loc[:, MODULE_ID_COLUMN]
         .astype(int)
     )
 
@@ -366,7 +379,7 @@ def _build_cutoff_binary_module_table(
     kinase_substrates: Mapping[str, Sequence[str]],
 ) -> pd.DataFrame:
     substrate_rows = [
-        {"kinase": str(kinase), "site_id": str(site_id)}
+        {KINASE_COLUMN: str(kinase), SITE_ID_COLUMN: str(site_id)}
         for kinase, substrates in kinase_substrates.items()
         for site_id in substrates
     ]
@@ -374,19 +387,25 @@ def _build_cutoff_binary_module_table(
         return pd.DataFrame(0.0, index=module_index, columns=kinase_index).round(3)
 
     substrate_table = pd.DataFrame.from_records(substrate_rows)
-    substrate_table = substrate_table.astype({"kinase": str, "site_id": str})
-    substrate_table = substrate_table.drop_duplicates(subset=["kinase", "site_id"])
+    substrate_table = substrate_table.astype({KINASE_COLUMN: str, SITE_ID_COLUMN: str})
+    substrate_table = substrate_table.drop_duplicates(
+        subset=[KINASE_COLUMN, SITE_ID_COLUMN]
+    )
 
-    site_to_protein = site_assignments.loc[:, ["protein_id"]].copy()
-    site_to_protein.index = pd.Index(site_to_protein.index.astype(str), name="site_id")
-    site_to_protein["protein_id"] = site_to_protein["protein_id"].astype(str)
+    site_to_protein = site_assignments.loc[:, [PROTEIN_ID_COLUMN]].copy()
+    site_to_protein.index = pd.Index(
+        site_to_protein.index.astype(str), name=SITE_ID_COLUMN
+    )
+    site_to_protein[PROTEIN_ID_COLUMN] = site_to_protein[PROTEIN_ID_COLUMN].astype(str)
 
-    protein_hits = substrate_table.join(site_to_protein, on="site_id", how="left")
-    protein_hits = protein_hits.dropna(subset=["protein_id"])
-    protein_hits = protein_hits.drop_duplicates(subset=["kinase", "protein_id"])
+    protein_hits = substrate_table.join(site_to_protein, on=SITE_ID_COLUMN, how="left")
+    protein_hits = protein_hits.dropna(subset=[PROTEIN_ID_COLUMN])
+    protein_hits = protein_hits.drop_duplicates(
+        subset=[KINASE_COLUMN, PROTEIN_ID_COLUMN]
+    )
     protein_hits = protein_hits.join(
-        protein_to_module.rename("module_id"),
-        on="protein_id",
+        protein_to_module.rename(MODULE_ID_COLUMN),
+        on=PROTEIN_ID_COLUMN,
         how="inner",
     )
 
@@ -394,7 +413,7 @@ def _build_cutoff_binary_module_table(
         return pd.DataFrame(0.0, index=module_index, columns=kinase_index).round(3)
 
     counts = (
-        protein_hits.groupby(["module_id", "kinase"], sort=True)
+        protein_hits.groupby([MODULE_ID_COLUMN, KINASE_COLUMN], sort=True)
         .size()
         .astype(float)
         .unstack(fill_value=0.0)
@@ -415,7 +434,7 @@ def _build_weighted_top_module_table(
     module_index: pd.Index,
 ) -> pd.DataFrame:
     weighted_rows: list[dict[str, object]] = []
-    required_columns = {"protein_id", "top_kinase_weights"}
+    required_columns = {PROTEIN_ID_COLUMN, TOP_KINASE_WEIGHTS_COLUMN}
     missing_columns = sorted(required_columns.difference(site_assignments.columns))
     if missing_columns:
         missing = ", ".join(missing_columns)
@@ -424,7 +443,9 @@ def _build_weighted_top_module_table(
             f"assignment_policy: {missing}"
         )
         raise InputCompatibilityError(msg)
-    site_payload = site_assignments.loc[:, ["protein_id", "top_kinase_weights"]]
+    site_payload = site_assignments.loc[
+        :, [PROTEIN_ID_COLUMN, TOP_KINASE_WEIGHTS_COLUMN]
+    ]
     for row in site_payload.itertuples(index=False):
         protein_id = str(row.protein_id)
         if protein_id not in protein_to_module.index:
@@ -443,10 +464,10 @@ def _build_weighted_top_module_table(
                 continue
             weighted_rows.append(
                 {
-                    "module_id": module_id,
-                    "kinase": kinase,
-                    "protein_id": protein_id,
-                    "weight": float(weight),
+                    MODULE_ID_COLUMN: module_id,
+                    KINASE_COLUMN: kinase,
+                    PROTEIN_ID_COLUMN: protein_id,
+                    WEIGHT_COLUMN: float(weight),
                 }
             )
 
@@ -456,24 +477,26 @@ def _build_weighted_top_module_table(
     weighted_hits = pd.DataFrame.from_records(weighted_rows)
     weighted_hits = weighted_hits.astype(
         {
-            "module_id": int,
-            "kinase": str,
-            "protein_id": str,
-            "weight": float,
+            MODULE_ID_COLUMN: int,
+            KINASE_COLUMN: str,
+            PROTEIN_ID_COLUMN: str,
+            WEIGHT_COLUMN: float,
         }
     )
 
     protein_level_weights = (
         weighted_hits.groupby(
-            ["module_id", "kinase", "protein_id"],
+            [MODULE_ID_COLUMN, KINASE_COLUMN, PROTEIN_ID_COLUMN],
             sort=True,
-        )["weight"]
+        )[WEIGHT_COLUMN]
         .max()
         .astype(float)
         .reset_index()
     )
     counts = (
-        protein_level_weights.groupby(["module_id", "kinase"], sort=True)["weight"]
+        protein_level_weights.groupby([MODULE_ID_COLUMN, KINASE_COLUMN], sort=True)[
+            WEIGHT_COLUMN
+        ]
         .sum()
         .astype(float)
         .unstack(fill_value=0.0)
@@ -494,24 +517,26 @@ def build_kinase_module_relationship_table(
 
     try:
         relationships = (
-            module_table.stack(future_stack=True).rename("share_percent").reset_index()
+            module_table.stack(future_stack=True)
+            .rename(SHARE_PERCENT_COLUMN)
+            .reset_index()
         )
     except TypeError:
         relationships = (
-            module_table.stack(dropna=False).rename("share_percent").reset_index()
+            module_table.stack(dropna=False).rename(SHARE_PERCENT_COLUMN).reset_index()
         )
 
-    relationships = relationships.loc[relationships["share_percent"] > 0.0]
-    relationships.columns = ["module_id", "kinase", "share_percent"]
+    relationships = relationships.loc[relationships[SHARE_PERCENT_COLUMN] > 0.0]
+    relationships.columns = [MODULE_ID_COLUMN, KINASE_COLUMN, SHARE_PERCENT_COLUMN]
     relationships = relationships.astype(
         {
-            "module_id": int,
-            "kinase": str,
-            "share_percent": float,
+            MODULE_ID_COLUMN: int,
+            KINASE_COLUMN: str,
+            SHARE_PERCENT_COLUMN: float,
         }
     )
     relationships = relationships.sort_values(
-        ["module_id", "share_percent", "kinase"],
+        [MODULE_ID_COLUMN, SHARE_PERCENT_COLUMN, KINASE_COLUMN],
         ascending=[True, False, True],
         kind="stable",
     ).reset_index(drop=True)
@@ -535,7 +560,7 @@ def build_expanded_signalomes(
     site_positions = {
         str(site_id): position for position, site_id in enumerate(available_sites)
     }
-    site_module_ids = site_assignments.loc[:, "module_id"].to_numpy(
+    site_module_ids = site_assignments.loc[:, MODULE_ID_COLUMN].to_numpy(
         dtype=int, copy=False
     )
     signalome_module_values = signalome_modules.to_numpy(dtype=float, copy=False)

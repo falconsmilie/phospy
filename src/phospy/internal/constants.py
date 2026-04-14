@@ -79,6 +79,17 @@ DEFAULT_CORRECTED_COLS: tuple[str, ...] = tuple(
 DEFAULT_TOTAL_SENTINEL: float = 10.0
 DEFAULT_PHOSPHO_SENTINEL: float = 12.0
 
+# Site-matrix row-drop diagnostics payload keys.
+ROW_DROP_STATS_ATTR: Final[str] = "row_drop_stats"
+ROW_DROP_INPUT_ROWS_KEY: Final[str] = "input_rows"
+ROW_DROP_DROPPED_MISSING_SEQUENCE_KEY: Final[str] = "dropped_missing_sequence"
+ROW_DROP_DROPPED_INCOMPLETE_VALUES_KEY: Final[str] = "dropped_incomplete_values"
+ROW_DROP_MISSING_DATA_POLICY_KEY: Final[str] = "missing_data_policy"
+ROW_DROP_REQUIRED_OBSERVED_COUNT_KEY: Final[str] = "required_observed_count"
+ROW_DROP_DEDUPLICATED_SITE_ROWS_KEY: Final[str] = "deduplicated_site_rows"
+ROW_DROP_DUPLICATE_SITE_STRATEGY_KEY: Final[str] = "duplicate_site_strategy"
+ROW_DROP_RETAINED_ROWS_KEY: Final[str] = "retained_rows"
+
 
 # Bundled kinase reference provider constants.
 BUNDLED_REFERENCE_PROVIDER_NAME: Final[str] = "BundledReferenceProvider"
