@@ -20,6 +20,13 @@ __all__ = [
     "build_signalome_map_data",
 ]
 
+_SITE_POSITION_OFFSET_BASE = -0.3
+_SITE_POSITION_OFFSET_SPAN = 0.6
+_SITE_BASELINE_Y = -0.25
+_SITE_ROW_Y_STEP = 0.15
+_KINASE_COLLISION_AVOIDANCE_SPAN = 0.4
+_KINASE_BASELINE_Y = 1.0
+
 
 @dataclass(slots=True)
 class SignalomeMapData:
@@ -199,9 +206,9 @@ def _build_site_positions(
     )
     offsets = np.zeros(len(site_assignments), dtype=float)
     multi_member_mask = module_sizes > 1
-    offsets[multi_member_mask] = -0.3 + position_zero_based[multi_member_mask] * (
-        0.6 / (module_sizes[multi_member_mask] - 1)
-    )
+    offsets[multi_member_mask] = _SITE_POSITION_OFFSET_BASE + position_zero_based[
+        multi_member_mask
+    ] * (_SITE_POSITION_OFFSET_SPAN / (module_sizes[multi_member_mask] - 1))
 
     module_x = (
         site_assignments["module_id"]
@@ -240,7 +247,7 @@ def _build_site_positions(
                 dtype=float, copy=False
             ),
             "x": module_x + offsets,
-            "y": -0.25 - position_zero_based * 0.15,
+            "y": _SITE_BASELINE_Y - position_zero_based * _SITE_ROW_Y_STEP,
             "module_x": module_x,
             "module_y": module_y,
             "position_in_module": position_zero_based + 1,
@@ -302,12 +309,12 @@ def _build_kinase_positions(
 
     adjusted_x: dict[str, float] = {}
     for base_x, group in kinase_positions.groupby("base_x", sort=True):
-        offsets = _centered_offsets(len(group), span=0.4)
+        offsets = _centered_offsets(len(group), span=_KINASE_COLLISION_AVOIDANCE_SPAN)
         for (_, row), offset in zip(group.iterrows(), offsets, strict=True):
             adjusted_x[str(row["kinase"])] = float(base_x) + float(offset)
 
     kinase_positions["x"] = kinase_positions.loc[:, "kinase"].map(adjusted_x)
-    kinase_positions["y"] = 1.0
+    kinase_positions["y"] = _KINASE_BASELINE_Y
     kinase_positions = kinase_positions.set_index("kinase")
     kinase_positions.index.name = "kinase"
     return kinase_positions.loc[

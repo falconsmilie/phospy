@@ -9,6 +9,10 @@ import pandas as pd
 from .policies import PredictionSamplingPolicy, resolve_prediction_sampling_policy
 from .trace_replay import PredictionSamplingTrace
 
+_PREDICTION_STREAM_SEED_HIGH_EXCLUSIVE = (2**31) - 1
+_PREDICTION_STREAM_SEED_DIGEST_SIZE_BYTES = 16
+_DEFAULT_RESAMPLING_WEIGHT_EXPONENT = 0.8
+
 
 def make_prediction_random_generators(
     rng: np.random.Generator,
@@ -16,8 +20,12 @@ def make_prediction_random_generators(
     """Create independent RNG streams for prediction sampling steps."""
 
     return (
-        np.random.default_rng(int(rng.integers(0, 2**31 - 1))),
-        np.random.default_rng(int(rng.integers(0, 2**31 - 1))),
+        np.random.default_rng(
+            int(rng.integers(0, _PREDICTION_STREAM_SEED_HIGH_EXCLUSIVE))
+        ),
+        np.random.default_rng(
+            int(rng.integers(0, _PREDICTION_STREAM_SEED_HIGH_EXCLUSIVE))
+        ),
     )
 
 
@@ -28,7 +36,10 @@ def _derive_prediction_stream_seed(
     stream_name: str,
 ) -> int:
     seed_material = f"{random_state}:{kinase}:{stream_name}".encode()
-    digest = hashlib.blake2b(seed_material, digest_size=16).digest()
+    digest = hashlib.blake2b(
+        seed_material,
+        digest_size=_PREDICTION_STREAM_SEED_DIGEST_SIZE_BYTES,
+    ).digest()
     return int.from_bytes(digest, "little")
 
 
@@ -91,7 +102,7 @@ def transform_resampling_probabilities(
 
     weights = np.asarray(values, dtype=float)
     if resolved_policy.resampling_weight_mode == "default":
-        return np.power(weights, 0.8)
+        return np.power(weights, _DEFAULT_RESAMPLING_WEIGHT_EXPONENT)
     return weights
 
 
