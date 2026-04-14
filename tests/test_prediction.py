@@ -39,6 +39,9 @@ from phospy.prediction.sampling import (
 from phospy.prediction.sampling_core import (
     _resolve_final_score_series as _resolve_final_score_series,
 )
+from phospy.prediction.sampling_core import (
+    _validate_trace_configuration as _validate_trace_configuration,
+)
 from phospy.prediction.svm import _RLikeStandardScaler
 from phospy.prediction.svm import make_svm as _make_svm
 from phospy.prediction.svm import require_sklearn as _require_sklearn
@@ -616,6 +619,15 @@ def test_multi_ada_sampling_requires_trace_sink_for_full_trace() -> None:
             debug_top_n=2,
             svm_mode="default",
             sampling_override=None,
+        )
+
+
+def test_validate_trace_configuration_requires_sink_for_full_trace_capture() -> None:
+    with pytest.raises(ValueError, match="trace sink"):
+        _validate_trace_configuration(
+            capture_trace=True,
+            trace_level="full",
+            trace_sink=None,
         )
 
 

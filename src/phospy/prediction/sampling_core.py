@@ -254,6 +254,240 @@ def _resample_training_rows(
     return np.vstack(resampled_x), np.concatenate(resampled_y), sampled_sites_by_class
 
 
+def _validate_trace_configuration(
+    *,
+    capture_trace: bool,
+    trace_level: PredictionTraceLevel,
+    trace_sink: TraceSink | None,
+) -> None:
+    if (
+        capture_trace
+        and trace_level == PREDICTION_TRACE_LEVEL_FULL
+        and trace_sink is None
+    ):
+        msg = "full trace capture requires a trace sink"
+        raise ValueError(msg)
+
+
+def _write_iteration_trace_if_requested(
+    *,
+    capture_trace: bool,
+    trace_level: PredictionTraceLevel,
+    trace_sink: TraceSink | None,
+    model: Any,
+    prob_mat: np.ndarray,
+    decision_values: np.ndarray,
+    base_y: np.ndarray,
+    base_index: pd.Index,
+    weights_by_class: dict[int, pd.Series | None],
+    sampled_sites_by_class: dict[int, list[str]],
+    kinase: str,
+    ensemble_index: int,
+    iteration_index: int,
+) -> None:
+    if (
+        not capture_trace
+        or trace_level != PREDICTION_TRACE_LEVEL_FULL
+        or trace_sink is None
+    ):
+        return
+
+    prob_df, decision_series, probability_parameters, label_series = (
+        _extract_iteration_trace_payload(
+            model=model,
+            prob_mat=prob_mat,
+            decision_values=decision_values,
+            base_y=base_y,
+            base_index=base_index,
+        )
+    )
+    write_iteration_trace_rows(
+        trace_sink=trace_sink,
+        kinase=kinase,
+        ensemble_index=ensemble_index,
+        iteration_index=iteration_index,
+        labels=label_series,
+        probabilities=prob_df,
+        probability_parameters=probability_parameters,
+        decision_values=decision_series,
+        weights_by_class=weights_by_class,
+        sampled_sites_by_class=sampled_sites_by_class,
+    )
+
+
+def _run_sampling_iterations(
+    *,
+    base_x: np.ndarray,
+    base_y: np.ndarray,
+    base_index: pd.Index,
+    kernel: str,
+    n_iterations: int,
+    resampling_rng: np.random.Generator,
+    capture_trace: bool,
+    trace_level: PredictionTraceLevel,
+    trace_sink: TraceSink | None,
+    kinase: str,
+    ensemble_index: int,
+    svm_mode: PredictionSvmMode,
+    sampling_policy: PredictionSamplingPolicy,
+    sampling_override: SamplingTraceOverrideEnsemble | None,
+    StandardScaler: type[Any],
+    SVC: type[Any],
+) -> Any:
+    current_x = base_x
+    current_y = base_y
+    model = None
+
+    for iteration_index in range(1, n_iterations + 1):
+        model = _fit_sampling_model(
+            current_x=current_x,
+            current_y=current_y,
+            kernel=kernel,
+            svm_mode=svm_mode,
+            StandardScaler=StandardScaler,
+            SVC=SVC,
+        )
+        prob_mat, decision_values = _extract_iteration_sampling_state(
+            model=model,
+            base_x=base_x,
+        )
+        weights_by_class = _compute_class_weights(
+            model=model,
+            prob_mat=prob_mat,
+            base_y=base_y,
+            base_index=base_index,
+            svm_mode=svm_mode,
+            sampling_policy=sampling_policy,
+        )
+        current_x, current_y, sampled_sites_by_class = _resample_training_rows(
+            model=model,
+            base_x=base_x,
+            base_y=base_y,
+            base_index=base_index,
+            weights_by_class=weights_by_class,
+            resampling_rng=resampling_rng,
+            sampling_override=sampling_override,
+            iteration_index=iteration_index,
+            ensemble_index=ensemble_index,
+        )
+        _write_iteration_trace_if_requested(
+            capture_trace=capture_trace,
+            trace_level=trace_level,
+            trace_sink=trace_sink,
+            model=model,
+            prob_mat=prob_mat,
+            decision_values=decision_values,
+            base_y=base_y,
+            base_index=base_index,
+            weights_by_class=weights_by_class,
+            sampled_sites_by_class=sampled_sites_by_class,
+            kinase=kinase,
+            ensemble_index=ensemble_index,
+            iteration_index=iteration_index,
+        )
+
+    if model is None:
+        msg = "n_iterations must be at least 1"
+        raise ValueError(msg)
+    return model
+
+
+def _resolve_final_score_values(
+    *,
+    model: Any,
+    test_mat: pd.DataFrame | None,
+    test_values: np.ndarray | None,
+    test_index: pd.Index | None,
+    sampling_policy: PredictionSamplingPolicy,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, pd.Index]:
+    test_x, resolved_test_index = _resolve_matrix_values(
+        frame=test_mat,
+        values=test_values,
+        index=test_index,
+        context="test_mat",
+    )
+    pred = model.predict_proba(test_x)
+    positive_probabilities = _positive_probability_vector(
+        prob_mat=pred,
+        classes=np.asarray(model.classes_),
+    )
+    final_decision_vector = aligned_binary_decision_vector(
+        model=model,
+        values=test_x,
+        positive_probabilities=positive_probabilities,
+    )
+    if sampling_policy.final_score_mode == "mean_probability":
+        if positive_probabilities is None:
+            msg = (
+                "Expected exactly one positive class labelled 1; found "
+                f"{np.asarray(model.classes_).tolist()}"
+            )
+            raise ValueError(msg)
+        final_score_values = positive_probabilities
+    else:
+        final_score_values = 1.0 / (1.0 + np.exp(-final_decision_vector))
+    return (
+        np.asarray(final_score_values, dtype=float),
+        final_decision_vector,
+        pred,
+        resolved_test_index,
+    )
+
+
+def _build_final_trace_artifacts(
+    *,
+    capture_trace: bool,
+    trace_level: PredictionTraceLevel,
+    trace_sink: TraceSink | None,
+    kinase: str,
+    ensemble_index: int,
+    initial_negative_sites: list[str],
+    debug_top_n: int,
+    model: Any,
+    pred: np.ndarray,
+    final_decision_vector: np.ndarray,
+    final_score_values: np.ndarray,
+    resolved_test_index: pd.Index,
+) -> tuple[pd.Series | None, AdaptiveSamplingEnsembleTrace | None]:
+    if not capture_trace:
+        return None, None
+
+    final_score_series = pd.Series(
+        final_score_values,
+        index=resolved_test_index,
+        dtype=float,
+    )
+    final_top_sites = (
+        final_score_series.sort_values(ascending=False).head(debug_top_n).index.tolist()
+    )
+
+    if trace_level == PREDICTION_TRACE_LEVEL_FULL and trace_sink is not None:
+        pred_df = _build_probability_frame(
+            prob_mat=pred,
+            index=resolved_test_index,
+            classes=np.asarray(model.classes_),
+        )
+        final_decision_values = pd.Series(
+            final_decision_vector,
+            index=resolved_test_index,
+            dtype=float,
+        )
+        write_final_trace_rows(
+            trace_sink=trace_sink,
+            kinase=kinase,
+            ensemble_index=ensemble_index,
+            final_probabilities=pred_df,
+            final_decision_values=final_decision_values,
+            final_top_sites=final_top_sites,
+        )
+
+    return final_score_series, AdaptiveSamplingEnsembleTrace(
+        ensemble_index=ensemble_index,
+        initial_negative_sites=list(initial_negative_sites),
+        final_top_sites=final_top_sites,
+    )
+
+
 def multi_ada_sampling(
     train_mat: pd.DataFrame | None,
     test_mat: pd.DataFrame | None,
@@ -286,154 +520,55 @@ def multi_ada_sampling(
         context="train_mat",
     )
     base_y = np.asarray(labels, dtype=int)
-    current_x = base_x
-    current_y = base_y
     resolved_sampling_policy = sampling_policy or resolve_prediction_sampling_policy(
         svm_mode
     )
-    if (
-        capture_trace
-        and trace_level == PREDICTION_TRACE_LEVEL_FULL
-        and trace_sink is None
-    ):
-        msg = "full trace capture requires a trace sink"
-        raise ValueError(msg)
-
-    model = None
-
-    for iteration_index in range(1, n_iterations + 1):
-        model = _fit_sampling_model(
-            current_x=current_x,
-            current_y=current_y,
-            kernel=kernel,
-            svm_mode=svm_mode,
-            StandardScaler=StandardScaler,
-            SVC=SVC,
-        )
-        prob_mat, decision_values = _extract_iteration_sampling_state(
+    _validate_trace_configuration(
+        capture_trace=capture_trace,
+        trace_level=trace_level,
+        trace_sink=trace_sink,
+    )
+    model = _run_sampling_iterations(
+        base_x=base_x,
+        base_y=base_y,
+        base_index=base_index,
+        kernel=kernel,
+        n_iterations=n_iterations,
+        resampling_rng=resampling_rng,
+        capture_trace=capture_trace,
+        trace_level=trace_level,
+        trace_sink=trace_sink,
+        kinase=kinase,
+        ensemble_index=ensemble_index,
+        svm_mode=svm_mode,
+        sampling_policy=resolved_sampling_policy,
+        sampling_override=sampling_override,
+        StandardScaler=StandardScaler,
+        SVC=SVC,
+    )
+    final_score_values, final_decision_vector, pred, resolved_test_index = (
+        _resolve_final_score_values(
             model=model,
-            base_x=base_x,
-        )
-        weights_by_class = _compute_class_weights(
-            model=model,
-            prob_mat=prob_mat,
-            base_y=base_y,
-            base_index=base_index,
-            svm_mode=svm_mode,
+            test_mat=test_mat,
+            test_values=test_values,
+            test_index=test_index,
             sampling_policy=resolved_sampling_policy,
         )
-        current_x, current_y, sampled_sites_by_class = _resample_training_rows(
-            model=model,
-            base_x=base_x,
-            base_y=base_y,
-            base_index=base_index,
-            weights_by_class=weights_by_class,
-            resampling_rng=resampling_rng,
-            sampling_override=sampling_override,
-            iteration_index=iteration_index,
-            ensemble_index=ensemble_index,
-        )
-
-        if (
-            capture_trace
-            and trace_level == PREDICTION_TRACE_LEVEL_FULL
-            and trace_sink is not None
-        ):
-            (
-                prob_df,
-                decision_series,
-                probability_parameters,
-                label_series,
-            ) = _extract_iteration_trace_payload(
-                model=model,
-                prob_mat=prob_mat,
-                decision_values=decision_values,
-                base_y=base_y,
-                base_index=base_index,
-            )
-            write_iteration_trace_rows(
-                trace_sink=trace_sink,
-                kinase=kinase,
-                ensemble_index=ensemble_index,
-                iteration_index=iteration_index,
-                labels=label_series,
-                probabilities=prob_df,
-                probability_parameters=probability_parameters,
-                decision_values=decision_series,
-                weights_by_class=weights_by_class,
-                sampled_sites_by_class=sampled_sites_by_class,
-            )
-
-    if model is None:
-        msg = "n_iterations must be at least 1"
-        raise ValueError(msg)
-
-    test_x, resolved_test_index = _resolve_matrix_values(
-        frame=test_mat,
-        values=test_values,
-        index=test_index,
-        context="test_mat",
     )
-    pred = model.predict_proba(test_x)
-    positive_probabilities = _positive_probability_vector(
-        prob_mat=pred,
-        classes=np.asarray(model.classes_),
-    )
-    final_decision_vector = aligned_binary_decision_vector(
+    final_score_series, ensemble_trace = _build_final_trace_artifacts(
+        capture_trace=capture_trace,
+        trace_level=trace_level,
+        trace_sink=trace_sink,
+        kinase=kinase,
+        ensemble_index=ensemble_index,
+        initial_negative_sites=initial_negative_sites,
+        debug_top_n=debug_top_n,
         model=model,
-        values=test_x,
-        positive_probabilities=positive_probabilities,
+        pred=pred,
+        final_decision_vector=final_decision_vector,
+        final_score_values=final_score_values,
+        resolved_test_index=resolved_test_index,
     )
-    if resolved_sampling_policy.final_score_mode == "mean_probability":
-        if positive_probabilities is None:
-            msg = (
-                "Expected exactly one positive class labelled 1; found "
-                f"{np.asarray(model.classes_).tolist()}"
-            )
-            raise ValueError(msg)
-        final_score_values = positive_probabilities
-    else:
-        final_score_values = 1.0 / (1.0 + np.exp(-final_decision_vector))
-    final_score_values = np.asarray(final_score_values, dtype=float)
-    final_score_series: pd.Series | None = None
-
-    ensemble_trace = None
-    if capture_trace:
-        final_score_series = pd.Series(
-            final_score_values,
-            index=resolved_test_index,
-            dtype=float,
-        )
-        final_top_sites = (
-            final_score_series.sort_values(ascending=False)
-            .head(debug_top_n)
-            .index.tolist()
-        )
-        if trace_level == PREDICTION_TRACE_LEVEL_FULL:
-            pred_df = _build_probability_frame(
-                prob_mat=pred,
-                index=resolved_test_index,
-                classes=np.asarray(model.classes_),
-            )
-            final_decision_values = pd.Series(
-                final_decision_vector,
-                index=resolved_test_index,
-                dtype=float,
-            )
-            write_final_trace_rows(
-                trace_sink=trace_sink,
-                kinase=kinase,
-                ensemble_index=ensemble_index,
-                final_probabilities=pred_df,
-                final_decision_values=final_decision_values,
-                final_top_sites=final_top_sites,
-            )
-
-        ensemble_trace = AdaptiveSamplingEnsembleTrace(
-            ensemble_index=ensemble_index,
-            initial_negative_sites=list(initial_negative_sites),
-            final_top_sites=final_top_sites,
-        )
 
     if return_values:
         return final_score_values, ensemble_trace

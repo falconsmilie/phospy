@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 import phospy.signalomes.analysis as signalome_analysis
+import phospy.signalomes.assignments as signalome_assignments
 import phospy.signalomes.clustering as signalome_clustering
 from phospy.api import (
     PredictionRunConfig,
@@ -960,6 +961,64 @@ def test_build_site_assignments_rejects_rows_without_top_kinase_assignment() -> 
             protein_modules=protein_modules,
             site_to_protein=site_to_protein,
         )
+
+
+def test_extract_top_kinase_assignments_tracks_ties_directly() -> None:
+    sorted_pred_mat = pd.DataFrame(
+        {
+            "KINASE_A": [0.8, 0.9],
+            "KINASE_B": [0.8, 0.2],
+        },
+        index=["SITE_1", "SITE_2"],
+    )
+
+    assignments = signalome_assignments._extract_top_kinase_assignments(
+        sorted_pred_mat=sorted_pred_mat,
+        site_index=pd.Index(sorted_pred_mat.index, name="site_id"),
+    )
+
+    assert assignments.top_kinase_candidates == [
+        ("KINASE_A", "KINASE_B"),
+        ("KINASE_A",),
+    ]
+    assert assignments.top_kinase_weights == [
+        (("KINASE_A", 0.5), ("KINASE_B", 0.5)),
+        (("KINASE_A", 1.0),),
+    ]
+    assert assignments.top_kinase_tie_count.tolist() == [2, 1]
+
+
+def test_resolve_pre_scoring_module_selection_clamps_explicit_module_count() -> None:
+    scoring_values = np.asarray(
+        [
+            [1.0, 2.0, 3.0],
+            [1.1, 2.1, 3.1],
+            [0.9, 1.9, 2.9],
+        ],
+        dtype=float,
+    )
+    profile_degeneracy = signalome_clustering.summarize_profile_degeneracy(
+        scoring_values
+    )
+    policy = signalome_clustering.SignalomeModuleSelectionPolicy()
+
+    selection, _ = signalome_clustering._resolve_pre_scoring_module_selection(
+        resolved_policy=policy,
+        requested_module_count=5,
+        n_sites=scoring_values.shape[0],
+        profile_degeneracy=profile_degeneracy,
+        correlation_exclusion_note=signalome_clustering.build_correlation_exclusion_note(
+            profile_degeneracy
+        ),
+    )
+
+    assert selection is not None
+    assert selection.diagnostics.selected_module_count == 3
+    assert selection.diagnostics.requested_module_count == 5
+    assert (
+        selection.diagnostics.reason
+        == "module_count was provided explicitly by the caller"
+    )
 
 
 def test_select_module_count_builds_one_cluster_tree_for_candidate_scoring(

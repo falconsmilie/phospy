@@ -218,11 +218,119 @@ def _compute_module_selection(
     scoring_array = np.asarray(scoring_values, dtype=float)
     n_sites = scoring_array.shape[0]
     profile_degeneracy = summarize_profile_degeneracy(scoring_array)
-    zero_variance_count = profile_degeneracy.zero_variance_count
-    near_constant_count = profile_degeneracy.near_constant_count
+    correlation_exclusion_note = build_correlation_exclusion_note(profile_degeneracy)
+    early_selection, max_clusters = _resolve_pre_scoring_module_selection(
+        resolved_policy=resolved_policy,
+        requested_module_count=requested_module_count,
+        n_sites=n_sites,
+        profile_degeneracy=profile_degeneracy,
+        correlation_exclusion_note=correlation_exclusion_note,
+    )
+    if early_selection is not None:
+        return early_selection
+
+    candidate_scores, candidate_labels, approximation_note = (
+        _compute_candidate_cluster_scores(
+            scoring_array=scoring_array,
+            candidate_range=range(2, max_clusters + 1),
+            profile_degeneracy=profile_degeneracy,
+            n_sites=n_sites,
+        )
+    )
+    primary_selection = _select_threshold_candidate(
+        resolved_policy=resolved_policy,
+        candidate_scores=candidate_scores,
+        candidate_labels=candidate_labels,
+        max_clusters=max_clusters,
+        threshold=resolved_policy.primary_threshold,
+        reason=(
+            "selected the highest-scoring candidate that satisfied the primary "
+            "within-cluster correlation threshold"
+        ),
+        profile_degeneracy=profile_degeneracy,
+        correlation_exclusion_note=correlation_exclusion_note,
+        approximation_note=approximation_note,
+    )
+    if primary_selection is not None:
+        return primary_selection
+
+    fallback_selection = _select_threshold_candidate(
+        resolved_policy=resolved_policy,
+        candidate_scores=candidate_scores,
+        candidate_labels=candidate_labels,
+        max_clusters=max_clusters,
+        threshold=resolved_policy.fallback_threshold,
+        reason=(
+            "no candidate satisfied the primary threshold; selected the "
+            "highest-scoring fallback candidate"
+        ),
+        profile_degeneracy=profile_degeneracy,
+        correlation_exclusion_note=correlation_exclusion_note,
+        approximation_note=approximation_note,
+    )
+    if fallback_selection is not None:
+        return fallback_selection
+
+    return _build_module_selection_result(
+        strategy=resolved_policy.strategy,
+        selected_module_count=1,
+        requested_module_count=None,
+        threshold_used=None,
+        max_clusters_evaluated=max_clusters,
+        candidate_scores=candidate_scores,
+        reason=(
+            "no candidate module count satisfied the configured correlation "
+            "thresholds, so the workflow fell back to one module"
+        )
+        + correlation_exclusion_note
+        + approximation_note,
+        profile_degeneracy=profile_degeneracy,
+        excluded_from_correlation_count=profile_degeneracy.excluded_count,
+        candidate_labels=candidate_labels,
+    )
+
+
+def _build_module_selection_result(
+    *,
+    strategy: SignalomeModuleSelectionStrategy,
+    selected_module_count: int,
+    requested_module_count: int | None,
+    threshold_used: float | None,
+    max_clusters_evaluated: int,
+    candidate_scores: dict[int, ClusterCandidateScore],
+    reason: str,
+    profile_degeneracy: _ProfileDegeneracySummary,
+    excluded_from_correlation_count: int,
+    candidate_labels: dict[int, np.ndarray],
+) -> _ModuleSelectionComputation:
+    return _ModuleSelectionComputation(
+        diagnostics=SignalomeModuleSelectionDiagnostics(
+            strategy=strategy,
+            selected_module_count=selected_module_count,
+            requested_module_count=requested_module_count,
+            threshold_used=threshold_used,
+            max_clusters_evaluated=max_clusters_evaluated,
+            candidate_scores=candidate_scores,
+            reason=reason,
+            zero_variance_profile_count=profile_degeneracy.zero_variance_count,
+            near_constant_profile_count=profile_degeneracy.near_constant_count,
+            excluded_from_correlation_count=excluded_from_correlation_count,
+        ),
+        candidate_labels=candidate_labels,
+    )
+
+
+def _resolve_pre_scoring_module_selection(
+    *,
+    resolved_policy: SignalomeModuleSelectionPolicy,
+    requested_module_count: int | None,
+    n_sites: int,
+    profile_degeneracy: _ProfileDegeneracySummary,
+    correlation_exclusion_note: str,
+) -> tuple[_ModuleSelectionComputation | None, int]:
     if n_sites <= 1:
-        return _ModuleSelectionComputation(
-            diagnostics=SignalomeModuleSelectionDiagnostics(
+        return (
+            _build_module_selection_result(
                 strategy=resolved_policy.strategy,
                 selected_module_count=1,
                 requested_module_count=requested_module_count,
@@ -230,17 +338,17 @@ def _compute_module_selection(
                 max_clusters_evaluated=1,
                 candidate_scores={},
                 reason="single phosphosite input only supports one signalome module",
-                zero_variance_profile_count=zero_variance_count,
-                near_constant_profile_count=near_constant_count,
+                profile_degeneracy=profile_degeneracy,
                 excluded_from_correlation_count=0,
+                candidate_labels={},
             ),
-            candidate_labels={},
+            1,
         )
 
     if requested_module_count is not None:
         resolved_count = max(1, min(int(requested_module_count), n_sites))
-        return _ModuleSelectionComputation(
-            diagnostics=SignalomeModuleSelectionDiagnostics(
+        return (
+            _build_module_selection_result(
                 strategy=resolved_policy.strategy,
                 selected_module_count=resolved_count,
                 requested_module_count=int(requested_module_count),
@@ -248,16 +356,16 @@ def _compute_module_selection(
                 max_clusters_evaluated=min(resolved_policy.max_clusters, n_sites),
                 candidate_scores={},
                 reason="module_count was provided explicitly by the caller",
-                zero_variance_profile_count=zero_variance_count,
-                near_constant_profile_count=near_constant_count,
+                profile_degeneracy=profile_degeneracy,
                 excluded_from_correlation_count=0,
+                candidate_labels={},
             ),
-            candidate_labels={},
+            1,
         )
 
     if resolved_policy.strategy == SIGNALOME_MODULE_SELECTION_STRATEGY_SINGLE_MODULE:
-        return _ModuleSelectionComputation(
-            diagnostics=SignalomeModuleSelectionDiagnostics(
+        return (
+            _build_module_selection_result(
                 strategy=resolved_policy.strategy,
                 selected_module_count=1,
                 requested_module_count=None,
@@ -265,17 +373,17 @@ def _compute_module_selection(
                 max_clusters_evaluated=1,
                 candidate_scores={},
                 reason="module_selection_strategy='single_module' forces one module",
-                zero_variance_profile_count=zero_variance_count,
-                near_constant_profile_count=near_constant_count,
+                profile_degeneracy=profile_degeneracy,
                 excluded_from_correlation_count=0,
+                candidate_labels={},
             ),
-            candidate_labels={},
+            1,
         )
 
     max_clusters = min(resolved_policy.max_clusters, n_sites)
     if max_clusters < 2:
-        return _ModuleSelectionComputation(
-            diagnostics=SignalomeModuleSelectionDiagnostics(
+        return (
+            _build_module_selection_result(
                 strategy=resolved_policy.strategy,
                 selected_module_count=1,
                 requested_module_count=None,
@@ -283,19 +391,16 @@ def _compute_module_selection(
                 max_clusters_evaluated=max_clusters,
                 candidate_scores={},
                 reason="fewer than two cluster counts are available for evaluation",
-                zero_variance_profile_count=zero_variance_count,
-                near_constant_profile_count=near_constant_count,
+                profile_degeneracy=profile_degeneracy,
                 excluded_from_correlation_count=0,
+                candidate_labels={},
             ),
-            candidate_labels={},
+            max_clusters,
         )
 
-    candidate_range = range(2, max_clusters + 1)
-    approximation_note = ""
-    correlation_exclusion_note = build_correlation_exclusion_note(profile_degeneracy)
     if n_sites - profile_degeneracy.excluded_count <= 1:
-        return _ModuleSelectionComputation(
-            diagnostics=SignalomeModuleSelectionDiagnostics(
+        return (
+            _build_module_selection_result(
                 strategy=resolved_policy.strategy,
                 selected_module_count=1,
                 requested_module_count=None,
@@ -307,12 +412,23 @@ def _compute_module_selection(
                     "after filtering degenerate rows for correlation scoring"
                 )
                 + correlation_exclusion_note,
-                zero_variance_profile_count=zero_variance_count,
-                near_constant_profile_count=near_constant_count,
+                profile_degeneracy=profile_degeneracy,
                 excluded_from_correlation_count=profile_degeneracy.excluded_count,
+                candidate_labels={},
             ),
-            candidate_labels={},
+            max_clusters,
         )
+
+    return None, max_clusters
+
+
+def _compute_candidate_cluster_scores(
+    *,
+    scoring_array: np.ndarray,
+    candidate_range: range,
+    profile_degeneracy: _ProfileDegeneracySummary,
+    n_sites: int,
+) -> tuple[dict[int, ClusterCandidateScore], dict[int, np.ndarray], str]:
     if n_sites <= MAX_FULL_CORRELATION_SITE_COUNT:
         site_correlations = build_correlation_matrix_with_exclusions(
             scoring_array,
@@ -323,94 +439,55 @@ def _compute_module_selection(
             site_correlations=site_correlations,
             cluster_range=candidate_range,
         )
-    else:
-        candidate_scores, candidate_labels = score_cluster_candidates_approximate(
-            scoring_values=scoring_array,
-            cluster_range=candidate_range,
-            max_sites_per_cluster=MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
-        )
-        approximation_note = (
-            " Used sampled within-cluster correlation estimates to avoid "
-            "materializing a full site-by-site correlation matrix."
-        )
-    primary_candidates = filter_cluster_candidates(
-        candidate_scores,
-        threshold=resolved_policy.primary_threshold,
-    )
-    if primary_candidates:
-        selected_count = max(
-            primary_candidates.items(),
-            key=lambda item: (item[1], -item[0]),
-        )[0]
-        return _ModuleSelectionComputation(
-            diagnostics=SignalomeModuleSelectionDiagnostics(
-                strategy=resolved_policy.strategy,
-                selected_module_count=selected_count,
-                requested_module_count=None,
-                threshold_used=resolved_policy.primary_threshold,
-                max_clusters_evaluated=max_clusters,
-                candidate_scores=candidate_scores,
-                reason=(
-                    "selected the highest-scoring candidate that satisfied the "
-                    "primary within-cluster correlation threshold"
-                )
-                + correlation_exclusion_note
-                + approximation_note,
-                zero_variance_profile_count=zero_variance_count,
-                near_constant_profile_count=near_constant_count,
-                excluded_from_correlation_count=profile_degeneracy.excluded_count,
-            ),
-            candidate_labels=candidate_labels,
-        )
+        return candidate_scores, candidate_labels, ""
 
-    fallback_candidates = filter_cluster_candidates(
-        candidate_scores,
-        threshold=resolved_policy.fallback_threshold,
+    candidate_scores, candidate_labels = score_cluster_candidates_approximate(
+        scoring_values=scoring_array,
+        cluster_range=candidate_range,
+        max_sites_per_cluster=MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
     )
-    if fallback_candidates:
-        selected_count = max(
-            fallback_candidates.items(),
-            key=lambda item: (item[1], -item[0]),
-        )[0]
-        return _ModuleSelectionComputation(
-            diagnostics=SignalomeModuleSelectionDiagnostics(
-                strategy=resolved_policy.strategy,
-                selected_module_count=selected_count,
-                requested_module_count=None,
-                threshold_used=resolved_policy.fallback_threshold,
-                max_clusters_evaluated=max_clusters,
-                candidate_scores=candidate_scores,
-                reason=(
-                    "no candidate satisfied the primary threshold; selected the "
-                    "highest-scoring fallback candidate"
-                )
-                + correlation_exclusion_note
-                + approximation_note,
-                zero_variance_profile_count=zero_variance_count,
-                near_constant_profile_count=near_constant_count,
-                excluded_from_correlation_count=profile_degeneracy.excluded_count,
-            ),
-            candidate_labels=candidate_labels,
-        )
+    approximation_note = (
+        " Used sampled within-cluster correlation estimates to avoid "
+        "materializing a full site-by-site correlation matrix."
+    )
+    return candidate_scores, candidate_labels, approximation_note
 
-    return _ModuleSelectionComputation(
-        diagnostics=SignalomeModuleSelectionDiagnostics(
-            strategy=resolved_policy.strategy,
-            selected_module_count=1,
-            requested_module_count=None,
-            threshold_used=None,
-            max_clusters_evaluated=max_clusters,
-            candidate_scores=candidate_scores,
-            reason=(
-                "no candidate module count satisfied the configured correlation "
-                "thresholds, so the workflow fell back to one module"
-            )
-            + correlation_exclusion_note
-            + approximation_note,
-            zero_variance_profile_count=zero_variance_count,
-            near_constant_profile_count=near_constant_count,
-            excluded_from_correlation_count=profile_degeneracy.excluded_count,
-        ),
+
+def _select_best_candidate_count(candidate_scores: dict[int, float]) -> int:
+    return max(
+        candidate_scores.items(),
+        key=lambda item: (item[1], -item[0]),
+    )[0]
+
+
+def _select_threshold_candidate(
+    *,
+    resolved_policy: SignalomeModuleSelectionPolicy,
+    candidate_scores: dict[int, ClusterCandidateScore],
+    candidate_labels: dict[int, np.ndarray],
+    max_clusters: int,
+    threshold: float,
+    reason: str,
+    profile_degeneracy: _ProfileDegeneracySummary,
+    correlation_exclusion_note: str,
+    approximation_note: str,
+) -> _ModuleSelectionComputation | None:
+    passing_candidates = filter_cluster_candidates(
+        candidate_scores,
+        threshold=threshold,
+    )
+    if not passing_candidates:
+        return None
+    return _build_module_selection_result(
+        strategy=resolved_policy.strategy,
+        selected_module_count=_select_best_candidate_count(passing_candidates),
+        requested_module_count=None,
+        threshold_used=threshold,
+        max_clusters_evaluated=max_clusters,
+        candidate_scores=candidate_scores,
+        reason=reason + correlation_exclusion_note + approximation_note,
+        profile_degeneracy=profile_degeneracy,
+        excluded_from_correlation_count=profile_degeneracy.excluded_count,
         candidate_labels=candidate_labels,
     )
 

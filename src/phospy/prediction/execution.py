@@ -387,6 +387,127 @@ class EnsemblePredictor(EnsemblePredictorContract):
     def clear_cache(self) -> None:
         self._indexed_feature_mat_cache = None
 
+    def _prepare_kinase_training_data(
+        self,
+        *,
+        kinase: str,
+        substrates: list[str],
+        feature_mat: pd.DataFrame,
+    ) -> tuple[IndexedFeatureMatrix, PreparedKinaseTrainingData]:
+        indexed_feature_mat = self._get_indexed_feature_matrix(feature_mat)
+        prepared_training_data = indexed_feature_mat.prepare_kinase(
+            substrates=substrates
+        )
+        if len(prepared_training_data.negative_pool_positions) == 0:
+            msg = f"No negative pool sites available to train predictor for {kinase}"
+            raise PredictionConfigurationError(msg)
+        return indexed_feature_mat, prepared_training_data
+
+    @staticmethod
+    def _resolve_ensemble_override(
+        *,
+        request: PredictionRequest,
+        kinase: str,
+        ensemble_index: int,
+    ) -> object | None:
+        if request.sampling_trace is None:
+            return None
+        return request.sampling_trace.get_ensemble_override(
+            kinase=kinase,
+            ensemble_index=ensemble_index,
+        )
+
+    def _sample_initial_negatives(
+        self,
+        *,
+        indexed_feature_mat: IndexedFeatureMatrix,
+        prepared_training_data: PreparedKinaseTrainingData,
+        negative_sampling_rng: np.random.Generator,
+        ensemble_override: object | None,
+        kinase: str,
+        ensemble_index: int,
+    ) -> tuple[np.ndarray, list[str]]:
+        sampled_negative_positions = (
+            self.negative_pool_sampler.sample_initial_negative_positions(
+                negative_pool_sites=prepared_training_data.negative_pool_sites,
+                negative_pool_positions=prepared_training_data.negative_pool_positions,
+                site_positions=indexed_feature_mat.site_positions,
+                positive_size=len(prepared_training_data.positive_positions),
+                negative_sampling_rng=negative_sampling_rng,
+                ensemble_override=ensemble_override,
+                kinase=kinase,
+                ensemble_index=ensemble_index,
+            )
+        )
+        negative_sites = indexed_feature_mat.feature_index.take(
+            sampled_negative_positions
+        ).tolist()
+        return sampled_negative_positions, negative_sites
+
+    @staticmethod
+    def _build_training_inputs(
+        *,
+        indexed_feature_mat: IndexedFeatureMatrix,
+        prepared_training_data: PreparedKinaseTrainingData,
+        sampled_negative_positions: np.ndarray,
+    ) -> tuple[np.ndarray, pd.Index]:
+        train_values = np.concatenate(
+            [
+                prepared_training_data.positive_values,
+                indexed_feature_mat.feature_values[sampled_negative_positions, :],
+            ],
+            axis=0,
+        )
+        train_index = prepared_training_data.positive_sites.append(
+            indexed_feature_mat.feature_index.take(sampled_negative_positions)
+        )
+        return train_values, train_index
+
+    def _run_ensemble_sampling(
+        self,
+        *,
+        request: PredictionRequest,
+        trace_state: PredictionTraceState,
+        sampling_session: PredictionSamplingSession,
+        prepared_training_data: PreparedKinaseTrainingData,
+        indexed_feature_mat: IndexedFeatureMatrix,
+        kinase: str,
+        ensemble_index: int,
+        negative_sites: list[str],
+        ensemble_override: object | None,
+        train_values: np.ndarray,
+        train_index: pd.Index,
+        resampling_rng: np.random.Generator,
+        capture_trace: bool,
+    ) -> tuple[np.ndarray, object | None]:
+        resolved_trace_level: PredictionTraceLevel = (
+            request.trace_level if capture_trace else PREDICTION_TRACE_LEVEL_NONE
+        )
+        resolved_trace_sink = trace_state.trace_sink if capture_trace else None
+        return multi_ada_sampling(
+            train_mat=None,
+            test_mat=None,
+            labels=prepared_training_data.labels,
+            kernel=self.kernel,
+            n_iterations=request.n_iterations,
+            resampling_rng=resampling_rng,
+            capture_trace=capture_trace,
+            trace_level=resolved_trace_level,
+            trace_sink=resolved_trace_sink,
+            kinase=kinase,
+            ensemble_index=ensemble_index,
+            initial_negative_sites=negative_sites,
+            debug_top_n=request.debug_top_n,
+            svm_mode=request.svm_mode,
+            sampling_policy=sampling_session.policy,
+            sampling_override=ensemble_override,
+            train_values=train_values,
+            train_index=train_index,
+            test_values=indexed_feature_mat.feature_values,
+            test_index=indexed_feature_mat.feature_index,
+            return_values=True,
+        )
+
     def predict_kinase(
         self,
         *,
@@ -400,14 +521,13 @@ class EnsemblePredictor(EnsemblePredictorContract):
         negative_sampling_rng, resampling_rng = (
             sampling_session.random_source.generators_for_kinase(kinase=kinase)
         )
-        indexed_feature_mat = self._get_indexed_feature_matrix(feature_mat)
-        prepared_training_data = indexed_feature_mat.prepare_kinase(
-            substrates=substrates
+        indexed_feature_mat, prepared_training_data = (
+            self._prepare_kinase_training_data(
+                kinase=kinase,
+                substrates=substrates,
+                feature_mat=feature_mat,
+            )
         )
-        if len(prepared_training_data.negative_pool_positions) == 0:
-            msg = f"No negative pool sites available to train predictor for {kinase}"
-            raise PredictionConfigurationError(msg)
-
         self.trace_recorder.start_kinase(
             trace_state=trace_state,
             kinase=kinase,
@@ -420,38 +540,29 @@ class EnsemblePredictor(EnsemblePredictorContract):
             trace_state=trace_state,
             kinase=kinase,
         )
+        capture_ensemble_trace = (
+            is_traced_kinase and trace_state.debug_traces is not None
+        )
 
         for ensemble_idx in range(request.ensemble_size):
             ensemble_index = ensemble_idx + 1
-            ensemble_override = None
-            if request.sampling_trace is not None:
-                ensemble_override = request.sampling_trace.get_ensemble_override(
-                    kinase=kinase,
-                    ensemble_index=ensemble_index,
-                )
-
-            sampled_negative_positions = self.negative_pool_sampler.sample_initial_negative_positions(
-                negative_pool_sites=prepared_training_data.negative_pool_sites,
-                negative_pool_positions=prepared_training_data.negative_pool_positions,
-                site_positions=indexed_feature_mat.site_positions,
-                positive_size=len(prepared_training_data.positive_positions),
+            ensemble_override = self._resolve_ensemble_override(
+                request=request,
+                kinase=kinase,
+                ensemble_index=ensemble_index,
+            )
+            sampled_negative_positions, negative_sites = self._sample_initial_negatives(
+                indexed_feature_mat=indexed_feature_mat,
+                prepared_training_data=prepared_training_data,
                 negative_sampling_rng=negative_sampling_rng,
                 ensemble_override=ensemble_override,
                 kinase=kinase,
                 ensemble_index=ensemble_index,
             )
-            negative_sites = indexed_feature_mat.feature_index.take(
-                sampled_negative_positions
-            ).tolist()
-            train_values = np.concatenate(
-                [
-                    prepared_training_data.positive_values,
-                    indexed_feature_mat.feature_values[sampled_negative_positions, :],
-                ],
-                axis=0,
-            )
-            train_index = prepared_training_data.positive_sites.append(
-                indexed_feature_mat.feature_index.take(sampled_negative_positions)
+            train_values, train_index = self._build_training_inputs(
+                indexed_feature_mat=indexed_feature_mat,
+                prepared_training_data=prepared_training_data,
+                sampled_negative_positions=sampled_negative_positions,
             )
 
             self.trace_recorder.record_initial_negatives(
@@ -461,58 +572,26 @@ class EnsemblePredictor(EnsemblePredictorContract):
                 negative_sites=negative_sites,
             )
 
-            if is_traced_kinase and trace_state.debug_traces is not None:
-                score_values, ensemble_trace = multi_ada_sampling(
-                    train_mat=None,
-                    test_mat=None,
-                    labels=prepared_training_data.labels,
-                    kernel=self.kernel,
-                    n_iterations=request.n_iterations,
-                    resampling_rng=resampling_rng,
-                    capture_trace=True,
-                    trace_level=request.trace_level,
-                    trace_sink=trace_state.trace_sink,
-                    kinase=kinase,
-                    ensemble_index=ensemble_index,
-                    initial_negative_sites=negative_sites,
-                    debug_top_n=request.debug_top_n,
-                    svm_mode=request.svm_mode,
-                    sampling_policy=sampling_session.policy,
-                    sampling_override=ensemble_override,
-                    train_values=train_values,
-                    train_index=train_index,
-                    test_values=indexed_feature_mat.feature_values,
-                    test_index=indexed_feature_mat.feature_index,
-                    return_values=True,
-                )
+            score_values, ensemble_trace = self._run_ensemble_sampling(
+                request=request,
+                trace_state=trace_state,
+                sampling_session=sampling_session,
+                prepared_training_data=prepared_training_data,
+                indexed_feature_mat=indexed_feature_mat,
+                kinase=kinase,
+                ensemble_index=ensemble_index,
+                negative_sites=negative_sites,
+                ensemble_override=ensemble_override,
+                train_values=train_values,
+                train_index=train_index,
+                resampling_rng=resampling_rng,
+                capture_trace=capture_ensemble_trace,
+            )
+            if capture_ensemble_trace:
                 self.trace_recorder.record_ensemble_trace(
                     trace_state=trace_state,
                     kinase=kinase,
                     ensemble_trace=ensemble_trace,
-                )
-            else:
-                score_values, _ = multi_ada_sampling(
-                    train_mat=None,
-                    test_mat=None,
-                    labels=prepared_training_data.labels,
-                    kernel=self.kernel,
-                    n_iterations=request.n_iterations,
-                    resampling_rng=resampling_rng,
-                    capture_trace=False,
-                    trace_level=PREDICTION_TRACE_LEVEL_NONE,
-                    trace_sink=None,
-                    kinase=kinase,
-                    ensemble_index=ensemble_index,
-                    initial_negative_sites=negative_sites,
-                    debug_top_n=request.debug_top_n,
-                    svm_mode=request.svm_mode,
-                    sampling_policy=sampling_session.policy,
-                    sampling_override=ensemble_override,
-                    train_values=train_values,
-                    train_index=train_index,
-                    test_values=indexed_feature_mat.feature_values,
-                    test_index=indexed_feature_mat.feature_index,
-                    return_values=True,
                 )
             kinase_scores += score_values
 

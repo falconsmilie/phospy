@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -45,6 +46,14 @@ __all__ = [
     "resolve_site_to_protein",
     "select_kinase_substrates",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class _TopKinaseAssignments:
+    top_scores: pd.Series
+    top_kinase_candidates: list[tuple[str, ...]]
+    top_kinase_weights: list[tuple[tuple[str, float], ...]]
+    top_kinase_tie_count: np.ndarray
 
 
 def _as_unique_string_index(
@@ -168,6 +177,30 @@ def build_site_assignments(
     available in ``top_kinase_candidates``.
     """
 
+    site_index, protein_ids, resolved_protein_modules = _resolve_site_assignment_inputs(
+        pred_mat=pred_mat,
+        protein_modules=protein_modules,
+        site_to_protein=site_to_protein,
+    )
+    module_ids = protein_ids.map(resolved_protein_modules).astype(int)
+    top_assignments = _extract_top_kinase_assignments(
+        sorted_pred_mat=_sort_prediction_columns(pred_mat),
+        site_index=site_index,
+    )
+    return _build_site_assignment_frame(
+        site_index=site_index,
+        protein_ids=protein_ids,
+        module_ids=module_ids,
+        top_assignments=top_assignments,
+    )
+
+
+def _resolve_site_assignment_inputs(
+    *,
+    pred_mat: pd.DataFrame,
+    protein_modules: pd.Series,
+    site_to_protein: pd.Series,
+) -> tuple[pd.Index, pd.Series, pd.Series]:
     if pred_mat.shape[1] == 0:
         msg = "pred_mat must contain at least one kinase column"
         raise InputCompatibilityError(msg)
@@ -181,8 +214,30 @@ def build_site_assignments(
         site_to_protein,
         context="site_to_protein",
         label=SITE_ID_COLUMN,
+    ).astype(str)
+    _validate_site_to_protein_coverage(
+        site_index=site_index,
+        resolved_site_to_protein=resolved_site_to_protein,
     )
-    resolved_site_to_protein = resolved_site_to_protein.astype(str)
+    protein_ids = resolved_site_to_protein.loc[site_index]
+
+    resolved_protein_modules = _as_unique_string_series_index(
+        protein_modules,
+        context="protein_modules",
+        label=PROTEIN_ID_COLUMN,
+    ).astype(int)
+    _validate_protein_module_coverage(
+        protein_ids=protein_ids,
+        resolved_protein_modules=resolved_protein_modules,
+    )
+    return site_index, protein_ids, resolved_protein_modules
+
+
+def _validate_site_to_protein_coverage(
+    *,
+    site_index: pd.Index,
+    resolved_site_to_protein: pd.Series,
+) -> None:
     missing_site_ids = sorted(
         {
             site_id
@@ -190,22 +245,22 @@ def build_site_assignments(
             if site_id not in resolved_site_to_protein.index
         }
     )
-    if missing_site_ids:
-        preview = ", ".join(missing_site_ids[:3])
-        suffix = "..." if len(missing_site_ids) > 3 else ""
-        msg = (
-            "site_to_protein must define a protein ID for every pred_mat site. "
-            f"Missing mappings for: {preview}{suffix}"
-        )
-        raise InputCompatibilityError(msg)
+    if not missing_site_ids:
+        return
+    preview = ", ".join(missing_site_ids[:3])
+    suffix = "..." if len(missing_site_ids) > 3 else ""
+    msg = (
+        "site_to_protein must define a protein ID for every pred_mat site. "
+        f"Missing mappings for: {preview}{suffix}"
+    )
+    raise InputCompatibilityError(msg)
 
-    resolved_protein_modules = _as_unique_string_series_index(
-        protein_modules,
-        context="protein_modules",
-        label=PROTEIN_ID_COLUMN,
-    ).astype(int)
 
-    protein_ids = resolved_site_to_protein.loc[site_index]
+def _validate_protein_module_coverage(
+    *,
+    protein_ids: pd.Series,
+    resolved_protein_modules: pd.Series,
+) -> None:
     missing_protein_ids = sorted(
         {
             str(protein_id)
@@ -213,18 +268,27 @@ def build_site_assignments(
             if str(protein_id) not in resolved_protein_modules.index
         }
     )
-    if missing_protein_ids:
-        preview = ", ".join(missing_protein_ids[:3])
-        suffix = "..." if len(missing_protein_ids) > 3 else ""
-        msg = (
-            "protein_modules must define module IDs for every protein mapped "
-            f"from pred_mat sites. Missing proteins: {preview}{suffix}"
-        )
-        raise InputCompatibilityError(msg)
+    if not missing_protein_ids:
+        return
+    preview = ", ".join(missing_protein_ids[:3])
+    suffix = "..." if len(missing_protein_ids) > 3 else ""
+    msg = (
+        "protein_modules must define module IDs for every protein mapped "
+        f"from pred_mat sites. Missing proteins: {preview}{suffix}"
+    )
+    raise InputCompatibilityError(msg)
 
+
+def _sort_prediction_columns(pred_mat: pd.DataFrame) -> pd.DataFrame:
     sorted_kinase_columns = sorted(str(kinase) for kinase in pred_mat.columns)
-    sorted_pred_mat = pred_mat.loc[:, sorted_kinase_columns]
+    return pred_mat.loc[:, sorted_kinase_columns]
 
+
+def _extract_top_kinase_assignments(
+    *,
+    sorted_pred_mat: pd.DataFrame,
+    site_index: pd.Index,
+) -> _TopKinaseAssignments:
     top_scores = sorted_pred_mat.max(axis=1).astype(float)
     top_score_mask = sorted_pred_mat.eq(top_scores, axis=0)
     top_score_mask_values = top_score_mask.to_numpy(dtype=bool, copy=False)
@@ -252,21 +316,36 @@ def build_site_assignments(
         top_kinase_candidates.append(tied_kinases)
         top_kinase_weights.append(tuple((kinase, weight) for kinase in tied_kinases))
 
-    module_ids = protein_ids.map(resolved_protein_modules).astype(int)
+    return _TopKinaseAssignments(
+        top_scores=top_scores,
+        top_kinase_candidates=top_kinase_candidates,
+        top_kinase_weights=top_kinase_weights,
+        top_kinase_tie_count=top_kinase_tie_count,
+    )
 
+
+def _build_site_assignment_frame(
+    *,
+    site_index: pd.Index,
+    protein_ids: pd.Series,
+    module_ids: pd.Series,
+    top_assignments: _TopKinaseAssignments,
+) -> pd.DataFrame:
     site_assignments = pd.DataFrame(
         {
             PROTEIN_ID_COLUMN: protein_ids.to_numpy(dtype=object, copy=False),
             MODULE_ID_COLUMN: module_ids.to_numpy(dtype=int, copy=False),
-            TOP_KINASE_CANDIDATES_COLUMN: top_kinase_candidates,
-            TOP_KINASE_WEIGHTS_COLUMN: top_kinase_weights,
-            TOP_KINASE_TIE_COUNT_COLUMN: top_kinase_tie_count,
-            TOP_KINASE_IS_AMBIGUOUS_COLUMN: top_kinase_tie_count > 1,
-            TOP_SCORE_COLUMN: top_scores.to_numpy(dtype=float, copy=False),
+            TOP_KINASE_CANDIDATES_COLUMN: top_assignments.top_kinase_candidates,
+            TOP_KINASE_WEIGHTS_COLUMN: top_assignments.top_kinase_weights,
+            TOP_KINASE_TIE_COUNT_COLUMN: top_assignments.top_kinase_tie_count,
+            TOP_KINASE_IS_AMBIGUOUS_COLUMN: top_assignments.top_kinase_tie_count > 1,
+            TOP_SCORE_COLUMN: top_assignments.top_scores.to_numpy(
+                dtype=float, copy=False
+            ),
         },
         index=site_index,
     )
-    site_assignments = site_assignments.astype(
+    return site_assignments.astype(
         {
             PROTEIN_ID_COLUMN: str,
             MODULE_ID_COLUMN: int,
@@ -275,7 +354,6 @@ def build_site_assignments(
             TOP_SCORE_COLUMN: float,
         }
     )
-    return site_assignments
 
 
 def build_protein_assignment_table(*, site_assignments: pd.DataFrame) -> pd.DataFrame:

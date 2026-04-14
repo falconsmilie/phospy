@@ -426,6 +426,37 @@ def test_ensemble_predictor_precomputes_negative_pool_without_index_isin(
     assert batch.scores.index.tolist() == feature_mat.index.tolist()
 
 
+def test_ensemble_predictor_build_training_inputs_combines_positive_and_negative_rows() -> (
+    None
+):
+    feature_mat = pd.DataFrame(
+        {
+            "K1": [0.95, 0.91, 0.40, 0.10],
+            "K2": [0.10, 0.12, 0.94, 0.92],
+        },
+        index=["s1", "s2", "s3", "s4"],
+    )
+    predictor = EnsemblePredictor(
+        kernel="rbf",
+        negative_pool_sampler=NegativePoolSampler(),
+        trace_recorder=TraceRecorder(),
+    )
+    indexed_feature_mat = predictor._get_indexed_feature_matrix(feature_mat)
+    prepared_training_data = indexed_feature_mat.prepare_kinase(substrates=["s1", "s2"])
+
+    train_values, train_index = predictor._build_training_inputs(
+        indexed_feature_mat=indexed_feature_mat,
+        prepared_training_data=prepared_training_data,
+        sampled_negative_positions=np.asarray([2, 3], dtype=int),
+    )
+
+    assert train_index.tolist() == ["s1", "s2", "s3", "s4"]
+    np.testing.assert_array_equal(
+        train_values,
+        indexed_feature_mat.feature_values[[0, 1, 2, 3], :],
+    )
+
+
 def test_ensemble_predictor_reuses_indexed_feature_matrix_for_same_input(
     monkeypatch,
 ) -> None:
