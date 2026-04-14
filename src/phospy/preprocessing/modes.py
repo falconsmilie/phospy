@@ -20,7 +20,7 @@ This module intentionally keeps one high-level builder instead of separate
 full-input and phospho-only orchestration wrappers. The reduced flow is:
 
 1. resolve validated dataset or phospho inputs through `DatasetLoader`
-2. reuse `DatasetPreprocessing` or `CoreProcessor.process_phospho_only()`
+2. reuse `DatasetPreprocessing` or `CoreProcessor.process_phospho_only_owned()`
 3. adapt the core result into `AnalysisReadyPhosphoDataset`
 """
 
@@ -74,7 +74,7 @@ class AnalysisReadyDatasetBuilder:
             phospho=phospho,
             phospho_encoding=phospho_encoding,
         )
-        preprocessing = DatasetPreprocessing(
+        preprocessing = DatasetPreprocessing.from_owned(
             total_df=loaded_inputs.total_df,
             phospho_df=loaded_inputs.phospho_df,
             schema=schema,
@@ -103,7 +103,7 @@ class AnalysisReadyDatasetBuilder:
         core_result = CoreProcessor(
             schema=schema,
             comparisons=comparisons,
-        ).process_phospho_only(
+        ).process_phospho_only_owned(
             phospho_df,
             config=preprocessing_config,
         )

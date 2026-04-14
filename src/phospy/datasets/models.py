@@ -345,7 +345,7 @@ class PhosphoDataset:
     @property
     def preprocessing(self) -> DatasetPreprocessing:
         """Return the bound preprocessing facade for this dataset workspace."""
-        return DatasetPreprocessing(
+        return DatasetPreprocessing.from_owned(
             total_df=self.total_df_live,
             phospho_df=self.phospho_df_live,
             schema=self.schema,

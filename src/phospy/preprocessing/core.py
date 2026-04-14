@@ -32,6 +32,10 @@ The preprocessing domain now revolves around three layers:
    phospho-only inputs.
 3. The step services and site-matrix builder perform the concrete transforms.
 
+``CoreProcessor.process()`` and ``process_phospho_only()`` are defensive
+ownership boundaries. Trusted internal call sites should use
+``process_owned()`` and ``process_phospho_only_owned()``.
+
 Most callers should start with ``PhosphoDataset.preprocessing.run()`` or the
 analysis-ready builder and only reach for this module when they need explicit
 control over the core orchestration.
@@ -272,16 +276,38 @@ class CoreProcessor:
         *,
         config: CorePreprocessingConfig | None = None,
     ) -> CoreProcessingResult:
+        """Run core preprocessing through the external defensive ownership boundary.
+
+        This public method protects callers from unintended mutation by taking
+        deep copies once at entry, then delegating to :meth:`process_owned`.
+        """
         resolved_config = config or CorePreprocessingConfig()
-        total_work = total_df.copy(deep=True)
-        phospho_work = phospho_df.copy(deep=True)
+        return self.process_owned(
+            total_df=total_df.copy(deep=True),
+            phospho_df=phospho_df.copy(deep=True),
+            config=resolved_config,
+        )
+
+    def process_owned(
+        self,
+        total_df: pd.DataFrame,
+        phospho_df: pd.DataFrame,
+        *,
+        config: CorePreprocessingConfig | None = None,
+    ) -> CoreProcessingResult:
+        """Run core preprocessing on already-owned mutable tables.
+
+        Call this from trusted internal workflows that already own the input
+        frames and do not need another defensive full-frame copy.
+        """
+        resolved_config = config or CorePreprocessingConfig()
         total_unique, total_filtered = self.total_preprocessor.prepare_owned(
-            total_work,
+            total_df,
             sentinel=resolved_config.total_sentinel,
             min_observed=resolved_config.min_observed,
         )
         phospho_filtered = self.phospho_preprocessor.prepare_owned(
-            phospho_work,
+            phospho_df,
             localization_threshold=resolved_config.localization_threshold,
             sentinel=resolved_config.phospho_sentinel,
             min_observed=resolved_config.min_observed,
@@ -310,12 +336,23 @@ class CoreProcessor:
         *,
         config: CorePreprocessingConfig | None = None,
     ) -> CoreProcessingResult:
-        """Run the phospho-only core lane without rebuilding orchestration elsewhere."""
-
+        """Run phospho-only preprocessing through the defensive boundary."""
         resolved_config = config or CorePreprocessingConfig()
-        phospho_work = phospho_df.copy(deep=True)
+        return self.process_phospho_only_owned(
+            phospho_df=phospho_df.copy(deep=True),
+            config=resolved_config,
+        )
+
+    def process_phospho_only_owned(
+        self,
+        phospho_df: pd.DataFrame,
+        *,
+        config: CorePreprocessingConfig | None = None,
+    ) -> CoreProcessingResult:
+        """Run phospho-only preprocessing on already-owned mutable tables."""
+        resolved_config = config or CorePreprocessingConfig()
         phospho_filtered = self.phospho_preprocessor.prepare_owned(
-            phospho_work,
+            phospho_df,
             localization_threshold=resolved_config.localization_threshold,
             sentinel=resolved_config.phospho_sentinel,
             min_observed=resolved_config.min_observed,

@@ -64,7 +64,8 @@ In practice this means:
 
 - schema validators keep their default defensive copy at public input boundaries
 - internal fast paths use explicit owned constructors such as `prepare_owned()`, `correct_owned()`, `build_owned()`, and `AnalysisReadyPhosphoDataset.from_owned()`
-- `CoreProcessor.process()` and `process_phospho_only()` copy caller-managed input tables once at entry, then stay on the owned path
+- `CoreProcessor.process()` and `process_phospho_only()` are safe boundary wrappers that copy caller-managed tables once
+- trusted internal paths then call `CoreProcessor.process_owned()` or `process_phospho_only_owned()` to avoid another full-frame copy after ownership has already transferred
 
 This keeps mutation boundaries reviewable and reduces repeated full-frame copy churn through preprocessing.
 

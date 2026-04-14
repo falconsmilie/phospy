@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -44,6 +45,25 @@ class DatasetPreprocessing:
     phospho_df: pd.DataFrame
     schema: DatasetSchema
     comparisons: tuple[ComparisonSpec, ...] | None = None
+    _inputs_owned: bool = field(default=False, repr=False, compare=False)
+
+    @classmethod
+    def from_owned(
+        cls,
+        *,
+        total_df: pd.DataFrame,
+        phospho_df: pd.DataFrame,
+        schema: DatasetSchema,
+        comparisons: Sequence[ComparisonSpec] | None = None,
+    ) -> DatasetPreprocessing:
+        """Build a facade over already-owned mutable dataset tables."""
+        return cls(
+            total_df=total_df,
+            phospho_df=phospho_df,
+            schema=schema,
+            comparisons=comparisons,
+            _inputs_owned=True,
+        )
 
     def __post_init__(self) -> None:
         self.comparisons = (
@@ -55,6 +75,12 @@ class DatasetPreprocessing:
         *,
         config: CorePreprocessingConfig,
     ) -> CoreProcessingResult:
+        """Run preprocessing while respecting the facade's ownership boundary.
+
+        Default construction routes through the defensive `CoreProcessor.process()`
+        boundary. `from_owned()` opts into `process_owned()` for trusted
+        already-owned dataset tables.
+        """
         if not isinstance(config, CorePreprocessingConfig):
             msg = "DatasetPreprocessing.run(): config must be a CorePreprocessingConfig instance"
             raise TypeError(msg)
@@ -62,6 +88,12 @@ class DatasetPreprocessing:
             schema=self.schema,
             comparisons=self.comparisons,
         )
+        if self._inputs_owned:
+            return processor.process_owned(
+                self.total_df,
+                self.phospho_df,
+                config=config,
+            )
         return processor.process(
             self.total_df,
             self.phospho_df,

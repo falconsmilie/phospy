@@ -883,6 +883,125 @@ def test_core_processor_process_copies_once_and_then_uses_owned_fast_paths(
     assert not result.site_matrix.matrix.empty
 
 
+def test_core_processor_process_owned_matches_defensive_process_output() -> None:
+    total_df = pd.DataFrame(
+        {
+            "genes": ["Prkaca", "Btk"],
+            "group1": [1.0, 2.0],
+            "group2": [1.0, 2.0],
+            "group3": [1.0, 2.0],
+            "group4": [1.0, 2.0],
+            "group5": [1.0, 2.0],
+            "group6": [1.0, 2.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1", "u2"],
+            "gene_names": ["Prkaca", "Btk"],
+            "gene_p_site": ["PRKACA_S339", "BTK_Y551"],
+            "sequence": ["AAAAAA", "BBBBBB"],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "localization_prob": [0.95, 0.95],
+            "p_group1": [8.0, 6.0],
+            "p_group2": [7.0, 5.0],
+            "p_group3": [6.0, 4.0],
+            "p_group4": [5.0, 3.0],
+            "p_group5": [4.0, 2.0],
+            "p_group6": [3.0, 1.0],
+        }
+    )
+    original_total = total_df.copy(deep=True)
+    original_phospho = phospho_df.copy(deep=True)
+    processor = CoreProcessor(
+        schema=DatasetSchema(),
+        comparisons=(("group1", "group4"),),
+    )
+    config = CorePreprocessingConfig(max_unmatched_fraction=0.0)
+
+    defensive = processor.process(
+        total_df,
+        phospho_df,
+        config=config,
+    )
+    owned = processor.process_owned(
+        total_df.copy(deep=True),
+        phospho_df.copy(deep=True),
+        config=config,
+    )
+
+    pd.testing.assert_frame_equal(total_df, original_total)
+    pd.testing.assert_frame_equal(phospho_df, original_phospho)
+    pd.testing.assert_frame_equal(defensive.total_unique, owned.total_unique)
+    pd.testing.assert_frame_equal(defensive.total_filtered, owned.total_filtered)
+    pd.testing.assert_frame_equal(defensive.phospho_filtered, owned.phospho_filtered)
+    pd.testing.assert_frame_equal(defensive.phospho_corrected, owned.phospho_corrected)
+    pd.testing.assert_frame_equal(
+        defensive.site_matrix.phosr_input,
+        owned.site_matrix.phosr_input,
+    )
+    pd.testing.assert_frame_equal(
+        defensive.site_matrix.matrix, owned.site_matrix.matrix
+    )
+    pd.testing.assert_series_equal(
+        defensive.site_matrix.sequences,
+        owned.site_matrix.sequences,
+    )
+    assert defensive.site_matrix.row_drop_stats == owned.site_matrix.row_drop_stats
+
+
+def test_core_processor_process_phospho_only_owned_matches_defensive_output() -> None:
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1", "u2"],
+            "gene_names": ["Prkaca", "Btk"],
+            "gene_p_site": ["PRKACA_S339", "BTK_Y551"],
+            "sequence": ["AAAAAA", "BBBBBB"],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "localization_prob": [0.95, 0.95],
+            "p_group1": [8.0, 6.0],
+            "p_group2": [7.0, 5.0],
+            "p_group3": [6.0, 4.0],
+            "p_group4": [5.0, 3.0],
+            "p_group5": [4.0, 2.0],
+            "p_group6": [3.0, 1.0],
+        }
+    )
+    original_phospho = phospho_df.copy(deep=True)
+    processor = CoreProcessor(
+        schema=DatasetSchema(),
+        comparisons=(("group1", "group4"),),
+    )
+    config = CorePreprocessingConfig()
+
+    defensive = processor.process_phospho_only(
+        phospho_df,
+        config=config,
+    )
+    owned = processor.process_phospho_only_owned(
+        phospho_df.copy(deep=True),
+        config=config,
+    )
+
+    pd.testing.assert_frame_equal(phospho_df, original_phospho)
+    pd.testing.assert_frame_equal(defensive.total_unique, owned.total_unique)
+    pd.testing.assert_frame_equal(defensive.total_filtered, owned.total_filtered)
+    pd.testing.assert_frame_equal(defensive.phospho_filtered, owned.phospho_filtered)
+    pd.testing.assert_frame_equal(defensive.phospho_corrected, owned.phospho_corrected)
+    pd.testing.assert_frame_equal(
+        defensive.site_matrix.phosr_input,
+        owned.site_matrix.phosr_input,
+    )
+    pd.testing.assert_frame_equal(
+        defensive.site_matrix.matrix, owned.site_matrix.matrix
+    )
+    pd.testing.assert_series_equal(
+        defensive.site_matrix.sequences,
+        owned.site_matrix.sequences,
+    )
+    assert defensive.site_matrix.row_drop_stats == owned.site_matrix.row_drop_stats
+
+
 def test_protein_correction_service_does_not_route_through_public_facade(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1033,6 +1152,145 @@ def test_dataset_preprocessing_run_rejects_scalar_kwargs() -> None:
             config=CorePreprocessingConfig(),
             min_observed=1,
         )
+
+
+def test_dataset_preprocessing_run_uses_owned_core_path_for_dataset_workspace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.preprocessing.dataset as preprocessing_dataset_module
+
+    dataset = PhosphoDataset(
+        total_df=pd.DataFrame(
+            {
+                "genes": ["PRKACA", "BTK"],
+                "group1": [1.0, 2.0],
+                "group2": [1.0, 2.0],
+                "group3": [1.0, 2.0],
+                "group4": [1.0, 2.0],
+                "group5": [1.0, 2.0],
+                "group6": [1.0, 2.0],
+            }
+        ),
+        phospho_df=pd.DataFrame(
+            {
+                "uid": ["u1", "u2"],
+                "gene_names": ["PRKACA", "BTK"],
+                "gene_p_site": ["PRKACA_S339", "BTK_Y551"],
+                "localization_prob": [0.95, 0.95],
+                "centralized_sequence": ["AAAAAA", "BBBBBB"],
+                "p_group1": [8.0, 6.0],
+                "p_group2": [7.0, 5.0],
+                "p_group3": [6.0, 4.0],
+                "p_group4": [5.0, 3.0],
+                "p_group5": [4.0, 2.0],
+                "p_group6": [3.0, 1.0],
+            }
+        ),
+    )
+
+    process_calls = 0
+    process_owned_calls = 0
+    original_process = preprocessing_dataset_module.CoreProcessor.process
+    original_process_owned = preprocessing_dataset_module.CoreProcessor.process_owned
+
+    def count_process(self, *args, **kwargs):
+        nonlocal process_calls
+        process_calls += 1
+        return original_process(self, *args, **kwargs)
+
+    def count_process_owned(self, *args, **kwargs):
+        nonlocal process_owned_calls
+        process_owned_calls += 1
+        return original_process_owned(self, *args, **kwargs)
+
+    monkeypatch.setattr(
+        preprocessing_dataset_module.CoreProcessor,
+        "process",
+        count_process,
+    )
+    monkeypatch.setattr(
+        preprocessing_dataset_module.CoreProcessor,
+        "process_owned",
+        count_process_owned,
+    )
+
+    result = dataset.preprocessing.run(config=CorePreprocessingConfig())
+
+    assert process_calls == 0
+    assert process_owned_calls == 1
+    assert not result.site_matrix.matrix.empty
+
+
+def test_dataset_preprocessing_run_defaults_to_defensive_boundary_for_external_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.preprocessing.dataset as preprocessing_dataset_module
+
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA", "BTK"],
+            "group1": [1.0, 2.0],
+            "group2": [1.0, 2.0],
+            "group3": [1.0, 2.0],
+            "group4": [1.0, 2.0],
+            "group5": [1.0, 2.0],
+            "group6": [1.0, 2.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "uid": ["u1", "u2"],
+            "gene_names": ["PRKACA", "BTK"],
+            "gene_p_site": ["PRKACA_S339", "BTK_Y551"],
+            "localization_prob": [0.95, 0.95],
+            "centralized_sequence": ["AAAAAA", "BBBBBB"],
+            "p_group1": [8.0, 6.0],
+            "p_group2": [7.0, 5.0],
+            "p_group3": [6.0, 4.0],
+            "p_group4": [5.0, 3.0],
+            "p_group5": [4.0, 2.0],
+            "p_group6": [3.0, 1.0],
+        }
+    )
+    original_total = total_df.copy(deep=True)
+    original_phospho = phospho_df.copy(deep=True)
+    process_calls = 0
+    process_owned_calls = 0
+    original_process = preprocessing_dataset_module.CoreProcessor.process
+    original_process_owned = preprocessing_dataset_module.CoreProcessor.process_owned
+
+    def count_process(self, *args, **kwargs):
+        nonlocal process_calls
+        process_calls += 1
+        return original_process(self, *args, **kwargs)
+
+    def count_process_owned(self, *args, **kwargs):
+        nonlocal process_owned_calls
+        process_owned_calls += 1
+        return original_process_owned(self, *args, **kwargs)
+
+    monkeypatch.setattr(
+        preprocessing_dataset_module.CoreProcessor,
+        "process",
+        count_process,
+    )
+    monkeypatch.setattr(
+        preprocessing_dataset_module.CoreProcessor,
+        "process_owned",
+        count_process_owned,
+    )
+
+    result = DatasetPreprocessing(
+        total_df=total_df,
+        phospho_df=phospho_df,
+        schema=DatasetSchema(),
+    ).run(config=CorePreprocessingConfig())
+
+    assert process_calls == 1
+    assert process_owned_calls == 1
+    pd.testing.assert_frame_equal(total_df, original_total)
+    pd.testing.assert_frame_equal(phospho_df, original_phospho)
+    assert not result.site_matrix.matrix.empty
 
 
 def test_dataset_preprocessing_facade_shares_live_workspace_state_with_dataset() -> (
@@ -1272,11 +1530,13 @@ def test_analysis_ready_builder_phospho_only_reuses_core_processor_seam(
     )
     phospho_path = fixture_dir / "phospho.tsv"
     calls: list[dict[str, object]] = []
-    original_process_phospho_only = (
-        preprocessing_modes_module.CoreProcessor.process_phospho_only
+    original_process_phospho_only_owned = (
+        preprocessing_modes_module.CoreProcessor.process_phospho_only_owned
     )
 
-    def counting_process_phospho_only(self, phospho_df: pd.DataFrame, *, config=None):
+    def counting_process_phospho_only_owned(
+        self, phospho_df: pd.DataFrame, *, config=None
+    ):
         calls.append(
             {
                 "schema": self.schema,
@@ -1285,12 +1545,12 @@ def test_analysis_ready_builder_phospho_only_reuses_core_processor_seam(
                 "rows": len(phospho_df),
             }
         )
-        return original_process_phospho_only(self, phospho_df, config=config)
+        return original_process_phospho_only_owned(self, phospho_df, config=config)
 
     monkeypatch.setattr(
         preprocessing_modes_module.CoreProcessor,
-        "process_phospho_only",
-        counting_process_phospho_only,
+        "process_phospho_only_owned",
+        counting_process_phospho_only_owned,
     )
 
     result = build_analysis_ready_dataset(
