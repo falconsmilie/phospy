@@ -7,6 +7,14 @@ import pandas as pd
 from ...errors import PhospyValidationError
 
 
+def _is_null_like(value: object) -> bool:
+    try:
+        result = pd.isna(value)
+    except (TypeError, ValueError):
+        return False
+    return bool(result) if isinstance(result, bool) else False
+
+
 def resolve_required_columns(
     columns: Iterable[str],
     *,
@@ -69,6 +77,12 @@ def normalize_sequence_mapping(
                 "not a plain string"
             )
             raise ValueError(msg)
+        if not isinstance(raw_values, Sequence):
+            msg = (
+                f"{field_name}[{key!r}] must be an ordered sequence of values, "
+                "not an unordered iterable"
+            )
+            raise ValueError(msg)
         normalized[str(key)] = tuple(str(item) for item in raw_values)
     return normalized
 
@@ -82,13 +96,39 @@ def normalize_site_sequence_series(
         return None
     if isinstance(value, pd.Series):
         normalized = value.copy(deep=True).astype(object)
-        normalized.index = normalized.index.map(str)
-        normalized[:] = normalized.map(str)
+        if normalized.index.isna().any():
+            msg = "site_sequences keys must be non-null site IDs"
+            raise ValueError(msg)
+        if normalized.isna().any():
+            msg = "site_sequences values must be non-null sequence strings"
+            raise ValueError(msg)
+        normalized.index = normalized.index.map(lambda site_id: str(site_id).strip())
+        normalized[:] = normalized.map(lambda sequence: str(sequence).strip())
+        if any(not site_id for site_id in normalized.index):
+            msg = "site_sequences keys must be non-empty site IDs"
+            raise ValueError(msg)
+        if (normalized == "").any():
+            msg = "site_sequences values must be non-empty sequence strings"
+            raise ValueError(msg)
         return normalized
     if isinstance(value, Mapping):
-        normalized = {
-            str(site_id): str(sequence) for site_id, sequence in value.items()
-        }
+        normalized: dict[str, str] = {}
+        for raw_site_id, raw_sequence in value.items():
+            if _is_null_like(raw_site_id):
+                msg = "site_sequences keys must be non-null site IDs"
+                raise ValueError(msg)
+            if _is_null_like(raw_sequence):
+                msg = "site_sequences values must be non-null sequence strings"
+                raise ValueError(msg)
+            site_id = str(raw_site_id).strip()
+            sequence = str(raw_sequence).strip()
+            if not site_id:
+                msg = "site_sequences keys must be non-empty site IDs"
+                raise ValueError(msg)
+            if not sequence:
+                msg = "site_sequences values must be non-empty sequence strings"
+                raise ValueError(msg)
+            normalized[site_id] = sequence
         return pd.Series(normalized, dtype=object)
     msg = (
         "site_sequences must be provided as a mapping keyed by phosphosite ID "
@@ -117,7 +157,13 @@ def normalize_site_to_protein_mapping(
 
     normalized: dict[str, str] = {}
     for raw_site_id, raw_protein_id in value.items():
-        site_id = str(raw_site_id)
+        if _is_null_like(raw_site_id):
+            msg = "site_to_protein keys must be non-null site IDs"
+            raise ValueError(msg)
+        if _is_null_like(raw_protein_id):
+            msg = "site_to_protein values must be non-null protein IDs"
+            raise ValueError(msg)
+        site_id = str(raw_site_id).strip()
         protein_id = str(raw_protein_id).strip()
         if not site_id:
             msg = "site_to_protein keys must be non-empty site IDs"

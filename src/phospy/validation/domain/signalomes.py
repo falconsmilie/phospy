@@ -7,7 +7,7 @@ import pandas as pd
 
 from ...errors import NoCandidateKinasesError, RequestValidationError
 from ...signalomes.site_ids import resolve_signalome_site_to_protein
-from ..schema.tables import PredMatSchema
+from ..schema.tables import PredMatForSignalomeSchema
 
 if TYPE_CHECKING:
     from ...prediction.results import KinasePredictionResult, PredMatResult
@@ -63,7 +63,7 @@ def validate_prediction_result_pred_mat(
             "less restrictive top, score_threshold, or inclusion settings."
         )
         raise NoCandidateKinasesError(msg)
-    return PredMatSchema.validate(pred_mat, context="prediction_result")
+    return PredMatForSignalomeSchema.validate(pred_mat, context="prediction_result")
 
 
 def resolve_pred_mat(

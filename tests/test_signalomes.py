@@ -458,6 +458,27 @@ def test_signalome_workflow_rejects_incomplete_site_to_protein_mapping() -> None
         )
 
 
+def test_signalome_workflow_rejects_site_to_protein_mapping_with_null_values() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+    site_to_protein = {
+        f"PROTEIN_{idx};S{idx};": f"PROTEIN_{idx}"
+        for idx in range(1, phospho_matrix.shape[0] + 1)
+    }
+    site_to_protein["PROTEIN_1;S1;"] = None  # type: ignore[assignment]
+
+    with pytest.raises(
+        RequestValidationError,
+        match="site_to_protein values must be non-null protein IDs",
+    ):
+        SignalomeWorkflow().run(
+            scoring_result=pred_mat_result.scoring_result,
+            prediction_result=pred_mat_result.prediction_result,
+            expression_matrix=phospho_matrix,
+            kinases_of_interest=["KINASE_A"],
+            site_to_protein=site_to_protein,
+        )
+
+
 def test_signalome_workflow_rejects_malformed_supported_site_identifier_without_mapping() -> (
     None
 ):

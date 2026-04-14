@@ -20,6 +20,8 @@ from .tables import (
     ActivitySiteMatrixSchema,
     PhosphoInputSchema,
     PredictionScoreMatrixSchema,
+    PredMatForActivitySchema,
+    PredMatForSignalomeSchema,
     PredMatSchema,
     SiteMatrixSchema,
     SiteMatrixSourceSchema,
@@ -29,6 +31,8 @@ from .tables import (
 __all__ = [
     "ActivitySiteMatrixSchema",
     "PhosphoInputSchema",
+    "PredMatForActivitySchema",
+    "PredMatForSignalomeSchema",
     "PredMatSchema",
     "PredictionScoreMatrixSchema",
     "SiteMatrixSchema",

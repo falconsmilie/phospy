@@ -114,8 +114,12 @@ class PhosphoInputSchema:
         return validated
 
 
-class PredMatSchema:
-    """Validate prediction matrices used for kinase activity analysis."""
+class PredMatForActivitySchema:
+    """Validate predMat values used for activity analysis boundaries.
+
+    Missing values are allowed because downstream activity scoring ignores them on
+    a per-sample basis.
+    """
 
     @classmethod
     def validate(
@@ -154,6 +158,37 @@ class PredMatSchema:
             context=context,
         )
         return validated
+
+
+class PredMatForSignalomeSchema(PredMatForActivitySchema):
+    """Validate predMat values used for signalome boundaries.
+
+    Signalome clustering and network construction require finite values.
+    """
+
+    @classmethod
+    def validate(
+        cls,
+        frame: pd.DataFrame,
+        *,
+        context: str = "pred_mat",
+        copy_frame: bool = True,
+    ) -> pd.DataFrame:
+        validated = super().validate(
+            frame,
+            context=context,
+            copy_frame=copy_frame,
+        )
+        require_finite_numeric_values(
+            validated,
+            columns=list(validated.columns),
+            context=context,
+        )
+        return validated
+
+
+class PredMatSchema(PredMatForActivitySchema):
+    """Backward-compatible alias for activity-focused predMat validation."""
 
 
 class PredictionScoreMatrixSchema:
@@ -308,6 +343,8 @@ class ActivitySiteMatrixSchema:
 __all__ = [
     "ActivitySiteMatrixSchema",
     "PhosphoInputSchema",
+    "PredMatForActivitySchema",
+    "PredMatForSignalomeSchema",
     "PredMatSchema",
     "PredictionScoreMatrixSchema",
     "SiteMatrixSchema",

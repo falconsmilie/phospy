@@ -6,8 +6,11 @@ from dataclasses import dataclass
 import pandas as pd
 
 from ...errors import InputCompatibilityError
-from ..schema import require_finite_numeric_values
-from ..schema.tables import PredictionScoreMatrixSchema, PredMatSchema, SiteMatrixSchema
+from ..schema.tables import (
+    PredictionScoreMatrixSchema,
+    PredMatForSignalomeSchema,
+    SiteMatrixSchema,
+)
 
 DEFAULT_MIN_PRED_MAT_OVERLAP = 1
 DEFAULT_MIN_PRED_MAT_OVERLAP_FRACTION = 0.5
@@ -168,13 +171,8 @@ def validate_signalome_alignment(
         scoring_matrix,
         context=scoring_context,
     )
-    validated_pred_mat = PredMatSchema.validate(
+    validated_pred_mat = PredMatForSignalomeSchema.validate(
         pred_mat,
-        context=pred_mat_context,
-    )
-    require_finite_numeric_values(
-        validated_pred_mat,
-        columns=list(validated_pred_mat.columns),
         context=pred_mat_context,
     )
     validated_expression_matrix = SiteMatrixSchema.validate(

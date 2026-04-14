@@ -15,6 +15,7 @@ from phospy.io import (
 from phospy.validation.schema.tables import (
     PhosphoInputSchema,
     PredictionScoreMatrixSchema,
+    PredMatForSignalomeSchema,
     PredMatSchema,
     SiteMatrixSchema,
     SiteMatrixSourceSchema,
@@ -154,6 +155,19 @@ def test_pred_mat_schema_rejects_infinite_values() -> None:
 
     with pytest.raises(TableSchemaError, match="infinite values"):
         PredMatSchema.validate(frame)
+
+
+def test_signalome_pred_mat_schema_rejects_nan_values() -> None:
+    frame = pd.DataFrame(
+        {
+            "PRKACA": [0.9, float("nan")],
+            "BTK": [0.8, 0.2],
+        },
+        index=["SITE_1", "SITE_2"],
+    )
+
+    with pytest.raises(TableSchemaError, match="non-finite values"):
+        PredMatForSignalomeSchema.validate(frame)
 
 
 def test_site_matrix_schema_rejects_duplicate_index() -> None:
