@@ -334,62 +334,147 @@ def _run_sampling_iterations(
     StandardScaler: type[Any],
     SVC: type[Any],
 ) -> Any:
+    model = None
     current_x = base_x
     current_y = base_y
-    model = None
 
     for iteration_index in range(1, n_iterations + 1):
-        model = _fit_sampling_model(
+        model, current_x, current_y = _run_sampling_iteration(
             current_x=current_x,
             current_y=current_y,
+            base_x=base_x,
+            base_y=base_y,
+            base_index=base_index,
             kernel=kernel,
-            svm_mode=svm_mode,
-            StandardScaler=StandardScaler,
-            SVC=SVC,
-        )
-        prob_mat, decision_values = _extract_iteration_sampling_state(
-            model=model,
-            base_x=base_x,
-        )
-        weights_by_class = _compute_class_weights(
-            model=model,
-            prob_mat=prob_mat,
-            base_y=base_y,
-            base_index=base_index,
-            svm_mode=svm_mode,
-            sampling_policy=sampling_policy,
-        )
-        current_x, current_y, sampled_sites_by_class = _resample_training_rows(
-            model=model,
-            base_x=base_x,
-            base_y=base_y,
-            base_index=base_index,
-            weights_by_class=weights_by_class,
             resampling_rng=resampling_rng,
-            sampling_override=sampling_override,
-            iteration_index=iteration_index,
-            ensemble_index=ensemble_index,
-        )
-        _write_iteration_trace_if_requested(
             capture_trace=capture_trace,
             trace_level=trace_level,
             trace_sink=trace_sink,
-            model=model,
-            prob_mat=prob_mat,
-            decision_values=decision_values,
-            base_y=base_y,
-            base_index=base_index,
-            weights_by_class=weights_by_class,
-            sampled_sites_by_class=sampled_sites_by_class,
             kinase=kinase,
             ensemble_index=ensemble_index,
             iteration_index=iteration_index,
+            svm_mode=svm_mode,
+            sampling_policy=sampling_policy,
+            sampling_override=sampling_override,
+            StandardScaler=StandardScaler,
+            SVC=SVC,
         )
 
     if model is None:
         msg = "n_iterations must be at least 1"
         raise ValueError(msg)
     return model
+
+
+def _run_sampling_iteration(
+    *,
+    current_x: np.ndarray,
+    current_y: np.ndarray,
+    base_x: np.ndarray,
+    base_y: np.ndarray,
+    base_index: pd.Index,
+    kernel: str,
+    resampling_rng: np.random.Generator,
+    capture_trace: bool,
+    trace_level: PredictionTraceLevel,
+    trace_sink: TraceSink | None,
+    kinase: str,
+    ensemble_index: int,
+    iteration_index: int,
+    svm_mode: PredictionSvmMode,
+    sampling_policy: PredictionSamplingPolicy,
+    sampling_override: SamplingTraceOverrideEnsemble | None,
+    StandardScaler: type[Any],
+    SVC: type[Any],
+) -> tuple[Any, np.ndarray, np.ndarray]:
+    model = _fit_sampling_model(
+        current_x=current_x,
+        current_y=current_y,
+        kernel=kernel,
+        svm_mode=svm_mode,
+        StandardScaler=StandardScaler,
+        SVC=SVC,
+    )
+    prob_mat, decision_values = _extract_iteration_sampling_state(
+        model=model,
+        base_x=base_x,
+    )
+    weights_by_class = _compute_class_weights(
+        model=model,
+        prob_mat=prob_mat,
+        base_y=base_y,
+        base_index=base_index,
+        svm_mode=svm_mode,
+        sampling_policy=sampling_policy,
+    )
+    next_x, next_y, sampled_sites_by_class = _resample_training_rows(
+        model=model,
+        base_x=base_x,
+        base_y=base_y,
+        base_index=base_index,
+        weights_by_class=weights_by_class,
+        resampling_rng=resampling_rng,
+        sampling_override=sampling_override,
+        iteration_index=iteration_index,
+        ensemble_index=ensemble_index,
+    )
+    _write_iteration_trace_if_requested(
+        capture_trace=capture_trace,
+        trace_level=trace_level,
+        trace_sink=trace_sink,
+        model=model,
+        prob_mat=prob_mat,
+        decision_values=decision_values,
+        base_y=base_y,
+        base_index=base_index,
+        weights_by_class=weights_by_class,
+        sampled_sites_by_class=sampled_sites_by_class,
+        kinase=kinase,
+        ensemble_index=ensemble_index,
+        iteration_index=iteration_index,
+    )
+    return model, next_x, next_y
+
+
+def _prepare_sampling_inputs(
+    *,
+    train_mat: pd.DataFrame | None,
+    labels: np.ndarray,
+    svm_mode: PredictionSvmMode,
+    sampling_policy: PredictionSamplingPolicy | None,
+    train_values: np.ndarray | None,
+    train_index: pd.Index | None,
+) -> tuple[np.ndarray, np.ndarray, pd.Index, PredictionSamplingPolicy]:
+    base_x, base_index = _resolve_matrix_values(
+        frame=train_mat,
+        values=train_values,
+        index=train_index,
+        context="train_mat",
+    )
+    base_y = np.asarray(labels, dtype=int)
+    resolved_sampling_policy = sampling_policy or resolve_prediction_sampling_policy(
+        svm_mode
+    )
+    return base_x, base_y, base_index, resolved_sampling_policy
+
+
+def _shape_sampling_output(
+    *,
+    return_values: bool,
+    final_score_values: np.ndarray,
+    final_score_series: pd.Series | None,
+    resolved_test_index: pd.Index,
+    ensemble_trace: AdaptiveSamplingEnsembleTrace | None,
+) -> tuple[np.ndarray | pd.Series, AdaptiveSamplingEnsembleTrace | None]:
+    if return_values:
+        return final_score_values, ensemble_trace
+    if final_score_series is None:
+        final_score_series = pd.Series(
+            final_score_values,
+            index=resolved_test_index,
+            dtype=float,
+        )
+    return final_score_series, ensemble_trace
 
 
 def _resolve_final_score_values(
@@ -512,16 +597,13 @@ def multi_ada_sampling(
     return_values: bool = False,
 ) -> tuple[np.ndarray | pd.Series, AdaptiveSamplingEnsembleTrace | None]:
     StandardScaler, SVC = require_sklearn()
-
-    base_x, base_index = _resolve_matrix_values(
-        frame=train_mat,
-        values=train_values,
-        index=train_index,
-        context="train_mat",
-    )
-    base_y = np.asarray(labels, dtype=int)
-    resolved_sampling_policy = sampling_policy or resolve_prediction_sampling_policy(
-        svm_mode
+    base_x, base_y, base_index, resolved_sampling_policy = _prepare_sampling_inputs(
+        train_mat=train_mat,
+        labels=labels,
+        svm_mode=svm_mode,
+        sampling_policy=sampling_policy,
+        train_values=train_values,
+        train_index=train_index,
     )
     _validate_trace_configuration(
         capture_trace=capture_trace,
@@ -569,17 +651,13 @@ def multi_ada_sampling(
         final_score_values=final_score_values,
         resolved_test_index=resolved_test_index,
     )
-
-    if return_values:
-        return final_score_values, ensemble_trace
-
-    if final_score_series is None:
-        final_score_series = pd.Series(
-            final_score_values,
-            index=resolved_test_index,
-            dtype=float,
-        )
-    return final_score_series, ensemble_trace
+    return _shape_sampling_output(
+        return_values=return_values,
+        final_score_values=final_score_values,
+        final_score_series=final_score_series,
+        resolved_test_index=resolved_test_index,
+        ensemble_trace=ensemble_trace,
+    )
 
 
 __all__ = [

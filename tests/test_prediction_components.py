@@ -457,6 +457,183 @@ def test_ensemble_predictor_build_training_inputs_combines_positive_and_negative
     )
 
 
+def test_ensemble_predictor_prepare_kinase_prediction_initializes_setup_state() -> None:
+    feature_mat = pd.DataFrame(
+        {
+            "K1": [0.95, 0.91, 0.40, 0.10],
+            "K2": [0.10, 0.12, 0.94, 0.92],
+        },
+        index=["s1", "s2", "s3", "s4"],
+    )
+    request = PredictionRequest.validate_request(
+        combined_scores=feature_mat,
+        ensemble_size=2,
+        top=2,
+        score_threshold=0.8,
+        inclusion=2,
+        n_iterations=1,
+        random_state=3,
+        capture_debug_trace=True,
+        trace_level="summary",
+        debug_kinases=["K1"],
+        default_svm_mode="default",
+    )
+    predictor = EnsemblePredictor(
+        kernel="rbf",
+        negative_pool_sampler=NegativePoolSampler(),
+        trace_recorder=TraceRecorder(),
+    )
+    trace_state = predictor.trace_recorder.create_state(
+        substrate_list={"K1": ["s1", "s2"]},
+        trace_level=request.trace_level,
+        debug_kinases=request.debug_kinases,
+        trace_sink=request.trace_sink,
+    )
+    sampling_session = PredictionSamplingSession.from_request(request)
+
+    (
+        _negative_sampling_rng,
+        _resampling_rng,
+        indexed_feature_mat,
+        prepared_training_data,
+        capture_ensemble_trace,
+        kinase_scores,
+    ) = predictor._prepare_kinase_prediction(
+        kinase="K1",
+        substrates=["s1", "s2"],
+        feature_mat=feature_mat,
+        trace_state=trace_state,
+        sampling_session=sampling_session,
+    )
+
+    assert indexed_feature_mat.feature_mat is feature_mat
+    assert prepared_training_data.positive_sites.tolist() == ["s1", "s2"]
+    assert capture_ensemble_trace is True
+    assert np.all(kinase_scores == 0.0)
+    assert trace_state.debug_traces is not None
+    assert "K1" in trace_state.debug_traces
+
+
+def test_ensemble_predictor_run_ensemble_iteration_delegates_ensemble_steps(
+    monkeypatch,
+) -> None:
+    feature_mat = pd.DataFrame(
+        {
+            "K1": [0.95, 0.91, 0.40, 0.10],
+            "K2": [0.10, 0.12, 0.94, 0.92],
+        },
+        index=["s1", "s2", "s3", "s4"],
+    )
+    request = PredictionRequest.validate_request(
+        combined_scores=feature_mat,
+        ensemble_size=1,
+        top=2,
+        score_threshold=0.8,
+        inclusion=2,
+        n_iterations=1,
+        random_state=3,
+        capture_debug_trace=False,
+        default_svm_mode="default",
+    )
+    predictor = EnsemblePredictor(
+        kernel="rbf",
+        negative_pool_sampler=NegativePoolSampler(),
+        trace_recorder=TraceRecorder(),
+    )
+    indexed_feature_mat, prepared_training_data = (
+        predictor._prepare_kinase_training_data(
+            kinase="K1",
+            substrates=["s1", "s2"],
+            feature_mat=feature_mat,
+        )
+    )
+    sampling_session = PredictionSamplingSession.from_request(request)
+    trace_state = object()
+    negative_sampling_rng = np.random.default_rng(11)
+    resampling_rng = np.random.default_rng(17)
+    sampled_negative_positions = np.asarray([2, 3], dtype=int)
+    negative_sites = ["s3", "s4"]
+    train_values = feature_mat.to_numpy(dtype=float)
+    train_index = feature_mat.index
+    score_values = np.asarray([0.1, 0.2, 0.3, 0.4], dtype=float)
+    ensemble_trace = object()
+    ensemble_override = object()
+    call_order: list[str] = []
+
+    def fake_resolve_ensemble_override(**kwargs):
+        call_order.append("override")
+        assert kwargs["request"] is request
+        return ensemble_override
+
+    def fake_sample_initial_negatives(**kwargs):
+        call_order.append("sample")
+        assert kwargs["ensemble_override"] is ensemble_override
+        return sampled_negative_positions, negative_sites
+
+    def fake_build_training_inputs(**kwargs):
+        call_order.append("train")
+        np.testing.assert_array_equal(
+            kwargs["sampled_negative_positions"],
+            sampled_negative_positions,
+        )
+        return train_values, train_index
+
+    def fake_record_initial_negatives(**kwargs):
+        call_order.append("trace")
+        assert kwargs["negative_sites"] == negative_sites
+
+    def fake_run_ensemble_sampling(**kwargs):
+        call_order.append("sampling")
+        assert kwargs["negative_sites"] == negative_sites
+        assert kwargs["ensemble_override"] is ensemble_override
+        assert kwargs["train_values"] is train_values
+        assert kwargs["train_index"] is train_index
+        return score_values, ensemble_trace
+
+    monkeypatch.setattr(
+        predictor,
+        "_resolve_ensemble_override",
+        fake_resolve_ensemble_override,
+    )
+    monkeypatch.setattr(
+        predictor,
+        "_sample_initial_negatives",
+        fake_sample_initial_negatives,
+    )
+    monkeypatch.setattr(
+        predictor,
+        "_build_training_inputs",
+        fake_build_training_inputs,
+    )
+    monkeypatch.setattr(
+        predictor.trace_recorder,
+        "record_initial_negatives",
+        fake_record_initial_negatives,
+    )
+    monkeypatch.setattr(
+        predictor,
+        "_run_ensemble_sampling",
+        fake_run_ensemble_sampling,
+    )
+
+    resolved_scores, resolved_trace = predictor._run_ensemble_iteration(
+        request=request,
+        trace_state=trace_state,
+        sampling_session=sampling_session,
+        prepared_training_data=prepared_training_data,
+        indexed_feature_mat=indexed_feature_mat,
+        negative_sampling_rng=negative_sampling_rng,
+        resampling_rng=resampling_rng,
+        kinase="K1",
+        ensemble_index=1,
+        capture_ensemble_trace=True,
+    )
+
+    np.testing.assert_array_equal(resolved_scores, score_values)
+    assert resolved_trace is ensemble_trace
+    assert call_order == ["override", "sample", "train", "trace", "sampling"]
+
+
 def test_ensemble_predictor_reuses_indexed_feature_matrix_for_same_input(
     monkeypatch,
 ) -> None:

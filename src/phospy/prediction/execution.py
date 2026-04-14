@@ -508,16 +508,22 @@ class EnsemblePredictor(EnsemblePredictorContract):
             return_values=True,
         )
 
-    def predict_kinase(
+    def _prepare_kinase_prediction(
         self,
         *,
         kinase: str,
         substrates: list[str],
         feature_mat: pd.DataFrame,
-        request: PredictionRequest,
         trace_state: PredictionTraceState,
         sampling_session: PredictionSamplingSession,
-    ) -> KinasePredictionBatch:
+    ) -> tuple[
+        np.random.Generator,
+        np.random.Generator,
+        IndexedFeatureMatrix,
+        PreparedKinaseTrainingData,
+        bool,
+        np.ndarray,
+    ]:
         negative_sampling_rng, resampling_rng = (
             sampling_session.random_source.generators_for_kinase(kinase=kinase)
         )
@@ -534,8 +540,6 @@ class EnsemblePredictor(EnsemblePredictorContract):
             substrates=substrates,
             negative_pool_sites=prepared_training_data.negative_pool_sites,
         )
-
-        kinase_scores = np.zeros(len(feature_mat.index), dtype=float)
         is_traced_kinase = self.trace_recorder.is_traced_kinase(
             trace_state=trace_state,
             kinase=kinase,
@@ -543,49 +547,116 @@ class EnsemblePredictor(EnsemblePredictorContract):
         capture_ensemble_trace = (
             is_traced_kinase and trace_state.debug_traces is not None
         )
+        kinase_scores = np.zeros(len(feature_mat.index), dtype=float)
+        return (
+            negative_sampling_rng,
+            resampling_rng,
+            indexed_feature_mat,
+            prepared_training_data,
+            capture_ensemble_trace,
+            kinase_scores,
+        )
+
+    def _run_ensemble_iteration(
+        self,
+        *,
+        request: PredictionRequest,
+        trace_state: PredictionTraceState,
+        sampling_session: PredictionSamplingSession,
+        prepared_training_data: PreparedKinaseTrainingData,
+        indexed_feature_mat: IndexedFeatureMatrix,
+        negative_sampling_rng: np.random.Generator,
+        resampling_rng: np.random.Generator,
+        kinase: str,
+        ensemble_index: int,
+        capture_ensemble_trace: bool,
+    ) -> tuple[np.ndarray, object | None]:
+        ensemble_override = self._resolve_ensemble_override(
+            request=request,
+            kinase=kinase,
+            ensemble_index=ensemble_index,
+        )
+        sampled_negative_positions, negative_sites = self._sample_initial_negatives(
+            indexed_feature_mat=indexed_feature_mat,
+            prepared_training_data=prepared_training_data,
+            negative_sampling_rng=negative_sampling_rng,
+            ensemble_override=ensemble_override,
+            kinase=kinase,
+            ensemble_index=ensemble_index,
+        )
+        train_values, train_index = self._build_training_inputs(
+            indexed_feature_mat=indexed_feature_mat,
+            prepared_training_data=prepared_training_data,
+            sampled_negative_positions=sampled_negative_positions,
+        )
+        self.trace_recorder.record_initial_negatives(
+            trace_state=trace_state,
+            kinase=kinase,
+            ensemble_index=ensemble_index,
+            negative_sites=negative_sites,
+        )
+        return self._run_ensemble_sampling(
+            request=request,
+            trace_state=trace_state,
+            sampling_session=sampling_session,
+            prepared_training_data=prepared_training_data,
+            indexed_feature_mat=indexed_feature_mat,
+            kinase=kinase,
+            ensemble_index=ensemble_index,
+            negative_sites=negative_sites,
+            ensemble_override=ensemble_override,
+            train_values=train_values,
+            train_index=train_index,
+            resampling_rng=resampling_rng,
+            capture_trace=capture_ensemble_trace,
+        )
+
+    @staticmethod
+    def _aggregate_ensemble_scores(
+        *,
+        kinase_scores: np.ndarray,
+        score_values: np.ndarray,
+    ) -> None:
+        kinase_scores += score_values
+
+    def predict_kinase(
+        self,
+        *,
+        kinase: str,
+        substrates: list[str],
+        feature_mat: pd.DataFrame,
+        request: PredictionRequest,
+        trace_state: PredictionTraceState,
+        sampling_session: PredictionSamplingSession,
+    ) -> KinasePredictionBatch:
+        (
+            negative_sampling_rng,
+            resampling_rng,
+            indexed_feature_mat,
+            prepared_training_data,
+            capture_ensemble_trace,
+            kinase_scores,
+        ) = self._prepare_kinase_prediction(
+            kinase=kinase,
+            substrates=substrates,
+            feature_mat=feature_mat,
+            trace_state=trace_state,
+            sampling_session=sampling_session,
+        )
 
         for ensemble_idx in range(request.ensemble_size):
             ensemble_index = ensemble_idx + 1
-            ensemble_override = self._resolve_ensemble_override(
-                request=request,
-                kinase=kinase,
-                ensemble_index=ensemble_index,
-            )
-            sampled_negative_positions, negative_sites = self._sample_initial_negatives(
-                indexed_feature_mat=indexed_feature_mat,
-                prepared_training_data=prepared_training_data,
-                negative_sampling_rng=negative_sampling_rng,
-                ensemble_override=ensemble_override,
-                kinase=kinase,
-                ensemble_index=ensemble_index,
-            )
-            train_values, train_index = self._build_training_inputs(
-                indexed_feature_mat=indexed_feature_mat,
-                prepared_training_data=prepared_training_data,
-                sampled_negative_positions=sampled_negative_positions,
-            )
-
-            self.trace_recorder.record_initial_negatives(
-                trace_state=trace_state,
-                kinase=kinase,
-                ensemble_index=ensemble_index,
-                negative_sites=negative_sites,
-            )
-
-            score_values, ensemble_trace = self._run_ensemble_sampling(
+            score_values, ensemble_trace = self._run_ensemble_iteration(
                 request=request,
                 trace_state=trace_state,
                 sampling_session=sampling_session,
                 prepared_training_data=prepared_training_data,
                 indexed_feature_mat=indexed_feature_mat,
+                negative_sampling_rng=negative_sampling_rng,
+                resampling_rng=resampling_rng,
                 kinase=kinase,
                 ensemble_index=ensemble_index,
-                negative_sites=negative_sites,
-                ensemble_override=ensemble_override,
-                train_values=train_values,
-                train_index=train_index,
-                resampling_rng=resampling_rng,
-                capture_trace=capture_ensemble_trace,
+                capture_ensemble_trace=capture_ensemble_trace,
             )
             if capture_ensemble_trace:
                 self.trace_recorder.record_ensemble_trace(
@@ -593,7 +664,10 @@ class EnsemblePredictor(EnsemblePredictorContract):
                     kinase=kinase,
                     ensemble_trace=ensemble_trace,
                 )
-            kinase_scores += score_values
+            self._aggregate_ensemble_scores(
+                kinase_scores=kinase_scores,
+                score_values=score_values,
+            )
 
         self.trace_recorder.flush_kinase(trace_state=trace_state, kinase=kinase)
         return KinasePredictionBatch(

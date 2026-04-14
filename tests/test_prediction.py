@@ -418,6 +418,110 @@ def test_directory_trace_sink_rejects_non_positive_auto_flush_threshold(
         DirectoryTraceSink(tmp_path / "trace_output", max_buffer_rows=0)
 
 
+def test_prepare_sampling_inputs_resolves_arrays_labels_and_policy() -> None:
+    policy = resolve_prediction_sampling_policy("default")
+    train_values = np.asarray([[1.0, 0.5], [0.0, 0.2]], dtype=float)
+    train_index = pd.Index(["SITE_1", "SITE_2"])
+    labels = np.asarray([1, 2], dtype=np.int64)
+
+    base_x, base_y, base_index, resolved_policy = (
+        _sampling_core._prepare_sampling_inputs(
+            train_mat=None,
+            labels=labels,
+            svm_mode="r_parity",
+            sampling_policy=policy,
+            train_values=train_values,
+            train_index=train_index,
+        )
+    )
+
+    np.testing.assert_array_equal(base_x, train_values)
+    np.testing.assert_array_equal(base_y, labels.astype(int))
+    assert base_index.tolist() == train_index.tolist()
+    assert resolved_policy is policy
+
+
+def test_run_sampling_iteration_delegates_single_iteration_steps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base_x = np.asarray([[1.0, 0.9], [0.8, 0.7], [0.2, 0.1], [0.0, 0.1]], dtype=float)
+    base_y = np.asarray([1, 1, 2, 2], dtype=int)
+    base_index = pd.Index(["SITE_1", "SITE_2", "SITE_3", "SITE_4"])
+    next_x = np.asarray([[0.0, 0.0], [1.0, 1.0]], dtype=float)
+    next_y = np.asarray([1, 2], dtype=int)
+    fake_model = object()
+    calls: list[str] = []
+
+    def fake_fit_sampling_model(**kwargs):
+        calls.append("fit")
+        assert kwargs["current_x"] is base_x
+        assert kwargs["current_y"] is base_y
+        return fake_model
+
+    def fake_extract_iteration_sampling_state(**kwargs):
+        calls.append("state")
+        assert kwargs["model"] is fake_model
+        return np.zeros((4, 2), dtype=float), np.zeros(4, dtype=float)
+
+    def fake_compute_class_weights(**kwargs):
+        calls.append("weights")
+        assert kwargs["model"] is fake_model
+        return {1: None, 2: None}
+
+    def fake_resample_training_rows(**kwargs):
+        calls.append("resample")
+        assert kwargs["model"] is fake_model
+        return next_x, next_y, {1: ["SITE_1"], 2: ["SITE_3"]}
+
+    def fake_write_iteration_trace_if_requested(**kwargs):
+        calls.append("trace")
+        assert kwargs["model"] is fake_model
+
+    monkeypatch.setattr(_sampling_core, "_fit_sampling_model", fake_fit_sampling_model)
+    monkeypatch.setattr(
+        _sampling_core,
+        "_extract_iteration_sampling_state",
+        fake_extract_iteration_sampling_state,
+    )
+    monkeypatch.setattr(
+        _sampling_core, "_compute_class_weights", fake_compute_class_weights
+    )
+    monkeypatch.setattr(
+        _sampling_core, "_resample_training_rows", fake_resample_training_rows
+    )
+    monkeypatch.setattr(
+        _sampling_core,
+        "_write_iteration_trace_if_requested",
+        fake_write_iteration_trace_if_requested,
+    )
+
+    model, resolved_next_x, resolved_next_y = _sampling_core._run_sampling_iteration(
+        current_x=base_x,
+        current_y=base_y,
+        base_x=base_x,
+        base_y=base_y,
+        base_index=base_index,
+        kernel="rbf",
+        resampling_rng=np.random.default_rng(5),
+        capture_trace=False,
+        trace_level="none",
+        trace_sink=None,
+        kinase="KINASE_A",
+        ensemble_index=1,
+        iteration_index=1,
+        svm_mode="default",
+        sampling_policy=resolve_prediction_sampling_policy("default"),
+        sampling_override=None,
+        StandardScaler=object,
+        SVC=object,
+    )
+
+    assert model is fake_model
+    np.testing.assert_array_equal(resolved_next_x, next_x)
+    np.testing.assert_array_equal(resolved_next_y, next_y)
+    assert calls == ["fit", "state", "weights", "resample", "trace"]
+
+
 def test_multi_ada_sampling_uses_numpy_iteration_path_when_trace_capture_is_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
