@@ -22,7 +22,7 @@ from ...internal.defaults import (
     DEFAULT_PREDICTION_SCORE_THRESHOLD,
     DEFAULT_PREDICTION_TOP,
 )
-from ...internal.types import PredictionSvmMode
+from ...internal.types import PREDICTION_SVM_MODE_DEFAULT, PredictionSvmMode
 from ...motifs import KinaseMotifScorer
 from ...profiles import KinaseProfilePolicy
 from ...references import ReferenceBundle
@@ -217,7 +217,7 @@ def validate_workflow_request(
     svm_mode: PredictionSvmMode | None = None,
     profile_policy: KinaseProfilePolicy | None = None,
     flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
-    default_svm_mode: PredictionSvmMode = "default",
+    default_svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
     context: str = "Kinase workflow inputs",
 ) -> WorkflowInputs:
     """Validate raw workflow inputs and return trusted workflow inputs."""

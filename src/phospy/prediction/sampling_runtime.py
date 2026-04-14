@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from ..internal.types import PREDICTION_SVM_MODE_DEFAULT
 from .policies import PredictionSamplingPolicy, resolve_prediction_sampling_policy
 from .trace_replay import PredictionSamplingTrace
 
@@ -101,7 +102,7 @@ def transform_resampling_probabilities(
         resolved_policy = resolve_prediction_sampling_policy(svm_mode)
 
     weights = np.asarray(values, dtype=float)
-    if resolved_policy.resampling_weight_mode == "default":
+    if resolved_policy.resampling_weight_mode == PREDICTION_SVM_MODE_DEFAULT:
         return np.power(weights, _DEFAULT_RESAMPLING_WEIGHT_EXPONENT)
     return weights
 

@@ -9,6 +9,10 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from ...errors import RequestValidationError
 from ...internal.types import (
+    SIGNALOME_ASSIGNMENT_POLICIES,
+    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_KINASE_NETWORK_POLICIES,
+    SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
     SignalomeAssignmentPolicy,
     SignalomeKinaseNetworkPolicy,
 )
@@ -41,8 +45,12 @@ class SignalomeRequest(BaseModel):
     kinases_of_interest: tuple[str, ...]
     site_to_protein: dict[str, str] | None = None
     kinase_network_threshold: float = Field(default=0.9, ge=0.0, le=1.0)
-    kinase_network_policy: SignalomeKinaseNetworkPolicy = "positive_only"
-    assignment_policy: SignalomeAssignmentPolicy = "cutoff_binary"
+    kinase_network_policy: SignalomeKinaseNetworkPolicy = (
+        SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY
+    )
+    assignment_policy: SignalomeAssignmentPolicy = (
+        SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+    )
     signalome_cutoff: float = Field(default=0.5, ge=0.0, le=1.0)
     module_count: int | None = Field(default=None, ge=1)
     min_kinase_module_share_percent: float = Field(default=1.0, ge=0.0)
@@ -89,10 +97,10 @@ class SignalomeRequest(BaseModel):
         value: object,
     ) -> SignalomeKinaseNetworkPolicy:
         if not isinstance(value, str):
-            msg = (
-                "kinase_network_policy must be one of: 'positive_only', "
-                "'absolute_threshold', 'signed'"
+            allowed = ", ".join(
+                f"'{policy}'" for policy in SIGNALOME_KINASE_NETWORK_POLICIES
             )
+            msg = f"kinase_network_policy must be one of: {allowed}"
             raise TypeError(msg)
         return validate_kinase_network_policy(value)  # type: ignore[arg-type]
 
@@ -103,7 +111,10 @@ class SignalomeRequest(BaseModel):
         value: object,
     ) -> SignalomeAssignmentPolicy:
         if not isinstance(value, str):
-            msg = "assignment_policy must be one of: 'cutoff_binary', 'weighted_top'"
+            allowed = ", ".join(
+                f"'{policy}'" for policy in SIGNALOME_ASSIGNMENT_POLICIES
+            )
+            msg = f"assignment_policy must be one of: {allowed}"
             raise TypeError(msg)
         return validate_signalome_assignment_policy(value)  # type: ignore[arg-type]
 
@@ -200,8 +211,12 @@ def validate_signalome_request(
     kinases_of_interest: Sequence[str],
     site_to_protein: Mapping[str, str] | None = None,
     kinase_network_threshold: float = 0.9,
-    kinase_network_policy: SignalomeKinaseNetworkPolicy = "positive_only",
-    assignment_policy: SignalomeAssignmentPolicy = "cutoff_binary",
+    kinase_network_policy: SignalomeKinaseNetworkPolicy = (
+        SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY
+    ),
+    assignment_policy: SignalomeAssignmentPolicy = (
+        SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+    ),
     signalome_cutoff: float = 0.5,
     module_count: int | None = None,
     min_kinase_module_share_percent: float = 1.0,

@@ -8,7 +8,12 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from ..internal.types import PredictionTraceFormat, PredictionTraceLevel
+from ..internal.types import (
+    PREDICTION_TRACE_FORMAT_CSV,
+    PREDICTION_TRACE_LEVEL_FULL,
+    PredictionTraceFormat,
+    PredictionTraceLevel,
+)
 
 if TYPE_CHECKING:
     from ..validation.requests.prediction import PredictionRequest
@@ -66,7 +71,7 @@ class DirectoryTraceSink(TraceSink):
         self,
         output_dir: str | Path,
         *,
-        fmt: PredictionTraceFormat = "csv",
+        fmt: PredictionTraceFormat = PREDICTION_TRACE_FORMAT_CSV,
         max_buffer_rows: int = 1000,
         owned_temp_dir: TemporaryDirectory[str] | None = None,
     ) -> None:
@@ -101,7 +106,7 @@ class DirectoryTraceSink(TraceSink):
 
         frame = pd.DataFrame(rows)
         rows.clear()
-        if self.fmt == "csv":
+        if self.fmt == PREDICTION_TRACE_FORMAT_CSV:
             path = self.output_dir / f"{table_name}.csv"
             frame.to_csv(path, mode="a", header=not path.exists(), index=False)
             return
@@ -140,7 +145,7 @@ class DirectoryTraceSink(TraceSink):
             msg = f"Unsupported trace table: {table_name}"
             raise ValueError(msg)
         self._flush_table(table_name)
-        if self.fmt == "csv":
+        if self.fmt == PREDICTION_TRACE_FORMAT_CSV:
             path = self.output_dir / f"{table_name}.csv"
             return pd.read_csv(path) if path.exists() else pd.DataFrame()
 
@@ -245,7 +250,7 @@ def build_prediction_execution_context(
     resolved_sampling_trace = coerce_sampling_trace(sampling_trace)
     owns_trace_sink = False
     resolved_trace_sink = None
-    if trace_level == "full":
+    if trace_level == PREDICTION_TRACE_LEVEL_FULL:
         owns_trace_sink = not isinstance(trace_sink, TraceSink)
         resolved_trace_sink = create_trace_sink(
             trace_sink,

@@ -18,6 +18,8 @@ from ..internal.defaults import (
     DEFAULT_PREDICTION_TOP,
 )
 from ..internal.types import (
+    PREDICTION_SVM_MODE_DEFAULT,
+    PREDICTION_TRACE_FORMAT_CSV,
     PredictionSvmMode,
     PredictionTraceFormat,
     PredictionTraceLevel,
@@ -182,7 +184,7 @@ class KinasePredictor:
     def __init__(
         self,
         kernel: str = "rbf",
-        svm_mode: PredictionSvmMode = "default",
+        svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
         *,
         request_factory: PredictionRequestFactory | None = None,
         candidate_selector: CandidateSelector | None = None,
@@ -230,7 +232,7 @@ class KinasePredictor:
         sampling_trace: PredictionSamplingTrace | str | Path | None = None,
         trace_level: PredictionTraceLevel | None = None,
         trace_sink: TraceSink | str | Path | None = None,
-        trace_sink_format: PredictionTraceFormat = "csv",
+        trace_sink_format: PredictionTraceFormat = PREDICTION_TRACE_FORMAT_CSV,
     ) -> KinasePredictionResult:
         request = self.request_factory.create(
             combined_scores=combined_scores,
@@ -273,7 +275,7 @@ class KinasePredictor:
         sampling_trace: PredictionSamplingTrace | str | Path | None = None,
         trace_level: PredictionTraceLevel | None = None,
         trace_sink: TraceSink | str | Path | None = None,
-        trace_sink_format: PredictionTraceFormat = "csv",
+        trace_sink_format: PredictionTraceFormat = PREDICTION_TRACE_FORMAT_CSV,
     ) -> KinasePredictionResult:
         if scoring_result.combined_scores is not None:
             feature_mat = scoring_result.combined_scores
@@ -343,7 +345,7 @@ class KinaseWorkflowExecutor:
         *,
         flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
         kernel: str = "rbf",
-        svm_mode: PredictionSvmMode = "default",
+        svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
     ) -> None:
         self.flank_size = flank_size
         self.kernel = kernel

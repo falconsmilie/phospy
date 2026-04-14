@@ -17,6 +17,10 @@ from pydantic import (
 from ...errors import RequestValidationError
 from ...internal.defaults import DEFAULT_PREDICTION_DEBUG_TOP_N
 from ...internal.types import (
+    PREDICTION_TRACE_FORMAT_CSV,
+    PREDICTION_TRACE_LEVEL_FULL,
+    PREDICTION_TRACE_LEVEL_NONE,
+    PREDICTION_TRACE_LEVEL_SUMMARY,
     PredictionSvmMode,
     PredictionTraceFormat,
     PredictionTraceLevel,
@@ -44,8 +48,8 @@ class PredictionRequest(BaseModel):
     debug_top_n: int = Field(default=DEFAULT_PREDICTION_DEBUG_TOP_N, ge=1)
     svm_mode: PredictionSvmMode
     sampling_trace: Any | None = None
-    trace_level: PredictionTraceLevel = "none"
-    trace_sink_format: PredictionTraceFormat = "csv"
+    trace_level: PredictionTraceLevel = PREDICTION_TRACE_LEVEL_NONE
+    trace_sink_format: PredictionTraceFormat = PREDICTION_TRACE_FORMAT_CSV
     trace_sink: Any | None = None
 
     @field_validator("combined_scores")
@@ -68,7 +72,10 @@ class PredictionRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_trace_sink_requirements(self) -> PredictionRequest:
-        if self.trace_level != "full" and self.trace_sink is not None:
+        if (
+            self.trace_level != PREDICTION_TRACE_LEVEL_FULL
+            and self.trace_sink is not None
+        ):
             msg = "trace_sink may only be provided when trace_level='full'"
             raise ValueError(msg)
         return self
@@ -79,14 +86,14 @@ class PredictionRequest(BaseModel):
         *,
         default_svm_mode: PredictionSvmMode,
         capture_debug_trace: bool = False,
-        trace_sink_format: PredictionTraceFormat = "csv",
+        trace_sink_format: PredictionTraceFormat = PREDICTION_TRACE_FORMAT_CSV,
         **data: object,
     ) -> PredictionRequest:
         try:
             resolved_trace_level = _PREDICTION_TRACE_LEVEL_ADAPTER.validate_python(
-                "summary"
+                PREDICTION_TRACE_LEVEL_SUMMARY
                 if data.get("trace_level") is None and capture_debug_trace
-                else data.get("trace_level") or "none"
+                else data.get("trace_level") or PREDICTION_TRACE_LEVEL_NONE
             )
         except ValidationError as error:
             details = error.errors(include_url=False)

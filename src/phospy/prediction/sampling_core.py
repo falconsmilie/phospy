@@ -5,7 +5,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ..internal.types import PredictionSvmMode, PredictionTraceLevel
+from ..internal.types import (
+    PREDICTION_TRACE_LEVEL_FULL,
+    PredictionSvmMode,
+    PredictionTraceLevel,
+)
 from .policies import PredictionSamplingPolicy, resolve_prediction_sampling_policy
 from .results import AdaptiveSamplingEnsembleTrace, SamplingTraceOverrideEnsemble
 from .sampling_runtime import (
@@ -287,7 +291,11 @@ def multi_ada_sampling(
     resolved_sampling_policy = sampling_policy or resolve_prediction_sampling_policy(
         svm_mode
     )
-    if capture_trace and trace_level == "full" and trace_sink is None:
+    if (
+        capture_trace
+        and trace_level == PREDICTION_TRACE_LEVEL_FULL
+        and trace_sink is None
+    ):
         msg = "full trace capture requires a trace sink"
         raise ValueError(msg)
 
@@ -326,7 +334,11 @@ def multi_ada_sampling(
             ensemble_index=ensemble_index,
         )
 
-        if capture_trace and trace_level == "full" and trace_sink is not None:
+        if (
+            capture_trace
+            and trace_level == PREDICTION_TRACE_LEVEL_FULL
+            and trace_sink is not None
+        ):
             (
                 prob_df,
                 decision_series,
@@ -397,7 +409,7 @@ def multi_ada_sampling(
             .head(debug_top_n)
             .index.tolist()
         )
-        if trace_level == "full":
+        if trace_level == PREDICTION_TRACE_LEVEL_FULL:
             pred_df = _build_probability_frame(
                 prob_mat=pred,
                 index=resolved_test_index,

@@ -8,6 +8,13 @@ import pandas as pd
 
 from ..errors import InputCompatibilityError
 from ..internal.types import (
+    SIGNALOME_ASSIGNMENT_POLICIES,
+    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+    SIGNALOME_KINASE_NETWORK_POLICIES,
+    SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
+    SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
+    SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
     SignalomeAssignmentPolicy,
     SignalomeKinaseNetworkPolicy,
 )
@@ -220,8 +227,12 @@ def build_signalome_result(
     kinases_of_interest: Sequence[str],
     site_to_protein: Mapping[str, str] | pd.Series | None = None,
     kinase_network_threshold: float = 0.9,
-    kinase_network_policy: SignalomeKinaseNetworkPolicy = "positive_only",
-    assignment_policy: SignalomeAssignmentPolicy = "cutoff_binary",
+    kinase_network_policy: SignalomeKinaseNetworkPolicy = (
+        SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY
+    ),
+    assignment_policy: SignalomeAssignmentPolicy = (
+        SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+    ),
     signalome_cutoff: float = 0.5,
     module_count: int | None = None,
     min_kinase_module_share_percent: float = 1.0,
@@ -265,7 +276,7 @@ def build_kinase_network(
     *,
     scoring_matrix: pd.DataFrame,
     threshold: float = 0.9,
-    policy: SignalomeKinaseNetworkPolicy = "positive_only",
+    policy: SignalomeKinaseNetworkPolicy = SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Build a thresholded kinase-kinase co-correlation adjacency matrix.
 
@@ -279,12 +290,12 @@ def build_kinase_network(
     """
 
     correlation_matrix = scoring_matrix.corr(method="pearson")
-    if policy == "positive_only":
+    if policy == SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY:
         thresholded_network = correlation_matrix.where(
             correlation_matrix >= threshold,
             0.0,
         ).copy()
-    elif policy == "absolute_threshold":
+    elif policy == SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD:
         thresholded_network = (
             correlation_matrix.abs()
             .where(
@@ -293,13 +304,14 @@ def build_kinase_network(
             )
             .copy()
         )
-    elif policy == "signed":
+    elif policy == SIGNALOME_KINASE_NETWORK_POLICY_SIGNED:
         thresholded_network = correlation_matrix.where(
             correlation_matrix.abs() >= threshold,
             0.0,
         ).copy()
     else:
-        msg = "policy must be one of: 'positive_only', 'absolute_threshold', 'signed'"
+        allowed = ", ".join(f"'{value}'" for value in SIGNALOME_KINASE_NETWORK_POLICIES)
+        msg = f"policy must be one of: {allowed}"
         raise InputCompatibilityError(msg)
 
     thresholded_values = thresholded_network.to_numpy(dtype=float, copy=True)
@@ -411,7 +423,7 @@ def build_signalome_support_matrix(
     site_assignments: pd.DataFrame,
     kinase_substrates: Mapping[str, Sequence[str]],
     kinases_of_interest: Sequence[str],
-    assignment_policy: SignalomeAssignmentPolicy = "cutoff_binary",
+    assignment_policy: SignalomeAssignmentPolicy = SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
 ) -> pd.DataFrame:
     """Build a kinase-by-protein support matrix from aligned assignments."""
 
@@ -423,7 +435,7 @@ def build_signalome_support_matrix(
     site_values = site_index.to_numpy(dtype=object, copy=False)
     site_id_set = set(site_values.tolist())
 
-    if assignment_policy == "cutoff_binary":
+    if assignment_policy == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY:
         for kinase in kinases_of_interest:
             substrates = kinase_substrates.get(kinase, ())
             aligned_site_set = {
@@ -439,7 +451,7 @@ def build_signalome_support_matrix(
             support_rows[kinase] = (
                 np.isin(site_values, list(aligned_site_set)).astype(int).tolist()
             )
-    elif assignment_policy == "weighted_top":
+    elif assignment_policy == SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP:
         site_weights = _build_weighted_top_site_support(
             site_assignments=site_assignments,
             kinases=kinases_of_interest,
@@ -454,7 +466,8 @@ def build_signalome_support_matrix(
                 raise InputCompatibilityError(msg)
             support_rows[kinase] = kinase_weights.tolist()
     else:
-        msg = "assignment_policy must be one of: 'cutoff_binary', 'weighted_top'"
+        allowed = ", ".join(f"'{value}'" for value in SIGNALOME_ASSIGNMENT_POLICIES)
+        msg = f"assignment_policy must be one of: {allowed}"
         raise InputCompatibilityError(msg)
 
     return pd.DataFrame.from_dict(support_rows, orient="index", columns=site_index)

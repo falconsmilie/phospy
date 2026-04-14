@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from ..errors import InputCompatibilityError
-from ..internal.types import PredictionSvmMode
+from ..internal.types import PREDICTION_SVM_MODE_DEFAULT, PredictionSvmMode
 
 
 class _RLikeStandardScaler:
@@ -126,8 +126,12 @@ def make_svm(
 ):
     from sklearn.pipeline import make_pipeline
 
-    scaler = StandardScaler() if svm_mode == "default" else _RLikeStandardScaler()
-    gamma: str | float = "scale" if svm_mode == "default" else "auto"
+    scaler = (
+        StandardScaler()
+        if svm_mode == PREDICTION_SVM_MODE_DEFAULT
+        else _RLikeStandardScaler()
+    )
+    gamma: str | float = "scale" if svm_mode == PREDICTION_SVM_MODE_DEFAULT else "auto"
     random_state = resolve_svm_probability_random_state()
     return make_pipeline(
         scaler,

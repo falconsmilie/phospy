@@ -8,7 +8,11 @@ import pandas as pd
 from scipy.cluster.hierarchy import cut_tree, linkage
 from sklearn.cluster import AgglomerativeClustering
 
-from ..internal.types import SignalomeModuleSelectionStrategy
+from ..internal.types import (
+    SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
+    SIGNALOME_MODULE_SELECTION_STRATEGY_SINGLE_MODULE,
+    SignalomeModuleSelectionStrategy,
+)
 from ..validation.values.enums import validate_module_selection_strategy
 from ..validation.values.numeric import validate_fraction, validate_positive_int
 
@@ -49,7 +53,9 @@ class SignalomeModuleSelectionPolicy:
       unless the caller explicitly requests a module count.
     """
 
-    strategy: SignalomeModuleSelectionStrategy = "correlation_thresholds"
+    strategy: SignalomeModuleSelectionStrategy = (
+        SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS
+    )
     primary_threshold: float = 0.5
     fallback_threshold: float = 0.1
     max_clusters: int = 10
@@ -249,7 +255,7 @@ def _compute_module_selection(
             candidate_labels={},
         )
 
-    if resolved_policy.strategy == "single_module":
+    if resolved_policy.strategy == SIGNALOME_MODULE_SELECTION_STRATEGY_SINGLE_MODULE:
         return _ModuleSelectionComputation(
             diagnostics=SignalomeModuleSelectionDiagnostics(
                 strategy=resolved_policy.strategy,

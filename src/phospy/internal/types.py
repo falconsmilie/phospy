@@ -1,11 +1,46 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Literal
+from typing import Final, Literal
 
+PREDICTION_SVM_MODE_DEFAULT: Final[str] = "default"
+PREDICTION_SVM_MODE_R_PARITY: Final[str] = "r_parity"
+PREDICTION_SVM_MODES: Final[tuple[str, ...]] = (
+    PREDICTION_SVM_MODE_DEFAULT,
+    PREDICTION_SVM_MODE_R_PARITY,
+)
 PredictionSvmMode = Literal["default", "r_parity"]
+
+PREDICTION_TRACE_LEVEL_NONE: Final[str] = "none"
+PREDICTION_TRACE_LEVEL_SUMMARY: Final[str] = "summary"
+PREDICTION_TRACE_LEVEL_FULL: Final[str] = "full"
+PREDICTION_TRACE_LEVELS: Final[tuple[str, ...]] = (
+    PREDICTION_TRACE_LEVEL_NONE,
+    PREDICTION_TRACE_LEVEL_SUMMARY,
+    PREDICTION_TRACE_LEVEL_FULL,
+)
 PredictionTraceLevel = Literal["none", "summary", "full"]
+
+PREDICTION_TRACE_FORMAT_CSV: Final[str] = "csv"
+PREDICTION_TRACE_FORMAT_PARQUET: Final[str] = "parquet"
+PREDICTION_TRACE_FORMATS: Final[tuple[str, ...]] = (
+    PREDICTION_TRACE_FORMAT_CSV,
+    PREDICTION_TRACE_FORMAT_PARQUET,
+)
 PredictionTraceFormat = Literal["csv", "parquet"]
+
+DUPLICATE_SITE_STRATEGY_MAX_MEAN_SIGNAL: Final[str] = "max_mean_signal"
+DUPLICATE_SITE_STRATEGY_FIRST: Final[str] = "first"
+DUPLICATE_SITE_STRATEGY_AGGREGATE_MEAN: Final[str] = "aggregate_mean"
+DUPLICATE_SITE_STRATEGY_AGGREGATE_MEDIAN: Final[str] = "aggregate_median"
+DUPLICATE_SITE_STRATEGY_ERROR: Final[str] = "error"
+DUPLICATE_SITE_STRATEGIES: Final[tuple[str, ...]] = (
+    DUPLICATE_SITE_STRATEGY_MAX_MEAN_SIGNAL,
+    DUPLICATE_SITE_STRATEGY_FIRST,
+    DUPLICATE_SITE_STRATEGY_AGGREGATE_MEAN,
+    DUPLICATE_SITE_STRATEGY_AGGREGATE_MEDIAN,
+    DUPLICATE_SITE_STRATEGY_ERROR,
+)
 DuplicateSiteStrategy = Literal[
     "max_mean_signal",
     "first",
@@ -13,24 +48,69 @@ DuplicateSiteStrategy = Literal[
     "aggregate_median",
     "error",
 ]
+
+SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING: Final[str] = "drop_any_missing"
+SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING: Final[str] = "retain_missing"
+SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES: Final[str] = (
+    "require_min_observed_values"
+)
+SITE_MATRIX_MISSING_DATA_POLICIES: Final[tuple[str, ...]] = (
+    SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
+    SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING,
+    SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES,
+)
 SiteMatrixMissingDataPolicy = Literal[
     "drop_any_missing",
     "retain_missing",
     "require_min_observed_values",
 ]
+
+KINASE_PROFILE_MISSING_VALUE_STRATEGY_PROPAGATE_ANY_MISSING: Final[str] = (
+    "propagate_any_missing"
+)
+KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA: Final[str] = "median_skipna"
+KINASE_PROFILE_MISSING_VALUE_STRATEGIES: Final[tuple[str, ...]] = (
+    KINASE_PROFILE_MISSING_VALUE_STRATEGY_PROPAGATE_ANY_MISSING,
+    KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA,
+)
 KinaseProfileMissingValueStrategy = Literal[
     "propagate_any_missing",
     "median_skipna",
 ]
+
+SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS: Final[str] = (
+    "correlation_thresholds"
+)
+SIGNALOME_MODULE_SELECTION_STRATEGY_SINGLE_MODULE: Final[str] = "single_module"
+SIGNALOME_MODULE_SELECTION_STRATEGIES: Final[tuple[str, ...]] = (
+    SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
+    SIGNALOME_MODULE_SELECTION_STRATEGY_SINGLE_MODULE,
+)
 SignalomeModuleSelectionStrategy = Literal[
     "correlation_thresholds",
     "single_module",
 ]
+
+SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY: Final[str] = "positive_only"
+SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD: Final[str] = "absolute_threshold"
+SIGNALOME_KINASE_NETWORK_POLICY_SIGNED: Final[str] = "signed"
+SIGNALOME_KINASE_NETWORK_POLICIES: Final[tuple[str, ...]] = (
+    SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
+    SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
+    SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
+)
 SignalomeKinaseNetworkPolicy = Literal[
     "positive_only",
     "absolute_threshold",
     "signed",
 ]
+
+SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY: Final[str] = "cutoff_binary"
+SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP: Final[str] = "weighted_top"
+SIGNALOME_ASSIGNMENT_POLICIES: Final[tuple[str, ...]] = (
+    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+)
 SignalomeAssignmentPolicy = Literal[
     "cutoff_binary",
     "weighted_top",
@@ -41,14 +121,47 @@ KinaseMotifSequenceMap = Mapping[str, Sequence[str]]
 
 __all__ = [
     "DuplicateSiteStrategy",
+    "DUPLICATE_SITE_STRATEGIES",
+    "DUPLICATE_SITE_STRATEGY_AGGREGATE_MEAN",
+    "DUPLICATE_SITE_STRATEGY_AGGREGATE_MEDIAN",
+    "DUPLICATE_SITE_STRATEGY_ERROR",
+    "DUPLICATE_SITE_STRATEGY_FIRST",
+    "DUPLICATE_SITE_STRATEGY_MAX_MEAN_SIGNAL",
     "KinaseMotifSequenceMap",
     "KinaseProfileMissingValueStrategy",
+    "KINASE_PROFILE_MISSING_VALUE_STRATEGIES",
+    "KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA",
+    "KINASE_PROFILE_MISSING_VALUE_STRATEGY_PROPAGATE_ANY_MISSING",
     "KinaseSubstrateMap",
     "PredictionSvmMode",
     "PredictionTraceFormat",
     "PredictionTraceLevel",
+    "PREDICTION_SVM_MODES",
+    "PREDICTION_SVM_MODE_DEFAULT",
+    "PREDICTION_SVM_MODE_R_PARITY",
+    "PREDICTION_TRACE_FORMATS",
+    "PREDICTION_TRACE_FORMAT_CSV",
+    "PREDICTION_TRACE_FORMAT_PARQUET",
+    "PREDICTION_TRACE_LEVELS",
+    "PREDICTION_TRACE_LEVEL_FULL",
+    "PREDICTION_TRACE_LEVEL_NONE",
+    "PREDICTION_TRACE_LEVEL_SUMMARY",
+    "SITE_MATRIX_MISSING_DATA_POLICIES",
+    "SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING",
+    "SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING",
+    "SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES",
     "SiteMatrixMissingDataPolicy",
     "SignalomeAssignmentPolicy",
+    "SIGNALOME_ASSIGNMENT_POLICIES",
+    "SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY",
+    "SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP",
     "SignalomeKinaseNetworkPolicy",
+    "SIGNALOME_KINASE_NETWORK_POLICIES",
+    "SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD",
+    "SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY",
+    "SIGNALOME_KINASE_NETWORK_POLICY_SIGNED",
     "SignalomeModuleSelectionStrategy",
+    "SIGNALOME_MODULE_SELECTION_STRATEGIES",
+    "SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS",
+    "SIGNALOME_MODULE_SELECTION_STRATEGY_SINGLE_MODULE",
 ]

@@ -8,7 +8,7 @@ import pandas as pd
 
 from ..api.contracts import PredictionRunConfig
 from ..internal.defaults import DEFAULT_MOTIF_FLANK_SIZE
-from ..internal.types import PredictionSvmMode
+from ..internal.types import PREDICTION_SVM_MODE_DEFAULT, PredictionSvmMode
 from ..motifs import MotifScoringResult
 from ..prediction.engines import (
     KinaseWorkflowExecutionResult,
@@ -66,7 +66,7 @@ class _BaseKinaseWorkflow(Generic[_WorkflowResultT]):
         self,
         flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
         kernel: str = "rbf",
-        svm_mode: PredictionSvmMode = "default",
+        svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
     ) -> None:
         self._executor = KinaseWorkflowExecutor(
             flank_size=flank_size,

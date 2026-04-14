@@ -16,6 +16,8 @@ from ..internal.defaults import (
     DEFAULT_PREDICTION_TOP,
 )
 from ..internal.types import (
+    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
     PredictionSvmMode,
     SignalomeAssignmentPolicy,
     SignalomeKinaseNetworkPolicy,
@@ -139,8 +141,12 @@ class SignalomeRunConfig:
     """Signalome execution policy for public signalome workflows."""
 
     kinase_network_threshold: float = 0.9
-    kinase_network_policy: SignalomeKinaseNetworkPolicy = "positive_only"
-    assignment_policy: SignalomeAssignmentPolicy = "cutoff_binary"
+    kinase_network_policy: SignalomeKinaseNetworkPolicy = (
+        SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY
+    )
+    assignment_policy: SignalomeAssignmentPolicy = (
+        SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+    )
     signalome_cutoff: float = 0.5
     module_count: int | None = None
     min_kinase_module_share_percent: float = 1.0

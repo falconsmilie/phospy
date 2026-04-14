@@ -5,10 +5,14 @@ from typing import Literal
 
 import numpy as np
 
-from ..internal.types import PredictionSvmMode
+from ..internal.types import (
+    PREDICTION_SVM_MODE_DEFAULT,
+    PREDICTION_SVM_MODE_R_PARITY,
+    PredictionSvmMode,
+)
 
 PredictionSamplingSeedStrategy = Literal["stable_by_kinase", "global_parity"]
-PredictionResamplingWeightMode = Literal["default", "r_parity"]
+PredictionResamplingWeightMode = PredictionSvmMode
 PredictionFinalScoreMode = Literal["mean_probability", "decision_sigmoid"]
 
 
@@ -23,16 +27,16 @@ class PredictionSamplingPolicy:
 
 
 DEFAULT_PREDICTION_SAMPLING_POLICY = PredictionSamplingPolicy(
-    name="default",
+    name=PREDICTION_SVM_MODE_DEFAULT,
     seed_strategy="stable_by_kinase",
-    resampling_weight_mode="default",
+    resampling_weight_mode=PREDICTION_SVM_MODE_DEFAULT,
     final_score_mode="mean_probability",
 )
 
 R_PARITY_PREDICTION_SAMPLING_POLICY = PredictionSamplingPolicy(
-    name="r_parity",
+    name=PREDICTION_SVM_MODE_R_PARITY,
     seed_strategy="global_parity",
-    resampling_weight_mode="r_parity",
+    resampling_weight_mode=PREDICTION_SVM_MODE_R_PARITY,
     final_score_mode="decision_sigmoid",
 )
 
@@ -40,7 +44,7 @@ R_PARITY_PREDICTION_SAMPLING_POLICY = PredictionSamplingPolicy(
 def resolve_prediction_sampling_policy(
     svm_mode: PredictionSvmMode,
 ) -> PredictionSamplingPolicy:
-    if svm_mode == "default":
+    if svm_mode == PREDICTION_SVM_MODE_DEFAULT:
         return DEFAULT_PREDICTION_SAMPLING_POLICY
     return R_PARITY_PREDICTION_SAMPLING_POLICY
 

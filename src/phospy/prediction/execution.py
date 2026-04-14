@@ -8,7 +8,10 @@ import numpy as np
 import pandas as pd
 
 from ..errors import PredictionConfigurationError
-from ..internal.types import PredictionTraceLevel
+from ..internal.types import (
+    PREDICTION_TRACE_LEVEL_NONE,
+    PredictionTraceLevel,
+)
 from ..validation.requests.prediction import PredictionRequest
 from .contracts import EnsemblePredictorContract
 from .policies import (
@@ -226,11 +229,11 @@ class TraceRecorder:
     ) -> PredictionTraceState:
         traced_kinases = (
             set(substrate_list)
-            if trace_level != "none" and debug_kinases is None
+            if trace_level != PREDICTION_TRACE_LEVEL_NONE and debug_kinases is None
             else set(debug_kinases or [])
         )
         debug_traces: dict[str, KinasePredictionDebugTrace] | None = (
-            {} if trace_level != "none" else None
+            {} if trace_level != PREDICTION_TRACE_LEVEL_NONE else None
         )
         return PredictionTraceState(
             trace_level=trace_level,
@@ -246,7 +249,8 @@ class TraceRecorder:
         kinase: str,
     ) -> bool:
         return (
-            trace_state.trace_level != "none" and kinase in trace_state.traced_kinases
+            trace_state.trace_level != PREDICTION_TRACE_LEVEL_NONE
+            and kinase in trace_state.traced_kinases
         )
 
     def start_kinase(
@@ -495,7 +499,7 @@ class EnsemblePredictor(EnsemblePredictorContract):
                     n_iterations=request.n_iterations,
                     resampling_rng=resampling_rng,
                     capture_trace=False,
-                    trace_level="none",
+                    trace_level=PREDICTION_TRACE_LEVEL_NONE,
                     trace_sink=None,
                     kinase=kinase,
                     ensemble_index=ensemble_index,

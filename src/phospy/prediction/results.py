@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from ..internal.types import PredictionTraceLevel
+from ..internal.types import PREDICTION_TRACE_LEVEL_NONE, PredictionTraceLevel
 
 if TYPE_CHECKING:
     from .traces import TraceSink
@@ -119,7 +119,7 @@ class KinasePredictionResult:
     pred_matrix: pd.DataFrame
     substrate_list: dict[str, list[str]]
     debug_traces: dict[str, KinasePredictionDebugTrace] | None = None
-    trace_level: PredictionTraceLevel = "none"
+    trace_level: PredictionTraceLevel = PREDICTION_TRACE_LEVEL_NONE
     trace_sink: TraceSink | None = None
     owns_trace_sink: bool = False
     pred_mat_result: PredMatResult = field(init=False)

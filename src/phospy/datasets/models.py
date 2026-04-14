@@ -22,6 +22,10 @@ from ..internal.constants import (
     SITE_MATRIX_ID_COLUMN,
     ComparisonSpec,
 )
+from ..internal.types import (
+    DUPLICATE_SITE_STRATEGY_MAX_MEAN_SIGNAL,
+    SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
+)
 from ..preprocessing.core import CorePreprocessingConfig, CoreProcessingResult
 from ..preprocessing.dataset import DatasetPreprocessing
 from .builders import (
@@ -84,9 +88,9 @@ class AnalysisReadySiteMatrixStats:
     dropped_incomplete_values: int
     deduplicated_site_rows: int
     retained_rows: int
-    missing_data_policy: str = "drop_any_missing"
+    missing_data_policy: str = SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
     required_observed_count: int = 0
-    duplicate_site_strategy: str = "max_mean_signal"
+    duplicate_site_strategy: str = DUPLICATE_SITE_STRATEGY_MAX_MEAN_SIGNAL
 
     @classmethod
     def from_mapping(
@@ -102,7 +106,10 @@ class AnalysisReadySiteMatrixStats:
                 row_drop_stats.get(ROW_DROP_DROPPED_INCOMPLETE_VALUES_KEY, 0)
             ),
             missing_data_policy=str(
-                row_drop_stats.get(ROW_DROP_MISSING_DATA_POLICY_KEY, "drop_any_missing")
+                row_drop_stats.get(
+                    ROW_DROP_MISSING_DATA_POLICY_KEY,
+                    SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
+                )
             ),
             required_observed_count=int(
                 row_drop_stats.get(ROW_DROP_REQUIRED_OBSERVED_COUNT_KEY, 0)
@@ -114,7 +121,7 @@ class AnalysisReadySiteMatrixStats:
             duplicate_site_strategy=str(
                 row_drop_stats.get(
                     ROW_DROP_DUPLICATE_SITE_STRATEGY_KEY,
-                    "max_mean_signal",
+                    DUPLICATE_SITE_STRATEGY_MAX_MEAN_SIGNAL,
                 )
             ),
         )

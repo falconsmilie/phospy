@@ -5,7 +5,10 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from .internal.types import KinaseProfileMissingValueStrategy
+from .internal.types import (
+    KINASE_PROFILE_MISSING_VALUE_STRATEGY_PROPAGATE_ANY_MISSING,
+    KinaseProfileMissingValueStrategy,
+)
 from .validation.values.enums import validate_missing_value_strategy
 from .validation.values.numeric import validate_positive_int
 
@@ -31,7 +34,9 @@ class KinaseProfilePolicy:
       column-wise median
     """
 
-    missing_value_strategy: KinaseProfileMissingValueStrategy = "propagate_any_missing"
+    missing_value_strategy: KinaseProfileMissingValueStrategy = (
+        KINASE_PROFILE_MISSING_VALUE_STRATEGY_PROPAGATE_ANY_MISSING
+    )
 
     def __post_init__(self) -> None:
         validate_missing_value_strategy(self.missing_value_strategy)
@@ -154,7 +159,10 @@ def _aggregate_quantified_sites(
     if quantified_matrix.shape[0] == 1:
         return quantified_matrix.iloc[0].astype(float)
 
-    if policy.missing_value_strategy == "propagate_any_missing":
+    if (
+        policy.missing_value_strategy
+        == KINASE_PROFILE_MISSING_VALUE_STRATEGY_PROPAGATE_ANY_MISSING
+    ):
         return quantified_matrix.median(axis=0, skipna=False).astype(float)
 
     return quantified_matrix.median(axis=0, skipna=True).astype(float)

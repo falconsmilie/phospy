@@ -6,7 +6,12 @@ import numpy as np
 import pandas as pd
 
 from ..errors import InputCompatibilityError
-from ..internal.types import SignalomeAssignmentPolicy
+from ..internal.types import (
+    SIGNALOME_ASSIGNMENT_POLICIES,
+    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+    SignalomeAssignmentPolicy,
+)
 from .constants import (
     KINASE_COLUMN,
     MODULE_ID_COLUMN,
@@ -310,7 +315,9 @@ def build_signalome_module_table(
     *,
     site_assignments: pd.DataFrame,
     kinase_substrates: Mapping[str, Sequence[str]],
-    assignment_policy: SignalomeAssignmentPolicy = "cutoff_binary",
+    assignment_policy: SignalomeAssignmentPolicy = (
+        SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+    ),
 ) -> pd.DataFrame:
     """Build the wide module-by-kinase signalome table.
 
@@ -337,7 +344,7 @@ def build_signalome_module_table(
         .astype(int)
     )
 
-    if assignment_policy == "cutoff_binary":
+    if assignment_policy == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY:
         module_table = _build_cutoff_binary_module_table(
             site_assignments=site_assignments,
             protein_to_module=protein_to_module,
@@ -345,7 +352,7 @@ def build_signalome_module_table(
             module_index=module_index,
             kinase_substrates=kinase_substrates,
         )
-    elif assignment_policy == "weighted_top":
+    elif assignment_policy == SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP:
         module_table = _build_weighted_top_module_table(
             site_assignments=site_assignments,
             protein_to_module=protein_to_module,
@@ -353,7 +360,8 @@ def build_signalome_module_table(
             module_index=module_index,
         )
     else:
-        msg = "assignment_policy must be one of: 'cutoff_binary', 'weighted_top'"
+        allowed = ", ".join(f"'{value}'" for value in SIGNALOME_ASSIGNMENT_POLICIES)
+        msg = f"assignment_policy must be one of: {allowed}"
         raise InputCompatibilityError(msg)
 
     row_totals = module_table.sum(axis=1)

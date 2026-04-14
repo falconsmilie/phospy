@@ -7,7 +7,7 @@ import pandas as pd
 from ..activities.analysis import KinaseActivityAnalyzer
 from ..internal.defaults import DEFAULT_MOTIF_FLANK_SIZE
 from ..internal.kinase_workflows import PredMatWorkflow
-from ..internal.types import PredictionSvmMode
+from ..internal.types import PREDICTION_SVM_MODE_DEFAULT, PredictionSvmMode
 from ..orchestration import KinaseOrchestrationService
 from ..preprocessing.core import CorePreprocessingConfig
 from ..preprocessing.modes import AnalysisReadyDatasetBuilder
@@ -32,7 +32,7 @@ class SimpleKinaseWorkflow:
         self,
         flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
         kernel: str = "rbf",
-        svm_mode: PredictionSvmMode = "default",
+        svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
         *,
         reference_provider: ReferenceProvider | None = None,
         activity_analyzer: KinaseActivityAnalyzer | None = None,

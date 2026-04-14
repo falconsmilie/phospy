@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from ..internal.types import PREDICTION_TRACE_LEVEL_FULL
 from .results import KinasePredictionResult
 from .trace_runtime import TRACE_TABLE_NAMES
 
@@ -274,7 +275,10 @@ def _flatten_final_prediction_rows(
 def prediction_debug_trace_tables(
     result: KinasePredictionResult,
 ) -> dict[str, pd.DataFrame]:
-    if result.trace_level == "full" and result.trace_sink is not None:
+    if (
+        result.trace_level == PREDICTION_TRACE_LEVEL_FULL
+        and result.trace_sink is not None
+    ):
         return result.trace_sink.read_all_tables()
 
     tables = _empty_trace_tables()
