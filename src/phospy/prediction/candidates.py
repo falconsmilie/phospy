@@ -32,6 +32,15 @@ def _build_candidate_substrate_list(
     score_threshold: float,
     inclusion: int,
 ) -> dict[str, list[str]]:
+    """Build per-kinase candidate lists from combined score matrix.
+
+    Implementation note:
+    We intentionally keep per-column ``np.argpartition`` instead of a whole-matrix
+    vectorization pass. A reviewed full-matrix attempt regressed runtime across
+    representative matrix sizes due to extra global sorting/materialization
+    overhead. See ADR 0005 for benchmark evidence and decision rationale.
+    """
+
     substrate_list: dict[str, list[str]] = {}
     score_values = combined_scores.to_numpy(dtype=float, copy=False)
     site_ids = combined_scores.index.to_numpy(copy=False)
