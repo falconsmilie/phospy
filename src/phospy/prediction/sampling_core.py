@@ -271,7 +271,8 @@ def multi_ada_sampling(
     train_index: pd.Index | None = None,
     test_values: np.ndarray | None = None,
     test_index: pd.Index | None = None,
-) -> tuple[pd.Series, AdaptiveSamplingEnsembleTrace | None]:
+    return_values: bool = False,
+) -> tuple[np.ndarray | pd.Series, AdaptiveSamplingEnsembleTrace | None]:
     StandardScaler, SVC = require_sklearn()
 
     base_x, base_index = _resolve_matrix_values(
@@ -381,14 +382,16 @@ def multi_ada_sampling(
         final_score_values = positive_probabilities
     else:
         final_score_values = 1.0 / (1.0 + np.exp(-final_decision_vector))
-    final_score_series = pd.Series(
-        np.asarray(final_score_values, dtype=float),
-        index=resolved_test_index,
-        dtype=float,
-    )
+    final_score_values = np.asarray(final_score_values, dtype=float)
+    final_score_series: pd.Series | None = None
 
     ensemble_trace = None
     if capture_trace:
+        final_score_series = pd.Series(
+            final_score_values,
+            index=resolved_test_index,
+            dtype=float,
+        )
         final_top_sites = (
             final_score_series.sort_values(ascending=False)
             .head(debug_top_n)
@@ -420,6 +423,15 @@ def multi_ada_sampling(
             final_top_sites=final_top_sites,
         )
 
+    if return_values:
+        return final_score_values, ensemble_trace
+
+    if final_score_series is None:
+        final_score_series = pd.Series(
+            final_score_values,
+            index=resolved_test_index,
+            dtype=float,
+        )
     return final_score_series, ensemble_trace
 
 

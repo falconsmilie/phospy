@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -46,8 +47,29 @@ def test_prediction_aggregator_initializes_expected_prediction_matrix() -> None:
 
     assert pred_matrix.index.tolist() == ["s1", "s2"]
     assert pred_matrix.columns.tolist() == ["K1", "K2"]
-    assert float(pred_matrix.loc["s1", "K1"]) == 0.0
-    assert float(pred_matrix.loc["s2", "K2"]) == 0.0
+    assert pred_matrix.values.shape == (2, 2)
+    assert np.all(pred_matrix.values == 0.0)
+
+
+def test_prediction_aggregator_add_kinase_scores_prefers_array_values() -> None:
+    pred_matrix = PredictionAggregator.initialize_prediction_matrix(
+        feature_mat=pd.DataFrame({"K1": [0.1, 0.2]}, index=["s1", "s2"]),
+        substrate_list={"K1": ["s1"]},
+    )
+
+    class BatchStub:
+        kinase = "K1"
+        score_values = np.asarray([0.25, 0.75], dtype=float)
+
+        @property
+        def scores(self):
+            raise AssertionError("batch.scores should not be used for ndarray batches")
+
+    batch = BatchStub()
+
+    PredictionAggregator.add_kinase_scores(pred_matrix=pred_matrix, batch=batch)
+
+    assert pred_matrix.values[:, 0].tolist() == [0.25, 0.75]
 
 
 def test_trace_recorder_create_state_traces_all_kinases_by_default() -> None:

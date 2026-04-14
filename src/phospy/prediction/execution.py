@@ -27,7 +27,18 @@ from .traces import TraceSink
 @dataclass(frozen=True, slots=True)
 class KinasePredictionBatch:
     kinase: str
-    scores: pd.Series
+    score_values: np.ndarray
+    score_index: pd.Index
+
+    @property
+    def scores(self) -> pd.Series:
+        """Compatibility view for callers that still expect a pandas Series."""
+
+        return pd.Series(
+            self.score_values,
+            index=self.score_index,
+            dtype=float,
+        )
 
 
 @dataclass(slots=True)
@@ -447,7 +458,7 @@ class EnsemblePredictor(EnsemblePredictorContract):
             )
 
             if is_traced_kinase and trace_state.debug_traces is not None:
-                series, ensemble_trace = multi_ada_sampling(
+                score_values, ensemble_trace = multi_ada_sampling(
                     train_mat=None,
                     test_mat=None,
                     labels=prepared_training_data.labels,
@@ -468,6 +479,7 @@ class EnsemblePredictor(EnsemblePredictorContract):
                     train_index=train_index,
                     test_values=indexed_feature_mat.feature_values,
                     test_index=indexed_feature_mat.feature_index,
+                    return_values=True,
                 )
                 self.trace_recorder.record_ensemble_trace(
                     trace_state=trace_state,
@@ -475,7 +487,7 @@ class EnsemblePredictor(EnsemblePredictorContract):
                     ensemble_trace=ensemble_trace,
                 )
             else:
-                series, _ = multi_ada_sampling(
+                score_values, _ = multi_ada_sampling(
                     train_mat=None,
                     test_mat=None,
                     labels=prepared_training_data.labels,
@@ -496,17 +508,15 @@ class EnsemblePredictor(EnsemblePredictorContract):
                     train_index=train_index,
                     test_values=indexed_feature_mat.feature_values,
                     test_index=indexed_feature_mat.feature_index,
+                    return_values=True,
                 )
-            kinase_scores += series.to_numpy(dtype=float, copy=False)
+            kinase_scores += score_values
 
         self.trace_recorder.flush_kinase(trace_state=trace_state, kinase=kinase)
         return KinasePredictionBatch(
             kinase=kinase,
-            scores=pd.Series(
-                kinase_scores,
-                index=feature_mat.index.copy(),
-                dtype=float,
-            ),
+            score_values=kinase_scores,
+            score_index=indexed_feature_mat.feature_index,
         )
 
 
