@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -1033,6 +1034,84 @@ def test_select_module_count_avoids_full_correlation_matrix_for_large_inputs(
     assert "sampled within-cluster correlation estimates" in diagnostics.reason
     assert observed_rows
     assert max(observed_rows) < scoring_values.shape[0]
+
+
+def test_cluster_sites_reuses_cached_candidate_labels_for_automatic_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 2.0, 3.0, -1.0, -2.0, -3.0],
+            "KINASE_B": [2.0, 4.0, 6.0, -2.0, -4.0, -6.0],
+            "KINASE_C": [3.0, 6.0, 9.0, -3.0, -6.0, -9.0],
+        },
+        index=[f"PROTEIN_{i};S{i};" for i in range(1, 7)],
+    )
+
+    observed_fit_calls: list[int] = []
+    original_fit_cluster_labels = signalome_clustering.fit_cluster_labels
+
+    def counting_fit_cluster_labels(
+        scoring_values: object,
+        cluster_count: int,
+    ) -> object:
+        observed_fit_calls.append(int(cluster_count))
+        return original_fit_cluster_labels(scoring_values, cluster_count)
+
+    monkeypatch.setattr(
+        signalome_clustering,
+        "fit_cluster_labels",
+        counting_fit_cluster_labels,
+    )
+
+    result = signalome_clustering.cluster_sites_with_diagnostics(
+        scoring_matrix=scoring_matrix,
+        requested_module_count=None,
+    )
+
+    assert result.module_selection_diagnostics.selected_module_count == 2
+    assert observed_fit_calls == []
+
+
+def test_cluster_sites_matches_legacy_two_pass_partition_assignments() -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "KINASE_A": [1.0, 2.0, 3.0, -1.0, -2.0, -3.0],
+            "KINASE_B": [2.0, 4.0, 6.0, -2.0, -4.0, -6.0],
+            "KINASE_C": [3.0, 6.0, 9.0, -3.0, -6.0, -9.0],
+        },
+        index=[f"PROTEIN_{i};S{i};" for i in range(1, 7)],
+    )
+    scoring_values = scoring_matrix.to_numpy(dtype=float)
+    legacy_diagnostics = signalome_clustering.select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+        requested_module_count=None,
+    )
+    legacy_module_count = max(
+        1,
+        min(legacy_diagnostics.selected_module_count, scoring_values.shape[0]),
+    )
+    if legacy_module_count == 1:
+        legacy_labels = np.ones(scoring_values.shape[0], dtype=int)
+    else:
+        legacy_labels = (
+            signalome_clustering.fit_cluster_labels(
+                scoring_values,
+                legacy_module_count,
+            )
+            + 1
+        )
+
+    result = signalome_clustering.cluster_sites_with_diagnostics(
+        scoring_matrix=scoring_matrix,
+        requested_module_count=None,
+    )
+    result_labels = result.site_clusters.to_numpy(dtype=int, copy=False)
+    legacy_partition = legacy_labels[:, None] == legacy_labels[None, :]
+    result_partition = result_labels[:, None] == result_labels[None, :]
+
+    assert result.module_selection_diagnostics == legacy_diagnostics
+    assert np.array_equal(result_partition, legacy_partition)
 
 
 def test_build_kinase_network_zeros_diagonal_with_numpy_fill_diagonal(
