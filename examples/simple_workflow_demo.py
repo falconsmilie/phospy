@@ -107,13 +107,17 @@ def run_demo(
             **shared_run_kwargs,
         )
 
+    pred_mat_result = result.pred_mat_result
+    kinase_activity_result = result.kinase_activity_result
+
     written = {
-        "pred_mat": result.pred_mat_result.to_csv(outdir / "predMat.csv"),
+        "pred_mat": pred_mat_result.to_csv(outdir / "predMat.csv"),
         "weighted_activity": outdir / "weighted_activity.csv",
         "ksea_scores": outdir / "ksea_scores.csv",
     }
-    result.kinase_activity_result.weighted_activity.to_csv(written["weighted_activity"])
-    result.kinase_activity_result.ksea_scores.to_csv(written["ksea_scores"])
+    kinase_activity_result.weighted_activity.to_csv(written["weighted_activity"])
+    kinase_activity_result.ksea_scores.to_csv(written["ksea_scores"])
+
     return result, written
 
 
@@ -121,6 +125,11 @@ def main() -> None:
     with TemporaryDirectory(prefix="phospy-simple-workflow-") as tmp_dir:
         result, written = run_demo(Path(tmp_dir), use_files=True)
         print("Simple workflow demo")
+        pred_mat_result = result.pred_mat_result
+        prediction_result = result.prediction_result
+        scoring_result = result.scoring_result
+        kinase_activity_result = result.kinase_activity_result
+
         print("Reference lane")
         print(
             {
@@ -130,10 +139,25 @@ def main() -> None:
         )
         print()
         print("predMat")
-        print(result.pred_mat_result.to_frame(copy=False).round(4))
+        print(pred_mat_result.to_frame(copy=False).round(4))
+        print()
+        print("Prediction substrate counts")
+        print(
+            {
+                kinase: len(sites)
+                for kinase, sites in prediction_result.substrate_list.items()
+            }
+        )
+        print()
+        print("Combined score columns")
+        print(
+            []
+            if scoring_result.combined_scores is None
+            else list(scoring_result.combined_scores.columns)
+        )
         print()
         print("Weighted activity")
-        print(result.kinase_activity_result.weighted_activity.round(4))
+        print(kinase_activity_result.weighted_activity.round(4))
         print()
         print("Written files")
         print("\n".join(str(path) for path in written.values()))

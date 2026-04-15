@@ -70,6 +70,19 @@ with SimpleKinaseWorkflow().run(
 
 This path handles preprocessing, analysis-ready adaptation, bundled reference selection, prediction, and kinase activity analysis.
 
+### Workflow result access patterns
+
+`SimpleKinaseWorkflow.run(...)` returns `SimpleKinaseWorkflowResult`.
+
+- Use `result.pred_mat_result` for the canonical predMat table contract.
+- Use `result.prediction_result` when you need full prediction payload details (`pred_matrix`, `substrate_list`, optional traces).
+- Use `result.scoring_result` for `profile_scores`, `combined_scores`, and `weights`.
+- Use `result.kinase_activity_result` for activity summaries such as `weighted_activity` and `ksea_scores`.
+
+`predMat` is already part of `prediction_result` (`prediction_result.pred_mat_result`), so there is no separate predMat workflow.
+
+`phospy.internal.kinase_workflows.KinaseWorkflow` is an internal orchestration helper; the supported public lane is `phospy.api.SimpleKinaseWorkflow`.
+
 ### Use `SignalomeWorkflow` when you already have workflow outputs
 
 The next example assumes you already have a `result` from `SimpleKinaseWorkflow.run(...)`.

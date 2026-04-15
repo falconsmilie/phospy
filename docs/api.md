@@ -14,36 +14,97 @@ This page starts with the simplest supported path, then links to the lower-level
 
 `KinaseWorkflow` and `PhosRPipeline` are internal orchestration helpers and are not part of the supported public API.
 
-## Internal Native Workflow Result Contract
+## Supported Result Contracts
 
-If you use the internal native wrapper directly, `KinaseWorkflow.run(...)` returns a `KinaseWorkflowResult`.
+Supported public lane:
 
-`KinaseWorkflow` returns one result object. `predMat` is already part of that result, so you do not need a separate predMat workflow.
+- `phospy.api.SimpleKinaseWorkflow` and `phospy.api.SignalomeWorkflow`
+- `phospy.api.workflow_results.SimpleKinaseWorkflowResult`
 
-### What `KinaseWorkflow` returns
+Internal lane (advanced contributors only):
+
+- `phospy.internal.kinase_workflows.KinaseWorkflow`
+- `phospy.internal.kinase_workflows.KinaseWorkflowResult`
+
+`predMat` is part of the prediction result contract in both lanes (`prediction_result.pred_mat_result`). You do not need a separate predMat workflow.
+
+### Public common lane result: `SimpleKinaseWorkflowResult`
+
+`SimpleKinaseWorkflow().run(...)` returns one `SimpleKinaseWorkflowResult` object:
+
+```text
+SimpleKinaseWorkflowResult
+|- analysis_ready_dataset (AnalysisReadyPhosphoDataset)
+|- reference_bundle (ReferenceBundle)
+|- scoring_result (KinaseScoringResult)
+|  |- profile_scores
+|  |- combined_scores
+|  `- weights
+|- prediction_result (KinasePredictionResult)
+|  |- pred_matrix
+|  |- pred_mat_result
+|  |- substrate_list
+|  `- optional traces (debug_traces, trace_level, trace_sink)
+`- kinase_activity_result (KinaseActivityResult)
+   |- weighted_activity
+   |- ksea_scores
+   |- ksea_counts
+   |- target_counts
+   |- target_table
+   `- overlap_summary
+```
+
+Convenience accessors on `SimpleKinaseWorkflowResult`:
+
+- `pred_mat_result` (delegates to `prediction_result.pred_mat_result`)
+- `profile_scores`, `combined_scores`, `weights` (delegate to `scoring_result`)
+- `substrate_list` (delegates to `prediction_result.substrate_list`)
+
+Common access pattern:
+
+```python
+from phospy.api import SimpleKinaseWorkflow
+
+with SimpleKinaseWorkflow().run(...) as result:
+    pred_mat_result = result.pred_mat_result
+    prediction_result = result.prediction_result
+    scoring_result = result.scoring_result
+    kinase_activity_result = result.kinase_activity_result
+
+    pred_mat = pred_mat_result.to_frame(copy=False)
+    pred_matrix = prediction_result.pred_matrix
+    combined_scores = scoring_result.combined_scores
+    weighted_activity = kinase_activity_result.weighted_activity
+```
+
+Use `pred_mat_result` for the stable predMat table contract. Use `prediction_result` when you need full prediction payload details (for example `substrate_list` or optional traces).
+
+### Internal advanced result: `KinaseWorkflowResult`
+
+If you call the internal native workflow directly, `KinaseWorkflow.run(...)` returns `KinaseWorkflowResult`:
 
 ```text
 KinaseWorkflowResult
-├── profile_result (KinaseProfileResult)
-│   ├── profile_matrix
-│   ├── substrate_counts
-│   └── quantified_substrates
-├── motif_result (MotifScoringResult | None)
-│   ├── motif_scores
-│   ├── motif_sizes
-│   └── sequence_windows
-├── scoring_result (KinaseScoringResult)
-│   ├── profile_scores
-│   ├── combined_scores
-│   └── weights
-└── prediction_result (KinasePredictionResult)
-    ├── pred_matrix
-    ├── pred_mat_result
-    ├── substrate_list
-    └── optional traces (debug_traces, trace_level, trace_sink)
+|- profile_result (KinaseProfileResult)
+|  |- profile_matrix
+|  |- substrate_counts
+|  `- quantified_substrates
+|- motif_result (MotifScoringResult | None)
+|  |- motif_scores
+|  |- motif_sizes
+|  `- sequence_windows
+|- scoring_result (KinaseScoringResult)
+|  |- profile_scores
+|  |- combined_scores
+|  `- weights
+`- prediction_result (KinasePredictionResult)
+   |- pred_matrix
+   |- pred_mat_result
+   |- substrate_list
+   `- optional traces (debug_traces, trace_level, trace_sink)
 ```
 
-`KinaseWorkflowResult` also exposes high-value convenience accessors that delegate to nested fields:
+`KinaseWorkflowResult` exposes the same convenience accessors as the public result object:
 
 - `pred_mat_result`
 - `profile_scores`
@@ -51,31 +112,15 @@ KinaseWorkflowResult
 - `weights`
 - `substrate_list`
 
-### Common access patterns
+Common internal access pattern:
 
 ```python
 from phospy.internal.kinase_workflows import KinaseWorkflow
 
-workflow = KinaseWorkflow()
-result = workflow.run(...)
-pred_mat = result.pred_mat_result
-combined = result.combined_scores
-profile_scores = result.profile_scores
-weights = result.weights
-substrates = result.substrate_list
+with KinaseWorkflow().run(...) as result:
+    pred_mat = result.pred_mat_result.to_frame(copy=False)
+    combined_scores = result.scoring_result.combined_scores
 ```
-
-### Context-manager usage
-
-```python
-from phospy.internal.kinase_workflows import KinaseWorkflow
-
-workflow = KinaseWorkflow()
-with workflow.run(...) as result:
-    pred_mat = result.pred_mat_result
-```
-
-Use `prediction_result` when you need the full prediction payload (for example substrate membership and optional traces). Use `pred_mat_result` when you specifically need the canonical predMat table contract.
 
 ## Fastest Path for Most Users
 
@@ -96,8 +141,15 @@ with SimpleKinaseWorkflow().run(
         random_state=7,
     ),
 ) as result:
-    pred_mat = result.pred_mat_result.to_frame(copy=False)
-    weighted_activity = result.kinase_activity_result.weighted_activity
+    pred_mat_result = result.pred_mat_result
+    prediction_result = result.prediction_result
+    scoring_result = result.scoring_result
+    kinase_activity_result = result.kinase_activity_result
+
+    pred_mat = pred_mat_result.to_frame(copy=False)
+    pred_matrix = prediction_result.pred_matrix
+    combined_scores = scoring_result.combined_scores
+    weighted_activity = kinase_activity_result.weighted_activity
 ```
 
 The returned `result` includes:

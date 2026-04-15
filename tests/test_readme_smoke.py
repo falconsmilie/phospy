@@ -59,7 +59,12 @@ def test_readme_example_simple_workflow_runs_end_to_end() -> None:
 
     assert result.reference_bundle.source_metadata.reference == "l6_native"
     assert not result.pred_mat_result.to_frame(copy=False).empty
+    assert result.prediction_result.pred_mat_result is result.pred_mat_result
+    assert isinstance(result.prediction_result.substrate_list, dict)
+    assert not result.scoring_result.profile_scores.empty
+    assert result.scoring_result.combined_scores is not None
     assert not result.kinase_activity_result.weighted_activity.empty
+    assert not result.kinase_activity_result.ksea_scores.empty
     result.close()
 
 
@@ -81,7 +86,12 @@ def test_simple_workflow_demo_runs_end_to_end(tmp_path) -> None:
     assert result.reference_bundle.species == "rat"
     assert result.reference_bundle.source_metadata.reference == "l6_native"
     assert not result.pred_mat_result.to_frame(copy=False).empty
+    assert result.prediction_result.pred_mat_result is result.pred_mat_result
+    assert isinstance(result.prediction_result.substrate_list, dict)
+    assert not result.scoring_result.profile_scores.empty
+    assert result.scoring_result.combined_scores is not None
     assert not result.kinase_activity_result.weighted_activity.empty
+    assert not result.kinase_activity_result.ksea_scores.empty
     assert set(written) == {"pred_mat", "weighted_activity", "ksea_scores"}
     assert all(path.exists() for path in written.values())
 

@@ -42,11 +42,15 @@ def run_demo(
             random_state=7,
         ),
     )
-    kinases_of_interest = list(simple_result.pred_mat_result.kinase_names[:2])
+    pred_mat_result = simple_result.pred_mat_result
+    prediction_result = simple_result.prediction_result
+    scoring_result = simple_result.scoring_result
+
+    kinases_of_interest = list(pred_mat_result.kinase_names[:2])
     signalome_result = SignalomeWorkflow().run_from_analysis_ready(
         dataset=simple_result.analysis_ready_dataset,
-        scoring_result=simple_result.scoring_result,
-        prediction_result=simple_result.prediction_result,
+        scoring_result=scoring_result,
+        prediction_result=prediction_result,
         kinases_of_interest=kinases_of_interest,
         metadata_fallback_policy="metadata",
         allow_gene_symbol_fallback=True,
@@ -60,6 +64,7 @@ def run_demo(
         "map": map_data.to_csv(outdir / "signalome_map"),
         "network": network_data.to_csv(outdir / "signalome_network"),
     }
+
     simple_result.close()
     return signalome_result, map_data, network_data, written
 
