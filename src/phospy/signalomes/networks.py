@@ -147,7 +147,7 @@ def _build_node_outputs(
     relationships = signalome_result.modules.to_relationship_table(copy=False)
     kinases_of_interest = set(signalome_result.kinases_of_interest)
     kinase_order = [
-        str(kinase) for kinase in signalome_result.signalome_modules.columns
+        str(kinase) for kinase in signalome_result.signalome_modules_live.columns
     ]
 
     module_counts = (

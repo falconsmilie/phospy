@@ -1499,7 +1499,11 @@ def test_signalome_result_exposes_canonical_module_assignment_and_network_views(
         kinases_of_interest=["KINASE_A"],
     )
 
-    assert result.modules.to_frame(copy=False) is result.signalome_modules
+    assert result.modules.to_frame(copy=False) is not result.signalome_modules
+    pd.testing.assert_frame_equal(
+        result.modules.to_frame(copy=False),
+        result.signalome_modules,
+    )
     assert list(result.modules.to_relationship_table().columns) == [
         "module_id",
         "kinase",
@@ -1510,7 +1514,11 @@ def test_signalome_result_exposes_canonical_module_assignment_and_network_views(
         {"module_id": 2, "kinase": "KINASE_B", "share_percent": 100.0},
     ]
 
-    assert result.assignments.sites(copy=False) is result.site_assignments
+    assert result.assignments.sites(copy=False) is not result.site_assignments
+    pd.testing.assert_frame_equal(
+        result.assignments.sites(copy=False),
+        result.site_assignments,
+    )
     assert list(result.assignments.proteins().columns) == ["module_id", "site_count"]
     assert result.assignments.proteins().loc["PROTEIN_1", "module_id"] == 1
     assert result.assignments.proteins().loc["PROTEIN_1", "site_count"] == 1
@@ -1573,7 +1581,9 @@ def test_signalome_result_wrappers_with_pandas_state_are_not_frozen_dataclasses(
     assert SignalomeKinaseNetwork.__dataclass_params__.frozen is False
 
 
-def test_signalome_result_to_frames_supports_zero_copy_default_and_safe_copy() -> None:
+def test_signalome_result_to_frames_supports_safe_copy_default_and_explicit_live() -> (
+    None
+):
     phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
 
     result = SignalomeWorkflow().run(
@@ -1583,13 +1593,50 @@ def test_signalome_result_to_frames_supports_zero_copy_default_and_safe_copy() -
         kinases_of_interest=["KINASE_A"],
     )
 
+    detached_frames = result.to_frames()
     shared_frames = result.to_frames(copy=False)
-    detached_frames = result.to_frames(copy=True)
 
-    assert shared_frames["signalome_modules"] is result.signalome_modules
-    assert shared_frames["site_assignments"] is result.site_assignments
-    assert detached_frames["signalome_modules"] is not result.signalome_modules
-    assert detached_frames["site_assignments"] is not result.site_assignments
+    assert detached_frames["signalome_modules"] is not result.signalome_modules_live
+    assert detached_frames["site_assignments"] is not result.site_assignments_live
+    assert shared_frames["signalome_modules"] is result.signalome_modules_live
+    assert shared_frames["site_assignments"] is result.site_assignments_live
+
+
+def test_signalome_result_default_accessors_are_detached_from_owned_state() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A"],
+    )
+
+    module_copy = result.signalome_modules
+    module_original = float(result.signalome_modules_live.iloc[0, 0])
+    module_copy.iloc[0, 0] = module_original + 99.0
+    assert float(result.signalome_modules_live.iloc[0, 0]) == module_original
+
+    site_copy = result.site_assignments
+    module_col = site_copy.columns.get_loc("module_id")
+    original_site_module = int(result.site_assignments_live.iloc[0, module_col])
+    site_copy.iloc[0, module_col] = original_site_module + 99
+    assert int(result.site_assignments_live.iloc[0, module_col]) == original_site_module
+
+
+def test_signalome_result_to_owned_frames_exposes_explicit_mutable_state() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A"],
+    )
+
+    owned_frames = result.to_owned_frames()
+    owned_frames["signalome_modules"].iloc[0, 0] = 321.0
+    assert float(result.signalome_modules_live.iloc[0, 0]) == 321.0
 
 
 def test_signalome_result_to_csv_exports_canonical_tables(tmp_path: Path) -> None:

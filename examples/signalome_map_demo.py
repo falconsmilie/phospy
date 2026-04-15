@@ -38,6 +38,8 @@ def run_demo(
         scoring_result=simple_result.scoring_result,
         prediction_result=simple_result.prediction_result,
         kinases_of_interest=kinases_of_interest,
+        metadata_fallback_policy="metadata",
+        allow_gene_symbol_fallback=True,
         config=SignalomeRunConfig(signalome_cutoff=0.5),
     )
     map_data = signalome_result.to_map_data()

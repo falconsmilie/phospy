@@ -188,7 +188,7 @@ def _build_site_positions(
         ascending=[True, True, True],
         kind="stable",
     )
-    expression_matrix = signalome_result.expression_matrix
+    expression_matrix = signalome_result.expression_matrix_live
 
     if site_assignments.empty:
         site_positions = pd.DataFrame(
@@ -290,7 +290,7 @@ def _build_kinase_positions(
     network_nodes = signalome_result.network.nodes(copy=False)
     kinases_of_interest = set(signalome_result.kinases_of_interest)
     kinase_order = [
-        str(kinase) for kinase in signalome_result.signalome_modules.columns
+        str(kinase) for kinase in signalome_result.signalome_modules_live.columns
     ]
 
     records: list[dict[str, object]] = []

@@ -76,6 +76,26 @@ signalome = SignalomeWorkflow().run_from_analysis_ready(
 )
 ```
 
+### Frame mutability contract
+
+`PhosphoDataset` is a mutable workspace, but safe read access is detached by default:
+
+- `dataset.inputs`, `dataset.total_df_copy`, `dataset.phospho_df_copy`, `dataset.copy_inputs()`
+
+Explicit mutable access is opt-in:
+
+- `dataset.inputs_live`, `dataset.total_df_live`, `dataset.phospho_df_live`, `dataset.to_owned_frames()`
+
+`SignalomeResult` and nested signalome wrappers (`modules`, `assignments`, `network`) also default to detached reads:
+
+- table properties (for example `signalome.site_assignments`, `signalome.signalome_modules`)
+- `to_frames()` (default `copy=True`)
+
+Explicit mutable access is opt-in:
+
+- `to_frames(copy=False)` or `to_owned_frames()`
+- `*_live` properties when you intentionally need shared mutable state
+
 ## Configuration Objects
 
 ### `DatasetLoadOptions` (`phospy.api`)

@@ -551,7 +551,17 @@ class PhosphoDataset:
 
     @property
     def inputs(self) -> CoreInputs:
-        """Return the owned mutable input bundle for advanced internal workflows."""
+        """Return detached dataset inputs for safe caller-owned inspection.
+
+        The returned ``CoreInputs`` bundle contains deep copies of the owned
+        workspace frames. Mutating it does not change this dataset.
+        """
+        total_df, phospho_df = self._inputs.copy_frames()
+        return CoreInputs(total_df=total_df, phospho_df=phospho_df)
+
+    @property
+    def inputs_live(self) -> CoreInputs:
+        """Return the owned mutable input bundle for advanced workflows."""
         return self._inputs
 
     @property
@@ -589,7 +599,7 @@ class PhosphoDataset:
         Mutating the returned frame mutates this dataset's owned workspace state.
         Prefer `total_df_copy` for read-oriented caller work.
         """
-        return self.inputs.total_df
+        return self.inputs_live.total_df
 
     @property
     def phospho_df_live(self) -> pd.DataFrame:
@@ -598,21 +608,25 @@ class PhosphoDataset:
         Mutating the returned frame mutates this dataset's owned workspace state.
         Prefer `phospho_df_copy` for read-oriented caller work.
         """
-        return self.inputs.phospho_df
+        return self.inputs_live.phospho_df
 
     @property
     def total_df_copy(self) -> pd.DataFrame:
         """Return a detached deep copy of the owned total-protein table."""
-        return self.inputs.total_df.copy(deep=True)
+        return self.inputs_live.total_df.copy(deep=True)
 
     @property
     def phospho_df_copy(self) -> pd.DataFrame:
         """Return a detached deep copy of the owned phosphoproteomics table."""
-        return self.inputs.phospho_df.copy(deep=True)
+        return self.inputs_live.phospho_df.copy(deep=True)
 
     def copy_inputs(self) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Return detached deep copies suitable for caller-owned mutation and read use."""
         return self.total_df_copy, self.phospho_df_copy
+
+    def to_owned_frames(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Return the owned mutable workspace frames for advanced callers."""
+        return self.total_df_live, self.phospho_df_live
 
     @property
     def preprocessing(self) -> DatasetPreprocessing:

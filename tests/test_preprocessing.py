@@ -1341,6 +1341,86 @@ def test_dataset_preprocessing_facade_shares_live_workspace_state_with_dataset()
     assert dataset.phospho_df_live.loc[1, "p_group2"] == 444.0
 
 
+def test_phospho_dataset_inputs_property_returns_detached_copies() -> None:
+    from phospy.datasets import PhosphoDataset
+
+    dataset = PhosphoDataset(
+        total_df=pd.DataFrame(
+            {
+                "genes": ["PRKACA", "BTK"],
+                "group1": [1.0, 2.0],
+                "group2": [1.0, 2.0],
+                "group3": [1.0, 2.0],
+                "group4": [1.0, 2.0],
+                "group5": [1.0, 2.0],
+                "group6": [1.0, 2.0],
+            }
+        ),
+        phospho_df=pd.DataFrame(
+            {
+                "uid": ["u1", "u2"],
+                "gene_names": ["PRKACA", "BTK"],
+                "gene_p_site": ["PRKACA_S339", "BTK_Y551"],
+                "localization_prob": [0.95, 0.95],
+                "centralized_sequence": ["AAAAAA", "BBBBBB"],
+                "p_group1": [1.0, 2.0],
+                "p_group2": [1.0, 2.0],
+                "p_group3": [1.0, 2.0],
+                "p_group4": [1.0, 2.0],
+                "p_group5": [1.0, 2.0],
+                "p_group6": [1.0, 2.0],
+            }
+        ),
+    )
+
+    detached = dataset.inputs
+    detached.total_df.loc[0, "group1"] = 111.0
+    detached.phospho_df.loc[0, "p_group1"] = 222.0
+
+    assert dataset.total_df_live.loc[0, "group1"] == 1.0
+    assert dataset.phospho_df_live.loc[0, "p_group1"] == 1.0
+
+
+def test_phospho_dataset_to_owned_frames_returns_mutable_workspace_tables() -> None:
+    from phospy.datasets import PhosphoDataset
+
+    dataset = PhosphoDataset(
+        total_df=pd.DataFrame(
+            {
+                "genes": ["PRKACA", "BTK"],
+                "group1": [1.0, 2.0],
+                "group2": [1.0, 2.0],
+                "group3": [1.0, 2.0],
+                "group4": [1.0, 2.0],
+                "group5": [1.0, 2.0],
+                "group6": [1.0, 2.0],
+            }
+        ),
+        phospho_df=pd.DataFrame(
+            {
+                "uid": ["u1", "u2"],
+                "gene_names": ["PRKACA", "BTK"],
+                "gene_p_site": ["PRKACA_S339", "BTK_Y551"],
+                "localization_prob": [0.95, 0.95],
+                "centralized_sequence": ["AAAAAA", "BBBBBB"],
+                "p_group1": [1.0, 2.0],
+                "p_group2": [1.0, 2.0],
+                "p_group3": [1.0, 2.0],
+                "p_group4": [1.0, 2.0],
+                "p_group5": [1.0, 2.0],
+                "p_group6": [1.0, 2.0],
+            }
+        ),
+    )
+
+    total_df_live, phospho_df_live = dataset.to_owned_frames()
+    total_df_live.loc[0, "group1"] = 111.0
+    phospho_df_live.loc[0, "p_group1"] = 222.0
+
+    assert dataset.total_df_live.loc[0, "group1"] == 111.0
+    assert dataset.phospho_df_live.loc[0, "p_group1"] == 222.0
+
+
 def test_preprocessing_result_wrappers_with_pandas_state_are_not_frozen_dataclasses() -> (
     None
 ):
