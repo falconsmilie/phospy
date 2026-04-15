@@ -40,6 +40,30 @@ They remain available for advanced use, but they are not the preferred public
 entrypoint for routine preprocessing.
 """
 
+_OWNED_FRAME_ATTR = "_phospy_owned_frame"
+
+
+def _mark_owned_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    """Mark a frame as owned by the preprocessing pipeline."""
+    frame.attrs[_OWNED_FRAME_ATTR] = True
+    return frame
+
+
+def _is_owned_numeric_frame(
+    frame: pd.DataFrame,
+    *,
+    required_columns: tuple[str, ...],
+    numeric_columns: tuple[str, ...],
+) -> bool:
+    """Return whether a frame can safely take the owned no-copy correction path."""
+    if not bool(frame.attrs.get(_OWNED_FRAME_ATTR, False)):
+        return False
+    if any(column not in frame.columns for column in required_columns):
+        return False
+    return all(
+        pd.api.types.is_numeric_dtype(frame[column]) for column in numeric_columns
+    )
+
 
 @dataclass(frozen=True, slots=True)
 class TotalPreprocessor:
@@ -87,7 +111,7 @@ class TotalPreprocessor:
             self.schema.total_cols,
             min_observed=min_observed,
         )
-        return total_unique, total_filtered
+        return _mark_owned_frame(total_unique), _mark_owned_frame(total_filtered)
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,10 +166,12 @@ class PhosphoPreprocessor:
             localization_col=localization_col,
             threshold=localization_threshold,
         )
-        return _filter_min_observed_without_copy(
-            phospho_filtered,
-            self.schema.phospho_cols,
-            min_observed=min_observed,
+        return _mark_owned_frame(
+            _filter_min_observed_without_copy(
+                phospho_filtered,
+                self.schema.phospho_cols,
+                min_observed=min_observed,
+            )
         )
 
 
@@ -171,6 +197,25 @@ class ProteinCorrectionService:
         total_gene_col: str = TOTAL_GENE_COLUMN,
         max_unmatched_fraction: float = DEFAULT_MAX_UNMATCHED_FRACTION,
     ) -> pd.DataFrame:
+        required_phospho_columns = (phospho_gene_col, *self.schema.phospho_cols)
+        required_total_columns = (total_gene_col, *self.schema.total_cols)
+        if _is_owned_numeric_frame(
+            phospho_df,
+            required_columns=required_phospho_columns,
+            numeric_columns=tuple(self.schema.phospho_cols),
+        ) and _is_owned_numeric_frame(
+            total_df,
+            required_columns=required_total_columns,
+            numeric_columns=tuple(self.schema.total_cols),
+        ):
+            return self.correct_owned(
+                phospho_df,
+                total_df,
+                phospho_gene_col=phospho_gene_col,
+                total_gene_col=total_gene_col,
+                max_unmatched_fraction=max_unmatched_fraction,
+            )
+
         return run_protein_correction(
             df_phospho=phospho_df,
             df_total=total_df,
@@ -191,15 +236,17 @@ class ProteinCorrectionService:
         total_gene_col: str = TOTAL_GENE_COLUMN,
         max_unmatched_fraction: float = DEFAULT_MAX_UNMATCHED_FRACTION,
     ) -> pd.DataFrame:
-        return run_protein_correction_owned(
-            df_phospho=phospho_df,
-            df_total=total_df,
-            phospho_gene_col=phospho_gene_col,
-            total_gene_col=total_gene_col,
-            phospho_cols=self.schema.phospho_cols,
-            protein_cols=self.schema.total_cols,
-            corrected_cols=self.schema.corrected_cols,
-            max_unmatched_fraction=max_unmatched_fraction,
+        return _mark_owned_frame(
+            run_protein_correction_owned(
+                df_phospho=phospho_df,
+                df_total=total_df,
+                phospho_gene_col=phospho_gene_col,
+                total_gene_col=total_gene_col,
+                phospho_cols=self.schema.phospho_cols,
+                protein_cols=self.schema.total_cols,
+                corrected_cols=self.schema.corrected_cols,
+                max_unmatched_fraction=max_unmatched_fraction,
+            )
         )
 
     def add_pairwise_comparisons(

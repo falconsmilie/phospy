@@ -523,6 +523,10 @@ class PhosphoDataset:
     mutable pandas tables, and exposes them through explicit `*_live` and
     `*_copy` accessors.
 
+    Ownership policy: copy once at external construction boundaries, then pass
+    owned mutable frames through internal preprocessing paths without copying
+    again unless a caller explicitly asks for detached copies.
+
     Prefer `total_df_copy` / `phospho_df_copy` or `copy_inputs()` for caller-owned
     inspection, export, and other read-oriented work. Use `total_df_live` /
     `phospho_df_live` only when you intentionally want shared workspace state.

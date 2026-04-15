@@ -1047,6 +1047,139 @@ def test_protein_correction_service_does_not_route_through_public_facade(
     assert corrected["phospho_corrected_1"].iloc[0] == 7.0
 
 
+def test_core_processor_stepwise_prepare_outputs_reuse_owned_correction_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.preprocessing.services as preprocessing_services_module
+
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA", "BTK"],
+            "group1": [1.0, 2.0],
+            "group2": [1.0, 2.0],
+            "group3": [1.0, 2.0],
+            "group4": [1.0, 2.0],
+            "group5": [1.0, 2.0],
+            "group6": [1.0, 2.0],
+        }
+    )
+    phospho_df = pd.DataFrame(
+        {
+            "gene_names": ["PRKACA", "BTK"],
+            "gene_p_site": ["PRKACA_S339", "BTK_Y551"],
+            "localization_prob": [0.95, 0.95],
+            "p_group1": [8.0, 6.0],
+            "p_group2": [7.0, 5.0],
+            "p_group3": [6.0, 4.0],
+            "p_group4": [5.0, 3.0],
+            "p_group5": [4.0, 2.0],
+            "p_group6": [3.0, 1.0],
+        }
+    )
+    processor = CoreProcessor(schema=DatasetSchema())
+    _, total_filtered = processor.prepare_total(total_df)
+    phospho_filtered = processor.prepare_phospho(phospho_df)
+
+    public_calls = 0
+    owned_calls = 0
+    original_public = preprocessing_services_module.run_protein_correction
+    original_owned = preprocessing_services_module.run_protein_correction_owned
+
+    def count_public(*args: object, **kwargs: object) -> object:
+        nonlocal public_calls
+        public_calls += 1
+        return original_public(*args, **kwargs)
+
+    def count_owned(*args: object, **kwargs: object) -> object:
+        nonlocal owned_calls
+        owned_calls += 1
+        return original_owned(*args, **kwargs)
+
+    monkeypatch.setattr(
+        preprocessing_services_module,
+        "run_protein_correction",
+        count_public,
+    )
+    monkeypatch.setattr(
+        preprocessing_services_module,
+        "run_protein_correction_owned",
+        count_owned,
+    )
+
+    corrected = processor.correct_to_protein(
+        phospho_filtered,
+        total_filtered,
+        max_unmatched_fraction=0.0,
+    )
+
+    assert public_calls == 0
+    assert owned_calls == 1
+    assert corrected["phospho_corrected_1"].tolist() == [7.0, 4.0]
+
+
+def test_protein_correction_service_correct_keeps_defensive_path_for_external_frames(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.preprocessing.services as preprocessing_services_module
+
+    phospho_df = pd.DataFrame(
+        {
+            "gene_names": ["PRKACA"],
+            "p_group1": ["8.0"],
+            "p_group2": ["7.0"],
+            "p_group3": ["6.0"],
+            "p_group4": ["5.0"],
+            "p_group5": ["4.0"],
+            "p_group6": ["3.0"],
+        }
+    )
+    total_df = pd.DataFrame(
+        {
+            "genes": ["PRKACA"],
+            "group1": ["1.0"],
+            "group2": ["1.0"],
+            "group3": ["1.0"],
+            "group4": ["1.0"],
+            "group5": ["1.0"],
+            "group6": ["1.0"],
+        }
+    )
+    public_calls = 0
+    owned_calls = 0
+    original_public = preprocessing_services_module.run_protein_correction
+    original_owned = preprocessing_services_module.run_protein_correction_owned
+
+    def count_public(*args: object, **kwargs: object) -> object:
+        nonlocal public_calls
+        public_calls += 1
+        return original_public(*args, **kwargs)
+
+    def count_owned(*args: object, **kwargs: object) -> object:
+        nonlocal owned_calls
+        owned_calls += 1
+        return original_owned(*args, **kwargs)
+
+    monkeypatch.setattr(
+        preprocessing_services_module,
+        "run_protein_correction",
+        count_public,
+    )
+    monkeypatch.setattr(
+        preprocessing_services_module,
+        "run_protein_correction_owned",
+        count_owned,
+    )
+
+    corrected = ProteinCorrectionService(schema=DatasetSchema()).correct(
+        phospho_df,
+        total_df,
+    )
+
+    assert public_calls == 1
+    assert owned_calls == 0
+    assert corrected["phospho_corrected_1"].tolist() == [7.0]
+
+
 def test_add_pairwise_comparisons_uses_schema_group_names() -> None:
     corrected = pd.DataFrame(
         {

@@ -44,6 +44,9 @@ ownership boundaries. Trusted internal call sites should use
 Most callers should start with ``PhosphoDataset.preprocessing.run()`` or the
 analysis-ready builder and only reach for this module when they need explicit
 control over the core orchestration.
+
+Ownership rule: public boundaries copy once, then all internal owned paths
+reuse mutable frames without taking additional full-frame defensive copies.
 """
 
 
@@ -243,6 +246,11 @@ class CoreProcessor:
         total_gene_col: str = TOTAL_GENE_COLUMN,
         max_unmatched_fraction: float = DEFAULT_MAX_UNMATCHED_FRACTION,
     ) -> pd.DataFrame:
+        """Correct phosphosite values against total protein with boundary awareness.
+
+        When inputs come from owned preparation paths, the correction service
+        reuses the owned fast path and avoids another full-frame defensive copy.
+        """
         return self.protein_correction_service.correct(
             phospho_df,
             total_df,
