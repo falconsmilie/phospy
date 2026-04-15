@@ -372,6 +372,119 @@ def test_prediction_execution_runner_clears_predictor_cache_after_failure() -> N
     assert predictor.cache_cleared is True
 
 
+def test_prediction_execution_runner_flushes_final_trace_after_failure() -> None:
+    call_order: list[str] = []
+
+    class RecordingTraceRecorder:
+        def create_state(
+            self, *, substrate_list, trace_level, debug_kinases, trace_sink
+        ):
+            return object()
+
+        def flush_final(self, *, trace_state) -> None:
+            call_order.append("flush_final")
+
+    class FailingPredictor(EnsemblePredictorContract):
+        def predict_kinase(
+            self,
+            *,
+            kinase: str,
+            substrates: list[str],
+            feature_mat: pd.DataFrame,
+            request: PredictionRequest,
+            trace_state,
+            sampling_session,
+        ):
+            call_order.append("predict_kinase")
+            raise RuntimeError("boom")
+
+        def clear_cache(self) -> None:
+            call_order.append("clear_cache")
+
+    scores = pd.DataFrame({"K1": [0.95, 0.91, 0.40]}, index=["s1", "s2", "s3"])
+    request = PredictionRequest.validate_request(
+        combined_scores=scores,
+        ensemble_size=2,
+        top=3,
+        score_threshold=0.8,
+        inclusion=2,
+        n_iterations=1,
+        random_state=3,
+        capture_debug_trace=False,
+        default_svm_mode="default",
+    )
+    runner = PredictionExecutionRunner(
+        candidate_selector=CandidateSelector(),
+        prediction_aggregator=PredictionAggregator(),
+        trace_recorder=RecordingTraceRecorder(),
+        ensemble_predictor=FailingPredictor(),
+    )
+
+    with pytest.raises(RuntimeError, match="boom"):
+        runner.run(request)
+
+    assert call_order == ["predict_kinase", "clear_cache", "flush_final"]
+
+
+def test_prediction_execution_runner_preserves_cleanup_errors_on_failure() -> None:
+    call_order: list[str] = []
+
+    class FailingTraceRecorder:
+        def create_state(
+            self, *, substrate_list, trace_level, debug_kinases, trace_sink
+        ):
+            return object()
+
+        def flush_final(self, *, trace_state) -> None:
+            call_order.append("flush_final")
+            raise RuntimeError("trace flush failed")
+
+    class FailingCleanupPredictor(EnsemblePredictorContract):
+        def predict_kinase(
+            self,
+            *,
+            kinase: str,
+            substrates: list[str],
+            feature_mat: pd.DataFrame,
+            request: PredictionRequest,
+            trace_state,
+            sampling_session,
+        ):
+            call_order.append("predict_kinase")
+            raise RuntimeError("boom")
+
+        def clear_cache(self) -> None:
+            call_order.append("clear_cache")
+            raise RuntimeError("cache cleanup failed")
+
+    scores = pd.DataFrame({"K1": [0.95, 0.91, 0.40]}, index=["s1", "s2", "s3"])
+    request = PredictionRequest.validate_request(
+        combined_scores=scores,
+        ensemble_size=2,
+        top=3,
+        score_threshold=0.8,
+        inclusion=2,
+        n_iterations=1,
+        random_state=3,
+        capture_debug_trace=False,
+        default_svm_mode="default",
+    )
+    runner = PredictionExecutionRunner(
+        candidate_selector=CandidateSelector(),
+        prediction_aggregator=PredictionAggregator(),
+        trace_recorder=FailingTraceRecorder(),
+        ensemble_predictor=FailingCleanupPredictor(),
+    )
+
+    with pytest.raises(RuntimeError, match="boom") as exc_info:
+        runner.run(request)
+
+    assert call_order == ["predict_kinase", "clear_cache", "flush_final"]
+    assert exc_info.value.__cause__ is not None
+    assert "cache cleanup failed" in str(exc_info.value.__cause__)
+    assert "trace flush failed" in str(exc_info.value.__cause__)
+
+
 def test_ensemble_predictor_precomputes_negative_pool_without_index_isin(
     monkeypatch,
 ) -> None:

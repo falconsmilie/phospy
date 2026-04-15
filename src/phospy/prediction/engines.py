@@ -115,6 +115,44 @@ class PredictionExecutionRunner:
         self.trace_recorder = trace_recorder
         self.ensemble_predictor = validate_ensemble_predictor(ensemble_predictor)
 
+    @staticmethod
+    def _merge_cleanup_errors(
+        *,
+        clear_cache_error: BaseException | None,
+        flush_final_error: BaseException | None,
+    ) -> BaseException | None:
+        if clear_cache_error is None:
+            return flush_final_error
+        if flush_final_error is None:
+            return clear_cache_error
+        return RuntimeError(
+            "Prediction cleanup failed: clear_cache raised "
+            f"{clear_cache_error!r}; flush_final raised {flush_final_error!r}"
+        )
+
+    def _cleanup_prediction_resources(
+        self,
+        *,
+        trace_state,
+    ) -> BaseException | None:
+        clear_cache_error: BaseException | None = None
+        flush_final_error: BaseException | None = None
+
+        try:
+            self.ensemble_predictor.clear_cache()
+        except BaseException as error:
+            clear_cache_error = error
+
+        try:
+            self.trace_recorder.flush_final(trace_state=trace_state)
+        except BaseException as error:
+            flush_final_error = error
+
+        return self._merge_cleanup_errors(
+            clear_cache_error=clear_cache_error,
+            flush_final_error=flush_final_error,
+        )
+
     def run(self, request: PredictionRequest) -> KinasePredictionResult:
         substrate_list = self.candidate_selector.select(
             request.combined_scores,
@@ -141,6 +179,7 @@ class PredictionExecutionRunner:
             trace_sink=request.trace_sink,
         )
         sampling_session = PredictionSamplingSession.from_request(request)
+        execution_error: BaseException | None = None
         try:
             for kinase, substrates in substrate_list.items():
                 batch = self.ensemble_predictor.predict_kinase(
@@ -155,10 +194,17 @@ class PredictionExecutionRunner:
                     pred_matrix=pred_matrix,
                     batch=batch,
                 )
-        finally:
-            self.ensemble_predictor.clear_cache()
+        except BaseException as error:
+            execution_error = error
 
-        self.trace_recorder.flush_final(trace_state=trace_state)
+        cleanup_error = self._cleanup_prediction_resources(trace_state=trace_state)
+        if execution_error is not None:
+            if cleanup_error is not None:
+                raise execution_error from cleanup_error
+            raise execution_error
+        if cleanup_error is not None:
+            raise cleanup_error
+
         return self.prediction_aggregator.finalize(
             pred_matrix=pred_matrix,
             substrate_list=substrate_list,
