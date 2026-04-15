@@ -395,6 +395,128 @@ def test_build_expanded_signalomes_uses_neighbor_map_and_preserves_site_order() 
     )
 
 
+def test_build_expanded_signalomes_materializes_views_lazily() -> None:
+    site_assignments = pd.DataFrame(
+        {
+            "protein_id": ["PROTEIN_1", "PROTEIN_2", "PROTEIN_3", "PROTEIN_4"],
+            "module_id": [1, 2, 1, 3],
+            "top_kinase_candidates": [
+                '["KINASE_A"]',
+                '["KINASE_B"]',
+                '["KINASE_B"]',
+                '["KINASE_C"]',
+            ],
+            "top_kinase_weights": [
+                '{"KINASE_A": 1.0}',
+                '{"KINASE_B": 1.0}',
+                '{"KINASE_B": 1.0}',
+                '{"KINASE_C": 1.0}',
+            ],
+            "top_kinase_tie_count": [1, 1, 1, 1],
+            "top_kinase_is_ambiguous": [False, False, False, False],
+            "top_score": [0.95, 0.92, 0.91, 0.90],
+        },
+        index=pd.Index(["SITE_3", "SITE_1", "SITE_4", "SITE_2"], name="site_id"),
+    )
+    expression_matrix = pd.DataFrame(
+        {
+            "sample_1": [3.0, 1.0, 4.0, 2.0],
+            "sample_2": [3.1, 1.1, 4.1, 2.1],
+        },
+        index=site_assignments.index.copy(),
+    )
+    signalome_modules = pd.DataFrame(
+        {
+            "KINASE_A": [10.0, 80.0, 0.0],
+            "KINASE_B": [90.0, 5.0, 0.0],
+            "KINASE_C": [0.0, 0.0, 95.0],
+        },
+        index=pd.Index([1, 2, 3], name="module_id"),
+    )
+
+    expanded = build_expanded_signalomes(
+        kinases_of_interest=["KINASE_A"],
+        kinase_network={"KINASE_A": ("KINASE_B",)},
+        kinase_substrates={
+            "KINASE_A": ("SITE_2", "SITE_1"),
+            "KINASE_B": ("SITE_3", "SITE_4"),
+        },
+        signalome_modules=signalome_modules,
+        site_assignments=site_assignments,
+        expression_matrix=expression_matrix,
+        min_kinase_module_share_percent=50.0,
+    )
+
+    kinase_a = expanded["KINASE_A"]
+    assert kinase_a._expression_matrix_cache is None
+    assert kinase_a._site_assignments_cache is None
+
+    expression_matrix.loc["SITE_1", "sample_1"] = 123.0
+    site_assignments.loc["SITE_1", "top_score"] = 0.123
+    assert kinase_a.expression_matrix.loc["SITE_1", "sample_1"] == 123.0
+    assert kinase_a.site_assignments.loc["SITE_1", "top_score"] == pytest.approx(0.123)
+
+
+def test_build_expanded_signalomes_reuses_shared_source_tables() -> None:
+    site_assignments = pd.DataFrame(
+        {
+            "protein_id": ["PROTEIN_1", "PROTEIN_2", "PROTEIN_3", "PROTEIN_4"],
+            "module_id": [1, 2, 1, 3],
+            "top_kinase_candidates": [
+                '["KINASE_A"]',
+                '["KINASE_B"]',
+                '["KINASE_B"]',
+                '["KINASE_C"]',
+            ],
+            "top_kinase_weights": [
+                '{"KINASE_A": 1.0}',
+                '{"KINASE_B": 1.0}',
+                '{"KINASE_B": 1.0}',
+                '{"KINASE_C": 1.0}',
+            ],
+            "top_kinase_tie_count": [1, 1, 1, 1],
+            "top_kinase_is_ambiguous": [False, False, False, False],
+            "top_score": [0.95, 0.92, 0.91, 0.90],
+        },
+        index=pd.Index(["SITE_3", "SITE_1", "SITE_4", "SITE_2"], name="site_id"),
+    )
+    expression_matrix = pd.DataFrame(
+        {
+            "sample_1": [3.0, 1.0, 4.0, 2.0],
+            "sample_2": [3.1, 1.1, 4.1, 2.1],
+        },
+        index=site_assignments.index.copy(),
+    )
+    signalome_modules = pd.DataFrame(
+        {
+            "KINASE_A": [10.0, 80.0, 0.0],
+            "KINASE_B": [90.0, 5.0, 0.0],
+            "KINASE_C": [0.0, 0.0, 95.0],
+        },
+        index=pd.Index([1, 2, 3], name="module_id"),
+    )
+
+    expanded = build_expanded_signalomes(
+        kinases_of_interest=["KINASE_A", "KINASE_B"],
+        kinase_network={"KINASE_A": ("KINASE_B",), "KINASE_B": ("KINASE_A",)},
+        kinase_substrates={
+            "KINASE_A": ("SITE_2", "SITE_1"),
+            "KINASE_B": ("SITE_3", "SITE_4"),
+        },
+        signalome_modules=signalome_modules,
+        site_assignments=site_assignments,
+        expression_matrix=expression_matrix,
+        min_kinase_module_share_percent=5.0,
+    )
+
+    kinase_a = expanded["KINASE_A"]
+    kinase_b = expanded["KINASE_B"]
+    assert kinase_a._expression_matrix_source is expression_matrix
+    assert kinase_b._expression_matrix_source is expression_matrix
+    assert kinase_a._site_assignments_source is site_assignments
+    assert kinase_b._site_assignments_source is site_assignments
+
+
 def test_signalome_workflow_accepts_canonical_pred_mat_result_input() -> None:
     phospho_matrix, pred_mat_workflow_result = _build_pred_mat_workflow_result()
 
@@ -1563,6 +1685,25 @@ def test_signalome_result_to_frames_returns_stable_named_outputs() -> None:
         "pred_mat",
         "expression_matrix",
     ]
+
+
+def test_signalome_result_expanded_signalomes_materialize_with_parity() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A"],
+    )
+
+    live = result.expanded_signalomes_live["KINASE_A"]
+    assert live._expression_matrix_cache is None
+    assert live._site_assignments_cache is None
+
+    detached = result.expanded_signalomes["KINASE_A"]
+    pd.testing.assert_frame_equal(detached.expression_matrix, live.expression_matrix)
+    pd.testing.assert_frame_equal(detached.site_assignments, live.site_assignments)
 
 
 def test_signalome_result_wrappers_with_pandas_state_are_not_frozen_dataclasses() -> (

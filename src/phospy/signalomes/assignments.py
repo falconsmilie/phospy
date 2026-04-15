@@ -691,8 +691,9 @@ def build_expanded_signalomes(
             kinase=kinase,
             linked_kinases=linked_kinases,
             regulated_module_ids=regulated_module_ids,
-            expression_matrix=expression_matrix.take(selected_positions),
-            site_assignments=site_assignments.take(selected_positions),
+            expression_matrix=expression_matrix,
+            site_assignments=site_assignments,
+            row_positions=selected_positions,
         )
 
     return expanded

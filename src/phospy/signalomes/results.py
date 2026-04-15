@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
 
 from .constants import MODULE_ID_COLUMN
@@ -15,15 +17,87 @@ if TYPE_CHECKING:
     from .clustering import SignalomeModuleSelectionDiagnostics
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, init=False)
 class ExpandedSignalome:
     """One kinase-of-interest view over the global signalome state."""
 
     kinase: str
     linked_kinases: tuple[str, ...]
     regulated_module_ids: tuple[int, ...]
-    expression_matrix: pd.DataFrame
-    site_assignments: pd.DataFrame
+    _expression_matrix_source: pd.DataFrame
+    _site_assignments_source: pd.DataFrame
+    _row_positions: np.ndarray
+    _expression_matrix_cache: pd.DataFrame | None
+    _site_assignments_cache: pd.DataFrame | None
+
+    def __init__(
+        self,
+        kinase: str,
+        linked_kinases: tuple[str, ...],
+        regulated_module_ids: tuple[int, ...],
+        expression_matrix: pd.DataFrame,
+        site_assignments: pd.DataFrame,
+        row_positions: Sequence[int] | np.ndarray | None = None,
+    ) -> None:
+        self.kinase = str(kinase)
+        self.linked_kinases = tuple(
+            str(linked_kinase) for linked_kinase in linked_kinases
+        )
+        self.regulated_module_ids = tuple(
+            int(module_id) for module_id in regulated_module_ids
+        )
+
+        if expression_matrix.shape[0] != site_assignments.shape[0]:
+            msg = (
+                "expression_matrix and site_assignments must contain the same number "
+                "of rows for expanded signalome views"
+            )
+            raise ValueError(msg)
+
+        self._expression_matrix_source = expression_matrix
+        self._site_assignments_source = site_assignments
+
+        if row_positions is None:
+            self._row_positions = np.arange(site_assignments.shape[0], dtype=int)
+            self._expression_matrix_cache = expression_matrix
+            self._site_assignments_cache = site_assignments
+            return
+
+        row_positions_array = np.asarray(row_positions, dtype=int).reshape(-1)
+        if row_positions_array.size > 0:
+            if row_positions_array.min() < 0:
+                msg = "row_positions must be non-negative"
+                raise ValueError(msg)
+            max_position = int(row_positions_array.max())
+            if max_position >= site_assignments.shape[0]:
+                msg = "row_positions are out of bounds for site_assignments"
+                raise ValueError(msg)
+            if max_position >= expression_matrix.shape[0]:
+                msg = "row_positions are out of bounds for expression_matrix"
+                raise ValueError(msg)
+        self._row_positions = row_positions_array.copy()
+        self._expression_matrix_cache = None
+        self._site_assignments_cache = None
+
+    @property
+    def expression_matrix(self) -> pd.DataFrame:
+        """Return the expanded expression matrix, materialising lazily."""
+
+        if self._expression_matrix_cache is None:
+            self._expression_matrix_cache = self._expression_matrix_source.take(
+                self._row_positions
+            )
+        return self._expression_matrix_cache
+
+    @property
+    def site_assignments(self) -> pd.DataFrame:
+        """Return expanded site assignments, materialising lazily."""
+
+        if self._site_assignments_cache is None:
+            self._site_assignments_cache = self._site_assignments_source.take(
+                self._row_positions
+            )
+        return self._site_assignments_cache
 
 
 @dataclass(slots=True, init=False)
