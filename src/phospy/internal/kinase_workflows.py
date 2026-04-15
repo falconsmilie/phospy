@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Generic, TypeVar
 
 import pandas as pd
 
@@ -20,6 +21,8 @@ from ..references import ReferenceBundle
 from ..validation.requests.workflow import WorkflowInputs
 
 __all__ = ["KinaseWorkflow", "PredMatWorkflow"]
+
+_WorkflowResultT = TypeVar("_WorkflowResultT")
 
 
 @dataclass(slots=True)
@@ -82,148 +85,95 @@ def _validate_workflow_inputs(
     )
 
 
-def _package_kinase_workflow_result(
-    result: KinaseWorkflowExecutionResult,
-) -> KinaseWorkflowResult:
-    return KinaseWorkflowResult(
-        profile_result=result.profile_result,
-        motif_result=result.motif_result,
-        scoring_result=result.scoring_result,
-        prediction_result=result.prediction_result,
-    )
+class _BaseKinaseWorkflow(Generic[_WorkflowResultT]):
+    """Shared validated execution path for native kinase workflow adapters."""
+
+    def __init__(
+        self,
+        flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
+        kernel: str = "rbf",
+        svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
+    ) -> None:
+        self._executor = KinaseWorkflowExecutor(
+            flank_size=flank_size,
+            kernel=kernel,
+            svm_mode=svm_mode,
+        )
+
+    def _validate_request(
+        self,
+        *,
+        phospho_matrix: pd.DataFrame,
+        substrate_map: Mapping[str, Sequence[str]] | None = None,
+        site_sequences: Mapping[str, str] | pd.Series | None = None,
+        motif_sequences: Mapping[str, Sequence[str]] | None = None,
+        reference_bundle: ReferenceBundle | None = None,
+        prediction_config: PredictionRunConfig | None = None,
+    ) -> WorkflowInputs:
+        return _validate_workflow_inputs(
+            executor=self._executor,
+            phospho_matrix=phospho_matrix,
+            substrate_map=substrate_map,
+            site_sequences=site_sequences,
+            motif_sequences=motif_sequences,
+            reference_bundle=reference_bundle,
+            prediction_config=prediction_config,
+        )
+
+    def run(
+        self,
+        phospho_matrix: pd.DataFrame,
+        substrate_map: Mapping[str, Sequence[str]] | None = None,
+        site_sequences: Mapping[str, str] | pd.Series | None = None,
+        motif_sequences: Mapping[str, Sequence[str]] | None = None,
+        reference_bundle: ReferenceBundle | None = None,
+        prediction_config: PredictionRunConfig | None = None,
+    ) -> _WorkflowResultT:
+        request = self._validate_request(
+            phospho_matrix=phospho_matrix,
+            substrate_map=substrate_map,
+            site_sequences=site_sequences,
+            motif_sequences=motif_sequences,
+            reference_bundle=reference_bundle,
+            prediction_config=prediction_config,
+        )
+        return self.run_validated(request)
+
+    def run_validated(self, request: WorkflowInputs) -> _WorkflowResultT:
+        result = self._executor.execute_validated_request(request)
+        return self._package_result(result)
+
+    def _package_result(
+        self,
+        result: KinaseWorkflowExecutionResult,
+    ) -> _WorkflowResultT:
+        raise NotImplementedError
 
 
-def _package_pred_mat_workflow_result(
-    result: KinaseWorkflowExecutionResult,
-) -> PredMatWorkflowResult:
-    return PredMatWorkflowResult(
-        scoring_result=result.scoring_result,
-        prediction_result=result.prediction_result,
-        pred_mat_result=result.prediction_result.pred_mat_result,
-    )
-
-
-class KinaseWorkflow:
+class KinaseWorkflow(_BaseKinaseWorkflow[KinaseWorkflowResult]):
     """Run the native kinase scoring and prediction workflow end to end."""
 
-    def __init__(
+    def _package_result(
         self,
-        flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
-        kernel: str = "rbf",
-        svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
-    ) -> None:
-        self._executor = KinaseWorkflowExecutor(
-            flank_size=flank_size,
-            kernel=kernel,
-            svm_mode=svm_mode,
-        )
-
-    def _validate_request(
-        self,
-        *,
-        phospho_matrix: pd.DataFrame,
-        substrate_map: Mapping[str, Sequence[str]] | None = None,
-        site_sequences: Mapping[str, str] | pd.Series | None = None,
-        motif_sequences: Mapping[str, Sequence[str]] | None = None,
-        reference_bundle: ReferenceBundle | None = None,
-        prediction_config: PredictionRunConfig | None = None,
-    ) -> WorkflowInputs:
-        return _validate_workflow_inputs(
-            executor=self._executor,
-            phospho_matrix=phospho_matrix,
-            substrate_map=substrate_map,
-            site_sequences=site_sequences,
-            motif_sequences=motif_sequences,
-            reference_bundle=reference_bundle,
-            prediction_config=prediction_config,
-        )
-
-    def run(
-        self,
-        phospho_matrix: pd.DataFrame,
-        substrate_map: Mapping[str, Sequence[str]] | None = None,
-        site_sequences: Mapping[str, str] | pd.Series | None = None,
-        motif_sequences: Mapping[str, Sequence[str]] | None = None,
-        reference_bundle: ReferenceBundle | None = None,
-        prediction_config: PredictionRunConfig | None = None,
+        result: KinaseWorkflowExecutionResult,
     ) -> KinaseWorkflowResult:
-        request = self._validate_request(
-            phospho_matrix=phospho_matrix,
-            substrate_map=substrate_map,
-            site_sequences=site_sequences,
-            motif_sequences=motif_sequences,
-            reference_bundle=reference_bundle,
-            prediction_config=prediction_config,
-        )
-        return self.run_validated(request)
-
-    def run_validated(
-        self,
-        request: WorkflowInputs,
-    ) -> KinaseWorkflowResult:
-        return _package_kinase_workflow_result(
-            self._executor.execute_validated_request(request)
+        return KinaseWorkflowResult(
+            profile_result=result.profile_result,
+            motif_result=result.motif_result,
+            scoring_result=result.scoring_result,
+            prediction_result=result.prediction_result,
         )
 
 
-class PredMatWorkflow:
+class PredMatWorkflow(_BaseKinaseWorkflow[PredMatWorkflowResult]):
     """Generate a predMat from phosphosite and sequence inputs."""
 
-    def __init__(
+    def _package_result(
         self,
-        flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
-        kernel: str = "rbf",
-        svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
-    ) -> None:
-        self._executor = KinaseWorkflowExecutor(
-            flank_size=flank_size,
-            kernel=kernel,
-            svm_mode=svm_mode,
-        )
-
-    def _validate_request(
-        self,
-        *,
-        phospho_matrix: pd.DataFrame,
-        substrate_map: Mapping[str, Sequence[str]] | None = None,
-        site_sequences: Mapping[str, str] | pd.Series | None = None,
-        motif_sequences: Mapping[str, Sequence[str]] | None = None,
-        reference_bundle: ReferenceBundle | None = None,
-        prediction_config: PredictionRunConfig | None = None,
-    ) -> WorkflowInputs:
-        return _validate_workflow_inputs(
-            executor=self._executor,
-            phospho_matrix=phospho_matrix,
-            substrate_map=substrate_map,
-            site_sequences=site_sequences,
-            motif_sequences=motif_sequences,
-            reference_bundle=reference_bundle,
-            prediction_config=prediction_config,
-        )
-
-    def run(
-        self,
-        phospho_matrix: pd.DataFrame,
-        substrate_map: Mapping[str, Sequence[str]] | None = None,
-        site_sequences: Mapping[str, str] | pd.Series | None = None,
-        motif_sequences: Mapping[str, Sequence[str]] | None = None,
-        reference_bundle: ReferenceBundle | None = None,
-        prediction_config: PredictionRunConfig | None = None,
+        result: KinaseWorkflowExecutionResult,
     ) -> PredMatWorkflowResult:
-        request = self._validate_request(
-            phospho_matrix=phospho_matrix,
-            substrate_map=substrate_map,
-            site_sequences=site_sequences,
-            motif_sequences=motif_sequences,
-            reference_bundle=reference_bundle,
-            prediction_config=prediction_config,
-        )
-        return self.run_validated(request)
-
-    def run_validated(
-        self,
-        request: WorkflowInputs,
-    ) -> PredMatWorkflowResult:
-        return _package_pred_mat_workflow_result(
-            self._executor.execute_validated_request(request)
+        return PredMatWorkflowResult(
+            scoring_result=result.scoring_result,
+            prediction_result=result.prediction_result,
+            pred_mat_result=result.prediction_result.pred_mat_result,
         )
