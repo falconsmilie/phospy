@@ -119,7 +119,7 @@ def _make_analysis_ready_dataset(
     *,
     phospho_matrix: pd.DataFrame,
     protein_ids: dict[str, str],
-    metadata_column: str = "gene",
+    metadata_column: str = "protein_id",
 ) -> AnalysisReadyPhosphoDataset:
     site_index = pd.Index(
         [str(site_id) for site_id in phospho_matrix.index],
@@ -520,7 +520,7 @@ def test_signalome_workflow_run_from_analysis_ready_uses_site_metadata_mapping()
     assert result.site_assignments.loc["SITE_2", "protein_id"] == "PROTEIN_A"
 
 
-def test_signalome_workflow_run_from_analysis_ready_reports_missing_mapping_metadata() -> (
+def test_signalome_workflow_run_from_analysis_ready_strict_mode_rejects_gene_metadata_fallback() -> (
     None
 ):
     phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
@@ -542,21 +542,106 @@ def test_signalome_workflow_run_from_analysis_ready_reports_missing_mapping_meta
     analysis_ready = _make_analysis_ready_dataset(
         phospho_matrix=renamed_expression_matrix,
         protein_ids=protein_ids,
-        metadata_column="uid",
+        metadata_column="gene",
     )
 
     with pytest.raises(
         InputCompatibilityError,
-        match=(
-            "AnalysisReadyPhosphoDataset.site_metadata does not include a usable "
-            "site-to-protein column"
-        ),
+        match="required strict site-to-protein column 'protein_id'",
     ):
         SignalomeWorkflow().run_from_analysis_ready(
             dataset=analysis_ready,
             scoring_result=scoring_result,
             prediction_result=renamed_pred_mat_result,
             kinases_of_interest=["KINASE_A"],
+        )
+
+
+def test_signalome_workflow_run_from_analysis_ready_supports_explicit_gene_fallback_mode() -> (
+    None
+):
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+    renamed_index = [f"SITE_{i}" for i in range(1, phospho_matrix.shape[0] + 1)]
+    renamed_expression_matrix = phospho_matrix.copy()
+    renamed_expression_matrix.index = renamed_index
+
+    scoring_result = pred_mat_result.scoring_result
+    scoring_result.combined_scores.index = renamed_index
+    scoring_result.profile_scores.index = renamed_index
+
+    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat.index = renamed_index
+    renamed_pred_mat_result = PredMatResult(pred_mat)
+    gene_mapping = {
+        "SITE_1": "PROTEIN_A",
+        "SITE_2": "PROTEIN_A",
+        "SITE_3": "PROTEIN_B",
+        "SITE_4": "PROTEIN_B",
+        "SITE_5": "PROTEIN_C",
+        "SITE_6": "PROTEIN_C",
+        "SITE_7": "PROTEIN_D",
+        "SITE_8": "PROTEIN_D",
+    }
+    analysis_ready = _make_analysis_ready_dataset(
+        phospho_matrix=renamed_expression_matrix,
+        protein_ids=gene_mapping,
+        metadata_column="gene",
+    )
+
+    with pytest.warns(
+        UserWarning,
+        match="Gene-symbol site-to-protein fallback is enabled",
+    ):
+        result = SignalomeWorkflow().run_from_analysis_ready(
+            dataset=analysis_ready,
+            scoring_result=scoring_result,
+            prediction_result=renamed_pred_mat_result,
+            kinases_of_interest=["KINASE_A"],
+            metadata_fallback_policy="metadata",
+            metadata_protein_columns=["gene"],
+            allow_gene_symbol_fallback=True,
+        )
+
+    assert sorted(result.protein_assignments.index.tolist()) == [
+        "PROTEIN_A",
+        "PROTEIN_B",
+        "PROTEIN_C",
+        "PROTEIN_D",
+    ]
+
+
+def test_signalome_workflow_run_from_analysis_ready_rejects_ambiguous_metadata_fallback() -> (
+    None
+):
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+    ambiguous_gene_mapping = {
+        "PROTEIN_1;S1;": "SHARED_GENE",
+        "PROTEIN_2;S2;": "SHARED_GENE",
+        "PROTEIN_3;S3;": "PROTEIN_3",
+        "PROTEIN_4;S4;": "PROTEIN_4",
+        "PROTEIN_5;S5;": "PROTEIN_5",
+        "PROTEIN_6;S6;": "PROTEIN_6",
+        "PROTEIN_7;S7;": "PROTEIN_7",
+        "PROTEIN_8;S8;": "PROTEIN_8",
+    }
+    analysis_ready = _make_analysis_ready_dataset(
+        phospho_matrix=phospho_matrix,
+        protein_ids=ambiguous_gene_mapping,
+        metadata_column="gene",
+    )
+
+    with pytest.raises(
+        InputCompatibilityError,
+        match="Ambiguous site-to-protein metadata mapping detected",
+    ):
+        SignalomeWorkflow().run_from_analysis_ready(
+            dataset=analysis_ready,
+            scoring_result=pred_mat_result.scoring_result,
+            prediction_result=pred_mat_result.prediction_result,
+            kinases_of_interest=["KINASE_A"],
+            metadata_fallback_policy="metadata",
+            metadata_protein_columns=["gene"],
+            allow_gene_symbol_fallback=True,
         )
 
 

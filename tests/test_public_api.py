@@ -145,6 +145,10 @@ def test_signalome_workflow_runs_from_simple_workflow_outputs() -> None:
             random_state=7,
         ),
     )
+    site_to_protein = {
+        str(site_id): str(site_id).split(";", 1)[0]
+        for site_id in simple_result.analysis_ready_dataset.phospho_matrix.index
+    }
 
     signalome_result = SignalomeWorkflow().run_from_analysis_ready(
         dataset=simple_result.analysis_ready_dataset,
@@ -153,6 +157,7 @@ def test_signalome_workflow_runs_from_simple_workflow_outputs() -> None:
         kinases_of_interest=list(
             simple_result.pred_mat_result.to_frame(copy=False).columns[:2]
         ),
+        site_to_protein=site_to_protein,
         config=SignalomeRunConfig(signalome_cutoff=0.5),
     )
 

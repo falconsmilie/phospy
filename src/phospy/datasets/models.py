@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +29,7 @@ from ..internal.types import (
 )
 from ..preprocessing.core import CorePreprocessingConfig, CoreProcessingResult
 from ..preprocessing.dataset import DatasetPreprocessing
+from ..validation.values.identifiers import parse_canonical_site_id
 from .builders import (
     DatasetSiteMatrix,
     _build_site_metadata,
@@ -48,9 +50,20 @@ __all__ = [
     "PhosphoDataset",
 ]
 
-_DEFAULT_SITE_TO_PROTEIN_METADATA_COLUMNS: tuple[str, ...] = (
+_SITE_TO_PROTEIN_FALLBACK_POLICY_STRICT: str = "strict"
+_SITE_TO_PROTEIN_FALLBACK_POLICY_METADATA: str = "metadata"
+_SITE_TO_PROTEIN_FALLBACK_POLICIES: tuple[str, ...] = (
+    _SITE_TO_PROTEIN_FALLBACK_POLICY_STRICT,
+    _SITE_TO_PROTEIN_FALLBACK_POLICY_METADATA,
+)
+_STRICT_SITE_TO_PROTEIN_METADATA_COLUMNS: tuple[str, ...] = ("protein_id",)
+_DEFAULT_FALLBACK_SITE_TO_PROTEIN_METADATA_COLUMNS: tuple[str, ...] = (
     "protein_id",
     "protein",
+    SITE_MATRIX_GENE_COLUMN,
+    PHOSPHO_GENE_COLUMN,
+)
+_GENE_SYMBOL_METADATA_COLUMNS: tuple[str, ...] = (
     SITE_MATRIX_GENE_COLUMN,
     PHOSPHO_GENE_COLUMN,
 )
@@ -287,14 +300,52 @@ class AnalysisReadyPhosphoDataset:
         self,
         *,
         metadata_columns: Sequence[str] | None = None,
+        fallback_policy: str = _SITE_TO_PROTEIN_FALLBACK_POLICY_STRICT,
+        allow_gene_symbol_fallback: bool = False,
+        allow_ambiguous_fallback: bool = False,
     ) -> pd.Series:
-        """Resolve an aligned site-to-protein mapping from site metadata."""
+        """Resolve an aligned site-to-protein mapping from site metadata.
 
-        resolved_candidates = (
-            _DEFAULT_SITE_TO_PROTEIN_METADATA_COLUMNS
-            if metadata_columns is None
-            else tuple(metadata_columns)
-        )
+        Parameters
+        ----------
+        metadata_columns:
+            Candidate metadata columns to evaluate when ``fallback_policy`` is
+            ``"metadata"``.
+        fallback_policy:
+            Mapping policy:
+            - ``"strict"`` (default): require ``protein_id`` only.
+            - ``"metadata"``: opt in to metadata fallback columns.
+        allow_gene_symbol_fallback:
+            Opt in to gene-symbol fallback when using ``fallback_policy="metadata"``.
+            Disabled by default because gene symbols can collapse distinct proteins.
+        allow_ambiguous_fallback:
+            Opt in to ambiguous fallback values that map to multiple canonical
+            protein IDs when those IDs are parseable from site IDs.
+        """
+
+        resolved_fallback_policy = str(fallback_policy).strip().lower()
+        if resolved_fallback_policy not in _SITE_TO_PROTEIN_FALLBACK_POLICIES:
+            allowed = ", ".join(_SITE_TO_PROTEIN_FALLBACK_POLICIES)
+            msg = (
+                "fallback_policy must be one of: "
+                f"{allowed}. Received: {fallback_policy!r}"
+            )
+            raise ValueError(msg)
+
+        if resolved_fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_STRICT:
+            if metadata_columns is not None:
+                msg = (
+                    "metadata_columns is only supported when "
+                    "fallback_policy='metadata'."
+                )
+                raise ValueError(msg)
+            resolved_candidates = _STRICT_SITE_TO_PROTEIN_METADATA_COLUMNS
+        else:
+            resolved_candidates = (
+                _DEFAULT_FALLBACK_SITE_TO_PROTEIN_METADATA_COLUMNS
+                if metadata_columns is None
+                else tuple(metadata_columns)
+            )
         candidate_columns = tuple(
             str(column).strip()
             for column in resolved_candidates
@@ -349,6 +400,73 @@ class AnalysisReadyPhosphoDataset:
                 incomplete_column_diagnostics.append(diagnostic)
                 continue
 
+            if (
+                resolved_fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_METADATA
+                and candidate in _GENE_SYMBOL_METADATA_COLUMNS
+            ):
+                if not allow_gene_symbol_fallback:
+                    msg = (
+                        "Gene-symbol site-to-protein fallback is disabled by default "
+                        "because it can collapse distinct proteins. "
+                        f"Resolved fallback column: '{candidate}'. "
+                        "Provide explicit site_to_protein, include a 'protein_id' "
+                        "metadata column, or set allow_gene_symbol_fallback=True "
+                        "to opt in."
+                    )
+                    raise InputCompatibilityError(msg)
+                warnings.warn(
+                    (
+                        "Gene-symbol site-to-protein fallback is enabled for "
+                        f"column '{candidate}'. This can collapse biologically "
+                        "distinct proteins."
+                    ),
+                    category=UserWarning,
+                    stacklevel=2,
+                )
+
+            if (
+                resolved_fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_METADATA
+                and candidate != "protein_id"
+            ):
+                canonical_entities_by_fallback: dict[str, set[str]] = {}
+                for site_id, fallback_value in zip(
+                    site_index.astype(str).tolist(),
+                    stripped_values.astype(str).tolist(),
+                    strict=True,
+                ):
+                    parsed_site_id = parse_canonical_site_id(site_id)
+                    if parsed_site_id is None:
+                        continue
+                    canonical_entity, _ = parsed_site_id
+                    canonical_entities_by_fallback.setdefault(
+                        fallback_value,
+                        set(),
+                    ).add(canonical_entity)
+
+                ambiguous_identifiers = sorted(
+                    fallback_value
+                    for fallback_value, canonical_entities in (
+                        canonical_entities_by_fallback.items()
+                    )
+                    if len(canonical_entities) > 1
+                )
+                if ambiguous_identifiers:
+                    preview = ", ".join(ambiguous_identifiers[:3])
+                    suffix = ", ..." if len(ambiguous_identifiers) > 3 else ""
+                    message = (
+                        "Ambiguous site-to-protein metadata mapping detected: "
+                        f"column '{candidate}' maps one fallback identifier to "
+                        "multiple canonical protein IDs inferred from site IDs. "
+                        f"Ambiguous identifiers: {preview}{suffix}"
+                    )
+                    if not allow_ambiguous_fallback:
+                        raise InputCompatibilityError(message)
+                    warnings.warn(
+                        f"{message}. Proceeding because allow_ambiguous_fallback=True.",
+                        category=UserWarning,
+                        stacklevel=2,
+                    )
+
             resolved_index = pd.Index(
                 site_index.astype(str),
                 dtype=object,
@@ -368,11 +486,18 @@ class AnalysisReadyPhosphoDataset:
             )
             if len(self.site_metadata.columns) > 5:
                 available_preview += ", ..."
-            msg = (
-                "AnalysisReadyPhosphoDataset.site_metadata does not include a usable "
-                "site-to-protein column. "
-                f"Checked columns: {checked_preview}. "
-            )
+            if resolved_fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_STRICT:
+                msg = (
+                    "AnalysisReadyPhosphoDataset.site_metadata does not include the "
+                    "required strict site-to-protein column 'protein_id'. "
+                    "Strict mode does not allow metadata fallback columns. "
+                )
+            else:
+                msg = (
+                    "AnalysisReadyPhosphoDataset.site_metadata does not include a "
+                    "usable site-to-protein column. "
+                    f"Checked columns: {checked_preview}. "
+                )
             if available_preview:
                 msg += f"Available columns: {available_preview}. "
             else:

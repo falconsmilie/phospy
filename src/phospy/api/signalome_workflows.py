@@ -78,9 +78,17 @@ class SignalomeWorkflow:
         kinases_of_interest: Sequence[str],
         site_to_protein: Mapping[str, str] | None = None,
         metadata_protein_columns: Sequence[str] | None = None,
+        metadata_fallback_policy: str = "strict",
+        allow_gene_symbol_fallback: bool = False,
+        allow_ambiguous_metadata_mapping: bool = False,
         config: SignalomeRunConfig | None = None,
     ) -> SignalomeResult:
-        """Run signalome analysis from an analysis-ready dataset boundary."""
+        """Run signalome analysis from an analysis-ready dataset boundary.
+
+        Defaults to strict metadata resolution requiring a ``protein_id`` column.
+        To opt in to metadata fallback columns, set
+        ``metadata_fallback_policy="metadata"``.
+        """
         from ..datasets.models import AnalysisReadyPhosphoDataset
 
         if not isinstance(dataset, AnalysisReadyPhosphoDataset):
@@ -94,7 +102,10 @@ class SignalomeWorkflow:
             dict(site_to_protein)
             if site_to_protein is not None
             else dataset.resolve_site_to_protein_mapping(
-                metadata_columns=metadata_protein_columns
+                metadata_columns=metadata_protein_columns,
+                fallback_policy=metadata_fallback_policy,
+                allow_gene_symbol_fallback=allow_gene_symbol_fallback,
+                allow_ambiguous_fallback=allow_ambiguous_metadata_mapping,
             ).to_dict()
         )
         return self.run(

@@ -229,11 +229,16 @@ SignalomeWorkflow().run_from_analysis_ready(
     kinases_of_interest: Sequence[str],
     site_to_protein: Mapping[str, str] | None = None,
     metadata_protein_columns: Sequence[str] | None = None,
+    metadata_fallback_policy: str = "strict",
+    allow_gene_symbol_fallback: bool = False,
+    allow_ambiguous_metadata_mapping: bool = False,
     config: SignalomeRunConfig | None = None,
 ) -> SignalomeResult
 ```
 
-If `site_to_protein` is omitted, signalome grouping falls back to supported `ENTITY;SITE;` phosphosite IDs such as `BTK;Y551;`. When your IDs do not follow that format, pass `site_to_protein` explicitly or use `run_from_analysis_ready(...)` so PhosPy can resolve mapping from dataset metadata.
+If `site_to_protein` is omitted, `run(...)` falls back to supported `ENTITY;SITE;` phosphosite IDs such as `BTK;Y551;`.
+
+`run_from_analysis_ready(...)` defaults to strict metadata resolution and requires a `protein_id` metadata column. To opt in to metadata fallback columns, set `metadata_fallback_policy="metadata"` and provide `metadata_protein_columns`. Gene-symbol fallback is disabled by default and must be explicitly enabled with `allow_gene_symbol_fallback=True`.
 
 ## Preferred Imports
 
