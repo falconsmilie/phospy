@@ -126,6 +126,16 @@ Use `phospy --help` to see every option.
 - [`examples/signalome_map_demo.py`](examples/signalome_map_demo.py)
 - [`examples/kinase_activity_analyzer_demo.py`](examples/kinase_activity_analyzer_demo.py)
 
+## Contributor Hygiene Check
+
+CI enforces repository hygiene and fails if ignored/generated artefacts are tracked, including:
+
+- `__pycache__/`
+- `*.egg-info/`
+- `benchmarks/reports/` output
+
+If CI fails on this check, untrack the files before committing (for example with `git rm --cached <path>`).
+
 ## Read Next
 
 ### Beginner guides

@@ -9,7 +9,41 @@ permissions:
   contents: read
 
 jobs:
+  repo-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Fail on tracked ignored/generated artefacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tracked_ignored="$(git ls-files -ci --exclude-standard)"
+          tracked_generated="$(
+            git ls-files \
+            | grep -E '(^|/)__pycache__/|(^|/)[^/]+\.egg-info/|^benchmarks/reports/' || true
+          )"
+
+          if [[ -n "${tracked_ignored}" || -n "${tracked_generated}" ]]; then
+            echo "Tracked ignored/generated artefacts detected."
+            echo "Remove these files from git tracking before merging."
+            if [[ -n "${tracked_ignored}" ]]; then
+              echo
+              echo "Tracked files that match .gitignore:"
+              printf '%s\n' "${tracked_ignored}"
+            fi
+            if [[ -n "${tracked_generated}" ]]; then
+              echo
+              echo "Tracked generated artefacts blocked by CI policy:"
+              printf '%s\n' "${tracked_generated}"
+            fi
+            exit 1
+          fi
+
   lint:
+    needs: repo-hygiene
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -27,6 +61,7 @@ jobs:
         run: pre-commit run --all-files
 
   unit-tests:
+    needs: repo-hygiene
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -48,6 +83,7 @@ jobs:
         run: pytest -m "not parity"
 
   parity-tests:
+    needs: repo-hygiene
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -65,6 +101,7 @@ jobs:
         run: PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
 
   build-distributions:
+    needs: repo-hygiene
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
