@@ -447,8 +447,9 @@ def _compute_candidate_cluster_scores(
         max_sites_per_cluster=MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
     )
     approximation_note = (
-        " Used sampled within-cluster correlation estimates to avoid "
-        "materializing a full site-by-site correlation matrix."
+        " Used sampled within-cluster correlation estimates (seeded, "
+        "order-invariant sampling) to avoid materializing a full site-by-site "
+        "correlation matrix."
     )
     return candidate_scores, candidate_labels, approximation_note
 
@@ -742,20 +743,23 @@ def cluster_median_correlation_approximate(
     label: int,
     max_sites_per_cluster: int,
 ) -> float:
-    """Approximate the within-cluster median correlation for one label."""
+    """Approximate within-cluster median correlation with seeded row sampling.
+
+    When a cluster exceeds ``max_sites_per_cluster``, rows are sampled without
+    replacement using a deterministic RNG seed derived from order-invariant row
+    hashes. This keeps approximation reproducible while avoiding row-order bias.
+    """
 
     cluster_positions = np.flatnonzero(labels == label)
     if cluster_positions.size <= 1:
         return 0.0
 
     if cluster_positions.size > max_sites_per_cluster:
-        sampled_positions = np.linspace(
-            0,
-            cluster_positions.size - 1,
-            num=max_sites_per_cluster,
-            dtype=int,
+        cluster_positions = _sample_cluster_positions_for_approximation(
+            scoring_values=scoring_values,
+            cluster_positions=cluster_positions,
+            sample_size=max_sites_per_cluster,
         )
-        cluster_positions = cluster_positions[sampled_positions]
 
     cluster_values = scoring_values[cluster_positions]
     profile_degeneracy = summarize_profile_degeneracy(cluster_values)
@@ -771,3 +775,73 @@ def cluster_median_correlation_approximate(
     if values.size == 0:
         return 0.0
     return float(np.median(values))
+
+
+def _sample_cluster_positions_for_approximation(
+    *,
+    scoring_values: np.ndarray,
+    cluster_positions: np.ndarray,
+    sample_size: int,
+) -> np.ndarray:
+    """Sample cluster rows without replacement using order-invariant seeding."""
+
+    cluster_values = np.asarray(scoring_values, dtype=np.float64)[cluster_positions]
+    row_hashes = _stable_row_hashes(cluster_values)
+    seed = int(_build_order_invariant_sampling_seed(row_hashes, sample_size))
+    random_generator = np.random.default_rng(seed)
+
+    # Canonical row ordering avoids dependence on the input row sequence.
+    tie_breakers = _splitmix64(row_hashes ^ np.uint64(0xA0761D6478BD642F))
+    canonical_order = np.lexsort((tie_breakers, row_hashes))
+    sampled_offsets = random_generator.choice(
+        cluster_positions.size,
+        size=sample_size,
+        replace=False,
+    )
+    return cluster_positions[canonical_order[sampled_offsets]]
+
+
+def _stable_row_hashes(values: np.ndarray) -> np.ndarray:
+    """Build stable 64-bit hashes for each row of a float matrix."""
+
+    matrix = np.ascontiguousarray(np.asarray(values, dtype=np.float64))
+    if matrix.ndim != 2:
+        msg = "values must be a 2D matrix"
+        raise ValueError(msg)
+    if matrix.shape[0] == 0:
+        return np.zeros(0, dtype=np.uint64)
+
+    words = matrix.view(np.uint64)
+    row_hashes = np.full(words.shape[0], np.uint64(1469598103934665603))
+    fnv_prime = np.uint64(1099511628211)
+    for word_index in range(words.shape[1]):
+        row_hashes ^= words[:, word_index]
+        row_hashes *= fnv_prime
+    return _splitmix64(row_hashes)
+
+
+def _build_order_invariant_sampling_seed(
+    row_hashes: np.ndarray,
+    sample_size: int,
+) -> np.uint64:
+    """Build a deterministic seed from order-invariant cluster summaries."""
+
+    sorted_hashes = np.sort(np.asarray(row_hashes, dtype=np.uint64), kind="mergesort")
+    seed = np.uint64(0xD2B74407B1CE6E93)
+    seed ^= np.uint64(sorted_hashes.size)
+    seed ^= np.uint64(sample_size)
+    if sorted_hashes.size > 0:
+        seed ^= np.bitwise_xor.reduce(sorted_hashes)
+        seed ^= np.sum(sorted_hashes, dtype=np.uint64)
+        seed ^= sorted_hashes[sorted_hashes.size // 2]
+    return np.uint64(_splitmix64(np.asarray([seed], dtype=np.uint64))[0])
+
+
+def _splitmix64(values: np.ndarray) -> np.ndarray:
+    """Vectorized SplitMix64 mixing for deterministic pseudo-random keys."""
+
+    mixed = np.asarray(values, dtype=np.uint64).copy()
+    mixed = mixed + np.uint64(0x9E3779B97F4A7C15)
+    mixed = (mixed ^ (mixed >> np.uint64(30))) * np.uint64(0xBF58476D1CE4E5B9)
+    mixed = (mixed ^ (mixed >> np.uint64(27))) * np.uint64(0x94D049BB133111EB)
+    return mixed ^ (mixed >> np.uint64(31))

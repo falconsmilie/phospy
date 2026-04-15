@@ -1181,6 +1181,86 @@ def test_select_module_count_avoids_full_correlation_matrix_for_large_inputs(
     assert max(observed_rows) < scoring_values.shape[0]
 
 
+def test_cluster_median_correlation_approximate_is_reproducible_and_row_order_invariant_for_large_clusters() -> (
+    None
+):
+    random_generator = np.random.default_rng(2026)
+    cluster_a = random_generator.normal(loc=0.0, scale=0.25, size=(180, 6))
+    cluster_b = random_generator.normal(loc=3.5, scale=0.25, size=(180, 6))
+    scoring_values = np.vstack([cluster_a, cluster_b]).astype(float, copy=False)
+    labels = np.concatenate(
+        [
+            np.zeros(180, dtype=int),
+            np.ones(180, dtype=int),
+        ]
+    )
+
+    baseline = signalome_clustering.cluster_median_correlation_approximate(
+        scoring_values=scoring_values,
+        labels=labels,
+        label=0,
+        max_sites_per_cluster=64,
+    )
+    repeat = signalome_clustering.cluster_median_correlation_approximate(
+        scoring_values=scoring_values,
+        labels=labels,
+        label=0,
+        max_sites_per_cluster=64,
+    )
+
+    permutation = np.random.default_rng(7).permutation(scoring_values.shape[0])
+    reordered = signalome_clustering.cluster_median_correlation_approximate(
+        scoring_values=scoring_values[permutation],
+        labels=labels[permutation],
+        label=0,
+        max_sites_per_cluster=64,
+    )
+
+    assert repeat == pytest.approx(baseline, abs=0.0, rel=0.0)
+    assert reordered == pytest.approx(baseline, abs=0.0, rel=0.0)
+
+
+def test_select_module_count_approximate_path_is_row_order_invariant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(signalome_clustering, "MAX_FULL_CORRELATION_SITE_COUNT", 20)
+    monkeypatch.setattr(
+        signalome_clustering,
+        "MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER",
+        32,
+    )
+    random_generator = np.random.default_rng(42)
+    cluster_a = random_generator.normal(loc=0.0, scale=0.3, size=(120, 5))
+    cluster_b = random_generator.normal(loc=4.0, scale=0.3, size=(120, 5))
+    scoring_values = np.vstack([cluster_a, cluster_b]).astype(float, copy=False)
+    permutation = np.random.default_rng(99).permutation(scoring_values.shape[0])
+
+    original = signalome_clustering.select_module_count_with_diagnostics(
+        scoring_values=scoring_values
+    )
+    reordered = signalome_clustering.select_module_count_with_diagnostics(
+        scoring_values=scoring_values[permutation]
+    )
+
+    assert original.selected_module_count == reordered.selected_module_count
+    assert set(original.candidate_scores) == set(reordered.candidate_scores)
+    for cluster_count in original.candidate_scores:
+        assert original.candidate_scores[cluster_count].min_median_correlation == (
+            pytest.approx(
+                reordered.candidate_scores[cluster_count].min_median_correlation,
+                abs=1e-12,
+                rel=0.0,
+            )
+        )
+        assert original.candidate_scores[cluster_count].mean_median_correlation == (
+            pytest.approx(
+                reordered.candidate_scores[cluster_count].mean_median_correlation,
+                abs=1e-12,
+                rel=0.0,
+            )
+        )
+
+
 def test_select_module_count_excludes_constant_profiles_without_runtime_warnings() -> (
     None
 ):
