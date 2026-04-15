@@ -19,10 +19,74 @@ from .contracts import (
     KinaseActivityConfig,
     PredictionRunConfig,
 )
-from .orchestration import KinaseOrchestrationService
 from .workflow_results import SimpleKinaseWorkflowResult
 
 __all__ = ["SimpleKinaseWorkflow"]
+
+
+class SimpleKinaseExecutionService:
+    """Validated execution path for the public simple kinase workflow."""
+
+    def run(
+        self,
+        *,
+        phospho: pd.DataFrame | str | Path,
+        species: str,
+        total: pd.DataFrame | str | Path | None,
+        reference: str,
+        dataset_options: DatasetLoadOptions | None,
+        preprocessing_config: CorePreprocessingConfig | None,
+        prediction_config: PredictionRunConfig | None,
+        activity_config: KinaseActivityConfig | None,
+        analysis_ready_builder: AnalysisReadyDatasetBuilder,
+        reference_provider: ReferenceProvider,
+        pred_mat_workflow: PredMatWorkflow,
+        activity_analyzer: KinaseActivityAnalyzer,
+    ) -> SimpleKinaseWorkflowResult:
+        resolved_dataset_options = DatasetLoadOptions.from_value(dataset_options)
+        resolved_preprocessing_config = (
+            CorePreprocessingConfig()
+            if preprocessing_config is None
+            else preprocessing_config
+        )
+        resolved_prediction_config = PredictionRunConfig.from_value(prediction_config)
+        resolved_activity_config = KinaseActivityConfig.from_value(activity_config)
+
+        analysis_ready_dataset = analysis_ready_builder.build(
+            phospho=phospho,
+            total=total,
+            phospho_encoding=resolved_dataset_options.phospho_encoding,
+            schema=resolved_dataset_options.schema,
+            comparisons=resolved_dataset_options.comparisons,
+            preprocessing_config=resolved_preprocessing_config,
+            source="simple kinase workflow",
+            phospho_only_source="simple kinase workflow (phospho only)",
+        )
+        reference_bundle = reference_provider.resolve(
+            species=species,
+            reference=reference,
+        )
+        workflow_result = pred_mat_workflow.run(
+            phospho_matrix=analysis_ready_dataset.phospho_matrix,
+            site_sequences=analysis_ready_dataset.site_sequences,
+            reference_bundle=reference_bundle,
+            prediction_config=resolved_prediction_config,
+        )
+        kinase_activity_result = activity_analyzer.run(
+            pred_mat=workflow_result.pred_mat_result,
+            phospho_matrix=analysis_ready_dataset.phospho_matrix,
+            threshold=resolved_activity_config.threshold,
+            min_substrates=resolved_activity_config.min_substrates,
+            top_n_substrates=resolved_activity_config.top_n_substrates,
+        )
+        return SimpleKinaseWorkflowResult(
+            analysis_ready_dataset=analysis_ready_dataset,
+            reference_bundle=reference_bundle,
+            scoring_result=workflow_result.scoring_result,
+            prediction_result=workflow_result.prediction_result,
+            pred_mat_result=workflow_result.pred_mat_result,
+            kinase_activity_result=kinase_activity_result,
+        )
 
 
 class SimpleKinaseWorkflow:
@@ -37,6 +101,7 @@ class SimpleKinaseWorkflow:
         reference_provider: ReferenceProvider | None = None,
         activity_analyzer: KinaseActivityAnalyzer | None = None,
         analysis_ready_builder: AnalysisReadyDatasetBuilder | None = None,
+        execution_service: SimpleKinaseExecutionService | None = None,
     ) -> None:
         self.pred_mat_workflow = PredMatWorkflow(
             flank_size=flank_size,
@@ -56,7 +121,11 @@ class SimpleKinaseWorkflow:
             if analysis_ready_builder is None
             else analysis_ready_builder
         )
-        self._orchestration = KinaseOrchestrationService()
+        self._execution_service = (
+            SimpleKinaseExecutionService()
+            if execution_service is None
+            else execution_service
+        )
 
     def run(
         self,
@@ -70,7 +139,7 @@ class SimpleKinaseWorkflow:
         prediction_config: PredictionRunConfig | None = None,
         activity_config: KinaseActivityConfig | None = None,
     ) -> SimpleKinaseWorkflowResult:
-        return self._orchestration.run_simple_workflow(
+        return self._execution_service.run(
             phospho=phospho,
             species=species,
             total=total,

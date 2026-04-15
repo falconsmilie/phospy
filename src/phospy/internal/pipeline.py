@@ -10,7 +10,7 @@ import pandas as pd
 from ..activities.analysis import KinaseActivityAnalyzer
 from ..activities.results import KinaseActivityResult
 from ..api.contracts import DatasetLoadOptions, KinaseActivityConfig
-from ..api.orchestration import KinaseOrchestrationService
+from ..api.orchestration import PipelineRuntimeService
 from ..datasets.loaders import DatasetLoader
 from ..datasets.models import PhosphoDataset
 from ..errors import RequestValidationError, TableSchemaError
@@ -84,12 +84,10 @@ def _run_pipeline_request(
     *,
     request: PipelineInputs,
     kinase_activity_analyzer: KinaseActivityAnalyzer,
-    orchestration: KinaseOrchestrationService | None = None,
+    runtime_service: PipelineRuntimeService | None = None,
 ) -> PipelineOutputs:
-    orchestrator = (
-        KinaseOrchestrationService() if orchestration is None else orchestration
-    )
-    core, kinase_activity = orchestrator.run_pipeline_runtime(
+    executor = PipelineRuntimeService() if runtime_service is None else runtime_service
+    core, kinase_activity = executor.run(
         request=request,
         kinase_activity_analyzer=kinase_activity_analyzer,
     )
@@ -168,7 +166,7 @@ class PipelineRunner:
         self.pred_mat = request.pred_mat
         self.preprocessing_config = request.preprocessing_config
         self.kinase_activity_analyzer = KinaseActivityAnalyzer()
-        self._orchestration = KinaseOrchestrationService()
+        self._runtime_service = PipelineRuntimeService()
         self.manifest_writer = manifest_writer or RunManifestWriter()
         self.output_publisher = output_publisher or OutputPublisher()
 
@@ -235,7 +233,7 @@ class PipelineRunner:
         outputs = _run_pipeline_request(
             request=self.request,
             kinase_activity_analyzer=self.kinase_activity_analyzer,
-            orchestration=self._orchestration,
+            runtime_service=self._runtime_service,
         )
 
         if outdir is not None:

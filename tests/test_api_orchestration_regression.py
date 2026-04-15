@@ -190,17 +190,17 @@ def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
     ]
 
 
-def test_simple_kinase_workflow_run_delegates_to_shared_orchestration_service() -> None:
+def test_simple_kinase_workflow_run_delegates_to_execution_service() -> None:
     workflow = SimpleKinaseWorkflow()
     expected_result = object()
     calls: list[dict[str, object]] = []
 
-    class _OrchestrationDouble:
-        def run_simple_workflow(self, **kwargs: object) -> object:
+    class _ExecutionServiceDouble:
+        def run(self, **kwargs: object) -> object:
             calls.append(kwargs)
             return expected_result
 
-    workflow._orchestration = _OrchestrationDouble()
+    workflow._execution_service = _ExecutionServiceDouble()
     result = workflow.run(
         phospho=pd.DataFrame({"uid": ["u1"]}),
         species="rat",

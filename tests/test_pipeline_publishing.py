@@ -648,7 +648,7 @@ def test_pipeline_runner_from_files_preserves_site_matrix_policy(
     )
 
 
-def test_pipeline_run_delegates_to_shared_orchestration_service() -> None:
+def test_pipeline_run_delegates_to_runtime_service() -> None:
     dataset = PhosphoDataset(
         total_df=make_total_df(),
         phospho_df=make_phospho_df(),
@@ -659,12 +659,12 @@ def test_pipeline_run_delegates_to_shared_orchestration_service() -> None:
     expected_kinase_activity = object()
     calls: list[dict[str, object]] = []
 
-    class _OrchestrationDouble:
-        def run_pipeline_runtime(self, **kwargs: object) -> tuple[object, object]:
+    class _RuntimeServiceDouble:
+        def run(self, **kwargs: object) -> tuple[object, object]:
             calls.append(kwargs)
             return expected_core, expected_kinase_activity
 
-    pipeline._orchestration = _OrchestrationDouble()
+    pipeline._runtime_service = _RuntimeServiceDouble()
     outputs = pipeline.run()
 
     assert outputs.core is expected_core

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING
+from typing import Protocol, cast
 
 import pandas as pd
 
@@ -12,16 +12,41 @@ from ..signalomes.results import SignalomeResult
 from ..validation.requests.signalome import SignalomeInputs, validate_signalome_request
 from .contracts import SignalomeRunConfig
 
-if TYPE_CHECKING:
-    from ..datasets.models import AnalysisReadyPhosphoDataset
-
 __all__ = ["SignalomeWorkflow"]
+
+
+class _AnalysisReadyDatasetProtocol(Protocol):
+    phospho_matrix: pd.DataFrame
+
+    def resolve_site_to_protein_mapping(
+        self,
+        *,
+        metadata_columns: Sequence[str] | None = None,
+        fallback_policy: str = "strict",
+        allow_gene_symbol_fallback: bool = False,
+        allow_ambiguous_fallback: bool = False,
+    ) -> pd.Series: ...
+
+
+def _coerce_analysis_ready_dataset(
+    dataset: object,
+) -> _AnalysisReadyDatasetProtocol:
+    if not hasattr(dataset, "phospho_matrix") or not hasattr(
+        dataset,
+        "resolve_site_to_protein_mapping",
+    ):
+        msg = (
+            "dataset must be an AnalysisReadyPhosphoDataset for "
+            "run_from_analysis_ready()."
+        )
+        raise TypeError(msg)
+    return cast(_AnalysisReadyDatasetProtocol, dataset)
 
 
 class SignalomeWorkflow:
     """Construct signalomes from validated scoring and prediction outputs."""
 
-    def _validate_request(
+    def run(
         self,
         *,
         scoring_result: KinaseScoringResult,
@@ -30,9 +55,9 @@ class SignalomeWorkflow:
         kinases_of_interest: Sequence[str],
         site_to_protein: Mapping[str, str] | None = None,
         config: SignalomeRunConfig | None = None,
-    ) -> SignalomeInputs:
+    ) -> SignalomeResult:
         resolved_config = SignalomeRunConfig.from_value(config)
-        return validate_signalome_request(
+        request = validate_signalome_request(
             scoring_result=scoring_result,
             prediction_result=prediction_result,
             expression_matrix=expression_matrix,
@@ -48,31 +73,12 @@ class SignalomeWorkflow:
             ),
             module_selection_policy=resolved_config.module_selection_policy,
         )
-
-    def run(
-        self,
-        *,
-        scoring_result: KinaseScoringResult,
-        prediction_result: KinasePredictionResult | PredMatResult,
-        expression_matrix: pd.DataFrame,
-        kinases_of_interest: Sequence[str],
-        site_to_protein: Mapping[str, str] | None = None,
-        config: SignalomeRunConfig | None = None,
-    ) -> SignalomeResult:
-        request = self._validate_request(
-            scoring_result=scoring_result,
-            prediction_result=prediction_result,
-            expression_matrix=expression_matrix,
-            kinases_of_interest=kinases_of_interest,
-            site_to_protein=site_to_protein,
-            config=config,
-        )
-        return self.run_validated(request)
+        return execute_signalome_inputs(request)
 
     def run_from_analysis_ready(
         self,
         *,
-        dataset: AnalysisReadyPhosphoDataset,
+        dataset: object,
         scoring_result: KinaseScoringResult,
         prediction_result: KinasePredictionResult | PredMatResult,
         kinases_of_interest: Sequence[str],
@@ -89,19 +95,12 @@ class SignalomeWorkflow:
         To opt in to metadata fallback columns, set
         ``metadata_fallback_policy="metadata"``.
         """
-        from ..datasets.models import AnalysisReadyPhosphoDataset
-
-        if not isinstance(dataset, AnalysisReadyPhosphoDataset):
-            msg = (
-                "dataset must be an AnalysisReadyPhosphoDataset for "
-                "run_from_analysis_ready()."
-            )
-            raise TypeError(msg)
+        analysis_ready_dataset = _coerce_analysis_ready_dataset(dataset)
 
         resolved_site_to_protein = (
             dict(site_to_protein)
             if site_to_protein is not None
-            else dataset.resolve_site_to_protein_mapping(
+            else analysis_ready_dataset.resolve_site_to_protein_mapping(
                 metadata_columns=metadata_protein_columns,
                 fallback_policy=metadata_fallback_policy,
                 allow_gene_symbol_fallback=allow_gene_symbol_fallback,
@@ -111,7 +110,7 @@ class SignalomeWorkflow:
         return self.run(
             scoring_result=scoring_result,
             prediction_result=prediction_result,
-            expression_matrix=dataset.phospho_matrix,
+            expression_matrix=analysis_ready_dataset.phospho_matrix,
             kinases_of_interest=kinases_of_interest,
             site_to_protein=resolved_site_to_protein,
             config=config,
