@@ -7,6 +7,7 @@ import pandas as pd
 
 import phospy
 import phospy.api.signalome_workflows as signalome_workflows_module
+import phospy.api.simple_workflows as simple_workflows_module
 from phospy.api import (
     DatasetLoadOptions,
     KinaseActivityConfig,
@@ -105,24 +106,25 @@ def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
         prediction_result=prediction_result,
     )
     kinase_activity_result = object()
-    workflow = SimpleKinaseWorkflow(
+    execution_service = simple_workflows_module.SimpleKinaseExecutionService(
+        analysis_ready_builder=_BuilderDouble(
+            dataset=analysis_ready_dataset,
+            calls=builder_calls,
+        ),
         reference_provider=_ProviderDouble(
             bundle=reference_bundle,
             calls=provider_calls,
+        ),
+        pred_mat_workflow=_PredMatWorkflowDouble(
+            result=workflow_result,
+            calls=pred_mat_calls,
         ),
         activity_analyzer=_AnalyzerDouble(
             result=kinase_activity_result,
             calls=analyzer_calls,
         ),
-        analysis_ready_builder=_BuilderDouble(
-            dataset=analysis_ready_dataset,
-            calls=builder_calls,
-        ),
     )
-    workflow.pred_mat_workflow = _PredMatWorkflowDouble(
-        result=workflow_result,
-        calls=pred_mat_calls,
-    )
+    workflow = SimpleKinaseWorkflow(execution_service=execution_service)
 
     result = workflow.run(
         phospho=phospho,
@@ -191,7 +193,6 @@ def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
 
 
 def test_simple_kinase_workflow_run_delegates_to_execution_service() -> None:
-    workflow = SimpleKinaseWorkflow()
     expected_result = object()
     calls: list[dict[str, object]] = []
 
@@ -200,7 +201,7 @@ def test_simple_kinase_workflow_run_delegates_to_execution_service() -> None:
             calls.append(kwargs)
             return expected_result
 
-    workflow._execution_service = _ExecutionServiceDouble()
+    workflow = SimpleKinaseWorkflow(execution_service=_ExecutionServiceDouble())
     result = workflow.run(
         phospho=pd.DataFrame({"uid": ["u1"]}),
         species="rat",
@@ -208,10 +209,8 @@ def test_simple_kinase_workflow_run_delegates_to_execution_service() -> None:
 
     assert result is expected_result
     assert len(calls) == 1
-    assert calls[0]["analysis_ready_builder"] is workflow.analysis_ready_builder
-    assert calls[0]["reference_provider"] is workflow.reference_provider
-    assert calls[0]["pred_mat_workflow"] is workflow.pred_mat_workflow
-    assert calls[0]["activity_analyzer"] is workflow.activity_analyzer
+    assert calls[0]["species"] == "rat"
+    assert calls[0]["reference"] == "auto"
 
 
 def test_signalome_workflow_run_delegates_to_validation_and_execution(

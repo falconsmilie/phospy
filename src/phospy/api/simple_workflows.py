@@ -27,6 +27,54 @@ __all__ = ["SimpleKinaseWorkflow"]
 class SimpleKinaseExecutionService:
     """Validated execution path for the public simple kinase workflow."""
 
+    def __init__(
+        self,
+        *,
+        analysis_ready_builder: AnalysisReadyDatasetBuilder,
+        reference_provider: ReferenceProvider,
+        pred_mat_workflow: PredMatWorkflow,
+        activity_analyzer: KinaseActivityAnalyzer,
+    ) -> None:
+        self._analysis_ready_builder = analysis_ready_builder
+        self._reference_provider = reference_provider
+        self._pred_mat_workflow = pred_mat_workflow
+        self._activity_analyzer = activity_analyzer
+
+    @classmethod
+    def create_default(
+        cls,
+        *,
+        flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
+        kernel: str = "rbf",
+        svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
+        reference_provider: ReferenceProvider | None = None,
+        activity_analyzer: KinaseActivityAnalyzer | None = None,
+        analysis_ready_builder: AnalysisReadyDatasetBuilder | None = None,
+    ) -> SimpleKinaseExecutionService:
+        """Documented default factory path for runtime collaborator assembly."""
+        return cls(
+            analysis_ready_builder=(
+                AnalysisReadyDatasetBuilder()
+                if analysis_ready_builder is None
+                else analysis_ready_builder
+            ),
+            reference_provider=(
+                BundledReferenceProvider()
+                if reference_provider is None
+                else reference_provider
+            ),
+            pred_mat_workflow=PredMatWorkflow(
+                flank_size=flank_size,
+                kernel=kernel,
+                svm_mode=svm_mode,
+            ),
+            activity_analyzer=(
+                KinaseActivityAnalyzer()
+                if activity_analyzer is None
+                else activity_analyzer
+            ),
+        )
+
     def run(
         self,
         *,
@@ -38,10 +86,6 @@ class SimpleKinaseExecutionService:
         preprocessing_config: CorePreprocessingConfig | None,
         prediction_config: PredictionRunConfig | None,
         activity_config: KinaseActivityConfig | None,
-        analysis_ready_builder: AnalysisReadyDatasetBuilder,
-        reference_provider: ReferenceProvider,
-        pred_mat_workflow: PredMatWorkflow,
-        activity_analyzer: KinaseActivityAnalyzer,
     ) -> SimpleKinaseWorkflowResult:
         resolved_dataset_options = DatasetLoadOptions.from_value(dataset_options)
         resolved_preprocessing_config = (
@@ -52,7 +96,7 @@ class SimpleKinaseExecutionService:
         resolved_prediction_config = PredictionRunConfig.from_value(prediction_config)
         resolved_activity_config = KinaseActivityConfig.from_value(activity_config)
 
-        analysis_ready_dataset = analysis_ready_builder.build(
+        analysis_ready_dataset = self._analysis_ready_builder.build(
             phospho=phospho,
             total=total,
             phospho_encoding=resolved_dataset_options.phospho_encoding,
@@ -62,17 +106,17 @@ class SimpleKinaseExecutionService:
             source="simple kinase workflow",
             phospho_only_source="simple kinase workflow (phospho only)",
         )
-        reference_bundle = reference_provider.resolve(
+        reference_bundle = self._reference_provider.resolve(
             species=species,
             reference=reference,
         )
-        workflow_result = pred_mat_workflow.run(
+        workflow_result = self._pred_mat_workflow.run(
             phospho_matrix=analysis_ready_dataset.phospho_matrix,
             site_sequences=analysis_ready_dataset.site_sequences,
             reference_bundle=reference_bundle,
             prediction_config=resolved_prediction_config,
         )
-        kinase_activity_result = activity_analyzer.run(
+        kinase_activity_result = self._activity_analyzer.run(
             pred_mat=workflow_result.pred_mat_result,
             phospho_matrix=analysis_ready_dataset.phospho_matrix,
             threshold=resolved_activity_config.threshold,
@@ -98,31 +142,14 @@ class SimpleKinaseWorkflow:
         kernel: str = "rbf",
         svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
         *,
-        reference_provider: ReferenceProvider | None = None,
-        activity_analyzer: KinaseActivityAnalyzer | None = None,
-        analysis_ready_builder: AnalysisReadyDatasetBuilder | None = None,
         execution_service: SimpleKinaseExecutionService | None = None,
     ) -> None:
-        self.pred_mat_workflow = PredMatWorkflow(
-            flank_size=flank_size,
-            kernel=kernel,
-            svm_mode=svm_mode,
-        )
-        self.reference_provider = (
-            BundledReferenceProvider()
-            if reference_provider is None
-            else reference_provider
-        )
-        self.activity_analyzer = (
-            KinaseActivityAnalyzer() if activity_analyzer is None else activity_analyzer
-        )
-        self.analysis_ready_builder = (
-            AnalysisReadyDatasetBuilder()
-            if analysis_ready_builder is None
-            else analysis_ready_builder
-        )
         self._execution_service = (
-            SimpleKinaseExecutionService()
+            SimpleKinaseExecutionService.create_default(
+                flank_size=flank_size,
+                kernel=kernel,
+                svm_mode=svm_mode,
+            )
             if execution_service is None
             else execution_service
         )
@@ -148,8 +175,4 @@ class SimpleKinaseWorkflow:
             dataset_options=dataset_options,
             preprocessing_config=preprocessing_config,
             activity_config=activity_config,
-            analysis_ready_builder=self.analysis_ready_builder,
-            reference_provider=self.reference_provider,
-            pred_mat_workflow=self.pred_mat_workflow,
-            activity_analyzer=self.activity_analyzer,
         )
