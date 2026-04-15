@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import SimpleNamespace
 
 import pandas as pd
@@ -84,6 +84,11 @@ class _ReferenceBundleDouble(ReferenceBundle):
 @dataclass
 class _PredictionResultDouble:
     pred_mat_result: object
+    substrate_list: dict[str, list[str]] = field(default_factory=dict)
+    close_calls: int = 0
+
+    def close(self) -> None:
+        self.close_calls += 1
 
 
 def make_small_matrix() -> pd.DataFrame:
@@ -203,6 +208,85 @@ def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
             "top_n_substrates": 12,
         }
     ]
+
+
+def test_simple_workflow_result_pred_mat_result_is_delegated_only() -> None:
+    first_pred_mat_result = object()
+    second_pred_mat_result = object()
+    profile_scores = pd.DataFrame({"KINASE_A": [0.1]}, index=["SITE_1"])
+    combined_scores = pd.DataFrame({"KINASE_A": [0.2]}, index=["SITE_1"])
+    weights = pd.DataFrame(
+        {"motif_weight": [0.4], "profile_weight": [0.6]},
+        index=["KINASE_A"],
+    )
+    substrate_list = {"KINASE_A": ["SITE_1"]}
+
+    prediction_result = _PredictionResultDouble(
+        pred_mat_result=first_pred_mat_result,
+        substrate_list=substrate_list,
+    )
+    result = SimpleKinaseWorkflowResult(
+        analysis_ready_dataset=SimpleNamespace(),
+        reference_bundle=SimpleNamespace(),
+        scoring_result=SimpleNamespace(
+            profile_scores=profile_scores,
+            combined_scores=combined_scores,
+            weights=weights,
+        ),
+        prediction_result=prediction_result,
+        kinase_activity_result=SimpleNamespace(),
+    )
+
+    assert "pred_mat_result" not in SimpleKinaseWorkflowResult.__dataclass_fields__
+    assert result.pred_mat_result is first_pred_mat_result
+    assert result.profile_scores is profile_scores
+    assert result.combined_scores is combined_scores
+    assert result.weights is weights
+    assert result.substrate_list is substrate_list
+
+    result.prediction_result.pred_mat_result = second_pred_mat_result
+
+    assert result.pred_mat_result is second_pred_mat_result
+
+
+def test_simple_workflow_result_close_delegates_to_prediction_result_close() -> None:
+    prediction_result = _PredictionResultDouble(pred_mat_result=object())
+    result = SimpleKinaseWorkflowResult(
+        analysis_ready_dataset=SimpleNamespace(),
+        reference_bundle=SimpleNamespace(),
+        scoring_result=SimpleNamespace(
+            profile_scores=pd.DataFrame(),
+            combined_scores=None,
+            weights=None,
+        ),
+        prediction_result=prediction_result,
+        kinase_activity_result=SimpleNamespace(),
+    )
+
+    result.close()
+
+    assert prediction_result.close_calls == 1
+
+
+def test_simple_workflow_result_context_manager_closes_on_exit() -> None:
+    prediction_result = _PredictionResultDouble(pred_mat_result=object())
+    result = SimpleKinaseWorkflowResult(
+        analysis_ready_dataset=SimpleNamespace(),
+        reference_bundle=SimpleNamespace(),
+        scoring_result=SimpleNamespace(
+            profile_scores=pd.DataFrame(),
+            combined_scores=None,
+            weights=None,
+        ),
+        prediction_result=prediction_result,
+        kinase_activity_result=SimpleNamespace(),
+    )
+
+    with result as managed:
+        assert managed is result
+        assert prediction_result.close_calls == 0
+
+    assert prediction_result.close_calls == 1
 
 
 def test_simple_kinase_workflow_run_delegates_to_execution_service() -> None:

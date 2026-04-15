@@ -228,6 +228,5 @@ class SimpleKinaseWorkflow:
             reference_bundle=reference_bundle,
             scoring_result=workflow_result.scoring_result,
             prediction_result=workflow_result.prediction_result,
-            pred_mat_result=pred_mat_result,
             kinase_activity_result=kinase_activity_result,
         )
