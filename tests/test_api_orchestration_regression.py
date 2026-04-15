@@ -7,7 +7,6 @@ import pandas as pd
 
 import phospy
 import phospy.api.signalome_workflows as signalome_workflows_module
-import phospy.api.simple_workflows as simple_workflows_module
 from phospy.api import (
     DatasetLoadOptions,
     KinaseActivityConfig,
@@ -52,13 +51,19 @@ class _AnalyzerDouble:
 
 
 @dataclass
-class _PredMatWorkflowDouble:
-    result: object
-    calls: list[dict[str, object]]
+class _WorkflowExecutorDouble:
+    validate_result: object
+    execute_result: object
+    validate_calls: list[dict[str, object]]
+    execute_calls: list[object]
 
-    def run(self, **kwargs: object) -> object:
-        self.calls.append(kwargs)
-        return self.result
+    def validate_request(self, **kwargs: object) -> object:
+        self.validate_calls.append(kwargs)
+        return self.validate_result
+
+    def execute_validated_request(self, request: object) -> object:
+        self.execute_calls.append(request)
+        return self.execute_result
 
 
 class _SignalomeRequestDouble:
@@ -71,6 +76,11 @@ class _SignalomeResultDouble:
 
 class _ReferenceBundleDouble(ReferenceBundle):
     pass
+
+
+@dataclass
+class _PredictionResultDouble:
+    pred_mat_result: object
 
 
 def make_small_matrix() -> pd.DataFrame:
@@ -94,19 +104,22 @@ def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
     )
     builder_calls: list[dict[str, object]] = []
     provider_calls: list[dict[str, object]] = []
-    pred_mat_calls: list[dict[str, object]] = []
+    validate_calls: list[dict[str, object]] = []
+    execute_calls: list[object] = []
     analyzer_calls: list[dict[str, object]] = []
     reference_bundle = _ReferenceBundleDouble.__new__(_ReferenceBundleDouble)
     pred_mat_result = object()
     scoring_result = object()
-    prediction_result = object()
+    prediction_result = _PredictionResultDouble(pred_mat_result=pred_mat_result)
+    validated_request = object()
     workflow_result = SimpleNamespace(
-        pred_mat_result=pred_mat_result,
         scoring_result=scoring_result,
         prediction_result=prediction_result,
+        profile_result=object(),
+        motif_result=object(),
     )
     kinase_activity_result = object()
-    execution_service = simple_workflows_module.SimpleKinaseExecutionService(
+    workflow = SimpleKinaseWorkflow(
         analysis_ready_builder=_BuilderDouble(
             dataset=analysis_ready_dataset,
             calls=builder_calls,
@@ -115,16 +128,17 @@ def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
             bundle=reference_bundle,
             calls=provider_calls,
         ),
-        pred_mat_workflow=_PredMatWorkflowDouble(
-            result=workflow_result,
-            calls=pred_mat_calls,
+        workflow_executor=_WorkflowExecutorDouble(
+            validate_result=validated_request,
+            execute_result=workflow_result,
+            validate_calls=validate_calls,
+            execute_calls=execute_calls,
         ),
         activity_analyzer=_AnalyzerDouble(
             result=kinase_activity_result,
             calls=analyzer_calls,
         ),
     )
-    workflow = SimpleKinaseWorkflow(execution_service=execution_service)
 
     result = workflow.run(
         phospho=phospho,
@@ -170,17 +184,13 @@ def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
         }
     ]
     assert provider_calls == [{"species": "human", "reference": "ochoa"}]
-    assert pred_mat_calls == [
-        {
-            "phospho_matrix": phospho_matrix,
-            "site_sequences": site_sequences,
-            "reference_bundle": reference_bundle,
-            "prediction_config": PredictionRunConfig(
-                min_substrates=3,
-                score_threshold=0.65,
-            ),
-        }
-    ]
+    assert len(validate_calls) == 1
+    assert validate_calls[0]["phospho_matrix"] is phospho_matrix
+    assert validate_calls[0]["site_sequences"] is site_sequences
+    assert validate_calls[0]["reference_bundle"] is reference_bundle
+    assert validate_calls[0]["min_substrates"] == 3
+    assert validate_calls[0]["score_threshold"] == 0.65
+    assert execute_calls == [validated_request]
     assert analyzer_calls == [
         {
             "pred_mat": pred_mat_result,
