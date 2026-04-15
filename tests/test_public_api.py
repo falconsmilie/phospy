@@ -77,6 +77,10 @@ def test_supported_public_surface_is_small_and_explicit() -> None:
 def test_removed_workflow_entrypoints_are_not_importable() -> None:
     assert importlib.util.find_spec("phospy.pipeline") is None
     assert importlib.util.find_spec("phospy.api.kinase_workflows") is None
+    assert importlib.util.find_spec("phospy.matrices") is None
+    assert importlib.util.find_spec("phospy.motifs") is None
+    assert importlib.util.find_spec("phospy.profiles") is None
+    assert importlib.util.find_spec("phospy.orchestration") is None
 
 
 def test_phospho_dataset_preprocessing_run() -> None:

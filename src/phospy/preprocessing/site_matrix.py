@@ -11,8 +11,8 @@ from ..internal.constants import (
     GENE_P_SITE_COLUMN,
     ROW_DROP_STATS_ATTR,
 )
-from ..matrices import SiteMatrixPolicy, build_site_matrix, format_row_drop_diagnostics
 from ..validation.schema.tables import SiteMatrixSchema
+from .matrices import SiteMatrixPolicy, build_site_matrix, format_row_drop_diagnostics
 
 
 @dataclass(slots=True)

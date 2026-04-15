@@ -16,9 +16,9 @@ from phospy.internal.pipeline import (
     build_pipeline_inputs_from_request,
 )
 from phospy.io.publishing import OutputPublisher, RunManifestWriter, package_version
-from phospy.matrices import SiteMatrixPolicy
 from phospy.prediction import PredMatResult
 from phospy.preprocessing import CorePreprocessingConfig
+from phospy.preprocessing.matrices import SiteMatrixPolicy
 from phospy.validation.requests import CorePipelineRequest
 from phospy.validation.schema.tables import PredMatSchema
 

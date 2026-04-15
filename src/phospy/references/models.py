@@ -5,7 +5,6 @@ from typing import Protocol, runtime_checkable
 
 from ..errors import InputCompatibilityError
 from ..internal.types import KinaseMotifSequenceMap, KinaseSubstrateMap
-from ..motifs import build_validated_motif_library
 from ..validation.values.collections import normalize_sequence_mapping
 
 
@@ -112,6 +111,8 @@ class ReferenceBundle:
             if parts:
                 msg = f"{msg} ({'; '.join(parts)})"
             raise InputCompatibilityError(msg)
+
+        from ..prediction.motif_scoring import build_validated_motif_library
 
         build_validated_motif_library(
             motif_sequences=normalized_motif_sequences,

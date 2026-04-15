@@ -10,9 +10,9 @@ from phospy.errors import (
     RequestValidationError,
 )
 from phospy.internal.kinase_workflows import KinaseWorkflow, PredMatWorkflow
-from phospy.motifs import KinaseMotifScorer
 from phospy.prediction import PredMatResult
-from phospy.profiles import KinaseProfilePolicy
+from phospy.prediction.motif_scoring import KinaseMotifScorer
+from phospy.prediction.profiles import KinaseProfilePolicy
 from phospy.references import (
     ReferenceBundle,
     ReferenceBundleProvenance,

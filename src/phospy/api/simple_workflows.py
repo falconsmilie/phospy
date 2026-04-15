@@ -8,7 +8,6 @@ from ..activities.analysis import KinaseActivityAnalyzer
 from ..internal.defaults import DEFAULT_MOTIF_FLANK_SIZE
 from ..internal.kinase_workflows import PredMatWorkflow
 from ..internal.types import PREDICTION_SVM_MODE_DEFAULT, PredictionSvmMode
-from ..orchestration import KinaseOrchestrationService
 from ..preprocessing.core import CorePreprocessingConfig
 from ..preprocessing.modes import AnalysisReadyDatasetBuilder
 from ..references import (
@@ -20,6 +19,7 @@ from .contracts import (
     KinaseActivityConfig,
     PredictionRunConfig,
 )
+from .orchestration import KinaseOrchestrationService
 from .workflow_results import SimpleKinaseWorkflowResult
 
 __all__ = ["SimpleKinaseWorkflow"]

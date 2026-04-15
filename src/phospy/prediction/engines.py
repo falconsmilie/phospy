@@ -24,12 +24,6 @@ from ..internal.types import (
     PredictionTraceFormat,
     PredictionTraceLevel,
 )
-from ..motifs import MotifScoringResult
-from ..profiles import (
-    KinaseProfilePolicy,
-    KinaseProfileResult,
-    build_kinase_substrate_profiles,
-)
 from ..references import ReferenceBundle
 from ..validation.domain.prediction import validate_ensemble_predictor
 from ..validation.requests.prediction import PredictionRequest
@@ -45,6 +39,12 @@ from .execution import (
     NegativePoolSampler,
     PredictionSamplingSession,
     TraceRecorder,
+)
+from .motif_scoring import MotifScoringResult
+from .profiles import (
+    KinaseProfilePolicy,
+    KinaseProfileResult,
+    build_kinase_substrate_profiles,
 )
 from .results import KinasePredictionResult
 from .scoring import KinaseScorer, KinaseScoringResult

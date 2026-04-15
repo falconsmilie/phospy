@@ -46,12 +46,13 @@ refactor. For the current contributor-facing package layout, use
 | `src/phospy/dataset_schema.py` | `src/phospy/datasets/schema.py` | Completed in ticket 3 | Dataset schema now lives under `datasets/`; the legacy flat module was removed |
 | `src/phospy/dataset_site_matrix.py` | `src/phospy/datasets/builders.py` | Completed in ticket 3 | The dataset-bound site-matrix façade now lives under `datasets/`; the legacy flat module was removed |
 | `src/phospy/io` | `src/phospy/io/` | Completed in ticket 9 | Shared table readers, mapping loaders, output publishing, and output writers now live under `io/`; the legacy flat modules were removed |
-| `src/phospy/matrices.py` | `src/phospy/preprocessing/site_matrix.py` | Move later | Site-matrix construction is preprocessing behaviour |
-| `src/phospy/motifs.py` | `src/phospy/references/` and `src/phospy/prediction/motif_scoring.py` | Split later | This file mixes bundled reference resolution with motif scoring and must be split rather than moved whole |
+| `src/phospy/matrices.py` | `src/phospy/preprocessing/matrices.py` | Completed in cleanup ticket | Site-matrix policy and construction now live under preprocessing; the legacy root module was removed |
+| `src/phospy/motifs.py` | `src/phospy/prediction/motif_scoring.py` | Completed in cleanup ticket | Motif scoring now lives under prediction; the legacy root module was removed |
 | `src/phospy/pipeline.py` | `src/phospy/pipeline.py` and `src/phospy/io/` | Partially split in ticket 9 | Pipeline orchestration remains in place for now, but output publishing and writer concerns moved under `io/` |
 | `src/phospy/preprocessing` | `src/phospy/preprocessing/` | Expanded in ticket 4 | The preprocessing package now owns core orchestration, services, site-matrix building, primitives, protein correction, step helpers, dataset-bound preprocessing, and explicit analysis-ready modes |
 | `src/phospy/preprocessing_services.py` | `src/phospy/preprocessing/services.py` | Completed in ticket 4 | Preprocessing service objects now live inside the preprocessing domain; the legacy flat module was removed |
-| `src/phospy/profiles.py` | `src/phospy/prediction/profiles.py` | Move later | Kinase substrate profile generation feeds prediction scoring |
+| `src/phospy/profiles.py` | `src/phospy/prediction/profiles.py` | Completed in cleanup ticket | Kinase substrate profile generation now lives under prediction; the legacy root module was removed |
+| `src/phospy/orchestration.py` | `src/phospy/api/orchestration.py` | Completed in cleanup ticket | High-level orchestration now lives under `api/`; the legacy root module was removed |
 | `src/phospy/publishing.py` | `src/phospy/io/publishing.py` | Completed in ticket 9 | Output publication now lives in `io/publishing.py`; the legacy flat module was removed |
 | `src/phospy/scoring.py` | `src/phospy/prediction/scoring.py` | Moved | Kinase scoring now lives in the prediction domain |
 | `src/phospy/signalome_assignments.py` | `src/phospy/signalomes/assignments.py` | Moved | Signalome-specific process module |
@@ -83,9 +84,9 @@ These files should not be relocated intact.
 - `src/phospy/dataset_preprocessing.py`
   - still expresses preprocessing through a dataset-bound façade even though preprocessing strategy belongs in `preprocessing/`
   - later work should move this façade under `preprocessing/` while keeping `datasets/` focused on dataset ownership and construction
-- `src/phospy/motifs.py`
-  - mixes biological reference handling with motif-scoring behaviour used in prediction
-  - should be split between `references/` and `prediction/`
+- `src/phospy/motifs.py` (resolved in cleanup ticket)
+  - active motif scoring implementation moved to `src/phospy/prediction/motif_scoring.py`
+  - the legacy root module was removed after migration
 - `src/phospy/dataset_site_matrix.py`
   - mixes a dataset-bound façade with site-matrix building that belongs to preprocessing
   - should be split so site-matrix process logic lives under `preprocessing/`

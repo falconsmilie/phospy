@@ -23,8 +23,8 @@ from ...internal.defaults import (
     DEFAULT_PREDICTION_TOP,
 )
 from ...internal.types import PREDICTION_SVM_MODE_DEFAULT, PredictionSvmMode
-from ...motifs import KinaseMotifScorer
-from ...profiles import KinaseProfilePolicy
+from ...prediction.motif_scoring import KinaseMotifScorer
+from ...prediction.profiles import KinaseProfilePolicy
 from ...references import ReferenceBundle
 from ..compatibility import validate_workflow_matrix_inputs
 from ..domain import resolve_reference_bundle_inputs

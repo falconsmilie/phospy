@@ -5,24 +5,26 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .activities.analysis import KinaseActivityAnalyzer
-from .activities.results import KinaseActivityResult
-from .preprocessing.core import CorePreprocessingConfig, CoreProcessingResult
-from .validation.requests.pipeline import (
+from ..activities.analysis import KinaseActivityAnalyzer
+from ..activities.results import KinaseActivityResult
+from ..preprocessing.core import CorePreprocessingConfig, CoreProcessingResult
+from ..validation.requests.pipeline import (
     PipelineInputs,
     validate_pipeline_runtime_compatibility,
 )
 
 if TYPE_CHECKING:
-    from .api.contracts import (
+    from ..internal.kinase_workflows import PredMatWorkflow
+    from ..preprocessing.modes import AnalysisReadyDatasetBuilder
+    from ..references import ReferenceProvider
+    from .contracts import (
         DatasetLoadOptions,
         KinaseActivityConfig,
         PredictionRunConfig,
     )
-    from .api.workflow_results import SimpleKinaseWorkflowResult
-    from .internal.kinase_workflows import PredMatWorkflow
-    from .preprocessing.modes import AnalysisReadyDatasetBuilder
-    from .references import ReferenceProvider
+    from .workflow_results import SimpleKinaseWorkflowResult
+
+__all__ = ["KinaseOrchestrationService"]
 
 
 class KinaseOrchestrationService:
@@ -44,12 +46,12 @@ class KinaseOrchestrationService:
         pred_mat_workflow: PredMatWorkflow,
         activity_analyzer: KinaseActivityAnalyzer,
     ) -> SimpleKinaseWorkflowResult:
-        from .api.contracts import (
+        from .contracts import (
             DatasetLoadOptions,
             KinaseActivityConfig,
             PredictionRunConfig,
         )
-        from .api.workflow_results import SimpleKinaseWorkflowResult
+        from .workflow_results import SimpleKinaseWorkflowResult
 
         resolved_dataset_options = DatasetLoadOptions.from_value(dataset_options)
         resolved_preprocessing_config = (

@@ -6,12 +6,12 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from .errors import (
+from ..errors import (
     InputCompatibilityError,
     TableSchemaError,
 )
-from .internal.defaults import DEFAULT_MOTIF_FLANK_SIZE
-from .validation.values.numeric import validate_non_negative_int, validate_positive_int
+from ..internal.defaults import DEFAULT_MOTIF_FLANK_SIZE
+from ..validation.values.numeric import validate_non_negative_int, validate_positive_int
 
 AMINO_ACIDS: tuple[str, ...] = (
     "A",

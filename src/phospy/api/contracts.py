@@ -22,7 +22,7 @@ from ..internal.types import (
     SignalomeAssignmentPolicy,
     SignalomeKinaseNetworkPolicy,
 )
-from ..profiles import KinaseProfilePolicy
+from ..prediction.profiles import KinaseProfilePolicy
 from ..signalomes import SignalomeModuleSelectionPolicy
 from ..validation.values.enums import (
     validate_kinase_network_policy,

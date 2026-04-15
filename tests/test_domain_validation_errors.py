@@ -14,13 +14,13 @@ from phospy.errors import (
     RequestValidationError,
     TableSchemaError,
 )
-from phospy.motifs import KinaseMotifScorer, create_frequency_matrix
 from phospy.prediction import (
     KinasePredictor,
     KinaseScorer,
     PredictionSamplingTrace,
     build_candidate_substrate_list,
 )
+from phospy.prediction.motif_scoring import KinaseMotifScorer, create_frequency_matrix
 
 
 def test_motif_scorer_rejects_missing_motif_size_with_package_error() -> None:

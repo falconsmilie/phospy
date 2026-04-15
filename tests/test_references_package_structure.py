@@ -12,6 +12,4 @@ def test_reference_domain_modules_exist() -> None:
 
 def test_reference_bundle_provider_is_no_longer_owned_by_motifs_module() -> None:
     motifs_module = Path(__file__).resolve().parents[1] / "src" / "phospy" / "motifs.py"
-    source = motifs_module.read_text(encoding="utf-8")
-    assert "class ReferenceBundle(" not in source
-    assert "class BundledReferenceProvider" not in source
+    assert not motifs_module.exists()

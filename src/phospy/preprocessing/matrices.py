@@ -5,8 +5,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from .errors import TableSchemaError
-from .internal.constants import (
+from ..errors import TableSchemaError
+from ..internal.constants import (
     PHOSPHO_GENE_COLUMN,
     PHOSPHO_UID_COLUMN,
     ROW_DROP_DEDUPLICATED_SITE_ROWS_KEY,
@@ -22,7 +22,7 @@ from .internal.constants import (
     SITE_MATRIX_ID_COLUMN,
     SITE_MATRIX_P_SITE_COLUMN,
 )
-from .internal.types import (
+from ..internal.types import (
     DUPLICATE_SITE_STRATEGY_AGGREGATE_MEAN,
     DUPLICATE_SITE_STRATEGY_AGGREGATE_MEDIAN,
     DUPLICATE_SITE_STRATEGY_ERROR,
@@ -34,13 +34,13 @@ from .internal.types import (
     DuplicateSiteStrategy,
     SiteMatrixMissingDataPolicy,
 )
-from .validation.schema.tables import SiteMatrixSourceSchema
-from .validation.values.enums import (
+from ..validation.schema.tables import SiteMatrixSourceSchema
+from ..validation.values.enums import (
     validate_duplicate_site_strategy,
     validate_site_matrix_missing_data_policy,
 )
-from .validation.values.identifiers import build_canonical_site_id
-from .validation.values.numeric import validate_positive_int
+from ..validation.values.identifiers import build_canonical_site_id
+from ..validation.values.numeric import validate_positive_int
 
 __all__ = [
     "DEFAULT_SITE_MATRIX_POLICY",

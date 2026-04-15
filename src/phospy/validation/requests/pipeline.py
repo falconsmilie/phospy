@@ -29,11 +29,11 @@ from ...internal.defaults import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
 )
-from ...matrices import SiteMatrixPolicy
 from ...preprocessing.core import (
     CorePreprocessingConfig,
     resolve_core_preprocessing_config,
 )
+from ...preprocessing.matrices import SiteMatrixPolicy
 from ..domain import validate_dataset_comparisons
 from ..schema.files import validate_existing_file_path
 from ..schema.tables import PredMatSchema

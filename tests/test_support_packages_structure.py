@@ -24,4 +24,8 @@ def test_legacy_support_modules_have_been_removed() -> None:
     assert not (package_root / "writers.py").exists()
     assert not (package_root / "constants.py").exists()
     assert not (package_root / "types.py").exists()
+    assert not (package_root / "matrices.py").exists()
+    assert not (package_root / "motifs.py").exists()
+    assert not (package_root / "profiles.py").exists()
+    assert not (package_root / "orchestration.py").exists()
     assert not (package_root / "validation" / "errors.py").exists()

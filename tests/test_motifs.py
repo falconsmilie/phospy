@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import phospy.motifs as motifs
+import phospy.prediction.motif_scoring as motifs
 from phospy.errors import InputCompatibilityError, TableSchemaError
-from phospy.motifs import (
+from phospy.prediction.motif_scoring import (
     KinaseMotifScorer,
     ValidatedMotifLibrary,
     create_frequency_matrix,

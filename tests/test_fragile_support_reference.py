@@ -10,7 +10,7 @@ from phospy.prediction import (
     build_candidate_substrate_list,
     combine_profile_and_motif_scores,
 )
-from phospy.profiles import build_kinase_substrate_profiles
+from phospy.prediction.profiles import build_kinase_substrate_profiles
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "fragile_support_reference"

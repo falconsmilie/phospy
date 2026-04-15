@@ -4,7 +4,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.profiles import KinaseProfilePolicy, build_kinase_substrate_profiles
+from phospy.prediction.profiles import (
+    KinaseProfilePolicy,
+    build_kinase_substrate_profiles,
+)
 
 
 def make_phospho_matrix() -> pd.DataFrame:

@@ -33,6 +33,15 @@ Preprocessing is intentionally split across a small number of seams:
 
 Import from the owning package directly, for example `phospy.api`, `phospy.datasets`, `phospy.preprocessing`, or `phospy.signalomes`.
 
+## Root-Level Module Audit
+
+The root package now keeps only package-boundary modules.
+
+| Root module | Status | Reason |
+| --- | --- | --- |
+| `phospy.__init__` | Retained at root | Package boundary module; intentionally minimal |
+| `phospy.cli` | Retained at root | Console-script entry point configured in `pyproject.toml` |
+
 ## Placement Rules
 
 - Put implementation code in the domain package that owns the behaviour.

@@ -10,13 +10,13 @@ import pandas as pd
 from ..activities.analysis import KinaseActivityAnalyzer
 from ..activities.results import KinaseActivityResult
 from ..api.contracts import DatasetLoadOptions, KinaseActivityConfig
+from ..api.orchestration import KinaseOrchestrationService
 from ..datasets.loaders import DatasetLoader
 from ..datasets.models import PhosphoDataset
 from ..errors import RequestValidationError, TableSchemaError
 from ..io import load_pred_mat
 from ..io.publishing import OutputPublisher, RunManifestWriter
 from ..io.writers import CoreOutputWriter, KinaseActivityWriter
-from ..orchestration import KinaseOrchestrationService
 from ..preprocessing.core import CorePreprocessingConfig, CoreProcessingResult
 from ..validation.requests.pipeline import (
     CorePipelineRequest,

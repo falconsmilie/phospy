@@ -5,9 +5,9 @@ import pytest
 
 from phospy.datasets import DatasetSchema, PhosphoDataset
 from phospy.errors import InputCompatibilityError, RequestValidationError
-from phospy.matrices import SiteMatrixPolicy
 from phospy.prediction import PredMatResult
 from phospy.prediction.traces import TraceSink
+from phospy.preprocessing.matrices import SiteMatrixPolicy
 from phospy.validation.requests import (
     CorePipelineRequest,
     KinaseActivityRequest,

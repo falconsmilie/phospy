@@ -32,6 +32,10 @@ LEGACY_IMPORT_PATTERNS = (
     r"(?<![\w.])phospy\.site_matrix_builder(?![\w.])",
     r"(?<![\w.])phospy\._preprocessing_primitives(?![\w.])",
     r"(?<![\w.])phospy\._protein_correction(?![\w.])",
+    r"(?<![\w.])phospy\.matrices(?![\w.])",
+    r"(?<![\w.])phospy\.motifs(?![\w.])",
+    r"(?<![\w.])phospy\.profiles(?![\w.])",
+    r"(?<![\w.])phospy\.orchestration(?![\w.])",
 )
 
 

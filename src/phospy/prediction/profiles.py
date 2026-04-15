@@ -5,12 +5,12 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from .internal.types import (
+from ..internal.types import (
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_PROPAGATE_ANY_MISSING,
     KinaseProfileMissingValueStrategy,
 )
-from .validation.values.enums import validate_missing_value_strategy
-from .validation.values.numeric import validate_positive_int
+from ..validation.values.enums import validate_missing_value_strategy
+from ..validation.values.numeric import validate_positive_int
 
 __all__ = [
     "DEFAULT_KINASE_PROFILE_POLICY",

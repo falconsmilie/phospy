@@ -9,14 +9,14 @@ import pandas as pd
 from ..api.contracts import PredictionRunConfig
 from ..internal.defaults import DEFAULT_MOTIF_FLANK_SIZE
 from ..internal.types import PREDICTION_SVM_MODE_DEFAULT, PredictionSvmMode
-from ..motifs import MotifScoringResult
 from ..prediction.engines import (
     KinaseWorkflowExecutionResult,
     KinaseWorkflowExecutor,
 )
+from ..prediction.motif_scoring import MotifScoringResult
+from ..prediction.profiles import KinaseProfileResult
 from ..prediction.results import KinasePredictionResult, PredMatResult
 from ..prediction.scoring import KinaseScoringResult
-from ..profiles import KinaseProfileResult
 from ..references import ReferenceBundle
 from ..validation.requests.workflow import WorkflowInputs
 

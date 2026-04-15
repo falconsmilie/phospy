@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy.errors import TableSchemaError
-from phospy.matrices import SiteMatrixPolicy, build_site_matrix
+from phospy.preprocessing.matrices import SiteMatrixPolicy, build_site_matrix
 
 
 def test_build_site_matrix_creates_site_ids_and_deduplicates_by_mean() -> None:
