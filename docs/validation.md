@@ -35,16 +35,16 @@ Required columns:
 `gene_p_site` must split cleanly into gene and site parts such as `BTK_Y551`.
 The site token must follow `<letters><digits>`, such as `S339`, `T308`, or `Y551`.
 
-### Canonical Phosphosite Identifier Contract
+### Supported Phosphosite Identifier Format
 
-PhosPy uses one canonical phosphosite ID format across preprocessing and prediction outputs:
+PhosPy uses one supported phosphosite ID format across preprocessing and prediction outputs:
 
 - `ENTITY;SITE;` (for example `BTK;Y551;`)
 - `ENTITY` is a non-empty token without semicolons
 - `SITE` must match `<letters><digits>` (for example `S123`)
 
-Signalome workflows use this same canonical format when deriving protein grouping from IDs.
-If your IDs are not canonical, pass an explicit `site_to_protein` mapping (or use
+Signalome workflows use this same supported format when deriving protein grouping from IDs.
+If your IDs do not use this format, pass an explicit `site_to_protein` mapping (or use
 `run_from_analysis_ready(...)` so mapping is resolved from aligned site metadata).
 
 ### `predMat`
@@ -99,7 +99,7 @@ Start at the boundary closest to your input:
 | Problem | Usually means | Good next step |
 | --- | --- | --- |
 | Missing required columns | Your input headers do not match the expected schema | Check cleaned column names and, if needed, pass a custom `DatasetSchema` |
-| `predMat` overlap error | The phosphosite IDs do not line up between the matrix and `predMat` | Confirm both sides use canonical `ENTITY;SITE;` IDs |
+| `predMat` overlap error | The phosphosite IDs do not line up between the matrix and `predMat` | Confirm both sides use `ENTITY;SITE;` IDs |
 | `NoCandidateKinasesError` | Thresholds or inclusion settings filtered out every kinase | Relax the prediction config and rerun |
 | Sequence coverage error | `site_sequences` or `motif_sequences` do not cover the scored sites | Check keys and confirm you passed the right reference inputs |
 | Signalome top-kinase failure | Your aligned prediction values contain non-finite rows | Clean or regenerate the prediction output before signalome construction |
