@@ -78,8 +78,12 @@ In practice this means:
 - trusted internal paths then call `CoreProcessor.process_owned()` or `process_phospho_only_owned()` to avoid another full-frame copy after ownership has already transferred
 - detached copy helpers should prefer shallow CoW-safe copies on pandas 3+ and keep deep-copy fallback semantics for older supported pandas versions
 
+For the concrete preprocessing-owned execution contract and benchmark guard workflow, see
+[`docs/architecture/preprocessing-owned-paths.md`](./preprocessing-owned-paths.md).
+
 ## Related documents
 
 - [`docs/api.md`](../api.md) for the supported Python surface
 - [`docs/adr/0004-reorganise-by-domain.md`](../adr/0004-reorganise-by-domain.md) for the architecture decision
+- [`docs/architecture/preprocessing-owned-paths.md`](./preprocessing-owned-paths.md) for preprocessing ownership and copy-churn guard rules
 - [`docs/architecture/root-package-migration-map.md`](./root-package-migration-map.md) for the historical migration record

@@ -148,4 +148,5 @@ If CI fails on this check, untrack the files before committing (for example with
 - [`docs/parity.md`](docs/parity.md) for parity scope and `svm_mode`
 - [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace rebuild commands
 - [`docs/architecture/package-layout.md`](docs/architecture/package-layout.md) for package ownership and contributor layout rules
+- [`docs/architecture/preprocessing-owned-paths.md`](docs/architecture/preprocessing-owned-paths.md) for preprocessing ownership boundaries and copy-churn benchmark guard rules
 - [`docs/roadmap.md`](docs/roadmap.md) for likely next areas of work

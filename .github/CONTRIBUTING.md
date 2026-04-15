@@ -50,6 +50,12 @@ For parity-sensitive changes to prediction policy, sampling, scoring, or public 
 python benchmarks/compare_prediction_modes.py --repeats 1
 ```
 
+For preprocessing ownership or copy-path changes, also run:
+
+```bash
+python benchmarks/measure_preprocessing_copy_churn.py --check --repeats 1
+```
+
 `make test-parity` prints the standard parity summary output.
 
 ## CI
