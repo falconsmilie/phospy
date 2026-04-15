@@ -82,19 +82,23 @@ signalome = SignalomeWorkflow().run_from_analysis_ready(
 
 - `dataset.inputs`, `dataset.total_df_copy`, `dataset.phospho_df_copy`, `dataset.copy_inputs()`
 
-Explicit mutable access is opt-in:
+Unsafe mutable access is advanced and intentional:
 
-- `dataset.inputs_live`, `dataset.total_df_live`, `dataset.phospho_df_live`, `dataset.to_owned_frames()`
+- `dataset.to_mutable_frames_unsafe()`
+- Warning: mutating returned frames mutates the dataset's owned internal state
 
 `SignalomeResult` and nested signalome wrappers (`modules`, `assignments`, `network`) also default to detached reads:
 
 - table properties (for example `signalome.site_assignments`, `signalome.signalome_modules`)
-- `to_frames()` (default `copy=True`)
+- `to_frames()` (always detached)
 
-Explicit mutable access is opt-in:
+Unsafe mutable access is advanced and intentional:
 
-- `to_frames(copy=False)` or `to_owned_frames()`
-- `*_live` properties when you intentionally need shared mutable state
+- `signalome.to_mutable_frames_unsafe()`
+- `signalome.modules.to_mutable_tables_unsafe()`
+- `signalome.assignments.to_mutable_tables_unsafe()`
+- `signalome.network.to_mutable_state_unsafe()`
+- Warning: mutating returned objects mutates the signalome result's owned internal state
 
 ## Configuration Objects
 

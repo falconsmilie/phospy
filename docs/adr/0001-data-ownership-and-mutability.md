@@ -10,10 +10,10 @@ That is reasonable, but the project has not had one explicit policy for how owne
 copying, and mutation should work across those different layers.
 
 The clearest example is `PhosphoDataset`. The class owns validated pandas `DataFrame`
-instances and exposes them through explicit `*_live` and `*_copy` accessors. That
-means callers can mutate the dataset's owned state through those accessors. Without an
-explicit policy, different modules can drift into conflicting assumptions about whether a
-pandas-backed object is immutable, mutable, copied, or shared.
+instances, returns detached copies by default, and exposes explicit unsafe mutable access
+through `to_mutable_frames_unsafe()`. Without an explicit policy, different modules can
+drift into conflicting assumptions about whether a pandas-backed object is immutable,
+mutable, copied, or shared.
 
 This confusion also affects:
 
@@ -97,7 +97,7 @@ Positive consequences:
 - the mutability contract becomes honest
 - internal processing code can work on owned tables without copy theatre
 - future performance work can reduce duplicate copying without weakening boundary rules
-- future API changes can distinguish explicit live-access paths from explicit copies more clearly
+- future API changes can distinguish explicit unsafe mutable-access paths from explicit detached copies more clearly
 - internal preprocessing and site-matrix flows can use explicit `*_owned` fast paths once a boundary has already taken ownership
 - public result objects have a clearer contract distinct from mutable workspaces
 
@@ -112,22 +112,23 @@ Trade-offs:
 
 `PhosphoDataset` should be understood as an owner of mutable tabular state.
 
-- `dataset.total_df_live` returns the owned validated total table
-- `dataset.phospho_df_live` returns the owned validated phospho table
 - constructing a dataset isolates it from later caller mutation of the original input frames
-- `dataset.total_df_copy` and `dataset.phospho_df_copy` return detached deep copies
-- `dataset.copy_inputs()` returns detached deep copies for caller-owned mutation
+- `dataset.inputs`, `dataset.total_df_copy`, `dataset.phospho_df_copy`, and `dataset.copy_inputs()` return detached copies for safe read-oriented caller use
+- `dataset.to_mutable_frames_unsafe()` returns owned mutable tables for advanced in-place workflows
+- mutating frames returned by `to_mutable_frames_unsafe()` mutates the dataset's internal state
 
 In other words, `PhosphoDataset` is a mutable workspace owner, not an immutable snapshot.
 Follow-on refactors should keep making that contract clearer in the API itself, especially
-around how callers choose between explicit live-access paths and explicit copies.
+around how callers choose between safe detached reads and explicit unsafe mutable access.
 
 ## Current Application to Result Bundles
 
 The main public result objects in analysis, profiling, scoring, pipeline execution, workflow
-runs, and prediction should be understood as detached snapshot-style outputs. They expose the
-produced tables directly, but those tables are not intended to share state with the mutable
-``PhosphoDataset`` workspace or predictor runtime internals.
+runs, and prediction should be understood as detached snapshot-style outputs. They expose detached
+tables by default, and mutable shared access should require explicit unsafe methods such as
+`to_mutable_frames_unsafe()`, `to_mutable_tables_unsafe()`, and `to_mutable_state_unsafe()`.
+Those unsafe paths are advanced and intentional because mutating returned objects mutates the
+result owner's internal state.
 
 ## Follow-On Work
 
