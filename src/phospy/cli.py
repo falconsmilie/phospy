@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 
 from .api.contracts import DatasetLoadOptions, KinaseActivityConfig
-from .errors import RequestValidationError
+from .errors import PhospyValidationError
 from .internal.defaults import (
     DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
     DEFAULT_KINASE_ACTIVITY_THRESHOLD,
@@ -16,6 +16,9 @@ from .internal.defaults import (
 )
 from .internal.pipeline import PipelineRunner
 from .preprocessing import CorePreprocessingConfig
+
+CLI_EXIT_SUCCESS = 0
+CLI_EXIT_USER_ERROR = 2
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -124,10 +127,14 @@ def main() -> None:
             preprocessing_config=preprocessing_config,
             activity_config=activity_config,
         )
-    except RequestValidationError as error:
-        parser.error(str(error))
+        pipeline.run(outdir=args.outdir)
+    except PhospyValidationError as error:
+        parser.exit(
+            status=CLI_EXIT_USER_ERROR,
+            message=f"{parser.prog}: error: {error}\n",
+        )
 
-    pipeline.run(outdir=args.outdir)
+    return None
 
 
 if __name__ == "__main__":
