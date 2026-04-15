@@ -521,16 +521,16 @@ class PhosphoDataset:
 
     `PhosphoDataset` is an owned in-memory processing workspace, not an immutable
     snapshot. It validates raw constructor inputs at the boundary, stores owned
-    mutable pandas tables, and exposes them through explicit `*_live` and
-    `*_copy` accessors.
+    mutable pandas tables, and exposes detached copies by default.
 
     Ownership policy: copy once at external construction boundaries, then pass
     owned mutable frames through internal preprocessing paths without copying
     again unless a caller explicitly asks for detached copies.
 
     Prefer `total_df_copy` / `phospho_df_copy` or `copy_inputs()` for caller-owned
-    inspection, export, and other read-oriented work. Use `total_df_live` /
-    `phospho_df_live` only when you intentionally want shared workspace state.
+    inspection, export, and other read-oriented work. For expert workflows that
+    intentionally mutate this dataset's owned state, use
+    `to_mutable_frames_unsafe()`.
     """
 
     __slots__ = ("_inputs", "_schema", "_comparisons")
@@ -565,11 +565,6 @@ class PhosphoDataset:
         return CoreInputs(total_df=total_df, phospho_df=phospho_df)
 
     @property
-    def inputs_live(self) -> CoreInputs:
-        """Return the owned mutable input bundle for advanced workflows."""
-        return self._inputs
-
-    @property
     def schema(self) -> DatasetSchema:
         """Return the schema governing the owned workspace tables."""
         return self._schema
@@ -598,47 +593,34 @@ class PhosphoDataset:
         return instance
 
     @property
-    def total_df_live(self) -> pd.DataFrame:
-        """Return the owned total-protein workspace table.
-
-        Mutating the returned frame mutates this dataset's owned workspace state.
-        Prefer `total_df_copy` for read-oriented caller work.
-        """
-        return self.inputs_live.total_df
-
-    @property
-    def phospho_df_live(self) -> pd.DataFrame:
-        """Return the owned phosphoproteomics workspace table.
-
-        Mutating the returned frame mutates this dataset's owned workspace state.
-        Prefer `phospho_df_copy` for read-oriented caller work.
-        """
-        return self.inputs_live.phospho_df
-
-    @property
     def total_df_copy(self) -> pd.DataFrame:
         """Return a detached copy of the owned total-protein table."""
-        return detached_frame_copy(self.inputs_live.total_df)
+        return detached_frame_copy(self._inputs.total_df)
 
     @property
     def phospho_df_copy(self) -> pd.DataFrame:
         """Return a detached copy of the owned phosphoproteomics table."""
-        return detached_frame_copy(self.inputs_live.phospho_df)
+        return detached_frame_copy(self._inputs.phospho_df)
 
     def copy_inputs(self) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Return detached copies suitable for caller-owned mutation and read use."""
         return self.total_df_copy, self.phospho_df_copy
 
-    def to_owned_frames(self) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Return the owned mutable workspace frames for advanced callers."""
-        return self.total_df_live, self.phospho_df_live
+    def to_mutable_frames_unsafe(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Return owned mutable workspace frames for expert in-place mutation.
+
+        Warning: mutating these frames mutates this dataset's internal state and
+        can invalidate assumptions in downstream code.
+        """
+        return self._inputs.total_df, self._inputs.phospho_df
 
     @property
     def preprocessing(self) -> DatasetPreprocessing:
         """Return the bound preprocessing facade for this dataset workspace."""
+        total_df, phospho_df = self.to_mutable_frames_unsafe()
         return DatasetPreprocessing.from_owned(
-            total_df=self.total_df_live,
-            phospho_df=self.phospho_df_live,
+            total_df=total_df,
+            phospho_df=phospho_df,
             schema=self.schema,
             comparisons=self.comparisons,
         )

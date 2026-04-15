@@ -128,7 +128,7 @@ def build_signalome_network_data(
 ) -> SignalomeNetworkData:
     """Build graph-friendly kinase-network data from a canonical signalome result."""
 
-    adjacency_matrix = signalome_result.network.adjacency(copy=False)
+    adjacency_matrix = signalome_result.network.adjacency()
     node_table, node_models = _build_node_outputs(signalome_result)
     edge_table, edge_models = _build_edge_outputs(signalome_result)
     return SignalomeNetworkData(
@@ -143,11 +143,11 @@ def build_signalome_network_data(
 def _build_node_outputs(
     signalome_result: SignalomeResult,
 ) -> tuple[pd.DataFrame, tuple[SignalomeNetworkNode, ...]]:
-    network_nodes = signalome_result.network.nodes(copy=False)
-    relationships = signalome_result.modules.to_relationship_table(copy=False)
+    network_nodes = signalome_result.network.nodes()
+    relationships = signalome_result.modules.to_relationship_table()
     kinases_of_interest = set(signalome_result.kinases_of_interest)
     kinase_order = [
-        str(kinase) for kinase in signalome_result.signalome_modules_live.columns
+        str(kinase) for kinase in signalome_result.signalome_modules.columns
     ]
 
     module_counts = (
@@ -201,8 +201,8 @@ def _build_node_outputs(
 def _build_edge_outputs(
     signalome_result: SignalomeResult,
 ) -> tuple[pd.DataFrame, tuple[SignalomeNetworkEdge, ...]]:
-    network_edges = signalome_result.network.edges(copy=False)
-    relationships = signalome_result.modules.to_relationship_table(copy=False)
+    network_edges = signalome_result.network.edges()
+    relationships = signalome_result.modules.to_relationship_table()
     kinases_of_interest = set(signalome_result.kinases_of_interest)
 
     if relationships.empty:

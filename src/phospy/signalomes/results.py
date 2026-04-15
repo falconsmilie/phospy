@@ -105,8 +105,9 @@ class ExpandedSignalome:
 class SignalomeModules:
     """Module-centric wide and long signalome views.
 
-    Public accessors return detached copies by default. Use ``copy=False``
-    or ``to_owned_frames()`` only when shared mutable access is required.
+    Public accessors return detached copies by default. Expert callers who
+    intentionally need shared mutable access must opt in via
+    ``to_mutable_tables_unsafe()``.
     """
 
     _module_table: pd.DataFrame
@@ -124,42 +125,29 @@ class SignalomeModules:
     def module_table(self) -> pd.DataFrame:
         """Return a detached module-by-kinase table."""
 
-        return self.to_frame(copy=True)
-
-    @property
-    def module_table_live(self) -> pd.DataFrame:
-        """Return the owned mutable module-by-kinase table."""
-
-        return self._module_table
+        return self.to_frame()
 
     @property
     def kinase_module_relationships(self) -> pd.DataFrame:
         """Return a detached kinase-to-module relationship table."""
 
-        return self.to_relationship_table(copy=True)
+        return self.to_relationship_table()
 
-    @property
-    def kinase_module_relationships_live(self) -> pd.DataFrame:
-        """Return the owned mutable kinase-to-module relationship table."""
-
-        return self._kinase_module_relationships
-
-    def to_frame(self, *, copy: bool = True) -> pd.DataFrame:
+    def to_frame(self) -> pd.DataFrame:
         """Return the wide signalome module table."""
 
-        if copy:
-            return detached_frame_copy(self._module_table)
-        return self._module_table
+        return detached_frame_copy(self._module_table)
 
-    def to_relationship_table(self, *, copy: bool = True) -> pd.DataFrame:
+    def to_relationship_table(self) -> pd.DataFrame:
         """Return the long kinase-to-module relationship table."""
 
-        if copy:
-            return detached_frame_copy(self._kinase_module_relationships)
-        return self._kinase_module_relationships
+        return detached_frame_copy(self._kinase_module_relationships)
 
-    def to_owned_frames(self) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Return owned mutable module and relationship tables."""
+    def to_mutable_tables_unsafe(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Return owned mutable module and relationship tables.
+
+        Warning: mutating these tables mutates the owning signalome result.
+        """
 
         return self._module_table, self._kinase_module_relationships
 
@@ -168,8 +156,9 @@ class SignalomeModules:
 class SignalomeAssignments:
     """Site- and protein-level signalome assignments.
 
-    Public accessors return detached copies by default. Use ``copy=False``
-    or ``to_owned_frames()`` only when shared mutable access is required.
+    Public accessors return detached copies by default. Expert callers who
+    intentionally need shared mutable access must opt in via
+    ``to_mutable_tables_unsafe()``.
     """
 
     _site_assignments: pd.DataFrame
@@ -187,25 +176,13 @@ class SignalomeAssignments:
     def site_assignments(self) -> pd.DataFrame:
         """Return a detached site assignment table."""
 
-        return self.sites(copy=True)
-
-    @property
-    def site_assignments_live(self) -> pd.DataFrame:
-        """Return the owned mutable site assignment table."""
-
-        return self._site_assignments
+        return self.sites()
 
     @property
     def protein_assignments(self) -> pd.DataFrame:
         """Return a detached protein assignment table."""
 
-        return self.proteins(copy=True)
-
-    @property
-    def protein_assignments_live(self) -> pd.DataFrame:
-        """Return the owned mutable protein assignment table."""
-
-        return self._protein_assignments
+        return self.proteins()
 
     @property
     def protein_modules(self) -> pd.Series:
@@ -213,28 +190,21 @@ class SignalomeAssignments:
 
         return detached_series_copy(self._protein_assignments.loc[:, MODULE_ID_COLUMN])
 
-    @property
-    def protein_modules_live(self) -> pd.Series:
-        """Return the owned mutable protein-to-module assignment series."""
-
-        return self._protein_assignments.loc[:, MODULE_ID_COLUMN]
-
-    def sites(self, *, copy: bool = True) -> pd.DataFrame:
+    def sites(self) -> pd.DataFrame:
         """Return the site assignment table."""
 
-        if copy:
-            return detached_frame_copy(self._site_assignments)
-        return self._site_assignments
+        return detached_frame_copy(self._site_assignments)
 
-    def proteins(self, *, copy: bool = True) -> pd.DataFrame:
+    def proteins(self) -> pd.DataFrame:
         """Return the protein assignment table."""
 
-        if copy:
-            return detached_frame_copy(self._protein_assignments)
-        return self._protein_assignments
+        return detached_frame_copy(self._protein_assignments)
 
-    def to_owned_frames(self) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Return owned mutable site and protein assignment tables."""
+    def to_mutable_tables_unsafe(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Return owned mutable site and protein assignment tables.
+
+        Warning: mutating these tables mutates the owning signalome result.
+        """
 
         return self._site_assignments, self._protein_assignments
 
@@ -243,8 +213,9 @@ class SignalomeAssignments:
 class SignalomeKinaseNetwork:
     """Network-centric signalome outputs.
 
-    Public accessors return detached copies by default. Use ``copy=False``
-    or ``to_owned_frames()`` only when shared mutable access is required.
+    Public accessors return detached copies by default. Expert callers who
+    intentionally need shared mutable access must opt in via
+    ``to_mutable_state_unsafe()``.
     """
 
     _adjacency_matrix: pd.DataFrame
@@ -271,49 +242,25 @@ class SignalomeKinaseNetwork:
     def adjacency_matrix(self) -> pd.DataFrame:
         """Return a detached thresholded kinase adjacency matrix."""
 
-        return self.adjacency(copy=True)
-
-    @property
-    def adjacency_matrix_live(self) -> pd.DataFrame:
-        """Return the owned mutable thresholded kinase adjacency matrix."""
-
-        return self._adjacency_matrix
+        return self.adjacency()
 
     @property
     def correlation_matrix(self) -> pd.DataFrame:
         """Return a detached kinase correlation matrix."""
 
-        return self.correlations(copy=True)
-
-    @property
-    def correlation_matrix_live(self) -> pd.DataFrame:
-        """Return the owned mutable kinase correlation matrix."""
-
-        return self.correlations(copy=False)
+        return self.correlations()
 
     @property
     def node_table(self) -> pd.DataFrame:
         """Return a detached kinase network node table."""
 
-        return self.nodes(copy=True)
-
-    @property
-    def node_table_live(self) -> pd.DataFrame:
-        """Return the owned mutable kinase network node table."""
-
-        return self._node_table
+        return self.nodes()
 
     @property
     def edge_table(self) -> pd.DataFrame:
         """Return a detached kinase network edge table."""
 
-        return self.edges(copy=True)
-
-    @property
-    def edge_table_live(self) -> pd.DataFrame:
-        """Return the owned mutable kinase network edge table."""
-
-        return self._edge_table
+        return self.edges()
 
     @property
     def neighbor_map(self) -> dict[str, tuple[str, ...]]:
@@ -321,44 +268,47 @@ class SignalomeKinaseNetwork:
 
         return dict(self._neighbor_map)
 
-    @property
-    def neighbor_map_live(self) -> dict[str, tuple[str, ...]]:
-        """Return the owned mutable kinase neighbor mapping."""
-
-        return self._neighbor_map
-
-    def adjacency(self, *, copy: bool = True) -> pd.DataFrame:
+    def adjacency(self) -> pd.DataFrame:
         """Return the thresholded kinase adjacency matrix."""
 
-        if copy:
-            return detached_frame_copy(self._adjacency_matrix)
-        return self._adjacency_matrix
+        return detached_frame_copy(self._adjacency_matrix)
 
-    def correlations(self, *, copy: bool = True) -> pd.DataFrame:
+    def correlations(self) -> pd.DataFrame:
         """Return the raw kinase correlation matrix used to derive edge weights."""
 
-        if copy:
-            return detached_frame_copy(self._correlation_matrix)
-        return self._correlation_matrix
+        return detached_frame_copy(self._correlation_matrix)
 
-    def nodes(self, *, copy: bool = True) -> pd.DataFrame:
+    def nodes(self) -> pd.DataFrame:
         """Return the kinase network node table."""
 
-        if copy:
-            return detached_frame_copy(self._node_table)
-        return self._node_table
+        return detached_frame_copy(self._node_table)
 
-    def edges(self, *, copy: bool = True) -> pd.DataFrame:
+    def edges(self) -> pd.DataFrame:
         """Return the kinase network edge table."""
 
-        if copy:
-            return detached_frame_copy(self._edge_table)
-        return self._edge_table
+        return detached_frame_copy(self._edge_table)
 
-    def to_owned_frames(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        """Return owned mutable adjacency, node, and edge tables."""
+    def to_mutable_state_unsafe(
+        self,
+    ) -> tuple[
+        pd.DataFrame,
+        pd.DataFrame,
+        pd.DataFrame,
+        pd.DataFrame,
+        dict[str, tuple[str, ...]],
+    ]:
+        """Return owned mutable network tables and neighbor map.
 
-        return self._adjacency_matrix, self._node_table, self._edge_table
+        Warning: mutating these objects mutates the owning signalome result.
+        """
+
+        return (
+            self._adjacency_matrix,
+            self._correlation_matrix,
+            self._node_table,
+            self._edge_table,
+            self._neighbor_map,
+        )
 
 
 @dataclass(slots=True, init=False)
@@ -366,8 +316,8 @@ class SignalomeResult:
     """Structured signalome outputs with stable access and export contracts.
 
     Public table properties return detached copies by default. Use
-    ``to_owned_frames()`` or explicit ``*_live`` accessors when you intentionally
-    need shared mutable state.
+    ``to_mutable_frames_unsafe()`` only when you intentionally need shared
+    mutable state.
     """
 
     _scoring_matrix: pd.DataFrame
@@ -409,34 +359,16 @@ class SignalomeResult:
         return detached_frame_copy(self._scoring_matrix)
 
     @property
-    def scoring_matrix_live(self) -> pd.DataFrame:
-        """Return the owned mutable kinase scoring matrix."""
-
-        return self._scoring_matrix
-
-    @property
     def pred_mat(self) -> pd.DataFrame:
         """Return a detached prediction matrix."""
 
         return detached_frame_copy(self._pred_mat)
 
     @property
-    def pred_mat_live(self) -> pd.DataFrame:
-        """Return the owned mutable prediction matrix."""
-
-        return self._pred_mat
-
-    @property
     def expression_matrix(self) -> pd.DataFrame:
         """Return a detached phosphosite expression matrix."""
 
         return detached_frame_copy(self._expression_matrix)
-
-    @property
-    def expression_matrix_live(self) -> pd.DataFrame:
-        """Return the owned mutable phosphosite expression matrix."""
-
-        return self._expression_matrix
 
     @property
     def modules(self) -> SignalomeModules:
@@ -463,12 +395,6 @@ class SignalomeResult:
         return dict(self._kinase_substrate_map)
 
     @property
-    def kinase_substrate_map_live(self) -> dict[str, tuple[str, ...]]:
-        """Return the owned mutable kinase-to-site mapping."""
-
-        return self._kinase_substrate_map
-
-    @property
     def expanded_signalomes(self) -> dict[str, ExpandedSignalome]:
         """Return detached kinase-of-interest signalome views."""
 
@@ -488,12 +414,6 @@ class SignalomeResult:
         }
 
     @property
-    def expanded_signalomes_live(self) -> dict[str, ExpandedSignalome]:
-        """Return the owned mutable kinase-of-interest signalome views."""
-
-        return self._expanded_signalomes
-
-    @property
     def module_selection_diagnostics(self) -> SignalomeModuleSelectionDiagnostics:
         """Return module-selection diagnostics captured during clustering."""
 
@@ -509,61 +429,31 @@ class SignalomeResult:
     def signalome_modules(self) -> pd.DataFrame:
         """Return a detached module-by-kinase matrix."""
 
-        return self.modules.to_frame(copy=True)
-
-    @property
-    def signalome_modules_live(self) -> pd.DataFrame:
-        """Return the owned mutable module-by-kinase matrix."""
-
-        return self.modules.to_frame(copy=False)
+        return self.modules.to_frame()
 
     @property
     def kinase_module_relationships(self) -> pd.DataFrame:
         """Return a detached kinase-to-module relationship table."""
 
-        return self.modules.to_relationship_table(copy=True)
-
-    @property
-    def kinase_module_relationships_live(self) -> pd.DataFrame:
-        """Return the owned mutable kinase-to-module relationship table."""
-
-        return self.modules.to_relationship_table(copy=False)
+        return self.modules.to_relationship_table()
 
     @property
     def site_assignments(self) -> pd.DataFrame:
         """Return a detached site assignment table."""
 
-        return self.assignments.sites(copy=True)
-
-    @property
-    def site_assignments_live(self) -> pd.DataFrame:
-        """Return the owned mutable site assignment table."""
-
-        return self.assignments.sites(copy=False)
+        return self.assignments.sites()
 
     @property
     def protein_assignments(self) -> pd.DataFrame:
         """Return a detached protein assignment table."""
 
-        return self.assignments.proteins(copy=True)
-
-    @property
-    def protein_assignments_live(self) -> pd.DataFrame:
-        """Return the owned mutable protein assignment table."""
-
-        return self.assignments.proteins(copy=False)
+        return self.assignments.proteins()
 
     @property
     def protein_modules(self) -> pd.Series:
         """Return a detached protein-to-module assignment series."""
 
         return self.assignments.protein_modules
-
-    @property
-    def protein_modules_live(self) -> pd.Series:
-        """Return the owned mutable protein-to-module assignment series."""
-
-        return self.assignments.protein_modules_live
 
     @property
     def kinase_substrates(self) -> dict[str, tuple[str, ...]]:
@@ -578,105 +468,104 @@ class SignalomeResult:
         return self.network.neighbor_map
 
     @property
-    def kinase_network_live(self) -> dict[str, tuple[str, ...]]:
-        """Return the owned mutable kinase neighbor mapping."""
-
-        return self.network.neighbor_map_live
-
-    @property
     def kinase_adjacency_matrix(self) -> pd.DataFrame:
         """Return a detached thresholded kinase adjacency matrix."""
 
-        return self.network.adjacency(copy=True)
-
-    @property
-    def kinase_adjacency_matrix_live(self) -> pd.DataFrame:
-        """Return the owned mutable thresholded kinase adjacency matrix."""
-
-        return self.network.adjacency(copy=False)
+        return self.network.adjacency()
 
     @property
     def kinase_correlation_matrix(self) -> pd.DataFrame:
         """Return a detached raw kinase correlation matrix."""
 
-        return self.network.correlations(copy=True)
-
-    @property
-    def kinase_correlation_matrix_live(self) -> pd.DataFrame:
-        """Return the owned mutable raw kinase correlation matrix."""
-
-        return self.network.correlations(copy=False)
+        return self.network.correlations()
 
     @property
     def kinase_network_nodes(self) -> pd.DataFrame:
         """Return a detached kinase network node table."""
 
-        return self.network.nodes(copy=True)
-
-    @property
-    def kinase_network_nodes_live(self) -> pd.DataFrame:
-        """Return the owned mutable kinase network node table."""
-
-        return self.network.nodes(copy=False)
+        return self.network.nodes()
 
     @property
     def kinase_network_edges(self) -> pd.DataFrame:
         """Return a detached kinase network edge table."""
 
-        return self.network.edges(copy=True)
-
-    @property
-    def kinase_network_edges_live(self) -> pd.DataFrame:
-        """Return the owned mutable kinase network edge table."""
-
-        return self.network.edges(copy=False)
+        return self.network.edges()
 
     def to_frames(
         self,
         *,
         include_inputs: bool = False,
-        copy: bool = True,
     ) -> dict[str, pd.DataFrame]:
-        """Return the canonical named signalome tables."""
+        """Return detached canonical named signalome tables."""
 
         frames: dict[str, pd.DataFrame] = {
-            "signalome_modules": self.modules.to_frame(copy=copy),
-            "kinase_module_relationships": self.modules.to_relationship_table(
-                copy=copy
-            ),
-            "site_assignments": self.assignments.sites(copy=copy),
-            "protein_assignments": self.assignments.proteins(copy=copy),
-            "kinase_network_nodes": self.network.nodes(copy=copy),
-            "kinase_network_edges": self.network.edges(copy=copy),
-            "kinase_adjacency_matrix": self.network.adjacency(copy=copy),
-            "kinase_correlation_matrix": self.network.correlations(copy=copy),
+            "signalome_modules": self.modules.to_frame(),
+            "kinase_module_relationships": self.modules.to_relationship_table(),
+            "site_assignments": self.assignments.sites(),
+            "protein_assignments": self.assignments.proteins(),
+            "kinase_network_nodes": self.network.nodes(),
+            "kinase_network_edges": self.network.edges(),
+            "kinase_adjacency_matrix": self.network.adjacency(),
+            "kinase_correlation_matrix": self.network.correlations(),
         }
         if include_inputs:
             frames.update(
                 {
-                    "scoring_matrix": (
-                        detached_frame_copy(self._scoring_matrix)
-                        if copy
-                        else self._scoring_matrix
-                    ),
-                    "pred_mat": detached_frame_copy(self._pred_mat)
-                    if copy
-                    else self._pred_mat,
-                    "expression_matrix": (
-                        detached_frame_copy(self._expression_matrix)
-                        if copy
-                        else self._expression_matrix
-                    ),
+                    "scoring_matrix": self.scoring_matrix,
+                    "pred_mat": self.pred_mat,
+                    "expression_matrix": self.expression_matrix,
                 }
             )
         return frames
 
-    def to_owned_frames(
+    def to_mutable_frames_unsafe(
         self, *, include_inputs: bool = False
     ) -> dict[str, pd.DataFrame]:
-        """Return the owned mutable signalome tables for advanced workflows."""
+        """Return owned mutable signalome tables for advanced workflows.
 
-        return self.to_frames(include_inputs=include_inputs, copy=False)
+        Warning: mutating these frames mutates this result's internal state and
+        can invalidate assumptions in downstream code.
+        """
+        module_table, kinase_module_relationships = (
+            self.modules.to_mutable_tables_unsafe()
+        )
+        site_assignments, protein_assignments = (
+            self.assignments.to_mutable_tables_unsafe()
+        )
+        (
+            kinase_adjacency_matrix,
+            kinase_correlation_matrix,
+            kinase_network_nodes,
+            kinase_network_edges,
+            _neighbor_map,
+        ) = self.network.to_mutable_state_unsafe()
+        frames: dict[str, pd.DataFrame] = {
+            "signalome_modules": module_table,
+            "kinase_module_relationships": kinase_module_relationships,
+            "site_assignments": site_assignments,
+            "protein_assignments": protein_assignments,
+            "kinase_network_nodes": kinase_network_nodes,
+            "kinase_network_edges": kinase_network_edges,
+            "kinase_adjacency_matrix": kinase_adjacency_matrix,
+            "kinase_correlation_matrix": kinase_correlation_matrix,
+        }
+        if include_inputs:
+            frames.update(
+                {
+                    "scoring_matrix": self._scoring_matrix,
+                    "pred_mat": self._pred_mat,
+                    "expression_matrix": self._expression_matrix,
+                }
+            )
+        return frames
+
+    def expanded_signalomes_mutable_unsafe(self) -> dict[str, ExpandedSignalome]:
+        """Return owned mutable kinase-of-interest signalome views.
+
+        Warning: mutating returned objects mutates this result's internal state.
+        """
+
+        return self._expanded_signalomes
 
     def to_csv(self, directory: str | Path) -> dict[str, Path]:
         """Write the canonical signalome tables to CSV files."""
@@ -684,7 +573,7 @@ class SignalomeResult:
         output_dir = Path(directory)
         output_dir.mkdir(parents=True, exist_ok=True)
         written: dict[str, Path] = {}
-        for name, frame in self.to_frames(copy=False).items():
+        for name, frame in self.to_frames().items():
             path = output_dir / f"{name}.csv"
             if name == "site_assignments":
                 serialize_site_assignments_for_export(frame).to_csv(path)

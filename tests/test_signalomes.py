@@ -1632,9 +1632,9 @@ def test_signalome_result_exposes_canonical_module_assignment_and_network_views(
         kinases_of_interest=["KINASE_A"],
     )
 
-    assert result.modules.to_frame(copy=False) is not result.signalome_modules
+    assert result.modules.to_frame() is not result.signalome_modules
     pd.testing.assert_frame_equal(
-        result.modules.to_frame(copy=False),
+        result.modules.to_frame(),
         result.signalome_modules,
     )
     assert list(result.modules.to_relationship_table().columns) == [
@@ -1647,9 +1647,9 @@ def test_signalome_result_exposes_canonical_module_assignment_and_network_views(
         {"module_id": 2, "kinase": "KINASE_B", "share_percent": 100.0},
     ]
 
-    assert result.assignments.sites(copy=False) is not result.site_assignments
+    assert result.assignments.sites() is not result.site_assignments
     pd.testing.assert_frame_equal(
-        result.assignments.sites(copy=False),
+        result.assignments.sites(),
         result.site_assignments,
     )
     assert list(result.assignments.proteins().columns) == ["module_id", "site_count"]
@@ -1711,16 +1711,16 @@ def test_signalome_result_expanded_signalomes_materialize_with_parity() -> None:
         kinases_of_interest=["KINASE_A"],
     )
 
-    live = result.expanded_signalomes_live["KINASE_A"]
-    assert live._expression_matrix_cache is None
-    assert live._site_assignments_cache is None
+    mutable = result.expanded_signalomes_mutable_unsafe()["KINASE_A"]
+    assert mutable._expression_matrix_cache is None
+    assert mutable._site_assignments_cache is None
 
     detached = result.expanded_signalomes["KINASE_A"]
-    pd.testing.assert_frame_equal(detached.expression_matrix, live.expression_matrix)
-    pd.testing.assert_frame_equal(detached.site_assignments, live.site_assignments)
+    pd.testing.assert_frame_equal(detached.expression_matrix, mutable.expression_matrix)
+    pd.testing.assert_frame_equal(detached.site_assignments, mutable.site_assignments)
 
 
-def test_signalome_result_expanded_signalomes_are_detached_from_live_state() -> None:
+def test_signalome_result_expanded_signalomes_are_detached_from_mutable_state() -> None:
     phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
 
     result = SignalomeWorkflow().run(
@@ -1730,20 +1730,20 @@ def test_signalome_result_expanded_signalomes_are_detached_from_live_state() -> 
         kinases_of_interest=["KINASE_A"],
     )
 
-    live = result.expanded_signalomes_live["KINASE_A"]
+    mutable = result.expanded_signalomes_mutable_unsafe()["KINASE_A"]
     detached = result.expanded_signalomes["KINASE_A"]
 
-    live_expression = live.expression_matrix
-    live_assignments = live.site_assignments
-    expression_original = float(live_expression.iloc[0, 0])
-    top_score_col = live_assignments.columns.get_loc("top_score")
-    assignment_original = float(live_assignments.iloc[0, top_score_col])
+    mutable_expression = mutable.expression_matrix
+    mutable_assignments = mutable.site_assignments
+    expression_original = float(mutable_expression.iloc[0, 0])
+    top_score_col = mutable_assignments.columns.get_loc("top_score")
+    assignment_original = float(mutable_assignments.iloc[0, top_score_col])
 
     detached.expression_matrix.iloc[0, 0] = expression_original + 100.0
     detached.site_assignments.iloc[0, top_score_col] = assignment_original + 0.1
 
-    assert float(live.expression_matrix.iloc[0, 0]) == expression_original
-    assert float(live.site_assignments.iloc[0, top_score_col]) == assignment_original
+    assert float(mutable.expression_matrix.iloc[0, 0]) == expression_original
+    assert float(mutable.site_assignments.iloc[0, top_score_col]) == assignment_original
 
 
 def test_signalome_result_wrappers_with_pandas_state_are_not_frozen_dataclasses() -> (
@@ -1762,7 +1762,7 @@ def test_signalome_result_wrappers_with_pandas_state_are_not_frozen_dataclasses(
     assert SignalomeKinaseNetwork.__dataclass_params__.frozen is False
 
 
-def test_signalome_result_to_frames_supports_safe_copy_default_and_explicit_live() -> (
+def test_signalome_result_to_frames_supports_safe_copy_default_and_explicit_mutable_unsafe() -> (
     None
 ):
     phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
@@ -1775,12 +1775,12 @@ def test_signalome_result_to_frames_supports_safe_copy_default_and_explicit_live
     )
 
     detached_frames = result.to_frames()
-    shared_frames = result.to_frames(copy=False)
+    mutable_frames = result.to_mutable_frames_unsafe()
 
-    assert detached_frames["signalome_modules"] is not result.signalome_modules_live
-    assert detached_frames["site_assignments"] is not result.site_assignments_live
-    assert shared_frames["signalome_modules"] is result.signalome_modules_live
-    assert shared_frames["site_assignments"] is result.site_assignments_live
+    assert (
+        detached_frames["signalome_modules"] is not mutable_frames["signalome_modules"]
+    )
+    assert detached_frames["site_assignments"] is not mutable_frames["site_assignments"]
 
 
 def test_signalome_result_default_accessors_are_detached_from_owned_state() -> None:
@@ -1793,19 +1793,26 @@ def test_signalome_result_default_accessors_are_detached_from_owned_state() -> N
         kinases_of_interest=["KINASE_A"],
     )
 
+    mutable_frames = result.to_mutable_frames_unsafe()
+
     module_copy = result.signalome_modules
-    module_original = float(result.signalome_modules_live.iloc[0, 0])
+    module_original = float(mutable_frames["signalome_modules"].iloc[0, 0])
     module_copy.iloc[0, 0] = module_original + 99.0
-    assert float(result.signalome_modules_live.iloc[0, 0]) == module_original
+    assert float(mutable_frames["signalome_modules"].iloc[0, 0]) == module_original
 
     site_copy = result.site_assignments
     module_col = site_copy.columns.get_loc("module_id")
-    original_site_module = int(result.site_assignments_live.iloc[0, module_col])
+    original_site_module = int(mutable_frames["site_assignments"].iloc[0, module_col])
     site_copy.iloc[0, module_col] = original_site_module + 99
-    assert int(result.site_assignments_live.iloc[0, module_col]) == original_site_module
+    assert (
+        int(mutable_frames["site_assignments"].iloc[0, module_col])
+        == original_site_module
+    )
 
 
-def test_signalome_result_to_owned_frames_exposes_explicit_mutable_state() -> None:
+def test_signalome_result_to_mutable_frames_unsafe_exposes_explicit_mutable_state() -> (
+    None
+):
     phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
 
     result = SignalomeWorkflow().run(
@@ -1815,9 +1822,12 @@ def test_signalome_result_to_owned_frames_exposes_explicit_mutable_state() -> No
         kinases_of_interest=["KINASE_A"],
     )
 
-    owned_frames = result.to_owned_frames()
-    owned_frames["signalome_modules"].iloc[0, 0] = 321.0
-    assert float(result.signalome_modules_live.iloc[0, 0]) == 321.0
+    mutable_frames = result.to_mutable_frames_unsafe()
+    mutable_frames["signalome_modules"].iloc[0, 0] = 321.0
+    assert (
+        float(result.to_mutable_frames_unsafe()["signalome_modules"].iloc[0, 0])
+        == 321.0
+    )
 
 
 def test_signalome_result_to_csv_exports_canonical_tables(tmp_path: Path) -> None:

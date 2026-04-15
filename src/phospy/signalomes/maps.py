@@ -137,10 +137,10 @@ def build_signalome_map_data(signalome_result: SignalomeResult) -> SignalomeMapD
 
 
 def _build_module_positions(signalome_result: SignalomeResult) -> pd.DataFrame:
-    module_table = signalome_result.modules.to_frame(copy=False).sort_index()
-    relationships = signalome_result.modules.to_relationship_table(copy=False)
-    site_assignments = signalome_result.assignments.sites(copy=False)
-    protein_assignments = signalome_result.assignments.proteins(copy=False)
+    module_table = signalome_result.modules.to_frame().sort_index()
+    relationships = signalome_result.modules.to_relationship_table()
+    site_assignments = signalome_result.assignments.sites()
+    protein_assignments = signalome_result.assignments.proteins()
 
     module_positions = pd.DataFrame(index=module_table.index.copy())
     module_positions.index.name = MODULE_ID_COLUMN
@@ -182,13 +182,13 @@ def _build_site_positions(
     signalome_result: SignalomeResult,
     module_positions: pd.DataFrame,
 ) -> pd.DataFrame:
-    site_assignments = signalome_result.assignments.sites(copy=False).reset_index()
+    site_assignments = signalome_result.assignments.sites().reset_index()
     site_assignments = site_assignments.sort_values(
         [MODULE_ID_COLUMN, PROTEIN_ID_COLUMN, SITE_ID_COLUMN],
         ascending=[True, True, True],
         kind="stable",
     )
-    expression_matrix = signalome_result.expression_matrix_live
+    expression_matrix = signalome_result.expression_matrix
 
     if site_assignments.empty:
         site_positions = pd.DataFrame(
@@ -286,11 +286,11 @@ def _build_kinase_positions(
     signalome_result: SignalomeResult,
     module_positions: pd.DataFrame,
 ) -> pd.DataFrame:
-    relationships = signalome_result.modules.to_relationship_table(copy=False)
-    network_nodes = signalome_result.network.nodes(copy=False)
+    relationships = signalome_result.modules.to_relationship_table()
+    network_nodes = signalome_result.network.nodes()
     kinases_of_interest = set(signalome_result.kinases_of_interest)
     kinase_order = [
-        str(kinase) for kinase in signalome_result.signalome_modules_live.columns
+        str(kinase) for kinase in signalome_result.signalome_modules.columns
     ]
 
     records: list[dict[str, object]] = []
@@ -363,7 +363,7 @@ def _build_kinase_module_links(
     module_positions: pd.DataFrame,
     kinase_positions: pd.DataFrame,
 ) -> pd.DataFrame:
-    relationships = signalome_result.modules.to_relationship_table(copy=False)
+    relationships = signalome_result.modules.to_relationship_table()
     if relationships.empty:
         return pd.DataFrame(
             columns=[

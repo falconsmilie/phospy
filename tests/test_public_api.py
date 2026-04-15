@@ -161,6 +161,6 @@ def test_signalome_workflow_runs_from_simple_workflow_outputs() -> None:
         config=SignalomeRunConfig(signalome_cutoff=0.5),
     )
 
-    assert signalome_result.modules.to_frame(copy=False).shape[0] >= 1
+    assert signalome_result.modules.to_frame().shape[0] >= 1
     assert signalome_result.network.nodes().shape[0] >= 1
     simple_result.close()

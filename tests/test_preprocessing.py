@@ -1426,7 +1426,7 @@ def test_dataset_preprocessing_run_defaults_to_defensive_boundary_for_external_i
     assert not result.site_matrix.matrix.empty
 
 
-def test_dataset_preprocessing_facade_shares_live_workspace_state_with_dataset() -> (
+def test_dataset_preprocessing_facade_shares_mutable_workspace_state_with_dataset() -> (
     None
 ):
     from phospy.datasets import PhosphoDataset
@@ -1460,9 +1460,10 @@ def test_dataset_preprocessing_facade_shares_live_workspace_state_with_dataset()
         ),
     )
     preprocessing = dataset.preprocessing
+    total_df_mutable, phospho_df_mutable = dataset.to_mutable_frames_unsafe()
 
-    dataset.total_df_live.loc[0, "group1"] = 111.0
-    dataset.phospho_df_live.loc[0, "p_group1"] = 222.0
+    total_df_mutable.loc[0, "group1"] = 111.0
+    phospho_df_mutable.loc[0, "p_group1"] = 222.0
 
     assert preprocessing.total_df.loc[0, "group1"] == 111.0
     assert preprocessing.phospho_df.loc[0, "p_group1"] == 222.0
@@ -1470,8 +1471,8 @@ def test_dataset_preprocessing_facade_shares_live_workspace_state_with_dataset()
     preprocessing.total_df.loc[1, "group2"] = 333.0
     preprocessing.phospho_df.loc[1, "p_group2"] = 444.0
 
-    assert dataset.total_df_live.loc[1, "group2"] == 333.0
-    assert dataset.phospho_df_live.loc[1, "p_group2"] == 444.0
+    assert total_df_mutable.loc[1, "group2"] == 333.0
+    assert phospho_df_mutable.loc[1, "p_group2"] == 444.0
 
 
 def test_phospho_dataset_inputs_property_returns_detached_copies() -> None:
@@ -1510,11 +1511,12 @@ def test_phospho_dataset_inputs_property_returns_detached_copies() -> None:
     detached.total_df.loc[0, "group1"] = 111.0
     detached.phospho_df.loc[0, "p_group1"] = 222.0
 
-    assert dataset.total_df_live.loc[0, "group1"] == 1.0
-    assert dataset.phospho_df_live.loc[0, "p_group1"] == 1.0
+    total_df_mutable, phospho_df_mutable = dataset.to_mutable_frames_unsafe()
+    assert total_df_mutable.loc[0, "group1"] == 1.0
+    assert phospho_df_mutable.loc[0, "p_group1"] == 1.0
 
 
-def test_phospho_dataset_to_owned_frames_returns_mutable_workspace_tables() -> None:
+def test_phospho_dataset_to_mutable_frames_unsafe_returns_workspace_tables() -> None:
     from phospy.datasets import PhosphoDataset
 
     dataset = PhosphoDataset(
@@ -1546,12 +1548,15 @@ def test_phospho_dataset_to_owned_frames_returns_mutable_workspace_tables() -> N
         ),
     )
 
-    total_df_live, phospho_df_live = dataset.to_owned_frames()
-    total_df_live.loc[0, "group1"] = 111.0
-    phospho_df_live.loc[0, "p_group1"] = 222.0
+    total_df_mutable, phospho_df_mutable = dataset.to_mutable_frames_unsafe()
+    total_df_mutable.loc[0, "group1"] = 111.0
+    phospho_df_mutable.loc[0, "p_group1"] = 222.0
 
-    assert dataset.total_df_live.loc[0, "group1"] == 111.0
-    assert dataset.phospho_df_live.loc[0, "p_group1"] == 222.0
+    refreshed_total_df_mutable, refreshed_phospho_df_mutable = (
+        dataset.to_mutable_frames_unsafe()
+    )
+    assert refreshed_total_df_mutable.loc[0, "group1"] == 111.0
+    assert refreshed_phospho_df_mutable.loc[0, "p_group1"] == 222.0
 
 
 def test_preprocessing_result_wrappers_with_pandas_state_are_not_frozen_dataclasses() -> (

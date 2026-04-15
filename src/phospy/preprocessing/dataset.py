@@ -37,8 +37,7 @@ class DatasetPreprocessing:
     the lower-level processing modules.
 
     When created from :class:`phospy.PhosphoDataset`, this facade is bound to
-    the dataset's explicit `total_df_live` and `phospho_df_live` accessors so
-    in-memory processing works against the owned workspace state intentionally.
+    the dataset's owned mutable workspace tables intentionally.
     """
 
     total_df: pd.DataFrame
