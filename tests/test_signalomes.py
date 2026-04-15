@@ -28,7 +28,7 @@ from phospy.errors import (
     RequestValidationError,
     TableSchemaError,
 )
-from phospy.internal.kinase_workflows import PredMatWorkflow
+from phospy.internal.kinase_workflows import KinaseWorkflow
 from phospy.prediction import PredMatResult
 from phospy.signalomes import (
     SignalomeModuleSelectionPolicy,
@@ -96,7 +96,7 @@ def _build_pred_mat_workflow_result():
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
         make_workflow_inputs()
     )
-    result = PredMatWorkflow(flank_size=2).run(
+    result = KinaseWorkflow(flank_size=2).run(
         phospho_matrix=phospho_matrix,
         substrate_map=substrate_map,
         site_sequences=site_sequences,

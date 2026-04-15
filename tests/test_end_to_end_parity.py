@@ -13,7 +13,7 @@ from phospy.api import (
     SignalomeRunConfig,
     SignalomeWorkflow,
 )
-from phospy.internal.kinase_workflows import PredMatWorkflow
+from phospy.internal.kinase_workflows import KinaseWorkflow
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE_DATA = ROOT / "examples" / "data"
@@ -67,7 +67,7 @@ def _run_public_predmat_workflow(*, svm_mode: str) -> pd.DataFrame:
         n_iterations=2,
         random_state=17,
     )
-    result = PredMatWorkflow(flank_size=2, svm_mode=svm_mode).run(
+    result = KinaseWorkflow(flank_size=2, svm_mode=svm_mode).run(
         phospho_matrix=phospho_matrix,
         substrate_map=substrate_map,
         site_sequences=site_sequences,
@@ -91,7 +91,7 @@ def _run_public_signalome_workflow(
         n_iterations=2,
         random_state=17,
     )
-    pred_mat_result = PredMatWorkflow(flank_size=2, svm_mode=svm_mode).run(
+    pred_mat_result = KinaseWorkflow(flank_size=2, svm_mode=svm_mode).run(
         phospho_matrix=phospho_matrix,
         substrate_map=substrate_map,
         site_sequences=site_sequences,
@@ -165,7 +165,7 @@ def test_public_predmat_workflow_default_mode_is_order_invariant_end_to_end() ->
         random_state=17,
     )
     reference = (
-        PredMatWorkflow(flank_size=2, svm_mode="default")
+        KinaseWorkflow(flank_size=2, svm_mode="default")
         .run(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
@@ -183,7 +183,7 @@ def test_public_predmat_workflow_default_mode_is_order_invariant_end_to_end() ->
     )
 
     reordered = (
-        PredMatWorkflow(flank_size=2, svm_mode="default")
+        KinaseWorkflow(flank_size=2, svm_mode="default")
         .run(
             phospho_matrix=phospho_matrix,
             substrate_map=reordered_substrate_map,

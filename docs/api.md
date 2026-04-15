@@ -12,7 +12,31 @@ This page starts with the simplest supported path, then links to the lower-level
 | Run the common end-to-end workflow | `SimpleKinaseWorkflow` |
 | Build a signalome from workflow outputs | `SignalomeWorkflow` |
 
-`PredMatWorkflow`, `KinaseWorkflow`, and `PhosRPipeline` are internal orchestration helpers and are not part of the supported public API.
+`KinaseWorkflow` and `PhosRPipeline` are internal orchestration helpers and are not part of the supported public API.
+
+## Internal Native Workflow Result Contract
+
+If you use the internal native wrapper directly, `KinaseWorkflow.run(...)` returns a `KinaseWorkflowResult`.
+
+It includes:
+
+- `profile_result`
+- `motif_result`
+- `scoring_result`
+- `prediction_result`
+
+The predMat output is already included in the same result object:
+
+```python
+from phospy.internal.kinase_workflows import KinaseWorkflow
+
+result = KinaseWorkflow().run(...)
+pred_mat = result.pred_mat_result
+# equivalent:
+pred_mat = result.prediction_result.pred_mat_result
+```
+
+Use `prediction_result` when you need the full prediction payload (for example substrate membership and optional traces). Use `pred_mat_result` when you specifically need the canonical predMat table contract.
 
 ## Fastest Path for Most Users
 

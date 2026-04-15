@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from phospy.api import PredictionRunConfig, SignalomeWorkflow
-from phospy.internal.kinase_workflows import PredMatWorkflow
+from phospy.internal.kinase_workflows import KinaseWorkflow
 from phospy.signalomes import SignalomeMapData
 from phospy.signalomes.maps import build_signalome_map_data
 
@@ -60,7 +60,7 @@ def _build_signalome_result():
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
         make_workflow_inputs()
     )
-    pred_mat_result = PredMatWorkflow(flank_size=2).run(
+    pred_mat_result = KinaseWorkflow(flank_size=2).run(
         phospho_matrix=phospho_matrix,
         substrate_map=substrate_map,
         site_sequences=site_sequences,

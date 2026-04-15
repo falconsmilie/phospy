@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Generic, TypeVar
 
 import pandas as pd
 
@@ -20,29 +19,34 @@ from ..prediction.scoring import KinaseScoringResult
 from ..references import ReferenceBundle
 from ..validation.requests.workflow import WorkflowInputs
 
-__all__ = ["KinaseWorkflow", "PredMatWorkflow"]
-
-_WorkflowResultT = TypeVar("_WorkflowResultT")
+__all__ = ["KinaseWorkflow", "KinaseWorkflowResult"]
 
 
 @dataclass(slots=True)
 class KinaseWorkflowResult:
+    """Owned result bundle for native kinase workflow execution.
+
+    This contract always includes profile, motif, scoring, and prediction
+    outputs. The canonical predMat output is exposed as
+    ``prediction_result.pred_mat_result`` and via the convenience property
+    ``pred_mat_result``.
+    """
+
     profile_result: KinaseProfileResult
     motif_result: MotifScoringResult | None
     scoring_result: KinaseScoringResult
     prediction_result: KinasePredictionResult
 
+    @property
+    def pred_mat_result(self) -> PredMatResult:
+        """Canonical predMat output for this run."""
 
-@dataclass(slots=True)
-class PredMatWorkflowResult:
-    scoring_result: KinaseScoringResult
-    prediction_result: KinasePredictionResult
-    pred_mat_result: PredMatResult
+        return self.prediction_result.pred_mat_result
 
     def close(self) -> None:
         self.prediction_result.close()
 
-    def __enter__(self) -> PredMatWorkflowResult:
+    def __enter__(self) -> KinaseWorkflowResult:
         return self
 
     def __exit__(
@@ -85,8 +89,8 @@ def _validate_workflow_inputs(
     )
 
 
-class _BaseKinaseWorkflow(Generic[_WorkflowResultT]):
-    """Shared validated execution path for native kinase workflow adapters."""
+class KinaseWorkflow:
+    """Run the native kinase scoring and prediction workflow end to end."""
 
     def __init__(
         self,
@@ -128,7 +132,7 @@ class _BaseKinaseWorkflow(Generic[_WorkflowResultT]):
         motif_sequences: Mapping[str, Sequence[str]] | None = None,
         reference_bundle: ReferenceBundle | None = None,
         prediction_config: PredictionRunConfig | None = None,
-    ) -> _WorkflowResultT:
+    ) -> KinaseWorkflowResult:
         request = self._validate_request(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
@@ -139,19 +143,9 @@ class _BaseKinaseWorkflow(Generic[_WorkflowResultT]):
         )
         return self.run_validated(request)
 
-    def run_validated(self, request: WorkflowInputs) -> _WorkflowResultT:
+    def run_validated(self, request: WorkflowInputs) -> KinaseWorkflowResult:
         result = self._executor.execute_validated_request(request)
         return self._package_result(result)
-
-    def _package_result(
-        self,
-        result: KinaseWorkflowExecutionResult,
-    ) -> _WorkflowResultT:
-        raise NotImplementedError
-
-
-class KinaseWorkflow(_BaseKinaseWorkflow[KinaseWorkflowResult]):
-    """Run the native kinase scoring and prediction workflow end to end."""
 
     def _package_result(
         self,
@@ -162,18 +156,4 @@ class KinaseWorkflow(_BaseKinaseWorkflow[KinaseWorkflowResult]):
             motif_result=result.motif_result,
             scoring_result=result.scoring_result,
             prediction_result=result.prediction_result,
-        )
-
-
-class PredMatWorkflow(_BaseKinaseWorkflow[PredMatWorkflowResult]):
-    """Generate a predMat from phosphosite and sequence inputs."""
-
-    def _package_result(
-        self,
-        result: KinaseWorkflowExecutionResult,
-    ) -> PredMatWorkflowResult:
-        return PredMatWorkflowResult(
-            scoring_result=result.scoring_result,
-            prediction_result=result.prediction_result,
-            pred_mat_result=result.prediction_result.pred_mat_result,
         )

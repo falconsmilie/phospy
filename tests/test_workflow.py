@@ -9,7 +9,7 @@ from phospy.errors import (
     NoCandidateKinasesError,
     RequestValidationError,
 )
-from phospy.internal.kinase_workflows import KinaseWorkflow, PredMatWorkflow
+from phospy.internal.kinase_workflows import KinaseWorkflow
 from phospy.prediction import PredMatResult
 from phospy.prediction.motif_scoring import KinaseMotifScorer
 from phospy.prediction.profiles import KinaseProfilePolicy
@@ -107,12 +107,12 @@ def test_kinase_workflow_runs_native_end_to_end_path() -> None:
     )
 
 
-def test_pred_mat_workflow_runs_native_end_to_end_path() -> None:
+def test_kinase_workflow_exposes_pred_mat_result_on_native_end_to_end_path() -> None:
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
         make_workflow_inputs()
     )
 
-    workflow = PredMatWorkflow(flank_size=2)
+    workflow = KinaseWorkflow(flank_size=2)
 
     result = workflow.run(
         phospho_matrix=phospho_matrix,
@@ -134,7 +134,7 @@ def test_pred_mat_workflow_runs_native_end_to_end_path() -> None:
     assert set(result.prediction_result.substrate_list) == {"KINASE_A", "KINASE_B"}
 
 
-def test_pred_mat_workflow_raises_domain_error_when_no_candidate_kinases_qualify() -> (
+def test_kinase_workflow_raises_domain_error_when_no_candidate_kinases_qualify() -> (
     None
 ):
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
@@ -148,7 +148,7 @@ def test_pred_mat_workflow_raises_domain_error_when_no_candidate_kinases_qualify
             r"using top=2, score_threshold=0\.0, and inclusion=3"
         ),
     ):
-        PredMatWorkflow(flank_size=2).run(
+        KinaseWorkflow(flank_size=2).run(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
             site_sequences=site_sequences,
@@ -161,12 +161,12 @@ def test_pred_mat_workflow_raises_domain_error_when_no_candidate_kinases_qualify
         )
 
 
-def test_pred_mat_workflow_result_has_canonical_pred_mat_result() -> None:
+def test_kinase_workflow_result_has_canonical_pred_mat_result() -> None:
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
         make_workflow_inputs()
     )
 
-    workflow = PredMatWorkflow(flank_size=2)
+    workflow = KinaseWorkflow(flank_size=2)
     result = workflow.run(
         phospho_matrix=phospho_matrix,
         substrate_map=substrate_map,
@@ -268,11 +268,11 @@ def test_kinase_workflow_limits_motif_and_prediction_outputs_to_sites_with_seque
     ]
 
 
-def test_pred_mat_workflow_accepts_partial_site_sequence_coverage() -> None:
+def test_kinase_workflow_accepts_partial_site_sequence_coverage() -> None:
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
         make_workflow_inputs()
     )
-    workflow = PredMatWorkflow(flank_size=2)
+    workflow = KinaseWorkflow(flank_size=2)
     partial_site_sequences = {
         site_id: site_sequences[site_id]
         for site_id in ["SITE_1", "SITE_2", "SITE_5", "SITE_6"]
@@ -520,7 +520,7 @@ def test_kinase_workflow_accepts_reference_bundle() -> None:
     ]
 
 
-def test_pred_mat_workflow_rejects_mixed_reference_bundle_and_explicit_reference_inputs() -> (
+def test_kinase_workflow_rejects_mixed_reference_bundle_and_explicit_reference_inputs() -> (
     None
 ):
     phospho_matrix, substrate_map, site_sequences, _ = make_workflow_inputs()
@@ -529,7 +529,7 @@ def test_pred_mat_workflow_rejects_mixed_reference_bundle_and_explicit_reference
         RequestValidationError,
         match=r"Pass either reference_bundle or substrate_map, not both",
     ):
-        PredMatWorkflow(flank_size=2).run(
+        KinaseWorkflow(flank_size=2).run(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
             reference_bundle=make_reference_bundle(),
