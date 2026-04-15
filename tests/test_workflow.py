@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pandas as pd
 import pytest
 
@@ -9,7 +11,7 @@ from phospy.errors import (
     NoCandidateKinasesError,
     RequestValidationError,
 )
-from phospy.internal.kinase_workflows import KinaseWorkflow
+from phospy.internal.kinase_workflows import KinaseWorkflow, KinaseWorkflowResult
 from phospy.prediction import PredMatResult
 from phospy.prediction.motif_scoring import KinaseMotifScorer
 from phospy.prediction.profiles import KinaseProfilePolicy
@@ -19,6 +21,18 @@ from phospy.references import (
     ReferenceBundleSourceMetadata,
 )
 from phospy.validation.schema.tables import SiteMatrixSchema
+
+
+class _PredictionResultCloseSpy:
+    def __init__(self) -> None:
+        self.close_calls = 0
+        self.pred_mat_result = PredMatResult(
+            pd.DataFrame({"KINASE_A": [0.5]}, index=["SITE_1"])
+        )
+        self.substrate_list: dict[str, list[str]] = {"KINASE_A": ["SITE_1"]}
+
+    def close(self) -> None:
+        self.close_calls += 1
 
 
 def make_workflow_inputs() -> tuple[
@@ -182,6 +196,77 @@ def test_kinase_workflow_result_has_canonical_pred_mat_result() -> None:
         result.prediction_result.pred_mat_result.to_frame(copy=False),
     )
     assert not hasattr(result, "pred_mat")
+
+
+def test_kinase_workflow_result_exposes_high_value_convenience_accessors() -> None:
+    profile_scores = pd.DataFrame({"KINASE_A": [0.1]}, index=["SITE_1"])
+    combined_scores = pd.DataFrame({"KINASE_A": [0.2]}, index=["SITE_1"])
+    weights = pd.DataFrame(
+        {"motif_weight": [0.4], "profile_weight": [0.6]},
+        index=["KINASE_A"],
+    )
+    pred_matrix = pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"])
+    pred_mat_result = PredMatResult(pred_matrix)
+    substrate_list = {"KINASE_A": ["SITE_1"]}
+
+    result = KinaseWorkflowResult(
+        profile_result=object(),
+        motif_result=None,
+        scoring_result=SimpleNamespace(
+            profile_scores=profile_scores,
+            combined_scores=combined_scores,
+            weights=weights,
+        ),
+        prediction_result=SimpleNamespace(
+            pred_mat_result=pred_mat_result,
+            substrate_list=substrate_list,
+            close=lambda: None,
+        ),
+    )
+
+    assert result.pred_mat_result is pred_mat_result
+    assert result.profile_scores is profile_scores
+    assert result.combined_scores is combined_scores
+    assert result.weights is weights
+    assert result.substrate_list is substrate_list
+
+
+def test_kinase_workflow_result_close_delegates_to_prediction_result_close() -> None:
+    prediction_result = _PredictionResultCloseSpy()
+    result = KinaseWorkflowResult(
+        profile_result=object(),
+        motif_result=None,
+        scoring_result=SimpleNamespace(
+            profile_scores=pd.DataFrame(),
+            combined_scores=None,
+            weights=None,
+        ),
+        prediction_result=prediction_result,
+    )
+
+    result.close()
+
+    assert prediction_result.close_calls == 1
+
+
+def test_kinase_workflow_result_context_manager_closes_on_exit() -> None:
+    prediction_result = _PredictionResultCloseSpy()
+    result = KinaseWorkflowResult(
+        profile_result=object(),
+        motif_result=None,
+        scoring_result=SimpleNamespace(
+            profile_scores=pd.DataFrame(),
+            combined_scores=None,
+            weights=None,
+        ),
+        prediction_result=prediction_result,
+    )
+
+    with result as managed:
+        assert managed is result
+        assert prediction_result.close_calls == 0
+
+    assert prediction_result.close_calls == 1
 
 
 def test_kinase_workflow_result_tables_are_detached_from_input_matrix() -> None:

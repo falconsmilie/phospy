@@ -43,6 +43,30 @@ class KinaseWorkflowResult:
 
         return self.prediction_result.pred_mat_result
 
+    @property
+    def profile_scores(self) -> pd.DataFrame:
+        """Profile-based scoring table from the scoring stage."""
+
+        return self.scoring_result.profile_scores
+
+    @property
+    def combined_scores(self) -> pd.DataFrame | None:
+        """Combined motif/profile scores when motif scoring is available."""
+
+        return self.scoring_result.combined_scores
+
+    @property
+    def weights(self) -> pd.DataFrame | None:
+        """Score-combination weights when motif scoring is available."""
+
+        return self.scoring_result.weights
+
+    @property
+    def substrate_list(self) -> dict[str, list[str]]:
+        """Predicted substrate memberships keyed by kinase."""
+
+        return self.prediction_result.substrate_list
+
     def close(self) -> None:
         self.prediction_result.close()
 

@@ -18,22 +18,61 @@ This page starts with the simplest supported path, then links to the lower-level
 
 If you use the internal native wrapper directly, `KinaseWorkflow.run(...)` returns a `KinaseWorkflowResult`.
 
-It includes:
+`KinaseWorkflow` returns one result object. `predMat` is already part of that result, so you do not need a separate predMat workflow.
 
-- `profile_result`
-- `motif_result`
-- `scoring_result`
-- `prediction_result`
+### What `KinaseWorkflow` returns
 
-The predMat output is already included in the same result object:
+```text
+KinaseWorkflowResult
+├── profile_result (KinaseProfileResult)
+│   ├── profile_matrix
+│   ├── substrate_counts
+│   └── quantified_substrates
+├── motif_result (MotifScoringResult | None)
+│   ├── motif_scores
+│   ├── motif_sizes
+│   └── sequence_windows
+├── scoring_result (KinaseScoringResult)
+│   ├── profile_scores
+│   ├── combined_scores
+│   └── weights
+└── prediction_result (KinasePredictionResult)
+    ├── pred_matrix
+    ├── pred_mat_result
+    ├── substrate_list
+    └── optional traces (debug_traces, trace_level, trace_sink)
+```
+
+`KinaseWorkflowResult` also exposes high-value convenience accessors that delegate to nested fields:
+
+- `pred_mat_result`
+- `profile_scores`
+- `combined_scores`
+- `weights`
+- `substrate_list`
+
+### Common access patterns
 
 ```python
 from phospy.internal.kinase_workflows import KinaseWorkflow
 
-result = KinaseWorkflow().run(...)
+workflow = KinaseWorkflow()
+result = workflow.run(...)
 pred_mat = result.pred_mat_result
-# equivalent:
-pred_mat = result.prediction_result.pred_mat_result
+combined = result.combined_scores
+profile_scores = result.profile_scores
+weights = result.weights
+substrates = result.substrate_list
+```
+
+### Context-manager usage
+
+```python
+from phospy.internal.kinase_workflows import KinaseWorkflow
+
+workflow = KinaseWorkflow()
+with workflow.run(...) as result:
+    pred_mat = result.pred_mat_result
 ```
 
 Use `prediction_result` when you need the full prediction payload (for example substrate membership and optional traces). Use `pred_mat_result` when you specifically need the canonical predMat table contract.
