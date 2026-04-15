@@ -16,16 +16,16 @@ from ..prediction.engines import (
 )
 from ..preprocessing.core import CorePreprocessingConfig
 from ..preprocessing.modes import AnalysisReadyDatasetBuilder
-from ..references import (
-    BundledReferenceProvider,
-    ReferenceBundle,
-    ReferenceProvider,
-)
+from ..references import ReferenceBundle, ReferenceProvider
 from ..validation.requests.workflow import WorkflowInputs
 from .contracts import (
     DatasetLoadOptions,
     KinaseActivityConfig,
     PredictionRunConfig,
+)
+from .simple_workflow_composition import (
+    SimpleKinaseExecutionGraph,
+    create_default_simple_kinase_execution_graph,
 )
 from .workflow_results import SimpleKinaseWorkflowResult
 
@@ -110,12 +110,25 @@ class SimpleKinaseWorkflow:
         svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
         *,
         execution_service: _SimpleKinaseExecutionService | None = None,
+        execution_graph: SimpleKinaseExecutionGraph | None = None,
         analysis_ready_builder: AnalysisReadyDatasetBuilder | None = None,
         reference_provider: ReferenceProvider | None = None,
         activity_analyzer: KinaseActivityAnalyzer | None = None,
         workflow_executor: KinaseWorkflowExecutor | None = None,
     ) -> None:
+        has_overrides = (
+            analysis_ready_builder is not None
+            or reference_provider is not None
+            or activity_analyzer is not None
+            or workflow_executor is not None
+        )
         if execution_service is not None:
+            if execution_graph is not None or has_overrides:
+                msg = (
+                    "execution_service cannot be combined with execution_graph "
+                    "or collaborator overrides."
+                )
+                raise ValueError(msg)
             self._execution_service = execution_service
             self._analysis_ready_builder = None
             self._reference_provider = None
@@ -123,29 +136,25 @@ class SimpleKinaseWorkflow:
             self._workflow_executor = None
             return
 
-        self._execution_service = None
-        self._analysis_ready_builder = (
-            AnalysisReadyDatasetBuilder()
-            if analysis_ready_builder is None
-            else analysis_ready_builder
-        )
-        self._reference_provider = (
-            BundledReferenceProvider()
-            if reference_provider is None
-            else reference_provider
-        )
-        self._activity_analyzer = (
-            KinaseActivityAnalyzer() if activity_analyzer is None else activity_analyzer
-        )
-        self._workflow_executor = (
-            KinaseWorkflowExecutor(
+        if execution_graph is not None and has_overrides:
+            msg = "execution_graph cannot be combined with collaborator overrides."
+            raise ValueError(msg)
+        if execution_graph is None:
+            execution_graph = create_default_simple_kinase_execution_graph(
                 flank_size=flank_size,
                 kernel=kernel,
                 svm_mode=svm_mode,
+                analysis_ready_builder=analysis_ready_builder,
+                reference_provider=reference_provider,
+                activity_analyzer=activity_analyzer,
+                workflow_executor=workflow_executor,
             )
-            if workflow_executor is None
-            else workflow_executor
-        )
+
+        self._execution_service = None
+        self._analysis_ready_builder = execution_graph.analysis_ready_builder
+        self._reference_provider = execution_graph.reference_provider
+        self._activity_analyzer = execution_graph.activity_analyzer
+        self._workflow_executor = execution_graph.workflow_executor
 
     def run(
         self,

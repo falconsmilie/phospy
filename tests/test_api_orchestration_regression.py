@@ -4,9 +4,11 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 
 import pandas as pd
+import pytest
 
 import phospy
 import phospy.api.signalome_workflows as signalome_workflows_module
+import phospy.api.simple_workflows as simple_workflows_module
 from phospy.api import (
     DatasetLoadOptions,
     KinaseActivityConfig,
@@ -15,6 +17,7 @@ from phospy.api import (
     SignalomeWorkflow,
     SimpleKinaseWorkflow,
 )
+from phospy.api.simple_workflow_composition import SimpleKinaseExecutionGraph
 from phospy.api.workflow_results import SimpleKinaseWorkflowResult
 from phospy.preprocessing import CorePreprocessingConfig
 from phospy.references import ReferenceBundle
@@ -221,6 +224,144 @@ def test_simple_kinase_workflow_run_delegates_to_execution_service() -> None:
     assert len(calls) == 1
     assert calls[0]["species"] == "rat"
     assert calls[0]["reference"] == "auto"
+
+
+def test_simple_kinase_workflow_uses_execution_graph_override() -> None:
+    phospho = pd.DataFrame({"uid": ["u1"], "gene_names": ["PRKACA"]})
+    phospho_matrix = make_small_matrix()
+    site_sequences = pd.Series(
+        {"SITE_1": "AAAA", "SITE_2": "BBBB"},
+        name="site_sequence",
+    )
+    analysis_ready_dataset = SimpleNamespace(
+        phospho_matrix=phospho_matrix,
+        site_sequences=site_sequences,
+    )
+    builder_calls: list[dict[str, object]] = []
+    provider_calls: list[dict[str, object]] = []
+    validate_calls: list[dict[str, object]] = []
+    execute_calls: list[object] = []
+    analyzer_calls: list[dict[str, object]] = []
+    reference_bundle = _ReferenceBundleDouble.__new__(_ReferenceBundleDouble)
+    pred_mat_result = object()
+    prediction_result = _PredictionResultDouble(pred_mat_result=pred_mat_result)
+    validated_request = object()
+    workflow_result = SimpleNamespace(
+        scoring_result=object(),
+        prediction_result=prediction_result,
+        profile_result=object(),
+        motif_result=object(),
+    )
+    workflow = SimpleKinaseWorkflow(
+        execution_graph=SimpleKinaseExecutionGraph(
+            analysis_ready_builder=_BuilderDouble(
+                dataset=analysis_ready_dataset,
+                calls=builder_calls,
+            ),
+            reference_provider=_ProviderDouble(
+                bundle=reference_bundle,
+                calls=provider_calls,
+            ),
+            workflow_executor=_WorkflowExecutorDouble(
+                validate_result=validated_request,
+                execute_result=workflow_result,
+                validate_calls=validate_calls,
+                execute_calls=execute_calls,
+            ),
+            activity_analyzer=_AnalyzerDouble(
+                result=object(),
+                calls=analyzer_calls,
+            ),
+        )
+    )
+
+    workflow.run(phospho=phospho, species="human")
+
+    assert len(builder_calls) == 1
+    assert provider_calls == [{"species": "human", "reference": "auto"}]
+    assert validate_calls[0]["phospho_matrix"] is phospho_matrix
+    assert execute_calls == [validated_request]
+    assert analyzer_calls[0]["pred_mat"] is pred_mat_result
+
+
+def test_simple_kinase_workflow_builds_default_graph_from_composition_layer(
+    monkeypatch,
+) -> None:
+    graph_calls: list[dict[str, object]] = []
+    fake_graph = SimpleKinaseExecutionGraph(
+        analysis_ready_builder=_BuilderDouble(
+            dataset=SimpleNamespace(
+                phospho_matrix=make_small_matrix(),
+                site_sequences=pd.Series({"SITE_1": "AAAA"}),
+            ),
+            calls=[],
+        ),
+        reference_provider=_ProviderDouble(
+            bundle=_ReferenceBundleDouble.__new__(_ReferenceBundleDouble),
+            calls=[],
+        ),
+        workflow_executor=_WorkflowExecutorDouble(
+            validate_result=object(),
+            execute_result=SimpleNamespace(
+                scoring_result=object(),
+                prediction_result=_PredictionResultDouble(pred_mat_result=object()),
+                profile_result=object(),
+                motif_result=object(),
+            ),
+            validate_calls=[],
+            execute_calls=[],
+        ),
+        activity_analyzer=_AnalyzerDouble(result=object(), calls=[]),
+    )
+
+    def fake_create_default_simple_kinase_execution_graph(
+        **kwargs: object,
+    ) -> SimpleKinaseExecutionGraph:
+        graph_calls.append(kwargs)
+        return fake_graph
+
+    monkeypatch.setattr(
+        simple_workflows_module,
+        "create_default_simple_kinase_execution_graph",
+        fake_create_default_simple_kinase_execution_graph,
+    )
+
+    workflow = SimpleKinaseWorkflow(flank_size=9, kernel="linear")
+
+    assert workflow._analysis_ready_builder is fake_graph.analysis_ready_builder
+    assert workflow._reference_provider is fake_graph.reference_provider
+    assert workflow._activity_analyzer is fake_graph.activity_analyzer
+    assert workflow._workflow_executor is fake_graph.workflow_executor
+    assert len(graph_calls) == 1
+    assert graph_calls[0]["flank_size"] == 9
+    assert graph_calls[0]["kernel"] == "linear"
+
+
+def test_simple_kinase_workflow_rejects_conflicting_execution_inputs() -> None:
+    with pytest.raises(ValueError, match="execution_service"):
+        SimpleKinaseWorkflow(
+            execution_service=SimpleNamespace(run=lambda **_: object()),
+            execution_graph=SimpleKinaseExecutionGraph(
+                analysis_ready_builder=_BuilderDouble(
+                    dataset=SimpleNamespace(),
+                    calls=[],
+                ),
+                reference_provider=_ProviderDouble(
+                    bundle=SimpleNamespace(),
+                    calls=[],
+                ),
+                workflow_executor=_WorkflowExecutorDouble(
+                    validate_result=SimpleNamespace(),
+                    execute_result=SimpleNamespace(),
+                    validate_calls=[],
+                    execute_calls=[],
+                ),
+                activity_analyzer=_AnalyzerDouble(
+                    result=SimpleNamespace(),
+                    calls=[],
+                ),
+            ),
+        )
 
 
 def test_signalome_workflow_run_delegates_to_validation_and_execution(
