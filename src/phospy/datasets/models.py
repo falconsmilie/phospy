@@ -23,6 +23,7 @@ from ..internal.constants import (
     SITE_MATRIX_ID_COLUMN,
     ComparisonSpec,
 )
+from ..internal.pandas_copy import detached_frame_copy, detached_series_copy
 from ..internal.types import (
     DUPLICATE_SITE_STRATEGY_MAX_MEAN_SIGNAL,
     SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
@@ -77,8 +78,8 @@ class CoreInputs:
     phospho_df: pd.DataFrame
 
     def copy_frames(self) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Return deep copies suitable for caller-owned mutation."""
-        return self.total_df.copy(deep=True), self.phospho_df.copy(deep=True)
+        """Return detached copies suitable for caller-owned mutation."""
+        return detached_frame_copy(self.total_df), detached_frame_copy(self.phospho_df)
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,8 +185,8 @@ class AnalysisReadyPhosphoDataset:
         """Create an owned analysis-ready dataset from caller-supplied inputs.
 
         The constructor is the external ownership boundary. It defensively
-        deep-copies caller-managed pandas inputs once, then delegates to the
-        owned fast path used by internal preprocessing results.
+        detaches caller-managed pandas inputs once, then delegates to the owned
+        fast path used by internal preprocessing results.
         """
 
         owned = self.from_external(
@@ -217,10 +218,10 @@ class AnalysisReadyPhosphoDataset:
         each pandas object once.
         """
         return cls.from_owned(
-            phospho_matrix=phospho_matrix.copy(deep=True),
-            site_metadata=site_metadata.copy(deep=True),
-            site_sequences=site_sequences.copy(deep=True),
-            phospho_corrected=phospho_corrected.copy(deep=True),
+            phospho_matrix=detached_frame_copy(phospho_matrix),
+            site_metadata=detached_frame_copy(site_metadata),
+            site_sequences=detached_series_copy(site_sequences),
+            phospho_corrected=detached_frame_copy(phospho_corrected),
             provenance=provenance,
         )
 
@@ -557,7 +558,7 @@ class PhosphoDataset:
     def inputs(self) -> CoreInputs:
         """Return detached dataset inputs for safe caller-owned inspection.
 
-        The returned ``CoreInputs`` bundle contains deep copies of the owned
+        The returned ``CoreInputs`` bundle contains detached copies of the owned
         workspace frames. Mutating it does not change this dataset.
         """
         total_df, phospho_df = self._inputs.copy_frames()
@@ -616,16 +617,16 @@ class PhosphoDataset:
 
     @property
     def total_df_copy(self) -> pd.DataFrame:
-        """Return a detached deep copy of the owned total-protein table."""
-        return self.inputs_live.total_df.copy(deep=True)
+        """Return a detached copy of the owned total-protein table."""
+        return detached_frame_copy(self.inputs_live.total_df)
 
     @property
     def phospho_df_copy(self) -> pd.DataFrame:
-        """Return a detached deep copy of the owned phosphoproteomics table."""
-        return self.inputs_live.phospho_df.copy(deep=True)
+        """Return a detached copy of the owned phosphoproteomics table."""
+        return detached_frame_copy(self.inputs_live.phospho_df)
 
     def copy_inputs(self) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Return detached deep copies suitable for caller-owned mutation and read use."""
+        """Return detached copies suitable for caller-owned mutation and read use."""
         return self.total_df_copy, self.phospho_df_copy
 
     def to_owned_frames(self) -> tuple[pd.DataFrame, pd.DataFrame]:

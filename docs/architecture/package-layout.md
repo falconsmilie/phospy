@@ -72,9 +72,11 @@ Preprocessing and validation follow one explicit ownership rule:
 In practice this means:
 
 - schema validators keep their default defensive copy at public input boundaries
+- file-backed loader paths validate already-owned frames in place (`copy_frame=False`) so disk reads are not copied again before entering dataset-owned state
 - internal fast paths use explicit owned constructors such as `prepare_owned()`, `correct_owned()`, `build_owned()`, and `AnalysisReadyPhosphoDataset.from_owned()`
-- `CoreProcessor.process()` and `process_phospho_only()` are safe boundary wrappers that copy caller-managed tables once
+- `CoreProcessor.process()` and `process_phospho_only()` are safe boundary wrappers that detach caller-managed tables once
 - trusted internal paths then call `CoreProcessor.process_owned()` or `process_phospho_only_owned()` to avoid another full-frame copy after ownership has already transferred
+- detached copy helpers should prefer shallow CoW-safe copies on pandas 3+ and keep deep-copy fallback semantics for older supported pandas versions
 
 ## Related documents
 

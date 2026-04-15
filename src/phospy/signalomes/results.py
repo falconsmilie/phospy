@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
+from ..internal.pandas_copy import detached_frame_copy, detached_series_copy
 from .constants import MODULE_ID_COLUMN
 from .maps import SignalomeMapData
 from .networks import SignalomeNetworkData
@@ -104,7 +105,7 @@ class ExpandedSignalome:
 class SignalomeModules:
     """Module-centric wide and long signalome views.
 
-    Public accessors return detached deep copies by default. Use ``copy=False``
+    Public accessors return detached copies by default. Use ``copy=False``
     or ``to_owned_frames()`` only when shared mutable access is required.
     """
 
@@ -147,14 +148,14 @@ class SignalomeModules:
         """Return the wide signalome module table."""
 
         if copy:
-            return self._module_table.copy(deep=True)
+            return detached_frame_copy(self._module_table)
         return self._module_table
 
     def to_relationship_table(self, *, copy: bool = True) -> pd.DataFrame:
         """Return the long kinase-to-module relationship table."""
 
         if copy:
-            return self._kinase_module_relationships.copy(deep=True)
+            return detached_frame_copy(self._kinase_module_relationships)
         return self._kinase_module_relationships
 
     def to_owned_frames(self) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -167,7 +168,7 @@ class SignalomeModules:
 class SignalomeAssignments:
     """Site- and protein-level signalome assignments.
 
-    Public accessors return detached deep copies by default. Use ``copy=False``
+    Public accessors return detached copies by default. Use ``copy=False``
     or ``to_owned_frames()`` only when shared mutable access is required.
     """
 
@@ -210,7 +211,7 @@ class SignalomeAssignments:
     def protein_modules(self) -> pd.Series:
         """Return a detached protein-to-module assignment series."""
 
-        return self._protein_assignments.loc[:, MODULE_ID_COLUMN].copy(deep=True)
+        return detached_series_copy(self._protein_assignments.loc[:, MODULE_ID_COLUMN])
 
     @property
     def protein_modules_live(self) -> pd.Series:
@@ -222,14 +223,14 @@ class SignalomeAssignments:
         """Return the site assignment table."""
 
         if copy:
-            return self._site_assignments.copy(deep=True)
+            return detached_frame_copy(self._site_assignments)
         return self._site_assignments
 
     def proteins(self, *, copy: bool = True) -> pd.DataFrame:
         """Return the protein assignment table."""
 
         if copy:
-            return self._protein_assignments.copy(deep=True)
+            return detached_frame_copy(self._protein_assignments)
         return self._protein_assignments
 
     def to_owned_frames(self) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -242,7 +243,7 @@ class SignalomeAssignments:
 class SignalomeKinaseNetwork:
     """Network-centric signalome outputs.
 
-    Public accessors return detached deep copies by default. Use ``copy=False``
+    Public accessors return detached copies by default. Use ``copy=False``
     or ``to_owned_frames()`` only when shared mutable access is required.
     """
 
@@ -330,28 +331,28 @@ class SignalomeKinaseNetwork:
         """Return the thresholded kinase adjacency matrix."""
 
         if copy:
-            return self._adjacency_matrix.copy(deep=True)
+            return detached_frame_copy(self._adjacency_matrix)
         return self._adjacency_matrix
 
     def correlations(self, *, copy: bool = True) -> pd.DataFrame:
         """Return the raw kinase correlation matrix used to derive edge weights."""
 
         if copy:
-            return self._correlation_matrix.copy(deep=True)
+            return detached_frame_copy(self._correlation_matrix)
         return self._correlation_matrix
 
     def nodes(self, *, copy: bool = True) -> pd.DataFrame:
         """Return the kinase network node table."""
 
         if copy:
-            return self._node_table.copy(deep=True)
+            return detached_frame_copy(self._node_table)
         return self._node_table
 
     def edges(self, *, copy: bool = True) -> pd.DataFrame:
         """Return the kinase network edge table."""
 
         if copy:
-            return self._edge_table.copy(deep=True)
+            return detached_frame_copy(self._edge_table)
         return self._edge_table
 
     def to_owned_frames(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -364,7 +365,7 @@ class SignalomeKinaseNetwork:
 class SignalomeResult:
     """Structured signalome outputs with stable access and export contracts.
 
-    Public table properties return detached deep copies by default. Use
+    Public table properties return detached copies by default. Use
     ``to_owned_frames()`` or explicit ``*_live`` accessors when you intentionally
     need shared mutable state.
     """
@@ -405,7 +406,7 @@ class SignalomeResult:
     def scoring_matrix(self) -> pd.DataFrame:
         """Return a detached kinase scoring matrix."""
 
-        return self._scoring_matrix.copy(deep=True)
+        return detached_frame_copy(self._scoring_matrix)
 
     @property
     def scoring_matrix_live(self) -> pd.DataFrame:
@@ -417,7 +418,7 @@ class SignalomeResult:
     def pred_mat(self) -> pd.DataFrame:
         """Return a detached prediction matrix."""
 
-        return self._pred_mat.copy(deep=True)
+        return detached_frame_copy(self._pred_mat)
 
     @property
     def pred_mat_live(self) -> pd.DataFrame:
@@ -429,7 +430,7 @@ class SignalomeResult:
     def expression_matrix(self) -> pd.DataFrame:
         """Return a detached phosphosite expression matrix."""
 
-        return self._expression_matrix.copy(deep=True)
+        return detached_frame_copy(self._expression_matrix)
 
     @property
     def expression_matrix_live(self) -> pd.DataFrame:
@@ -476,8 +477,12 @@ class SignalomeResult:
                 kinase=expanded.kinase,
                 linked_kinases=expanded.linked_kinases,
                 regulated_module_ids=expanded.regulated_module_ids,
-                expression_matrix=expanded.expression_matrix.copy(deep=True),
-                site_assignments=expanded.site_assignments.copy(deep=True),
+                expression_matrix=expanded._expression_matrix_source.take(
+                    expanded._row_positions
+                ),
+                site_assignments=expanded._site_assignments_source.take(
+                    expanded._row_positions
+                ),
             )
             for kinase, expanded in self._expanded_signalomes.items()
         }
@@ -650,15 +655,15 @@ class SignalomeResult:
             frames.update(
                 {
                     "scoring_matrix": (
-                        self._scoring_matrix.copy(deep=True)
+                        detached_frame_copy(self._scoring_matrix)
                         if copy
                         else self._scoring_matrix
                     ),
-                    "pred_mat": self._pred_mat.copy(deep=True)
+                    "pred_mat": detached_frame_copy(self._pred_mat)
                     if copy
                     else self._pred_mat,
                     "expression_matrix": (
-                        self._expression_matrix.copy(deep=True)
+                        detached_frame_copy(self._expression_matrix)
                         if copy
                         else self._expression_matrix
                     ),

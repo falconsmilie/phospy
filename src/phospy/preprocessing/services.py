@@ -19,6 +19,7 @@ from ..internal.defaults import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
 )
+from ..internal.pandas_copy import detached_frame_copy
 from .primitives import (
     _add_pairwise_comparisons_in_place,
     _collapse_duplicate_genes_owned,
@@ -79,7 +80,7 @@ class TotalPreprocessor:
         sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
         min_observed: int = DEFAULT_MIN_OBSERVED_VALUES,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        total = total_df.copy()
+        total = detached_frame_copy(total_df)
         return self.prepare_owned(
             total,
             gene_col=gene_col,
@@ -131,7 +132,7 @@ class PhosphoPreprocessor:
         sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
         min_observed: int = DEFAULT_MIN_OBSERVED_VALUES,
     ) -> pd.DataFrame:
-        phospho = phospho_df.copy()
+        phospho = detached_frame_copy(phospho_df)
         return self.prepare_owned(
             phospho,
             gene_col=gene_col,

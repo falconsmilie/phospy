@@ -1688,6 +1688,89 @@ def test_dataset_loader_resolve_inputs_converges_in_memory_file_and_mixed_source
     pd.testing.assert_frame_equal(mixed_inputs.phospho_df, file_inputs.phospho_df)
 
 
+def test_dataset_loader_file_resolution_uses_owned_validation_without_copy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture_dir = (
+        Path(__file__).resolve().parents[1] / "examples" / "data" / "simple_workflow"
+    )
+    total_path = fixture_dir / "total.tsv"
+    phospho_path = fixture_dir / "phospho.tsv"
+    loader = DatasetLoader(schema=DatasetSchema())
+    total_copy_flags: list[bool] = []
+    phospho_copy_flags: list[bool] = []
+    original_validate_total = DatasetLoader.validate_total
+    original_validate_phospho = DatasetLoader.validate_phospho
+
+    def capture_validate_total(
+        self,
+        total_df: pd.DataFrame,
+        *,
+        copy_frame: bool = True,
+    ) -> pd.DataFrame:
+        total_copy_flags.append(copy_frame)
+        return original_validate_total(self, total_df, copy_frame=copy_frame)
+
+    def capture_validate_phospho(
+        self,
+        phospho_df: pd.DataFrame,
+        *,
+        copy_frame: bool = True,
+    ) -> pd.DataFrame:
+        phospho_copy_flags.append(copy_frame)
+        return original_validate_phospho(self, phospho_df, copy_frame=copy_frame)
+
+    monkeypatch.setattr(DatasetLoader, "validate_total", capture_validate_total)
+    monkeypatch.setattr(DatasetLoader, "validate_phospho", capture_validate_phospho)
+
+    loader.resolve_inputs(total=total_path, phospho=phospho_path)
+
+    assert total_copy_flags == [False]
+    assert phospho_copy_flags == [False]
+
+
+def test_dataset_loader_mixed_resolution_keeps_defensive_copy_for_in_memory_inputs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture_dir = (
+        Path(__file__).resolve().parents[1] / "examples" / "data" / "simple_workflow"
+    )
+    total_path = fixture_dir / "total.tsv"
+    phospho_path = fixture_dir / "phospho.tsv"
+    phospho_df = pd.read_csv(phospho_path, sep="\t")
+    loader = DatasetLoader(schema=DatasetSchema())
+    total_copy_flags: list[bool] = []
+    phospho_copy_flags: list[bool] = []
+    original_validate_total = DatasetLoader.validate_total
+    original_validate_phospho = DatasetLoader.validate_phospho
+
+    def capture_validate_total(
+        self,
+        total_df: pd.DataFrame,
+        *,
+        copy_frame: bool = True,
+    ) -> pd.DataFrame:
+        total_copy_flags.append(copy_frame)
+        return original_validate_total(self, total_df, copy_frame=copy_frame)
+
+    def capture_validate_phospho(
+        self,
+        phospho_df: pd.DataFrame,
+        *,
+        copy_frame: bool = True,
+    ) -> pd.DataFrame:
+        phospho_copy_flags.append(copy_frame)
+        return original_validate_phospho(self, phospho_df, copy_frame=copy_frame)
+
+    monkeypatch.setattr(DatasetLoader, "validate_total", capture_validate_total)
+    monkeypatch.setattr(DatasetLoader, "validate_phospho", capture_validate_phospho)
+
+    loader.resolve_inputs(total=total_path, phospho=phospho_df)
+
+    assert total_copy_flags == [False]
+    assert phospho_copy_flags == [True]
+
+
 def test_analysis_ready_builder_full_inputs_reuses_dataset_preprocessing_seam(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

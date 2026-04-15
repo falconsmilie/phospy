@@ -21,6 +21,7 @@ from ..internal.defaults import (
     DEFAULT_PHOSPHO_SENTINEL,
     DEFAULT_TOTAL_SENTINEL,
 )
+from ..internal.pandas_copy import detached_frame_copy
 from .services import (
     PhosphoPreprocessor,
     ProteinCorrectionService,
@@ -301,12 +302,12 @@ class CoreProcessor:
         """Run core preprocessing through the external defensive ownership boundary.
 
         This public method protects callers from unintended mutation by taking
-        deep copies once at entry, then delegating to :meth:`process_owned`.
+        detached copies once at entry, then delegating to :meth:`process_owned`.
         """
         resolved_config = config or CorePreprocessingConfig()
         return self.process_owned(
-            total_df=total_df.copy(deep=True),
-            phospho_df=phospho_df.copy(deep=True),
+            total_df=detached_frame_copy(total_df),
+            phospho_df=detached_frame_copy(phospho_df),
             config=resolved_config,
         )
 
@@ -361,7 +362,7 @@ class CoreProcessor:
         """Run phospho-only preprocessing through the defensive boundary."""
         resolved_config = config or CorePreprocessingConfig()
         return self.process_phospho_only_owned(
-            phospho_df=phospho_df.copy(deep=True),
+            phospho_df=detached_frame_copy(phospho_df),
             config=resolved_config,
         )
 

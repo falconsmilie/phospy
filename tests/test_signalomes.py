@@ -1720,6 +1720,32 @@ def test_signalome_result_expanded_signalomes_materialize_with_parity() -> None:
     pd.testing.assert_frame_equal(detached.site_assignments, live.site_assignments)
 
 
+def test_signalome_result_expanded_signalomes_are_detached_from_live_state() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A"],
+    )
+
+    live = result.expanded_signalomes_live["KINASE_A"]
+    detached = result.expanded_signalomes["KINASE_A"]
+
+    live_expression = live.expression_matrix
+    live_assignments = live.site_assignments
+    expression_original = float(live_expression.iloc[0, 0])
+    top_score_col = live_assignments.columns.get_loc("top_score")
+    assignment_original = float(live_assignments.iloc[0, top_score_col])
+
+    detached.expression_matrix.iloc[0, 0] = expression_original + 100.0
+    detached.site_assignments.iloc[0, top_score_col] = assignment_original + 0.1
+
+    assert float(live.expression_matrix.iloc[0, 0]) == expression_original
+    assert float(live.site_assignments.iloc[0, top_score_col]) == assignment_original
+
+
 def test_signalome_result_wrappers_with_pandas_state_are_not_frozen_dataclasses() -> (
     None
 ):

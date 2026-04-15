@@ -43,7 +43,12 @@ class DatasetLoader:
     ) -> None:
         self.schema = schema or DatasetSchema()
 
-    def validate_total(self, total_df: pd.DataFrame) -> pd.DataFrame:
+    def validate_total(
+        self,
+        total_df: pd.DataFrame,
+        *,
+        copy_frame: bool = True,
+    ) -> pd.DataFrame:
         """Validate one in-memory total-proteome input table."""
 
         return self._validate_table(
@@ -51,10 +56,16 @@ class DatasetLoader:
             validator=lambda frame: TotalInputSchema.validate(
                 frame,
                 total_cols=self.schema.total_cols,
+                copy_frame=copy_frame,
             ),
         )
 
-    def validate_phospho(self, phospho_df: pd.DataFrame) -> pd.DataFrame:
+    def validate_phospho(
+        self,
+        phospho_df: pd.DataFrame,
+        *,
+        copy_frame: bool = True,
+    ) -> pd.DataFrame:
         """Validate one in-memory phosphoproteome input table."""
 
         return self._validate_table(
@@ -62,6 +73,7 @@ class DatasetLoader:
             validator=lambda frame: PhosphoInputSchema.validate(
                 frame,
                 phospho_cols=self.schema.phospho_cols,
+                copy_frame=copy_frame,
             ),
         )
 
@@ -142,7 +154,7 @@ class DatasetLoader:
         return self._load_from_validated_path(
             validated_path,
             context="total input table",
-            validator=self.validate_total,
+            validator=lambda frame: self.validate_total(frame, copy_frame=False),
             encoding=encoding,
         )
 
@@ -161,7 +173,7 @@ class DatasetLoader:
         return self._load_from_validated_path(
             validated_path,
             context="phospho input table",
-            validator=self.validate_phospho,
+            validator=lambda frame: self.validate_phospho(frame, copy_frame=False),
             encoding=encoding,
         )
 
@@ -180,12 +192,15 @@ class DatasetLoader:
             total_df=self._load_from_validated_path(
                 validated_paths.total_path,
                 context="total input table",
-                validator=self.validate_total,
+                validator=lambda frame: self.validate_total(frame, copy_frame=False),
             ),
             phospho_df=self._load_from_validated_path(
                 validated_paths.phospho_path,
                 context="phospho input table",
-                validator=self.validate_phospho,
+                validator=lambda frame: self.validate_phospho(
+                    frame,
+                    copy_frame=False,
+                ),
                 encoding=phospho_encoding,
             ),
         )
