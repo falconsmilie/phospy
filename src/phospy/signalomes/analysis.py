@@ -327,7 +327,7 @@ def build_kinase_network_view(
     kinase_correlation_matrix: pd.DataFrame,
     kinase_substrates: Mapping[str, Sequence[str]],
 ) -> SignalomeKinaseNetwork:
-    """Wrap derived network tables and neighbour lookup in a structured result view."""
+    """Wrap thresholded adjacency, correlations, and neighbor lookups."""
 
     kinase_index = pd.Index(
         kinase_correlation_matrix.index.astype(str),
@@ -400,7 +400,8 @@ def build_kinase_network_view(
     ).reset_index(drop=True)
 
     return SignalomeKinaseNetwork(
-        correlation_matrix=kinase_correlation_matrix,
+        adjacency_matrix=aligned_network,
+        correlation_matrix=aligned_correlation_matrix,
         node_table=node_table,
         edge_table=edge_table,
         neighbor_map=neighbor_map,

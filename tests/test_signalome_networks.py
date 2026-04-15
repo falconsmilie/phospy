@@ -86,7 +86,8 @@ def test_signalome_result_to_network_data_returns_canonical_graph_tables() -> No
         "source_is_kinase_of_interest",
         "target_is_kinase_of_interest",
     ]
-    assert network_data.adjacency().equals(result.kinase_correlation_matrix)
+    assert network_data.adjacency().equals(result.kinase_adjacency_matrix)
+    assert not network_data.adjacency().equals(result.kinase_correlation_matrix)
 
     assert network_data.nodes().loc["KINASE_A", "degree"] == 1
     assert network_data.nodes().loc["KINASE_A", "module_count"] == 1

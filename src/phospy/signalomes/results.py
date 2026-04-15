@@ -246,6 +246,7 @@ class SignalomeKinaseNetwork:
     or ``to_owned_frames()`` only when shared mutable access is required.
     """
 
+    _adjacency_matrix: pd.DataFrame
     _correlation_matrix: pd.DataFrame
     _node_table: pd.DataFrame
     _edge_table: pd.DataFrame
@@ -253,27 +254,41 @@ class SignalomeKinaseNetwork:
 
     def __init__(
         self,
+        adjacency_matrix: pd.DataFrame,
         correlation_matrix: pd.DataFrame,
         node_table: pd.DataFrame,
         edge_table: pd.DataFrame,
         neighbor_map: dict[str, tuple[str, ...]],
     ) -> None:
+        self._adjacency_matrix = adjacency_matrix
         self._correlation_matrix = correlation_matrix
         self._node_table = node_table
         self._edge_table = edge_table
         self._neighbor_map = neighbor_map
 
     @property
+    def adjacency_matrix(self) -> pd.DataFrame:
+        """Return a detached thresholded kinase adjacency matrix."""
+
+        return self.adjacency(copy=True)
+
+    @property
+    def adjacency_matrix_live(self) -> pd.DataFrame:
+        """Return the owned mutable thresholded kinase adjacency matrix."""
+
+        return self._adjacency_matrix
+
+    @property
     def correlation_matrix(self) -> pd.DataFrame:
         """Return a detached kinase correlation matrix."""
 
-        return self.adjacency(copy=True)
+        return self.correlations(copy=True)
 
     @property
     def correlation_matrix_live(self) -> pd.DataFrame:
         """Return the owned mutable kinase correlation matrix."""
 
-        return self._correlation_matrix
+        return self.correlations(copy=False)
 
     @property
     def node_table(self) -> pd.DataFrame:
@@ -312,7 +327,14 @@ class SignalomeKinaseNetwork:
         return self._neighbor_map
 
     def adjacency(self, *, copy: bool = True) -> pd.DataFrame:
-        """Return the kinase correlation matrix used to derive network edges."""
+        """Return the thresholded kinase adjacency matrix."""
+
+        if copy:
+            return self._adjacency_matrix.copy(deep=True)
+        return self._adjacency_matrix
+
+    def correlations(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return the raw kinase correlation matrix used to derive edge weights."""
 
         if copy:
             return self._correlation_matrix.copy(deep=True)
@@ -335,7 +357,7 @@ class SignalomeKinaseNetwork:
     def to_owned_frames(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """Return owned mutable adjacency, node, and edge tables."""
 
-        return self._correlation_matrix, self._node_table, self._edge_table
+        return self._adjacency_matrix, self._node_table, self._edge_table
 
 
 @dataclass(slots=True, init=False)
@@ -557,16 +579,28 @@ class SignalomeResult:
         return self.network.neighbor_map_live
 
     @property
-    def kinase_correlation_matrix(self) -> pd.DataFrame:
-        """Return a detached kinase correlation matrix."""
+    def kinase_adjacency_matrix(self) -> pd.DataFrame:
+        """Return a detached thresholded kinase adjacency matrix."""
 
         return self.network.adjacency(copy=True)
 
     @property
-    def kinase_correlation_matrix_live(self) -> pd.DataFrame:
-        """Return the owned mutable kinase correlation matrix."""
+    def kinase_adjacency_matrix_live(self) -> pd.DataFrame:
+        """Return the owned mutable thresholded kinase adjacency matrix."""
 
         return self.network.adjacency(copy=False)
+
+    @property
+    def kinase_correlation_matrix(self) -> pd.DataFrame:
+        """Return a detached raw kinase correlation matrix."""
+
+        return self.network.correlations(copy=True)
+
+    @property
+    def kinase_correlation_matrix_live(self) -> pd.DataFrame:
+        """Return the owned mutable raw kinase correlation matrix."""
+
+        return self.network.correlations(copy=False)
 
     @property
     def kinase_network_nodes(self) -> pd.DataFrame:
@@ -609,7 +643,8 @@ class SignalomeResult:
             "protein_assignments": self.assignments.proteins(copy=copy),
             "kinase_network_nodes": self.network.nodes(copy=copy),
             "kinase_network_edges": self.network.edges(copy=copy),
-            "kinase_correlation_matrix": self.network.adjacency(copy=copy),
+            "kinase_adjacency_matrix": self.network.adjacency(copy=copy),
+            "kinase_correlation_matrix": self.network.correlations(copy=copy),
         }
         if include_inputs:
             frames.update(

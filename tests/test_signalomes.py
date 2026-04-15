@@ -267,6 +267,17 @@ def test_build_kinase_network_view_builds_expected_neighbor_map_and_edges() -> N
             }
         ),
     )
+    expected_adjacency = kinase_network.copy(deep=True)
+    expected_adjacency.index.name = "kinase"
+    expected_adjacency.columns.name = "kinase"
+    pd.testing.assert_frame_equal(network.adjacency(), expected_adjacency)
+    expected_correlation = kinase_correlation_matrix.copy(deep=True)
+    expected_correlation.index.name = "kinase"
+    expected_correlation.columns.name = "kinase"
+    pd.testing.assert_frame_equal(
+        network.correlation_matrix,
+        expected_correlation,
+    )
 
 
 def test_build_kinase_network_policies_apply_expected_thresholding() -> None:
@@ -1673,11 +1684,14 @@ def test_signalome_result_to_frames_returns_stable_named_outputs() -> None:
         "protein_assignments",
         "kinase_network_nodes",
         "kinase_network_edges",
+        "kinase_adjacency_matrix",
         "kinase_correlation_matrix",
     ]
     assert "scoring_matrix" not in frames
     assert frames["signalome_modules"].equals(result.signalome_modules)
     assert frames["protein_assignments"].equals(result.protein_assignments)
+    assert frames["kinase_adjacency_matrix"].equals(result.kinase_adjacency_matrix)
+    assert frames["kinase_correlation_matrix"].equals(result.kinase_correlation_matrix)
 
     frames_with_inputs = result.to_frames(include_inputs=True)
     assert list(frames_with_inputs)[-3:] == [
@@ -1793,6 +1807,7 @@ def test_signalome_result_to_csv_exports_canonical_tables(tmp_path: Path) -> Non
     written = result.to_csv(tmp_path)
 
     assert sorted(written) == [
+        "kinase_adjacency_matrix",
         "kinase_correlation_matrix",
         "kinase_module_relationships",
         "kinase_network_edges",
