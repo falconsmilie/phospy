@@ -1,23 +1,25 @@
 # API Guide
 
-PhosPy has no HTTP API. The supported public surface is the Python API plus the `phospy` CLI.
+PhosPy does not have an HTTP API. The supported public surface is the Python API plus the `phospy` CLI.
 
-## Supported Entry Points
+This page starts with the simplest supported path, then links to the lower-level options.
 
-| Task | Supported public entry point |
+## Which Entry Point Should You Use?
+
+| Goal | Start here |
 | --- | --- |
-| Preprocessing | `PhosphoDataset` |
-| Kinase scoring and prediction | `SimpleKinaseWorkflow` |
-| Signalome analysis | `SignalomeWorkflow` |
+| Clean and prepare phospho data | `PhosphoDataset` |
+| Run the common end-to-end workflow | `SimpleKinaseWorkflow` |
+| Build a signalome from workflow outputs | `SignalomeWorkflow` |
 
 `PredMatWorkflow`, `KinaseWorkflow`, and `PhosRPipeline` are internal orchestration helpers and are not part of the supported public API.
 
-## Quick Start
+## Fastest Path for Most Users
 
 ```python
 from phospy.api import PredictionRunConfig, SimpleKinaseWorkflow
 
-result = SimpleKinaseWorkflow().run(
+with SimpleKinaseWorkflow().run(
     phospho="study_phospho.tsv",
     total="study_total.tsv",
     species="rat",
@@ -30,10 +32,12 @@ result = SimpleKinaseWorkflow().run(
         n_iterations=2,
         random_state=7,
     ),
-)
+) as result:
+    pred_mat = result.pred_mat_result.to_frame(copy=False)
+    weighted_activity = result.kinase_activity_result.weighted_activity
 ```
 
-`result` gives you:
+The returned `result` includes:
 
 - `analysis_ready_dataset`
 - `reference_bundle`
@@ -42,9 +46,9 @@ result = SimpleKinaseWorkflow().run(
 - `pred_mat_result`
 - `kinase_activity_result`
 
-## Task Recipes
+## Common Recipes
 
-### 1. Build an Analysis-Ready Dataset
+### Preprocessing only
 
 ```python
 from phospy.datasets import PhosphoDataset
@@ -56,7 +60,9 @@ analysis_ready = dataset.preprocessing.run_analysis_ready(
 )
 ```
 
-### 2. Run Signalome Analysis from `SimpleKinaseWorkflow` Outputs
+### Signalome analysis from workflow outputs
+
+The next example assumes you already have a `result` from `SimpleKinaseWorkflow.run(...)`.
 
 ```python
 from phospy.api import SignalomeRunConfig, SignalomeWorkflow
@@ -70,7 +76,7 @@ signalome = SignalomeWorkflow().run_from_analysis_ready(
 )
 ```
 
-## Configuration Reference
+## Configuration Objects
 
 ### `DatasetLoadOptions` (`phospy.api`)
 
@@ -82,7 +88,7 @@ DatasetLoadOptions(
 )
 ```
 
-Used by `SimpleKinaseWorkflow.run(..., dataset_options=...)`.
+Use this with `SimpleKinaseWorkflow.run(..., dataset_options=...)` when you need custom input encoding, a custom schema, or explicit comparison pairs.
 
 ### `CorePreprocessingConfig` (`phospy.preprocessing`)
 
@@ -97,7 +103,9 @@ CorePreprocessingConfig(
 )
 ```
 
-`SiteMatrixPolicy` controls scientifically important phosphosite matrix decisions:
+Use this to control filtering, missing-value sentinels, protein correction tolerance, and site-matrix behaviour.
+
+### `SiteMatrixPolicy` (`phospy.preprocessing`)
 
 ```python
 SiteMatrixPolicy(
@@ -107,11 +115,11 @@ SiteMatrixPolicy(
 )
 ```
 
-Missing-data policy trade-offs:
+Missing-data options:
 
-- `drop_any_missing`: strict complete-case matrix rows (default; reproducible legacy behavior).
-- `retain_missing`: keeps partially observed rows, preserving coverage but allowing `NaN` in the site matrix.
-- `require_min_observed_values`: compromise between coverage and completeness; set `minimum_observed_values` (for example `2`) to require at least that many observed corrected columns per row.
+- `drop_any_missing`: keep only complete corrected rows
+- `retain_missing`: keep partially observed rows and preserve `NaN`
+- `require_min_observed_values`: keep rows with at least a minimum number of observed values
 
 ### `PredictionRunConfig` (`phospy.api`)
 
@@ -131,7 +139,7 @@ PredictionRunConfig(
 )
 ```
 
-Used by `SimpleKinaseWorkflow`.
+Use this to control candidate filtering, scoring thresholds, sampling, and prediction mode.
 
 ### `KinaseActivityConfig` (`phospy.api`)
 
@@ -143,7 +151,7 @@ KinaseActivityConfig(
 )
 ```
 
-Used by `SimpleKinaseWorkflow`.
+Use this to control weighted activity and KSEA-style downstream summaries.
 
 ### `SignalomeRunConfig` (`phospy.api`)
 
@@ -159,9 +167,9 @@ SignalomeRunConfig(
 )
 ```
 
-Used by `SignalomeWorkflow`.
+Use this to control signalome assignment, kinase network construction, and module selection.
 
-## Workflow Reference
+## Workflow Signatures
 
 ### `SimpleKinaseWorkflow`
 
@@ -191,6 +199,13 @@ SimpleKinaseWorkflow().run(
 ) -> SimpleKinaseWorkflowResult
 ```
 
+Use a context manager when practical:
+
+```python
+with SimpleKinaseWorkflow().run(...) as result:
+    ...
+```
+
 ### `SignalomeWorkflow`
 
 ```python
@@ -218,10 +233,7 @@ SignalomeWorkflow().run_from_analysis_ready(
 ) -> SignalomeResult
 ```
 
-If `site_to_protein` is omitted, signalome grouping falls back to parsing site IDs
-in the supported `ENTITY;SITE;` format (for example `BTK;Y551;`). For IDs that do
-not use this format, pass `site_to_protein` explicitly or use `run_from_analysis_ready(...)` to resolve
-from dataset metadata.
+If `site_to_protein` is omitted, signalome grouping falls back to supported `ENTITY;SITE;` phosphosite IDs such as `BTK;Y551;`. When your IDs do not follow that format, pass `site_to_protein` explicitly or use `run_from_analysis_ready(...)` so PhosPy can resolve mapping from dataset metadata.
 
 ## Preferred Imports
 
@@ -249,13 +261,21 @@ Main options:
 - `--phospho` required TSV path
 - `--outdir` required output directory
 - `--pred-mat` optional `predMat` CSV path
-- `--phospho-encoding` optional phospho table encoding; defaults to UTF-8 when omitted
+- `--phospho-encoding` optional phospho table encoding
+- `--localization-threshold` minimum localisation probability
+- `--min-observed` minimum observed values per row
+- `--total-sentinel` total-table sentinel value treated as missing
+- `--phospho-sentinel` phospho-table sentinel value treated as missing
+- `--kinase-activity-threshold` threshold for downstream kinase activity summaries
+- `--kinase-activity-min-substrates` minimum substrate count for downstream summaries
+- `--kinase-activity-top-n-substrates` top-N substrates for weighted activity summaries
+- `--max-unmatched-fraction` allowed fraction of phosphosite rows without matching protein rows during correction
 
 ## Common Exceptions
 
 - `RequestValidationError`: invalid public input or configuration
 - `NoCandidateKinasesError`: thresholds removed all candidate kinases
-- `InputCompatibilityError`: inputs are valid individually but incompatible together
+- `InputCompatibilityError`: inputs are valid on their own but incompatible together
 
 ## Related Docs
 

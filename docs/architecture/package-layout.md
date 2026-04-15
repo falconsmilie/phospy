@@ -1,10 +1,8 @@
 # Package Layout
 
-PhosPy is organised by domain capability first.
+This is the main contributor guide for where new code should live. The migration map in this directory is historical context, not the main guide.
 
-Use this as the main contributor guide for where new code should live. The migration map in this directory is historical context, not the main guide.
-
-## Domain Packages
+## Domain packages
 
 | Package | Owns |
 | --- | --- |
@@ -20,6 +18,8 @@ Use this as the main contributor guide for where new code should live. The migra
 | `phospy.errors` | Shared application error classes |
 | `phospy.internal` | Narrow internal-only constants and type aliases |
 
+## Main preprocessing seams
+
 Preprocessing is intentionally split across a small number of seams:
 
 1. `DatasetPreprocessing` binds one dataset workspace to the preprocessing path.
@@ -27,13 +27,13 @@ Preprocessing is intentionally split across a small number of seams:
 3. Step services and `SiteMatrixBuilder` perform the concrete transforms.
 4. `AnalysisReadyDatasetBuilder` adapts user-shaped inputs into the analysis-ready boundary.
 
-## Root Package Policy
+## Root package policy
 
 `phospy.__init__` is intentionally small and does **not** re-export domain APIs.
 
 Import from the owning package directly, for example `phospy.api`, `phospy.datasets`, `phospy.preprocessing`, or `phospy.signalomes`.
 
-## Root-Level Module Audit
+## Root-level module audit
 
 The root package now keeps only package-boundary modules.
 
@@ -42,7 +42,7 @@ The root package now keeps only package-boundary modules.
 | `phospy.__init__` | Retained at root | Package boundary module; intentionally minimal |
 | `phospy.cli` | Retained at root | Console-script entry point configured in `pyproject.toml` |
 
-## Placement Rules
+## Placement rules
 
 - Put implementation code in the domain package that owns the behaviour.
 - Keep `phospy.api` thin. It coordinates work; it does not own preprocessing, prediction, references, activity analysis, or signalome logic.
@@ -51,7 +51,7 @@ The root package now keeps only package-boundary modules.
 - Put shared file and table access in `phospy.io` only when it is genuinely cross-domain and not scientific logic.
 - Prefer adding a small focused module to an existing domain package over creating a new catch-all bucket.
 
-## Scientific Policy Placement
+## Scientific policy placement
 
 Keep explicit scientific policies with the domain code that owns the behaviour.
 
@@ -61,7 +61,7 @@ Keep explicit scientific policies with the domain code that owns the behaviour.
 
 These policies should stay visible in the public workflow or builder boundary that owns them so PhosR parity and intentional divergence remain reviewable.
 
-## DataFrame Ownership Rule
+## DataFrame ownership rule
 
 Preprocessing and validation follow one explicit ownership rule:
 
@@ -76,9 +76,7 @@ In practice this means:
 - `CoreProcessor.process()` and `process_phospho_only()` are safe boundary wrappers that copy caller-managed tables once
 - trusted internal paths then call `CoreProcessor.process_owned()` or `process_phospho_only_owned()` to avoid another full-frame copy after ownership has already transferred
 
-This keeps mutation boundaries reviewable and reduces repeated full-frame copy churn through preprocessing.
-
-## Related Documents
+## Related documents
 
 - [`docs/api.md`](../api.md) for the supported Python surface
 - [`docs/adr/0004-reorganise-by-domain.md`](../adr/0004-reorganise-by-domain.md) for the architecture decision

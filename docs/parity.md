@@ -1,46 +1,33 @@
 # Parity to PhosR
 
-PhosPy is inspired by `PhosR`, but the parity claim is intentionally narrow.
+PhosPy is inspired by `PhosR`, but the parity claim is deliberately narrow.
 
-## What Parity Means Here
+## What “parity” Means Here
 
-Parity in this repository means:
+Parity in this repository is:
 
 - fixture-backed
 - seam-level
 - selective
 
-It does not mean:
+Parity here does **not** mean:
 
 - full package equivalence with `PhosR`
 - every `PhosR` feature is implemented
 - every native Python path should match `PhosR` numerically
 
-## Fixture Families at a Glance
-
-Trace directories such as `prediction_trace/` belong to the fixture family listed below. They are not separate fixture families.
-
-- `tests/fixtures/r_reference`: small R-generated fixtures protecting preprocessing, site-matrix construction, and the downstream wrapper flow
-- `tests/fixtures/r_reference_l6`: main L6 reference set protecting downstream kinase-analysis outputs, native prediction seams, ranking agreement, and replay against committed R sampling traces
-- `tests/fixtures/fragile_support_reference`: curated support-screening fixtures protecting boundary conditions around support and inclusion rules
-- `tests/fixtures/r_reference_l6_seam_stress`: smaller seam-stress fixtures protecting combined-score and replay boundary behaviour
-- `tests/fixtures/synthetic_adaptive_sampling_edge`: synthetic fixtures protecting deterministic adaptive-sampling edge cases
-- `tests/fixtures/public_workflow_reference`: committed benchmark outputs for the public `SimpleKinaseWorkflow` and `SignalomeWorkflow` demos
-
-For fixture rebuild commands, see [`fixtures.md`](fixtures.md).
-
-## `svm_mode`
+## Prediction Modes
 
 PhosPy exposes two public prediction presets:
 
-- `svm_mode="default"` for the recommended stable native path
-- `svm_mode="r_parity"` for the supported parity-oriented learner, sampling, and final-scoring preset
+- `svm_mode="default"`: the recommended stable native path
+- `svm_mode="r_parity"`: the supported parity-oriented preset for closer reference-style comparison
 
-Using `svm_mode="r_parity"` does not make the full workflow equivalent to `PhosR`. It is the narrower preset used when parity-sensitive prediction checks need the closest supported reference-oriented path.
+Using `svm_mode="r_parity"` does not make the full workflow equivalent to `PhosR`.
 
-The explicit support decision is recorded in [ADR 0002](adr/0002-r-parity-public-preset.md).
+The support decision is recorded in [ADR 0002](adr/0002-r-parity-public-preset.md).
 
-## What Is Covered
+## What is Covered Today
 
 The current parity layer covers selected seams, including:
 
@@ -50,9 +37,18 @@ The current parity layer covers selected seams, including:
 - selected prediction trace and replay checks
 - end-to-end benchmark fixtures for the documented `SimpleKinaseWorkflow` and `SignalomeWorkflow` demos
 
-## Release Thresholds by Mode
+## Fixture Families at a Glance
 
-The release bar is deliberately different for `default` and `r_parity` because the presets have different jobs.
+- `tests/fixtures/r_reference`: small R-generated fixtures for preprocessing, site-matrix construction, and downstream wrapper flow
+- `tests/fixtures/r_reference_l6`: main L6 reference set for downstream kinase-analysis outputs, native prediction seams, ranking agreement, and replay against committed R sampling traces
+- `tests/fixtures/fragile_support_reference`: curated support-screening fixtures for support and inclusion boundary conditions
+- `tests/fixtures/r_reference_l6_seam_stress`: smaller seam-stress fixtures for combined-score and replay boundaries
+- `tests/fixtures/synthetic_adaptive_sampling_edge`: synthetic fixtures for deterministic adaptive-sampling edge cases
+- `tests/fixtures/public_workflow_reference`: committed benchmark outputs for the public `SimpleKinaseWorkflow` and `SignalomeWorkflow` demos
+
+For rebuild commands, see [`fixtures.md`](fixtures.md).
+
+## Release Thresholds by Mode
 
 ### `default`
 
@@ -65,8 +61,6 @@ The release bar is deliberately different for `default` and `r_parity` because t
   - mean top-30 overlap `>= 0.88`
   - kinases with top-10 overlap of at least 70%: `>= 20`
 - non-parity tests and parity tests both pass
-
-`default` is not required to meet the replay-trace bar used to justify `r_parity`.
 
 ### `r_parity`
 
@@ -90,7 +84,7 @@ The release bar is deliberately different for `default` and `r_parity` because t
 
 ## Release Review Checklist
 
-When a change touches prediction policy, sampling, scoring, fixture generation, or the public workflow examples, release review should check:
+When a change touches prediction policy, sampling, scoring, fixture generation, or the public workflow examples, check:
 
 1. `pytest -m "not parity"`
 2. `pytest -m parity`
@@ -138,11 +132,6 @@ By default this writes two review artifacts under `benchmarks/reports/latest/`:
 - `compare_prediction_modes.json`
 - `compare_prediction_modes.md`
 
-The harness uses:
-
-- `tests/fixtures/r_reference_l6` for ranking parity and replayed sampling-trace fidelity
-- `tests/fixtures/public_workflow_reference` for the documented `SimpleKinaseWorkflow` and `SignalomeWorkflow` demo outputs
-
 Useful variants:
 
 ```bash
@@ -152,7 +141,7 @@ python benchmarks/compare_prediction_modes.py --stdout-only
 
 ## Optional Debug Output
 
-Some parity tests can print extra summaries when environment flags are enabled.
+Some parity tests print extra summaries when environment flags are enabled.
 
 Available flags:
 

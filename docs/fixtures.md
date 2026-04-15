@@ -16,7 +16,7 @@ make fixtures-all
 
 ### `tests/fixtures/r_reference`
 
-Small R-backed fixtures for deterministic preprocessing, site-matrix construction, and the downstream wrapper flow.
+Small R-backed fixtures for deterministic preprocessing, site-matrix construction, and downstream wrapper flow.
 
 ```bash
 Rscript scripts/generate_r_fixtures.R

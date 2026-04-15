@@ -1,12 +1,12 @@
 # PhosPy
 
-PhosPy is a focused Python library for a small, supported set of phosphoproteomics workflows inspired by `PhosR`.
+PhosPy is a Python package for a small, supported set of phosphoproteomics workflows inspired by `PhosR`.
 
-The supported public entry points are:
+It is built for three main jobs:
 
-- preprocessing: `PhosphoDataset`
-- kinase scoring and prediction: `SimpleKinaseWorkflow`
-- signalome analysis: `SignalomeWorkflow`
+- **Preprocessing** raw total and phospho tables with `PhosphoDataset`
+- **Kinase scoring and prediction** with `SimpleKinaseWorkflow`
+- **Signalome analysis** with `SignalomeWorkflow`
 
 PhosPy is intentionally narrow. It is not a full `PhosR` replacement.
 
@@ -18,33 +18,24 @@ PhosPy supports Python 3.10 and newer.
 pip install phospy
 ```
 
-For parquet output:
+Optional parquet support:
 
 ```bash
 pip install "phospy[parquet]"
 ```
 
-## Choose a Starting Point
+## Start Here
 
-### 1) Preprocessing with `PhosphoDataset`
+### Use `PhosphoDataset` when you want preprocessing only
 
 ```python
 from phospy.datasets import PhosphoDataset
-from phospy.preprocessing import CorePreprocessingConfig, SiteMatrixPolicy
+from phospy.preprocessing import CorePreprocessingConfig
 
 dataset = PhosphoDataset.from_files(
     "examples/data/total.tsv",
     "examples/data/phospho.tsv",
     phospho_encoding="utf-16le",
-)
-core = dataset.preprocessing.run(
-    config=CorePreprocessingConfig(
-        max_unmatched_fraction=0.1,
-        site_matrix_policy=SiteMatrixPolicy(
-            missing_data_policy="require_min_observed_values",
-            minimum_observed_values=2,
-        ),
-    )
 )
 
 analysis_ready = dataset.preprocessing.run_analysis_ready(
@@ -52,12 +43,14 @@ analysis_ready = dataset.preprocessing.run_analysis_ready(
 )
 ```
 
-### 2) Kinase Scoring with `SimpleKinaseWorkflow`
+You get a validated, analysis-ready dataset that you can pass into downstream workflows.
+
+### Use `SimpleKinaseWorkflow` for the common end-to-end path
 
 ```python
 from phospy.api import PredictionRunConfig, SimpleKinaseWorkflow
 
-result = SimpleKinaseWorkflow().run(
+with SimpleKinaseWorkflow().run(
     phospho="examples/data/simple_workflow/phospho.tsv",
     total="examples/data/simple_workflow/total.tsv",
     species="rat",
@@ -70,15 +63,16 @@ result = SimpleKinaseWorkflow().run(
         n_iterations=2,
         random_state=7,
     ),
-)
-
-pred_mat = result.pred_mat_result.to_frame()
-weighted_activity = result.kinase_activity_result.weighted_activity
+) as result:
+    pred_mat = result.pred_mat_result.to_frame(copy=False)
+    weighted_activity = result.kinase_activity_result.weighted_activity
 ```
 
-This path handles preprocessing, analysis-ready adaptation, bundled reference selection, prediction, and activity analysis.
+This path handles preprocessing, analysis-ready adaptation, bundled reference selection, prediction, and kinase activity analysis.
 
-### 3) Signalome Analysis with `SignalomeWorkflow`
+### Use `SignalomeWorkflow` when you already have workflow outputs
+
+The next example assumes you already have a `result` from `SimpleKinaseWorkflow.run(...)`.
 
 ```python
 from phospy.api import SignalomeRunConfig, SignalomeWorkflow
@@ -92,21 +86,22 @@ signalome = SignalomeWorkflow().run_from_analysis_ready(
 )
 ```
 
-Runnable demos:
-
-- [`examples/simple_workflow_demo.py`](examples/simple_workflow_demo.py)
-- [`examples/signalome_workflow_demo.py`](examples/signalome_workflow_demo.py)
-- [`examples/signalome_map_demo.py`](examples/signalome_map_demo.py)
-
-## File Inputs
+## Minimum Input Expectations
 
 PhosPy works with:
 
-- total input as TSV
-- phospho input as TSV
-- `predMat` as CSV, with the first column used as the phosphosite index
+- **total** input as TSV
+- **phospho** input as TSV
+- **`predMat`** as CSV, with the first column used as the phosphosite index
 
-For required columns and common validation rules, see [`docs/validation.md`](docs/validation.md).
+Default required columns:
+
+| Input | Required columns |
+| --- | --- |
+| Total table | `genes`, `group1` to `group6` |
+| Phospho table | `uid`, `gene_names`, `gene_p_site`, `localization_prob`, `centralized_sequence`, `p_group1` to `p_group6` |
+
+For full validation rules and common failure cases, see [`docs/validation.md`](docs/validation.md).
 
 ## CLI
 
@@ -122,10 +117,25 @@ phospy \
   --outdir examples/output
 ```
 
+Use `phospy --help` to see every option.
+
+## Runnable Examples
+
+- [`examples/simple_workflow_demo.py`](examples/simple_workflow_demo.py)
+- [`examples/signalome_workflow_demo.py`](examples/signalome_workflow_demo.py)
+- [`examples/signalome_map_demo.py`](examples/signalome_map_demo.py)
+- [`examples/kinase_activity_analyzer_demo.py`](examples/kinase_activity_analyzer_demo.py)
+
 ## Read Next
+
+### Beginner guides
 
 - [`docs/api.md`](docs/api.md) for the supported Python API
 - [`docs/validation.md`](docs/validation.md) for input rules and common failures
+
+### Advanced and contributor docs
+
 - [`docs/parity.md`](docs/parity.md) for parity scope and `svm_mode`
 - [`docs/fixtures.md`](docs/fixtures.md) for fixture and trace rebuild commands
-- [`docs/architecture/package-layout.md`](docs/architecture/package-layout.md) for the contributor-facing package layout
+- [`docs/architecture/package-layout.md`](docs/architecture/package-layout.md) for package ownership and contributor layout rules
+- [`docs/roadmap.md`](docs/roadmap.md) for likely next areas of work

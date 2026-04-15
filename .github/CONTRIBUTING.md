@@ -11,7 +11,7 @@ pip install -e ".[test,dev]"
 pre-commit install
 ```
 
-## Usual Local Checks
+## Usual local checks
 
 ```bash
 pre-commit run --all-files
@@ -33,9 +33,9 @@ Repository rules live in:
 - `.pre-commit-config.yaml`
 - `pyproject.toml`
 
-## Release Gate
+## Release gate
 
-Before a release or substantial PR, run:
+Before a release or substantial pull request, run:
 
 ```bash
 pre-commit run --all-files
@@ -59,10 +59,11 @@ GitHub Actions runs:
 - `pre-commit`
 - non-parity tests
 - parity tests against committed fixtures
+- build validation for distributable packages
 
-If you intentionally change fixture-producing behaviour, regenerate the affected fixtures and explain the change clearly in the pull request.
+If you intentionally change fixture-producing behaviour, regenerate the affected fixtures and explain the contract change clearly in the pull request.
 
-## Package Layout
+## Package layout
 
 PhosPy is organised by domain capability first. Put new code in the package that owns the behaviour instead of adding new root-level modules.
 
@@ -83,11 +84,11 @@ Rules that matter most:
 - keep `phospy.validation` focused on validation entry points and request models
 - keep `phospy.internal` narrow and internal-only
 
-## Good Starting Areas
+## Good starting areas
 
 The public roadmap lives in [`docs/roadmap.md`](../docs/roadmap.md). Good contributions usually improve the supported surface without over-claiming: clearer diagnostics, tighter validation, better docs, and carefully scoped PhosR-inspired additions.
 
-## Scientific Policy Defaults
+## Scientific policy defaults
 
 PhosPy keeps key scientific heuristics explicit. Do not bury these decisions in helper functions or silent defaults.
 
