@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from ...errors import TableSchemaError
+from ...internal.pandas_copy import detached_frame_copy
 
 
 def require_dataframe(frame: pd.DataFrame, *, context: str) -> pd.DataFrame:
@@ -130,7 +131,7 @@ def coerce_numeric_columns(
     coercion instead of another full-frame copy.
     """
 
-    validated = frame.copy(deep=True) if copy_frame else frame
+    validated = detached_frame_copy(frame) if copy_frame else frame
     failures: list[str] = []
     for column in columns:
         converted = pd.to_numeric(validated[column], errors="coerce")

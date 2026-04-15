@@ -223,7 +223,7 @@ def build_site_matrix(
         ]
         if col in work.columns
     ]
-    site_work = work.loc[:, source_cols].copy(deep=True)
+    site_work = work.loc[:, source_cols]
 
     split_cols = (
         site_work[gene_p_site_col]
@@ -383,11 +383,7 @@ def _apply_missing_data_policy(
         raise TableSchemaError(msg)
 
     dropped_rows = len(with_sequence) - len(filtered_rows)
-    return (
-        filtered_rows.copy().reset_index(drop=True),
-        dropped_rows,
-        required_observed_count,
-    )
+    return (filtered_rows.reset_index(drop=True), dropped_rows, required_observed_count)
 
 
 def _resolve_required_observed_count(
@@ -429,11 +425,11 @@ def _apply_duplicate_site_policy(
     policy: SiteMatrixPolicy,
 ) -> pd.DataFrame:
     if source_rows.empty:
-        return source_rows.copy().reset_index(drop=True)
+        return source_rows.reset_index(drop=True)
 
     duplicate_mask = source_rows.duplicated(SITE_MATRIX_ID_COLUMN, keep=False)
     if not bool(duplicate_mask.any()):
-        return source_rows.copy().reset_index(drop=True)
+        return source_rows.reset_index(drop=True)
 
     if policy.duplicate_site_strategy == DUPLICATE_SITE_STRATEGY_ERROR:
         duplicate_sites = (
@@ -450,10 +446,12 @@ def _apply_duplicate_site_policy(
         raise TableSchemaError(msg)
 
     if policy.duplicate_site_strategy == DUPLICATE_SITE_STRATEGY_MAX_MEAN_SIGNAL:
-        work = source_rows.copy()
-        work["__observed_values"] = work.loc[:, list(value_cols)].notna().sum(axis=1)
-        work["__mean_signal"] = work.loc[:, list(value_cols)].mean(axis=1, skipna=True)
-        work["__row_order"] = range(len(work))
+        value_col_list = list(value_cols)
+        work = source_rows.assign(
+            __observed_values=source_rows.loc[:, value_col_list].notna().sum(axis=1),
+            __mean_signal=source_rows.loc[:, value_col_list].mean(axis=1, skipna=True),
+            __row_order=range(len(source_rows)),
+        )
         selected = work.sort_values(
             [
                 SITE_MATRIX_ID_COLUMN,
@@ -465,18 +463,14 @@ def _apply_duplicate_site_policy(
             kind="stable",
             na_position="last",
         ).drop_duplicates(SITE_MATRIX_ID_COLUMN, keep="first")
-        return (
-            selected.drop(columns=["__observed_values", "__mean_signal", "__row_order"])
-            .copy()
-            .reset_index(drop=True)
-        )
+        return selected.drop(
+            columns=["__observed_values", "__mean_signal", "__row_order"]
+        ).reset_index(drop=True)
 
     if policy.duplicate_site_strategy == DUPLICATE_SITE_STRATEGY_FIRST:
-        return (
-            source_rows.drop_duplicates(SITE_MATRIX_ID_COLUMN, keep="first")
-            .copy()
-            .reset_index(drop=True)
-        )
+        return source_rows.drop_duplicates(
+            SITE_MATRIX_ID_COLUMN, keep="first"
+        ).reset_index(drop=True)
 
     if policy.duplicate_site_strategy in {
         DUPLICATE_SITE_STRATEGY_AGGREGATE_MEAN,
@@ -522,4 +516,4 @@ def _aggregate_duplicate_sites(
     aggregated = metadata.join(numeric_values)
     aggregated.index.name = SITE_MATRIX_ID_COLUMN
     aggregated = aggregated.reset_index()
-    return aggregated.loc[:, ordered_columns].copy().reset_index(drop=True)
+    return aggregated.loc[:, ordered_columns].reset_index(drop=True)

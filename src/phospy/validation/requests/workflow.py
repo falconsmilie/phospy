@@ -165,8 +165,6 @@ def build_workflow_inputs(
         context=context,
     )
     owned_site_sequences = request.site_sequences
-    if owned_site_sequences is not None:
-        owned_site_sequences = owned_site_sequences.copy(deep=True)
     motif_scorer = (
         None
         if request.motif_sequences is None

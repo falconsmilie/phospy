@@ -378,9 +378,9 @@ def main() -> int:
         type=int,
         default=2,
     )
-    parser.add_argument("--max-owned-dataframe-copies-per-run", type=int, default=40)
-    parser.add_argument("--max-large-dataframe-copies-per-run", type=int, default=40)
-    parser.add_argument("--max-owned-series-copies-per-run", type=int, default=8)
+    parser.add_argument("--max-owned-dataframe-copies-per-run", type=int, default=30)
+    parser.add_argument("--max-large-dataframe-copies-per-run", type=int, default=30)
+    parser.add_argument("--max-owned-series-copies-per-run", type=int, default=4)
     parser.add_argument(
         "--output-dir",
         type=Path,

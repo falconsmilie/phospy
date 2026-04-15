@@ -5,6 +5,7 @@ from collections.abc import Iterable, Mapping, Sequence
 import pandas as pd
 
 from ...errors import PhospyValidationError
+from ...internal.pandas_copy import detached_series_copy
 
 
 def _is_null_like(value: object) -> bool:
@@ -95,7 +96,7 @@ def normalize_site_sequence_series(
     if value is None:
         return None
     if isinstance(value, pd.Series):
-        normalized = value.copy(deep=True).astype(object)
+        normalized = detached_series_copy(value).astype(object)
         if normalized.index.isna().any():
             msg = "site_sequences keys must be non-null site IDs"
             raise ValueError(msg)

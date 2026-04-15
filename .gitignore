@@ -1,4 +1,5 @@
 # Python cache and test artefacts
+
 __pycache__/
 *.py[cod]
 .pytest_cache/
