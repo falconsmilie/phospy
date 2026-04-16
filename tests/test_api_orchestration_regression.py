@@ -17,7 +17,13 @@ from phospy.api import (
     SignalomeWorkflow,
     SimpleKinaseWorkflow,
 )
-from phospy.api.simple_workflow_composition import SimpleKinaseExecutionGraph
+from phospy.api.simple_workflow_composition import (
+    ActivityAnalyzerProtocol,
+    AnalysisReadyBuilderProtocol,
+    ReferenceProviderProtocol,
+    SimpleKinaseExecutionGraph,
+    WorkflowExecutorProtocol,
+)
 from phospy.api.workflow_results import SimpleKinaseWorkflowResult
 from phospy.prediction import PredMatResult
 from phospy.preprocessing import CorePreprocessingConfig
@@ -68,6 +74,14 @@ class _WorkflowExecutorDouble:
     def execute_validated_request(self, request: object) -> object:
         self.execute_calls.append(request)
         return self.execute_result
+
+
+@dataclass
+class _IncompleteWorkflowExecutorDouble:
+    validate_result: object
+
+    def validate_request(self, **kwargs: object) -> object:
+        return self.validate_result
 
 
 class _SignalomeRequestDouble:
@@ -446,8 +460,80 @@ def test_simple_kinase_workflow_constructor_rejects_legacy_injection_kwargs() ->
         SimpleKinaseWorkflow(execution_service=object())  # type: ignore[call-arg]
 
 
+def test_simple_kinase_execution_graph_accepts_protocol_substitution() -> None:
+    execution_graph = SimpleKinaseExecutionGraph(
+        analysis_ready_builder=_BuilderDouble(
+            dataset=SimpleNamespace(),
+            calls=[],
+        ),
+        reference_provider=_ProviderDouble(
+            bundle=SimpleNamespace(),
+            calls=[],
+        ),
+        workflow_executor=_WorkflowExecutorDouble(
+            validate_result=SimpleNamespace(),
+            execute_result=SimpleNamespace(),
+            validate_calls=[],
+            execute_calls=[],
+        ),
+        activity_analyzer=_AnalyzerDouble(
+            result=SimpleNamespace(),
+            calls=[],
+        ),
+    )
+
+    assert isinstance(
+        execution_graph.analysis_ready_builder, AnalysisReadyBuilderProtocol
+    )
+    assert isinstance(execution_graph.reference_provider, ReferenceProviderProtocol)
+    assert isinstance(execution_graph.activity_analyzer, ActivityAnalyzerProtocol)
+    assert isinstance(execution_graph.workflow_executor, WorkflowExecutorProtocol)
+
+
+def test_simple_kinase_execution_graph_rejects_invalid_collaborator_type() -> None:
+    with pytest.raises(TypeError, match="analysis_ready_builder"):
+        SimpleKinaseExecutionGraph(
+            analysis_ready_builder=object(),  # type: ignore[arg-type]
+            reference_provider=_ProviderDouble(
+                bundle=SimpleNamespace(),
+                calls=[],
+            ),
+            workflow_executor=_WorkflowExecutorDouble(
+                validate_result=SimpleNamespace(),
+                execute_result=SimpleNamespace(),
+                validate_calls=[],
+                execute_calls=[],
+            ),
+            activity_analyzer=_AnalyzerDouble(
+                result=SimpleNamespace(),
+                calls=[],
+            ),
+        )
+
+
+def test_simple_kinase_execution_graph_rejects_incomplete_collaborator() -> None:
+    with pytest.raises(TypeError, match="workflow_executor"):
+        SimpleKinaseExecutionGraph(
+            analysis_ready_builder=_BuilderDouble(
+                dataset=SimpleNamespace(),
+                calls=[],
+            ),
+            reference_provider=_ProviderDouble(
+                bundle=SimpleNamespace(),
+                calls=[],
+            ),
+            workflow_executor=_IncompleteWorkflowExecutorDouble(
+                validate_result=SimpleNamespace(),
+            ),
+            activity_analyzer=_AnalyzerDouble(
+                result=SimpleNamespace(),
+                calls=[],
+            ),
+        )
+
+
 def test_simple_kinase_execution_graph_rejects_partial_wiring() -> None:
-    with pytest.raises(ValueError, match="analysis_ready_builder"):
+    with pytest.raises(TypeError, match="analysis_ready_builder"):
         SimpleKinaseExecutionGraph(
             analysis_ready_builder=None,  # type: ignore[arg-type]
             reference_provider=_ProviderDouble(
