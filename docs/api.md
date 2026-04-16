@@ -428,6 +428,23 @@ If `site_to_protein` is omitted, `run(...)` falls back to supported `ENTITY;SITE
 
 `run_from_analysis_ready(...)` defaults to strict metadata resolution and requires a `protein_id` metadata column. To opt in to metadata fallback columns, set `metadata_fallback_policy="metadata"` and provide `metadata_protein_columns`. Gene-symbol fallback is disabled by default and must be explicitly enabled with `allow_gene_symbol_fallback=True`.
 
+## Advanced Extension Contract: Custom Ensemble Predictors
+
+If you inject a custom `ensemble_predictor` into `phospy.prediction.KinasePredictor`,
+implement `EnsemblePredictorContract.predict_kinase(...)` and return
+`KinasePredictionBatch` objects that satisfy all output constraints:
+
+- `batch.kinase` must match the requested kinase argument.
+- `batch.score_values` must be a 1D numeric vector with exactly one value per
+  row in `feature_mat`.
+- score values must be finite (`NaN`/`+inf`/`-inf` are rejected).
+- `batch.score_index` uses the `label_aligned` contract:
+  it must contain exactly the same phosphosite labels as `feature_mat.index`
+  (reordered labels are allowed and are aligned by label).
+
+These checks run at the predictor boundary before aggregation; invalid outputs
+raise `CustomPredictorOutputError` with the failing kinase and reason.
+
 ## Preferred Imports
 
 ```python
@@ -470,6 +487,7 @@ Main options:
 - `RequestValidationError`: invalid public input or configuration
 - `NoCandidateKinasesError`: thresholds removed all candidate kinases
 - `InputCompatibilityError`: inputs are valid on their own but incompatible together
+- `CustomPredictorOutputError`: custom ensemble predictor returned invalid batch output
 
 ## Related Docs
 

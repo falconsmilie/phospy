@@ -4,18 +4,37 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.errors import InputCompatibilityError, NoCandidateKinasesError
+from phospy.errors import (
+    CustomPredictorOutputError,
+    InputCompatibilityError,
+    NoCandidateKinasesError,
+)
 from phospy.prediction.aggregation import PredictionAggregator
 from phospy.prediction.candidates import CandidateSelector
 from phospy.prediction.contracts import EnsemblePredictorContract
 from phospy.prediction.engines import PredictionExecutionRunner
 from phospy.prediction.execution import (
     EnsemblePredictor,
+    KinasePredictionBatch,
     NegativePoolSampler,
     PredictionSamplingSession,
     TraceRecorder,
 )
 from phospy.validation.requests import PredictionRequest
+
+
+def _make_prediction_request(scores: pd.DataFrame) -> PredictionRequest:
+    return PredictionRequest.validate_request(
+        combined_scores=scores,
+        ensemble_size=1,
+        top=3,
+        score_threshold=0.8,
+        inclusion=2,
+        n_iterations=1,
+        random_state=3,
+        capture_debug_trace=False,
+        default_svm_mode="default",
+    )
 
 
 def test_candidate_selector_selects_qualifying_kinases() -> None:
@@ -262,18 +281,11 @@ def test_prediction_execution_runner_uses_validated_combined_scores_without_reca
             trace_state,
             sampling_session,
         ):
-            return type(
-                "BatchStub",
-                (),
-                {
-                    "kinase": kinase,
-                    "scores": pd.Series(
-                        0.0,
-                        index=feature_mat.index.copy(),
-                        dtype=float,
-                    ),
-                },
-            )()
+            return KinasePredictionBatch(
+                kinase=kinase,
+                score_values=np.zeros(len(feature_mat.index), dtype=float),
+                score_index=feature_mat.index.copy(),
+            )
 
     scores = pd.DataFrame({"K1": ["0.95", "0.91", "0.40"]}, index=["s1", "s2", "s3"])
     request = PredictionRequest.validate_request(
@@ -319,6 +331,129 @@ def test_prediction_execution_runner_rejects_non_compliant_ensemble_predictor() 
             trace_recorder=TraceRecorder(),
             ensemble_predictor=object(),
         )
+
+
+@pytest.mark.parametrize(
+    ("batch_factory", "reason_fragment"),
+    [
+        (
+            lambda kinase, feature_index: KinasePredictionBatch(
+                kinase=kinase,
+                score_values=np.asarray([0.1, 0.2], dtype=float),
+                score_index=feature_index[:2],
+            ),
+            "score_values length 2",
+        ),
+        (
+            lambda kinase, feature_index: KinasePredictionBatch(
+                kinase=kinase,
+                score_values=np.asarray([0.1, "bad", 0.3], dtype=object),
+                score_index=feature_index,
+            ),
+            "non-numeric values",
+        ),
+        (
+            lambda kinase, feature_index: KinasePredictionBatch(
+                kinase=kinase,
+                score_values=np.asarray([0.1, np.nan, np.inf], dtype=float),
+                score_index=feature_index,
+            ),
+            "non-finite values",
+        ),
+        (
+            lambda kinase, feature_index: KinasePredictionBatch(
+                kinase=f"{kinase}_OTHER",
+                score_values=np.asarray([0.1, 0.2, 0.3], dtype=float),
+                score_index=feature_index,
+            ),
+            "returned kinase",
+        ),
+        (
+            lambda kinase, feature_index: KinasePredictionBatch(
+                kinase=kinase,
+                score_values=np.asarray([0.1, 0.2, 0.3], dtype=float),
+                score_index=pd.Index([feature_index[0], "sX", feature_index[2]]),
+            ),
+            "score_index labels do not match",
+        ),
+    ],
+)
+def test_prediction_execution_runner_rejects_invalid_custom_predictor_batch_outputs(
+    batch_factory,
+    reason_fragment: str,
+) -> None:
+    class CountingAggregator(PredictionAggregator):
+        def __init__(self) -> None:
+            self.add_calls = 0
+
+        def add_kinase_scores(self, *, pred_matrix, batch) -> None:
+            self.add_calls += 1
+            super().add_kinase_scores(pred_matrix=pred_matrix, batch=batch)
+
+    class InvalidBatchPredictor(EnsemblePredictorContract):
+        def predict_kinase(
+            self,
+            *,
+            kinase: str,
+            substrates: list[str],
+            feature_mat: pd.DataFrame,
+            request: PredictionRequest,
+            trace_state,
+            sampling_session,
+        ):
+            return batch_factory(kinase, feature_mat.index)
+
+    scores = pd.DataFrame({"K1": [0.95, 0.91, 0.40]}, index=["s1", "s2", "s3"])
+    request = _make_prediction_request(scores)
+    aggregator = CountingAggregator()
+    runner = PredictionExecutionRunner(
+        candidate_selector=CandidateSelector(),
+        prediction_aggregator=aggregator,
+        trace_recorder=TraceRecorder(),
+        ensemble_predictor=InvalidBatchPredictor(),
+    )
+
+    with pytest.raises(CustomPredictorOutputError) as exc_info:
+        runner.run(request)
+
+    message = str(exc_info.value)
+    assert "kinase 'K1'" in message
+    assert reason_fragment in message
+    assert aggregator.add_calls == 0
+
+
+def test_prediction_execution_runner_aligns_reordered_custom_predictor_score_index() -> (
+    None
+):
+    class ReorderedIndexPredictor(EnsemblePredictorContract):
+        def predict_kinase(
+            self,
+            *,
+            kinase: str,
+            substrates: list[str],
+            feature_mat: pd.DataFrame,
+            request: PredictionRequest,
+            trace_state,
+            sampling_session,
+        ):
+            return KinasePredictionBatch(
+                kinase=kinase,
+                score_values=np.asarray([0.3, 0.1, 0.2], dtype=float),
+                score_index=pd.Index(["s3", "s1", "s2"]),
+            )
+
+    scores = pd.DataFrame({"K1": [0.95, 0.91, 0.40]}, index=["s1", "s2", "s3"])
+    request = _make_prediction_request(scores)
+    runner = PredictionExecutionRunner(
+        candidate_selector=CandidateSelector(),
+        prediction_aggregator=PredictionAggregator(),
+        trace_recorder=TraceRecorder(),
+        ensemble_predictor=ReorderedIndexPredictor(),
+    )
+
+    result = runner.run(request)
+
+    assert result.pred_matrix.loc[:, "K1"].tolist() == [0.1, 0.2, 0.3]
 
 
 def test_prediction_execution_runner_passes_sampling_session_to_contract_predictor() -> (
@@ -374,18 +509,11 @@ def test_prediction_execution_runner_passes_sampling_session_to_contract_predict
             sampling_session,
         ):
             self.seen_sampling_session = sampling_session
-            return type(
-                "BatchStub",
-                (),
-                {
-                    "kinase": kinase,
-                    "scores": pd.Series(
-                        0.0,
-                        index=feature_mat.index.copy(),
-                        dtype=float,
-                    ),
-                },
-            )()
+            return KinasePredictionBatch(
+                kinase=kinase,
+                score_values=np.zeros(len(feature_mat.index), dtype=float),
+                score_index=feature_mat.index.copy(),
+            )
 
     scores = pd.DataFrame({"K1": [0.95, 0.91, 0.40]}, index=["s1", "s2", "s3"])
     request = PredictionRequest.validate_request(

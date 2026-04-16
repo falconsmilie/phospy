@@ -29,7 +29,10 @@ from ..internal.types import (
     PredictionTraceLevel,
 )
 from ..references import ReferenceBundle
-from ..validation.domain.prediction import validate_ensemble_predictor
+from ..validation.domain.prediction import (
+    validate_ensemble_predictor,
+    validate_kinase_prediction_batch,
+)
 from ..validation.requests.prediction import PredictionRequest
 from ..validation.requests.workflow import (
     WorkflowInputs,
@@ -193,6 +196,11 @@ class PredictionExecutionRunner:
                     request=request,
                     trace_state=trace_state,
                     sampling_session=sampling_session,
+                )
+                batch = validate_kinase_prediction_batch(
+                    batch=batch,
+                    requested_kinase=kinase,
+                    feature_index=feature_mat.index,
                 )
                 self.prediction_aggregator.add_kinase_scores(
                     pred_matrix=pred_matrix,

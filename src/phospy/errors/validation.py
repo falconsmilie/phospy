@@ -41,6 +41,10 @@ class PredictionConfigurationError(PhospyValidationError):
     """Raised when predictor configuration cannot produce a valid training run."""
 
 
+class CustomPredictorOutputError(InputCompatibilityError):
+    """Raised when a custom predictor returns malformed kinase batch output."""
+
+
 class TraceError(PhospyValidationError):
     """Raised when prediction tracing is misconfigured or cannot be loaded."""
 
@@ -174,6 +178,7 @@ def _format_error_location(location: Sequence[object]) -> str:
 
 
 __all__ = [
+    "CustomPredictorOutputError",
     "format_empty_prediction_matrix_message",
     "format_no_candidate_kinases_message",
     "format_overlap_failure_message",

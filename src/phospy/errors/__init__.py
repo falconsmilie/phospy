@@ -7,6 +7,7 @@ this package rather than defining parallel hierarchies.
 
 from .base import PhospyError
 from .validation import (
+    CustomPredictorOutputError,
     InputCompatibilityError,
     NoCandidateKinasesError,
     PhospyValidationError,
@@ -20,6 +21,7 @@ from .validation import (
 )
 
 __all__ = [
+    "CustomPredictorOutputError",
     "format_empty_prediction_matrix_message",
     "format_no_candidate_kinases_message",
     "format_overlap_failure_message",

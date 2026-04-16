@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from phospy.errors import (
+    CustomPredictorOutputError,
     InputCompatibilityError,
     NoCandidateKinasesError,
     PhospyError,
@@ -104,6 +105,12 @@ def test_predict_rejects_missing_negative_pool_with_configuration_error() -> Non
 def test_prediction_configuration_error_is_a_package_validation_error() -> None:
     assert issubclass(PredictionConfigurationError, PhospyValidationError)
     assert issubclass(PredictionConfigurationError, PhospyError)
+
+
+def test_custom_predictor_output_error_is_a_package_validation_error() -> None:
+    assert issubclass(CustomPredictorOutputError, InputCompatibilityError)
+    assert issubclass(CustomPredictorOutputError, PhospyValidationError)
+    assert issubclass(CustomPredictorOutputError, PhospyError)
 
 
 def test_no_candidate_kinases_error_is_a_package_validation_error() -> None:
