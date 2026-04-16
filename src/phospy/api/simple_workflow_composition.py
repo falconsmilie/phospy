@@ -22,38 +22,48 @@ class SimpleKinaseExecutionGraph:
     activity_analyzer: KinaseActivityAnalyzer
     workflow_executor: KinaseWorkflowExecutor
 
+    def __post_init__(self) -> None:
+        required_collaborators = {
+            "analysis_ready_builder": (self.analysis_ready_builder, ("build",)),
+            "reference_provider": (self.reference_provider, ("resolve",)),
+            "activity_analyzer": (self.activity_analyzer, ("run",)),
+            "workflow_executor": (
+                self.workflow_executor,
+                ("validate_request", "execute_validated_request"),
+            ),
+        }
+        for collaborator_name, (
+            collaborator,
+            methods,
+        ) in required_collaborators.items():
+            if collaborator is None:
+                msg = (
+                    f"SimpleKinaseExecutionGraph collaborator "
+                    f"'{collaborator_name}' cannot be None."
+                )
+                raise ValueError(msg)
+            for method_name in methods:
+                if not hasattr(collaborator, method_name):
+                    msg = (
+                        f"SimpleKinaseExecutionGraph collaborator "
+                        f"'{collaborator_name}' must define '{method_name}()'."
+                    )
+                    raise TypeError(msg)
+
 
 def create_default_simple_kinase_execution_graph(
     *,
     flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
     kernel: str = "rbf",
     svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
-    analysis_ready_builder: AnalysisReadyDatasetBuilder | None = None,
-    reference_provider: ReferenceProvider | None = None,
-    activity_analyzer: KinaseActivityAnalyzer | None = None,
-    workflow_executor: KinaseWorkflowExecutor | None = None,
 ) -> SimpleKinaseExecutionGraph:
     return SimpleKinaseExecutionGraph(
-        analysis_ready_builder=(
-            AnalysisReadyDatasetBuilder()
-            if analysis_ready_builder is None
-            else analysis_ready_builder
-        ),
-        reference_provider=(
-            BundledReferenceProvider()
-            if reference_provider is None
-            else reference_provider
-        ),
-        activity_analyzer=(
-            KinaseActivityAnalyzer() if activity_analyzer is None else activity_analyzer
-        ),
-        workflow_executor=(
-            KinaseWorkflowExecutor(
-                flank_size=flank_size,
-                kernel=kernel,
-                svm_mode=svm_mode,
-            )
-            if workflow_executor is None
-            else workflow_executor
+        analysis_ready_builder=AnalysisReadyDatasetBuilder(),
+        reference_provider=BundledReferenceProvider(),
+        activity_analyzer=KinaseActivityAnalyzer(),
+        workflow_executor=KinaseWorkflowExecutor(
+            flank_size=flank_size,
+            kernel=kernel,
+            svm_mode=svm_mode,
         ),
     )

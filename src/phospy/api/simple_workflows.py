@@ -3,11 +3,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
 
 import pandas as pd
 
-from ..activities.analysis import KinaseActivityAnalyzer
 from ..internal.defaults import DEFAULT_MOTIF_FLANK_SIZE
 from ..internal.types import PREDICTION_SVM_MODE_DEFAULT, PredictionSvmMode
 from ..prediction.engines import (
@@ -15,8 +13,7 @@ from ..prediction.engines import (
     KinaseWorkflowExecutor,
 )
 from ..preprocessing.core import CorePreprocessingConfig
-from ..preprocessing.modes import AnalysisReadyDatasetBuilder
-from ..references import ReferenceBundle, ReferenceProvider
+from ..references import ReferenceBundle
 from ..validation.requests.workflow import WorkflowInputs
 from .contracts import (
     DatasetLoadOptions,
@@ -85,76 +82,42 @@ def _validate_prediction_request(
     )
 
 
-class _SimpleKinaseExecutionService(Protocol):
-    def run(
-        self,
-        *,
-        phospho: pd.DataFrame | str | Path,
-        species: str,
-        total: pd.DataFrame | str | Path | None,
-        reference: str,
-        dataset_options: DatasetLoadOptions | None,
-        preprocessing_config: CorePreprocessingConfig | None,
-        prediction_config: PredictionRunConfig | None,
-        activity_config: KinaseActivityConfig | None,
-    ) -> SimpleKinaseWorkflowResult: ...
-
-
 class SimpleKinaseWorkflow:
-    """Run the common end-to-end kinase inference lane from user-shaped inputs."""
+    """Run the common end-to-end kinase inference lane from user-shaped inputs.
+
+    The normal constructor always builds the default execution graph. Use
+    ``from_execution_graph(...)`` for explicit advanced composition.
+    Migration: replace ``execution_graph=...`` with
+    ``SimpleKinaseWorkflow.from_execution_graph(...)`` and build a
+    ``SimpleKinaseExecutionGraph`` for collaborator overrides. Direct
+    ``execution_service`` injection is no longer supported.
+    """
+
+    _execution_graph: SimpleKinaseExecutionGraph
 
     def __init__(
         self,
         flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
         kernel: str = "rbf",
         svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
-        *,
-        execution_service: _SimpleKinaseExecutionService | None = None,
-        execution_graph: SimpleKinaseExecutionGraph | None = None,
-        analysis_ready_builder: AnalysisReadyDatasetBuilder | None = None,
-        reference_provider: ReferenceProvider | None = None,
-        activity_analyzer: KinaseActivityAnalyzer | None = None,
-        workflow_executor: KinaseWorkflowExecutor | None = None,
     ) -> None:
-        has_overrides = (
-            analysis_ready_builder is not None
-            or reference_provider is not None
-            or activity_analyzer is not None
-            or workflow_executor is not None
+        self._execution_graph = create_default_simple_kinase_execution_graph(
+            flank_size=flank_size,
+            kernel=kernel,
+            svm_mode=svm_mode,
         )
-        if execution_service is not None:
-            if execution_graph is not None or has_overrides:
-                msg = (
-                    "execution_service cannot be combined with execution_graph "
-                    "or collaborator overrides."
-                )
-                raise ValueError(msg)
-            self._execution_service = execution_service
-            self._analysis_ready_builder = None
-            self._reference_provider = None
-            self._activity_analyzer = None
-            self._workflow_executor = None
-            return
 
-        if execution_graph is not None and has_overrides:
-            msg = "execution_graph cannot be combined with collaborator overrides."
-            raise ValueError(msg)
-        if execution_graph is None:
-            execution_graph = create_default_simple_kinase_execution_graph(
-                flank_size=flank_size,
-                kernel=kernel,
-                svm_mode=svm_mode,
-                analysis_ready_builder=analysis_ready_builder,
-                reference_provider=reference_provider,
-                activity_analyzer=activity_analyzer,
-                workflow_executor=workflow_executor,
-            )
-
-        self._execution_service = None
-        self._analysis_ready_builder = execution_graph.analysis_ready_builder
-        self._reference_provider = execution_graph.reference_provider
-        self._activity_analyzer = execution_graph.activity_analyzer
-        self._workflow_executor = execution_graph.workflow_executor
+    @classmethod
+    def from_execution_graph(
+        cls,
+        execution_graph: SimpleKinaseExecutionGraph,
+    ) -> SimpleKinaseWorkflow:
+        if not isinstance(execution_graph, SimpleKinaseExecutionGraph):
+            msg = "execution_graph must be an instance of SimpleKinaseExecutionGraph."
+            raise TypeError(msg)
+        workflow = cls.__new__(cls)
+        workflow._execution_graph = execution_graph
+        return workflow
 
     def run(
         self,
@@ -168,30 +131,15 @@ class SimpleKinaseWorkflow:
         prediction_config: PredictionRunConfig | None = None,
         activity_config: KinaseActivityConfig | None = None,
     ) -> SimpleKinaseWorkflowResult:
-        if self._execution_service is not None:
-            return self._execution_service.run(
-                phospho=phospho,
-                species=species,
-                total=total,
-                reference=reference,
-                prediction_config=prediction_config,
-                dataset_options=dataset_options,
-                preprocessing_config=preprocessing_config,
-                activity_config=activity_config,
-            )
-
         resolved_configs = _resolve_simple_kinase_configs(
             dataset_options=dataset_options,
             preprocessing_config=preprocessing_config,
             prediction_config=prediction_config,
             activity_config=activity_config,
         )
-        assert self._analysis_ready_builder is not None
-        assert self._reference_provider is not None
-        assert self._activity_analyzer is not None
-        assert self._workflow_executor is not None
+        execution_graph = self._execution_graph
 
-        analysis_ready_dataset = self._analysis_ready_builder.build(
+        analysis_ready_dataset = execution_graph.analysis_ready_builder.build(
             phospho=phospho,
             total=total,
             phospho_encoding=resolved_configs.dataset_options.phospho_encoding,
@@ -201,22 +149,22 @@ class SimpleKinaseWorkflow:
             source="simple kinase workflow",
             phospho_only_source="simple kinase workflow (phospho only)",
         )
-        reference_bundle = self._reference_provider.resolve(
+        reference_bundle = execution_graph.reference_provider.resolve(
             species=species,
             reference=reference,
         )
         request = _validate_prediction_request(
-            workflow_executor=self._workflow_executor,
+            workflow_executor=execution_graph.workflow_executor,
             phospho_matrix=analysis_ready_dataset.phospho_matrix,
             site_sequences=analysis_ready_dataset.site_sequences,
             reference_bundle=reference_bundle,
             prediction_config=resolved_configs.prediction_config,
         )
         workflow_result: KinaseWorkflowExecutionResult = (
-            self._workflow_executor.execute_validated_request(request)
+            execution_graph.workflow_executor.execute_validated_request(request)
         )
         pred_mat_result = workflow_result.prediction_result.pred_mat_result
-        kinase_activity_result = self._activity_analyzer.run(
+        kinase_activity_result = execution_graph.activity_analyzer.run(
             pred_mat=pred_mat_result,
             phospho_matrix=analysis_ready_dataset.phospho_matrix,
             threshold=resolved_configs.activity_config.threshold,
