@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import fields, is_dataclass
 from pathlib import Path
+from typing import get_type_hints
 
 from phospy.api import (
     DatasetLoadOptions,
@@ -12,6 +13,7 @@ from phospy.api import (
     SimpleKinaseWorkflow,
 )
 from phospy.api.workflow_results import SimpleKinaseWorkflowResult
+from phospy.datasets import AnalysisReadyPhosphoDataset
 
 
 def test_supported_public_workflows_live_in_api_modules() -> None:
@@ -65,3 +67,8 @@ def test_signalomes_package_does_not_export_trusted_execution_helper() -> None:
     import phospy.signalomes as signalomes
 
     assert not hasattr(signalomes, "execute_signalome_inputs")
+
+
+def test_signalome_workflow_analysis_ready_signature_is_explicit() -> None:
+    hints = get_type_hints(SignalomeWorkflow.run_from_analysis_ready)
+    assert hints["dataset"] is AnalysisReadyPhosphoDataset

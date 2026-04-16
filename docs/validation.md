@@ -58,7 +58,7 @@ Rules:
 - `ENTITY` cannot contain semicolons
 - `SITE` must follow `<letters><digits>`
 
-Signalome workflows use this same format when they derive protein grouping from phosphosite IDs. If your IDs do not follow it, pass a `site_to_protein` mapping. `run_from_analysis_ready(...)` defaults to strict metadata resolution and requires `protein_id`; metadata fallback modes are opt-in.
+Signalome workflows use this same format when they derive protein grouping from phosphosite IDs. If your IDs do not follow it, pass a `site_to_protein` mapping. `run_from_analysis_ready(...)` accepts `AnalysisReadyPhosphoDataset` only, defaults to strict metadata resolution, and requires `protein_id`; metadata fallback modes are opt-in.
 
 ## `predMat` Rules
 

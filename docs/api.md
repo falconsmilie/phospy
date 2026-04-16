@@ -397,6 +397,8 @@ SignalomeWorkflow().run_from_analysis_ready(
 
 If `site_to_protein` is omitted, `run(...)` falls back to supported `ENTITY;SITE;` phosphosite IDs such as `BTK;Y551;`.
 
+`run_from_analysis_ready(...)` accepts only `AnalysisReadyPhosphoDataset` inputs (for example `result.analysis_ready_dataset` from `SimpleKinaseWorkflow.run(...)`).
+
 `run_from_analysis_ready(...)` defaults to strict metadata resolution and requires a `protein_id` metadata column. To opt in to metadata fallback columns, set `metadata_fallback_policy="metadata"` and provide `metadata_protein_columns`. Gene-symbol fallback is disabled by default and must be explicitly enabled with `allow_gene_symbol_fallback=True`.
 
 Site-to-protein resolution now exposes structured diagnostics:

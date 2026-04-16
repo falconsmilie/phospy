@@ -104,6 +104,8 @@ signalome = SignalomeWorkflow().run_from_analysis_ready(
 )
 ```
 
+`run_from_analysis_ready(...)` expects an `AnalysisReadyPhosphoDataset` (typically `result.analysis_ready_dataset` from `SimpleKinaseWorkflow.run(...)`).
+
 ## Minimum Input Expectations
 
 PhosPy works with:
