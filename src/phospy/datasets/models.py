@@ -70,6 +70,269 @@ _GENE_SYMBOL_METADATA_COLUMNS: tuple[str, ...] = (
 )
 
 
+@dataclass(frozen=True, slots=True)
+class _SiteToProteinResolutionPolicy:
+    fallback_policy: str
+    candidate_columns: tuple[str, ...]
+
+
+def _resolve_site_to_protein_policy(
+    *,
+    metadata_columns: Sequence[str] | None,
+    fallback_policy: str,
+) -> _SiteToProteinResolutionPolicy:
+    resolved_fallback_policy = str(fallback_policy).strip().lower()
+    if resolved_fallback_policy not in _SITE_TO_PROTEIN_FALLBACK_POLICIES:
+        allowed = ", ".join(_SITE_TO_PROTEIN_FALLBACK_POLICIES)
+        msg = (
+            f"fallback_policy must be one of: {allowed}. Received: {fallback_policy!r}"
+        )
+        raise ValueError(msg)
+
+    if resolved_fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_STRICT:
+        if metadata_columns is not None:
+            msg = "metadata_columns is only supported when fallback_policy='metadata'."
+            raise ValueError(msg)
+        resolved_candidates = _STRICT_SITE_TO_PROTEIN_METADATA_COLUMNS
+    else:
+        resolved_candidates = (
+            _DEFAULT_FALLBACK_SITE_TO_PROTEIN_METADATA_COLUMNS
+            if metadata_columns is None
+            else tuple(metadata_columns)
+        )
+
+    candidate_columns: list[str] = []
+    for column in resolved_candidates:
+        if column is None:
+            continue
+        normalized_column = str(column).strip()
+        if normalized_column:
+            candidate_columns.append(normalized_column)
+
+    if not candidate_columns:
+        msg = (
+            "metadata_columns must contain at least one non-empty column name "
+            "when resolving site-to-protein mapping."
+        )
+        raise ValueError(msg)
+
+    return _SiteToProteinResolutionPolicy(
+        fallback_policy=resolved_fallback_policy,
+        candidate_columns=tuple(candidate_columns),
+    )
+
+
+def _resolve_aligned_site_metadata_indices(
+    *,
+    phospho_index: pd.Index,
+    metadata_index: pd.Index,
+) -> tuple[pd.Index, pd.Index]:
+    site_index = pd.Index(
+        phospho_index.astype("string"),
+        name=SITE_MATRIX_ID_COLUMN,
+    )
+    site_metadata_index = pd.Index(
+        metadata_index.astype("string"),
+        name=SITE_MATRIX_ID_COLUMN,
+    )
+    if not site_index.equals(site_metadata_index):
+        msg = (
+            "AnalysisReadyPhosphoDataset.site_metadata must remain aligned with "
+            "phospho_matrix to resolve site-to-protein mapping."
+        )
+        raise InputCompatibilityError(msg)
+    return site_index, site_metadata_index
+
+
+def _format_incomplete_site_to_protein_column_diagnostic(
+    *,
+    candidate_column: str,
+    metadata_index: pd.Index,
+    invalid_mask: pd.Series,
+) -> str:
+    invalid_site_ids = metadata_index[invalid_mask].astype(str).tolist()
+    preview = ", ".join(invalid_site_ids[:3])
+    diagnostic = f"column '{candidate_column}' has missing/empty values for: {preview}"
+    if len(invalid_site_ids) > 3:
+        diagnostic += ", ..."
+    return diagnostic
+
+
+def _evaluate_candidate_metadata_column_completeness(
+    *,
+    values: pd.Series,
+    metadata_index: pd.Index,
+    candidate_column: str,
+) -> tuple[pd.Series | None, str | None]:
+    normalized_values = values.astype("string")
+    stripped_values = normalized_values.str.strip()
+    invalid_mask = normalized_values.isna() | stripped_values.eq("")
+    if bool(invalid_mask.any()):
+        return None, _format_incomplete_site_to_protein_column_diagnostic(
+            candidate_column=candidate_column,
+            metadata_index=metadata_index,
+            invalid_mask=invalid_mask,
+        )
+    return stripped_values, None
+
+
+def _parse_canonical_entities_for_site_index(site_index: pd.Index) -> pd.Series:
+    canonical_entities: list[object] = []
+    for site_id in site_index.astype(str).tolist():
+        parsed_site_id = parse_canonical_site_id(site_id)
+        if parsed_site_id is None:
+            canonical_entities.append(pd.NA)
+            continue
+        canonical_entity, _ = parsed_site_id
+        canonical_entities.append(canonical_entity)
+    return pd.Series(canonical_entities, index=site_index, dtype="string")
+
+
+def _find_ambiguous_fallback_identifiers(
+    *,
+    fallback_values: pd.Series,
+    canonical_entities: pd.Series,
+) -> list[str]:
+    ambiguity_frame = pd.DataFrame(
+        {
+            "fallback_value": fallback_values.astype("string"),
+            "canonical_entity": canonical_entities.astype("string"),
+        },
+        copy=False,
+    )
+    parseable_rows = ambiguity_frame.loc[ambiguity_frame["canonical_entity"].notna()]
+    if parseable_rows.empty:
+        return []
+
+    canonical_entity_counts = parseable_rows.groupby("fallback_value", sort=True)[
+        "canonical_entity"
+    ].nunique(dropna=True)
+    ambiguous_identifiers = canonical_entity_counts.loc[
+        canonical_entity_counts.gt(1)
+    ].index.astype(str)
+    return sorted(ambiguous_identifiers.tolist())
+
+
+def _enforce_gene_symbol_fallback_policy(
+    *,
+    candidate_column: str,
+    allow_gene_symbol_fallback: bool,
+) -> None:
+    if allow_gene_symbol_fallback:
+        warnings.warn(
+            (
+                "Gene-symbol site-to-protein fallback is enabled for "
+                f"column '{candidate_column}'. This can collapse biologically "
+                "distinct proteins."
+            ),
+            category=UserWarning,
+            stacklevel=2,
+        )
+        return
+
+    msg = (
+        "Gene-symbol site-to-protein fallback is disabled by default "
+        "because it can collapse distinct proteins. "
+        f"Resolved fallback column: '{candidate_column}'. "
+        "Provide explicit site_to_protein, include a 'protein_id' "
+        "metadata column, or set allow_gene_symbol_fallback=True "
+        "to opt in."
+    )
+    raise InputCompatibilityError(msg)
+
+
+def _validate_ambiguous_fallback_identifiers(
+    *,
+    candidate_column: str,
+    ambiguous_identifiers: Sequence[str],
+    allow_ambiguous_fallback: bool,
+) -> None:
+    if not ambiguous_identifiers:
+        return
+
+    preview = ", ".join(ambiguous_identifiers[:3])
+    suffix = ", ..." if len(ambiguous_identifiers) > 3 else ""
+    message = (
+        "Ambiguous site-to-protein metadata mapping detected: "
+        f"column '{candidate_column}' maps one fallback identifier to "
+        "multiple canonical protein IDs inferred from site IDs. "
+        f"Ambiguous identifiers: {preview}{suffix}"
+    )
+    if not allow_ambiguous_fallback:
+        raise InputCompatibilityError(message)
+    warnings.warn(
+        f"{message}. Proceeding because allow_ambiguous_fallback=True.",
+        category=UserWarning,
+        stacklevel=2,
+    )
+
+
+def _build_site_to_protein_mapping_series(
+    *,
+    site_index: pd.Index,
+    resolved_values: pd.Series,
+) -> pd.Series:
+    resolved_index = pd.Index(
+        site_index.astype(str),
+        dtype=object,
+        name=SITE_MATRIX_ID_COLUMN,
+    )
+    return pd.Series(
+        resolved_values.astype(object).tolist(),
+        index=resolved_index,
+        dtype=object,
+        name="protein_id",
+    )
+
+
+def _raise_missing_site_to_protein_columns_error(
+    *,
+    fallback_policy: str,
+    candidate_columns: Sequence[str],
+    available_columns: pd.Index,
+) -> None:
+    checked_preview = ", ".join(candidate_columns)
+    available_preview = ", ".join(str(column) for column in available_columns[:5])
+    if len(available_columns) > 5:
+        available_preview += ", ..."
+
+    if fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_STRICT:
+        msg = (
+            "AnalysisReadyPhosphoDataset.site_metadata does not include the "
+            "required strict site-to-protein column 'protein_id'. "
+            "Strict mode does not allow metadata fallback columns. "
+        )
+    else:
+        msg = (
+            "AnalysisReadyPhosphoDataset.site_metadata does not include a "
+            "usable site-to-protein column. "
+            f"Checked columns: {checked_preview}. "
+        )
+
+    if available_preview:
+        msg += f"Available columns: {available_preview}. "
+    else:
+        msg += "site_metadata has no columns. "
+    msg += "Provide site_to_protein explicitly when running signalome analysis."
+    raise InputCompatibilityError(msg)
+
+
+def _raise_incomplete_site_to_protein_mapping_error(
+    *,
+    candidate_columns: Sequence[str],
+    diagnostics: Sequence[str],
+) -> None:
+    checked_preview = ", ".join(candidate_columns)
+    diagnostic_message = "; ".join(diagnostics)
+    msg = (
+        "AnalysisReadyPhosphoDataset.site_metadata does not contain a complete "
+        "site-to-protein mapping. "
+        f"Checked columns: {checked_preview}. {diagnostic_message}. "
+        "Provide site_to_protein explicitly when running signalome analysis."
+    )
+    raise InputCompatibilityError(msg)
+
+
 @dataclass(slots=True)
 class CoreInputs:
     """Owned mutable dataset tables used by the core preprocessing pipeline."""
@@ -323,197 +586,84 @@ class AnalysisReadyPhosphoDataset:
             Opt in to ambiguous fallback values that map to multiple canonical
             protein IDs when those IDs are parseable from site IDs.
         """
-
-        resolved_fallback_policy = str(fallback_policy).strip().lower()
-        if resolved_fallback_policy not in _SITE_TO_PROTEIN_FALLBACK_POLICIES:
-            allowed = ", ".join(_SITE_TO_PROTEIN_FALLBACK_POLICIES)
-            msg = (
-                "fallback_policy must be one of: "
-                f"{allowed}. Received: {fallback_policy!r}"
-            )
-            raise ValueError(msg)
-
-        if resolved_fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_STRICT:
-            if metadata_columns is not None:
-                msg = (
-                    "metadata_columns is only supported when "
-                    "fallback_policy='metadata'."
-                )
-                raise ValueError(msg)
-            resolved_candidates = _STRICT_SITE_TO_PROTEIN_METADATA_COLUMNS
-        else:
-            resolved_candidates = (
-                _DEFAULT_FALLBACK_SITE_TO_PROTEIN_METADATA_COLUMNS
-                if metadata_columns is None
-                else tuple(metadata_columns)
-            )
-        candidate_columns = tuple(
-            str(column).strip()
-            for column in resolved_candidates
-            if column is not None and str(column).strip()
+        policy = _resolve_site_to_protein_policy(
+            metadata_columns=metadata_columns,
+            fallback_policy=fallback_policy,
         )
-        if not candidate_columns:
-            msg = (
-                "metadata_columns must contain at least one non-empty column name "
-                "when resolving site-to-protein mapping."
-            )
-            raise ValueError(msg)
-
-        site_index = pd.Index(
-            self.phospho_matrix.index.astype("string"),
-            name=SITE_MATRIX_ID_COLUMN,
+        site_index, metadata_index = _resolve_aligned_site_metadata_indices(
+            phospho_index=self.phospho_matrix.index,
+            metadata_index=self.site_metadata.index,
         )
-        metadata_index = pd.Index(
-            self.site_metadata.index.astype("string"),
-            name=SITE_MATRIX_ID_COLUMN,
-        )
-        if not site_index.equals(metadata_index):
-            msg = (
-                "AnalysisReadyPhosphoDataset.site_metadata must remain aligned with "
-                "phospho_matrix to resolve site-to-protein mapping."
-            )
-            raise InputCompatibilityError(msg)
 
         available_columns = {
             str(column): column for column in self.site_metadata.columns
         }
         checked_columns: list[str] = []
         incomplete_column_diagnostics: list[str] = []
+        canonical_entities = (
+            _parse_canonical_entities_for_site_index(site_index)
+            if policy.fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_METADATA
+            else None
+        )
 
-        for candidate in candidate_columns:
+        for candidate in policy.candidate_columns:
             original_column = available_columns.get(candidate)
             if original_column is None:
                 continue
             checked_columns.append(candidate)
 
             raw_values = self.site_metadata.loc[:, original_column]
-            normalized_values = raw_values.astype("string")
-            stripped_values = normalized_values.str.strip()
-            invalid_mask = normalized_values.isna() | stripped_values.eq("")
-            if bool(invalid_mask.any()):
-                invalid_site_ids = metadata_index[invalid_mask].astype(str).tolist()
-                preview = ", ".join(invalid_site_ids[:3])
-                diagnostic = (
-                    f"column '{candidate}' has missing/empty values for: {preview}"
+            stripped_values, incomplete_diagnostic = (
+                _evaluate_candidate_metadata_column_completeness(
+                    values=raw_values,
+                    metadata_index=metadata_index,
+                    candidate_column=candidate,
                 )
-                if len(invalid_site_ids) > 3:
-                    diagnostic += ", ..."
-                incomplete_column_diagnostics.append(diagnostic)
+            )
+            if stripped_values is None:
+                if incomplete_diagnostic is not None:
+                    incomplete_column_diagnostics.append(incomplete_diagnostic)
                 continue
 
             if (
-                resolved_fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_METADATA
+                policy.fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_METADATA
                 and candidate in _GENE_SYMBOL_METADATA_COLUMNS
             ):
-                if not allow_gene_symbol_fallback:
-                    msg = (
-                        "Gene-symbol site-to-protein fallback is disabled by default "
-                        "because it can collapse distinct proteins. "
-                        f"Resolved fallback column: '{candidate}'. "
-                        "Provide explicit site_to_protein, include a 'protein_id' "
-                        "metadata column, or set allow_gene_symbol_fallback=True "
-                        "to opt in."
-                    )
-                    raise InputCompatibilityError(msg)
-                warnings.warn(
-                    (
-                        "Gene-symbol site-to-protein fallback is enabled for "
-                        f"column '{candidate}'. This can collapse biologically "
-                        "distinct proteins."
-                    ),
-                    category=UserWarning,
-                    stacklevel=2,
+                _enforce_gene_symbol_fallback_policy(
+                    candidate_column=candidate,
+                    allow_gene_symbol_fallback=allow_gene_symbol_fallback,
                 )
 
             if (
-                resolved_fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_METADATA
+                policy.fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_METADATA
                 and candidate != "protein_id"
+                and canonical_entities is not None
             ):
-                canonical_entities_by_fallback: dict[str, set[str]] = {}
-                for site_id, fallback_value in zip(
-                    site_index.astype(str).tolist(),
-                    stripped_values.astype(str).tolist(),
-                    strict=True,
-                ):
-                    parsed_site_id = parse_canonical_site_id(site_id)
-                    if parsed_site_id is None:
-                        continue
-                    canonical_entity, _ = parsed_site_id
-                    canonical_entities_by_fallback.setdefault(
-                        fallback_value,
-                        set(),
-                    ).add(canonical_entity)
-
-                ambiguous_identifiers = sorted(
-                    fallback_value
-                    for fallback_value, canonical_entities in (
-                        canonical_entities_by_fallback.items()
-                    )
-                    if len(canonical_entities) > 1
+                ambiguous_identifiers = _find_ambiguous_fallback_identifiers(
+                    fallback_values=stripped_values,
+                    canonical_entities=canonical_entities,
                 )
-                if ambiguous_identifiers:
-                    preview = ", ".join(ambiguous_identifiers[:3])
-                    suffix = ", ..." if len(ambiguous_identifiers) > 3 else ""
-                    message = (
-                        "Ambiguous site-to-protein metadata mapping detected: "
-                        f"column '{candidate}' maps one fallback identifier to "
-                        "multiple canonical protein IDs inferred from site IDs. "
-                        f"Ambiguous identifiers: {preview}{suffix}"
-                    )
-                    if not allow_ambiguous_fallback:
-                        raise InputCompatibilityError(message)
-                    warnings.warn(
-                        f"{message}. Proceeding because allow_ambiguous_fallback=True.",
-                        category=UserWarning,
-                        stacklevel=2,
-                    )
+                _validate_ambiguous_fallback_identifiers(
+                    candidate_column=candidate,
+                    ambiguous_identifiers=ambiguous_identifiers,
+                    allow_ambiguous_fallback=allow_ambiguous_fallback,
+                )
 
-            resolved_index = pd.Index(
-                site_index.astype(str),
-                dtype=object,
-                name=SITE_MATRIX_ID_COLUMN,
-            )
-            return pd.Series(
-                stripped_values.astype(object).tolist(),
-                index=resolved_index,
-                dtype=object,
-                name="protein_id",
+            return _build_site_to_protein_mapping_series(
+                site_index=site_index,
+                resolved_values=stripped_values,
             )
 
-        checked_preview = ", ".join(candidate_columns)
         if not checked_columns:
-            available_preview = ", ".join(
-                str(column) for column in self.site_metadata.columns[:5]
+            _raise_missing_site_to_protein_columns_error(
+                fallback_policy=policy.fallback_policy,
+                candidate_columns=policy.candidate_columns,
+                available_columns=self.site_metadata.columns,
             )
-            if len(self.site_metadata.columns) > 5:
-                available_preview += ", ..."
-            if resolved_fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_STRICT:
-                msg = (
-                    "AnalysisReadyPhosphoDataset.site_metadata does not include the "
-                    "required strict site-to-protein column 'protein_id'. "
-                    "Strict mode does not allow metadata fallback columns. "
-                )
-            else:
-                msg = (
-                    "AnalysisReadyPhosphoDataset.site_metadata does not include a "
-                    "usable site-to-protein column. "
-                    f"Checked columns: {checked_preview}. "
-                )
-            if available_preview:
-                msg += f"Available columns: {available_preview}. "
-            else:
-                msg += "site_metadata has no columns. "
-            msg += "Provide site_to_protein explicitly when running signalome analysis."
-            raise InputCompatibilityError(msg)
-
-        diagnostics = "; ".join(incomplete_column_diagnostics)
-        msg = (
-            "AnalysisReadyPhosphoDataset.site_metadata does not contain a complete "
-            "site-to-protein mapping. "
-            f"Checked columns: {checked_preview}. {diagnostics}. "
-            "Provide site_to_protein explicitly when running signalome analysis."
+        _raise_incomplete_site_to_protein_mapping_error(
+            candidate_columns=policy.candidate_columns,
+            diagnostics=incomplete_column_diagnostics,
         )
-        raise InputCompatibilityError(msg)
 
 
 class PhosphoDataset:
