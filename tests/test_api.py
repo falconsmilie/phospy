@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import fields, is_dataclass
 from pathlib import Path
 
 from phospy.api import (
@@ -17,6 +18,18 @@ def test_supported_public_workflows_live_in_api_modules() -> None:
     assert SimpleKinaseWorkflow.__module__ == "phospy.api.simple_workflows"
     assert SignalomeWorkflow.__module__ == "phospy.api.signalome_workflows"
     assert SimpleKinaseWorkflowResult.__module__ == "phospy.api.workflow_results"
+
+
+def test_simple_workflow_result_public_shape_is_explicit() -> None:
+    assert is_dataclass(SimpleKinaseWorkflowResult)
+    assert [field.name for field in fields(SimpleKinaseWorkflowResult)] == [
+        "analysis_ready_dataset",
+        "reference_bundle",
+        "scoring_result",
+        "prediction_result",
+        "kinase_activity_result",
+    ]
+    assert "pred_mat_result" not in SimpleKinaseWorkflowResult.__dataclass_fields__
 
 
 def test_api_package_exports_only_supported_surface() -> None:

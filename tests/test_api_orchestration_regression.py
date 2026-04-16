@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields, is_dataclass
 from types import SimpleNamespace
 
 import pandas as pd
@@ -19,6 +19,7 @@ from phospy.api import (
 )
 from phospy.api.simple_workflow_composition import SimpleKinaseExecutionGraph
 from phospy.api.workflow_results import SimpleKinaseWorkflowResult
+from phospy.prediction import PredMatResult
 from phospy.preprocessing import CorePreprocessingConfig
 from phospy.references import ReferenceBundle
 
@@ -89,6 +90,29 @@ class _PredictionResultDouble:
 
     def close(self) -> None:
         self.close_calls += 1
+
+
+def test_simple_workflow_result_contract_shape_is_stable() -> None:
+    assert is_dataclass(SimpleKinaseWorkflowResult)
+    assert [item.name for item in fields(SimpleKinaseWorkflowResult)] == [
+        "analysis_ready_dataset",
+        "reference_bundle",
+        "scoring_result",
+        "prediction_result",
+        "kinase_activity_result",
+    ]
+    assert tuple(SimpleKinaseWorkflowResult.__slots__) == (
+        "analysis_ready_dataset",
+        "reference_bundle",
+        "scoring_result",
+        "prediction_result",
+        "kinase_activity_result",
+    )
+    assert "pred_mat_result" not in SimpleKinaseWorkflowResult.__dataclass_fields__
+    assert "profile_scores" not in SimpleKinaseWorkflowResult.__dataclass_fields__
+    assert "combined_scores" not in SimpleKinaseWorkflowResult.__dataclass_fields__
+    assert "weights" not in SimpleKinaseWorkflowResult.__dataclass_fields__
+    assert "substrate_list" not in SimpleKinaseWorkflowResult.__dataclass_fields__
 
 
 def make_small_matrix() -> pd.DataFrame:
@@ -211,8 +235,12 @@ def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
 
 
 def test_simple_workflow_result_pred_mat_result_is_delegated_only() -> None:
-    first_pred_mat_result = object()
-    second_pred_mat_result = object()
+    first_pred_mat_result = PredMatResult(
+        pd.DataFrame({"KINASE_A": [0.1]}, index=["SITE_1"])
+    )
+    second_pred_mat_result = PredMatResult(
+        pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"])
+    )
     profile_scores = pd.DataFrame({"KINASE_A": [0.1]}, index=["SITE_1"])
     combined_scores = pd.DataFrame({"KINASE_A": [0.2]}, index=["SITE_1"])
     weights = pd.DataFrame(
@@ -237,7 +265,7 @@ def test_simple_workflow_result_pred_mat_result_is_delegated_only() -> None:
         kinase_activity_result=SimpleNamespace(),
     )
 
-    assert "pred_mat_result" not in SimpleKinaseWorkflowResult.__dataclass_fields__
+    assert isinstance(result.pred_mat_result, PredMatResult)
     assert result.pred_mat_result is first_pred_mat_result
     assert result.profile_scores is profile_scores
     assert result.combined_scores is combined_scores

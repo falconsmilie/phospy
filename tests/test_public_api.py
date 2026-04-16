@@ -11,6 +11,7 @@ from phospy.api import (
     SignalomeWorkflow,
     SimpleKinaseWorkflow,
 )
+from phospy.api.workflow_results import SimpleKinaseWorkflowResult
 from phospy.datasets import AnalysisReadyPhosphoDataset, PhosphoDataset
 from phospy.preprocessing import CorePreprocessingConfig
 
@@ -117,6 +118,7 @@ def test_simple_kinase_workflow_runs_from_public_supported_path() -> None:
             random_state=7,
         ),
     ) as result:
+        assert isinstance(result, SimpleKinaseWorkflowResult)
         assert isinstance(result.analysis_ready_dataset, AnalysisReadyPhosphoDataset)
         assert result.reference_bundle.species == "rat"
         assert result.reference_bundle.source_metadata.reference == "l6_native"
@@ -124,6 +126,12 @@ def test_simple_kinase_workflow_runs_from_public_supported_path() -> None:
             result.analysis_ready_dataset.provenance.source == "simple kinase workflow"
         )
         assert result.pred_mat_result.to_frame(copy=False).shape == (5, 8)
+        assert result.pred_mat_result is result.prediction_result.pred_mat_result
+        assert result.profile_scores is result.scoring_result.profile_scores
+        assert result.combined_scores is result.scoring_result.combined_scores
+        assert result.weights is result.scoring_result.weights
+        assert result.substrate_list is result.prediction_result.substrate_list
+        assert not hasattr(result, "pred_mat")
         assert result.scoring_result is not None
         assert result.prediction_result is not None
 
