@@ -32,7 +32,9 @@ def run_demo(
             random_state=7,
         ),
     )
-    kinases_of_interest = list(simple_result.pred_mat_result.kinase_names[:2])
+    kinases_of_interest = list(
+        simple_result.prediction_result.pred_mat_result.kinase_names[:2]
+    )
     signalome_result = SignalomeWorkflow().run_from_analysis_ready(
         dataset=simple_result.analysis_ready_dataset,
         scoring_result=simple_result.scoring_result,

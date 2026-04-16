@@ -64,7 +64,11 @@ with SimpleKinaseWorkflow().run(
         random_state=7,
     ),
 ) as result:
+    scoring = result.scoring_result
+    prediction = result.prediction_result
     pred_mat = result.pred_mat_result.to_owned_frame()
+    substrate_list = prediction.substrate_list
+    profile_scores = scoring.profile_scores
     weighted_activity = result.kinase_activity_result.weighted_activity
 ```
 
@@ -80,6 +84,7 @@ This path handles preprocessing, analysis-ready adaptation, bundled reference se
 - Use `result.kinase_activity_result` for activity summaries such as `weighted_activity` and `ksea_scores`; this accessor is detached by default.
 
 By default, `result.scoring_result` is detached. Use `to_owned_scoring_result()` or `to_mutable_scoring_result_unsafe()` when you intentionally need shared state.
+`SimpleKinaseWorkflowResult` intentionally keeps scoring and substrate outputs nested; there are no mirrored top-level aliases such as `result.profile_scores` or `result.substrate_list`.
 
 `predMat` is already part of `prediction_result` (`prediction_result.pred_mat_result`), so there is no separate predMat workflow.
 

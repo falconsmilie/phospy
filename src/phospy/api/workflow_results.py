@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pandas as pd
-
 from ..activities.results import KinaseActivityResult
 from ..datasets.models import AnalysisReadyPhosphoDataset
 from ..internal.pandas_copy import detached_frame_copy, detached_series_copy
@@ -31,6 +29,13 @@ __all__ = ["SimpleKinaseWorkflowResult"]
 @dataclass(slots=True, init=False)
 class SimpleKinaseWorkflowResult:
     """Owned result bundle for the high-level common kinase workflow.
+
+    The primary public contract is nested:
+    - ``scoring_result`` for ``profile_scores``, ``combined_scores``, and ``weights``
+    - ``prediction_result`` for ``pred_matrix`` and ``substrate_list``
+    - ``kinase_activity_result`` for downstream activity tables
+
+    ``pred_mat_result`` remains as a convenience seam for the canonical predMat table.
 
     Ownership convention:
     - ``to_*`` methods return detached safe copies
@@ -103,105 +108,6 @@ class SimpleKinaseWorkflowResult:
 
         return self._prediction_result.pred_mat_result
 
-    @property
-    def profile_scores(self) -> pd.DataFrame:
-        """Return a detached profile-based scoring table from the scoring stage."""
-
-        return self.to_profile_scores()
-
-    @property
-    def combined_scores(self) -> pd.DataFrame | None:
-        """Return detached combined motif/profile scores when available."""
-
-        return self.to_combined_scores()
-
-    @property
-    def weights(self) -> pd.DataFrame | None:
-        """Return detached score-combination weights when available."""
-
-        return self.to_weights()
-
-    @property
-    def substrate_list(self) -> dict[str, list[str]]:
-        """Return detached predicted substrate memberships keyed by kinase."""
-
-        return self.to_substrate_list()
-
-    def to_profile_scores(self) -> pd.DataFrame:
-        """Return detached profile-based scoring outputs."""
-
-        return detached_frame_copy(self._scoring_result.profile_scores)
-
-    def to_owned_profile_scores(self) -> pd.DataFrame:
-        """Return cheap shared owned profile-based scoring outputs (no copy)."""
-
-        return self._scoring_result.profile_scores
-
-    def to_mutable_profile_scores_unsafe(self) -> pd.DataFrame:
-        """Return explicit mutable shared profile-based scoring outputs."""
-
-        return self._scoring_result.profile_scores
-
-    def to_combined_scores(self) -> pd.DataFrame | None:
-        """Return detached combined motif/profile outputs when available."""
-
-        combined = self._scoring_result.combined_scores
-        if combined is None:
-            return None
-        return detached_frame_copy(combined)
-
-    def to_owned_combined_scores(self) -> pd.DataFrame | None:
-        """Return cheap shared owned combined motif/profile outputs."""
-
-        return self._scoring_result.combined_scores
-
-    def to_mutable_combined_scores_unsafe(self) -> pd.DataFrame | None:
-        """Return explicit mutable shared combined motif/profile outputs."""
-
-        return self._scoring_result.combined_scores
-
-    def to_weights(self) -> pd.DataFrame | None:
-        """Return detached score-combination weights when available."""
-
-        weights = self._scoring_result.weights
-        if weights is None:
-            return None
-        return detached_frame_copy(weights)
-
-    def to_owned_weights(self) -> pd.DataFrame | None:
-        """Return cheap shared owned score-combination weights."""
-
-        return self._scoring_result.weights
-
-    def to_mutable_weights_unsafe(self) -> pd.DataFrame | None:
-        """Return explicit mutable shared score-combination weights."""
-
-        return self._scoring_result.weights
-
-    def to_substrate_list(self) -> dict[str, list[str]]:
-        """Return detached predicted substrate memberships keyed by kinase."""
-
-        if hasattr(self._prediction_result, "to_substrate_list"):
-            return self._prediction_result.to_substrate_list()
-        return {
-            kinase: list(substrates)
-            for kinase, substrates in self._prediction_result.substrate_list.items()
-        }
-
-    def to_owned_substrate_list(self) -> dict[str, list[str]]:
-        """Return cheap shared owned substrate memberships (no copy)."""
-
-        if hasattr(self._prediction_result, "to_owned_substrate_list"):
-            return self._prediction_result.to_owned_substrate_list()
-        return self._prediction_result.substrate_list
-
-    def to_mutable_substrate_list_unsafe(self) -> dict[str, list[str]]:
-        """Return explicit mutable shared substrate memberships."""
-
-        if hasattr(self._prediction_result, "to_mutable_substrate_list_unsafe"):
-            return self._prediction_result.to_mutable_substrate_list_unsafe()
-        return self._prediction_result.substrate_list
-
     def to_analysis_ready_dataset(self) -> AnalysisReadyPhosphoDataset:
         """Return a detached analysis-ready dataset boundary."""
 
@@ -231,10 +137,16 @@ class SimpleKinaseWorkflowResult:
 
         if not isinstance(self._scoring_result, KinaseScoringResult):
             return self._scoring_result
+        combined_scores = self._scoring_result.combined_scores
+        weights = self._scoring_result.weights
         return KinaseScoringResult(
-            profile_scores=self.to_profile_scores(),
-            combined_scores=self.to_combined_scores(),
-            weights=self.to_weights(),
+            profile_scores=detached_frame_copy(self._scoring_result.profile_scores),
+            combined_scores=(
+                None
+                if combined_scores is None
+                else detached_frame_copy(combined_scores)
+            ),
+            weights=None if weights is None else detached_frame_copy(weights),
         )
 
     def to_owned_scoring_result(self) -> KinaseScoringResult:

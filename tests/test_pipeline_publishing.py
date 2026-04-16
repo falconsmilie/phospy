@@ -728,7 +728,7 @@ def test_simple_workflow_output_bundle_round_trip(tmp_path: Path) -> None:
         )
 
         pred_mat = result.pred_mat_result.to_frame(copy=False)
-        profile_scores = result.profile_scores
+        profile_scores = result.scoring_result.profile_scores
         kinase_activity_matrix = result.kinase_activity_result.weighted_activity
         ksea_counts = result.kinase_activity_result.ksea_counts
 

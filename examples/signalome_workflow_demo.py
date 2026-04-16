@@ -42,8 +42,8 @@ def run_demo(
             random_state=7,
         ),
     )
-    pred_mat_result = simple_result.pred_mat_result
     prediction_result = simple_result.prediction_result
+    pred_mat_result = prediction_result.pred_mat_result
     scoring_result = simple_result.scoring_result
 
     kinases_of_interest = list(pred_mat_result.kinase_names[:2])

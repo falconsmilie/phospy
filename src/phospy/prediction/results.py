@@ -140,7 +140,11 @@ class PredMatResult:
 class KinasePredictionResult:
     """Prediction outputs and optional traces for one prediction run.
 
-    The canonical predMat contract is exposed through ``pred_mat_result``.
+    This is the canonical nested prediction result contract used by workflow APIs.
+    Primary payload seams are:
+    - ``pred_mat_result`` for predMat access
+    - ``substrate_list`` for predicted substrate memberships
+
     The lower-level prediction matrix remains available as ``pred_matrix``.
     When ``owns_trace_sink`` is ``True``, call ``close()`` or use a context
     manager to release the trace sink deterministically.
@@ -183,7 +187,7 @@ class KinasePredictionResult:
 
     @property
     def substrate_list(self) -> dict[str, list[str]]:
-        """Compatibility accessor returning a detached substrate-list mapping."""
+        """Return a detached substrate-list mapping keyed by kinase."""
 
         return self.to_substrate_list()
 

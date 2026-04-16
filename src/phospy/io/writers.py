@@ -326,6 +326,7 @@ class SimpleKinaseWorkflowBundleWriter:
     def _bundle_table_artifacts(
         result: SimpleKinaseWorkflowResult,
     ) -> tuple[BundleTableArtifact, ...]:
+        scoring_result = result.to_owned_scoring_result()
         artifacts: list[BundleTableArtifact] = [
             BundleTableArtifact(
                 table_id="analysis_ready_phospho_matrix",
@@ -354,7 +355,7 @@ class SimpleKinaseWorkflowBundleWriter:
             ),
             BundleTableArtifact(
                 table_id="profile_scores",
-                table=result.to_owned_profile_scores(),
+                table=scoring_result.profile_scores,
                 value_type="dataframe",
             ),
             BundleTableArtifact(
@@ -384,19 +385,19 @@ class SimpleKinaseWorkflowBundleWriter:
             ),
         ]
 
-        if result.to_owned_combined_scores() is not None:
+        if scoring_result.combined_scores is not None:
             artifacts.append(
                 BundleTableArtifact(
                     table_id="combined_scores",
-                    table=result.to_owned_combined_scores(),
+                    table=scoring_result.combined_scores,
                     value_type="dataframe",
                 )
             )
-        if result.to_owned_weights() is not None:
+        if scoring_result.weights is not None:
             artifacts.append(
                 BundleTableArtifact(
                     table_id="scoring_weights",
-                    table=result.to_owned_weights(),
+                    table=scoring_result.weights,
                     value_type="dataframe",
                 )
             )

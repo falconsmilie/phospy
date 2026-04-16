@@ -57,7 +57,9 @@ Primary result access paths on `SimpleKinaseWorkflowResult`:
 - `scoring_result.profile_scores`, `scoring_result.combined_scores`, and `scoring_result.weights` expose scoring outputs
 - `prediction_result.substrate_list` exposes predicted substrate memberships
 
-`SimpleKinaseWorkflowResult` accessors return detached reads by default (`analysis_ready_dataset`, `scoring_result`, `prediction_result`, `kinase_activity_result`, plus convenience table properties). Use `to_owned_*` or `to_mutable_*_unsafe` accessors when you intentionally need shared state.
+`SimpleKinaseWorkflowResult` accessors return detached reads by default (`analysis_ready_dataset`, `scoring_result`, `prediction_result`, and `kinase_activity_result`). Use `to_owned_*` or `to_mutable_*_unsafe` accessors when you intentionally need shared state.
+Top-level mirrors such as `result.profile_scores`, `result.combined_scores`, `result.weights`, and `result.substrate_list` are intentionally not part of this contract.
+`result.pred_mat_result` remains as a convenience alias for `result.prediction_result.pred_mat_result`.
 
 Common access pattern:
 
@@ -72,7 +74,10 @@ with SimpleKinaseWorkflow().run(...) as result:
     pred_mat_result = prediction_result.pred_mat_result
     pred_mat = pred_mat_result.to_owned_frame()
     pred_matrix = prediction_result.pred_matrix
+    substrate_list = prediction_result.substrate_list
+    profile_scores = scoring_result.profile_scores
     combined_scores = scoring_result.combined_scores
+    weights = scoring_result.weights
     weighted_activity = kinase_activity_result.weighted_activity
 ```
 
@@ -104,7 +109,10 @@ with SimpleKinaseWorkflow().run(
     pred_mat_result = prediction_result.pred_mat_result
     pred_mat = pred_mat_result.to_owned_frame()
     pred_matrix = prediction_result.pred_matrix
+    substrate_list = prediction_result.substrate_list
+    profile_scores = scoring_result.profile_scores
     combined_scores = scoring_result.combined_scores
+    weights = scoring_result.weights
     weighted_activity = kinase_activity_result.weighted_activity
 ```
 

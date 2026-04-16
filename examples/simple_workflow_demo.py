@@ -107,7 +107,8 @@ def run_demo(
             **shared_run_kwargs,
         )
 
-    pred_mat_result = result.pred_mat_result
+    prediction_result = result.prediction_result
+    pred_mat_result = prediction_result.pred_mat_result
     kinase_activity_result = result.kinase_activity_result
 
     written = {
@@ -125,8 +126,8 @@ def main() -> None:
     with TemporaryDirectory(prefix="phospy-simple-workflow-") as tmp_dir:
         result, written = run_demo(Path(tmp_dir), use_files=True)
         print("Simple workflow demo")
-        pred_mat_result = result.pred_mat_result
         prediction_result = result.prediction_result
+        pred_mat_result = prediction_result.pred_mat_result
         scoring_result = result.scoring_result
         kinase_activity_result = result.kinase_activity_result
 
