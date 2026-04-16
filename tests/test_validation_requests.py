@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.api import PredictionRunConfig
 from phospy.datasets import DatasetSchema, PhosphoDataset
 from phospy.errors import (
     InputCompatibilityError,
@@ -646,6 +647,72 @@ def test_validated_workflow_and_analysis_requests_can_be_created() -> None:
         phospho_matrix=pd.DataFrame({"sample_1": [1.0]}, index=["PRKACA;S339;"]),
     )
     assert isinstance(analysis_request, AnalysisInputs)
+
+
+def test_validate_workflow_request_accepts_prediction_config_object() -> None:
+    prediction_config = PredictionRunConfig(
+        min_substrates=2,
+        min_motif_size=2,
+        ensemble_size=2,
+        top=2,
+        score_threshold=0.2,
+        inclusion=1,
+        n_iterations=1,
+        random_state=19,
+        svm_mode="r_parity",
+    )
+    request = validate_workflow_request(
+        phospho_matrix=pd.DataFrame(
+            {"sample_1": [1.0], "sample_2": [2.0]},
+            index=["SITE_1"],
+        ),
+        substrate_map={"KINASE_A": ["SITE_1"]},
+        site_sequences={"SITE_1": "QQAAAAAYY"},
+        motif_sequences={"KINASE_A": ["QQAAAAAYY"]},
+        prediction_config=prediction_config,
+        flank_size=2,
+        default_svm_mode="default",
+    )
+
+    assert request.min_substrates == prediction_config.min_substrates
+    assert request.min_motif_size == prediction_config.min_motif_size
+    assert (
+        request.allow_profile_only_fallback
+        == prediction_config.allow_profile_only_fallback
+    )
+    assert request.ensemble_size == prediction_config.ensemble_size
+    assert request.top == prediction_config.top
+    assert request.score_threshold == prediction_config.score_threshold
+    assert request.inclusion == prediction_config.inclusion
+    assert request.n_iterations == prediction_config.n_iterations
+    assert request.random_state == prediction_config.random_state
+    assert request.svm_mode == prediction_config.svm_mode
+    assert (
+        request.profile_policy.missing_value_strategy
+        == prediction_config.profile_policy.missing_value_strategy
+    )
+
+
+def test_validate_workflow_request_rejects_mixed_prediction_config_and_scalar_fields() -> (
+    None
+):
+    with pytest.raises(
+        RequestValidationError,
+        match="Pass either prediction_config or explicit prediction fields",
+    ):
+        validate_workflow_request(
+            phospho_matrix=pd.DataFrame(
+                {"sample_1": [1.0], "sample_2": [2.0]},
+                index=["SITE_1"],
+            ),
+            substrate_map={"KINASE_A": ["SITE_1"]},
+            site_sequences={"SITE_1": "QQAAAAAYY"},
+            motif_sequences={"KINASE_A": ["QQAAAAAYY"]},
+            prediction_config=PredictionRunConfig(),
+            min_substrates=2,
+            flank_size=2,
+            default_svm_mode="default",
+        )
 
 
 def test_validate_pipeline_construction_request_rejects_non_dataset_inputs() -> None:

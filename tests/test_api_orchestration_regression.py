@@ -221,8 +221,12 @@ def test_simple_kinase_workflow_run_delegates_to_domain_services() -> None:
     assert validate_calls[0]["phospho_matrix"] is phospho_matrix
     assert validate_calls[0]["site_sequences"] is site_sequences
     assert validate_calls[0]["reference_bundle"] is reference_bundle
-    assert validate_calls[0]["min_substrates"] == 3
-    assert validate_calls[0]["score_threshold"] == 0.65
+    assert validate_calls[0]["prediction_config"] == PredictionRunConfig(
+        min_substrates=3,
+        score_threshold=0.65,
+    )
+    assert "min_substrates" not in validate_calls[0]
+    assert "score_threshold" not in validate_calls[0]
     assert execute_calls == [validated_request]
     assert analyzer_calls == [
         {

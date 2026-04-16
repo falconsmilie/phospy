@@ -10,10 +10,8 @@ from ..internal.defaults import DEFAULT_MOTIF_FLANK_SIZE
 from ..internal.types import PREDICTION_SVM_MODE_DEFAULT, PredictionSvmMode
 from ..prediction.engines import (
     KinaseWorkflowExecutionResult,
-    KinaseWorkflowExecutor,
 )
 from ..preprocessing.core import CorePreprocessingConfig
-from ..references import ReferenceBundle
 from ..validation.requests.workflow import WorkflowInputs
 from .contracts import (
     DatasetLoadOptions,
@@ -53,32 +51,6 @@ def _resolve_simple_kinase_configs(
         ),
         prediction_config=PredictionRunConfig.from_value(prediction_config),
         activity_config=KinaseActivityConfig.from_value(activity_config),
-    )
-
-
-def _validate_prediction_request(
-    *,
-    workflow_executor: KinaseWorkflowExecutor,
-    phospho_matrix: pd.DataFrame,
-    site_sequences: Mapping[str, str] | pd.Series,
-    reference_bundle: ReferenceBundle,
-    prediction_config: PredictionRunConfig,
-) -> WorkflowInputs:
-    return workflow_executor.validate_request(
-        phospho_matrix=phospho_matrix,
-        site_sequences=site_sequences,
-        reference_bundle=reference_bundle,
-        min_substrates=prediction_config.min_substrates,
-        min_motif_size=prediction_config.min_motif_size,
-        allow_profile_only_fallback=prediction_config.allow_profile_only_fallback,
-        ensemble_size=prediction_config.ensemble_size,
-        top=prediction_config.top,
-        score_threshold=prediction_config.score_threshold,
-        inclusion=prediction_config.inclusion,
-        n_iterations=prediction_config.n_iterations,
-        random_state=prediction_config.random_state,
-        svm_mode=prediction_config.svm_mode,
-        profile_policy=prediction_config.profile_policy,
     )
 
 
@@ -167,8 +139,7 @@ class SimpleKinaseWorkflow:
             species=species,
             reference=reference,
         )
-        request = _validate_prediction_request(
-            workflow_executor=execution_graph.workflow_executor,
+        request: WorkflowInputs = execution_graph.workflow_executor.validate_request(
             phospho_matrix=_owned_analysis_ready_phospho_matrix(analysis_ready_dataset),
             site_sequences=_owned_analysis_ready_site_sequences(analysis_ready_dataset),
             reference_bundle=reference_bundle,

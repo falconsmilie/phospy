@@ -11,6 +11,7 @@ from phospy.errors import (
 )
 from phospy.internal.kinase_workflows import KinaseWorkflow
 from phospy.prediction import PredMatResult
+from phospy.prediction.engines import KinaseWorkflowExecutor
 from phospy.prediction.motif_scoring import KinaseMotifScorer
 from phospy.prediction.profiles import KinaseProfilePolicy
 from phospy.references import (
@@ -578,3 +579,91 @@ def test_validated_workflow_request_accepts_explicit_profile_policy() -> None:
     )
 
     assert request.profile_policy.missing_value_strategy == "median_skipna"
+
+
+def test_kinase_workflow_validate_request_passes_prediction_config_object(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
+        make_workflow_inputs()
+    )
+    workflow = KinaseWorkflow(flank_size=2)
+    prediction_config = make_prediction_config(min_substrates=3, score_threshold=0.5)
+    captured_kwargs: dict[str, object] = {}
+    sentinel_request = object()
+
+    def capturing_validate_request(**kwargs: object) -> object:
+        captured_kwargs.update(kwargs)
+        return sentinel_request
+
+    monkeypatch.setattr(
+        workflow._executor,
+        "validate_request",
+        capturing_validate_request,
+    )
+
+    request = workflow._validate_request(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        prediction_config=prediction_config,
+    )
+
+    assert request is sentinel_request
+    assert captured_kwargs["prediction_config"] is prediction_config
+    assert "min_substrates" not in captured_kwargs
+    assert "score_threshold" not in captured_kwargs
+
+
+def test_workflow_and_executor_validation_paths_resolve_identical_prediction_config() -> (
+    None
+):
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
+        make_workflow_inputs()
+    )
+    prediction_config = make_prediction_config(
+        min_substrates=3,
+        min_motif_size=2,
+        ensemble_size=2,
+        top=2,
+        score_threshold=0.2,
+        inclusion=1,
+        n_iterations=1,
+        random_state=13,
+        svm_mode="r_parity",
+    )
+
+    workflow_request = KinaseWorkflow(flank_size=2)._validate_request(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        prediction_config=prediction_config,
+    )
+    executor_request = KinaseWorkflowExecutor(flank_size=2).validate_request(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        prediction_config=prediction_config,
+    )
+
+    assert workflow_request.min_substrates == executor_request.min_substrates
+    assert workflow_request.min_motif_size == executor_request.min_motif_size
+    assert (
+        workflow_request.allow_profile_only_fallback
+        == executor_request.allow_profile_only_fallback
+    )
+    assert workflow_request.ensemble_size == executor_request.ensemble_size
+    assert workflow_request.top == executor_request.top
+    assert workflow_request.score_threshold == executor_request.score_threshold
+    assert workflow_request.inclusion == executor_request.inclusion
+    assert workflow_request.n_iterations == executor_request.n_iterations
+    assert workflow_request.random_state == executor_request.random_state
+    assert workflow_request.svm_mode == executor_request.svm_mode
+    assert workflow_request.predictor_svm_mode == executor_request.predictor_svm_mode
+    assert (
+        workflow_request.profile_policy.missing_value_strategy
+        == executor_request.profile_policy.missing_value_strategy
+    )

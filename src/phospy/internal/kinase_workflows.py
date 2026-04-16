@@ -17,37 +17,6 @@ from ..validation.requests.workflow import WorkflowInputs
 __all__ = ["KinaseWorkflow"]
 
 
-def _validate_workflow_inputs(
-    *,
-    executor: KinaseWorkflowExecutor,
-    phospho_matrix: pd.DataFrame,
-    substrate_map: Mapping[str, Sequence[str]] | None = None,
-    site_sequences: Mapping[str, str] | pd.Series | None = None,
-    motif_sequences: Mapping[str, Sequence[str]] | None = None,
-    reference_bundle: ReferenceBundle | None = None,
-    prediction_config: PredictionRunConfig | None = None,
-) -> WorkflowInputs:
-    resolved_config = PredictionRunConfig.from_value(prediction_config)
-    return executor.validate_request(
-        phospho_matrix=phospho_matrix,
-        substrate_map=substrate_map,
-        site_sequences=site_sequences,
-        motif_sequences=motif_sequences,
-        reference_bundle=reference_bundle,
-        min_substrates=resolved_config.min_substrates,
-        min_motif_size=resolved_config.min_motif_size,
-        allow_profile_only_fallback=resolved_config.allow_profile_only_fallback,
-        ensemble_size=resolved_config.ensemble_size,
-        top=resolved_config.top,
-        score_threshold=resolved_config.score_threshold,
-        inclusion=resolved_config.inclusion,
-        n_iterations=resolved_config.n_iterations,
-        random_state=resolved_config.random_state,
-        svm_mode=resolved_config.svm_mode,
-        profile_policy=resolved_config.profile_policy,
-    )
-
-
 class KinaseWorkflow:
     """Run the native kinase scoring and prediction workflow end to end."""
 
@@ -73,14 +42,14 @@ class KinaseWorkflow:
         reference_bundle: ReferenceBundle | None = None,
         prediction_config: PredictionRunConfig | None = None,
     ) -> WorkflowInputs:
-        return _validate_workflow_inputs(
-            executor=self._executor,
+        resolved_prediction_config = PredictionRunConfig.from_value(prediction_config)
+        return self._executor.validate_request(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
             site_sequences=site_sequences,
             motif_sequences=motif_sequences,
             reference_bundle=reference_bundle,
-            prediction_config=prediction_config,
+            prediction_config=resolved_prediction_config,
         )
 
     def run(

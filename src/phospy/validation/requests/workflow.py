@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 
 import pandas as pd
 from pydantic import (
@@ -32,6 +33,136 @@ from ..values.collections import (
     normalize_sequence_mapping,
     normalize_site_sequence_series,
 )
+
+_WORKFLOW_PREDICTION_CONFIG_FIELDS: tuple[str, ...] = (
+    "min_substrates",
+    "min_motif_size",
+    "allow_profile_only_fallback",
+    "ensemble_size",
+    "top",
+    "score_threshold",
+    "inclusion",
+    "n_iterations",
+    "random_state",
+    "svm_mode",
+    "profile_policy",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowPredictionConfig:
+    """Typed prediction policy consumed by workflow validation seams."""
+
+    min_substrates: int = 1
+    min_motif_size: int = 1
+    allow_profile_only_fallback: bool = False
+    ensemble_size: int = DEFAULT_PREDICTION_ENSEMBLE_SIZE
+    top: int = DEFAULT_PREDICTION_TOP
+    score_threshold: float = DEFAULT_PREDICTION_SCORE_THRESHOLD
+    inclusion: int = DEFAULT_PREDICTION_INCLUSION
+    n_iterations: int = DEFAULT_PREDICTION_N_ITERATIONS
+    random_state: int | None = None
+    svm_mode: PredictionSvmMode | None = None
+    profile_policy: KinaseProfilePolicy = dataclass_field(
+        default_factory=KinaseProfilePolicy
+    )
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "profile_policy",
+            KinaseProfilePolicy.from_value(self.profile_policy),
+        )
+
+    @classmethod
+    def from_value(cls, value: object) -> WorkflowPredictionConfig:
+        if isinstance(value, cls):
+            return value
+        if isinstance(value, Mapping):
+            return cls(**dict(value))
+
+        config_values: dict[str, object] = {}
+        missing_fields: list[str] = []
+        for field_name in _WORKFLOW_PREDICTION_CONFIG_FIELDS:
+            if not hasattr(value, field_name):
+                missing_fields.append(field_name)
+                continue
+            config_values[field_name] = getattr(value, field_name)
+
+        if missing_fields:
+            expected = ", ".join(_WORKFLOW_PREDICTION_CONFIG_FIELDS)
+            missing = ", ".join(missing_fields)
+            msg = (
+                "prediction_config must be a mapping or object with fields "
+                f"[{expected}]; missing [{missing}]"
+            )
+            raise TypeError(msg)
+        return cls(**config_values)
+
+
+def _resolve_workflow_prediction_config(
+    *,
+    prediction_config: object | None,
+    min_substrates: int,
+    min_motif_size: int,
+    allow_profile_only_fallback: bool,
+    ensemble_size: int,
+    top: int,
+    score_threshold: float,
+    inclusion: int,
+    n_iterations: int,
+    random_state: int | None,
+    svm_mode: PredictionSvmMode | None,
+    profile_policy: KinaseProfilePolicy | None,
+) -> WorkflowPredictionConfig:
+    if prediction_config is not None:
+        conflicting_fields: list[str] = []
+        if min_substrates != 1:
+            conflicting_fields.append("min_substrates")
+        if min_motif_size != 1:
+            conflicting_fields.append("min_motif_size")
+        if allow_profile_only_fallback:
+            conflicting_fields.append("allow_profile_only_fallback")
+        if ensemble_size != DEFAULT_PREDICTION_ENSEMBLE_SIZE:
+            conflicting_fields.append("ensemble_size")
+        if top != DEFAULT_PREDICTION_TOP:
+            conflicting_fields.append("top")
+        if score_threshold != DEFAULT_PREDICTION_SCORE_THRESHOLD:
+            conflicting_fields.append("score_threshold")
+        if inclusion != DEFAULT_PREDICTION_INCLUSION:
+            conflicting_fields.append("inclusion")
+        if n_iterations != DEFAULT_PREDICTION_N_ITERATIONS:
+            conflicting_fields.append("n_iterations")
+        if random_state is not None:
+            conflicting_fields.append("random_state")
+        if svm_mode is not None:
+            conflicting_fields.append("svm_mode")
+        if profile_policy is not None:
+            conflicting_fields.append("profile_policy")
+        if conflicting_fields:
+            names = ", ".join(conflicting_fields)
+            msg = (
+                "Pass either prediction_config or explicit prediction fields, "
+                f"not both (conflicts: {names})."
+            )
+            raise RequestValidationError(msg)
+        return WorkflowPredictionConfig.from_value(prediction_config)
+
+    return WorkflowPredictionConfig(
+        min_substrates=min_substrates,
+        min_motif_size=min_motif_size,
+        allow_profile_only_fallback=allow_profile_only_fallback,
+        ensemble_size=ensemble_size,
+        top=top,
+        score_threshold=score_threshold,
+        inclusion=inclusion,
+        n_iterations=n_iterations,
+        random_state=random_state,
+        svm_mode=svm_mode,
+        profile_policy=profile_policy
+        if profile_policy is not None
+        else KinaseProfilePolicy(),
+    )
 
 
 class KinaseWorkflowRequest(BaseModel):
@@ -203,6 +334,7 @@ def validate_workflow_request(
     site_sequences: Mapping[str, str] | pd.Series | None = None,
     motif_sequences: Mapping[str, Sequence[str]] | None = None,
     reference_bundle: ReferenceBundle | None = None,
+    prediction_config: object | None = None,
     min_substrates: int = 1,
     min_motif_size: int = 1,
     allow_profile_only_fallback: bool = False,
@@ -220,16 +352,8 @@ def validate_workflow_request(
 ) -> WorkflowInputs:
     """Validate raw workflow inputs and return trusted workflow inputs."""
 
-    resolved_substrate_map, resolved_motif_sequences = resolve_reference_bundle_inputs(
-        substrate_map=substrate_map,
-        motif_sequences=motif_sequences,
-        reference_bundle=reference_bundle,
-    )
-    request = KinaseWorkflowRequest.validate_request(
-        phospho_matrix=phospho_matrix,
-        substrate_map=resolved_substrate_map,
-        site_sequences=site_sequences,
-        motif_sequences=resolved_motif_sequences,
+    resolved_prediction_config = _resolve_workflow_prediction_config(
+        prediction_config=prediction_config,
         min_substrates=min_substrates,
         min_motif_size=min_motif_size,
         allow_profile_only_fallback=allow_profile_only_fallback,
@@ -241,6 +365,31 @@ def validate_workflow_request(
         random_state=random_state,
         svm_mode=svm_mode,
         profile_policy=profile_policy,
+    )
+
+    resolved_substrate_map, resolved_motif_sequences = resolve_reference_bundle_inputs(
+        substrate_map=substrate_map,
+        motif_sequences=motif_sequences,
+        reference_bundle=reference_bundle,
+    )
+    request = KinaseWorkflowRequest.validate_request(
+        phospho_matrix=phospho_matrix,
+        substrate_map=resolved_substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=resolved_motif_sequences,
+        min_substrates=resolved_prediction_config.min_substrates,
+        min_motif_size=resolved_prediction_config.min_motif_size,
+        allow_profile_only_fallback=(
+            resolved_prediction_config.allow_profile_only_fallback
+        ),
+        ensemble_size=resolved_prediction_config.ensemble_size,
+        top=resolved_prediction_config.top,
+        score_threshold=resolved_prediction_config.score_threshold,
+        inclusion=resolved_prediction_config.inclusion,
+        n_iterations=resolved_prediction_config.n_iterations,
+        random_state=resolved_prediction_config.random_state,
+        svm_mode=resolved_prediction_config.svm_mode,
+        profile_policy=resolved_prediction_config.profile_policy,
     )
     return build_workflow_inputs(
         request,
