@@ -533,7 +533,7 @@ def test_signalome_workflow_accepts_canonical_pred_mat_result_input() -> None:
 
     result = SignalomeWorkflow().run(
         scoring_result=pred_mat_workflow_result.scoring_result,
-        prediction_result=pred_mat_workflow_result.pred_mat_result,
+        prediction_result=pred_mat_workflow_result.prediction_result.pred_mat_result,
         expression_matrix=phospho_matrix,
         kinases_of_interest=["KINASE_B"],
     )
@@ -545,7 +545,9 @@ def test_signalome_workflow_accepts_canonical_pred_mat_result_input() -> None:
 def test_signalome_workflow_rejects_pred_mat_without_candidate_kinases() -> None:
     phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
     empty_pred_mat = PredMatResult(
-        pred_mat_result.pred_mat_result.to_frame(copy=True).iloc[:, 0:0]
+        pred_mat_result.prediction_result.pred_mat_result.to_frame(copy=True).iloc[
+            :, 0:0
+        ]
     )
 
     with pytest.raises(
@@ -573,7 +575,7 @@ def test_signalome_workflow_accepts_explicit_site_to_protein_mapping() -> None:
     scoring_result.combined_scores.index = renamed_index
     scoring_result.profile_scores.index = renamed_index
 
-    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat = pred_mat_result.prediction_result.pred_mat_result.to_frame(copy=True)
     pred_mat.index = renamed_index
     renamed_pred_mat_result = PredMatResult(pred_mat)
 
@@ -618,7 +620,7 @@ def test_signalome_workflow_run_from_analysis_ready_uses_site_metadata_mapping()
     scoring_result.combined_scores.index = renamed_index
     scoring_result.profile_scores.index = renamed_index
 
-    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat = pred_mat_result.prediction_result.pred_mat_result.to_frame(copy=True)
     pred_mat.index = renamed_index
     renamed_pred_mat_result = PredMatResult(pred_mat)
     protein_ids = {
@@ -665,7 +667,7 @@ def test_signalome_workflow_run_from_analysis_ready_strict_mode_rejects_gene_met
     scoring_result.combined_scores.index = renamed_index
     scoring_result.profile_scores.index = renamed_index
 
-    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat = pred_mat_result.prediction_result.pred_mat_result.to_frame(copy=True)
     pred_mat.index = renamed_index
     renamed_pred_mat_result = PredMatResult(pred_mat)
     protein_ids = {
@@ -702,7 +704,7 @@ def test_signalome_workflow_run_from_analysis_ready_supports_explicit_gene_fallb
     scoring_result.combined_scores.index = renamed_index
     scoring_result.profile_scores.index = renamed_index
 
-    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat = pred_mat_result.prediction_result.pred_mat_result.to_frame(copy=True)
     pred_mat.index = renamed_index
     renamed_pred_mat_result = PredMatResult(pred_mat)
     gene_mapping = {
@@ -790,7 +792,7 @@ def test_signalome_workflow_rejects_unsupported_site_identifier_format_without_m
     scoring_result.combined_scores.index = renamed_index
     scoring_result.profile_scores.index = renamed_index
 
-    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat = pred_mat_result.prediction_result.pred_mat_result.to_frame(copy=True)
     pred_mat.index = renamed_index
     renamed_pred_mat_result = PredMatResult(pred_mat)
 
@@ -862,7 +864,7 @@ def test_signalome_workflow_rejects_malformed_supported_site_identifier_without_
     scoring_result.combined_scores.index = malformed_index
     scoring_result.profile_scores.index = malformed_index
 
-    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat = pred_mat_result.prediction_result.pred_mat_result.to_frame(copy=True)
     pred_mat.index = malformed_index
     malformed_pred_mat_result = PredMatResult(pred_mat)
 
@@ -940,7 +942,7 @@ def test_signalome_workflow_rejects_non_canonical_multi_token_site_ids_without_m
     scoring_result.combined_scores.index = malformed_index
     scoring_result.profile_scores.index = malformed_index
 
-    pred_mat = pred_mat_result.pred_mat_result.to_frame(copy=True)
+    pred_mat = pred_mat_result.prediction_result.pred_mat_result.to_frame(copy=True)
     pred_mat.index = malformed_index
     malformed_pred_mat_result = PredMatResult(pred_mat)
 

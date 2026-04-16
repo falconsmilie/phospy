@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pandas as pd
 import pytest
 
@@ -11,7 +9,7 @@ from phospy.errors import (
     NoCandidateKinasesError,
     RequestValidationError,
 )
-from phospy.internal.kinase_workflows import KinaseWorkflow, KinaseWorkflowResult
+from phospy.internal.kinase_workflows import KinaseWorkflow
 from phospy.prediction import PredMatResult
 from phospy.prediction.motif_scoring import KinaseMotifScorer
 from phospy.prediction.profiles import KinaseProfilePolicy
@@ -21,18 +19,6 @@ from phospy.references import (
     ReferenceBundleSourceMetadata,
 )
 from phospy.validation.schema.tables import SiteMatrixSchema
-
-
-class _PredictionResultCloseSpy:
-    def __init__(self) -> None:
-        self.close_calls = 0
-        self.pred_mat_result = PredMatResult(
-            pd.DataFrame({"KINASE_A": [0.5]}, index=["SITE_1"])
-        )
-        self.substrate_list: dict[str, list[str]] = {"KINASE_A": ["SITE_1"]}
-
-    def close(self) -> None:
-        self.close_calls += 1
 
 
 def make_workflow_inputs() -> tuple[
@@ -121,7 +107,7 @@ def test_kinase_workflow_runs_native_end_to_end_path() -> None:
     )
 
 
-def test_kinase_workflow_exposes_pred_mat_result_on_native_end_to_end_path() -> None:
+def test_kinase_workflow_exposes_prediction_result_pred_mat_on_native_path() -> None:
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
         make_workflow_inputs()
     )
@@ -144,7 +130,7 @@ def test_kinase_workflow_exposes_pred_mat_result_on_native_end_to_end_path() -> 
         "KINASE_A",
         "KINASE_B",
     ]
-    assert result.pred_mat_result is result.prediction_result.pred_mat_result
+    assert isinstance(result.prediction_result.pred_mat_result, PredMatResult)
     assert set(result.prediction_result.substrate_list) == {"KINASE_A", "KINASE_B"}
 
 
@@ -175,7 +161,7 @@ def test_kinase_workflow_raises_domain_error_when_no_candidate_kinases_qualify()
         )
 
 
-def test_kinase_workflow_result_has_canonical_pred_mat_result() -> None:
+def test_kinase_workflow_prediction_result_has_canonical_pred_mat_result() -> None:
     phospho_matrix, substrate_map, site_sequences, motif_sequences = (
         make_workflow_inputs()
     )
@@ -189,84 +175,34 @@ def test_kinase_workflow_result_has_canonical_pred_mat_result() -> None:
         prediction_config=make_prediction_config(),
     )
 
-    assert isinstance(result.pred_mat_result, PredMatResult)
-    assert result.pred_mat_result is result.prediction_result.pred_mat_result
+    assert isinstance(result.prediction_result.pred_mat_result, PredMatResult)
     pd.testing.assert_frame_equal(
-        result.pred_mat_result.to_frame(copy=False),
+        result.prediction_result.pred_mat_result.to_frame(copy=False),
         result.prediction_result.pred_mat_result.to_frame(copy=False),
     )
     assert not hasattr(result, "pred_mat")
 
 
-def test_kinase_workflow_result_exposes_high_value_convenience_accessors() -> None:
-    profile_scores = pd.DataFrame({"KINASE_A": [0.1]}, index=["SITE_1"])
-    combined_scores = pd.DataFrame({"KINASE_A": [0.2]}, index=["SITE_1"])
-    weights = pd.DataFrame(
-        {"motif_weight": [0.4], "profile_weight": [0.6]},
-        index=["KINASE_A"],
+def test_kinase_workflow_result_does_not_expose_legacy_convenience_surface() -> None:
+    phospho_matrix, substrate_map, site_sequences, motif_sequences = (
+        make_workflow_inputs()
     )
-    pred_matrix = pd.DataFrame({"KINASE_A": [0.9]}, index=["SITE_1"])
-    pred_mat_result = PredMatResult(pred_matrix)
-    substrate_list = {"KINASE_A": ["SITE_1"]}
-
-    result = KinaseWorkflowResult(
-        profile_result=object(),
-        motif_result=None,
-        scoring_result=SimpleNamespace(
-            profile_scores=profile_scores,
-            combined_scores=combined_scores,
-            weights=weights,
-        ),
-        prediction_result=SimpleNamespace(
-            pred_mat_result=pred_mat_result,
-            substrate_list=substrate_list,
-            close=lambda: None,
-        ),
+    result = KinaseWorkflow(flank_size=2).run(
+        phospho_matrix=phospho_matrix,
+        substrate_map=substrate_map,
+        site_sequences=site_sequences,
+        motif_sequences=motif_sequences,
+        prediction_config=make_prediction_config(),
     )
 
-    assert result.pred_mat_result is pred_mat_result
-    assert result.profile_scores is profile_scores
-    assert result.combined_scores is combined_scores
-    assert result.weights is weights
-    assert result.substrate_list is substrate_list
-
-
-def test_kinase_workflow_result_close_delegates_to_prediction_result_close() -> None:
-    prediction_result = _PredictionResultCloseSpy()
-    result = KinaseWorkflowResult(
-        profile_result=object(),
-        motif_result=None,
-        scoring_result=SimpleNamespace(
-            profile_scores=pd.DataFrame(),
-            combined_scores=None,
-            weights=None,
-        ),
-        prediction_result=prediction_result,
-    )
-
-    result.close()
-
-    assert prediction_result.close_calls == 1
-
-
-def test_kinase_workflow_result_context_manager_closes_on_exit() -> None:
-    prediction_result = _PredictionResultCloseSpy()
-    result = KinaseWorkflowResult(
-        profile_result=object(),
-        motif_result=None,
-        scoring_result=SimpleNamespace(
-            profile_scores=pd.DataFrame(),
-            combined_scores=None,
-            weights=None,
-        ),
-        prediction_result=prediction_result,
-    )
-
-    with result as managed:
-        assert managed is result
-        assert prediction_result.close_calls == 0
-
-    assert prediction_result.close_calls == 1
+    assert hasattr(result, "profile_result")
+    assert hasattr(result, "scoring_result")
+    assert hasattr(result, "prediction_result")
+    assert not hasattr(result, "pred_mat_result")
+    assert not hasattr(result, "profile_scores")
+    assert not hasattr(result, "combined_scores")
+    assert not hasattr(result, "weights")
+    assert not hasattr(result, "substrate_list")
 
 
 def test_kinase_workflow_result_tables_are_detached_from_input_matrix() -> None:
@@ -381,7 +317,10 @@ def test_kinase_workflow_accepts_partial_site_sequence_coverage() -> None:
     assert list(result.scoring_result.profile_scores.index) == expected_index
     assert list(result.scoring_result.combined_scores.index) == expected_index
     assert list(result.prediction_result.pred_matrix.index) == expected_index
-    assert list(result.pred_mat_result.to_frame(copy=False).index) == expected_index
+    assert (
+        list(result.prediction_result.pred_mat_result.to_frame(copy=False).index)
+        == expected_index
+    )
 
 
 def test_kinase_workflow_can_fall_back_to_profile_only_prediction() -> None:

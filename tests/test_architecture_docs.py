@@ -57,11 +57,11 @@ def test_api_docs_describe_supported_workflow_result_contracts() -> None:
     contents = (REPO_ROOT / "docs" / "api.md").read_text(encoding="utf-8")
 
     assert "Supported public lane" in contents
-    assert "Internal lane (advanced contributors only)" in contents
+    assert "Internal lane (advanced contributors only)" not in contents
     assert "SimpleKinaseWorkflowResult" in contents
-    assert "KinaseWorkflowResult" in contents
+    assert "`KinaseWorkflowResult`" not in contents
     assert "You do not need a separate predMat workflow." in contents
-    assert "pred_mat_result" in contents
+    assert "prediction_result.pred_mat_result" in contents
     assert "prediction_result" in contents
     assert "scoring_result" in contents
     assert "kinase_activity_result" in contents

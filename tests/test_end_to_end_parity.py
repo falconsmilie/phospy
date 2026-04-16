@@ -74,7 +74,7 @@ def _run_public_predmat_workflow(*, svm_mode: str) -> pd.DataFrame:
         motif_sequences=motif_sequences,
         prediction_config=prediction_config,
     )
-    return result.pred_mat_result.to_frame(copy=False)
+    return result.prediction_result.pred_mat_result.to_frame(copy=False)
 
 
 def _run_public_signalome_workflow(
@@ -173,7 +173,7 @@ def test_public_predmat_workflow_default_mode_is_order_invariant_end_to_end() ->
             motif_sequences=motif_sequences,
             prediction_config=prediction_config,
         )
-        .pred_mat_result.to_frame(copy=False)
+        .prediction_result.pred_mat_result.to_frame(copy=False)
     )
 
     reversed_items = list(substrate_map.items())[::-1]
@@ -191,7 +191,7 @@ def test_public_predmat_workflow_default_mode_is_order_invariant_end_to_end() ->
             motif_sequences=reordered_motif_sequences,
             prediction_config=prediction_config,
         )
-        .pred_mat_result.to_frame(copy=False)
+        .prediction_result.pred_mat_result.to_frame(copy=False)
     )
 
     pdt.assert_frame_equal(

@@ -21,12 +21,9 @@ Supported public lane:
 - `phospy.api.SimpleKinaseWorkflow` and `phospy.api.SignalomeWorkflow`
 - `phospy.api.workflow_results.SimpleKinaseWorkflowResult`
 
-Internal lane (advanced contributors only):
+Internal helpers such as `phospy.internal.kinase_workflows.KinaseWorkflow` exist for package implementation and contributor workflows, but they are not part of the supported public result contract.
 
-- `phospy.internal.kinase_workflows.KinaseWorkflow`
-- `phospy.internal.kinase_workflows.KinaseWorkflowResult`
-
-`predMat` is part of the prediction result contract in both lanes (`prediction_result.pred_mat_result`). You do not need a separate predMat workflow.
+`predMat` is part of the prediction result contract (`prediction_result.pred_mat_result`). You do not need a separate predMat workflow.
 
 ### Public common lane result: `SimpleKinaseWorkflowResult`
 
@@ -54,11 +51,11 @@ SimpleKinaseWorkflowResult
    `- overlap_summary
 ```
 
-Convenience accessors on `SimpleKinaseWorkflowResult`:
+Primary result access paths on `SimpleKinaseWorkflowResult`:
 
-- `pred_mat_result` (delegates to `prediction_result.pred_mat_result`)
-- `profile_scores`, `combined_scores`, `weights` (delegate to `scoring_result`)
-- `substrate_list` (delegates to `prediction_result.substrate_list`)
+- `prediction_result.pred_mat_result` is the canonical predMat contract
+- `scoring_result.profile_scores`, `scoring_result.combined_scores`, and `scoring_result.weights` expose scoring outputs
+- `prediction_result.substrate_list` exposes predicted substrate memberships
 
 Common access pattern:
 
@@ -66,61 +63,18 @@ Common access pattern:
 from phospy.api import SimpleKinaseWorkflow
 
 with SimpleKinaseWorkflow().run(...) as result:
-    pred_mat_result = result.pred_mat_result
     prediction_result = result.prediction_result
     scoring_result = result.scoring_result
     kinase_activity_result = result.kinase_activity_result
 
+    pred_mat_result = prediction_result.pred_mat_result
     pred_mat = pred_mat_result.to_frame(copy=False)
     pred_matrix = prediction_result.pred_matrix
     combined_scores = scoring_result.combined_scores
     weighted_activity = kinase_activity_result.weighted_activity
 ```
 
-Use `pred_mat_result` for the stable predMat table contract. Use `prediction_result` when you need full prediction payload details (for example `substrate_list` or optional traces).
-
-### Internal advanced result: `KinaseWorkflowResult`
-
-If you call the internal native workflow directly, `KinaseWorkflow.run(...)` returns `KinaseWorkflowResult`:
-
-```text
-KinaseWorkflowResult
-|- profile_result (KinaseProfileResult)
-|  |- profile_matrix
-|  |- substrate_counts
-|  `- quantified_substrates
-|- motif_result (MotifScoringResult | None)
-|  |- motif_scores
-|  |- motif_sizes
-|  `- sequence_windows
-|- scoring_result (KinaseScoringResult)
-|  |- profile_scores
-|  |- combined_scores
-|  `- weights
-`- prediction_result (KinasePredictionResult)
-   |- pred_matrix
-   |- pred_mat_result
-   |- substrate_list
-   `- optional traces (debug_traces, trace_level, trace_sink)
-```
-
-`KinaseWorkflowResult` exposes the same convenience accessors as the public result object:
-
-- `pred_mat_result`
-- `profile_scores`
-- `combined_scores`
-- `weights`
-- `substrate_list`
-
-Common internal access pattern:
-
-```python
-from phospy.internal.kinase_workflows import KinaseWorkflow
-
-with KinaseWorkflow().run(...) as result:
-    pred_mat = result.pred_mat_result.to_frame(copy=False)
-    combined_scores = result.scoring_result.combined_scores
-```
+Use `prediction_result.pred_mat_result` for the stable predMat table contract. Use `prediction_result` when you need full prediction payload details (for example `substrate_list` or optional traces).
 
 ## Fastest Path for Most Users
 
@@ -141,11 +95,11 @@ with SimpleKinaseWorkflow().run(
         random_state=7,
     ),
 ) as result:
-    pred_mat_result = result.pred_mat_result
     prediction_result = result.prediction_result
     scoring_result = result.scoring_result
     kinase_activity_result = result.kinase_activity_result
 
+    pred_mat_result = prediction_result.pred_mat_result
     pred_mat = pred_mat_result.to_frame(copy=False)
     pred_matrix = prediction_result.pred_matrix
     combined_scores = scoring_result.combined_scores
@@ -158,7 +112,6 @@ The returned `result` includes:
 - `reference_bundle`
 - `scoring_result`
 - `prediction_result`
-- `pred_mat_result`
 - `kinase_activity_result`
 
 ## Common Recipes
@@ -186,7 +139,7 @@ signalome = SignalomeWorkflow().run_from_analysis_ready(
     dataset=result.analysis_ready_dataset,
     scoring_result=result.scoring_result,
     prediction_result=result.prediction_result,
-    kinases_of_interest=list(result.pred_mat_result.kinase_names[:2]),
+    kinases_of_interest=list(result.prediction_result.pred_mat_result.kinase_names[:2]),
     config=SignalomeRunConfig(signalome_cutoff=0.5),
 )
 ```

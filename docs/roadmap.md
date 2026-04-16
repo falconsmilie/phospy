@@ -10,7 +10,7 @@ These now exist in the supported public surface:
 - `SimpleKinaseWorkflow` as the main end-to-end workflow
 - `SignalomeWorkflow` as the supported signalome workflow
 - stable `PredMatResult`, `SignalomeResult`, `SignalomeMapData`, and `SignalomeNetworkData` contracts
-- documented workflow result contracts (`SimpleKinaseWorkflowResult` and internal `KinaseWorkflowResult`) with explicit access-path guidance
+- documented `SimpleKinaseWorkflowResult` contract with explicit access-path guidance
 - `AnalysisReadyPhosphoDataset` as the preprocessing-to-inference boundary
 - `ReferenceBundle`, `ReferenceProvider`, and a first `BundledReferenceProvider` lane for `rat` / `l6_native`
 - separate documentation and examples for preprocessing, kinase scoring, and signalome analysis

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 
 import pandas as pd
 
@@ -12,74 +11,10 @@ from ..prediction.engines import (
     KinaseWorkflowExecutionResult,
     KinaseWorkflowExecutor,
 )
-from ..prediction.motif_scoring import MotifScoringResult
-from ..prediction.profiles import KinaseProfileResult
-from ..prediction.results import KinasePredictionResult, PredMatResult
-from ..prediction.scoring import KinaseScoringResult
 from ..references import ReferenceBundle
 from ..validation.requests.workflow import WorkflowInputs
 
-__all__ = ["KinaseWorkflow", "KinaseWorkflowResult"]
-
-
-@dataclass(slots=True)
-class KinaseWorkflowResult:
-    """Owned result bundle for native kinase workflow execution.
-
-    This contract always includes profile, motif, scoring, and prediction
-    outputs. The canonical predMat output is exposed as
-    ``prediction_result.pred_mat_result`` and via the convenience property
-    ``pred_mat_result``.
-    """
-
-    profile_result: KinaseProfileResult
-    motif_result: MotifScoringResult | None
-    scoring_result: KinaseScoringResult
-    prediction_result: KinasePredictionResult
-
-    @property
-    def pred_mat_result(self) -> PredMatResult:
-        """Canonical predMat output for this run."""
-
-        return self.prediction_result.pred_mat_result
-
-    @property
-    def profile_scores(self) -> pd.DataFrame:
-        """Profile-based scoring table from the scoring stage."""
-
-        return self.scoring_result.profile_scores
-
-    @property
-    def combined_scores(self) -> pd.DataFrame | None:
-        """Combined motif/profile scores when motif scoring is available."""
-
-        return self.scoring_result.combined_scores
-
-    @property
-    def weights(self) -> pd.DataFrame | None:
-        """Score-combination weights when motif scoring is available."""
-
-        return self.scoring_result.weights
-
-    @property
-    def substrate_list(self) -> dict[str, list[str]]:
-        """Predicted substrate memberships keyed by kinase."""
-
-        return self.prediction_result.substrate_list
-
-    def close(self) -> None:
-        self.prediction_result.close()
-
-    def __enter__(self) -> KinaseWorkflowResult:
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: object | None,
-    ) -> None:
-        self.close()
+__all__ = ["KinaseWorkflow"]
 
 
 def _validate_workflow_inputs(
@@ -156,7 +91,7 @@ class KinaseWorkflow:
         motif_sequences: Mapping[str, Sequence[str]] | None = None,
         reference_bundle: ReferenceBundle | None = None,
         prediction_config: PredictionRunConfig | None = None,
-    ) -> KinaseWorkflowResult:
+    ) -> KinaseWorkflowExecutionResult:
         request = self._validate_request(
             phospho_matrix=phospho_matrix,
             substrate_map=substrate_map,
@@ -167,17 +102,5 @@ class KinaseWorkflow:
         )
         return self.run_validated(request)
 
-    def run_validated(self, request: WorkflowInputs) -> KinaseWorkflowResult:
-        result = self._executor.execute_validated_request(request)
-        return self._package_result(result)
-
-    def _package_result(
-        self,
-        result: KinaseWorkflowExecutionResult,
-    ) -> KinaseWorkflowResult:
-        return KinaseWorkflowResult(
-            profile_result=result.profile_result,
-            motif_result=result.motif_result,
-            scoring_result=result.scoring_result,
-            prediction_result=result.prediction_result,
-        )
+    def run_validated(self, request: WorkflowInputs) -> KinaseWorkflowExecutionResult:
+        return self._executor.execute_validated_request(request)
