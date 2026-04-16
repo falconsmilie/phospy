@@ -39,6 +39,7 @@ def test_api_package_exports_only_supported_surface() -> None:
         "DatasetLoadOptions",
         "KinaseActivityConfig",
         "PredictionRunConfig",
+        "SimpleKinaseWorkflowConfigSnapshot",
         "SignalomeRunConfig",
         "SignalomeWorkflow",
         "SimpleKinaseWorkflow",

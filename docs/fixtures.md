@@ -70,6 +70,12 @@ PYTHONPATH=src python examples/signalome_workflow_demo.py
 
 Promote the resulting workflow tables into `tests/fixtures/public_workflow_reference` only when the public workflow contract changed intentionally.
 
+### `tests/fixtures/public_workflow_reference/output_bundle`
+
+Optional reproducibility bundle fixture directory for `SimpleKinaseWorkflowResult.save_output_bundle(...)` / load round-trip checks.
+
+Use this only when the output-bundle manifest contract or table inventory changes intentionally.
+
 ## Trace Directories
 
 ### `tests/fixtures/r_reference_l6/prediction_trace`

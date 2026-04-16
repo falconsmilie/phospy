@@ -10,6 +10,7 @@ from .contracts import (
     KinaseActivityConfig,
     PredictionRunConfig,
     SignalomeRunConfig,
+    SimpleKinaseWorkflowConfigSnapshot,
 )
 from .signalome_workflows import SignalomeWorkflow
 from .simple_workflows import SimpleKinaseWorkflow
@@ -18,6 +19,7 @@ __all__ = [
     "DatasetLoadOptions",
     "KinaseActivityConfig",
     "PredictionRunConfig",
+    "SimpleKinaseWorkflowConfigSnapshot",
     "SignalomeWorkflow",
     "SignalomeRunConfig",
     "SimpleKinaseWorkflow",

@@ -9,8 +9,20 @@ import pandas as pd
 import pytest
 
 from phospy.activities import KinaseActivityAnalyzer
+from phospy.api import (
+    PredictionRunConfig,
+    SimpleKinaseWorkflow,
+    SimpleKinaseWorkflowConfigSnapshot,
+)
+from phospy.api.contracts import (
+    SIMPLE_KINASE_WORKFLOW_BUNDLE_FORMAT,
+    SIMPLE_KINASE_WORKFLOW_RESULT_TYPE,
+)
 from phospy.datasets import PhosphoDataset
-from phospy.internal.constants import RUN_MANIFEST_FILENAME
+from phospy.internal.constants import (
+    RUN_MANIFEST_FILENAME,
+    WORKFLOW_OUTPUT_BUNDLE_MANIFEST_FILENAME,
+)
 from phospy.internal.pipeline import (
     PipelineRunner,
     build_pipeline_inputs_from_request,
@@ -23,6 +35,9 @@ from phospy.validation.requests import CorePipelineRequest
 from phospy.validation.schema.tables import PredMatSchema
 
 EXAMPLE_COMPARISONS = (("group1", "group4"), ("group2", "group5"), ("group3", "group6"))
+SIMPLE_WORKFLOW_FIXTURE_DIR = (
+    Path(__file__).resolve().parents[1] / "examples" / "data" / "simple_workflow"
+)
 
 
 def make_total_df() -> pd.DataFrame:
@@ -672,3 +687,102 @@ def test_pipeline_run_delegates_to_runtime_service() -> None:
     assert len(calls) == 1
     assert calls[0]["request"] is pipeline.request
     assert calls[0]["kinase_activity_analyzer"] is pipeline.kinase_activity_analyzer
+
+
+def test_simple_workflow_output_bundle_round_trip(tmp_path: Path) -> None:
+    total_df = pd.read_csv(SIMPLE_WORKFLOW_FIXTURE_DIR / "total.tsv", sep="\t")
+    phospho_df = pd.read_csv(SIMPLE_WORKFLOW_FIXTURE_DIR / "phospho.tsv", sep="\t")
+    bundle_dir = tmp_path / "simple-workflow-bundle"
+    prediction_config = PredictionRunConfig(
+        min_substrates=1,
+        min_motif_size=1,
+        ensemble_size=2,
+        top=3,
+        inclusion=2,
+        n_iterations=2,
+        random_state=7,
+    )
+    config_snapshot = SimpleKinaseWorkflowConfigSnapshot.from_workflow_inputs(
+        prediction_config=prediction_config,
+    )
+
+    with SimpleKinaseWorkflow(flank_size=7).run(
+        total=total_df,
+        phospho=phospho_df,
+        species="rat",
+        prediction_config=prediction_config,
+    ) as result:
+        result.save_output_bundle(
+            bundle_dir,
+            config_snapshot=config_snapshot,
+        )
+        metadata = result.load_output_bundle_metadata(bundle_dir)
+        bundle = result.load_output_bundle(
+            bundle_dir,
+            table_ids=(
+                "pred_mat",
+                "profile_scores",
+                "kinase_activity_matrix",
+                "ksea_counts",
+            ),
+        )
+
+        pred_mat = result.pred_mat_result.to_frame(copy=False)
+        profile_scores = result.profile_scores
+        kinase_activity_matrix = result.kinase_activity_result.weighted_activity
+        ksea_counts = result.kinase_activity_result.ksea_counts
+
+    manifest_path = bundle_dir / WORKFLOW_OUTPUT_BUNDLE_MANIFEST_FILENAME
+    assert manifest_path.exists()
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["workflow_type"] == SIMPLE_KINASE_WORKFLOW_RESULT_TYPE
+    assert manifest["bundle_format"] == SIMPLE_KINASE_WORKFLOW_BUNDLE_FORMAT
+    assert "config_snapshot" in manifest
+    assert "reference_identity" in manifest
+    assert "output_inventory" in manifest
+
+    assert metadata.workflow_type == SIMPLE_KINASE_WORKFLOW_RESULT_TYPE
+    assert metadata.bundle_format == SIMPLE_KINASE_WORKFLOW_BUNDLE_FORMAT
+    assert (
+        metadata.config_snapshot["prediction_config"]["n_iterations"]
+        == prediction_config.n_iterations
+    )
+    assert metadata.reference_identity["reference"] == "l6_native"
+
+    inventory_table_ids = {item.table_id for item in metadata.output_inventory}
+    assert {
+        "pred_mat",
+        "profile_scores",
+        "kinase_activity_matrix",
+    } <= inventory_table_ids
+    for item in metadata.output_inventory:
+        assert (bundle_dir / item.path).exists()
+
+    pd.testing.assert_frame_equal(
+        bundle.get_table("pred_mat"),
+        pred_mat,
+        check_dtype=False,
+        check_index_type=False,
+        check_names=False,
+    )
+    pd.testing.assert_frame_equal(
+        bundle.get_table("profile_scores"),
+        profile_scores,
+        check_dtype=False,
+        check_index_type=False,
+        check_names=False,
+    )
+    pd.testing.assert_frame_equal(
+        bundle.get_table("kinase_activity_matrix"),
+        kinase_activity_matrix,
+        check_dtype=False,
+        check_index_type=False,
+        check_names=False,
+    )
+    pd.testing.assert_series_equal(
+        bundle.get_table("ksea_counts"),
+        ksea_counts,
+        check_dtype=False,
+        check_index_type=False,
+        check_names=False,
+    )

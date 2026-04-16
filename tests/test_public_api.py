@@ -67,6 +67,7 @@ def test_supported_public_surface_is_small_and_explicit() -> None:
         "DatasetLoadOptions",
         "KinaseActivityConfig",
         "PredictionRunConfig",
+        "SimpleKinaseWorkflowConfigSnapshot",
         "SignalomeRunConfig",
         "SignalomeWorkflow",
         "SimpleKinaseWorkflow",

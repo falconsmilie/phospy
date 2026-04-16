@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+import json
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias
 
@@ -9,6 +11,11 @@ import pandas as pd
 
 if TYPE_CHECKING:
     from ..activities.results import KinaseActivityResult
+    from ..api.contracts import (
+        SimpleKinaseWorkflowConfigSnapshot,
+        WorkflowOutputInventoryItem,
+    )
+    from ..api.workflow_results import SimpleKinaseWorkflowResult
 
 from ..internal.constants import (
     CENTRALIZED_SEQUENCE_COLUMN,
@@ -24,8 +31,12 @@ from ..internal.constants import (
     KINASE_TARGET_TABLE_FILENAME,
     KSEA_COUNTS_FILENAME,
     KSEA_SCORES_FILENAME,
+    SIMPLE_KINASE_WORKFLOW_BUNDLE_FORMAT,
+    SIMPLE_KINASE_WORKFLOW_RESULT_TYPE,
+    WORKFLOW_OUTPUT_BUNDLE_MANIFEST_FILENAME,
 )
 from ..preprocessing import CoreProcessingResult
+from .publishing import package_version
 
 CoreOutputFormat: TypeAlias = Literal["csv", "tsv", "parquet"]
 
@@ -204,3 +215,189 @@ class KinaseActivityWriter:
             target_dir / KINASE_TARGET_TABLE_FILENAME,
             index=False,
         )
+
+
+BundleTableValueType: TypeAlias = Literal["dataframe", "series"]
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+@dataclass(frozen=True, slots=True)
+class BundleTableArtifact:
+    """Logical output-bundle table artifact and persistence metadata."""
+
+    table_id: str
+    table: pd.DataFrame | pd.Series
+    value_type: BundleTableValueType = "dataframe"
+    include_index: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class SimpleKinaseWorkflowBundleWriter:
+    """Persist one ``SimpleKinaseWorkflowResult`` as a reproducible bundle."""
+
+    tabular_writer: TabularOutputWriter = field(
+        default_factory=lambda: DelimitedTabularWriter(
+            separator=",",
+            file_extension=".csv",
+        )
+    )
+    package_version_resolver: Callable[[], str] = package_version
+    clock: Callable[[], datetime] = _utc_now
+
+    def write(
+        self,
+        *,
+        result: SimpleKinaseWorkflowResult,
+        outdir: str | Path,
+        config_snapshot: SimpleKinaseWorkflowConfigSnapshot
+        | Mapping[str, object]
+        | None = None,
+    ) -> Path:
+        from ..api.contracts import (
+            SimpleKinaseWorkflowBundleMetadata,
+            WorkflowOutputInventoryItem,
+        )
+
+        bundle_dir = Path(outdir)
+        tables_dir = bundle_dir / "tables"
+        tables_dir.mkdir(parents=True, exist_ok=True)
+
+        inventory: list[WorkflowOutputInventoryItem] = []
+        for artifact in self._bundle_table_artifacts(result):
+            destination = tables_dir / f"{artifact.table_id}.csv"
+            frame = (
+                artifact.table.to_frame(name=artifact.table.name)
+                if isinstance(artifact.table, pd.Series)
+                else artifact.table
+            )
+            self.tabular_writer.write_table(
+                frame,
+                destination,
+                include_index=artifact.include_index,
+            )
+            inventory.append(
+                WorkflowOutputInventoryItem(
+                    table_id=artifact.table_id,
+                    path=str(destination.relative_to(bundle_dir).as_posix()),
+                    value_type=artifact.value_type,
+                )
+            )
+
+        metadata = SimpleKinaseWorkflowBundleMetadata(
+            workflow_type=SIMPLE_KINASE_WORKFLOW_RESULT_TYPE,
+            bundle_format=SIMPLE_KINASE_WORKFLOW_BUNDLE_FORMAT,
+            generated_at_utc=self.clock().isoformat(),
+            package_version=str(self.package_version_resolver()),
+            config_snapshot=self._resolve_config_snapshot(config_snapshot),
+            reference_identity={
+                "species": result.reference_bundle.species,
+                "source": result.reference_bundle.source_metadata.source,
+                "reference": result.reference_bundle.source_metadata.reference,
+                "version": result.reference_bundle.source_metadata.version,
+                "provider": result.reference_bundle.provenance.provider,
+                "notes": list(result.reference_bundle.provenance.notes),
+            },
+            output_inventory=tuple(inventory),
+        )
+        (bundle_dir / WORKFLOW_OUTPUT_BUNDLE_MANIFEST_FILENAME).write_text(
+            json.dumps(metadata.to_dict(), indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return bundle_dir
+
+    @staticmethod
+    def _resolve_config_snapshot(
+        config_snapshot: SimpleKinaseWorkflowConfigSnapshot
+        | Mapping[str, object]
+        | None,
+    ) -> dict[str, object]:
+        from ..api.contracts import SimpleKinaseWorkflowConfigSnapshot
+
+        if config_snapshot is None:
+            return SimpleKinaseWorkflowConfigSnapshot.from_workflow_inputs().to_dict()
+        if isinstance(config_snapshot, SimpleKinaseWorkflowConfigSnapshot):
+            return config_snapshot.to_dict()
+        return dict(config_snapshot)
+
+    @staticmethod
+    def _bundle_table_artifacts(
+        result: SimpleKinaseWorkflowResult,
+    ) -> tuple[BundleTableArtifact, ...]:
+        artifacts: list[BundleTableArtifact] = [
+            BundleTableArtifact(
+                table_id="analysis_ready_phospho_matrix",
+                table=result.analysis_ready_dataset.phospho_matrix,
+                value_type="dataframe",
+            ),
+            BundleTableArtifact(
+                table_id="analysis_ready_site_metadata",
+                table=result.analysis_ready_dataset.site_metadata,
+                value_type="dataframe",
+            ),
+            BundleTableArtifact(
+                table_id="analysis_ready_site_sequences",
+                table=result.analysis_ready_dataset.site_sequences,
+                value_type="series",
+            ),
+            BundleTableArtifact(
+                table_id="analysis_ready_phospho_corrected",
+                table=result.analysis_ready_dataset.phospho_corrected,
+                value_type="dataframe",
+            ),
+            BundleTableArtifact(
+                table_id="pred_mat",
+                table=result.pred_mat_result.to_frame(copy=False),
+                value_type="dataframe",
+            ),
+            BundleTableArtifact(
+                table_id="profile_scores",
+                table=result.scoring_result.profile_scores,
+                value_type="dataframe",
+            ),
+            BundleTableArtifact(
+                table_id="kinase_activity_matrix",
+                table=result.kinase_activity_result.weighted_activity,
+                value_type="dataframe",
+            ),
+            BundleTableArtifact(
+                table_id="ksea_scores",
+                table=result.kinase_activity_result.ksea_scores,
+                value_type="dataframe",
+            ),
+            BundleTableArtifact(
+                table_id="ksea_counts",
+                table=result.kinase_activity_result.ksea_counts,
+                value_type="series",
+            ),
+            BundleTableArtifact(
+                table_id="kinase_target_counts",
+                table=result.kinase_activity_result.target_counts,
+                value_type="series",
+            ),
+            BundleTableArtifact(
+                table_id="kinase_target_table",
+                table=result.kinase_activity_result.target_table,
+                value_type="dataframe",
+            ),
+        ]
+
+        if result.scoring_result.combined_scores is not None:
+            artifacts.append(
+                BundleTableArtifact(
+                    table_id="combined_scores",
+                    table=result.scoring_result.combined_scores,
+                    value_type="dataframe",
+                )
+            )
+        if result.scoring_result.weights is not None:
+            artifacts.append(
+                BundleTableArtifact(
+                    table_id="scoring_weights",
+                    table=result.scoring_result.weights,
+                    value_type="dataframe",
+                )
+            )
+        return tuple(artifacts)

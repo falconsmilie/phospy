@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import asdict
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
@@ -15,6 +15,13 @@ from ..internal.constants import RUN_MANIFEST_FILENAME
 
 if TYPE_CHECKING:
     from ..activities.results import KinaseActivityResult
+    from ..api import DatasetLoadOptions, KinaseActivityConfig, PredictionRunConfig
+    from ..api.contracts import (
+        SimpleKinaseWorkflowBundleMetadata,
+        SimpleKinaseWorkflowConfigSnapshot,
+    )
+    from ..api.workflow_results import SimpleKinaseWorkflowResult
+    from ..io.readers import SimpleKinaseWorkflowOutputBundle
     from ..preprocessing import CorePreprocessingConfig, CoreProcessingResult
 
 
@@ -254,3 +261,55 @@ class OutputPublisher:
     @staticmethod
     def _resolve_path(path: Path) -> Path:
         return path.resolve(strict=False)
+
+
+def save_simple_kinase_workflow_output_bundle(
+    *,
+    result: SimpleKinaseWorkflowResult,
+    outdir: str | Path,
+    config_snapshot: SimpleKinaseWorkflowConfigSnapshot
+    | Mapping[str, object]
+    | None = None,
+    dataset_options: DatasetLoadOptions | Mapping[str, object] | None = None,
+    preprocessing_config: CorePreprocessingConfig | None = None,
+    prediction_config: PredictionRunConfig | Mapping[str, object] | None = None,
+    activity_config: KinaseActivityConfig | Mapping[str, object] | None = None,
+) -> Path:
+    from ..api.contracts import SimpleKinaseWorkflowConfigSnapshot
+    from .writers import SimpleKinaseWorkflowBundleWriter
+
+    resolved_snapshot = config_snapshot
+    if resolved_snapshot is None:
+        resolved_snapshot = SimpleKinaseWorkflowConfigSnapshot.from_workflow_inputs(
+            dataset_options=dataset_options,
+            preprocessing_config=preprocessing_config,
+            prediction_config=prediction_config,
+            activity_config=activity_config,
+        )
+
+    return SimpleKinaseWorkflowBundleWriter().write(
+        result=result,
+        outdir=outdir,
+        config_snapshot=resolved_snapshot,
+    )
+
+
+def load_simple_kinase_workflow_output_bundle_metadata(
+    bundle_dir: str | Path,
+) -> SimpleKinaseWorkflowBundleMetadata:
+    from .readers import load_simple_kinase_workflow_output_bundle_metadata
+
+    return load_simple_kinase_workflow_output_bundle_metadata(bundle_dir)
+
+
+def load_simple_kinase_workflow_output_bundle(
+    bundle_dir: str | Path,
+    *,
+    table_ids: tuple[str, ...] | list[str] | None = None,
+) -> SimpleKinaseWorkflowOutputBundle:
+    from .readers import load_simple_kinase_workflow_output_bundle
+
+    return load_simple_kinase_workflow_output_bundle(
+        bundle_dir,
+        table_ids=table_ids,
+    )

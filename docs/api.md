@@ -191,6 +191,55 @@ signalome = SignalomeWorkflow().run_from_analysis_ready(
 )
 ```
 
+### Save and reload workflow output bundles
+
+`SimpleKinaseWorkflowResult` supports an explicit reproducible output-bundle format.
+
+```python
+from phospy.api import (
+    PredictionRunConfig,
+    SimpleKinaseWorkflow,
+    SimpleKinaseWorkflowConfigSnapshot,
+)
+
+prediction_config = PredictionRunConfig(
+    min_substrates=1,
+    min_motif_size=1,
+    ensemble_size=2,
+    top=3,
+    inclusion=2,
+    n_iterations=2,
+    random_state=7,
+)
+
+with SimpleKinaseWorkflow().run(
+    phospho="study_phospho.tsv",
+    total="study_total.tsv",
+    species="rat",
+    prediction_config=prediction_config,
+) as result:
+    snapshot = SimpleKinaseWorkflowConfigSnapshot.from_workflow_inputs(
+        prediction_config=prediction_config,
+    )
+    bundle_dir = result.save_output_bundle(
+        "out/workflow_bundle",
+        config_snapshot=snapshot,
+    )
+
+metadata = result.load_output_bundle_metadata(bundle_dir)
+bundle = result.load_output_bundle(
+    bundle_dir,
+    table_ids=("pred_mat", "kinase_activity_matrix"),
+)
+```
+
+The bundle manifest includes:
+
+- workflow type (`SimpleKinaseWorkflowResult`)
+- config snapshot
+- reference identity and provenance
+- output inventory (`table_id` to relative file path and value type)
+
 ### Frame mutability contract
 
 `PhosphoDataset` is a mutable workspace, but safe read access is detached by default:
@@ -386,6 +435,7 @@ from phospy.api import (
     DatasetLoadOptions,
     KinaseActivityConfig,
     PredictionRunConfig,
+    SimpleKinaseWorkflowConfigSnapshot,
     SignalomeRunConfig,
     SignalomeWorkflow,
     SimpleKinaseWorkflow,
