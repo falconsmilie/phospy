@@ -29,7 +29,7 @@ from .serialization import (
 )
 
 if TYPE_CHECKING:
-    from .results import SignalomeResult
+    from .results import SignalomeCoreResult
 
 __all__ = [
     "SignalomeMapData",
@@ -117,7 +117,9 @@ class SignalomeMapData:
         return written_paths
 
 
-def build_signalome_map_data(signalome_result: SignalomeResult) -> SignalomeMapData:
+def build_signalome_map_data(
+    signalome_result: SignalomeCoreResult,
+) -> SignalomeMapData:
     """Build deterministic plotting data from a canonical signalome result."""
 
     module_positions = _build_module_positions(signalome_result)
@@ -136,7 +138,7 @@ def build_signalome_map_data(signalome_result: SignalomeResult) -> SignalomeMapD
     )
 
 
-def _build_module_positions(signalome_result: SignalomeResult) -> pd.DataFrame:
+def _build_module_positions(signalome_result: SignalomeCoreResult) -> pd.DataFrame:
     module_table = signalome_result.modules.to_frame().sort_index()
     relationships = signalome_result.modules.to_relationship_table()
     site_assignments = signalome_result.assignments.sites()
@@ -179,7 +181,7 @@ def _build_module_positions(signalome_result: SignalomeResult) -> pd.DataFrame:
 
 
 def _build_site_positions(
-    signalome_result: SignalomeResult,
+    signalome_result: SignalomeCoreResult,
     module_positions: pd.DataFrame,
 ) -> pd.DataFrame:
     site_assignments = signalome_result.assignments.sites().reset_index()
@@ -283,15 +285,14 @@ def _build_site_positions(
 
 
 def _build_kinase_positions(
-    signalome_result: SignalomeResult,
+    signalome_result: SignalomeCoreResult,
     module_positions: pd.DataFrame,
 ) -> pd.DataFrame:
     relationships = signalome_result.modules.to_relationship_table()
     network_nodes = signalome_result.network.nodes()
     kinases_of_interest = set(signalome_result.kinases_of_interest)
-    kinase_order = [
-        str(kinase) for kinase in signalome_result.signalome_modules.columns
-    ]
+    module_table = signalome_result.modules.to_frame()
+    kinase_order = [str(kinase) for kinase in module_table.columns]
 
     records: list[dict[str, object]] = []
     for default_position, kinase in enumerate(kinase_order):
@@ -359,7 +360,7 @@ def _build_kinase_positions(
 
 
 def _build_kinase_module_links(
-    signalome_result: SignalomeResult,
+    signalome_result: SignalomeCoreResult,
     module_positions: pd.DataFrame,
     kinase_positions: pd.DataFrame,
 ) -> pd.DataFrame:

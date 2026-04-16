@@ -21,9 +21,14 @@ from .networks import (
 from .results import (
     ExpandedSignalome,
     SignalomeAssignments,
+    SignalomeCompatibilityView,
+    SignalomeCoreResult,
+    SignalomeExportAdapter,
+    SignalomeFrameBundle,
     SignalomeKinaseNetwork,
     SignalomeModules,
     SignalomeResult,
+    SignalomeVisualizationAdapter,
 )
 
 
@@ -38,6 +43,10 @@ def build_signalome_result(*args: object, **kwargs: object) -> SignalomeResult:
 __all__ = [
     "ExpandedSignalome",
     "SignalomeAssignments",
+    "SignalomeCompatibilityView",
+    "SignalomeCoreResult",
+    "SignalomeExportAdapter",
+    "SignalomeFrameBundle",
     "SignalomeKinaseNetwork",
     "SignalomeMapData",
     "SignalomeModuleSelectionDiagnostics",
@@ -47,6 +56,7 @@ __all__ = [
     "SignalomeNetworkEdge",
     "SignalomeNetworkNode",
     "SignalomeResult",
+    "SignalomeVisualizationAdapter",
     "build_signalome_map_data",
     "build_signalome_network_data",
     "build_signalome_result",

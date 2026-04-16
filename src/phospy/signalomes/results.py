@@ -10,13 +10,13 @@ import pandas as pd
 
 from ..internal.pandas_copy import detached_frame_copy, detached_series_copy
 from .constants import MODULE_ID_COLUMN
-from .maps import SignalomeMapData
-from .networks import SignalomeNetworkData
-from .serialization import serialize_site_assignments_for_export
+from .serialization import export_signalome_frames_to_csv
 
 if TYPE_CHECKING:
     from ..datasets.models import SiteToProteinResolutionDiagnostics
     from .clustering import SignalomeModuleSelectionDiagnostics
+    from .maps import SignalomeMapData
+    from .networks import SignalomeNetworkData
 
 
 @dataclass(slots=True, init=False)
@@ -489,8 +489,8 @@ class SignalomeKinaseNetwork:
 
 
 @dataclass(slots=True, init=False)
-class SignalomeResult:
-    """Structured signalome outputs with stable access and export contracts.
+class SignalomeCoreResult:
+    """Core immutable-style signalome state and ownership-aware accessors.
 
     Ownership convention:
     - ``to_*`` methods return detached safe copies
@@ -700,71 +700,18 @@ class SignalomeResult:
 
         return tuple(self._expanded_signalomes)
 
-    @property
-    def signalome_modules(self) -> pd.DataFrame:
-        """Return a detached module-by-kinase matrix."""
 
-        return self.modules.to_frame()
+@dataclass(frozen=True, slots=True)
+class SignalomeFrameBundle:
+    """Named frame bundle helper for canonical signalome table outputs."""
 
-    @property
-    def kinase_module_relationships(self) -> pd.DataFrame:
-        """Return a detached kinase-to-module relationship table."""
-
-        return self.modules.to_relationship_table()
+    _result: SignalomeCoreResult
 
     @property
-    def site_assignments(self) -> pd.DataFrame:
-        """Return a detached site assignment table."""
+    def result(self) -> SignalomeCoreResult:
+        """Return the owning core result."""
 
-        return self.assignments.to_site_assignments()
-
-    @property
-    def protein_assignments(self) -> pd.DataFrame:
-        """Return a detached protein assignment table."""
-
-        return self.assignments.to_protein_assignments()
-
-    @property
-    def protein_modules(self) -> pd.Series:
-        """Return a detached protein-to-module assignment series."""
-
-        return self.assignments.protein_modules
-
-    @property
-    def kinase_substrates(self) -> dict[str, tuple[str, ...]]:
-        """Return kinase-to-site mappings derived from the relationship table."""
-
-        return self.kinase_substrate_map
-
-    @property
-    def kinase_network(self) -> dict[str, tuple[str, ...]]:
-        """Return the kinase neighbor mapping for compatibility."""
-
-        return self.network.to_neighbor_map()
-
-    @property
-    def kinase_adjacency_matrix(self) -> pd.DataFrame:
-        """Return a detached thresholded kinase adjacency matrix."""
-
-        return self.network.to_adjacency_matrix()
-
-    @property
-    def kinase_correlation_matrix(self) -> pd.DataFrame:
-        """Return a detached raw kinase correlation matrix."""
-
-        return self.network.to_correlation_matrix()
-
-    @property
-    def kinase_network_nodes(self) -> pd.DataFrame:
-        """Return a detached kinase network node table."""
-
-        return self.network.to_node_table()
-
-    @property
-    def kinase_network_edges(self) -> pd.DataFrame:
-        """Return a detached kinase network edge table."""
-
-        return self.network.to_edge_table()
+        return self._result
 
     def to_frames(
         self,
@@ -774,21 +721,21 @@ class SignalomeResult:
         """Return detached canonical named signalome tables."""
 
         frames: dict[str, pd.DataFrame] = {
-            "signalome_modules": self.modules.to_frame(),
-            "kinase_module_relationships": self.modules.to_relationship_table(),
-            "site_assignments": self.assignments.to_site_assignments(),
-            "protein_assignments": self.assignments.to_protein_assignments(),
-            "kinase_network_nodes": self.network.to_node_table(),
-            "kinase_network_edges": self.network.to_edge_table(),
-            "kinase_adjacency_matrix": self.network.to_adjacency_matrix(),
-            "kinase_correlation_matrix": self.network.to_correlation_matrix(),
+            "signalome_modules": self.result.modules.to_frame(),
+            "kinase_module_relationships": self.result.modules.to_relationship_table(),
+            "site_assignments": self.result.assignments.to_site_assignments(),
+            "protein_assignments": self.result.assignments.to_protein_assignments(),
+            "kinase_network_nodes": self.result.network.to_node_table(),
+            "kinase_network_edges": self.result.network.to_edge_table(),
+            "kinase_adjacency_matrix": self.result.network.to_adjacency_matrix(),
+            "kinase_correlation_matrix": self.result.network.to_correlation_matrix(),
         }
         if include_inputs:
             frames.update(
                 {
-                    "scoring_matrix": self.to_scoring_matrix(),
-                    "pred_mat": self.to_pred_mat(),
-                    "expression_matrix": self.to_expression_matrix(),
+                    "scoring_matrix": self.result.to_scoring_matrix(),
+                    "pred_mat": self.result.to_pred_mat(),
+                    "expression_matrix": self.result.to_expression_matrix(),
                 }
             )
         return frames
@@ -801,27 +748,29 @@ class SignalomeResult:
         """Return cheap shared owned canonical signalome tables."""
 
         frames: dict[str, pd.DataFrame] = {
-            "signalome_modules": self.modules.to_owned_frame(),
-            "kinase_module_relationships": self.modules.to_owned_relationship_table(),
-            "site_assignments": self.assignments.to_owned_site_assignments(),
-            "protein_assignments": self.assignments.to_owned_protein_assignments(),
-            "kinase_network_nodes": self.network.to_owned_node_table(),
-            "kinase_network_edges": self.network.to_owned_edge_table(),
-            "kinase_adjacency_matrix": self.network.to_owned_adjacency_matrix(),
-            "kinase_correlation_matrix": self.network.to_owned_correlation_matrix(),
+            "signalome_modules": self.result.modules.to_owned_frame(),
+            "kinase_module_relationships": self.result.modules.to_owned_relationship_table(),
+            "site_assignments": self.result.assignments.to_owned_site_assignments(),
+            "protein_assignments": self.result.assignments.to_owned_protein_assignments(),
+            "kinase_network_nodes": self.result.network.to_owned_node_table(),
+            "kinase_network_edges": self.result.network.to_owned_edge_table(),
+            "kinase_adjacency_matrix": self.result.network.to_owned_adjacency_matrix(),
+            "kinase_correlation_matrix": self.result.network.to_owned_correlation_matrix(),
         }
         if include_inputs:
             frames.update(
                 {
-                    "scoring_matrix": self.to_owned_scoring_matrix(),
-                    "pred_mat": self.to_owned_pred_mat(),
-                    "expression_matrix": self.to_owned_expression_matrix(),
+                    "scoring_matrix": self.result.to_owned_scoring_matrix(),
+                    "pred_mat": self.result.to_owned_pred_mat(),
+                    "expression_matrix": self.result.to_owned_expression_matrix(),
                 }
             )
         return frames
 
     def to_mutable_frames_unsafe(
-        self, *, include_inputs: bool = False
+        self,
+        *,
+        include_inputs: bool = False,
     ) -> dict[str, pd.DataFrame]:
         """Return owned mutable signalome tables for advanced workflows.
 
@@ -829,24 +778,148 @@ class SignalomeResult:
         can invalidate assumptions in downstream code.
         """
         frames: dict[str, pd.DataFrame] = {
-            "signalome_modules": self.modules.to_mutable_frame_unsafe(),
-            "kinase_module_relationships": self.modules.to_mutable_relationship_table_unsafe(),
-            "site_assignments": self.assignments.to_mutable_site_assignments_unsafe(),
-            "protein_assignments": self.assignments.to_mutable_protein_assignments_unsafe(),
-            "kinase_network_nodes": self.network.to_mutable_node_table_unsafe(),
-            "kinase_network_edges": self.network.to_mutable_edge_table_unsafe(),
-            "kinase_adjacency_matrix": self.network.to_mutable_adjacency_matrix_unsafe(),
-            "kinase_correlation_matrix": self.network.to_mutable_correlation_matrix_unsafe(),
+            "signalome_modules": self.result.modules.to_mutable_frame_unsafe(),
+            "kinase_module_relationships": self.result.modules.to_mutable_relationship_table_unsafe(),
+            "site_assignments": self.result.assignments.to_mutable_site_assignments_unsafe(),
+            "protein_assignments": self.result.assignments.to_mutable_protein_assignments_unsafe(),
+            "kinase_network_nodes": self.result.network.to_mutable_node_table_unsafe(),
+            "kinase_network_edges": self.result.network.to_mutable_edge_table_unsafe(),
+            "kinase_adjacency_matrix": self.result.network.to_mutable_adjacency_matrix_unsafe(),
+            "kinase_correlation_matrix": self.result.network.to_mutable_correlation_matrix_unsafe(),
         }
         if include_inputs:
             frames.update(
                 {
-                    "scoring_matrix": self.to_mutable_scoring_matrix_unsafe(),
-                    "pred_mat": self.to_mutable_pred_mat_unsafe(),
-                    "expression_matrix": self.to_mutable_expression_matrix_unsafe(),
+                    "scoring_matrix": self.result.to_mutable_scoring_matrix_unsafe(),
+                    "pred_mat": self.result.to_mutable_pred_mat_unsafe(),
+                    "expression_matrix": self.result.to_mutable_expression_matrix_unsafe(),
                 }
             )
         return frames
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeExportAdapter:
+    """CSV export adapter for canonical signalome result tables."""
+
+    _frames: SignalomeFrameBundle
+
+    @property
+    def frames(self) -> SignalomeFrameBundle:
+        """Return the frame-bundle helper used by this exporter."""
+
+        return self._frames
+
+    def to_csv(self, directory: str | Path) -> dict[str, Path]:
+        """Write canonical signalome tables to CSV files."""
+
+        return export_signalome_frames_to_csv(self.frames.to_frames(), directory)
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeVisualizationAdapter:
+    """Map/network adapter for derived plotting and graph outputs."""
+
+    _result: SignalomeCoreResult
+
+    @property
+    def result(self) -> SignalomeCoreResult:
+        """Return the owning core result."""
+
+        return self._result
+
+    def to_map_data(self) -> SignalomeMapData:
+        """Build serialisable map-ready plotting data from this result."""
+
+        from .maps import build_signalome_map_data
+
+        return build_signalome_map_data(self.result)
+
+    def to_network_data(self) -> SignalomeNetworkData:
+        """Build graph-ready plotting data from this result."""
+
+        from .networks import build_signalome_network_data
+
+        return build_signalome_network_data(self.result)
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeCompatibilityView:
+    """Back-compat alias surface layered over the core result model."""
+
+    _result: SignalomeCoreResult
+
+    @property
+    def result(self) -> SignalomeCoreResult:
+        """Return the owning core result."""
+
+        return self._result
+
+    @property
+    def signalome_modules(self) -> pd.DataFrame:
+        """Return a detached module-by-kinase matrix."""
+
+        return self.result.modules.to_frame()
+
+    @property
+    def kinase_module_relationships(self) -> pd.DataFrame:
+        """Return a detached kinase-to-module relationship table."""
+
+        return self.result.modules.to_relationship_table()
+
+    @property
+    def site_assignments(self) -> pd.DataFrame:
+        """Return a detached site assignment table."""
+
+        return self.result.assignments.to_site_assignments()
+
+    @property
+    def protein_assignments(self) -> pd.DataFrame:
+        """Return a detached protein assignment table."""
+
+        return self.result.assignments.to_protein_assignments()
+
+    @property
+    def protein_modules(self) -> pd.Series:
+        """Return a detached protein-to-module assignment series."""
+
+        return self.result.assignments.protein_modules
+
+    @property
+    def kinase_substrates(self) -> dict[str, tuple[str, ...]]:
+        """Return kinase-to-site mappings derived from the relationship table."""
+
+        return self.result.kinase_substrate_map
+
+    @property
+    def kinase_network(self) -> dict[str, tuple[str, ...]]:
+        """Return the kinase neighbor mapping for compatibility."""
+
+        return self.result.network.to_neighbor_map()
+
+    @property
+    def kinase_adjacency_matrix(self) -> pd.DataFrame:
+        """Return a detached thresholded kinase adjacency matrix."""
+
+        return self.result.network.to_adjacency_matrix()
+
+    @property
+    def kinase_correlation_matrix(self) -> pd.DataFrame:
+        """Return a detached raw kinase correlation matrix."""
+
+        return self.result.network.to_correlation_matrix()
+
+    @property
+    def kinase_network_nodes(self) -> pd.DataFrame:
+        """Return a detached kinase network node table."""
+
+        return self.result.network.to_node_table()
+
+    @property
+    def kinase_network_edges(self) -> pd.DataFrame:
+        """Return a detached kinase network edge table."""
+
+        return self.result.network.to_edge_table()
 
     def expanded_signalomes_mutable_unsafe(self) -> dict[str, ExpandedSignalome]:
         """Return owned mutable kinase-of-interest signalome views.
@@ -854,33 +927,151 @@ class SignalomeResult:
         Warning: mutating returned objects mutates this result's internal state.
         """
 
-        return self.to_mutable_expanded_signalomes_unsafe()
+        return self.result.to_mutable_expanded_signalomes_unsafe()
+
+
+class SignalomeResult(SignalomeCoreResult):
+    """Structured signalome result composed from focused adapter components."""
+
+    @property
+    def core(self) -> SignalomeCoreResult:
+        """Return the focused core result state object."""
+
+        return self
+
+    @property
+    def frames(self) -> SignalomeFrameBundle:
+        """Return the named frame-bundle helper."""
+
+        return SignalomeFrameBundle(self)
+
+    @property
+    def export(self) -> SignalomeExportAdapter:
+        """Return the CSV export adapter."""
+
+        return SignalomeExportAdapter(self.frames)
+
+    @property
+    def visualization(self) -> SignalomeVisualizationAdapter:
+        """Return the plotting/network adapter."""
+
+        return SignalomeVisualizationAdapter(self)
+
+    @property
+    def compatibility(self) -> SignalomeCompatibilityView:
+        """Return the compatibility alias facade."""
+
+        return SignalomeCompatibilityView(self)
+
+    def to_frames(
+        self,
+        *,
+        include_inputs: bool = False,
+    ) -> dict[str, pd.DataFrame]:
+        """Return detached canonical named signalome tables."""
+
+        return self.frames.to_frames(include_inputs=include_inputs)
+
+    def to_owned_frames(
+        self,
+        *,
+        include_inputs: bool = False,
+    ) -> dict[str, pd.DataFrame]:
+        """Return cheap shared owned canonical signalome tables."""
+
+        return self.frames.to_owned_frames(include_inputs=include_inputs)
+
+    def to_mutable_frames_unsafe(
+        self,
+        *,
+        include_inputs: bool = False,
+    ) -> dict[str, pd.DataFrame]:
+        """Return owned mutable signalome tables for advanced workflows."""
+
+        return self.frames.to_mutable_frames_unsafe(include_inputs=include_inputs)
 
     def to_csv(self, directory: str | Path) -> dict[str, Path]:
-        """Write the canonical signalome tables to CSV files."""
+        """Write canonical signalome tables to CSV files."""
 
-        output_dir = Path(directory)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        written: dict[str, Path] = {}
-        for name, frame in self.to_frames().items():
-            path = output_dir / f"{name}.csv"
-            if name == "site_assignments":
-                serialize_site_assignments_for_export(frame).to_csv(path)
-            else:
-                frame.to_csv(path)
-            written[name] = path
-        return written
+        return self.export.to_csv(directory)
 
     def to_map_data(self) -> SignalomeMapData:
         """Build serialisable map-ready plotting data from this result."""
 
-        from .maps import build_signalome_map_data
-
-        return build_signalome_map_data(self)
+        return self.visualization.to_map_data()
 
     def to_network_data(self) -> SignalomeNetworkData:
         """Build graph-ready plotting data from this result."""
 
-        from .networks import build_signalome_network_data
+        return self.visualization.to_network_data()
 
-        return build_signalome_network_data(self)
+    @property
+    def signalome_modules(self) -> pd.DataFrame:
+        """Return a detached module-by-kinase matrix."""
+
+        return self.compatibility.signalome_modules
+
+    @property
+    def kinase_module_relationships(self) -> pd.DataFrame:
+        """Return a detached kinase-to-module relationship table."""
+
+        return self.compatibility.kinase_module_relationships
+
+    @property
+    def site_assignments(self) -> pd.DataFrame:
+        """Return a detached site assignment table."""
+
+        return self.compatibility.site_assignments
+
+    @property
+    def protein_assignments(self) -> pd.DataFrame:
+        """Return a detached protein assignment table."""
+
+        return self.compatibility.protein_assignments
+
+    @property
+    def protein_modules(self) -> pd.Series:
+        """Return a detached protein-to-module assignment series."""
+
+        return self.compatibility.protein_modules
+
+    @property
+    def kinase_substrates(self) -> dict[str, tuple[str, ...]]:
+        """Return kinase-to-site mappings derived from the relationship table."""
+
+        return self.compatibility.kinase_substrates
+
+    @property
+    def kinase_network(self) -> dict[str, tuple[str, ...]]:
+        """Return the kinase neighbor mapping for compatibility."""
+
+        return self.compatibility.kinase_network
+
+    @property
+    def kinase_adjacency_matrix(self) -> pd.DataFrame:
+        """Return a detached thresholded kinase adjacency matrix."""
+
+        return self.compatibility.kinase_adjacency_matrix
+
+    @property
+    def kinase_correlation_matrix(self) -> pd.DataFrame:
+        """Return a detached raw kinase correlation matrix."""
+
+        return self.compatibility.kinase_correlation_matrix
+
+    @property
+    def kinase_network_nodes(self) -> pd.DataFrame:
+        """Return a detached kinase network node table."""
+
+        return self.compatibility.kinase_network_nodes
+
+    @property
+    def kinase_network_edges(self) -> pd.DataFrame:
+        """Return a detached kinase network edge table."""
+
+        return self.compatibility.kinase_network_edges
+
+    def expanded_signalomes_mutable_unsafe(self) -> dict[str, ExpandedSignalome]:
+        """Return owned mutable kinase-of-interest signalome views."""
+
+        return self.compatibility.expanded_signalomes_mutable_unsafe()

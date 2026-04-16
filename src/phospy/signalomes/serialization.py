@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 
 import pandas as pd
 
 from .constants import TOP_KINASE_CANDIDATES_COLUMN, TOP_KINASE_WEIGHTS_COLUMN
 
 __all__ = [
+    "export_signalome_frames_to_csv",
     "normalize_top_kinase_weights",
     "serialize_site_assignments_for_export",
     "serialize_top_kinase_candidates",
@@ -112,3 +114,23 @@ def serialize_site_assignments_for_export(
             serialize_top_kinase_weights
         )
     return exported
+
+
+def export_signalome_frames_to_csv(
+    frames: Mapping[str, pd.DataFrame],
+    directory: str | Path,
+) -> dict[str, Path]:
+    """Write canonical signalome frames to CSV with site-assignment serialization."""
+
+    output_dir = Path(directory)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    written: dict[str, Path] = {}
+    for name, frame in frames.items():
+        path = output_dir / f"{name}.csv"
+        if name == "site_assignments":
+            serialize_site_assignments_for_export(frame).to_csv(path)
+        else:
+            frame.to_csv(path)
+        written[name] = path
+    return written

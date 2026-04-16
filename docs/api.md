@@ -234,6 +234,16 @@ Unsafe mutable access is advanced and intentional:
 - `to_frames()` (always detached)
 - `to_owned_frames()` (cheap shared owned access)
 
+`SignalomeResult` is now composed from focused components:
+
+- `signalome.core`: `SignalomeCoreResult` state and ownership-aware base accessors
+- `signalome.frames`: `SignalomeFrameBundle` for canonical table bundles (`to_frames` family)
+- `signalome.export`: `SignalomeExportAdapter` for CSV export (`to_csv`)
+- `signalome.visualization`: `SignalomeVisualizationAdapter` for `to_map_data()` / `to_network_data()`
+- `signalome.compatibility`: `SignalomeCompatibilityView` for legacy alias properties
+
+Top-level methods remain available for backwards compatibility and delegate to these focused components.
+
 Unsafe mutable access is advanced and intentional:
 
 - `signalome.to_mutable_frames_unsafe()`

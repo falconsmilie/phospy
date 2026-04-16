@@ -21,7 +21,7 @@ from .constants import (
 )
 
 if TYPE_CHECKING:
-    from .results import SignalomeResult
+    from .results import SignalomeCoreResult
 
 __all__ = [
     "SignalomeNetworkData",
@@ -124,7 +124,7 @@ class SignalomeNetworkData:
 
 
 def build_signalome_network_data(
-    signalome_result: SignalomeResult,
+    signalome_result: SignalomeCoreResult,
 ) -> SignalomeNetworkData:
     """Build graph-friendly kinase-network data from a canonical signalome result."""
 
@@ -141,14 +141,13 @@ def build_signalome_network_data(
 
 
 def _build_node_outputs(
-    signalome_result: SignalomeResult,
+    signalome_result: SignalomeCoreResult,
 ) -> tuple[pd.DataFrame, tuple[SignalomeNetworkNode, ...]]:
     network_nodes = signalome_result.network.nodes()
     relationships = signalome_result.modules.to_relationship_table()
     kinases_of_interest = set(signalome_result.kinases_of_interest)
-    kinase_order = [
-        str(kinase) for kinase in signalome_result.signalome_modules.columns
-    ]
+    module_table = signalome_result.modules.to_frame()
+    kinase_order = [str(kinase) for kinase in module_table.columns]
 
     module_counts = (
         relationships.groupby(KINASE_COLUMN).size().astype(int)
@@ -199,7 +198,7 @@ def _build_node_outputs(
 
 
 def _build_edge_outputs(
-    signalome_result: SignalomeResult,
+    signalome_result: SignalomeCoreResult,
 ) -> tuple[pd.DataFrame, tuple[SignalomeNetworkEdge, ...]]:
     network_edges = signalome_result.network.edges()
     relationships = signalome_result.modules.to_relationship_table()
