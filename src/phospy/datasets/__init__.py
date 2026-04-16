@@ -20,6 +20,8 @@ __all__ = [
     "DatasetSiteMatrix",
     "LoadedDatasetInputs",
     "PhosphoDataset",
+    "SiteToProteinResolutionDiagnostics",
+    "SiteToProteinResolutionResult",
 ]
 
 
@@ -37,6 +39,11 @@ _EXPORT_MODULES: dict[str, tuple[str, str]] = {
     "DatasetSiteMatrix": (".builders", "DatasetSiteMatrix"),
     "LoadedDatasetInputs": (".loaders", "LoadedDatasetInputs"),
     "PhosphoDataset": (".models", "PhosphoDataset"),
+    "SiteToProteinResolutionDiagnostics": (
+        ".models",
+        "SiteToProteinResolutionDiagnostics",
+    ),
+    "SiteToProteinResolutionResult": (".models", "SiteToProteinResolutionResult"),
 }
 
 

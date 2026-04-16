@@ -606,6 +606,7 @@ def test_signalome_workflow_accepts_explicit_site_to_protein_mapping() -> None:
     ]
     assert result.site_assignments.loc["SITE_1", "protein_id"] == "PROTEIN_A"
     assert result.site_assignments.loc["SITE_2", "protein_id"] == "PROTEIN_A"
+    assert result.site_to_protein_resolution_diagnostics is None
 
 
 def test_signalome_workflow_run_from_analysis_ready_uses_site_metadata_mapping() -> (
@@ -653,6 +654,12 @@ def test_signalome_workflow_run_from_analysis_ready_uses_site_metadata_mapping()
     ]
     assert result.site_assignments.loc["SITE_1", "protein_id"] == "PROTEIN_A"
     assert result.site_assignments.loc["SITE_2", "protein_id"] == "PROTEIN_A"
+    diagnostics = result.site_to_protein_resolution_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.fallback_policy == "strict"
+    assert diagnostics.chosen_identifier_column == "protein_id"
+    assert diagnostics.fallback_mode == "strict_protein_id"
+    assert diagnostics.ambiguous_identifier_count == 0
 
 
 def test_signalome_workflow_run_from_analysis_ready_strict_mode_rejects_gene_metadata_fallback() -> (
@@ -743,6 +750,13 @@ def test_signalome_workflow_run_from_analysis_ready_supports_explicit_gene_fallb
         "PROTEIN_C",
         "PROTEIN_D",
     ]
+    diagnostics = result.site_to_protein_resolution_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.fallback_policy == "metadata"
+    assert diagnostics.chosen_identifier_column == "gene"
+    assert diagnostics.fallback_mode == "metadata_gene_symbol"
+    assert diagnostics.gene_symbol_fallback_used
+    assert diagnostics.ambiguous_identifier_count == 0
 
 
 def test_signalome_workflow_run_from_analysis_ready_rejects_ambiguous_metadata_fallback() -> (
@@ -778,6 +792,47 @@ def test_signalome_workflow_run_from_analysis_ready_rejects_ambiguous_metadata_f
             metadata_protein_columns=["gene"],
             allow_gene_symbol_fallback=True,
         )
+
+
+def test_signalome_workflow_run_from_analysis_ready_reports_ambiguous_metadata_diagnostics_when_allowed() -> (
+    None
+):
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+    ambiguous_gene_mapping = {
+        "PROTEIN_1;S1;": "SHARED_GENE",
+        "PROTEIN_2;S2;": "SHARED_GENE",
+        "PROTEIN_3;S3;": "PROTEIN_3",
+        "PROTEIN_4;S4;": "PROTEIN_4",
+        "PROTEIN_5;S5;": "PROTEIN_5",
+        "PROTEIN_6;S6;": "PROTEIN_6",
+        "PROTEIN_7;S7;": "PROTEIN_7",
+        "PROTEIN_8;S8;": "PROTEIN_8",
+    }
+    analysis_ready = _make_analysis_ready_dataset(
+        phospho_matrix=phospho_matrix,
+        protein_ids=ambiguous_gene_mapping,
+        metadata_column="gene",
+    )
+
+    with pytest.warns(UserWarning):
+        result = SignalomeWorkflow().run_from_analysis_ready(
+            dataset=analysis_ready,
+            scoring_result=pred_mat_result.scoring_result,
+            prediction_result=pred_mat_result.prediction_result,
+            kinases_of_interest=["KINASE_A"],
+            metadata_fallback_policy="metadata",
+            metadata_protein_columns=["gene"],
+            allow_gene_symbol_fallback=True,
+            allow_ambiguous_metadata_mapping=True,
+        )
+
+    diagnostics = result.site_to_protein_resolution_diagnostics
+    assert diagnostics is not None
+    assert diagnostics.fallback_policy == "metadata"
+    assert diagnostics.fallback_mode == "metadata_gene_symbol"
+    assert diagnostics.ambiguous_identifier_count == 1
+    assert diagnostics.ambiguous_identifiers == ("SHARED_GENE",)
+    assert diagnostics.ambiguous_fallback_allowed
 
 
 def test_signalome_workflow_rejects_unsupported_site_identifier_format_without_mapping() -> (

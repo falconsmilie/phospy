@@ -49,6 +49,8 @@ __all__ = [
     "AnalysisReadySiteMatrixStats",
     "CoreInputs",
     "PhosphoDataset",
+    "SiteToProteinResolutionDiagnostics",
+    "SiteToProteinResolutionResult",
 ]
 
 _SITE_TO_PROTEIN_FALLBACK_POLICY_STRICT: str = "strict"
@@ -68,12 +70,49 @@ _GENE_SYMBOL_METADATA_COLUMNS: tuple[str, ...] = (
     SITE_MATRIX_GENE_COLUMN,
     PHOSPHO_GENE_COLUMN,
 )
+_SITE_TO_PROTEIN_FALLBACK_MODE_STRICT_PROTEIN_ID: str = "strict_protein_id"
+_SITE_TO_PROTEIN_FALLBACK_MODE_METADATA_PROTEIN_ID: str = "metadata_protein_id"
+_SITE_TO_PROTEIN_FALLBACK_MODE_METADATA_IDENTIFIER_COLUMN: str = (
+    "metadata_identifier_column"
+)
+_SITE_TO_PROTEIN_FALLBACK_MODE_METADATA_GENE_SYMBOL: str = "metadata_gene_symbol"
+_SITE_TO_PROTEIN_RESOLUTION_DIAGNOSTICS_ATTR_KEY: str = (
+    "site_to_protein_resolution_diagnostics"
+)
 
 
 @dataclass(frozen=True, slots=True)
 class _SiteToProteinResolutionPolicy:
     fallback_policy: str
     candidate_columns: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SiteToProteinResolutionDiagnostics:
+    """Structured diagnostics for one site-to-protein resolution decision."""
+
+    fallback_policy: str
+    candidate_columns: tuple[str, ...]
+    checked_columns: tuple[str, ...]
+    chosen_identifier_column: str
+    fallback_mode: str
+    incomplete_candidate_diagnostics: tuple[str, ...]
+    ambiguous_identifier_count: int
+    ambiguous_identifiers: tuple[str, ...]
+    gene_symbol_fallback_used: bool
+    ambiguous_fallback_allowed: bool
+
+    @property
+    def used_metadata_fallback(self) -> bool:
+        return self.fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_METADATA
+
+
+@dataclass(frozen=True, slots=True)
+class SiteToProteinResolutionResult:
+    """Resolved mapping plus typed diagnostics."""
+
+    mapping: pd.Series
+    diagnostics: SiteToProteinResolutionDiagnostics
 
 
 def _resolve_site_to_protein_policy(
@@ -285,6 +324,63 @@ def _build_site_to_protein_mapping_series(
     )
 
 
+def _resolve_site_to_protein_fallback_mode(
+    *,
+    fallback_policy: str,
+    candidate_column: str,
+) -> str:
+    if fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_STRICT:
+        return _SITE_TO_PROTEIN_FALLBACK_MODE_STRICT_PROTEIN_ID
+    if candidate_column in _GENE_SYMBOL_METADATA_COLUMNS:
+        return _SITE_TO_PROTEIN_FALLBACK_MODE_METADATA_GENE_SYMBOL
+    if candidate_column == "protein_id":
+        return _SITE_TO_PROTEIN_FALLBACK_MODE_METADATA_PROTEIN_ID
+    return _SITE_TO_PROTEIN_FALLBACK_MODE_METADATA_IDENTIFIER_COLUMN
+
+
+def _build_site_to_protein_resolution_diagnostics(
+    *,
+    fallback_policy: str,
+    candidate_columns: Sequence[str],
+    checked_columns: Sequence[str],
+    chosen_identifier_column: str,
+    incomplete_candidate_diagnostics: Sequence[str],
+    ambiguous_identifiers: Sequence[str],
+    allow_ambiguous_fallback: bool,
+) -> SiteToProteinResolutionDiagnostics:
+    fallback_mode = _resolve_site_to_protein_fallback_mode(
+        fallback_policy=fallback_policy,
+        candidate_column=chosen_identifier_column,
+    )
+    normalized_ambiguous_identifiers = tuple(
+        str(identifier) for identifier in ambiguous_identifiers
+    )
+    return SiteToProteinResolutionDiagnostics(
+        fallback_policy=fallback_policy,
+        candidate_columns=tuple(str(column) for column in candidate_columns),
+        checked_columns=tuple(str(column) for column in checked_columns),
+        chosen_identifier_column=str(chosen_identifier_column),
+        fallback_mode=fallback_mode,
+        incomplete_candidate_diagnostics=tuple(
+            str(diagnostic) for diagnostic in incomplete_candidate_diagnostics
+        ),
+        ambiguous_identifier_count=len(normalized_ambiguous_identifiers),
+        ambiguous_identifiers=normalized_ambiguous_identifiers,
+        gene_symbol_fallback_used=chosen_identifier_column
+        in _GENE_SYMBOL_METADATA_COLUMNS,
+        ambiguous_fallback_allowed=bool(allow_ambiguous_fallback),
+    )
+
+
+def _attach_site_to_protein_resolution_diagnostics(
+    *,
+    mapping: pd.Series,
+    diagnostics: SiteToProteinResolutionDiagnostics,
+) -> pd.Series:
+    mapping.attrs[_SITE_TO_PROTEIN_RESOLUTION_DIAGNOSTICS_ATTR_KEY] = diagnostics
+    return mapping
+
+
 def _raise_missing_site_to_protein_columns_error(
     *,
     fallback_policy: str,
@@ -435,6 +531,9 @@ class AnalysisReadyPhosphoDataset:
     site_sequences: pd.Series
     phospho_corrected: pd.DataFrame
     provenance: AnalysisReadyPreprocessingProvenance
+    _last_site_to_protein_resolution_diagnostics: (
+        SiteToProteinResolutionDiagnostics | None
+    )
 
     def __init__(
         self,
@@ -464,6 +563,9 @@ class AnalysisReadyPhosphoDataset:
         self.site_sequences = owned.site_sequences
         self.phospho_corrected = owned.phospho_corrected
         self.provenance = owned.provenance
+        self._last_site_to_protein_resolution_diagnostics = (
+            owned._last_site_to_protein_resolution_diagnostics
+        )
 
     @classmethod
     def from_external(
@@ -510,6 +612,7 @@ class AnalysisReadyPhosphoDataset:
         instance.site_sequences = site_sequences
         instance.phospho_corrected = phospho_corrected
         instance.provenance = provenance
+        instance._last_site_to_protein_resolution_diagnostics = None
         return instance
 
     @classmethod
@@ -560,6 +663,14 @@ class AnalysisReadyPhosphoDataset:
             provenance=provenance,
         )
 
+    @property
+    def last_site_to_protein_resolution_diagnostics(
+        self,
+    ) -> SiteToProteinResolutionDiagnostics | None:
+        """Return diagnostics captured by the most recent successful resolution."""
+
+        return self._last_site_to_protein_resolution_diagnostics
+
     def resolve_site_to_protein_mapping(
         self,
         *,
@@ -570,22 +681,26 @@ class AnalysisReadyPhosphoDataset:
     ) -> pd.Series:
         """Resolve an aligned site-to-protein mapping from site metadata.
 
-        Parameters
-        ----------
-        metadata_columns:
-            Candidate metadata columns to evaluate when ``fallback_policy`` is
-            ``"metadata"``.
-        fallback_policy:
-            Mapping policy:
-            - ``"strict"`` (default): require ``protein_id`` only.
-            - ``"metadata"``: opt in to metadata fallback columns.
-        allow_gene_symbol_fallback:
-            Opt in to gene-symbol fallback when using ``fallback_policy="metadata"``.
-            Disabled by default because gene symbols can collapse distinct proteins.
-        allow_ambiguous_fallback:
-            Opt in to ambiguous fallback values that map to multiple canonical
-            protein IDs when those IDs are parseable from site IDs.
+        The returned series includes structured diagnostics in
+        ``series.attrs["site_to_protein_resolution_diagnostics"]``.
         """
+        return self.resolve_site_to_protein_mapping_with_diagnostics(
+            metadata_columns=metadata_columns,
+            fallback_policy=fallback_policy,
+            allow_gene_symbol_fallback=allow_gene_symbol_fallback,
+            allow_ambiguous_fallback=allow_ambiguous_fallback,
+        ).mapping
+
+    def resolve_site_to_protein_mapping_with_diagnostics(
+        self,
+        *,
+        metadata_columns: Sequence[str] | None = None,
+        fallback_policy: str = _SITE_TO_PROTEIN_FALLBACK_POLICY_STRICT,
+        allow_gene_symbol_fallback: bool = False,
+        allow_ambiguous_fallback: bool = False,
+    ) -> SiteToProteinResolutionResult:
+        """Resolve site-to-protein mapping and return typed diagnostics."""
+        self._last_site_to_protein_resolution_diagnostics = None
         policy = _resolve_site_to_protein_policy(
             metadata_columns=metadata_columns,
             fallback_policy=fallback_policy,
@@ -634,6 +749,7 @@ class AnalysisReadyPhosphoDataset:
                     allow_gene_symbol_fallback=allow_gene_symbol_fallback,
                 )
 
+            ambiguous_identifiers: list[str] = []
             if (
                 policy.fallback_policy == _SITE_TO_PROTEIN_FALLBACK_POLICY_METADATA
                 and candidate != "protein_id"
@@ -649,9 +765,26 @@ class AnalysisReadyPhosphoDataset:
                     allow_ambiguous_fallback=allow_ambiguous_fallback,
                 )
 
-            return _build_site_to_protein_mapping_series(
+            mapping = _build_site_to_protein_mapping_series(
                 site_index=site_index,
                 resolved_values=stripped_values,
+            )
+            diagnostics = _build_site_to_protein_resolution_diagnostics(
+                fallback_policy=policy.fallback_policy,
+                candidate_columns=policy.candidate_columns,
+                checked_columns=checked_columns,
+                chosen_identifier_column=candidate,
+                incomplete_candidate_diagnostics=incomplete_column_diagnostics,
+                ambiguous_identifiers=ambiguous_identifiers,
+                allow_ambiguous_fallback=allow_ambiguous_fallback,
+            )
+            mapping = _attach_site_to_protein_resolution_diagnostics(
+                mapping=mapping,
+                diagnostics=diagnostics,
+            )
+            self._last_site_to_protein_resolution_diagnostics = diagnostics
+            return SiteToProteinResolutionResult(
+                mapping=mapping, diagnostics=diagnostics
             )
 
         if not checked_columns:

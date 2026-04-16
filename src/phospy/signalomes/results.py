@@ -15,6 +15,7 @@ from .networks import SignalomeNetworkData
 from .serialization import serialize_site_assignments_for_export
 
 if TYPE_CHECKING:
+    from ..datasets.models import SiteToProteinResolutionDiagnostics
     from .clustering import SignalomeModuleSelectionDiagnostics
 
 
@@ -329,6 +330,7 @@ class SignalomeResult:
     _kinase_substrate_map: dict[str, tuple[str, ...]]
     _expanded_signalomes: dict[str, ExpandedSignalome]
     _module_selection_diagnostics: SignalomeModuleSelectionDiagnostics
+    _site_to_protein_resolution_diagnostics: SiteToProteinResolutionDiagnostics | None
 
     def __init__(
         self,
@@ -341,6 +343,8 @@ class SignalomeResult:
         kinase_substrate_map: dict[str, tuple[str, ...]],
         expanded_signalomes: dict[str, ExpandedSignalome],
         module_selection_diagnostics: SignalomeModuleSelectionDiagnostics,
+        site_to_protein_resolution_diagnostics: SiteToProteinResolutionDiagnostics
+        | None = None,
     ) -> None:
         self._scoring_matrix = scoring_matrix
         self._pred_mat = pred_mat
@@ -351,6 +355,9 @@ class SignalomeResult:
         self._kinase_substrate_map = kinase_substrate_map
         self._expanded_signalomes = expanded_signalomes
         self._module_selection_diagnostics = module_selection_diagnostics
+        self._site_to_protein_resolution_diagnostics = (
+            site_to_protein_resolution_diagnostics
+        )
 
     @property
     def scoring_matrix(self) -> pd.DataFrame:
@@ -418,6 +425,22 @@ class SignalomeResult:
         """Return module-selection diagnostics captured during clustering."""
 
         return self._module_selection_diagnostics
+
+    @property
+    def site_to_protein_resolution_diagnostics(
+        self,
+    ) -> SiteToProteinResolutionDiagnostics | None:
+        """Return site-to-protein resolution diagnostics when available."""
+
+        return self._site_to_protein_resolution_diagnostics
+
+    def attach_site_to_protein_resolution_diagnostics(
+        self,
+        diagnostics: SiteToProteinResolutionDiagnostics | None,
+    ) -> None:
+        """Attach site-to-protein resolution diagnostics to this result."""
+
+        self._site_to_protein_resolution_diagnostics = diagnostics
 
     @property
     def kinases_of_interest(self) -> tuple[str, ...]:

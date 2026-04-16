@@ -381,6 +381,14 @@ If `site_to_protein` is omitted, `run(...)` falls back to supported `ENTITY;SITE
 
 `run_from_analysis_ready(...)` defaults to strict metadata resolution and requires a `protein_id` metadata column. To opt in to metadata fallback columns, set `metadata_fallback_policy="metadata"` and provide `metadata_protein_columns`. Gene-symbol fallback is disabled by default and must be explicitly enabled with `allow_gene_symbol_fallback=True`.
 
+Site-to-protein resolution now exposes structured diagnostics:
+
+- `analysis_ready.resolve_site_to_protein_mapping_with_diagnostics(...)` returns `SiteToProteinResolutionResult(mapping, diagnostics)`.
+- `analysis_ready.resolve_site_to_protein_mapping(...)` still returns a `pd.Series`, with diagnostics attached at `series.attrs["site_to_protein_resolution_diagnostics"]`.
+- `SignalomeWorkflow.run_from_analysis_ready(...)` attaches the same diagnostics to `signalome_result.site_to_protein_resolution_diagnostics`.
+
+Diagnostics include the chosen identifier column, fallback mode, checked/incomplete metadata columns, and ambiguous-identifier counts.
+
 ## Advanced Extension Contract: Custom Ensemble Predictors
 
 If you inject a custom `ensemble_predictor` into `phospy.prediction.KinasePredictor`,
