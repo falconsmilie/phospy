@@ -114,7 +114,11 @@ class PredictionRunConfig:
         validate_positive_int(self.n_iterations, name="n_iterations")
         if self.svm_mode is not None:
             validate_svm_mode(self.svm_mode)
-        KinaseProfilePolicy.from_value(self.profile_policy)
+        object.__setattr__(
+            self,
+            "profile_policy",
+            KinaseProfilePolicy.from_value(self.profile_policy),
+        )
 
     @classmethod
     def from_value(cls, value: object) -> PredictionRunConfig:
@@ -186,7 +190,11 @@ class SignalomeRunConfig:
         ):
             msg = "min_kinase_module_share_percent must be a non-negative number"
             raise TypeError(msg)
-        SignalomeModuleSelectionPolicy.from_value(self.module_selection_policy)
+        object.__setattr__(
+            self,
+            "module_selection_policy",
+            SignalomeModuleSelectionPolicy.from_value(self.module_selection_policy),
+        )
 
     @classmethod
     def from_value(cls, value: object) -> SignalomeRunConfig:
