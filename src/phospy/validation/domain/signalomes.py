@@ -5,7 +5,11 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from ...errors import NoCandidateKinasesError, RequestValidationError
+from ...errors import (
+    NoCandidateKinasesError,
+    RequestValidationError,
+    format_empty_prediction_matrix_message,
+)
 from ...signalomes.site_ids import resolve_signalome_site_to_protein
 from ..schema.tables import PredMatForSignalomeSchema
 
@@ -57,10 +61,10 @@ def validate_prediction_result_pred_mat(
 ) -> pd.DataFrame:
     pred_mat = resolve_pred_mat(prediction_result)
     if pred_mat.shape[1] == 0:
-        msg = (
-            "prediction_result does not contain any kinase columns because no "
-            "candidate kinases qualified for prediction. Regenerate predMat with "
-            "less restrictive top, score_threshold, or inclusion settings."
+        msg = format_empty_prediction_matrix_message(
+            context="prediction_result",
+            phosphosite_rows=int(pred_mat.shape[0]),
+            source_hint="signalome prediction_result input",
         )
         raise NoCandidateKinasesError(msg)
     return PredMatForSignalomeSchema.validate(pred_mat, context="prediction_result")

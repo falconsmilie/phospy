@@ -150,3 +150,70 @@ def test_predict_from_scoring_result_requires_profile_fallback_with_package_erro
         InputCompatibilityError, match="allow_profile_only_fallback=True"
     ):
         predictor.predict_from_scoring_result(scoring_result)  # type: ignore[arg-type]
+
+
+def test_predict_reports_strict_threshold_candidate_shortfall_diagnostics() -> None:
+    predictor = KinasePredictor()
+    combined_scores = pd.DataFrame(
+        {
+            "K1": [0.95, 0.20, 0.10],
+            "K2": [0.85, 0.84, 0.10],
+        },
+        index=["SITE_1", "SITE_2", "SITE_3"],
+    )
+
+    with pytest.raises(
+        NoCandidateKinasesError,
+        match="No candidate kinases qualified for prediction",
+    ) as exc_info:
+        predictor.predict(
+            combined_scores=combined_scores,
+            ensemble_size=1,
+            top=2,
+            score_threshold=0.8,
+            inclusion=3,
+            n_iterations=1,
+            random_state=3,
+        )
+    message = str(exc_info.value)
+    assert "Evaluated 2 kinase column(s) across 3 phosphosite row(s)." in message
+    assert "Effective top window per kinase=2." in message
+    assert "Kinases with at least one site above score_threshold: 2." in message
+    assert "Best-support kinase had 2 qualifying site(s), below inclusion=3." in message
+    assert "Near-miss kinases below inclusion: K2 (2), K1 (1)" in message
+
+
+def test_profile_score_fallback_reports_considered_path_on_candidate_shortfall() -> (
+    None
+):
+    predictor = KinasePredictor()
+    scoring_result = type(
+        "ScoringResultLike",
+        (),
+        {
+            "combined_scores": None,
+            "profile_scores": pd.DataFrame(
+                {"KINASE_A": [0.95, 0.20]},
+                index=["SITE_1", "SITE_2"],
+            ),
+        },
+    )()
+
+    with pytest.raises(
+        NoCandidateKinasesError,
+        match="No candidate kinases qualified for prediction",
+    ) as exc_info:
+        predictor.predict_from_scoring_result(
+            scoring_result,  # type: ignore[arg-type]
+            ensemble_size=1,
+            top=1,
+            score_threshold=0.9,
+            inclusion=2,
+            n_iterations=1,
+            random_state=7,
+            allow_profile_only_fallback=True,
+        )
+    assert (
+        "Fallback path considered: profile_scores was used because combined_scores "
+        "was unavailable."
+    ) in str(exc_info.value)

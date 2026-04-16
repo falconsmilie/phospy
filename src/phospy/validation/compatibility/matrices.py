@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from ...errors import InputCompatibilityError
+from ...errors import InputCompatibilityError, format_overlap_failure_message
 from ..schema.tables import (
     PredictionScoreMatrixSchema,
     PredMatForSignalomeSchema,
@@ -82,20 +82,32 @@ def validate_pred_mat_overlap(
 ) -> PredMatOverlapSummary:
     """Validate overlap between a prediction matrix and a phosphosite matrix."""
 
+    matrix_rows = len(phospho_matrix.index)
+    pred_mat_rows = len(pred_mat.index)
     overlap = pred_mat.index.intersection(phospho_matrix.index)
     overlap_count = len(overlap)
     if overlap_count == 0:
-        msg = f"{pred_context} and {matrix_context} have no overlapping phosphosite IDs"
+        msg = format_overlap_failure_message(
+            pred_context=pred_context,
+            matrix_context=matrix_context,
+            overlap_count=overlap_count,
+            pred_mat_rows=pred_mat_rows,
+            matrix_rows=matrix_rows,
+            min_overlap=min_overlap,
+            min_fraction=min_fraction,
+        )
         raise InputCompatibilityError(msg)
 
-    matrix_rows = len(phospho_matrix.index)
-    pred_mat_rows = len(pred_mat.index)
     overlap_fraction = overlap_count / max(matrix_rows, 1)
     if overlap_count < min_overlap or overlap_fraction < min_fraction:
-        percent = overlap_fraction * 100.0
-        msg = (
-            f"{pred_context} and {matrix_context} have insufficient overlapping "
-            f"phosphosite IDs: {overlap_count} row(s) ({percent:.1f}%)"
+        msg = format_overlap_failure_message(
+            pred_context=pred_context,
+            matrix_context=matrix_context,
+            overlap_count=overlap_count,
+            pred_mat_rows=pred_mat_rows,
+            matrix_rows=matrix_rows,
+            min_overlap=min_overlap,
+            min_fraction=min_fraction,
         )
         raise InputCompatibilityError(msg)
 
@@ -123,14 +135,20 @@ def validate_workflow_matrix_inputs(
         context="phospho_matrix",
     )
 
+    unique_substrate_sites = {
+        site for sites in substrate_map.values() for site in sites
+    }
     overlapping_sites = {
-        site
-        for sites in substrate_map.values()
-        for site in sites
-        if site in validated_matrix.index
+        site for site in unique_substrate_sites if site in validated_matrix.index
     }
     if not overlapping_sites:
         msg = f"{context} contain no overlap between substrate_map and phospho_matrix"
+        msg = (
+            f"{msg} at the substrate-map alignment seam "
+            f"(shared=0, substrate_map sites={len(unique_substrate_sites)}, "
+            f"phospho_matrix rows={len(validated_matrix.index)}). "
+            "Use the same phosphosite IDs on both inputs."
+        )
         raise InputCompatibilityError(msg)
 
     scoring_site_index = tuple(str(site) for site in validated_matrix.index)
@@ -147,7 +165,9 @@ def validate_workflow_matrix_inputs(
         if not scoring_site_index:
             msg = (
                 f"{context} contain no phosphosites with sequence coverage "
-                "required for scoring and prediction"
+                "required for scoring and prediction "
+                f"(sequence IDs={len(sequence_index)}, phospho_matrix rows="
+                f"{len(validated_matrix.index)})."
             )
             raise InputCompatibilityError(msg)
 
@@ -189,7 +209,11 @@ def validate_signalome_alignment(
     if not common_sites:
         msg = (
             f"{scoring_context}, {pred_mat_context}, and {expression_context} "
-            "must share at least one phosphosite row"
+            "must share at least one phosphosite row "
+            "(shared=0 at the signalome site-alignment seam; "
+            f"{scoring_context} rows={len(validated_scoring_matrix.index)}, "
+            f"{pred_mat_context} rows={len(validated_pred_mat.index)}, "
+            f"{expression_context} rows={len(validated_expression_matrix.index)})."
         )
         raise InputCompatibilityError(msg)
 
@@ -201,7 +225,10 @@ def validate_signalome_alignment(
     if not common_kinases:
         msg = (
             f"{scoring_context} and {pred_mat_context} must share at least one "
-            "kinase column"
+            "kinase column "
+            "(shared=0 at the signalome kinase-alignment seam; "
+            f"{scoring_context} columns={len(validated_scoring_matrix.columns)}, "
+            f"{pred_mat_context} columns={len(validated_pred_mat.columns)})."
         )
         raise InputCompatibilityError(msg)
 
@@ -210,14 +237,18 @@ def validate_signalome_alignment(
     ]
     if missing_koi:
         missing = ", ".join(missing_koi)
+        available = ", ".join(common_kinases) if common_kinases else "<none>"
         msg = (
             "kinases_of_interest are not available in the aligned signalome "
-            f"inputs: {missing}"
+            f"inputs: {missing}. Available aligned kinases: {available}"
         )
         raise InputCompatibilityError(msg)
 
     if module_count is not None and module_count > len(common_sites):
-        msg = "module_count cannot exceed the number of aligned phosphosite rows"
+        msg = (
+            "module_count cannot exceed the number of aligned phosphosite rows "
+            f"(module_count={module_count}, aligned_rows={len(common_sites)})"
+        )
         raise InputCompatibilityError(msg)
 
     return (

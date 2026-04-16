@@ -6,7 +6,11 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from ...errors import NoCandidateKinasesError, RequestValidationError
+from ...errors import (
+    NoCandidateKinasesError,
+    RequestValidationError,
+    format_empty_prediction_matrix_message,
+)
 from ...internal.defaults import (
     DEFAULT_KINASE_ACTIVITY_MIN_SUBSTRATES,
     DEFAULT_KINASE_ACTIVITY_THRESHOLD,
@@ -121,10 +125,10 @@ def validate_analysis_request(
         msg = f"{pred_context} must be provided"
         raise RequestValidationError(msg)
     if normalized_pred_mat.shape[1] == 0:
-        msg = (
-            f"{pred_context} does not contain any kinase columns because no "
-            "candidate kinases qualified for prediction. Regenerate predMat with "
-            "less restrictive top, score_threshold, or inclusion settings."
+        msg = format_empty_prediction_matrix_message(
+            context=pred_context,
+            phosphosite_rows=int(normalized_pred_mat.shape[0]),
+            source_hint="analysis input",
         )
         raise NoCandidateKinasesError(msg)
     validated_pred_mat = PredMatSchema.validate(

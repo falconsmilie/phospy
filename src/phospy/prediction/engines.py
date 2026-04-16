@@ -7,7 +7,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from ..errors import InputCompatibilityError, NoCandidateKinasesError
+from ..errors import (
+    InputCompatibilityError,
+    NoCandidateKinasesError,
+    format_no_candidate_kinases_message,
+)
 from ..internal.defaults import (
     DEFAULT_MOTIF_FLANK_SIZE,
     DEFAULT_PREDICTION_DEBUG_TOP_N,
@@ -339,11 +343,20 @@ class KinasePredictor:
         feature_values = feature_mat.to_numpy(dtype=float)
         if not np.isfinite(feature_values).all():
             if not np.isfinite(feature_values).any():
+                msg = format_no_candidate_kinases_message(
+                    source_name=feature_name,
+                    top=top,
+                    score_threshold=score_threshold,
+                    inclusion=inclusion,
+                    kinase_count=int(feature_mat.shape[1]),
+                    site_count=int(feature_mat.shape[0]),
+                    effective_top=min(int(top), int(feature_mat.shape[0])),
+                    qualifying_kinases=0,
+                    max_qualifying_sites=0,
+                )
                 msg = (
-                    "No candidate kinases qualified for prediction from "
-                    f"{feature_name} using top={top}, "
-                    f"score_threshold={score_threshold}, and inclusion={inclusion}. "
-                    "Lower score_threshold or inclusion, or increase top."
+                    f"{msg} Candidate scoring could not proceed because all values in "
+                    f"{feature_name} are non-finite."
                 )
                 raise NoCandidateKinasesError(msg)
             msg = (
@@ -370,7 +383,16 @@ class KinasePredictor:
             trace_sink=trace_sink,
             trace_sink_format=trace_sink_format,
         )
-        return self.predict_request(request)
+        try:
+            return self.predict_request(request)
+        except NoCandidateKinasesError as error:
+            if feature_name == "profile_scores":
+                msg = (
+                    f"{error} Fallback path considered: profile_scores was used "
+                    "because combined_scores was unavailable."
+                )
+                raise NoCandidateKinasesError(msg) from error
+            raise
 
 
 @dataclass(frozen=True, slots=True)

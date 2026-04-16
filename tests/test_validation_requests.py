@@ -4,7 +4,11 @@ import pandas as pd
 import pytest
 
 from phospy.datasets import DatasetSchema, PhosphoDataset
-from phospy.errors import InputCompatibilityError, RequestValidationError
+from phospy.errors import (
+    InputCompatibilityError,
+    NoCandidateKinasesError,
+    RequestValidationError,
+)
 from phospy.prediction import PredMatResult
 from phospy.prediction.traces import TraceSink
 from phospy.preprocessing.matrices import SiteMatrixPolicy
@@ -1233,11 +1237,18 @@ def test_validate_pipeline_runtime_compatibility_reports_post_preprocessing_over
             r"pipeline pred_mat and preprocessed site matrix have no overlapping "
             r"phosphosite IDs"
         ),
-    ):
+    ) as exc_info:
         validate_pipeline_runtime_compatibility(
             request=request,
             site_matrix=pd.DataFrame({"sample_1": [1.0]}, index=["OTHER;S1;"]),
         )
+    message = str(exc_info.value)
+    assert (
+        "shared=0, preprocessed site matrix rows=1, pipeline pred_mat rows=1" in message
+    )
+    assert "min_overlap=1" in message
+    assert "min_fraction=0.500" in message
+    assert "Next step: confirm both inputs use the same phosphosite ID space" in message
 
 
 def test_validate_pipeline_runtime_compatibility_skips_when_pipeline_has_no_pred_mat() -> (
@@ -1314,11 +1325,38 @@ def test_validate_analysis_request_rejects_zero_overlap() -> None:
     pred_mat = pd.DataFrame({"PRKACA": [0.9]}, index=["SITE_A"])
     phospho_matrix = pd.DataFrame({"sample_1": [1.0]}, index=["SITE_B"])
 
-    with pytest.raises(InputCompatibilityError, match="no overlapping phosphosite IDs"):
+    with pytest.raises(
+        InputCompatibilityError,
+        match="no overlapping phosphosite IDs",
+    ) as exc_info:
         validate_analysis_request(
             pred_mat=pred_mat,
             phospho_matrix=phospho_matrix,
         )
+    message = str(exc_info.value)
+    assert "shared=0, phospho_matrix rows=1, pred_mat rows=1" in message
+    assert "min_overlap=1" in message
+    assert "min_fraction=0.500" in message
+
+
+def test_validate_analysis_request_reports_empty_pred_mat_with_candidate_context() -> (
+    None
+):
+    pred_mat = pd.DataFrame(index=["SITE_1"])
+    phospho_matrix = pd.DataFrame({"sample_1": [1.0]}, index=["SITE_1"])
+
+    with pytest.raises(
+        NoCandidateKinasesError,
+        match="does not contain any kinase columns",
+    ) as exc_info:
+        validate_analysis_request(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+        )
+    message = str(exc_info.value)
+    assert "pred_mat columns=0, phosphosite rows=1" in message
+    assert "source=analysis input" in message
+    assert "less restrictive top, score_threshold, or inclusion settings" in message
 
 
 def test_validate_analysis_request_records_partial_overlap_above_default_fraction() -> (
@@ -1388,8 +1426,12 @@ def test_validate_analysis_request_rejects_insufficient_overlap_fraction() -> No
     with pytest.raises(
         InputCompatibilityError,
         match="insufficient overlapping phosphosite IDs",
-    ):
+    ) as exc_info:
         validate_analysis_request(
             pred_mat=pred_mat,
             phospho_matrix=phospho_matrix,
         )
+    message = str(exc_info.value)
+    assert "shared=1, phospho_matrix rows=20, pred_mat rows=1" in message
+    assert "phospho_matrix coverage=5.0%" in message
+    assert "pred_mat coverage=100.0%" in message

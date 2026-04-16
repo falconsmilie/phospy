@@ -6,8 +6,9 @@ from typing import TYPE_CHECKING, NoReturn
 import numpy as np
 import pandas as pd
 
-from ..errors import NoCandidateKinasesError
+from ..errors import NoCandidateKinasesError, format_no_candidate_kinases_message
 from ..validation.requests.prediction import PredictionRequest
+from .candidates import summarize_candidate_shortfall
 from .results import KinasePredictionResult
 
 if TYPE_CHECKING:
@@ -28,11 +29,23 @@ class PredictionAggregator:
         *,
         request: PredictionRequest,
     ) -> NoReturn:
-        msg = (
-            "No candidate kinases qualified for prediction from combined_scores "
-            f"using top={request.top}, score_threshold={request.score_threshold}, "
-            f"and inclusion={request.inclusion}. Lower score_threshold or inclusion, "
-            "or increase top."
+        diagnostics = summarize_candidate_shortfall(
+            request.combined_scores,
+            top=request.top,
+            score_threshold=request.score_threshold,
+            inclusion=request.inclusion,
+        )
+        msg = format_no_candidate_kinases_message(
+            source_name="combined_scores",
+            top=request.top,
+            score_threshold=request.score_threshold,
+            inclusion=request.inclusion,
+            kinase_count=diagnostics.kinase_count,
+            site_count=diagnostics.site_count,
+            effective_top=diagnostics.effective_top,
+            qualifying_kinases=diagnostics.qualifying_kinases,
+            max_qualifying_sites=diagnostics.max_qualifying_sites,
+            near_miss_kinases=diagnostics.near_miss_kinases,
         )
         raise NoCandidateKinasesError(msg)
 

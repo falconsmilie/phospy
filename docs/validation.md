@@ -114,10 +114,19 @@ Start at the boundary closest to your input:
 | Problem | Usually means | Good next step |
 | --- | --- | --- |
 | Missing required columns | Your input headers do not match the expected schema | Check cleaned column names and, if needed, pass a custom `DatasetSchema` |
-| `predMat` overlap error | The phosphosite IDs do not line up between the matrix and `predMat` | Confirm both sides use `ENTITY;SITE;` IDs |
-| `NoCandidateKinasesError` | Thresholds or inclusion settings filtered out every kinase | Relax the prediction config and rerun |
+| `predMat` overlap error | The phosphosite IDs do not line up between the matrix and `predMat` | Check the reported shared/total row counts and required `min_overlap`/`min_fraction`, then confirm both sides use `ENTITY;SITE;` IDs |
+| `NoCandidateKinasesError` | Thresholds or inclusion settings filtered out every kinase | Use the reported `top`/`score_threshold`/`inclusion` and candidate-support counts to relax strictness and rerun |
 | Sequence coverage error | `site_sequences` or `motif_sequences` do not cover the scored sites | Check keys and confirm you passed the correct reference inputs |
 | Signalome top-kinase failure | Your aligned prediction values contain non-finite rows | Clean or regenerate the prediction output before signalome construction |
+
+## Strictness Diagnostics
+
+When overlap or candidate strictness fails, PhosPy now reports:
+
+- concrete counts (shared rows, total rows, evaluated kinases/sites)
+- active thresholds (`min_overlap`, `min_fraction`, `top`, `score_threshold`, `inclusion`)
+- the failing seam (`predMat`/matrix overlap, signalome alignment, or prediction candidate filtering)
+- a safe next action to try first (relax strictness, align ID space, or regenerate from one reference input path)
 
 ## Recommended Beginner Path
 
