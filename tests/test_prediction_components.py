@@ -60,6 +60,7 @@ def test_prediction_aggregator_add_kinase_scores_prefers_array_values() -> None:
     class BatchStub:
         kinase = "K1"
         score_values = np.asarray([0.25, 0.75], dtype=float)
+        score_index = pd.Index(["s1", "s2"])
 
         @property
         def scores(self):
@@ -70,6 +71,92 @@ def test_prediction_aggregator_add_kinase_scores_prefers_array_values() -> None:
     PredictionAggregator.add_kinase_scores(pred_matrix=pred_matrix, batch=batch)
 
     assert pred_matrix.values[:, 0].tolist() == [0.25, 0.75]
+
+
+def test_prediction_aggregator_add_kinase_scores_aligns_reordered_score_index() -> None:
+    pred_matrix = PredictionAggregator.initialize_prediction_matrix(
+        feature_mat=pd.DataFrame({"K1": [0.1, 0.2, 0.3]}, index=["s1", "s2", "s3"]),
+        substrate_list={"K1": ["s1", "s2"]},
+    )
+
+    class BatchStub:
+        kinase = "K1"
+        score_values = np.asarray([0.3, 0.1, 0.2], dtype=float)
+        score_index = pd.Index(["s3", "s1", "s2"])
+
+    PredictionAggregator.add_kinase_scores(pred_matrix=pred_matrix, batch=BatchStub())
+
+    assert pred_matrix.values[:, 0].tolist() == [0.1, 0.2, 0.3]
+
+
+def test_prediction_aggregator_add_kinase_scores_rejects_missing_labels() -> None:
+    pred_matrix = PredictionAggregator.initialize_prediction_matrix(
+        feature_mat=pd.DataFrame({"K1": [0.1, 0.2, 0.3]}, index=["s1", "s2", "s3"]),
+        substrate_list={"K1": ["s1", "s2"]},
+    )
+
+    class BatchStub:
+        kinase = "K1"
+        score_values = np.asarray([0.1, 0.2, 0.3], dtype=float)
+        score_index = pd.Index(["s1", "s2", "sX"])
+
+    with pytest.raises(InputCompatibilityError, match="missing labels"):
+        PredictionAggregator.add_kinase_scores(
+            pred_matrix=pred_matrix, batch=BatchStub()
+        )
+
+
+def test_prediction_aggregator_add_kinase_scores_rejects_duplicate_labels() -> None:
+    pred_matrix = PredictionAggregator.initialize_prediction_matrix(
+        feature_mat=pd.DataFrame({"K1": [0.1, 0.2, 0.3]}, index=["s1", "s2", "s3"]),
+        substrate_list={"K1": ["s1", "s2"]},
+    )
+
+    class BatchStub:
+        kinase = "K1"
+        score_values = np.asarray([0.1, 0.2, 0.3], dtype=float)
+        score_index = pd.Index(["s1", "s1", "s3"])
+
+    with pytest.raises(InputCompatibilityError, match="duplicate score_index labels"):
+        PredictionAggregator.add_kinase_scores(
+            pred_matrix=pred_matrix, batch=BatchStub()
+        )
+
+
+def test_prediction_aggregator_add_kinase_scores_rejects_index_length_mismatch() -> (
+    None
+):
+    pred_matrix = PredictionAggregator.initialize_prediction_matrix(
+        feature_mat=pd.DataFrame({"K1": [0.1, 0.2, 0.3]}, index=["s1", "s2", "s3"]),
+        substrate_list={"K1": ["s1", "s2"]},
+    )
+
+    class BatchStub:
+        kinase = "K1"
+        score_values = np.asarray([0.1, 0.2], dtype=float)
+        score_index = pd.Index(["s1", "s2"])
+
+    with pytest.raises(InputCompatibilityError, match="prediction matrix has 3 rows"):
+        PredictionAggregator.add_kinase_scores(
+            pred_matrix=pred_matrix, batch=BatchStub()
+        )
+
+
+def test_prediction_aggregator_add_kinase_scores_rejects_non_numeric_values() -> None:
+    pred_matrix = PredictionAggregator.initialize_prediction_matrix(
+        feature_mat=pd.DataFrame({"K1": [0.1, 0.2, 0.3]}, index=["s1", "s2", "s3"]),
+        substrate_list={"K1": ["s1", "s2"]},
+    )
+
+    class BatchStub:
+        kinase = "K1"
+        score_values = np.asarray([0.1, "bad", 0.3], dtype=object)
+        score_index = pd.Index(["s1", "s2", "s3"])
+
+    with pytest.raises(InputCompatibilityError, match="non-numeric score values"):
+        PredictionAggregator.add_kinase_scores(
+            pred_matrix=pred_matrix, batch=BatchStub()
+        )
 
 
 def test_trace_recorder_create_state_traces_all_kinases_by_default() -> None:

@@ -6,7 +6,11 @@ from typing import TYPE_CHECKING, NoReturn
 import numpy as np
 import pandas as pd
 
-from ..errors import NoCandidateKinasesError, format_no_candidate_kinases_message
+from ..errors import (
+    InputCompatibilityError,
+    NoCandidateKinasesError,
+    format_no_candidate_kinases_message,
+)
 from ..validation.requests.prediction import PredictionRequest
 from .candidates import summarize_candidate_shortfall
 from .results import KinasePredictionResult
@@ -70,17 +74,151 @@ class PredictionAggregator:
         pred_matrix: PredictionScoreBuffer,
         batch: KinasePredictionBatch,
     ) -> None:
+        """Add one kinase batch after strict score-index validation.
+
+        Contract:
+        - batch scores are aligned by score_index labels to pred_matrix.index.
+        - positional aggregation is never used when score_index is provided.
+        - malformed batches raise InputCompatibilityError with seam diagnostics.
+        """
+
+        score_values = PredictionAggregator._resolve_batch_scores(
+            pred_matrix=pred_matrix,
+            batch=batch,
+        )
+        pred_matrix.values[:, pred_matrix.column_positions[batch.kinase]] += (
+            score_values
+        )
+
+    @staticmethod
+    def _resolve_batch_scores(
+        *,
+        pred_matrix: PredictionScoreBuffer,
+        batch: KinasePredictionBatch,
+    ) -> np.ndarray:
         score_values = getattr(batch, "score_values", None)
+        score_index = getattr(batch, "score_index", None)
         if score_values is None:
             scores = batch.scores
             if isinstance(scores, pd.Series):
-                score_values = scores.to_numpy(dtype=float, copy=False)
+                score_values = scores.to_numpy(copy=False)
+                if score_index is None:
+                    score_index = scores.index
             else:
-                score_values = np.asarray(scores, dtype=float)
-        pred_matrix.values[:, pred_matrix.column_positions[batch.kinase]] += np.asarray(
-            score_values,
-            dtype=float,
+                score_values = scores
+
+        if score_index is None:
+            msg = (
+                "Prediction batch for kinase "
+                f"{batch.kinase!r} must provide score_index for index-safe aggregation"
+            )
+            raise InputCompatibilityError(msg)
+
+        resolved_values = PredictionAggregator._coerce_score_values(
+            score_values=score_values,
+            kinase=batch.kinase,
         )
+        resolved_index = pd.Index(score_index)
+        PredictionAggregator._validate_score_index(
+            pred_index=pred_matrix.index,
+            score_index=resolved_index,
+            score_count=len(resolved_values),
+            kinase=batch.kinase,
+        )
+        if resolved_index.equals(pred_matrix.index):
+            return resolved_values
+        return (
+            pd.Series(resolved_values, index=resolved_index, dtype=float)
+            .reindex(pred_matrix.index)
+            .to_numpy(dtype=float, copy=False)
+        )
+
+    @staticmethod
+    def _coerce_score_values(
+        *,
+        score_values: object,
+        kinase: str,
+    ) -> np.ndarray:
+        try:
+            resolved = np.asarray(score_values, dtype=float)
+        except (TypeError, ValueError) as error:
+            msg = (
+                f"Prediction batch for kinase {kinase!r} contains non-numeric "
+                "score values"
+            )
+            raise InputCompatibilityError(msg) from error
+        if resolved.ndim != 1:
+            msg = (
+                f"Prediction batch for kinase {kinase!r} must provide exactly one "
+                "score value per phosphosite"
+            )
+            raise InputCompatibilityError(msg)
+        return resolved
+
+    @staticmethod
+    def _validate_score_index(
+        *,
+        pred_index: pd.Index,
+        score_index: pd.Index,
+        score_count: int,
+        kinase: str,
+    ) -> None:
+        if len(score_index) != score_count:
+            msg = (
+                f"Prediction batch for kinase {kinase!r} has score_index length "
+                f"{len(score_index)} but score_values length {score_count}"
+            )
+            raise InputCompatibilityError(msg)
+        if len(score_index) != len(pred_index):
+            msg = (
+                f"Prediction batch for kinase {kinase!r} has {len(score_index)} "
+                f"score labels but prediction matrix has {len(pred_index)} rows"
+            )
+            raise InputCompatibilityError(msg)
+        if not score_index.is_unique:
+            duplicate_labels = pd.unique(score_index[score_index.duplicated()])
+            msg = (
+                f"Prediction batch for kinase {kinase!r} contains duplicate "
+                f"score_index labels: {PredictionAggregator._preview_labels(duplicate_labels)}"
+            )
+            raise InputCompatibilityError(msg)
+        if not pred_index.is_unique:
+            msg = (
+                "prediction matrix index contains duplicate phosphosite labels; "
+                "cannot safely aggregate kinase batches by index"
+            )
+            raise InputCompatibilityError(msg)
+
+        missing_labels = pred_index.difference(score_index)
+        unexpected_labels = score_index.difference(pred_index)
+        if len(missing_labels) > 0 or len(unexpected_labels) > 0:
+            diagnostics: list[str] = []
+            if len(missing_labels) > 0:
+                diagnostics.append(
+                    f"missing labels: {PredictionAggregator._preview_labels(missing_labels)}"
+                )
+            if len(unexpected_labels) > 0:
+                diagnostics.append(
+                    "unexpected labels: "
+                    f"{PredictionAggregator._preview_labels(unexpected_labels)}"
+                )
+            msg = (
+                f"Prediction batch for kinase {kinase!r} has score_index labels "
+                "that do not match prediction matrix index ("
+                + "; ".join(diagnostics)
+                + ")"
+            )
+            raise InputCompatibilityError(msg)
+
+    @staticmethod
+    def _preview_labels(labels: object, *, max_items: int = 5) -> str:
+        label_index = pd.Index(labels)
+        if len(label_index) == 0:
+            return "<none>"
+        preview = ", ".join(repr(label) for label in label_index[:max_items])
+        if len(label_index) > max_items:
+            preview = f"{preview}, ..."
+        return preview
 
     @staticmethod
     def finalize(
