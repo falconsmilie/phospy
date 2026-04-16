@@ -16,15 +16,13 @@ from phospy.errors import (
 )
 from phospy.io import load_pred_mat
 from phospy.prediction import (
-    EnsemblePredictorContract,
     KinasePredictionResult,
     KinasePredictor,
     KinaseScoringResult,
-    PredictionSamplingTrace,
     PredMatResult,
-    build_candidate_substrate_list,
-    prediction_debug_trace_tables,
 )
+from phospy.prediction.candidates import build_candidate_substrate_list
+from phospy.prediction.contracts import EnsemblePredictorContract
 from phospy.prediction.policies import (
     PredictionSamplingRandomSource,
     resolve_prediction_sampling_policy,
@@ -49,7 +47,12 @@ from phospy.prediction.svm import (
     resolve_svm_probability_random_state as _resolve_svm_probability_random_state,
 )
 from phospy.prediction.trace_runtime import TraceSink
-from phospy.prediction.traces import DirectoryTraceSink, create_trace_sink
+from phospy.prediction.traces import (
+    DirectoryTraceSink,
+    PredictionSamplingTrace,
+    create_trace_sink,
+    prediction_debug_trace_tables,
+)
 from phospy.validation.requests import PredictionRequest
 
 SIMPLE_WORKFLOW_FIXTURE_DIR = (

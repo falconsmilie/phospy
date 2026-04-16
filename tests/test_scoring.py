@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phospy.prediction import KinaseScorer, combine_profile_and_motif_scores
+from phospy.prediction import KinaseScorer
+from phospy.prediction.scoring import combine_profile_and_motif_scores
 
 
 def make_kinase_profiles() -> pd.DataFrame:

@@ -2,6 +2,33 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Changed
+
+- Narrowed `phospy.prediction` package-level default exports to the stable prediction types and moved low-level mechanics out of the default surface.
+- Removed package-level compatibility re-exports from `phospy.prediction`; advanced helpers now require concrete-module imports.
+
+### Migration
+
+- `from phospy.prediction import PredictionExecutionRunner` -> `from phospy.prediction.engines import PredictionExecutionRunner`
+- `from phospy.prediction import PredictionRequestFactory` -> `from phospy.prediction.engines import PredictionRequestFactory`
+- `from phospy.prediction import KinaseWorkflowExecutor` -> `from phospy.prediction.engines import KinaseWorkflowExecutor`
+- `from phospy.prediction import KinaseWorkflowExecutionResult` -> `from phospy.prediction.engines import KinaseWorkflowExecutionResult`
+- `from phospy.prediction import EnsemblePredictorContract` -> `from phospy.prediction.contracts import EnsemblePredictorContract`
+- `from phospy.prediction import PredictionSamplingTrace` -> `from phospy.prediction.traces import PredictionSamplingTrace`
+- `from phospy.prediction import PredictionSamplingPolicy` -> `from phospy.prediction.policies import PredictionSamplingPolicy`
+- `from phospy.prediction import build_candidate_substrate_list` -> `from phospy.prediction.candidates import build_candidate_substrate_list`
+- `from phospy.prediction import combine_profile_and_motif_scores` -> `from phospy.prediction.scoring import combine_profile_and_motif_scores`
+- `from phospy.prediction import prediction_debug_trace_tables` -> `from phospy.prediction.traces import prediction_debug_trace_tables`
+- `from phospy.prediction import AdaptiveSamplingIterationTrace` -> `from phospy.prediction.results import AdaptiveSamplingIterationTrace`
+- `from phospy.prediction import AdaptiveSamplingEnsembleTrace` -> `from phospy.prediction.results import AdaptiveSamplingEnsembleTrace`
+- `from phospy.prediction import KinasePredictionDebugTrace` -> `from phospy.prediction.results import KinasePredictionDebugTrace`
+- `from phospy.prediction import SamplingTraceOverrideEnsemble` -> `from phospy.prediction.results import SamplingTraceOverrideEnsemble`
+- `from phospy.prediction import create_frequency_matrix` -> `from phospy.prediction.motif_scoring import create_frequency_matrix`
+- `from phospy.prediction import frequency_scoring` -> `from phospy.prediction.motif_scoring import frequency_scoring`
+- `from phospy.prediction import minmax_scale_columns` -> `from phospy.prediction.motif_scoring import minmax_scale_columns`
+
 ## [1.4.0] - 2026-04-15
 
 ### Added

@@ -76,6 +76,34 @@ def test_supported_public_surface_is_small_and_explicit() -> None:
     assert not hasattr(api, "KinaseWorkflow")
 
 
+def test_prediction_package_default_exports_are_stable_and_intentional() -> None:
+    import phospy.prediction as prediction
+
+    assert set(prediction.__all__) == {
+        "KinaseMotifScorer",
+        "KinasePredictor",
+        "KinasePredictionResult",
+        "KinaseProfilePolicy",
+        "KinaseScorer",
+        "KinaseScoringResult",
+        "MotifScoringResult",
+        "PredMatResult",
+    }
+    assert not hasattr(prediction, "PredictionExecutionRunner")
+    assert not hasattr(prediction, "PredictionRequestFactory")
+    assert not hasattr(prediction, "KinaseWorkflowExecutor")
+    assert not hasattr(prediction, "KinaseWorkflowExecutionResult")
+    assert not hasattr(prediction, "EnsemblePredictorContract")
+    assert not hasattr(prediction, "PredictionSamplingTrace")
+    assert not hasattr(prediction, "PredictionSamplingPolicy")
+    assert not hasattr(prediction, "build_candidate_substrate_list")
+    assert not hasattr(prediction, "combine_profile_and_motif_scores")
+    assert not hasattr(prediction, "prediction_debug_trace_tables")
+    assert not hasattr(prediction, "create_frequency_matrix")
+    assert not hasattr(prediction, "frequency_scoring")
+    assert not hasattr(prediction, "minmax_scale_columns")
+
+
 def test_removed_workflow_entrypoints_are_not_importable() -> None:
     assert importlib.util.find_spec("phospy.pipeline") is None
     assert importlib.util.find_spec("phospy.api.kinase_workflows") is None

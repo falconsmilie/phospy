@@ -18,10 +18,10 @@ from phospy.errors import (
 from phospy.prediction import (
     KinasePredictor,
     KinaseScorer,
-    PredictionSamplingTrace,
-    build_candidate_substrate_list,
 )
+from phospy.prediction.candidates import build_candidate_substrate_list
 from phospy.prediction.motif_scoring import KinaseMotifScorer, create_frequency_matrix
+from phospy.prediction.traces import PredictionSamplingTrace
 
 
 def test_motif_scorer_rejects_missing_motif_size_with_package_error() -> None:

@@ -7,11 +7,11 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
-from phospy.prediction import (
-    KinasePredictor,
+from phospy.prediction import KinasePredictor
+from phospy.prediction.candidates import build_candidate_substrate_list
+from phospy.prediction.scoring import combine_profile_and_motif_scores
+from phospy.prediction.traces import (
     PredictionSamplingTrace,
-    build_candidate_substrate_list,
-    combine_profile_and_motif_scores,
     prediction_debug_trace_tables,
 )
 

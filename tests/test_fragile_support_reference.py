@@ -5,12 +5,10 @@ from pathlib import Path
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.prediction import (
-    KinaseScorer,
-    build_candidate_substrate_list,
-    combine_profile_and_motif_scores,
-)
+from phospy.prediction import KinaseScorer
+from phospy.prediction.candidates import build_candidate_substrate_list
 from phospy.prediction.profiles import build_kinase_substrate_profiles
+from phospy.prediction.scoring import combine_profile_and_motif_scores
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "fragile_support_reference"

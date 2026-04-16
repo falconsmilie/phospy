@@ -24,12 +24,14 @@ from phospy.internal.constants import (
 from phospy.prediction import (
     KinasePredictor,
     KinaseScorer,
+)
+from phospy.prediction.candidates import build_candidate_substrate_list
+from phospy.prediction.profiles import build_kinase_substrate_profiles
+from phospy.prediction.scoring import combine_profile_and_motif_scores
+from phospy.prediction.traces import (
     PredictionSamplingTrace,
-    build_candidate_substrate_list,
-    combine_profile_and_motif_scores,
     prediction_debug_trace_tables,
 )
-from phospy.prediction.profiles import build_kinase_substrate_profiles
 from phospy.preprocessing import CorePreprocessingConfig
 
 ROOT = Path(__file__).resolve().parents[1]

@@ -407,10 +407,23 @@ Site-to-protein resolution now exposes structured diagnostics:
 
 Diagnostics include the chosen identifier column, fallback mode, checked/incomplete metadata columns, and ambiguous-identifier counts.
 
+## Prediction Package Surface (`phospy.prediction`)
+
+`phospy.prediction` exports only a stable, intentionally small default surface:
+
+- Stable default exports (`from phospy.prediction import ...`): `KinasePredictor`, `KinasePredictionResult`, `PredMatResult`, `KinaseScorer`, `KinaseScoringResult`, `KinaseMotifScorer`, `MotifScoringResult`, `KinaseProfilePolicy`
+
+Everything else must be imported from concrete modules. Common advanced imports:
+
+- `phospy.prediction.contracts.EnsemblePredictorContract`
+- `phospy.prediction.traces.PredictionSamplingTrace`
+- `phospy.prediction.scoring.combine_profile_and_motif_scores`
+- `phospy.prediction.candidates.build_candidate_substrate_list`
+
 ## Advanced Extension Contract: Custom Ensemble Predictors
 
 If you inject a custom `ensemble_predictor` into `phospy.prediction.KinasePredictor`,
-implement `EnsemblePredictorContract.predict_kinase(...)` and return
+implement `phospy.prediction.contracts.EnsemblePredictorContract.predict_kinase(...)` and return
 `KinasePredictionBatch` objects that satisfy all output constraints:
 
 - `batch.kinase` must match the requested kinase argument.
