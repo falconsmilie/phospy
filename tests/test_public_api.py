@@ -128,10 +128,24 @@ def test_simple_kinase_workflow_runs_from_public_supported_path() -> None:
         )
         assert result.pred_mat_result.to_frame(copy=False).shape == (5, 8)
         assert result.pred_mat_result is result.prediction_result.pred_mat_result
-        assert result.profile_scores is result.scoring_result.profile_scores
-        assert result.combined_scores is result.scoring_result.combined_scores
-        assert result.weights is result.scoring_result.weights
-        assert result.substrate_list is result.prediction_result.substrate_list
+        pd.testing.assert_frame_equal(
+            result.profile_scores,
+            result.scoring_result.profile_scores,
+        )
+        assert result.profile_scores is not result.scoring_result.profile_scores
+        assert result.combined_scores is not None
+        assert result.scoring_result.combined_scores is not None
+        pd.testing.assert_frame_equal(
+            result.combined_scores,
+            result.scoring_result.combined_scores,
+        )
+        assert result.combined_scores is not result.scoring_result.combined_scores
+        assert result.weights is not None
+        assert result.scoring_result.weights is not None
+        pd.testing.assert_frame_equal(result.weights, result.scoring_result.weights)
+        assert result.weights is not result.scoring_result.weights
+        assert result.substrate_list == result.prediction_result.substrate_list
+        assert result.substrate_list is not result.prediction_result.substrate_list
         assert not hasattr(result, "pred_mat")
         assert result.scoring_result is not None
         assert result.prediction_result is not None

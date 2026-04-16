@@ -268,10 +268,25 @@ def test_simple_workflow_result_pred_mat_result_is_delegated_only() -> None:
 
     assert isinstance(result.pred_mat_result, PredMatResult)
     assert result.pred_mat_result is first_pred_mat_result
-    assert result.profile_scores is profile_scores
-    assert result.combined_scores is combined_scores
-    assert result.weights is weights
-    assert result.substrate_list is substrate_list
+    pd.testing.assert_frame_equal(result.profile_scores, profile_scores)
+    assert result.profile_scores is not profile_scores
+    assert result.to_owned_profile_scores() is profile_scores
+    assert result.to_mutable_profile_scores_unsafe() is profile_scores
+    assert result.combined_scores is not None
+    pd.testing.assert_frame_equal(result.combined_scores, combined_scores)
+    assert result.combined_scores is not combined_scores
+    assert result.to_owned_combined_scores() is combined_scores
+    assert result.to_mutable_combined_scores_unsafe() is combined_scores
+    assert result.weights is not None
+    pd.testing.assert_frame_equal(result.weights, weights)
+    assert result.weights is not weights
+    assert result.to_owned_weights() is weights
+    assert result.to_mutable_weights_unsafe() is weights
+    assert result.substrate_list == substrate_list
+    assert result.substrate_list is not substrate_list
+    assert result.substrate_list["KINASE_A"] is not substrate_list["KINASE_A"]
+    assert result.to_owned_substrate_list() is substrate_list
+    assert result.to_mutable_substrate_list_unsafe() is substrate_list
 
     result.prediction_result.pred_mat_result = second_pred_mat_result
 

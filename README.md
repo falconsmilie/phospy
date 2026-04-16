@@ -64,7 +64,7 @@ with SimpleKinaseWorkflow().run(
         random_state=7,
     ),
 ) as result:
-    pred_mat = result.pred_mat_result.to_frame(copy=False)
+    pred_mat = result.pred_mat_result.to_owned_frame()
     weighted_activity = result.kinase_activity_result.weighted_activity
 ```
 
@@ -80,6 +80,11 @@ This path handles preprocessing, analysis-ready adaptation, bundled reference se
 - Use `result.kinase_activity_result` for activity summaries such as `weighted_activity` and `ksea_scores`.
 
 `predMat` is already part of `prediction_result` (`prediction_result.pred_mat_result`), so there is no separate predMat workflow.
+
+Result ownership naming is explicit:
+- `to_<resource>()` returns a detached safe copy
+- `to_owned_<resource>()` returns cheap shared owned state
+- `to_mutable_<resource>_unsafe()` returns explicit mutable shared state
 
 `phospy.internal.kinase_workflows.KinaseWorkflow` is an internal orchestration helper; the supported public lane is `phospy.api.SimpleKinaseWorkflow`.
 

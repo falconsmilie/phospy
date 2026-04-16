@@ -1840,6 +1840,48 @@ def test_signalome_result_to_frames_supports_safe_copy_default_and_explicit_muta
     assert detached_frames["site_assignments"] is not mutable_frames["site_assignments"]
 
 
+def test_signalome_result_to_owned_frames_returns_shared_state() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A"],
+    )
+
+    owned_frames = result.to_owned_frames()
+    mutable_frames = result.to_mutable_frames_unsafe()
+
+    assert owned_frames["signalome_modules"] is mutable_frames["signalome_modules"]
+    assert owned_frames["site_assignments"] is mutable_frames["site_assignments"]
+
+
+def test_signalome_nested_result_ownership_accessors_are_explicit() -> None:
+    phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
+
+    result = SignalomeWorkflow().run(
+        scoring_result=pred_mat_result.scoring_result,
+        prediction_result=pred_mat_result.prediction_result,
+        expression_matrix=phospho_matrix,
+        kinases_of_interest=["KINASE_A"],
+    )
+
+    modules = result.modules
+    detached_modules = modules.to_frame()
+    owned_modules = modules.to_owned_frame()
+    mutable_modules = modules.to_mutable_frame_unsafe()
+    assert detached_modules is not owned_modules
+    assert owned_modules is mutable_modules
+
+    assignments = result.assignments
+    detached_sites = assignments.to_site_assignments()
+    owned_sites = assignments.to_owned_site_assignments()
+    mutable_sites = assignments.to_mutable_site_assignments_unsafe()
+    assert detached_sites is not owned_sites
+    assert owned_sites is mutable_sites
+
+
 def test_signalome_result_default_accessors_are_detached_from_owned_state() -> None:
     phospho_matrix, pred_mat_result = _build_pred_mat_workflow_result()
 

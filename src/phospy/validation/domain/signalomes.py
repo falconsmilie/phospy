@@ -76,9 +76,9 @@ def resolve_pred_mat(
     from ...prediction.results import KinasePredictionResult, PredMatResult
 
     if isinstance(prediction_result, KinasePredictionResult):
-        return prediction_result.pred_mat_result.to_frame(copy=False)
+        return prediction_result.pred_mat_result.to_owned_frame()
     if isinstance(prediction_result, PredMatResult):
-        return prediction_result.to_frame(copy=False)
+        return prediction_result.to_owned_frame()
     msg = "prediction_result must be a KinasePredictionResult or PredMatResult"
     raise RequestValidationError(msg)
 

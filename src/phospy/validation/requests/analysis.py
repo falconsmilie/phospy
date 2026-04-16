@@ -117,9 +117,7 @@ def validate_analysis_request(
     from ...prediction.results import PredMatResult
 
     normalized_pred_mat = (
-        pred_mat.to_frame(copy=False)
-        if isinstance(pred_mat, PredMatResult)
-        else pred_mat
+        pred_mat.to_owned_frame() if isinstance(pred_mat, PredMatResult) else pred_mat
     )
     if normalized_pred_mat is None:
         msg = f"{pred_context} must be provided"

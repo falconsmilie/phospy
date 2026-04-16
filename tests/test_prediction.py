@@ -185,6 +185,49 @@ def test_prediction_result_pred_mat_export_round_trips_through_loader(
     )
 
 
+def test_pred_mat_result_ownership_accessors_are_explicit() -> None:
+    frame = pd.DataFrame({"KINASE_A": [0.1, 0.2]}, index=["SITE_1", "SITE_2"])
+    result = PredMatResult(frame)
+
+    detached = result.to_frame()
+    owned = result.to_owned_frame()
+    mutable = result.to_mutable_frame_unsafe()
+
+    assert owned is frame
+    assert mutable is frame
+    assert detached is not frame
+
+    detached.loc["SITE_1", "KINASE_A"] = 999.0
+    assert float(frame.loc["SITE_1", "KINASE_A"]) == 0.1
+
+    mutable.loc["SITE_1", "KINASE_A"] = 321.0
+    assert float(frame.loc["SITE_1", "KINASE_A"]) == 321.0
+
+
+def test_prediction_result_ownership_accessors_are_explicit() -> None:
+    pred_matrix = pd.DataFrame({"KINASE_A": [0.1, 0.2]}, index=["SITE_1", "SITE_2"])
+    substrate_list = {"KINASE_A": ["SITE_1"]}
+    result = KinasePredictionResult(
+        pred_matrix=pred_matrix,
+        substrate_list=substrate_list,
+    )
+
+    detached_pred = result.to_pred_matrix()
+    owned_pred = result.to_owned_pred_matrix()
+    mutable_pred = result.to_mutable_pred_matrix_unsafe()
+    assert detached_pred is not pred_matrix
+    assert owned_pred is pred_matrix
+    assert mutable_pred is pred_matrix
+
+    detached_substrates = result.to_substrate_list()
+    owned_substrates = result.to_owned_substrate_list()
+    mutable_substrates = result.to_mutable_substrate_list_unsafe()
+    assert detached_substrates is not substrate_list
+    assert detached_substrates["KINASE_A"] is not substrate_list["KINASE_A"]
+    assert owned_substrates is substrate_list
+    assert mutable_substrates is substrate_list
+
+
 def test_predict_from_scoring_result_uses_combined_scores() -> None:
     predictor = KinasePredictor()
     scoring_result = KinaseScoringResult(

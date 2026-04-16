@@ -231,9 +231,7 @@ def validate_pipeline_construction_request(
     from ...prediction.results import PredMatResult
 
     normalized_pred_mat = (
-        pred_mat.to_frame(copy=False)
-        if isinstance(pred_mat, PredMatResult)
-        else pred_mat
+        pred_mat.to_owned_frame() if isinstance(pred_mat, PredMatResult) else pred_mat
     )
     validated_pred_mat = None
     if normalized_pred_mat is not None:

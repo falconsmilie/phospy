@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from ..internal.pandas_copy import detached_frame_copy
 from ..internal.types import PREDICTION_TRACE_LEVEL_NONE, PredictionTraceLevel
 
 if TYPE_CHECKING:
@@ -45,14 +46,18 @@ class KinasePredictionDebugTrace:
 
 @dataclass(slots=True)
 class PredMatResult:
-    """Stable predMat contract with explicit in-memory and CSV access.
+    """Stable predMat contract with explicit ownership-aware access.
 
     Rows are phosphosite identifiers, columns are kinase identifiers, and each
     value is the final predicted score for that phosphosite-kinase pair. The
     wrapped DataFrame is the owned in-memory predMat produced by the package.
     This wrapper is intentionally a plain mutable container around that owned
-    frame rather than a frozen value object. Use ``to_frame(copy=True)`` when
-    you need a detached copy.
+    frame rather than a frozen value object.
+
+    Ownership convention:
+    - ``to_frame()`` returns a detached safe copy
+    - ``to_owned_frame()`` returns cheap shared owned state
+    - ``to_mutable_frame_unsafe()`` returns explicit mutable shared state
     """
 
     data_frame: pd.DataFrame
@@ -73,16 +78,28 @@ class PredMatResult:
 
         return self.data_frame.columns
 
-    def to_frame(self, *, copy: bool = True) -> pd.DataFrame:
-        """Return the in-memory predMat as a pandas DataFrame.
+    def to_frame(self, *, copy: bool | None = None) -> pd.DataFrame:
+        """Return a detached predMat frame.
 
-        By default, this returns a detached deep copy so callers can mutate it
-        without affecting the owning result object. Pass ``copy=False`` to work
-        with the owned in-memory frame directly.
+        The deprecated ``copy`` parameter is still accepted for compatibility.
+        ``copy=False`` routes to ``to_owned_frame()``.
         """
 
-        if copy:
-            return self.data_frame.copy(deep=True)
+        if copy is False:
+            return self.to_owned_frame()
+        return detached_frame_copy(self.data_frame)
+
+    def to_owned_frame(self) -> pd.DataFrame:
+        """Return the cheap shared owned predMat frame (no copy)."""
+
+        return self.data_frame
+
+    def to_mutable_frame_unsafe(self) -> pd.DataFrame:
+        """Return explicit mutable shared predMat state.
+
+        Warning: mutating this frame mutates the owning prediction result.
+        """
+
         return self.data_frame
 
     def to_csv(
@@ -126,6 +143,45 @@ class KinasePredictionResult:
 
     def __post_init__(self) -> None:
         self.pred_mat_result = PredMatResult(self.pred_matrix)
+
+    def to_pred_matrix(self) -> pd.DataFrame:
+        """Return a detached prediction matrix."""
+
+        return self.pred_mat_result.to_frame()
+
+    def to_owned_pred_matrix(self) -> pd.DataFrame:
+        """Return the cheap shared owned prediction matrix (no copy)."""
+
+        return self.pred_mat_result.to_owned_frame()
+
+    def to_mutable_pred_matrix_unsafe(self) -> pd.DataFrame:
+        """Return explicit mutable shared prediction matrix state.
+
+        Warning: mutating this frame mutates the owning prediction result.
+        """
+
+        return self.pred_mat_result.to_mutable_frame_unsafe()
+
+    def to_substrate_list(self) -> dict[str, list[str]]:
+        """Return a detached substrate-list mapping."""
+
+        return {
+            kinase: list(substrates)
+            for kinase, substrates in self.substrate_list.items()
+        }
+
+    def to_owned_substrate_list(self) -> dict[str, list[str]]:
+        """Return the cheap shared owned substrate-list mapping (no copy)."""
+
+        return self.substrate_list
+
+    def to_mutable_substrate_list_unsafe(self) -> dict[str, list[str]]:
+        """Return explicit mutable shared substrate-list state.
+
+        Warning: mutating this mapping mutates the owning prediction result.
+        """
+
+        return self.substrate_list
 
     def close(self) -> None:
         if not self.owns_trace_sink or self.trace_sink is None:

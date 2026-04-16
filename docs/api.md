@@ -57,6 +57,8 @@ Primary result access paths on `SimpleKinaseWorkflowResult`:
 - `scoring_result.profile_scores`, `scoring_result.combined_scores`, and `scoring_result.weights` expose scoring outputs
 - `prediction_result.substrate_list` exposes predicted substrate memberships
 
+`SimpleKinaseWorkflowResult` convenience properties (`profile_scores`, `combined_scores`, `weights`, `substrate_list`) are detached reads; use `to_owned_*` or `to_mutable_*_unsafe` accessors when you intentionally need shared state.
+
 Common access pattern:
 
 ```python
@@ -68,7 +70,7 @@ with SimpleKinaseWorkflow().run(...) as result:
     kinase_activity_result = result.kinase_activity_result
 
     pred_mat_result = prediction_result.pred_mat_result
-    pred_mat = pred_mat_result.to_frame(copy=False)
+    pred_mat = pred_mat_result.to_owned_frame()
     pred_matrix = prediction_result.pred_matrix
     combined_scores = scoring_result.combined_scores
     weighted_activity = kinase_activity_result.weighted_activity
@@ -100,7 +102,7 @@ with SimpleKinaseWorkflow().run(
     kinase_activity_result = result.kinase_activity_result
 
     pred_mat_result = prediction_result.pred_mat_result
-    pred_mat = pred_mat_result.to_frame(copy=False)
+    pred_mat = pred_mat_result.to_owned_frame()
     pred_matrix = prediction_result.pred_matrix
     combined_scores = scoring_result.combined_scores
     weighted_activity = kinase_activity_result.weighted_activity
@@ -193,9 +195,23 @@ The bundle manifest includes:
 - reference identity and provenance
 - output inventory (`table_id` to relative file path and value type)
 
-### Frame mutability contract
+### Ownership and mutability
 
-`PhosphoDataset` is a mutable workspace, but safe read access is detached by default:
+Result objects in prediction, workflow, and signalome modules follow one naming rule:
+
+- `to_<resource>()`: detached safe copy
+- `to_owned_<resource>()`: cheap shared owned state (no copy)
+- `to_mutable_<resource>_unsafe()`: explicit mutable shared state
+
+Example (`PredMatResult`):
+
+```python
+safe = result.pred_mat_result.to_frame()
+owned = result.pred_mat_result.to_owned_frame()
+mutable = result.pred_mat_result.to_mutable_frame_unsafe()
+```
+
+`PhosphoDataset` is still a mutable workspace, but safe read access is detached by default:
 
 - `dataset.inputs`, `dataset.total_df_copy`, `dataset.phospho_df_copy`, `dataset.copy_inputs()`
 
@@ -208,10 +224,12 @@ Unsafe mutable access is advanced and intentional:
 
 - table properties (for example `signalome.site_assignments`, `signalome.signalome_modules`)
 - `to_frames()` (always detached)
+- `to_owned_frames()` (cheap shared owned access)
 
 Unsafe mutable access is advanced and intentional:
 
 - `signalome.to_mutable_frames_unsafe()`
+- `signalome.to_mutable_expanded_signalomes_unsafe()`
 - `signalome.modules.to_mutable_tables_unsafe()`
 - `signalome.assignments.to_mutable_tables_unsafe()`
 - `signalome.network.to_mutable_state_unsafe()`

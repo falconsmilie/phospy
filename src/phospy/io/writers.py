@@ -349,7 +349,7 @@ class SimpleKinaseWorkflowBundleWriter:
             ),
             BundleTableArtifact(
                 table_id="pred_mat",
-                table=result.pred_mat_result.to_frame(copy=False),
+                table=result.pred_mat_result.to_owned_frame(),
                 value_type="dataframe",
             ),
             BundleTableArtifact(
