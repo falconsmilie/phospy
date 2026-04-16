@@ -65,6 +65,9 @@ def test_api_docs_describe_supported_workflow_result_contracts() -> None:
     assert "prediction_result" in contents
     assert "scoring_result" in contents
     assert "kinase_activity_result" in contents
+    assert "SimpleKinaseExecutionGraph" in contents
+    assert "EnsemblePredictorContract" in contents
+    assert "KinasePredictionDebugTrace" in contents
 
 
 def test_readme_describes_supported_result_access_patterns() -> None:

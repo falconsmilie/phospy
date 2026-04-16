@@ -28,6 +28,8 @@ class CandidateShortfallDiagnostics:
 
 
 class CandidateSelector:
+    """Select per-kinase candidate phosphosite lists from combined scores."""
+
     def select(
         self,
         combined_scores: pd.DataFrame,

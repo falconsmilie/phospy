@@ -73,7 +73,9 @@ class SignalomeWorkflow:
             msg = (
                 "dataset must be an AnalysisReadyPhosphoDataset for "
                 "run_from_analysis_ready(); received "
-                f"{received_type.__module__}.{received_type.__qualname__}."
+                f"{received_type.__module__}.{received_type.__qualname__}. "
+                "Pass an analysis-ready dataset such as "
+                "SimpleKinaseWorkflow.run(...).analysis_ready_dataset."
             )
             raise TypeError(msg)
 

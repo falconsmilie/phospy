@@ -64,6 +64,8 @@ from .validation import validate_svm_mode
 
 
 class PredictionRequestFactory:
+    """Construct validated prediction requests from public predictor inputs."""
+
     def __init__(self, *, default_svm_mode: PredictionSvmMode) -> None:
         self.default_svm_mode = validate_svm_mode(default_svm_mode)
 

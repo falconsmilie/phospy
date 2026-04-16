@@ -596,6 +596,8 @@ def multi_ada_sampling(
     test_index: pd.Index | None = None,
     return_values: bool = False,
 ) -> tuple[np.ndarray | pd.Series, AdaptiveSamplingEnsembleTrace | None]:
+    """Run one adaptive-sampling ensemble and return final kinase-site scores."""
+
     StandardScaler, SVC = require_sklearn()
     base_x, base_y, base_index, resolved_sampling_policy = _prepare_sampling_inputs(
         train_mat=train_mat,

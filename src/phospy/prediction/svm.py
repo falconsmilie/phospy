@@ -124,6 +124,8 @@ def make_svm(
     kernel: str,
     svm_mode: PredictionSvmMode,
 ):
+    """Build the configured SVM pipeline for one sampling iteration."""
+
     from sklearn.pipeline import make_pipeline
 
     scaler = (
@@ -181,6 +183,8 @@ def extract_svm_probability_parameters(model) -> pd.DataFrame | None:
 
 
 def require_sklearn() -> tuple[type, type]:
+    """Import and return scikit-learn classes used by prediction sampling."""
+
     try:
         from sklearn.preprocessing import StandardScaler
         from sklearn.svm import SVC

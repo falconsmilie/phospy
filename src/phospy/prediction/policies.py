@@ -44,6 +44,8 @@ R_PARITY_PREDICTION_SAMPLING_POLICY = PredictionSamplingPolicy(
 def resolve_prediction_sampling_policy(
     svm_mode: PredictionSvmMode,
 ) -> PredictionSamplingPolicy:
+    """Resolve the public sampling policy for the requested SVM mode."""
+
     if svm_mode == PREDICTION_SVM_MODE_DEFAULT:
         return DEFAULT_PREDICTION_SAMPLING_POLICY
     return R_PARITY_PREDICTION_SAMPLING_POLICY

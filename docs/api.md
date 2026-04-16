@@ -337,11 +337,13 @@ SimpleKinaseWorkflow(
     flank_size: int = 7,
     kernel: str = "rbf",
     svm_mode: PredictionSvmMode = "default",
-    *,
-    reference_provider: ReferenceProvider | None = None,
-    activity_analyzer: KinaseActivityAnalyzer | None = None,
-    analysis_ready_builder: AnalysisReadyDatasetBuilder | None = None,
 )
+```
+
+```python
+SimpleKinaseWorkflow.from_execution_graph(
+    execution_graph: SimpleKinaseExecutionGraph,
+) -> SimpleKinaseWorkflow
 ```
 
 ```python
@@ -364,6 +366,16 @@ Use a context manager when practical:
 with SimpleKinaseWorkflow().run(...) as result:
     ...
 ```
+
+Advanced composition seam:
+
+- `phospy.api.simple_workflow_composition.SimpleKinaseExecutionGraph`
+- collaborator method contracts:
+- `analysis_ready_builder.build(...)`
+- `reference_provider.resolve(...)`
+- `activity_analyzer.run(...)`
+- `workflow_executor.validate_request(...)`
+- `workflow_executor.execute_validated_request(...)`
 
 ### `SignalomeWorkflow`
 
@@ -421,6 +433,18 @@ Everything else must be imported from concrete modules. Common advanced imports:
 - `phospy.prediction.traces.PredictionSamplingTrace`
 - `phospy.prediction.scoring.combine_profile_and_motif_scores`
 - `phospy.prediction.candidates.build_candidate_substrate_list`
+
+Internal-only helper types in low-level modules (for example
+`phospy.prediction.execution` and `phospy.prediction.trace_runtime`) are
+contributor seams and may change between releases unless promoted to this
+default package surface.
+
+Advanced prediction result/debug structures:
+
+- `KinasePredictionResult.debug_traces` values are `KinasePredictionDebugTrace`
+- `KinasePredictionDebugTrace.ensemble_traces` contain `AdaptiveSamplingEnsembleTrace`
+- `AdaptiveSamplingEnsembleTrace.iterations` contain `AdaptiveSamplingIterationTrace`
+- these advanced trace types are for diagnostics and replay workflows; production integrations should prefer `pred_mat_result`, `substrate_list`, and `prediction_debug_trace_tables(...)`
 
 ## Advanced Extension Contract: Custom Ensemble Predictors
 

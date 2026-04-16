@@ -7,6 +7,8 @@ from .trace_runtime import TraceSink
 
 
 def probability_column(frame: pd.DataFrame, class_label: str) -> np.ndarray:
+    """Return one probability column, or NaNs when the class is absent."""
+
     if class_label in frame.columns:
         return frame.loc[:, class_label].to_numpy(dtype=float, copy=False)
     return np.full(len(frame.index), np.nan, dtype=float)
@@ -25,6 +27,8 @@ def write_iteration_trace_rows(
     weights_by_class: dict[int, pd.Series | None],
     sampled_sites_by_class: dict[int, list[str]],
 ) -> None:
+    """Write one iteration's normalized trace rows to a trace sink."""
+
     sites = probabilities.index.tolist()
     label_values = labels.to_numpy(dtype=int, copy=False)
     class_1_probs = probability_column(probabilities, "1")
@@ -144,6 +148,8 @@ def write_final_trace_rows(
     final_decision_values: pd.Series,
     final_top_sites: list[str],
 ) -> None:
+    """Write final ensemble prediction rows to a trace sink."""
+
     sites = final_probabilities.index.tolist()
     class_1_probs = probability_column(final_probabilities, "1")
     class_2_probs = probability_column(final_probabilities, "2")

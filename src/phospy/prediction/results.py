@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 
 @dataclass(slots=True)
 class AdaptiveSamplingIterationTrace:
+    """Trace payload for one adaptive-sampling iteration within one ensemble."""
+
     iteration_index: int
     labels: pd.Series
     probabilities: pd.DataFrame
@@ -28,6 +30,8 @@ class AdaptiveSamplingIterationTrace:
 
 @dataclass(slots=True)
 class AdaptiveSamplingEnsembleTrace:
+    """Trace payload for one ensemble run inside one kinase prediction."""
+
     ensemble_index: int
     initial_negative_sites: list[str]
     iterations: list[AdaptiveSamplingIterationTrace] = field(default_factory=list)
@@ -38,6 +42,8 @@ class AdaptiveSamplingEnsembleTrace:
 
 @dataclass(slots=True)
 class KinasePredictionDebugTrace:
+    """Debug-trace bundle for one kinase across all ensembles."""
+
     kinase: str
     candidate_substrates: list[str]
     negative_pool_sites: list[str]
@@ -203,6 +209,12 @@ class KinasePredictionResult:
 
 @dataclass(slots=True)
 class SamplingTraceOverrideEnsemble:
+    """Sampling replay overrides for one kinase-ensemble pair.
+
+    This advanced object is consumed by replay-enabled prediction paths to pin
+    deterministic negative pools and per-iteration class draws.
+    """
+
     initial_negative_sites: list[str] | None
     iteration_sample_sites: dict[int, dict[int, list[str]]]
 

@@ -668,13 +668,17 @@ def test_signalome_workflow_run_from_analysis_ready_rejects_non_dataset_input() 
     with pytest.raises(
         TypeError,
         match="dataset must be an AnalysisReadyPhosphoDataset",
-    ):
+    ) as exc_info:
         SignalomeWorkflow().run_from_analysis_ready(
             dataset=object(),  # type: ignore[arg-type]
             scoring_result=pred_mat_result.scoring_result,
             prediction_result=pred_mat_result.prediction_result,
             kinases_of_interest=["KINASE_A"],
         )
+
+    msg = str(exc_info.value)
+    assert "builtins.object" in msg
+    assert "SimpleKinaseWorkflow.run(...).analysis_ready_dataset" in msg
 
 
 def test_signalome_workflow_run_from_analysis_ready_strict_mode_rejects_gene_metadata_fallback() -> (

@@ -73,6 +73,8 @@ def make_kinase_prediction_random_generators(
 
 
 def normalize_probabilities(values: np.ndarray) -> np.ndarray | None:
+    """Normalize finite probability-like weights to sum to one."""
+
     total = float(np.nansum(values))
     if total <= 0.0 or not np.isfinite(total):
         return None
@@ -110,6 +112,8 @@ def transform_resampling_probabilities(
 def coerce_sampling_trace(
     sampling_trace: PredictionSamplingTrace | str | Path | None,
 ) -> PredictionSamplingTrace | None:
+    """Resolve a sampling-trace input into a replay object."""
+
     if sampling_trace is None:
         return None
     if isinstance(sampling_trace, PredictionSamplingTrace):
@@ -124,6 +128,8 @@ def resolve_sampled_site_positions(
     expected_size: int,
     context: str,
 ) -> np.ndarray:
+    """Map sampled site identifiers to positional indices in available rows."""
+
     sampled_site_list = validate_override_sites(
         available_sites=available_sites,
         sampled_sites=sampled_sites,
@@ -143,6 +149,8 @@ def validate_override_sites(
     expected_size: int,
     context: str,
 ) -> list[str]:
+    """Validate replay override site IDs against the available sampling pool."""
+
     sampled_site_list = [str(site) for site in sampled_sites]
     if len(sampled_site_list) != expected_size:
         msg = (

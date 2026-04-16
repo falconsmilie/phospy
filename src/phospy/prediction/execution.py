@@ -29,6 +29,8 @@ from .traces import TraceSink
 
 @dataclass(frozen=True, slots=True)
 class KinasePredictionBatch:
+    """Validated per-kinase score batch passed to prediction aggregation."""
+
     kinase: str
     score_values: np.ndarray
     score_index: pd.Index
@@ -46,6 +48,8 @@ class KinasePredictionBatch:
 
 @dataclass(slots=True)
 class PredictionTraceState:
+    """Mutable trace bookkeeping shared across kinase prediction execution."""
+
     trace_level: PredictionTraceLevel
     trace_sink: TraceSink | None
     traced_kinases: set[str]
@@ -54,6 +58,8 @@ class PredictionTraceState:
 
 @dataclass(frozen=True, slots=True)
 class PredictionSamplingSession:
+    """Sampling policy and RNG source resolved for one prediction request."""
+
     policy: PredictionSamplingPolicy
     random_source: PredictionSamplingRandomSource
 
@@ -161,6 +167,8 @@ class PreparedKinaseTrainingData:
 
 
 class NegativePoolSampler:
+    """Resolve initial negative pools for one ensemble iteration."""
+
     @staticmethod
     def sample_initial_negative_positions(
         *,
@@ -219,6 +227,8 @@ class NegativePoolSampler:
 
 
 class TraceRecorder:
+    """Emit and collect structured prediction trace data."""
+
     @staticmethod
     def create_state(
         *,
@@ -347,6 +357,12 @@ class TraceRecorder:
 
 
 class EnsemblePredictor(EnsemblePredictorContract):
+    """Default adaptive-ensemble kinase predictor implementation.
+
+    This concrete implementation powers the built-in prediction engine. Advanced
+    users may replace it via `EnsemblePredictorContract`.
+    """
+
     def __init__(
         self,
         *,

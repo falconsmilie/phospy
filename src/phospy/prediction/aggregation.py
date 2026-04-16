@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 
 @dataclass(slots=True)
 class PredictionScoreBuffer:
+    """Mutable numeric score buffer used during per-kinase aggregation."""
+
     values: np.ndarray
     index: pd.Index
     columns: pd.Index
@@ -28,6 +30,8 @@ class PredictionScoreBuffer:
 
 
 class PredictionAggregator:
+    """Aggregate validated per-kinase score batches into prediction results."""
+
     @staticmethod
     def raise_no_candidate_kinases(
         *,

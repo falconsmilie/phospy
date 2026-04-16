@@ -59,6 +59,12 @@ def _require_trace_columns(
 
 
 class PredictionSamplingTrace:
+    """Replay-ready view of previously exported sampling trace tables.
+
+    This advanced seam is intended for parity and deterministic replay
+    workflows where sampling draws must be pinned from recorded traces.
+    """
+
     def __init__(
         self, ensembles_by_kinase: dict[str, dict[int, SamplingTraceOverrideEnsemble]]
     ) -> None:
@@ -66,6 +72,8 @@ class PredictionSamplingTrace:
 
     @classmethod
     def from_trace_directory(cls, trace_dir: str | Path) -> PredictionSamplingTrace:
+        """Load replay overrides from a trace-output directory."""
+
         path = Path(trace_dir)
         initial_required_cols = ("kinase", "ensemble", "draw", "site")
         sample_required_cols = (
@@ -155,9 +163,13 @@ class PredictionSamplingTrace:
     def get_ensemble_override(
         self, kinase: str, ensemble_index: int
     ) -> SamplingTraceOverrideEnsemble | None:
+        """Return replay overrides for one kinase-ensemble pair."""
+
         return self.ensembles_by_kinase.get(kinase, {}).get(ensemble_index)
 
     def subset_kinases(self, kinases: list[str] | set[str]) -> PredictionSamplingTrace:
+        """Return a replay trace containing only the requested kinases."""
+
         kinase_set = {str(kinase) for kinase in kinases}
         return PredictionSamplingTrace(
             ensembles_by_kinase={

@@ -275,6 +275,8 @@ def _flatten_final_prediction_rows(
 def prediction_debug_trace_tables(
     result: KinasePredictionResult,
 ) -> dict[str, pd.DataFrame]:
+    """Return normalized prediction trace tables for one prediction result."""
+
     if (
         result.trace_level == PREDICTION_TRACE_LEVEL_FULL
         and result.trace_sink is not None

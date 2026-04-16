@@ -17,6 +17,14 @@ __all__ = [
 
 @dataclass(frozen=True, slots=True)
 class SimpleKinaseExecutionGraph:
+    """Advanced collaborator graph for `SimpleKinaseWorkflow`.
+
+    This is an extension seam for advanced users who need to replace default
+    workflow collaborators as a unit. The graph is treated as a stable public
+    composition contract, while concrete collaborator implementations may evolve
+    independently.
+    """
+
     analysis_ready_builder: AnalysisReadyDatasetBuilder
     reference_provider: ReferenceProvider
     activity_analyzer: KinaseActivityAnalyzer
@@ -57,6 +65,8 @@ def create_default_simple_kinase_execution_graph(
     kernel: str = "rbf",
     svm_mode: PredictionSvmMode = PREDICTION_SVM_MODE_DEFAULT,
 ) -> SimpleKinaseExecutionGraph:
+    """Build the default `SimpleKinaseExecutionGraph` used by public workflows."""
+
     return SimpleKinaseExecutionGraph(
         analysis_ready_builder=AnalysisReadyDatasetBuilder(),
         reference_provider=BundledReferenceProvider(),

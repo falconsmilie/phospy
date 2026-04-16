@@ -36,6 +36,8 @@ TRACE_TABLE_NAMES: tuple[str, ...] = (
 
 
 class TraceSink(ABC):
+    """Abstract writer/reader contract for full prediction trace tables."""
+
     @abstractmethod
     def write_rows(self, table_name: str, rows: list[dict[str, object]]) -> None:
         raise NotImplementedError
@@ -67,6 +69,8 @@ class TraceSink(ABC):
 
 
 class DirectoryTraceSink(TraceSink):
+    """Filesystem-backed trace sink that buffers rows and flushes in batches."""
+
     def __init__(
         self,
         output_dir: str | Path,
@@ -174,6 +178,8 @@ def create_trace_sink(
     fmt: PredictionTraceFormat,
     max_buffer_rows: int = 1000,
 ) -> TraceSink:
+    """Resolve a trace sink instance from a user-provided trace target."""
+
     if isinstance(trace_sink, TraceSink):
         return trace_sink
     if trace_sink is None:
@@ -189,6 +195,8 @@ def create_trace_sink(
 
 @dataclass(frozen=True, slots=True)
 class PredictionExecutionContext:
+    """Resolved runtime resources used during one prediction execution."""
+
     sampling_trace: object | None
     trace_sink: TraceSink | None
     owns_trace_sink: bool = False
@@ -200,6 +208,8 @@ class PredictionExecutionContext:
 
 @dataclass(slots=True)
 class PredictionRuntimeSession:
+    """Context manager that coordinates request/runtime trace ownership."""
+
     runtime_request: PredictionRequest
     execution_context: PredictionExecutionContext
     trace_sink_ownership_transferred: bool = False
@@ -269,6 +279,8 @@ def build_prediction_runtime_session(
     *,
     trace_sink_max_buffer_rows: int = 1000,
 ) -> PredictionRuntimeSession:
+    """Build a runtime session with normalized replay and trace resources."""
+
     execution_context = build_prediction_execution_context(
         sampling_trace=request.sampling_trace,
         trace_level=request.trace_level,
