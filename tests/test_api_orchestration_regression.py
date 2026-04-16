@@ -95,18 +95,18 @@ class _PredictionResultDouble:
 def test_simple_workflow_result_contract_shape_is_stable() -> None:
     assert is_dataclass(SimpleKinaseWorkflowResult)
     assert [item.name for item in fields(SimpleKinaseWorkflowResult)] == [
-        "analysis_ready_dataset",
-        "reference_bundle",
-        "scoring_result",
-        "prediction_result",
-        "kinase_activity_result",
+        "_analysis_ready_dataset",
+        "_reference_bundle",
+        "_scoring_result",
+        "_prediction_result",
+        "_kinase_activity_result",
     ]
     assert tuple(SimpleKinaseWorkflowResult.__slots__) == (
-        "analysis_ready_dataset",
-        "reference_bundle",
-        "scoring_result",
-        "prediction_result",
-        "kinase_activity_result",
+        "_analysis_ready_dataset",
+        "_reference_bundle",
+        "_scoring_result",
+        "_prediction_result",
+        "_kinase_activity_result",
     )
     assert "pred_mat_result" not in SimpleKinaseWorkflowResult.__dataclass_fields__
     assert "profile_scores" not in SimpleKinaseWorkflowResult.__dataclass_fields__

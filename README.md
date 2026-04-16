@@ -75,9 +75,11 @@ This path handles preprocessing, analysis-ready adaptation, bundled reference se
 `SimpleKinaseWorkflow.run(...)` returns `SimpleKinaseWorkflowResult`.
 
 - Use `result.pred_mat_result` for the canonical predMat table contract.
-- Use `result.prediction_result` when you need full prediction payload details (`pred_matrix`, `substrate_list`, optional traces).
+- Use `result.prediction_result` when you need full prediction payload details (`pred_matrix`, `substrate_list`, optional traces); this accessor is detached by default.
 - Use `result.scoring_result` for `profile_scores`, `combined_scores`, and `weights`.
-- Use `result.kinase_activity_result` for activity summaries such as `weighted_activity` and `ksea_scores`.
+- Use `result.kinase_activity_result` for activity summaries such as `weighted_activity` and `ksea_scores`; this accessor is detached by default.
+
+By default, `result.scoring_result` is detached. Use `to_owned_scoring_result()` or `to_mutable_scoring_result_unsafe()` when you intentionally need shared state.
 
 `predMat` is already part of `prediction_result` (`prediction_result.pred_mat_result`), so there is no separate predMat workflow.
 
@@ -96,9 +98,9 @@ The next example assumes you already have a `result` from `SimpleKinaseWorkflow.
 from phospy.api import SignalomeRunConfig, SignalomeWorkflow
 
 signalome = SignalomeWorkflow().run_from_analysis_ready(
-    dataset=result.analysis_ready_dataset,
-    scoring_result=result.scoring_result,
-    prediction_result=result.prediction_result,
+    dataset=result.to_owned_analysis_ready_dataset(),
+    scoring_result=result.to_owned_scoring_result(),
+    prediction_result=result.to_owned_prediction_result(),
     kinases_of_interest=list(result.pred_mat_result.kinase_names[:2]),
     config=SignalomeRunConfig(signalome_cutoff=0.5),
 )

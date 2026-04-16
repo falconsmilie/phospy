@@ -526,10 +526,10 @@ class AnalysisReadyPhosphoDataset:
     - preprocessing provenance describing how the boundary was produced
     """
 
-    phospho_matrix: pd.DataFrame
-    site_metadata: pd.DataFrame
-    site_sequences: pd.Series
-    phospho_corrected: pd.DataFrame
+    _phospho_matrix: pd.DataFrame
+    _site_metadata: pd.DataFrame
+    _site_sequences: pd.Series
+    _phospho_corrected: pd.DataFrame
     provenance: AnalysisReadyPreprocessingProvenance
     _last_site_to_protein_resolution_diagnostics: (
         SiteToProteinResolutionDiagnostics | None
@@ -558,10 +558,10 @@ class AnalysisReadyPhosphoDataset:
             phospho_corrected=phospho_corrected,
             provenance=provenance,
         )
-        self.phospho_matrix = owned.phospho_matrix
-        self.site_metadata = owned.site_metadata
-        self.site_sequences = owned.site_sequences
-        self.phospho_corrected = owned.phospho_corrected
+        self._phospho_matrix = owned._phospho_matrix
+        self._site_metadata = owned._site_metadata
+        self._site_sequences = owned._site_sequences
+        self._phospho_corrected = owned._phospho_corrected
         self.provenance = owned.provenance
         self._last_site_to_protein_resolution_diagnostics = (
             owned._last_site_to_protein_resolution_diagnostics
@@ -607,10 +607,10 @@ class AnalysisReadyPhosphoDataset:
             site_sequences=site_sequences,
         )
         instance = cls.__new__(cls)
-        instance.phospho_matrix = phospho_matrix
-        instance.site_metadata = site_metadata
-        instance.site_sequences = site_sequences
-        instance.phospho_corrected = phospho_corrected
+        instance._phospho_matrix = phospho_matrix
+        instance._site_metadata = site_metadata
+        instance._site_sequences = site_sequences
+        instance._phospho_corrected = phospho_corrected
         instance.provenance = provenance
         instance._last_site_to_protein_resolution_diagnostics = None
         return instance
@@ -664,6 +664,90 @@ class AnalysisReadyPhosphoDataset:
         )
 
     @property
+    def phospho_matrix(self) -> pd.DataFrame:
+        """Return a detached phosphosite analysis matrix."""
+
+        return self.to_phospho_matrix()
+
+    @property
+    def site_metadata(self) -> pd.DataFrame:
+        """Return detached site metadata aligned to the phosphosite index."""
+
+        return self.to_site_metadata()
+
+    @property
+    def site_sequences(self) -> pd.Series:
+        """Return detached site-centred sequences aligned to phosphosites."""
+
+        return self.to_site_sequences()
+
+    @property
+    def phospho_corrected(self) -> pd.DataFrame:
+        """Return a detached corrected phosphosite source table."""
+
+        return self.to_phospho_corrected()
+
+    def to_phospho_matrix(self) -> pd.DataFrame:
+        """Return a detached phosphosite analysis matrix."""
+
+        return detached_frame_copy(self._phospho_matrix)
+
+    def to_owned_phospho_matrix(self) -> pd.DataFrame:
+        """Return cheap shared owned phosphosite matrix state (no copy)."""
+
+        return self._phospho_matrix
+
+    def to_mutable_phospho_matrix_unsafe(self) -> pd.DataFrame:
+        """Return explicit mutable shared phosphosite matrix state."""
+
+        return self._phospho_matrix
+
+    def to_site_metadata(self) -> pd.DataFrame:
+        """Return detached aligned site metadata."""
+
+        return detached_frame_copy(self._site_metadata)
+
+    def to_owned_site_metadata(self) -> pd.DataFrame:
+        """Return cheap shared owned site metadata state (no copy)."""
+
+        return self._site_metadata
+
+    def to_mutable_site_metadata_unsafe(self) -> pd.DataFrame:
+        """Return explicit mutable shared site metadata state."""
+
+        return self._site_metadata
+
+    def to_site_sequences(self) -> pd.Series:
+        """Return detached aligned site-centred sequences."""
+
+        return detached_series_copy(self._site_sequences)
+
+    def to_owned_site_sequences(self) -> pd.Series:
+        """Return cheap shared owned site-sequence state (no copy)."""
+
+        return self._site_sequences
+
+    def to_mutable_site_sequences_unsafe(self) -> pd.Series:
+        """Return explicit mutable shared site-sequence state."""
+
+        return self._site_sequences
+
+    def to_phospho_corrected(self) -> pd.DataFrame:
+        """Return detached corrected phosphosite source table."""
+
+        return detached_frame_copy(self._phospho_corrected)
+
+    def to_owned_phospho_corrected(self) -> pd.DataFrame:
+        """Return cheap shared owned corrected phosphosite table state."""
+
+        return self._phospho_corrected
+
+    def to_mutable_phospho_corrected_unsafe(self) -> pd.DataFrame:
+        """Return explicit mutable shared corrected phosphosite table state."""
+
+        return self._phospho_corrected
+
+    @property
     def last_site_to_protein_resolution_diagnostics(
         self,
     ) -> SiteToProteinResolutionDiagnostics | None:
@@ -706,12 +790,12 @@ class AnalysisReadyPhosphoDataset:
             fallback_policy=fallback_policy,
         )
         site_index, metadata_index = _resolve_aligned_site_metadata_indices(
-            phospho_index=self.phospho_matrix.index,
-            metadata_index=self.site_metadata.index,
+            phospho_index=self._phospho_matrix.index,
+            metadata_index=self._site_metadata.index,
         )
 
         available_columns = {
-            str(column): column for column in self.site_metadata.columns
+            str(column): column for column in self._site_metadata.columns
         }
         checked_columns: list[str] = []
         incomplete_column_diagnostics: list[str] = []
@@ -727,7 +811,7 @@ class AnalysisReadyPhosphoDataset:
                 continue
             checked_columns.append(candidate)
 
-            raw_values = self.site_metadata.loc[:, original_column]
+            raw_values = self._site_metadata.loc[:, original_column]
             stripped_values, incomplete_diagnostic = (
                 _evaluate_candidate_metadata_column_completeness(
                     values=raw_values,
@@ -791,7 +875,7 @@ class AnalysisReadyPhosphoDataset:
             _raise_missing_site_to_protein_columns_error(
                 fallback_policy=policy.fallback_policy,
                 candidate_columns=policy.candidate_columns,
-                available_columns=self.site_metadata.columns,
+                available_columns=self._site_metadata.columns,
             )
         _raise_incomplete_site_to_protein_mapping_error(
             candidate_columns=policy.candidate_columns,

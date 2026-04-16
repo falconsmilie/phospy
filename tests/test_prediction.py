@@ -152,7 +152,9 @@ def test_prediction_result_exposes_canonical_pred_mat_result() -> None:
     )
 
     assert isinstance(result.pred_mat_result, PredMatResult)
-    assert result.pred_mat_result.data_frame is result.pred_matrix
+    assert result.pred_mat_result.to_owned_frame() is result.to_owned_pred_matrix()
+    assert result.pred_mat_result.data_frame is not result.pred_matrix
+    pd.testing.assert_frame_equal(result.pred_mat_result.data_frame, result.pred_matrix)
     assert (
         result.pred_mat_result.phosphosite_ids.tolist()
         == result.pred_matrix.index.tolist()

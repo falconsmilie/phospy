@@ -57,7 +57,7 @@ Primary result access paths on `SimpleKinaseWorkflowResult`:
 - `scoring_result.profile_scores`, `scoring_result.combined_scores`, and `scoring_result.weights` expose scoring outputs
 - `prediction_result.substrate_list` exposes predicted substrate memberships
 
-`SimpleKinaseWorkflowResult` convenience properties (`profile_scores`, `combined_scores`, `weights`, `substrate_list`) are detached reads; use `to_owned_*` or `to_mutable_*_unsafe` accessors when you intentionally need shared state.
+`SimpleKinaseWorkflowResult` accessors return detached reads by default (`analysis_ready_dataset`, `scoring_result`, `prediction_result`, `kinase_activity_result`, plus convenience table properties). Use `to_owned_*` or `to_mutable_*_unsafe` accessors when you intentionally need shared state.
 
 Common access pattern:
 
@@ -65,9 +65,9 @@ Common access pattern:
 from phospy.api import SimpleKinaseWorkflow
 
 with SimpleKinaseWorkflow().run(...) as result:
-    prediction_result = result.prediction_result
-    scoring_result = result.scoring_result
-    kinase_activity_result = result.kinase_activity_result
+    prediction_result = result.to_owned_prediction_result()
+    scoring_result = result.to_owned_scoring_result()
+    kinase_activity_result = result.to_owned_kinase_activity_result()
 
     pred_mat_result = prediction_result.pred_mat_result
     pred_mat = pred_mat_result.to_owned_frame()
@@ -76,7 +76,7 @@ with SimpleKinaseWorkflow().run(...) as result:
     weighted_activity = kinase_activity_result.weighted_activity
 ```
 
-Use `prediction_result.pred_mat_result` for the stable predMat table contract. Use `prediction_result` when you need full prediction payload details (for example `substrate_list` or optional traces).
+Use `prediction_result.pred_mat_result` for the stable predMat table contract. Use `result.prediction_result` for detached inspection and `result.to_owned_prediction_result()` when you need shared owned state.
 
 ## Fastest Path for Most Users
 

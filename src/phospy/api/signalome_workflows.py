@@ -97,7 +97,7 @@ class SignalomeWorkflow:
         result = self.run(
             scoring_result=scoring_result,
             prediction_result=prediction_result,
-            expression_matrix=dataset.phospho_matrix,
+            expression_matrix=dataset.to_owned_phospho_matrix(),
             kinases_of_interest=kinases_of_interest,
             site_to_protein=resolved_site_to_protein,
             config=config,

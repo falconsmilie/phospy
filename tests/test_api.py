@@ -25,11 +25,11 @@ def test_supported_public_workflows_live_in_api_modules() -> None:
 def test_simple_workflow_result_public_shape_is_explicit() -> None:
     assert is_dataclass(SimpleKinaseWorkflowResult)
     assert [field.name for field in fields(SimpleKinaseWorkflowResult)] == [
-        "analysis_ready_dataset",
-        "reference_bundle",
-        "scoring_result",
-        "prediction_result",
-        "kinase_activity_result",
+        "_analysis_ready_dataset",
+        "_reference_bundle",
+        "_scoring_result",
+        "_prediction_result",
+        "_kinase_activity_result",
     ]
     assert "pred_mat_result" not in SimpleKinaseWorkflowResult.__dataclass_fields__
 

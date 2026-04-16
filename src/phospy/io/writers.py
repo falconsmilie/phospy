@@ -329,22 +329,22 @@ class SimpleKinaseWorkflowBundleWriter:
         artifacts: list[BundleTableArtifact] = [
             BundleTableArtifact(
                 table_id="analysis_ready_phospho_matrix",
-                table=result.analysis_ready_dataset.phospho_matrix,
+                table=result.analysis_ready_dataset.to_owned_phospho_matrix(),
                 value_type="dataframe",
             ),
             BundleTableArtifact(
                 table_id="analysis_ready_site_metadata",
-                table=result.analysis_ready_dataset.site_metadata,
+                table=result.analysis_ready_dataset.to_owned_site_metadata(),
                 value_type="dataframe",
             ),
             BundleTableArtifact(
                 table_id="analysis_ready_site_sequences",
-                table=result.analysis_ready_dataset.site_sequences,
+                table=result.analysis_ready_dataset.to_owned_site_sequences(),
                 value_type="series",
             ),
             BundleTableArtifact(
                 table_id="analysis_ready_phospho_corrected",
-                table=result.analysis_ready_dataset.phospho_corrected,
+                table=result.analysis_ready_dataset.to_owned_phospho_corrected(),
                 value_type="dataframe",
             ),
             BundleTableArtifact(
@@ -354,7 +354,7 @@ class SimpleKinaseWorkflowBundleWriter:
             ),
             BundleTableArtifact(
                 table_id="profile_scores",
-                table=result.scoring_result.profile_scores,
+                table=result.to_owned_profile_scores(),
                 value_type="dataframe",
             ),
             BundleTableArtifact(
@@ -384,19 +384,19 @@ class SimpleKinaseWorkflowBundleWriter:
             ),
         ]
 
-        if result.scoring_result.combined_scores is not None:
+        if result.to_owned_combined_scores() is not None:
             artifacts.append(
                 BundleTableArtifact(
                     table_id="combined_scores",
-                    table=result.scoring_result.combined_scores,
+                    table=result.to_owned_combined_scores(),
                     value_type="dataframe",
                 )
             )
-        if result.scoring_result.weights is not None:
+        if result.to_owned_weights() is not None:
             artifacts.append(
                 BundleTableArtifact(
                     table_id="scoring_weights",
-                    table=result.scoring_result.weights,
+                    table=result.to_owned_weights(),
                     value_type="dataframe",
                 )
             )

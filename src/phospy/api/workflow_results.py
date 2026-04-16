@@ -9,7 +9,7 @@ import pandas as pd
 
 from ..activities.results import KinaseActivityResult
 from ..datasets.models import AnalysisReadyPhosphoDataset
-from ..internal.pandas_copy import detached_frame_copy
+from ..internal.pandas_copy import detached_frame_copy, detached_series_copy
 from ..prediction.results import KinasePredictionResult, PredMatResult
 from ..prediction.scoring import KinaseScoringResult
 from ..references import ReferenceBundle
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 __all__ = ["SimpleKinaseWorkflowResult"]
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, init=False)
 class SimpleKinaseWorkflowResult:
     """Owned result bundle for the high-level common kinase workflow.
 
@@ -38,17 +38,70 @@ class SimpleKinaseWorkflowResult:
     - ``to_mutable_*_unsafe`` methods return explicit mutable shared state
     """
 
-    analysis_ready_dataset: AnalysisReadyPhosphoDataset
-    reference_bundle: ReferenceBundle
-    scoring_result: KinaseScoringResult
-    prediction_result: KinasePredictionResult
-    kinase_activity_result: KinaseActivityResult
+    _analysis_ready_dataset: AnalysisReadyPhosphoDataset
+    _reference_bundle: ReferenceBundle
+    _scoring_result: KinaseScoringResult
+    _prediction_result: KinasePredictionResult
+    _kinase_activity_result: KinaseActivityResult
+
+    def __init__(
+        self,
+        *,
+        analysis_ready_dataset: AnalysisReadyPhosphoDataset,
+        reference_bundle: ReferenceBundle,
+        scoring_result: KinaseScoringResult,
+        prediction_result: KinasePredictionResult,
+        kinase_activity_result: KinaseActivityResult,
+    ) -> None:
+        self._analysis_ready_dataset = analysis_ready_dataset
+        self._reference_bundle = reference_bundle
+        self._scoring_result = scoring_result
+        self._prediction_result = prediction_result
+        self._kinase_activity_result = kinase_activity_result
+
+    @property
+    def analysis_ready_dataset(self) -> AnalysisReadyPhosphoDataset:
+        """Return a detached analysis-ready dataset boundary."""
+
+        if not isinstance(self._analysis_ready_dataset, AnalysisReadyPhosphoDataset):
+            return self._analysis_ready_dataset
+        return self.to_analysis_ready_dataset()
+
+    @property
+    def reference_bundle(self) -> ReferenceBundle:
+        """Return the reference bundle associated with this workflow run."""
+
+        return self._reference_bundle
+
+    @property
+    def scoring_result(self) -> KinaseScoringResult:
+        """Return detached scoring tables wrapped as a scoring result object."""
+
+        if not isinstance(self._scoring_result, KinaseScoringResult):
+            return self._scoring_result
+        return self.to_scoring_result()
+
+    @property
+    def prediction_result(self) -> KinasePredictionResult:
+        """Return a detached prediction result object."""
+
+        if not isinstance(self._prediction_result, KinasePredictionResult):
+            return self._prediction_result
+        return self.to_prediction_result()
+
+    @property
+    def kinase_activity_result(self) -> KinaseActivityResult:
+        """Return detached kinase activity tables wrapped as a result object."""
+
+        if not isinstance(self._kinase_activity_result, KinaseActivityResult):
+            return self._kinase_activity_result
+        return self.to_kinase_activity_result()
 
     @property
     def pred_mat_result(self) -> PredMatResult:
         """Canonical predMat output for this run."""
 
-        return self.prediction_result.pred_mat_result
+        return self._prediction_result.pred_mat_result
 
     @property
     def profile_scores(self) -> pd.DataFrame:
@@ -77,22 +130,22 @@ class SimpleKinaseWorkflowResult:
     def to_profile_scores(self) -> pd.DataFrame:
         """Return detached profile-based scoring outputs."""
 
-        return detached_frame_copy(self.scoring_result.profile_scores)
+        return detached_frame_copy(self._scoring_result.profile_scores)
 
     def to_owned_profile_scores(self) -> pd.DataFrame:
         """Return cheap shared owned profile-based scoring outputs (no copy)."""
 
-        return self.scoring_result.profile_scores
+        return self._scoring_result.profile_scores
 
     def to_mutable_profile_scores_unsafe(self) -> pd.DataFrame:
         """Return explicit mutable shared profile-based scoring outputs."""
 
-        return self.scoring_result.profile_scores
+        return self._scoring_result.profile_scores
 
     def to_combined_scores(self) -> pd.DataFrame | None:
         """Return detached combined motif/profile outputs when available."""
 
-        combined = self.scoring_result.combined_scores
+        combined = self._scoring_result.combined_scores
         if combined is None:
             return None
         return detached_frame_copy(combined)
@@ -100,17 +153,17 @@ class SimpleKinaseWorkflowResult:
     def to_owned_combined_scores(self) -> pd.DataFrame | None:
         """Return cheap shared owned combined motif/profile outputs."""
 
-        return self.scoring_result.combined_scores
+        return self._scoring_result.combined_scores
 
     def to_mutable_combined_scores_unsafe(self) -> pd.DataFrame | None:
         """Return explicit mutable shared combined motif/profile outputs."""
 
-        return self.scoring_result.combined_scores
+        return self._scoring_result.combined_scores
 
     def to_weights(self) -> pd.DataFrame | None:
         """Return detached score-combination weights when available."""
 
-        weights = self.scoring_result.weights
+        weights = self._scoring_result.weights
         if weights is None:
             return None
         return detached_frame_copy(weights)
@@ -118,36 +171,130 @@ class SimpleKinaseWorkflowResult:
     def to_owned_weights(self) -> pd.DataFrame | None:
         """Return cheap shared owned score-combination weights."""
 
-        return self.scoring_result.weights
+        return self._scoring_result.weights
 
     def to_mutable_weights_unsafe(self) -> pd.DataFrame | None:
         """Return explicit mutable shared score-combination weights."""
 
-        return self.scoring_result.weights
+        return self._scoring_result.weights
 
     def to_substrate_list(self) -> dict[str, list[str]]:
         """Return detached predicted substrate memberships keyed by kinase."""
 
-        if hasattr(self.prediction_result, "to_substrate_list"):
-            return self.prediction_result.to_substrate_list()
+        if hasattr(self._prediction_result, "to_substrate_list"):
+            return self._prediction_result.to_substrate_list()
         return {
             kinase: list(substrates)
-            for kinase, substrates in self.prediction_result.substrate_list.items()
+            for kinase, substrates in self._prediction_result.substrate_list.items()
         }
 
     def to_owned_substrate_list(self) -> dict[str, list[str]]:
         """Return cheap shared owned substrate memberships (no copy)."""
 
-        if hasattr(self.prediction_result, "to_owned_substrate_list"):
-            return self.prediction_result.to_owned_substrate_list()
-        return self.prediction_result.substrate_list
+        if hasattr(self._prediction_result, "to_owned_substrate_list"):
+            return self._prediction_result.to_owned_substrate_list()
+        return self._prediction_result.substrate_list
 
     def to_mutable_substrate_list_unsafe(self) -> dict[str, list[str]]:
         """Return explicit mutable shared substrate memberships."""
 
-        if hasattr(self.prediction_result, "to_mutable_substrate_list_unsafe"):
-            return self.prediction_result.to_mutable_substrate_list_unsafe()
-        return self.prediction_result.substrate_list
+        if hasattr(self._prediction_result, "to_mutable_substrate_list_unsafe"):
+            return self._prediction_result.to_mutable_substrate_list_unsafe()
+        return self._prediction_result.substrate_list
+
+    def to_analysis_ready_dataset(self) -> AnalysisReadyPhosphoDataset:
+        """Return a detached analysis-ready dataset boundary."""
+
+        dataset = self._analysis_ready_dataset
+        if not isinstance(dataset, AnalysisReadyPhosphoDataset):
+            return dataset
+        return AnalysisReadyPhosphoDataset.from_external(
+            phospho_matrix=dataset.to_owned_phospho_matrix(),
+            site_metadata=dataset.to_owned_site_metadata(),
+            site_sequences=dataset.to_owned_site_sequences(),
+            phospho_corrected=dataset.to_owned_phospho_corrected(),
+            provenance=dataset.provenance,
+        )
+
+    def to_owned_analysis_ready_dataset(self) -> AnalysisReadyPhosphoDataset:
+        """Return cheap shared owned analysis-ready dataset state."""
+
+        return self._analysis_ready_dataset
+
+    def to_mutable_analysis_ready_dataset_unsafe(self) -> AnalysisReadyPhosphoDataset:
+        """Return explicit mutable shared analysis-ready dataset state."""
+
+        return self._analysis_ready_dataset
+
+    def to_scoring_result(self) -> KinaseScoringResult:
+        """Return detached scoring tables wrapped as a scoring result object."""
+
+        if not isinstance(self._scoring_result, KinaseScoringResult):
+            return self._scoring_result
+        return KinaseScoringResult(
+            profile_scores=self.to_profile_scores(),
+            combined_scores=self.to_combined_scores(),
+            weights=self.to_weights(),
+        )
+
+    def to_owned_scoring_result(self) -> KinaseScoringResult:
+        """Return cheap shared owned scoring-result state."""
+
+        return self._scoring_result
+
+    def to_mutable_scoring_result_unsafe(self) -> KinaseScoringResult:
+        """Return explicit mutable shared scoring-result state."""
+
+        return self._scoring_result
+
+    def to_prediction_result(self) -> KinasePredictionResult:
+        """Return a detached prediction result object."""
+
+        if not isinstance(self._prediction_result, KinasePredictionResult):
+            return self._prediction_result
+        return KinasePredictionResult(
+            pred_matrix=self._prediction_result.to_pred_matrix(),
+            substrate_list=self._prediction_result.to_substrate_list(),
+            debug_traces=self._prediction_result.debug_traces,
+            trace_level=self._prediction_result.trace_level,
+            trace_sink=None,
+            owns_trace_sink=False,
+        )
+
+    def to_owned_prediction_result(self) -> KinasePredictionResult:
+        """Return cheap shared owned prediction-result state."""
+
+        return self._prediction_result
+
+    def to_mutable_prediction_result_unsafe(self) -> KinasePredictionResult:
+        """Return explicit mutable shared prediction-result state."""
+
+        return self._prediction_result
+
+    def to_kinase_activity_result(self) -> KinaseActivityResult:
+        """Return detached kinase activity tables wrapped as a result object."""
+
+        activity = self._kinase_activity_result
+        if not isinstance(activity, KinaseActivityResult):
+            return activity
+        return KinaseActivityResult(
+            weighted_activity=detached_frame_copy(activity.weighted_activity),
+            ksea_scores=detached_frame_copy(activity.ksea_scores),
+            ksea_counts=detached_series_copy(activity.ksea_counts),
+            target_counts=detached_series_copy(activity.target_counts),
+            target_table=detached_frame_copy(activity.target_table),
+            overlap_summary=activity.overlap_summary,
+        )
+
+    def to_owned_kinase_activity_result(self) -> KinaseActivityResult:
+        """Return cheap shared owned kinase-activity-result state."""
+
+        return self._kinase_activity_result
+
+    def to_mutable_kinase_activity_result_unsafe(self) -> KinaseActivityResult:
+        """Return explicit mutable shared kinase-activity-result state."""
+
+        return self._kinase_activity_result
 
     def save_output_bundle(
         self,
@@ -201,7 +348,7 @@ class SimpleKinaseWorkflowResult:
         )
 
     def close(self) -> None:
-        self.prediction_result.close()
+        self._prediction_result.close()
 
     def __enter__(self) -> SimpleKinaseWorkflowResult:
         return self

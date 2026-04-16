@@ -61,6 +61,101 @@ def _make_analysis_ready_dataset(
     )
 
 
+def test_analysis_ready_dataset_ownership_accessors_are_explicit() -> None:
+    site_ids = ["PRKACA;S339;", "BTK;Y551;"]
+    site_index = pd.Index(site_ids, name="site_id")
+    dataset = AnalysisReadyPhosphoDataset.from_external(
+        phospho_matrix=pd.DataFrame(
+            {"sample_1": [1.0, 2.0], "sample_2": [3.0, 4.0]},
+            index=site_index,
+        ),
+        site_metadata=pd.DataFrame(
+            {"protein_id": ["P17612", "Q06187"]},
+            index=site_index,
+        ),
+        site_sequences=pd.Series(
+            ["AAAAAAA", "BBBBBBB"],
+            index=site_index,
+            dtype="string",
+            name="centralized_sequence",
+        ),
+        phospho_corrected=pd.DataFrame(
+            {"p_group1_group4": [0.1, -0.2]},
+            index=site_index,
+        ),
+        provenance=AnalysisReadyPreprocessingProvenance(
+            source="ownership test",
+            schema=DatasetSchema(),
+            comparisons=None,
+            row_counts=AnalysisReadyRowCounts(
+                total_unique=2,
+                total_filtered=2,
+                phospho_filtered=2,
+                phospho_corrected=2,
+                phospho_matrix_sites=2,
+            ),
+            site_matrix_stats=AnalysisReadySiteMatrixStats(
+                input_rows=2,
+                dropped_missing_sequence=0,
+                dropped_incomplete_values=0,
+                deduplicated_site_rows=0,
+                retained_rows=2,
+            ),
+        ),
+    )
+
+    detached_matrix = dataset.to_phospho_matrix()
+    detached_metadata = dataset.to_site_metadata()
+    detached_sequences = dataset.to_site_sequences()
+    detached_corrected = dataset.to_phospho_corrected()
+    owned_matrix = dataset.to_owned_phospho_matrix()
+    owned_metadata = dataset.to_owned_site_metadata()
+    owned_sequences = dataset.to_owned_site_sequences()
+    owned_corrected = dataset.to_owned_phospho_corrected()
+
+    assert detached_matrix is not owned_matrix
+    assert detached_metadata is not owned_metadata
+    assert detached_sequences is not owned_sequences
+    assert detached_corrected is not owned_corrected
+    assert dataset.to_mutable_phospho_matrix_unsafe() is owned_matrix
+    assert dataset.to_mutable_site_metadata_unsafe() is owned_metadata
+    assert dataset.to_mutable_site_sequences_unsafe() is owned_sequences
+    assert dataset.to_mutable_phospho_corrected_unsafe() is owned_corrected
+
+    matrix_original = float(owned_matrix.iloc[0, 0])
+    metadata_original = str(owned_metadata.iloc[0, 0])
+    sequence_original = str(owned_sequences.iloc[0])
+    corrected_original = float(owned_corrected.iloc[0, 0])
+
+    detached_matrix.iloc[0, 0] = matrix_original + 10.0
+    detached_metadata.iloc[0, 0] = "DETACHED_ONLY"
+    detached_sequences.iloc[0] = "DETACHEDSEQ"
+    detached_corrected.iloc[0, 0] = corrected_original + 10.0
+
+    assert float(owned_matrix.iloc[0, 0]) == matrix_original
+    assert str(owned_metadata.iloc[0, 0]) == metadata_original
+    assert str(owned_sequences.iloc[0]) == sequence_original
+    assert float(owned_corrected.iloc[0, 0]) == corrected_original
+
+    mutable_matrix = dataset.to_mutable_phospho_matrix_unsafe()
+    mutable_metadata = dataset.to_mutable_site_metadata_unsafe()
+    mutable_sequences = dataset.to_mutable_site_sequences_unsafe()
+    mutable_corrected = dataset.to_mutable_phospho_corrected_unsafe()
+
+    mutable_matrix.iloc[0, 0] = matrix_original + 20.0
+    mutable_metadata.iloc[0, 0] = "MUTATED_SHARED"
+    mutable_sequences.iloc[0] = "MUTABLESEQ"
+    mutable_corrected.iloc[0, 0] = corrected_original + 20.0
+
+    assert float(dataset.to_owned_phospho_matrix().iloc[0, 0]) == matrix_original + 20.0
+    assert str(dataset.to_owned_site_metadata().iloc[0, 0]) == "MUTATED_SHARED"
+    assert str(dataset.to_owned_site_sequences().iloc[0]) == "MUTABLESEQ"
+    assert (
+        float(dataset.to_owned_phospho_corrected().iloc[0, 0])
+        == corrected_original + 20.0
+    )
+
+
 def test_resolve_site_to_protein_policy_normalizes_candidate_columns() -> None:
     policy = _resolve_site_to_protein_policy(
         metadata_columns=(" protein ", "  ", "gene"),

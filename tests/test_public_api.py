@@ -155,7 +155,10 @@ def test_simple_kinase_workflow_runs_from_public_supported_path() -> None:
             result.analysis_ready_dataset.provenance.source == "simple kinase workflow"
         )
         assert result.pred_mat_result.to_frame(copy=False).shape == (5, 8)
-        assert result.pred_mat_result is result.prediction_result.pred_mat_result
+        assert (
+            result.pred_mat_result.to_owned_frame()
+            is result.to_owned_prediction_result().pred_mat_result.to_owned_frame()
+        )
         pd.testing.assert_frame_equal(
             result.profile_scores,
             result.scoring_result.profile_scores,
@@ -177,6 +180,57 @@ def test_simple_kinase_workflow_runs_from_public_supported_path() -> None:
         assert not hasattr(result, "pred_mat")
         assert result.scoring_result is not None
         assert result.prediction_result is not None
+
+
+def test_simple_workflow_result_nested_ownership_accessors_are_explicit() -> None:
+    total_df = pd.read_csv(SIMPLE_WORKFLOW_FIXTURE_DIR / "total.tsv", sep="\t")
+    phospho_df = pd.read_csv(SIMPLE_WORKFLOW_FIXTURE_DIR / "phospho.tsv", sep="\t")
+
+    with SimpleKinaseWorkflow(flank_size=7).run(
+        total=total_df,
+        phospho=phospho_df,
+        species="rat",
+        prediction_config=PredictionRunConfig(
+            min_substrates=1,
+            min_motif_size=1,
+            ensemble_size=2,
+            top=3,
+            inclusion=2,
+            n_iterations=2,
+            random_state=7,
+        ),
+    ) as result:
+        owned_dataset = result.to_owned_analysis_ready_dataset()
+        detached_dataset = result.analysis_ready_dataset
+
+        assert detached_dataset is not owned_dataset
+        owned_matrix = owned_dataset.to_owned_phospho_matrix()
+        original_dataset_value = float(owned_matrix.iloc[0, 0])
+        detached_dataset.to_mutable_phospho_matrix_unsafe().iloc[0, 0] = (
+            original_dataset_value + 10.0
+        )
+        assert float(owned_matrix.iloc[0, 0]) == original_dataset_value
+
+        result.to_mutable_analysis_ready_dataset_unsafe().to_mutable_phospho_matrix_unsafe().iloc[
+            0, 0
+        ] = original_dataset_value + 20.0
+        assert float(owned_matrix.iloc[0, 0]) == original_dataset_value + 20.0
+
+        owned_prediction = result.to_owned_prediction_result()
+        detached_prediction = result.prediction_result
+
+        assert detached_prediction is not owned_prediction
+        owned_pred_matrix = owned_prediction.to_owned_pred_matrix()
+        original_pred_value = float(owned_pred_matrix.iloc[0, 0])
+        detached_prediction.to_mutable_pred_matrix_unsafe().iloc[0, 0] = (
+            original_pred_value + 0.25
+        )
+        assert float(owned_pred_matrix.iloc[0, 0]) == original_pred_value
+
+        result.to_mutable_prediction_result_unsafe().to_mutable_pred_matrix_unsafe().iloc[
+            0, 0
+        ] = original_pred_value + 0.5
+        assert float(owned_pred_matrix.iloc[0, 0]) == original_pred_value + 0.5
 
 
 def test_signalome_workflow_runs_from_simple_workflow_outputs() -> None:

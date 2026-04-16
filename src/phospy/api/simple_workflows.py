@@ -82,6 +82,20 @@ def _validate_prediction_request(
     )
 
 
+def _owned_analysis_ready_phospho_matrix(dataset: object) -> pd.DataFrame:
+    if hasattr(dataset, "to_owned_phospho_matrix"):
+        return dataset.to_owned_phospho_matrix()
+    return dataset.phospho_matrix
+
+
+def _owned_analysis_ready_site_sequences(
+    dataset: object,
+) -> Mapping[str, str] | pd.Series:
+    if hasattr(dataset, "to_owned_site_sequences"):
+        return dataset.to_owned_site_sequences()
+    return dataset.site_sequences
+
+
 class SimpleKinaseWorkflow:
     """Run the common end-to-end kinase inference lane from user-shaped inputs.
 
@@ -155,8 +169,8 @@ class SimpleKinaseWorkflow:
         )
         request = _validate_prediction_request(
             workflow_executor=execution_graph.workflow_executor,
-            phospho_matrix=analysis_ready_dataset.phospho_matrix,
-            site_sequences=analysis_ready_dataset.site_sequences,
+            phospho_matrix=_owned_analysis_ready_phospho_matrix(analysis_ready_dataset),
+            site_sequences=_owned_analysis_ready_site_sequences(analysis_ready_dataset),
             reference_bundle=reference_bundle,
             prediction_config=resolved_configs.prediction_config,
         )
@@ -166,7 +180,7 @@ class SimpleKinaseWorkflow:
         pred_mat_result = workflow_result.prediction_result.pred_mat_result
         kinase_activity_result = execution_graph.activity_analyzer.run(
             pred_mat=pred_mat_result,
-            phospho_matrix=analysis_ready_dataset.phospho_matrix,
+            phospho_matrix=_owned_analysis_ready_phospho_matrix(analysis_ready_dataset),
             threshold=resolved_configs.activity_config.threshold,
             min_substrates=resolved_configs.activity_config.min_substrates,
             top_n_substrates=resolved_configs.activity_config.top_n_substrates,

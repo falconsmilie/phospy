@@ -66,23 +66,30 @@ class PredMatResult:
     - ``to_mutable_frame_unsafe()`` returns explicit mutable shared state
     """
 
-    data_frame: pd.DataFrame
+    _data_frame: pd.DataFrame
 
-    def __post_init__(self) -> None:
-        if self.data_frame.index.name is None:
-            self.data_frame.index.name = "phosphosite"
+    def __init__(self, data_frame: pd.DataFrame) -> None:
+        self._data_frame = data_frame
+        if self._data_frame.index.name is None:
+            self._data_frame.index.name = "phosphosite"
+
+    @property
+    def data_frame(self) -> pd.DataFrame:
+        """Compatibility accessor returning a detached predMat frame."""
+
+        return self.to_frame()
 
     @property
     def phosphosite_ids(self) -> pd.Index:
         """Return the phosphosite identifiers stored on the predMat rows."""
 
-        return self.data_frame.index
+        return self._data_frame.index
 
     @property
     def kinase_names(self) -> pd.Index:
         """Return the kinase identifiers stored on the predMat columns."""
 
-        return self.data_frame.columns
+        return self._data_frame.columns
 
     def to_frame(self, *, copy: bool | None = None) -> pd.DataFrame:
         """Return a detached predMat frame.
@@ -93,12 +100,12 @@ class PredMatResult:
 
         if copy is False:
             return self.to_owned_frame()
-        return detached_frame_copy(self.data_frame)
+        return detached_frame_copy(self._data_frame)
 
     def to_owned_frame(self) -> pd.DataFrame:
         """Return the cheap shared owned predMat frame (no copy)."""
 
-        return self.data_frame
+        return self._data_frame
 
     def to_mutable_frame_unsafe(self) -> pd.DataFrame:
         """Return explicit mutable shared predMat state.
@@ -106,7 +113,7 @@ class PredMatResult:
         Warning: mutating this frame mutates the owning prediction result.
         """
 
-        return self.data_frame
+        return self._data_frame
 
     def to_csv(
         self,
@@ -118,7 +125,7 @@ class PredMatResult:
 
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        self.data_frame.to_csv(
+        self._data_frame.to_csv(
             target,
             index=True,
             index_label=index_label,
@@ -129,7 +136,7 @@ class PredMatResult:
         return target
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, init=False)
 class KinasePredictionResult:
     """Prediction outputs and optional traces for one prediction run.
 
@@ -139,26 +146,64 @@ class KinasePredictionResult:
     manager to release the trace sink deterministically.
     """
 
-    pred_matrix: pd.DataFrame
-    substrate_list: dict[str, list[str]]
-    debug_traces: dict[str, KinasePredictionDebugTrace] | None = None
+    _pred_mat_result: PredMatResult
+    _substrate_list: dict[str, list[str]]
+    _debug_traces: dict[str, KinasePredictionDebugTrace] | None
     trace_level: PredictionTraceLevel = PREDICTION_TRACE_LEVEL_NONE
     trace_sink: TraceSink | None = None
     owns_trace_sink: bool = False
-    pred_mat_result: PredMatResult = field(init=False)
 
-    def __post_init__(self) -> None:
-        self.pred_mat_result = PredMatResult(self.pred_matrix)
+    def __init__(
+        self,
+        pred_matrix: pd.DataFrame,
+        substrate_list: dict[str, list[str]],
+        debug_traces: dict[str, KinasePredictionDebugTrace] | None = None,
+        trace_level: PredictionTraceLevel = PREDICTION_TRACE_LEVEL_NONE,
+        trace_sink: TraceSink | None = None,
+        owns_trace_sink: bool = False,
+    ) -> None:
+        self._pred_mat_result = PredMatResult(pred_matrix)
+        self._substrate_list = substrate_list
+        self._debug_traces = debug_traces
+        self.trace_level = trace_level
+        self.trace_sink = trace_sink
+        self.owns_trace_sink = owns_trace_sink
+
+    @property
+    def pred_mat_result(self) -> PredMatResult:
+        """Canonical predMat output wrapper for this prediction."""
+
+        return self._pred_mat_result
+
+    @property
+    def pred_matrix(self) -> pd.DataFrame:
+        """Compatibility accessor returning a detached prediction matrix."""
+
+        return self.to_pred_matrix()
+
+    @property
+    def substrate_list(self) -> dict[str, list[str]]:
+        """Compatibility accessor returning a detached substrate-list mapping."""
+
+        return self.to_substrate_list()
+
+    @property
+    def debug_traces(self) -> dict[str, KinasePredictionDebugTrace] | None:
+        """Compatibility accessor for debug traces."""
+
+        if self._debug_traces is None:
+            return None
+        return dict(self._debug_traces)
 
     def to_pred_matrix(self) -> pd.DataFrame:
         """Return a detached prediction matrix."""
 
-        return self.pred_mat_result.to_frame()
+        return self._pred_mat_result.to_frame()
 
     def to_owned_pred_matrix(self) -> pd.DataFrame:
         """Return the cheap shared owned prediction matrix (no copy)."""
 
-        return self.pred_mat_result.to_owned_frame()
+        return self._pred_mat_result.to_owned_frame()
 
     def to_mutable_pred_matrix_unsafe(self) -> pd.DataFrame:
         """Return explicit mutable shared prediction matrix state.
@@ -166,20 +211,20 @@ class KinasePredictionResult:
         Warning: mutating this frame mutates the owning prediction result.
         """
 
-        return self.pred_mat_result.to_mutable_frame_unsafe()
+        return self._pred_mat_result.to_mutable_frame_unsafe()
 
     def to_substrate_list(self) -> dict[str, list[str]]:
         """Return a detached substrate-list mapping."""
 
         return {
             kinase: list(substrates)
-            for kinase, substrates in self.substrate_list.items()
+            for kinase, substrates in self._substrate_list.items()
         }
 
     def to_owned_substrate_list(self) -> dict[str, list[str]]:
         """Return the cheap shared owned substrate-list mapping (no copy)."""
 
-        return self.substrate_list
+        return self._substrate_list
 
     def to_mutable_substrate_list_unsafe(self) -> dict[str, list[str]]:
         """Return explicit mutable shared substrate-list state.
@@ -187,7 +232,7 @@ class KinasePredictionResult:
         Warning: mutating this mapping mutates the owning prediction result.
         """
 
-        return self.substrate_list
+        return self._substrate_list
 
     def close(self) -> None:
         if not self.owns_trace_sink or self.trace_sink is None:
