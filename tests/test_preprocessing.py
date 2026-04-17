@@ -31,6 +31,7 @@ from phospy.preprocessing import (
     PhosphoPreprocessor,
     ProteinCorrectionResult,
     ProteinCorrectionService,
+    SiteMatrixPolicy,
     TotalPreprocessor,
     add_pairwise_comparisons,
     collapse_duplicate_genes,
@@ -620,6 +621,45 @@ def test_correct_phospho_to_protein_rejects_duplicate_normalized_total_genes() -
         )
 
 
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        (
+            {"localization_threshold": 1.1},
+            "localization_threshold must be a finite numeric value between 0 and 1",
+        ),
+        (
+            {"max_unmatched_fraction": -0.1},
+            "max_unmatched_fraction must be a finite numeric value between 0 and 1",
+        ),
+    ],
+)
+def test_core_preprocessing_config_rejects_invalid_fraction_values(
+    kwargs: dict[str, object],
+    match: str,
+) -> None:
+    with pytest.raises(PhospyValidationError, match=match):
+        CorePreprocessingConfig(**kwargs)
+
+
+def test_core_preprocessing_config_rejects_negative_min_observed() -> None:
+    with pytest.raises(
+        PhospyValidationError,
+        match="min_observed must be a non-negative integer",
+    ):
+        CorePreprocessingConfig(min_observed=-1)
+
+
+def test_core_preprocessing_config_normalizes_site_matrix_policy_mapping() -> None:
+    config = CorePreprocessingConfig(
+        site_matrix_policy={"missing_data_policy": "retain_missing"}
+    )
+
+    assert config.site_matrix_policy == SiteMatrixPolicy(
+        missing_data_policy="retain_missing"
+    )
+
+
 def test_total_preprocessor_matches_existing_total_preparation_flow() -> None:
     total_df = pd.DataFrame(
         {
@@ -657,6 +697,87 @@ def test_total_preprocessor_does_not_mutate_input_dataframe() -> None:
     original = total_df.copy(deep=True)
 
     TotalPreprocessor(schema=DatasetSchema()).prepare(total_df, sentinel=12.0)
+
+    pd.testing.assert_frame_equal(total_df, original)
+
+
+def test_total_preprocessor_prepare_owned_validates_required_columns_before_mutation() -> (
+    None
+):
+    total_df = pd.DataFrame(
+        {
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    original = total_df.copy(deep=True)
+
+    with pytest.raises(
+        TableSchemaError,
+        match=(
+            r"TotalPreprocessor\.prepare_owned\(\) input is missing required columns: genes"
+        ),
+    ):
+        TotalPreprocessor(schema=DatasetSchema()).prepare_owned(total_df)
+
+    pd.testing.assert_frame_equal(total_df, original)
+
+
+def test_total_preprocessor_prepare_owned_rejects_malformed_numeric_values_without_partial_mutation() -> (
+    None
+):
+    total_df = pd.DataFrame(
+        {
+            "genes": ["Prkaca"],
+            "group1": ["bad-value"],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    original = total_df.copy(deep=True)
+
+    with pytest.raises(
+        TableSchemaError,
+        match=(
+            r"TotalPreprocessor\.prepare_owned\(\) requires numeric values in column 'group1'"
+        ),
+    ):
+        TotalPreprocessor(schema=DatasetSchema()).prepare_owned(total_df)
+
+    pd.testing.assert_frame_equal(total_df, original)
+
+
+def test_total_preprocessor_prepare_owned_rejects_negative_min_observed_without_partial_mutation() -> (
+    None
+):
+    total_df = pd.DataFrame(
+        {
+            "genes": ["Prkaca"],
+            "group1": [1.0],
+            "group2": [1.0],
+            "group3": [1.0],
+            "group4": [1.0],
+            "group5": [1.0],
+            "group6": [1.0],
+        }
+    )
+    original = total_df.copy(deep=True)
+
+    with pytest.raises(
+        PhospyValidationError,
+        match="min_observed must be a non-negative integer",
+    ):
+        TotalPreprocessor(schema=DatasetSchema()).prepare_owned(
+            total_df,
+            min_observed=-1,
+        )
 
     pd.testing.assert_frame_equal(total_df, original)
 
@@ -709,6 +830,102 @@ def test_phospho_preprocessor_does_not_mutate_input_dataframe() -> None:
         sentinel=12.0,
         min_observed=4,
     )
+
+    pd.testing.assert_frame_equal(phospho_df, original)
+
+
+@pytest.mark.parametrize(
+    "missing_column",
+    [
+        "gene_names",
+        "gene_p_site",
+        "localization_prob",
+    ],
+)
+def test_phospho_preprocessor_prepare_owned_validates_required_columns_before_mutation(
+    missing_column: str,
+) -> None:
+    phospho_df = pd.DataFrame(
+        {
+            "gene_names": ["prkaca"],
+            "gene_p_site": ["prkaca_s339"],
+            "localization_prob": [0.95],
+            "p_group1": [8.0],
+            "p_group2": [7.0],
+            "p_group3": [6.0],
+            "p_group4": [5.0],
+            "p_group5": [4.0],
+            "p_group6": [3.0],
+        }
+    ).drop(columns=[missing_column])
+    original = phospho_df.copy(deep=True)
+
+    with pytest.raises(
+        TableSchemaError,
+        match=(
+            r"PhosphoPreprocessor\.prepare_owned\(\) input is missing required columns:"
+        ),
+    ):
+        PhosphoPreprocessor(schema=DatasetSchema()).prepare_owned(phospho_df)
+
+    pd.testing.assert_frame_equal(phospho_df, original)
+
+
+def test_phospho_preprocessor_prepare_owned_rejects_invalid_localization_threshold_without_partial_mutation() -> (
+    None
+):
+    phospho_df = pd.DataFrame(
+        {
+            "gene_names": ["prkaca"],
+            "gene_p_site": ["prkaca_s339"],
+            "localization_prob": [0.95],
+            "p_group1": [8.0],
+            "p_group2": [7.0],
+            "p_group3": [6.0],
+            "p_group4": [5.0],
+            "p_group5": [4.0],
+            "p_group6": [3.0],
+        }
+    )
+    original = phospho_df.copy(deep=True)
+
+    with pytest.raises(
+        PhospyValidationError,
+        match="localization_threshold must be a finite numeric value between 0 and 1",
+    ):
+        PhosphoPreprocessor(schema=DatasetSchema()).prepare_owned(
+            phospho_df,
+            localization_threshold=1.1,
+        )
+
+    pd.testing.assert_frame_equal(phospho_df, original)
+
+
+def test_phospho_preprocessor_prepare_owned_rejects_malformed_localization_values_without_partial_mutation() -> (
+    None
+):
+    phospho_df = pd.DataFrame(
+        {
+            "gene_names": ["prkaca"],
+            "gene_p_site": ["prkaca_s339"],
+            "localization_prob": ["not-a-number"],
+            "p_group1": [8.0],
+            "p_group2": [7.0],
+            "p_group3": [6.0],
+            "p_group4": [5.0],
+            "p_group5": [4.0],
+            "p_group6": [3.0],
+        }
+    )
+    original = phospho_df.copy(deep=True)
+
+    with pytest.raises(
+        TableSchemaError,
+        match=(
+            r"PhosphoPreprocessor\.prepare_owned\(\) requires numeric values in column 'localization_prob'"
+        ),
+    ):
+        PhosphoPreprocessor(schema=DatasetSchema()).prepare_owned(phospho_df)
 
     pd.testing.assert_frame_equal(phospho_df, original)
 

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from numbers import Integral
 
 import pandas as pd
 
 from ..datasets.schema import DatasetSchema
+from ..errors import PhospyValidationError, TableSchemaError
 from ..internal.constants import (
     GENE_P_SITE_COLUMN,
     LOCALIZATION_PROB_COLUMN,
@@ -20,6 +22,8 @@ from ..internal.defaults import (
     DEFAULT_TOTAL_SENTINEL,
 )
 from ..internal.pandas_copy import detached_frame_copy
+from ..validation.schema.frames import require_columns
+from ..validation.values.numeric import validate_fraction, validate_non_negative_int
 from .primitives import (
     _add_pairwise_comparisons_in_place,
     _collapse_duplicate_genes_owned,
@@ -66,6 +70,47 @@ def _is_owned_numeric_frame(
     )
 
 
+def _validate_non_negative_integer(value: int, *, name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, Integral):
+        raise PhospyValidationError(f"{name} must be a non-negative integer")
+
+    resolved = int(value)
+    try:
+        validate_non_negative_int(resolved, name)
+    except PhospyValidationError as exc:
+        raise PhospyValidationError(f"{name} must be a non-negative integer") from exc
+    return resolved
+
+
+def _require_numeric_columns_without_mutation(
+    frame: pd.DataFrame,
+    *,
+    columns: tuple[str, ...],
+    context: str,
+) -> None:
+    for column in columns:
+        _require_numeric_column_without_mutation(
+            frame,
+            column=column,
+            context=context,
+        )
+
+
+def _require_numeric_column_without_mutation(
+    frame: pd.DataFrame,
+    *,
+    column: str,
+    context: str,
+) -> None:
+    values = frame[column].to_numpy(copy=False)
+    try:
+        pd.to_numeric(values, errors="raise")
+    except (TypeError, ValueError) as exc:
+        raise TableSchemaError(
+            f"{context} requires numeric values in column '{column}'"
+        ) from exc
+
+
 @dataclass(frozen=True, slots=True)
 class TotalPreprocessor:
     """Prepare total proteome rows for downstream phosphosite correction."""
@@ -96,6 +141,22 @@ class TotalPreprocessor:
         sentinel: float | int = DEFAULT_TOTAL_SENTINEL,
         min_observed: int = DEFAULT_MIN_OBSERVED_VALUES,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        context = "TotalPreprocessor.prepare_owned()"
+        require_columns(
+            total_df,
+            required_columns=[gene_col, *self.schema.total_cols],
+            context=f"{context} input",
+        )
+        resolved_min_observed = _validate_non_negative_integer(
+            min_observed,
+            name="min_observed",
+        )
+        _require_numeric_columns_without_mutation(
+            total_df,
+            columns=tuple(self.schema.total_cols),
+            context=context,
+        )
+
         total_df[gene_col] = total_df[gene_col].astype("string")
         _replace_sentinel_with_nan_in_place(
             total_df,
@@ -110,7 +171,7 @@ class TotalPreprocessor:
         total_filtered = _filter_min_observed_without_copy(
             total_unique,
             self.schema.total_cols,
-            min_observed=min_observed,
+            min_observed=resolved_min_observed,
         )
         return _mark_owned_frame(total_unique), _mark_owned_frame(total_filtered)
 
@@ -154,6 +215,36 @@ class PhosphoPreprocessor:
         sentinel: float | int = DEFAULT_PHOSPHO_SENTINEL,
         min_observed: int = DEFAULT_MIN_OBSERVED_VALUES,
     ) -> pd.DataFrame:
+        context = "PhosphoPreprocessor.prepare_owned()"
+        require_columns(
+            phospho_df,
+            required_columns=[
+                gene_col,
+                site_col,
+                localization_col,
+                *self.schema.phospho_cols,
+            ],
+            context=f"{context} input",
+        )
+        resolved_localization_threshold = validate_fraction(
+            localization_threshold,
+            name="localization_threshold",
+        )
+        resolved_min_observed = _validate_non_negative_integer(
+            min_observed,
+            name="min_observed",
+        )
+        _require_numeric_columns_without_mutation(
+            phospho_df,
+            columns=tuple(self.schema.phospho_cols),
+            context=context,
+        )
+        _require_numeric_column_without_mutation(
+            phospho_df,
+            column=localization_col,
+            context=context,
+        )
+
         phospho_df[gene_col] = phospho_df[gene_col].astype("string").str.upper()
         phospho_df[site_col] = phospho_df[site_col].astype("string")
 
@@ -165,13 +256,13 @@ class PhosphoPreprocessor:
         phospho_filtered = _filter_localized_sites_without_copy(
             phospho_df,
             localization_col=localization_col,
-            threshold=localization_threshold,
+            threshold=resolved_localization_threshold,
         )
         return _mark_owned_frame(
             _filter_min_observed_without_copy(
                 phospho_filtered,
                 self.schema.phospho_cols,
-                min_observed=min_observed,
+                min_observed=resolved_min_observed,
             )
         )
 

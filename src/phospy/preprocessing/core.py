@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from numbers import Integral
 
 import pandas as pd
 
 from ..datasets.schema import DatasetSchema
-from ..errors import InputCompatibilityError
+from ..errors import InputCompatibilityError, PhospyValidationError
 from ..internal.constants import (
     GENE_P_SITE_COLUMN,
     LOCALIZATION_PROB_COLUMN,
@@ -22,6 +23,7 @@ from ..internal.defaults import (
     DEFAULT_TOTAL_SENTINEL,
 )
 from ..internal.pandas_copy import detached_frame_copy
+from ..validation.values.numeric import validate_fraction, validate_non_negative_int
 from .services import (
     PhosphoPreprocessor,
     ProteinCorrectionService,
@@ -51,6 +53,18 @@ reuse mutable frames without taking additional full-frame defensive copies.
 """
 
 
+def _validate_non_negative_integer(value: int, *, name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, Integral):
+        raise PhospyValidationError(f"{name} must be a non-negative integer")
+
+    resolved = int(value)
+    try:
+        validate_non_negative_int(resolved, name)
+    except PhospyValidationError as exc:
+        raise PhospyValidationError(f"{name} must be a non-negative integer") from exc
+    return resolved
+
+
 @dataclass(frozen=True, slots=True)
 class CorePreprocessingConfig:
     localization_threshold: float = DEFAULT_LOCALIZATION_THRESHOLD
@@ -58,7 +72,40 @@ class CorePreprocessingConfig:
     total_sentinel: float = DEFAULT_TOTAL_SENTINEL
     phospho_sentinel: float = DEFAULT_PHOSPHO_SENTINEL
     max_unmatched_fraction: float = DEFAULT_MAX_UNMATCHED_FRACTION
-    site_matrix_policy: SiteMatrixPolicy = field(default_factory=SiteMatrixPolicy)
+    site_matrix_policy: SiteMatrixPolicy | Mapping[str, object] = field(
+        default_factory=SiteMatrixPolicy
+    )
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "localization_threshold",
+            validate_fraction(
+                self.localization_threshold,
+                name="localization_threshold",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "min_observed",
+            _validate_non_negative_integer(
+                self.min_observed,
+                name="min_observed",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "max_unmatched_fraction",
+            validate_fraction(
+                self.max_unmatched_fraction,
+                name="max_unmatched_fraction",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "site_matrix_policy",
+            SiteMatrixPolicy.from_value(self.site_matrix_policy),
+        )
 
 
 def resolve_core_preprocessing_config(
