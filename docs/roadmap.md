@@ -2,6 +2,14 @@
 
 This page is direction, not a release promise.
 
+## Current Rewrite Stage
+
+The repository is in hard cutover mode:
+
+- `src/phospy/` is the active rewrite package.
+- `src/phospy_legacy/` is reference-only and not for new feature work.
+- Temporary incompleteness in the new package is intentional while boundaries are established.
+
 ## Already Landed
 
 These now exist in the supported public surface:

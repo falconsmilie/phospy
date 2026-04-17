@@ -1,26 +1,47 @@
-"""Supported public application surface.
+"""Public API namespace for PhosPy."""
 
-This package is the thin public entry point for PhosPy. It should coordinate
-domain operations without becoming a second implementation layer. Import the
-supported workflow classes from here.
-"""
-
-from .contracts import (
-    DatasetLoadOptions,
+from phospy.api.builders import AnalysisReadyDatasetBuilder
+from phospy.api.configs import (
     KinaseActivityConfig,
-    PredictionRunConfig,
-    SignalomeRunConfig,
-    SimpleKinaseWorkflowConfigSnapshot,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    SignalomeConfig,
 )
-from .signalome_workflows import SignalomeWorkflow
-from .simple_workflows import SimpleKinaseWorkflow
+from phospy.api.datasets import AnalysisReadyPhosphoDataset
+from phospy.api.enums import Organism, ReferencePreset
+from phospy.api.requests import (
+    DatasetBuildRequest,
+    SignalomeWorkflowRequest,
+    SimpleKinaseWorkflowRequest,
+)
+from phospy.api.results import (
+    KinaseActivityResult,
+    KinasePredictionResult,
+    KinaseScoringResult,
+    SignalomeWorkflowResult,
+    SimpleKinaseWorkflowResult,
+)
+from phospy.api.workflows import SignalomeWorkflow, SimpleKinaseWorkflow
+from phospy.references.models import ReferenceBundle
 
 __all__ = [
-    "DatasetLoadOptions",
+    "AnalysisReadyDatasetBuilder",
+    "AnalysisReadyPhosphoDataset",
+    "DatasetBuildRequest",
     "KinaseActivityConfig",
-    "PredictionRunConfig",
-    "SimpleKinaseWorkflowConfigSnapshot",
+    "KinaseActivityResult",
+    "KinasePredictionConfig",
+    "KinasePredictionResult",
+    "KinaseScoringConfig",
+    "KinaseScoringResult",
+    "Organism",
+    "ReferenceBundle",
+    "ReferencePreset",
+    "SignalomeConfig",
     "SignalomeWorkflow",
-    "SignalomeRunConfig",
+    "SignalomeWorkflowRequest",
+    "SignalomeWorkflowResult",
     "SimpleKinaseWorkflow",
+    "SimpleKinaseWorkflowRequest",
+    "SimpleKinaseWorkflowResult",
 ]

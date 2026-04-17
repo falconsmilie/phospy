@@ -4,6 +4,14 @@
 
 This document captures the intended direction for PhosPy as a maintainable Python port of PhosR. It records the product goal, target public API, architectural rules, and the simplification principles that should guide future implementation work.
 
+## Rewrite Boundary
+
+The codebase now enforces a hard cutover boundary:
+
+- `src/phospy/` is the only valid home for new implementation work.
+- `src/phospy_legacy/` is retained only as migration reference material.
+- The legacy tree is not a supported public API and must not be extended.
+
 ## Product Goal
 
 PhosPy is intended to be a Python port of PhosR.
@@ -393,4 +401,3 @@ It should not preserve old wrappers, aliases, or accidental internal structure.
 ## Short Architecture Statement
 
 PhosPy is a Python port of PhosR built around one analysis-ready dataset model and two primary workflow entry points: kinase analysis and signalome analysis. Each workflow accepts a single typed request, validates it, interprets it into executable domain inputs, executes domain services, and returns a typed result. Internal implementation uses injected interfaces only at real extension seams. Result objects are data containers, not orchestration or export services.
-

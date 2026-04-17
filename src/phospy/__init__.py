@@ -1,9 +1,63 @@
-"""PhosPy package root.
+"""Public package contract for the PhosPy rewrite."""
 
-This module intentionally does not re-export domain APIs. Import from
-feature-specific packages such as ``phospy.api``, ``phospy.datasets``,
-``phospy.activities``, ``phospy.prediction``, ``phospy.signalomes``,
-and ``phospy.references``.
-"""
+from phospy.api.builders import AnalysisReadyDatasetBuilder
+from phospy.api.configs import (
+    KinaseActivityConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    SignalomeConfig,
+)
+from phospy.api.datasets import AnalysisReadyPhosphoDataset
+from phospy.api.enums import Organism, ReferencePreset
+from phospy.api.requests import (
+    DatasetBuildRequest,
+    SignalomeWorkflowRequest,
+    SimpleKinaseWorkflowRequest,
+)
+from phospy.api.results import (
+    KinaseActivityResult,
+    KinasePredictionResult,
+    KinaseScoringResult,
+    SignalomeWorkflowResult,
+    SimpleKinaseWorkflowResult,
+)
+from phospy.api.workflows import SignalomeWorkflow, SimpleKinaseWorkflow
+from phospy.errors import (
+    PhosPyBuildError,
+    PhosPyError,
+    PhosPyInputError,
+    PhosPyReferenceError,
+    PhosPyTransformationError,
+    PhosPyValidationError,
+    PhosPyWorkflowError,
+)
+from phospy.references.models import ReferenceBundle
 
-__all__: list[str] = []
+__all__ = [
+    "AnalysisReadyDatasetBuilder",
+    "AnalysisReadyPhosphoDataset",
+    "DatasetBuildRequest",
+    "KinaseActivityConfig",
+    "KinaseActivityResult",
+    "KinasePredictionConfig",
+    "KinasePredictionResult",
+    "KinaseScoringConfig",
+    "KinaseScoringResult",
+    "Organism",
+    "PhosPyBuildError",
+    "PhosPyError",
+    "PhosPyInputError",
+    "PhosPyReferenceError",
+    "PhosPyTransformationError",
+    "PhosPyValidationError",
+    "PhosPyWorkflowError",
+    "ReferenceBundle",
+    "ReferencePreset",
+    "SignalomeConfig",
+    "SignalomeWorkflow",
+    "SignalomeWorkflowRequest",
+    "SignalomeWorkflowResult",
+    "SimpleKinaseWorkflow",
+    "SimpleKinaseWorkflowRequest",
+    "SimpleKinaseWorkflowResult",
+]

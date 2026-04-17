@@ -1,36 +1,19 @@
-"""Shared application error hierarchy.
+"""Public exception taxonomy exports."""
 
-This package owns the cross-domain error hierarchy used by validation, I/O, and
-other application layers. Domain packages should import shared error types from
-this package rather than defining parallel hierarchies.
-"""
-
-from .base import PhospyError
-from .validation import (
-    CustomPredictorOutputError,
-    InputCompatibilityError,
-    NoCandidateKinasesError,
-    PhospyValidationError,
-    PredictionConfigurationError,
-    RequestValidationError,
-    TableSchemaError,
-    TraceError,
-    format_empty_prediction_matrix_message,
-    format_no_candidate_kinases_message,
-    format_overlap_failure_message,
-)
+from phospy.errors.base import PhosPyError
+from phospy.errors.build import PhosPyBuildError
+from phospy.errors.input import PhosPyInputError
+from phospy.errors.references import PhosPyReferenceError
+from phospy.errors.transformations import PhosPyTransformationError
+from phospy.errors.validation import PhosPyValidationError
+from phospy.errors.workflows import PhosPyWorkflowError
 
 __all__ = [
-    "CustomPredictorOutputError",
-    "format_empty_prediction_matrix_message",
-    "format_no_candidate_kinases_message",
-    "format_overlap_failure_message",
-    "InputCompatibilityError",
-    "NoCandidateKinasesError",
-    "PhospyError",
-    "PhospyValidationError",
-    "PredictionConfigurationError",
-    "RequestValidationError",
-    "TableSchemaError",
-    "TraceError",
+    "PhosPyBuildError",
+    "PhosPyError",
+    "PhosPyInputError",
+    "PhosPyReferenceError",
+    "PhosPyTransformationError",
+    "PhosPyValidationError",
+    "PhosPyWorkflowError",
 ]

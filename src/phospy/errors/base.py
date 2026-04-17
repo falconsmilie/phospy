@@ -1,8 +1,5 @@
-from __future__ import annotations
+"""Base package exception."""
 
 
-class PhospyError(Exception):
-    """Base class for phospy package errors."""
-
-
-__all__ = ["PhospyError"]
+class PhosPyError(Exception):
+    """Base exception for package-defined failures."""
