@@ -50,10 +50,16 @@ All public executors use `run(request)`.
 - `result.activity_result`
 
 No mirrored top-level convenience aliases are part of the rewrite contract.
+Reusable save/load output bundles are provided as external services in
+`phospy.io` (`save_simple_kinase_workflow_bundle`,
+`load_simple_kinase_workflow_bundle`) so result models remain plain containers.
 
 `SignalomeWorkflowResult` currently returns real tables (`module_assignments`,
 `signalome_modules`, `kinase_network`) from the first vertical slice, while
 `expanded_signalome` remains optional and currently `None`.
+
+See [`output_bundles.md`](output_bundles.md) for manifest format and table
+inventory.
 
 ## Example
 

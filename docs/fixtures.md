@@ -72,7 +72,9 @@ Promote the resulting workflow tables into `tests/fixtures/public_workflow_refer
 
 ### `tests/fixtures/public_workflow_reference/output_bundle`
 
-Optional reproducibility bundle fixture directory for `SimpleKinaseWorkflowResult.save_output_bundle(...)` / load round-trip checks.
+Optional reproducibility bundle fixture directory for
+`save_simple_kinase_workflow_bundle(...)` /
+`load_simple_kinase_workflow_bundle(...)` round-trip checks.
 
 Use this only when the output-bundle manifest contract or table inventory changes intentionally.
 
