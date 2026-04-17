@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Protocol
 
 from phospy.api.configs import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
 )
+from phospy.api.requests import SimpleKinaseWorkflowRequest
+from phospy.api.results import SimpleKinaseWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.references.models import ReferenceBundle
+
+if TYPE_CHECKING:
+    from phospy.references.resolution import ReferenceResolverContract
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,3 +28,36 @@ class ResolvedKinaseWorkflowRequest:
     scoring_config: KinaseScoringConfig
     prediction_config: KinasePredictionConfig
     activity_config: KinaseActivityConfig | None
+
+
+class KinaseWorkflowValidatorContract(Protocol):
+    """Internal contract for kinase workflow request validation."""
+
+    def run(self, request: SimpleKinaseWorkflowRequest) -> SimpleKinaseWorkflowRequest:
+        """Validate the workflow request and return the same request."""
+
+
+class KinaseWorkflowInterpreterContract(Protocol):
+    """Internal contract for kinase workflow request interpretation."""
+
+    _reference_resolver: ReferenceResolverContract
+
+    def run(
+        self, request: SimpleKinaseWorkflowRequest
+    ) -> ResolvedKinaseWorkflowRequest:
+        """Resolve references and runtime defaults for execution."""
+
+
+class KinaseWorkflowExecutorContract(Protocol):
+    """Internal contract for kinase workflow execution."""
+
+    def run(self, request: ResolvedKinaseWorkflowRequest) -> SimpleKinaseWorkflowResult:
+        """Execute workflow domain logic and assemble public results."""
+
+
+__all__ = [
+    "KinaseWorkflowExecutorContract",
+    "KinaseWorkflowInterpreterContract",
+    "KinaseWorkflowValidatorContract",
+    "ResolvedKinaseWorkflowRequest",
+]
