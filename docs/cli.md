@@ -4,6 +4,7 @@ The supported rewrite CLI lane is intentionally narrow:
 
 1. Build an analysis-ready dataset from files.
 2. Run the simple kinase workflow from files.
+3. Run the signalome workflow from files via dataset -> simple kinase -> signalome.
 
 ## Commands
 
@@ -27,6 +28,20 @@ phospy simple-kinase \
   --reference auto \
   --prediction-top-k 6 \
   --prediction-ensemble-size 8 \
+  --outdir ./out
+```
+
+### Signalome Workflow
+
+```bash
+phospy signalome \
+  --phospho ./input/phospho.csv \
+  --site-metadata ./input/site_metadata.csv \
+  --organism rat \
+  --reference auto \
+  --prediction-top-k 6 \
+  --prediction-ensemble-size 12 \
+  --signalome-cutoff 0.5 \
   --outdir ./out
 ```
 
@@ -80,6 +95,23 @@ Supported file formats for read and write:
     references/
       kinase_substrate_map.<fmt>
       site_sequences.<fmt>
+    manifest.json
+```
+
+`signalome` writes:
+
+```text
+<outdir>/
+  dataset/
+    ...
+  simple_kinase/
+    ...
+  signalome/
+    module_assignments.<fmt>
+    signalome_modules.<fmt>
+    kinase_network_nodes.<fmt>
+    kinase_network_edges.<fmt>
+    expanded_signalome.<fmt>   # optional
     manifest.json
 ```
 

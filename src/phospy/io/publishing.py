@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from phospy.api.results import SimpleKinaseWorkflowResult
+from phospy.api.results import SignalomeWorkflowResult, SimpleKinaseWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
 from phospy.io.tables import table_suffix_for_format, write_table
@@ -121,6 +121,58 @@ def publish_simple_kinase_workflow(
         },
     )
     written["simple_kinase.manifest"] = manifest_path
+    return written
+
+
+def publish_signalome_workflow(
+    result: SignalomeWorkflowResult,
+    output_root: Path,
+    *,
+    output_format: str = "csv",
+) -> dict[str, Path]:
+    """Publish signalome workflow outputs into the supported output layout."""
+
+    suffix = table_suffix_for_format(output_format)
+    written = publish_simple_kinase_workflow(
+        result.kinase_result,
+        output_root,
+        output_format=output_format,
+    )
+    workflow_dir = Path(output_root) / "signalome"
+
+    module_assignments_path = workflow_dir / f"module_assignments{suffix}"
+    write_table(result.module_assignments.table, module_assignments_path)
+    written["signalome.module_assignments"] = module_assignments_path
+
+    signalome_modules_path = workflow_dir / f"signalome_modules{suffix}"
+    write_table(result.signalome_modules.table, signalome_modules_path)
+    written["signalome.signalome_modules"] = signalome_modules_path
+
+    kinase_network_edges_path = workflow_dir / f"kinase_network_edges{suffix}"
+    write_table(result.kinase_network.edges, kinase_network_edges_path)
+    written["signalome.kinase_network.edges"] = kinase_network_edges_path
+
+    if result.kinase_network.nodes is not None:
+        kinase_network_nodes_path = workflow_dir / f"kinase_network_nodes{suffix}"
+        write_table(result.kinase_network.nodes, kinase_network_nodes_path)
+        written["signalome.kinase_network.nodes"] = kinase_network_nodes_path
+
+    if result.expanded_signalome is not None:
+        expanded_signalome_path = workflow_dir / f"expanded_signalome{suffix}"
+        write_table(result.expanded_signalome, expanded_signalome_path)
+        written["signalome.expanded_signalome"] = expanded_signalome_path
+
+    manifest_path = workflow_dir / "manifest.json"
+    _write_manifest(
+        manifest_path,
+        {
+            "reference_organism": result.kinase_result.references.organism.value,
+            "expanded_signalome_present": result.expanded_signalome is not None,
+            "kinase_network_nodes_present": result.kinase_network.nodes is not None,
+            "output_format": output_format,
+        },
+    )
+    written["signalome.manifest"] = manifest_path
     return written
 
 
