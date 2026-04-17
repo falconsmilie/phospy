@@ -70,6 +70,10 @@ PYTHONPATH=src python examples/signalome_workflow_demo.py
 
 Promote the resulting workflow tables into `tests/fixtures/public_workflow_reference` only when the public workflow contract changed intentionally.
 
+The rewrite parity suite also reads selected supported-lane signalome
+expectations from `tests/fixtures/public_workflow_reference/`:
+`signalome_rewrite_l6_*.csv` and `signalome_rewrite_l6_contract.json`.
+
 ### `tests/fixtures/public_workflow_reference/output_bundle`
 
 Optional reproducibility bundle fixture directory for

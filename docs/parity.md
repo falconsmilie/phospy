@@ -36,6 +36,7 @@ The current parity layer covers selected seams, including:
 - selected native workflow seams
 - selected prediction trace and replay checks
 - end-to-end benchmark fixtures for the documented `SimpleKinaseWorkflow` and `SignalomeWorkflow` demos
+- selected rewrite-era `SignalomeWorkflow` regression checks on the supported L6 lane (`module_assignments`, `signalome_modules`, `kinase_network.nodes`, `kinase_network.edges`)
 
 ## Fixture Families at a Glance
 
@@ -47,6 +48,21 @@ The current parity layer covers selected seams, including:
 - `tests/fixtures/public_workflow_reference`: committed benchmark outputs for the public `SimpleKinaseWorkflow` and `SignalomeWorkflow` demos
 
 For rebuild commands, see [`fixtures.md`](fixtures.md).
+
+## Rewrite Signalome Regression Slice
+
+`tests/parity/test_signalome_workflow_parity.py` protects a narrow, explicit
+rewrite contract for the supported L6 lane:
+
+- input fixture: `tests_legacy/fixtures/r_reference_l6/l6_phospho_matrix.csv`
+- expected outputs: `tests/fixtures/public_workflow_reference/signalome_rewrite_l6_*.{csv,json}`
+
+Comparison policy in that suite is intentionally mixed by surface:
+
+- `module_assignments`: selected row checks + distribution/shape checks
+- `signalome_modules`: exact table equality
+- `kinase_network.nodes`: selected row checks + structural counts
+- `kinase_network.edges`: selected pair correlations + sign/count checks
 
 ## Release Thresholds by Mode
 

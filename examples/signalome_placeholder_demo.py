@@ -22,14 +22,21 @@ from phospy import (
 
 def _build_kinase_result() -> SimpleKinaseWorkflowResult:
     phospho = pd.DataFrame(
-        {"sample_a": [1.0], "sample_b": [1.2]},
-        index=["MAPK14;Y182;"],
+        {
+            "sample_a": [1.00, 0.70],
+            "sample_b": [1.15, 0.80],
+            "sample_c": [0.95, 0.75],
+        },
+        index=["MAPK14;Y182;", "GSK3B;S9;"],
     )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["MAPK14"],
-            "site": ["Y182"],
-            "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            "gene_symbol": ["MAPK14", "GSK3B"],
+            "site": ["Y182", "S9"],
+            "site_sequence": [
+                "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+            ],
         },
         index=phospho.index.copy(),
     )

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from functools import lru_cache
 from pathlib import Path
 
@@ -19,6 +20,12 @@ RAT_L6_PHOSPHO = (
 RAT_L6_EXPECTED_PROFILE = (
     ROOT / "tests_legacy" / "fixtures" / "r_reference_l6" / "native_profile_scores.csv"
 )
+PUBLIC_WORKFLOW_REFERENCE = (
+    ROOT / "tests_legacy" / "fixtures" / "public_workflow_reference"
+)
+REWRITE_PUBLIC_WORKFLOW_REFERENCE = (
+    ROOT / "tests" / "fixtures" / "public_workflow_reference"
+)
 RAT_L6_SITE_SEQUENCES = (
     ROOT
     / "src"
@@ -28,6 +35,23 @@ RAT_L6_SITE_SEQUENCES = (
     / "rat"
     / "l6_native"
     / "site_sequences.csv"
+)
+SIGNALOME_REWRITE_L6_ASSIGNMENTS_SELECTED = (
+    REWRITE_PUBLIC_WORKFLOW_REFERENCE
+    / "signalome_rewrite_l6_module_assignments_selected.csv"
+)
+SIGNALOME_REWRITE_L6_MODULES = (
+    REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_modules.csv"
+)
+SIGNALOME_REWRITE_L6_NETWORK_NODES = (
+    REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_network_nodes.csv"
+)
+SIGNALOME_REWRITE_L6_NETWORK_EDGES_SELECTED = (
+    REWRITE_PUBLIC_WORKFLOW_REFERENCE
+    / "signalome_rewrite_l6_network_edges_selected.csv"
+)
+SIGNALOME_REWRITE_L6_CONTRACT = (
+    REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_contract.json"
 )
 
 
@@ -45,6 +69,53 @@ def load_rat_l6_sequence_table() -> pd.Series:
 @lru_cache(maxsize=1)
 def load_expected_profile_scores() -> pd.DataFrame:
     return pd.read_csv(RAT_L6_EXPECTED_PROFILE, index_col=0)
+
+
+@lru_cache(maxsize=1)
+def load_signalome_rewrite_l6_contract() -> dict[str, object]:
+    return json.loads(SIGNALOME_REWRITE_L6_CONTRACT.read_text(encoding="utf-8"))
+
+
+@lru_cache(maxsize=1)
+def load_signalome_rewrite_l6_module_assignments_selected() -> pd.DataFrame:
+    frame = pd.read_csv(SIGNALOME_REWRITE_L6_ASSIGNMENTS_SELECTED, index_col=0)
+    frame.index = pd.Index(frame.index.astype(str), name="site_id")
+    return frame.astype(
+        {
+            "protein_id": str,
+            "module_id": "int64",
+            "top_kinase": str,
+            "top_score": float,
+            "top_kinase_tie_count": "int64",
+            "top_kinase_is_ambiguous": bool,
+        }
+    )
+
+
+@lru_cache(maxsize=1)
+def load_signalome_rewrite_l6_modules() -> pd.DataFrame:
+    frame = pd.read_csv(SIGNALOME_REWRITE_L6_MODULES, index_col=0)
+    frame.index = pd.Index(frame.index.astype("int64"), name="module_id")
+    frame.columns = pd.Index(frame.columns.astype(str), name="kinase")
+    return frame.astype(float)
+
+
+@lru_cache(maxsize=1)
+def load_signalome_rewrite_l6_network_nodes() -> pd.DataFrame:
+    frame = pd.read_csv(SIGNALOME_REWRITE_L6_NETWORK_NODES, index_col=0)
+    frame.index = pd.Index(frame.index.astype(str), name="kinase")
+    return frame.astype({"degree": "int64", "n_substrates": "int64"})
+
+
+@lru_cache(maxsize=1)
+def load_signalome_rewrite_l6_network_edges_selected() -> pd.DataFrame:
+    return pd.read_csv(SIGNALOME_REWRITE_L6_NETWORK_EDGES_SELECTED).astype(
+        {
+            "source_kinase": str,
+            "target_kinase": str,
+            "correlation": float,
+        }
+    )
 
 
 def site_metadata_for(phospho: pd.DataFrame) -> pd.DataFrame:
