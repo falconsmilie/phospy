@@ -21,7 +21,7 @@ from phospy.api.results import (
     SignalomeWorkflowResult,
     SimpleKinaseWorkflowResult,
 )
-from phospy.api.workflows import SignalomeWorkflow, SimpleKinaseWorkflow
+from phospy.api.workflows import KinaseWorkflow, SignalomeWorkflow
 from phospy.references.models import ReferenceBundle
 
 __all__ = [
@@ -41,7 +41,7 @@ __all__ = [
     "SignalomeWorkflow",
     "SignalomeWorkflowRequest",
     "SignalomeWorkflowResult",
-    "SimpleKinaseWorkflow",
+    "KinaseWorkflow",
     "SimpleKinaseWorkflowRequest",
     "SimpleKinaseWorkflowResult",
 ]

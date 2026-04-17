@@ -12,9 +12,9 @@ from phospy import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    KinaseWorkflow,
     Organism,
     ReferenceBundle,
-    SimpleKinaseWorkflow,
     SimpleKinaseWorkflowRequest,
 )
 from phospy.io.simple_kinase_bundle import (
@@ -31,7 +31,7 @@ def test_simple_kinase_bundle_round_trip_preserves_outputs_and_config(
     tmp_path: Path,
 ) -> None:
     request = _build_request(activity=True)
-    result = SimpleKinaseWorkflow().run(request)
+    result = KinaseWorkflow().run(request)
     config_snapshot = SimpleKinaseWorkflowConfigSnapshot.from_request(request)
     bundle_root = tmp_path / "simple_kinase_bundle"
 
@@ -52,7 +52,7 @@ def test_simple_kinase_bundle_round_trip_preserves_outputs_and_config(
 
 def test_simple_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
     request = _build_request(activity=True)
-    result = SimpleKinaseWorkflow().run(request)
+    result = KinaseWorkflow().run(request)
     bundle_root = tmp_path / "simple_kinase_bundle"
 
     save_simple_kinase_workflow_bundle(
@@ -96,7 +96,7 @@ def test_simple_kinase_bundle_round_trip_supports_disabled_activity(
     tmp_path: Path,
 ) -> None:
     request = _build_request(activity=False)
-    result = SimpleKinaseWorkflow().run(request)
+    result = KinaseWorkflow().run(request)
     bundle_root = tmp_path / "simple_kinase_bundle"
 
     save_simple_kinase_workflow_bundle(

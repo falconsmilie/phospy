@@ -36,7 +36,7 @@ All notable changes to this project are documented here.
 - Added `ReferenceBundle` and `ReferenceProvider` contracts for bundled reference handling.
 - Added an `AnalysisReadyPhosphoDataset` boundary plus a supported adapter path for analysis-ready inputs.
 - Added a first bundled reference provider for the rat L6 native lane.
-- Added a shared `SimpleKinaseWorkflow` common-path API.
+- Added a shared `KinaseWorkflow` common-path API.
 - Added a package skeleton and root migration map to support the package reshaping work.
 - Added regression tests for thin API orchestration and domain delegation.
 

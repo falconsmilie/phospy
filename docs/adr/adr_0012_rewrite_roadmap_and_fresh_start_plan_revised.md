@@ -191,7 +191,7 @@ Build the public surface next:
 - `AnalysisReadyPhosphoDataset`
 - request/result DTOs
 - builder public contract
-- `SimpleKinaseWorkflow`
+- `KinaseWorkflow`
 - `SignalomeWorkflow`
 
 The purpose of this stage is to lock the external product story before deeper internals are added.

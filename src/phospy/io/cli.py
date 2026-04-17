@@ -14,7 +14,7 @@ from phospy.api.configs import (
     SignalomeConfig,
 )
 from phospy.api.requests import SignalomeWorkflowRequest, SimpleKinaseWorkflowRequest
-from phospy.api.workflows import SignalomeWorkflow, SimpleKinaseWorkflow
+from phospy.api.workflows import KinaseWorkflow, SignalomeWorkflow
 from phospy.errors import PhosPyError
 from phospy.io.adapters import (
     DatasetFileInputs,
@@ -250,7 +250,7 @@ def _run_simple_kinase_workflow_from_args(args: argparse.Namespace):
         ),
         activity_config=activity_config,
     )
-    return SimpleKinaseWorkflow().run(request)
+    return KinaseWorkflow().run(request)
 
 
 def _print_written_summary(command: str, written: dict[str, Path]) -> None:

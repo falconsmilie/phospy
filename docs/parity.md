@@ -35,7 +35,7 @@ The current parity layer covers selected seams, including:
 - downstream kinase-analysis outputs
 - selected native workflow seams
 - selected prediction trace and replay checks
-- end-to-end benchmark fixtures for the documented `SimpleKinaseWorkflow` and `SignalomeWorkflow` demos
+- end-to-end benchmark fixtures for the documented `KinaseWorkflow` and `SignalomeWorkflow` demos
 - selected rewrite-era `SignalomeWorkflow` regression checks on the supported L6 lane (`module_assignments`, `signalome_modules`, `kinase_network.nodes`, `kinase_network.edges`)
 
 ## Fixture Families at a Glance
@@ -45,7 +45,7 @@ The current parity layer covers selected seams, including:
 - `tests/fixtures/fragile_support_reference`: curated support-screening fixtures for support and inclusion boundary conditions
 - `tests/fixtures/r_reference_l6_seam_stress`: smaller seam-stress fixtures for combined-score and replay boundaries
 - `tests/fixtures/synthetic_adaptive_sampling_edge`: synthetic fixtures for deterministic adaptive-sampling edge cases
-- `tests/fixtures/public_workflow_reference`: committed benchmark outputs for the public `SimpleKinaseWorkflow` and `SignalomeWorkflow` demos
+- `tests/fixtures/public_workflow_reference`: committed benchmark outputs for the public `KinaseWorkflow` and `SignalomeWorkflow` demos
 
 For rebuild commands, see [`fixtures.md`](fixtures.md).
 

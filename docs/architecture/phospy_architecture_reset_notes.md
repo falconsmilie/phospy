@@ -62,7 +62,7 @@ The intended top-level public API is:
 - `KinaseActivityConfig`
 - `SimpleKinaseWorkflowRequest`
 - `SimpleKinaseWorkflowResult`
-- `SimpleKinaseWorkflow`
+- `KinaseWorkflow`
 - `SignalomeConfig`
 - `SignalomeWorkflowRequest`
 - `SignalomeWorkflowResult`
@@ -94,7 +94,7 @@ Required `site_metadata` columns should be standardised rather than passed aroun
 
 ### Kinase workflow
 
-`SimpleKinaseWorkflow` is the public entry point for PhosR-style kinase analysis.
+`KinaseWorkflow` is the public entry point for PhosR-style kinase analysis.
 
 It should accept exactly one request object:
 

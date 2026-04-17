@@ -12,6 +12,7 @@ from phospy import (
     KinasePredictionResult,
     KinaseScoringConfig,
     KinaseScoringResult,
+    KinaseWorkflow,
     Organism,
     ReferenceBundle,
     ReferencePreset,
@@ -19,7 +20,6 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
-    SimpleKinaseWorkflow,
     SimpleKinaseWorkflowRequest,
     SimpleKinaseWorkflowResult,
 )
@@ -160,7 +160,7 @@ def test_builder_orchestration_uses_collaborators() -> None:
 
 
 def test_workflow_run_contract_returns_nested_results() -> None:
-    result = SimpleKinaseWorkflow().run(
+    result = KinaseWorkflow().run(
         SimpleKinaseWorkflowRequest(dataset=_dataset(), references=ReferencePreset.AUTO)
     )
     assert isinstance(result, SimpleKinaseWorkflowResult)
@@ -215,7 +215,7 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
             calls.append("executor")
             return expected
 
-    workflow = SimpleKinaseWorkflow(
+    workflow = KinaseWorkflow(
         validator=ValidatorSpy(),
         interpreter=InterpreterSpy(),
         executor=ExecutorSpy(),
@@ -227,7 +227,7 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
 
 def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
     calls: list[str] = []
-    kinase_result = SimpleKinaseWorkflow().run(
+    kinase_result = KinaseWorkflow().run(
         SimpleKinaseWorkflowRequest(
             dataset=_dataset(),
             references=ReferencePreset.AUTO,

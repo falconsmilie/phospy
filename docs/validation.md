@@ -7,7 +7,7 @@ For public types and signatures, see [`api.md`](api.md).
 ## Boundary
 
 - Supported inputs are in-memory pandas `DataFrame` objects through `DatasetBuildRequest`.
-- Supported workflow route is `SimpleKinaseWorkflow.run(SimpleKinaseWorkflowRequest(...))`.
+- Supported workflow route is `KinaseWorkflow.run(SimpleKinaseWorkflowRequest(...))`.
 - Supported downstream route is
   `SignalomeWorkflow.run(SignalomeWorkflowRequest(...))`.
 - File-ingestion and legacy convenience routes are outside the current rewrite contract.

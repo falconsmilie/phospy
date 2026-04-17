@@ -8,11 +8,11 @@ import pytest
 from phospy import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    KinaseWorkflow,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
-    SimpleKinaseWorkflow,
     SimpleKinaseWorkflowRequest,
 )
 from phospy.io.publishing import publish_signalome_workflow
@@ -74,7 +74,7 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
 
 def _build_signalome_result():
     dataset = build_rat_l6_dataset(n_sites=260)
-    kinase_result = SimpleKinaseWorkflow().run(
+    kinase_result = KinaseWorkflow().run(
         SimpleKinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,

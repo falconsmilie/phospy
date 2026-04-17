@@ -2,7 +2,7 @@
 
 PhosPy currently exposes one supported end-to-end rewrite route:
 
-`DatasetBuildRequest -> AnalysisReadyDatasetBuilder.run(request) -> AnalysisReadyPhosphoDataset -> SimpleKinaseWorkflow.run(request)`
+`DatasetBuildRequest -> AnalysisReadyDatasetBuilder.run(request) -> AnalysisReadyPhosphoDataset -> KinaseWorkflow.run(request)`
 
 ## Support Boundary
 
@@ -21,7 +21,7 @@ Import from top-level `phospy`:
 - Builder:
 `DatasetBuildRequest`, `AnalysisReadyDatasetBuilder`
 - Workflows and requests:
-`SimpleKinaseWorkflow`, `SimpleKinaseWorkflowRequest`,
+`KinaseWorkflow`, `SimpleKinaseWorkflowRequest`,
 `SignalomeWorkflow`, `SignalomeWorkflowRequest`
 - Config models:
 `KinaseScoringConfig`, `KinasePredictionConfig`, `KinaseActivityConfig`,
@@ -76,7 +76,7 @@ from phospy import (
     DatasetBuildRequest,
     Organism,
     ReferencePreset,
-    SimpleKinaseWorkflow,
+    KinaseWorkflow,
     SimpleKinaseWorkflowRequest,
 )
 
@@ -98,7 +98,7 @@ dataset = AnalysisReadyDatasetBuilder().run(
     )
 )
 
-result = SimpleKinaseWorkflow().run(
+result = KinaseWorkflow().run(
     SimpleKinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
 )
 

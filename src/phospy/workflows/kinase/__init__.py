@@ -1,5 +1,5 @@
 """Kinase workflow package."""
 
-from phospy.workflows.kinase.public import SimpleKinaseWorkflow
+from phospy.workflows.kinase.public import KinaseWorkflow
 
-__all__ = ["SimpleKinaseWorkflow"]
+__all__ = ["KinaseWorkflow"]

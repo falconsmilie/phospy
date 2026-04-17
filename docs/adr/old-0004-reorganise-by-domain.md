@@ -27,7 +27,7 @@ ends and workflow orchestration begins, or whether a given module represents sta
 
 Second, orchestration and domain logic are too close together. This increases the likelihood that top-level convenience
 flows accumulate their own processing behaviour instead of delegating to one stable implementation path. The recent
-concern around `SimpleKinaseWorkflow` is an example of this structural risk.
+concern around `KinaseWorkflow` is an example of this structural risk.
 
 Third, mixed-responsibility root modules are becoming difficult to review. Files such as `workflow.py`, `dataset.py`,
 `activities.py`, and related modules carry both domain behaviour and public composition concerns, which increases

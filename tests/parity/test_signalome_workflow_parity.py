@@ -8,11 +8,11 @@ import pytest
 from phospy import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    KinaseWorkflow,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
-    SimpleKinaseWorkflow,
     SimpleKinaseWorkflowRequest,
 )
 from tests.support.rewrite_fixture_data import (
@@ -29,7 +29,7 @@ from tests.support.rewrite_fixture_data import (
 # - Expected signalome regression tables:
 #   tests/fixtures/public_workflow_reference/signalome_rewrite_l6_*.{csv,json}
 # These expectations are scoped to the supported rewrite lane only:
-# dataset -> SimpleKinaseWorkflow -> SignalomeWorkflow with the config in
+# dataset -> KinaseWorkflow -> SignalomeWorkflow with the config in
 # `_run_signalome_l6_supported_slice`.
 pytestmark = pytest.mark.parity
 
@@ -37,7 +37,7 @@ pytestmark = pytest.mark.parity
 @lru_cache(maxsize=1)
 def _run_signalome_l6_supported_slice():
     dataset = build_rat_l6_dataset(n_sites=260)
-    kinase_result = SimpleKinaseWorkflow().run(
+    kinase_result = KinaseWorkflow().run(
         SimpleKinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,

@@ -76,7 +76,7 @@ The public workflow class should remain deliberately boring.
 Illustrative shape:
 
 ```python
-class SimpleKinaseWorkflow:
+class KinaseWorkflow:
     def __init__(self, validator, interpreter, executor) -> None:
         self._validator = validator
         self._interpreter = interpreter

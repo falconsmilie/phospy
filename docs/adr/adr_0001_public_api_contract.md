@@ -57,7 +57,7 @@ The intended public surface is:
 - `KinaseActivityConfig`
 - `SimpleKinaseWorkflowRequest`
 - `SimpleKinaseWorkflowResult`
-- `SimpleKinaseWorkflow`
+- `KinaseWorkflow`
 - `SignalomeConfig`
 - `SignalomeWorkflowRequest`
 - `SignalomeWorkflowResult`
@@ -95,7 +95,7 @@ This decision removes the need for repeated public column-name arguments across 
 
 ### Kinase workflow contract
 
-`SimpleKinaseWorkflow` is the primary public entry point for PhosR-style kinase analysis.
+`KinaseWorkflow` is the primary public entry point for PhosR-style kinase analysis.
 
 It accepts exactly one request object:
 

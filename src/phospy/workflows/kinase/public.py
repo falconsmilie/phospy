@@ -17,7 +17,7 @@ from phospy.workflows.kinase.interpreter import SimpleKinaseWorkflowInterpreter
 from phospy.workflows.kinase.validator import SimpleKinaseWorkflowValidator
 
 
-class SimpleKinaseWorkflow:
+class KinaseWorkflow:
     """Public entrypoint for the kinase workflow."""
 
     def __init__(
@@ -32,7 +32,7 @@ class SimpleKinaseWorkflow:
         self._executor = executor or SimpleKinaseWorkflowExecutor()
 
     def run(self, request: SimpleKinaseWorkflowRequest) -> SimpleKinaseWorkflowResult:
-        """Validate, interpret, and execute the simple kinase workflow."""
+        """Validate, interpret, and execute the kinase workflow."""
 
         try:
             validated = self._validator.run(request)
@@ -46,6 +46,4 @@ class SimpleKinaseWorkflow:
         ):
             raise
         except Exception as exc:  # pragma: no cover - defensive boundary translation
-            raise PhosPyWorkflowError(
-                "simple kinase workflow execution failed"
-            ) from exc
+            raise PhosPyWorkflowError("kinase workflow execution failed") from exc

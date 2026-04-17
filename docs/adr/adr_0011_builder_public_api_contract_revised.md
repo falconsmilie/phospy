@@ -212,7 +212,7 @@ The builder public API exists to get the user to the strict workflow boundary.
 The intended public flow remains:
 
 1. build `AnalysisReadyPhosphoDataset`
-2. run `SimpleKinaseWorkflow`
+2. run `KinaseWorkflow`
 3. run `SignalomeWorkflow`
 
 The builder must therefore stay aligned with the dataset contract and must not create alternate public dataset forms that confuse the workflow story.

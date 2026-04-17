@@ -27,7 +27,7 @@ from phospy import (
     DatasetBuildRequest,
     Organism,
     ReferencePreset,
-    SimpleKinaseWorkflow,
+    KinaseWorkflow,
     SimpleKinaseWorkflowRequest,
 )
 
@@ -49,7 +49,7 @@ dataset = AnalysisReadyDatasetBuilder().run(
     )
 )
 
-result = SimpleKinaseWorkflow().run(
+result = KinaseWorkflow().run(
     SimpleKinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
 )
 

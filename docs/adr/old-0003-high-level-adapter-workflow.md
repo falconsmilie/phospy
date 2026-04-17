@@ -76,14 +76,14 @@ At minimum, a provider must be able to supply:
 This keeps reference resolution explicit and testable instead of pushing that burden
 onto every caller.
 
-### 3. `SimpleKinaseWorkflow`
+### 3. `KinaseWorkflow`
 
 PhosPy will add a new high-level workflow for the common kinase analysis path.
 
 The intended shape is:
 
 ```python
-result = SimpleKinaseWorkflow().run(
+result = KinaseWorkflow().run(
     phospho="phospho.tsv",
     total="total.tsv",
     species="mouse",
@@ -137,6 +137,6 @@ Support for additional import styles can be added later through explicit adapter
 
 - define `AnalysisReadyPhosphoDataset`
 - define `ReferenceProvider` and a first reference bundle contract
-- add `SimpleKinaseWorkflow`
+- add `KinaseWorkflow`
 - document the simple lane and the advanced lane separately
 - add migration examples from notebook-style phosphoproteomics workflows

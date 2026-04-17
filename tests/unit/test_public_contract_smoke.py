@@ -11,13 +11,13 @@ from phospy import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    KinaseWorkflow,
     Organism,
     ReferenceBundle,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
-    SimpleKinaseWorkflow,
     SimpleKinaseWorkflowRequest,
 )
 
@@ -85,7 +85,7 @@ def test_builder_and_workflows_expose_run_and_execute_shells() -> None:
     )
     assert isinstance(built, AnalysisReadyPhosphoDataset)
 
-    kinase_workflow = SimpleKinaseWorkflow()
+    kinase_workflow = KinaseWorkflow()
     assert callable(getattr(kinase_workflow, "run", None))
     kinase_result = kinase_workflow.run(
         SimpleKinaseWorkflowRequest(

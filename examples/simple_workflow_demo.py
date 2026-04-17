@@ -12,9 +12,9 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
+    KinaseWorkflow,
     Organism,
     ReferencePreset,
-    SimpleKinaseWorkflow,
     SimpleKinaseWorkflowRequest,
     SimpleKinaseWorkflowResult,
 )
@@ -52,7 +52,7 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
 def run_demo(outdir: Path) -> tuple[SimpleKinaseWorkflowResult, dict[str, Path]]:
     outdir.mkdir(parents=True, exist_ok=True)
     dataset = build_demo_dataset()
-    result = SimpleKinaseWorkflow().run(
+    result = KinaseWorkflow().run(
         SimpleKinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,

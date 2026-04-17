@@ -8,9 +8,9 @@ from phospy import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    KinaseWorkflow,
     Organism,
     ReferenceBundle,
-    SimpleKinaseWorkflow,
     SimpleKinaseWorkflowRequest,
 )
 from phospy.errors import WorkflowBoundaryError
@@ -83,7 +83,7 @@ def test_boundary_error_reports_unusable_reference_coverage_counts() -> None:
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SimpleKinaseWorkflow().run(request)
+        KinaseWorkflow().run(request)
 
     message = str(exc_info.value)
     assert "seam=simple_kinase.interpreter.reference_coverage" in message
@@ -116,7 +116,7 @@ def test_boundary_error_reports_empty_eligible_kinase_set_counts() -> None:
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SimpleKinaseWorkflow().run(request)
+        KinaseWorkflow().run(request)
 
     message = str(exc_info.value)
     assert "seam=simple_kinase.interpreter.eligible_kinases" in message
@@ -150,7 +150,7 @@ def test_boundary_error_reports_prediction_ensemble_collapse_counts() -> None:
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SimpleKinaseWorkflow().run(request)
+        KinaseWorkflow().run(request)
 
     message = str(exc_info.value)
     assert "seam=simple_kinase.executor.prediction_ensemble" in message

@@ -9,11 +9,11 @@ import pytest
 from phospy import (
     KinasePredictionConfig,
     KinaseScoringConfig,
+    KinaseWorkflow,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
-    SimpleKinaseWorkflow,
     SimpleKinaseWorkflowRequest,
 )
 from phospy.io.signalome_bundle import (
@@ -85,7 +85,7 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
 
 def _build_signalome_request_and_result():
     dataset = build_rat_l6_dataset(n_sites=260)
-    kinase_result = SimpleKinaseWorkflow().run(
+    kinase_result = KinaseWorkflow().run(
         SimpleKinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,

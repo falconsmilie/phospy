@@ -8,13 +8,13 @@ import pandas as pd
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    KinaseWorkflow,
     Organism,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
-    SimpleKinaseWorkflow,
     SimpleKinaseWorkflowRequest,
     SimpleKinaseWorkflowResult,
 )
@@ -47,7 +47,7 @@ def _build_kinase_result() -> SimpleKinaseWorkflowResult:
             organism=Organism.RAT,
         )
     )
-    return SimpleKinaseWorkflow().run(
+    return KinaseWorkflow().run(
         SimpleKinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
     )
 
