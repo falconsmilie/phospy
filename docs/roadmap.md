@@ -17,6 +17,7 @@ Everything above applies to `src/phospy/` only.
 - `DatasetBuildRequest` and `AnalysisReadyDatasetBuilder.run(request)` for dataset construction
 - `SimpleKinaseWorkflow.run(request)` with nested stage outputs:
   `scoring_result`, `prediction_result`, `activity_result`
+- Rewrite CLI support for dataset build and simple kinase workflow from files
 - `SignalomeWorkflow.run(request)` with module assignments, signalome modules, and kinase network outputs
 - `ReferencePreset`/`ReferenceBundle` routing with rat bundled references
 - Rewrite-only examples and tests for the supported route

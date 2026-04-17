@@ -74,5 +74,6 @@ activity_scores = result.activity_result.activity_scores
 ## Docs
 
 - [`docs/api.md`](docs/api.md)
+- [`docs/cli.md`](docs/cli.md)
 - [`docs/validation.md`](docs/validation.md)
 - [`docs/roadmap.md`](docs/roadmap.md)

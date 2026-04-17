@@ -93,3 +93,29 @@ result = SimpleKinaseWorkflow().run(
 
 pred_mat = result.prediction_result.pred_mat
 ```
+
+## CLI
+
+The rewrite CLI now supports the same narrow lane from files:
+
+1. `dataset-build` (files -> analysis-ready dataset outputs)
+2. `simple-kinase` (files -> dataset build + simple kinase workflow outputs)
+
+Examples:
+
+```bash
+phospy dataset-build \
+  --phospho ./input/phospho.csv \
+  --site-metadata ./input/site_metadata.csv \
+  --organism rat \
+  --outdir ./out
+
+phospy simple-kinase \
+  --phospho ./input/phospho.csv \
+  --site-metadata ./input/site_metadata.csv \
+  --organism rat \
+  --reference auto \
+  --outdir ./out
+```
+
+Input files currently support `.csv`, `.tsv`/`.txt`, and `.parquet`.
