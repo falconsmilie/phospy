@@ -13,7 +13,7 @@ src/phospy_legacy/  # migration reference only (not public rewrite contract)
 
 - Dataset builder route: supported
 - Simple kinase workflow route: supported
-- Signalome workflow route: placeholder only (shape exists, scientific implementation pending)
+- Signalome workflow route: first real vertical slice (module assignments, modules, network)
 
 ## Rewrite Contract
 
@@ -63,7 +63,7 @@ activity_scores = result.activity_result.activity_scores
 - `DatasetBuildRequest` accepts pandas `DataFrame` inputs only.
 - `ReferencePreset.AUTO` requires `dataset.organism`.
 - Bundled references are currently available only for the rat lane.
-- Signalome returns placeholder output tables until implementation lands.
+- `SignalomeWorkflowResult.expanded_signalome` remains optional and is currently `None`.
 
 ## Examples
 

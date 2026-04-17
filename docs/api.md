@@ -10,7 +10,7 @@ PhosPy currently exposes one supported end-to-end rewrite route:
 - `src/phospy_legacy/`: migration reference only; not a supported public rewrite target
 - Dataset builder: supported
 - Simple kinase workflow: supported
-- Signalome workflow: placeholder until implemented
+- Signalome workflow: first real vertical slice implemented
 
 ## Public Types
 
@@ -51,8 +51,9 @@ All public executors use `run(request)`.
 
 No mirrored top-level convenience aliases are part of the rewrite contract.
 
-`SignalomeWorkflowResult` currently returns placeholder tables (`module_assignments`,
-`signalome_modules`, `kinase_network`) while implementation is pending.
+`SignalomeWorkflowResult` currently returns real tables (`module_assignments`,
+`signalome_modules`, `kinase_network`) from the first vertical slice, while
+`expanded_signalome` remains optional and currently `None`.
 
 ## Example
 

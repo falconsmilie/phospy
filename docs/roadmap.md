@@ -6,7 +6,7 @@ This page is direction, not a release promise.
 
 - Dataset builder: supported
 - Simple kinase workflow: supported
-- Signalome workflow: placeholder until implemented
+- Signalome workflow: first real vertical slice implemented
 
 Everything above applies to `src/phospy/` only.
 `src/phospy_legacy/` remains migration reference material.
@@ -17,17 +17,17 @@ Everything above applies to `src/phospy/` only.
 - `DatasetBuildRequest` and `AnalysisReadyDatasetBuilder.run(request)` for dataset construction
 - `SimpleKinaseWorkflow.run(request)` with nested stage outputs:
   `scoring_result`, `prediction_result`, `activity_result`
+- `SignalomeWorkflow.run(request)` with module assignments, signalome modules, and kinase network outputs
 - `ReferencePreset`/`ReferenceBundle` routing with rat bundled references
 - Rewrite-only examples and tests for the supported route
 
-## Placeholder (Not Yet Implemented)
+## Not Yet Implemented in Signalome
 
-- `SignalomeWorkflow.run(request)` public shell and request/result model
-- Scientific signalome computation and non-empty signalome outputs
+- `SignalomeWorkflowResult.expanded_signalome` population in the rewrite path
 
 ## Likely Next Steps
 
-- Implement real signalome workflow internals behind the existing request/result shell
+- Expand signalome scientific depth beyond the first vertical slice
 - Add broader fixture-backed regression coverage for the simple kinase lane
 - Expand bundled references beyond rat only after provenance and validation are in place
 - Improve workflow diagnostics and error-action guidance

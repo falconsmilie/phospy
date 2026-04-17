@@ -15,12 +15,22 @@ from phospy import (
     Organism,
     ReferenceBundle,
     ReferencePreset,
+    SignalomeConfig,
+    SignalomeWorkflow,
+    SignalomeWorkflowRequest,
+    SignalomeWorkflowResult,
     SimpleKinaseWorkflow,
     SimpleKinaseWorkflowRequest,
     SimpleKinaseWorkflowResult,
 )
 from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
+from phospy.signalomes.models import (
+    KinaseNetwork,
+    SignalomeAssignments,
+    SignalomeModules,
+)
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
+from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
 
 
 def _phospho() -> pd.DataFrame:
@@ -211,3 +221,95 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
     observed = workflow.run(request)
     assert observed is expected
     assert calls == ["validator", "interpreter", "executor"]
+
+
+def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
+    calls: list[str] = []
+    kinase_result = SimpleKinaseWorkflow().run(
+        SimpleKinaseWorkflowRequest(
+            dataset=_dataset(),
+            references=ReferencePreset.AUTO,
+        )
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=kinase_result,
+        config=SignalomeConfig(signalome_cutoff=0.5),
+    )
+    score_matrix = kinase_result.scoring_result.combined_scores
+    if score_matrix is None:
+        score_matrix = kinase_result.scoring_result.profile_scores
+    interpreted = ResolvedSignalomeWorkflowRequest(
+        dataset=kinase_result.dataset,
+        kinase_result=kinase_result,
+        config=request.config,
+        score_matrix=score_matrix,
+        prediction_matrix=kinase_result.prediction_result.pred_mat,
+        site_to_protein=pd.Series(
+            ["MAPK14"],
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            name="protein_id",
+            dtype=str,
+        ),
+    )
+    expected = SignalomeWorkflowResult(
+        dataset=kinase_result.dataset,
+        kinase_result=kinase_result,
+        module_assignments=SignalomeAssignments(
+            table=pd.DataFrame(
+                {"protein_id": ["MAPK14"], "module_id": [1]},
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            )
+        ),
+        signalome_modules=SignalomeModules(
+            table=pd.DataFrame(
+                {"MAP2K6": [100.0]},
+                index=pd.Index([1], name="module_id"),
+            )
+        ),
+        kinase_network=KinaseNetwork(
+            edges=pd.DataFrame(
+                columns=["source_kinase", "target_kinase", "correlation"]
+            ),
+            nodes=pd.DataFrame(
+                {"degree": [0], "n_substrates": [1]},
+                index=pd.Index(["MAP2K6"], name="kinase"),
+            ),
+        ),
+        expanded_signalome=None,
+    )
+
+    class ValidatorSpy:
+        def run(
+            self, workflow_request: SignalomeWorkflowRequest
+        ) -> SignalomeWorkflowRequest:
+            calls.append("validator")
+            return workflow_request
+
+    class InterpreterSpy:
+        def run(
+            self, workflow_request: SignalomeWorkflowRequest
+        ) -> ResolvedSignalomeWorkflowRequest:
+            calls.append("interpreter")
+            return interpreted
+
+    class ExecutorSpy:
+        def run(
+            self, resolved: ResolvedSignalomeWorkflowRequest
+        ) -> SignalomeWorkflowResult:
+            calls.append("executor")
+            return expected
+
+    workflow = SignalomeWorkflow(
+        validator=ValidatorSpy(),
+        interpreter=InterpreterSpy(),
+        executor=ExecutorSpy(),
+    )
+    observed = workflow.run(request)
+    assert observed is expected
+    assert calls == ["validator", "interpreter", "executor"]
+
+
+def test_signalome_workflow_exposes_only_run_entrypoint() -> None:
+    workflow = SignalomeWorkflow()
+    assert callable(getattr(workflow, "run", None))
+    assert not hasattr(workflow, "run_from_analysis_ready")

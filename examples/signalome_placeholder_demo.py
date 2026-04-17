@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the current signalome placeholder shell over a real kinase result."""
+"""Run the signalome workflow over a real kinase result."""
 
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ def run_demo() -> SignalomeWorkflowResult:
 
 def main() -> None:
     result = run_demo()
-    print("Signalome placeholder demo")
+    print("Signalome workflow demo")
     print(
         "Module assignment shape:",
         result.module_assignments.table.shape,

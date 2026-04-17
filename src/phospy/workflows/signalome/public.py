@@ -2,27 +2,42 @@
 
 from __future__ import annotations
 
-import pandas as pd
-
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import SignalomeWorkflowResult
-from phospy.signalomes.models import (
-    KinaseNetwork,
-    SignalomeAssignments,
-    SignalomeModules,
+from phospy.errors.validation import WorkflowValidationError
+from phospy.errors.workflows import PhosPyWorkflowError, WorkflowStageError
+from phospy.workflows.signalome.contracts import (
+    SignalomeWorkflowExecutorContract,
+    SignalomeWorkflowInterpreterContract,
+    SignalomeWorkflowValidatorContract,
 )
+from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
+from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
 
 
 class SignalomeWorkflow:
     """Public entrypoint for the signalome workflow."""
 
+    def __init__(
+        self,
+        *,
+        validator: SignalomeWorkflowValidatorContract | None = None,
+        interpreter: SignalomeWorkflowInterpreterContract | None = None,
+        executor: SignalomeWorkflowExecutorContract | None = None,
+    ) -> None:
+        self._validator = validator or SignalomeWorkflowValidator()
+        self._interpreter = interpreter or SignalomeWorkflowInterpreter()
+        self._executor = executor or SignalomeWorkflowExecutor()
+
     def run(self, request: SignalomeWorkflowRequest) -> SignalomeWorkflowResult:
-        dataset = request.kinase_result.dataset
-        return SignalomeWorkflowResult(
-            dataset=dataset,
-            kinase_result=request.kinase_result,
-            module_assignments=SignalomeAssignments(table=pd.DataFrame()),
-            signalome_modules=SignalomeModules(table=pd.DataFrame()),
-            kinase_network=KinaseNetwork(edges=pd.DataFrame()),
-            expanded_signalome=None,
-        )
+        """Validate, interpret, and execute the signalome workflow."""
+
+        try:
+            validated = self._validator.run(request)
+            interpreted = self._interpreter.run(validated)
+            return self._executor.run(interpreted)
+        except (PhosPyWorkflowError, WorkflowValidationError, WorkflowStageError):
+            raise
+        except Exception as exc:  # pragma: no cover - defensive boundary translation
+            raise PhosPyWorkflowError("signalome workflow execution failed") from exc
