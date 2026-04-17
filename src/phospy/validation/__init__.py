@@ -1,1 +1,1 @@
-"""Validation domain namespace."""
+"""Private validation domain for reusable package-internal validators."""

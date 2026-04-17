@@ -1,5 +1,9 @@
 """Transformation domain package."""
 
-from phospy.transformations.models import TransformationKind, TransformationState
+from phospy.transformations.models import (
+    MatrixTransformationState,
+    TransformationKind,
+    TransformationState,
+)
 
-__all__ = ["TransformationKind", "TransformationState"]
+__all__ = ["MatrixTransformationState", "TransformationKind", "TransformationState"]

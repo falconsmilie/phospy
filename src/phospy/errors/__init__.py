@@ -1,14 +1,32 @@
 """Public exception taxonomy exports."""
 
 from phospy.errors.base import PhosPyError
-from phospy.errors.build import PhosPyBuildError
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.references import PhosPyReferenceError
-from phospy.errors.transformations import PhosPyTransformationError
-from phospy.errors.validation import PhosPyValidationError
-from phospy.errors.workflows import PhosPyWorkflowError
+from phospy.errors.build import DatasetBuildError, PhosPyBuildError
+from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.errors.references import (
+    PhosPyReferenceError,
+    ReferenceCompatibilityError,
+    ReferenceResolutionError,
+    UnsupportedOrganismError,
+)
+from phospy.errors.transformations import (
+    InvalidTransformationStateError,
+    PhosPyTransformationError,
+    TransformerExecutionError,
+)
+from phospy.errors.validation import (
+    DatasetValidationError,
+    PhosPyValidationError,
+    ReferenceValidationError,
+    TransformationValidationError,
+    WorkflowValidationError,
+)
+from phospy.errors.workflows import PhosPyWorkflowError, WorkflowStageError
 
 __all__ = [
+    "DatasetBuildError",
+    "DatasetValidationError",
+    "InvalidTransformationStateError",
     "PhosPyBuildError",
     "PhosPyError",
     "PhosPyInputError",
@@ -16,4 +34,13 @@ __all__ = [
     "PhosPyTransformationError",
     "PhosPyValidationError",
     "PhosPyWorkflowError",
+    "ReferenceCompatibilityError",
+    "ReferenceResolutionError",
+    "ReferenceValidationError",
+    "TransformationValidationError",
+    "TransformerExecutionError",
+    "UnsupportedInputFormatError",
+    "UnsupportedOrganismError",
+    "WorkflowStageError",
+    "WorkflowValidationError",
 ]

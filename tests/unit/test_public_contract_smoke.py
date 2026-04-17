@@ -48,8 +48,13 @@ def test_public_shells_import_and_instantiate() -> None:
     dataset = _dataset()
     references = ReferenceBundle(
         organism=Organism.RAT,
-        kinase_substrate_map=pd.DataFrame(),
-        site_sequences=pd.DataFrame(),
+        kinase_substrate_map=pd.DataFrame(
+            {"kinase": ["KINASE_A"], "substrate_site": ["GENEA;S1;"]}
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": ["AAAAAAA"]},
+            index=pd.Index(["GENEA;S1;"], name="site_id"),
+        ),
     )
     request = SimpleKinaseWorkflowRequest(
         dataset=dataset,

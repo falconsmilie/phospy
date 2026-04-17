@@ -7,14 +7,18 @@ import pandas as pd
 from phospy.activities.models import KinaseActivityResult
 from phospy.api.requests import SimpleKinaseWorkflowRequest
 from phospy.api.results import SimpleKinaseWorkflowResult
-from phospy.errors.references import PhosPyReferenceError
-from phospy.errors.workflows import PhosPyWorkflowError
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
-from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
+from phospy.references.models import ReferenceBundle
+from phospy.references.resolution import BundledReferenceProvider, ReferenceResolver
 
 
 class SimpleKinaseWorkflow:
     """Public entrypoint for the kinase workflow."""
+
+    def __init__(self) -> None:
+        self._reference_resolver = ReferenceResolver(
+            provider=BundledReferenceProvider()
+        )
 
     def run(self, request: SimpleKinaseWorkflowRequest) -> SimpleKinaseWorkflowResult:
         references = self._resolve_references(request)
@@ -34,42 +38,10 @@ class SimpleKinaseWorkflow:
             activity_result=activity_result,
         )
 
-    @staticmethod
-    def _resolve_references(request: SimpleKinaseWorkflowRequest) -> ReferenceBundle:
-        reference_input = request.references
-        if isinstance(reference_input, ReferenceBundle):
-            return reference_input
-        if not isinstance(reference_input, ReferencePreset):
-            raise PhosPyWorkflowError("unsupported reference input type")
-        organism = SimpleKinaseWorkflow._resolve_preset(reference_input, request)
-        return ReferenceBundle(
-            organism=organism,
-            kinase_substrate_map=pd.DataFrame(),
-            site_sequences=pd.DataFrame(),
+    def _resolve_references(
+        self, request: SimpleKinaseWorkflowRequest
+    ) -> ReferenceBundle:
+        return self._reference_resolver.run(
+            request.references,
+            dataset_organism=request.dataset.organism,
         )
-
-    @staticmethod
-    def _resolve_preset(
-        preset: ReferencePreset,
-        request: SimpleKinaseWorkflowRequest,
-    ) -> Organism:
-        if preset is ReferencePreset.AUTO:
-            if request.dataset.organism is None:
-                raise PhosPyReferenceError(
-                    "ReferencePreset.AUTO requires dataset.organism"
-                )
-            return request.dataset.organism
-        mapping = {
-            ReferencePreset.HUMAN: Organism.HUMAN,
-            ReferencePreset.MOUSE: Organism.MOUSE,
-            ReferencePreset.RAT: Organism.RAT,
-        }
-        organism = mapping[preset]
-        if (
-            request.dataset.organism is not None
-            and request.dataset.organism != organism
-        ):
-            raise PhosPyReferenceError(
-                "dataset.organism and requested reference preset must match"
-            )
-        return organism

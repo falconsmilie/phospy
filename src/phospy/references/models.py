@@ -32,3 +32,23 @@ class ReferenceBundle:
     organism: Organism
     kinase_substrate_map: pd.DataFrame
     site_sequences: pd.DataFrame
+
+    def __post_init__(self) -> None:
+        kinase_substrate_map = _copy_frame(self.kinase_substrate_map)
+        site_sequences = _copy_frame(self.site_sequences)
+
+        from phospy.validation.references.bundle import ReferenceBundleValidator
+
+        ReferenceBundleValidator().run(
+            organism=self.organism,
+            kinase_substrate_map=kinase_substrate_map,
+            site_sequences=site_sequences,
+        )
+        object.__setattr__(self, "kinase_substrate_map", kinase_substrate_map)
+        object.__setattr__(self, "site_sequences", site_sequences)
+
+
+def _copy_frame(value: object) -> object:
+    if not isinstance(value, pd.DataFrame):
+        return value
+    return value.copy(deep=True)
