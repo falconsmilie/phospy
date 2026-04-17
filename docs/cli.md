@@ -30,6 +30,14 @@ phospy simple-kinase \
   --outdir ./out
 ```
 
+Bundled preset policy in the rewrite cutover:
+
+- bundled runtime coverage is rat-only
+- `--reference auto` and `--reference rat` are the supported bundled paths
+- `--reference human` / `--reference mouse` fail with
+  `UnsupportedOrganismError` until those lanes have provenance and fixture-backed
+  validation
+
 ## Input Formats
 
 Supported file formats for read and write:

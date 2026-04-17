@@ -32,6 +32,9 @@ For public types and signatures, see [`api.md`](api.md).
 - `ReferencePreset.AUTO` requires `dataset.organism`
 - explicit preset organism must match `dataset.organism` when both are set
 - bundled references are currently packaged for rat only
+- `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain valid public enum
+  values but intentionally fail bundled resolution in the current release
+- non-rat workflows must provide a caller-supplied `ReferenceBundle`
 - `ReferenceBundle.kinase_substrate_map` must be non-empty with:
   `kinase`, `substrate_site`
 - `ReferenceBundle.site_sequences` must be non-empty with:

@@ -12,6 +12,9 @@ from phospy.references.models import Organism
 _BUNDLED_DEFAULTS: dict[Organism, str] = {
     Organism.RAT: "l6_native",
 }
+_NON_BUNDLED_GUIDANCE = (
+    "non-bundled organism lanes require a caller-supplied ReferenceBundle"
+)
 
 
 def supported_bundled_organisms() -> tuple[Organism, ...]:
@@ -29,7 +32,8 @@ def bundled_reference_name_for_organism(organism: Organism) -> str:
     supported = ", ".join(item.value for item in supported_bundled_organisms())
     raise UnsupportedOrganismError(
         f"no bundled references are available for organism '{organism.value}' in the "
-        f"current release; supported bundled organisms: {supported}"
+        f"current release; supported bundled organisms: {supported}; "
+        f"{_NON_BUNDLED_GUIDANCE}"
     )
 
 

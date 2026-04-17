@@ -63,6 +63,9 @@ activity_scores = result.activity_result.activity_scores
 - `DatasetBuildRequest` accepts pandas `DataFrame` inputs only.
 - `ReferencePreset.AUTO` requires `dataset.organism`.
 - Bundled references are currently available only for the rat lane.
+- `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain valid enum values, but
+  they are not bundled runtime lanes in this release. Use an explicit
+  `ReferenceBundle` for non-rat organisms.
 - `SignalomeWorkflowResult.expanded_signalome` remains optional and is currently `None`.
 
 ## Examples

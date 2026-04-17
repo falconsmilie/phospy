@@ -40,6 +40,11 @@ All public executors use `run(request)`.
 - Optional: `sample_metadata`, `total`, `organism`, `transformation_state`
 - `ReferencePreset.AUTO` requires `dataset.organism` at workflow execution time
 - Bundled references are currently available for rat only
+- `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` are part of the public enum,
+  but bundled runtime resolution for those presets is intentionally unsupported in
+  this release and fails with `UnsupportedOrganismError`
+- For non-rat workflows, supply an explicit `ReferenceBundle` instead of relying
+  on bundled presets
 
 ## Result Contract
 

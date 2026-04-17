@@ -20,6 +20,8 @@ Everything above applies to `src/phospy/` only.
 - Rewrite CLI support for dataset build and simple kinase workflow from files
 - `SignalomeWorkflow.run(request)` with module assignments, signalome modules, and kinase network outputs
 - `ReferencePreset`/`ReferenceBundle` routing with rat bundled references
+- Explicit cutover policy: non-rat presets are enum-level lanes only, not bundled
+  runtime support; non-rat execution requires caller-supplied `ReferenceBundle`
 - External save/load output-bundle services for `SimpleKinaseWorkflowResult` with
   versioned manifest (`phospy.io`)
 - Rewrite-only examples and tests for the supported route

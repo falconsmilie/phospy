@@ -9,7 +9,7 @@ import pandas as pd
 
 
 class Organism(str, Enum):
-    """Supported organism identifiers."""
+    """Supported organism identifiers for dataset/reference contracts."""
 
     HUMAN = "human"
     MOUSE = "mouse"
@@ -17,7 +17,11 @@ class Organism(str, Enum):
 
 
 class ReferencePreset(str, Enum):
-    """Built-in reference selection presets."""
+    """Built-in organism presets for bundled-reference resolution.
+
+    Enum values define the public organism lanes. A release may bundle only a
+    subset of those lanes.
+    """
 
     AUTO = "auto"
     HUMAN = "human"

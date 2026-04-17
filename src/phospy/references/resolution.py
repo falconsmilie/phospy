@@ -37,7 +37,10 @@ class ReferenceResolverContract(Protocol):
 
 
 class BundledReferenceProvider:
-    """Load packaged bundled reference data for supported organisms."""
+    """Load packaged bundled reference data for supported organisms.
+
+    In the current cutover release, bundled runtime coverage is rat-only.
+    """
 
     def run(self, organism: Organism) -> ReferenceBundle:
         if not isinstance(organism, Organism):

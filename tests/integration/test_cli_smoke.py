@@ -108,3 +108,36 @@ def test_cli_reports_rewrite_taxonomy_for_input_format_errors(
 
     assert exit_code == 2
     assert "UnsupportedInputFormatError" in captured.err
+
+
+def test_cli_simple_kinase_rejects_non_rat_bundled_resolution(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    phospho = load_rat_l6_phospho().head(32).copy(deep=True)
+    site_metadata = site_metadata_for(phospho)
+    phospho_path = tmp_path / "phospho.csv"
+    site_metadata_path = tmp_path / "site_metadata.csv"
+    outdir = tmp_path / "out"
+    phospho.to_csv(phospho_path)
+    site_metadata.to_csv(site_metadata_path)
+
+    exit_code = cli_main(
+        [
+            "simple-kinase",
+            "--phospho",
+            str(phospho_path),
+            "--site-metadata",
+            str(site_metadata_path),
+            "--organism",
+            "human",
+            "--reference",
+            "auto",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "UnsupportedOrganismError" in captured.err
+    assert "supported bundled organisms: rat" in captured.err

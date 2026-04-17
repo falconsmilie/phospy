@@ -73,7 +73,8 @@ The proposed public values are:
 - `MOUSE`
 - `RAT`
 
-These values should map to bundled reference resources provided by PhosPy.
+These values define organism lanes for reference resolution. A given release may
+bundle only a subset of those lanes (currently rat only).
 
 Additional built-in organisms are future work.
 
@@ -130,9 +131,12 @@ If the user supplies a `ReferenceBundle`, that bundle is used directly, subject 
 
 The workflow must not silently override it with bundled defaults.
 
-### Rule 2: Explicit preset resolves to bundled references
+### Rule 2: Explicit preset resolves to bundled references when available
 
-If the user supplies a specific preset such as `HUMAN`, `MOUSE`, or `RAT`, the interpreter resolves that preset to the corresponding bundled `ReferenceBundle`.
+If the user supplies a specific preset such as `HUMAN`, `MOUSE`, or `RAT`, the
+interpreter resolves that preset to a bundled `ReferenceBundle` only when that
+organism has packaged bundled support in the current release. Otherwise it fails
+explicitly.
 
 ### Rule 3: `AUTO` resolves from dataset organism
 
@@ -140,7 +144,8 @@ If the user supplies `ReferencePreset.AUTO`, resolution should use the dataset o
 
 The proposed rule is:
 
-- if `dataset.organism` is present and supported, resolve to the matching bundled reference bundle
+- if `dataset.organism` is present and has bundled support in the current
+  release, resolve to the matching bundled reference bundle
 - otherwise fail with a validation error rather than guessing
 
 `AUTO` should not infer organism from fragile heuristics or partially trusted metadata.
@@ -344,4 +349,3 @@ Together, these ADRs establish:
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
 YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
-
