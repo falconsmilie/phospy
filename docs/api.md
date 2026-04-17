@@ -1,39 +1,58 @@
 # API Guide
 
-PhosPy is in rewrite cutover mode. The first supported end-to-end route is:
+PhosPy currently exposes one supported end-to-end rewrite route:
 
-`DatasetBuildRequest -> AnalysisReadyDatasetBuilder.run() -> AnalysisReadyPhosphoDataset -> SimpleKinaseWorkflow.run()`
+`DatasetBuildRequest -> AnalysisReadyDatasetBuilder.run(request) -> AnalysisReadyPhosphoDataset -> SimpleKinaseWorkflow.run(request)`
 
-## Migration Boundary
+## Support Boundary
 
-- `src/phospy/` is the authoritative package location for all new work.
-- `src/phospy_legacy/` is reference-only and not a supported public API target.
-- Legacy structures must not be extended.
-- Temporary functional incompleteness in `phospy` is expected during this stage.
+- `src/phospy/`: supported public rewrite package
+- `src/phospy_legacy/`: migration reference only; not a supported public rewrite target
+- Dataset builder: supported
+- Simple kinase workflow: supported
+- Signalome workflow: placeholder until implemented
 
-## Current Public Surface
+## Public Types
 
-Import from the top-level package:
+Import from top-level `phospy`:
 
-- dataset model: `AnalysisReadyPhosphoDataset`
-- reference models: `Organism`, `ReferencePreset`, `ReferenceBundle`
-- builder request + entry point: `DatasetBuildRequest`, `AnalysisReadyDatasetBuilder`
-- workflow requests: `SimpleKinaseWorkflowRequest`, `SignalomeWorkflowRequest`
-- workflow configs: `KinaseScoringConfig`, `KinasePredictionConfig`, `KinaseActivityConfig`, `SignalomeConfig`
-- stage results: `KinaseScoringResult`, `KinasePredictionResult`, `KinaseActivityResult`
-- workflow results: `SimpleKinaseWorkflowResult`, `SignalomeWorkflowResult`
-- workflow entry points: `SimpleKinaseWorkflow`, `SignalomeWorkflow`
+- Dataset and references:
+`AnalysisReadyPhosphoDataset`, `Organism`, `ReferencePreset`, `ReferenceBundle`
+- Builder:
+`DatasetBuildRequest`, `AnalysisReadyDatasetBuilder`
+- Workflows and requests:
+`SimpleKinaseWorkflow`, `SimpleKinaseWorkflowRequest`,
+`SignalomeWorkflow`, `SignalomeWorkflowRequest`
+- Config models:
+`KinaseScoringConfig`, `KinasePredictionConfig`, `KinaseActivityConfig`,
+`SignalomeConfig`
+- Result models:
+`SimpleKinaseWorkflowResult`, `SignalomeWorkflowResult`,
+`KinaseScoringResult`, `KinasePredictionResult`, `KinaseActivityResult`
 
-All public execution entry points use `run(request)`.
+All public executors use `run(request)`.
 
-## Supported Builder Input Mode
+## Builder Contract
 
-`DatasetBuildRequest` currently supports in-memory pandas `DataFrame` inputs only.
+`DatasetBuildRequest` currently accepts in-memory pandas `DataFrame` values only.
 
-- required: `phospho`, `site_metadata`
-- optional: `sample_metadata`, `total`
-- unsupported in this phase: file-path and string-based ingestion
-- bundled presets currently available in the rewrite path: rat (`ReferencePreset.RAT`)
+- Required: `phospho`, `site_metadata`
+- Optional: `sample_metadata`, `total`, `organism`, `transformation_state`
+- `ReferencePreset.AUTO` requires `dataset.organism` at workflow execution time
+- Bundled references are currently available for rat only
+
+## Result Contract
+
+`SimpleKinaseWorkflowResult` keeps stage outputs nested:
+
+- `result.scoring_result`
+- `result.prediction_result`
+- `result.activity_result`
+
+No mirrored top-level convenience aliases are part of the rewrite contract.
+
+`SignalomeWorkflowResult` currently returns placeholder tables (`module_assignments`,
+`signalome_modules`, `kinase_network`) while implementation is pending.
 
 ## Example
 
@@ -49,10 +68,12 @@ from phospy import (
     SimpleKinaseWorkflowRequest,
 )
 
-builder = AnalysisReadyDatasetBuilder()
-dataset = builder.run(
+dataset = AnalysisReadyDatasetBuilder().run(
     DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        phospho=pd.DataFrame(
+            {"sample_a": [1.0], "sample_b": [1.2]},
+            index=["MAPK14;Y182;"],
+        ),
         site_metadata=pd.DataFrame(
             {
                 "gene_symbol": ["MAPK14"],
@@ -65,15 +86,9 @@ dataset = builder.run(
     )
 )
 
-kinase_result = SimpleKinaseWorkflow().run(
+result = SimpleKinaseWorkflow().run(
     SimpleKinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
 )
 
-profile_scores = kinase_result.scoring_result.profile_scores
-pred_mat = kinase_result.prediction_result.pred_mat
+pred_mat = result.prediction_result.pred_mat
 ```
-
-`SimpleKinaseWorkflowResult` keeps stage outputs nested (`scoring_result`, `prediction_result`, `activity_result`) rather than exposing mirrored top-level convenience aliases.
-
-`SignalomeWorkflow` remains a placeholder in the rewrite tree and is not yet a
-scientifically complete execution path.

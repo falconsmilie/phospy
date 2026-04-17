@@ -2,65 +2,37 @@
 
 This page is direction, not a release promise.
 
-## Current Rewrite Stage
+## Current Rewrite Contract
 
-The repository is in hard cutover mode:
+- Dataset builder: supported
+- Simple kinase workflow: supported
+- Signalome workflow: placeholder until implemented
 
-- `src/phospy/` is the active rewrite package.
-- `src/phospy_legacy/` is reference-only and not for new feature work.
-- Temporary incompleteness in the new package is intentional while boundaries are established.
+Everything above applies to `src/phospy/` only.
+`src/phospy_legacy/` remains migration reference material.
 
-## Already Landed
+## Landed and Supported
 
-These now exist in the supported public surface:
+- `AnalysisReadyPhosphoDataset` as the public dataset boundary
+- `DatasetBuildRequest` and `AnalysisReadyDatasetBuilder.run(request)` for dataset construction
+- `SimpleKinaseWorkflow.run(request)` with nested stage outputs:
+  `scoring_result`, `prediction_result`, `activity_result`
+- `ReferencePreset`/`ReferenceBundle` routing with rat bundled references
+- Rewrite-only examples and tests for the supported route
 
-- `PhosphoDataset` as the supported preprocessing entry point
-- `SimpleKinaseWorkflow` as the main end-to-end workflow
-- `SignalomeWorkflow` as the supported signalome workflow
-- stable `PredMatResult`, `SignalomeResult`, `SignalomeMapData`, and `SignalomeNetworkData` contracts
-- documented `SimpleKinaseWorkflowResult` contract with explicit access-path guidance
-- `AnalysisReadyPhosphoDataset` as the preprocessing-to-inference boundary
-- `ReferenceBundle`, `ReferenceProvider`, and a first `BundledReferenceProvider` lane for `rat` / `l6_native`
-- separate documentation and examples for preprocessing, kinase scoring, and signalome analysis
-- explicit `svm_mode` guidance for `default` and `r_parity`
+## Placeholder (Not Yet Implemented)
 
-## Most Likely Next Steps
+- `SignalomeWorkflow.run(request)` public shell and request/result model
+- Scientific signalome computation and non-empty signalome outputs
 
-### Better Diagnostics
+## Likely Next Steps
 
-Clearer validation messages, better overlap debugging, and more direct guidance when prediction thresholds are too strict.
+- Implement real signalome workflow internals behind the existing request/result shell
+- Add broader fixture-backed regression coverage for the simple kinase lane
+- Expand bundled references beyond rat only after provenance and validation are in place
+- Improve workflow diagnostics and error-action guidance
 
-### Hardening the Simple Workflow Lane
+## Not a Near-term Goal
 
-The main end-to-end path exists. The next useful step is deeper fixture-backed regression coverage so it stays stable as the package grows.
-
-### CLI Coverage
-
-The CLI already covers file-based preprocessing and optional kinase activity analysis from an existing `predMat`. A natural next step is stronger test and example coverage around that path.
-
-### Broader Native Workflow Validation
-
-The repository already includes L6 references, prediction traces, and public workflow benchmarks. Extending that coverage would improve confidence without widening the parity claim.
-
-### Broader Bundled Reference Coverage
-
-The first bundled provider lane is intentionally narrow. Expanding beyond `rat` / `l6_native` needs the same level of provenance, validation, and fixture-backed evidence before it should be presented as supported.
-
-### Smoother Workflow I/O
-
-The package would benefit from easier movement between validated in-memory results, reproducible configuration, and saved output bundles.
-
-## Likely PhosR-inspired Additions
-
-- phosphosite-to-gene collapsing
-- over-representation pathway analysis
-- rank-based pathway enrichment
-- smaller targeted preprocessing helpers
-- richer kinase summary and export layers
-
-## Less Likely Near-term Work
-
-- package-wide parity claims
-- trying to mirror all of `PhosR`
-- broad public API expansion without fixture-backed evidence
-- deeper SPS- and RUV-style normalisation work before the narrower public workflows are fully hardened
+- Broad parity claims across all legacy lanes
+- Public expansion of unsupported legacy-facing APIs

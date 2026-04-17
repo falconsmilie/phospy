@@ -1,32 +1,23 @@
 # PhosPy
 
-PhosPy is in a rewrite cutover phase, with the first real vertical slice now
-implemented for the simple kinase workflow.
+PhosPy is in rewrite cutover mode. Public support is intentionally narrow.
 
 ## Package Boundary
 
 ```text
-src/phospy/         # new architecture and supported public package
-src/phospy_legacy/  # old implementation, reference-only during migration
+src/phospy/         # supported rewrite package
+src/phospy_legacy/  # migration reference only (not public rewrite contract)
 ```
 
-- New implementation work must land under `src/phospy/`.
-- `phospy_legacy` is internal migration reference material and is not a supported public API target.
-- The simple kinase path is real for DataFrame-backed, analysis-ready inputs.
-- Signalome in `src/phospy/` is still a placeholder shell.
+## Supported Today
 
-## Current Public Shell API
+- Dataset builder route: supported
+- Simple kinase workflow route: supported
+- Signalome workflow route: placeholder only (shape exists, scientific implementation pending)
 
-Top-level `phospy` exports include:
-
-- dataset and references: `AnalysisReadyPhosphoDataset`, `Organism`, `ReferencePreset`, `ReferenceBundle`
-- builder lane: `DatasetBuildRequest`, `AnalysisReadyDatasetBuilder`
-- workflows: `SimpleKinaseWorkflow`, `SignalomeWorkflow`
-- workflow requests/results and stage config/result shells
+## Rewrite Contract
 
 All public execution entry points use `run(request)`.
-
-## First Supported Route
 
 ```python
 import pandas as pd
@@ -40,10 +31,12 @@ from phospy import (
     SimpleKinaseWorkflowRequest,
 )
 
-builder = AnalysisReadyDatasetBuilder()
-dataset = builder.run(
+dataset = AnalysisReadyDatasetBuilder().run(
     DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        phospho=pd.DataFrame(
+            {"sample_a": [1.0], "sample_b": [1.2]},
+            index=["MAPK14;Y182;"],
+        ),
         site_metadata=pd.DataFrame(
             {
                 "gene_symbol": ["MAPK14"],
@@ -60,17 +53,26 @@ result = SimpleKinaseWorkflow().run(
     SimpleKinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
 )
 
-scoring = result.scoring_result.profile_scores
+profile_scores = result.scoring_result.profile_scores
 pred_mat = result.prediction_result.pred_mat
+activity_scores = result.activity_result.activity_scores
 ```
 
-Notes:
-- `DatasetBuildRequest` currently supports in-memory pandas `DataFrame` inputs only.
+## Current Limits
+
+- `DatasetBuildRequest` accepts pandas `DataFrame` inputs only.
 - `ReferencePreset.AUTO` requires `dataset.organism`.
-- Built-in bundled references are currently supported for the rat lane.
+- Bundled references are currently available only for the rat lane.
+- Signalome returns placeholder output tables until implementation lands.
+
+## Examples
+
+- [`examples/dataset_builder_demo.py`](examples/dataset_builder_demo.py)
+- [`examples/simple_workflow_demo.py`](examples/simple_workflow_demo.py)
+- [`examples/signalome_placeholder_demo.py`](examples/signalome_placeholder_demo.py)
 
 ## Docs
 
 - [`docs/api.md`](docs/api.md)
-- [`docs/architecture/rewrite_cutover_boundary.md`](docs/architecture/rewrite_cutover_boundary.md)
-- [`docs/architecture/phospy_architecture_reset_notes.md`](docs/architecture/phospy_architecture_reset_notes.md)
+- [`docs/validation.md`](docs/validation.md)
+- [`docs/roadmap.md`](docs/roadmap.md)
