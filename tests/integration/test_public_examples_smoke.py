@@ -8,6 +8,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES_DIR = ROOT / "examples"
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.parametrize(
     "script_name",

@@ -1,22 +1,17 @@
 from __future__ import annotations
 
-from functools import lru_cache
-from pathlib import Path
-
-import pandas as pd
+import pytest
 from pandas.api.types import (
     is_bool_dtype,
     is_float_dtype,
     is_integer_dtype,
     is_object_dtype,
+    is_string_dtype,
 )
 
 from phospy import (
-    AnalysisReadyDatasetBuilder,
-    DatasetBuildRequest,
     KinasePredictionConfig,
     KinaseScoringConfig,
-    Organism,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflow,
@@ -24,64 +19,17 @@ from phospy import (
     SimpleKinaseWorkflow,
     SimpleKinaseWorkflowRequest,
 )
+from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
-ROOT = Path(__file__).resolve().parents[2]
-RAT_L6_PHOSPHO = (
-    ROOT / "tests_legacy" / "fixtures" / "r_reference_l6" / "l6_phospho_matrix.csv"
-)
-RAT_L6_SITE_SEQUENCES = (
-    ROOT
-    / "src"
-    / "phospy"
-    / "data"
-    / "reference_bundles"
-    / "rat"
-    / "l6_native"
-    / "site_sequences.csv"
-)
+pytestmark = pytest.mark.integration
 
 
-@lru_cache(maxsize=1)
-def _load_rat_l6_phospho() -> pd.DataFrame:
-    return pd.read_csv(RAT_L6_PHOSPHO, index_col=0)
+def _is_text_dtype(values: object) -> bool:
+    return is_object_dtype(values) or is_string_dtype(values)
 
 
-@lru_cache(maxsize=1)
-def _load_rat_l6_sequence_table() -> pd.Series:
-    sequence_frame = pd.read_csv(RAT_L6_SITE_SEQUENCES)
-    return sequence_frame.set_index("site_id").loc[:, "centralized_sequence"]
-
-
-def _site_metadata_for(phospho: pd.DataFrame) -> pd.DataFrame:
-    split = phospho.index.to_series().astype(str).str.split(";", expand=True)
-    site_sequences = _load_rat_l6_sequence_table().reindex(phospho.index)
-    if site_sequences.isna().any():
-        missing = int(site_sequences.isna().sum())
-        raise AssertionError(
-            f"fixture missing site sequences for {missing} phosphosites"
-        )
-    return pd.DataFrame(
-        {
-            "gene_symbol": split.loc[:, 0].values,
-            "site": split.loc[:, 1].values,
-            "site_sequence": site_sequences.values,
-        },
-        index=phospho.index.copy(),
-    )
-
-
-def _build_dataset(*, n_sites: int = 260) -> object:
-    phospho = _load_rat_l6_phospho().head(n_sites).copy(deep=True)
-    request = DatasetBuildRequest(
-        phospho=phospho,
-        site_metadata=_site_metadata_for(phospho),
-        organism=Organism.RAT,
-    )
-    return AnalysisReadyDatasetBuilder().run(request)
-
-
-def test_signalome_workflow_runs_first_real_vertical_slice() -> None:
-    dataset = _build_dataset(n_sites=260)
+def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
+    dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = SimpleKinaseWorkflow().run(
         SimpleKinaseWorkflowRequest(
             dataset=dataset,
@@ -110,9 +58,9 @@ def test_signalome_workflow_runs_first_real_vertical_slice() -> None:
         "top_kinase_tie_count",
         "top_kinase_is_ambiguous",
     }.issubset(set(assignments.columns))
-    assert is_object_dtype(assignments.loc[:, "protein_id"])
+    assert _is_text_dtype(assignments.loc[:, "protein_id"])
     assert is_integer_dtype(assignments.loc[:, "module_id"])
-    assert is_object_dtype(assignments.loc[:, "top_kinase"])
+    assert _is_text_dtype(assignments.loc[:, "top_kinase"])
     assert is_float_dtype(assignments.loc[:, "top_score"])
     assert is_integer_dtype(assignments.loc[:, "top_kinase_tie_count"])
     assert is_bool_dtype(assignments.loc[:, "top_kinase_is_ambiguous"])
@@ -136,8 +84,8 @@ def test_signalome_workflow_runs_first_real_vertical_slice() -> None:
     assert {"source_kinase", "target_kinase", "correlation"} == set(
         network_edges.columns
     )
-    assert is_object_dtype(network_edges.loc[:, "source_kinase"])
-    assert is_object_dtype(network_edges.loc[:, "target_kinase"])
+    assert _is_text_dtype(network_edges.loc[:, "source_kinase"])
+    assert _is_text_dtype(network_edges.loc[:, "target_kinase"])
     assert is_float_dtype(network_edges.loc[:, "correlation"])
 
     assert result.expanded_signalome is None
