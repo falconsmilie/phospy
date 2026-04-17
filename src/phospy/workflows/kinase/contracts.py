@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
+import pandas as pd
+
 from phospy.api.configs import (
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -25,6 +27,7 @@ class ResolvedKinaseWorkflowRequest:
 
     dataset: AnalysisReadyPhosphoDataset
     references: ReferenceBundle
+    kinase_substrate_map: pd.DataFrame
     scoring_config: KinaseScoringConfig
     prediction_config: KinasePredictionConfig
     activity_config: KinaseActivityConfig | None

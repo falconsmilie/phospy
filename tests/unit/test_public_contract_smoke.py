@@ -23,7 +23,10 @@ from phospy import (
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
-    phospho = pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"])
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [2.0]},
+        index=["MAPK14;Y182;"],
+    )
     site_metadata = pd.DataFrame(
         {
             "gene_symbol": ["MAPK14"],

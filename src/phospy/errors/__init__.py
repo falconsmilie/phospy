@@ -21,7 +21,11 @@ from phospy.errors.validation import (
     TransformationValidationError,
     WorkflowValidationError,
 )
-from phospy.errors.workflows import PhosPyWorkflowError, WorkflowStageError
+from phospy.errors.workflows import (
+    PhosPyWorkflowError,
+    WorkflowBoundaryError,
+    WorkflowStageError,
+)
 
 __all__ = [
     "DatasetBuildError",
@@ -41,6 +45,7 @@ __all__ = [
     "TransformerExecutionError",
     "UnsupportedInputFormatError",
     "UnsupportedOrganismError",
+    "WorkflowBoundaryError",
     "WorkflowStageError",
     "WorkflowValidationError",
 ]

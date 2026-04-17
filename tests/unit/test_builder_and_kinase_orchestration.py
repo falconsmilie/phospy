@@ -177,9 +177,11 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
     request = SimpleKinaseWorkflowRequest(
         dataset=_dataset(), references=ReferencePreset.AUTO
     )
+    bundle = _bundle()
     interpreted = ResolvedKinaseWorkflowRequest(
         dataset=request.dataset,
-        references=_bundle(),
+        references=bundle,
+        kinase_substrate_map=bundle.kinase_substrate_map,
         scoring_config=request.scoring_config,
         prediction_config=request.prediction_config,
         activity_config=request.activity_config,

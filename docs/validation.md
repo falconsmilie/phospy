@@ -48,6 +48,21 @@ For public types and signatures, see [`api.md`](api.md).
 - `prediction_config` is `KinasePredictionConfig`
 - `activity_config` is `KinaseActivityConfig` or `None`
 
+Rewrite-era boundary diagnostics (raised as `WorkflowBoundaryError`) also enforce:
+
+- interpreted reference coverage must overlap dataset phosphosites
+- at least one kinase must meet `scoring_config.min_substrates` after overlap
+- prediction ranking must produce at least one ensemble kinase
+- activity (when enabled) must have at least one positive predicted site assignment
+
+Boundary error messages include:
+
+- the failing seam (for example `simple_kinase.interpreter.eligible_kinases`)
+- concrete counts (`dataset_sites`, `overlap_sites`, `eligible_kinases`, etc.)
+- active config values (`scoring_config_min_substrates`,
+  `prediction_config_ensemble_size`, `activity_config_threshold`)
+- a `next_action` hint for likely recovery
+
 Stage result access is nested and stable:
 
 - `result.scoring_result.profile_scores`
@@ -72,6 +87,10 @@ workflow implementation is pending.
 | `ReferencePreset.AUTO` fails | `dataset.organism` is missing | Set `organism` on `DatasetBuildRequest` |
 | Reference mismatch error | Dataset and selected preset organisms conflict | Align `dataset.organism` with `ReferencePreset` |
 | Workflow request type error | Request field types are not the public models | Build the request from top-level `phospy` models |
+| `simple_kinase.interpreter.reference_coverage` | None of the reference substrate sites overlap `dataset.phospho.index` | Use references for the same identifier scheme/organism and verify site IDs |
+| `simple_kinase.interpreter.eligible_kinases` | Overlap exists, but no kinase reaches `scoring_config.min_substrates` | Lower `min_substrates` or use references with deeper site overlap |
+| `simple_kinase.executor.prediction_ensemble` | Scoring completed, but no kinase had a finite prediction ranking | Use at least two informative samples and relax strict scoring thresholds |
+| `simple_kinase.executor.activity_support` | Activity was enabled, but predictions had no positive site assignments | Increase `top_k` and/or lower `activity_config.threshold` for sparse data |
 | Signalome result is empty | Signalome route is still a placeholder | Use simple kinase outputs as the supported scientific route for now |
 
 Runnable rewrite examples:
