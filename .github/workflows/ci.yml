@@ -80,7 +80,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test]"
       - name: Run unit tests
-        run: pytest -m "not parity"
+        run: pytest tests/unit
+
+  integration-tests:
+    needs: repo-hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+      - name: Run integration tests
+        run: pytest tests/integration
 
   parity-tests:
     needs: repo-hygiene
@@ -98,7 +116,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test]"
       - name: Run parity tests
-        run: PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest -m parity -s
+        run: PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest tests/parity -m parity -s
 
   build-distributions:
     needs: repo-hygiene

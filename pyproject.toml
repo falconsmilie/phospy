@@ -75,8 +75,10 @@ where = ["src"]
 include = ["phospy*", "phospy_legacy*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests/unit", "tests/integration", "tests/parity"]
+addopts = "-m \"not parity\""
 markers = [
+  "integration: multi-component rewrite workflow tests",
   "parity: compare Python outputs against R/PhosR reference fixtures",
 ]
 

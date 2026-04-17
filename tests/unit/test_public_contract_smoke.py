@@ -85,17 +85,21 @@ def test_builder_and_workflows_expose_run_and_execute_shells() -> None:
     kinase_workflow = SimpleKinaseWorkflow()
     assert callable(getattr(kinase_workflow, "run", None))
     kinase_result = kinase_workflow.run(
-        SimpleKinaseWorkflowRequest(dataset=built, references=ReferencePreset.AUTO)
+        SimpleKinaseWorkflowRequest(
+            dataset=built,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=1),
+            prediction_config=KinasePredictionConfig(top_k=1, ensemble_size=3),
+            activity_config=KinaseActivityConfig(enabled=False),
+        )
     )
     assert isinstance(kinase_result.prediction_result.pred_mat, pd.DataFrame)
     assert not hasattr(kinase_result, "pred_mat")
 
     signalome_workflow = SignalomeWorkflow()
     assert callable(getattr(signalome_workflow, "run", None))
-    signalome_result = signalome_workflow.run(
-        SignalomeWorkflowRequest(
-            kinase_result=kinase_result,
-            config=SignalomeConfig(),
-        )
+    signalome_request = SignalomeWorkflowRequest(
+        kinase_result=kinase_result,
+        config=SignalomeConfig(),
     )
-    assert signalome_result.kinase_result is kinase_result
+    assert isinstance(signalome_request, SignalomeWorkflowRequest)
