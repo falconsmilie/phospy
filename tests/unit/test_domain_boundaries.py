@@ -13,6 +13,7 @@ from phospy.errors import (
     ReferenceValidationError,
     TransformationValidationError,
     UnsupportedInputFormatError,
+    UnsupportedOrganismError,
 )
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.references.resolution import ReferenceResolver
@@ -23,17 +24,17 @@ from phospy.transformations.models import (
 
 
 def _phospho() -> pd.DataFrame:
-    return pd.DataFrame({"sample_a": [1.0]}, index=["GENEA;S1;"])
+    return pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"])
 
 
 def _site_metadata() -> pd.DataFrame:
     return pd.DataFrame(
         {
-            "gene_symbol": ["GENEA"],
-            "site": ["S1"],
-            "site_sequence": ["AAAAAAA"],
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
         },
-        index=["GENEA;S1;"],
+        index=["MAPK14;Y182;"],
     )
 
 
@@ -41,11 +42,11 @@ def _valid_bundle(organism: Organism = Organism.RAT) -> ReferenceBundle:
     return ReferenceBundle(
         organism=organism,
         kinase_substrate_map=pd.DataFrame(
-            {"kinase": ["KINASE_A"], "substrate_site": ["GENEA;S1;"]}
+            {"kinase": ["MAP2K6"], "substrate_site": ["MAPK14;Y182;"]}
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["AAAAAAA"]},
-            index=pd.Index(["GENEA;S1;"], name="site_id"),
+            {"site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"]},
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
         ),
     )
 
@@ -121,6 +122,14 @@ def test_reference_resolver_rejects_preset_dataset_mismatch() -> None:
         ReferenceResolver().run(
             ReferencePreset.HUMAN,
             dataset_organism=Organism.RAT,
+        )
+
+
+def test_reference_resolver_rejects_unsupported_human_bundled_preset() -> None:
+    with pytest.raises(UnsupportedOrganismError):
+        ReferenceResolver().run(
+            ReferencePreset.HUMAN,
+            dataset_organism=Organism.HUMAN,
         )
 
 

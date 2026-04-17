@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pandas as pd
 
 from phospy.api.requests import DatasetBuildRequest
@@ -17,10 +15,6 @@ class DatasetBuildRequestValidator:
         if not isinstance(request, DatasetBuildRequest):
             raise PhosPyInputError("builder input must be a DatasetBuildRequest")
         self._require_dataframe(request.phospho, field_name="phospho")
-        if request.site_metadata is None:
-            raise UnsupportedInputFormatError(
-                "site_metadata is required in the current dataset builder path"
-            )
         self._require_dataframe(request.site_metadata, field_name="site_metadata")
         self._require_optional_dataframe(
             request.sample_metadata, field_name="sample_metadata"
@@ -32,12 +26,9 @@ class DatasetBuildRequestValidator:
     def _require_dataframe(value: object, *, field_name: str) -> None:
         if isinstance(value, pd.DataFrame):
             return
-        if isinstance(value, (str, Path)):
-            raise UnsupportedInputFormatError(
-                f"{field_name} file-path inputs are not supported yet in this rewrite phase"
-            )
         raise UnsupportedInputFormatError(
-            f"{field_name} must be provided as a pandas DataFrame in this rewrite phase"
+            f"{field_name} must be provided as a pandas DataFrame in the current "
+            "supported builder path"
         )
 
     @classmethod

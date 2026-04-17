@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 import pandas as pd
@@ -15,7 +14,7 @@ if TYPE_CHECKING:
     from phospy.api.requests import DatasetBuildRequest
     from phospy.datasets.models import AnalysisReadyPhosphoDataset
 
-DatasetInput = pd.DataFrame | str | Path
+DatasetInput = pd.DataFrame
 
 
 @dataclass(frozen=True, slots=True)

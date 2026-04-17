@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -16,7 +15,7 @@ from phospy.api.configs import (
 )
 from phospy.datasets.builders.contracts import DatasetInput
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.input import PhosPyInputError
+from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
 from phospy.errors.validation import WorkflowValidationError
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.transformations.models import TransformationState
@@ -27,10 +26,13 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class DatasetBuildRequest:
-    """Request for building an ``AnalysisReadyPhosphoDataset``."""
+    """Request for building an ``AnalysisReadyPhosphoDataset``.
+
+    The first supported public route accepts in-memory pandas DataFrames only.
+    """
 
     phospho: DatasetInput
-    site_metadata: DatasetInput | None = None
+    site_metadata: DatasetInput
     sample_metadata: DatasetInput | None = None
     total: DatasetInput | None = None
     organism: Organism | None = None
@@ -38,7 +40,7 @@ class DatasetBuildRequest:
 
     def __post_init__(self) -> None:
         self._validate_input(self.phospho, field_name="phospho")
-        self._validate_optional_input(self.site_metadata, field_name="site_metadata")
+        self._validate_input(self.site_metadata, field_name="site_metadata")
         self._validate_optional_input(
             self.sample_metadata,
             field_name="sample_metadata",
@@ -55,10 +57,11 @@ class DatasetBuildRequest:
 
     @staticmethod
     def _validate_input(value: object, *, field_name: str) -> None:
-        if isinstance(value, (pd.DataFrame, str, Path)):
+        if isinstance(value, pd.DataFrame):
             return
-        raise PhosPyInputError(
-            f"dataset build request {field_name} must be a DataFrame, str, or Path"
+        raise UnsupportedInputFormatError(
+            f"dataset build request {field_name} must be a pandas DataFrame in the "
+            "current supported builder path"
         )
 
     @classmethod

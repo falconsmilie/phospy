@@ -23,12 +23,12 @@ from phospy import (
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
-    phospho = pd.DataFrame({"sample_a": [1.0]}, index=["GENEA;S1;"])
+    phospho = pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"])
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["GENEA"],
-            "site": ["S1"],
-            "site_sequence": ["AAAAAAA"],
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
         },
         index=phospho.index,
     )
@@ -49,11 +49,11 @@ def test_public_shells_import_and_instantiate() -> None:
     references = ReferenceBundle(
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(
-            {"kinase": ["KINASE_A"], "substrate_site": ["GENEA;S1;"]}
+            {"kinase": ["MAP2K6"], "substrate_site": ["MAPK14;Y182;"]}
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["AAAAAAA"]},
-            index=pd.Index(["GENEA;S1;"], name="site_id"),
+            {"site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"]},
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
         ),
     )
     request = SimpleKinaseWorkflowRequest(

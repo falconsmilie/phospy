@@ -24,17 +24,20 @@ from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 
 
 def _phospho() -> pd.DataFrame:
-    return pd.DataFrame({"sample_a": [1.0], "sample_b": [2.0]}, index=["GENEA;S1;"])
+    return pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [2.0]},
+        index=["MAPK14;Y182;"],
+    )
 
 
 def _site_metadata() -> pd.DataFrame:
     return pd.DataFrame(
         {
-            "gene_symbol": ["GENEA"],
-            "site": ["S1"],
-            "site_sequence": ["AAAAAAA"],
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
         },
-        index=["GENEA;S1;"],
+        index=["MAPK14;Y182;"],
     )
 
 
@@ -50,11 +53,11 @@ def _bundle() -> ReferenceBundle:
     return ReferenceBundle(
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(
-            {"kinase": ["KINASE_A"], "substrate_site": ["GENEA;S1;"]}
+            {"kinase": ["MAP2K6"], "substrate_site": ["MAPK14;Y182;"]}
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["AAAAAAA"]},
-            index=pd.Index(["GENEA;S1;"], name="site_id"),
+            {"site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"]},
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
         ),
     )
 

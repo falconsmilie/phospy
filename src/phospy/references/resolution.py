@@ -1,10 +1,8 @@
-"""Reference resolution contracts and minimal bundled-resolution path."""
+"""Reference resolution contracts and bundled reference resolution."""
 
 from __future__ import annotations
 
 from typing import Protocol
-
-import pandas as pd
 
 from phospy.errors.references import (
     ReferenceCompatibilityError,
@@ -12,6 +10,10 @@ from phospy.errors.references import (
     UnsupportedOrganismError,
 )
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
+from phospy.references.resources import (
+    load_bundled_kinase_substrate_map,
+    load_bundled_site_sequences,
+)
 from phospy.validation.references.bundle import ReferenceBundleValidator
 
 
@@ -35,24 +37,15 @@ class ReferenceResolverContract(Protocol):
 
 
 class BundledReferenceProvider:
-    """Minimal built-in reference provider used during rewrite cutover."""
+    """Load packaged bundled reference data for supported organisms."""
 
     def run(self, organism: Organism) -> ReferenceBundle:
         if not isinstance(organism, Organism):
             raise UnsupportedOrganismError(
                 "bundled reference provider requires a supported Organism"
             )
-        site_id = f"{organism.value.upper()}_DUMMY;S1;"
-        kinase_substrate_map = pd.DataFrame(
-            {
-                "kinase": ["KINASE_A"],
-                "substrate_site": [site_id],
-            }
-        )
-        site_sequences = pd.DataFrame(
-            {"site_sequence": ["AAAAAAA"]},
-            index=pd.Index([site_id], name="site_id"),
-        )
+        kinase_substrate_map = load_bundled_kinase_substrate_map(organism)
+        site_sequences = load_bundled_site_sequences(organism)
         return ReferenceBundle(
             organism=organism,
             kinase_substrate_map=kinase_substrate_map,

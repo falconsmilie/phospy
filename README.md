@@ -1,6 +1,7 @@
 # PhosPy
 
-PhosPy is in a rewrite cutover phase.
+PhosPy is in a rewrite cutover phase, with the first real vertical slice now
+implemented for the simple kinase workflow.
 
 ## Package Boundary
 
@@ -11,7 +12,8 @@ src/phospy_legacy/  # old implementation, reference-only during migration
 
 - New implementation work must land under `src/phospy/`.
 - `phospy_legacy` is internal migration reference material and is not a supported public API target.
-- Temporary functional incompleteness in the new package is expected at this stage.
+- The simple kinase path is real for DataFrame-backed, analysis-ready inputs.
+- Signalome in `src/phospy/` is still a placeholder shell.
 
 ## Current Public Shell API
 
@@ -24,7 +26,7 @@ Top-level `phospy` exports include:
 
 All public execution entry points use `run(request)`.
 
-## Quick Smoke Example
+## First Supported Route
 
 ```python
 import pandas as pd
@@ -32,6 +34,7 @@ import pandas as pd
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    Organism,
     ReferencePreset,
     SimpleKinaseWorkflow,
     SimpleKinaseWorkflowRequest,
@@ -40,22 +43,31 @@ from phospy import (
 builder = AnalysisReadyDatasetBuilder()
 dataset = builder.run(
     DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["GENEA;S1;"]),
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
         site_metadata=pd.DataFrame(
             {
-                "gene_symbol": ["GENEA"],
-                "site": ["S1"],
-                "site_sequence": ["AAAAAAA"],
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
             },
-            index=["GENEA;S1;"],
+            index=["MAPK14;Y182;"],
         ),
+        organism=Organism.RAT,
     )
 )
 
 result = SimpleKinaseWorkflow().run(
     SimpleKinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
 )
+
+scoring = result.scoring_result.profile_scores
+pred_mat = result.prediction_result.pred_mat
 ```
+
+Notes:
+- `DatasetBuildRequest` currently supports in-memory pandas `DataFrame` inputs only.
+- `ReferencePreset.AUTO` requires `dataset.organism`.
+- Built-in bundled references are currently supported for the rat lane.
 
 ## Docs
 

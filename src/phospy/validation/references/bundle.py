@@ -7,7 +7,9 @@ import pandas as pd
 from phospy.errors.validation import ReferenceValidationError
 from phospy.references.models import Organism
 from phospy.validation.common.dataframes import (
+    require_columns,
     require_dataframe,
+    require_non_empty_string_column,
     require_unique_index,
 )
 
@@ -53,6 +55,48 @@ class ReferenceBundleValidator:
         if site_sequences_frame.empty:
             raise ReferenceValidationError(
                 "references.site_sequences must be non-empty"
+            )
+        require_columns(
+            kinase_substrate_map_frame,
+            field_name="references.kinase_substrate_map",
+            required_columns=("kinase", "substrate_site"),
+            error_type=ReferenceValidationError,
+        )
+        require_non_empty_string_column(
+            kinase_substrate_map_frame,
+            field_name="references.kinase_substrate_map",
+            column_name="kinase",
+            error_type=ReferenceValidationError,
+        )
+        require_non_empty_string_column(
+            kinase_substrate_map_frame,
+            field_name="references.kinase_substrate_map",
+            column_name="substrate_site",
+            error_type=ReferenceValidationError,
+        )
+        require_columns(
+            site_sequences_frame,
+            field_name="references.site_sequences",
+            required_columns=("site_sequence",),
+            error_type=ReferenceValidationError,
+        )
+        require_non_empty_string_column(
+            site_sequences_frame,
+            field_name="references.site_sequences",
+            column_name="site_sequence",
+            error_type=ReferenceValidationError,
+        )
+        substrate_sites = {
+            str(site_id).strip()
+            for site_id in kinase_substrate_map_frame.loc[:, "substrate_site"]
+        }
+        known_sites = {str(site_id).strip() for site_id in site_sequences_frame.index}
+        missing_sequences = sorted(substrate_sites.difference(known_sites))
+        if missing_sequences:
+            missing_sample = ", ".join(missing_sequences[:10])
+            raise ReferenceValidationError(
+                "references.site_sequences is missing sequence entries for "
+                f"substrate sites in references.kinase_substrate_map: {missing_sample}"
             )
         if dataset_organism is not None and dataset_organism is not organism:
             raise ReferenceValidationError(
