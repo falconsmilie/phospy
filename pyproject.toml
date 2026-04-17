@@ -40,9 +40,6 @@ classifiers = [
 dependencies = [
   "numpy>=1.24",
   "pandas>=2.0",
-  "pydantic>=2.0",
-  "scikit-learn>=1.4",
-  "scipy>=1.10",
 ]
 
 [project.urls]
@@ -72,7 +69,8 @@ phospy = "phospy.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["phospy*", "phospy_legacy*"]
+include = ["phospy", "phospy.*"]
+exclude = ["phospy_legacy", "phospy_legacy.*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit", "tests/integration", "tests/parity"]
@@ -106,4 +104,3 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 [tool.setuptools.package-data]
 phospy = ["data/reference_bundles/*/*/*.csv"]
-phospy_legacy = ["data/reference_bundles/*/*/*.csv"]

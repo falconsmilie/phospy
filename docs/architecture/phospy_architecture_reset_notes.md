@@ -9,7 +9,7 @@ This document captures the intended direction for PhosPy as a maintainable Pytho
 The codebase now enforces a hard cutover boundary:
 
 - `src/phospy/` is the only valid home for new implementation work.
-- `src/phospy_legacy/` is retained only as migration reference material.
+- `legacy_archive/phospy_legacy/` is retained only as migration reference material.
 - The legacy tree is not a supported public API and must not be extended.
 
 ## Product Goal

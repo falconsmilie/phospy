@@ -7,7 +7,7 @@ PhosPy currently exposes one supported end-to-end rewrite route:
 ## Support Boundary
 
 - `src/phospy/`: supported public rewrite package
-- `src/phospy_legacy/`: migration reference only; not a supported public rewrite target
+- `legacy_archive/phospy_legacy/`: migration reference only; not an installed package target
 - Dataset builder: supported
 - Simple kinase workflow: supported
 - Signalome workflow: first real vertical slice implemented

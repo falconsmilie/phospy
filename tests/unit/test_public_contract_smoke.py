@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import importlib.util
+
 import pandas as pd
 
 import phospy
-import phospy_legacy
 from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
@@ -20,6 +21,35 @@ from phospy import (
     SignalomeWorkflowRequest,
     SimpleKinaseWorkflowRequest,
 )
+
+EXPECTED_PUBLIC_EXPORTS = {
+    "AnalysisReadyDatasetBuilder",
+    "AnalysisReadyPhosphoDataset",
+    "DatasetBuildRequest",
+    "KinaseActivityConfig",
+    "KinaseActivityResult",
+    "KinasePredictionConfig",
+    "KinasePredictionResult",
+    "KinaseScoringConfig",
+    "KinaseScoringResult",
+    "Organism",
+    "PhosPyBuildError",
+    "PhosPyError",
+    "PhosPyInputError",
+    "PhosPyReferenceError",
+    "PhosPyTransformationError",
+    "PhosPyValidationError",
+    "PhosPyWorkflowError",
+    "ReferenceBundle",
+    "ReferencePreset",
+    "SignalomeConfig",
+    "SignalomeWorkflow",
+    "SignalomeWorkflowRequest",
+    "SignalomeWorkflowResult",
+    "KinaseWorkflow",
+    "SimpleKinaseWorkflowRequest",
+    "SimpleKinaseWorkflowResult",
+}
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -44,7 +74,11 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
 
 def test_package_imports_from_new_tree() -> None:
     assert "phospy\\__init__.py" in phospy.__file__.replace("/", "\\")
-    assert "legacy" in (phospy_legacy.__doc__ or "").lower()
+    assert importlib.util.find_spec("phospy_legacy") is None
+
+
+def test_public_exports_match_contract() -> None:
+    assert set(phospy.__all__) == EXPECTED_PUBLIC_EXPORTS
 
 
 def test_public_shells_import_and_instantiate() -> None:

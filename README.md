@@ -6,7 +6,7 @@ PhosPy is in rewrite cutover mode. Public support is intentionally narrow.
 
 ```text
 src/phospy/         # supported rewrite package
-src/phospy_legacy/  # migration reference only (not public rewrite contract)
+legacy_archive/phospy_legacy/  # migration reference only (not installed package content)
 ```
 
 ## Supported Today

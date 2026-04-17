@@ -9,7 +9,7 @@ This page is direction, not a release promise.
 - Signalome workflow: first real vertical slice implemented
 
 Everything above applies to `src/phospy/` only.
-`src/phospy_legacy/` remains migration reference material.
+`legacy_archive/phospy_legacy/` remains migration reference material.
 
 ## Landed and Supported
 
