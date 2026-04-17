@@ -65,25 +65,6 @@ class SignalomeWorkflowValidator:
                 "signalome workflow request kinase_result.scoring_result.combined_scores "
                 "must contain at least one kinase column"
             )
-
-        dataset_index = pd.Index(
-            request.kinase_result.dataset.phospho.index.astype(str),
-            name="site_id",
-        )
-        self._validate_site_alignment(
-            expected_index=dataset_index,
-            observed_index=prediction_matrix.index,
-            context="kinase_result.prediction_result.pred_mat",
-        )
-        self._validate_site_alignment(
-            expected_index=dataset_index,
-            observed_index=score_matrix.index,
-            context="kinase_result.scoring_result.combined_scores",
-        )
-        self._validate_kinase_compatibility(
-            score_kinases=score_matrix.columns,
-            prediction_kinases=prediction_matrix.columns,
-        )
         return request
 
     @staticmethod
@@ -107,51 +88,3 @@ class SignalomeWorkflowValidator:
                 f"signalome workflow request {context} must contain finite numeric values"
             )
         return numeric_matrix
-
-    @staticmethod
-    def _validate_site_alignment(
-        *,
-        expected_index: pd.Index,
-        observed_index: pd.Index,
-        context: str,
-    ) -> None:
-        observed = pd.Index(observed_index.astype(str), name="site_id")
-        if list(expected_index) == list(observed):
-            return
-        observed_set = set(observed.tolist())
-        missing = [site_id for site_id in expected_index if site_id not in observed_set]
-        if missing:
-            preview = ", ".join(missing[:3])
-            suffix = "..." if len(missing) > 3 else ""
-            raise WorkflowValidationError(
-                f"signalome workflow request {context} is missing dataset sites: "
-                f"{preview}{suffix}"
-            )
-        raise WorkflowValidationError(
-            f"signalome workflow request {context} site order must match "
-            "kinase_result.dataset.phospho index"
-        )
-
-    @staticmethod
-    def _validate_kinase_compatibility(
-        *,
-        score_kinases: pd.Index,
-        prediction_kinases: pd.Index,
-    ) -> None:
-        score_set = set(score_kinases.astype(str).tolist())
-        missing = sorted(
-            {
-                str(kinase)
-                for kinase in prediction_kinases.astype(str).tolist()
-                if str(kinase) not in score_set
-            }
-        )
-        if not missing:
-            return
-        preview = ", ".join(missing[:3])
-        suffix = "..." if len(missing) > 3 else ""
-        raise WorkflowValidationError(
-            "signalome workflow request kinase_result.prediction_result.pred_mat "
-            "contains kinases absent from scoring outputs: "
-            f"{preview}{suffix}"
-        )

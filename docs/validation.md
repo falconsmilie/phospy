@@ -8,7 +8,8 @@ For public types and signatures, see [`api.md`](api.md).
 
 - Supported inputs are in-memory pandas `DataFrame` objects through `DatasetBuildRequest`.
 - Supported workflow route is `SimpleKinaseWorkflow.run(SimpleKinaseWorkflowRequest(...))`.
-- `SignalomeWorkflow.run(SignalomeWorkflowRequest(...))` is a placeholder shell.
+- Supported downstream route is
+  `SignalomeWorkflow.run(SignalomeWorkflowRequest(...))`.
 - File-ingestion and legacy convenience routes are outside the current rewrite contract.
 
 ## Dataset Builder Validation
@@ -72,15 +73,29 @@ Stage result access is nested and stable:
 - `result.prediction_result.pred_mat`
 - `result.activity_result.activity_scores` (when enabled)
 
-## Signalome Placeholder Validation
-
-`SignalomeWorkflowRequest` currently validates:
+`SignalomeWorkflowRequest` enforces:
 
 - `kinase_result` is `SimpleKinaseWorkflowResult`
 - `config` is `SignalomeConfig`
+- `config.signalome_cutoff` is numeric in `[0.0, 1.0]`
+- `kinase_result` prediction/scoring matrices are non-empty numeric DataFrames
 
-Current signalome execution returns placeholder (empty) output tables while the
-workflow implementation is pending.
+Signalome rewrite boundary diagnostics (raised as `WorkflowBoundaryError`) enforce:
+
+- interpreted site alignment has usable overlap across dataset/prediction/score
+- interpreted prediction/scoring matrices have overlapping kinase sets
+- interpreted sites resolve to usable protein identifiers
+- at least one kinase has support above `signalome_cutoff`
+- module construction produces non-degenerate usable outputs
+- network construction has required kinases and usable score variance
+
+Signalome boundary error messages include:
+
+- the failing seam (for example `signalome.executor.network`)
+- concrete counts (`dataset_sites`, `shared_kinases`, `supported_kinases`,
+  `score_variance_kinases`, etc.)
+- active config values (`signalome_cutoff`)
+- a `next_action` hint for likely recovery
 
 ## Quick Troubleshooting
 
@@ -94,7 +109,12 @@ workflow implementation is pending.
 | `simple_kinase.interpreter.eligible_kinases` | Overlap exists, but no kinase reaches `scoring_config.min_substrates` | Lower `min_substrates` or use references with deeper site overlap |
 | `simple_kinase.executor.prediction_ensemble` | Scoring completed, but no kinase had a finite prediction ranking | Use at least two informative samples and relax strict scoring thresholds |
 | `simple_kinase.executor.activity_support` | Activity was enabled, but predictions had no positive site assignments | Increase `top_k` and/or lower `activity_config.threshold` for sparse data |
-| Signalome result is empty | Signalome route is still a placeholder | Use simple kinase outputs as the supported scientific route for now |
+| `signalome.interpreter.site_alignment` | Dataset sites and interpreted scoring/prediction site IDs do not overlap | Ensure score/prediction outputs were generated from this dataset and share site IDs |
+| `signalome.interpreter.kinase_overlap` | Score and prediction kinase columns have no shared kinase set | Regenerate simple kinase outputs so both matrices come from the same lane |
+| `signalome.interpreter.protein_mapping` | Interpreted sites do not resolve to usable proteins | Include protein prefixes in site IDs or populate `dataset.site_metadata.gene_symbol` |
+| `signalome.executor.kinase_support` | No kinase has prediction support above `signalome_cutoff` | Lower `signalome_cutoff` or provide stronger prediction support |
+| `signalome.executor.module_construction` | Module table collapsed to empty/trivial output | Increase kinase diversity and ensure multiple supported kinases |
+| `signalome.executor.network` | Required kinases are missing from scores or score variance is unusable | Align score/prediction kinases and provide variable scoring signal (or lower cutoff) |
 
 Runnable rewrite examples:
 

@@ -220,8 +220,6 @@ def build_kinase_network(
     source_positions, target_positions = np.triu_indices(len(kinase_index), k=1)
     pair_correlations = correlation_values[source_positions, target_positions]
     edge_mask = np.abs(pair_correlations) >= float(threshold)
-    if not edge_mask.any() and pair_correlations.size > 0:
-        edge_mask[int(np.abs(pair_correlations).argmax())] = True
 
     selected_source = source_positions[edge_mask]
     selected_target = target_positions[edge_mask]

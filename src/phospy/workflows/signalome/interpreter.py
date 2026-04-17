@@ -6,7 +6,7 @@ import pandas as pd
 
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.workflows import WorkflowStageError
+from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
 
 
@@ -17,6 +17,9 @@ class SignalomeWorkflowInterpreter:
     _KINASE_COLUMN = "kinase"
     _PROTEIN_COLUMN = "protein_id"
     _GENE_SYMBOL_COLUMN = "gene_symbol"
+    _SITE_ALIGNMENT_SEAM = "signalome.interpreter.site_alignment"
+    _KINASE_OVERLAP_SEAM = "signalome.interpreter.kinase_overlap"
+    _PROTEIN_MAPPING_SEAM = "signalome.interpreter.protein_mapping"
 
     def run(
         self, request: SignalomeWorkflowRequest
@@ -35,16 +38,35 @@ class SignalomeWorkflowInterpreter:
             index_name=self._SITE_ID_COLUMN,
             columns_name=self._KINASE_COLUMN,
         )
+        dataset_site_index = pd.Index(
+            request.kinase_result.dataset.phospho.index.astype(str),
+            name=self._SITE_ID_COLUMN,
+        )
+        aligned_site_index = self._resolve_shared_site_index(
+            dataset_sites=dataset_site_index,
+            prediction_sites=resolved_prediction_matrix.index,
+            score_sites=resolved_score_matrix.index,
+        )
+        aligned_kinase_index = self._resolve_shared_kinase_index(
+            prediction_kinases=resolved_prediction_matrix.columns,
+            score_kinases=resolved_score_matrix.columns,
+        )
+        aligned_prediction_matrix = resolved_prediction_matrix.loc[
+            aligned_site_index, aligned_kinase_index
+        ]
+        aligned_score_matrix = resolved_score_matrix.loc[
+            aligned_site_index, aligned_kinase_index
+        ]
         site_to_protein = self._resolve_site_to_protein(
             dataset=request.kinase_result.dataset,
-            site_index=resolved_prediction_matrix.index,
+            site_index=aligned_prediction_matrix.index,
         )
         return ResolvedSignalomeWorkflowRequest(
             dataset=request.kinase_result.dataset,
             kinase_result=request.kinase_result,
             config=request.config,
-            score_matrix=resolved_score_matrix,
-            prediction_matrix=resolved_prediction_matrix,
+            score_matrix=aligned_score_matrix,
+            prediction_matrix=aligned_prediction_matrix,
             site_to_protein=site_to_protein,
         )
 
@@ -59,6 +81,70 @@ class SignalomeWorkflowInterpreter:
         resolved.index = pd.Index(resolved.index.astype(str), name=index_name)
         resolved.columns = pd.Index(resolved.columns.astype(str), name=columns_name)
         return resolved
+
+    def _resolve_shared_site_index(
+        self,
+        *,
+        dataset_sites: pd.Index,
+        prediction_sites: pd.Index,
+        score_sites: pd.Index,
+    ) -> pd.Index:
+        dataset_site_index = pd.Index(
+            dataset_sites.astype(str), name=self._SITE_ID_COLUMN
+        )
+        prediction_site_index = pd.Index(
+            prediction_sites.astype(str), name=self._SITE_ID_COLUMN
+        )
+        score_site_index = pd.Index(score_sites.astype(str), name=self._SITE_ID_COLUMN)
+        prediction_site_set = set(prediction_site_index.tolist())
+        score_site_set = set(score_site_index.tolist())
+        shared_sites = [
+            site_id
+            for site_id in dataset_site_index
+            if site_id in prediction_site_set and site_id in score_site_set
+        ]
+        if not shared_sites:
+            self._raise_boundary_error(
+                seam=self._SITE_ALIGNMENT_SEAM,
+                next_action=(
+                    "ensure prediction and scoring outputs share phosphosite IDs with "
+                    "kinase_result.dataset.phospho.index"
+                ),
+                dataset_sites=int(dataset_site_index.size),
+                prediction_sites=int(prediction_site_index.size),
+                score_sites=int(score_site_index.size),
+                shared_sites=0,
+            )
+        return pd.Index(shared_sites, name=self._SITE_ID_COLUMN)
+
+    def _resolve_shared_kinase_index(
+        self,
+        *,
+        prediction_kinases: pd.Index,
+        score_kinases: pd.Index,
+    ) -> pd.Index:
+        prediction_kinase_index = pd.Index(
+            prediction_kinases.astype(str), name=self._KINASE_COLUMN
+        )
+        score_kinase_index = pd.Index(
+            score_kinases.astype(str), name=self._KINASE_COLUMN
+        )
+        score_kinase_set = set(score_kinase_index.tolist())
+        shared_kinases = [
+            kinase for kinase in prediction_kinase_index if kinase in score_kinase_set
+        ]
+        if not shared_kinases:
+            self._raise_boundary_error(
+                seam=self._KINASE_OVERLAP_SEAM,
+                next_action=(
+                    "rerun simple kinase workflow so scoring_result and "
+                    "prediction_result are generated from the same kinase lane"
+                ),
+                prediction_kinases=int(prediction_kinase_index.size),
+                score_kinases=int(score_kinase_index.size),
+                shared_kinases=0,
+            )
+        return pd.Index(shared_kinases, name=self._KINASE_COLUMN)
 
     def _resolve_site_to_protein(
         self,
@@ -84,10 +170,18 @@ class SignalomeWorkflowInterpreter:
                 resolved.loc[non_empty_mask] = (
                     metadata_genes.loc[non_empty_mask].astype(str).str.strip()
                 )
-        if (resolved.astype(str).str.strip() == "").any():
-            raise WorkflowStageError(
-                "signalome interpreter could not resolve non-empty protein identifiers "
-                "for all prediction sites"
+        unresolved_mask = resolved.astype(str).str.strip() == ""
+        if unresolved_mask.any():
+            resolved_sites = int((~unresolved_mask).sum())
+            self._raise_boundary_error(
+                seam=self._PROTEIN_MAPPING_SEAM,
+                next_action=(
+                    "ensure site IDs include protein prefixes or populate "
+                    "dataset.site_metadata.gene_symbol for interpreted sites"
+                ),
+                interpreted_sites=int(site_index.size),
+                resolved_protein_sites=resolved_sites,
+                unresolved_protein_sites=int(unresolved_mask.sum()),
             )
         return resolved
 
@@ -97,3 +191,16 @@ class SignalomeWorkflowInterpreter:
         if raw == "":
             return ""
         return raw.split(";", 1)[0].strip()
+
+    @staticmethod
+    def _raise_boundary_error(
+        *,
+        seam: str,
+        next_action: str,
+        **details: int | float,
+    ) -> None:
+        details_text = ", ".join(f"{key}={value}" for key, value in details.items())
+        raise WorkflowBoundaryError(
+            "signalome workflow boundary validation failed at "
+            f"seam={seam}; {details_text}; next_action={next_action}"
+        )
