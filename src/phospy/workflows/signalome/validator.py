@@ -11,6 +11,8 @@ from phospy.errors.validation import WorkflowValidationError
 from phospy.validation.common.dataframes import (
     require_dataframe,
     require_numeric_dataframe,
+    require_unique_columns,
+    require_unique_index,
 )
 from phospy.validation.workflows.configs import WorkflowConfigValidator
 
@@ -54,6 +56,21 @@ class SignalomeWorkflowValidator:
             field_name=(
                 "signalome workflow request kinase_result.prediction_result.pred_mat"
             ),
+            allow_missing=True,
+        )
+        prediction_matrix = require_unique_index(
+            prediction_matrix,
+            field_name=(
+                "signalome workflow request kinase_result.prediction_result.pred_mat"
+            ),
+            error_type=WorkflowValidationError,
+        )
+        prediction_matrix = require_unique_columns(
+            prediction_matrix,
+            field_name=(
+                "signalome workflow request kinase_result.prediction_result.pred_mat"
+            ),
+            error_type=WorkflowValidationError,
         )
         if prediction_matrix.shape[1] == 0:
             raise WorkflowValidationError(
@@ -82,6 +99,21 @@ class SignalomeWorkflowValidator:
             field_name=(
                 "signalome workflow request kinase_result.scoring_result.profile_scores"
             ),
+            allow_missing=False,
+        )
+        score_matrix = require_unique_index(
+            score_matrix,
+            field_name=(
+                "signalome workflow request kinase_result.scoring_result.profile_scores"
+            ),
+            error_type=WorkflowValidationError,
+        )
+        score_matrix = require_unique_columns(
+            score_matrix,
+            field_name=(
+                "signalome workflow request kinase_result.scoring_result.profile_scores"
+            ),
+            error_type=WorkflowValidationError,
         )
         if score_matrix.shape[1] == 0:
             raise WorkflowValidationError(
@@ -92,9 +124,12 @@ class SignalomeWorkflowValidator:
 
     @staticmethod
     def _require_no_missing_or_infinite(
-        frame: pd.DataFrame, *, field_name: str
+        frame: pd.DataFrame,
+        *,
+        field_name: str,
+        allow_missing: bool,
     ) -> None:
-        if frame.isna().to_numpy().any():
+        if not allow_missing and frame.isna().to_numpy().any():
             raise WorkflowValidationError(
                 f"{field_name} must not contain missing values"
             )

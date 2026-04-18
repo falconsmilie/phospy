@@ -68,6 +68,7 @@ def test_signalome_module_assignments_match_selected_l6_regression_points() -> N
         "top_kinase",
         "top_score",
         "top_kinase_candidates",
+        "top_kinase_weights",
         "top_kinase_tie_count",
         "top_kinase_is_ambiguous",
         "top_kinase_selection_policy",

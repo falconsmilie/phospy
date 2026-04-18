@@ -4,6 +4,8 @@ import pandas as pd
 
 from phospy.workflows.signalome.science import (
     LEXICOGRAPHIC_TIE_BREAK_POLICY,
+    NO_SUPPORT_SELECTION_POLICY,
+    UNSUPPORTED_KINASE,
     build_module_assignments,
 )
 
@@ -32,6 +34,7 @@ def test_build_module_assignments_surfaces_site_level_score_ties() -> None:
     tied_site = assignments.loc["P1;S1;"]
     assert tied_site["top_kinase"] == "K1"
     assert tied_site["top_kinase_candidates"] == ("K1", "K2")
+    assert tied_site["top_kinase_weights"] == (("K1", 0.5), ("K2", 0.5))
     assert int(tied_site["top_kinase_tie_count"]) == 2
     assert bool(tied_site["top_kinase_is_ambiguous"])
     assert tied_site["top_kinase_selection_policy"] == LEXICOGRAPHIC_TIE_BREAK_POLICY
@@ -76,4 +79,42 @@ def test_build_module_assignments_surfaces_protein_level_equal_ranking() -> None
     assert (
         assignments.loc["P1;S2;", "module_top_kinase_selection_policy"]
         == LEXICOGRAPHIC_TIE_BREAK_POLICY
+    )
+
+
+def test_build_module_assignments_marks_zero_evidence_rows_without_false_winner() -> (
+    None
+):
+    prediction_matrix = pd.DataFrame(
+        {
+            "K1": [float("nan"), 0.7],
+            "K2": [float("nan"), 0.2],
+        },
+        index=pd.Index(["P1;S1;", "P2;S2;"], name="site_id"),
+        dtype=float,
+    )
+    site_to_protein = pd.Series(
+        ["P1", "P2"],
+        index=prediction_matrix.index.copy(),
+        name="protein_id",
+        dtype=str,
+    )
+
+    assignments = build_module_assignments(
+        prediction_matrix=prediction_matrix,
+        site_to_protein=site_to_protein,
+    )
+
+    unsupported = assignments.loc["P1;S1;"]
+    assert unsupported["top_kinase"] == UNSUPPORTED_KINASE
+    assert unsupported["top_kinase_candidates"] == ()
+    assert unsupported["top_kinase_weights"] == ()
+    assert int(unsupported["top_kinase_tie_count"]) == 0
+    assert not bool(unsupported["top_kinase_is_ambiguous"])
+    assert unsupported["top_kinase_selection_policy"] == NO_SUPPORT_SELECTION_POLICY
+    assert pd.isna(unsupported["top_score"])
+    assert int(unsupported["module_id"]) == 0
+    assert unsupported["module_top_kinase"] == UNSUPPORTED_KINASE
+    assert (
+        unsupported["module_top_kinase_selection_policy"] == NO_SUPPORT_SELECTION_POLICY
     )

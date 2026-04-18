@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 import phospy.api.results as result_models
@@ -110,8 +111,10 @@ def test_kinase_result_stays_nested_and_honest_for_supported_lane() -> None:
         "score",
         "rank",
     }
-    assert (result.prediction_result.pred_mat.to_numpy() >= 0.0).all()
-    assert (result.prediction_result.pred_mat.to_numpy() <= 1.0).all()
+    pred_values = result.prediction_result.pred_mat.to_numpy(dtype=float)
+    finite_values = pred_values[np.isfinite(pred_values)]
+    assert (finite_values >= 0.0).all()
+    assert (finite_values <= 1.0).all()
     assert not hasattr(result, "profile_scores")
     assert not hasattr(result, "pred_mat")
     assert not hasattr(result, "substrate_list")

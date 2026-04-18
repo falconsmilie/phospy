@@ -231,3 +231,22 @@ def test_signalome_validator_does_not_cast_numeric_matrices(
     monkeypatch.setattr(pd.DataFrame, "astype", _fail_astype)
     validated = SignalomeWorkflowValidator().run(request)
     assert validated is request
+
+
+def test_signalome_validator_allows_prediction_matrix_missingness() -> None:
+    kinase_result = _kinase_result()
+    prediction_with_missing = kinase_result.prediction_result.pred_mat.copy(deep=True)
+    prediction_with_missing.iloc[0, 0] = float("nan")
+    request = SignalomeWorkflowRequest(
+        kinase_result=KinaseWorkflowResult(
+            dataset=kinase_result.dataset,
+            references=kinase_result.references,
+            scoring_result=kinase_result.scoring_result,
+            prediction_result=KinasePredictionResult(pred_mat=prediction_with_missing),
+            activity_result=kinase_result.activity_result,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+
+    validated = SignalomeWorkflowValidator().run(request)
+    assert validated is request

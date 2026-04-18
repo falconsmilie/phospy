@@ -16,6 +16,7 @@ MODULE_ID_COLUMN = "module_id"
 TOP_KINASE_COLUMN = "top_kinase"
 TOP_SCORE_COLUMN = "top_score"
 TOP_KINASE_CANDIDATES_COLUMN = "top_kinase_candidates"
+TOP_KINASE_WEIGHTS_COLUMN = "top_kinase_weights"
 TOP_KINASE_TIE_COUNT_COLUMN = "top_kinase_tie_count"
 TOP_KINASE_IS_AMBIGUOUS_COLUMN = "top_kinase_is_ambiguous"
 TOP_KINASE_SELECTION_POLICY_COLUMN = "top_kinase_selection_policy"
@@ -25,6 +26,8 @@ MODULE_TOP_KINASE_TIE_COUNT_COLUMN = "module_top_kinase_tie_count"
 MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN = "module_top_kinase_is_ambiguous"
 MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN = "module_top_kinase_selection_policy"
 LEXICOGRAPHIC_TIE_BREAK_POLICY = "max_score_then_lexicographic_tiebreak"
+NO_SUPPORT_SELECTION_POLICY = "no_support"
+UNSUPPORTED_KINASE = "__UNSUPPORTED__"
 DEGREE_COLUMN = "degree"
 N_SUBSTRATES_COLUMN = "n_substrates"
 SOURCE_KINASE_COLUMN = "source_kinase"
@@ -55,26 +58,33 @@ def build_module_assignments(
     )
     kinase_names = sorted_predictions.columns.to_numpy(dtype=object, copy=False)
     tie_counts = top_score_mask.sum(axis=1).astype("int64")
-    if (tie_counts == 0).any():
-        raise WorkflowStageError(
-            "prediction matrix contains sites with no top kinase assignment"
-        )
 
     top_kinase_candidates: list[tuple[str, ...]] = []
+    top_kinase_weights: list[tuple[tuple[str, float], ...]] = []
     top_kinases: list[str] = []
-    for mask_row in top_score_mask:
+    top_kinase_policies: list[str] = []
+    for mask_row, tie_count in zip(top_score_mask, tie_counts, strict=True):
         candidates = tuple(str(kinase) for kinase in kinase_names[mask_row])
         top_kinase_candidates.append(candidates)
+        if tie_count == 0:
+            top_kinase_weights.append(())
+            top_kinases.append(UNSUPPORTED_KINASE)
+            top_kinase_policies.append(NO_SUPPORT_SELECTION_POLICY)
+            continue
+        weight = 1.0 / float(tie_count)
+        top_kinase_weights.append(tuple((kinase, weight) for kinase in candidates))
         top_kinases.append(candidates[0])
+        top_kinase_policies.append(LEXICOGRAPHIC_TIE_BREAK_POLICY)
 
     top_kinase_series = pd.Series(
         top_kinases,
         index=site_index.copy(),
-        dtype=str,
+        dtype=object,
         name=TOP_KINASE_COLUMN,
     )
     protein_module_resolution = _derive_protein_modules(
         top_kinases=top_kinase_series,
+        top_kinase_weights=top_kinase_weights,
         site_to_protein=resolved_site_to_protein,
     )
     site_proteins = resolved_site_to_protein.to_numpy(dtype=object, copy=False)
@@ -100,11 +110,10 @@ def build_module_assignments(
             TOP_KINASE_COLUMN: top_kinase_series.to_numpy(dtype=object, copy=False),
             TOP_SCORE_COLUMN: top_scores.to_numpy(dtype=float, copy=False),
             TOP_KINASE_CANDIDATES_COLUMN: top_kinase_candidates,
+            TOP_KINASE_WEIGHTS_COLUMN: top_kinase_weights,
             TOP_KINASE_TIE_COUNT_COLUMN: tie_counts,
             TOP_KINASE_IS_AMBIGUOUS_COLUMN: tie_counts > 1,
-            TOP_KINASE_SELECTION_POLICY_COLUMN: [
-                LEXICOGRAPHIC_TIE_BREAK_POLICY for _ in range(site_index.size)
-            ],
+            TOP_KINASE_SELECTION_POLICY_COLUMN: top_kinase_policies,
             MODULE_TOP_KINASE_COLUMN: site_module_resolution.loc[
                 :, MODULE_TOP_KINASE_COLUMN
             ].to_numpy(dtype=object, copy=False),
@@ -167,7 +176,13 @@ def build_signalome_module_table(
     """Build module-by-kinase signalome table as percent shares per module."""
 
     module_index = pd.Index(
-        sorted({int(value) for value in module_assignments.loc[:, MODULE_ID_COLUMN]}),
+        sorted(
+            {
+                int(value)
+                for value in module_assignments.loc[:, MODULE_ID_COLUMN]
+                if int(value) > 0
+            }
+        ),
         name=MODULE_ID_COLUMN,
     )
     kinase_index = pd.Index(
@@ -184,6 +199,7 @@ def build_signalome_module_table(
         .loc[:, MODULE_ID_COLUMN]
         .astype("int64")
     )
+    protein_to_module = protein_to_module.loc[protein_to_module > 0]
     site_to_protein = module_assignments.loc[:, PROTEIN_COLUMN].astype(str)
     site_to_protein.index = pd.Index(
         site_to_protein.index.astype(str), name=SITE_ID_COLUMN
@@ -359,29 +375,39 @@ def _resolve_site_to_protein(
 def _derive_protein_modules(
     *,
     top_kinases: pd.Series,
+    top_kinase_weights: Sequence[tuple[tuple[str, float], ...]],
     site_to_protein: pd.Series,
 ) -> pd.DataFrame:
+    if len(top_kinases) != len(top_kinase_weights):
+        raise WorkflowStageError(
+            "top kinase weights must align one-to-one with prediction sites"
+        )
     top_table = pd.DataFrame(
         {
             PROTEIN_COLUMN: site_to_protein.to_numpy(dtype=object, copy=False),
             TOP_KINASE_COLUMN: top_kinases.to_numpy(dtype=object, copy=False),
+            TOP_KINASE_WEIGHTS_COLUMN: list(top_kinase_weights),
         },
         index=site_to_protein.index.copy(),
     )
 
     protein_resolution_rows: list[dict[str, object]] = []
     for protein_id, group in top_table.groupby(PROTEIN_COLUMN, sort=True):
-        counts = group.loc[:, TOP_KINASE_COLUMN].astype(str).value_counts()
-        max_count = int(counts.iloc[0])
-        tied_kinases = tuple(
-            sorted(
-                str(kinase)
-                for kinase in counts[counts == max_count].index.to_numpy(
-                    dtype=object, copy=False
-                )
+        supported_group = group.loc[
+            group.loc[:, TOP_KINASE_COLUMN].astype(str) != UNSUPPORTED_KINASE
+        ]
+        counts = supported_group.loc[:, TOP_KINASE_COLUMN].astype(str).value_counts()
+        if not counts.empty:
+            max_count = int(counts.iloc[0])
+            tied_kinases = tuple(
+                sorted(kinase for kinase in counts[counts == max_count].index.to_list())
             )
-        )
-        dominant_kinase = tied_kinases[0]
+            dominant_kinase = tied_kinases[0]
+            selection_policy = LEXICOGRAPHIC_TIE_BREAK_POLICY
+        else:
+            tied_kinases = ()
+            dominant_kinase = UNSUPPORTED_KINASE
+            selection_policy = NO_SUPPORT_SELECTION_POLICY
         protein_resolution_rows.append(
             {
                 PROTEIN_COLUMN: str(protein_id),
@@ -389,9 +415,7 @@ def _derive_protein_modules(
                 MODULE_TOP_KINASE_CANDIDATES_COLUMN: tied_kinases,
                 MODULE_TOP_KINASE_TIE_COUNT_COLUMN: len(tied_kinases),
                 MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN: len(tied_kinases) > 1,
-                MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN: (
-                    LEXICOGRAPHIC_TIE_BREAK_POLICY
-                ),
+                MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN: selection_policy,
             }
         )
 
@@ -400,15 +424,25 @@ def _derive_protein_modules(
         protein_resolution.index.astype(str), name=PROTEIN_COLUMN
     )
     dominant_kinases = protein_resolution.loc[:, MODULE_TOP_KINASE_COLUMN].astype(str)
+    supported_mask = dominant_kinases != UNSUPPORTED_KINASE
     module_by_kinase = {
         kinase: module_id
         for module_id, kinase in enumerate(
-            sorted(set(dominant_kinases.tolist())), start=1
+            sorted(set(dominant_kinases.loc[supported_mask].tolist())), start=1
         )
     }
-    protein_resolution.loc[:, MODULE_ID_COLUMN] = dominant_kinases.map(
-        module_by_kinase
-    ).astype("int64")
+    module_ids = pd.Series(
+        np.zeros(len(protein_resolution), dtype=np.int64),
+        index=protein_resolution.index.copy(),
+        dtype="int64",
+    )
+    if supported_mask.any():
+        module_ids.loc[supported_mask] = (
+            dominant_kinases.loc[supported_mask].map(module_by_kinase).astype("int64")
+        )
+    protein_resolution.loc[:, MODULE_ID_COLUMN] = module_ids.to_numpy(
+        dtype=np.int64, copy=False
+    )
     return protein_resolution.astype(
         {
             MODULE_TOP_KINASE_COLUMN: str,

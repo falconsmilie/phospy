@@ -196,7 +196,9 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
         scoring_config=KinaseScoringConfig(min_substrates=2),
         prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
         activity_config=(
-            KinaseActivityConfig(enabled=True, threshold=0.5) if activity else None
+            KinaseActivityConfig(enabled=True, threshold=0.5, min_substrates=2)
+            if activity
+            else None
         ),
     )
 

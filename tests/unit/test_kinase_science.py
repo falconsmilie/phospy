@@ -4,7 +4,10 @@ import pandas as pd
 import pytest
 
 from phospy.errors import WorkflowStageError
-from phospy.workflows.kinase.science import build_kinase_profiles
+from phospy.workflows.kinase.science import (
+    build_kinase_profiles,
+    build_prediction_outputs,
+)
 
 
 def test_build_kinase_profiles_excludes_kinases_below_support_floor() -> None:
@@ -59,3 +62,25 @@ def test_build_kinase_profiles_rejects_single_substrate_floor() -> None:
             kinase_substrate_map=kinase_substrate_map,
             min_substrates=1,
         )
+
+
+def test_build_prediction_outputs_uses_missing_values_for_unsupported_cells() -> None:
+    score_matrix = pd.DataFrame(
+        {"K1": [0.9, 0.1, 0.2], "K2": [0.2, 0.8, 0.3]},
+        index=pd.Index(["S1", "S2", "S3"], name="site_id"),
+        dtype=float,
+    )
+    pred_mat, substrate_list = build_prediction_outputs(
+        score_matrix=score_matrix,
+        selected_kinases=pd.Index(["K1", "K2"], name="kinase"),
+        candidate_substrates={"K1": ["S1"], "K2": ["S2"]},
+        top_k=1,
+    )
+
+    assert pred_mat.at["S1", "K1"] == pytest.approx(0.9)
+    assert pred_mat.at["S2", "K2"] == pytest.approx(0.8)
+    assert pd.isna(pred_mat.at["S1", "K2"])
+    assert pd.isna(pred_mat.at["S2", "K1"])
+    assert pd.isna(pred_mat.at["S3", "K1"])
+    assert pd.isna(pred_mat.at["S3", "K2"])
+    assert int(substrate_list.shape[0]) == 2

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from phospy import (
@@ -41,7 +42,9 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
         sequence_sites
     )
     assert result.prediction_result.pred_mat.shape[1] <= 8
-    assert (result.prediction_result.pred_mat.to_numpy() >= 0.0).all()
+    pred_values = result.prediction_result.pred_mat.to_numpy(dtype=float)
+    finite_values = pred_values[np.isfinite(pred_values)]
+    assert (finite_values >= 0.0).all()
     assert result.activity_result is not None
     assert not result.activity_result.weighted_activity.empty
     assert not result.activity_result.ksea_scores.empty

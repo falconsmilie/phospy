@@ -92,7 +92,10 @@ class SignalomeWorkflowExecutor:
                 stage_error=str(exc),
             )
         module_count = int(
-            module_assignments.loc[:, self._MODULE_ID_COLUMN].nunique(dropna=True)
+            module_assignments.loc[
+                module_assignments.loc[:, self._MODULE_ID_COLUMN].astype("int64") > 0,
+                self._MODULE_ID_COLUMN,
+            ].nunique(dropna=True)
         )
         module_rows_with_support = (
             int((signalome_modules.sum(axis=1) > 0.0).sum())

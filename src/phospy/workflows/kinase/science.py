@@ -158,7 +158,7 @@ def build_prediction_outputs(
     """Build the prediction matrix and substrate table for selected kinases."""
 
     pred_mat = pd.DataFrame(
-        0.0,
+        np.nan,
         index=score_matrix.index.copy(),
         columns=selected_kinases.copy(),
     )

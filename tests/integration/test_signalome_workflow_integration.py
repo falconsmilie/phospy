@@ -57,6 +57,7 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
         "top_kinase",
         "top_score",
         "top_kinase_candidates",
+        "top_kinase_weights",
         "top_kinase_tie_count",
         "top_kinase_is_ambiguous",
         "top_kinase_selection_policy",
