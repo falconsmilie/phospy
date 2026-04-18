@@ -16,6 +16,10 @@ from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_index,
 )
+from phospy.validation.common.missing_values import (
+    MissingValuePolicy,
+    require_missing_value_policy,
+)
 from phospy.validation.transformations.state import TransformationStateValidator
 
 
@@ -51,6 +55,12 @@ class AnalysisReadyDatasetValidator:
         require_numeric_dataframe(
             phospho_frame,
             field_name="dataset.phospho",
+            error_type=DatasetValidationError,
+        )
+        require_missing_value_policy(
+            phospho_frame,
+            field_name="dataset.phospho",
+            policy=MissingValuePolicy.FORBID,
             error_type=DatasetValidationError,
         )
         require_unique_index(
@@ -115,6 +125,12 @@ class AnalysisReadyDatasetValidator:
             require_numeric_dataframe(
                 total_frame,
                 field_name="dataset.total",
+                error_type=DatasetValidationError,
+            )
+            require_missing_value_policy(
+                total_frame,
+                field_name="dataset.total",
+                policy=MissingValuePolicy.FORBID,
                 error_type=DatasetValidationError,
             )
             require_unique_index(

@@ -124,8 +124,8 @@ class KinaseWorkflowExecutor:
             return None
         pred_mat = prediction_result.pred_mat.astype(float)
 
-        activity_scores = pred_mat.mean(axis=0).rename("activity_score")
-        site_signal = request.dataset.phospho.astype(float).mean(axis=1)
+        activity_scores = pred_mat.mean(axis=0, skipna=False).rename("activity_score")
+        site_signal = request.dataset.phospho.astype(float).mean(axis=1, skipna=False)
         weighted_signal: dict[str, float] = {}
         predicted_counts: dict[str, int] = {}
         for kinase in pred_mat.columns:

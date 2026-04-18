@@ -27,8 +27,11 @@ def build_kinase_profiles(
 ) -> KinaseProfileBuild:
     """Build kinase substrate profiles from quantified substrate rows."""
 
-    observed_sites = set(phospho.index)
-    numeric_phospho = phospho.astype(float)
+    numeric_phospho = _require_finite_matrix(
+        phospho,
+        field_name="kinase.workflow.dataset.phospho",
+    )
+    observed_sites = set(numeric_phospho.index)
 
     profile_rows: dict[str, pd.Series] = {}
     quantified_substrates: dict[str, list[str]] = {}
@@ -82,7 +85,14 @@ def score_profile_correlations(
         raise WorkflowStageError(
             "phospho sample columns must match kinase profile columns"
         )
-    aligned_phospho = phospho.loc[:, profile_matrix.columns].astype(float)
+    aligned_phospho = _require_finite_matrix(
+        phospho.loc[:, profile_matrix.columns],
+        field_name="kinase.workflow.scoring_phospho",
+    )
+    profile_matrix = _require_finite_matrix(
+        profile_matrix,
+        field_name="kinase.workflow.profile_matrix",
+    )
     left = aligned_phospho.to_numpy(dtype=float)
     right = profile_matrix.to_numpy(dtype=float)
 
@@ -124,7 +134,7 @@ def rank_kinases_for_prediction(
         values = score_matrix.loc[available_sites, kinase].astype(float).dropna()
         if values.empty:
             continue
-        ranking[kinase] = float(values.mean())
+        ranking[kinase] = float(values.mean(skipna=False))
     ranking_series = pd.Series(ranking, dtype=float, name="prediction_rank_score")
     return ranking_series.sort_values(ascending=False)
 
@@ -179,3 +189,18 @@ def build_prediction_outputs(
         columns=["kinase", "substrate_site", "score", "rank"],
     )
     return pred_mat, substrate_list
+
+
+def _require_finite_matrix(
+    value: pd.DataFrame,
+    *,
+    field_name: str,
+) -> pd.DataFrame:
+    numeric = value.astype(float)
+    if not np.isfinite(numeric.to_numpy(dtype=float, copy=False)).all():
+        raise WorkflowStageError(
+            "kinase workflow internal invariant failed at "
+            "seam=kinase.science.input_finite_values; "
+            f"{field_name} must contain finite numeric values"
+        )
+    return numeric

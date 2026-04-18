@@ -76,6 +76,60 @@ def test_dataset_rejects_empty_phospho_matrix() -> None:
         )
 
 
+def test_dataset_rejects_nan_in_phospho_matrix() -> None:
+    phospho = _phospho()
+    phospho.loc["MAPK14;Y182;", "sample_a"] = float("nan")
+    with pytest.raises(DatasetValidationError, match="must not contain missing values"):
+        AnalysisReadyPhosphoDataset(
+            phospho=phospho,
+            site_metadata=_site_metadata(),
+            organism=Organism.RAT,
+        )
+
+
+def test_dataset_rejects_inf_in_phospho_matrix() -> None:
+    phospho = _phospho()
+    phospho.loc["MAPK14;Y182;", "sample_a"] = float("inf")
+    with pytest.raises(
+        DatasetValidationError, match="must contain finite numeric values"
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=phospho,
+            site_metadata=_site_metadata(),
+            organism=Organism.RAT,
+        )
+
+
+def test_builder_rejects_sparse_missingness_in_phospho_matrix() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan")],
+            "sample_b": [2.0, 3.0],
+        },
+        index=["MAPK14;Y182;", "AKT1;T308;"],
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": [
+                "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                "RPHFPQFSYSASGTA",
+            ],
+        },
+        index=phospho.index,
+    )
+    with pytest.raises(DatasetValidationError, match="must not contain missing values"):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                organism=Organism.RAT,
+                transformation_state=_raw_state(),
+            )
+        )
+
+
 def test_dataset_validates_transformation_state_for_total_matrix() -> None:
     with pytest.raises(TransformationValidationError):
         AnalysisReadyPhosphoDataset(
@@ -98,6 +152,33 @@ def test_dataset_rejects_mixed_transformation_kind_between_phospho_and_total() -
                 phospho=MatrixTransformationState.linear(),
                 total=MatrixTransformationState.log2(),
             ),
+        )
+
+
+def test_dataset_rejects_inf_in_total_matrix() -> None:
+    with pytest.raises(
+        DatasetValidationError, match="dataset.total must contain finite numeric values"
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            total=pd.DataFrame({"sample_a": [float("-inf")]}, index=["MAPK14"]),
+            organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=True),
+        )
+
+
+def test_dataset_rejects_total_matrix_sample_mismatch() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.total.columns must exactly match dataset.phospho.columns",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            total=pd.DataFrame({"sample_b": [2.0]}, index=["MAPK14"]),
+            organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=True),
         )
 
 
