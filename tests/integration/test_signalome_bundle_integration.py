@@ -67,6 +67,12 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert manifest["table_format"] == "csv"
     assert manifest["config_snapshot"] == "config/snapshot.json"
     assert manifest["upstream_kinase_outputs"]["activity"]["enabled"] is False
+    assert manifest["upstream_kinase_outputs"]["scoring"]["tables"] == {
+        "combined_scores": None,
+        "motif_scores": None,
+        "profile_scores": "scoring/profile_scores.csv",
+        "weights": None,
+    }
     assert manifest["signalome_outputs"]["tables"] == {
         "expanded_signalome": None,
         "kinase_network_edges": "signalome/kinase_network_edges.csv",
@@ -140,11 +146,17 @@ def _assert_signalome_result_equal(left, right) -> None:
         check_dtype=False,
         check_names=False,
     )
-    pd.testing.assert_frame_equal(
+    _assert_optional_frame_equal(
+        left.kinase_result.scoring_result.motif_scores,
+        right.kinase_result.scoring_result.motif_scores,
+    )
+    _assert_optional_frame_equal(
         left.kinase_result.scoring_result.combined_scores,
         right.kinase_result.scoring_result.combined_scores,
-        check_dtype=False,
-        check_names=False,
+    )
+    _assert_optional_frame_equal(
+        left.kinase_result.scoring_result.weights,
+        right.kinase_result.scoring_result.weights,
     )
     pd.testing.assert_frame_equal(
         left.kinase_result.prediction_result.pred_mat,
@@ -181,3 +193,15 @@ def _assert_signalome_result_equal(left, right) -> None:
     )
     assert left.expanded_signalome is None
     assert right.expanded_signalome is None
+
+
+def _assert_optional_frame_equal(left, right) -> None:
+    if left is None or right is None:
+        assert left is right
+        return
+    pd.testing.assert_frame_equal(
+        left,
+        right,
+        check_dtype=False,
+        check_names=False,
+    )

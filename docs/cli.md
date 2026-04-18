@@ -84,9 +84,9 @@ Supported file formats for read and write:
   kinase/
     scoring/
       profile_scores.<fmt>
-      motif_scores.<fmt>      # optional
-      combined_scores.<fmt>   # optional
-      weights.<fmt>           # optional
+      motif_scores.<fmt>      # optional, currently not emitted
+      combined_scores.<fmt>   # optional, currently not emitted
+      weights.<fmt>           # optional, currently not emitted
     prediction/
       pred_mat.<fmt>
       substrate_list.<fmt>    # optional

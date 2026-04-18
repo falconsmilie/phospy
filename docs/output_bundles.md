@@ -88,9 +88,9 @@ dataset/total.csv                    # optional
 references/kinase_substrate_map.csv
 references/site_sequences.csv
 scoring/profile_scores.csv
-scoring/motif_scores.csv             # optional
-scoring/combined_scores.csv          # optional
-scoring/weights.csv                  # optional
+scoring/motif_scores.csv             # optional, currently not emitted
+scoring/combined_scores.csv          # optional, currently not emitted
+scoring/weights.csv                  # optional, currently not emitted
 prediction/pred_mat.csv
 prediction/substrate_list.csv        # optional
 activity/activity_scores.csv         # optional
@@ -108,9 +108,9 @@ dataset/total.csv                    # optional
 references/kinase_substrate_map.csv
 references/site_sequences.csv
 scoring/profile_scores.csv
-scoring/motif_scores.csv             # optional
-scoring/combined_scores.csv          # optional
-scoring/weights.csv                  # optional
+scoring/motif_scores.csv             # optional, currently not emitted
+scoring/combined_scores.csv          # optional, currently not emitted
+scoring/weights.csv                  # optional, currently not emitted
 prediction/pred_mat.csv
 prediction/substrate_list.csv        # optional
 activity/activity_scores.csv         # optional

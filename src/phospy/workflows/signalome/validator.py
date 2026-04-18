@@ -45,14 +45,10 @@ class SignalomeWorkflowValidator:
             )
 
         scoring_result = request.kinase_result.scoring_result
-        score_matrix_source = scoring_result.combined_scores
-        if score_matrix_source is None:
-            score_matrix_source = scoring_result.profile_scores
         score_matrix = require_numeric_matrix(
-            score_matrix_source,
+            scoring_result.profile_scores,
             field_name=(
-                "signalome workflow request "
-                "kinase_result.scoring_result.combined_scores"
+                "signalome workflow request kinase_result.scoring_result.profile_scores"
             ),
             allow_empty=False,
             missing_value_policy=MissingValuePolicy.FORBID,
@@ -60,7 +56,7 @@ class SignalomeWorkflowValidator:
         )
         if score_matrix.shape[1] == 0:
             raise WorkflowValidationError(
-                "signalome workflow request kinase_result.scoring_result.combined_scores "
+                "signalome workflow request kinase_result.scoring_result.profile_scores "
                 "must contain at least one kinase column"
             )
         return request

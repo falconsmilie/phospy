@@ -78,10 +78,10 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
         "site_sequences": "references/site_sequences.csv",
     }
     assert manifest["outputs"]["scoring"]["tables"] == {
-        "combined_scores": "scoring/combined_scores.csv",
+        "combined_scores": None,
         "motif_scores": None,
         "profile_scores": "scoring/profile_scores.csv",
-        "weights": "scoring/weights.csv",
+        "weights": None,
     }
     assert manifest["outputs"]["prediction"]["tables"] == {
         "pred_mat": "prediction/pred_mat.csv",
@@ -238,17 +238,17 @@ def _assert_kinase_result_equal(left, right) -> None:
         check_dtype=False,
         check_names=False,
     )
-    pd.testing.assert_frame_equal(
+    _assert_optional_frame_equal(
+        left.scoring_result.motif_scores,
+        right.scoring_result.motif_scores,
+    )
+    _assert_optional_frame_equal(
         left.scoring_result.combined_scores,
         right.scoring_result.combined_scores,
-        check_dtype=False,
-        check_names=False,
     )
-    pd.testing.assert_frame_equal(
+    _assert_optional_frame_equal(
         left.scoring_result.weights,
         right.scoring_result.weights,
-        check_dtype=False,
-        check_names=False,
     )
     pd.testing.assert_frame_equal(
         left.prediction_result.pred_mat,
@@ -268,6 +268,18 @@ def _assert_kinase_result_equal(left, right) -> None:
     pd.testing.assert_frame_equal(
         left.activity_result.activity_scores,
         right.activity_result.activity_scores,
+        check_dtype=False,
+        check_names=False,
+    )
+
+
+def _assert_optional_frame_equal(left, right) -> None:
+    if left is None or right is None:
+        assert left is right
+        return
+    pd.testing.assert_frame_equal(
+        left,
+        right,
         check_dtype=False,
         check_names=False,
     )

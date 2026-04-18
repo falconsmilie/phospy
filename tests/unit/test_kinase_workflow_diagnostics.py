@@ -61,6 +61,40 @@ def _bundle(kinase_substrate_map: pd.DataFrame) -> ReferenceBundle:
     )
 
 
+def test_workflow_limits_scoring_to_sites_with_reference_sequences() -> None:
+    dataset = _dataset(
+        site_ids=["MAPK14;Y182;", "EXTRA;S1;"],
+        sample_names=["sample_a", "sample_b"],
+    )
+    dataset.phospho.loc["MAPK14;Y182;", "sample_b"] = 2.0
+    dataset.phospho.loc["EXTRA;S1;", "sample_b"] = 4.0
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["MAP2K6"],
+                "substrate_site": ["MAPK14;Y182;"],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": ["A" * 31]},
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        ),
+    )
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=KinaseScoringConfig(min_substrates=1),
+            prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
+            activity_config=None,
+        )
+    )
+
+    assert list(result.scoring_result.profile_scores.index) == ["MAPK14;Y182;"]
+    assert list(result.prediction_result.pred_mat.index) == ["MAPK14;Y182;"]
+
+
 def test_boundary_error_reports_unusable_reference_coverage_counts() -> None:
     dataset = _dataset(
         site_ids=["MAPK14;Y182;", "AKT1;T308;"],
@@ -178,6 +212,8 @@ def test_boundary_error_reports_activity_support_edge_case() -> None:
         dataset=dataset,
         references=references,
         kinase_substrate_map=references.kinase_substrate_map,
+        site_sequences=references.site_sequences,
+        scoring_site_index=pd.Index(["MAPK14;Y182;"]),
         scoring_config=KinaseScoringConfig(min_substrates=1),
         prediction_config=KinasePredictionConfig(top_k=3, ensemble_size=2),
         activity_config=KinaseActivityConfig(enabled=True, threshold=0.7),

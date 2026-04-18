@@ -188,6 +188,8 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
         dataset=request.dataset,
         references=bundle,
         kinase_substrate_map=bundle.kinase_substrate_map,
+        site_sequences=bundle.site_sequences,
+        scoring_site_index=pd.Index(["MAPK14;Y182;"]),
         scoring_config=request.scoring_config,
         prediction_config=request.prediction_config,
         activity_config=request.activity_config,
@@ -239,9 +241,7 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
         kinase_result=kinase_result,
         config=SignalomeConfig(signalome_cutoff=0.5),
     )
-    score_matrix = kinase_result.scoring_result.combined_scores
-    if score_matrix is None:
-        score_matrix = kinase_result.scoring_result.profile_scores
+    score_matrix = kinase_result.scoring_result.profile_scores
     interpreted = ResolvedSignalomeWorkflowRequest(
         dataset=kinase_result.dataset,
         kinase_result=kinase_result,

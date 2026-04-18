@@ -54,6 +54,13 @@ All public executors use `run(request)`.
 - `result.prediction_result`
 - `result.activity_result`
 
+Supported scoring behavior is currently profile-only:
+
+- `result.scoring_result.profile_scores` is the score matrix used for prediction
+  and downstream signalome execution.
+- `result.scoring_result.motif_scores`, `combined_scores`, and `weights` are
+  optional compatibility fields and are `None` on this supported route.
+
 No mirrored top-level convenience aliases are part of the rewrite contract.
 Reusable save/load output bundles are provided as external services in
 `phospy.io` (`save_kinase_workflow_bundle`,

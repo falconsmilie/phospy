@@ -28,6 +28,8 @@ class ResolvedKinaseWorkflowRequest:
     dataset: AnalysisReadyPhosphoDataset
     references: ReferenceBundle
     kinase_substrate_map: pd.DataFrame
+    site_sequences: pd.DataFrame
+    scoring_site_index: pd.Index
     scoring_config: KinaseScoringConfig
     prediction_config: KinasePredictionConfig
     activity_config: KinaseActivityConfig | None

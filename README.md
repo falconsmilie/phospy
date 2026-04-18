@@ -66,6 +66,10 @@ activity_scores = result.activity_result.activity_scores
 - `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain valid enum values, but
   they are not bundled runtime lanes in this release. Use an explicit
   `ReferenceBundle` for non-rat organisms.
+- The supported kinase workflow currently performs profile-based scoring only.
+  `result.scoring_result.profile_scores` is the scientific score matrix used by
+  downstream workflow stages; `motif_scores`, `combined_scores`, and `weights`
+  remain optional compatibility fields and are `None` in this route.
 - `SignalomeWorkflowResult.expanded_signalome` remains optional and is currently `None`.
 
 ## Examples

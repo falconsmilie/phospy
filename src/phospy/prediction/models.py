@@ -9,7 +9,12 @@ import pandas as pd
 
 @dataclass(frozen=True, slots=True)
 class KinaseScoringResult:
-    """Scoring-stage outputs."""
+    """Scoring-stage outputs.
+
+    `profile_scores` is the required scientific score matrix for the supported
+    workflow route. Optional fields remain for compatibility with extended
+    scoring lanes and persisted bundles.
+    """
 
     profile_scores: pd.DataFrame
     motif_scores: pd.DataFrame | None = None

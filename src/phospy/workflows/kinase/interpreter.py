@@ -19,6 +19,8 @@ class KinaseWorkflowInterpreter:
 
     _KINASE_COLUMN = "kinase"
     _SUBSTRATE_COLUMN = "substrate_site"
+    _SITE_SEQUENCE_COLUMN = "site_sequence"
+    _SITE_ID_INDEX_NAME = "site_id"
 
     def __init__(
         self, *, reference_resolver: ReferenceResolverContract | None = None
@@ -35,6 +37,7 @@ class KinaseWorkflowInterpreter:
         kinase_substrate_map = self._normalized_kinase_substrate_map(
             references.kinase_substrate_map
         )
+        site_sequences = self._normalized_site_sequences(references.site_sequences)
         overlap_counts = self._summarize_overlap(
             dataset=request.dataset.phospho,
             kinase_substrate_map=kinase_substrate_map,
@@ -47,10 +50,21 @@ class KinaseWorkflowInterpreter:
             overlap_counts=overlap_counts,
             request=request,
         )
+        scoring_site_index = self._resolve_scoring_site_index(
+            dataset=request.dataset.phospho,
+            site_sequences=site_sequences,
+        )
+        self._validate_scoring_site_support(
+            scoring_site_index=scoring_site_index,
+            dataset=request.dataset.phospho,
+            site_sequences=site_sequences,
+        )
         return ResolvedKinaseWorkflowRequest(
             dataset=request.dataset,
             references=references,
             kinase_substrate_map=kinase_substrate_map,
+            site_sequences=site_sequences,
+            scoring_site_index=scoring_site_index,
             scoring_config=request.scoring_config,
             prediction_config=request.prediction_config,
             activity_config=request.activity_config,
@@ -66,6 +80,22 @@ class KinaseWorkflowInterpreter:
             cleaned.loc[:, cls._SUBSTRATE_COLUMN].astype(str).str.strip()
         )
         return cleaned.drop_duplicates(ignore_index=True)
+
+    @classmethod
+    def _normalized_site_sequences(cls, sequences: pd.DataFrame) -> pd.DataFrame:
+        cleaned = sequences[[cls._SITE_SEQUENCE_COLUMN]].copy(deep=True)
+        cleaned.index = pd.Index(
+            cleaned.index.astype(str).str.strip(),
+            name=cls._SITE_ID_INDEX_NAME,
+        )
+        cleaned.loc[:, cls._SITE_SEQUENCE_COLUMN] = (
+            cleaned.loc[:, cls._SITE_SEQUENCE_COLUMN].astype(str).str.strip()
+        )
+        cleaned = cleaned[cleaned.index != ""]
+        cleaned = cleaned[
+            cleaned.loc[:, cls._SITE_SEQUENCE_COLUMN].astype(str).str.strip() != ""
+        ]
+        return cleaned[~cleaned.index.duplicated(keep="first")]
 
     @classmethod
     def _summarize_overlap(
@@ -155,6 +185,40 @@ class KinaseWorkflowInterpreter:
             ],
             scoring_config_min_substrates=request.scoring_config.min_substrates,
             prediction_config_ensemble_size=request.prediction_config.ensemble_size,
+        )
+
+    @staticmethod
+    def _resolve_scoring_site_index(
+        *,
+        dataset: pd.DataFrame,
+        site_sequences: pd.DataFrame,
+    ) -> pd.Index:
+        sequence_sites = set(site_sequences.index.astype(str))
+        scoring_sites = [
+            str(site_id).strip()
+            for site_id in dataset.index
+            if str(site_id).strip() in sequence_sites
+        ]
+        return pd.Index(scoring_sites, name=dataset.index.name)
+
+    def _validate_scoring_site_support(
+        self,
+        *,
+        scoring_site_index: pd.Index,
+        dataset: pd.DataFrame,
+        site_sequences: pd.DataFrame,
+    ) -> None:
+        if not scoring_site_index.empty:
+            return
+        self._raise_boundary_error(
+            seam="kinase.interpreter.sequence_support",
+            next_action=(
+                "ensure references.site_sequences contains sequence entries for "
+                "dataset phosphosite IDs"
+            ),
+            dataset_sites=int(dataset.index.size),
+            reference_sequence_sites=int(site_sequences.index.size),
+            sequence_supported_sites=0,
         )
 
     @staticmethod

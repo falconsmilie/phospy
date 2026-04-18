@@ -25,11 +25,8 @@ class SignalomeWorkflowInterpreter:
         self, request: SignalomeWorkflowRequest
     ) -> ResolvedSignalomeWorkflowRequest:
         scoring_result = request.kinase_result.scoring_result
-        score_matrix = scoring_result.combined_scores
-        if score_matrix is None:
-            score_matrix = scoring_result.profile_scores
         resolved_score_matrix = self._as_aligned_numeric_frame(
-            score_matrix,
+            scoring_result.profile_scores,
             index_name=self._SITE_ID_COLUMN,
             columns_name=self._KINASE_COLUMN,
         )
