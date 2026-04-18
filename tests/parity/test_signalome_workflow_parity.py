@@ -49,7 +49,7 @@ def _run_signalome_l6_supported_slice():
     return SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(signalome_cutoff=0.5),
+            config=SignalomeConfig(substrate_support_cutoff=0.5),
         )
     )
 

@@ -79,26 +79,34 @@ Stage result access is nested and stable:
 
 - `kinase_result` is `KinaseWorkflowResult`
 - `config` is `SignalomeConfig`
-- `config.signalome_cutoff` is numeric in `[0.0, 1.0]`
+- `config.substrate_support_cutoff` is numeric in `[0.0, 1.0]`
+- `config.network_correlation_threshold` is numeric in `[0.0, 1.0]`
 - `kinase_result` prediction/scoring matrices are non-empty numeric DataFrames
+- threshold semantics are explicit:
+  - substrate support cutoff controls kinase-to-substrate inclusion from prediction
+    scores (biological support selection)
+  - network correlation threshold controls kinase-kinase edge inclusion from score
+    correlations (graph sparsity control)
 
 Signalome rewrite boundary diagnostics (raised as `WorkflowBoundaryError`) enforce:
 
 - interpreted site alignment has usable overlap across dataset/prediction/score
 - interpreted prediction/scoring matrices have overlapping kinase sets
 - interpreted sites resolve to usable protein identifiers from one explicit path:
-  `dataset.site_metadata.protein_id` (preferred when present) or non-empty protein
-  prefixes in `dataset.phospho.index` / interpreted site IDs
-- at least one kinase has support above `signalome_cutoff`
+  `dataset.site_metadata.protein_id` (preferred) or non-empty protein prefixes in
+  `dataset.phospho.index` / interpreted site IDs
+- at least one kinase has support above `substrate_support_cutoff`
 - module construction produces non-degenerate usable outputs
-- network construction has required kinases and usable score variance
+- network construction has required kinases, usable score variance, and at least one
+  pair above `network_correlation_threshold`
 
 Signalome boundary error messages include:
 
 - the failing seam (for example `signalome.executor.network`)
 - concrete counts (`dataset_sites`, `shared_kinases`, `supported_kinases`,
   `score_variance_kinases`, etc.)
-- active config values (`signalome_cutoff`)
+- active config values (`substrate_support_cutoff`,
+  `network_correlation_threshold`)
 - a `next_action` hint for likely recovery
 
 ## Quick Troubleshooting
@@ -116,9 +124,9 @@ Signalome boundary error messages include:
 | `signalome.interpreter.site_alignment` | Dataset sites and interpreted scoring/prediction site IDs do not overlap | Ensure score/prediction outputs were generated from this dataset and share site IDs |
 | `signalome.interpreter.kinase_overlap` | Score and prediction kinase columns have no shared kinase set | Regenerate kinase outputs so both matrices come from the same lane |
 | `signalome.interpreter.protein_mapping` | Interpreted sites do not resolve to usable proteins | Populate `dataset.site_metadata.protein_id` or provide site IDs with non-empty protein prefixes |
-| `signalome.executor.kinase_support` | No kinase has prediction support above `signalome_cutoff` | Lower `signalome_cutoff` or provide stronger prediction support |
+| `signalome.executor.kinase_support` | No kinase has prediction support above `substrate_support_cutoff` | Lower `substrate_support_cutoff` or provide stronger prediction support |
 | `signalome.executor.module_construction` | Module table collapsed to empty/trivial output | Increase kinase diversity and ensure multiple supported kinases |
-| `signalome.executor.network` | Required kinases are missing from scores or score variance is unusable | Align score/prediction kinases and provide variable scoring signal (or lower cutoff) |
+| `signalome.executor.network` | Required kinases are missing from scores, score variance is unusable, or no pair passes the network correlation filter | Align score/prediction kinases, provide variable scoring signal, or lower `network_correlation_threshold` |
 
 Runnable rewrite examples:
 

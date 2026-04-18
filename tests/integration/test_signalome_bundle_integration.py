@@ -89,6 +89,14 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert loaded.result.expanded_signalome is None
 
 
+def test_signalome_config_snapshot_accepts_legacy_cutoff_payload() -> None:
+    snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
+        {"signalome_config": {"signalome_cutoff": 0.6}}
+    )
+    assert snapshot.signalome_config.substrate_support_cutoff == pytest.approx(0.6)
+    assert snapshot.signalome_config.network_correlation_threshold == pytest.approx(0.6)
+
+
 def _build_signalome_request_and_result():
     dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = KinaseWorkflow().run(
@@ -102,7 +110,7 @@ def _build_signalome_request_and_result():
     )
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
-        config=SignalomeConfig(signalome_cutoff=0.5),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
     )
     result = SignalomeWorkflow().run(request)
     return request, result

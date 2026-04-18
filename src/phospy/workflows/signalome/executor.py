@@ -29,7 +29,10 @@ class SignalomeWorkflowExecutor:
     _MODULE_CONSTRUCTION_SEAM = "signalome.executor.module_construction"
 
     def run(self, request: ResolvedSignalomeWorkflowRequest) -> SignalomeWorkflowResult:
-        signalome_cutoff = float(request.config.signalome_cutoff)
+        substrate_support_cutoff = float(request.config.substrate_support_cutoff)
+        network_correlation_threshold = float(
+            request.config.network_correlation_threshold
+        )
         try:
             module_assignments = build_module_assignments(
                 prediction_matrix=request.prediction_matrix,
@@ -44,26 +47,27 @@ class SignalomeWorkflowExecutor:
                 ),
                 prediction_sites=int(request.prediction_matrix.shape[0]),
                 prediction_kinases=int(request.prediction_matrix.shape[1]),
-                signalome_cutoff=signalome_cutoff,
+                substrate_support_cutoff=substrate_support_cutoff,
+                network_correlation_threshold=network_correlation_threshold,
                 stage_error=str(exc),
             )
         kinase_substrates = select_kinase_substrates(
             prediction_matrix=request.prediction_matrix,
-            cutoff=signalome_cutoff,
+            cutoff=substrate_support_cutoff,
         )
         support_counts = self._summarize_support(kinase_substrates)
         if support_counts["supported_kinases"] == 0:
             self._raise_boundary_error(
                 seam=self._KINASE_SUPPORT_SEAM,
                 next_action=(
-                    "lower signalome_cutoff or ensure prediction scores include "
-                    "kinase-site support above the configured threshold"
+                    "lower substrate_support_cutoff or ensure prediction scores "
+                    "include kinase-site support above the configured threshold"
                 ),
                 prediction_sites=int(request.prediction_matrix.shape[0]),
                 prediction_kinases=int(request.prediction_matrix.shape[1]),
                 supported_sites=support_counts["supported_sites"],
                 supported_kinases=support_counts["supported_kinases"],
-                signalome_cutoff=signalome_cutoff,
+                substrate_support_cutoff=substrate_support_cutoff,
             )
 
         try:
@@ -83,7 +87,8 @@ class SignalomeWorkflowExecutor:
                 supported_sites=support_counts["supported_sites"],
                 prediction_sites=int(request.prediction_matrix.shape[0]),
                 prediction_kinases=int(request.prediction_matrix.shape[1]),
-                signalome_cutoff=signalome_cutoff,
+                substrate_support_cutoff=substrate_support_cutoff,
+                network_correlation_threshold=network_correlation_threshold,
                 stage_error=str(exc),
             )
         module_count = int(
@@ -111,7 +116,8 @@ class SignalomeWorkflowExecutor:
                 supported_sites=support_counts["supported_sites"],
                 prediction_sites=int(request.prediction_matrix.shape[0]),
                 prediction_kinases=int(request.prediction_matrix.shape[1]),
-                signalome_cutoff=signalome_cutoff,
+                substrate_support_cutoff=substrate_support_cutoff,
+                network_correlation_threshold=network_correlation_threshold,
             )
 
         score_variance_kinases = self._score_variance_kinases(request.score_matrix)
@@ -120,7 +126,7 @@ class SignalomeWorkflowExecutor:
                 score_matrix=request.score_matrix,
                 kinase_order=request.prediction_matrix.columns.astype(str).tolist(),
                 kinase_substrates=kinase_substrates,
-                threshold=signalome_cutoff,
+                threshold=network_correlation_threshold,
             )
         except WorkflowStageError as exc:
             self._raise_boundary_error(
@@ -133,21 +139,21 @@ class SignalomeWorkflowExecutor:
                 supported_kinases=support_counts["supported_kinases"],
                 score_sites=int(request.score_matrix.shape[0]),
                 score_variance_kinases=score_variance_kinases,
-                signalome_cutoff=signalome_cutoff,
+                network_correlation_threshold=network_correlation_threshold,
                 stage_error=str(exc),
             )
         if network_edges.empty:
             self._raise_boundary_error(
                 seam=self._NETWORK_SEAM,
                 next_action=(
-                    "lower signalome_cutoff or provide more variable score profiles "
-                    "so kinase correlations can be estimated"
+                    "lower network_correlation_threshold or provide more variable "
+                    "score profiles so kinase correlations can be estimated"
                 ),
                 shared_kinases=int(request.prediction_matrix.shape[1]),
                 supported_kinases=support_counts["supported_kinases"],
                 score_sites=int(request.score_matrix.shape[0]),
                 score_variance_kinases=score_variance_kinases,
-                signalome_cutoff=signalome_cutoff,
+                network_correlation_threshold=network_correlation_threshold,
             )
 
         return SignalomeWorkflowResult(

@@ -115,7 +115,7 @@ def test_boundary_error_reports_no_usable_site_alignment_counts() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(signalome_cutoff=0.5),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
@@ -148,7 +148,7 @@ def test_boundary_error_reports_no_overlapping_kinase_set_counts() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(signalome_cutoff=0.5),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
@@ -180,7 +180,7 @@ def test_boundary_error_reports_unusable_protein_mapping_counts() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(signalome_cutoff=0.5),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
@@ -217,7 +217,7 @@ def test_interpreter_uses_explicit_site_metadata_protein_id_when_present() -> No
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(signalome_cutoff=0.5),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
@@ -248,7 +248,7 @@ def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_g
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(signalome_cutoff=0.5),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
     )
 
     resolved = SignalomeWorkflowInterpreter().run(request)
@@ -259,7 +259,7 @@ def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_g
     assert assignments.loc[:, "module_id"].nunique() == 2
 
 
-def test_boundary_error_reports_no_cutoff_support_counts() -> None:
+def test_boundary_error_reports_no_support_cutoff_support_counts() -> None:
     dataset = _dataset(site_ids=["P1;S1;", "P2;S2;"])
     prediction_matrix = _matrix(
         values=[[0.2, 0.4], [0.3, 0.1]],
@@ -277,7 +277,7 @@ def test_boundary_error_reports_no_cutoff_support_counts() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(signalome_cutoff=0.9),
+        config=SignalomeConfig(substrate_support_cutoff=0.9),
     )
     interpreted = SignalomeWorkflowInterpreter().run(request)
 
@@ -290,7 +290,7 @@ def test_boundary_error_reports_no_cutoff_support_counts() -> None:
     assert "prediction_kinases=2" in message
     assert "supported_sites=0" in message
     assert "supported_kinases=0" in message
-    assert "signalome_cutoff=0.9" in message
+    assert "substrate_support_cutoff=0.9" in message
 
 
 def test_boundary_error_reports_module_construction_degeneracy_counts() -> None:
@@ -311,7 +311,7 @@ def test_boundary_error_reports_module_construction_degeneracy_counts() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(signalome_cutoff=0.5),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
     )
     interpreted = SignalomeWorkflowInterpreter().run(request)
 
@@ -323,7 +323,8 @@ def test_boundary_error_reports_module_construction_degeneracy_counts() -> None:
     assert "module_count=1" in message
     assert "supported_kinases=1" in message
     assert "prediction_kinases=1" in message
-    assert "signalome_cutoff=0.5" in message
+    assert "substrate_support_cutoff=0.5" in message
+    assert "network_correlation_threshold=0.5" in message
 
 
 def test_boundary_error_reports_network_failure_modes() -> None:
@@ -346,7 +347,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix_missing_kinase,
         ),
-        config=SignalomeConfig(signalome_cutoff=0.5),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
         score_matrix=score_matrix_missing_kinase,
         prediction_matrix=prediction_matrix,
         site_to_protein=pd.Series(
@@ -380,7 +381,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix_zero_variance,
         ),
-        config=SignalomeConfig(signalome_cutoff=0.5),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
     )
     interpreted = SignalomeWorkflowInterpreter().run(request)
 
@@ -393,4 +394,137 @@ def test_boundary_error_reports_network_failure_modes() -> None:
     assert "supported_kinases=2" in variance_message
     assert "score_sites=2" in variance_message
     assert "score_variance_kinases=0" in variance_message
-    assert "signalome_cutoff=0.5" in variance_message
+    assert "network_correlation_threshold=0.5" in variance_message
+
+
+def test_support_cutoff_changes_substrate_support_without_changing_network_edges() -> (
+    None
+):
+    dataset = _dataset(site_ids=["P1;S1;", "P1;S2;", "P2;S3;", "P2;S4;"])
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1, 0.6],
+            [0.8, 0.2, 0.55],
+            [0.2, 0.85, 0.4],
+            [0.1, 0.9, 0.35],
+        ],
+        site_ids=["P1;S1;", "P1;S2;", "P2;S3;", "P2;S4;"],
+        kinases=["K1", "K2", "K3"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 1.0, 4.0],
+            [2.0, 2.1, 3.0],
+            [3.0, 2.9, 2.0],
+            [4.0, 4.1, 1.0],
+        ],
+        site_ids=["P1;S1;", "P1;S2;", "P2;S3;", "P2;S4;"],
+        kinases=["K1", "K2", "K3"],
+    )
+    kinase_result = _kinase_result(
+        dataset=dataset,
+        prediction_matrix=prediction_matrix,
+        score_matrix=score_matrix,
+    )
+    executor = SignalomeWorkflowExecutor()
+
+    low_support_resolved = SignalomeWorkflowInterpreter().run(
+        SignalomeWorkflowRequest(
+            kinase_result=kinase_result,
+            config=SignalomeConfig(
+                substrate_support_cutoff=0.5,
+                network_correlation_threshold=0.95,
+            ),
+        )
+    )
+    high_support_resolved = SignalomeWorkflowInterpreter().run(
+        SignalomeWorkflowRequest(
+            kinase_result=kinase_result,
+            config=SignalomeConfig(
+                substrate_support_cutoff=0.75,
+                network_correlation_threshold=0.95,
+            ),
+        )
+    )
+
+    low_support = executor.run(low_support_resolved)
+    high_support = executor.run(high_support_resolved)
+
+    pd.testing.assert_frame_equal(
+        low_support.kinase_network.edges,
+        high_support.kinase_network.edges,
+        check_dtype=False,
+    )
+    assert (
+        low_support.kinase_network.nodes.loc["K3", "n_substrates"]
+        > high_support.kinase_network.nodes.loc["K3", "n_substrates"]
+    )
+
+
+def test_network_threshold_changes_edge_sparsity_without_changing_substrate_support() -> (
+    None
+):
+    dataset = _dataset(site_ids=["P1;S1;", "P1;S2;", "P2;S3;", "P2;S4;"])
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1, 0.6],
+            [0.8, 0.2, 0.55],
+            [0.2, 0.85, 0.4],
+            [0.1, 0.9, 0.35],
+        ],
+        site_ids=["P1;S1;", "P1;S2;", "P2;S3;", "P2;S4;"],
+        kinases=["K1", "K2", "K3"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 1.0, 4.0],
+            [2.0, 2.1, 3.0],
+            [3.0, 2.9, 2.0],
+            [4.0, 4.1, 1.0],
+        ],
+        site_ids=["P1;S1;", "P1;S2;", "P2;S3;", "P2;S4;"],
+        kinases=["K1", "K2", "K3"],
+    )
+    kinase_result = _kinase_result(
+        dataset=dataset,
+        prediction_matrix=prediction_matrix,
+        score_matrix=score_matrix,
+    )
+    executor = SignalomeWorkflowExecutor()
+
+    low_threshold_resolved = SignalomeWorkflowInterpreter().run(
+        SignalomeWorkflowRequest(
+            kinase_result=kinase_result,
+            config=SignalomeConfig(
+                substrate_support_cutoff=0.5,
+                network_correlation_threshold=0.95,
+            ),
+        )
+    )
+    high_threshold_resolved = SignalomeWorkflowInterpreter().run(
+        SignalomeWorkflowRequest(
+            kinase_result=kinase_result,
+            config=SignalomeConfig(
+                substrate_support_cutoff=0.5,
+                network_correlation_threshold=0.999,
+            ),
+        )
+    )
+
+    low_threshold = executor.run(low_threshold_resolved)
+    high_threshold = executor.run(high_threshold_resolved)
+
+    pd.testing.assert_frame_equal(
+        low_threshold.signalome_modules.table,
+        high_threshold.signalome_modules.table,
+        check_dtype=False,
+    )
+    pd.testing.assert_frame_equal(
+        low_threshold.kinase_network.nodes.loc[:, ["n_substrates"]],
+        high_threshold.kinase_network.nodes.loc[:, ["n_substrates"]],
+        check_dtype=False,
+    )
+    assert (
+        low_threshold.kinase_network.edges.shape[0]
+        > high_threshold.kinase_network.edges.shape[0]
+    )

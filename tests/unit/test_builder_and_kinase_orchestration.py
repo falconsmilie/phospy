@@ -230,7 +230,7 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
     )
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
-        config=SignalomeConfig(signalome_cutoff=0.5),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
     )
     score_matrix = kinase_result.scoring_result.profile_scores
     interpreted = ResolvedSignalomeWorkflowRequest(

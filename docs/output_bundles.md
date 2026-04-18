@@ -141,5 +141,10 @@ module assignments, module matrix, kinase network, expanded signalome
 - config snapshot path:
 `config/snapshot.json`
 
+Signalome config snapshots encode:
+
+- `substrate_support_cutoff`
+- `network_correlation_threshold`
+
 The manifest is versioned from day one so future formats can evolve without
 guesswork.

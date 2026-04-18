@@ -41,9 +41,17 @@ phospy signalome \
   --reference auto \
   --prediction-top-k 6 \
   --prediction-ensemble-size 12 \
-  --signalome-cutoff 0.5 \
+  --substrate-support-cutoff 0.5 \
+  --network-correlation-threshold 0.5 \
   --outdir ./out
 ```
+
+Signalome threshold knobs:
+
+- `--substrate-support-cutoff`: prediction-score cutoff used to select
+  kinase-supported substrates.
+- `--network-correlation-threshold`: absolute kinase score-correlation cutoff used to
+  keep network edges.
 
 Bundled preset policy in the rewrite cutover:
 

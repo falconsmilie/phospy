@@ -61,7 +61,12 @@ class SignalomeWorkflowConfigSnapshot:
 
         return {
             "signalome_config": {
-                "signalome_cutoff": float(self.signalome_config.signalome_cutoff),
+                "substrate_support_cutoff": float(
+                    self.signalome_config.substrate_support_cutoff
+                ),
+                "network_correlation_threshold": float(
+                    self.signalome_config.network_correlation_threshold
+                ),
             }
         }
 
@@ -76,12 +81,26 @@ class SignalomeWorkflowConfigSnapshot:
             payload.get("signalome_config"),
             field_name=f"{scope}.signalome_config",
         )
+        legacy_cutoff = signalome_payload.get("signalome_cutoff")
+        substrate_support_cutoff = signalome_payload.get("substrate_support_cutoff")
+        network_correlation_threshold = signalome_payload.get(
+            "network_correlation_threshold"
+        )
+        if substrate_support_cutoff is None and network_correlation_threshold is None:
+            substrate_support_cutoff = legacy_cutoff
+            network_correlation_threshold = legacy_cutoff
         return cls(
             signalome_config=SignalomeConfig(
-                signalome_cutoff=_require_float(
-                    signalome_payload.get("signalome_cutoff"),
-                    field_name=f"{scope}.signalome_config.signalome_cutoff",
-                )
+                substrate_support_cutoff=_require_float(
+                    substrate_support_cutoff,
+                    field_name=f"{scope}.signalome_config.substrate_support_cutoff",
+                ),
+                network_correlation_threshold=_require_float(
+                    network_correlation_threshold,
+                    field_name=(
+                        f"{scope}.signalome_config.network_correlation_threshold"
+                    ),
+                ),
             )
         )
 

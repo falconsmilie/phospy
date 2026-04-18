@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pandas.testing as pdt
 import pytest
 from pandas.api.types import (
     is_bool_dtype,
@@ -43,7 +44,7 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
     result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(signalome_cutoff=0.5),
+            config=SignalomeConfig(substrate_support_cutoff=0.5),
         )
     )
 
@@ -131,10 +132,67 @@ def test_signalome_workflow_uses_explicit_dataset_protein_identity_when_present(
     result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(signalome_cutoff=0.5),
+            config=SignalomeConfig(substrate_support_cutoff=0.5),
         )
     )
 
     assignments = result.module_assignments.table
     assert not assignments.empty
     assert assignments.loc[:, "protein_id"].astype(str).str.startswith("PROT_").all()
+
+
+def test_signalome_threshold_knobs_do_not_cross_couple_unrelated_outputs() -> None:
+    dataset = build_rat_l6_dataset(n_sites=260)
+    kinase_result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=1),
+            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            activity_config=None,
+        )
+    )
+
+    baseline = SignalomeWorkflow().run(
+        SignalomeWorkflowRequest(
+            kinase_result=kinase_result,
+            config=SignalomeConfig(
+                substrate_support_cutoff=0.5,
+                network_correlation_threshold=0.5,
+            ),
+        )
+    )
+    support_shifted = SignalomeWorkflow().run(
+        SignalomeWorkflowRequest(
+            kinase_result=kinase_result,
+            config=SignalomeConfig(
+                substrate_support_cutoff=0.65,
+                network_correlation_threshold=0.5,
+            ),
+        )
+    )
+    network_shifted = SignalomeWorkflow().run(
+        SignalomeWorkflowRequest(
+            kinase_result=kinase_result,
+            config=SignalomeConfig(
+                substrate_support_cutoff=0.5,
+                network_correlation_threshold=0.8,
+            ),
+        )
+    )
+
+    pdt.assert_frame_equal(
+        baseline.kinase_network.edges,
+        support_shifted.kinase_network.edges,
+        check_dtype=False,
+    )
+    pdt.assert_frame_equal(
+        baseline.module_assignments.table,
+        network_shifted.module_assignments.table,
+        check_dtype=False,
+    )
+    pdt.assert_frame_equal(
+        baseline.signalome_modules.table,
+        network_shifted.signalome_modules.table,
+        check_dtype=False,
+    )

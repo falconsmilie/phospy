@@ -50,7 +50,12 @@ class KinaseWorkflowRequest:
 
 @dataclass(frozen=True, slots=True)
 class SignalomeWorkflowRequest:
-    """Request for the public signalome workflow."""
+    """Request for the public signalome workflow.
+
+    Signalome execution requires resolvable protein identity per interpreted site:
+    ``dataset.site_metadata.protein_id`` when present, otherwise non-empty protein
+    prefixes in the interpreted site identifiers.
+    """
 
     kinase_result: KinaseWorkflowResult
     config: SignalomeConfig = field(default_factory=SignalomeConfig)

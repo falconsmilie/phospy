@@ -95,10 +95,16 @@ def build_parser() -> argparse.ArgumentParser:
     _add_output_arguments(signalome)
     _add_kinase_runtime_arguments(signalome)
     signalome.add_argument(
-        "--signalome-cutoff",
+        "--substrate-support-cutoff",
         type=float,
         default=0.5,
-        help="Signalome cutoff threshold.",
+        help=("Prediction support cutoff for selecting kinase-supported substrates."),
+    )
+    signalome.add_argument(
+        "--network-correlation-threshold",
+        type=float,
+        default=0.5,
+        help="Absolute correlation threshold for kinase network edge inclusion.",
     )
     return parser
 
@@ -210,7 +216,10 @@ def _run_signalome(args: argparse.Namespace) -> None:
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(signalome_cutoff=args.signalome_cutoff),
+            config=SignalomeConfig(
+                substrate_support_cutoff=args.substrate_support_cutoff,
+                network_correlation_threshold=args.network_correlation_threshold,
+            ),
         )
     )
     written = publish_signalome_workflow(

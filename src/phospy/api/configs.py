@@ -32,7 +32,8 @@ class KinaseActivityConfig:
 class SignalomeConfig:
     """Public signalome workflow configuration."""
 
-    signalome_cutoff: float = 0.5
+    substrate_support_cutoff: float = 0.5
+    network_correlation_threshold: float = 0.5
 
 
 __all__ = [

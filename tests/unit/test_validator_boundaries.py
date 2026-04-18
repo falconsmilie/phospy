@@ -136,14 +136,28 @@ def test_kinase_request_reference_compatibility_fails_in_validator() -> None:
         KinaseWorkflowValidator().run(request)
 
 
-def test_signalome_request_config_policy_fails_at_validator_boundary() -> None:
+def test_signalome_request_support_cutoff_policy_fails_at_validator_boundary() -> None:
     request = SignalomeWorkflowRequest(
         kinase_result=_kinase_result(),
-        config=SignalomeConfig(signalome_cutoff=1.5),
+        config=SignalomeConfig(substrate_support_cutoff=1.5),
     )
     with pytest.raises(
         WorkflowValidationError,
-        match="signalome workflow request config.signalome_cutoff",
+        match="signalome workflow request config.substrate_support_cutoff",
+    ):
+        SignalomeWorkflowValidator().run(request)
+
+
+def test_signalome_request_network_threshold_policy_fails_at_validator_boundary() -> (
+    None
+):
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(),
+        config=SignalomeConfig(network_correlation_threshold=-0.1),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="signalome workflow request config.network_correlation_threshold",
     ):
         SignalomeWorkflowValidator().run(request)
 
@@ -153,7 +167,7 @@ def test_signalome_validator_does_not_cast_numeric_matrices(
 ) -> None:
     request = SignalomeWorkflowRequest(
         kinase_result=_kinase_result(),
-        config=SignalomeConfig(signalome_cutoff=0.5),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
     )
 
     def _fail_astype(*args, **kwargs):

@@ -73,6 +73,12 @@ Reusable save/load output bundles are provided as external services in
 `SignalomeWorkflowResult` currently returns real tables (`module_assignments`,
 `signalome_modules`, `kinase_network`) from the first vertical slice, while
 `expanded_signalome` remains optional and currently `None`.
+`SignalomeConfig` now uses two explicit thresholds:
+
+- `substrate_support_cutoff`: prediction-score cutoff for kinase substrate support
+- `network_correlation_threshold`: absolute correlation cutoff for kinase network
+  edges
+
 Signalome protein grouping resolves from explicit protein identity:
 `dataset.site_metadata.protein_id` when present, otherwise interpreted site-ID
 protein prefixes. Missing protein identity fails with `WorkflowBoundaryError`.

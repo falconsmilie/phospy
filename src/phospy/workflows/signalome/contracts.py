@@ -15,7 +15,11 @@ from phospy.datasets.models import AnalysisReadyPhosphoDataset
 
 @dataclass(frozen=True, slots=True)
 class ResolvedSignalomeWorkflowRequest:
-    """Interpreter output for signalome workflow execution."""
+    """Interpreter output for signalome workflow execution.
+
+    ``site_to_protein`` must provide a non-empty protein identifier for every site in
+    ``prediction_matrix.index``.
+    """
 
     dataset: AnalysisReadyPhosphoDataset
     kinase_result: KinaseWorkflowResult

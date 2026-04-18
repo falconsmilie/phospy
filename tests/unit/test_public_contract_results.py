@@ -115,7 +115,7 @@ def test_signalome_result_keeps_nested_kinase_result_contract() -> None:
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(signalome_cutoff=0.5),
+            config=SignalomeConfig(substrate_support_cutoff=0.5),
         )
     )
     assert isinstance(signalome_result, SignalomeWorkflowResult)

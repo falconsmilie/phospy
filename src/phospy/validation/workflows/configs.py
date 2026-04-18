@@ -71,8 +71,17 @@ class WorkflowConfigValidator:
                 "signalome workflow request config must be SignalomeConfig"
             )
         require_real_between(
-            config.signalome_cutoff,
-            field_name="signalome workflow request config.signalome_cutoff",
+            config.substrate_support_cutoff,
+            field_name="signalome workflow request config.substrate_support_cutoff",
+            minimum=0.0,
+            maximum=1.0,
+            error_type=WorkflowValidationError,
+        )
+        require_real_between(
+            config.network_correlation_threshold,
+            field_name=(
+                "signalome workflow request config.network_correlation_threshold"
+            ),
             minimum=0.0,
             maximum=1.0,
             error_type=WorkflowValidationError,
