@@ -5,6 +5,7 @@ import pytest
 
 from phospy.activities.models import KinaseActivityInputs, PredMatOverlapSummary
 from phospy.activities.scoring import compute_activity_from_inputs
+from phospy.errors.workflows import WorkflowBoundaryError
 
 
 def _inputs(
@@ -92,6 +93,34 @@ def test_ksea_scoring_respects_threshold_and_min_substrates() -> None:
     assert result.ksea_scores.at["AKT1", "sample_b"] == pytest.approx(4.0)
 
 
+def test_ksea_ignores_missing_values_per_sample() -> None:
+    pred_mat = pd.DataFrame(
+        {"PRKACA": [0.9, 0.8, 0.7]},
+        index=["A;S1;", "B;S2;", "C;S3;"],
+    )
+    phospho_matrix = pd.DataFrame(
+        {
+            "phospho_corrected_1": [10.0, float("nan"), 1.0],
+            "phospho_corrected_2": [20.0, 6.0, float("nan")],
+        },
+        index=pred_mat.index.copy(),
+    )
+
+    result = compute_activity_from_inputs(
+        _inputs(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+            threshold=0.6,
+            min_substrates=3,
+            top_n_substrates=3,
+        )
+    )
+
+    assert result.ksea_scores.at["PRKACA", "phospho_corrected_1"] == pytest.approx(5.5)
+    assert result.ksea_scores.at["PRKACA", "phospho_corrected_2"] == pytest.approx(13.0)
+    assert result.ksea_counts.to_dict() == {"PRKACA": 3}
+
+
 def test_top_n_substrate_selection_is_deterministic_for_ties() -> None:
     pred_mat = pd.DataFrame(
         {"MAP2K6": [0.9, 0.9, 0.2]},
@@ -144,3 +173,27 @@ def test_target_count_and_target_table_outputs_are_consistent() -> None:
     assert result.target_counts.to_dict() == {"MAP2K6": 2, "AKT1": 1}
     assert set(result.target_table.columns) == {"site_id", "kinase", "score"}
     assert int(result.target_table.shape[0]) == 3
+
+
+def test_activity_stage_raises_when_all_candidates_are_filtered() -> None:
+    pred_mat = pd.DataFrame(
+        {"MAP2K6": [0.8, 0.7]},
+        index=["MAPK14;Y182;", "GSK3B;S9;"],
+    )
+    phospho_matrix = pd.DataFrame(
+        {"sample_a": [1.0, 2.0], "sample_b": [2.0, 4.0]},
+        index=pred_mat.index.copy(),
+    )
+
+    with pytest.raises(
+        WorkflowBoundaryError, match="seam=kinase.activity.valid_candidates"
+    ):
+        compute_activity_from_inputs(
+            _inputs(
+                pred_mat=pred_mat,
+                phospho_matrix=phospho_matrix,
+                threshold=0.95,
+                min_substrates=3,
+                top_n_substrates=2,
+            )
+        )

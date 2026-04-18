@@ -6,6 +6,7 @@ import pandas as pd
 import phospy.api.results as result_models
 from phospy import (
     AnalysisReadyPhosphoDataset,
+    KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
@@ -137,3 +138,29 @@ def test_signalome_result_keeps_nested_kinase_result_contract() -> None:
     assert signalome_result.kinase_result.scoring_result.weights is not None
     assert not hasattr(signalome_result, "pred_mat")
     assert not hasattr(signalome_result, "profile_scores")
+
+
+def test_kinase_result_exposes_supported_activity_stage_outputs_when_enabled() -> None:
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=_dataset(),
+            references=_references(),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(top_k=1, ensemble_size=2),
+            activity_config=KinaseActivityConfig(
+                enabled=True,
+                threshold=0.0,
+                min_substrates=1,
+                top_n_substrates=2,
+            ),
+        )
+    )
+
+    assert result.activity_result is not None
+    assert set(result.activity_result.target_table.columns) == {
+        "site_id",
+        "kinase",
+        "score",
+    }
+    assert result.activity_result.ksea_counts.name == "n_substrates"
+    assert result.activity_result.target_counts.name == "n_targets"

@@ -81,21 +81,18 @@ def run_demo(outdir: Path) -> tuple[KinaseWorkflowResult, dict[str, Path]]:
         )
     )
 
-    if result.activity_result is None:
-        raise RuntimeError("activity_result is expected in this demo")
-
     pred_mat_path = outdir / "pred_mat.csv"
-    weighted_activity_path = outdir / "weighted_activity.csv"
-    ksea_scores_path = outdir / "ksea_scores.csv"
+    written: dict[str, Path] = {"pred_mat": pred_mat_path}
     result.prediction_result.pred_mat.to_csv(pred_mat_path)
-    result.activity_result.weighted_activity.to_csv(weighted_activity_path)
-    result.activity_result.ksea_scores.to_csv(ksea_scores_path)
+    if result.activity_result is not None:
+        weighted_activity_path = outdir / "weighted_activity.csv"
+        ksea_scores_path = outdir / "ksea_scores.csv"
+        result.activity_result.weighted_activity.to_csv(weighted_activity_path)
+        result.activity_result.ksea_scores.to_csv(ksea_scores_path)
+        written["weighted_activity"] = weighted_activity_path
+        written["ksea_scores"] = ksea_scores_path
 
-    return result, {
-        "pred_mat": pred_mat_path,
-        "weighted_activity": weighted_activity_path,
-        "ksea_scores": ksea_scores_path,
-    }
+    return result, written
 
 
 def main() -> None:
@@ -107,12 +104,13 @@ def main() -> None:
         print("Profile score shape:", result.scoring_result.profile_scores.shape)
         print("Prediction matrix")
         print(result.prediction_result.pred_mat.round(4))
-        print()
-        print("Weighted activity")
-        print(result.activity_result.weighted_activity.round(4))
-        print()
-        print("KSEA scores")
-        print(result.activity_result.ksea_scores.round(4))
+        if result.activity_result is not None:
+            print()
+            print("Weighted activity")
+            print(result.activity_result.weighted_activity.round(4))
+            print()
+            print("KSEA scores")
+            print(result.activity_result.ksea_scores.round(4))
         print()
         print("Written files")
         print("\n".join(str(path) for path in written.values()))

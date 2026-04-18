@@ -25,3 +25,9 @@ on 2026-04-18.
 - `ksea_scores.csv`
 - `ksea_counts.csv`
 - `kinase_target_counts.csv`
+- `kinase_target_table.csv`
+
+`kinase_target_table.csv` is generated from the promoted `predMat.csv` fixture
+using the archived legacy target-table kernel
+(`legacy_archive/phospy_legacy/activities/scoring.py::build_kinase_target_table`)
+with `threshold=0.6`.

@@ -9,7 +9,7 @@ PhosPy currently exposes one supported end-to-end rewrite route:
 - `src/phospy/`: supported public rewrite package
 - `legacy_archive/phospy_legacy/`: migration reference only; not an installed package target
 - Dataset builder: supported
-- Kinase workflow: supported
+- Kinase workflow: supported (activity stage included when enabled)
 - Signalome workflow: first real vertical slice implemented
 
 ## Public Types
@@ -137,6 +137,10 @@ Kinase activity output exposes the full downstream activity stage:
 - `result.activity_result.target_counts`
 - `result.activity_result.target_table`
 
+Activity is a supported stage of `KinaseWorkflow`. It remains optional at
+execution time when callers pass `activity_config=None` or
+`activity_config.enabled=False`.
+
 Activity configuration controls:
 
 - `activity_config.threshold`
@@ -161,6 +165,7 @@ import pandas as pd
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    KinaseActivityConfig,
     KinaseScoringConfig,
     Organism,
     ReferenceBundle,
@@ -208,10 +213,18 @@ result = KinaseWorkflow().run(
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(min_substrates=2),
+        activity_config=KinaseActivityConfig(
+            enabled=True,
+            threshold=0.6,
+            min_substrates=3,
+            top_n_substrates=20,
+        ),
     )
 )
 
 pred_mat = result.prediction_result.pred_mat
+if result.activity_result is not None:
+    weighted_activity = result.activity_result.weighted_activity
 ```
 
 ## CLI

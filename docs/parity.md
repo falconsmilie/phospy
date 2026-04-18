@@ -26,6 +26,14 @@ The parity suite currently protects three rewrite-era slices:
   `module_assignments`, `signalome_modules`, `kinase_network.nodes`,
   `kinase_network.edges`
 
+Activity parity checks cover:
+
+- `weighted_activity`
+- `ksea_scores`
+- `ksea_counts`
+- `target_counts`
+- `target_table`
+
 ## Fixture Locations
 
 ### Rewrite-owned parity inputs and expectations

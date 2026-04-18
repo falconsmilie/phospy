@@ -12,7 +12,7 @@ legacy_archive/phospy_legacy/  # migration reference only (not installed package
 ## Supported Today
 
 - Dataset builder route: supported
-- Kinase workflow route: supported
+- Kinase workflow route: supported (including activity-stage outputs when enabled)
 - Signalome workflow route: first real vertical slice (module assignments, modules, network)
 
 ## Rewrite Contract
@@ -25,6 +25,7 @@ import pandas as pd
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    KinaseActivityConfig,
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
@@ -74,12 +75,19 @@ result = KinaseWorkflow().run(
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(min_substrates=2),
+        activity_config=KinaseActivityConfig(
+            enabled=True,
+            threshold=0.6,
+            min_substrates=3,
+            top_n_substrates=20,
+        ),
     )
 )
 
 profile_scores = result.scoring_result.profile_scores
 pred_mat = result.prediction_result.pred_mat
-weighted_activity = result.activity_result.weighted_activity
+if result.activity_result is not None:
+    weighted_activity = result.activity_result.weighted_activity
 ```
 
 ## Current Limits
@@ -112,3 +120,4 @@ weighted_activity = result.activity_result.weighted_activity
 - [`docs/output_bundles.md`](docs/output_bundles.md)
 - [`docs/validation.md`](docs/validation.md)
 - [`docs/roadmap.md`](docs/roadmap.md)
+- [`docs/architecture/activity_science_port_review.md`](docs/architecture/activity_science_port_review.md)

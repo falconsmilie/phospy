@@ -33,7 +33,13 @@ class KinasePredictionConfig:
 
 @dataclass(frozen=True, slots=True)
 class KinaseActivityConfig:
-    """Public kinase activity-stage configuration."""
+    """Configuration for the supported kinase activity stage.
+
+    Activity runs inside `KinaseWorkflow` and can be disabled by setting either:
+
+    - `activity_config=None` on `KinaseWorkflowRequest`, or
+    - `activity_config.enabled=False`.
+    """
 
     enabled: bool = True
     threshold: float = KINASE_ACTIVITY_DEFAULT_THRESHOLD
