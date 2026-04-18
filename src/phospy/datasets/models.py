@@ -6,7 +6,9 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
+from phospy.errors.validation import DatasetValidationError
 from phospy.references.models import Organism
+from phospy.site_ids import canonicalize_site_index
 from phospy.transformations.models import TransformationState
 from phospy.validation.datasets.analysis_ready import AnalysisReadyDatasetValidator
 
@@ -31,6 +33,18 @@ class AnalysisReadyPhosphoDataset:
         site_metadata = _copy_frame(self.site_metadata)
         sample_metadata = _copy_optional_frame(self.sample_metadata)
         total = _copy_optional_frame(self.total)
+        if isinstance(phospho, pd.DataFrame):
+            phospho.index = canonicalize_site_index(
+                phospho.index,
+                field_name="dataset.phospho.index",
+                error_type=DatasetValidationError,
+            )
+        if isinstance(site_metadata, pd.DataFrame):
+            site_metadata.index = canonicalize_site_index(
+                site_metadata.index,
+                field_name="dataset.site_metadata.index",
+                error_type=DatasetValidationError,
+            )
         _DATASET_VALIDATOR.run(
             phospho=phospho,
             site_metadata=site_metadata,

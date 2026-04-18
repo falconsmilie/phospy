@@ -6,6 +6,9 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from phospy.errors.input import UnsupportedInputFormatError
+from phospy.site_ids import canonicalize_site_index
+
 _GENE_SYMBOL_ALIASES = ("gene_symbol", "gene", "gene_name", "protein", "protein_id")
 _SITE_ALIASES = ("site", "residue", "phosphosite", "site_position")
 _SITE_SEQUENCE_ALIASES = ("site_sequence", "sequence", "centralized_sequence")
@@ -33,7 +36,11 @@ class DatasetConventionNormalizer:
         total: pd.DataFrame | None,
     ) -> NormalizedDatasetInputs:
         normalized_phospho = phospho.copy(deep=True)
-        normalized_phospho.index = _normalized_string_index(normalized_phospho.index)
+        normalized_phospho.index = canonicalize_site_index(
+            normalized_phospho.index,
+            field_name="dataset build request phospho.index",
+            error_type=UnsupportedInputFormatError,
+        )
         normalized_phospho.columns = _normalized_string_index(
             normalized_phospho.columns
         )
@@ -86,7 +93,11 @@ class DatasetConventionNormalizer:
             isinstance(normalized.index, pd.RangeIndex) or index_name != "site_id"
         ):
             normalized = normalized.set_index("site_id", drop=True)
-        normalized.index = _normalized_string_index(normalized.index)
+        normalized.index = canonicalize_site_index(
+            normalized.index,
+            field_name="dataset build request site_metadata.index",
+            error_type=UnsupportedInputFormatError,
+        )
         return normalized
 
     @staticmethod

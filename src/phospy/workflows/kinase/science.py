@@ -38,7 +38,7 @@ def build_kinase_profiles(
     substrate_counts: dict[str, int] = {}
 
     for kinase, grouped in kinase_substrate_map.groupby("kinase", sort=False):
-        unique_sites = list(dict.fromkeys(grouped.loc[:, "substrate_site"].astype(str)))
+        unique_sites = list(dict.fromkeys(grouped.loc[:, "substrate_site"].tolist()))
         quantified_sites = [site for site in unique_sites if site in observed_sites]
         substrate_counts[str(kinase)] = len(quantified_sites)
         if len(quantified_sites) < min_substrates:
@@ -178,7 +178,7 @@ def build_prediction_outputs(
             substrate_rows.append(
                 {
                     "kinase": str(kinase),
-                    "substrate_site": str(site_id),
+                    "substrate_site": site_id,
                     "score": float(score),
                     "rank": rank,
                 }

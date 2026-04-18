@@ -8,6 +8,7 @@ from phospy.errors.input import UnsupportedInputFormatError
 from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
 from phospy.references.models import Organism
 from phospy.references.resources import load_bundled_site_sequences
+from phospy.site_ids import canonicalize_site_index
 
 
 class SiteSequenceDeriver:
@@ -72,11 +73,14 @@ class SiteSequenceDeriver:
                 f"'{organism.value}'. provide site_metadata.site_sequence explicitly"
             ) from exc
         sequence_map = bundled_sequences.loc[:, "site_sequence"].copy()
-        sequence_map.index = pd.Index(
-            sequence_map.index.astype(str).str.strip(),
-            name=sequence_map.index.name,
+        sequence_map.index = canonicalize_site_index(
+            sequence_map.index,
+            field_name="bundled site sequence index",
+            error_type=UnsupportedInputFormatError,
         )
-        normalized_site_index = pd.Index(
-            site_index.astype(str).str.strip(), name=site_index.name
+        normalized_site_index = canonicalize_site_index(
+            site_index,
+            field_name="dataset site_metadata.index",
+            error_type=UnsupportedInputFormatError,
         )
         return sequence_map.reindex(normalized_site_index)

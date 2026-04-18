@@ -20,7 +20,6 @@ class KinaseWorkflowInterpreter:
     _KINASE_COLUMN = "kinase"
     _SUBSTRATE_COLUMN = "substrate_site"
     _SITE_SEQUENCE_COLUMN = "site_sequence"
-    _SITE_ID_INDEX_NAME = "site_id"
 
     def __init__(
         self, *, reference_resolver: ReferenceResolverContract | None = None
@@ -34,10 +33,8 @@ class KinaseWorkflowInterpreter:
             request.references,
             dataset_organism=request.dataset.organism,
         )
-        kinase_substrate_map = self._normalized_kinase_substrate_map(
-            references.kinase_substrate_map
-        )
-        site_sequences = self._normalized_site_sequences(references.site_sequences)
+        kinase_substrate_map = references.kinase_substrate_map.copy(deep=True)
+        site_sequences = references.site_sequences.copy(deep=True)
         overlap_counts = self._summarize_overlap(
             dataset=request.dataset.phospho,
             kinase_substrate_map=kinase_substrate_map,
@@ -71,44 +68,13 @@ class KinaseWorkflowInterpreter:
         )
 
     @classmethod
-    def _normalized_kinase_substrate_map(cls, mapping: pd.DataFrame) -> pd.DataFrame:
-        cleaned = mapping[[cls._KINASE_COLUMN, cls._SUBSTRATE_COLUMN]].copy(deep=True)
-        cleaned.loc[:, cls._KINASE_COLUMN] = (
-            cleaned.loc[:, cls._KINASE_COLUMN].astype(str).str.strip()
-        )
-        cleaned.loc[:, cls._SUBSTRATE_COLUMN] = (
-            cleaned.loc[:, cls._SUBSTRATE_COLUMN].astype(str).str.strip()
-        )
-        return cleaned.drop_duplicates(ignore_index=True)
-
-    @classmethod
-    def _normalized_site_sequences(cls, sequences: pd.DataFrame) -> pd.DataFrame:
-        cleaned = sequences[[cls._SITE_SEQUENCE_COLUMN]].copy(deep=True)
-        cleaned.index = pd.Index(
-            cleaned.index.astype(str).str.strip(),
-            name=cls._SITE_ID_INDEX_NAME,
-        )
-        cleaned.loc[:, cls._SITE_SEQUENCE_COLUMN] = (
-            cleaned.loc[:, cls._SITE_SEQUENCE_COLUMN].astype(str).str.strip()
-        )
-        cleaned = cleaned[cleaned.index != ""]
-        cleaned = cleaned[
-            cleaned.loc[:, cls._SITE_SEQUENCE_COLUMN].astype(str).str.strip() != ""
-        ]
-        return cleaned[~cleaned.index.duplicated(keep="first")]
-
-    @classmethod
     def _summarize_overlap(
         cls,
         *,
         dataset: pd.DataFrame,
         kinase_substrate_map: pd.DataFrame,
     ) -> dict[str, int | pd.Series]:
-        dataset_sites = {
-            str(site_id).strip()
-            for site_id in dataset.index
-            if str(site_id).strip() != ""
-        }
+        dataset_sites = set(dataset.index.tolist())
         reference_sites = set(
             kinase_substrate_map.loc[:, cls._SUBSTRATE_COLUMN].tolist()
         )
@@ -193,11 +159,9 @@ class KinaseWorkflowInterpreter:
         dataset: pd.DataFrame,
         site_sequences: pd.DataFrame,
     ) -> pd.Index:
-        sequence_sites = set(site_sequences.index.astype(str))
+        sequence_sites = set(site_sequences.index.tolist())
         scoring_sites = [
-            str(site_id).strip()
-            for site_id in dataset.index
-            if str(site_id).strip() in sequence_sites
+            site_id for site_id in dataset.index if site_id in sequence_sites
         ]
         return pd.Index(scoring_sites, name=dataset.index.name)
 

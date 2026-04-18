@@ -92,11 +92,10 @@ class ReferenceBundleValidator:
             column_name="site_sequence",
             error_type=ReferenceValidationError,
         )
-        substrate_sites = {
-            str(site_id).strip()
-            for site_id in kinase_substrate_map_frame.loc[:, "substrate_site"]
-        }
-        known_sites = {str(site_id).strip() for site_id in site_sequences_frame.index}
+        substrate_sites = set(
+            kinase_substrate_map_frame.loc[:, "substrate_site"].tolist()
+        )
+        known_sites = set(site_sequences_frame.index.tolist())
         missing_sequences = sorted(substrate_sites.difference(known_sites))
         if missing_sequences:
             missing_sample = ", ".join(missing_sequences[:10])
