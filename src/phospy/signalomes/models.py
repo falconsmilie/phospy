@@ -7,6 +7,7 @@ from dataclasses import InitVar, dataclass
 import pandas as pd
 
 from phospy._frame_ownership import own_dataframe, own_optional_dataframe
+from phospy.errors.validation import PhosPyValidationError
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +24,7 @@ class SignalomeAssignments:
             own_dataframe(
                 self.table,
                 field_name="signalome_result.module_assignments.table",
+                error_type=PhosPyValidationError,
                 assume_owned=_assume_owned,
             ),
         )
@@ -46,6 +48,7 @@ class SignalomeModules:
             own_dataframe(
                 self.table,
                 field_name="signalome_result.signalome_modules.table",
+                error_type=PhosPyValidationError,
                 assume_owned=_assume_owned,
             ),
         )
@@ -67,11 +70,13 @@ class KinaseNetwork:
         edges = own_dataframe(
             self.edges,
             field_name="signalome_result.kinase_network.edges",
+            error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         nodes = own_optional_dataframe(
             self.nodes,
             field_name="signalome_result.kinase_network.nodes",
+            error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         object.__setattr__(self, "edges", edges)

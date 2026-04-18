@@ -7,6 +7,8 @@ from dataclasses import InitVar, dataclass
 import pandas as pd
 
 from phospy._frame_ownership import own_dataframe, own_series
+from phospy.errors.validation import PhosPyValidationError
+from phospy.errors.workflows import WorkflowBoundaryError
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,11 +33,15 @@ class KinaseActivityInputs:
 
     def __post_init__(self) -> None:
         if not isinstance(self.pred_mat, pd.DataFrame):
-            raise TypeError("activity input pred_mat must be a pandas DataFrame")
+            raise WorkflowBoundaryError(
+                "activity input pred_mat must be a pandas DataFrame"
+            )
         if not isinstance(self.phospho_matrix, pd.DataFrame):
-            raise TypeError("activity input phospho_matrix must be a pandas DataFrame")
+            raise WorkflowBoundaryError(
+                "activity input phospho_matrix must be a pandas DataFrame"
+            )
         if not isinstance(self.overlap_summary, PredMatOverlapSummary):
-            raise TypeError(
+            raise WorkflowBoundaryError(
                 "activity input overlap_summary must be PredMatOverlapSummary"
             )
 
@@ -64,26 +70,31 @@ class KinaseActivityResult:
         weighted_activity = own_dataframe(
             self.weighted_activity,
             field_name="activity_result.weighted_activity",
+            error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         ksea_scores = own_dataframe(
             self.ksea_scores,
             field_name="activity_result.ksea_scores",
+            error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         ksea_counts = own_series(
             self.ksea_counts,
             field_name="activity_result.ksea_counts",
+            error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         target_counts = own_series(
             self.target_counts,
             field_name="activity_result.target_counts",
+            error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         target_table = own_dataframe(
             self.target_table,
             field_name="activity_result.target_table",
+            error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         object.__setattr__(self, "weighted_activity", weighted_activity)

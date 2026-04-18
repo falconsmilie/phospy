@@ -55,7 +55,9 @@ class SignalomeWorkflowConfigSnapshot:
         from phospy.api.requests import SignalomeWorkflowRequest
 
         if not isinstance(request, SignalomeWorkflowRequest):
-            raise TypeError("request must be a SignalomeWorkflowRequest")
+            raise PhosPyInputError(
+                "config snapshot request must be a SignalomeWorkflowRequest"
+            )
         return cls(signalome_config=request.config)
 
     def to_payload(self) -> dict[str, object]:

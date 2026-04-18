@@ -32,6 +32,29 @@ Import from top-level `phospy`:
 
 All public executors use `run(request)`.
 
+## User-Handleable Exceptions
+
+Public constructors and workflow/builder boundaries raise PhosPy exception types
+as the intended failure story. User-handleable exceptions are exported from
+top-level `phospy` and include:
+
+- Base:
+`PhosPyError`
+- Input/build:
+`PhosPyInputError`, `UnsupportedInputFormatError`, `PhosPyBuildError`,
+`DatasetBuildError`
+- Validation:
+`PhosPyValidationError`, `DatasetValidationError`, `ReferenceValidationError`,
+`TransformationValidationError`, `WorkflowValidationError`
+- Reference:
+`PhosPyReferenceError`, `ReferenceResolutionError`,
+`ReferenceCompatibilityError`, `UnsupportedOrganismError`
+- Transformation:
+`PhosPyTransformationError`, `InvalidTransformationStateError`,
+`TransformationStateEstablishmentError`, `TransformerExecutionError`
+- Workflow:
+`PhosPyWorkflowError`, `WorkflowBoundaryError`, `WorkflowStageError`
+
 ## Builder Contract
 
 `DatasetBuildRequest` accepts in-memory pandas `DataFrame` values or file paths.

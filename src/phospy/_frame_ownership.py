@@ -10,17 +10,20 @@ from __future__ import annotations
 
 import pandas as pd
 
+ExceptionType = type[Exception]
+
 
 def own_dataframe(
     value: object,
     *,
     field_name: str,
+    error_type: ExceptionType = TypeError,
     assume_owned: bool = False,
 ) -> pd.DataFrame:
     """Return an owned DataFrame, copying only when ownership is not established."""
 
     if not isinstance(value, pd.DataFrame):
-        raise TypeError(f"{field_name} must be a pandas DataFrame")
+        raise error_type(f"{field_name} must be a pandas DataFrame")
     if assume_owned:
         return value
     return value.copy(deep=True)
@@ -30,23 +33,30 @@ def own_optional_dataframe(
     value: object | None,
     *,
     field_name: str,
+    error_type: ExceptionType = TypeError,
     assume_owned: bool = False,
 ) -> pd.DataFrame | None:
     if value is None:
         return None
-    return own_dataframe(value, field_name=field_name, assume_owned=assume_owned)
+    return own_dataframe(
+        value,
+        field_name=field_name,
+        error_type=error_type,
+        assume_owned=assume_owned,
+    )
 
 
 def own_series(
     value: object,
     *,
     field_name: str,
+    error_type: ExceptionType = TypeError,
     assume_owned: bool = False,
 ) -> pd.Series:
     """Return an owned Series, copying only when ownership is not established."""
 
     if not isinstance(value, pd.Series):
-        raise TypeError(f"{field_name} must be a pandas Series")
+        raise error_type(f"{field_name} must be a pandas Series")
     if assume_owned:
         return value
     return value.copy(deep=True)

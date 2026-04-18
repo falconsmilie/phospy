@@ -55,7 +55,9 @@ class KinaseWorkflowConfigSnapshot:
         from phospy.api.requests import KinaseWorkflowRequest
 
         if not isinstance(request, KinaseWorkflowRequest):
-            raise TypeError("request must be a KinaseWorkflowRequest")
+            raise PhosPyInputError(
+                "config snapshot request must be a KinaseWorkflowRequest"
+            )
         return cls(
             scoring_config=request.scoring_config,
             prediction_config=request.prediction_config,

@@ -7,6 +7,7 @@ from dataclasses import InitVar, dataclass
 import pandas as pd
 
 from phospy._frame_ownership import own_dataframe, own_optional_dataframe
+from phospy.errors.validation import PhosPyValidationError
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,21 +29,25 @@ class KinaseScoringResult:
         profile_scores = own_dataframe(
             self.profile_scores,
             field_name="scoring_result.profile_scores",
+            error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         motif_scores = own_optional_dataframe(
             self.motif_scores,
             field_name="scoring_result.motif_scores",
+            error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         combined_scores = own_optional_dataframe(
             self.combined_scores,
             field_name="scoring_result.combined_scores",
+            error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         weights = own_optional_dataframe(
             self.weights,
             field_name="scoring_result.weights",
+            error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         object.__setattr__(self, "profile_scores", profile_scores)
@@ -80,11 +85,13 @@ class KinasePredictionResult:
         pred_mat = own_dataframe(
             self.pred_mat,
             field_name="prediction_result.pred_mat",
+            error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         substrate_list = own_optional_dataframe(
             self.substrate_list,
             field_name="prediction_result.substrate_list",
+            error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         object.__setattr__(self, "pred_mat", pred_mat)

@@ -13,6 +13,20 @@ For public types and signatures, see [`api.md`](api.md).
   `SignalomeWorkflow.run(SignalomeWorkflowRequest(...))`.
 - File-ingestion is part of the dataset builder route only.
 
+## Constructor Validation Policy
+
+Public request/result/data containers validate type contracts at construction time
+and raise PhosPy exception types (not raw built-in exceptions) for intended
+caller-facing validation failures.
+
+- Request DTOs (`DatasetBuildRequest`, `KinaseWorkflowRequest`,
+  `SignalomeWorkflowRequest`) validate core type shape immediately.
+- Result/data containers validate nested public types and pandas container fields
+  at construction time.
+- Deeper semantic policies (numeric ranges, overlap constraints, scientific floors)
+  still run in validator/interpreter boundaries and raise domain-specific PhosPy
+  exceptions.
+
 ## Dataset Builder Validation
 
 `DatasetBuildRequest` and `AnalysisReadyPhosphoDataset` enforce:

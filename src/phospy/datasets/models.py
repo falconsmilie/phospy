@@ -34,21 +34,25 @@ class AnalysisReadyPhosphoDataset:
         phospho = own_dataframe(
             self.phospho,
             field_name="dataset.phospho",
+            error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         site_metadata = own_dataframe(
             self.site_metadata,
             field_name="dataset.site_metadata",
+            error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         sample_metadata = own_optional_dataframe(
             self.sample_metadata,
             field_name="dataset.sample_metadata",
+            error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         total = own_optional_dataframe(
             self.total,
             field_name="dataset.total",
+            error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         phospho.index = canonicalize_site_index(

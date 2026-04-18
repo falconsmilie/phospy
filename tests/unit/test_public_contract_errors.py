@@ -1,0 +1,199 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pandas as pd
+import pytest
+
+import phospy
+import phospy.errors as public_errors
+from phospy import (
+    AnalysisReadyPhosphoDataset,
+    DatasetBuildRequest,
+    DatasetValidationError,
+    KinasePredictionResult,
+    KinaseScoringResult,
+    KinaseWorkflowResult,
+    Organism,
+    PhosPyInputError,
+    PhosPyValidationError,
+    ReferenceBundle,
+    ReferenceValidationError,
+    SignalomeWorkflowResult,
+    UnsupportedInputFormatError,
+    WorkflowValidationError,
+)
+from phospy.io.readers.tables import read_table
+from phospy.signalomes.models import (
+    KinaseNetwork,
+    SignalomeAssignments,
+    SignalomeModules,
+)
+
+
+def _dataset() -> AnalysisReadyPhosphoDataset:
+    index = pd.Index(["MAPK14;Y182;"], name="site_id")
+    return AnalysisReadyPhosphoDataset(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=index),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=index,
+        ),
+        organism=Organism.RAT,
+    )
+
+
+def _references() -> ReferenceBundle:
+    index = pd.Index(["MAPK14;Y182;"], name="site_id")
+    return ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {"kinase": ["MAP2K6"], "substrate_site": ["MAPK14;Y182;"]}
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"]},
+            index=index,
+        ),
+    )
+
+
+def _scoring_result() -> KinaseScoringResult:
+    return KinaseScoringResult(
+        profile_scores=pd.DataFrame(
+            {"MAP2K6": [1.0]},
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        )
+    )
+
+
+def _prediction_result() -> KinasePredictionResult:
+    return KinasePredictionResult(
+        pred_mat=pd.DataFrame(
+            {"MAP2K6": [0.8]},
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        )
+    )
+
+
+def _kinase_result() -> KinaseWorkflowResult:
+    return KinaseWorkflowResult(
+        dataset=_dataset(),
+        references=_references(),
+        scoring_result=_scoring_result(),
+        prediction_result=_prediction_result(),
+        activity_result=None,
+    )
+
+
+def test_top_level_exception_exports_match_error_taxonomy() -> None:
+    assert set(public_errors.__all__).issubset(set(phospy.__all__))
+    for exported in public_errors.__all__:
+        assert getattr(phospy, exported) is getattr(public_errors, exported)
+
+
+def test_dataset_build_request_uses_phospy_exception_for_invalid_sources() -> None:
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match="dataset build request phospho must be a pandas DataFrame or a file path",
+    ):
+        DatasetBuildRequest(
+            phospho=object(),
+            site_metadata=object(),
+        )
+
+
+def test_dataset_constructor_rejects_non_dataframe_with_dataset_validation_error() -> (
+    None
+):
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.phospho must be a pandas DataFrame",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=object(),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14"],
+                    "site": ["Y182"],
+                    "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                },
+                index=["MAPK14;Y182;"],
+            ),
+            organism=Organism.RAT,
+        )
+
+
+def test_reference_bundle_constructor_rejects_non_dataframe_with_reference_validation_error() -> (
+    None
+):
+    with pytest.raises(
+        ReferenceValidationError,
+        match="references.kinase_substrate_map must be a pandas DataFrame",
+    ):
+        ReferenceBundle(
+            organism=Organism.RAT,
+            kinase_substrate_map=object(),
+            site_sequences=pd.DataFrame(
+                {"site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"]},
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+        )
+
+
+def test_result_containers_use_phospy_validation_errors_for_dataframe_fields() -> None:
+    with pytest.raises(
+        PhosPyValidationError,
+        match="scoring_result.profile_scores must be a pandas DataFrame",
+    ):
+        KinaseScoringResult(profile_scores=object())
+
+
+def test_workflow_results_validate_nested_public_types() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="kinase workflow result dataset must be AnalysisReadyPhosphoDataset",
+    ):
+        KinaseWorkflowResult(
+            dataset=object(),
+            references=_references(),
+            scoring_result=_scoring_result(),
+            prediction_result=_prediction_result(),
+        )
+
+
+def test_signalome_result_validates_expanded_signalome_field_type() -> None:
+    kinase_result = _kinase_result()
+    with pytest.raises(
+        WorkflowValidationError,
+        match="signalome_result.expanded_signalome must be a pandas DataFrame",
+    ):
+        SignalomeWorkflowResult(
+            dataset=kinase_result.dataset,
+            kinase_result=kinase_result,
+            module_assignments=SignalomeAssignments(
+                table=pd.DataFrame({"site_id": ["MAPK14;Y182;"], "module": [1]})
+            ),
+            signalome_modules=SignalomeModules(
+                table=pd.DataFrame({"module": [1], "size": [1]})
+            ),
+            kinase_network=KinaseNetwork(
+                edges=pd.DataFrame(
+                    {"source": ["MAP2K6"], "target": ["MAP2K6"], "weight": [1.0]}
+                )
+            ),
+            expanded_signalome=[],
+        )
+
+
+def test_table_reader_translates_missing_path_to_phospy_input_error(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="input file does not exist:",
+    ):
+        read_table(tmp_path / "missing.csv")

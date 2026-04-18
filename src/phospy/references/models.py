@@ -46,11 +46,13 @@ class ReferenceBundle:
         kinase_substrate_map = own_dataframe(
             self.kinase_substrate_map,
             field_name="references.kinase_substrate_map",
+            error_type=ReferenceValidationError,
             assume_owned=_assume_owned,
         )
         site_sequences = own_dataframe(
             self.site_sequences,
             field_name="references.site_sequences",
+            error_type=ReferenceValidationError,
             assume_owned=_assume_owned,
         )
         if "kinase" in kinase_substrate_map.columns:

@@ -41,6 +41,7 @@ def test_public_dataset_ingestion_story_is_builder_only() -> None:
     dataset_exports = {
         name for name in phospy.__all__ if "Dataset" in name or name.endswith("Builder")
     }
+    dataset_exports = {name for name in dataset_exports if not name.endswith("Error")}
     assert dataset_exports == {
         "AnalysisReadyDatasetBuilder",
         "AnalysisReadyPhosphoDataset",
