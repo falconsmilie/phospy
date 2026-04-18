@@ -13,6 +13,8 @@ from phospy import (
     KinaseScoringConfig,
     KinaseScoringResult,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     ReferencePreset,
@@ -20,8 +22,6 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
-    SimpleKinaseWorkflowRequest,
-    SimpleKinaseWorkflowResult,
 )
 from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
 from phospy.signalomes.models import (
@@ -85,7 +85,7 @@ def test_request_config_and_result_models_construct() -> None:
         organism=Organism.RAT,
         transformation_state=_raw_state(),
     )
-    workflow_request = SimpleKinaseWorkflowRequest(
+    workflow_request = KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(min_substrates=1),
@@ -97,7 +97,7 @@ def test_request_config_and_result_models_construct() -> None:
     activity = KinaseActivityResult(
         activity_scores=pd.DataFrame({"activity_score": []})
     )
-    workflow_result = SimpleKinaseWorkflowResult(
+    workflow_result = KinaseWorkflowResult(
         dataset=dataset,
         references=_bundle(),
         scoring_result=scoring,
@@ -105,8 +105,8 @@ def test_request_config_and_result_models_construct() -> None:
         activity_result=activity,
     )
     assert isinstance(build_request, DatasetBuildRequest)
-    assert isinstance(workflow_request, SimpleKinaseWorkflowRequest)
-    assert isinstance(workflow_result, SimpleKinaseWorkflowResult)
+    assert isinstance(workflow_request, KinaseWorkflowRequest)
+    assert isinstance(workflow_result, KinaseWorkflowResult)
 
 
 def test_builder_run_contract_builds_analysis_ready_dataset() -> None:
@@ -169,9 +169,9 @@ def test_builder_orchestration_uses_collaborators() -> None:
 
 def test_workflow_run_contract_returns_nested_results() -> None:
     result = KinaseWorkflow().run(
-        SimpleKinaseWorkflowRequest(dataset=_dataset(), references=ReferencePreset.AUTO)
+        KinaseWorkflowRequest(dataset=_dataset(), references=ReferencePreset.AUTO)
     )
-    assert isinstance(result, SimpleKinaseWorkflowResult)
+    assert isinstance(result, KinaseWorkflowResult)
     assert isinstance(result.scoring_result, KinaseScoringResult)
     assert isinstance(result.prediction_result, KinasePredictionResult)
     assert not hasattr(result, "profile_scores")
@@ -182,9 +182,7 @@ def test_workflow_run_contract_returns_nested_results() -> None:
 
 def test_workflow_public_entrypoint_exercises_collaborators() -> None:
     calls: list[str] = []
-    request = SimpleKinaseWorkflowRequest(
-        dataset=_dataset(), references=ReferencePreset.AUTO
-    )
+    request = KinaseWorkflowRequest(dataset=_dataset(), references=ReferencePreset.AUTO)
     bundle = _bundle()
     interpreted = ResolvedKinaseWorkflowRequest(
         dataset=request.dataset,
@@ -194,7 +192,7 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
         prediction_config=request.prediction_config,
         activity_config=request.activity_config,
     )
-    expected = SimpleKinaseWorkflowResult(
+    expected = KinaseWorkflowResult(
         dataset=request.dataset,
         references=interpreted.references,
         scoring_result=KinaseScoringResult(profile_scores=pd.DataFrame()),
@@ -203,23 +201,19 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
     )
 
     class ValidatorSpy:
-        def run(
-            self, workflow_request: SimpleKinaseWorkflowRequest
-        ) -> SimpleKinaseWorkflowRequest:
+        def run(self, workflow_request: KinaseWorkflowRequest) -> KinaseWorkflowRequest:
             calls.append("validator")
             return workflow_request
 
     class InterpreterSpy:
         def run(
-            self, workflow_request: SimpleKinaseWorkflowRequest
+            self, workflow_request: KinaseWorkflowRequest
         ) -> ResolvedKinaseWorkflowRequest:
             calls.append("interpreter")
             return interpreted
 
     class ExecutorSpy:
-        def run(
-            self, resolved: ResolvedKinaseWorkflowRequest
-        ) -> SimpleKinaseWorkflowResult:
+        def run(self, resolved: ResolvedKinaseWorkflowRequest) -> KinaseWorkflowResult:
             calls.append("executor")
             return expected
 
@@ -236,7 +230,7 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
 def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
     calls: list[str] = []
     kinase_result = KinaseWorkflow().run(
-        SimpleKinaseWorkflowRequest(
+        KinaseWorkflowRequest(
             dataset=_dataset(),
             references=ReferencePreset.AUTO,
         )

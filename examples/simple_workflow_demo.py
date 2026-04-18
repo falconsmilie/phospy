@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the supported builder + simple kinase workflow route."""
+"""Run the supported builder + kinase workflow route."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
     ReferencePreset,
-    SimpleKinaseWorkflowRequest,
-    SimpleKinaseWorkflowResult,
 )
 from phospy.transformations.models import TransformationState
 
@@ -51,11 +51,11 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
     )
 
 
-def run_demo(outdir: Path) -> tuple[SimpleKinaseWorkflowResult, dict[str, Path]]:
+def run_demo(outdir: Path) -> tuple[KinaseWorkflowResult, dict[str, Path]]:
     outdir.mkdir(parents=True, exist_ok=True)
     dataset = build_demo_dataset()
     result = KinaseWorkflow().run(
-        SimpleKinaseWorkflowRequest(
+        KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
         )
@@ -73,9 +73,9 @@ def run_demo(outdir: Path) -> tuple[SimpleKinaseWorkflowResult, dict[str, Path]]
 
 
 def main() -> None:
-    with TemporaryDirectory(prefix="phospy-simple-workflow-") as tmp_dir:
+    with TemporaryDirectory(prefix="phospy-kinase-workflow-") as tmp_dir:
         result, written = run_demo(Path(tmp_dir))
-        print("Simple kinase workflow demo")
+        print("Kinase workflow demo")
         print("Resolved reference organism:", result.references.organism.value)
         print()
         print("Profile score shape:", result.scoring_result.profile_scores.shape)

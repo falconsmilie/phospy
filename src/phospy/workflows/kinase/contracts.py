@@ -12,8 +12,8 @@ from phospy.api.configs import (
     KinasePredictionConfig,
     KinaseScoringConfig,
 )
-from phospy.api.requests import SimpleKinaseWorkflowRequest
-from phospy.api.results import SimpleKinaseWorkflowResult
+from phospy.api.requests import KinaseWorkflowRequest
+from phospy.api.results import KinaseWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.references.models import ReferenceBundle
 
@@ -36,7 +36,7 @@ class ResolvedKinaseWorkflowRequest:
 class KinaseWorkflowValidatorContract(Protocol):
     """Internal contract for kinase workflow request validation."""
 
-    def run(self, request: SimpleKinaseWorkflowRequest) -> SimpleKinaseWorkflowRequest:
+    def run(self, request: KinaseWorkflowRequest) -> KinaseWorkflowRequest:
         """Validate the workflow request and return the same request."""
 
 
@@ -45,16 +45,14 @@ class KinaseWorkflowInterpreterContract(Protocol):
 
     _reference_resolver: ReferenceResolverContract
 
-    def run(
-        self, request: SimpleKinaseWorkflowRequest
-    ) -> ResolvedKinaseWorkflowRequest:
+    def run(self, request: KinaseWorkflowRequest) -> ResolvedKinaseWorkflowRequest:
         """Resolve references and runtime defaults for execution."""
 
 
 class KinaseWorkflowExecutorContract(Protocol):
     """Internal contract for kinase workflow execution."""
 
-    def run(self, request: ResolvedKinaseWorkflowRequest) -> SimpleKinaseWorkflowResult:
+    def run(self, request: ResolvedKinaseWorkflowRequest) -> KinaseWorkflowResult:
         """Execute workflow domain logic and assemble public results."""
 
 

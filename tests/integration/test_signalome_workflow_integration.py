@@ -13,11 +13,11 @@ from phospy import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
-    SimpleKinaseWorkflowRequest,
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
@@ -31,7 +31,7 @@ def _is_text_dtype(values: object) -> bool:
 def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
     dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = KinaseWorkflow().run(
-        SimpleKinaseWorkflowRequest(
+        KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=1),

@@ -9,11 +9,11 @@ from phospy import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
-    SimpleKinaseWorkflowRequest,
 )
 from phospy.io.publishing import publish_signalome_workflow
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
@@ -31,8 +31,8 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
 
     assert written["dataset.phospho"] == output_root / "dataset" / "phospho.csv"
     assert (
-        written["simple_kinase.scoring.profile_scores"]
-        == output_root / "simple_kinase" / "scoring" / "profile_scores.csv"
+        written["kinase.scoring.profile_scores"]
+        == output_root / "kinase" / "scoring" / "profile_scores.csv"
     )
     assert (
         written["signalome.module_assignments"]
@@ -54,7 +54,7 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
     assert "signalome.expanded_signalome" not in written
 
     assert (output_root / "dataset" / "manifest.json").exists()
-    assert (output_root / "simple_kinase" / "manifest.json").exists()
+    assert (output_root / "kinase" / "manifest.json").exists()
     assert (output_root / "signalome" / "module_assignments.csv").exists()
     assert (output_root / "signalome" / "signalome_modules.csv").exists()
     assert (output_root / "signalome" / "kinase_network_nodes.csv").exists()
@@ -75,7 +75,7 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
 def _build_signalome_result():
     dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = KinaseWorkflow().run(
-        SimpleKinaseWorkflowRequest(
+        KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=1),

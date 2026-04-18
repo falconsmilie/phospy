@@ -10,10 +10,10 @@ from phospy.api.configs import (
 )
 from phospy.api.requests import (
     DatasetBuildRequest,
+    KinaseWorkflowRequest,
     SignalomeWorkflowRequest,
-    SimpleKinaseWorkflowRequest,
 )
-from phospy.api.results import SimpleKinaseWorkflowResult
+from phospy.api.results import KinaseWorkflowResult
 from phospy.datasets.builders.validator import DatasetBuildRequestValidator
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import (
@@ -24,7 +24,7 @@ from phospy.errors import (
 )
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.workflows.kinase.validator import SimpleKinaseWorkflowValidator
+from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
 
 
@@ -61,7 +61,7 @@ def _references() -> ReferenceBundle:
     )
 
 
-def _kinase_result() -> SimpleKinaseWorkflowResult:
+def _kinase_result() -> KinaseWorkflowResult:
     dataset = _dataset()
     prediction_matrix = pd.DataFrame(
         {"MAP2K6": [0.9]},
@@ -71,7 +71,7 @@ def _kinase_result() -> SimpleKinaseWorkflowResult:
         {"MAP2K6": [1.5]},
         index=pd.Index(["MAPK14;Y182;"], name="site_id"),
     )
-    return SimpleKinaseWorkflowResult(
+    return KinaseWorkflowResult(
         dataset=dataset,
         references=_references(),
         scoring_result=KinaseScoringResult(
@@ -109,8 +109,8 @@ def test_dataset_build_request_checks_organism_type_at_validator_boundary() -> N
         DatasetBuildRequestValidator().run(request)
 
 
-def test_simple_kinase_request_config_policy_fails_at_validator_boundary() -> None:
-    request = SimpleKinaseWorkflowRequest(
+def test_kinase_request_config_policy_fails_at_validator_boundary() -> None:
+    request = KinaseWorkflowRequest(
         dataset=_dataset(),
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(min_substrates=0),
@@ -121,11 +121,11 @@ def test_simple_kinase_request_config_policy_fails_at_validator_boundary() -> No
         WorkflowValidationError,
         match="scoring_config.min_substrates must be greater than or equal to 1",
     ):
-        SimpleKinaseWorkflowValidator().run(request)
+        KinaseWorkflowValidator().run(request)
 
 
-def test_simple_kinase_request_reference_compatibility_fails_in_validator() -> None:
-    request = SimpleKinaseWorkflowRequest(
+def test_kinase_request_reference_compatibility_fails_in_validator() -> None:
+    request = KinaseWorkflowRequest(
         dataset=_dataset(),
         references=ReferencePreset.HUMAN,
         scoring_config=KinaseScoringConfig(min_substrates=1),
@@ -133,7 +133,7 @@ def test_simple_kinase_request_reference_compatibility_fails_in_validator() -> N
         activity_config=None,
     )
     with pytest.raises(ReferenceCompatibilityError):
-        SimpleKinaseWorkflowValidator().run(request)
+        KinaseWorkflowValidator().run(request)
 
 
 def test_signalome_request_config_policy_fails_at_validator_boundary() -> None:

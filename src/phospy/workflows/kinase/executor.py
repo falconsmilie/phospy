@@ -1,4 +1,4 @@
-"""Internal executor for the simple kinase workflow."""
+"""Internal executor for the kinase workflow."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.activities.models import KinaseActivityResult
-from phospy.api.results import SimpleKinaseWorkflowResult
+from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
@@ -26,12 +26,12 @@ class _ScoringExecution:
     quantified_substrates: dict[str, list[str]]
 
 
-class SimpleKinaseWorkflowExecutor:
-    """Run stage logic and assemble `SimpleKinaseWorkflowResult`."""
+class KinaseWorkflowExecutor:
+    """Run stage logic and assemble `KinaseWorkflowResult`."""
 
     _KINASE_COLUMN = "kinase"
 
-    def run(self, request: ResolvedKinaseWorkflowRequest) -> SimpleKinaseWorkflowResult:
+    def run(self, request: ResolvedKinaseWorkflowRequest) -> KinaseWorkflowResult:
         scoring_execution = self._run_scoring_stage(request)
         prediction_result = self._run_prediction_stage(
             request=request,
@@ -41,7 +41,7 @@ class SimpleKinaseWorkflowExecutor:
             request=request,
             prediction_result=prediction_result,
         )
-        return SimpleKinaseWorkflowResult(
+        return KinaseWorkflowResult(
             dataset=request.dataset,
             references=request.references,
             scoring_result=scoring_execution.scoring_result,
@@ -59,8 +59,8 @@ class SimpleKinaseWorkflowExecutor:
         )
         if profile_build.profile_matrix.empty:
             raise WorkflowStageError(
-                "simple kinase workflow internal invariant failed at seam="
-                "simple_kinase.executor.scoring_profiles; interpreter should reject "
+                "kinase workflow internal invariant failed at seam="
+                "kinase.executor.scoring_profiles; interpreter should reject "
                 "requests with zero eligible kinases before scoring"
             )
         profile_scores = score_profile_correlations(
@@ -103,7 +103,7 @@ class SimpleKinaseWorkflowExecutor:
         ).index
         if selected_kinases.empty:
             self._raise_boundary_error(
-                seam="simple_kinase.executor.prediction_ensemble",
+                seam="kinase.executor.prediction_ensemble",
                 next_action=(
                     "use at least two informative samples and relax "
                     "scoring_config.min_substrates if needed"
@@ -157,7 +157,7 @@ class SimpleKinaseWorkflowExecutor:
         )
         if int(activity_table["n_predicted_sites"].sum()) == 0:
             self._raise_boundary_error(
-                seam="simple_kinase.executor.activity_support",
+                seam="kinase.executor.activity_support",
                 next_action=(
                     "increase prediction_config.top_k or lower "
                     "activity_config.threshold for sparse signals"
@@ -182,6 +182,6 @@ class SimpleKinaseWorkflowExecutor:
     ) -> None:
         details_text = ", ".join(f"{key}={value}" for key, value in details.items())
         raise WorkflowBoundaryError(
-            "simple kinase workflow boundary validation failed at "
+            "kinase workflow boundary validation failed at "
             f"seam={seam}; {details_text}; next_action={next_action}"
         )

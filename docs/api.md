@@ -9,7 +9,7 @@ PhosPy currently exposes one supported end-to-end rewrite route:
 - `src/phospy/`: supported public rewrite package
 - `legacy_archive/phospy_legacy/`: migration reference only; not an installed package target
 - Dataset builder: supported
-- Simple kinase workflow: supported
+- Kinase workflow: supported
 - Signalome workflow: first real vertical slice implemented
 
 ## Public Types
@@ -21,13 +21,13 @@ Import from top-level `phospy`:
 - Builder:
 `DatasetBuildRequest`, `AnalysisReadyDatasetBuilder`
 - Workflows and requests:
-`KinaseWorkflow`, `SimpleKinaseWorkflowRequest`,
+`KinaseWorkflow`, `KinaseWorkflowRequest`,
 `SignalomeWorkflow`, `SignalomeWorkflowRequest`
 - Config models:
 `KinaseScoringConfig`, `KinasePredictionConfig`, `KinaseActivityConfig`,
 `SignalomeConfig`
 - Result models:
-`SimpleKinaseWorkflowResult`, `SignalomeWorkflowResult`,
+`KinaseWorkflowResult`, `SignalomeWorkflowResult`,
 `KinaseScoringResult`, `KinasePredictionResult`, `KinaseActivityResult`
 
 All public executors use `run(request)`.
@@ -48,7 +48,7 @@ All public executors use `run(request)`.
 
 ## Result Contract
 
-`SimpleKinaseWorkflowResult` keeps stage outputs nested:
+`KinaseWorkflowResult` keeps stage outputs nested:
 
 - `result.scoring_result`
 - `result.prediction_result`
@@ -56,8 +56,8 @@ All public executors use `run(request)`.
 
 No mirrored top-level convenience aliases are part of the rewrite contract.
 Reusable save/load output bundles are provided as external services in
-`phospy.io` (`save_simple_kinase_workflow_bundle`,
-`load_simple_kinase_workflow_bundle`) so result models remain plain containers.
+`phospy.io` (`save_kinase_workflow_bundle`,
+`load_kinase_workflow_bundle`) so result models remain plain containers.
 
 `SignalomeWorkflowResult` currently returns real tables (`module_assignments`,
 `signalome_modules`, `kinase_network`) from the first vertical slice, while
@@ -77,7 +77,7 @@ from phospy import (
     Organism,
     ReferencePreset,
     KinaseWorkflow,
-    SimpleKinaseWorkflowRequest,
+    KinaseWorkflowRequest,
 )
 
 dataset = AnalysisReadyDatasetBuilder().run(
@@ -99,7 +99,7 @@ dataset = AnalysisReadyDatasetBuilder().run(
 )
 
 result = KinaseWorkflow().run(
-    SimpleKinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
+    KinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
 )
 
 pred_mat = result.prediction_result.pred_mat
@@ -110,7 +110,7 @@ pred_mat = result.prediction_result.pred_mat
 The rewrite CLI now supports the same narrow lane from files:
 
 1. `dataset-build` (files -> analysis-ready dataset outputs)
-2. `simple-kinase` (files -> dataset build + simple kinase workflow outputs)
+2. `kinase` (files -> dataset build + kinase workflow outputs)
 
 Examples:
 
@@ -121,7 +121,7 @@ phospy dataset-build \
   --organism rat \
   --outdir ./out
 
-phospy simple-kinase \
+phospy kinase \
   --phospho ./input/phospho.csv \
   --site-metadata ./input/site_metadata.csv \
   --organism rat \

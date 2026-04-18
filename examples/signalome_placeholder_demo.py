@@ -9,19 +9,19 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     Organism,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
-    SimpleKinaseWorkflowRequest,
-    SimpleKinaseWorkflowResult,
 )
 from phospy.transformations.models import TransformationState
 
 
-def _build_kinase_result() -> SimpleKinaseWorkflowResult:
+def _build_kinase_result() -> KinaseWorkflowResult:
     phospho = pd.DataFrame(
         {
             "sample_a": [1.00, 0.70],
@@ -50,7 +50,7 @@ def _build_kinase_result() -> SimpleKinaseWorkflowResult:
         )
     )
     return KinaseWorkflow().run(
-        SimpleKinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
+        KinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
     )
 
 

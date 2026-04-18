@@ -55,8 +55,8 @@ The intended public surface is:
 - `KinaseScoringConfig`
 - `KinasePredictionConfig`
 - `KinaseActivityConfig`
-- `SimpleKinaseWorkflowRequest`
-- `SimpleKinaseWorkflowResult`
+- `KinaseWorkflowRequest`
+- `KinaseWorkflowResult`
 - `KinaseWorkflow`
 - `SignalomeConfig`
 - `SignalomeWorkflowRequest`
@@ -99,11 +99,11 @@ This decision removes the need for repeated public column-name arguments across 
 
 It accepts exactly one request object:
 
-- `SimpleKinaseWorkflowRequest`
+- `KinaseWorkflowRequest`
 
 It returns exactly one result object:
 
-- `SimpleKinaseWorkflowResult`
+- `KinaseWorkflowResult`
 
 The request contains:
 

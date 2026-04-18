@@ -1,6 +1,6 @@
 # Output Bundles
 
-`SimpleKinaseWorkflowResult` and `SignalomeWorkflowResult` bundle persistence
+`KinaseWorkflowResult` and `SignalomeWorkflowResult` bundle persistence
 are implemented as external services in `phospy.io`, not as methods on the
 result models.
 
@@ -14,21 +14,21 @@ resources).
 from pathlib import Path
 
 from phospy.io import (
+    KinaseWorkflowConfigSnapshot,
     SignalomeWorkflowConfigSnapshot,
-    SimpleKinaseWorkflowConfigSnapshot,
+    load_kinase_workflow_bundle,
     load_signalome_workflow_bundle,
-    load_simple_kinase_workflow_bundle,
+    save_kinase_workflow_bundle,
     save_signalome_workflow_bundle,
-    save_simple_kinase_workflow_bundle,
 )
 
-simple_snapshot = SimpleKinaseWorkflowConfigSnapshot.from_request(simple_request)
-save_simple_kinase_workflow_bundle(
-    simple_result,
-    Path("./simple_bundle"),
-    config_snapshot=simple_snapshot,
+kinase_snapshot = KinaseWorkflowConfigSnapshot.from_request(kinase_request)
+save_kinase_workflow_bundle(
+    kinase_result,
+    Path("./kinase_bundle"),
+    config_snapshot=kinase_snapshot,
 )
-loaded_simple = load_simple_kinase_workflow_bundle(Path("./simple_bundle"))
+loaded_kinase = load_kinase_workflow_bundle(Path("./kinase_bundle"))
 
 signalome_snapshot = SignalomeWorkflowConfigSnapshot.from_request(signalome_request)
 save_signalome_workflow_bundle(
@@ -39,9 +39,9 @@ save_signalome_workflow_bundle(
 loaded_signalome = load_signalome_workflow_bundle(Path("./signalome_bundle"))
 ```
 
-`loaded_simple` returns:
+`loaded_kinase` returns:
 
-- `result`: reconstructed `SimpleKinaseWorkflowResult`
+- `result`: reconstructed `KinaseWorkflowResult`
 - `config_snapshot`: typed config snapshot for reproducibility
 - `manifest_version`
 
@@ -53,11 +53,11 @@ loaded_signalome = load_signalome_workflow_bundle(Path("./signalome_bundle"))
 
 ## Manifest Contracts (v1)
 
-Simple kinase:
+Kinase:
 
 - File: `manifest.json`
 - Required:
-`bundle_type == "simple_kinase_workflow_result"`
+`bundle_type == "kinase_workflow_result"`
 - Required:
 `manifest_version == 1`
 - Required sections:
@@ -71,12 +71,12 @@ Signalome:
 - Required:
 `manifest_version == 1`
 - Required sections:
-`dataset`, `resolved_references`, `upstream_simple_kinase_outputs`,
+`dataset`, `resolved_references`, `upstream_kinase_outputs`,
 `signalome_outputs`, `config_snapshot`
 
 ## Bundle Contents (v1)
 
-Simple kinase (default `csv` layout):
+Kinase (default `csv` layout):
 
 ```text
 manifest.json
@@ -127,7 +127,7 @@ Signalome manifest metadata explicitly captures:
 `organism`, full `transformation_state`
 - resolved reference metadata:
 resolved reference `organism`
-- upstream simple kinase stage output table paths:
+- upstream kinase stage output table paths:
 scoring, prediction, activity
 - signalome output table paths:
 module assignments, module matrix, kinase network, expanded signalome

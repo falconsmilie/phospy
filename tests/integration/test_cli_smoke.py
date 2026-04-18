@@ -41,7 +41,7 @@ def test_cli_dataset_build_from_files_writes_expected_outputs(tmp_path: Path) ->
     assert (outdir / "dataset" / "manifest.json").exists()
 
 
-def test_cli_simple_kinase_from_files_writes_supported_lane_outputs(
+def test_cli_kinase_from_files_writes_supported_lane_outputs(
     tmp_path: Path,
 ) -> None:
     phospho = load_rat_l6_phospho().head(260).copy(deep=True)
@@ -54,7 +54,7 @@ def test_cli_simple_kinase_from_files_writes_supported_lane_outputs(
 
     exit_code = cli_main(
         [
-            "simple-kinase",
+            "kinase",
             "--phospho",
             str(phospho_path),
             "--site-metadata",
@@ -76,13 +76,11 @@ def test_cli_simple_kinase_from_files_writes_supported_lane_outputs(
 
     assert exit_code == 0
     assert (outdir / "dataset" / "phospho.csv").exists()
-    assert (outdir / "simple_kinase" / "scoring" / "profile_scores.csv").exists()
-    assert (outdir / "simple_kinase" / "prediction" / "pred_mat.csv").exists()
-    assert (
-        outdir / "simple_kinase" / "references" / "kinase_substrate_map.csv"
-    ).exists()
-    assert (outdir / "simple_kinase" / "activity" / "activity_scores.csv").exists()
-    assert (outdir / "simple_kinase" / "manifest.json").exists()
+    assert (outdir / "kinase" / "scoring" / "profile_scores.csv").exists()
+    assert (outdir / "kinase" / "prediction" / "pred_mat.csv").exists()
+    assert (outdir / "kinase" / "references" / "kinase_substrate_map.csv").exists()
+    assert (outdir / "kinase" / "activity" / "activity_scores.csv").exists()
+    assert (outdir / "kinase" / "manifest.json").exists()
 
 
 def test_cli_signalome_from_files_writes_supported_lane_outputs(
@@ -122,12 +120,10 @@ def test_cli_signalome_from_files_writes_supported_lane_outputs(
 
     assert exit_code == 0
     assert (outdir / "dataset" / "phospho.csv").exists()
-    assert (outdir / "simple_kinase" / "scoring" / "profile_scores.csv").exists()
-    assert (outdir / "simple_kinase" / "prediction" / "pred_mat.csv").exists()
-    assert (
-        outdir / "simple_kinase" / "references" / "kinase_substrate_map.csv"
-    ).exists()
-    assert (outdir / "simple_kinase" / "manifest.json").exists()
+    assert (outdir / "kinase" / "scoring" / "profile_scores.csv").exists()
+    assert (outdir / "kinase" / "prediction" / "pred_mat.csv").exists()
+    assert (outdir / "kinase" / "references" / "kinase_substrate_map.csv").exists()
+    assert (outdir / "kinase" / "manifest.json").exists()
     assert (outdir / "signalome" / "module_assignments.csv").exists()
     assert (outdir / "signalome" / "signalome_modules.csv").exists()
     assert (outdir / "signalome" / "kinase_network_nodes.csv").exists()
@@ -197,7 +193,7 @@ def test_cli_dataset_build_requires_explicit_or_established_transformation_state
     assert "Provide DatasetBuildRequest(transformation_state=...)" in captured.err
 
 
-def test_cli_simple_kinase_rejects_non_rat_bundled_resolution(
+def test_cli_kinase_rejects_non_rat_bundled_resolution(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     phospho = load_rat_l6_phospho().head(32).copy(deep=True)
@@ -210,7 +206,7 @@ def test_cli_simple_kinase_rejects_non_rat_bundled_resolution(
 
     exit_code = cli_main(
         [
-            "simple-kinase",
+            "kinase",
             "--phospho",
             str(phospho_path),
             "--site-metadata",

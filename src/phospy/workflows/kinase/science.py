@@ -1,4 +1,4 @@
-"""Scientific kernels for the supported simple kinase workflow route."""
+"""Scientific kernels for the supported kinase workflow route."""
 
 from __future__ import annotations
 

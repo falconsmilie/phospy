@@ -7,11 +7,11 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     KinasePredictionResult,
     KinaseScoringResult,
+    KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     SignalomeConfig,
     SignalomeWorkflowRequest,
-    SimpleKinaseWorkflowResult,
 )
 from phospy.errors import WorkflowBoundaryError
 from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
@@ -76,13 +76,13 @@ def _matrix(
     )
 
 
-def _simple_kinase_result(
+def _kinase_result(
     *,
     dataset: AnalysisReadyPhosphoDataset,
     prediction_matrix: pd.DataFrame,
     score_matrix: pd.DataFrame,
-) -> SimpleKinaseWorkflowResult:
-    return SimpleKinaseWorkflowResult(
+) -> KinaseWorkflowResult:
+    return KinaseWorkflowResult(
         dataset=dataset,
         references=_bundle(site_ids=dataset.phospho.index.astype(str).tolist()),
         scoring_result=KinaseScoringResult(
@@ -107,7 +107,7 @@ def test_boundary_error_reports_no_usable_site_alignment_counts() -> None:
         kinases=["K1"],
     )
     request = SignalomeWorkflowRequest(
-        kinase_result=_simple_kinase_result(
+        kinase_result=_kinase_result(
             dataset=dataset,
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
@@ -140,7 +140,7 @@ def test_boundary_error_reports_no_overlapping_kinase_set_counts() -> None:
         kinases=["A1", "A2"],
     )
     request = SignalomeWorkflowRequest(
-        kinase_result=_simple_kinase_result(
+        kinase_result=_kinase_result(
             dataset=dataset,
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
@@ -172,7 +172,7 @@ def test_boundary_error_reports_unusable_protein_mapping_counts() -> None:
         kinases=["K1"],
     )
     request = SignalomeWorkflowRequest(
-        kinase_result=_simple_kinase_result(
+        kinase_result=_kinase_result(
             dataset=dataset,
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
@@ -204,7 +204,7 @@ def test_boundary_error_reports_no_cutoff_support_counts() -> None:
         kinases=["K1", "K2"],
     )
     request = SignalomeWorkflowRequest(
-        kinase_result=_simple_kinase_result(
+        kinase_result=_kinase_result(
             dataset=dataset,
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
@@ -238,7 +238,7 @@ def test_boundary_error_reports_module_construction_degeneracy_counts() -> None:
         kinases=["K1"],
     )
     request = SignalomeWorkflowRequest(
-        kinase_result=_simple_kinase_result(
+        kinase_result=_kinase_result(
             dataset=dataset,
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
@@ -273,7 +273,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
     )
     resolved_missing_kinase = ResolvedSignalomeWorkflowRequest(
         dataset=dataset,
-        kinase_result=_simple_kinase_result(
+        kinase_result=_kinase_result(
             dataset=dataset,
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix_missing_kinase,
@@ -307,7 +307,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
         kinases=["K1", "K2"],
     )
     request = SignalomeWorkflowRequest(
-        kinase_result=_simple_kinase_result(
+        kinase_result=_kinase_result(
             dataset=dataset,
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix_zero_variance,

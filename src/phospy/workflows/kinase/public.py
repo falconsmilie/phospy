@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from phospy.api.requests import SimpleKinaseWorkflowRequest
-from phospy.api.results import SimpleKinaseWorkflowResult
+from phospy.api.requests import KinaseWorkflowRequest
+from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.references import PhosPyReferenceError
 from phospy.errors.validation import WorkflowValidationError
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowStageError
@@ -12,9 +12,9 @@ from phospy.workflows.kinase.contracts import (
     KinaseWorkflowInterpreterContract,
     KinaseWorkflowValidatorContract,
 )
-from phospy.workflows.kinase.executor import SimpleKinaseWorkflowExecutor
-from phospy.workflows.kinase.interpreter import SimpleKinaseWorkflowInterpreter
-from phospy.workflows.kinase.validator import SimpleKinaseWorkflowValidator
+from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
+from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 
 
 class KinaseWorkflow:
@@ -27,11 +27,11 @@ class KinaseWorkflow:
         interpreter: KinaseWorkflowInterpreterContract | None = None,
         executor: KinaseWorkflowExecutorContract | None = None,
     ) -> None:
-        self._validator = validator or SimpleKinaseWorkflowValidator()
-        self._interpreter = interpreter or SimpleKinaseWorkflowInterpreter()
-        self._executor = executor or SimpleKinaseWorkflowExecutor()
+        self._validator = validator or KinaseWorkflowValidator()
+        self._interpreter = interpreter or KinaseWorkflowInterpreter()
+        self._executor = executor or KinaseWorkflowExecutor()
 
-    def run(self, request: SimpleKinaseWorkflowRequest) -> SimpleKinaseWorkflowResult:
+    def run(self, request: KinaseWorkflowRequest) -> KinaseWorkflowResult:
         """Validate, interpret, and execute the kinase workflow."""
 
         try:

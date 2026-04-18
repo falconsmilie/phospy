@@ -12,7 +12,7 @@ legacy_archive/phospy_legacy/  # migration reference only (not installed package
 ## Supported Today
 
 - Dataset builder route: supported
-- Simple kinase workflow route: supported
+- Kinase workflow route: supported
 - Signalome workflow route: first real vertical slice (module assignments, modules, network)
 
 ## Rewrite Contract
@@ -25,10 +25,10 @@ import pandas as pd
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    KinaseWorkflowRequest,
     Organism,
     ReferencePreset,
     KinaseWorkflow,
-    SimpleKinaseWorkflowRequest,
 )
 
 dataset = AnalysisReadyDatasetBuilder().run(
@@ -50,7 +50,7 @@ dataset = AnalysisReadyDatasetBuilder().run(
 )
 
 result = KinaseWorkflow().run(
-    SimpleKinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
+    KinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
 )
 
 profile_scores = result.scoring_result.profile_scores

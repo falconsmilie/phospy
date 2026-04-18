@@ -13,13 +13,13 @@ from phospy import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
-    SimpleKinaseWorkflowRequest,
 )
 from phospy.transformations.models import TransformationState
 
@@ -48,8 +48,8 @@ EXPECTED_PUBLIC_EXPORTS = {
     "SignalomeWorkflowRequest",
     "SignalomeWorkflowResult",
     "KinaseWorkflow",
-    "SimpleKinaseWorkflowRequest",
-    "SimpleKinaseWorkflowResult",
+    "KinaseWorkflowRequest",
+    "KinaseWorkflowResult",
 }
 
 
@@ -94,14 +94,14 @@ def test_public_shells_import_and_instantiate() -> None:
             index=pd.Index(["MAPK14;Y182;"], name="site_id"),
         ),
     )
-    request = SimpleKinaseWorkflowRequest(
+    request = KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(),
         prediction_config=KinasePredictionConfig(),
         activity_config=KinaseActivityConfig(),
     )
-    assert isinstance(request, SimpleKinaseWorkflowRequest)
+    assert isinstance(request, KinaseWorkflowRequest)
     assert isinstance(SignalomeConfig(), SignalomeConfig)
     assert ReferencePreset.AUTO.value == "auto"
 
@@ -124,7 +124,7 @@ def test_builder_and_workflows_expose_run_and_execute_shells() -> None:
     kinase_workflow = KinaseWorkflow()
     assert callable(getattr(kinase_workflow, "run", None))
     kinase_result = kinase_workflow.run(
-        SimpleKinaseWorkflowRequest(
+        KinaseWorkflowRequest(
             dataset=built,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=1),

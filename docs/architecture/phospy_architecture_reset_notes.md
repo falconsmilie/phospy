@@ -60,8 +60,8 @@ The intended top-level public API is:
 - `KinaseScoringConfig`
 - `KinasePredictionConfig`
 - `KinaseActivityConfig`
-- `SimpleKinaseWorkflowRequest`
-- `SimpleKinaseWorkflowResult`
+- `KinaseWorkflowRequest`
+- `KinaseWorkflowResult`
 - `KinaseWorkflow`
 - `SignalomeConfig`
 - `SignalomeWorkflowRequest`
@@ -98,11 +98,11 @@ Required `site_metadata` columns should be standardised rather than passed aroun
 
 It should accept exactly one request object:
 
-- `SimpleKinaseWorkflowRequest`
+- `KinaseWorkflowRequest`
 
 It should return exactly one result object:
 
-- `SimpleKinaseWorkflowResult`
+- `KinaseWorkflowResult`
 
 The request should contain:
 

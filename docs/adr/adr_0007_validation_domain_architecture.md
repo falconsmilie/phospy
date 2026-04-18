@@ -117,13 +117,13 @@ A workflow validator should not:
 A workflow validator should read more like this:
 
 ```python
-class SimpleKinaseWorkflowValidator:
+class KinaseWorkflowValidator:
     def __init__(self, dataset_validator, reference_validator, transform_validator) -> None:
         self._dataset_validator = dataset_validator
         self._reference_validator = reference_validator
         self._transform_validator = transform_validator
 
-    def run(self, request: SimpleKinaseWorkflowRequest) -> SimpleKinaseWorkflowRequest:
+    def run(self, request: KinaseWorkflowRequest) -> KinaseWorkflowRequest:
         self._dataset_validator.run(request.dataset)
         self._transform_validator.run(request.dataset.transformation_state)
         self._reference_validator.run(request.reference, request.dataset.organism)
@@ -386,4 +386,3 @@ Together, these ADRs establish:
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
 YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
-

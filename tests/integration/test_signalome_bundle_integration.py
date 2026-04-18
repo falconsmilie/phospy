@@ -10,11 +10,11 @@ from phospy import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
-    SimpleKinaseWorkflowRequest,
 )
 from phospy.io.signalome_bundle import (
     SIGNALOME_BUNDLE_MANIFEST_VERSION,
@@ -66,7 +66,7 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert manifest["bundle_type"] == "signalome_workflow_result"
     assert manifest["table_format"] == "csv"
     assert manifest["config_snapshot"] == "config/snapshot.json"
-    assert manifest["upstream_simple_kinase_outputs"]["activity"]["enabled"] is False
+    assert manifest["upstream_kinase_outputs"]["activity"]["enabled"] is False
     assert manifest["signalome_outputs"]["tables"] == {
         "expanded_signalome": None,
         "kinase_network_edges": "signalome/kinase_network_edges.csv",
@@ -86,7 +86,7 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
 def _build_signalome_request_and_result():
     dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = KinaseWorkflow().run(
-        SimpleKinaseWorkflowRequest(
+        KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=1),

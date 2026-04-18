@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 from phospy.activities.models import KinaseActivityResult
 from phospy.api.configs import SignalomeConfig
-from phospy.api.results import SignalomeWorkflowResult, SimpleKinaseWorkflowResult
+from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
 from phospy.io.tables import read_table, table_suffix_for_format, write_table
@@ -284,7 +284,7 @@ def save_signalome_workflow_bundle(
             },
             "tables": reference_tables,
         },
-        "upstream_simple_kinase_outputs": {
+        "upstream_kinase_outputs": {
             "scoring": {
                 "tables": scoring_tables,
             },
@@ -365,32 +365,32 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
     )
 
     upstream_payload = _require_mapping(
-        manifest_payload.get("upstream_simple_kinase_outputs"),
-        field_name="bundle manifest.upstream_simple_kinase_outputs",
+        manifest_payload.get("upstream_kinase_outputs"),
+        field_name="bundle manifest.upstream_kinase_outputs",
     )
     scoring_payload = _require_mapping(
         upstream_payload.get("scoring"),
-        field_name="bundle manifest.upstream_simple_kinase_outputs.scoring",
+        field_name="bundle manifest.upstream_kinase_outputs.scoring",
     )
     scoring_tables = _require_mapping(
         scoring_payload.get("tables"),
-        field_name="bundle manifest.upstream_simple_kinase_outputs.scoring.tables",
+        field_name="bundle manifest.upstream_kinase_outputs.scoring.tables",
     )
     prediction_payload = _require_mapping(
         upstream_payload.get("prediction"),
-        field_name="bundle manifest.upstream_simple_kinase_outputs.prediction",
+        field_name="bundle manifest.upstream_kinase_outputs.prediction",
     )
     prediction_tables = _require_mapping(
         prediction_payload.get("tables"),
-        field_name="bundle manifest.upstream_simple_kinase_outputs.prediction.tables",
+        field_name="bundle manifest.upstream_kinase_outputs.prediction.tables",
     )
     activity_payload = _require_mapping(
         upstream_payload.get("activity"),
-        field_name="bundle manifest.upstream_simple_kinase_outputs.activity",
+        field_name="bundle manifest.upstream_kinase_outputs.activity",
     )
     activity_tables = _require_mapping(
         activity_payload.get("tables"),
-        field_name="bundle manifest.upstream_simple_kinase_outputs.activity.tables",
+        field_name="bundle manifest.upstream_kinase_outputs.activity.tables",
     )
 
     signalome_outputs_payload = _require_mapping(
@@ -464,8 +464,7 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
             tables=scoring_tables,
             table_key="profile_scores",
             field_name=(
-                "bundle manifest.upstream_simple_kinase_outputs.scoring.tables."
-                "profile_scores"
+                "bundle manifest.upstream_kinase_outputs.scoring.tables.profile_scores"
             ),
         ),
         motif_scores=_read_optional_table(
@@ -473,8 +472,7 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
             tables=scoring_tables,
             table_key="motif_scores",
             field_name=(
-                "bundle manifest.upstream_simple_kinase_outputs.scoring.tables."
-                "motif_scores"
+                "bundle manifest.upstream_kinase_outputs.scoring.tables.motif_scores"
             ),
         ),
         combined_scores=_read_optional_table(
@@ -482,8 +480,7 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
             tables=scoring_tables,
             table_key="combined_scores",
             field_name=(
-                "bundle manifest.upstream_simple_kinase_outputs.scoring.tables."
-                "combined_scores"
+                "bundle manifest.upstream_kinase_outputs.scoring.tables.combined_scores"
             ),
         ),
         weights=_read_optional_table(
@@ -491,7 +488,7 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
             tables=scoring_tables,
             table_key="weights",
             field_name=(
-                "bundle manifest.upstream_simple_kinase_outputs.scoring.tables.weights"
+                "bundle manifest.upstream_kinase_outputs.scoring.tables.weights"
             ),
         ),
     )
@@ -502,8 +499,7 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
             tables=prediction_tables,
             table_key="pred_mat",
             field_name=(
-                "bundle manifest.upstream_simple_kinase_outputs.prediction.tables."
-                "pred_mat"
+                "bundle manifest.upstream_kinase_outputs.prediction.tables.pred_mat"
             ),
         ),
         substrate_list=_read_optional_table(
@@ -511,7 +507,7 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
             tables=prediction_tables,
             table_key="substrate_list",
             field_name=(
-                "bundle manifest.upstream_simple_kinase_outputs.prediction.tables."
+                "bundle manifest.upstream_kinase_outputs.prediction.tables."
                 "substrate_list"
             ),
         ),
@@ -522,8 +518,7 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
         tables=activity_tables,
         table_key="activity_scores",
         field_name=(
-            "bundle manifest.upstream_simple_kinase_outputs.activity.tables."
-            "activity_scores"
+            "bundle manifest.upstream_kinase_outputs.activity.tables.activity_scores"
         ),
     )
     activity_result = (
@@ -532,7 +527,7 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
         else KinaseActivityResult(activity_scores=activity_table)
     )
 
-    kinase_result = SimpleKinaseWorkflowResult(
+    kinase_result = KinaseWorkflowResult(
         dataset=dataset,
         references=references,
         scoring_result=scoring_result,

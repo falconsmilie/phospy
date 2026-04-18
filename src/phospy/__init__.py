@@ -11,15 +11,15 @@ from phospy.api.datasets import AnalysisReadyPhosphoDataset
 from phospy.api.enums import Organism, ReferencePreset
 from phospy.api.requests import (
     DatasetBuildRequest,
+    KinaseWorkflowRequest,
     SignalomeWorkflowRequest,
-    SimpleKinaseWorkflowRequest,
 )
 from phospy.api.results import (
     KinaseActivityResult,
     KinasePredictionResult,
     KinaseScoringResult,
+    KinaseWorkflowResult,
     SignalomeWorkflowResult,
-    SimpleKinaseWorkflowResult,
 )
 from phospy.api.workflows import KinaseWorkflow, SignalomeWorkflow
 from phospy.errors import (
@@ -43,6 +43,8 @@ __all__ = [
     "KinasePredictionResult",
     "KinaseScoringConfig",
     "KinaseScoringResult",
+    "KinaseWorkflowRequest",
+    "KinaseWorkflowResult",
     "Organism",
     "PhosPyBuildError",
     "PhosPyError",
@@ -58,6 +60,4 @@ __all__ = [
     "SignalomeWorkflowRequest",
     "SignalomeWorkflowResult",
     "KinaseWorkflow",
-    "SimpleKinaseWorkflowRequest",
-    "SimpleKinaseWorkflowResult",
 ]

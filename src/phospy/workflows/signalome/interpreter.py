@@ -137,7 +137,7 @@ class SignalomeWorkflowInterpreter:
             self._raise_boundary_error(
                 seam=self._KINASE_OVERLAP_SEAM,
                 next_action=(
-                    "rerun simple kinase workflow so scoring_result and "
+                    "rerun kinase workflow so scoring_result and "
                     "prediction_result are generated from the same kinase lane"
                 ),
                 prediction_kinases=int(prediction_kinase_index.size),

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from phospy.api.requests import SignalomeWorkflowRequest
-from phospy.api.results import SimpleKinaseWorkflowResult
+from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.validation import WorkflowValidationError
 from phospy.validation.common.missing_values import MissingValuePolicy
 from phospy.validation.common.numeric_frames import require_numeric_matrix
@@ -23,9 +23,9 @@ class SignalomeWorkflowValidator:
             raise WorkflowValidationError(
                 "signalome workflow input must be a SignalomeWorkflowRequest"
             )
-        if not isinstance(request.kinase_result, SimpleKinaseWorkflowResult):
+        if not isinstance(request.kinase_result, KinaseWorkflowResult):
             raise WorkflowValidationError(
-                "signalome workflow request kinase_result must be SimpleKinaseWorkflowResult"
+                "signalome workflow request kinase_result must be KinaseWorkflowResult"
             )
         self._config_validator.run_signalome(request.config)
 

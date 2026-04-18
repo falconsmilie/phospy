@@ -3,8 +3,8 @@
 The supported rewrite CLI lane is intentionally narrow:
 
 1. Build an analysis-ready dataset from files.
-2. Run the simple kinase workflow from files.
-3. Run the signalome workflow from files via dataset -> simple kinase -> signalome.
+2. Run the kinase workflow from files.
+3. Run the signalome workflow from files via dataset -> kinase -> signalome.
 
 ## Commands
 
@@ -18,10 +18,10 @@ phospy dataset-build \
   --outdir ./out
 ```
 
-### Simple Kinase Workflow
+### Kinase Workflow
 
 ```bash
-phospy simple-kinase \
+phospy kinase \
   --phospho ./input/phospho.csv \
   --site-metadata ./input/site_metadata.csv \
   --organism rat \
@@ -75,13 +75,13 @@ Supported file formats for read and write:
     manifest.json
 ```
 
-`simple-kinase` writes:
+`kinase` writes:
 
 ```text
 <outdir>/
   dataset/
     ...
-  simple_kinase/
+  kinase/
     scoring/
       profile_scores.<fmt>
       motif_scores.<fmt>      # optional
@@ -104,7 +104,7 @@ Supported file formats for read and write:
 <outdir>/
   dataset/
     ...
-  simple_kinase/
+  kinase/
     ...
   signalome/
     module_assignments.<fmt>

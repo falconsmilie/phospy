@@ -94,9 +94,9 @@ Result models should not grow broad families of near-duplicate accessors purely 
 
 ## Public Workflow Results
 
-### Simple kinase workflow result
+### Kinase workflow result
 
-The proposed public `SimpleKinaseWorkflowResult` should contain:
+The proposed public `KinaseWorkflowResult` should contain:
 
 - `dataset`
 - `references`
@@ -276,7 +276,7 @@ This option was rejected because it inflates the public surface and shifts resul
 
 The following decisions are now resolved for this ADR.
 
-1. `pred_mat_result` should not be retained as a top-level convenience property on `SimpleKinaseWorkflowResult`. Prediction output should be accessed through `prediction_result` directly.
+1. `pred_mat_result` should not be retained as a top-level convenience property on `KinaseWorkflowResult`. Prediction output should be accessed through `prediction_result` directly.
 2. `SignalomeWorkflowResult` should expose `kinase_result` directly.
 3. Result-level provenance attachment is not a current concern and should remain outside result models for now.
 4. The `dataset` field should be included on all public workflow result objects for now.
@@ -341,4 +341,3 @@ Together, these ADRs establish:
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
 YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
-

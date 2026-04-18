@@ -8,7 +8,7 @@ For public types and signatures, see [`api.md`](api.md).
 
 - Supported dataset-build inputs are pandas `DataFrame` objects or file paths through
   `DatasetBuildRequest`.
-- Supported workflow route is `KinaseWorkflow.run(SimpleKinaseWorkflowRequest(...))`.
+- Supported workflow route is `KinaseWorkflow.run(KinaseWorkflowRequest(...))`.
 - Supported downstream route is
   `SignalomeWorkflow.run(SignalomeWorkflowRequest(...))`.
 - File-ingestion is part of the dataset builder route only.
@@ -45,7 +45,7 @@ For public types and signatures, see [`api.md`](api.md).
 
 ## Workflow Validation
 
-`SimpleKinaseWorkflowRequest` enforces:
+`KinaseWorkflowRequest` enforces:
 
 - `dataset` is `AnalysisReadyPhosphoDataset`
 - `references` is `ReferencePreset` or `ReferenceBundle`
@@ -62,7 +62,7 @@ Rewrite-era boundary diagnostics (raised as `WorkflowBoundaryError`) also enforc
 
 Boundary error messages include:
 
-- the failing seam (for example `simple_kinase.interpreter.eligible_kinases`)
+- the failing seam (for example `kinase.interpreter.eligible_kinases`)
 - concrete counts (`dataset_sites`, `overlap_sites`, `eligible_kinases`, etc.)
 - active config values (`scoring_config_min_substrates`,
   `prediction_config_ensemble_size`, `activity_config_threshold`)
@@ -76,7 +76,7 @@ Stage result access is nested and stable:
 
 `SignalomeWorkflowRequest` enforces:
 
-- `kinase_result` is `SimpleKinaseWorkflowResult`
+- `kinase_result` is `KinaseWorkflowResult`
 - `config` is `SignalomeConfig`
 - `config.signalome_cutoff` is numeric in `[0.0, 1.0]`
 - `kinase_result` prediction/scoring matrices are non-empty numeric DataFrames
@@ -106,12 +106,12 @@ Signalome boundary error messages include:
 | `ReferencePreset.AUTO` fails | `dataset.organism` is missing | Set `organism` on `DatasetBuildRequest` |
 | Reference mismatch error | Dataset and selected preset organisms conflict | Align `dataset.organism` with `ReferencePreset` |
 | Workflow request type error | Request field types are not the public models | Build the request from top-level `phospy` models |
-| `simple_kinase.interpreter.reference_coverage` | None of the reference substrate sites overlap `dataset.phospho.index` | Use references for the same identifier scheme/organism and verify site IDs |
-| `simple_kinase.interpreter.eligible_kinases` | Overlap exists, but no kinase reaches `scoring_config.min_substrates` | Lower `min_substrates` or use references with deeper site overlap |
-| `simple_kinase.executor.prediction_ensemble` | Scoring completed, but no kinase had a finite prediction ranking | Use at least two informative samples and relax strict scoring thresholds |
-| `simple_kinase.executor.activity_support` | Activity was enabled, but predictions had no positive site assignments | Increase `top_k` and/or lower `activity_config.threshold` for sparse data |
+| `kinase.interpreter.reference_coverage` | None of the reference substrate sites overlap `dataset.phospho.index` | Use references for the same identifier scheme/organism and verify site IDs |
+| `kinase.interpreter.eligible_kinases` | Overlap exists, but no kinase reaches `scoring_config.min_substrates` | Lower `min_substrates` or use references with deeper site overlap |
+| `kinase.executor.prediction_ensemble` | Scoring completed, but no kinase had a finite prediction ranking | Use at least two informative samples and relax strict scoring thresholds |
+| `kinase.executor.activity_support` | Activity was enabled, but predictions had no positive site assignments | Increase `top_k` and/or lower `activity_config.threshold` for sparse data |
 | `signalome.interpreter.site_alignment` | Dataset sites and interpreted scoring/prediction site IDs do not overlap | Ensure score/prediction outputs were generated from this dataset and share site IDs |
-| `signalome.interpreter.kinase_overlap` | Score and prediction kinase columns have no shared kinase set | Regenerate simple kinase outputs so both matrices come from the same lane |
+| `signalome.interpreter.kinase_overlap` | Score and prediction kinase columns have no shared kinase set | Regenerate kinase outputs so both matrices come from the same lane |
 | `signalome.interpreter.protein_mapping` | Interpreted sites do not resolve to usable proteins | Include protein prefixes in site IDs or populate `dataset.site_metadata.gene_symbol` |
 | `signalome.executor.kinase_support` | No kinase has prediction support above `signalome_cutoff` | Lower `signalome_cutoff` or provide stronger prediction support |
 | `signalome.executor.module_construction` | Module table collapsed to empty/trivial output | Increase kinase diversity and ensure multiple supported kinases |

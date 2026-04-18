@@ -17,7 +17,7 @@ from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.transformations.models import TransformationState
 
 if TYPE_CHECKING:
-    from phospy.api.results import SimpleKinaseWorkflowResult
+    from phospy.api.results import KinaseWorkflowResult
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +36,7 @@ class DatasetBuildRequest:
 
 
 @dataclass(frozen=True, slots=True)
-class SimpleKinaseWorkflowRequest:
+class KinaseWorkflowRequest:
     """Request for the public kinase workflow."""
 
     dataset: AnalysisReadyPhosphoDataset
@@ -54,12 +54,12 @@ class SimpleKinaseWorkflowRequest:
 class SignalomeWorkflowRequest:
     """Request for the public signalome workflow."""
 
-    kinase_result: SimpleKinaseWorkflowResult
+    kinase_result: KinaseWorkflowResult
     config: SignalomeConfig = field(default_factory=SignalomeConfig)
 
 
 __all__ = [
     "DatasetBuildRequest",
+    "KinaseWorkflowRequest",
     "SignalomeWorkflowRequest",
-    "SimpleKinaseWorkflowRequest",
 ]

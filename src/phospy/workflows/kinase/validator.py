@@ -1,8 +1,8 @@
-"""Internal validator for simple kinase workflow requests."""
+"""Internal validator for kinase workflow requests."""
 
 from __future__ import annotations
 
-from phospy.api.requests import SimpleKinaseWorkflowRequest
+from phospy.api.requests import KinaseWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
 from phospy.references.models import ReferenceBundle, ReferencePreset
@@ -10,8 +10,8 @@ from phospy.validation.references.compatibility import ReferenceCompatibilityVal
 from phospy.validation.workflows.configs import WorkflowConfigValidator
 
 
-class SimpleKinaseWorkflowValidator:
-    """Validate `SimpleKinaseWorkflowRequest` before interpretation."""
+class KinaseWorkflowValidator:
+    """Validate `KinaseWorkflowRequest` before interpretation."""
 
     def __init__(
         self,
@@ -24,18 +24,18 @@ class SimpleKinaseWorkflowValidator:
             reference_compatibility or ReferenceCompatibilityValidator()
         )
 
-    def run(self, request: SimpleKinaseWorkflowRequest) -> SimpleKinaseWorkflowRequest:
-        if not isinstance(request, SimpleKinaseWorkflowRequest):
+    def run(self, request: KinaseWorkflowRequest) -> KinaseWorkflowRequest:
+        if not isinstance(request, KinaseWorkflowRequest):
             raise WorkflowValidationError(
-                "simple kinase workflow input must be a SimpleKinaseWorkflowRequest"
+                "kinase workflow input must be a KinaseWorkflowRequest"
             )
         if not isinstance(request.dataset, AnalysisReadyPhosphoDataset):
             raise WorkflowValidationError(
-                "simple kinase workflow request dataset must be AnalysisReadyPhosphoDataset"
+                "kinase workflow request dataset must be AnalysisReadyPhosphoDataset"
             )
         if not isinstance(request.references, (ReferencePreset, ReferenceBundle)):
             raise WorkflowValidationError(
-                "simple kinase workflow request references must be ReferencePreset or ReferenceBundle"
+                "kinase workflow request references must be ReferencePreset or ReferenceBundle"
             )
         self._reference_compatibility.run(
             request.references,

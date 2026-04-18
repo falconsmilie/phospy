@@ -9,7 +9,7 @@ import pandas as pd
 
 from phospy.api.configs import SignalomeConfig
 from phospy.api.requests import SignalomeWorkflowRequest
-from phospy.api.results import SignalomeWorkflowResult, SimpleKinaseWorkflowResult
+from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 
 
@@ -18,7 +18,7 @@ class ResolvedSignalomeWorkflowRequest:
     """Interpreter output for signalome workflow execution."""
 
     dataset: AnalysisReadyPhosphoDataset
-    kinase_result: SimpleKinaseWorkflowResult
+    kinase_result: KinaseWorkflowResult
     config: SignalomeConfig
     score_matrix: pd.DataFrame
     prediction_matrix: pd.DataFrame

@@ -82,7 +82,7 @@ class KinaseWorkflow:
         self._interpreter = interpreter
         self._executor = executor
 
-    def run(self, request: SimpleKinaseWorkflowRequest) -> SimpleKinaseWorkflowResult:
+    def run(self, request: KinaseWorkflowRequest) -> KinaseWorkflowResult:
         validated = self._validator.run(request)
         interpreted = self._interpreter.run(validated)
         return self._executor.run(interpreted)
@@ -420,4 +420,3 @@ The public API remains centred on one dataset model and two primary workflows. T
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
 YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
-

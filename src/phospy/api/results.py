@@ -18,7 +18,7 @@ from phospy.signalomes.models import (
 
 
 @dataclass(frozen=True, slots=True)
-class SimpleKinaseWorkflowResult:
+class KinaseWorkflowResult:
     """Top-level public kinase workflow result."""
 
     dataset: AnalysisReadyPhosphoDataset
@@ -33,7 +33,7 @@ class SignalomeWorkflowResult:
     """Top-level public signalome workflow result."""
 
     dataset: AnalysisReadyPhosphoDataset
-    kinase_result: SimpleKinaseWorkflowResult
+    kinase_result: KinaseWorkflowResult
     module_assignments: SignalomeAssignments
     signalome_modules: SignalomeModules
     kinase_network: KinaseNetwork
@@ -44,6 +44,6 @@ __all__ = [
     "KinaseActivityResult",
     "KinasePredictionResult",
     "KinaseScoringResult",
+    "KinaseWorkflowResult",
     "SignalomeWorkflowResult",
-    "SimpleKinaseWorkflowResult",
 ]

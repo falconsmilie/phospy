@@ -16,8 +16,8 @@ from phospy.api.configs import (
 )
 from phospy.api.requests import (
     DatasetBuildRequest,
+    KinaseWorkflowRequest,
     SignalomeWorkflowRequest,
-    SimpleKinaseWorkflowRequest,
 )
 from phospy.api.workflows import KinaseWorkflow, SignalomeWorkflow
 from phospy.errors import PhosPyError
@@ -27,8 +27,8 @@ from phospy.io.adapters import (
 )
 from phospy.io.publishing import (
     publish_dataset,
+    publish_kinase_workflow,
     publish_signalome_workflow,
-    publish_simple_kinase_workflow,
 )
 from phospy.transformations.models import MatrixTransformationState, TransformationState
 
@@ -49,8 +49,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "dataset-build":
             _run_dataset_build(args)
             return CLI_EXIT_SUCCESS
-        if args.command == "simple-kinase":
-            _run_simple_kinase(args)
+        if args.command == "kinase":
+            _run_kinase(args)
             return CLI_EXIT_SUCCESS
         if args.command == "signalome":
             _run_signalome(args)
@@ -70,7 +70,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="phospy",
         description=(
-            "PhosPy rewrite CLI. Supported commands: dataset-build, simple-kinase, signalome."
+            "PhosPy rewrite CLI. Supported commands: dataset-build, kinase, signalome."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -82,21 +82,21 @@ def build_parser() -> argparse.ArgumentParser:
     _add_dataset_input_arguments(dataset_build)
     _add_output_arguments(dataset_build)
 
-    simple_kinase = subparsers.add_parser(
-        "simple-kinase",
-        help="Run simple kinase workflow from input files.",
+    kinase = subparsers.add_parser(
+        "kinase",
+        help="Run kinase workflow from input files.",
     )
-    _add_dataset_input_arguments(simple_kinase)
-    _add_output_arguments(simple_kinase)
-    _add_simple_kinase_runtime_arguments(simple_kinase)
+    _add_dataset_input_arguments(kinase)
+    _add_output_arguments(kinase)
+    _add_kinase_runtime_arguments(kinase)
 
     signalome = subparsers.add_parser(
         "signalome",
-        help="Run dataset -> simple kinase -> signalome workflow from input files.",
+        help="Run dataset -> kinase -> signalome workflow from input files.",
     )
     _add_dataset_input_arguments(signalome)
     _add_output_arguments(signalome)
-    _add_simple_kinase_runtime_arguments(signalome)
+    _add_kinase_runtime_arguments(signalome)
     signalome.add_argument(
         "--signalome-cutoff",
         type=float,
@@ -163,7 +163,7 @@ def _add_output_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _add_simple_kinase_runtime_arguments(parser: argparse.ArgumentParser) -> None:
+def _add_kinase_runtime_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--reference",
         default="auto",
@@ -207,18 +207,18 @@ def _run_dataset_build(args: argparse.Namespace) -> None:
     _print_written_summary("dataset-build", written)
 
 
-def _run_simple_kinase(args: argparse.Namespace) -> None:
-    result = _run_simple_kinase_workflow_from_args(args)
-    written = publish_simple_kinase_workflow(
+def _run_kinase(args: argparse.Namespace) -> None:
+    result = _run_kinase_workflow_from_args(args)
+    written = publish_kinase_workflow(
         result,
         args.outdir,
         output_format=args.output_format,
     )
-    _print_written_summary("simple-kinase", written)
+    _print_written_summary("kinase", written)
 
 
 def _run_signalome(args: argparse.Namespace) -> None:
-    kinase_result = _run_simple_kinase_workflow_from_args(args)
+    kinase_result = _run_kinase_workflow_from_args(args)
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
@@ -283,7 +283,7 @@ def _transformation_state_from_value(
     )
 
 
-def _run_simple_kinase_workflow_from_args(args: argparse.Namespace):
+def _run_kinase_workflow_from_args(args: argparse.Namespace):
     dataset = _build_dataset_from_args(args)
     reference = reference_preset_from_value(args.reference)
     activity_config = (
@@ -291,7 +291,7 @@ def _run_simple_kinase_workflow_from_args(args: argparse.Namespace):
         if args.skip_activity
         else KinaseActivityConfig(enabled=True, threshold=args.activity_threshold)
     )
-    request = SimpleKinaseWorkflowRequest(
+    request = KinaseWorkflowRequest(
         dataset=dataset,
         references=reference,
         scoring_config=KinaseScoringConfig(

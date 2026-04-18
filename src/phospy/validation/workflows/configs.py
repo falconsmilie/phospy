@@ -18,7 +18,7 @@ class WorkflowConfigValidator:
     def run_kinase_scoring(self, config: object) -> KinaseScoringConfig:
         if not isinstance(config, KinaseScoringConfig):
             raise WorkflowValidationError(
-                "simple kinase workflow request scoring_config must be KinaseScoringConfig"
+                "kinase workflow request scoring_config must be KinaseScoringConfig"
             )
         require_int_at_least(
             config.min_substrates,
@@ -31,7 +31,7 @@ class WorkflowConfigValidator:
     def run_kinase_prediction(self, config: object) -> KinasePredictionConfig:
         if not isinstance(config, KinasePredictionConfig):
             raise WorkflowValidationError(
-                "simple kinase workflow request prediction_config must be KinasePredictionConfig"
+                "kinase workflow request prediction_config must be KinasePredictionConfig"
             )
         require_int_at_least(
             config.top_k,
@@ -52,7 +52,7 @@ class WorkflowConfigValidator:
             return None
         if not isinstance(config, KinaseActivityConfig):
             raise WorkflowValidationError(
-                "simple kinase workflow request activity_config must be KinaseActivityConfig or None"
+                "kinase workflow request activity_config must be KinaseActivityConfig or None"
             )
         if not isinstance(config.enabled, bool):
             raise WorkflowValidationError("activity_config.enabled must be a bool")

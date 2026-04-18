@@ -77,8 +77,8 @@ expectations from `tests/fixtures/public_workflow_reference/`:
 ### `tests/fixtures/public_workflow_reference/output_bundle`
 
 Optional reproducibility bundle fixture directory for
-`save_simple_kinase_workflow_bundle(...)` /
-`load_simple_kinase_workflow_bundle(...)` round-trip checks.
+`save_kinase_workflow_bundle(...)` /
+`load_kinase_workflow_bundle(...)` round-trip checks.
 
 Use this only when the output-bundle manifest contract or table inventory changes intentionally.
 

@@ -1,10 +1,10 @@
-"""Internal interpreter for simple kinase workflow requests."""
+"""Internal interpreter for kinase workflow requests."""
 
 from __future__ import annotations
 
 import pandas as pd
 
-from phospy.api.requests import SimpleKinaseWorkflowRequest
+from phospy.api.requests import KinaseWorkflowRequest
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.references.resolution import (
     BundledReferenceProvider,
@@ -14,7 +14,7 @@ from phospy.references.resolution import (
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 
 
-class SimpleKinaseWorkflowInterpreter:
+class KinaseWorkflowInterpreter:
     """Resolve workflow request defaults and references for execution."""
 
     _KINASE_COLUMN = "kinase"
@@ -27,9 +27,7 @@ class SimpleKinaseWorkflowInterpreter:
             provider=BundledReferenceProvider()
         )
 
-    def run(
-        self, request: SimpleKinaseWorkflowRequest
-    ) -> ResolvedKinaseWorkflowRequest:
+    def run(self, request: KinaseWorkflowRequest) -> ResolvedKinaseWorkflowRequest:
         references = self._reference_resolver.run(
             request.references,
             dataset_organism=request.dataset.organism,
@@ -113,13 +111,13 @@ class SimpleKinaseWorkflowInterpreter:
         self,
         *,
         overlap_counts: dict[str, int | pd.Series],
-        request: SimpleKinaseWorkflowRequest,
+        request: KinaseWorkflowRequest,
     ) -> None:
         overlap_sites = int(overlap_counts["overlap_sites"])
         if overlap_sites > 0:
             return
         self._raise_boundary_error(
-            seam="simple_kinase.interpreter.reference_coverage",
+            seam="kinase.interpreter.reference_coverage",
             next_action=(
                 "use references that contain dataset phosphosite IDs or verify site "
                 "identifier formatting in dataset.phospho.index"
@@ -134,7 +132,7 @@ class SimpleKinaseWorkflowInterpreter:
         self,
         *,
         overlap_counts: dict[str, int | pd.Series],
-        request: SimpleKinaseWorkflowRequest,
+        request: KinaseWorkflowRequest,
     ) -> None:
         per_kinase_quantified = overlap_counts["per_kinase_quantified"]
         assert isinstance(per_kinase_quantified, pd.Series)
@@ -144,7 +142,7 @@ class SimpleKinaseWorkflowInterpreter:
         if not eligible_kinases.empty:
             return
         self._raise_boundary_error(
-            seam="simple_kinase.interpreter.eligible_kinases",
+            seam="kinase.interpreter.eligible_kinases",
             next_action=(
                 "lower scoring_config.min_substrates or provide references with "
                 "deeper overlap for the current dataset"
@@ -168,6 +166,6 @@ class SimpleKinaseWorkflowInterpreter:
     ) -> None:
         details_text = ", ".join(f"{key}={value}" for key, value in details.items())
         raise WorkflowBoundaryError(
-            "simple kinase workflow boundary validation failed at "
+            "kinase workflow boundary validation failed at "
             f"seam={seam}; {details_text}; next_action={next_action}"
         )
