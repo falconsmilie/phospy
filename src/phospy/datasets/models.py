@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass, field
+from dataclasses import InitVar, dataclass
 
 import pandas as pd
 
 from phospy._frame_ownership import own_dataframe, own_optional_dataframe
 from phospy.errors.validation import DatasetValidationError
 from phospy.references.models import Organism
-from phospy.site_ids import canonicalize_site_index
 from phospy.transformations.models import TransformationState
 from phospy.validation.datasets.analysis_ready import AnalysisReadyDatasetValidator
 
@@ -22,12 +21,10 @@ class AnalysisReadyPhosphoDataset:
 
     phospho: pd.DataFrame
     site_metadata: pd.DataFrame
+    transformation_state: TransformationState
     sample_metadata: pd.DataFrame | None = None
     total: pd.DataFrame | None = None
     organism: Organism | None = None
-    transformation_state: TransformationState = field(
-        default_factory=TransformationState.raw
-    )
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
@@ -55,16 +52,6 @@ class AnalysisReadyPhosphoDataset:
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
-        phospho.index = canonicalize_site_index(
-            phospho.index,
-            field_name="dataset.phospho.index",
-            error_type=DatasetValidationError,
-        )
-        site_metadata.index = canonicalize_site_index(
-            site_metadata.index,
-            field_name="dataset.site_metadata.index",
-            error_type=DatasetValidationError,
-        )
         _DATASET_VALIDATOR.run(
             phospho=phospho,
             site_metadata=site_metadata,
@@ -84,19 +71,17 @@ class AnalysisReadyPhosphoDataset:
         *,
         phospho: pd.DataFrame,
         site_metadata: pd.DataFrame,
+        transformation_state: TransformationState,
         sample_metadata: pd.DataFrame | None = None,
         total: pd.DataFrame | None = None,
         organism: Organism | None = None,
-        transformation_state: TransformationState | None = None,
     ) -> AnalysisReadyPhosphoDataset:
         return cls(
             phospho=phospho,
             site_metadata=site_metadata,
+            transformation_state=transformation_state,
             sample_metadata=sample_metadata,
             total=total,
             organism=organism,
-            transformation_state=transformation_state
-            if transformation_state is not None
-            else TransformationState.raw(),
             _assume_owned=True,
         )

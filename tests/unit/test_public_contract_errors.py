@@ -29,6 +29,7 @@ from phospy.signalomes.models import (
     SignalomeAssignments,
     SignalomeModules,
 )
+from phospy.transformations.models import TransformationState
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -44,6 +45,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             index=index,
         ),
         organism=Organism.RAT,
+        transformation_state=TransformationState.raw(has_total_matrix=False),
     )
 
 
@@ -124,6 +126,7 @@ def test_dataset_constructor_rejects_non_dataframe_with_dataset_validation_error
                 index=["MAPK14;Y182;"],
             ),
             organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
         )
 
 

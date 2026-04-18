@@ -41,6 +41,10 @@ caller-facing validation failures.
 - `sample_metadata` (if present) must be index-aligned to `phospho.columns`
 - `total` (if present) must be numeric and share columns with `phospho`
 - `organism` (if present) must be an `Organism` enum
+- `transformation_state` is required on direct dataset construction
+- boundary site identifiers must already be canonical (non-empty stripped strings)
+- boundary constructors do not canonicalize or repair incoming tables
+- dataset builder collaborators are responsible for canonicalization and shaping
 
 ## Reference Validation
 
@@ -54,9 +58,13 @@ caller-facing validation failures.
 - non-rat workflows must provide a caller-supplied `ReferenceBundle`
 - `ReferenceBundle.kinase_substrate_map` must be non-empty with:
   `kinase`, `substrate_site`
+- `kinase` and `substrate_site` values must already be canonical strings
+- duplicate `(kinase, substrate_site)` pairs are rejected
 - `ReferenceBundle.site_sequences` must be non-empty with:
-  `site_sequence` and unique index
+  `site_sequence` and unique canonical index
 - each `substrate_site` must exist in `site_sequences.index`
+- boundary constructors do not trim/canonicalize/deduplicate reference inputs
+- bundled-reference provider/loading paths perform bundled-data shaping
 
 ## Workflow Validation
 

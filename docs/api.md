@@ -65,6 +65,12 @@ top-level `phospy` and include:
   provided (it is not treated as `gene_symbol`)
 - Transformation state is established inside PhosPy through the supported
   transformer path at builder execution time.
+- If callers construct `AnalysisReadyPhosphoDataset` directly (instead of using
+  the builder), `transformation_state` must be provided explicitly.
+- Public dataset/reference models are strict boundaries: they validate but do not
+  trim/canonicalize/deduplicate inputs.
+- Input shaping and cleanup responsibilities live below the boundary in builder
+  and bundled-reference provider/loading paths.
 - `ReferencePreset.AUTO` requires `dataset.organism` at workflow execution time
 - Bundled references are currently available for rat only
 - `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` are part of the public enum,

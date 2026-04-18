@@ -7,6 +7,7 @@ from collections.abc import Iterable
 import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
+from phospy.site_ids import canonicalize_site_index, canonicalize_site_series
 
 ValidationErrorType = type[PhosPyValidationError]
 
@@ -127,3 +128,105 @@ def require_non_empty_string_column(
             f"{field_name}.{column_name} must contain non-empty string values"
         )
     return value
+
+
+def require_canonical_string_column(
+    value: pd.DataFrame,
+    *,
+    field_name: str,
+    column_name: str,
+    error_type: ValidationErrorType,
+) -> pd.DataFrame:
+    """Require one string column to be stripped, non-empty, and non-missing."""
+
+    column_values = value[column_name]
+    if column_values.isna().any():
+        raise error_type(f"{field_name}.{column_name} must not contain missing values")
+    invalid = [
+        idx
+        for idx, raw_value in column_values.items()
+        if not isinstance(raw_value, str)
+        or raw_value == ""
+        or raw_value != raw_value.strip()
+    ]
+    if invalid:
+        raise error_type(
+            f"{field_name}.{column_name} must contain canonical non-empty string values"
+        )
+    return value
+
+
+def require_canonical_site_index(
+    index: pd.Index,
+    *,
+    field_name: str,
+    error_type: ValidationErrorType,
+) -> pd.Index:
+    """Require one site index to already be canonicalized."""
+
+    canonical = canonicalize_site_index(
+        index,
+        field_name=field_name,
+        error_type=error_type,
+    )
+    raw_values = index.tolist()
+    canonical_values = canonical.tolist()
+    if any(
+        not isinstance(raw, str) or raw != canonical_value
+        for raw, canonical_value in zip(raw_values, canonical_values, strict=False)
+    ):
+        raise error_type(
+            f"{field_name} must contain canonical site identifiers (non-empty stripped strings)"
+        )
+    return index
+
+
+def require_canonical_site_series(
+    series: pd.Series,
+    *,
+    field_name: str,
+    error_type: ValidationErrorType,
+) -> pd.Series:
+    """Require one site-id series to already be canonicalized."""
+
+    canonical = canonicalize_site_series(
+        series,
+        field_name=field_name,
+        error_type=error_type,
+    )
+    raw_values = series.tolist()
+    canonical_values = canonical.tolist()
+    if any(
+        not isinstance(raw, str) or raw != canonical_value
+        for raw, canonical_value in zip(raw_values, canonical_values, strict=False)
+    ):
+        raise error_type(
+            f"{field_name} must contain canonical site identifiers (non-empty stripped strings)"
+        )
+    return series
+
+
+def require_unique_row_pairs(
+    value: pd.DataFrame,
+    *,
+    field_name: str,
+    column_names: tuple[str, str],
+    error_type: ValidationErrorType,
+) -> pd.DataFrame:
+    """Require unique row pairs for one two-column key."""
+
+    duplicated = value.duplicated(subset=list(column_names), keep=False)
+    if not bool(duplicated.any()):
+        return value
+    duplicate_pairs = (
+        value.loc[duplicated, list(column_names)]
+        .drop_duplicates()
+        .itertuples(index=False, name=None)
+    )
+    preview_pairs = list(duplicate_pairs)
+    preview = ", ".join(repr(pair) for pair in preview_pairs[:5])
+    suffix = "" if len(preview_pairs) <= 5 else " ..."
+    left, right = column_names
+    raise error_type(
+        f"{field_name} contains duplicate ({left}, {right}) pairs: {preview}{suffix}"
+    )

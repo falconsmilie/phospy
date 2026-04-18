@@ -59,6 +59,7 @@ def test_dataset_requires_site_sequence_column() -> None:
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
         )
 
 
@@ -68,6 +69,7 @@ def test_dataset_rejects_empty_phospho_matrix() -> None:
             phospho=pd.DataFrame(),
             site_metadata=pd.DataFrame(),
             organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
         )
 
 
@@ -79,6 +81,7 @@ def test_dataset_rejects_nan_in_phospho_matrix() -> None:
             phospho=phospho,
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
         )
 
 
@@ -92,6 +95,7 @@ def test_dataset_rejects_inf_in_phospho_matrix() -> None:
             phospho=phospho,
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
         )
 
 

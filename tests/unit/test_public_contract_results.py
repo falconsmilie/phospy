@@ -21,6 +21,7 @@ from phospy.api.results import (
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
+from phospy.transformations.models import TransformationState
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -44,6 +45,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
+        transformation_state=TransformationState.raw(has_total_matrix=False),
     )
 
 

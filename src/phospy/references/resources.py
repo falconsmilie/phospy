@@ -8,6 +8,7 @@ import pandas as pd
 
 from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
 from phospy.references.models import Organism
+from phospy.site_ids import canonicalize_site_index, canonicalize_site_series
 
 _BUNDLED_DEFAULTS: dict[Organism, str] = {
     Organism.RAT: "l6_native",
@@ -60,10 +61,20 @@ def load_bundled_kinase_substrate_map(organism: Organism) -> pd.DataFrame:
     substrate_map.loc[:, "kinase"] = (
         substrate_map.loc[:, "kinase"].astype(str).str.strip()
     )
-    substrate_map.loc[:, "substrate_site"] = (
-        substrate_map.loc[:, "substrate_site"].astype(str).str.strip()
+    if (substrate_map.loc[:, "kinase"] == "").any():
+        raise ReferenceResolutionError(
+            "bundled substrate_map.csv contains blank kinase values for "
+            f"{organism.value}/{reference_name}"
+        )
+    substrate_map.loc[:, "substrate_site"] = canonicalize_site_series(
+        substrate_map.loc[:, "substrate_site"],
+        field_name="bundled reference substrate_map.csv substrate_site",
+        error_type=ReferenceResolutionError,
     )
-    return substrate_map
+    return substrate_map.drop_duplicates(
+        subset=["kinase", "substrate_site"],
+        ignore_index=True,
+    )
 
 
 def load_bundled_site_sequences(organism: Organism) -> pd.DataFrame:
@@ -84,12 +95,26 @@ def load_bundled_site_sequences(organism: Organism) -> pd.DataFrame:
             f"{organism.value}/{reference_name}: {missing_text}"
         )
     cleaned = frame.loc[:, ["site_id", "centralized_sequence"]].copy()
-    cleaned.loc[:, "site_id"] = cleaned.loc[:, "site_id"].astype(str).str.strip()
+    cleaned.loc[:, "site_id"] = canonicalize_site_series(
+        cleaned.loc[:, "site_id"],
+        field_name="bundled reference site_sequences.csv site_id",
+        error_type=ReferenceResolutionError,
+    )
     cleaned.loc[:, "centralized_sequence"] = (
         cleaned.loc[:, "centralized_sequence"].astype(str).str.strip()
     )
+    if (cleaned.loc[:, "centralized_sequence"] == "").any():
+        raise ReferenceResolutionError(
+            "bundled site_sequences.csv contains blank centralized_sequence values "
+            f"for {organism.value}/{reference_name}"
+        )
     site_sequences = cleaned.set_index("site_id")
-    site_sequences.index.name = "site_id"
+    site_sequences.index = canonicalize_site_index(
+        site_sequences.index,
+        field_name="bundled reference site_sequences.csv site_id",
+        error_type=ReferenceResolutionError,
+        index_name="site_id",
+    )
     return site_sequences.rename(columns={"centralized_sequence": "site_sequence"})
 
 

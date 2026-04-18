@@ -14,6 +14,7 @@ from phospy import (
     SignalomeWorkflowRequest,
 )
 from phospy.errors import WorkflowBoundaryError
+from phospy.transformations.models import TransformationState
 from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
 from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
 from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
@@ -48,6 +49,7 @@ def _dataset(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
+        transformation_state=TransformationState.raw(has_total_matrix=False),
     )
 
 

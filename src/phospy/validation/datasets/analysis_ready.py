@@ -8,6 +8,7 @@ from phospy.errors.validation import DatasetValidationError
 from phospy.references.models import Organism
 from phospy.transformations.models import TransformationState
 from phospy.validation.common.dataframes import (
+    require_canonical_site_index,
     require_columns,
     require_dataframe,
     require_exact_index_match,
@@ -73,11 +74,21 @@ class AnalysisReadyDatasetValidator:
             field_name="dataset.phospho",
             error_type=DatasetValidationError,
         )
+        require_canonical_site_index(
+            phospho_frame.index,
+            field_name="dataset.phospho.index",
+            error_type=DatasetValidationError,
+        )
 
         site_metadata_frame = require_dataframe(
             site_metadata,
             field_name="dataset.site_metadata",
             allow_empty=False,
+            error_type=DatasetValidationError,
+        )
+        require_canonical_site_index(
+            site_metadata_frame.index,
+            field_name="dataset.site_metadata.index",
             error_type=DatasetValidationError,
         )
         require_exact_index_match(

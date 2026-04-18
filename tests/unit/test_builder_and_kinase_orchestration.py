@@ -29,6 +29,7 @@ from phospy.signalomes.models import (
     SignalomeAssignments,
     SignalomeModules,
 )
+from phospy.transformations.models import TransformationState
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
 
@@ -59,6 +60,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
+        transformation_state=TransformationState.raw(has_total_matrix=False),
     )
 
 

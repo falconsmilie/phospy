@@ -5,16 +5,18 @@ import pytest
 
 from phospy import (
     AnalysisReadyDatasetBuilder,
-    AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    KinaseWorkflow,
-    KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
 )
-from phospy.errors import ReferenceValidationError, UnsupportedInputFormatError
+from phospy.errors import (
+    DatasetValidationError,
+    ReferenceValidationError,
+    UnsupportedInputFormatError,
+)
+from phospy.references.models import ReferencePreset
+from phospy.references.resolution import ReferenceResolver
+from phospy.transformations.models import TransformationState
 
 
 def test_builder_canonicalizes_mixed_site_id_types_and_reorders_site_metadata() -> None:
@@ -92,53 +94,72 @@ def test_reference_bundle_rejects_ambiguous_site_sequence_ids() -> None:
         )
 
 
-def test_kinase_workflow_stably_matches_mixed_identifier_types() -> None:
-    dataset = AnalysisReadyPhosphoDataset(
-        phospho=pd.DataFrame(
-            {
-                "sample_a": [1.0, 3.0],
-                "sample_b": [2.0, 4.0],
-            },
-            index=pd.Index([101, 202], name="site_id"),
-        ),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14", "AKT1"],
-                "site": ["Y182", "T308"],
-                "site_sequence": ["A" * 31, "B" * 31],
-            },
-            index=pd.Index([101, 202], name="site_id"),
-        ),
-        organism=Organism.RAT,
-    )
-    references = ReferenceBundle(
-        organism=Organism.RAT,
-        kinase_substrate_map=pd.DataFrame(
-            {
-                "kinase": ["MAP2K6", "MAP2K6"],
-                "substrate_site": [101, " 202 "],
-            }
-        ),
-        site_sequences=pd.DataFrame(
-            {"site_sequence": ["A" * 31, "B" * 31]},
-            index=pd.Index(["101", 202], name="site_id"),
-        ),
-    )
+def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset\\.phospho\\.index must contain canonical site identifiers",
+    ):
+        from phospy.datasets.models import AnalysisReadyPhosphoDataset
 
-    result = KinaseWorkflow().run(
-        KinaseWorkflowRequest(
-            dataset=dataset,
-            references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
-            activity_config=None,
+        AnalysisReadyPhosphoDataset(
+            phospho=pd.DataFrame(
+                {
+                    "sample_a": [1.0, 3.0],
+                    "sample_b": [2.0, 4.0],
+                },
+                index=pd.Index([101, 202], name="site_id"),
+            ),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14", "AKT1"],
+                    "site": ["Y182", "T308"],
+                    "site_sequence": ["A" * 31, "B" * 31],
+                },
+                index=pd.Index([101, 202], name="site_id"),
+            ),
+            organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
         )
+
+
+def test_reference_bundle_rejects_duplicate_kinase_substrate_pairs() -> None:
+    with pytest.raises(
+        ReferenceValidationError,
+        match="contains duplicate \\(kinase, substrate_site\\) pairs",
+    ):
+        ReferenceBundle(
+            organism=Organism.RAT,
+            kinase_substrate_map=pd.DataFrame(
+                {
+                    "kinase": ["MAP2K6", "MAP2K6"],
+                    "substrate_site": ["MAPK14;Y182;", "MAPK14;Y182;"],
+                }
+            ),
+            site_sequences=pd.DataFrame(
+                {"site_sequence": ["A" * 31]},
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+        )
+
+
+def test_reference_provider_shapes_bundled_resources_for_strict_boundary() -> None:
+    bundle = ReferenceResolver().run(
+        ReferencePreset.RAT,
+        dataset_organism=Organism.RAT,
     )
 
-    assert list(result.scoring_result.profile_scores.index) == ["101", "202"]
-    assert list(result.prediction_result.pred_mat.index) == ["101", "202"]
-    assert list(result.references.site_sequences.index) == ["101", "202"]
-    assert set(result.references.kinase_substrate_map.loc[:, "substrate_site"]) == {
-        "101",
-        "202",
-    }
+    assert bundle.site_sequences.index.is_unique
+    assert (
+        bundle.kinase_substrate_map.duplicated(
+            subset=["kinase", "substrate_site"]
+        ).sum()
+        == 0
+    )
+    assert all(
+        isinstance(value, str) and value == value.strip() and value != ""
+        for value in bundle.site_sequences.index.tolist()
+    )
+    assert all(
+        isinstance(value, str) and value == value.strip() and value != ""
+        for value in bundle.kinase_substrate_map.loc[:, "substrate_site"].tolist()
+    )

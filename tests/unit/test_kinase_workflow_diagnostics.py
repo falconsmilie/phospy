@@ -15,6 +15,7 @@ from phospy import (
 )
 from phospy.errors import WorkflowBoundaryError
 from phospy.prediction.models import KinasePredictionResult
+from phospy.transformations.models import TransformationState
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
 
@@ -46,6 +47,7 @@ def _dataset(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
+        transformation_state=TransformationState.raw(has_total_matrix=False),
     )
 
 
