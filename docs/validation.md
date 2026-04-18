@@ -65,7 +65,7 @@ Boundary error messages include:
 - the failing seam (for example `kinase.interpreter.eligible_kinases`)
 - concrete counts (`dataset_sites`, `overlap_sites`, `eligible_kinases`, etc.)
 - active config values (`scoring_config_min_substrates`,
-  `prediction_config_ensemble_size`, `activity_config_threshold`)
+  `prediction_config_ensemble_size`, `prediction_config_top_k`)
 - a `next_action` hint for likely recovery
 
 Stage result access is nested and stable:
@@ -108,8 +108,8 @@ Signalome boundary error messages include:
 | Workflow request type error | Request field types are not the public models | Build the request from top-level `phospy` models |
 | `kinase.interpreter.reference_coverage` | None of the reference substrate sites overlap `dataset.phospho.index` | Use references for the same identifier scheme/organism and verify site IDs |
 | `kinase.interpreter.eligible_kinases` | Overlap exists, but no kinase reaches `scoring_config.min_substrates` | Lower `min_substrates` or use references with deeper site overlap |
-| `kinase.executor.prediction_ensemble` | Scoring completed, but no kinase had a finite prediction ranking | Use at least two informative samples and relax strict scoring thresholds |
-| `kinase.executor.activity_support` | Activity was enabled, but predictions had no positive site assignments | Increase `top_k` and/or lower `activity_config.threshold` for sparse data |
+| `kinase.executor.prediction_ensemble` | Scoring completed, but no kinase had a finite prediction ranking | Provide at least two non-constant sample columns in `dataset.phospho` and/or lower `scoring_config.min_substrates` |
+| `kinase.executor.activity_support` | Activity was enabled, but predictions had no positive site assignments | Increase `prediction_config.top_k` and/or lower `scoring_config.min_substrates` |
 | `signalome.interpreter.site_alignment` | Dataset sites and interpreted scoring/prediction site IDs do not overlap | Ensure score/prediction outputs were generated from this dataset and share site IDs |
 | `signalome.interpreter.kinase_overlap` | Score and prediction kinase columns have no shared kinase set | Regenerate kinase outputs so both matrices come from the same lane |
 | `signalome.interpreter.protein_mapping` | Interpreted sites do not resolve to usable proteins | Include protein prefixes in site IDs or populate `dataset.site_metadata.gene_symbol` |

@@ -93,8 +93,8 @@ class KinaseWorkflowExecutor:
             self._raise_boundary_error(
                 seam="kinase.executor.prediction_ensemble",
                 next_action=(
-                    "use at least two informative samples and relax "
-                    "scoring_config.min_substrates if needed"
+                    "provide dataset.phospho with at least two non-constant "
+                    "sample columns or lower scoring_config.min_substrates"
                 ),
                 eligible_kinases=len(scoring_execution.quantified_substrates),
                 ranked_kinases=int(kinase_ranking.size),
@@ -123,22 +123,26 @@ class KinaseWorkflowExecutor:
         if activity_config is None or not activity_config.enabled:
             return None
         pred_mat = prediction_result.pred_mat.astype(float)
-
-        activity_scores = pred_mat.mean(axis=0, skipna=False).rename("activity_score")
         site_signal = request.dataset.phospho.astype(float).mean(axis=1, skipna=False)
+        activity_scores: dict[str, float] = {}
         weighted_signal: dict[str, float] = {}
         predicted_counts: dict[str, int] = {}
         for kinase in pred_mat.columns:
             kinase_scores = pred_mat.loc[:, kinase].clip(lower=0.0)
-            predicted_counts[str(kinase)] = int((kinase_scores > 0.0).sum())
-            score_sum = float(kinase_scores.sum())
-            if score_sum <= 0.0:
+            supported_scores = kinase_scores.loc[kinase_scores > 0.0]
+            predicted_counts[str(kinase)] = int(supported_scores.size)
+            if supported_scores.empty:
+                activity_scores[str(kinase)] = float("nan")
                 weighted_signal[str(kinase)] = float("nan")
                 continue
+            activity_scores[str(kinase)] = float(supported_scores.mean(skipna=False))
+            score_sum = float(supported_scores.sum())
             weighted_signal[str(kinase)] = float(
-                (kinase_scores * site_signal).sum() / score_sum
+                (supported_scores * site_signal).sum() / score_sum
             )
-        activity_table = activity_scores.to_frame()
+        activity_table = pd.DataFrame(
+            {"activity_score": pd.Series(activity_scores, dtype=float)}
+        )
         activity_table["weighted_signal"] = pd.Series(weighted_signal)
         activity_table["n_predicted_sites"] = pd.Series(predicted_counts).astype(
             "int64"
@@ -148,12 +152,12 @@ class KinaseWorkflowExecutor:
                 seam="kinase.executor.activity_support",
                 next_action=(
                     "increase prediction_config.top_k or lower "
-                    "activity_config.threshold for sparse signals"
+                    "scoring_config.min_substrates to expand predicted support"
                 ),
                 activity_kinases=activity_table.shape[0],
                 total_positive_predictions=0,
                 prediction_config_top_k=request.prediction_config.top_k,
-                activity_config_threshold=float(activity_config.threshold),
+                scoring_config_min_substrates=request.scoring_config.min_substrates,
             )
         activity_table.index.name = "kinase"
         activity_table["is_active"] = (

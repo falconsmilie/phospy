@@ -9,7 +9,14 @@ import pandas as pd
 
 @dataclass(frozen=True, slots=True)
 class KinaseActivityResult:
-    """Activity-stage outputs."""
+    """Activity-stage outputs.
+
+    Expected columns include:
+    - ``activity_score``: mean positive-support kinase prediction score
+    - ``weighted_signal``: phosphosite signal weighted by positive-support scores
+    - ``n_predicted_sites``: number of positive-support substrate sites
+    - ``is_active``: threshold flag from ``activity_config.threshold``
+    """
 
     activity_scores: pd.DataFrame
 

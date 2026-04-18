@@ -70,6 +70,14 @@ Reusable save/load output bundles are provided as external services in
 `signalome_modules`, `kinase_network`) from the first vertical slice, while
 `expanded_signalome` remains optional and currently `None`.
 
+Kinase activity output currently uses an interim support-based definition:
+
+- `activity_score`: mean of strictly positive kinase prediction scores for that kinase
+  (`pred_mat` entries where score `> 0`), not a mean over the full zero-filled matrix
+- `n_predicted_sites`: number of sites with strictly positive prediction scores
+- `weighted_signal`: phosphosite signal mean weighted by those same positive scores
+- `is_active`: `activity_score >= activity_config.threshold`
+
 See [`output_bundles.md`](output_bundles.md) for manifest format and table
 inventory.
 

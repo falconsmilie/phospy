@@ -96,6 +96,13 @@ prediction/substrate_list.csv        # optional
 activity/activity_scores.csv         # optional
 ```
 
+When present, `activity/activity_scores.csv` contains:
+
+- `activity_score`: mean of strictly positive prediction scores for each kinase
+- `weighted_signal`: phosphosite signal weighted by those positive scores
+- `n_predicted_sites`: count of positive-support substrate sites
+- `is_active`: threshold flag (`activity_score >= activity_config.threshold`)
+
 Signalome (default `csv` layout):
 
 ```text
