@@ -608,17 +608,22 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
 
 def _normalize_module_assignments_table(table):
     normalized = table.copy(deep=True)
-    candidates_column = "top_kinase_candidates"
-    if candidates_column not in normalized.columns:
+    candidate_columns = [
+        str(column)
+        for column in normalized.columns
+        if str(column).endswith("_candidates")
+    ]
+    if not candidate_columns:
         return normalized
-    candidates_index = normalized.columns.get_loc(candidates_column)
-    candidates = (
-        normalized.loc[:, candidates_column]
-        .map(_parse_kinase_candidates)
-        .astype(object)
-    )
-    normalized = normalized.drop(columns=[candidates_column])
-    normalized.insert(candidates_index, candidates_column, candidates)
+    for candidates_column in candidate_columns:
+        candidates_index = normalized.columns.get_loc(candidates_column)
+        candidates = (
+            normalized.loc[:, candidates_column]
+            .map(_parse_kinase_candidates)
+            .astype(object)
+        )
+        normalized = normalized.drop(columns=[candidates_column])
+        normalized.insert(candidates_index, candidates_column, candidates)
     return normalized
 
 

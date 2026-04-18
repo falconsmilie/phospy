@@ -146,3 +146,19 @@ def test_signalome_request_config_policy_fails_at_validator_boundary() -> None:
         match="signalome workflow request config.signalome_cutoff",
     ):
         SignalomeWorkflowValidator().run(request)
+
+
+def test_signalome_validator_does_not_cast_numeric_matrices(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(),
+        config=SignalomeConfig(signalome_cutoff=0.5),
+    )
+
+    def _fail_astype(*args, **kwargs):
+        raise AssertionError("validator must not coerce numeric matrices")
+
+    monkeypatch.setattr(pd.DataFrame, "astype", _fail_astype)
+    validated = SignalomeWorkflowValidator().run(request)
+    assert validated is request

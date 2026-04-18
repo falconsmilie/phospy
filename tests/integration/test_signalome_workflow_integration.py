@@ -57,6 +57,12 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
         "top_kinase_candidates",
         "top_kinase_tie_count",
         "top_kinase_is_ambiguous",
+        "top_kinase_selection_policy",
+        "module_top_kinase",
+        "module_top_kinase_candidates",
+        "module_top_kinase_tie_count",
+        "module_top_kinase_is_ambiguous",
+        "module_top_kinase_selection_policy",
     }.issubset(set(assignments.columns))
     assert _is_text_dtype(assignments.loc[:, "protein_id"])
     assert is_integer_dtype(assignments.loc[:, "module_id"])
@@ -64,6 +70,11 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
     assert is_float_dtype(assignments.loc[:, "top_score"])
     assert is_integer_dtype(assignments.loc[:, "top_kinase_tie_count"])
     assert is_bool_dtype(assignments.loc[:, "top_kinase_is_ambiguous"])
+    assert _is_text_dtype(assignments.loc[:, "top_kinase_selection_policy"])
+    assert _is_text_dtype(assignments.loc[:, "module_top_kinase"])
+    assert is_integer_dtype(assignments.loc[:, "module_top_kinase_tie_count"])
+    assert is_bool_dtype(assignments.loc[:, "module_top_kinase_is_ambiguous"])
+    assert _is_text_dtype(assignments.loc[:, "module_top_kinase_selection_policy"])
 
     modules = result.signalome_modules.table
     assert not modules.empty

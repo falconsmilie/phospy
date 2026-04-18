@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import numpy as np
+import pandas as pd
+
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.validation import WorkflowValidationError
-from phospy.validation.common.missing_values import MissingValuePolicy
-from phospy.validation.common.numeric_frames import require_numeric_matrix
+from phospy.validation.common.dataframes import (
+    require_dataframe,
+    require_numeric_dataframe,
+)
 from phospy.validation.workflows.configs import WorkflowConfigValidator
 
 
@@ -29,14 +34,26 @@ class SignalomeWorkflowValidator:
             )
         self._config_validator.run_signalome(request.config)
 
-        prediction_matrix = require_numeric_matrix(
+        prediction_matrix = require_dataframe(
             request.kinase_result.prediction_result.pred_mat,
             field_name=(
                 "signalome workflow request kinase_result.prediction_result.pred_mat"
             ),
             allow_empty=False,
-            missing_value_policy=MissingValuePolicy.FORBID,
             error_type=WorkflowValidationError,
+        )
+        require_numeric_dataframe(
+            prediction_matrix,
+            field_name=(
+                "signalome workflow request kinase_result.prediction_result.pred_mat"
+            ),
+            error_type=WorkflowValidationError,
+        )
+        self._require_no_missing_or_infinite(
+            prediction_matrix,
+            field_name=(
+                "signalome workflow request kinase_result.prediction_result.pred_mat"
+            ),
         )
         if prediction_matrix.shape[1] == 0:
             raise WorkflowValidationError(
@@ -45,14 +62,26 @@ class SignalomeWorkflowValidator:
             )
 
         scoring_result = request.kinase_result.scoring_result
-        score_matrix = require_numeric_matrix(
+        score_matrix = require_dataframe(
             scoring_result.profile_scores,
             field_name=(
                 "signalome workflow request kinase_result.scoring_result.profile_scores"
             ),
             allow_empty=False,
-            missing_value_policy=MissingValuePolicy.FORBID,
             error_type=WorkflowValidationError,
+        )
+        require_numeric_dataframe(
+            score_matrix,
+            field_name=(
+                "signalome workflow request kinase_result.scoring_result.profile_scores"
+            ),
+            error_type=WorkflowValidationError,
+        )
+        self._require_no_missing_or_infinite(
+            score_matrix,
+            field_name=(
+                "signalome workflow request kinase_result.scoring_result.profile_scores"
+            ),
         )
         if score_matrix.shape[1] == 0:
             raise WorkflowValidationError(
@@ -60,3 +89,16 @@ class SignalomeWorkflowValidator:
                 "must contain at least one kinase column"
             )
         return request
+
+    @staticmethod
+    def _require_no_missing_or_infinite(
+        frame: pd.DataFrame, *, field_name: str
+    ) -> None:
+        if frame.isna().to_numpy().any():
+            raise WorkflowValidationError(
+                f"{field_name} must not contain missing values"
+            )
+        if np.isinf(frame.to_numpy(copy=False)).any():
+            raise WorkflowValidationError(
+                f"{field_name} must contain finite numeric values"
+            )

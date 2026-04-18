@@ -18,6 +18,13 @@ TOP_SCORE_COLUMN = "top_score"
 TOP_KINASE_CANDIDATES_COLUMN = "top_kinase_candidates"
 TOP_KINASE_TIE_COUNT_COLUMN = "top_kinase_tie_count"
 TOP_KINASE_IS_AMBIGUOUS_COLUMN = "top_kinase_is_ambiguous"
+TOP_KINASE_SELECTION_POLICY_COLUMN = "top_kinase_selection_policy"
+MODULE_TOP_KINASE_COLUMN = "module_top_kinase"
+MODULE_TOP_KINASE_CANDIDATES_COLUMN = "module_top_kinase_candidates"
+MODULE_TOP_KINASE_TIE_COUNT_COLUMN = "module_top_kinase_tie_count"
+MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN = "module_top_kinase_is_ambiguous"
+MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN = "module_top_kinase_selection_policy"
+LEXICOGRAPHIC_TIE_BREAK_POLICY = "max_score_then_lexicographic_tiebreak"
 DEGREE_COLUMN = "degree"
 N_SUBSTRATES_COLUMN = "n_substrates"
 SOURCE_KINASE_COLUMN = "source_kinase"
@@ -30,7 +37,7 @@ def build_module_assignments(
     prediction_matrix: pd.DataFrame,
     site_to_protein: pd.Series,
 ) -> pd.DataFrame:
-    """Build deterministic site-level module assignments from prediction outputs."""
+    """Build site-level module assignments with explicit tie-handling metadata."""
 
     if prediction_matrix.shape[1] == 0:
         raise WorkflowStageError("prediction matrix must contain at least one kinase")
@@ -66,21 +73,53 @@ def build_module_assignments(
         dtype=str,
         name=TOP_KINASE_COLUMN,
     )
-    protein_modules = _derive_protein_modules(
+    protein_module_resolution = _derive_protein_modules(
         top_kinases=top_kinase_series,
         site_to_protein=resolved_site_to_protein,
     )
-    module_ids = resolved_site_to_protein.map(protein_modules).astype("int64")
+    site_proteins = resolved_site_to_protein.to_numpy(dtype=object, copy=False)
+    site_module_resolution = protein_module_resolution.loc[
+        site_proteins,
+        [
+            MODULE_ID_COLUMN,
+            MODULE_TOP_KINASE_COLUMN,
+            MODULE_TOP_KINASE_CANDIDATES_COLUMN,
+            MODULE_TOP_KINASE_TIE_COUNT_COLUMN,
+            MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN,
+            MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN,
+        ],
+    ]
+    site_module_resolution.index = site_index.copy()
 
     assignments = pd.DataFrame(
         {
             PROTEIN_COLUMN: resolved_site_to_protein.to_numpy(dtype=object, copy=False),
-            MODULE_ID_COLUMN: module_ids.to_numpy(dtype=np.int64, copy=False),
+            MODULE_ID_COLUMN: site_module_resolution.loc[:, MODULE_ID_COLUMN].to_numpy(
+                dtype=np.int64, copy=False
+            ),
             TOP_KINASE_COLUMN: top_kinase_series.to_numpy(dtype=object, copy=False),
             TOP_SCORE_COLUMN: top_scores.to_numpy(dtype=float, copy=False),
             TOP_KINASE_CANDIDATES_COLUMN: top_kinase_candidates,
             TOP_KINASE_TIE_COUNT_COLUMN: tie_counts,
             TOP_KINASE_IS_AMBIGUOUS_COLUMN: tie_counts > 1,
+            TOP_KINASE_SELECTION_POLICY_COLUMN: [
+                LEXICOGRAPHIC_TIE_BREAK_POLICY for _ in range(site_index.size)
+            ],
+            MODULE_TOP_KINASE_COLUMN: site_module_resolution.loc[
+                :, MODULE_TOP_KINASE_COLUMN
+            ].to_numpy(dtype=object, copy=False),
+            MODULE_TOP_KINASE_CANDIDATES_COLUMN: site_module_resolution.loc[
+                :, MODULE_TOP_KINASE_CANDIDATES_COLUMN
+            ].to_numpy(dtype=object, copy=False),
+            MODULE_TOP_KINASE_TIE_COUNT_COLUMN: site_module_resolution.loc[
+                :, MODULE_TOP_KINASE_TIE_COUNT_COLUMN
+            ].to_numpy(dtype=np.int64, copy=False),
+            MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN: site_module_resolution.loc[
+                :, MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN
+            ].to_numpy(dtype=bool, copy=False),
+            MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN: site_module_resolution.loc[
+                :, MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN
+            ].to_numpy(dtype=object, copy=False),
         },
         index=site_index.copy(),
     )
@@ -92,6 +131,11 @@ def build_module_assignments(
             TOP_SCORE_COLUMN: float,
             TOP_KINASE_TIE_COUNT_COLUMN: "int64",
             TOP_KINASE_IS_AMBIGUOUS_COLUMN: bool,
+            TOP_KINASE_SELECTION_POLICY_COLUMN: str,
+            MODULE_TOP_KINASE_COLUMN: str,
+            MODULE_TOP_KINASE_TIE_COUNT_COLUMN: "int64",
+            MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN: bool,
+            MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN: str,
         }
     )
 
@@ -316,7 +360,7 @@ def _derive_protein_modules(
     *,
     top_kinases: pd.Series,
     site_to_protein: pd.Series,
-) -> pd.Series:
+) -> pd.DataFrame:
     top_table = pd.DataFrame(
         {
             PROTEIN_COLUMN: site_to_protein.to_numpy(dtype=object, copy=False),
@@ -325,34 +369,52 @@ def _derive_protein_modules(
         index=site_to_protein.index.copy(),
     )
 
-    dominant_kinase_by_protein: dict[str, str] = {}
+    protein_resolution_rows: list[dict[str, object]] = []
     for protein_id, group in top_table.groupby(PROTEIN_COLUMN, sort=True):
         counts = group.loc[:, TOP_KINASE_COLUMN].astype(str).value_counts()
         max_count = int(counts.iloc[0])
-        tied_kinases = sorted(
-            str(kinase)
-            for kinase in counts[counts == max_count].index.to_numpy(
-                dtype=object, copy=False
+        tied_kinases = tuple(
+            sorted(
+                str(kinase)
+                for kinase in counts[counts == max_count].index.to_numpy(
+                    dtype=object, copy=False
+                )
             )
         )
-        dominant_kinase_by_protein[str(protein_id)] = tied_kinases[0]
+        dominant_kinase = tied_kinases[0]
+        protein_resolution_rows.append(
+            {
+                PROTEIN_COLUMN: str(protein_id),
+                MODULE_TOP_KINASE_COLUMN: dominant_kinase,
+                MODULE_TOP_KINASE_CANDIDATES_COLUMN: tied_kinases,
+                MODULE_TOP_KINASE_TIE_COUNT_COLUMN: len(tied_kinases),
+                MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN: len(tied_kinases) > 1,
+                MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN: (
+                    LEXICOGRAPHIC_TIE_BREAK_POLICY
+                ),
+            }
+        )
 
+    protein_resolution = pd.DataFrame(protein_resolution_rows).set_index(PROTEIN_COLUMN)
+    protein_resolution.index = pd.Index(
+        protein_resolution.index.astype(str), name=PROTEIN_COLUMN
+    )
+    dominant_kinases = protein_resolution.loc[:, MODULE_TOP_KINASE_COLUMN].astype(str)
     module_by_kinase = {
         kinase: module_id
         for module_id, kinase in enumerate(
-            sorted(set(dominant_kinase_by_protein.values())),
-            start=1,
+            sorted(set(dominant_kinases.tolist())), start=1
         )
     }
-    protein_modules = pd.Series(
+    protein_resolution.loc[:, MODULE_ID_COLUMN] = dominant_kinases.map(
+        module_by_kinase
+    ).astype("int64")
+    return protein_resolution.astype(
         {
-            protein_id: module_by_kinase[dominant_kinase]
-            for protein_id, dominant_kinase in dominant_kinase_by_protein.items()
-        },
-        dtype="int64",
-        name=MODULE_ID_COLUMN,
+            MODULE_TOP_KINASE_COLUMN: str,
+            MODULE_TOP_KINASE_TIE_COUNT_COLUMN: "int64",
+            MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN: bool,
+            MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN: str,
+            MODULE_ID_COLUMN: "int64",
+        }
     )
-    protein_modules.index = pd.Index(
-        protein_modules.index.astype(str), name=PROTEIN_COLUMN
-    )
-    return protein_modules

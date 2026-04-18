@@ -69,6 +69,12 @@ def test_signalome_module_assignments_match_selected_l6_regression_points() -> N
         "top_kinase_candidates",
         "top_kinase_tie_count",
         "top_kinase_is_ambiguous",
+        "top_kinase_selection_policy",
+        "module_top_kinase",
+        "module_top_kinase_candidates",
+        "module_top_kinase_tie_count",
+        "module_top_kinase_is_ambiguous",
+        "module_top_kinase_selection_policy",
     }.issubset(set(assignments.columns))
 
     expected_points = load_signalome_rewrite_l6_module_assignments_selected()

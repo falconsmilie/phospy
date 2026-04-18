@@ -74,7 +74,7 @@ class SignalomeWorkflowInterpreter:
         index_name: str,
         columns_name: str,
     ) -> pd.DataFrame:
-        resolved = frame.astype(float).copy(deep=True)
+        resolved = frame.astype(float)
         resolved.index = pd.Index(resolved.index.astype(str), name=index_name)
         resolved.columns = pd.Index(resolved.columns.astype(str), name=columns_name)
         return resolved
