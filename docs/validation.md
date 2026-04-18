@@ -22,6 +22,7 @@ For public types and signatures, see [`api.md`](api.md).
 - `site_metadata` must be non-empty and index-aligned to `phospho`
 - `site_metadata` must include:
   `gene_symbol`, `site`, `site_sequence`
+- `site_metadata.protein_id` is optional but preserved when supplied
 - `site_sequence` values must be non-empty strings
 - `sample_metadata` (if present) must be index-aligned to `phospho.columns`
 - `total` (if present) must be numeric and share columns with `phospho`
@@ -85,7 +86,9 @@ Signalome rewrite boundary diagnostics (raised as `WorkflowBoundaryError`) enfor
 
 - interpreted site alignment has usable overlap across dataset/prediction/score
 - interpreted prediction/scoring matrices have overlapping kinase sets
-- interpreted sites resolve to usable protein identifiers
+- interpreted sites resolve to usable protein identifiers from one explicit path:
+  `dataset.site_metadata.protein_id` (preferred when present) or non-empty protein
+  prefixes in `dataset.phospho.index` / interpreted site IDs
 - at least one kinase has support above `signalome_cutoff`
 - module construction produces non-degenerate usable outputs
 - network construction has required kinases and usable score variance
@@ -112,7 +115,7 @@ Signalome boundary error messages include:
 | `kinase.executor.activity_support` | Activity was enabled, but predictions had no positive site assignments | Increase `prediction_config.top_k` and/or lower `scoring_config.min_substrates` |
 | `signalome.interpreter.site_alignment` | Dataset sites and interpreted scoring/prediction site IDs do not overlap | Ensure score/prediction outputs were generated from this dataset and share site IDs |
 | `signalome.interpreter.kinase_overlap` | Score and prediction kinase columns have no shared kinase set | Regenerate kinase outputs so both matrices come from the same lane |
-| `signalome.interpreter.protein_mapping` | Interpreted sites do not resolve to usable proteins | Include protein prefixes in site IDs or populate `dataset.site_metadata.gene_symbol` |
+| `signalome.interpreter.protein_mapping` | Interpreted sites do not resolve to usable proteins | Populate `dataset.site_metadata.protein_id` or provide site IDs with non-empty protein prefixes |
 | `signalome.executor.kinase_support` | No kinase has prediction support above `signalome_cutoff` | Lower `signalome_cutoff` or provide stronger prediction support |
 | `signalome.executor.module_construction` | Module table collapsed to empty/trivial output | Increase kinase diversity and ensure multiple supported kinases |
 | `signalome.executor.network` | Required kinases are missing from scores or score variance is unusable | Align score/prediction kinases and provide variable scoring signal (or lower cutoff) |

@@ -23,6 +23,7 @@ def _dataset(
     *,
     site_ids: list[str],
     gene_symbols: list[str] | None = None,
+    protein_ids: list[str] | None = None,
 ) -> AnalysisReadyPhosphoDataset:
     if gene_symbols is None:
         gene_symbols = [str(site_id).split(";", 1)[0] for site_id in site_ids]
@@ -41,6 +42,8 @@ def _dataset(
         },
         index=site_ids,
     )
+    if protein_ids is not None:
+        site_metadata.loc[:, "protein_id"] = protein_ids
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
         site_metadata=site_metadata,
@@ -185,10 +188,75 @@ def test_boundary_error_reports_unusable_protein_mapping_counts() -> None:
 
     message = str(exc_info.value)
     assert "seam=signalome.interpreter.protein_mapping" in message
+    assert "protein_resolution_source=dataset.phospho.index_protein_prefix" in message
     assert "interpreted_sites=2" in message
     assert "resolved_protein_sites=0" in message
     assert "unresolved_protein_sites=2" in message
     assert "next_action=" in message
+
+
+def test_interpreter_uses_explicit_site_metadata_protein_id_when_present() -> None:
+    dataset = _dataset(
+        site_ids=[";S1;", ";S2;"],
+        gene_symbols=["MAPK14", "MAPK14"],
+        protein_ids=["P28482-1", "P28482-2"],
+    )
+    prediction_matrix = _matrix(
+        values=[[0.9], [0.8]],
+        site_ids=[";S1;", ";S2;"],
+        kinases=["K1"],
+    )
+    score_matrix = _matrix(
+        values=[[1.0], [2.0]],
+        site_ids=[";S1;", ";S2;"],
+        kinases=["K1"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(signalome_cutoff=0.5),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    assert interpreted.site_to_protein.tolist() == ["P28482-1", "P28482-2"]
+
+
+def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_gene_symbol() -> (
+    None
+):
+    dataset = _dataset(
+        site_ids=["MAPK14;S1;", "MAPK14;S2;"],
+        gene_symbols=["MAPK14", "MAPK14"],
+        protein_ids=["P28482-1", "P28482-2"],
+    )
+    prediction_matrix = _matrix(
+        values=[[0.9, 0.1], [0.1, 0.9]],
+        site_ids=["MAPK14;S1;", "MAPK14;S2;"],
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[[1.0, 0.0], [0.0, 1.0]],
+        site_ids=["MAPK14;S1;", "MAPK14;S2;"],
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(signalome_cutoff=0.5),
+    )
+
+    resolved = SignalomeWorkflowInterpreter().run(request)
+    result = SignalomeWorkflowExecutor().run(resolved)
+    assignments = result.module_assignments.table
+    proteins = assignments.loc[:, "protein_id"].tolist()
+    assert proteins == ["P28482-1", "P28482-2"]
+    assert assignments.loc[:, "module_id"].nunique() == 2
 
 
 def test_boundary_error_reports_no_cutoff_support_counts() -> None:

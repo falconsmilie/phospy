@@ -10,6 +10,7 @@ from pandas.api.types import (
 )
 
 from phospy import (
+    AnalysisReadyPhosphoDataset,
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
@@ -100,3 +101,40 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
     assert is_float_dtype(network_edges.loc[:, "correlation"])
 
     assert result.expanded_signalome is None
+
+
+def test_signalome_workflow_uses_explicit_dataset_protein_identity_when_present() -> (
+    None
+):
+    base_dataset = build_rat_l6_dataset(n_sites=260)
+    site_metadata = base_dataset.site_metadata.copy(deep=True)
+    site_metadata.loc[:, "protein_id"] = [
+        f"PROT_{position:05d}" for position in range(site_metadata.shape[0])
+    ]
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=base_dataset.phospho,
+        site_metadata=site_metadata,
+        sample_metadata=base_dataset.sample_metadata,
+        total=base_dataset.total,
+        organism=base_dataset.organism,
+        transformation_state=base_dataset.transformation_state,
+    )
+    kinase_result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=1),
+            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            activity_config=None,
+        )
+    )
+    result = SignalomeWorkflow().run(
+        SignalomeWorkflowRequest(
+            kinase_result=kinase_result,
+            config=SignalomeConfig(signalome_cutoff=0.5),
+        )
+    )
+
+    assignments = result.module_assignments.table
+    assert not assignments.empty
+    assert assignments.loc[:, "protein_id"].astype(str).str.startswith("PROT_").all()

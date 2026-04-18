@@ -16,7 +16,6 @@ class SignalomeWorkflowInterpreter:
     _SITE_ID_COLUMN = "site_id"
     _KINASE_COLUMN = "kinase"
     _PROTEIN_COLUMN = "protein_id"
-    _GENE_SYMBOL_COLUMN = "gene_symbol"
     _SITE_ALIGNMENT_SEAM = "signalome.interpreter.site_alignment"
     _KINASE_OVERLAP_SEAM = "signalome.interpreter.kinase_overlap"
     _PROTEIN_MAPPING_SEAM = "signalome.interpreter.protein_mapping"
@@ -149,38 +148,41 @@ class SignalomeWorkflowInterpreter:
         dataset: AnalysisReadyPhosphoDataset,
         site_index: pd.Index,
     ) -> pd.Series:
-        resolved = pd.Series(
-            [self._protein_from_site_id(site_id) for site_id in site_index],
-            index=site_index.copy(),
-            dtype=str,
-            name=self._PROTEIN_COLUMN,
-        )
         metadata = dataset.site_metadata
-        if self._GENE_SYMBOL_COLUMN in metadata.columns:
-            metadata_genes = metadata.reindex(site_index).loc[
-                :, self._GENE_SYMBOL_COLUMN
-            ]
-            non_empty_mask = metadata_genes.notna() & (
-                metadata_genes.astype(str).str.strip() != ""
+        if self._PROTEIN_COLUMN in metadata.columns:
+            resolved = (
+                metadata.reindex(site_index)
+                .loc[:, self._PROTEIN_COLUMN]
+                .fillna("")
+                .astype(str)
+                .str.strip()
             )
-            if non_empty_mask.any():
-                resolved.loc[non_empty_mask] = (
-                    metadata_genes.loc[non_empty_mask].astype(str).str.strip()
-                )
+            resolution_source = "dataset.site_metadata.protein_id"
+        else:
+            resolved = pd.Series(
+                [self._protein_from_site_id(site_id) for site_id in site_index],
+                index=site_index.copy(),
+                dtype=str,
+                name=self._PROTEIN_COLUMN,
+            )
+            resolution_source = "dataset.phospho.index_protein_prefix"
         unresolved_mask = resolved.astype(str).str.strip() == ""
         if unresolved_mask.any():
             resolved_sites = int((~unresolved_mask).sum())
             self._raise_boundary_error(
                 seam=self._PROTEIN_MAPPING_SEAM,
                 next_action=(
-                    "ensure site IDs include protein prefixes or populate "
-                    "dataset.site_metadata.gene_symbol for interpreted sites"
+                    "populate dataset.site_metadata.protein_id for interpreted sites "
+                    "or provide site IDs with non-empty protein prefixes"
                 ),
+                protein_resolution_source=resolution_source,
                 interpreted_sites=int(site_index.size),
                 resolved_protein_sites=resolved_sites,
                 unresolved_protein_sites=int(unresolved_mask.sum()),
             )
-        return resolved
+        resolved.index = site_index.copy()
+        resolved.name = self._PROTEIN_COLUMN
+        return resolved.astype(str)
 
     @staticmethod
     def _protein_from_site_id(site_id: object) -> str:
@@ -194,7 +196,7 @@ class SignalomeWorkflowInterpreter:
         *,
         seam: str,
         next_action: str,
-        **details: int | float,
+        **details: int | float | str,
     ) -> None:
         details_text = ", ".join(f"{key}={value}" for key, value in details.items())
         raise WorkflowBoundaryError(

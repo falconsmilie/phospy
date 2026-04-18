@@ -9,7 +9,8 @@ import pandas as pd
 from phospy.errors.input import UnsupportedInputFormatError
 from phospy.site_ids import canonicalize_site_index
 
-_GENE_SYMBOL_ALIASES = ("gene_symbol", "gene", "gene_name", "protein", "protein_id")
+_GENE_SYMBOL_ALIASES = ("gene_symbol", "gene", "gene_name")
+_PROTEIN_ID_ALIASES = ("protein_id", "protein")
 _SITE_ALIASES = ("site", "residue", "phosphosite", "site_position")
 _SITE_SEQUENCE_ALIASES = ("site_sequence", "sequence", "centralized_sequence")
 
@@ -106,6 +107,9 @@ class DatasetConventionNormalizer:
         gene_column = _resolve_alias(site_metadata.columns, _GENE_SYMBOL_ALIASES)
         if gene_column is not None and gene_column != "gene_symbol":
             rename_map[gene_column] = "gene_symbol"
+        protein_column = _resolve_alias(site_metadata.columns, _PROTEIN_ID_ALIASES)
+        if protein_column is not None and protein_column != "protein_id":
+            rename_map[protein_column] = "protein_id"
         site_column = _resolve_alias(site_metadata.columns, _SITE_ALIASES)
         if site_column is not None and site_column != "site":
             rename_map[site_column] = "site"

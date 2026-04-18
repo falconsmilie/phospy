@@ -45,6 +45,26 @@ def test_dataset_builder_establishes_transformation_state_via_supported_path() -
     )
 
 
+def test_dataset_builder_preserves_explicit_protein_identity_column() -> None:
+    phospho = load_rat_l6_phospho().head(4).copy(deep=True)
+    site_metadata = site_metadata_for(phospho).copy(deep=True)
+    site_metadata.loc[:, "protein_id"] = [
+        f"PROT_{position:03d}" for position in range(site_metadata.shape[0])
+    ]
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+    assert "protein_id" in built.site_metadata.columns
+    assert (
+        built.site_metadata.loc[:, "protein_id"].tolist()
+        == site_metadata.loc[:, "protein_id"].tolist()
+    )
+
+
 def test_reference_bundle_rat_tables_are_structurally_coherent() -> None:
     bundle = ReferenceResolver().run(
         ReferencePreset.RAT,

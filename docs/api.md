@@ -38,6 +38,8 @@ All public executors use `run(request)`.
 
 - Required: `phospho`, `site_metadata`
 - Optional: `sample_metadata`, `total`, `organism`
+- `site_metadata.protein_id` is an optional identity column and is preserved when
+  provided (it is not treated as `gene_symbol`)
 - Transformation state is established inside PhosPy through the supported
   transformer path at builder execution time.
 - `ReferencePreset.AUTO` requires `dataset.organism` at workflow execution time
@@ -71,6 +73,9 @@ Reusable save/load output bundles are provided as external services in
 `SignalomeWorkflowResult` currently returns real tables (`module_assignments`,
 `signalome_modules`, `kinase_network`) from the first vertical slice, while
 `expanded_signalome` remains optional and currently `None`.
+Signalome protein grouping resolves from explicit protein identity:
+`dataset.site_metadata.protein_id` when present, otherwise interpreted site-ID
+protein prefixes. Missing protein identity fails with `WorkflowBoundaryError`.
 
 Kinase activity output currently uses an interim support-based definition:
 
