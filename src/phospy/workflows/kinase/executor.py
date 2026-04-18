@@ -10,7 +10,17 @@ from phospy.activities.models import KinaseActivityResult
 from phospy.activities.scoring import compute_activity_from_inputs
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
+from phospy.prediction.candidates import (
+    build_candidate_substrate_list,
+    summarize_candidate_shortfall,
+)
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.prediction.motif_scoring import (
+    DEFAULT_MOTIF_FLANK_SIZE,
+    build_motif_library,
+    score_phosphosite_motifs,
+)
+from phospy.prediction.scoring import combine_profile_and_motif_scores
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.workflows.kinase.science import (
@@ -61,9 +71,10 @@ class KinaseWorkflowExecutor:
     def _run_scoring_stage(
         self, request: ResolvedKinaseWorkflowRequest
     ) -> _ScoringExecution:
-        # Current supported route is profile-based scoring over sequence-backed
-        # phosphosite rows. Motif/combined scoring lanes are intentionally not
-        # materialized here.
+        # Scoring route:
+        # - profile correlations from quantified kinase substrates
+        # - motif scoring from reference sequence motifs
+        # - profile/motif weighted combination for downstream prediction
         scoring_phospho = request.dataset.phospho.loc[request.scoring_site_index, :]
         profile_build = build_kinase_profiles(
             phospho=scoring_phospho,
@@ -80,7 +91,40 @@ class KinaseWorkflowExecutor:
             phospho=scoring_phospho,
             profile_matrix=profile_build.profile_matrix,
         )
-        scoring_result = KinaseScoringResult._from_owned(profile_scores=profile_scores)
+        sequence_series = request.site_sequences.loc[:, "site_sequence"]
+        motif_frequency_matrices, motif_sizes = build_motif_library(
+            kinase_substrate_map=request.kinase_substrate_map,
+            site_sequences=sequence_series,
+            flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        )
+        motif_result = score_phosphosite_motifs(
+            site_sequences=sequence_series.loc[scoring_phospho.index],
+            motif_frequency_matrices=motif_frequency_matrices,
+            motif_sizes=motif_sizes,
+            site_index=scoring_phospho.index,
+            min_motif_size=request.scoring_config.min_substrates,
+            flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        )
+        try:
+            combined_scores, weights = combine_profile_and_motif_scores(
+                motif_scores=motif_result.motif_scores,
+                profile_scores=profile_scores,
+                motif_sizes=motif_result.motif_sizes,
+                profile_sizes=profile_build.substrate_counts.astype(float),
+                allow_profile_only_fallback=True,
+            )
+        except ValueError as exc:
+            raise WorkflowStageError(
+                "kinase workflow internal invariant failed at seam="
+                "kinase.executor.combined_scoring; "
+                f"{exc}"
+            ) from exc
+        scoring_result = KinaseScoringResult._from_owned(
+            profile_scores=profile_scores,
+            motif_scores=motif_result.motif_scores,
+            combined_scores=combined_scores,
+            weights=weights,
+        )
         return _ScoringExecution(
             scoring_result=scoring_result,
             score_matrix=profile_scores,
@@ -93,14 +137,27 @@ class KinaseWorkflowExecutor:
         request: ResolvedKinaseWorkflowRequest,
         scoring_execution: _ScoringExecution,
     ) -> KinasePredictionResult:
+        candidate_substrates = build_candidate_substrate_list(
+            scores=scoring_execution.score_matrix,
+            top=request.prediction_config.top_k,
+            score_threshold=0.0,
+            inclusion=1,
+            allowed_sites_by_kinase=scoring_execution.quantified_substrates,
+        )
         kinase_ranking = rank_kinases_for_prediction(
             score_matrix=scoring_execution.score_matrix,
-            quantified_substrates=scoring_execution.quantified_substrates,
+            candidate_substrates=candidate_substrates,
         )
         selected_kinases = kinase_ranking.head(
             request.prediction_config.ensemble_size
         ).index
         if selected_kinases.empty:
+            candidate_shortfall = summarize_candidate_shortfall(
+                scores=scoring_execution.score_matrix,
+                top=request.prediction_config.top_k,
+                score_threshold=0.0,
+                inclusion=1,
+            )
             self._raise_boundary_error(
                 seam="kinase.executor.prediction_ensemble",
                 next_action=(
@@ -113,11 +170,13 @@ class KinaseWorkflowExecutor:
                 prediction_config_ensemble_size=request.prediction_config.ensemble_size,
                 prediction_config_top_k=request.prediction_config.top_k,
                 dataset_samples=request.dataset.phospho.shape[1],
+                candidate_qualifying_kinases=candidate_shortfall.qualifying_kinases,
+                candidate_max_qualifying_sites=candidate_shortfall.max_qualifying_sites,
             )
         pred_mat, substrate_list = build_prediction_outputs(
             score_matrix=scoring_execution.score_matrix,
             selected_kinases=selected_kinases,
-            quantified_substrates=scoring_execution.quantified_substrates,
+            candidate_substrates=candidate_substrates,
             top_k=request.prediction_config.top_k,
         )
         return KinasePredictionResult._from_owned(

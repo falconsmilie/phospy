@@ -33,9 +33,9 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
     )
     assert result.scoring_result.profile_scores.shape[0] == dataset.phospho.shape[0]
     assert result.scoring_result.profile_scores.shape[1] > 0
-    assert result.scoring_result.motif_scores is None
-    assert result.scoring_result.combined_scores is None
-    assert result.scoring_result.weights is None
+    assert result.scoring_result.motif_scores is not None
+    assert result.scoring_result.combined_scores is not None
+    assert result.scoring_result.weights is not None
     sequence_sites = set(result.references.site_sequences.index.astype(str))
     assert set(result.scoring_result.profile_scores.index.astype(str)).issubset(
         sequence_sites

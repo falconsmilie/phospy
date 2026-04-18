@@ -92,10 +92,11 @@ weighted_activity = result.activity_result.weighted_activity
   `ReferenceBundle` for non-rat organisms.
 - Kinase scoring enforces a two-substrate scientific floor
   (`scoring_config.min_substrates >= 2`). Single-site kinase profiles are rejected.
-- The supported kinase workflow currently performs profile-based scoring only.
-  `result.scoring_result.profile_scores` is the scientific score matrix used by
-  downstream workflow stages; `motif_scores`, `combined_scores`, and `weights`
-  remain optional compatibility fields and are `None` in this route.
+- The supported kinase scoring route now emits profile, motif, and
+  profile/motif-combined score tables (`profile_scores`, `motif_scores`,
+  `combined_scores`, `weights`) for scientific audit and parity tracking.
+- Prediction in this release remains profile-driven in the workflow executor,
+  with motif/combined outputs carried in the scoring result contract.
 - `SignalomeWorkflowResult.expanded_signalome` remains optional and is currently `None`.
 
 ## Examples

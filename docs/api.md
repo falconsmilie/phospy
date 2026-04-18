@@ -98,12 +98,18 @@ See [`frame_ownership.md`](frame_ownership.md) for the full policy.
 - `result.prediction_result`
 - `result.activity_result`
 
-Supported scoring behavior is currently profile-only:
+Supported kinase scoring behavior now includes restored legacy science seams:
 
-- `result.scoring_result.profile_scores` is the score matrix used for prediction
-  and downstream signalome execution.
-- `result.scoring_result.motif_scores`, `combined_scores`, and `weights` are
-  optional compatibility fields and are `None` on this supported route.
+- `result.scoring_result.profile_scores`: profile-correlation score matrix.
+- `result.scoring_result.motif_scores`: motif-frequency score matrix from
+  reference sequence motifs.
+- `result.scoring_result.combined_scores`: profile/motif weighted combination.
+- `result.scoring_result.weights`: per-kinase motif/profile weight table used by
+  the combination step.
+
+Prediction in the current supported route remains profile-driven for ranking and
+matrix assembly, while motif/combined outputs are published for scientific audit
+and parity tracking.
 
 No mirrored top-level convenience aliases are part of the rewrite contract.
 Reusable save/load output bundles are provided as external services in

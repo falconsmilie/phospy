@@ -117,6 +117,9 @@ Boundary error messages include:
 Stage result access is nested and stable:
 
 - `result.scoring_result.profile_scores`
+- `result.scoring_result.motif_scores`
+- `result.scoring_result.combined_scores`
+- `result.scoring_result.weights`
 - `result.prediction_result.pred_mat`
 - `result.activity_result.weighted_activity` (when enabled)
 - `result.activity_result.ksea_scores` (when enabled)

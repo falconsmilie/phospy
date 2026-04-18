@@ -17,6 +17,9 @@ ROOT = Path(__file__).resolve().parents[2]
 REWRITE_PARITY_REFERENCE = (
     ROOT / "tests" / "fixtures" / "rewrite_parity" / "r_reference_l6"
 )
+REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE = (
+    ROOT / "tests" / "fixtures" / "rewrite_parity" / "fragile_support_reference"
+)
 RAT_L6_PHOSPHO = REWRITE_PARITY_REFERENCE / "l6_phospho_matrix.csv"
 RAT_L6_EXPECTED_PROFILE = REWRITE_PARITY_REFERENCE / "native_profile_scores.csv"
 REWRITE_PUBLIC_WORKFLOW_REFERENCE = (
@@ -65,6 +68,66 @@ def load_rat_l6_sequence_table() -> pd.Series:
 @lru_cache(maxsize=1)
 def load_expected_profile_scores() -> pd.DataFrame:
     return pd.read_csv(RAT_L6_EXPECTED_PROFILE, index_col=0)
+
+
+@lru_cache(maxsize=1)
+def load_fragile_support_profile_scores() -> pd.DataFrame:
+    return pd.read_csv(
+        REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "profile_scores.csv",
+        index_col=0,
+    )
+
+
+@lru_cache(maxsize=1)
+def load_fragile_support_motif_scores() -> pd.DataFrame:
+    return pd.read_csv(
+        REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "motif_scores.csv",
+        index_col=0,
+    )
+
+
+@lru_cache(maxsize=1)
+def load_fragile_support_profile_sizes() -> pd.Series:
+    frame = pd.read_csv(
+        REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "profile_sizes.csv",
+        index_col=0,
+    )
+    return frame.iloc[:, 0].astype(float)
+
+
+@lru_cache(maxsize=1)
+def load_fragile_support_motif_sizes() -> pd.Series:
+    frame = pd.read_csv(
+        REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "motif_sizes.csv",
+        index_col=0,
+    )
+    return frame.iloc[:, 0].astype(float)
+
+
+@lru_cache(maxsize=1)
+def load_fragile_support_combined_scores() -> pd.DataFrame:
+    return pd.read_csv(
+        REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "combined_scores.csv",
+        index_col=0,
+    )
+
+
+@lru_cache(maxsize=1)
+def load_fragile_support_combined_weights() -> pd.DataFrame:
+    frame = pd.read_csv(
+        REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "combined_weights.csv",
+        index_col=0,
+    )
+    frame.index = frame.index.astype(str)
+    frame.index.name = "kinase"
+    return frame
+
+
+@lru_cache(maxsize=1)
+def load_fragile_support_candidate_substrates() -> pd.DataFrame:
+    return pd.read_csv(
+        REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "candidate_substrates.csv"
+    )
 
 
 @lru_cache(maxsize=1)

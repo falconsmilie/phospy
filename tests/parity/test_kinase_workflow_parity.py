@@ -76,3 +76,28 @@ def test_prediction_top_sites_align_with_reference_ranking_subset() -> None:
             "substrate_site",
         ].iloc[0]
         assert observed_top == expected_top
+
+
+def test_scoring_outputs_include_motif_and_combined_tables() -> None:
+    dataset = build_rat_l6_dataset(n_sites=260)
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=12),
+            activity_config=None,
+        )
+    )
+
+    assert result.scoring_result.motif_scores is not None
+    assert result.scoring_result.combined_scores is not None
+    assert result.scoring_result.weights is not None
+    assert not result.scoring_result.motif_scores.empty
+    assert not result.scoring_result.combined_scores.empty
+    assert set(result.scoring_result.weights.columns) == {
+        "motif_weight",
+        "profile_weight",
+        "motif_rank_weight",
+        "profile_rank_weight",
+    }

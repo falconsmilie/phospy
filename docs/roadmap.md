@@ -41,10 +41,10 @@ Everything above applies to `src/phospy/` only.
 
 - Audit reference: [Legacy Science Gap Audit](architecture/legacy_science_gap_audit.md)
 - `SCI-GAP-01`: profile missing-value strategy lane (`median_skipna` optional; default unchanged)
-- `SCI-GAP-02`: motif scoring stage for rewrite kinase workflow
-- `SCI-GAP-03`: profile+motif weighted combination stage and outputs
-- `SCI-GAP-04`: candidate selection (`top`, threshold, inclusion) before prediction
-- `SCI-GAP-05`: adaptive sampling ensemble prediction lane
+- `SCI-GAP-02`: motif scoring stage for rewrite kinase workflow (landed in scoring outputs)
+- `SCI-GAP-03`: profile+motif weighted combination stage and outputs (landed)
+- `SCI-GAP-04`: candidate selection (`top`, threshold, inclusion) before prediction (ported seam helpers)
+- `SCI-GAP-05`: adaptive sampling ensemble prediction lane (deferred pending rewrite dependency/reproducibility contract)
 - `SCI-GAP-06`: signalome clustering and module-count selection diagnostics
 - `SCI-GAP-07`: deterministic tie metadata parity hardening for assignments
 - `SCI-GAP-08`: weighted-top assignment policy and fractional module shares

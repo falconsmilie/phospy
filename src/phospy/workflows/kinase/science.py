@@ -127,12 +127,12 @@ def score_profile_correlations(
 def rank_kinases_for_prediction(
     *,
     score_matrix: pd.DataFrame,
-    quantified_substrates: dict[str, list[str]],
+    candidate_substrates: dict[str, list[str]],
 ) -> pd.Series:
     """Rank kinases by the mean candidate-site score used for prediction."""
 
     ranking: dict[str, float] = {}
-    for kinase, candidate_sites in quantified_substrates.items():
+    for kinase, candidate_sites in candidate_substrates.items():
         if kinase not in score_matrix.columns:
             continue
         available_sites = [
@@ -152,7 +152,7 @@ def build_prediction_outputs(
     *,
     score_matrix: pd.DataFrame,
     selected_kinases: pd.Index,
-    quantified_substrates: dict[str, list[str]],
+    candidate_substrates: dict[str, list[str]],
     top_k: int,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Build the prediction matrix and substrate table for selected kinases."""
@@ -167,7 +167,7 @@ def build_prediction_outputs(
 
     substrate_rows: list[dict[str, object]] = []
     for kinase in selected_kinases:
-        candidate_sites = quantified_substrates.get(str(kinase), [])
+        candidate_sites = candidate_substrates.get(str(kinase), [])
         available_sites = [
             site for site in candidate_sites if site in score_matrix.index
         ]

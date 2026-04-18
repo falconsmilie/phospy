@@ -12,6 +12,20 @@
 
 This note defines which legacy scientific components are still valid donors for the rewrite and which legacy structures must remain archived.
 
+## P1 Decision Record (2026-04-18)
+
+This ticket explicitly resolves the three open scientific-route questions:
+
+- **Does motif scoring belong in the supported route now?**  
+  **Yes.** Rewrite-native motif scoring is now part of kinase scoring outputs.
+- **Should combined profile/motif scoring return?**  
+  **Yes.** Rewrite now publishes `combined_scores` and per-kinase `weights`.
+- **Is adaptive or richer candidate selection scientifically required now?**  
+  **Richer candidate filtering: Yes (ported).**  
+  **Adaptive sampling: Not yet required for the supported route.** It remains
+  deferred until dependency/runtime policy and reproducibility contracts are
+  formalized for the rewrite package.
+
 ## Classification Legend
 
 - `port as-is with adaptation`

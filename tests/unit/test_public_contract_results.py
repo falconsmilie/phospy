@@ -99,9 +99,9 @@ def test_kinase_result_stays_nested_and_honest_for_supported_lane() -> None:
     assert isinstance(result.scoring_result, KinaseScoringResult)
     assert isinstance(result.prediction_result, KinasePredictionResult)
     assert not result.scoring_result.profile_scores.empty
-    assert result.scoring_result.motif_scores is None
-    assert result.scoring_result.combined_scores is None
-    assert result.scoring_result.weights is None
+    assert result.scoring_result.motif_scores is not None
+    assert result.scoring_result.combined_scores is not None
+    assert result.scoring_result.weights is not None
     assert result.activity_result is None
     assert result.prediction_result.substrate_list is not None
     assert set(result.prediction_result.substrate_list.columns) == {
@@ -129,8 +129,8 @@ def test_signalome_result_keeps_nested_kinase_result_contract() -> None:
     assert signalome_result.kinase_result is kinase_result
     assert not signalome_result.module_assignments.table.empty
     assert not signalome_result.signalome_modules.table.empty
-    assert signalome_result.kinase_result.scoring_result.motif_scores is None
-    assert signalome_result.kinase_result.scoring_result.combined_scores is None
-    assert signalome_result.kinase_result.scoring_result.weights is None
+    assert signalome_result.kinase_result.scoring_result.motif_scores is not None
+    assert signalome_result.kinase_result.scoring_result.combined_scores is not None
+    assert signalome_result.kinase_result.scoring_result.weights is not None
     assert not hasattr(signalome_result, "pred_mat")
     assert not hasattr(signalome_result, "profile_scores")
