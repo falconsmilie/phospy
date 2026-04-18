@@ -69,6 +69,7 @@ top-level `phospy` and include:
   the builder), `transformation_state` must be provided explicitly.
 - Public dataset/reference models are strict boundaries: they validate but do not
   trim/canonicalize/deduplicate inputs.
+- Dirty or colliding site identifiers at the public boundary fail fast.
 - Input shaping and cleanup responsibilities live below the boundary in builder
   and bundled-reference provider/loading paths.
 - `ReferencePreset.AUTO` requires `dataset.organism` at workflow execution time

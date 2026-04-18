@@ -44,6 +44,7 @@ Builder request validation is owned by `DatasetBuildRequestValidator`.
 - `organism` (if present) must be an `Organism` enum
 - `transformation_state` is required on direct dataset construction
 - boundary site identifiers must already be canonical (non-empty stripped strings)
+- boundary site identifiers that collide when stripped are rejected
 - boundary constructors do not canonicalize or repair incoming tables
 - dataset builder collaborators are responsible for canonicalization and shaping
 
@@ -68,9 +69,11 @@ Dataset validation composition:
 - `ReferenceBundle.kinase_substrate_map` must be non-empty with:
   `kinase`, `substrate_site`
 - `kinase` and `substrate_site` values must already be canonical strings
+- `substrate_site` values that collide when stripped are rejected
 - duplicate `(kinase, substrate_site)` pairs are rejected
 - `ReferenceBundle.site_sequences` must be non-empty with:
   `site_sequence` and unique canonical index
+- `site_sequences.index` values that collide when stripped are rejected
 - each `substrate_site` must exist in `site_sequences.index`
 - boundary constructors do not trim/canonicalize/deduplicate reference inputs
 - bundled-reference provider/loading paths perform bundled-data shaping

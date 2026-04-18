@@ -80,16 +80,19 @@ def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
 def test_reference_bundle_rejects_ambiguous_site_sequence_ids() -> None:
     with pytest.raises(
         ReferenceValidationError,
-        match="duplicate site identifiers after canonicalization",
+        match="contains colliding site identifiers when stripped",
     ):
         ReferenceBundle(
             organism=Organism.RAT,
             kinase_substrate_map=pd.DataFrame(
-                {"kinase": ["MAP2K6"], "substrate_site": ["101"]}
+                {"kinase": ["MAP2K6"], "substrate_site": ["MAPK14;Y182;"]}
             ),
             site_sequences=pd.DataFrame(
                 {"site_sequence": ["A" * 31, "B" * 31]},
-                index=pd.Index([101, " 101 "], name="site_id"),
+                index=pd.Index(
+                    ["MAPK14;Y182;", " MAPK14;Y182;"],
+                    name="site_id",
+                ),
             ),
         )
 
@@ -122,6 +125,61 @@ def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
         )
 
 
+def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset\\.phospho\\.index contains colliding site identifiers when stripped",
+    ):
+        from phospy.datasets.models import AnalysisReadyPhosphoDataset
+
+        AnalysisReadyPhosphoDataset(
+            phospho=pd.DataFrame(
+                {
+                    "sample_a": [1.0, 3.0],
+                    "sample_b": [2.0, 4.0],
+                },
+                index=pd.Index(
+                    ["MAPK14;Y182;", " MAPK14;Y182;"],
+                    name="site_id",
+                ),
+            ),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14", "MAPK14"],
+                    "site": ["Y182", "Y182"],
+                    "site_sequence": ["A" * 31, "B" * 31],
+                },
+                index=pd.Index(
+                    ["MAPK14;Y182;", " MAPK14;Y182;"],
+                    name="site_id",
+                ),
+            ),
+            organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
+        )
+
+
+def test_dataset_boundary_requires_explicit_transformation_state() -> None:
+    with pytest.raises(TypeError, match="missing 1 required positional argument"):
+        from phospy.datasets.models import AnalysisReadyPhosphoDataset
+
+        AnalysisReadyPhosphoDataset(
+            phospho=pd.DataFrame(
+                {"sample_a": [1.0]},
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14"],
+                    "site": ["Y182"],
+                    "site_sequence": ["A" * 31],
+                },
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+            organism=Organism.RAT,
+        )  # type: ignore[call-arg]
+
+
 def test_reference_bundle_rejects_duplicate_kinase_substrate_pairs() -> None:
     with pytest.raises(
         ReferenceValidationError,
@@ -133,6 +191,29 @@ def test_reference_bundle_rejects_duplicate_kinase_substrate_pairs() -> None:
                 {
                     "kinase": ["MAP2K6", "MAP2K6"],
                     "substrate_site": ["MAPK14;Y182;", "MAPK14;Y182;"],
+                }
+            ),
+            site_sequences=pd.DataFrame(
+                {"site_sequence": ["A" * 31]},
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+        )
+
+
+def test_reference_bundle_rejects_colliding_dirty_substrate_site_ids() -> None:
+    with pytest.raises(
+        ReferenceValidationError,
+        match=(
+            "references\\.kinase_substrate_map\\.substrate_site contains colliding "
+            "site identifiers when stripped"
+        ),
+    ):
+        ReferenceBundle(
+            organism=Organism.RAT,
+            kinase_substrate_map=pd.DataFrame(
+                {
+                    "kinase": ["MAP2K6", "MAP2K7"],
+                    "substrate_site": ["MAPK14;Y182;", " MAPK14;Y182;"],
                 }
             ),
             site_sequences=pd.DataFrame(

@@ -7,7 +7,6 @@ from collections.abc import Iterable
 import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
-from phospy.site_ids import canonicalize_site_index, canonicalize_site_series
 
 ValidationErrorType = type[PhosPyValidationError]
 
@@ -162,22 +161,13 @@ def require_canonical_site_index(
     field_name: str,
     error_type: ValidationErrorType,
 ) -> pd.Index:
-    """Require one site index to already be canonicalized."""
+    """Require one site index to already be strict/canonical."""
 
-    canonical = canonicalize_site_index(
-        index,
+    _require_strict_site_identifiers(
+        index.tolist(),
         field_name=field_name,
         error_type=error_type,
     )
-    raw_values = index.tolist()
-    canonical_values = canonical.tolist()
-    if any(
-        not isinstance(raw, str) or raw != canonical_value
-        for raw, canonical_value in zip(raw_values, canonical_values, strict=False)
-    ):
-        raise error_type(
-            f"{field_name} must contain canonical site identifiers (non-empty stripped strings)"
-        )
     return index
 
 
@@ -187,23 +177,62 @@ def require_canonical_site_series(
     field_name: str,
     error_type: ValidationErrorType,
 ) -> pd.Series:
-    """Require one site-id series to already be canonicalized."""
+    """Require one site-id series to already be strict/canonical."""
 
-    canonical = canonicalize_site_series(
-        series,
+    _require_strict_site_identifiers(
+        series.tolist(),
         field_name=field_name,
         error_type=error_type,
     )
-    raw_values = series.tolist()
-    canonical_values = canonical.tolist()
+    return series
+
+
+def _require_strict_site_identifiers(
+    values: list[object],
+    *,
+    field_name: str,
+    error_type: ValidationErrorType,
+) -> None:
+    if any(_is_missing_site_identifier(value) for value in values):
+        raise error_type(f"{field_name} must not contain missing site identifiers")
+    if not all(isinstance(value, str) for value in values):
+        raise error_type(
+            f"{field_name} must contain canonical site identifiers (non-empty stripped strings)"
+        )
+    raw_values = [value for value in values if isinstance(value, str)]
+    stripped_values = [value.strip() for value in raw_values]
+    if any(value == "" for value in stripped_values):
+        raise error_type(f"{field_name} must contain non-empty site identifiers")
+
+    collisions: dict[str, set[str]] = {}
+    for raw_value, stripped_value in zip(raw_values, stripped_values, strict=False):
+        collisions.setdefault(stripped_value, set()).add(raw_value)
+    colliding = [value for value, raw_set in collisions.items() if len(raw_set) > 1]
+    if colliding:
+        preview = ", ".join(colliding[:5])
+        suffix = "" if len(colliding) <= 5 else " ..."
+        raise error_type(
+            f"{field_name} contains colliding site identifiers when stripped: "
+            f"{preview}{suffix}"
+        )
     if any(
-        not isinstance(raw, str) or raw != canonical_value
-        for raw, canonical_value in zip(raw_values, canonical_values, strict=False)
+        raw_value != stripped_value
+        for raw_value, stripped_value in zip(
+            raw_values,
+            stripped_values,
+            strict=False,
+        )
     ):
         raise error_type(
             f"{field_name} must contain canonical site identifiers (non-empty stripped strings)"
         )
-    return series
+
+
+def _is_missing_site_identifier(value: object) -> bool:
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return False
 
 
 def require_unique_row_pairs(
