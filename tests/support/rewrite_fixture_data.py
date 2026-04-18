@@ -12,7 +12,6 @@ from phospy import (
     DatasetBuildRequest,
     Organism,
 )
-from phospy.transformations.models import TransformationState
 
 ROOT = Path(__file__).resolve().parents[2]
 RAT_L6_PHOSPHO = (
@@ -145,6 +144,5 @@ def build_rat_l6_dataset(*, n_sites: int | None = 220) -> AnalysisReadyPhosphoDa
         phospho=phospho,
         site_metadata=site_metadata_for(phospho),
         organism=Organism.RAT,
-        transformation_state=TransformationState.raw(has_total_matrix=False),
     )
     return AnalysisReadyDatasetBuilder().run(request)

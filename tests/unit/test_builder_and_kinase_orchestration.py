@@ -29,7 +29,6 @@ from phospy.signalomes.models import (
     SignalomeAssignments,
     SignalomeModules,
 )
-from phospy.transformations.models import TransformationState
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
 
@@ -73,17 +72,12 @@ def _bundle() -> ReferenceBundle:
     )
 
 
-def _raw_state() -> TransformationState:
-    return TransformationState.raw(has_total_matrix=False)
-
-
 def test_request_config_and_result_models_construct() -> None:
     dataset = _dataset()
     build_request = DatasetBuildRequest(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
-        transformation_state=_raw_state(),
     )
     workflow_request = KinaseWorkflowRequest(
         dataset=dataset,
@@ -115,7 +109,6 @@ def test_builder_run_contract_builds_analysis_ready_dataset() -> None:
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
-            transformation_state=_raw_state(),
         )
     )
     assert isinstance(built, AnalysisReadyPhosphoDataset)
@@ -128,7 +121,6 @@ def test_builder_orchestration_uses_collaborators() -> None:
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
-        transformation_state=_raw_state(),
     )
     calls: list[str] = []
     interpreted = InterpretedDatasetBuildRequest(
@@ -137,7 +129,6 @@ def test_builder_orchestration_uses_collaborators() -> None:
         sample_metadata=request.sample_metadata,
         total=request.total,
         organism=request.organism,
-        transformation_state=request.transformation_state,
     )
 
     class ValidatorSpy:

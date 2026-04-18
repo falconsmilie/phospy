@@ -23,7 +23,6 @@ from phospy.io.bundles.kinase import (
     load_kinase_workflow_bundle,
     save_kinase_workflow_bundle,
 )
-from phospy.transformations.models import TransformationState
 
 pytestmark = pytest.mark.integration
 
@@ -157,7 +156,6 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
             sample_metadata=sample_metadata,
             total=total,
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=True),
         )
     )
     references = ReferenceBundle(

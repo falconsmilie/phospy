@@ -9,7 +9,6 @@ from phospy.datasets.builders.public import AnalysisReadyDatasetBuilder
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import (
     DatasetValidationError,
-    PhosPyTransformationError,
     ReferenceCompatibilityError,
     ReferenceResolutionError,
     ReferenceValidationError,
@@ -51,10 +50,6 @@ def _valid_bundle(organism: Organism = Organism.RAT) -> ReferenceBundle:
             index=pd.Index(["MAPK14;Y182;"], name="site_id"),
         ),
     )
-
-
-def _raw_state(*, has_total_matrix: bool = False) -> TransformationState:
-    return TransformationState.raw(has_total_matrix=has_total_matrix)
 
 
 def test_dataset_requires_site_sequence_column() -> None:
@@ -125,7 +120,6 @@ def test_builder_rejects_sparse_missingness_in_phospho_matrix() -> None:
                 phospho=phospho,
                 site_metadata=site_metadata,
                 organism=Organism.RAT,
-                transformation_state=_raw_state(),
             )
         )
 
@@ -250,7 +244,6 @@ def test_builder_supports_file_path_inputs(tmp_path) -> None:
             phospho=phospho_path,
             site_metadata=site_metadata_path,
             organism=Organism.RAT,
-            transformation_state=_raw_state(),
         )
     )
     assert list(built.phospho.index) == ["MAPK14;Y182;"]
@@ -263,7 +256,6 @@ def test_builder_derives_site_sequence_for_supported_organism() -> None:
             phospho=_phospho(),
             site_metadata=_site_metadata().drop(columns=["site_sequence"]),
             organism=Organism.RAT,
-            transformation_state=_raw_state(),
         )
     )
     assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"]
@@ -293,12 +285,16 @@ def test_reference_resolver_accepts_explicit_bundle() -> None:
     assert resolved is bundle
 
 
-def test_builder_fails_when_transformation_state_is_unknown() -> None:
-    with pytest.raises(PhosPyTransformationError, match="unable to establish"):
-        AnalysisReadyDatasetBuilder().run(
-            DatasetBuildRequest(
-                phospho=_phospho(),
-                site_metadata=_site_metadata(),
-                organism=Organism.RAT,
-            )
+def test_builder_establishes_transformation_state_with_supported_path() -> None:
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            organism=Organism.RAT,
         )
+    )
+    assert built.transformation_state.label == "linear"
+    assert (
+        built.transformation_state.phospho.established_by
+        == "phospy.transformations.transformers.identity"
+    )

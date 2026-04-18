@@ -52,6 +52,8 @@ Bundled preset policy in the rewrite cutover:
 - `--reference human` / `--reference mouse` fail with
   `UnsupportedOrganismError` until those lanes have provenance and fixture-backed
   validation
+- transformation state is established by PhosPy's supported transformer path
+  during dataset build; no user-declared transformation flag is part of this lane
 
 ## Input Formats
 

@@ -37,7 +37,9 @@ All public executors use `run(request)`.
 `DatasetBuildRequest` accepts in-memory pandas `DataFrame` values or file paths.
 
 - Required: `phospho`, `site_metadata`
-- Optional: `sample_metadata`, `total`, `organism`, `transformation_state`
+- Optional: `sample_metadata`, `total`, `organism`
+- Transformation state is established inside PhosPy through the supported
+  transformer path at builder execution time.
 - `ReferencePreset.AUTO` requires `dataset.organism` at workflow execution time
 - Bundled references are currently available for rat only
 - `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` are part of the public enum,

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import importlib.util
 import inspect
+from dataclasses import fields
 from pathlib import Path
 from typing import get_type_hints
 
+import pytest
 import tomllib
 
 import phospy
@@ -54,3 +56,17 @@ def test_builder_exposes_only_run_request_contract() -> None:
     hints = get_type_hints(AnalysisReadyDatasetBuilder.run)
     assert hints["request"] is DatasetBuildRequest
     assert hints["return"] is AnalysisReadyPhosphoDataset
+
+
+def test_dataset_build_request_excludes_user_declared_transformation_state() -> None:
+    request_fields = {field.name for field in fields(DatasetBuildRequest)}
+    assert "transformation_state" not in request_fields
+
+
+def test_dataset_build_request_rejects_user_declared_transformation_state() -> None:
+    with pytest.raises(TypeError, match="unexpected keyword argument"):
+        DatasetBuildRequest(
+            phospho=object(),
+            site_metadata=object(),
+            transformation_state=object(),  # type: ignore[call-arg]
+        )

@@ -15,7 +15,6 @@ from phospy import (
     ReferenceBundle,
 )
 from phospy.errors import ReferenceValidationError, UnsupportedInputFormatError
-from phospy.transformations.models import TransformationState
 
 
 def test_builder_canonicalizes_mixed_site_id_types_and_reorders_site_metadata() -> None:
@@ -40,7 +39,6 @@ def test_builder_canonicalizes_mixed_site_id_types_and_reorders_site_metadata() 
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
         )
     )
 
@@ -73,7 +71,6 @@ def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
                 phospho=phospho,
                 site_metadata=site_metadata,
                 organism=Organism.RAT,
-                transformation_state=TransformationState.raw(has_total_matrix=False),
             )
         )
 

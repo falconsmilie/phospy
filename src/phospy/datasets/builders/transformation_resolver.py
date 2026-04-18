@@ -28,9 +28,8 @@ class ResolvedTransformation:
 class DatasetTransformationResolver:
     """Resolve transformation state for a dataset build request.
 
-    Supported establishment paths:
-    1. Explicit `DatasetBuildRequest.transformation_state`.
-    2. A configured transformer that establishes state from matrices.
+    Supported establishment path:
+    A configured transformer that establishes state from matrices.
     """
 
     def __init__(self, *, transformer: Transformer | None = None) -> None:
@@ -42,28 +41,13 @@ class DatasetTransformationResolver:
         *,
         phospho: pd.DataFrame,
         total: pd.DataFrame | None,
-        transformation_state: TransformationState | None,
     ) -> ResolvedTransformation:
-        if transformation_state is not None:
-            self._validate_state(
-                transformation_state,
-                has_total_matrix=total is not None,
-                source="explicit DatasetBuildRequest.transformation_state",
-            )
-            return ResolvedTransformation(
-                phospho=phospho,
-                total=total,
-                transformation_state=transformation_state,
-            )
-
         if self._transformer is None:
             raise TransformationStateEstablishmentError(
                 "unable to establish transformation state with confidence: "
-                "no explicit transformation_state was provided and no supported "
-                "transformation establisher is configured. "
-                "Provide DatasetBuildRequest(transformation_state=...) or configure "
-                "AnalysisReadyDatasetBuilder(executor=DatasetBuildExecutor("
-                "transformer=...))."
+                "no supported transformation establisher is configured. "
+                "Configure AnalysisReadyDatasetBuilder("
+                "executor=DatasetBuildExecutor(transformer=...))."
             )
 
         try:
@@ -80,8 +64,7 @@ class DatasetTransformationResolver:
             raise TransformationStateEstablishmentError(
                 "configured transformer changed total-matrix presence while "
                 "establishing transformation state; this is unsupported. "
-                "Provide an explicit TransformationState or use a transformer that "
-                "preserves phospho/total matrix presence."
+                "Use a transformer that preserves phospho/total matrix presence."
             )
 
         self._validate_state(

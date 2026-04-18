@@ -5,7 +5,6 @@ from __future__ import annotations
 from phospy.api.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.references.models import Organism
-from phospy.transformations.models import TransformationState
 from phospy.validation.datasets.inputs import DatasetInputSourceValidator
 
 
@@ -28,10 +27,4 @@ class DatasetBuildRequestValidator:
         self._source_validator.run(request.total, field_name="total", allow_none=True)
         if request.organism is not None and not isinstance(request.organism, Organism):
             raise PhosPyInputError("dataset build request organism must be an Organism")
-        if request.transformation_state is not None and not isinstance(
-            request.transformation_state, TransformationState
-        ):
-            raise PhosPyInputError(
-                "dataset build request transformation_state must be a TransformationState"
-            )
         return request

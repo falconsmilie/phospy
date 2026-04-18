@@ -12,6 +12,7 @@ from phospy.errors.input import PhosPyInputError
 from phospy.errors.transformations import PhosPyTransformationError
 from phospy.errors.validation import PhosPyValidationError
 from phospy.transformations.contracts import Transformer
+from phospy.transformations.transformers import IdentityTransformer
 
 
 class DatasetBuildExecutor:
@@ -25,7 +26,9 @@ class DatasetBuildExecutor:
     ) -> None:
         self._transformation_resolver = (
             transformation_resolver
-            or DatasetTransformationResolver(transformer=transformer)
+            or DatasetTransformationResolver(
+                transformer=transformer or IdentityTransformer()
+            )
         )
 
     def run(
@@ -35,7 +38,6 @@ class DatasetBuildExecutor:
             resolved = self._transformation_resolver.run(
                 phospho=request.phospho,
                 total=request.total,
-                transformation_state=request.transformation_state,
             )
             return AnalysisReadyPhosphoDataset(
                 phospho=resolved.phospho,

@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Protocol
 import pandas as pd
 
 from phospy.references.models import Organism
-from phospy.transformations.models import TransformationState
 
 if TYPE_CHECKING:
     from phospy.api.requests import DatasetBuildRequest
@@ -28,7 +27,6 @@ class InterpretedDatasetBuildRequest:
     sample_metadata: pd.DataFrame | None
     total: pd.DataFrame | None
     organism: Organism | None
-    transformation_state: TransformationState | None
 
 
 class DatasetBuildValidatorContract(Protocol):

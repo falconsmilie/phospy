@@ -5,6 +5,11 @@ from pathlib import Path
 import pytest
 
 from phospy.cli import main as cli_main
+from phospy.datasets.builders.executor import DatasetBuildExecutor
+from phospy.datasets.builders.public import AnalysisReadyDatasetBuilder
+from phospy.datasets.builders.transformation_resolver import (
+    DatasetTransformationResolver,
+)
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
 
 pytestmark = pytest.mark.integration
@@ -28,8 +33,6 @@ def test_cli_dataset_build_from_files_writes_expected_outputs(tmp_path: Path) ->
             str(site_metadata_path),
             "--organism",
             "rat",
-            "--transformation-state",
-            "linear",
             "--outdir",
             str(outdir),
         ]
@@ -61,8 +64,6 @@ def test_cli_kinase_from_files_writes_supported_lane_outputs(
             str(site_metadata_path),
             "--organism",
             "rat",
-            "--transformation-state",
-            "linear",
             "--reference",
             "auto",
             "--prediction-top-k",
@@ -106,8 +107,6 @@ def test_cli_signalome_from_files_writes_supported_lane_outputs(
             str(site_metadata_path),
             "--organism",
             "rat",
-            "--transformation-state",
-            "linear",
             "--reference",
             "auto",
             "--prediction-top-k",
@@ -157,8 +156,6 @@ def test_cli_reports_rewrite_taxonomy_for_input_format_errors(
             str(site_metadata_path),
             "--organism",
             "rat",
-            "--transformation-state",
-            "linear",
             "--outdir",
             str(tmp_path / "out"),
         ]
@@ -169,9 +166,21 @@ def test_cli_reports_rewrite_taxonomy_for_input_format_errors(
     assert "UnsupportedInputFormatError" in captured.err
 
 
-def test_cli_dataset_build_requires_explicit_or_established_transformation_state(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+def test_cli_dataset_build_fails_clearly_when_state_cannot_be_established(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    failing_builder = AnalysisReadyDatasetBuilder(
+        executor=DatasetBuildExecutor(
+            transformation_resolver=DatasetTransformationResolver(transformer=None),
+        )
+    )
+    monkeypatch.setattr(
+        "phospy.io.cli.AnalysisReadyDatasetBuilder",
+        lambda: failing_builder,
+    )
+
     phospho = load_rat_l6_phospho().head(8).copy(deep=True)
     site_metadata = site_metadata_for(phospho)
     phospho_path = tmp_path / "phospho.csv"
@@ -196,7 +205,36 @@ def test_cli_dataset_build_requires_explicit_or_established_transformation_state
 
     assert exit_code == 2
     assert "TransformationStateEstablishmentError" in captured.err
-    assert "Provide DatasetBuildRequest(transformation_state=...)" in captured.err
+    assert "no supported transformation establisher is configured" in captured.err
+
+
+def test_cli_rejects_removed_user_declared_transformation_flag(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    phospho = load_rat_l6_phospho().head(8).copy(deep=True)
+    site_metadata = site_metadata_for(phospho)
+    phospho_path = tmp_path / "phospho.csv"
+    site_metadata_path = tmp_path / "site_metadata.csv"
+    phospho.to_csv(phospho_path)
+    site_metadata.to_csv(site_metadata_path)
+
+    exit_code = cli_main(
+        [
+            "dataset-build",
+            "--phospho",
+            str(phospho_path),
+            "--site-metadata",
+            str(site_metadata_path),
+            "--transformation-state",
+            "linear",
+            "--outdir",
+            str(tmp_path / "out"),
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "unrecognized arguments: --transformation-state linear" in captured.err
 
 
 def test_cli_kinase_rejects_non_rat_bundled_resolution(
@@ -219,8 +257,6 @@ def test_cli_kinase_rejects_non_rat_bundled_resolution(
             str(site_metadata_path),
             "--organism",
             "human",
-            "--transformation-state",
-            "linear",
             "--reference",
             "auto",
             "--outdir",

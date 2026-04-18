@@ -14,7 +14,6 @@ from phospy.api.configs import (
 from phospy.datasets.builders.contracts import DatasetInput
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.transformations.models import TransformationState
 
 if TYPE_CHECKING:
     from phospy.api.results import KinaseWorkflowResult
@@ -32,7 +31,6 @@ class DatasetBuildRequest:
     sample_metadata: DatasetInput | None = None
     total: DatasetInput | None = None
     organism: Organism | None = None
-    transformation_state: TransformationState | None = None
 
 
 @dataclass(frozen=True, slots=True)
