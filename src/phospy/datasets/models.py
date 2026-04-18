@@ -11,8 +11,10 @@ from phospy.errors.validation import DatasetValidationError
 from phospy.references.models import Organism
 from phospy.transformations.models import TransformationState
 from phospy.validation.datasets.analysis_ready import AnalysisReadyDatasetValidator
+from phospy.validation.transformations.state import TransformationStateValidator
 
 _DATASET_VALIDATOR = AnalysisReadyDatasetValidator()
+_TRANSFORMATION_STATE_VALIDATOR = TransformationStateValidator()
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,7 +60,10 @@ class AnalysisReadyPhosphoDataset:
             sample_metadata=sample_metadata,
             total=total,
             organism=self.organism,
+        )
+        _TRANSFORMATION_STATE_VALIDATOR.run(
             transformation_state=self.transformation_state,
+            has_total_matrix=total is not None,
         )
         object.__setattr__(self, "phospho", phospho)
         object.__setattr__(self, "site_metadata", site_metadata)

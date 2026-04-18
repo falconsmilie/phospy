@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from phospy.errors.references import (
+    ReferenceCompatibilityError,
     ReferenceResolutionError,
     UnsupportedOrganismError,
 )
@@ -78,18 +79,21 @@ class ReferenceResolver:
         *,
         dataset_organism: Organism | None,
     ) -> ReferenceBundle:
-        self._compatibility_validator.run(
-            reference_input,
-            dataset_organism=dataset_organism,
-        )
         if isinstance(reference_input, ReferenceBundle):
+            self._compatibility_validator.run_bundle_organism(
+                reference_organism=reference_input.organism,
+                dataset_organism=dataset_organism,
+            )
             self._validator.run(
                 organism=reference_input.organism,
                 kinase_substrate_map=reference_input.kinase_substrate_map,
                 site_sequences=reference_input.site_sequences,
-                dataset_organism=dataset_organism,
             )
             return reference_input
+        if not isinstance(reference_input, ReferencePreset):
+            raise ReferenceResolutionError(
+                "reference input must be a ReferencePreset or ReferenceBundle"
+            )
         organism = self._resolve_target_organism(
             preset=reference_input,
             dataset_organism=dataset_organism,
@@ -99,7 +103,6 @@ class ReferenceResolver:
             organism=bundle.organism,
             kinase_substrate_map=bundle.kinase_substrate_map,
             site_sequences=bundle.site_sequences,
-            dataset_organism=dataset_organism,
         )
         return bundle
 
@@ -120,4 +123,9 @@ class ReferenceResolver:
             ReferencePreset.MOUSE: Organism.MOUSE,
             ReferencePreset.RAT: Organism.RAT,
         }
-        return mapping[preset]
+        target_organism = mapping[preset]
+        if dataset_organism is not None and dataset_organism is not target_organism:
+            raise ReferenceCompatibilityError(
+                "dataset.organism and requested reference preset must match"
+            )
+        return target_organism

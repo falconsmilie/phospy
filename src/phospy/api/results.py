@@ -29,30 +29,6 @@ class KinaseWorkflowResult:
     prediction_result: KinasePredictionResult
     activity_result: KinaseActivityResult | None = None
 
-    def __post_init__(self) -> None:
-        if not isinstance(self.dataset, AnalysisReadyPhosphoDataset):
-            raise WorkflowValidationError(
-                "kinase workflow result dataset must be AnalysisReadyPhosphoDataset"
-            )
-        if not isinstance(self.references, ReferenceBundle):
-            raise WorkflowValidationError(
-                "kinase workflow result references must be ReferenceBundle"
-            )
-        if not isinstance(self.scoring_result, KinaseScoringResult):
-            raise WorkflowValidationError(
-                "kinase workflow result scoring_result must be KinaseScoringResult"
-            )
-        if not isinstance(self.prediction_result, KinasePredictionResult):
-            raise WorkflowValidationError(
-                "kinase workflow result prediction_result must be KinasePredictionResult"
-            )
-        if self.activity_result is not None and not isinstance(
-            self.activity_result, KinaseActivityResult
-        ):
-            raise WorkflowValidationError(
-                "kinase workflow result activity_result must be KinaseActivityResult or None"
-            )
-
 
 @dataclass(frozen=True, slots=True)
 class SignalomeWorkflowResult:
@@ -67,26 +43,6 @@ class SignalomeWorkflowResult:
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
-        if not isinstance(self.dataset, AnalysisReadyPhosphoDataset):
-            raise WorkflowValidationError(
-                "signalome workflow result dataset must be AnalysisReadyPhosphoDataset"
-            )
-        if not isinstance(self.kinase_result, KinaseWorkflowResult):
-            raise WorkflowValidationError(
-                "signalome workflow result kinase_result must be KinaseWorkflowResult"
-            )
-        if not isinstance(self.module_assignments, SignalomeAssignments):
-            raise WorkflowValidationError(
-                "signalome workflow result module_assignments must be SignalomeAssignments"
-            )
-        if not isinstance(self.signalome_modules, SignalomeModules):
-            raise WorkflowValidationError(
-                "signalome workflow result signalome_modules must be SignalomeModules"
-            )
-        if not isinstance(self.kinase_network, KinaseNetwork):
-            raise WorkflowValidationError(
-                "signalome workflow result kinase_network must be KinaseNetwork"
-            )
         expanded_signalome = own_optional_dataframe(
             self.expanded_signalome,
             field_name="signalome_result.expanded_signalome",

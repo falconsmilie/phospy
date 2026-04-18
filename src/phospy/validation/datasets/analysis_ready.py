@@ -6,7 +6,6 @@ import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
 from phospy.references.models import Organism
-from phospy.transformations.models import TransformationState
 from phospy.validation.common.dataframes import (
     require_canonical_site_index,
     require_columns,
@@ -21,21 +20,12 @@ from phospy.validation.common.missing_values import (
     MissingValuePolicy,
     require_missing_value_policy,
 )
-from phospy.validation.transformations.state import TransformationStateValidator
 
 
 class AnalysisReadyDatasetValidator:
     """Validate the public `AnalysisReadyPhosphoDataset` contract."""
 
     _REQUIRED_SITE_COLUMNS = ("gene_symbol", "site", "site_sequence")
-
-    def __init__(
-        self,
-        transformation_validator: TransformationStateValidator | None = None,
-    ) -> None:
-        self._transformation_validator = (
-            transformation_validator or TransformationStateValidator()
-        )
 
     def run(
         self,
@@ -45,7 +35,6 @@ class AnalysisReadyDatasetValidator:
         sample_metadata: pd.DataFrame | None,
         total: pd.DataFrame | None,
         organism: Organism | None,
-        transformation_state: TransformationState,
     ) -> None:
         phospho_frame = require_dataframe(
             phospho,
@@ -161,8 +150,3 @@ class AnalysisReadyDatasetValidator:
             raise DatasetValidationError(
                 "dataset.organism must be an Organism enum value or None"
             )
-
-        self._transformation_validator.run(
-            transformation_state=transformation_state,
-            has_total_matrix=total is not None,
-        )

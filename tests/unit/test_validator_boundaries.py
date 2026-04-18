@@ -15,6 +15,7 @@ from phospy.api.requests import (
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import KinaseWorkflowResult
+from phospy.datasets.builders.validator import DatasetBuildRequestValidator
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import (
     PhosPyInputError,
@@ -25,6 +26,7 @@ from phospy.errors import (
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.transformations.models import TransformationState
+from phospy.workflows.kinase.public import KinaseWorkflow
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
 
@@ -89,33 +91,35 @@ def _kinase_result() -> KinaseWorkflowResult:
     )
 
 
-def test_dataset_build_request_rejects_invalid_source_types_at_constructor_boundary() -> (
+def test_dataset_build_request_rejects_invalid_source_types_at_validator_boundary() -> (
     None
 ):
+    request = DatasetBuildRequest(
+        phospho=object(),
+        site_metadata=object(),
+    )
     with pytest.raises(
         UnsupportedInputFormatError,
         match="dataset build request phospho must be a pandas DataFrame or a file path",
     ):
-        DatasetBuildRequest(
-            phospho=object(),
-            site_metadata=object(),
-        )
+        DatasetBuildRequestValidator().run(request)
 
 
-def test_dataset_build_request_checks_organism_type_at_constructor_boundary() -> None:
+def test_dataset_build_request_checks_organism_type_at_validator_boundary() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        organism="rat",
+    )
     with pytest.raises(PhosPyInputError, match="organism must be an Organism"):
-        DatasetBuildRequest(
-            phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
-            site_metadata=pd.DataFrame(
-                {
-                    "gene_symbol": ["MAPK14"],
-                    "site": ["Y182"],
-                    "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-                },
-                index=["MAPK14;Y182;"],
-            ),
-            organism="rat",
-        )
+        DatasetBuildRequestValidator().run(request)
 
 
 def test_kinase_request_config_policy_fails_at_validator_boundary() -> None:
@@ -133,7 +137,7 @@ def test_kinase_request_config_policy_fails_at_validator_boundary() -> None:
         KinaseWorkflowValidator().run(request)
 
 
-def test_kinase_request_reference_compatibility_fails_in_validator() -> None:
+def test_kinase_request_reference_compatibility_is_enforced_in_resolver() -> None:
     request = KinaseWorkflowRequest(
         dataset=_dataset(),
         references=ReferencePreset.HUMAN,
@@ -141,8 +145,10 @@ def test_kinase_request_reference_compatibility_fails_in_validator() -> None:
         prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=5),
         activity_config=None,
     )
+    validated = KinaseWorkflowValidator().run(request)
+    assert validated is request
     with pytest.raises(ReferenceCompatibilityError):
-        KinaseWorkflowValidator().run(request)
+        KinaseWorkflow().run(request)
 
 
 def test_kinase_activity_config_policy_fails_at_validator_boundary() -> None:

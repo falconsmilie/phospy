@@ -23,6 +23,7 @@ from phospy import (
     UnsupportedInputFormatError,
     WorkflowValidationError,
 )
+from phospy.datasets.builders.validator import DatasetBuildRequestValidator
 from phospy.io.readers.tables import read_table
 from phospy.signalomes.models import (
     KinaseNetwork,
@@ -98,14 +99,15 @@ def test_top_level_exception_exports_match_error_taxonomy() -> None:
 
 
 def test_dataset_build_request_uses_phospy_exception_for_invalid_sources() -> None:
+    request = DatasetBuildRequest(
+        phospho=object(),
+        site_metadata=object(),
+    )
     with pytest.raises(
         UnsupportedInputFormatError,
         match="dataset build request phospho must be a pandas DataFrame or a file path",
     ):
-        DatasetBuildRequest(
-            phospho=object(),
-            site_metadata=object(),
-        )
+        DatasetBuildRequestValidator().run(request)
 
 
 def test_dataset_constructor_rejects_non_dataframe_with_dataset_validation_error() -> (
@@ -155,17 +157,21 @@ def test_result_containers_use_phospy_validation_errors_for_dataframe_fields() -
         KinaseScoringResult(profile_scores=object())
 
 
-def test_workflow_results_validate_nested_public_types() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match="kinase workflow result dataset must be AnalysisReadyPhosphoDataset",
-    ):
-        KinaseWorkflowResult(
-            dataset=object(),
-            references=_references(),
-            scoring_result=_scoring_result(),
-            prediction_result=_prediction_result(),
-        )
+def test_workflow_results_are_typed_containers_not_nested_type_validators() -> None:
+    dataset = object()
+    references = object()
+    scoring_result = object()
+    prediction_result = object()
+    result = KinaseWorkflowResult(
+        dataset=dataset,
+        references=references,
+        scoring_result=scoring_result,
+        prediction_result=prediction_result,
+    )
+    assert result.dataset is dataset
+    assert result.references is references
+    assert result.scoring_result is scoring_result
+    assert result.prediction_result is prediction_result
 
 
 def test_signalome_result_validates_expanded_signalome_field_type() -> None:

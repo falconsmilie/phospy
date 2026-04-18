@@ -15,21 +15,22 @@ For public types and signatures, see [`api.md`](api.md).
 
 ## Constructor Validation Policy
 
-Public request/result/data containers validate type contracts at construction time
-and raise PhosPy exception types (not raw built-in exceptions) for intended
-caller-facing validation failures.
+Validation ownership is split by boundary.
 
-- Request DTOs (`DatasetBuildRequest`, `KinaseWorkflowRequest`,
-  `SignalomeWorkflowRequest`) validate core type shape immediately.
-- Result/data containers validate nested public types and pandas container fields
-  at construction time.
+- Request DTOs are typed containers. Builder/workflow validators own request
+  validation.
+- Result DTOs are typed containers. Executor-owned construction guarantees nested
+  workflow result shape; result DTOs do not re-validate nested public types.
+- Dataset/reference domain models still enforce their own boundary invariants.
 - Deeper semantic policies (numeric ranges, overlap constraints, scientific floors)
-  still run in validator/interpreter boundaries and raise domain-specific PhosPy
+  run in validator/interpreter boundaries and raise domain-specific PhosPy
   exceptions.
 
 ## Dataset Builder Validation
 
-`DatasetBuildRequest` and `AnalysisReadyPhosphoDataset` enforce:
+Builder request validation is owned by `DatasetBuildRequestValidator`.
+
+`AnalysisReadyPhosphoDataset` enforces:
 
 - `phospho` and `site_metadata` must be pandas `DataFrame` values or file paths
 - `phospho` must be numeric, non-empty, with unique index and unique columns
@@ -45,6 +46,14 @@ caller-facing validation failures.
 - boundary site identifiers must already be canonical (non-empty stripped strings)
 - boundary constructors do not canonicalize or repair incoming tables
 - dataset builder collaborators are responsible for canonicalization and shaping
+
+Dataset validation composition:
+
+- `AnalysisReadyDatasetValidator` owns dataset-structure checks.
+- `TransformationStateValidator` owns transformation-state coherence checks.
+- `AnalysisReadyPhosphoDataset.__post_init__` composes both validators at the
+  boundary (higher-layer composition), so `validation.datasets` does not depend on
+  `validation.transformations`.
 
 ## Reference Validation
 
@@ -66,9 +75,16 @@ caller-facing validation failures.
 - boundary constructors do not trim/canonicalize/deduplicate reference inputs
 - bundled-reference provider/loading paths perform bundled-data shaping
 
+Reference compatibility ownership:
+
+- compatibility between dataset organism and requested references is enforced in
+  `ReferenceResolver` (single owner)
+- `KinaseWorkflowValidator` does not recheck reference compatibility
+- `ReferenceBundleValidator` validates bundle structure/content only
+
 ## Workflow Validation
 
-`KinaseWorkflowRequest` enforces:
+`KinaseWorkflowValidator` enforces:
 
 - `dataset` is `AnalysisReadyPhosphoDataset`
 - `references` is `ReferencePreset` or `ReferenceBundle`
@@ -105,7 +121,7 @@ Stage result access is nested and stable:
 - `result.activity_result.target_counts` (when enabled)
 - `result.activity_result.target_table` (when enabled)
 
-`SignalomeWorkflowRequest` enforces:
+`SignalomeWorkflowValidator` enforces:
 
 - `kinase_result` is `KinaseWorkflowResult`
 - `config` is `SignalomeConfig`
@@ -138,6 +154,22 @@ Signalome boundary error messages include:
 - active config values (`substrate_support_cutoff`,
   `network_correlation_threshold`)
 - a `next_action` hint for likely recovery
+
+## Validation Ownership
+
+| Invariant | Owner |
+| --- | --- |
+| Dataset build request input-source types | `DatasetBuildRequestValidator` |
+| Dataset build request organism type | `DatasetBuildRequestValidator` |
+| Kinase request config ranges and activity policy | `KinaseWorkflowValidator` + `WorkflowConfigValidator` |
+| Signalome request config ranges | `SignalomeWorkflowValidator` + `WorkflowConfigValidator` |
+| Reference preset/bundle compatibility with dataset organism | `ReferenceResolver` |
+| Reference bundle structural/content validity | `ReferenceBundleValidator` |
+| Analysis-ready dataset structural validity | `AnalysisReadyDatasetValidator` |
+| Transformation-state coherence with `total` presence | `TransformationStateValidator` (composed in dataset boundary) |
+| Kinase workflow result nested type shape | executor-owned construction (`KinaseWorkflowExecutor`) |
+| Signalome workflow result nested type shape | executor-owned construction (`SignalomeWorkflowExecutor`) |
+| `SignalomeWorkflowResult.expanded_signalome` dataframe ownership/type | `SignalomeWorkflowResult.__post_init__` (narrow local invariant) |
 
 ## Quick Troubleshooting
 
