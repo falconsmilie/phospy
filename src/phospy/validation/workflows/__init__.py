@@ -1,1 +1,1 @@
-"""Workflow-level validation package placeholder."""
+"""Workflow-level validation utilities."""

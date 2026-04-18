@@ -1,6 +1,6 @@
 # PhosPy
 
-PhosPy is in rewrite cutover mode. Public support is intentionally narrow.
+PhosPy currently exposes a focused rewrite public surface.
 
 ## Package Boundary
 
@@ -79,7 +79,7 @@ result = KinaseWorkflow().run(
 
 profile_scores = result.scoring_result.profile_scores
 pred_mat = result.prediction_result.pred_mat
-activity_scores = result.activity_result.activity_scores
+weighted_activity = result.activity_result.weighted_activity
 ```
 
 ## Current Limits
@@ -102,7 +102,7 @@ activity_scores = result.activity_result.activity_scores
 
 - [`examples/dataset_builder_demo.py`](examples/dataset_builder_demo.py)
 - [`examples/simple_workflow_demo.py`](examples/simple_workflow_demo.py)
-- [`examples/signalome_placeholder_demo.py`](examples/signalome_placeholder_demo.py)
+- [`examples/signalome_workflow_demo.py`](examples/signalome_workflow_demo.py)
 
 ## Docs
 

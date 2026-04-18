@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the signalome workflow over a real kinase result."""
+"""Run the supported signalome workflow route over a kinase workflow result."""
 
 from __future__ import annotations
 

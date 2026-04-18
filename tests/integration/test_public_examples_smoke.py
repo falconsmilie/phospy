@@ -16,7 +16,7 @@ pytestmark = pytest.mark.integration
     [
         "dataset_builder_demo.py",
         "simple_workflow_demo.py",
-        "signalome_placeholder_demo.py",
+        "signalome_workflow_demo.py",
     ],
 )
 def test_public_example_script_runs(script_name: str) -> None:

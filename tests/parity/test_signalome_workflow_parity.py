@@ -25,7 +25,8 @@ from tests.support.rewrite_fixture_data import (
 )
 
 # Fixture provenance:
-# - Input dataset fixture: tests_legacy/fixtures/r_reference_l6/l6_phospho_matrix.csv
+# - Input dataset fixture:
+#   tests/fixtures/rewrite_parity/r_reference_l6/l6_phospho_matrix.csv
 # - Expected signalome regression tables:
 #   tests/fixtures/public_workflow_reference/signalome_rewrite_l6_*.{csv,json}
 # These expectations are scoped to the supported rewrite lane only:

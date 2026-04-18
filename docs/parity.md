@@ -1,118 +1,52 @@
 # Parity to PhosR
 
-PhosPy is inspired by `PhosR`, but the parity claim is deliberately narrow.
+PhosPy parity is intentionally narrow and fixture-backed. The rewrite does not
+claim full package equivalence with PhosR.
 
-## What “parity” Means Here
+## What Parity Means Here
 
 Parity in this repository is:
 
-- fixture-backed
 - seam-level
 - selective
+- tied to committed fixtures
 
-Parity here does **not** mean:
+Parity here does not mean:
 
-- full package equivalence with `PhosR`
-- every `PhosR` feature is implemented
-- every native Python path should match `PhosR` numerically
+- every PhosR feature is implemented
+- every Python path must numerically match PhosR
 
-## Prediction Modes
+## Active Parity Coverage
 
-PhosPy exposes two public prediction presets:
+The parity suite currently protects three rewrite-era slices:
 
-- `svm_mode="default"`: the recommended stable native path
-- `svm_mode="r_parity"`: the supported parity-oriented preset for closer reference-style comparison
+- activity-stage outputs from fixed `predMat` + phospho inputs
+- selected kinase-scoring/prediction points on the supported L6 lane
+- selected signalome regression contracts on the supported L6 lane:
+  `module_assignments`, `signalome_modules`, `kinase_network.nodes`,
+  `kinase_network.edges`
 
-Using `svm_mode="r_parity"` does not make the full workflow equivalent to `PhosR`.
+## Fixture Locations
 
-The support decision is recorded in [ADR 0002](adr/0002-r-parity-public-preset.md).
+### Rewrite-owned parity inputs and expectations
 
-## What is Covered Today
+- `tests/fixtures/rewrite_parity/r_reference_l6/`
+- provenance and promotion history:
+  `tests/fixtures/rewrite_parity/r_reference_l6/PROVENANCE.md`
 
-The current parity layer covers selected seams, including:
+These files are the normal source for active parity tests in `tests/parity/`
+and helpers in `tests/support/rewrite_fixture_data.py`.
 
-- core preprocessing outputs
-- downstream kinase-analysis outputs
-- selected native workflow seams
-- selected prediction trace and replay checks
-- end-to-end benchmark fixtures for the documented `KinaseWorkflow` and `SignalomeWorkflow` demos
-- selected rewrite-era `SignalomeWorkflow` regression checks on the supported L6 lane (`module_assignments`, `signalome_modules`, `kinase_network.nodes`, `kinase_network.edges`)
+### Rewrite workflow regression expectations
 
-## Fixture Families at a Glance
+- `tests/fixtures/public_workflow_reference/signalome_rewrite_l6_*.csv`
+- `tests/fixtures/public_workflow_reference/signalome_rewrite_l6_contract.json`
 
-- `tests/fixtures/r_reference`: small R-generated fixtures for preprocessing, site-matrix construction, and downstream wrapper flow
-- `tests/fixtures/r_reference_l6`: main L6 reference set for downstream kinase-analysis outputs, native prediction seams, ranking agreement, and replay against committed R sampling traces
-- `tests/fixtures/fragile_support_reference`: curated support-screening fixtures for support and inclusion boundary conditions
-- `tests/fixtures/r_reference_l6_seam_stress`: smaller seam-stress fixtures for combined-score and replay boundaries
-- `tests/fixtures/synthetic_adaptive_sampling_edge`: synthetic fixtures for deterministic adaptive-sampling edge cases
-- `tests/fixtures/public_workflow_reference`: committed benchmark outputs for the public `KinaseWorkflow` and `SignalomeWorkflow` demos
+### Historical reference archive
 
-For rebuild commands, see [`fixtures.md`](fixtures.md).
-
-## Rewrite Signalome Regression Slice
-
-`tests/parity/test_signalome_workflow_parity.py` protects a narrow, explicit
-rewrite contract for the supported L6 lane:
-
-- input fixture: `tests_legacy/fixtures/r_reference_l6/l6_phospho_matrix.csv`
-- expected outputs: `tests/fixtures/public_workflow_reference/signalome_rewrite_l6_*.{csv,json}`
-
-Comparison policy in that suite is intentionally mixed by surface:
-
-- `module_assignments`: selected row checks + distribution/shape checks
-- `signalome_modules`: exact table equality
-- `kinase_network.nodes`: selected row checks + structural counts
-- `kinase_network.edges`: selected pair correlations + sign/count checks
-
-## Release Thresholds by Mode
-
-### `default`
-
-`default` is acceptable for release when all of the following still hold:
-
-- the public workflow benchmarks still match `tests/fixtures/public_workflow_reference`
-- the L6 ranking floor in `tests/test_parity-with_metrics.py` still holds:
-  - mean Spearman rank agreement `>= 0.96`
-  - mean top-20 overlap `>= 0.85`
-  - mean top-30 overlap `>= 0.88`
-  - kinases with top-10 overlap of at least 70%: `>= 20`
-- non-parity tests and parity tests both pass
-
-### `r_parity`
-
-`r_parity` is acceptable for release only when all of the following still hold:
-
-- the public workflow benchmarks still match `tests/fixtures/public_workflow_reference`
-- on the L6 ranking benchmark, it remains at least as strong as `default` for:
-  - mean Spearman rank agreement
-  - mean top-10 overlap
-  - mean top-20 overlap
-  - mean top-30 overlap
-- on the same ranking benchmark, mean top-10 overlap remains `>= 0.82`
-- on the replayed L6 sampling-trace benchmark, it continues to meet the protected replay floor:
-  - initial negative rows: exact match
-  - iteration sample rows: exact match
-  - iteration decision class-1 Pearson correlation `>= 0.999999`
-  - iteration decision mean absolute difference `<= 1e-12`
-  - iteration probability class-1 Pearson correlation `>= 0.998`
-  - iteration probability mean absolute difference `<= 0.015`
-  - final top-site matches: exact match
-
-## Release Review Checklist
-
-When a change touches prediction policy, sampling, scoring, fixture generation, or the public workflow examples, check:
-
-1. `pytest -m "not parity"`
-2. `pytest -m parity`
-3. `pytest tests/test_readme_smoke.py tests/test_end_to_end_parity.py`
-4. regenerate affected fixtures if the change is intentional and explain the contract change in the pull request
-5. regenerate and review the mode-comparison benchmark when prediction policy or sampling changes:
-
-   ```bash
-   python benchmarks/compare_prediction_modes.py --repeats 1
-   ```
-
-6. confirm the public docs still describe `default` as the recommended native mode and `r_parity` as the supported parity-oriented mode
+- `tests_legacy/fixtures/` is retained for provenance and archival material.
+- Active rewrite parity tests should not resolve fixtures from this path as their
+  normal source.
 
 ## Run the Parity Suite
 
@@ -125,43 +59,5 @@ Useful variants:
 ```bash
 pytest -m parity -rs
 pytest -m parity -vv
-pytest -m parity -k l6
+pytest tests/parity/test_signalome_workflow_parity.py -vv
 ```
-
-Make targets:
-
-```bash
-make test-parity
-make test-seams
-```
-
-## Benchmark the Public Prediction Modes
-
-Run the reproducible mode-comparison harness from the repository root:
-
-```bash
-python benchmarks/compare_prediction_modes.py
-```
-
-By default this writes two review artifacts under `benchmarks/reports/latest/`:
-
-- `compare_prediction_modes.json`
-- `compare_prediction_modes.md`
-
-Useful variants:
-
-```bash
-python benchmarks/compare_prediction_modes.py --repeats 1
-python benchmarks/compare_prediction_modes.py --stdout-only
-```
-
-## Optional Debug Output
-
-Some parity tests print extra summaries when environment flags are enabled.
-
-Available flags:
-
-- `PHOSPY_SHOW_PARITY`
-- `PHOSPY_SHOW_PROFILE_CONSTRUCTION`
-- `PHOSPY_SHOW_PREDICTION_MODE_COMPARISON`
-- `PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON`

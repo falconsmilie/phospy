@@ -11,7 +11,9 @@ from phospy.activities.scoring import compute_activity_from_inputs
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 
 ROOT = Path(__file__).resolve().parents[2]
-R_REFERENCE_L6 = ROOT / "tests_legacy" / "fixtures" / "r_reference_l6"
+# Fixture provenance is tracked in:
+# tests/fixtures/rewrite_parity/r_reference_l6/PROVENANCE.md
+R_REFERENCE_L6 = ROOT / "tests" / "fixtures" / "rewrite_parity" / "r_reference_l6"
 
 pytestmark = pytest.mark.parity
 

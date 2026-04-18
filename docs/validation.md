@@ -155,4 +155,4 @@ Runnable rewrite examples:
 
 - [`../examples/dataset_builder_demo.py`](../examples/dataset_builder_demo.py)
 - [`../examples/simple_workflow_demo.py`](../examples/simple_workflow_demo.py)
-- [`../examples/signalome_placeholder_demo.py`](../examples/signalome_placeholder_demo.py)
+- [`../examples/signalome_workflow_demo.py`](../examples/signalome_workflow_demo.py)

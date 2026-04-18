@@ -14,8 +14,9 @@ from tests.support.rewrite_fixture_data import (
     load_expected_profile_scores,
 )
 
-# Fixture provenance: PhosR-aligned reference exported in
-# tests_legacy/fixtures/r_reference_l6/native_profile_scores.csv.
+# Fixture provenance:
+# tests/fixtures/rewrite_parity/r_reference_l6/native_profile_scores.csv
+# (see PROVENANCE.md in the same directory).
 pytestmark = pytest.mark.parity
 
 

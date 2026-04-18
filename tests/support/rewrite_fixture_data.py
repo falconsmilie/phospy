@@ -14,15 +14,11 @@ from phospy import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-RAT_L6_PHOSPHO = (
-    ROOT / "tests_legacy" / "fixtures" / "r_reference_l6" / "l6_phospho_matrix.csv"
+REWRITE_PARITY_REFERENCE = (
+    ROOT / "tests" / "fixtures" / "rewrite_parity" / "r_reference_l6"
 )
-RAT_L6_EXPECTED_PROFILE = (
-    ROOT / "tests_legacy" / "fixtures" / "r_reference_l6" / "native_profile_scores.csv"
-)
-PUBLIC_WORKFLOW_REFERENCE = (
-    ROOT / "tests_legacy" / "fixtures" / "public_workflow_reference"
-)
+RAT_L6_PHOSPHO = REWRITE_PARITY_REFERENCE / "l6_phospho_matrix.csv"
+RAT_L6_EXPECTED_PROFILE = REWRITE_PARITY_REFERENCE / "native_profile_scores.csv"
 REWRITE_PUBLIC_WORKFLOW_REFERENCE = (
     ROOT / "tests" / "fixtures" / "public_workflow_reference"
 )
