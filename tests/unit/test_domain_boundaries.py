@@ -63,6 +63,53 @@ def test_dataset_requires_site_sequence_column() -> None:
         )
 
 
+def test_dataset_rejects_blank_gene_symbol_values() -> None:
+    bad_site_metadata = _site_metadata().copy(deep=True)
+    bad_site_metadata.loc[:, "gene_symbol"] = ["   "]
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.site_metadata.gene_symbol must contain non-empty string values",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=bad_site_metadata,
+            organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
+        )
+
+
+def test_dataset_rejects_blank_site_values() -> None:
+    bad_site_metadata = _site_metadata().copy(deep=True)
+    bad_site_metadata.loc[:, "site"] = [""]
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.site_metadata.site must contain non-empty string values",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=bad_site_metadata,
+            organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
+        )
+
+
+def test_dataset_rejects_blank_site_sequence_values() -> None:
+    bad_site_metadata = _site_metadata().copy(deep=True)
+    bad_site_metadata.loc[:, "site_sequence"] = [" \t "]
+    with pytest.raises(
+        DatasetValidationError,
+        match=(
+            "dataset.site_metadata.site_sequence must contain non-empty string values"
+        ),
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=bad_site_metadata,
+            organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
+        )
+
+
 def test_dataset_rejects_empty_phospho_matrix() -> None:
     with pytest.raises(DatasetValidationError):
         AnalysisReadyPhosphoDataset(
@@ -263,6 +310,83 @@ def test_builder_derives_site_sequence_for_supported_organism() -> None:
         )
     )
     assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"]
+
+
+def test_builder_derives_gene_symbol_and_site_from_supported_index_convention() -> None:
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=pd.DataFrame(
+                {"site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"]},
+                index=["MAPK14;Y182;"],
+            ),
+            organism=Organism.RAT,
+        )
+    )
+    assert built.site_metadata.loc["MAPK14;Y182;", "gene_symbol"] == "MAPK14"
+    assert built.site_metadata.loc["MAPK14;Y182;", "site"] == "Y182"
+
+
+def test_builder_rejects_ambiguous_sequence_column_without_explicit_convention() -> (
+    None
+):
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match="column 'sequence' is ambiguous and unsupported",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=pd.DataFrame(
+                    {
+                        "gene_symbol": ["MAPK14"],
+                        "site": ["Y182"],
+                        "sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                    },
+                    index=["MAPK14;Y182;"],
+                ),
+                organism=Organism.RAT,
+            )
+        )
+
+
+def test_builder_rejects_ambiguous_multi_alias_gene_symbol_mapping() -> None:
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match="has ambiguous columns for 'gene_symbol'",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=pd.DataFrame(
+                    {
+                        "gene_symbol": ["MAPK14"],
+                        "gene": ["MAPK14"],
+                        "site": ["Y182"],
+                        "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                    },
+                    index=["MAPK14;Y182;"],
+                ),
+                organism=Organism.RAT,
+            )
+        )
+
+
+def test_builder_fails_when_missing_gene_or_site_cannot_be_derived_from_index() -> None:
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match="site_metadata is missing required metadata columns",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=pd.DataFrame(
+                    {"site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"]},
+                    index=["MAPK14"],
+                ),
+                organism=Organism.RAT,
+            )
+        )
 
 
 def test_builder_fails_fast_when_site_sequence_derivation_is_unsupported() -> None:

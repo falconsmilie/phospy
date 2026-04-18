@@ -96,6 +96,18 @@ class AnalysisReadyDatasetValidator:
         require_non_empty_string_column(
             site_metadata_frame,
             field_name="dataset.site_metadata",
+            column_name="gene_symbol",
+            error_type=DatasetValidationError,
+        )
+        require_non_empty_string_column(
+            site_metadata_frame,
+            field_name="dataset.site_metadata",
+            column_name="site",
+            error_type=DatasetValidationError,
+        )
+        require_non_empty_string_column(
+            site_metadata_frame,
+            field_name="dataset.site_metadata",
             column_name="site_sequence",
             error_type=DatasetValidationError,
         )

@@ -165,7 +165,10 @@ def test_boundary_error_reports_no_overlapping_kinase_set_counts() -> None:
 
 
 def test_boundary_error_reports_unusable_protein_mapping_counts() -> None:
-    dataset = _dataset(site_ids=[";S1;", ";S2;"], gene_symbols=["", " "])
+    dataset = _dataset(
+        site_ids=[";S1;", ";S2;"],
+        gene_symbols=["MAPK14", "GSK3B"],
+    )
     prediction_matrix = _matrix(
         values=[[0.9], [0.8]],
         site_ids=[";S1;", ";S2;"],

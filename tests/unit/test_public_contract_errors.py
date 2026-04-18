@@ -132,6 +132,66 @@ def test_dataset_constructor_rejects_non_dataframe_with_dataset_validation_error
         )
 
 
+def test_dataset_constructor_rejects_blank_gene_symbol_values() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.site_metadata.gene_symbol must contain non-empty string values",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["  "],
+                    "site": ["Y182"],
+                    "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                },
+                index=["MAPK14;Y182;"],
+            ),
+            organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
+        )
+
+
+def test_dataset_constructor_rejects_blank_site_values() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.site_metadata.site must contain non-empty string values",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14"],
+                    "site": ["\t"],
+                    "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                },
+                index=["MAPK14;Y182;"],
+            ),
+            organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
+        )
+
+
+def test_dataset_constructor_rejects_blank_site_sequence_values() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.site_metadata.site_sequence must contain non-empty string values",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14"],
+                    "site": ["Y182"],
+                    "site_sequence": [""],
+                },
+                index=["MAPK14;Y182;"],
+            ),
+            organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
+        )
+
+
 def test_reference_bundle_constructor_rejects_non_dataframe_with_reference_validation_error() -> (
     None
 ):

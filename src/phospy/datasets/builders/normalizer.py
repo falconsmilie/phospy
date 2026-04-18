@@ -10,9 +10,9 @@ from phospy.errors.input import UnsupportedInputFormatError
 from phospy.site_ids import canonicalize_site_index
 
 _GENE_SYMBOL_ALIASES = ("gene_symbol", "gene", "gene_name")
-_PROTEIN_ID_ALIASES = ("protein_id", "protein")
+_PROTEIN_ID_ALIASES = ("protein_id",)
 _SITE_ALIASES = ("site", "residue", "phosphosite", "site_position")
-_SITE_SEQUENCE_ALIASES = ("site_sequence", "sequence", "centralized_sequence")
+_SITE_SEQUENCE_ALIASES = ("site_sequence", "centralized_sequence")
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,19 +103,33 @@ class DatasetConventionNormalizer:
 
     @staticmethod
     def _normalize_site_metadata_columns(site_metadata: pd.DataFrame) -> pd.DataFrame:
+        _reject_unsupported_legacy_aliases(site_metadata.columns)
         rename_map: dict[str, str] = {}
-        gene_column = _resolve_alias(site_metadata.columns, _GENE_SYMBOL_ALIASES)
+        gene_column = _resolve_alias(
+            site_metadata.columns,
+            target_column="gene_symbol",
+            aliases=_GENE_SYMBOL_ALIASES,
+        )
         if gene_column is not None and gene_column != "gene_symbol":
             rename_map[gene_column] = "gene_symbol"
-        protein_column = _resolve_alias(site_metadata.columns, _PROTEIN_ID_ALIASES)
+        protein_column = _resolve_alias(
+            site_metadata.columns,
+            target_column="protein_id",
+            aliases=_PROTEIN_ID_ALIASES,
+        )
         if protein_column is not None and protein_column != "protein_id":
             rename_map[protein_column] = "protein_id"
-        site_column = _resolve_alias(site_metadata.columns, _SITE_ALIASES)
+        site_column = _resolve_alias(
+            site_metadata.columns,
+            target_column="site",
+            aliases=_SITE_ALIASES,
+        )
         if site_column is not None and site_column != "site":
             rename_map[site_column] = "site"
         site_sequence_column = _resolve_alias(
             site_metadata.columns,
-            _SITE_SEQUENCE_ALIASES,
+            target_column="site_sequence",
+            aliases=_SITE_SEQUENCE_ALIASES,
         )
         if site_sequence_column is not None and site_sequence_column != "site_sequence":
             rename_map[site_sequence_column] = "site_sequence"
@@ -126,22 +140,31 @@ class DatasetConventionNormalizer:
     @staticmethod
     def _derive_site_fields_from_index(site_metadata: pd.DataFrame) -> pd.DataFrame:
         normalized = site_metadata
-        split = (
-            normalized.index.to_series()
-            .astype(str)
-            .str.strip()
-            .str.split(";", expand=True)
-        )
-        if "gene_symbol" not in normalized.columns and split.shape[1] >= 1:
-            genes = split.loc[:, 0].astype(str).str.strip()
-            if (genes != "").all():
-                normalized.loc[:, "gene_symbol"] = genes.to_numpy(
-                    dtype=object, copy=False
-                )
-        if "site" not in normalized.columns and split.shape[1] >= 2:
-            sites = split.loc[:, 1].astype(str).str.strip()
-            if (sites != "").all():
-                normalized.loc[:, "site"] = sites.to_numpy(dtype=object, copy=False)
+        needs_gene_symbol = "gene_symbol" not in normalized.columns
+        needs_site = "site" not in normalized.columns
+        if not needs_gene_symbol and not needs_site:
+            return normalized
+
+        parsed = _parse_site_metadata_index_convention(normalized.index)
+        if parsed is None:
+            missing = []
+            if needs_gene_symbol:
+                missing.append("gene_symbol")
+            if needs_site:
+                missing.append("site")
+            missing_columns = ", ".join(missing)
+            raise UnsupportedInputFormatError(
+                "dataset build request site_metadata is missing required metadata "
+                f"columns ({missing_columns}). Supported conventions: provide "
+                "explicit columns, or use site_metadata.index values formatted as "
+                "'<gene_symbol>;<site>;' (example: 'MAPK14;Y182;')."
+            )
+
+        genes, sites = parsed
+        if needs_gene_symbol:
+            normalized.loc[:, "gene_symbol"] = genes.to_numpy(dtype=object, copy=False)
+        if needs_site:
+            normalized.loc[:, "site"] = sites.to_numpy(dtype=object, copy=False)
         return normalized
 
     @staticmethod
@@ -186,10 +209,60 @@ def _normalized_string_index(index: pd.Index) -> pd.Index:
     return pd.Index(index.astype(str).str.strip(), name=index.name)
 
 
-def _resolve_alias(columns: pd.Index, aliases: tuple[str, ...]) -> str | None:
-    present = {str(column).strip().lower(): str(column) for column in columns}
+def _resolve_alias(
+    columns: pd.Index,
+    target_column: str,
+    aliases: tuple[str, ...],
+) -> str | None:
+    present = _normalized_column_lookup(columns)
+    matches: list[str] = []
     for candidate in aliases:
-        match = present.get(candidate.lower())
-        if match is not None:
-            return match
+        matches.extend(present.get(candidate.lower(), ()))
+    unique_matches = list(dict.fromkeys(matches))
+    if len(unique_matches) > 1:
+        present_preview = ", ".join(unique_matches)
+        accepted = ", ".join(f"'{alias}'" for alias in aliases)
+        raise UnsupportedInputFormatError(
+            "dataset build request site_metadata has ambiguous columns for "
+            f"'{target_column}': {present_preview}. Use exactly one supported "
+            f"column name: {accepted}."
+        )
+    if unique_matches:
+        return unique_matches[0]
     return None
+
+
+def _reject_unsupported_legacy_aliases(columns: pd.Index) -> None:
+    present = _normalized_column_lookup(columns)
+    if "sequence" in present and "site_sequence" not in present:
+        raise UnsupportedInputFormatError(
+            "dataset build request site_metadata column 'sequence' is ambiguous and "
+            "unsupported. Use 'site_sequence' or supported alias "
+            "'centralized_sequence' for site-centered sequence values."
+        )
+    if "protein" in present and "protein_id" not in present:
+        raise UnsupportedInputFormatError(
+            "dataset build request site_metadata column 'protein' is ambiguous and "
+            "unsupported. Rename it to 'protein_id' to preserve protein identity."
+        )
+
+
+def _normalized_column_lookup(columns: pd.Index) -> dict[str, list[str]]:
+    present: dict[str, list[str]] = {}
+    for column in columns:
+        key = str(column).strip().lower()
+        present.setdefault(key, []).append(str(column))
+    return present
+
+
+def _parse_site_metadata_index_convention(
+    index: pd.Index,
+) -> tuple[pd.Series, pd.Series] | None:
+    split = index.to_series().astype(str).str.strip().str.split(";", expand=True)
+    if split.shape[1] < 2:
+        return None
+    genes = split.loc[:, 0].astype(str).str.strip()
+    sites = split.loc[:, 1].astype(str).str.strip()
+    if (genes == "").any() or (sites == "").any():
+        return None
+    return genes, sites

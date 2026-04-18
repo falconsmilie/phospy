@@ -38,7 +38,9 @@ Builder request validation is owned by `DatasetBuildRequestValidator`.
 - `site_metadata` must include:
   `gene_symbol`, `site`, `site_sequence`
 - `site_metadata.protein_id` is optional but preserved when supplied
-- `site_sequence` values must be non-empty strings
+- `site_metadata.gene_symbol`, `site_metadata.site`, and
+  `site_metadata.site_sequence` must be non-empty strings
+- whitespace-only metadata values are treated as blank and rejected
 - `sample_metadata` (if present) must be index-aligned to `phospho.columns`
 - `total` (if present) must be numeric and share columns with `phospho`
 - `organism` (if present) must be an `Organism` enum
@@ -47,6 +49,23 @@ Builder request validation is owned by `DatasetBuildRequestValidator`.
 - boundary site identifiers that collide when stripped are rejected
 - boundary constructors do not canonicalize or repair incoming tables
 - dataset builder collaborators are responsible for canonicalization and shaping
+
+Builder convention handling is intentionally explicit and narrow:
+
+- Supported site-metadata aliases:
+  - `gene_symbol`: `gene_symbol`, `gene`, `gene_name`
+  - `site`: `site`, `residue`, `phosphosite`, `site_position`
+  - `site_sequence`: `site_sequence`, `centralized_sequence`
+  - `protein_id`: `protein_id`
+- Unsupported ambiguous legacy names (`sequence`, `protein`) must be renamed to
+  explicit supported columns (for example `site_sequence`, `protein_id`) or are
+  rejected
+- If `gene_symbol` and/or `site` are missing, the only supported derivation
+  convention is `site_metadata.index` values formatted as
+  `"<gene_symbol>;<site>;"` (for example `MAPK14;Y182;`)
+- If multiple aliases for the same target field are present, or derivation cannot
+  be established from the supported index convention, the builder fails with an
+  actionable `UnsupportedInputFormatError` instead of guessing
 
 Dataset validation composition:
 

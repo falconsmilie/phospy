@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 from phospy import (
@@ -42,6 +43,34 @@ def test_dataset_builder_establishes_transformation_state_via_supported_path() -
     assert (
         built.transformation_state.phospho.established_by
         == "phospy.transformations.transformers.identity"
+    )
+
+
+def test_dataset_builder_supports_documented_alias_and_index_derivation_conventions() -> (
+    None
+):
+    phospho = load_rat_l6_phospho().head(8).copy(deep=True)
+    canonical_site_metadata = site_metadata_for(phospho)
+    site_metadata = pd.DataFrame(
+        {
+            "centralized_sequence": canonical_site_metadata.loc[
+                :, "site_sequence"
+            ].tolist(),
+        },
+        index=phospho.index.copy(),
+    )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+    assert list(built.phospho.index) == list(phospho.index)
+    assert list(built.site_metadata.columns) == ["site_sequence", "gene_symbol", "site"]
+    assert (
+        built.site_metadata.loc[:, "site_sequence"].tolist()
+        == canonical_site_metadata.loc[:, "site_sequence"].tolist()
     )
 
 

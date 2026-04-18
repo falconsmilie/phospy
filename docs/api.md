@@ -61,8 +61,23 @@ top-level `phospy` and include:
 
 - Required: `phospho`, `site_metadata`
 - Optional: `sample_metadata`, `total`, `organism`
+- Final `AnalysisReadyPhosphoDataset.site_metadata` always requires
+  `gene_symbol`, `site`, `site_sequence` with non-blank string values
+  (whitespace-only values are rejected)
 - `site_metadata.protein_id` is an optional identity column and is preserved when
   provided (it is not treated as `gene_symbol`)
+- Supported site-metadata column conventions in the builder:
+  - `gene_symbol`: `gene_symbol`, `gene`, `gene_name`
+  - `site`: `site`, `residue`, `phosphosite`, `site_position`
+  - `site_sequence`: `site_sequence`, `centralized_sequence`
+  - `protein_id`: `protein_id`
+- Unsupported ambiguous legacy names (`sequence`, `protein`) are rejected with
+  actionable errors unless renamed to supported explicit columns
+- When `gene_symbol` and/or `site` are missing, the builder supports one explicit
+  derivation convention from `site_metadata.index` values formatted as
+  `"<gene_symbol>;<site>;"` (for example `MAPK14;Y182;`)
+- If alias resolution or derivation is ambiguous/unsupported, the builder fails
+  fast instead of guessing
 - Transformation state is established inside PhosPy through the supported
   transformer path at builder execution time.
 - If callers construct `AnalysisReadyPhosphoDataset` directly (instead of using

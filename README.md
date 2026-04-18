@@ -93,6 +93,11 @@ if result.activity_result is not None:
 ## Current Limits
 
 - `DatasetBuildRequest` accepts pandas `DataFrame` inputs or supported table file paths.
+- Builder convention handling is explicit: supported site-metadata aliases are
+  `gene`/`gene_name` -> `gene_symbol`, `residue`/`phosphosite`/`site_position` -> `site`,
+  and `centralized_sequence` -> `site_sequence`.
+- Ambiguous legacy names like `sequence` and `protein` are not auto-guessed; rename
+  them to explicit supported fields (`site_sequence`, `protein_id`) for reliable ingestion.
 - `ReferencePreset.AUTO` requires `dataset.organism`.
 - Bundled references are currently available only for the rat lane.
 - `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain valid enum values, but
