@@ -37,6 +37,21 @@ Everything above applies to `src/phospy/` only.
 - Expand bundled references beyond rat only after provenance and validation are in place
 - Improve workflow diagnostics and error-action guidance
 
+## Science Gap Audit Follow-ons (P1)
+
+- Audit reference: [Legacy Science Gap Audit](architecture/legacy_science_gap_audit.md)
+- `SCI-GAP-01`: profile missing-value strategy lane (`median_skipna` optional; default unchanged)
+- `SCI-GAP-02`: motif scoring stage for rewrite kinase workflow
+- `SCI-GAP-03`: profile+motif weighted combination stage and outputs
+- `SCI-GAP-04`: candidate selection (`top`, threshold, inclusion) before prediction
+- `SCI-GAP-05`: adaptive sampling ensemble prediction lane
+- `SCI-GAP-06`: signalome clustering and module-count selection diagnostics
+- `SCI-GAP-07`: deterministic tie metadata parity hardening for assignments
+- `SCI-GAP-08`: weighted-top assignment policy and fractional module shares
+- `SCI-GAP-09`: signalome network policy expansion (`positive_only` and `absolute_threshold`)
+- `SCI-GAP-10`: `expanded_signalome` population in rewrite result model
+- `SCI-GAP-11`: activity/KSEA parity fixture lock while prediction lane evolves
+
 ## Not a Near-term Goal
 
 - Broad parity claims across all legacy lanes
