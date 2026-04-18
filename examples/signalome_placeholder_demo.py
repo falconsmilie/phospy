@@ -18,6 +18,7 @@ from phospy import (
     SimpleKinaseWorkflowRequest,
     SimpleKinaseWorkflowResult,
 )
+from phospy.transformations.models import TransformationState
 
 
 def _build_kinase_result() -> SimpleKinaseWorkflowResult:
@@ -45,6 +46,7 @@ def _build_kinase_result() -> SimpleKinaseWorkflowResult:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
         )
     )
     return KinaseWorkflow().run(

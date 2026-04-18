@@ -6,9 +6,14 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from phospy.errors.transformations import (
+    PhosPyTransformationError,
+    TransformationStateEstablishmentError,
+    TransformerExecutionError,
+)
 from phospy.transformations.contracts import Transformer
 from phospy.transformations.models import TransformationState
-from phospy.transformations.transformers.identity import IdentityTransformer
+from phospy.validation.transformations.state import TransformationStateValidator
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,10 +26,16 @@ class ResolvedTransformation:
 
 
 class DatasetTransformationResolver:
-    """Resolve transformation state for a dataset build request."""
+    """Resolve transformation state for a dataset build request.
+
+    Supported establishment paths:
+    1. Explicit `DatasetBuildRequest.transformation_state`.
+    2. A configured transformer that establishes state from matrices.
+    """
 
     def __init__(self, *, transformer: Transformer | None = None) -> None:
-        self._transformer = transformer or IdentityTransformer()
+        self._transformer = transformer
+        self._state_validator = TransformationStateValidator()
 
     def run(
         self,
@@ -34,14 +45,69 @@ class DatasetTransformationResolver:
         transformation_state: TransformationState | None,
     ) -> ResolvedTransformation:
         if transformation_state is not None:
+            self._validate_state(
+                transformation_state,
+                has_total_matrix=total is not None,
+                source="explicit DatasetBuildRequest.transformation_state",
+            )
             return ResolvedTransformation(
                 phospho=phospho,
                 total=total,
                 transformation_state=transformation_state,
             )
-        transformed = self._transformer.run(phospho=phospho, total=total)
+
+        if self._transformer is None:
+            raise TransformationStateEstablishmentError(
+                "unable to establish transformation state with confidence: "
+                "no explicit transformation_state was provided and no supported "
+                "transformation establisher is configured. "
+                "Provide DatasetBuildRequest(transformation_state=...) or configure "
+                "AnalysisReadyDatasetBuilder(executor=DatasetBuildExecutor("
+                "transformer=...))."
+            )
+
+        try:
+            transformed = self._transformer.run(phospho=phospho, total=total)
+        except PhosPyTransformationError:
+            raise
+        except Exception as exc:
+            raise TransformerExecutionError(
+                "configured transformer failed while establishing transformation "
+                "state from dataset matrices"
+            ) from exc
+
+        if (total is None) is not (transformed.total is None):
+            raise TransformationStateEstablishmentError(
+                "configured transformer changed total-matrix presence while "
+                "establishing transformation state; this is unsupported. "
+                "Provide an explicit TransformationState or use a transformer that "
+                "preserves phospho/total matrix presence."
+            )
+
+        self._validate_state(
+            transformed.state,
+            has_total_matrix=transformed.total is not None,
+            source="configured transformer",
+        )
         return ResolvedTransformation(
             phospho=transformed.phospho,
             total=transformed.total,
             transformation_state=transformed.state,
         )
+
+    def _validate_state(
+        self,
+        state: TransformationState,
+        *,
+        has_total_matrix: bool,
+        source: str,
+    ) -> None:
+        try:
+            self._state_validator.run(
+                transformation_state=state,
+                has_total_matrix=has_total_matrix,
+            )
+        except Exception as exc:
+            raise TransformationStateEstablishmentError(
+                f"{source} produced an invalid transformation state: {exc}"
+            ) from exc

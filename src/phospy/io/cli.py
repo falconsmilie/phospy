@@ -30,6 +30,7 @@ from phospy.io.publishing import (
     publish_signalome_workflow,
     publish_simple_kinase_workflow,
 )
+from phospy.transformations.models import MatrixTransformationState, TransformationState
 
 CLI_EXIT_SUCCESS = 0
 CLI_EXIT_INTERNAL_ERROR = 1
@@ -136,6 +137,15 @@ def _add_dataset_input_arguments(parser: argparse.ArgumentParser) -> None:
         choices=["human", "mouse", "rat"],
         help="Optional dataset organism.",
     )
+    parser.add_argument(
+        "--transformation-state",
+        default=None,
+        choices=["linear", "log2"],
+        help=(
+            "Explicit transformation state for quantitative inputs. "
+            "Required unless state is established by a supported transformer."
+        ),
+    )
 
 
 def _add_output_arguments(parser: argparse.ArgumentParser) -> None:
@@ -230,6 +240,46 @@ def _dataset_build_request_from_args(args: argparse.Namespace) -> DatasetBuildRe
         sample_metadata=args.sample_metadata,
         total=args.total,
         organism=organism_from_value(args.organism),
+        transformation_state=_transformation_state_from_value(
+            args.transformation_state,
+            has_total_matrix=args.total is not None,
+        ),
+    )
+
+
+def _transformation_state_from_value(
+    value: str | None,
+    *,
+    has_total_matrix: bool,
+) -> TransformationState | None:
+    if value is None:
+        return None
+
+    phospho_state: MatrixTransformationState
+    total_state: MatrixTransformationState | None
+    if value == "linear":
+        phospho_state = MatrixTransformationState.linear(
+            established_by="phospy.io.cli.user_declared"
+        )
+        total_state = (
+            MatrixTransformationState.linear(
+                established_by="phospy.io.cli.user_declared"
+            )
+            if has_total_matrix
+            else None
+        )
+    else:
+        phospho_state = MatrixTransformationState.log2(
+            established_by="phospy.io.cli.user_declared"
+        )
+        total_state = (
+            MatrixTransformationState.log2(established_by="phospy.io.cli.user_declared")
+            if has_total_matrix
+            else None
+        )
+    return TransformationState(
+        phospho=phospho_state,
+        total=total_state,
     )
 
 

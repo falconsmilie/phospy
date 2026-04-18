@@ -6,6 +6,7 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     Organism,
+    PhosPyTransformationError,
     ReferencePreset,
 )
 from phospy.references.resolution import ReferenceResolver
@@ -22,11 +23,26 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
             phospho=phospho,
             site_metadata=site_metadata_for(phospho),
             organism=Organism.RAT,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
         )
     )
     assert list(built.phospho.index) == list(phospho.index)
     assert list(built.site_metadata.columns) == ["gene_symbol", "site", "site_sequence"]
     assert built.transformation_state == TransformationState.raw(has_total_matrix=False)
+
+
+def test_dataset_builder_fails_when_transformation_state_cannot_be_established() -> (
+    None
+):
+    phospho = load_rat_l6_phospho().head(8).copy(deep=True)
+    with pytest.raises(PhosPyTransformationError, match="unable to establish"):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata_for(phospho),
+                organism=Organism.RAT,
+            )
+        )
 
 
 def test_reference_bundle_rat_tables_are_structurally_coherent() -> None:

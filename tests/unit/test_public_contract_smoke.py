@@ -21,6 +21,7 @@ from phospy import (
     SignalomeWorkflowRequest,
     SimpleKinaseWorkflowRequest,
 )
+from phospy.transformations.models import TransformationState
 
 EXPECTED_PUBLIC_EXPORTS = {
     "AnalysisReadyDatasetBuilder",
@@ -115,6 +116,7 @@ def test_builder_and_workflows_expose_run_and_execute_shells() -> None:
             phospho=dataset.phospho,
             site_metadata=dataset.site_metadata,
             organism=dataset.organism,
+            transformation_state=TransformationState.raw(has_total_matrix=False),
         )
     )
     assert isinstance(built, AnalysisReadyPhosphoDataset)

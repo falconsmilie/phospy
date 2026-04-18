@@ -12,6 +12,7 @@ from phospy.errors.references import (
 from phospy.errors.transformations import (
     InvalidTransformationStateError,
     PhosPyTransformationError,
+    TransformationStateEstablishmentError,
     TransformerExecutionError,
 )
 from phospy.errors.validation import (
@@ -41,6 +42,7 @@ __all__ = [
     "ReferenceCompatibilityError",
     "ReferenceResolutionError",
     "ReferenceValidationError",
+    "TransformationStateEstablishmentError",
     "TransformationValidationError",
     "TransformerExecutionError",
     "UnsupportedInputFormatError",

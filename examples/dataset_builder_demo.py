@@ -11,6 +11,7 @@ from phospy import (
     DatasetBuildRequest,
     Organism,
 )
+from phospy.transformations.models import TransformationState
 
 
 def run_demo() -> AnalysisReadyPhosphoDataset:
@@ -36,6 +37,7 @@ def run_demo() -> AnalysisReadyPhosphoDataset:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
+        transformation_state=TransformationState.raw(has_total_matrix=False),
     )
     return AnalysisReadyDatasetBuilder().run(request)
 

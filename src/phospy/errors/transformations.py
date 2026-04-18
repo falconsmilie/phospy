@@ -13,3 +13,7 @@ class InvalidTransformationStateError(PhosPyTransformationError):
 
 class TransformerExecutionError(PhosPyTransformationError):
     """A transformer failed while establishing transformation state."""
+
+
+class TransformationStateEstablishmentError(PhosPyTransformationError):
+    """Transformation state could not be established with supported evidence."""
