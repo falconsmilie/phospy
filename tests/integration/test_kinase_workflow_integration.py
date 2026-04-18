@@ -7,18 +7,18 @@ from phospy import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
     ReferencePreset,
-    SimpleKinaseWorkflowRequest,
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
 pytestmark = pytest.mark.integration
 
 
-def test_simple_kinase_workflow_runs_dataset_to_kinase_path() -> None:
+def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
     dataset = build_rat_l6_dataset(n_sites=260)
     result = KinaseWorkflow().run(
-        SimpleKinaseWorkflowRequest(
+        KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=1),
@@ -44,10 +44,10 @@ def test_simple_kinase_workflow_runs_dataset_to_kinase_path() -> None:
     assert not hasattr(result, "substrate_list")
 
 
-def test_simple_kinase_workflow_activity_stage_is_optional() -> None:
+def test_kinase_workflow_activity_stage_is_optional() -> None:
     dataset = build_rat_l6_dataset(n_sites=180)
     result = KinaseWorkflow().run(
-        SimpleKinaseWorkflowRequest(
+        KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=1),

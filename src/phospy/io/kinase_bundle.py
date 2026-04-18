@@ -1,4 +1,4 @@
-"""External output-bundle services for simple kinase workflow results."""
+"""External output-bundle services for kinase workflow results."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from phospy.api.configs import (
     KinasePredictionConfig,
     KinaseScoringConfig,
 )
-from phospy.api.results import SimpleKinaseWorkflowResult
+from phospy.api.results import KinaseWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
 from phospy.io.tables import read_table, table_suffix_for_format, write_table
@@ -27,18 +27,18 @@ from phospy.transformations.models import (
 )
 
 if TYPE_CHECKING:
-    from phospy.api.requests import SimpleKinaseWorkflowRequest
+    from phospy.api.requests import KinaseWorkflowRequest
 
-SIMPLE_KINASE_BUNDLE_MANIFEST_VERSION = 1
+KINASE_BUNDLE_MANIFEST_VERSION = 1
 
-_SIMPLE_KINASE_BUNDLE_KIND = "simple_kinase_workflow_result"
+_KINASE_BUNDLE_KIND = "kinase_workflow_result"
 _MANIFEST_FILENAME = "manifest.json"
 _CONFIG_SNAPSHOT_RELATIVE_PATH = "config/snapshot.json"
 
 
 @dataclass(frozen=True, slots=True)
-class SimpleKinaseWorkflowConfigSnapshot:
-    """Serializable snapshot of the simple kinase workflow configuration."""
+class KinaseWorkflowConfigSnapshot:
+    """Serializable snapshot of the kinase workflow configuration."""
 
     scoring_config: KinaseScoringConfig
     prediction_config: KinasePredictionConfig
@@ -46,14 +46,14 @@ class SimpleKinaseWorkflowConfigSnapshot:
 
     @classmethod
     def from_request(
-        cls, request: SimpleKinaseWorkflowRequest
-    ) -> SimpleKinaseWorkflowConfigSnapshot:
+        cls, request: KinaseWorkflowRequest
+    ) -> KinaseWorkflowConfigSnapshot:
         """Create a config snapshot from a workflow request."""
 
-        from phospy.api.requests import SimpleKinaseWorkflowRequest
+        from phospy.api.requests import KinaseWorkflowRequest
 
-        if not isinstance(request, SimpleKinaseWorkflowRequest):
-            raise TypeError("request must be a SimpleKinaseWorkflowRequest")
+        if not isinstance(request, KinaseWorkflowRequest):
+            raise TypeError("request must be a KinaseWorkflowRequest")
         return cls(
             scoring_config=request.scoring_config,
             prediction_config=request.prediction_config,
@@ -85,7 +85,7 @@ class SimpleKinaseWorkflowConfigSnapshot:
     @classmethod
     def from_payload(
         cls, payload: Mapping[str, object]
-    ) -> SimpleKinaseWorkflowConfigSnapshot:
+    ) -> KinaseWorkflowConfigSnapshot:
         """Create a config snapshot from a decoded JSON payload."""
 
         scope = "config snapshot"
@@ -137,22 +137,22 @@ class SimpleKinaseWorkflowConfigSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
-class LoadedSimpleKinaseWorkflowBundle:
-    """Loaded simple kinase output bundle contents."""
+class LoadedKinaseWorkflowBundle:
+    """Loaded kinase output bundle contents."""
 
-    result: SimpleKinaseWorkflowResult
-    config_snapshot: SimpleKinaseWorkflowConfigSnapshot
+    result: KinaseWorkflowResult
+    config_snapshot: KinaseWorkflowConfigSnapshot
     manifest_version: int
 
 
-def save_simple_kinase_workflow_bundle(
-    result: SimpleKinaseWorkflowResult,
+def save_kinase_workflow_bundle(
+    result: KinaseWorkflowResult,
     output_root: Path,
     *,
-    config_snapshot: SimpleKinaseWorkflowConfigSnapshot,
+    config_snapshot: KinaseWorkflowConfigSnapshot,
     output_format: str = "csv",
 ) -> dict[str, Path]:
-    """Write a reproducible simple kinase output bundle and return written paths."""
+    """Write a reproducible kinase output bundle and return written paths."""
 
     bundle_root = Path(output_root)
     suffix = table_suffix_for_format(output_format)
@@ -274,8 +274,8 @@ def save_simple_kinase_workflow_bundle(
     written["config_snapshot"] = config_path
 
     manifest = {
-        "bundle_type": _SIMPLE_KINASE_BUNDLE_KIND,
-        "manifest_version": SIMPLE_KINASE_BUNDLE_MANIFEST_VERSION,
+        "bundle_type": _KINASE_BUNDLE_KIND,
+        "manifest_version": KINASE_BUNDLE_MANIFEST_VERSION,
         "table_format": normalized_format,
         "dataset": {
             "metadata": {
@@ -316,10 +316,10 @@ def save_simple_kinase_workflow_bundle(
     return written
 
 
-def load_simple_kinase_workflow_bundle(
+def load_kinase_workflow_bundle(
     bundle_root: Path,
-) -> LoadedSimpleKinaseWorkflowBundle:
-    """Load a simple kinase output bundle from disk."""
+) -> LoadedKinaseWorkflowBundle:
+    """Load a kinase output bundle from disk."""
 
     root = Path(bundle_root)
     manifest = _read_json(root / _MANIFEST_FILENAME, label="bundle manifest")
@@ -329,20 +329,20 @@ def load_simple_kinase_workflow_bundle(
         manifest_payload.get("bundle_type"),
         field_name="bundle manifest.bundle_type",
     )
-    if bundle_type != _SIMPLE_KINASE_BUNDLE_KIND:
+    if bundle_type != _KINASE_BUNDLE_KIND:
         raise PhosPyInputError(
             "unsupported bundle manifest bundle_type "
-            f"'{bundle_type}'; expected '{_SIMPLE_KINASE_BUNDLE_KIND}'"
+            f"'{bundle_type}'; expected '{_KINASE_BUNDLE_KIND}'"
         )
 
     manifest_version = _require_int(
         manifest_payload.get("manifest_version"),
         field_name="bundle manifest.manifest_version",
     )
-    if manifest_version != SIMPLE_KINASE_BUNDLE_MANIFEST_VERSION:
+    if manifest_version != KINASE_BUNDLE_MANIFEST_VERSION:
         raise PhosPyInputError(
             "unsupported bundle manifest version "
-            f"'{manifest_version}'; expected {SIMPLE_KINASE_BUNDLE_MANIFEST_VERSION}"
+            f"'{manifest_version}'; expected {KINASE_BUNDLE_MANIFEST_VERSION}"
         )
 
     dataset_payload = _require_mapping(
@@ -522,12 +522,10 @@ def load_simple_kinase_workflow_bundle(
         _read_json(config_snapshot_path, label="config snapshot"),
         field_name="config snapshot",
     )
-    config_snapshot = SimpleKinaseWorkflowConfigSnapshot.from_payload(
-        config_snapshot_payload
-    )
+    config_snapshot = KinaseWorkflowConfigSnapshot.from_payload(config_snapshot_payload)
 
-    return LoadedSimpleKinaseWorkflowBundle(
-        result=SimpleKinaseWorkflowResult(
+    return LoadedKinaseWorkflowBundle(
+        result=KinaseWorkflowResult(
             dataset=dataset,
             references=references,
             scoring_result=scoring_result,
@@ -769,9 +767,9 @@ def _require_float(value: object, *, field_name: str) -> float:
 
 
 __all__ = [
-    "LoadedSimpleKinaseWorkflowBundle",
-    "SIMPLE_KINASE_BUNDLE_MANIFEST_VERSION",
-    "SimpleKinaseWorkflowConfigSnapshot",
-    "load_simple_kinase_workflow_bundle",
-    "save_simple_kinase_workflow_bundle",
+    "KINASE_BUNDLE_MANIFEST_VERSION",
+    "KinaseWorkflowConfigSnapshot",
+    "LoadedKinaseWorkflowBundle",
+    "load_kinase_workflow_bundle",
+    "save_kinase_workflow_bundle",
 ]

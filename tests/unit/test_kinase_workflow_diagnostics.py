@@ -9,14 +9,14 @@ from phospy import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    SimpleKinaseWorkflowRequest,
 )
 from phospy.errors import WorkflowBoundaryError
 from phospy.prediction.models import KinasePredictionResult
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
-from phospy.workflows.kinase.executor import SimpleKinaseWorkflowExecutor
+from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
 
 
 def _dataset(
@@ -74,7 +74,7 @@ def test_boundary_error_reports_unusable_reference_coverage_counts() -> None:
             }
         )
     )
-    request = SimpleKinaseWorkflowRequest(
+    request = KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(min_substrates=1),
@@ -86,7 +86,7 @@ def test_boundary_error_reports_unusable_reference_coverage_counts() -> None:
         KinaseWorkflow().run(request)
 
     message = str(exc_info.value)
-    assert "seam=simple_kinase.interpreter.reference_coverage" in message
+    assert "seam=kinase.interpreter.reference_coverage" in message
     assert "dataset_sites=2" in message
     assert "reference_sites=2" in message
     assert "overlap_sites=0" in message
@@ -107,7 +107,7 @@ def test_boundary_error_reports_empty_eligible_kinase_set_counts() -> None:
             }
         )
     )
-    request = SimpleKinaseWorkflowRequest(
+    request = KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(min_substrates=2),
@@ -119,7 +119,7 @@ def test_boundary_error_reports_empty_eligible_kinase_set_counts() -> None:
         KinaseWorkflow().run(request)
 
     message = str(exc_info.value)
-    assert "seam=simple_kinase.interpreter.eligible_kinases" in message
+    assert "seam=kinase.interpreter.eligible_kinases" in message
     assert "reference_kinases=2" in message
     assert "kinases_with_overlap=2" in message
     assert "eligible_kinases=0" in message
@@ -141,7 +141,7 @@ def test_boundary_error_reports_prediction_ensemble_collapse_counts() -> None:
             }
         )
     )
-    request = SimpleKinaseWorkflowRequest(
+    request = KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(min_substrates=1),
@@ -153,7 +153,7 @@ def test_boundary_error_reports_prediction_ensemble_collapse_counts() -> None:
         KinaseWorkflow().run(request)
 
     message = str(exc_info.value)
-    assert "seam=simple_kinase.executor.prediction_ensemble" in message
+    assert "seam=kinase.executor.prediction_ensemble" in message
     assert "eligible_kinases=1" in message
     assert "ranked_kinases=0" in message
     assert "prediction_config_ensemble_size=3" in message
@@ -190,13 +190,13 @@ def test_boundary_error_reports_activity_support_edge_case() -> None:
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
-        SimpleKinaseWorkflowExecutor()._run_activity_stage(
+        KinaseWorkflowExecutor()._run_activity_stage(
             request=request,
             prediction_result=prediction_result,
         )
 
     message = str(exc_info.value)
-    assert "seam=simple_kinase.executor.activity_support" in message
+    assert "seam=kinase.executor.activity_support" in message
     assert "activity_kinases=1" in message
     assert "total_positive_predictions=0" in message
     assert "prediction_config_top_k=3" in message

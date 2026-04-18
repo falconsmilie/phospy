@@ -6,8 +6,8 @@ from phospy import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
     ReferencePreset,
-    SimpleKinaseWorkflowRequest,
 )
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
@@ -22,7 +22,7 @@ pytestmark = pytest.mark.parity
 def test_scoring_outputs_match_selected_reference_profile_values() -> None:
     dataset = build_rat_l6_dataset(n_sites=None)
     result = KinaseWorkflow().run(
-        SimpleKinaseWorkflowRequest(
+        KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=1),
@@ -49,7 +49,7 @@ def test_scoring_outputs_match_selected_reference_profile_values() -> None:
 def test_prediction_top_sites_align_with_reference_ranking_subset() -> None:
     dataset = build_rat_l6_dataset(n_sites=None)
     result = KinaseWorkflow().run(
-        SimpleKinaseWorkflowRequest(
+        KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=1),

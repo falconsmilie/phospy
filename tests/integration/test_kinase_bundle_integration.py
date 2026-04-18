@@ -13,30 +13,30 @@ from phospy import (
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
+    KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    SimpleKinaseWorkflowRequest,
 )
-from phospy.io.simple_kinase_bundle import (
-    SIMPLE_KINASE_BUNDLE_MANIFEST_VERSION,
-    SimpleKinaseWorkflowConfigSnapshot,
-    load_simple_kinase_workflow_bundle,
-    save_simple_kinase_workflow_bundle,
+from phospy.io.kinase_bundle import (
+    KINASE_BUNDLE_MANIFEST_VERSION,
+    KinaseWorkflowConfigSnapshot,
+    load_kinase_workflow_bundle,
+    save_kinase_workflow_bundle,
 )
 from phospy.transformations.models import TransformationState
 
 pytestmark = pytest.mark.integration
 
 
-def test_simple_kinase_bundle_round_trip_preserves_outputs_and_config(
+def test_kinase_bundle_round_trip_preserves_outputs_and_config(
     tmp_path: Path,
 ) -> None:
     request = _build_request(activity=True)
     result = KinaseWorkflow().run(request)
-    config_snapshot = SimpleKinaseWorkflowConfigSnapshot.from_request(request)
-    bundle_root = tmp_path / "simple_kinase_bundle"
+    config_snapshot = KinaseWorkflowConfigSnapshot.from_request(request)
+    bundle_root = tmp_path / "kinase_bundle"
 
-    written = save_simple_kinase_workflow_bundle(
+    written = save_kinase_workflow_bundle(
         result,
         bundle_root,
         config_snapshot=config_snapshot,
@@ -44,27 +44,27 @@ def test_simple_kinase_bundle_round_trip_preserves_outputs_and_config(
     )
 
     assert (bundle_root / "manifest.json") == written["manifest"]
-    loaded = load_simple_kinase_workflow_bundle(bundle_root)
+    loaded = load_kinase_workflow_bundle(bundle_root)
 
-    assert loaded.manifest_version == SIMPLE_KINASE_BUNDLE_MANIFEST_VERSION
+    assert loaded.manifest_version == KINASE_BUNDLE_MANIFEST_VERSION
     assert loaded.config_snapshot == config_snapshot
-    _assert_simple_result_equal(loaded.result, result)
+    _assert_kinase_result_equal(loaded.result, result)
 
 
-def test_simple_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
+def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
     request = _build_request(activity=True)
     result = KinaseWorkflow().run(request)
-    bundle_root = tmp_path / "simple_kinase_bundle"
+    bundle_root = tmp_path / "kinase_bundle"
 
-    save_simple_kinase_workflow_bundle(
+    save_kinase_workflow_bundle(
         result,
         bundle_root,
-        config_snapshot=SimpleKinaseWorkflowConfigSnapshot.from_request(request),
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
     )
 
     manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["manifest_version"] == SIMPLE_KINASE_BUNDLE_MANIFEST_VERSION
-    assert manifest["bundle_type"] == "simple_kinase_workflow_result"
+    assert manifest["manifest_version"] == KINASE_BUNDLE_MANIFEST_VERSION
+    assert manifest["bundle_type"] == "kinase_workflow_result"
     assert manifest["table_format"] == "csv"
     assert manifest["config_snapshot"] == "config/snapshot.json"
     assert manifest["dataset"]["tables"] == {
@@ -93,19 +93,19 @@ def test_simple_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
     }
 
 
-def test_simple_kinase_bundle_round_trip_supports_disabled_activity(
+def test_kinase_bundle_round_trip_supports_disabled_activity(
     tmp_path: Path,
 ) -> None:
     request = _build_request(activity=False)
     result = KinaseWorkflow().run(request)
-    bundle_root = tmp_path / "simple_kinase_bundle"
+    bundle_root = tmp_path / "kinase_bundle"
 
-    save_simple_kinase_workflow_bundle(
+    save_kinase_workflow_bundle(
         result,
         bundle_root,
-        config_snapshot=SimpleKinaseWorkflowConfigSnapshot.from_request(request),
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
     )
-    loaded = load_simple_kinase_workflow_bundle(bundle_root)
+    loaded = load_kinase_workflow_bundle(bundle_root)
 
     assert result.activity_result is None
     assert loaded.result.activity_result is None
@@ -117,7 +117,7 @@ def test_simple_kinase_bundle_round_trip_supports_disabled_activity(
     }
 
 
-def _build_request(*, activity: bool) -> SimpleKinaseWorkflowRequest:
+def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
     phospho = pd.DataFrame(
         {
             "sample_a": [1.20, 0.85, 1.05],
@@ -180,7 +180,7 @@ def _build_request(*, activity: bool) -> SimpleKinaseWorkflowRequest:
             index=pd.Index(site_metadata.index.copy(), name="site_id"),
         ),
     )
-    return SimpleKinaseWorkflowRequest(
+    return KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(min_substrates=1),
@@ -191,7 +191,7 @@ def _build_request(*, activity: bool) -> SimpleKinaseWorkflowRequest:
     )
 
 
-def _assert_simple_result_equal(left, right) -> None:
+def _assert_kinase_result_equal(left, right) -> None:
     assert left.dataset.organism == right.dataset.organism
     assert left.dataset.transformation_state == right.dataset.transformation_state
     assert left.references.organism == right.references.organism
