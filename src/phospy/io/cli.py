@@ -7,18 +7,22 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from phospy.api.builders import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
     SignalomeConfig,
 )
-from phospy.api.requests import SignalomeWorkflowRequest, SimpleKinaseWorkflowRequest
+from phospy.api.requests import (
+    DatasetBuildRequest,
+    SignalomeWorkflowRequest,
+    SimpleKinaseWorkflowRequest,
+)
 from phospy.api.workflows import KinaseWorkflow, SignalomeWorkflow
 from phospy.errors import PhosPyError
 from phospy.io.adapters import (
-    DatasetFileInputs,
-    build_dataset_from_files,
+    organism_from_value,
     reference_preset_from_value,
 )
 from phospy.io.publishing import (
@@ -188,8 +192,7 @@ def _add_simple_kinase_runtime_arguments(parser: argparse.ArgumentParser) -> Non
 
 
 def _run_dataset_build(args: argparse.Namespace) -> None:
-    file_inputs = _dataset_file_inputs_from_args(args)
-    dataset = build_dataset_from_files(file_inputs)
+    dataset = _build_dataset_from_args(args)
     written = publish_dataset(dataset, args.outdir, output_format=args.output_format)
     _print_written_summary("dataset-build", written)
 
@@ -220,18 +223,18 @@ def _run_signalome(args: argparse.Namespace) -> None:
     _print_written_summary("signalome", written)
 
 
-def _dataset_file_inputs_from_args(args: argparse.Namespace) -> DatasetFileInputs:
-    return DatasetFileInputs(
-        phospho_path=args.phospho,
-        site_metadata_path=args.site_metadata,
-        sample_metadata_path=args.sample_metadata,
-        total_path=args.total,
-        organism=args.organism,
+def _dataset_build_request_from_args(args: argparse.Namespace) -> DatasetBuildRequest:
+    return DatasetBuildRequest(
+        phospho=args.phospho,
+        site_metadata=args.site_metadata,
+        sample_metadata=args.sample_metadata,
+        total=args.total,
+        organism=organism_from_value(args.organism),
     )
 
 
 def _run_simple_kinase_workflow_from_args(args: argparse.Namespace):
-    dataset = build_dataset_from_files(_dataset_file_inputs_from_args(args))
+    dataset = _build_dataset_from_args(args)
     reference = reference_preset_from_value(args.reference)
     activity_config = (
         None
@@ -251,6 +254,10 @@ def _run_simple_kinase_workflow_from_args(args: argparse.Namespace):
         activity_config=activity_config,
     )
     return KinaseWorkflow().run(request)
+
+
+def _build_dataset_from_args(args: argparse.Namespace):
+    return AnalysisReadyDatasetBuilder().run(_dataset_build_request_from_args(args))
 
 
 def _print_written_summary(command: str, written: dict[str, Path]) -> None:

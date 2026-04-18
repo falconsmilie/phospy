@@ -3,6 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+import phospy.io as phospy_io
 from phospy.api.requests import DatasetBuildRequest
 from phospy.datasets.builders.public import AnalysisReadyDatasetBuilder
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
@@ -150,6 +151,49 @@ def test_builder_rejects_non_dataframe_phospho_input() -> None:
                 organism=Organism.RAT,
             )
         )
+
+
+def test_builder_supports_file_path_inputs(tmp_path) -> None:
+    phospho_path = tmp_path / "phospho.csv"
+    site_metadata_path = tmp_path / "site_metadata.csv"
+    _phospho().to_csv(phospho_path)
+    _site_metadata().to_csv(site_metadata_path)
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho_path,
+            site_metadata=site_metadata_path,
+            organism=Organism.RAT,
+        )
+    )
+    assert list(built.phospho.index) == ["MAPK14;Y182;"]
+    assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"]
+
+
+def test_builder_derives_site_sequence_for_supported_organism() -> None:
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata().drop(columns=["site_sequence"]),
+            organism=Organism.RAT,
+        )
+    )
+    assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"]
+
+
+def test_builder_fails_fast_when_site_sequence_derivation_is_unsupported() -> None:
+    with pytest.raises(UnsupportedInputFormatError):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata().drop(columns=["site_sequence"]),
+                organism=None,
+            )
+        )
+
+
+def test_io_namespace_does_not_expose_parallel_dataset_file_builder() -> None:
+    assert not hasattr(phospy_io, "build_dataset_from_files")
 
 
 def test_reference_resolver_accepts_explicit_bundle() -> None:

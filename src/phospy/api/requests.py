@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from os import PathLike
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -28,7 +30,7 @@ if TYPE_CHECKING:
 class DatasetBuildRequest:
     """Request for building an ``AnalysisReadyPhosphoDataset``.
 
-    The first supported public route accepts in-memory pandas DataFrames only.
+    Supported public inputs are pandas ``DataFrame`` values or file paths.
     """
 
     phospho: DatasetInput
@@ -57,11 +59,11 @@ class DatasetBuildRequest:
 
     @staticmethod
     def _validate_input(value: object, *, field_name: str) -> None:
-        if isinstance(value, pd.DataFrame):
+        if isinstance(value, pd.DataFrame | str | Path | PathLike):
             return
         raise UnsupportedInputFormatError(
-            f"dataset build request {field_name} must be a pandas DataFrame in the "
-            "current supported builder path"
+            f"dataset build request {field_name} must be a pandas DataFrame or a file "
+            "path (str/pathlib.Path)"
         )
 
     @classmethod

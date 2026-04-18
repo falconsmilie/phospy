@@ -2,40 +2,64 @@
 
 from __future__ import annotations
 
-import pandas as pd
-
 from phospy.api.requests import DatasetBuildRequest
 from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
-from phospy.errors.input import UnsupportedInputFormatError
+from phospy.datasets.builders.normalizer import DatasetConventionNormalizer
+from phospy.datasets.builders.reader import DatasetInputReader
+from phospy.datasets.builders.sequence_derivation import SiteSequenceDeriver
 
 
 class DatasetBuildRequestInterpreter:
     """Resolve validated builder request data into execution inputs."""
 
+    def __init__(
+        self,
+        *,
+        reader: DatasetInputReader | None = None,
+        normalizer: DatasetConventionNormalizer | None = None,
+        site_sequence_deriver: SiteSequenceDeriver | None = None,
+    ) -> None:
+        self._reader = reader or DatasetInputReader()
+        self._normalizer = normalizer or DatasetConventionNormalizer()
+        self._site_sequence_deriver = site_sequence_deriver or SiteSequenceDeriver()
+
     def run(self, request: DatasetBuildRequest) -> InterpretedDatasetBuildRequest:
-        if not isinstance(request.phospho, pd.DataFrame):
-            raise UnsupportedInputFormatError(
-                "phospho must be provided as a pandas DataFrame after validation"
+        phospho = self._reader.run(request.phospho, field_name="phospho")
+        site_metadata = self._reader.run(
+            request.site_metadata,
+            field_name="site_metadata",
+        )
+        sample_metadata = (
+            None
+            if request.sample_metadata is None
+            else self._reader.run(
+                request.sample_metadata,
+                field_name="sample_metadata",
             )
-        if not isinstance(request.site_metadata, pd.DataFrame):
-            raise UnsupportedInputFormatError(
-                "site_metadata must be provided as a pandas DataFrame after validation"
+        )
+        total = (
+            None
+            if request.total is None
+            else self._reader.run(
+                request.total,
+                field_name="total",
             )
-        if request.sample_metadata is not None and not isinstance(
-            request.sample_metadata, pd.DataFrame
-        ):
-            raise UnsupportedInputFormatError(
-                "sample_metadata must be provided as a pandas DataFrame after validation"
-            )
-        if request.total is not None and not isinstance(request.total, pd.DataFrame):
-            raise UnsupportedInputFormatError(
-                "total must be provided as a pandas DataFrame after validation"
-            )
+        )
+        normalized = self._normalizer.run(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=sample_metadata,
+            total=total,
+        )
+        enriched_site_metadata = self._site_sequence_deriver.run(
+            normalized.site_metadata,
+            organism=request.organism,
+        )
         return InterpretedDatasetBuildRequest(
-            phospho=request.phospho,
-            site_metadata=request.site_metadata,
-            sample_metadata=request.sample_metadata,
-            total=request.total,
+            phospho=normalized.phospho,
+            site_metadata=enriched_site_metadata,
+            sample_metadata=normalized.sample_metadata,
+            total=normalized.total,
             organism=request.organism,
             transformation_state=request.transformation_state,
         )

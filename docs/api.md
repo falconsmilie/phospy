@@ -34,7 +34,7 @@ All public executors use `run(request)`.
 
 ## Builder Contract
 
-`DatasetBuildRequest` currently accepts in-memory pandas `DataFrame` values only.
+`DatasetBuildRequest` accepts in-memory pandas `DataFrame` values or file paths.
 
 - Required: `phospho`, `site_metadata`
 - Optional: `sample_metadata`, `total`, `organism`, `transformation_state`

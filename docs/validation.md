@@ -6,17 +6,18 @@ For public types and signatures, see [`api.md`](api.md).
 
 ## Boundary
 
-- Supported inputs are in-memory pandas `DataFrame` objects through `DatasetBuildRequest`.
+- Supported dataset-build inputs are pandas `DataFrame` objects or file paths through
+  `DatasetBuildRequest`.
 - Supported workflow route is `KinaseWorkflow.run(SimpleKinaseWorkflowRequest(...))`.
 - Supported downstream route is
   `SignalomeWorkflow.run(SignalomeWorkflowRequest(...))`.
-- File-ingestion and legacy convenience routes are outside the current rewrite contract.
+- File-ingestion is part of the dataset builder route only.
 
 ## Dataset Builder Validation
 
 `DatasetBuildRequest` and `AnalysisReadyPhosphoDataset` enforce:
 
-- `phospho` and `site_metadata` must be pandas `DataFrame` values
+- `phospho` and `site_metadata` must be pandas `DataFrame` values or file paths
 - `phospho` must be numeric, non-empty, with unique index and unique columns
 - `site_metadata` must be non-empty and index-aligned to `phospho`
 - `site_metadata` must include:
@@ -101,7 +102,7 @@ Signalome boundary error messages include:
 
 | Problem | Usually means | Good next step |
 | --- | --- | --- |
-| Builder rejects input format | A request field is not a pandas `DataFrame` | Pass in-memory `DataFrame` objects for `phospho` and `site_metadata` |
+| Builder rejects input format | A request field is neither a `DataFrame` nor a supported file path | Pass `DataFrame` values or supported file paths (`.csv`, `.tsv`, `.parquet`) |
 | `ReferencePreset.AUTO` fails | `dataset.organism` is missing | Set `organism` on `DatasetBuildRequest` |
 | Reference mismatch error | Dataset and selected preset organisms conflict | Align `dataset.organism` with `ReferencePreset` |
 | Workflow request type error | Request field types are not the public models | Build the request from top-level `phospy` models |

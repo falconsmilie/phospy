@@ -60,7 +60,7 @@ activity_scores = result.activity_result.activity_scores
 
 ## Current Limits
 
-- `DatasetBuildRequest` accepts pandas `DataFrame` inputs only.
+- `DatasetBuildRequest` accepts pandas `DataFrame` inputs or supported table file paths.
 - `ReferencePreset.AUTO` requires `dataset.organism`.
 - Bundled references are currently available only for the rat lane.
 - `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain valid enum values, but
