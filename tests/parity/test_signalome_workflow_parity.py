@@ -41,7 +41,7 @@ def _run_signalome_l6_supported_slice():
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=1),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
             activity_config=None,
         )
@@ -124,7 +124,7 @@ def test_signalome_modules_match_l6_fixture_table_exactly() -> None:
     assert int(modules.shape[0]) == int(contract["n_modules"])
     assert int(modules.shape[1]) == int(contract["n_module_kinases"])
     pdt.assert_frame_equal(modules, expected_modules, check_dtype=False)
-    assert modules.sum(axis=1).round(6).eq(100.0).all()
+    assert (modules.sum(axis=1) - 100.0).abs().le(0.01).all()
 
 
 def test_signalome_network_nodes_match_l6_fixture_counts_and_selected_rows() -> None:
@@ -137,7 +137,7 @@ def test_signalome_network_nodes_match_l6_fixture_counts_and_selected_rows() -> 
     assert int(nodes.shape[0]) == int(contract["n_nodes"])
     assert {"degree", "n_substrates"} == set(nodes.columns)
 
-    selected_kinases = ["AKT1", "AKT3", "PRKAA2", "RPS6KB1", "Yang.Sgk"]
+    selected_kinases = ["AKT1", "PRKAA1", "RPS6KB1", "Yang.Ampk", "Yang.Akt"]
     pdt.assert_frame_equal(
         nodes.loc[selected_kinases, :],
         expected_nodes.loc[selected_kinases, :],

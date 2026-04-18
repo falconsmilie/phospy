@@ -8,11 +8,12 @@ import pandas as pd
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    KinaseScoringConfig,
     KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
-    ReferencePreset,
+    ReferenceBundle,
     SignalomeConfig,
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
@@ -47,8 +48,25 @@ def _build_kinase_result() -> KinaseWorkflowResult:
             organism=Organism.RAT,
         )
     )
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K6"],
+                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": dataset.site_metadata.loc[:, "site_sequence"]},
+            index=pd.Index(dataset.site_metadata.index, name="site_id"),
+        ),
+    )
     return KinaseWorkflow().run(
-        KinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+        )
     )
 
 

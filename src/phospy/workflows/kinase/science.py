@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from phospy.api.configs import KINASE_SCORING_MIN_SUBSTRATES_FLOOR
 from phospy.errors.workflows import WorkflowStageError
 
 
@@ -26,6 +27,14 @@ def build_kinase_profiles(
     min_substrates: int,
 ) -> KinaseProfileBuild:
     """Build kinase substrate profiles from quantified substrate rows."""
+
+    if min_substrates < KINASE_SCORING_MIN_SUBSTRATES_FLOOR:
+        raise WorkflowStageError(
+            "kinase workflow internal invariant failed at seam="
+            "kinase.science.min_substrate_floor; "
+            f"min_substrates must be greater than or equal to "
+            f"{KINASE_SCORING_MIN_SUBSTRATES_FLOOR}"
+        )
 
     numeric_phospho = _require_finite_matrix(
         phospho,

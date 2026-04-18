@@ -4,12 +4,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+KINASE_SCORING_MIN_SUBSTRATES_FLOOR = 2
+
 
 @dataclass(frozen=True, slots=True)
 class KinaseScoringConfig:
-    """Public scoring-stage configuration."""
+    """Public scoring-stage configuration.
 
-    min_substrates: int = 1
+    `min_substrates` is constrained to the scientific support floor so one-site
+    kinase profiles are not part of the default public lane.
+    """
+
+    min_substrates: int = KINASE_SCORING_MIN_SUBSTRATES_FLOOR
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +43,7 @@ class SignalomeConfig:
 
 
 __all__ = [
+    "KINASE_SCORING_MIN_SUBSTRATES_FLOOR",
     "KinaseActivityConfig",
     "KinasePredictionConfig",
     "KinaseScoringConfig",

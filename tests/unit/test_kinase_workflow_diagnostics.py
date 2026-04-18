@@ -26,8 +26,11 @@ def _dataset(
 ) -> AnalysisReadyPhosphoDataset:
     phospho = pd.DataFrame(
         {
-            sample: [float(index + 1) for index in range(len(site_ids))]
-            for sample in sample_names
+            sample: [
+                float((index + 1) * (sample_position + 1))
+                for index in range(len(site_ids))
+            ]
+            for sample_position, sample in enumerate(sample_names)
         },
         index=site_ids,
     )
@@ -65,7 +68,7 @@ def _resolved_request(
     *,
     dataset: AnalysisReadyPhosphoDataset,
     references: ReferenceBundle,
-    min_substrates: int = 1,
+    min_substrates: int = 2,
     top_k: int = 3,
     ensemble_size: int = 2,
     threshold: float = 0.7,
@@ -87,36 +90,40 @@ def _resolved_request(
 
 def test_workflow_limits_scoring_to_sites_with_reference_sequences() -> None:
     dataset = _dataset(
-        site_ids=["MAPK14;Y182;", "EXTRA;S1;"],
+        site_ids=["MAPK14;Y182;", "GSK3B;S9;", "EXTRA;S1;"],
         sample_names=["sample_a", "sample_b"],
     )
-    dataset.phospho.loc["MAPK14;Y182;", "sample_b"] = 2.0
-    dataset.phospho.loc["EXTRA;S1;", "sample_b"] = 4.0
     references = ReferenceBundle(
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(
             {
-                "kinase": ["MAP2K6"],
-                "substrate_site": ["MAPK14;Y182;"],
+                "kinase": ["MAP2K6", "MAP2K6"],
+                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
             }
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["A" * 31]},
-            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            {"site_sequence": ["A" * 31, "A" * 31]},
+            index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
         ),
     )
     result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=1),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
             activity_config=None,
         )
     )
 
-    assert list(result.scoring_result.profile_scores.index) == ["MAPK14;Y182;"]
-    assert list(result.prediction_result.pred_mat.index) == ["MAPK14;Y182;"]
+    assert list(result.scoring_result.profile_scores.index) == [
+        "MAPK14;Y182;",
+        "GSK3B;S9;",
+    ]
+    assert list(result.prediction_result.pred_mat.index) == [
+        "MAPK14;Y182;",
+        "GSK3B;S9;",
+    ]
 
 
 def test_boundary_error_reports_unusable_reference_coverage_counts() -> None:
@@ -135,7 +142,7 @@ def test_boundary_error_reports_unusable_reference_coverage_counts() -> None:
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=1),
+        scoring_config=KinaseScoringConfig(min_substrates=2),
         prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
         activity_config=None,
     )
@@ -148,7 +155,7 @@ def test_boundary_error_reports_unusable_reference_coverage_counts() -> None:
     assert "dataset_sites=2" in message
     assert "reference_sites=2" in message
     assert "overlap_sites=0" in message
-    assert "scoring_config_min_substrates=1" in message
+    assert "scoring_config_min_substrates=2" in message
     assert "next_action=" in message
 
 
@@ -186,10 +193,10 @@ def test_boundary_error_reports_empty_eligible_kinase_set_counts() -> None:
     assert "prediction_config_ensemble_size=5" in message
 
 
-def test_boundary_error_reports_prediction_ensemble_collapse_counts() -> None:
+def test_default_scoring_floor_rejects_single_substrate_kinase_profiles() -> None:
     dataset = _dataset(
         site_ids=["MAPK14;Y182;"],
-        sample_names=["sample_a"],
+        sample_names=["sample_a", "sample_b"],
     )
     references = _bundle(
         pd.DataFrame(
@@ -199,10 +206,38 @@ def test_boundary_error_reports_prediction_ensemble_collapse_counts() -> None:
             }
         )
     )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        KinaseWorkflow().run(
+            KinaseWorkflowRequest(
+                dataset=dataset,
+                references=references,
+            )
+        )
+
+    message = str(exc_info.value)
+    assert "seam=kinase.interpreter.eligible_kinases" in message
+    assert "scoring_config_min_substrates=2" in message
+    assert "max_quantified_sites_per_kinase=1" in message
+
+
+def test_boundary_error_reports_prediction_ensemble_collapse_counts() -> None:
+    dataset = _dataset(
+        site_ids=["MAPK14;Y182;", "GSK3B;S9;"],
+        sample_names=["sample_a"],
+    )
+    references = _bundle(
+        pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K6"],
+                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+            }
+        )
+    )
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=1),
+        scoring_config=KinaseScoringConfig(min_substrates=2),
         prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=3),
         activity_config=None,
     )
@@ -237,7 +272,7 @@ def test_boundary_error_reports_activity_support_edge_case() -> None:
     request = _resolved_request(
         dataset=dataset,
         references=references,
-        min_substrates=1,
+        min_substrates=2,
         top_k=3,
         ensemble_size=2,
         threshold=0.7,
@@ -260,7 +295,7 @@ def test_boundary_error_reports_activity_support_edge_case() -> None:
     assert "activity_kinases=1" in message
     assert "total_positive_predictions=0" in message
     assert "prediction_config_top_k=3" in message
-    assert "scoring_config_min_substrates=1" in message
+    assert "scoring_config_min_substrates=2" in message
     assert "prediction_config.top_k" in message
     assert "scoring_config.min_substrates" in message
     assert "activity_config.threshold" not in message

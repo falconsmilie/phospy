@@ -103,7 +103,7 @@ def _build_signalome_request_and_result():
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=1),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
             activity_config=None,
         )

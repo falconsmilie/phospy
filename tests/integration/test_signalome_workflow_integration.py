@@ -36,7 +36,7 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=1),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
             activity_config=None,
         )
@@ -124,7 +124,7 @@ def test_signalome_workflow_uses_explicit_dataset_protein_identity_when_present(
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=1),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
             activity_config=None,
         )
@@ -147,7 +147,7 @@ def test_signalome_threshold_knobs_do_not_cross_couple_unrelated_outputs() -> No
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=1),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
             activity_config=None,
         )

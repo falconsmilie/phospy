@@ -26,6 +26,7 @@ phospy kinase \
   --site-metadata ./input/site_metadata.csv \
   --organism rat \
   --reference auto \
+  --scoring-min-substrates 2 \
   --prediction-top-k 6 \
   --prediction-ensemble-size 8 \
   --outdir ./out
@@ -39,6 +40,7 @@ phospy signalome \
   --site-metadata ./input/site_metadata.csv \
   --organism rat \
   --reference auto \
+  --scoring-min-substrates 2 \
   --prediction-top-k 6 \
   --prediction-ensemble-size 12 \
   --substrate-support-cutoff 0.5 \
@@ -52,6 +54,11 @@ Signalome threshold knobs:
   kinase-supported substrates.
 - `--network-correlation-threshold`: absolute kinase score-correlation cutoff used to
   keep network edges.
+
+Kinase scoring support floor:
+
+- `--scoring-min-substrates` defaults to `2`.
+- single-substrate kinase profiles are rejected (`min_substrates` must be `>= 2`).
 
 Bundled preset policy in the rewrite cutover:
 

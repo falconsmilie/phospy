@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from phospy.api.configs import (
+    KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -23,7 +24,7 @@ class WorkflowConfigValidator:
         require_int_at_least(
             config.min_substrates,
             field_name="scoring_config.min_substrates",
-            minimum=1,
+            minimum=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
             error_type=WorkflowValidationError,
         )
         return config

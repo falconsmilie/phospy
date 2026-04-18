@@ -35,19 +35,22 @@ from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowReques
 
 def _phospho() -> pd.DataFrame:
     return pd.DataFrame(
-        {"sample_a": [1.0], "sample_b": [2.0]},
-        index=["MAPK14;Y182;"],
+        {"sample_a": [1.0, 0.8], "sample_b": [2.0, 1.2]},
+        index=["MAPK14;Y182;", "GSK3B;S9;"],
     )
 
 
 def _site_metadata() -> pd.DataFrame:
     return pd.DataFrame(
         {
-            "gene_symbol": ["MAPK14"],
-            "site": ["Y182"],
-            "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            "gene_symbol": ["MAPK14", "GSK3B"],
+            "site": ["Y182", "S9"],
+            "site_sequence": [
+                "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+            ],
         },
-        index=["MAPK14;Y182;"],
+        index=["MAPK14;Y182;", "GSK3B;S9;"],
     )
 
 
@@ -63,11 +66,19 @@ def _bundle() -> ReferenceBundle:
     return ReferenceBundle(
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(
-            {"kinase": ["MAP2K6"], "substrate_site": ["MAPK14;Y182;"]}
+            {
+                "kinase": ["MAP2K6", "MAP2K6"],
+                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+            }
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"]},
-            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            {
+                "site_sequence": [
+                    "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                    "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                ]
+            },
+            index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
         ),
     )
 
@@ -82,7 +93,7 @@ def test_request_config_and_result_models_construct() -> None:
     workflow_request = KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(min_substrates=1),
+        scoring_config=KinaseScoringConfig(min_substrates=2),
         prediction_config=KinasePredictionConfig(top_k=10, ensemble_size=3),
         activity_config=KinaseActivityConfig(enabled=True, threshold=0.5),
     )
@@ -160,7 +171,11 @@ def test_builder_orchestration_uses_collaborators() -> None:
 
 def test_workflow_run_contract_returns_nested_results() -> None:
     result = KinaseWorkflow().run(
-        KinaseWorkflowRequest(dataset=_dataset(), references=ReferencePreset.AUTO)
+        KinaseWorkflowRequest(
+            dataset=_dataset(),
+            references=_bundle(),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+        )
     )
     assert isinstance(result, KinaseWorkflowResult)
     assert isinstance(result.scoring_result, KinaseScoringResult)
@@ -180,7 +195,7 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
         references=bundle,
         kinase_substrate_map=bundle.kinase_substrate_map,
         site_sequences=bundle.site_sequences,
-        scoring_site_index=pd.Index(["MAPK14;Y182;"]),
+        scoring_site_index=request.dataset.phospho.index.copy(),
         scoring_config=request.scoring_config,
         prediction_config=request.prediction_config,
         activity_config=request.activity_config,
@@ -225,7 +240,8 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
     kinase_result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
             dataset=_dataset(),
-            references=ReferencePreset.AUTO,
+            references=_bundle(),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
         )
     )
     request = SignalomeWorkflowRequest(

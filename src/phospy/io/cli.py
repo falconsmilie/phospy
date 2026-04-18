@@ -9,6 +9,7 @@ from pathlib import Path
 
 from phospy.api.builders import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
+    KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -167,8 +168,11 @@ def _add_kinase_runtime_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--scoring-min-substrates",
         type=int,
-        default=1,
-        help="Minimum substrates per kinase for scoring.",
+        default=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
+        help=(
+            "Minimum quantified substrates per kinase for scoring "
+            f"(must be >= {KINASE_SCORING_MIN_SUBSTRATES_FLOOR})."
+        ),
     )
     parser.add_argument(
         "--prediction-top-k",

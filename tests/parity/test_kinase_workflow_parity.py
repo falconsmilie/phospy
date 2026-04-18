@@ -25,7 +25,7 @@ def test_scoring_outputs_match_selected_reference_profile_values() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=1),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=12),
             activity_config=None,
         )
@@ -52,7 +52,7 @@ def test_prediction_top_sites_align_with_reference_ranking_subset() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=1),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(top_k=3, ensemble_size=200),
             activity_config=None,
         )

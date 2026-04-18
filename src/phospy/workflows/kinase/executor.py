@@ -94,7 +94,8 @@ class KinaseWorkflowExecutor:
                 seam="kinase.executor.prediction_ensemble",
                 next_action=(
                     "provide dataset.phospho with at least two non-constant "
-                    "sample columns or lower scoring_config.min_substrates"
+                    "sample columns or lower scoring_config.min_substrates "
+                    "(scientific floor: min_substrates >= 2)"
                 ),
                 eligible_kinases=len(scoring_execution.quantified_substrates),
                 ranked_kinases=int(kinase_ranking.size),
@@ -152,7 +153,8 @@ class KinaseWorkflowExecutor:
                 seam="kinase.executor.activity_support",
                 next_action=(
                     "increase prediction_config.top_k or lower "
-                    "scoring_config.min_substrates to expand predicted support"
+                    "scoring_config.min_substrates to expand predicted support "
+                    "(scientific floor: min_substrates >= 2)"
                 ),
                 activity_kinases=activity_table.shape[0],
                 total_positive_predictions=0,

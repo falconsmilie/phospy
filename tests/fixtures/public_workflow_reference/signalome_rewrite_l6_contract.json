@@ -1,23 +1,23 @@
 {
-  "ambiguous_assignment_count": 255,
+  "ambiguous_assignment_count": 245,
   "module_id_counts": {
-    "1": 256,
+    "1": 250,
     "2": 1,
-    "3": 1,
-    "4": 1,
-    "5": 1
+    "3": 3,
+    "4": 3,
+    "5": 2,
+    "6": 1
   },
   "n_assignments": 260,
   "n_edges": 66,
   "n_module_kinases": 12,
-  "n_modules": 5,
+  "n_modules": 6,
   "n_nodes": 12,
-  "negative_edge_count": 11,
-  "positive_edge_count": 55,
+  "negative_edge_count": 20,
+  "positive_edge_count": 46,
   "tie_count_distribution": {
-    "1": 5,
-    "2": 1,
-    "3": 2,
-    "12": 252
+    "1": 15,
+    "12": 243,
+    "2": 2
   }
 }

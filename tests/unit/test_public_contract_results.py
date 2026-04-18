@@ -24,19 +24,19 @@ from phospy.api.results import (
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
-    site_ids = ["MAPK14;Y182;", "AKT1;T308;"]
+    site_ids = ["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"]
     phospho = pd.DataFrame(
         {
-            "sample_a": [1.0, 2.0],
-            "sample_b": [2.0, 1.0],
+            "sample_a": [1.0, 2.0, 4.0],
+            "sample_b": [2.0, 4.0, 1.0],
         },
         index=site_ids,
     )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["MAPK14", "AKT1"],
-            "site": ["Y182", "T308"],
-            "site_sequence": ["A" * 31, "B" * 31],
+            "gene_symbol": ["MAPK14", "GSK3B", "AKT1"],
+            "site": ["Y182", "S9", "T308"],
+            "site_sequence": ["A" * 31, "B" * 31, "C" * 31],
         },
         index=site_ids,
     )
@@ -48,17 +48,22 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
 
 
 def _references() -> ReferenceBundle:
-    site_ids = pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id")
+    site_ids = pd.Index(["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"], name="site_id")
     return ReferenceBundle(
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(
             {
-                "kinase": ["MAP2K6", "AKT1"],
-                "substrate_site": site_ids.astype(str).tolist(),
+                "kinase": ["MAP2K6", "MAP2K6", "AKT1", "AKT1"],
+                "substrate_site": [
+                    "MAPK14;Y182;",
+                    "GSK3B;S9;",
+                    "GSK3B;S9;",
+                    "AKT1;T308;",
+                ],
             }
         ),
         site_sequences=pd.DataFrame(
-            {"site_sequence": ["A" * 31, "B" * 31]},
+            {"site_sequence": ["A" * 31, "B" * 31, "C" * 31]},
             index=site_ids,
         ),
     )
@@ -69,7 +74,7 @@ def _kinase_result() -> KinaseWorkflowResult:
         KinaseWorkflowRequest(
             dataset=_dataset(),
             references=_references(),
-            scoring_config=KinaseScoringConfig(min_substrates=1),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(top_k=1, ensemble_size=2),
             activity_config=None,
         )

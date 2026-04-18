@@ -12,11 +12,12 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
+    KinaseScoringConfig,
     KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
-    ReferencePreset,
+    ReferenceBundle,
 )
 
 
@@ -52,10 +53,24 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
 def run_demo(outdir: Path) -> tuple[KinaseWorkflowResult, dict[str, Path]]:
     outdir.mkdir(parents=True, exist_ok=True)
     dataset = build_demo_dataset()
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K6"],
+                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": dataset.site_metadata.loc[:, "site_sequence"]},
+            index=pd.Index(dataset.site_metadata.index, name="site_id"),
+        ),
+    )
     result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
             dataset=dataset,
-            references=ReferencePreset.AUTO,
+            references=references,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
         )
     )
 

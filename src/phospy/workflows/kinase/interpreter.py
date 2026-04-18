@@ -141,7 +141,8 @@ class KinaseWorkflowInterpreter:
             seam="kinase.interpreter.eligible_kinases",
             next_action=(
                 "lower scoring_config.min_substrates or provide references with "
-                "deeper overlap for the current dataset"
+                "deeper overlap for the current dataset "
+                "(scientific floor: min_substrates >= 2)"
             ),
             reference_kinases=overlap_counts["reference_kinases"],
             kinases_with_overlap=overlap_counts["kinases_with_overlap"],

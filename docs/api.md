@@ -91,6 +91,13 @@ Kinase activity output currently uses an interim support-based definition:
 - `weighted_signal`: phosphosite signal mean weighted by those same positive scores
 - `is_active`: `activity_score >= activity_config.threshold`
 
+Kinase scoring support floor:
+
+- `scoring_config.min_substrates` defaults to `2`
+- values below `2` are rejected by validation
+- kinases with fewer than `min_substrates` quantified overlap sites are excluded
+  from profile/scoring stages
+
 See [`output_bundles.md`](output_bundles.md) for manifest format and table
 inventory.
 
@@ -102,8 +109,9 @@ import pandas as pd
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    KinaseScoringConfig,
     Organism,
-    ReferencePreset,
+    ReferenceBundle,
     KinaseWorkflow,
     KinaseWorkflowRequest,
 )
@@ -111,23 +119,44 @@ from phospy import (
 dataset = AnalysisReadyDatasetBuilder().run(
     DatasetBuildRequest(
         phospho=pd.DataFrame(
-            {"sample_a": [1.0], "sample_b": [1.2]},
-            index=["MAPK14;Y182;"],
+            {"sample_a": [1.0, 0.7], "sample_b": [1.2, 0.8]},
+            index=["MAPK14;Y182;", "GSK3B;S9;"],
         ),
         site_metadata=pd.DataFrame(
             {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                "gene_symbol": ["MAPK14", "GSK3B"],
+                "site": ["Y182", "S9"],
+                "site_sequence": [
+                    "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                    "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                ],
             },
-            index=["MAPK14;Y182;"],
+            index=["MAPK14;Y182;", "GSK3B;S9;"],
         ),
         organism=Organism.RAT,
     )
 )
 
+references = ReferenceBundle(
+    organism=Organism.RAT,
+    kinase_substrate_map=pd.DataFrame(
+        {
+            "kinase": ["MAP2K6", "MAP2K6"],
+            "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+        }
+    ),
+    site_sequences=pd.DataFrame(
+        {"site_sequence": dataset.site_metadata.loc[:, "site_sequence"]},
+        index=pd.Index(dataset.site_metadata.index, name="site_id"),
+    ),
+)
+
 result = KinaseWorkflow().run(
-    KinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
+    KinaseWorkflowRequest(
+        dataset=dataset,
+        references=references,
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+    )
 )
 
 pred_mat = result.prediction_result.pred_mat

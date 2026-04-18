@@ -115,7 +115,7 @@ def test_kinase_workflow_stably_matches_mixed_identifier_types() -> None:
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(
             {
-                "kinase": ["MAP2K6", "AKT1"],
+                "kinase": ["MAP2K6", "MAP2K6"],
                 "substrate_site": [101, " 202 "],
             }
         ),
@@ -129,7 +129,7 @@ def test_kinase_workflow_stably_matches_mixed_identifier_types() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=1),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
             activity_config=None,
         )

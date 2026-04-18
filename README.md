@@ -25,32 +25,56 @@ import pandas as pd
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    KinaseScoringConfig,
     KinaseWorkflowRequest,
     Organism,
-    ReferencePreset,
+    ReferenceBundle,
     KinaseWorkflow,
 )
 
 dataset = AnalysisReadyDatasetBuilder().run(
     DatasetBuildRequest(
         phospho=pd.DataFrame(
-            {"sample_a": [1.0], "sample_b": [1.2]},
-            index=["MAPK14;Y182;"],
+            {"sample_a": [1.0, 0.7], "sample_b": [1.2, 0.8]},
+            index=["MAPK14;Y182;", "GSK3B;S9;"],
         ),
         site_metadata=pd.DataFrame(
             {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                "gene_symbol": ["MAPK14", "GSK3B"],
+                "site": ["Y182", "S9"],
+                "site_sequence": [
+                    "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                    "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                ],
             },
-            index=["MAPK14;Y182;"],
+            index=["MAPK14;Y182;", "GSK3B;S9;"],
         ),
         organism=Organism.RAT,
     )
 )
 
+references = ReferenceBundle(
+    organism=Organism.RAT,
+    kinase_substrate_map=pd.DataFrame(
+        {
+            "kinase": ["MAP2K6", "MAP2K6"],
+            "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+        }
+    ),
+    site_sequences=pd.DataFrame(
+        {
+            "site_sequence": dataset.site_metadata.loc[:, "site_sequence"],
+        },
+        index=pd.Index(dataset.site_metadata.index, name="site_id"),
+    ),
+)
+
 result = KinaseWorkflow().run(
-    KinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
+    KinaseWorkflowRequest(
+        dataset=dataset,
+        references=references,
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+    )
 )
 
 profile_scores = result.scoring_result.profile_scores
@@ -66,6 +90,8 @@ activity_scores = result.activity_result.activity_scores
 - `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain valid enum values, but
   they are not bundled runtime lanes in this release. Use an explicit
   `ReferenceBundle` for non-rat organisms.
+- Kinase scoring enforces a two-substrate scientific floor
+  (`scoring_config.min_substrates >= 2`). Single-site kinase profiles are rejected.
 - The supported kinase workflow currently performs profile-based scoring only.
   `result.scoring_result.profile_scores` is the scientific score matrix used by
   downstream workflow stages; `motif_scores`, `combined_scores`, and `weights`

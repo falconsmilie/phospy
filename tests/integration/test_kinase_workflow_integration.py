@@ -21,7 +21,7 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=1),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=8),
             activity_config=KinaseActivityConfig(enabled=True, threshold=0.6),
         )
@@ -56,9 +56,22 @@ def test_kinase_workflow_activity_stage_is_optional() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=1),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=6),
             activity_config=None,
         )
     )
     assert result.activity_result is None
+
+
+def test_kinase_workflow_default_scoring_floor_supports_realistic_input() -> None:
+    dataset = build_rat_l6_dataset(n_sites=260)
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=6),
+            activity_config=None,
+        )
+    )
+    assert result.scoring_result.profile_scores.shape[1] > 0
