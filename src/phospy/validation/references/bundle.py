@@ -12,10 +12,16 @@ from phospy.validation.common.dataframes import (
     require_non_empty_string_column,
     require_unique_index,
 )
+from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
 
 
 class ReferenceBundleValidator:
     """Validate the stable `ReferenceBundle` contract."""
+
+    def __init__(
+        self, *, compatibility: ReferenceCompatibilityValidator | None = None
+    ) -> None:
+        self._compatibility = compatibility or ReferenceCompatibilityValidator()
 
     def run(
         self,
@@ -98,7 +104,8 @@ class ReferenceBundleValidator:
                 "references.site_sequences is missing sequence entries for "
                 f"substrate sites in references.kinase_substrate_map: {missing_sample}"
             )
-        if dataset_organism is not None and dataset_organism is not organism:
-            raise ReferenceValidationError(
-                "references.organism must match dataset.organism when both are present"
-            )
+        self._compatibility.run_bundle_organism(
+            reference_organism=organism,
+            dataset_organism=dataset_organism,
+            error_type=ReferenceValidationError,
+        )

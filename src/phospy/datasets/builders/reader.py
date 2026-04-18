@@ -9,20 +9,23 @@ import pandas as pd
 
 from phospy.datasets.builders.contracts import DatasetInput
 from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
+from phospy.validation.datasets.inputs import DatasetInputSourceValidator
 
 
 class DatasetInputReader:
     """Resolve one supported builder input source into a DataFrame."""
 
+    def __init__(
+        self, *, source_validator: DatasetInputSourceValidator | None = None
+    ) -> None:
+        self._source_validator = source_validator or DatasetInputSourceValidator()
+
     def run(self, source: DatasetInput, *, field_name: str) -> pd.DataFrame:
-        if isinstance(source, pd.DataFrame):
-            return source.copy(deep=True)
-        if isinstance(source, str | Path | PathLike):
-            return self._read_from_path(source, field_name=field_name)
-        raise UnsupportedInputFormatError(
-            f"dataset build request {field_name} must be a pandas DataFrame or a file "
-            "path (str/pathlib.Path)"
-        )
+        validated_source = self._source_validator.run(source, field_name=field_name)
+        if isinstance(validated_source, pd.DataFrame):
+            return validated_source.copy(deep=True)
+        assert isinstance(validated_source, (str, Path, PathLike))
+        return self._read_from_path(validated_source, field_name=field_name)
 
     @staticmethod
     def _read_from_path(
@@ -30,14 +33,7 @@ class DatasetInputReader:
     ) -> pd.DataFrame:
         from phospy.io.tables import read_table
 
-        path = Path(source)
-        if isinstance(source, str):
-            raw = source.strip()
-            if not raw:
-                raise UnsupportedInputFormatError(
-                    f"dataset build request {field_name} path cannot be empty"
-                )
-            path = Path(raw)
+        path = Path(source.strip()) if isinstance(source, str) else Path(source)
         try:
             return read_table(path)
         except UnsupportedInputFormatError as exc:

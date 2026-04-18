@@ -2,19 +2,27 @@
 
 from __future__ import annotations
 
-from phospy.api.configs import (
-    KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-)
 from phospy.api.requests import SimpleKinaseWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
 from phospy.references.models import ReferenceBundle, ReferencePreset
+from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
+from phospy.validation.workflows.configs import WorkflowConfigValidator
 
 
 class SimpleKinaseWorkflowValidator:
     """Validate `SimpleKinaseWorkflowRequest` before interpretation."""
+
+    def __init__(
+        self,
+        *,
+        config_validator: WorkflowConfigValidator | None = None,
+        reference_compatibility: ReferenceCompatibilityValidator | None = None,
+    ) -> None:
+        self._config_validator = config_validator or WorkflowConfigValidator()
+        self._reference_compatibility = (
+            reference_compatibility or ReferenceCompatibilityValidator()
+        )
 
     def run(self, request: SimpleKinaseWorkflowRequest) -> SimpleKinaseWorkflowRequest:
         if not isinstance(request, SimpleKinaseWorkflowRequest):
@@ -29,18 +37,11 @@ class SimpleKinaseWorkflowValidator:
             raise WorkflowValidationError(
                 "simple kinase workflow request references must be ReferencePreset or ReferenceBundle"
             )
-        if not isinstance(request.scoring_config, KinaseScoringConfig):
-            raise WorkflowValidationError(
-                "simple kinase workflow request scoring_config must be KinaseScoringConfig"
-            )
-        if not isinstance(request.prediction_config, KinasePredictionConfig):
-            raise WorkflowValidationError(
-                "simple kinase workflow request prediction_config must be KinasePredictionConfig"
-            )
-        if request.activity_config is not None and not isinstance(
-            request.activity_config, KinaseActivityConfig
-        ):
-            raise WorkflowValidationError(
-                "simple kinase workflow request activity_config must be KinaseActivityConfig or None"
-            )
+        self._reference_compatibility.run(
+            request.references,
+            dataset_organism=request.dataset.organism,
+        )
+        self._config_validator.run_kinase_scoring(request.scoring_config)
+        self._config_validator.run_kinase_prediction(request.prediction_config)
+        self._config_validator.run_kinase_activity(request.activity_config)
         return request

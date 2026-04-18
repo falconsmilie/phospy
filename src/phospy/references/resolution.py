@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Protocol
 
 from phospy.errors.references import (
-    ReferenceCompatibilityError,
     ReferenceResolutionError,
     UnsupportedOrganismError,
 )
@@ -15,6 +14,7 @@ from phospy.references.resources import (
     load_bundled_site_sequences,
 )
 from phospy.validation.references.bundle import ReferenceBundleValidator
+from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
 
 
 class ReferenceProvider(Protocol):
@@ -64,9 +64,13 @@ class ReferenceResolver:
         *,
         provider: ReferenceProvider | None = None,
         validator: ReferenceBundleValidator | None = None,
+        compatibility_validator: ReferenceCompatibilityValidator | None = None,
     ) -> None:
         self._provider = provider or BundledReferenceProvider()
         self._validator = validator or ReferenceBundleValidator()
+        self._compatibility_validator = (
+            compatibility_validator or ReferenceCompatibilityValidator()
+        )
 
     def run(
         self,
@@ -74,6 +78,10 @@ class ReferenceResolver:
         *,
         dataset_organism: Organism | None,
     ) -> ReferenceBundle:
+        self._compatibility_validator.run(
+            reference_input,
+            dataset_organism=dataset_organism,
+        )
         if isinstance(reference_input, ReferenceBundle):
             self._validator.run(
                 organism=reference_input.organism,
@@ -82,10 +90,6 @@ class ReferenceResolver:
                 dataset_organism=dataset_organism,
             )
             return reference_input
-        if not isinstance(reference_input, ReferencePreset):
-            raise ReferenceResolutionError(
-                "reference input must be a ReferencePreset or ReferenceBundle"
-            )
         organism = self._resolve_target_organism(
             preset=reference_input,
             dataset_organism=dataset_organism,
@@ -116,9 +120,4 @@ class ReferenceResolver:
             ReferencePreset.MOUSE: Organism.MOUSE,
             ReferencePreset.RAT: Organism.RAT,
         }
-        target_organism = mapping[preset]
-        if dataset_organism is not None and dataset_organism is not target_organism:
-            raise ReferenceCompatibilityError(
-                "dataset.organism and requested reference preset must match"
-            )
-        return target_organism
+        return mapping[preset]

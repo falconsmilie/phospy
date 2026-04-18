@@ -2,20 +2,21 @@
 
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
-
-from phospy.api.configs import SignalomeConfig
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import SimpleKinaseWorkflowResult
 from phospy.errors.validation import WorkflowValidationError
+from phospy.validation.common.missing_values import MissingValuePolicy
+from phospy.validation.common.numeric_frames import require_numeric_matrix
+from phospy.validation.workflows.configs import WorkflowConfigValidator
 
 
 class SignalomeWorkflowValidator:
     """Validate `SignalomeWorkflowRequest` before interpretation."""
 
-    _MIN_CUTOFF = 0.0
-    _MAX_CUTOFF = 1.0
+    def __init__(
+        self, *, config_validator: WorkflowConfigValidator | None = None
+    ) -> None:
+        self._config_validator = config_validator or WorkflowConfigValidator()
 
     def run(self, request: SignalomeWorkflowRequest) -> SignalomeWorkflowRequest:
         if not isinstance(request, SignalomeWorkflowRequest):
@@ -26,25 +27,16 @@ class SignalomeWorkflowValidator:
             raise WorkflowValidationError(
                 "signalome workflow request kinase_result must be SimpleKinaseWorkflowResult"
             )
-        if not isinstance(request.config, SignalomeConfig):
-            raise WorkflowValidationError(
-                "signalome workflow request config must be SignalomeConfig"
-            )
-        cutoff = request.config.signalome_cutoff
-        if isinstance(cutoff, bool) or not isinstance(cutoff, (int, float)):
-            raise WorkflowValidationError(
-                "signalome workflow request config.signalome_cutoff must be a float "
-                "between 0.0 and 1.0"
-            )
-        if not self._MIN_CUTOFF <= float(cutoff) <= self._MAX_CUTOFF:
-            raise WorkflowValidationError(
-                "signalome workflow request config.signalome_cutoff must be between "
-                "0.0 and 1.0"
-            )
+        self._config_validator.run_signalome(request.config)
 
-        prediction_matrix = self._validated_numeric_matrix(
+        prediction_matrix = require_numeric_matrix(
             request.kinase_result.prediction_result.pred_mat,
-            context="kinase_result.prediction_result.pred_mat",
+            field_name=(
+                "signalome workflow request kinase_result.prediction_result.pred_mat"
+            ),
+            allow_empty=False,
+            missing_value_policy=MissingValuePolicy.FORBID,
+            error_type=WorkflowValidationError,
         )
         if prediction_matrix.shape[1] == 0:
             raise WorkflowValidationError(
@@ -56,9 +48,15 @@ class SignalomeWorkflowValidator:
         score_matrix_source = scoring_result.combined_scores
         if score_matrix_source is None:
             score_matrix_source = scoring_result.profile_scores
-        score_matrix = self._validated_numeric_matrix(
+        score_matrix = require_numeric_matrix(
             score_matrix_source,
-            context="kinase_result.scoring_result.combined_scores",
+            field_name=(
+                "signalome workflow request "
+                "kinase_result.scoring_result.combined_scores"
+            ),
+            allow_empty=False,
+            missing_value_policy=MissingValuePolicy.FORBID,
+            error_type=WorkflowValidationError,
         )
         if score_matrix.shape[1] == 0:
             raise WorkflowValidationError(
@@ -66,25 +64,3 @@ class SignalomeWorkflowValidator:
                 "must contain at least one kinase column"
             )
         return request
-
-    @staticmethod
-    def _validated_numeric_matrix(matrix: object, *, context: str) -> pd.DataFrame:
-        if not isinstance(matrix, pd.DataFrame):
-            raise WorkflowValidationError(
-                f"signalome workflow request {context} must be a pandas DataFrame"
-            )
-        if matrix.empty:
-            raise WorkflowValidationError(
-                f"signalome workflow request {context} must not be empty"
-            )
-        try:
-            numeric_matrix = matrix.astype(float)
-        except (TypeError, ValueError) as exc:
-            raise WorkflowValidationError(
-                f"signalome workflow request {context} must contain numeric values"
-            ) from exc
-        if not np.isfinite(numeric_matrix.to_numpy(dtype=float, copy=False)).all():
-            raise WorkflowValidationError(
-                f"signalome workflow request {context} must contain finite numeric values"
-            )
-        return numeric_matrix

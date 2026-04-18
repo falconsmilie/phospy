@@ -3,11 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from os import PathLike
-from pathlib import Path
 from typing import TYPE_CHECKING
-
-import pandas as pd
 
 from phospy.api.configs import (
     KinaseActivityConfig,
@@ -17,8 +13,6 @@ from phospy.api.configs import (
 )
 from phospy.datasets.builders.contracts import DatasetInput
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
-from phospy.errors.validation import WorkflowValidationError
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.transformations.models import TransformationState
 
@@ -40,38 +34,6 @@ class DatasetBuildRequest:
     organism: Organism | None = None
     transformation_state: TransformationState | None = None
 
-    def __post_init__(self) -> None:
-        self._validate_input(self.phospho, field_name="phospho")
-        self._validate_input(self.site_metadata, field_name="site_metadata")
-        self._validate_optional_input(
-            self.sample_metadata,
-            field_name="sample_metadata",
-        )
-        self._validate_optional_input(self.total, field_name="total")
-        if self.organism is not None and not isinstance(self.organism, Organism):
-            raise PhosPyInputError("dataset build request organism must be an Organism")
-        if self.transformation_state is not None and not isinstance(
-            self.transformation_state, TransformationState
-        ):
-            raise PhosPyInputError(
-                "dataset build request transformation_state must be a TransformationState"
-            )
-
-    @staticmethod
-    def _validate_input(value: object, *, field_name: str) -> None:
-        if isinstance(value, pd.DataFrame | str | Path | PathLike):
-            return
-        raise UnsupportedInputFormatError(
-            f"dataset build request {field_name} must be a pandas DataFrame or a file "
-            "path (str/pathlib.Path)"
-        )
-
-    @classmethod
-    def _validate_optional_input(cls, value: object | None, *, field_name: str) -> None:
-        if value is None:
-            return
-        cls._validate_input(value, field_name=field_name)
-
 
 @dataclass(frozen=True, slots=True)
 class SimpleKinaseWorkflowRequest:
@@ -87,30 +49,6 @@ class SimpleKinaseWorkflowRequest:
         default_factory=KinaseActivityConfig
     )
 
-    def __post_init__(self) -> None:
-        if not isinstance(self.dataset, AnalysisReadyPhosphoDataset):
-            raise WorkflowValidationError(
-                "kinase workflow request dataset must be AnalysisReadyPhosphoDataset"
-            )
-        if not isinstance(self.references, (ReferencePreset, ReferenceBundle)):
-            raise WorkflowValidationError(
-                "kinase workflow request references must be ReferencePreset or ReferenceBundle"
-            )
-        if not isinstance(self.scoring_config, KinaseScoringConfig):
-            raise WorkflowValidationError(
-                "kinase workflow request scoring_config must be KinaseScoringConfig"
-            )
-        if not isinstance(self.prediction_config, KinasePredictionConfig):
-            raise WorkflowValidationError(
-                "kinase workflow request prediction_config must be KinasePredictionConfig"
-            )
-        if self.activity_config is not None and not isinstance(
-            self.activity_config, KinaseActivityConfig
-        ):
-            raise WorkflowValidationError(
-                "kinase workflow request activity_config must be KinaseActivityConfig or None"
-            )
-
 
 @dataclass(frozen=True, slots=True)
 class SignalomeWorkflowRequest:
@@ -118,18 +56,6 @@ class SignalomeWorkflowRequest:
 
     kinase_result: SimpleKinaseWorkflowResult
     config: SignalomeConfig = field(default_factory=SignalomeConfig)
-
-    def __post_init__(self) -> None:
-        from phospy.api.results import SimpleKinaseWorkflowResult
-
-        if not isinstance(self.kinase_result, SimpleKinaseWorkflowResult):
-            raise WorkflowValidationError(
-                "signalome workflow request kinase_result must be SimpleKinaseWorkflowResult"
-            )
-        if not isinstance(self.config, SignalomeConfig):
-            raise WorkflowValidationError(
-                "signalome workflow request config must be SignalomeConfig"
-            )
 
 
 __all__ = [
