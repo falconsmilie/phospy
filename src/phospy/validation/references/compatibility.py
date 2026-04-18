@@ -12,6 +12,12 @@ from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 class ReferenceCompatibilityValidator:
     """Validate dataset/reference compatibility for preset or explicit bundle input."""
 
+    _PRESET_TO_ORGANISM = {
+        ReferencePreset.HUMAN: Organism.HUMAN,
+        ReferencePreset.MOUSE: Organism.MOUSE,
+        ReferencePreset.RAT: Organism.RAT,
+    }
+
     def run(
         self,
         reference_input: object,
@@ -34,15 +40,25 @@ class ReferenceCompatibilityValidator:
                     "ReferencePreset.AUTO requires dataset.organism"
                 )
             return
-        target_organism = {
-            ReferencePreset.HUMAN: Organism.HUMAN,
-            ReferencePreset.MOUSE: Organism.MOUSE,
-            ReferencePreset.RAT: Organism.RAT,
-        }[reference_input]
+        target_organism = self._PRESET_TO_ORGANISM[reference_input]
         if dataset_organism is not None and dataset_organism is not target_organism:
             raise ReferenceCompatibilityError(
                 "dataset.organism and requested reference preset must match"
             )
+
+    def resolve_preset_organism(
+        self,
+        *,
+        preset: ReferencePreset,
+        dataset_organism: Organism | None,
+    ) -> Organism:
+        """Resolve a compatible preset into the concrete organism to load."""
+
+        self.run(preset, dataset_organism=dataset_organism)
+        if preset is ReferencePreset.AUTO:
+            assert dataset_organism is not None  # validated above
+            return dataset_organism
+        return self._PRESET_TO_ORGANISM[preset]
 
     @staticmethod
     def run_bundle_organism(

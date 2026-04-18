@@ -17,9 +17,12 @@ from phospy.api.results import (
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import ReferenceCompatibilityError
-from phospy.references.models import Organism, ReferencePreset
+from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
+from phospy.references.resolution import ReferenceResolver
 from phospy.transformations.models import TransformationState
 from phospy.validation.datasets.analysis_ready import AnalysisReadyDatasetValidator
+from phospy.validation.ownership import VALIDATION_RULE_OWNERS
+from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
 from phospy.workflows.kinase.public import KinaseWorkflow
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 
@@ -60,7 +63,7 @@ def test_result_ownership_keeps_signalome_result_contract_check_narrow() -> None
     assert "must be KinaseNetwork" not in source
 
 
-def test_reference_compatibility_is_owned_by_reference_resolution() -> None:
+def test_reference_compatibility_is_enforced_at_workflow_runtime_boundary() -> None:
     request = KinaseWorkflowRequest(
         dataset=_dataset(),
         references=ReferencePreset.HUMAN,
@@ -71,6 +74,34 @@ def test_reference_compatibility_is_owned_by_reference_resolution() -> None:
     assert KinaseWorkflowValidator().run(request) is request
     with pytest.raises(ReferenceCompatibilityError):
         KinaseWorkflow().run(request)
+
+
+def test_reference_resolver_delegates_compatibility_and_does_not_duplicate_checks() -> (
+    None
+):
+    resolver_source = inspect.getsource(ReferenceResolver.run)
+    assert "self._compatibility_validator.run(" in resolver_source
+    assert "resolve_preset_organism" in resolver_source
+    assert "run_bundle_organism" not in resolver_source
+    assert "ReferenceBundleValidator" not in resolver_source
+    assert "requested reference preset must match" not in resolver_source
+    assert "ReferencePreset.AUTO requires dataset.organism" not in resolver_source
+
+
+def test_reference_compatibility_validator_is_single_owner_for_compatibility_rules() -> (
+    None
+):
+    source = inspect.getsource(ReferenceCompatibilityValidator)
+    assert "requested reference preset must match" in source
+    assert "ReferencePreset.AUTO requires dataset.organism" in source
+    assert "references.organism must match dataset.organism" in source
+
+
+def test_reference_bundle_contract_validation_has_single_owner() -> None:
+    bundle_source = inspect.getsource(ReferenceBundle.__post_init__)
+    resolver_source = inspect.getsource(ReferenceResolver.run)
+    assert "ReferenceBundleValidator().run(" in bundle_source
+    assert "ReferenceBundleValidator" not in resolver_source
 
 
 def test_dataset_validation_composition_is_outside_validation_subdomains() -> None:
@@ -85,3 +116,19 @@ def test_dataset_validation_composition_is_outside_validation_subdomains() -> No
     )
     assert "_DATASET_VALIDATOR.run(" in dataset_post_init_source
     assert "_TRANSFORMATION_STATE_VALIDATOR.run(" in dataset_post_init_source
+
+
+def test_major_validation_rules_have_documented_owners() -> None:
+    documented = {entry.rule: entry.owner for entry in VALIDATION_RULE_OWNERS}
+    assert len(documented) == len(VALIDATION_RULE_OWNERS)
+    assert documented["dataset build request input source types"]
+    assert documented["kinase workflow request config policy"]
+    assert documented["signalome workflow request config policy"]
+    assert (
+        documented["reference input compatibility (preset/bundle vs dataset organism)"]
+        == "ReferenceCompatibilityValidator.run"
+    )
+    assert documented["reference bundle structural contract"]
+    assert documented["analysis-ready dataset structural contract"]
+    assert documented["dataset/transformation-state coherence"]
+    assert documented["signalome result expanded_signalome field type/ownership"]
