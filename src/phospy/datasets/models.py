@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 
 import pandas as pd
 
+from phospy._frame_ownership import own_dataframe, own_optional_dataframe
 from phospy.errors.validation import DatasetValidationError
 from phospy.references.models import Organism
 from phospy.site_ids import canonicalize_site_index
@@ -27,24 +28,39 @@ class AnalysisReadyPhosphoDataset:
     transformation_state: TransformationState = field(
         default_factory=TransformationState.raw
     )
+    _assume_owned: InitVar[bool] = False
 
-    def __post_init__(self) -> None:
-        phospho = _copy_frame(self.phospho)
-        site_metadata = _copy_frame(self.site_metadata)
-        sample_metadata = _copy_optional_frame(self.sample_metadata)
-        total = _copy_optional_frame(self.total)
-        if isinstance(phospho, pd.DataFrame):
-            phospho.index = canonicalize_site_index(
-                phospho.index,
-                field_name="dataset.phospho.index",
-                error_type=DatasetValidationError,
-            )
-        if isinstance(site_metadata, pd.DataFrame):
-            site_metadata.index = canonicalize_site_index(
-                site_metadata.index,
-                field_name="dataset.site_metadata.index",
-                error_type=DatasetValidationError,
-            )
+    def __post_init__(self, _assume_owned: bool) -> None:
+        phospho = own_dataframe(
+            self.phospho,
+            field_name="dataset.phospho",
+            assume_owned=_assume_owned,
+        )
+        site_metadata = own_dataframe(
+            self.site_metadata,
+            field_name="dataset.site_metadata",
+            assume_owned=_assume_owned,
+        )
+        sample_metadata = own_optional_dataframe(
+            self.sample_metadata,
+            field_name="dataset.sample_metadata",
+            assume_owned=_assume_owned,
+        )
+        total = own_optional_dataframe(
+            self.total,
+            field_name="dataset.total",
+            assume_owned=_assume_owned,
+        )
+        phospho.index = canonicalize_site_index(
+            phospho.index,
+            field_name="dataset.phospho.index",
+            error_type=DatasetValidationError,
+        )
+        site_metadata.index = canonicalize_site_index(
+            site_metadata.index,
+            field_name="dataset.site_metadata.index",
+            error_type=DatasetValidationError,
+        )
         _DATASET_VALIDATOR.run(
             phospho=phospho,
             site_metadata=site_metadata,
@@ -58,14 +74,25 @@ class AnalysisReadyPhosphoDataset:
         object.__setattr__(self, "sample_metadata", sample_metadata)
         object.__setattr__(self, "total", total)
 
-
-def _copy_frame(value: object) -> object:
-    if not isinstance(value, pd.DataFrame):
-        return value
-    return value.copy(deep=True)
-
-
-def _copy_optional_frame(value: object | None) -> object | None:
-    if value is None:
-        return None
-    return _copy_frame(value)
+    @classmethod
+    def _from_owned(
+        cls,
+        *,
+        phospho: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        sample_metadata: pd.DataFrame | None = None,
+        total: pd.DataFrame | None = None,
+        organism: Organism | None = None,
+        transformation_state: TransformationState | None = None,
+    ) -> AnalysisReadyPhosphoDataset:
+        return cls(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=sample_metadata,
+            total=total,
+            organism=organism,
+            transformation_state=transformation_state
+            if transformation_state is not None
+            else TransformationState.raw(),
+            _assume_owned=True,
+        )

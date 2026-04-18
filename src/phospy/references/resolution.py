@@ -49,7 +49,7 @@ class BundledReferenceProvider:
             )
         kinase_substrate_map = load_bundled_kinase_substrate_map(organism)
         site_sequences = load_bundled_site_sequences(organism)
-        return ReferenceBundle(
+        return ReferenceBundle._from_owned(
             organism=organism,
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,

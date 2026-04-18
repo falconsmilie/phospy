@@ -50,6 +50,16 @@ All public executors use `run(request)`.
 - For non-rat workflows, supply an explicit `ReferenceBundle` instead of relying
   on bundled presets
 
+## Frame Ownership
+
+PhosPy applies a package-wide ownership rule for pandas frames:
+
+- public boundary objects own copies of caller-provided frames
+- internal stage DTOs may alias already-owned frames
+- internal assembly paths may transfer ownership without re-copying
+
+See [`frame_ownership.md`](frame_ownership.md) for the full policy.
+
 ## Result Contract
 
 `KinaseWorkflowResult` keeps stage outputs nested:

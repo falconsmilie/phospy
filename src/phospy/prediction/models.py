@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
 
 import pandas as pd
+
+from phospy._frame_ownership import own_dataframe, own_optional_dataframe
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,24 +22,50 @@ class KinaseScoringResult:
     motif_scores: pd.DataFrame | None = None
     combined_scores: pd.DataFrame | None = None
     weights: pd.DataFrame | None = None
+    _assume_owned: InitVar[bool] = False
 
-    def __post_init__(self) -> None:
-        profile_scores = _copy_required_frame(
-            self.profile_scores, field_name="scoring_result.profile_scores"
+    def __post_init__(self, _assume_owned: bool) -> None:
+        profile_scores = own_dataframe(
+            self.profile_scores,
+            field_name="scoring_result.profile_scores",
+            assume_owned=_assume_owned,
         )
-        motif_scores = _copy_optional_frame(
-            self.motif_scores, field_name="scoring_result.motif_scores"
+        motif_scores = own_optional_dataframe(
+            self.motif_scores,
+            field_name="scoring_result.motif_scores",
+            assume_owned=_assume_owned,
         )
-        combined_scores = _copy_optional_frame(
-            self.combined_scores, field_name="scoring_result.combined_scores"
+        combined_scores = own_optional_dataframe(
+            self.combined_scores,
+            field_name="scoring_result.combined_scores",
+            assume_owned=_assume_owned,
         )
-        weights = _copy_optional_frame(
-            self.weights, field_name="scoring_result.weights"
+        weights = own_optional_dataframe(
+            self.weights,
+            field_name="scoring_result.weights",
+            assume_owned=_assume_owned,
         )
         object.__setattr__(self, "profile_scores", profile_scores)
         object.__setattr__(self, "motif_scores", motif_scores)
         object.__setattr__(self, "combined_scores", combined_scores)
         object.__setattr__(self, "weights", weights)
+
+    @classmethod
+    def _from_owned(
+        cls,
+        *,
+        profile_scores: pd.DataFrame,
+        motif_scores: pd.DataFrame | None = None,
+        combined_scores: pd.DataFrame | None = None,
+        weights: pd.DataFrame | None = None,
+    ) -> KinaseScoringResult:
+        return cls(
+            profile_scores=profile_scores,
+            motif_scores=motif_scores,
+            combined_scores=combined_scores,
+            weights=weights,
+            _assume_owned=True,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,27 +74,31 @@ class KinasePredictionResult:
 
     pred_mat: pd.DataFrame
     substrate_list: pd.DataFrame | None = None
+    _assume_owned: InitVar[bool] = False
 
-    def __post_init__(self) -> None:
-        pred_mat = _copy_required_frame(
-            self.pred_mat, field_name="prediction_result.pred_mat"
+    def __post_init__(self, _assume_owned: bool) -> None:
+        pred_mat = own_dataframe(
+            self.pred_mat,
+            field_name="prediction_result.pred_mat",
+            assume_owned=_assume_owned,
         )
-        substrate_list = _copy_optional_frame(
-            self.substrate_list, field_name="prediction_result.substrate_list"
+        substrate_list = own_optional_dataframe(
+            self.substrate_list,
+            field_name="prediction_result.substrate_list",
+            assume_owned=_assume_owned,
         )
         object.__setattr__(self, "pred_mat", pred_mat)
         object.__setattr__(self, "substrate_list", substrate_list)
 
-
-def _copy_required_frame(value: object, *, field_name: str) -> pd.DataFrame:
-    if not isinstance(value, pd.DataFrame):
-        raise TypeError(f"{field_name} must be a pandas DataFrame")
-    return value.copy(deep=True)
-
-
-def _copy_optional_frame(
-    value: object | None, *, field_name: str
-) -> pd.DataFrame | None:
-    if value is None:
-        return None
-    return _copy_required_frame(value, field_name=field_name)
+    @classmethod
+    def _from_owned(
+        cls,
+        *,
+        pred_mat: pd.DataFrame,
+        substrate_list: pd.DataFrame | None = None,
+    ) -> KinasePredictionResult:
+        return cls(
+            pred_mat=pred_mat,
+            substrate_list=substrate_list,
+            _assume_owned=True,
+        )

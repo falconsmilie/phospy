@@ -33,8 +33,8 @@ class KinaseWorkflowInterpreter:
             request.references,
             dataset_organism=request.dataset.organism,
         )
-        kinase_substrate_map = references.kinase_substrate_map.copy(deep=True)
-        site_sequences = references.site_sequences.copy(deep=True)
+        kinase_substrate_map = references.kinase_substrate_map
+        site_sequences = references.site_sequences
         overlap_counts = self._summarize_overlap(
             dataset=request.dataset.phospho,
             kinase_substrate_map=kinase_substrate_map,

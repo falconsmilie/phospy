@@ -39,7 +39,7 @@ class DatasetBuildExecutor:
                 phospho=request.phospho,
                 total=request.total,
             )
-            return AnalysisReadyPhosphoDataset(
+            return AnalysisReadyPhosphoDataset._from_owned(
                 phospho=resolved.phospho,
                 site_metadata=request.site_metadata,
                 sample_metadata=request.sample_metadata,

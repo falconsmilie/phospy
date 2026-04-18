@@ -36,7 +36,7 @@ class DatasetConventionNormalizer:
         sample_metadata: pd.DataFrame | None,
         total: pd.DataFrame | None,
     ) -> NormalizedDatasetInputs:
-        normalized_phospho = phospho.copy(deep=True)
+        normalized_phospho = phospho
         normalized_phospho.index = canonicalize_site_index(
             normalized_phospho.index,
             field_name="dataset build request phospho.index",
@@ -72,7 +72,7 @@ class DatasetConventionNormalizer:
         *,
         phospho_index: pd.Index,
     ) -> pd.DataFrame:
-        normalized = site_metadata.copy(deep=True)
+        normalized = site_metadata
         normalized = self._normalize_site_metadata_index(normalized)
         normalized = self._normalize_site_metadata_columns(normalized)
         normalized = self._derive_site_fields_from_index(normalized)
@@ -86,7 +86,7 @@ class DatasetConventionNormalizer:
 
     @staticmethod
     def _normalize_site_metadata_index(site_metadata: pd.DataFrame) -> pd.DataFrame:
-        normalized = site_metadata.copy(deep=True)
+        normalized = site_metadata
         index_name = (
             str(normalized.index.name).strip().lower() if normalized.index.name else ""
         )
@@ -125,7 +125,7 @@ class DatasetConventionNormalizer:
 
     @staticmethod
     def _derive_site_fields_from_index(site_metadata: pd.DataFrame) -> pd.DataFrame:
-        normalized = site_metadata.copy(deep=True)
+        normalized = site_metadata
         split = (
             normalized.index.to_series()
             .astype(str)
@@ -152,7 +152,7 @@ class DatasetConventionNormalizer:
     ) -> pd.DataFrame | None:
         if sample_metadata is None:
             return None
-        normalized = sample_metadata.copy(deep=True)
+        normalized = sample_metadata
         normalized.index = _normalized_string_index(normalized.index)
         if (
             not normalized.index.equals(phospho_columns)
@@ -170,7 +170,7 @@ class DatasetConventionNormalizer:
     ) -> pd.DataFrame | None:
         if total is None:
             return None
-        normalized = total.copy(deep=True)
+        normalized = total
         normalized.index = _normalized_string_index(normalized.index)
         normalized.columns = _normalized_string_index(normalized.columns)
         if (

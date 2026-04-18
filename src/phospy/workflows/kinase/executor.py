@@ -80,7 +80,7 @@ class KinaseWorkflowExecutor:
             phospho=scoring_phospho,
             profile_matrix=profile_build.profile_matrix,
         )
-        scoring_result = KinaseScoringResult(profile_scores=profile_scores)
+        scoring_result = KinaseScoringResult._from_owned(profile_scores=profile_scores)
         return _ScoringExecution(
             scoring_result=scoring_result,
             score_matrix=profile_scores,
@@ -120,7 +120,7 @@ class KinaseWorkflowExecutor:
             quantified_substrates=scoring_execution.quantified_substrates,
             top_k=request.prediction_config.top_k,
         )
-        return KinasePredictionResult(
+        return KinasePredictionResult._from_owned(
             pred_mat=pred_mat,
             substrate_list=substrate_list,
         )

@@ -156,12 +156,14 @@ class SignalomeWorkflowExecutor:
                 network_correlation_threshold=network_correlation_threshold,
             )
 
-        return SignalomeWorkflowResult(
+        return SignalomeWorkflowResult._from_owned(
             dataset=request.dataset,
             kinase_result=request.kinase_result,
-            module_assignments=SignalomeAssignments(table=module_assignments),
-            signalome_modules=SignalomeModules(table=signalome_modules),
-            kinase_network=KinaseNetwork(
+            module_assignments=SignalomeAssignments._from_owned(
+                table=module_assignments
+            ),
+            signalome_modules=SignalomeModules._from_owned(table=signalome_modules),
+            kinase_network=KinaseNetwork._from_owned(
                 edges=network_edges,
                 nodes=network_nodes,
             ),

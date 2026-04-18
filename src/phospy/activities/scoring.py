@@ -54,7 +54,7 @@ def compute_activity_from_inputs(inputs: KinaseActivityInputs) -> KinaseActivity
             activity_config_top_n_substrates=inputs.top_n_substrates,
         )
 
-    return KinaseActivityResult(
+    return KinaseActivityResult._from_owned(
         weighted_activity=weighted_activity,
         ksea_scores=ksea_scores,
         ksea_counts=ksea_counts,

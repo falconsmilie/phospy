@@ -20,7 +20,7 @@ class SiteSequenceDeriver:
         *,
         organism: Organism | None,
     ) -> pd.DataFrame:
-        normalized = site_metadata.copy(deep=True)
+        normalized = site_metadata
         existing = self._existing_site_sequence(normalized)
         missing = existing.isna() | (existing == "")
         if not missing.any():
@@ -36,7 +36,7 @@ class SiteSequenceDeriver:
             site_index=normalized.index,
             organism=organism,
         )
-        resolved = existing.copy()
+        resolved = existing
         resolved.loc[missing] = derived.loc[missing]
         unresolved = resolved.isna() | (resolved == "")
         if unresolved.any():
@@ -72,7 +72,7 @@ class SiteSequenceDeriver:
                 f"site_sequence derivation is unavailable for organism "
                 f"'{organism.value}'. provide site_metadata.site_sequence explicitly"
             ) from exc
-        sequence_map = bundled_sequences.loc[:, "site_sequence"].copy()
+        sequence_map = bundled_sequences.loc[:, "site_sequence"]
         sequence_map.index = canonicalize_site_index(
             sequence_map.index,
             field_name="bundled site sequence index",

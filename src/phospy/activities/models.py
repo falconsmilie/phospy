@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
 
 import pandas as pd
+
+from phospy._frame_ownership import own_dataframe, own_series
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,8 +38,6 @@ class KinaseActivityInputs:
             raise TypeError(
                 "activity input overlap_summary must be PredMatOverlapSummary"
             )
-        object.__setattr__(self, "pred_mat", self.pred_mat.copy(deep=True))
-        object.__setattr__(self, "phospho_matrix", self.phospho_matrix.copy(deep=True))
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,42 +58,55 @@ class KinaseActivityResult:
     ksea_counts: pd.Series
     target_counts: pd.Series
     target_table: pd.DataFrame
+    _assume_owned: InitVar[bool] = False
 
-    def __post_init__(self) -> None:
-        if not isinstance(self.weighted_activity, pd.DataFrame):
-            raise TypeError(
-                "activity_result.weighted_activity must be a pandas DataFrame"
-            )
-        if not isinstance(self.ksea_scores, pd.DataFrame):
-            raise TypeError("activity_result.ksea_scores must be a pandas DataFrame")
-        if not isinstance(self.ksea_counts, pd.Series):
-            raise TypeError("activity_result.ksea_counts must be a pandas Series")
-        if not isinstance(self.target_counts, pd.Series):
-            raise TypeError("activity_result.target_counts must be a pandas Series")
-        if not isinstance(self.target_table, pd.DataFrame):
-            raise TypeError("activity_result.target_table must be a pandas DataFrame")
-        object.__setattr__(
-            self,
-            "weighted_activity",
-            self.weighted_activity.copy(deep=True),
+    def __post_init__(self, _assume_owned: bool) -> None:
+        weighted_activity = own_dataframe(
+            self.weighted_activity,
+            field_name="activity_result.weighted_activity",
+            assume_owned=_assume_owned,
         )
-        object.__setattr__(
-            self,
-            "ksea_scores",
-            self.ksea_scores.copy(deep=True),
+        ksea_scores = own_dataframe(
+            self.ksea_scores,
+            field_name="activity_result.ksea_scores",
+            assume_owned=_assume_owned,
         )
-        object.__setattr__(
-            self,
-            "ksea_counts",
-            self.ksea_counts.copy(deep=True),
+        ksea_counts = own_series(
+            self.ksea_counts,
+            field_name="activity_result.ksea_counts",
+            assume_owned=_assume_owned,
         )
-        object.__setattr__(
-            self,
-            "target_counts",
-            self.target_counts.copy(deep=True),
+        target_counts = own_series(
+            self.target_counts,
+            field_name="activity_result.target_counts",
+            assume_owned=_assume_owned,
         )
-        object.__setattr__(
-            self,
-            "target_table",
-            self.target_table.copy(deep=True),
+        target_table = own_dataframe(
+            self.target_table,
+            field_name="activity_result.target_table",
+            assume_owned=_assume_owned,
+        )
+        object.__setattr__(self, "weighted_activity", weighted_activity)
+        object.__setattr__(self, "ksea_scores", ksea_scores)
+        object.__setattr__(self, "ksea_counts", ksea_counts)
+        object.__setattr__(self, "target_counts", target_counts)
+        object.__setattr__(self, "target_table", target_table)
+
+    @classmethod
+    def _from_owned(
+        cls,
+        *,
+        weighted_activity: pd.DataFrame,
+        ksea_scores: pd.DataFrame,
+        ksea_counts: pd.Series,
+        target_counts: pd.Series,
+        target_table: pd.DataFrame,
+    ) -> KinaseActivityResult:
+        return cls(
+            weighted_activity=weighted_activity,
+            ksea_scores=ksea_scores,
+            ksea_counts=ksea_counts,
+            target_counts=target_counts,
+            target_table=target_table,
+            _assume_owned=True,
         )
