@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy.api.configs import (
+    KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
     SignalomeConfig,
@@ -137,6 +138,46 @@ def test_kinase_request_reference_compatibility_fails_in_validator() -> None:
         activity_config=None,
     )
     with pytest.raises(ReferenceCompatibilityError):
+        KinaseWorkflowValidator().run(request)
+
+
+def test_kinase_activity_config_policy_fails_at_validator_boundary() -> None:
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=5),
+        activity_config=KinaseActivityConfig(
+            enabled=True,
+            threshold=0.6,
+            min_substrates=0,
+            top_n_substrates=20,
+        ),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="activity_config.min_substrates must be greater than or equal to 1",
+    ):
+        KinaseWorkflowValidator().run(request)
+
+
+def test_kinase_activity_top_n_config_policy_fails_at_validator_boundary() -> None:
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=5),
+        activity_config=KinaseActivityConfig(
+            enabled=True,
+            threshold=0.6,
+            min_substrates=1,
+            top_n_substrates=0,
+        ),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="activity_config.top_n_substrates must be greater than or equal to 1",
+    ):
         KinaseWorkflowValidator().run(request)
 
 

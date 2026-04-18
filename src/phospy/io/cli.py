@@ -9,6 +9,9 @@ from pathlib import Path
 
 from phospy.api.builders import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
+    KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES,
+    KINASE_ACTIVITY_DEFAULT_THRESHOLD,
+    KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -194,8 +197,20 @@ def _add_kinase_runtime_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--activity-threshold",
         type=float,
-        default=0.6,
+        default=KINASE_ACTIVITY_DEFAULT_THRESHOLD,
         help="Activity threshold when activity stage is enabled.",
+    )
+    parser.add_argument(
+        "--activity-min-substrates",
+        type=int,
+        default=KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES,
+        help="Minimum selected substrates per kinase for activity outputs.",
+    )
+    parser.add_argument(
+        "--activity-top-n-substrates",
+        type=int,
+        default=KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES,
+        help="Top-N predicted substrates per kinase used in weighted activity.",
     )
 
 
@@ -250,7 +265,12 @@ def _run_kinase_workflow_from_args(args: argparse.Namespace):
     activity_config = (
         None
         if args.skip_activity
-        else KinaseActivityConfig(enabled=True, threshold=args.activity_threshold)
+        else KinaseActivityConfig(
+            enabled=True,
+            threshold=args.activity_threshold,
+            min_substrates=args.activity_min_substrates,
+            top_n_substrates=args.activity_top_n_substrates,
+        )
     )
     request = KinaseWorkflowRequest(
         dataset=dataset,

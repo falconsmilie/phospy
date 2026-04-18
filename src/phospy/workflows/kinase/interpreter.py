@@ -56,12 +56,14 @@ class KinaseWorkflowInterpreter:
             dataset=request.dataset.phospho,
             site_sequences=site_sequences,
         )
+        activity_phospho_matrix = request.dataset.phospho.loc[scoring_site_index, :]
         return ResolvedKinaseWorkflowRequest(
             dataset=request.dataset,
             references=references,
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,
             scoring_site_index=scoring_site_index,
+            activity_phospho_matrix=activity_phospho_matrix,
             scoring_config=request.scoring_config,
             prediction_config=request.prediction_config,
             activity_config=request.activity_config,

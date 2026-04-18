@@ -83,13 +83,19 @@ Signalome protein grouping resolves from explicit protein identity:
 `dataset.site_metadata.protein_id` when present, otherwise interpreted site-ID
 protein prefixes. Missing protein identity fails with `WorkflowBoundaryError`.
 
-Kinase activity output currently uses an interim support-based definition:
+Kinase activity output exposes the full downstream activity stage:
 
-- `activity_score`: mean of strictly positive kinase prediction scores for that kinase
-  (`pred_mat` entries where score `> 0`), not a mean over the full zero-filled matrix
-- `n_predicted_sites`: number of sites with strictly positive prediction scores
-- `weighted_signal`: phosphosite signal mean weighted by those same positive scores
-- `is_active`: `activity_score >= activity_config.threshold`
+- `result.activity_result.weighted_activity`
+- `result.activity_result.ksea_scores`
+- `result.activity_result.ksea_counts`
+- `result.activity_result.target_counts`
+- `result.activity_result.target_table`
+
+Activity configuration controls:
+
+- `activity_config.threshold`
+- `activity_config.min_substrates`
+- `activity_config.top_n_substrates`
 
 Kinase scoring support floor:
 

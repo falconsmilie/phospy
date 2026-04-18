@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from phospy.api.configs import (
+    KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR,
+    KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -62,6 +64,18 @@ class WorkflowConfigValidator:
             field_name="activity_config.threshold",
             minimum=0.0,
             maximum=1.0,
+            error_type=WorkflowValidationError,
+        )
+        require_int_at_least(
+            config.min_substrates,
+            field_name="activity_config.min_substrates",
+            minimum=KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR,
+            error_type=WorkflowValidationError,
+        )
+        require_int_at_least(
+            config.top_n_substrates,
+            field_name="activity_config.top_n_substrates",
+            minimum=KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR,
             error_type=WorkflowValidationError,
         )
         return config

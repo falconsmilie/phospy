@@ -29,6 +29,9 @@ phospy kinase \
   --scoring-min-substrates 2 \
   --prediction-top-k 6 \
   --prediction-ensemble-size 8 \
+  --activity-threshold 0.6 \
+  --activity-min-substrates 3 \
+  --activity-top-n-substrates 20 \
   --outdir ./out
 ```
 
@@ -108,7 +111,11 @@ Supported file formats for read and write:
       pred_mat.<fmt>
       substrate_list.<fmt>    # optional
     activity/
-      activity_scores.<fmt>   # optional
+      weighted_activity.<fmt> # optional
+      ksea_scores.<fmt>       # optional
+      ksea_counts.<fmt>       # optional
+      target_counts.<fmt>     # optional
+      target_table.<fmt>      # optional
     references/
       kinase_substrate_map.<fmt>
       site_sequences.<fmt>

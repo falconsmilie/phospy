@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import pandas as pd
+
 from phospy.activities.models import KinaseActivityResult
 from phospy.api.configs import SignalomeConfig
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
@@ -225,17 +227,65 @@ def save_signalome_workflow_bundle(
     }
 
     activity_tables = {
-        "activity_scores": _write_optional_bundle_table(
+        "weighted_activity": _write_optional_bundle_table(
             table=(
                 None
                 if result.kinase_result.activity_result is None
-                else result.kinase_result.activity_result.activity_scores
+                else result.kinase_result.activity_result.weighted_activity
             ),
             bundle_root=bundle_root,
-            relative_path=Path("activity") / f"activity_scores{suffix}",
+            relative_path=Path("activity") / f"weighted_activity{suffix}",
             written=written,
-            written_key="activity.activity_scores",
-        )
+            written_key="activity.weighted_activity",
+        ),
+        "ksea_scores": _write_optional_bundle_table(
+            table=(
+                None
+                if result.kinase_result.activity_result is None
+                else result.kinase_result.activity_result.ksea_scores
+            ),
+            bundle_root=bundle_root,
+            relative_path=Path("activity") / f"ksea_scores{suffix}",
+            written=written,
+            written_key="activity.ksea_scores",
+        ),
+        "ksea_counts": _write_optional_bundle_table(
+            table=(
+                None
+                if result.kinase_result.activity_result is None
+                else result.kinase_result.activity_result.ksea_counts.to_frame(
+                    name="n_substrates"
+                )
+            ),
+            bundle_root=bundle_root,
+            relative_path=Path("activity") / f"ksea_counts{suffix}",
+            written=written,
+            written_key="activity.ksea_counts",
+        ),
+        "target_counts": _write_optional_bundle_table(
+            table=(
+                None
+                if result.kinase_result.activity_result is None
+                else result.kinase_result.activity_result.target_counts.to_frame(
+                    name="n_targets"
+                )
+            ),
+            bundle_root=bundle_root,
+            relative_path=Path("activity") / f"target_counts{suffix}",
+            written=written,
+            written_key="activity.target_counts",
+        ),
+        "target_table": _write_optional_bundle_table(
+            table=(
+                None
+                if result.kinase_result.activity_result is None
+                else result.kinase_result.activity_result.target_table
+            ),
+            bundle_root=bundle_root,
+            relative_path=Path("activity") / f"target_table{suffix}",
+            written=written,
+            written_key="activity.target_table",
+        ),
     }
 
     signalome_tables = {
@@ -532,19 +582,67 @@ def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflow
         ),
     )
 
-    activity_table = _read_optional_table(
+    weighted_activity = _read_optional_table(
         bundle_root=root,
         tables=activity_tables,
-        table_key="activity_scores",
+        table_key="weighted_activity",
         field_name=(
-            "bundle manifest.upstream_kinase_outputs.activity.tables.activity_scores"
+            "bundle manifest.upstream_kinase_outputs.activity.tables.weighted_activity"
         ),
     )
-    activity_result = (
-        None
-        if activity_table is None
-        else KinaseActivityResult(activity_scores=activity_table)
+    ksea_scores = _read_optional_table(
+        bundle_root=root,
+        tables=activity_tables,
+        table_key="ksea_scores",
+        field_name=(
+            "bundle manifest.upstream_kinase_outputs.activity.tables.ksea_scores"
+        ),
     )
+    ksea_counts = _read_optional_series(
+        bundle_root=root,
+        tables=activity_tables,
+        table_key="ksea_counts",
+        field_name=(
+            "bundle manifest.upstream_kinase_outputs.activity.tables.ksea_counts"
+        ),
+        series_name="n_substrates",
+    )
+    target_counts = _read_optional_series(
+        bundle_root=root,
+        tables=activity_tables,
+        table_key="target_counts",
+        field_name=(
+            "bundle manifest.upstream_kinase_outputs.activity.tables.target_counts"
+        ),
+        series_name="n_targets",
+    )
+    target_table = _read_optional_table(
+        bundle_root=root,
+        tables=activity_tables,
+        table_key="target_table",
+        field_name=(
+            "bundle manifest.upstream_kinase_outputs.activity.tables.target_table"
+        ),
+    )
+    if weighted_activity is None:
+        activity_result = None
+    else:
+        if (
+            ksea_scores is None
+            or ksea_counts is None
+            or target_counts is None
+            or target_table is None
+        ):
+            raise PhosPyInputError(
+                "bundle manifest upstream_kinase_outputs.activity.tables are incomplete for enabled activity outputs"
+            )
+        activity_result = KinaseActivityResult(
+            weighted_activity=weighted_activity,
+            ksea_scores=ksea_scores,
+            ksea_counts=ksea_counts,
+            target_counts=target_counts,
+            target_table=target_table,
+        )
 
     kinase_result = KinaseWorkflowResult(
         dataset=dataset,
@@ -798,6 +896,31 @@ def _read_optional_table(
         field_name=field_name,
     )
     return read_table(table_path)
+
+
+def _read_optional_series(
+    *,
+    bundle_root: Path,
+    tables: Mapping[str, object],
+    table_key: str,
+    field_name: str,
+    series_name: str,
+) -> pd.Series | None:
+    frame = _read_optional_table(
+        bundle_root=bundle_root,
+        tables=tables,
+        table_key=table_key,
+        field_name=field_name,
+    )
+    if frame is None:
+        return None
+    if frame.shape[1] != 1:
+        raise PhosPyInputError(
+            f"{field_name} must resolve to a single-column table for series '{series_name}'"
+        )
+    series = frame.iloc[:, 0].copy(deep=True)
+    series.name = series_name
+    return series
 
 
 def _parse_optional_organism(value: object, *, field_name: str) -> Organism | None:

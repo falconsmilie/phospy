@@ -12,6 +12,7 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
+    KinaseActivityConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
     KinaseWorkflowRequest,
@@ -71,6 +72,12 @@ def run_demo(outdir: Path) -> tuple[KinaseWorkflowResult, dict[str, Path]]:
             dataset=dataset,
             references=references,
             scoring_config=KinaseScoringConfig(min_substrates=2),
+            activity_config=KinaseActivityConfig(
+                enabled=True,
+                threshold=0.6,
+                min_substrates=2,
+                top_n_substrates=2,
+            ),
         )
     )
 
@@ -78,11 +85,17 @@ def run_demo(outdir: Path) -> tuple[KinaseWorkflowResult, dict[str, Path]]:
         raise RuntimeError("activity_result is expected in this demo")
 
     pred_mat_path = outdir / "pred_mat.csv"
-    activity_path = outdir / "activity_scores.csv"
+    weighted_activity_path = outdir / "weighted_activity.csv"
+    ksea_scores_path = outdir / "ksea_scores.csv"
     result.prediction_result.pred_mat.to_csv(pred_mat_path)
-    result.activity_result.activity_scores.to_csv(activity_path)
+    result.activity_result.weighted_activity.to_csv(weighted_activity_path)
+    result.activity_result.ksea_scores.to_csv(ksea_scores_path)
 
-    return result, {"pred_mat": pred_mat_path, "activity_scores": activity_path}
+    return result, {
+        "pred_mat": pred_mat_path,
+        "weighted_activity": weighted_activity_path,
+        "ksea_scores": ksea_scores_path,
+    }
 
 
 def main() -> None:
@@ -95,8 +108,11 @@ def main() -> None:
         print("Prediction matrix")
         print(result.prediction_result.pred_mat.round(4))
         print()
-        print("Activity scores")
-        print(result.activity_result.activity_scores.round(4))
+        print("Weighted activity")
+        print(result.activity_result.weighted_activity.round(4))
+        print()
+        print("KSEA scores")
+        print(result.activity_result.ksea_scores.round(4))
         print()
         print("Written files")
         print("\n".join(str(path) for path in written.values()))

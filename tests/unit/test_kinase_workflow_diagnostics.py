@@ -72,19 +72,32 @@ def _resolved_request(
     top_k: int = 3,
     ensemble_size: int = 2,
     threshold: float = 0.7,
+    activity_min_substrates: int = 2,
+    activity_top_n_substrates: int = 3,
 ) -> ResolvedKinaseWorkflowRequest:
+    scoring_site_index = dataset.phospho.index.intersection(
+        references.site_sequences.index
+    )
     return ResolvedKinaseWorkflowRequest(
         dataset=dataset,
         references=references,
         kinase_substrate_map=references.kinase_substrate_map,
         site_sequences=references.site_sequences,
-        scoring_site_index=dataset.phospho.index.copy(),
+        scoring_site_index=scoring_site_index,
+        activity_phospho_matrix=dataset.phospho.loc[scoring_site_index, :].copy(
+            deep=True
+        ),
         scoring_config=KinaseScoringConfig(min_substrates=min_substrates),
         prediction_config=KinasePredictionConfig(
             top_k=top_k,
             ensemble_size=ensemble_size,
         ),
-        activity_config=KinaseActivityConfig(enabled=True, threshold=threshold),
+        activity_config=KinaseActivityConfig(
+            enabled=True,
+            threshold=threshold,
+            min_substrates=activity_min_substrates,
+            top_n_substrates=activity_top_n_substrates,
+        ),
     )
 
 
@@ -256,7 +269,7 @@ def test_boundary_error_reports_prediction_ensemble_collapse_counts() -> None:
     assert "scoring_config.min_substrates" in message
 
 
-def test_boundary_error_reports_activity_support_edge_case() -> None:
+def test_boundary_error_reports_activity_overlap_edge_case() -> None:
     dataset = _dataset(
         site_ids=["MAPK14;Y182;"],
         sample_names=["sample_a", "sample_b"],
@@ -279,8 +292,8 @@ def test_boundary_error_reports_activity_support_edge_case() -> None:
     )
     prediction_result = KinasePredictionResult(
         pred_mat=pd.DataFrame(
-            {"MAP2K6": [0.0]},
-            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            {"MAP2K6": [0.8]},
+            index=pd.Index(["OTHER;S1;"], name="site_id"),
         ),
     )
 
@@ -291,17 +304,59 @@ def test_boundary_error_reports_activity_support_edge_case() -> None:
         )
 
     message = str(exc_info.value)
-    assert "seam=kinase.executor.activity_support" in message
-    assert "activity_kinases=1" in message
-    assert "total_positive_predictions=0" in message
-    assert "prediction_config_top_k=3" in message
-    assert "scoring_config_min_substrates=2" in message
-    assert "prediction_config.top_k" in message
-    assert "scoring_config.min_substrates" in message
-    assert "activity_config.threshold" not in message
+    assert "seam=kinase.activity.input_overlap" in message
+    assert "overlap_sites=0" in message
+    assert "pred_mat_sites=1" in message
+    assert "phospho_sites=1" in message
+    assert "min_overlap=1" in message
+    assert "min_fraction=0.5" in message
+    assert "prediction_result.pred_mat" in message
+    assert "dataset.phospho" in message
 
 
-def test_activity_score_uses_only_positive_supported_predictions() -> None:
+def test_boundary_error_reports_no_activity_candidates_after_filtering() -> None:
+    dataset = _dataset(
+        site_ids=["MAPK14;Y182;", "GSK3B;S9;"],
+        sample_names=["sample_a", "sample_b"],
+    )
+    references = _bundle(
+        pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K6"],
+                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+            }
+        )
+    )
+    request = _resolved_request(
+        dataset=dataset,
+        references=references,
+        threshold=0.95,
+        activity_min_substrates=3,
+        activity_top_n_substrates=2,
+    )
+    prediction_result = KinasePredictionResult(
+        pred_mat=pd.DataFrame(
+            {"MAP2K6": [0.8, 0.7]},
+            index=dataset.phospho.index.copy(),
+        ),
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        KinaseWorkflowExecutor()._run_activity_stage(
+            request=request,
+            prediction_result=prediction_result,
+        )
+
+    message = str(exc_info.value)
+    assert "seam=kinase.activity.valid_candidates" in message
+    assert "weighted_activity_kinases=0" in message
+    assert "ksea_kinases=0" in message
+    assert "activity_config_threshold=0.95" in message
+    assert "activity_config_min_substrates=3" in message
+    assert "activity_config_top_n_substrates=2" in message
+
+
+def test_activity_stage_returns_weighted_ksea_and_target_outputs() -> None:
     dataset = _dataset(
         site_ids=["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"],
         sample_names=["sample_a", "sample_b"],
@@ -314,12 +369,18 @@ def test_activity_score_uses_only_positive_supported_predictions() -> None:
             }
         )
     )
-    request = _resolved_request(dataset=dataset, references=references, threshold=0.6)
+    request = _resolved_request(
+        dataset=dataset,
+        references=references,
+        threshold=0.3,
+        activity_min_substrates=2,
+        activity_top_n_substrates=2,
+    )
     prediction_result = KinasePredictionResult(
         pred_mat=pd.DataFrame(
             {
-                "MAP2K6": [0.9, 0.0, 0.0],
-                "AKT1": [0.4, 0.2, 0.0],
+                "MAP2K6": [0.9, 0.5, 0.0],
+                "AKT1": [0.4, 0.2, 0.1],
             },
             index=dataset.phospho.index.copy(),
         ),
@@ -330,14 +391,21 @@ def test_activity_score_uses_only_positive_supported_predictions() -> None:
         prediction_result=prediction_result,
     )
     assert result is not None
-    scores = result.activity_scores
-    assert scores.at["MAP2K6", "activity_score"] == pytest.approx(0.9)
-    assert scores.at["MAP2K6", "n_predicted_sites"] == 1
-    assert scores.at["AKT1", "activity_score"] == pytest.approx(0.3)
-    assert scores.at["AKT1", "n_predicted_sites"] == 2
+    assert result.weighted_activity.at["MAP2K6", "sample_a"] == pytest.approx(
+        (1.0 * 0.9 + 2.0 * 0.5) / (0.9 + 0.5)
+    )
+    assert result.weighted_activity.at["AKT1", "sample_b"] == pytest.approx(
+        (2.0 * 0.4 + 4.0 * 0.2) / (0.4 + 0.2)
+    )
+    assert list(result.ksea_scores.index) == ["MAP2K6"]
+    assert result.ksea_scores.at["MAP2K6", "sample_a"] == pytest.approx(1.5)
+    assert result.ksea_counts.to_dict() == {"MAP2K6": 2}
+    assert result.target_counts.to_dict() == {"MAP2K6": 2, "AKT1": 1}
+    assert set(result.target_table.columns) == {"site_id", "kinase", "score"}
+    assert int(result.target_table.shape[0]) == 3
 
 
-def test_activity_score_is_stable_under_zero_padding_matrix_growth() -> None:
+def test_weighted_activity_is_stable_under_zero_padding_matrix_growth() -> None:
     dataset = _dataset(
         site_ids=[
             "MAPK14;Y182;",
@@ -384,11 +452,9 @@ def test_activity_score_is_stable_under_zero_padding_matrix_growth() -> None:
 
     assert compact is not None
     assert padded is not None
-    assert compact.activity_scores.at["MAP2K6", "activity_score"] == pytest.approx(
-        padded.activity_scores.at["MAP2K6", "activity_score"]
+    assert compact.weighted_activity.at["MAP2K6", "sample_a"] == pytest.approx(
+        padded.weighted_activity.at["MAP2K6", "sample_a"]
     )
-    assert compact.activity_scores.at["MAP2K6", "weighted_signal"] == pytest.approx(
-        padded.activity_scores.at["MAP2K6", "weighted_signal"]
+    assert compact.weighted_activity.at["MAP2K6", "sample_b"] == pytest.approx(
+        padded.weighted_activity.at["MAP2K6", "sample_b"]
     )
-    assert compact.activity_scores.at["MAP2K6", "n_predicted_sites"] == 2
-    assert padded.activity_scores.at["MAP2K6", "n_predicted_sites"] == 2

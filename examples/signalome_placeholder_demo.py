@@ -52,8 +52,13 @@ def _build_kinase_result() -> KinaseWorkflowResult:
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(
             {
-                "kinase": ["MAP2K6", "MAP2K6"],
-                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+                "kinase": ["MAP2K6", "MAP2K6", "AKT1", "AKT1"],
+                "substrate_site": [
+                    "MAPK14;Y182;",
+                    "GSK3B;S9;",
+                    "MAPK14;Y182;",
+                    "GSK3B;S9;",
+                ],
             }
         ),
         site_sequences=pd.DataFrame(
@@ -66,6 +71,7 @@ def _build_kinase_result() -> KinaseWorkflowResult:
             dataset=dataset,
             references=references,
             scoring_config=KinaseScoringConfig(min_substrates=2),
+            activity_config=None,
         )
     )
 

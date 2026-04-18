@@ -23,7 +23,12 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=8),
-            activity_config=KinaseActivityConfig(enabled=True, threshold=0.6),
+            activity_config=KinaseActivityConfig(
+                enabled=True,
+                threshold=0.6,
+                min_substrates=3,
+                top_n_substrates=20,
+            ),
         )
     )
     assert result.scoring_result.profile_scores.shape[0] == dataset.phospho.shape[0]
@@ -38,12 +43,13 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
     assert result.prediction_result.pred_mat.shape[1] <= 8
     assert (result.prediction_result.pred_mat.to_numpy() >= 0.0).all()
     assert result.activity_result is not None
-    assert set(result.activity_result.activity_scores.columns) == {
-        "activity_score",
-        "weighted_signal",
-        "n_predicted_sites",
-        "is_active",
-    }
+    assert not result.activity_result.weighted_activity.empty
+    assert not result.activity_result.ksea_scores.empty
+    assert not result.activity_result.ksea_counts.empty
+    assert not result.activity_result.target_counts.empty
+    assert {"site_id", "kinase", "score"} <= set(
+        result.activity_result.target_table.columns
+    )
     assert not hasattr(result, "profile_scores")
     assert not hasattr(result, "combined_scores")
     assert not hasattr(result, "weights")

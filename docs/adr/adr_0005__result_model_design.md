@@ -112,7 +112,7 @@ Examples of intended usage:
 
 - `result.scoring_result.profile_scores`
 - `result.prediction_result.pred_mat`
-- `result.activity_result.activity_scores`
+- `result.activity_result.weighted_activity`
 
 The top-level result should not mirror these through repeated aliases.
 
@@ -161,7 +161,11 @@ This result should hold prediction-stage outputs such as:
 
 This result should hold activity-stage outputs such as:
 
-- `activity_scores`
+- `weighted_activity`
+- `ksea_scores`
+- `ksea_counts`
+- `target_counts`
+- `target_table`
 
 These stage models should remain narrow and should not be wrapped repeatedly by additional façade types without a strong reason.
 

@@ -54,13 +54,16 @@ For public types and signatures, see [`api.md`](api.md).
 - `scoring_config.min_substrates` is an int and must be `>= 2`
 - `prediction_config` is `KinasePredictionConfig`
 - `activity_config` is `KinaseActivityConfig` or `None`
+- `activity_config.min_substrates` is an int and must be `>= 1`
+- `activity_config.top_n_substrates` is an int and must be `>= 1`
 
 Rewrite-era boundary diagnostics (raised as `WorkflowBoundaryError`) also enforce:
 
 - interpreted reference coverage must overlap dataset phosphosites
 - at least one kinase must meet `scoring_config.min_substrates` after overlap
 - prediction ranking must produce at least one ensemble kinase
-- activity (when enabled) must have at least one positive predicted site assignment
+- activity (when enabled) requires prediction/phospho overlap and at least one
+  valid kinase candidate after activity-stage filters
 
 Boundary error messages include:
 
@@ -74,7 +77,11 @@ Stage result access is nested and stable:
 
 - `result.scoring_result.profile_scores`
 - `result.prediction_result.pred_mat`
-- `result.activity_result.activity_scores` (when enabled)
+- `result.activity_result.weighted_activity` (when enabled)
+- `result.activity_result.ksea_scores` (when enabled)
+- `result.activity_result.ksea_counts` (when enabled)
+- `result.activity_result.target_counts` (when enabled)
+- `result.activity_result.target_table` (when enabled)
 
 `SignalomeWorkflowRequest` enforces:
 
@@ -121,7 +128,8 @@ Signalome boundary error messages include:
 | `kinase.interpreter.reference_coverage` | None of the reference substrate sites overlap `dataset.phospho.index` | Use references for the same identifier scheme/organism and verify site IDs |
 | `kinase.interpreter.eligible_kinases` | Overlap exists, but no kinase reaches `scoring_config.min_substrates` | Lower `min_substrates` (not below `2`) or use references with deeper site overlap |
 | `kinase.executor.prediction_ensemble` | Scoring completed, but no kinase had a finite prediction ranking | Provide at least two non-constant sample columns in `dataset.phospho` and/or lower `scoring_config.min_substrates` (not below `2`) |
-| `kinase.executor.activity_support` | Activity was enabled, but predictions had no positive site assignments | Increase `prediction_config.top_k` and/or lower `scoring_config.min_substrates` (not below `2`) |
+| `kinase.activity.input_overlap` | Prediction and activity phospho matrices do not share sufficient phosphosite rows | Ensure `prediction_result.pred_mat` and `dataset.phospho` come from the same run and share site IDs |
+| `kinase.activity.valid_candidates` | Activity stage filtered all kinases out | Lower `activity_config.min_substrates`, raise `activity_config.top_n_substrates`, or lower `activity_config.threshold` |
 | `signalome.interpreter.site_alignment` | Dataset sites and interpreted scoring/prediction site IDs do not overlap | Ensure score/prediction outputs were generated from this dataset and share site IDs |
 | `signalome.interpreter.kinase_overlap` | Score and prediction kinase columns have no shared kinase set | Regenerate kinase outputs so both matrices come from the same lane |
 | `signalome.interpreter.protein_mapping` | Interpreted sites do not resolve to usable proteins | Populate `dataset.site_metadata.protein_id` or provide site IDs with non-empty protein prefixes |

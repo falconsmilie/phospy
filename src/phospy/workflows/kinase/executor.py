@@ -7,9 +7,11 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.activities.models import KinaseActivityResult
+from phospy.activities.scoring import compute_activity_from_inputs
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.workflows.kinase.science import (
     build_kinase_profiles,
@@ -28,6 +30,15 @@ class _ScoringExecution:
 
 class KinaseWorkflowExecutor:
     """Run stage logic and assemble `KinaseWorkflowResult`."""
+
+    def __init__(
+        self,
+        *,
+        activity_input_validator: KinaseActivityInputValidator | None = None,
+    ) -> None:
+        self._activity_input_validator = (
+            activity_input_validator or KinaseActivityInputValidator()
+        )
 
     def run(self, request: ResolvedKinaseWorkflowRequest) -> KinaseWorkflowResult:
         scoring_execution = self._run_scoring_stage(request)
@@ -123,49 +134,14 @@ class KinaseWorkflowExecutor:
         activity_config = request.activity_config
         if activity_config is None or not activity_config.enabled:
             return None
-        pred_mat = prediction_result.pred_mat.astype(float)
-        site_signal = request.dataset.phospho.astype(float).mean(axis=1, skipna=False)
-        activity_scores: dict[str, float] = {}
-        weighted_signal: dict[str, float] = {}
-        predicted_counts: dict[str, int] = {}
-        for kinase in pred_mat.columns:
-            kinase_scores = pred_mat.loc[:, kinase].clip(lower=0.0)
-            supported_scores = kinase_scores.loc[kinase_scores > 0.0]
-            predicted_counts[str(kinase)] = int(supported_scores.size)
-            if supported_scores.empty:
-                activity_scores[str(kinase)] = float("nan")
-                weighted_signal[str(kinase)] = float("nan")
-                continue
-            activity_scores[str(kinase)] = float(supported_scores.mean(skipna=False))
-            score_sum = float(supported_scores.sum())
-            weighted_signal[str(kinase)] = float(
-                (supported_scores * site_signal).sum() / score_sum
-            )
-        activity_table = pd.DataFrame(
-            {"activity_score": pd.Series(activity_scores, dtype=float)}
+        validated_inputs = self._activity_input_validator.run(
+            pred_mat=prediction_result.pred_mat,
+            phospho_matrix=request.activity_phospho_matrix,
+            threshold=activity_config.threshold,
+            min_substrates=activity_config.min_substrates,
+            top_n_substrates=activity_config.top_n_substrates,
         )
-        activity_table["weighted_signal"] = pd.Series(weighted_signal)
-        activity_table["n_predicted_sites"] = pd.Series(predicted_counts).astype(
-            "int64"
-        )
-        if int(activity_table["n_predicted_sites"].sum()) == 0:
-            self._raise_boundary_error(
-                seam="kinase.executor.activity_support",
-                next_action=(
-                    "increase prediction_config.top_k or lower "
-                    "scoring_config.min_substrates to expand predicted support "
-                    "(scientific floor: min_substrates >= 2)"
-                ),
-                activity_kinases=activity_table.shape[0],
-                total_positive_predictions=0,
-                prediction_config_top_k=request.prediction_config.top_k,
-                scoring_config_min_substrates=request.scoring_config.min_substrates,
-            )
-        activity_table.index.name = "kinase"
-        activity_table["is_active"] = (
-            activity_table["activity_score"] >= activity_config.threshold
-        )
-        return KinaseActivityResult(activity_scores=activity_table)
+        return compute_activity_from_inputs(validated_inputs)
 
     @staticmethod
     def _raise_boundary_error(

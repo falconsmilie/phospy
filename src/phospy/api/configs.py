@@ -5,6 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 KINASE_SCORING_MIN_SUBSTRATES_FLOOR = 2
+KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR = 1
+KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR = 1
+KINASE_ACTIVITY_DEFAULT_THRESHOLD = 0.6
+KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES = 3
+KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES = 20
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +36,9 @@ class KinaseActivityConfig:
     """Public kinase activity-stage configuration."""
 
     enabled: bool = True
-    threshold: float = 0.6
+    threshold: float = KINASE_ACTIVITY_DEFAULT_THRESHOLD
+    min_substrates: int = KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES
+    top_n_substrates: int = KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +50,11 @@ class SignalomeConfig:
 
 
 __all__ = [
+    "KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES",
+    "KINASE_ACTIVITY_DEFAULT_THRESHOLD",
+    "KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES",
+    "KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR",
+    "KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR",
     "KINASE_SCORING_MIN_SUBSTRATES_FLOOR",
     "KinaseActivityConfig",
     "KinasePredictionConfig",

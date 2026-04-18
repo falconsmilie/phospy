@@ -30,6 +30,7 @@ class ResolvedKinaseWorkflowRequest:
     kinase_substrate_map: pd.DataFrame
     site_sequences: pd.DataFrame
     scoring_site_index: pd.Index
+    activity_phospho_matrix: pd.DataFrame
     scoring_config: KinaseScoringConfig
     prediction_config: KinasePredictionConfig
     activity_config: KinaseActivityConfig | None

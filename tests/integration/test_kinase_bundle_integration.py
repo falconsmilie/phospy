@@ -88,7 +88,13 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
     }
     assert manifest["outputs"]["activity"] == {
         "enabled": True,
-        "tables": {"activity_scores": "activity/activity_scores.csv"},
+        "tables": {
+            "weighted_activity": "activity/weighted_activity.csv",
+            "ksea_scores": "activity/ksea_scores.csv",
+            "ksea_counts": "activity/ksea_counts.csv",
+            "target_counts": "activity/target_counts.csv",
+            "target_table": "activity/target_table.csv",
+        },
     }
 
 
@@ -112,7 +118,13 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
     manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["outputs"]["activity"] == {
         "enabled": False,
-        "tables": {"activity_scores": None},
+        "tables": {
+            "weighted_activity": None,
+            "ksea_scores": None,
+            "ksea_counts": None,
+            "target_counts": None,
+            "target_table": None,
+        },
     }
 
 
@@ -264,10 +276,39 @@ def _assert_kinase_result_equal(left, right) -> None:
         assert left.activity_result is right.activity_result
         return
     pd.testing.assert_frame_equal(
-        left.activity_result.activity_scores,
-        right.activity_result.activity_scores,
+        left.activity_result.weighted_activity,
+        right.activity_result.weighted_activity,
         check_dtype=False,
         check_names=False,
+        check_index_type=False,
+    )
+    pd.testing.assert_frame_equal(
+        left.activity_result.ksea_scores,
+        right.activity_result.ksea_scores,
+        check_dtype=False,
+        check_names=False,
+        check_index_type=False,
+    )
+    pd.testing.assert_series_equal(
+        left.activity_result.ksea_counts,
+        right.activity_result.ksea_counts,
+        check_dtype=False,
+        check_names=False,
+        check_index_type=False,
+    )
+    pd.testing.assert_series_equal(
+        left.activity_result.target_counts,
+        right.activity_result.target_counts,
+        check_dtype=False,
+        check_names=False,
+        check_index_type=False,
+    )
+    pd.testing.assert_frame_equal(
+        left.activity_result.target_table,
+        right.activity_result.target_table,
+        check_dtype=False,
+        check_names=False,
+        check_index_type=False,
     )
 
 

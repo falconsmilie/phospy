@@ -93,15 +93,20 @@ scoring/combined_scores.csv          # optional, currently not emitted
 scoring/weights.csv                  # optional, currently not emitted
 prediction/pred_mat.csv
 prediction/substrate_list.csv        # optional
-activity/activity_scores.csv         # optional
+activity/weighted_activity.csv       # optional
+activity/ksea_scores.csv             # optional
+activity/ksea_counts.csv             # optional
+activity/target_counts.csv           # optional
+activity/target_table.csv            # optional
 ```
 
-When present, `activity/activity_scores.csv` contains:
+When present, activity outputs contain:
 
-- `activity_score`: mean of strictly positive prediction scores for each kinase
-- `weighted_signal`: phosphosite signal weighted by those positive scores
-- `n_predicted_sites`: count of positive-support substrate sites
-- `is_active`: threshold flag (`activity_score >= activity_config.threshold`)
+- `weighted_activity`: weighted kinase activity matrix
+- `ksea_scores`: KSEA-style kinase score matrix
+- `ksea_counts`: selected substrate counts per kinase
+- `target_counts`: thresholded predicted target counts per kinase
+- `target_table`: thresholded kinase-target edge table
 
 Signalome (default `csv` layout):
 
@@ -120,7 +125,11 @@ scoring/combined_scores.csv          # optional, currently not emitted
 scoring/weights.csv                  # optional, currently not emitted
 prediction/pred_mat.csv
 prediction/substrate_list.csv        # optional
-activity/activity_scores.csv         # optional
+activity/weighted_activity.csv       # optional
+activity/ksea_scores.csv             # optional
+activity/ksea_counts.csv             # optional
+activity/target_counts.csv           # optional
+activity/target_table.csv            # optional
 signalome/module_assignments.csv
 signalome/signalome_modules.csv
 signalome/kinase_network_edges.csv

@@ -98,9 +98,31 @@ def publish_kinase_workflow(
 
     if result.activity_result is not None:
         activity_dir = workflow_dir / "activity"
-        activity_scores_path = activity_dir / f"activity_scores{suffix}"
-        write_table(result.activity_result.activity_scores, activity_scores_path)
-        written["kinase.activity.activity_scores"] = activity_scores_path
+        weighted_activity_path = activity_dir / f"weighted_activity{suffix}"
+        write_table(result.activity_result.weighted_activity, weighted_activity_path)
+        written["kinase.activity.weighted_activity"] = weighted_activity_path
+
+        ksea_scores_path = activity_dir / f"ksea_scores{suffix}"
+        write_table(result.activity_result.ksea_scores, ksea_scores_path)
+        written["kinase.activity.ksea_scores"] = ksea_scores_path
+
+        ksea_counts_path = activity_dir / f"ksea_counts{suffix}"
+        write_table(
+            result.activity_result.ksea_counts.to_frame(name="n_substrates"),
+            ksea_counts_path,
+        )
+        written["kinase.activity.ksea_counts"] = ksea_counts_path
+
+        target_counts_path = activity_dir / f"target_counts{suffix}"
+        write_table(
+            result.activity_result.target_counts.to_frame(name="n_targets"),
+            target_counts_path,
+        )
+        written["kinase.activity.target_counts"] = target_counts_path
+
+        target_table_path = activity_dir / f"target_table{suffix}"
+        write_table(result.activity_result.target_table, target_table_path)
+        written["kinase.activity.target_table"] = target_table_path
 
     references_dir = workflow_dir / "references"
     kinase_substrate_map_path = references_dir / f"kinase_substrate_map{suffix}"

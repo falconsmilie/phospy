@@ -95,12 +95,21 @@ def test_request_config_and_result_models_construct() -> None:
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(min_substrates=2),
         prediction_config=KinasePredictionConfig(top_k=10, ensemble_size=3),
-        activity_config=KinaseActivityConfig(enabled=True, threshold=0.5),
+        activity_config=KinaseActivityConfig(
+            enabled=True,
+            threshold=0.5,
+            min_substrates=2,
+            top_n_substrates=5,
+        ),
     )
     scoring = KinaseScoringResult(profile_scores=pd.DataFrame({"profile_score": []}))
     prediction = KinasePredictionResult(pred_mat=pd.DataFrame())
     activity = KinaseActivityResult(
-        activity_scores=pd.DataFrame({"activity_score": []})
+        weighted_activity=pd.DataFrame(),
+        ksea_scores=pd.DataFrame(),
+        ksea_counts=pd.Series(dtype="int64", name="n_substrates"),
+        target_counts=pd.Series(dtype="int64", name="n_targets"),
+        target_table=pd.DataFrame(columns=["site_id", "kinase", "score"]),
     )
     workflow_result = KinaseWorkflowResult(
         dataset=dataset,
@@ -175,6 +184,7 @@ def test_workflow_run_contract_returns_nested_results() -> None:
             dataset=_dataset(),
             references=_bundle(),
             scoring_config=KinaseScoringConfig(min_substrates=2),
+            activity_config=None,
         )
     )
     assert isinstance(result, KinaseWorkflowResult)
@@ -196,6 +206,7 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
         kinase_substrate_map=bundle.kinase_substrate_map,
         site_sequences=bundle.site_sequences,
         scoring_site_index=request.dataset.phospho.index.copy(),
+        activity_phospho_matrix=request.dataset.phospho.copy(deep=True),
         scoring_config=request.scoring_config,
         prediction_config=request.prediction_config,
         activity_config=request.activity_config,
@@ -242,6 +253,7 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
             dataset=_dataset(),
             references=_bundle(),
             scoring_config=KinaseScoringConfig(min_substrates=2),
+            activity_config=None,
         )
     )
     request = SignalomeWorkflowRequest(
