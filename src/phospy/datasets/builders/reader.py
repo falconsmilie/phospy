@@ -31,7 +31,7 @@ class DatasetInputReader:
     def _read_from_path(
         source: str | Path | PathLike, *, field_name: str
     ) -> pd.DataFrame:
-        from phospy.io.tables import read_table
+        from phospy.io.readers.tables import read_table
 
         path = Path(source.strip()) if isinstance(source, str) else Path(source)
         try:

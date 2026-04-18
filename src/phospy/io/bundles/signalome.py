@@ -1,7 +1,8 @@
-"""External output-bundle services for kinase workflow results."""
+"""External output-bundle services for signalome workflow results."""
 
 from __future__ import annotations
 
+import ast
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -9,17 +10,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from phospy.activities.models import KinaseActivityResult
-from phospy.api.configs import (
-    KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-)
-from phospy.api.results import KinaseWorkflowResult
+from phospy.api.configs import SignalomeConfig
+from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
-from phospy.io.tables import read_table, table_suffix_for_format, write_table
+from phospy.io.readers.tables import read_table, table_suffix_for_format, write_table
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.references.models import Organism, ReferenceBundle
+from phospy.signalomes.models import (
+    KinaseNetwork,
+    SignalomeAssignments,
+    SignalomeModules,
+)
 from phospy.transformations.models import (
     MatrixTransformationState,
     TransformationKind,
@@ -27,132 +29,80 @@ from phospy.transformations.models import (
 )
 
 if TYPE_CHECKING:
-    from phospy.api.requests import KinaseWorkflowRequest
+    from phospy.api.requests import SignalomeWorkflowRequest
 
-KINASE_BUNDLE_MANIFEST_VERSION = 1
+SIGNALOME_BUNDLE_MANIFEST_VERSION = 1
 
-_KINASE_BUNDLE_KIND = "kinase_workflow_result"
+_SIGNALOME_BUNDLE_KIND = "signalome_workflow_result"
 _MANIFEST_FILENAME = "manifest.json"
 _CONFIG_SNAPSHOT_RELATIVE_PATH = "config/snapshot.json"
 
 
 @dataclass(frozen=True, slots=True)
-class KinaseWorkflowConfigSnapshot:
-    """Serializable snapshot of the kinase workflow configuration."""
+class SignalomeWorkflowConfigSnapshot:
+    """Serializable snapshot of the signalome workflow configuration."""
 
-    scoring_config: KinaseScoringConfig
-    prediction_config: KinasePredictionConfig
-    activity_config: KinaseActivityConfig | None
+    signalome_config: SignalomeConfig
 
     @classmethod
     def from_request(
-        cls, request: KinaseWorkflowRequest
-    ) -> KinaseWorkflowConfigSnapshot:
+        cls, request: SignalomeWorkflowRequest
+    ) -> SignalomeWorkflowConfigSnapshot:
         """Create a config snapshot from a workflow request."""
 
-        from phospy.api.requests import KinaseWorkflowRequest
+        from phospy.api.requests import SignalomeWorkflowRequest
 
-        if not isinstance(request, KinaseWorkflowRequest):
-            raise TypeError("request must be a KinaseWorkflowRequest")
-        return cls(
-            scoring_config=request.scoring_config,
-            prediction_config=request.prediction_config,
-            activity_config=request.activity_config,
-        )
+        if not isinstance(request, SignalomeWorkflowRequest):
+            raise TypeError("request must be a SignalomeWorkflowRequest")
+        return cls(signalome_config=request.config)
 
     def to_payload(self) -> dict[str, object]:
         """Return a manifest-safe JSON payload for this config snapshot."""
 
-        activity_payload: dict[str, object] | None
-        if self.activity_config is None:
-            activity_payload = None
-        else:
-            activity_payload = {
-                "enabled": self.activity_config.enabled,
-                "threshold": float(self.activity_config.threshold),
-            }
         return {
-            "scoring_config": {
-                "min_substrates": self.scoring_config.min_substrates,
-            },
-            "prediction_config": {
-                "top_k": self.prediction_config.top_k,
-                "ensemble_size": self.prediction_config.ensemble_size,
-            },
-            "activity_config": activity_payload,
+            "signalome_config": {
+                "signalome_cutoff": float(self.signalome_config.signalome_cutoff),
+            }
         }
 
     @classmethod
     def from_payload(
         cls, payload: Mapping[str, object]
-    ) -> KinaseWorkflowConfigSnapshot:
+    ) -> SignalomeWorkflowConfigSnapshot:
         """Create a config snapshot from a decoded JSON payload."""
 
         scope = "config snapshot"
-        scoring_payload = _require_mapping(
-            payload.get("scoring_config"),
-            field_name=f"{scope}.scoring_config",
+        signalome_payload = _require_mapping(
+            payload.get("signalome_config"),
+            field_name=f"{scope}.signalome_config",
         )
-        prediction_payload = _require_mapping(
-            payload.get("prediction_config"),
-            field_name=f"{scope}.prediction_config",
-        )
-        activity_raw = payload.get("activity_config")
-        if activity_raw is None:
-            activity_config = None
-        else:
-            activity_payload = _require_mapping(
-                activity_raw,
-                field_name=f"{scope}.activity_config",
-            )
-            activity_config = KinaseActivityConfig(
-                enabled=_require_bool(
-                    activity_payload.get("enabled"),
-                    field_name=f"{scope}.activity_config.enabled",
-                ),
-                threshold=_require_float(
-                    activity_payload.get("threshold"),
-                    field_name=f"{scope}.activity_config.threshold",
-                ),
-            )
         return cls(
-            scoring_config=KinaseScoringConfig(
-                min_substrates=_require_int(
-                    scoring_payload.get("min_substrates"),
-                    field_name=f"{scope}.scoring_config.min_substrates",
+            signalome_config=SignalomeConfig(
+                signalome_cutoff=_require_float(
+                    signalome_payload.get("signalome_cutoff"),
+                    field_name=f"{scope}.signalome_config.signalome_cutoff",
                 )
-            ),
-            prediction_config=KinasePredictionConfig(
-                top_k=_require_int(
-                    prediction_payload.get("top_k"),
-                    field_name=f"{scope}.prediction_config.top_k",
-                ),
-                ensemble_size=_require_int(
-                    prediction_payload.get("ensemble_size"),
-                    field_name=f"{scope}.prediction_config.ensemble_size",
-                ),
-            ),
-            activity_config=activity_config,
+            )
         )
 
 
 @dataclass(frozen=True, slots=True)
-class LoadedKinaseWorkflowBundle:
-    """Loaded kinase output bundle contents."""
+class LoadedSignalomeWorkflowBundle:
+    """Loaded signalome output bundle contents."""
 
-    result: KinaseWorkflowResult
-    config_snapshot: KinaseWorkflowConfigSnapshot
+    result: SignalomeWorkflowResult
+    config_snapshot: SignalomeWorkflowConfigSnapshot
     manifest_version: int
 
 
-def save_kinase_workflow_bundle(
-    result: KinaseWorkflowResult,
+def save_signalome_workflow_bundle(
+    result: SignalomeWorkflowResult,
     output_root: Path,
     *,
-    config_snapshot: KinaseWorkflowConfigSnapshot,
+    config_snapshot: SignalomeWorkflowConfigSnapshot,
     output_format: str = "csv",
 ) -> dict[str, Path]:
-    """Write a reproducible kinase output bundle and return written paths."""
+    """Write a reproducible signalome output bundle and return written paths."""
 
     bundle_root = Path(output_root)
     suffix = table_suffix_for_format(output_format)
@@ -192,14 +142,14 @@ def save_kinase_workflow_bundle(
 
     reference_tables = {
         "kinase_substrate_map": _write_bundle_table(
-            table=result.references.kinase_substrate_map,
+            table=result.kinase_result.references.kinase_substrate_map,
             bundle_root=bundle_root,
             relative_path=Path("references") / f"kinase_substrate_map{suffix}",
             written=written,
             written_key="references.kinase_substrate_map",
         ),
         "site_sequences": _write_bundle_table(
-            table=result.references.site_sequences,
+            table=result.kinase_result.references.site_sequences,
             bundle_root=bundle_root,
             relative_path=Path("references") / f"site_sequences{suffix}",
             written=written,
@@ -209,28 +159,28 @@ def save_kinase_workflow_bundle(
 
     scoring_tables = {
         "profile_scores": _write_bundle_table(
-            table=result.scoring_result.profile_scores,
+            table=result.kinase_result.scoring_result.profile_scores,
             bundle_root=bundle_root,
             relative_path=Path("scoring") / f"profile_scores{suffix}",
             written=written,
             written_key="scoring.profile_scores",
         ),
         "motif_scores": _write_optional_bundle_table(
-            table=result.scoring_result.motif_scores,
+            table=result.kinase_result.scoring_result.motif_scores,
             bundle_root=bundle_root,
             relative_path=Path("scoring") / f"motif_scores{suffix}",
             written=written,
             written_key="scoring.motif_scores",
         ),
         "combined_scores": _write_optional_bundle_table(
-            table=result.scoring_result.combined_scores,
+            table=result.kinase_result.scoring_result.combined_scores,
             bundle_root=bundle_root,
             relative_path=Path("scoring") / f"combined_scores{suffix}",
             written=written,
             written_key="scoring.combined_scores",
         ),
         "weights": _write_optional_bundle_table(
-            table=result.scoring_result.weights,
+            table=result.kinase_result.scoring_result.weights,
             bundle_root=bundle_root,
             relative_path=Path("scoring") / f"weights{suffix}",
             written=written,
@@ -240,14 +190,14 @@ def save_kinase_workflow_bundle(
 
     prediction_tables = {
         "pred_mat": _write_bundle_table(
-            table=result.prediction_result.pred_mat,
+            table=result.kinase_result.prediction_result.pred_mat,
             bundle_root=bundle_root,
             relative_path=Path("prediction") / f"pred_mat{suffix}",
             written=written,
             written_key="prediction.pred_mat",
         ),
         "substrate_list": _write_optional_bundle_table(
-            table=result.prediction_result.substrate_list,
+            table=result.kinase_result.prediction_result.substrate_list,
             bundle_root=bundle_root,
             relative_path=Path("prediction") / f"substrate_list{suffix}",
             written=written,
@@ -259,8 +209,8 @@ def save_kinase_workflow_bundle(
         "activity_scores": _write_optional_bundle_table(
             table=(
                 None
-                if result.activity_result is None
-                else result.activity_result.activity_scores
+                if result.kinase_result.activity_result is None
+                else result.kinase_result.activity_result.activity_scores
             ),
             bundle_root=bundle_root,
             relative_path=Path("activity") / f"activity_scores{suffix}",
@@ -269,13 +219,51 @@ def save_kinase_workflow_bundle(
         )
     }
 
+    signalome_tables = {
+        "module_assignments": _write_bundle_table(
+            table=result.module_assignments.table,
+            bundle_root=bundle_root,
+            relative_path=Path("signalome") / f"module_assignments{suffix}",
+            written=written,
+            written_key="signalome.module_assignments",
+        ),
+        "signalome_modules": _write_bundle_table(
+            table=result.signalome_modules.table,
+            bundle_root=bundle_root,
+            relative_path=Path("signalome") / f"signalome_modules{suffix}",
+            written=written,
+            written_key="signalome.signalome_modules",
+        ),
+        "kinase_network_edges": _write_bundle_table(
+            table=result.kinase_network.edges,
+            bundle_root=bundle_root,
+            relative_path=Path("signalome") / f"kinase_network_edges{suffix}",
+            written=written,
+            written_key="signalome.kinase_network.edges",
+        ),
+        "kinase_network_nodes": _write_optional_bundle_table(
+            table=result.kinase_network.nodes,
+            bundle_root=bundle_root,
+            relative_path=Path("signalome") / f"kinase_network_nodes{suffix}",
+            written=written,
+            written_key="signalome.kinase_network.nodes",
+        ),
+        "expanded_signalome": _write_optional_bundle_table(
+            table=result.expanded_signalome,
+            bundle_root=bundle_root,
+            relative_path=Path("signalome") / f"expanded_signalome{suffix}",
+            written=written,
+            written_key="signalome.expanded_signalome",
+        ),
+    }
+
     config_path = bundle_root / Path(_CONFIG_SNAPSHOT_RELATIVE_PATH)
     _write_json(config_path, config_snapshot.to_payload(), label="config snapshot")
     written["config_snapshot"] = config_path
 
     manifest = {
-        "bundle_type": _KINASE_BUNDLE_KIND,
-        "manifest_version": KINASE_BUNDLE_MANIFEST_VERSION,
+        "bundle_type": _SIGNALOME_BUNDLE_KIND,
+        "manifest_version": SIGNALOME_BUNDLE_MANIFEST_VERSION,
         "table_format": normalized_format,
         "dataset": {
             "metadata": {
@@ -292,11 +280,11 @@ def save_kinase_workflow_bundle(
         },
         "resolved_references": {
             "metadata": {
-                "organism": result.references.organism.value,
+                "organism": result.kinase_result.references.organism.value,
             },
             "tables": reference_tables,
         },
-        "outputs": {
+        "upstream_kinase_outputs": {
             "scoring": {
                 "tables": scoring_tables,
             },
@@ -304,9 +292,16 @@ def save_kinase_workflow_bundle(
                 "tables": prediction_tables,
             },
             "activity": {
-                "enabled": result.activity_result is not None,
+                "enabled": result.kinase_result.activity_result is not None,
                 "tables": activity_tables,
             },
+        },
+        "signalome_outputs": {
+            "metadata": {
+                "kinase_network_nodes_present": result.kinase_network.nodes is not None,
+                "expanded_signalome_present": result.expanded_signalome is not None,
+            },
+            "tables": signalome_tables,
         },
         "config_snapshot": _CONFIG_SNAPSHOT_RELATIVE_PATH,
     }
@@ -316,10 +311,8 @@ def save_kinase_workflow_bundle(
     return written
 
 
-def load_kinase_workflow_bundle(
-    bundle_root: Path,
-) -> LoadedKinaseWorkflowBundle:
-    """Load a kinase output bundle from disk."""
+def load_signalome_workflow_bundle(bundle_root: Path) -> LoadedSignalomeWorkflowBundle:
+    """Load a signalome output bundle from disk."""
 
     root = Path(bundle_root)
     manifest = _read_json(root / _MANIFEST_FILENAME, label="bundle manifest")
@@ -329,20 +322,20 @@ def load_kinase_workflow_bundle(
         manifest_payload.get("bundle_type"),
         field_name="bundle manifest.bundle_type",
     )
-    if bundle_type != _KINASE_BUNDLE_KIND:
+    if bundle_type != _SIGNALOME_BUNDLE_KIND:
         raise PhosPyInputError(
             "unsupported bundle manifest bundle_type "
-            f"'{bundle_type}'; expected '{_KINASE_BUNDLE_KIND}'"
+            f"'{bundle_type}'; expected '{_SIGNALOME_BUNDLE_KIND}'"
         )
 
     manifest_version = _require_int(
         manifest_payload.get("manifest_version"),
         field_name="bundle manifest.manifest_version",
     )
-    if manifest_version != KINASE_BUNDLE_MANIFEST_VERSION:
+    if manifest_version != SIGNALOME_BUNDLE_MANIFEST_VERSION:
         raise PhosPyInputError(
             "unsupported bundle manifest version "
-            f"'{manifest_version}'; expected {KINASE_BUNDLE_MANIFEST_VERSION}"
+            f"'{manifest_version}'; expected {SIGNALOME_BUNDLE_MANIFEST_VERSION}"
         )
 
     dataset_payload = _require_mapping(
@@ -371,33 +364,42 @@ def load_kinase_workflow_bundle(
         field_name="bundle manifest.resolved_references.tables",
     )
 
-    outputs_payload = _require_mapping(
-        manifest_payload.get("outputs"),
-        field_name="bundle manifest.outputs",
+    upstream_payload = _require_mapping(
+        manifest_payload.get("upstream_kinase_outputs"),
+        field_name="bundle manifest.upstream_kinase_outputs",
     )
     scoring_payload = _require_mapping(
-        outputs_payload.get("scoring"),
-        field_name="bundle manifest.outputs.scoring",
+        upstream_payload.get("scoring"),
+        field_name="bundle manifest.upstream_kinase_outputs.scoring",
     )
     scoring_tables = _require_mapping(
         scoring_payload.get("tables"),
-        field_name="bundle manifest.outputs.scoring.tables",
+        field_name="bundle manifest.upstream_kinase_outputs.scoring.tables",
     )
     prediction_payload = _require_mapping(
-        outputs_payload.get("prediction"),
-        field_name="bundle manifest.outputs.prediction",
+        upstream_payload.get("prediction"),
+        field_name="bundle manifest.upstream_kinase_outputs.prediction",
     )
     prediction_tables = _require_mapping(
         prediction_payload.get("tables"),
-        field_name="bundle manifest.outputs.prediction.tables",
+        field_name="bundle manifest.upstream_kinase_outputs.prediction.tables",
     )
     activity_payload = _require_mapping(
-        outputs_payload.get("activity"),
-        field_name="bundle manifest.outputs.activity",
+        upstream_payload.get("activity"),
+        field_name="bundle manifest.upstream_kinase_outputs.activity",
     )
     activity_tables = _require_mapping(
         activity_payload.get("tables"),
-        field_name="bundle manifest.outputs.activity.tables",
+        field_name="bundle manifest.upstream_kinase_outputs.activity.tables",
+    )
+
+    signalome_outputs_payload = _require_mapping(
+        manifest_payload.get("signalome_outputs"),
+        field_name="bundle manifest.signalome_outputs",
+    )
+    signalome_tables = _require_mapping(
+        signalome_outputs_payload.get("tables"),
+        field_name="bundle manifest.signalome_outputs.tables",
     )
 
     dataset = AnalysisReadyPhosphoDataset(
@@ -461,25 +463,33 @@ def load_kinase_workflow_bundle(
             bundle_root=root,
             tables=scoring_tables,
             table_key="profile_scores",
-            field_name="bundle manifest.outputs.scoring.tables.profile_scores",
+            field_name=(
+                "bundle manifest.upstream_kinase_outputs.scoring.tables.profile_scores"
+            ),
         ),
         motif_scores=_read_optional_table(
             bundle_root=root,
             tables=scoring_tables,
             table_key="motif_scores",
-            field_name="bundle manifest.outputs.scoring.tables.motif_scores",
+            field_name=(
+                "bundle manifest.upstream_kinase_outputs.scoring.tables.motif_scores"
+            ),
         ),
         combined_scores=_read_optional_table(
             bundle_root=root,
             tables=scoring_tables,
             table_key="combined_scores",
-            field_name="bundle manifest.outputs.scoring.tables.combined_scores",
+            field_name=(
+                "bundle manifest.upstream_kinase_outputs.scoring.tables.combined_scores"
+            ),
         ),
         weights=_read_optional_table(
             bundle_root=root,
             tables=scoring_tables,
             table_key="weights",
-            field_name="bundle manifest.outputs.scoring.tables.weights",
+            field_name=(
+                "bundle manifest.upstream_kinase_outputs.scoring.tables.weights"
+            ),
         ),
     )
 
@@ -488,13 +498,18 @@ def load_kinase_workflow_bundle(
             bundle_root=root,
             tables=prediction_tables,
             table_key="pred_mat",
-            field_name="bundle manifest.outputs.prediction.tables.pred_mat",
+            field_name=(
+                "bundle manifest.upstream_kinase_outputs.prediction.tables.pred_mat"
+            ),
         ),
         substrate_list=_read_optional_table(
             bundle_root=root,
             tables=prediction_tables,
             table_key="substrate_list",
-            field_name="bundle manifest.outputs.prediction.tables.substrate_list",
+            field_name=(
+                "bundle manifest.upstream_kinase_outputs.prediction.tables."
+                "substrate_list"
+            ),
         ),
     )
 
@@ -502,12 +517,70 @@ def load_kinase_workflow_bundle(
         bundle_root=root,
         tables=activity_tables,
         table_key="activity_scores",
-        field_name="bundle manifest.outputs.activity.tables.activity_scores",
+        field_name=(
+            "bundle manifest.upstream_kinase_outputs.activity.tables.activity_scores"
+        ),
     )
     activity_result = (
         None
         if activity_table is None
         else KinaseActivityResult(activity_scores=activity_table)
+    )
+
+    kinase_result = KinaseWorkflowResult(
+        dataset=dataset,
+        references=references,
+        scoring_result=scoring_result,
+        prediction_result=prediction_result,
+        activity_result=activity_result,
+    )
+    signalome_result = SignalomeWorkflowResult(
+        dataset=dataset,
+        kinase_result=kinase_result,
+        module_assignments=SignalomeAssignments(
+            table=_normalize_module_assignments_table(
+                _read_required_table(
+                    bundle_root=root,
+                    tables=signalome_tables,
+                    table_key="module_assignments",
+                    field_name=(
+                        "bundle manifest.signalome_outputs.tables.module_assignments"
+                    ),
+                )
+            )
+        ),
+        signalome_modules=SignalomeModules(
+            table=_read_required_table(
+                bundle_root=root,
+                tables=signalome_tables,
+                table_key="signalome_modules",
+                field_name="bundle manifest.signalome_outputs.tables.signalome_modules",
+            )
+        ),
+        kinase_network=KinaseNetwork(
+            edges=_read_required_table(
+                bundle_root=root,
+                tables=signalome_tables,
+                table_key="kinase_network_edges",
+                field_name=(
+                    "bundle manifest.signalome_outputs.tables.kinase_network_edges"
+                ),
+            ),
+            nodes=_read_optional_table(
+                bundle_root=root,
+                tables=signalome_tables,
+                table_key="kinase_network_nodes",
+                field_name=(
+                    "bundle manifest.signalome_outputs.tables.kinase_network_nodes"
+                ),
+            ),
+        ),
+        expanded_signalome=_read_optional_table(
+            bundle_root=root,
+            tables=signalome_tables,
+            table_key="expanded_signalome",
+            field_name="bundle manifest.signalome_outputs.tables.expanded_signalome",
+        ),
     )
 
     config_snapshot_path = _resolve_bundle_relative_path(
@@ -522,19 +595,55 @@ def load_kinase_workflow_bundle(
         _read_json(config_snapshot_path, label="config snapshot"),
         field_name="config snapshot",
     )
-    config_snapshot = KinaseWorkflowConfigSnapshot.from_payload(config_snapshot_payload)
+    config_snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
+        config_snapshot_payload
+    )
 
-    return LoadedKinaseWorkflowBundle(
-        result=KinaseWorkflowResult(
-            dataset=dataset,
-            references=references,
-            scoring_result=scoring_result,
-            prediction_result=prediction_result,
-            activity_result=activity_result,
-        ),
+    return LoadedSignalomeWorkflowBundle(
+        result=signalome_result,
         config_snapshot=config_snapshot,
         manifest_version=manifest_version,
     )
+
+
+def _normalize_module_assignments_table(table):
+    normalized = table.copy(deep=True)
+    candidate_columns = [
+        str(column)
+        for column in normalized.columns
+        if str(column).endswith("_candidates")
+    ]
+    if not candidate_columns:
+        return normalized
+    for candidates_column in candidate_columns:
+        candidates_index = normalized.columns.get_loc(candidates_column)
+        candidates = (
+            normalized.loc[:, candidates_column]
+            .map(_parse_kinase_candidates)
+            .astype(object)
+        )
+        normalized = normalized.drop(columns=[candidates_column])
+        normalized.insert(candidates_index, candidates_column, candidates)
+    return normalized
+
+
+def _parse_kinase_candidates(value: object) -> tuple[str, ...]:
+    if isinstance(value, tuple):
+        return tuple(str(item) for item in value)
+    if isinstance(value, list):
+        return tuple(str(item) for item in value)
+    raw = str(value).strip()
+    if raw == "" or raw.lower() == "nan":
+        return ()
+    try:
+        parsed = ast.literal_eval(raw)
+    except (ValueError, SyntaxError):
+        return (raw,)
+    if isinstance(parsed, tuple):
+        return tuple(str(item) for item in parsed)
+    if isinstance(parsed, list):
+        return tuple(str(item) for item in parsed)
+    return (str(parsed),)
 
 
 def _write_bundle_table(
@@ -767,9 +876,9 @@ def _require_float(value: object, *, field_name: str) -> float:
 
 
 __all__ = [
-    "KINASE_BUNDLE_MANIFEST_VERSION",
-    "KinaseWorkflowConfigSnapshot",
-    "LoadedKinaseWorkflowBundle",
-    "load_kinase_workflow_bundle",
-    "save_kinase_workflow_bundle",
+    "LoadedSignalomeWorkflowBundle",
+    "SIGNALOME_BUNDLE_MANIFEST_VERSION",
+    "SignalomeWorkflowConfigSnapshot",
+    "load_signalome_workflow_bundle",
+    "save_signalome_workflow_bundle",
 ]

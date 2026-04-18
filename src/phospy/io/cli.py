@@ -21,15 +21,13 @@ from phospy.api.requests import (
 )
 from phospy.api.workflows import KinaseWorkflow, SignalomeWorkflow
 from phospy.errors import PhosPyError
-from phospy.io.adapters import (
-    organism_from_value,
-    reference_preset_from_value,
-)
-from phospy.io.publishing import (
+from phospy.errors.input import PhosPyInputError
+from phospy.io.publishers.workflows import (
     publish_dataset,
     publish_kinase_workflow,
     publish_signalome_workflow,
 )
+from phospy.references.models import Organism, ReferencePreset
 from phospy.transformations.models import MatrixTransformationState, TransformationState
 
 CLI_EXIT_SUCCESS = 0
@@ -239,7 +237,7 @@ def _dataset_build_request_from_args(args: argparse.Namespace) -> DatasetBuildRe
         site_metadata=args.site_metadata,
         sample_metadata=args.sample_metadata,
         total=args.total,
-        organism=organism_from_value(args.organism),
+        organism=_organism_from_value(args.organism),
         transformation_state=_transformation_state_from_value(
             args.transformation_state,
             has_total_matrix=args.total is not None,
@@ -285,7 +283,7 @@ def _transformation_state_from_value(
 
 def _run_kinase_workflow_from_args(args: argparse.Namespace):
     dataset = _build_dataset_from_args(args)
-    reference = reference_preset_from_value(args.reference)
+    reference = _reference_preset_from_value(args.reference)
     activity_config = (
         None
         if args.skip_activity
@@ -314,3 +312,39 @@ def _print_written_summary(command: str, written: dict[str, Path]) -> None:
     print(f"phospy {command} completed.")
     for key in sorted(written):
         print(f"{key}: {written[key]}")
+
+
+def _organism_from_value(value: Organism | str | None) -> Organism | None:
+    if value is None:
+        return None
+    if isinstance(value, Organism):
+        return value
+    if not isinstance(value, str):
+        raise PhosPyInputError(
+            "unsupported organism value type. expected Organism, str, or None"
+        )
+    normalized = value.strip().lower()
+    for organism in Organism:
+        if organism.value == normalized:
+            return organism
+    supported = ", ".join(member.value for member in Organism)
+    raise PhosPyInputError(
+        f"unsupported organism '{value}'. supported organisms: {supported}"
+    )
+
+
+def _reference_preset_from_value(value: ReferencePreset | str) -> ReferencePreset:
+    if isinstance(value, ReferencePreset):
+        return value
+    if not isinstance(value, str):
+        raise PhosPyInputError(
+            "unsupported reference preset value type. expected ReferencePreset or str"
+        )
+    normalized = value.strip().lower()
+    for preset in ReferencePreset:
+        if preset.value == normalized:
+            return preset
+    supported = ", ".join(member.value for member in ReferencePreset)
+    raise PhosPyInputError(
+        f"unsupported reference preset '{value}'. supported presets: {supported}"
+    )

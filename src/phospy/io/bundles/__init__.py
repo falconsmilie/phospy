@@ -1,4 +1,4 @@
-"""I/O namespace for CLI entrypoints and workflow bundle helpers."""
+"""Bundle ownership for reproducible workflow serialization."""
 
 from phospy.io.bundles.kinase import (
     KINASE_BUNDLE_MANIFEST_VERSION,
@@ -14,7 +14,6 @@ from phospy.io.bundles.signalome import (
     load_signalome_workflow_bundle,
     save_signalome_workflow_bundle,
 )
-from phospy.io.cli import main
 
 __all__ = [
     "KINASE_BUNDLE_MANIFEST_VERSION",
@@ -25,7 +24,6 @@ __all__ = [
     "SignalomeWorkflowConfigSnapshot",
     "load_kinase_workflow_bundle",
     "load_signalome_workflow_bundle",
-    "main",
     "save_kinase_workflow_bundle",
     "save_signalome_workflow_bundle",
 ]

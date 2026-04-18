@@ -8,7 +8,7 @@ from pathlib import Path
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
-from phospy.io.tables import table_suffix_for_format, write_table
+from phospy.io.readers.tables import table_suffix_for_format, write_table
 
 
 def publish_dataset(

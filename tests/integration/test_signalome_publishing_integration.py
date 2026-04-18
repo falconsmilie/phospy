@@ -15,7 +15,7 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
-from phospy.io.publishing import publish_signalome_workflow
+from phospy.io.publishers.workflows import publish_signalome_workflow
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
 pytestmark = pytest.mark.integration

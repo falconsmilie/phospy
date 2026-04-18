@@ -17,7 +17,7 @@ from phospy import (
     Organism,
     ReferenceBundle,
 )
-from phospy.io.kinase_bundle import (
+from phospy.io.bundles.kinase import (
     KINASE_BUNDLE_MANIFEST_VERSION,
     KinaseWorkflowConfigSnapshot,
     load_kinase_workflow_bundle,

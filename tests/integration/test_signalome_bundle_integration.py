@@ -16,7 +16,7 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
-from phospy.io.signalome_bundle import (
+from phospy.io.bundles.signalome import (
     SIGNALOME_BUNDLE_MANIFEST_VERSION,
     SignalomeWorkflowConfigSnapshot,
     load_signalome_workflow_bundle,
