@@ -119,10 +119,16 @@ def main() -> None:
         "Kinase network edge shape:",
         result.kinase_network.edges.shape,
     )
-    if result.expanded_signalome is not None:
-        print("Expanded signalome shape:", result.expanded_signalome.shape)
-    else:
-        print("Expanded signalome output: unavailable")
+    print(
+        "Module selection strategy/count:",
+        result.module_selection_diagnostics.strategy,
+        result.module_selection_diagnostics.selected_module_count,
+    )
+    if result.expanded_signalome is None:
+        raise RuntimeError(
+            "expanded_signalome was not materialized in the supported signalome lane"
+        )
+    print("Expanded signalome shape:", result.expanded_signalome.shape)
 
 
 if __name__ == "__main__":

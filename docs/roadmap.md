@@ -24,33 +24,50 @@ Historical code under `legacy_archive/phospy_legacy/` is migration reference onl
   diagnostic `motif_scores` and `weights`
 - Prediction uses the legacy-matching downstream score lane:
   `combined_scores` when present, otherwise `profile_scores`
+- Adaptive ensemble prediction mode is supported (`mode="adaptive_ensemble"`)
 - Kinase activity stage is supported and optional
 - Signalome workflow consumes the same downstream score lane and returns module
-  assignments, module table, and kinase network
+  assignments, module table, kinase network, and populated
+  `expanded_signalome`
+- Signalome supports `assignment_policy="weighted_top"` and network-policy
+  variants (`positive_only`, `absolute_threshold`, `signed`)
 
-## Deferred / Experimental / Not Yet Ported
-
-- `SignalomeWorkflowResult.expanded_signalome` population
-- Adaptive sampling ensemble prediction lane
-- Additional legacy science components tracked in gap-audit follow-ons
-
-## Science Gap Follow-ons
+## Science-Parity Ticket Status (2026-04-19)
 
 Audit reference:
 [Legacy Science Gap Audit](architecture/legacy_science_gap_audit.md)
 
-- `SCI-GAP-01`: profile missing-value strategy lane (`median_skipna` optional)
-- `SCI-GAP-05`: adaptive sampling ensemble prediction lane
-- `SCI-GAP-06`: signalome clustering and module-count diagnostics
-- `SCI-GAP-08`: weighted-top assignment policy and fractional module shares
-- `SCI-GAP-09`: signalome network policy expansion
-- `SCI-GAP-10`: `expanded_signalome` output population
-- `SCI-GAP-11`: activity/KSEA parity fixture lock while prediction lane evolves
-
-Closed on current supported lane (tracked historically in the audit):
-
+- `SCI-GAP-01`: profile missing-value strategy (`strict` + `median_skipna`) -
+  completed
+- `SCI-GAP-05`: adaptive ensemble prediction lane - completed
+- `SCI-GAP-06`: signalome clustering + module-count diagnostics - completed
+- `SCI-GAP-08`: weighted-top assignment policy + fractional module shares -
+  completed
+- `SCI-GAP-09`: signalome network policy expansion (`positive_only`,
+  `absolute_threshold`, `signed`) - completed
+- `SCI-GAP-10`: `expanded_signalome` output population - completed
+- `SCI-GAP-11`: activity/KSEA parity lock - completed (regression lock remains
+  active)
 - `SCI-GAP-07`: deterministic tie-metadata hardening for current lexicographic
-  assignment policy
+  assignment policy - completed
+
+No open science-parity gap tickets are currently confirmed in the supported
+rewrite lane.
+
+## Remaining Roadmap (Real Next Steps)
+
+The remaining roadmap is documentation and governance alignment, not core
+science implementation.
+
+1. Keep contract docs aligned with landed science status across `docs/roadmap.md`,
+   `docs/api.md`, and `docs/parity.md` so deferred wording does not reappear for
+   completed lanes.
+2. Keep governance truth sources synchronized in the same change window:
+   `docs/architecture/legacy_science_gap_audit.md`, parity donor inventory, and
+   release notes/changelog entries.
+3. Maintain parity-lock hygiene for landed science lanes by updating fixture
+   provenance and regression references when parity fixtures are promoted or
+   refreshed.
 
 ## Not a Near-Term Goal
 

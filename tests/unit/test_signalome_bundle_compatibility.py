@@ -75,6 +75,24 @@ def test_signalome_snapshot_round_trip_preserves_network_policy() -> None:
     assert restored == snapshot
 
 
+def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
+    payload = {
+        "signalome_config": {
+            "substrate_support_cutoff": 0.42,
+            "network_correlation_threshold": 0.73,
+            "network_policy": "absolute_threshold",
+            "assignment_policy": "weighted_top",
+            "module_count": 6,
+            "module_selection_primary_correlation_threshold": 0.67,
+            "module_selection_fallback_correlation_threshold": 0.23,
+            "module_selection_max_clusters": 15,
+        }
+    }
+
+    snapshot = SignalomeWorkflowConfigSnapshot.from_payload(payload)
+    assert snapshot.to_payload() == payload
+
+
 def test_module_assignment_compat_normalization_parses_serialized_fields() -> None:
     table = pd.DataFrame(
         {

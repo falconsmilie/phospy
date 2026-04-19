@@ -59,6 +59,11 @@ Signalome manifest:
 - top-level sections:
   `dataset`, `resolved_references`, `upstream_kinase_outputs`,
   `signalome_outputs`, `config_snapshot`
+- `signalome_outputs.metadata` includes:
+  - `kinase_network_nodes_present`
+  - `expanded_signalome_present`
+  - `module_selection_diagnostics` payload (strategy, selected count,
+    threshold/candidate diagnostics, and degeneracy counters)
 
 Both manifests store dataset organism and full transformation-state payload.
 
@@ -132,27 +137,77 @@ In the default supported kinase lane, scoring populates `profile_scores` and
 - `activity/*` tables are present only when `kinase_result.activity_result` is present.
 - `prediction/substrate_list` is optional.
 - `signalome/kinase_network_nodes` is optional.
-- `signalome/expanded_signalome` is optional and is populated in the supported
-  signalome route when expanded materialization succeeds.
+- `signalome/expanded_signalome` is optional by contract for compatibility, but
+  is populated in the supported signalome executor lane when the workflow
+  completes successfully.
 - `scoring/motif_scores` and `scoring/weights` are optional diagnostic tables and
   are absent in the default scoring lane.
 
-## Config Snapshot Fields
+## Config Snapshot Coverage and Reload Semantics
 
-Kinase config snapshot:
+Bundle loaders always parse `config/snapshot.json` into typed snapshot DTOs:
 
-- `scoring_config.min_substrates`
-- `scoring_config.include_diagnostic_scoring_tables`
-- `prediction_config.top_k`
-- `prediction_config.ensemble_size`
-- `activity_config` fields when activity is configured
+- kinase: `LoadedKinaseWorkflowBundle.config_snapshot` (`KinaseWorkflowConfigSnapshot`)
+- signalome: `LoadedSignalomeWorkflowBundle.config_snapshot` (`SignalomeWorkflowConfigSnapshot`)
 
-Signalome config snapshot:
+`loaded.result` is reconstructed directly from persisted output tables.
+`loaded.config_snapshot` is the scientific configuration record for replay and
+interpretation (what policies/thresholds generated those outputs).
 
-- `signalome_config.substrate_support_cutoff`
-- `signalome_config.network_correlation_threshold`
-- `signalome_config.network_policy`
-- `signalome_config.assignment_policy`
+Kinase config snapshot (all persisted fields):
+
+- `scoring_config.min_substrates`: substrate-support floor used in scoring.
+- `scoring_config.include_diagnostic_scoring_tables`: controls whether
+  diagnostic `motif_scores`/`weights` tables are expected to be produced.
+- `scoring_config.profile_missing_value_strategy`: profile median behavior
+  (`"strict"` vs `"median_skipna"`), which can change downstream scores.
+- `prediction_config.top_k`: final rank cutoff in prediction output.
+- `prediction_config.ensemble_size`: lane-dependent width parameter
+  (deterministic ranking breadth or adaptive ensemble executions).
+- `prediction_config.mode`: prediction lane (`"deterministic_ranking"` or
+  `"adaptive_ensemble"`), required to interpret `ensemble_size`.
+- `prediction_config.adaptive_policy`: adaptive sampling policy selection.
+- `prediction_config.n_iterations`: adaptive sampling iteration budget.
+- `prediction_config.random_state`: optional deterministic seed for adaptive
+  sampling.
+- `activity_config.enabled`
+- `activity_config.threshold`
+- `activity_config.min_substrates`
+- `activity_config.top_n_substrates`
+
+Signalome config snapshot (all persisted fields):
+
+- `signalome_config.substrate_support_cutoff`: cutoff used in module support.
+- `signalome_config.network_correlation_threshold`: correlation threshold used
+  for kinase-network edge inclusion.
+- `signalome_config.network_policy`: network edge policy
+  (`"positive_only"`, `"absolute_threshold"`, `"signed"`).
+- `signalome_config.assignment_policy`: module assignment policy
+  (`"cutoff_binary"`, `"weighted_top"`).
+- `signalome_config.module_count`: explicit module count request when set.
+- `signalome_config.module_selection_primary_correlation_threshold`
+- `signalome_config.module_selection_fallback_correlation_threshold`
+- `signalome_config.module_selection_max_clusters`
+
+Deliberate omissions:
+
+- Signalome bundle snapshots do not include upstream kinase `scoring_config` or
+  `prediction_config`; those configs belong to the upstream kinase workflow
+  request and are not part of `SignalomeWorkflowRequest`.
+- Runtime-derived diagnostics (for example module-selection diagnostics) are
+  stored under manifest metadata/output tables, not inside `config_snapshot`.
+
+Legacy reload compatibility (normalization on load):
+
+- Kinase legacy snapshots missing newly added fields are normalized to defaults:
+  `include_diagnostic_scoring_tables=True`,
+  `profile_missing_value_strategy="strict"`,
+  `mode="deterministic_ranking"`, `adaptive_policy="stable"`,
+  `n_iterations=5`, and `random_state=None`.
+- Signalome legacy `signalome_cutoff` is accepted and mapped to both
+  `substrate_support_cutoff` and `network_correlation_threshold`.
+  Missing `network_policy`, `assignment_policy`, and module-selection fields
+  are normalized to current default values.
 
 Manifest versioning starts at v1 so future format evolution is explicit.
 

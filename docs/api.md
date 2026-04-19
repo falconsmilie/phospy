@@ -104,12 +104,31 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 - `kinase_result: KinaseWorkflowResult`
 - `config: SignalomeConfig`
 
-`SignalomeConfig` policy fields:
+`KinaseScoringConfig` fields:
+
+- `min_substrates` (validated floor: `>= 2`)
+- `include_diagnostic_scoring_tables`
+- `profile_missing_value_strategy` (`"strict"` or `"median_skipna"`)
+
+`KinasePredictionConfig` fields:
+
+- `top_k` (validated floor: `>= 1`)
+- `ensemble_size` (validated floor: `>= 1`)
+- `mode` (`"deterministic_ranking"` or `"adaptive_ensemble"`)
+- `adaptive_policy` (`"stable"` or `"r_parity"`)
+- `n_iterations` (validated floor: `>= 1`; used by adaptive lane)
+- `random_state` (`None` or integer `>= 0`)
+
+`SignalomeConfig` fields:
 
 - `substrate_support_cutoff`
 - `network_correlation_threshold`
 - `network_policy` (`"positive_only"`, `"absolute_threshold"`, or `"signed"`)
 - `assignment_policy` (`"cutoff_binary"` or `"weighted_top"`)
+- `module_count` (`None` for automatic module-count selection)
+- `module_selection_primary_correlation_threshold`
+- `module_selection_fallback_correlation_threshold`
+- `module_selection_max_clusters`
 
 ## Result Contract (Nested Stage Outputs)
 
@@ -133,7 +152,38 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 - `result.signalome_modules.table`
 - `result.kinase_network.edges`
 - `result.kinase_network.nodes` (optional)
-- `result.expanded_signalome` (optional DataFrame; populated in the supported lane)
+- `result.module_selection_diagnostics`
+- `result.expanded_signalome` (optional by type; populated in the supported executor lane)
+
+`module_selection_diagnostics` fields:
+
+- `strategy` (`"correlation_thresholds"` or `"explicit_module_count"`)
+- `selected_module_count`
+- `requested_module_count`
+- `threshold_used`
+- `max_clusters_evaluated`
+- `candidate_scores` (per-candidate `min_median_correlation` and `mean_median_correlation`)
+- `reason`
+- `zero_variance_profile_count`
+- `near_constant_profile_count`
+- `excluded_from_correlation_count`
+
+`module_assignments.table` includes site-level assignment metadata:
+
+- structural fields: `protein_id`, `module_id`, `top_kinase`, `top_score`
+- tie/ambiguity fields: `top_kinase_candidates`, `top_kinase_weights`,
+  `top_kinase_tie_count`, `top_kinase_is_ambiguous`,
+  `top_kinase_selection_policy`
+- module-level attribution fields: `module_top_kinase`,
+  `module_top_kinase_candidates`, `module_top_kinase_tie_count`,
+  `module_top_kinase_is_ambiguous`, `module_top_kinase_selection_policy`
+
+`assignment_policy` behavior:
+
+- `"cutoff_binary"`: support is binary from `prediction_result.pred_mat >
+  substrate_support_cutoff`
+- `"weighted_top"`: support is fractional from per-site `top_kinase_weights`
+  tie metadata propagated through module/expanded outputs
 
 `expanded_signalome` flattened schema:
 
@@ -148,6 +198,17 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 - `protein_id`, `module_id`, `top_kinase`, `top_score`: selected site metadata
 - `support_kinases`: JSON array string of linked kinases supporting the site
 - `support_weight`: site support weight under the selected assignment policy
+
+`expanded_signalome` row-selection conditions:
+
+- The executor emits one focal-kinase block per kinase in `signalome_modules.columns`.
+- A `row_kind="site"` row is emitted when:
+  - the site belongs to a regulated module for that focal kinase
+    (`signalome_modules[module_id, kinase] > 1.0`), and
+  - at least one linked kinase provides positive site support under the active
+    `assignment_policy`.
+- If no site rows qualify for a focal kinase, one `row_kind="summary"` row is
+  emitted for that kinase to preserve linked-kinase and regulated-module metadata.
 
 No top-level convenience mirrors flatten nested stage outputs.
 

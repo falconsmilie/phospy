@@ -17,7 +17,9 @@ PhosPy exposes a focused public product in `src/phospy/`.
   `result.scoring_result.profile_scores`,
   `result.prediction_result.pred_mat`,
   `result.activity_result.weighted_activity` (when activity is enabled),
-  `signalome_result.kinase_result.prediction_result.pred_mat`.
+  `signalome_result.kinase_result.prediction_result.pred_mat`,
+  `signalome_result.module_selection_diagnostics`,
+  `signalome_result.expanded_signalome`.
 
 ## Boundary Contract
 
@@ -40,14 +42,23 @@ Supported in the current public lane:
 - Supported kinase motif scoring consumes `references.site_sequences` from the resolved
   reference bundle.
 - Profile-driven prediction ranking and matrix assembly (`prediction_result.pred_mat`).
+- Kinase prediction config supports:
+  - `mode` (`deterministic_ranking` or `adaptive_ensemble`)
+  - `adaptive_policy` (`stable` or `r_parity`)
+  - `n_iterations` (adaptive resampling iterations)
+- Kinase scoring config supports:
+  `profile_missing_value_strategy` (`strict` or `median_skipna`).
 - Optional kinase activity stage inside `KinaseWorkflow` (`activity_config=None` or
   `enabled=False` disables it).
 - Signalome workflow outputs:
-  `module_assignments`, `signalome_modules`, `kinase_network`.
+  `module_assignments`, `signalome_modules`, `kinase_network`,
+  `module_selection_diagnostics`, and `expanded_signalome`.
+- Signalome config supports module-selection controls:
+  `module_count`, `module_selection_primary_correlation_threshold`,
+  `module_selection_fallback_correlation_threshold`,
+  `module_selection_max_clusters`.
 
 Deferred or not in the supported default lane:
-
-- `SignalomeWorkflowResult.expanded_signalome` population (`expanded_signalome` is optional and currently `None` in the default route).
 - Legacy or experimental science lanes not yet ported into the public path.
 
 ## Current Limits
@@ -81,6 +92,19 @@ profile_scores = result.scoring_result.profile_scores
 pred_mat = result.prediction_result.pred_mat
 if result.activity_result is not None:
     weighted_activity = result.activity_result.weighted_activity
+```
+
+Signalome outputs now include module-selection diagnostics and expanded signalome rows:
+
+```python
+from phospy import SignalomeWorkflow, SignalomeWorkflowRequest
+
+signalome_result = SignalomeWorkflow().run(
+    SignalomeWorkflowRequest(kinase_result=result)
+)
+
+diagnostics = signalome_result.module_selection_diagnostics
+expanded = signalome_result.expanded_signalome  # populated in supported executor lane
 ```
 
 ## Package Boundary
