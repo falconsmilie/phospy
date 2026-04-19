@@ -79,7 +79,8 @@ If `gene_symbol` and/or `site` are absent, one derivation convention is supporte
 
 - It owns validated tables, not input files.
 - It requires DataFrame values for `phospho` and `site_metadata` at construction time.
-- `site_metadata` must contain `gene_symbol`, `site`, `site_sequence` with non-empty strings.
+- `site_metadata` must contain `gene_symbol`, `site` with non-empty strings.
+- `site_sequence` is optional at this boundary; when present it must be non-empty.
 - Site identifiers must already be canonical and non-colliding.
 - `sample_metadata` (if present) must align to `phospho.columns`.
 - `total` (if present) must be numeric and column-aligned to `phospho`.
@@ -134,6 +135,8 @@ No top-level convenience mirrors flatten nested stage outputs.
 Supported public lane today:
 
 - Kinase scoring stage outputs profile, motif, and combined scoring tables.
+- Motif scoring in the supported kinase lane uses `references.site_sequences`
+  from the resolved `ReferenceBundle`.
 - Prediction stage uses a downstream score matrix that resolves to
   `combined_scores` when present and falls back to `profile_scores` only when
   combined scores are unavailable.

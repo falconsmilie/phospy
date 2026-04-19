@@ -21,6 +21,11 @@ Accepted.
 
 This ADR defines the dataset and preprocessing boundary that supports the public API and internal workflow architecture established by earlier ADRs.
 
+Update note (2026-04-19): the supported public kinase lane treats
+`dataset.site_metadata.site_sequence` as optional at the final dataset boundary.
+When present, it is validated for non-empty values; motif sequence support comes
+from `references.site_sequences`.
+
 ## Context and Problem Statement
 
 PhosPy is intended to expose one public dataset model and two primary workflows. Both workflows depend on a stable and well-understood input boundary. Without a strict dataset contract, workflows become polluted with repeated checks, fallback logic, column-name plumbing, and interpretation of partially prepared data.
@@ -104,8 +109,7 @@ The dataset is expected to enforce the following invariants at construction time
 - required columns must be present:
   - `gene_symbol`
   - `site`
-  - `site_sequence`
-- `site_sequence` values must be non-empty strings
+- `site_sequence` is optional and must contain non-empty strings when present
 
 ### Sample metadata invariants
 
@@ -140,7 +144,9 @@ For the purposes of PhosPy, a dataset is analysis-ready when the following are t
 
 This does not necessarily mean that every possible scientific normalisation or filtering decision has already occurred. It means the dataset has crossed the public boundary from raw or semi-structured input into a stable, validated analysis object.
 
-For the primary PhosR-style kinase workflow, `site_sequence` is part of that analysis-ready definition and is required in the final dataset contract.
+For the primary PhosR-style kinase workflow in the current supported lane,
+`dataset.site_metadata.site_sequence` is optional at this boundary.
+Motif sequence support is resolved from `references.site_sequences`.
 
 ## Preprocessing Responsibility
 
@@ -183,7 +189,7 @@ The required columns are:
 
 - `gene_symbol`
 - `site`
-- `site_sequence`
+- optional `site_sequence` (validated when present)
 
 Additional metadata columns are allowed, but workflows should depend only on documented public fields unless they introduce a separate and explicit requirement.
 
@@ -195,7 +201,9 @@ This decision means public workflow requests should not accept repeated argument
 
 Those concerns belong to preprocessing, not workflow execution.
 
-`site_sequence` is required in the final analysis-ready dataset contract. A preprocessing path may derive it from another source before final dataset construction, but the public dataset boundary must already contain it.
+`site_sequence` is optional in the final analysis-ready dataset contract. A
+preprocessing path may derive it from another source before final dataset
+construction when useful.
 
 ## Construction and Validation Strategy
 
@@ -277,8 +285,8 @@ This option was rejected because the package needs a reliable and testable bound
 
 The following decisions are now resolved for this ADR.
 
-1. `site_sequence` is required in the final `AnalysisReadyPhosphoDataset` contract.
-2. A preprocessing path may derive `site_sequence` before final dataset construction, but the public dataset boundary must already contain it.
+1. `site_sequence` is optional in the final `AnalysisReadyPhosphoDataset` contract and is validated when present.
+2. A preprocessing path may derive `site_sequence` before final dataset construction when useful, but workflow lanes should only require it where the science actually consumes dataset-provided sequence.
 3. A simple declared `intensity_scale` label is not sufficient on its own; the dataset boundary should carry stronger guarantees about transformation state through a transformer-oriented design.
 4. Public dataset construction should support a flexible builder path so users do not have to manually normalise difficult phosphoproteomics input formats or column naming schemes.
 5. Dataset validation should remain private and should not become a standalone public surface.
@@ -357,4 +365,3 @@ Together, these ADRs establish:
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
 YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
-

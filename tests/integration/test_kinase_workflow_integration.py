@@ -6,6 +6,7 @@ import pytest
 
 import phospy.workflows.kinase.executor as kinase_executor
 from phospy import (
+    AnalysisReadyPhosphoDataset,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -16,6 +17,30 @@ from phospy import (
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
 pytestmark = pytest.mark.integration
+
+
+def test_kinase_workflow_runs_without_dataset_site_sequence_column() -> None:
+    dataset = build_rat_l6_dataset(n_sites=220)
+    dataset_without_sequence = AnalysisReadyPhosphoDataset(
+        phospho=dataset.phospho,
+        site_metadata=dataset.site_metadata.drop(columns=["site_sequence"]),
+        transformation_state=dataset.transformation_state,
+        sample_metadata=dataset.sample_metadata,
+        total=dataset.total,
+        organism=dataset.organism,
+    )
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset_without_sequence,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=8),
+            activity_config=None,
+        )
+    )
+    assert not result.scoring_result.profile_scores.empty
+    assert result.scoring_result.motif_scores is not None
+    assert not result.prediction_result.pred_mat.empty
 
 
 def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:

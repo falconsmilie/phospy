@@ -104,7 +104,7 @@ Validation failures include cases such as:
 - invalid DataFrame structure
 - invalid metadata alignment
 - unsupported enum-like values
-- missing `site_sequence` at the dataset boundary
+- missing required dataset metadata fields such as `gene_symbol`/`site`
 - invalid transformation-state shape or type
 
 Validation components should prefer raising this explicit type rather than leaking raw `KeyError`, `TypeError`, or generic `ValueError` as the intended failure mode.
@@ -223,7 +223,7 @@ A good failure message should identify:
 
 Examples of strong message style:
 
-- dataset is missing required `site_sequence` in `site_metadata`
+- dataset `site_metadata` is missing required `gene_symbol` or `site`
 - `ReferencePreset.AUTO` requires `dataset.organism`, but none was provided
 - unsupported builder input convention for phospho input; expected one of the supported column naming patterns
 - transformation state could not be established from the provided dataset input
@@ -429,4 +429,3 @@ Together, these ADRs establish:
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
 YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
-

@@ -25,7 +25,7 @@ from phospy.validation.common.missing_values import (
 class AnalysisReadyDatasetValidator:
     """Validate the public `AnalysisReadyPhosphoDataset` contract."""
 
-    _REQUIRED_SITE_COLUMNS = ("gene_symbol", "site", "site_sequence")
+    _REQUIRED_SITE_COLUMNS = ("gene_symbol", "site")
 
     def run(
         self,
@@ -105,12 +105,13 @@ class AnalysisReadyDatasetValidator:
             column_name="site",
             error_type=DatasetValidationError,
         )
-        require_non_empty_string_column(
-            site_metadata_frame,
-            field_name="dataset.site_metadata",
-            column_name="site_sequence",
-            error_type=DatasetValidationError,
-        )
+        if "site_sequence" in site_metadata_frame.columns:
+            require_non_empty_string_column(
+                site_metadata_frame,
+                field_name="dataset.site_metadata",
+                column_name="site_sequence",
+                error_type=DatasetValidationError,
+            )
 
         if sample_metadata is not None:
             sample_metadata_frame = require_dataframe(

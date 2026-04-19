@@ -87,9 +87,11 @@ Required site metadata columns are standardised and must include:
 
 - `gene_symbol`
 - `site`
-- `site_sequence`
+- optional `site_sequence` (validated when present)
 
-`site_sequence` is required in the final public dataset contract. A preprocessing path may derive it before final dataset construction, but workflows should only ever receive datasets where it is already present.
+`site_sequence` is optional in the final public dataset contract. A preprocessing
+path may derive it before final dataset construction, but workflows should not
+assume it is present unless that specific workflow lane requires it.
 
 This decision removes the need for repeated public column-name arguments across workflows.
 

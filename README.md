@@ -24,7 +24,8 @@ PhosPy exposes a focused rewrite public product in `src/phospy/`.
 - Builder boundary is flexible about source type (in-memory frames or file paths).
 - Final dataset boundary is strict:
   `AnalysisReadyPhosphoDataset` validates DataFrame structure/content, canonical site IDs,
-  required metadata (`gene_symbol`, `site`, `site_sequence`), and transformation-state coherence.
+  required metadata (`gene_symbol`, `site`), optional `site_sequence` quality when present,
+  and transformation-state coherence.
 - Workflows consume only `AnalysisReadyPhosphoDataset` (not raw input files/frames).
 
 ## Supported Science vs Deferred
@@ -33,6 +34,8 @@ Supported in the current rewrite lane:
 
 - Kinase scoring with nested outputs:
   `profile_scores`, `motif_scores`, `combined_scores`, `weights`.
+- Supported kinase motif scoring consumes `references.site_sequences` from the resolved
+  reference bundle.
 - Profile-driven prediction ranking and matrix assembly (`prediction_result.pred_mat`).
 - Optional kinase activity stage inside `KinaseWorkflow` (`activity_config=None` or
   `enabled=False` disables it).

@@ -66,15 +66,15 @@ def _valid_bundle(organism: Organism = Organism.RAT) -> ReferenceBundle:
     )
 
 
-def test_dataset_requires_site_sequence_column() -> None:
+def test_dataset_allows_missing_site_sequence_column() -> None:
     bad_site_metadata = _site_metadata().drop(columns=["site_sequence"])
-    with pytest.raises(DatasetValidationError):
-        AnalysisReadyPhosphoDataset(
-            phospho=_phospho(),
-            site_metadata=bad_site_metadata,
-            organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
-        )
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=bad_site_metadata,
+        organism=Organism.RAT,
+        transformation_state=TransformationState.raw(has_total_matrix=False),
+    )
+    assert "site_sequence" not in dataset.site_metadata.columns
 
 
 def test_dataset_rejects_blank_gene_symbol_values() -> None:
@@ -495,15 +495,15 @@ def test_builder_fails_when_missing_gene_or_site_cannot_be_derived_from_index() 
         )
 
 
-def test_builder_fails_fast_when_site_sequence_derivation_is_unsupported() -> None:
-    with pytest.raises(UnsupportedInputFormatError):
-        AnalysisReadyDatasetBuilder().run(
-            DatasetBuildRequest(
-                phospho=_phospho(),
-                site_metadata=_site_metadata().drop(columns=["site_sequence"]),
-                organism=None,
-            )
+def test_builder_allows_missing_site_sequence_when_not_provided_or_derivable() -> None:
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata().drop(columns=["site_sequence"]),
+            organism=None,
         )
+    )
+    assert "site_sequence" not in built.site_metadata.columns
 
 
 def test_io_namespace_does_not_expose_parallel_dataset_file_builder() -> None:

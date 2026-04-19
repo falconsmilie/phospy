@@ -46,7 +46,8 @@ Enforced dataset invariants:
 - `phospho`: non-empty numeric DataFrame, unique index/columns,
   canonical site IDs.
 - `site_metadata`: non-empty DataFrame, exact index alignment with `phospho.index`,
-  required columns `gene_symbol`, `site`, `site_sequence` with non-empty strings.
+  required columns `gene_symbol`, `site` with non-empty strings.
+- `site_metadata.site_sequence` is optional; if present it must contain non-empty strings.
 - `sample_metadata` (if present): index aligns to `phospho.columns`.
 - `total` (if present): non-empty numeric DataFrame, unique index,
   columns align to `phospho.columns`.
@@ -131,6 +132,10 @@ execution:
 Interpreters/executors enforce seam-level scientific/runtime boundary checks and raise
 `WorkflowBoundaryError` with seam names, concrete counts, and `next_action` hints.
 
+For the supported kinase scoring lane, motif sequence inputs come from
+`references.site_sequences` (resolved reference bundle), not from
+`dataset.site_metadata.site_sequence`.
+
 ## Nested Result Access (Validation-Relevant Contract)
 
 Stable access paths are nested by stage:
@@ -169,7 +174,7 @@ Optional outputs must be checked before dereference:
 | Problem | Usually means | Good next step |
 | --- | --- | --- |
 | Builder rejects input format | Field is neither DataFrame nor supported file path | Pass DataFrame or path to `.csv`/`.tsv`/`.txt`/`.parquet` |
-| Dataset constructor fails on site metadata | Required strict boundary columns/values are missing | Provide `gene_symbol`, `site`, `site_sequence` with non-blank strings |
+| Dataset constructor fails on site metadata | Required strict boundary columns/values are missing | Provide `gene_symbol` and `site` with non-blank strings |
 | `ReferencePreset.AUTO` fails | Dataset organism is missing | Set `organism` in `DatasetBuildRequest` |
 | Bundled human/mouse preset fails | Bundled references are rat-only in this release | Provide explicit non-rat `ReferenceBundle` |
 | Kinase boundary seam fails | Overlap/support constraints were not met | Read seam details and adjust dataset/references/config |
