@@ -48,6 +48,7 @@ class SignalomeWorkflowConfigSnapshot:
                 "network_correlation_threshold": float(
                     self.signalome_config.network_correlation_threshold
                 ),
+                "network_policy": str(self.signalome_config.network_policy),
                 "assignment_policy": str(self.signalome_config.assignment_policy),
                 "module_count": (
                     None

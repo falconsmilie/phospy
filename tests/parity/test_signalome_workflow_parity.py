@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+import pandas as pd
 import pandas.testing as pdt
 import pytest
 
@@ -15,6 +16,7 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
+from phospy.workflows.signalome.science import build_kinase_network
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
     load_signalome_rewrite_l6_contract,
@@ -165,6 +167,7 @@ def test_signalome_network_edges_match_l6_fixture_pairs_and_sign_counts() -> Non
     assert int((edges.loc[:, "correlation"] > 0.0).sum()) == int(
         contract["positive_edge_count"]
     )
+    assert str(contract["network_policy"]) == "signed"
 
     expected_indexed = expected_edges.set_index(["source_kinase", "target_kinase"])
     observed_indexed = edges.set_index(["source_kinase", "target_kinase"]).loc[
@@ -203,3 +206,75 @@ def test_signalome_expanded_slice_matches_l6_selected_akt1_fixture() -> None:
         .reset_index(drop=True)
     )
     pdt.assert_frame_equal(observed, expected, check_dtype=False)
+
+
+def test_signalome_network_policy_variants_match_fixed_matrix_expectations() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, 2.0, 3.0, 4.0],
+            "K2": [4.0, 3.0, 2.0, 1.0],
+            "K3": [1.0, 2.0, 2.0, 3.0],
+        },
+        index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
+    )
+    common_kwargs = {
+        "downstream_score_matrix": downstream_scores,
+        "kinase_order": ["K1", "K2", "K3"],
+        "kinase_substrates": {"K1": (), "K2": (), "K3": ()},
+        "threshold": 0.9,
+    }
+
+    positive_only_edges, _ = build_kinase_network(
+        **common_kwargs,
+        network_policy="positive_only",
+    )
+    absolute_threshold_edges, _ = build_kinase_network(
+        **common_kwargs,
+        network_policy="absolute_threshold",
+    )
+    signed_edges, _ = build_kinase_network(
+        **common_kwargs,
+        network_policy="signed",
+    )
+
+    assert positive_only_edges.to_dict("records") == [
+        {
+            "source_kinase": "K1",
+            "target_kinase": "K3",
+            "correlation": pytest.approx(0.9486832980505138),
+        }
+    ]
+    assert absolute_threshold_edges.to_dict("records") == [
+        {
+            "source_kinase": "K1",
+            "target_kinase": "K2",
+            "correlation": pytest.approx(1.0),
+        },
+        {
+            "source_kinase": "K1",
+            "target_kinase": "K3",
+            "correlation": pytest.approx(0.9486832980505138),
+        },
+        {
+            "source_kinase": "K2",
+            "target_kinase": "K3",
+            "correlation": pytest.approx(0.9486832980505138),
+        },
+    ]
+    assert signed_edges.to_dict("records") == [
+        {
+            "source_kinase": "K1",
+            "target_kinase": "K2",
+            "correlation": pytest.approx(-1.0),
+        },
+        {
+            "source_kinase": "K1",
+            "target_kinase": "K3",
+            "correlation": pytest.approx(0.9486832980505138),
+        },
+        {
+            "source_kinase": "K2",
+            "target_kinase": "K3",
+            "correlation": pytest.approx(-0.9486832980505138),
+        },
+    ]

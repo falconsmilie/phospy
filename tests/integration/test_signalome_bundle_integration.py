@@ -102,6 +102,7 @@ def test_signalome_config_snapshot_accepts_legacy_cutoff_payload() -> None:
     )
     assert snapshot.signalome_config.substrate_support_cutoff == pytest.approx(0.6)
     assert snapshot.signalome_config.network_correlation_threshold == pytest.approx(0.6)
+    assert snapshot.signalome_config.network_policy == "signed"
     assert snapshot.signalome_config.assignment_policy == "cutoff_binary"
 
 

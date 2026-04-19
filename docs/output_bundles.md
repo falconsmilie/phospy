@@ -151,6 +151,7 @@ Signalome config snapshot:
 
 - `signalome_config.substrate_support_cutoff`
 - `signalome_config.network_correlation_threshold`
+- `signalome_config.network_policy`
 - `signalome_config.assignment_policy`
 
 Manifest versioning starts at v1 so future format evolution is explicit.

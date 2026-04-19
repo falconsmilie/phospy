@@ -48,6 +48,7 @@ phospy signalome \
   --prediction-ensemble-size 12 \
   --substrate-support-cutoff 0.5 \
   --network-correlation-threshold 0.5 \
+  --network-policy signed \
   --outdir ./out
 ```
 
@@ -55,8 +56,12 @@ Signalome threshold knobs:
 
 - `--substrate-support-cutoff`: prediction-score cutoff used to select
   kinase-supported substrates.
-- `--network-correlation-threshold`: absolute kinase score-correlation cutoff used to
-  keep network edges.
+- `--network-correlation-threshold`: correlation threshold used by
+  `--network-policy` to keep network edges.
+- `--network-policy`:
+  - `positive_only`: positive correlations only
+  - `absolute_threshold`: absolute-threshold inclusion with unsigned edge values
+  - `signed`: absolute-threshold inclusion with signed edge values
 
 Kinase scoring support floor:
 

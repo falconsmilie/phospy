@@ -108,6 +108,7 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 
 - `substrate_support_cutoff`
 - `network_correlation_threshold`
+- `network_policy` (`"positive_only"`, `"absolute_threshold"`, or `"signed"`)
 - `assignment_policy` (`"cutoff_binary"` or `"weighted_top"`)
 
 ## Result Contract (Nested Stage Outputs)
@@ -170,6 +171,12 @@ Supported public lane today:
   `assignment_policy="cutoff_binary"` keeps cutoff/binary support semantics;
   `assignment_policy="weighted_top"` propagates fractional
   `top_kinase_weights` support into module shares.
+- Signalome network policy is explicit:
+  `network_policy="positive_only"` keeps only positive correlations above
+  threshold; `network_policy="absolute_threshold"` keeps absolute correlations
+  above threshold and emits unsigned edge correlations; `network_policy="signed"`
+  keeps absolute correlations above threshold and emits signed edge
+  correlations.
 - Downstream score missingness is part of the supported scientific contract:
   all-missing score rows are preconditioned out of score-driven network inputs,
   partially missing rows are retained, and infinite values remain invalid.

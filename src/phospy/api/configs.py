@@ -37,6 +37,21 @@ SIGNALOME_ASSIGNMENT_POLICIES = frozenset(
         SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
     }
 )
+SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY = "positive_only"
+SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD = "absolute_threshold"
+SIGNALOME_KINASE_NETWORK_POLICY_SIGNED = "signed"
+SignalomeKinaseNetworkPolicy = Literal[
+    "positive_only",
+    "absolute_threshold",
+    "signed",
+]
+SIGNALOME_KINASE_NETWORK_POLICIES = frozenset(
+    {
+        SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
+        SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
+        SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
+    }
+)
 KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING = "deterministic_ranking"
 KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE = "adaptive_ensemble"
 KinasePredictionMode = Literal[
@@ -132,6 +147,15 @@ class KinaseActivityConfig:
 class SignalomeConfig:
     """Public signalome workflow configuration.
 
+    `network_policy` controls how score correlations are thresholded and encoded
+    in `kinase_network.edges.correlation`:
+
+    - `"positive_only"`: keep only positive correlations `>= threshold`.
+    - `"absolute_threshold"`: keep correlations where `abs(correlation) >=
+      threshold` and emit unsigned absolute correlation values.
+    - `"signed"`: keep correlations where `abs(correlation) >= threshold` and
+      emit signed correlation values.
+
     `assignment_policy` controls module-support attribution:
 
     - `"cutoff_binary"`: binary support per kinase from
@@ -142,6 +166,9 @@ class SignalomeConfig:
 
     substrate_support_cutoff: float = 0.5
     network_correlation_threshold: float = 0.5
+    network_policy: SignalomeKinaseNetworkPolicy = (
+        SIGNALOME_KINASE_NETWORK_POLICY_SIGNED
+    )
     assignment_policy: SignalomeAssignmentPolicy = (
         SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
     )
@@ -175,6 +202,10 @@ __all__ = [
     "SIGNALOME_ASSIGNMENT_POLICIES",
     "SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY",
     "SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP",
+    "SIGNALOME_KINASE_NETWORK_POLICIES",
+    "SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD",
+    "SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY",
+    "SIGNALOME_KINASE_NETWORK_POLICY_SIGNED",
     "SIGNALOME_MODULE_COUNT_FLOOR",
     "SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT",
     "SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT",
@@ -187,5 +218,6 @@ __all__ = [
     "KinasePredictionConfig",
     "KinaseScoringConfig",
     "SignalomeAssignmentPolicy",
+    "SignalomeKinaseNetworkPolicy",
     "SignalomeConfig",
 ]

@@ -8,6 +8,8 @@ from collections.abc import Mapping
 from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICIES,
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_KINASE_NETWORK_POLICIES,
+    SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
     SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT,
     SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
     SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT,
@@ -68,6 +70,24 @@ def signalome_config_from_payload_with_legacy_support(
         raise PhosPyInputError(
             f"{scope}.signalome_config.assignment_policy must be one of: {allowed}"
         )
+    network_policy_raw = payload.get("network_policy")
+    network_policy_field = "network_policy"
+    if network_policy_raw is None:
+        network_policy_raw = payload.get("kinase_network_policy")
+        network_policy_field = "kinase_network_policy"
+    network_policy = (
+        SIGNALOME_KINASE_NETWORK_POLICY_SIGNED
+        if network_policy_raw is None
+        else require_str(
+            network_policy_raw,
+            field_name=f"{scope}.signalome_config.{network_policy_field}",
+        )
+    )
+    if network_policy not in SIGNALOME_KINASE_NETWORK_POLICIES:
+        allowed = ", ".join(sorted(SIGNALOME_KINASE_NETWORK_POLICIES))
+        raise PhosPyInputError(
+            f"{scope}.signalome_config.network_policy must be one of: {allowed}"
+        )
     return SignalomeConfig(
         substrate_support_cutoff=require_float(
             substrate_support_cutoff,
@@ -77,6 +97,7 @@ def signalome_config_from_payload_with_legacy_support(
             network_correlation_threshold,
             field_name=f"{scope}.signalome_config.network_correlation_threshold",
         ),
+        network_policy=network_policy,  # type: ignore[arg-type]
         assignment_policy=assignment_policy,  # type: ignore[arg-type]
         module_count=module_count,
         module_selection_primary_correlation_threshold=require_float(

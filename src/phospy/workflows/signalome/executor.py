@@ -39,6 +39,7 @@ class SignalomeWorkflowExecutor:
         network_correlation_threshold = float(
             request.config.network_correlation_threshold
         )
+        network_policy = str(request.config.network_policy)
         assignment_policy = str(request.config.assignment_policy)
         module_selection_primary_threshold = float(
             request.config.module_selection_primary_correlation_threshold
@@ -100,6 +101,7 @@ class SignalomeWorkflowExecutor:
                 prediction_kinases=int(request.prediction_matrix.shape[1]),
                 substrate_support_cutoff=substrate_support_cutoff,
                 network_correlation_threshold=network_correlation_threshold,
+                network_policy=network_policy,
                 selected_module_count=int(
                     clustering_result.module_selection_diagnostics.selected_module_count
                 ),
@@ -152,6 +154,7 @@ class SignalomeWorkflowExecutor:
                 prediction_kinases=int(request.prediction_matrix.shape[1]),
                 substrate_support_cutoff=substrate_support_cutoff,
                 network_correlation_threshold=network_correlation_threshold,
+                network_policy=network_policy,
                 stage_error=str(exc),
             )
         module_count = int(
@@ -198,6 +201,7 @@ class SignalomeWorkflowExecutor:
                 kinase_order=request.prediction_matrix.columns.astype(str).tolist(),
                 kinase_substrates=kinase_substrates,
                 threshold=network_correlation_threshold,
+                network_policy=request.config.network_policy,
             )
         except WorkflowStageError as exc:
             self._raise_boundary_error(
@@ -212,6 +216,7 @@ class SignalomeWorkflowExecutor:
                 downstream_score_source=request.downstream_score_source,
                 score_variance_kinases=score_variance_kinases,
                 network_correlation_threshold=network_correlation_threshold,
+                network_policy=network_policy,
                 stage_error=str(exc),
             )
         if network_edges.empty:
@@ -227,6 +232,7 @@ class SignalomeWorkflowExecutor:
                 downstream_score_source=request.downstream_score_source,
                 score_variance_kinases=score_variance_kinases,
                 network_correlation_threshold=network_correlation_threshold,
+                network_policy=network_policy,
                 selected_module_count=int(
                     clustering_result.module_selection_diagnostics.selected_module_count
                 ),

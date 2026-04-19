@@ -235,7 +235,7 @@ def test_network_policy_variant_donor_locks_signed_edges_and_narrow_config_surfa
         },
         index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
     )
-    edges, _nodes = build_kinase_network(
+    positive_only_edges, _ = build_kinase_network(
         downstream_score_matrix=downstream_scores,
         kinase_order=["KINASE_A", "KINASE_B", "KINASE_C"],
         kinase_substrates={
@@ -244,18 +244,46 @@ def test_network_policy_variant_donor_locks_signed_edges_and_narrow_config_surfa
             "KINASE_C": ("S1",),
         },
         threshold=0.9,
+        network_policy="positive_only",
+    )
+    absolute_threshold_edges, _ = build_kinase_network(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["KINASE_A", "KINASE_B", "KINASE_C"],
+        kinase_substrates={
+            "KINASE_A": ("S1", "S2"),
+            "KINASE_B": ("S3", "S4"),
+            "KINASE_C": ("S1",),
+        },
+        threshold=0.9,
+        network_policy="absolute_threshold",
+    )
+    signed_edges, _ = build_kinase_network(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["KINASE_A", "KINASE_B", "KINASE_C"],
+        kinase_substrates={
+            "KINASE_A": ("S1", "S2"),
+            "KINASE_B": ("S3", "S4"),
+            "KINASE_C": ("S1",),
+        },
+        threshold=0.9,
+        network_policy="signed",
     )
 
-    assert edges.shape[0] == 1
-    assert edges.at[0, "source_kinase"] == "KINASE_A"
-    assert edges.at[0, "target_kinase"] == "KINASE_B"
-    assert edges.at[0, "correlation"] == pytest.approx(-1.0)
-    with pytest.raises(TypeError, match="network_policy"):
-        SignalomeConfig(  # type: ignore[call-arg]
-            substrate_support_cutoff=0.5,
-            network_correlation_threshold=0.5,
-            network_policy="positive_only",
-        )
+    assert positive_only_edges.empty
+    assert absolute_threshold_edges.shape[0] == 1
+    assert absolute_threshold_edges.at[0, "source_kinase"] == "KINASE_A"
+    assert absolute_threshold_edges.at[0, "target_kinase"] == "KINASE_B"
+    assert absolute_threshold_edges.at[0, "correlation"] == pytest.approx(1.0)
+    assert signed_edges.shape[0] == 1
+    assert signed_edges.at[0, "source_kinase"] == "KINASE_A"
+    assert signed_edges.at[0, "target_kinase"] == "KINASE_B"
+    assert signed_edges.at[0, "correlation"] == pytest.approx(-1.0)
+
+    assert "network_policy" in {field.name for field in fields(SignalomeConfig)}
+    assert SignalomeConfig().network_policy == "signed"
+    assert SignalomeConfig(network_policy="positive_only").network_policy == (
+        "positive_only"
+    )
 
 
 def test_expanded_signalome_donor_locks_supported_lane_to_materialized_output() -> None:

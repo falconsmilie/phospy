@@ -17,6 +17,9 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
+    SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
+    SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -112,7 +115,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--network-correlation-threshold",
         type=float,
         default=0.5,
-        help="Absolute correlation threshold for kinase network edge inclusion.",
+        help="Correlation threshold used by --network-policy for edge inclusion.",
+    )
+    signalome.add_argument(
+        "--network-policy",
+        default=SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
+        choices=[
+            SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
+            SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
+            SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
+        ],
+        help=(
+            "Kinase network policy: positive-only thresholding, absolute-threshold "
+            "unsigned edges, or signed absolute-threshold edges."
+        ),
     )
     signalome.add_argument(
         "--assignment-policy",
@@ -281,6 +297,7 @@ def _run_signalome(args: argparse.Namespace) -> None:
             config=SignalomeConfig(
                 substrate_support_cutoff=args.substrate_support_cutoff,
                 network_correlation_threshold=args.network_correlation_threshold,
+                network_policy=args.network_policy,
                 assignment_policy=args.assignment_policy,
             ),
         )

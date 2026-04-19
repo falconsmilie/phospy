@@ -10,6 +10,7 @@ from phospy.api.configs import (
     KINASE_PROFILE_MISSING_VALUE_STRATEGIES,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     SIGNALOME_ASSIGNMENT_POLICIES,
+    SIGNALOME_KINASE_NETWORK_POLICIES,
     SIGNALOME_MODULE_COUNT_FLOOR,
     SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR,
     KinaseActivityConfig,
@@ -143,6 +144,12 @@ class WorkflowConfigValidator:
             maximum=1.0,
             error_type=WorkflowValidationError,
         )
+        if config.network_policy not in SIGNALOME_KINASE_NETWORK_POLICIES:
+            allowed_policies = ", ".join(sorted(SIGNALOME_KINASE_NETWORK_POLICIES))
+            raise WorkflowValidationError(
+                "signalome workflow request config.network_policy "
+                f"must be one of: {allowed_policies}"
+            )
         if config.assignment_policy not in SIGNALOME_ASSIGNMENT_POLICIES:
             allowed_policies = ", ".join(sorted(SIGNALOME_ASSIGNMENT_POLICIES))
             raise WorkflowValidationError(

@@ -4,9 +4,12 @@ from collections.abc import Mapping, Sequence
 
 import pandas as pd
 import pandas.testing as pdt
+import pytest
 
+from phospy.errors import WorkflowStageError
 from phospy.workflows.signalome.science import (
     build_expanded_signalome_table,
+    build_kinase_network,
     build_signalome_module_table,
 )
 
@@ -148,6 +151,140 @@ def test_build_signalome_module_table_weighted_top_propagates_fractional_support
     assert weighted.loc[2, "K2"] == 100.0
     assert binary.loc[1, "K1"] == 0.0
     assert binary.loc[1, "K2"] == 0.0
+
+
+def test_build_kinase_network_positive_only_excludes_negative_edges() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, 2.0, 3.0, 4.0],
+            "K2": [4.0, 3.0, 2.0, 1.0],
+            "K3": [1.0, 2.0, 2.0, 3.0],
+        },
+        index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
+    )
+
+    edges, nodes = build_kinase_network(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2", "K3"],
+        kinase_substrates={"K1": ("S1", "S2"), "K2": ("S3",), "K3": ()},
+        threshold=0.9,
+        network_policy="positive_only",
+    )
+
+    pdt.assert_frame_equal(
+        edges,
+        pd.DataFrame(
+            {
+                "source_kinase": ["K1"],
+                "target_kinase": ["K3"],
+                "correlation": [0.9486832980505138],
+            }
+        ).astype(
+            {
+                "source_kinase": str,
+                "target_kinase": str,
+                "correlation": float,
+            }
+        ),
+    )
+    pdt.assert_frame_equal(
+        nodes,
+        pd.DataFrame(
+            {
+                "degree": [1, 0, 1],
+                "n_substrates": [2, 1, 0],
+            },
+            index=pd.Index(["K1", "K2", "K3"], name="kinase"),
+        ).astype({"degree": "int64", "n_substrates": "int64"}),
+    )
+
+
+def test_build_kinase_network_absolute_threshold_uses_unsigned_correlation_values() -> (
+    None
+):
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, 2.0, 3.0, 4.0],
+            "K2": [4.0, 3.0, 2.0, 1.0],
+            "K3": [1.0, 2.0, 2.0, 3.0],
+        },
+        index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
+    )
+
+    edges, _ = build_kinase_network(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2", "K3"],
+        kinase_substrates={"K1": (), "K2": (), "K3": ()},
+        threshold=0.9,
+        network_policy="absolute_threshold",
+    )
+
+    expected = pd.DataFrame(
+        {
+            "source_kinase": ["K1", "K1", "K2"],
+            "target_kinase": ["K2", "K3", "K3"],
+            "correlation": [
+                1.0,
+                0.9486832980505138,
+                0.9486832980505138,
+            ],
+        }
+    ).astype({"source_kinase": str, "target_kinase": str, "correlation": float})
+    pdt.assert_frame_equal(edges, expected)
+
+
+def test_build_kinase_network_signed_policy_retains_negative_edges_with_sign() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, 2.0, 3.0, 4.0],
+            "K2": [4.0, 3.0, 2.0, 1.0],
+            "K3": [1.0, 2.0, 2.0, 3.0],
+        },
+        index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
+    )
+
+    edges, _ = build_kinase_network(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2", "K3"],
+        kinase_substrates={"K1": (), "K2": (), "K3": ()},
+        threshold=0.9,
+        network_policy="signed",
+    )
+
+    expected = pd.DataFrame(
+        {
+            "source_kinase": ["K1", "K1", "K2"],
+            "target_kinase": ["K2", "K3", "K3"],
+            "correlation": [
+                -1.0,
+                0.9486832980505138,
+                -0.9486832980505138,
+            ],
+        }
+    ).astype({"source_kinase": str, "target_kinase": str, "correlation": float})
+    pdt.assert_frame_equal(edges, expected)
+
+
+def test_build_kinase_network_rejects_unsupported_network_policy() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, 2.0],
+            "K2": [2.0, 1.0],
+        },
+        index=pd.Index(["S1", "S2"], name="site_id"),
+    )
+
+    with pytest.raises(
+        WorkflowStageError,
+        match="unsupported network_policy 'unsupported'",
+    ):
+        build_kinase_network(
+            downstream_score_matrix=downstream_scores,
+            kinase_order=["K1", "K2"],
+            kinase_substrates={"K1": (), "K2": ()},
+            threshold=0.5,
+            network_policy="unsupported",  # type: ignore[arg-type]
+        )
 
 
 def test_build_expanded_signalome_table_tracks_membership_and_site_order() -> None:

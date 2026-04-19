@@ -11,7 +11,12 @@ import pandas as pd
 from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+    SIGNALOME_KINASE_NETWORK_POLICIES,
+    SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
+    SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
+    SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
     SignalomeAssignmentPolicy,
+    SignalomeKinaseNetworkPolicy,
 )
 from phospy.errors.workflows import WorkflowStageError
 
@@ -437,11 +442,22 @@ def build_kinase_network(
     kinase_order: Sequence[str],
     kinase_substrates: Mapping[str, Sequence[str]],
     threshold: float,
+    network_policy: SignalomeKinaseNetworkPolicy = (
+        SIGNALOME_KINASE_NETWORK_POLICY_SIGNED
+    ),
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Build deterministic edge and node tables for kinase network output.
 
     Missing score entries are consumed via pairwise-complete Pearson
     correlations after dropping rows with no finite score support.
+
+    `network_policy` controls thresholding and edge-correlation encoding:
+
+    - `positive_only`: include only positive correlations `>= threshold`.
+    - `absolute_threshold`: include `abs(correlation) >= threshold` and emit
+      unsigned absolute correlations.
+    - `signed`: include `abs(correlation) >= threshold` and emit signed
+      correlations.
     """
 
     kinase_index = pd.Index(
@@ -481,11 +497,15 @@ def build_kinase_network(
 
     source_positions, target_positions = np.triu_indices(len(kinase_index), k=1)
     pair_correlations = correlation_values[source_positions, target_positions]
-    edge_mask = np.abs(pair_correlations) >= float(threshold)
+    edge_correlations, edge_mask = _resolve_network_edges_by_policy(
+        pair_correlations=pair_correlations,
+        threshold=float(threshold),
+        network_policy=network_policy,
+    )
 
     selected_source = source_positions[edge_mask]
     selected_target = target_positions[edge_mask]
-    selected_correlations = pair_correlations[edge_mask]
+    selected_correlations = edge_correlations[edge_mask]
     edges = pd.DataFrame(
         {
             SOURCE_KINASE_COLUMN: kinase_index.to_numpy(dtype=object, copy=False)[
@@ -534,6 +554,30 @@ def build_kinase_network(
     nodes.index.name = KINASE_COLUMN
     nodes = nodes.astype({DEGREE_COLUMN: "int64", N_SUBSTRATES_COLUMN: "int64"})
     return edges, nodes
+
+
+def _resolve_network_edges_by_policy(
+    *,
+    pair_correlations: np.ndarray,
+    threshold: float,
+    network_policy: SignalomeKinaseNetworkPolicy,
+) -> tuple[np.ndarray, np.ndarray]:
+    if network_policy == SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY:
+        edge_values = pair_correlations
+        edge_mask = pair_correlations >= float(threshold)
+        return edge_values, edge_mask
+    if network_policy == SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD:
+        edge_values = np.abs(pair_correlations)
+        edge_mask = edge_values >= float(threshold)
+        return edge_values, edge_mask
+    if network_policy == SIGNALOME_KINASE_NETWORK_POLICY_SIGNED:
+        edge_values = pair_correlations
+        edge_mask = np.abs(pair_correlations) >= float(threshold)
+        return edge_values, edge_mask
+    allowed = ", ".join(sorted(SIGNALOME_KINASE_NETWORK_POLICIES))
+    raise WorkflowStageError(
+        f"unsupported network_policy '{network_policy}'; expected one of: {allowed}"
+    )
 
 
 def build_expanded_signalome_table(

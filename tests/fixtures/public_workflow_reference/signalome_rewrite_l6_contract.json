@@ -42,6 +42,7 @@
   },
   "module_selection_strategy": "correlation_thresholds",
   "assignment_policy": "cutoff_binary",
+  "network_policy": "signed",
   "n_assignments": 260,
   "n_edges": 66,
   "n_module_kinases": 12,
