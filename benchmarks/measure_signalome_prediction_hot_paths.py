@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""Benchmark signalome/prediction science hot paths against legacy-style baselines.
+
+Targets: `phospy.workflows.signalome.science.build_signalome_module_table` and
+`phospy.workflows.kinase.science.build_prediction_outputs`.
+"""
+
 from __future__ import annotations
 
 import sys

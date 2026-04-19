@@ -44,16 +44,22 @@ pytest -m parity
 pytest tests/test_readme_smoke.py tests/test_end_to_end_parity.py
 ```
 
-For parity-sensitive changes to prediction policy, sampling, scoring, or public workflow fixtures, also review:
+For performance-sensitive changes in kinase scoring lanes, also review:
 
 ```bash
-python benchmarks/compare_prediction_modes.py --repeats 1
+python benchmarks/measure_kinase_scoring_runtime_alignment.py
 ```
 
-For preprocessing ownership or copy-path changes, also run:
+For signalome/prediction science hot-path changes, also review:
 
 ```bash
-python benchmarks/measure_preprocessing_copy_churn.py --check --repeats 1
+python benchmarks/measure_signalome_prediction_hot_paths.py
+```
+
+For benchmark tooling edits, also run:
+
+```bash
+pytest tests/unit/test_benchmark_scripts_smoke.py
 ```
 
 `make test-parity` prints the standard parity summary output.

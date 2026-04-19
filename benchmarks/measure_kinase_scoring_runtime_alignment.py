@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""Benchmark kinase workflow runtime and memory across scoring-path toggles.
+
+Targets: `phospy.workflows.kinase.executor` via `KinaseWorkflow.run`, comparing
+default filtered motif-lane execution against unfiltered and diagnostic-table variants.
+"""
+
 from __future__ import annotations
 
 import sys
