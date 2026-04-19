@@ -126,21 +126,23 @@ def score_profile_correlations(
 
 def rank_kinases_for_prediction(
     *,
-    score_matrix: pd.DataFrame,
+    prediction_score_matrix: pd.DataFrame,
     candidate_substrates: dict[str, list[str]],
 ) -> pd.Series:
     """Rank kinases by the mean candidate-site score used for prediction."""
 
     ranking: dict[str, float] = {}
     for kinase, candidate_sites in candidate_substrates.items():
-        if kinase not in score_matrix.columns:
+        if kinase not in prediction_score_matrix.columns:
             continue
         available_sites = [
-            site for site in candidate_sites if site in score_matrix.index
+            site for site in candidate_sites if site in prediction_score_matrix.index
         ]
         if not available_sites:
             continue
-        values = score_matrix.loc[available_sites, kinase].astype(float).dropna()
+        values = (
+            prediction_score_matrix.loc[available_sites, kinase].astype(float).dropna()
+        )
         if values.empty:
             continue
         ranking[kinase] = float(values.mean(skipna=False))
@@ -150,7 +152,7 @@ def rank_kinases_for_prediction(
 
 def build_prediction_outputs(
     *,
-    score_matrix: pd.DataFrame,
+    prediction_score_matrix: pd.DataFrame,
     selected_kinases: pd.Index,
     candidate_substrates: dict[str, list[str]],
     top_k: int,
@@ -159,22 +161,22 @@ def build_prediction_outputs(
 
     pred_mat = pd.DataFrame(
         np.nan,
-        index=score_matrix.index.copy(),
+        index=prediction_score_matrix.index.copy(),
         columns=selected_kinases.copy(),
     )
-    pred_mat.index.name = score_matrix.index.name
+    pred_mat.index.name = prediction_score_matrix.index.name
     pred_mat.columns.name = "kinase"
 
     substrate_rows: list[dict[str, object]] = []
     for kinase in selected_kinases:
         candidate_sites = candidate_substrates.get(str(kinase), [])
         available_sites = [
-            site for site in candidate_sites if site in score_matrix.index
+            site for site in candidate_sites if site in prediction_score_matrix.index
         ]
         if not available_sites:
             continue
         ranked_sites = (
-            score_matrix.loc[available_sites, kinase]
+            prediction_score_matrix.loc[available_sites, kinase]
             .astype(float)
             .dropna()
             .sort_values(ascending=False)

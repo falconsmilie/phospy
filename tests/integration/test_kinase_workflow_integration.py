@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 import pytest
 
+import phospy.workflows.kinase.executor as kinase_executor
 from phospy import (
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -84,3 +86,60 @@ def test_kinase_workflow_default_scoring_floor_supports_realistic_input() -> Non
         )
     )
     assert result.scoring_result.profile_scores.shape[1] > 0
+
+
+def test_prediction_changes_when_downstream_matrix_switches_profile_vs_combined(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataset = build_rat_l6_dataset(n_sites=260)
+    request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+        activity_config=None,
+    )
+
+    combined_lane = KinaseWorkflow().run(request)
+
+    def _force_profile_lane(*, profile_scores, combined_scores):
+        _ = combined_scores
+        return profile_scores, "profile_scores"
+
+    monkeypatch.setattr(
+        kinase_executor,
+        "select_downstream_score_matrix",
+        _force_profile_lane,
+    )
+    profile_lane = KinaseWorkflow().run(request)
+
+    combined_pred = combined_lane.prediction_result.pred_mat
+    profile_pred = profile_lane.prediction_result.pred_mat
+    assert not combined_pred.equals(profile_pred)
+
+    combined_scores = combined_lane.scoring_result.combined_scores
+    assert combined_scores is not None
+    profile_scores = combined_lane.scoring_result.profile_scores
+    shared_kinases = pd.Index(combined_pred.columns).intersection(profile_pred.columns)
+    assert not shared_kinases.empty
+
+    matched_a_differing_kinase = False
+    for kinase in shared_kinases.astype(str):
+        if combined_pred.loc[:, kinase].dropna().empty:
+            continue
+        if profile_pred.loc[:, kinase].dropna().empty:
+            continue
+        combined_top = combined_scores.loc[:, kinase].astype(float).idxmax()
+        profile_top = profile_scores.loc[:, kinase].astype(float).idxmax()
+        if combined_top == profile_top:
+            continue
+        assert (
+            combined_pred.loc[:, kinase].astype(float).dropna().idxmax() == combined_top
+        )
+        assert (
+            profile_pred.loc[:, kinase].astype(float).dropna().idxmax() == profile_top
+        )
+        matched_a_differing_kinase = True
+        break
+
+    assert matched_a_differing_kinase

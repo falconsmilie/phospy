@@ -134,9 +134,12 @@ No top-level convenience mirrors flatten nested stage outputs.
 Supported public lane today:
 
 - Kinase scoring stage outputs profile, motif, and combined scoring tables.
-- Prediction stage remains profile-driven for ranking and prediction matrix assembly.
+- Prediction stage uses a downstream score matrix that resolves to
+  `combined_scores` when present and falls back to `profile_scores` only when
+  combined scores are unavailable.
 - Activity stage is supported and optional inside `KinaseWorkflow`.
-- Signalome stage outputs module assignments, module matrix, and kinase network.
+- Signalome stage consumes the same downstream score-matrix lane as prediction
+  and outputs module assignments, module matrix, and kinase network.
 
 Deferred/experimental/not yet ported into the public lane:
 

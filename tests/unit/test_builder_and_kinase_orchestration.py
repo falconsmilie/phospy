@@ -267,7 +267,8 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
         dataset=kinase_result.dataset,
         kinase_result=kinase_result,
         config=request.config,
-        score_matrix=score_matrix,
+        downstream_score_matrix=score_matrix,
+        downstream_score_source="profile_scores",
         prediction_matrix=kinase_result.prediction_result.pred_mat,
         site_to_protein=pd.Series(
             ["MAPK14"],

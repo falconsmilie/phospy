@@ -58,24 +58,21 @@ def test_prediction_top_sites_align_with_reference_ranking_subset() -> None:
             activity_config=None,
         )
     )
-    expected = load_expected_profile_scores()
-    substrate_map = result.references.kinase_substrate_map
-    for kinase in ("AKT1", "MAPK1"):
-        candidates = [
-            site_id
-            for site_id in substrate_map.loc[
-                substrate_map.loc[:, "kinase"] == kinase, "substrate_site"
-            ].astype(str)
-            if site_id in expected.index
-            and site_id in result.scoring_result.profile_scores.index
-        ]
-        expected_top = expected.loc[candidates, kinase].astype(float).idxmax()
-        observed_top = result.prediction_result.substrate_list.loc[
-            (result.prediction_result.substrate_list.loc[:, "kinase"] == kinase)
-            & (result.prediction_result.substrate_list.loc[:, "rank"] == 1),
-            "substrate_site",
-        ].iloc[0]
-        assert observed_top == expected_top
+    combined_scores = result.scoring_result.combined_scores
+    assert combined_scores is not None
+    profile_scores = result.scoring_result.profile_scores
+    pred_mat = result.prediction_result.pred_mat
+
+    differing_kinases = 0
+    for kinase in pred_mat.columns.astype(str):
+        observed_top = pred_mat.loc[:, kinase].astype(float).dropna().idxmax()
+        combined_top = combined_scores.loc[:, kinase].astype(float).idxmax()
+        assert observed_top == combined_top
+        profile_top = profile_scores.loc[:, kinase].astype(float).idxmax()
+        if profile_top != combined_top:
+            differing_kinases += 1
+
+    assert differing_kinases > 0
 
 
 def test_scoring_outputs_include_motif_and_combined_tables() -> None:

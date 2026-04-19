@@ -26,6 +26,30 @@ This ticket explicitly resolves the three open scientific-route questions:
   deferred until dependency/runtime policy and reproducibility contracts are
   formalized for the rewrite package.
 
+## Downstream Lane Completion (2026-04-19)
+
+Legacy review outcome (explicit):
+
+- Downstream prediction was **not** intended to be profile-only when
+  `combined_scores` are available.
+- Candidate selection, kinase ranking, and prediction output assembly should use
+  the combined profile/motif score lane, with profile-only fallback only when
+  combined scores are unavailable.
+- Legacy weighting (`weights`) is applied during profile/motif combination and
+  therefore indirectly drives downstream decision-making through
+  `combined_scores`.
+- Signalome should consume the same authoritative upstream downstream-score lane
+  used for prediction.
+
+Rewrite implementation status:
+
+- Kinase downstream matrix is now explicit and resolved as
+  `combined_scores`-first (`profile_scores` fallback).
+- Prediction candidate selection, ranking, and `pred_mat` construction now all
+  use this explicit downstream matrix.
+- Signalome validator/interpreter/executor now consume the same resolved
+  downstream matrix contract.
+
 ## Classification Legend
 
 - `port as-is with adaptation`
@@ -38,9 +62,9 @@ This ticket explicitly resolves the three open scientific-route questions:
 | --- | --- | --- | --- | --- |
 | Profile scoring kernel (`prediction/scoring.py::score_phosphosite_profiles`) | Implemented in `src/phospy/workflows/kinase/science.py::score_profile_correlations` | `port as-is with adaptation` (already landed) | Low risk. Keep `tests/fixtures/rewrite_parity/r_reference_l6/native_profile_scores.csv` stable. | `SCI-GAP-00` (baseline guardrails only) |
 | Kinase profile construction + substrate support counting (`prediction/profiles.py`) | Implemented with strict missing propagation; no policy surface | `port as-is with adaptation` for current default; extend policy in clean API later | Low/medium. Any future `median_skipna` option will change score baselines and `predMat` expectations. | `SCI-GAP-01` |
-| Motif scoring (frequency matrices, sequence window scoring, min-max scaling) (`prediction/motif_scoring.py`) | Not implemented in rewrite workflow path | `port conceptually but reimplement cleanly` | High for scoring outputs when enabled. Promote motif fixture set from `tests_legacy/fixtures/r_reference_l6/native_motif_scores.csv` and `native_motif_sizes.csv` into rewrite parity fixtures. | `SCI-GAP-02` |
-| Profile + motif weighted combination (`prediction/scoring.py::combine_profile_and_motif_scores`) | Not implemented | `port conceptually but reimplement cleanly` | High for downstream prediction. Add rewrite fixtures for `native_combined_scores.csv` and `native_combined_weights.csv`. | `SCI-GAP-03` |
-| Candidate substrate selection (`prediction/candidates.py`: `top`, `score_threshold`, `inclusion`) | Rewrite prediction uses direct top-k per selected kinase only | `port as-is with adaptation` | Medium/high. Will alter sparsity and rank in `predMat` and substrate list outputs. Impacts `tests/fixtures/rewrite_parity/r_reference_l6/predMat.csv`. | `SCI-GAP-04` |
+| Motif scoring (frequency matrices, sequence window scoring, min-max scaling) (`prediction/motif_scoring.py`) | Implemented in rewrite scoring stage and published on `KinaseScoringResult.motif_scores` | `port conceptually but reimplement cleanly` (landed) | Medium. Fixture baselines now include motif outputs and should be kept stable for regressions. | Closed |
+| Profile + motif weighted combination (`prediction/scoring.py::combine_profile_and_motif_scores`) | Implemented and used to populate downstream `combined_scores`/`weights` | `port conceptually but reimplement cleanly` (landed) | Medium/high. Downstream prediction/signalome now depend on this matrix selection seam. | Closed |
+| Candidate substrate selection (`prediction/candidates.py`: `top`, `score_threshold`, `inclusion`) | Implemented and now driven by explicit downstream score matrix in kinase executor | `port as-is with adaptation` (landed in supported lane) | Medium. Candidate/ranking shifts are expected when combined and profile order differ. | Closed |
 | Adaptive sampling ensemble prediction core (`prediction/sampling_core.py`, `prediction/execution.py`) | Not implemented (rewrite uses deterministic score ranking) | `port conceptually but reimplement cleanly` | High. Changes full prediction distribution and all downstream activity/signalome fixtures (`predMat`, `kinase_activity_matrix.csv`, `ksea_scores.csv`, signalome contract tables). | `SCI-GAP-05` |
 | Signalome module-count selection and clustering (`signalomes/clustering.py`) | Not implemented (rewrite derives modules from dominant kinase grouping) | `port conceptually but reimplement cleanly` | High. Module IDs, assignment distribution, and network composition will shift. Impacts `signalome_rewrite_l6_contract.json`, modules, assignments, and edge fixtures. | `SCI-GAP-06` |
 | Site/protein assignment tie metadata (`signalomes/assignments.py` top candidates + ambiguity counts) | Partially implemented (candidates + ambiguity metadata present) | `port as-is with adaptation` (already partial; finish parity semantics) | Medium. Tie-distribution counts in `signalome_rewrite_l6_contract.json` must remain deterministic. | `SCI-GAP-07` |
@@ -71,9 +95,6 @@ The archive remains a science donor only; implementation must stay in rewrite va
 ## Follow-on Ticket Queue
 
 - `SCI-GAP-01`: Add optional profile missing-value strategy lane (`propagate_any_missing` default, optional `median_skipna`).
-- `SCI-GAP-02`: Introduce motif scoring stage inputs/outputs in rewrite scoring domain.
-- `SCI-GAP-03`: Add clean profile+motif weighted combination and surface `combined_scores`/`weights`.
-- `SCI-GAP-04`: Replace direct prediction top-k selection with candidate filter (`top`, threshold, inclusion).
 - `SCI-GAP-05`: Implement adaptive ensemble prediction lane behind rewrite-native contract.
 - `SCI-GAP-06`: Introduce signalome clustering and module-count selection with diagnostics.
 - `SCI-GAP-07`: Tighten tie metadata parity semantics for deterministic assignment diagnostics.

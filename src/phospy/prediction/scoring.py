@@ -7,6 +7,21 @@ from collections.abc import Sequence
 import numpy as np
 import pandas as pd
 
+DOWNSTREAM_SCORE_SOURCE_PROFILE = "profile_scores"
+DOWNSTREAM_SCORE_SOURCE_COMBINED = "combined_scores"
+
+
+def select_downstream_score_matrix(
+    *,
+    profile_scores: pd.DataFrame,
+    combined_scores: pd.DataFrame | None,
+) -> tuple[pd.DataFrame, str]:
+    """Resolve the authoritative downstream prediction score matrix."""
+
+    if combined_scores is not None:
+        return combined_scores, DOWNSTREAM_SCORE_SOURCE_COMBINED
+    return profile_scores, DOWNSTREAM_SCORE_SOURCE_PROFILE
+
 
 def combine_profile_and_motif_scores(
     *,
@@ -104,4 +119,9 @@ def _profile_only_weights(kinases: Sequence[str]) -> pd.DataFrame:
     return weights
 
 
-__all__ = ["combine_profile_and_motif_scores"]
+__all__ = [
+    "DOWNSTREAM_SCORE_SOURCE_COMBINED",
+    "DOWNSTREAM_SCORE_SOURCE_PROFILE",
+    "combine_profile_and_motif_scores",
+    "select_downstream_score_matrix",
+]

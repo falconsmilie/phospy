@@ -123,10 +123,12 @@ class SignalomeWorkflowExecutor:
                 network_correlation_threshold=network_correlation_threshold,
             )
 
-        score_variance_kinases = self._score_variance_kinases(request.score_matrix)
+        score_variance_kinases = self._score_variance_kinases(
+            request.downstream_score_matrix
+        )
         try:
             network_edges, network_nodes = build_kinase_network(
-                score_matrix=request.score_matrix,
+                downstream_score_matrix=request.downstream_score_matrix,
                 kinase_order=request.prediction_matrix.columns.astype(str).tolist(),
                 kinase_substrates=kinase_substrates,
                 threshold=network_correlation_threshold,
@@ -140,7 +142,8 @@ class SignalomeWorkflowExecutor:
                 ),
                 shared_kinases=int(request.prediction_matrix.shape[1]),
                 supported_kinases=support_counts["supported_kinases"],
-                score_sites=int(request.score_matrix.shape[0]),
+                downstream_score_sites=int(request.downstream_score_matrix.shape[0]),
+                downstream_score_source=request.downstream_score_source,
                 score_variance_kinases=score_variance_kinases,
                 network_correlation_threshold=network_correlation_threshold,
                 stage_error=str(exc),
@@ -154,7 +157,8 @@ class SignalomeWorkflowExecutor:
                 ),
                 shared_kinases=int(request.prediction_matrix.shape[1]),
                 supported_kinases=support_counts["supported_kinases"],
-                score_sites=int(request.score_matrix.shape[0]),
+                downstream_score_sites=int(request.downstream_score_matrix.shape[0]),
+                downstream_score_source=request.downstream_score_source,
                 score_variance_kinases=score_variance_kinases,
                 network_correlation_threshold=network_correlation_threshold,
             )
@@ -191,10 +195,10 @@ class SignalomeWorkflowExecutor:
         }
 
     @staticmethod
-    def _score_variance_kinases(score_matrix: pd.DataFrame) -> int:
-        if score_matrix.empty:
+    def _score_variance_kinases(downstream_score_matrix: pd.DataFrame) -> int:
+        if downstream_score_matrix.empty:
             return 0
-        variances = score_matrix.astype(float).var(axis=0, ddof=0)
+        variances = downstream_score_matrix.astype(float).var(axis=0, ddof=0)
         return int((variances > 0.0).sum())
 
     @staticmethod

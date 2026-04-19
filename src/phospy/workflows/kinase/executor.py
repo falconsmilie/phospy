@@ -20,7 +20,10 @@ from phospy.prediction.motif_scoring import (
     build_motif_library,
     score_phosphosite_motifs,
 )
-from phospy.prediction.scoring import combine_profile_and_motif_scores
+from phospy.prediction.scoring import (
+    combine_profile_and_motif_scores,
+    select_downstream_score_matrix,
+)
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
 from phospy.workflows.kinase.science import (
@@ -34,7 +37,8 @@ from phospy.workflows.kinase.science import (
 @dataclass(frozen=True, slots=True)
 class _ScoringExecution:
     scoring_result: KinaseScoringResult
-    score_matrix: pd.DataFrame
+    downstream_score_matrix: pd.DataFrame
+    downstream_score_source: str
     quantified_substrates: dict[str, list[str]]
 
 
@@ -125,9 +129,16 @@ class KinaseWorkflowExecutor:
             combined_scores=combined_scores,
             weights=weights,
         )
+        downstream_score_matrix, downstream_score_source = (
+            select_downstream_score_matrix(
+                profile_scores=profile_scores,
+                combined_scores=combined_scores,
+            )
+        )
         return _ScoringExecution(
             scoring_result=scoring_result,
-            score_matrix=profile_scores,
+            downstream_score_matrix=downstream_score_matrix,
+            downstream_score_source=downstream_score_source,
             quantified_substrates=profile_build.quantified_substrates,
         )
 
@@ -137,15 +148,15 @@ class KinaseWorkflowExecutor:
         request: ResolvedKinaseWorkflowRequest,
         scoring_execution: _ScoringExecution,
     ) -> KinasePredictionResult:
+        downstream_score_matrix = scoring_execution.downstream_score_matrix
         candidate_substrates = build_candidate_substrate_list(
-            scores=scoring_execution.score_matrix,
+            scores=downstream_score_matrix,
             top=request.prediction_config.top_k,
             score_threshold=0.0,
             inclusion=1,
-            allowed_sites_by_kinase=scoring_execution.quantified_substrates,
         )
         kinase_ranking = rank_kinases_for_prediction(
-            score_matrix=scoring_execution.score_matrix,
+            prediction_score_matrix=downstream_score_matrix,
             candidate_substrates=candidate_substrates,
         )
         selected_kinases = kinase_ranking.head(
@@ -153,7 +164,7 @@ class KinaseWorkflowExecutor:
         ).index
         if selected_kinases.empty:
             candidate_shortfall = summarize_candidate_shortfall(
-                scores=scoring_execution.score_matrix,
+                scores=downstream_score_matrix,
                 top=request.prediction_config.top_k,
                 score_threshold=0.0,
                 inclusion=1,
@@ -170,11 +181,12 @@ class KinaseWorkflowExecutor:
                 prediction_config_ensemble_size=request.prediction_config.ensemble_size,
                 prediction_config_top_k=request.prediction_config.top_k,
                 dataset_samples=request.dataset.phospho.shape[1],
+                downstream_score_source=scoring_execution.downstream_score_source,
                 candidate_qualifying_kinases=candidate_shortfall.qualifying_kinases,
                 candidate_max_qualifying_sites=candidate_shortfall.max_qualifying_sites,
             )
         pred_mat, substrate_list = build_prediction_outputs(
-            score_matrix=scoring_execution.score_matrix,
+            prediction_score_matrix=downstream_score_matrix,
             selected_kinases=selected_kinases,
             candidate_substrates=candidate_substrates,
             top_k=request.prediction_config.top_k,
@@ -207,7 +219,7 @@ class KinaseWorkflowExecutor:
         *,
         seam: str,
         next_action: str,
-        **details: int | float,
+        **details: int | float | str,
     ) -> None:
         details_text = ", ".join(f"{key}={value}" for key, value in details.items())
         raise WorkflowBoundaryError(

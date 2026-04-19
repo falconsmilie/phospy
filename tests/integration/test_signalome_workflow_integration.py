@@ -10,6 +10,7 @@ from pandas.api.types import (
     is_string_dtype,
 )
 
+import phospy.workflows.signalome.interpreter as signalome_interpreter
 from phospy import (
     AnalysisReadyPhosphoDataset,
     KinasePredictionConfig,
@@ -195,5 +196,46 @@ def test_signalome_threshold_knobs_do_not_cross_couple_unrelated_outputs() -> No
     pdt.assert_frame_equal(
         baseline.signalome_modules.table,
         network_shifted.signalome_modules.table,
+        check_dtype=False,
+    )
+
+
+def test_signalome_network_uses_combined_downstream_scores_when_available(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataset = build_rat_l6_dataset(n_sites=260)
+    kinase_result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            activity_config=None,
+        )
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=kinase_result,
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+
+    combined_lane = SignalomeWorkflow().run(request)
+
+    def _force_profile_lane(*, profile_scores, combined_scores):
+        _ = combined_scores
+        return profile_scores, "profile_scores"
+
+    monkeypatch.setattr(
+        signalome_interpreter,
+        "select_downstream_score_matrix",
+        _force_profile_lane,
+    )
+    profile_lane = SignalomeWorkflow().run(request)
+
+    assert not combined_lane.kinase_network.edges.equals(
+        profile_lane.kinase_network.edges
+    )
+    pdt.assert_frame_equal(
+        combined_lane.module_assignments.table,
+        profile_lane.module_assignments.table,
         check_dtype=False,
     )

@@ -71,7 +71,7 @@ def test_build_prediction_outputs_uses_missing_values_for_unsupported_cells() ->
         dtype=float,
     )
     pred_mat, substrate_list = build_prediction_outputs(
-        score_matrix=score_matrix,
+        prediction_score_matrix=score_matrix,
         selected_kinases=pd.Index(["K1", "K2"], name="kinase"),
         candidate_substrates={"K1": ["S1"], "K2": ["S2"]},
         top_k=1,

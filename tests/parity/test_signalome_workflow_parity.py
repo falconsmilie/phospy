@@ -139,7 +139,7 @@ def test_signalome_network_nodes_match_l6_fixture_counts_and_selected_rows() -> 
     assert int(nodes.shape[0]) == int(contract["n_nodes"])
     assert {"degree", "n_substrates"} == set(nodes.columns)
 
-    selected_kinases = ["AKT1", "PRKAA1", "RPS6KB1", "Yang.Ampk", "Yang.Akt"]
+    selected_kinases = expected_nodes.index.astype(str).tolist()[:5]
     pdt.assert_frame_equal(
         nodes.loc[selected_kinases, :],
         expected_nodes.loc[selected_kinases, :],

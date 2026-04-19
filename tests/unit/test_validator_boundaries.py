@@ -250,3 +250,30 @@ def test_signalome_validator_allows_prediction_matrix_missingness() -> None:
 
     validated = SignalomeWorkflowValidator().run(request)
     assert validated is request
+
+
+def test_signalome_validator_prefers_combined_scores_when_available() -> None:
+    kinase_result = _kinase_result()
+    assert kinase_result.scoring_result.combined_scores is not None
+    invalid_combined = kinase_result.scoring_result.combined_scores.copy(deep=True)
+    invalid_combined.iloc[0, 0] = float("inf")
+
+    request = SignalomeWorkflowRequest(
+        kinase_result=KinaseWorkflowResult(
+            dataset=kinase_result.dataset,
+            references=kinase_result.references,
+            scoring_result=KinaseScoringResult(
+                profile_scores=kinase_result.scoring_result.profile_scores,
+                combined_scores=invalid_combined,
+            ),
+            prediction_result=kinase_result.prediction_result,
+            activity_result=kinase_result.activity_result,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="kinase_result.scoring_result.combined_scores",
+    ):
+        SignalomeWorkflowValidator().run(request)

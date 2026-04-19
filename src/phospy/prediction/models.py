@@ -14,9 +14,9 @@ from phospy.errors.validation import PhosPyValidationError
 class KinaseScoringResult:
     """Scoring-stage outputs.
 
-    `profile_scores` is the required scientific score matrix for the supported
-    workflow route. Optional fields remain for compatibility with extended
-    scoring lanes and persisted bundles.
+    `profile_scores` is always produced. The downstream workflow resolves its
+    authoritative matrix from `combined_scores` when available, with a
+    profile-only fallback when combined scores are absent.
     """
 
     profile_scores: pd.DataFrame

@@ -7,6 +7,7 @@ import pandas as pd
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.prediction.scoring import select_downstream_score_matrix
 from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
 
 
@@ -24,8 +25,14 @@ class SignalomeWorkflowInterpreter:
         self, request: SignalomeWorkflowRequest
     ) -> ResolvedSignalomeWorkflowRequest:
         scoring_result = request.kinase_result.scoring_result
-        resolved_score_matrix = self._as_aligned_numeric_frame(
-            scoring_result.profile_scores,
+        downstream_score_matrix, downstream_score_source = (
+            select_downstream_score_matrix(
+                profile_scores=scoring_result.profile_scores,
+                combined_scores=scoring_result.combined_scores,
+            )
+        )
+        resolved_downstream_score_matrix = self._as_aligned_numeric_frame(
+            downstream_score_matrix,
             index_name=self._SITE_ID_COLUMN,
             columns_name=self._KINASE_COLUMN,
         )
@@ -41,16 +48,16 @@ class SignalomeWorkflowInterpreter:
         aligned_site_index = self._resolve_shared_site_index(
             dataset_sites=dataset_site_index,
             prediction_sites=resolved_prediction_matrix.index,
-            score_sites=resolved_score_matrix.index,
+            score_sites=resolved_downstream_score_matrix.index,
         )
         aligned_kinase_index = self._resolve_shared_kinase_index(
             prediction_kinases=resolved_prediction_matrix.columns,
-            score_kinases=resolved_score_matrix.columns,
+            score_kinases=resolved_downstream_score_matrix.columns,
         )
         aligned_prediction_matrix = resolved_prediction_matrix.loc[
             aligned_site_index, aligned_kinase_index
         ]
-        aligned_score_matrix = resolved_score_matrix.loc[
+        aligned_downstream_score_matrix = resolved_downstream_score_matrix.loc[
             aligned_site_index, aligned_kinase_index
         ]
         site_to_protein = self._resolve_site_to_protein(
@@ -61,7 +68,8 @@ class SignalomeWorkflowInterpreter:
             dataset=request.kinase_result.dataset,
             kinase_result=request.kinase_result,
             config=request.config,
-            score_matrix=aligned_score_matrix,
+            downstream_score_matrix=aligned_downstream_score_matrix,
+            downstream_score_source=downstream_score_source,
             prediction_matrix=aligned_prediction_matrix,
             site_to_protein=site_to_protein,
         )

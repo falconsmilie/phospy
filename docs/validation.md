@@ -112,7 +112,9 @@ internally consistent reference tables.
 - request type is `SignalomeWorkflowRequest`
 - `kinase_result` is `KinaseWorkflowResult`
 - signalome config bounds in `[0.0, 1.0]`
-- upstream score/prediction matrices are usable numeric matrices for signalome execution
+- upstream downstream-score/prediction matrices are usable numeric matrices for
+  signalome execution (`combined_scores` preferred when available, otherwise
+  `profile_scores`)
 
 Interpreters/executors enforce seam-level scientific/runtime boundary checks and raise
 `WorkflowBoundaryError` with seam names, concrete counts, and `next_action` hints.

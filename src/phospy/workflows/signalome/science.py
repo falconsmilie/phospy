@@ -240,7 +240,7 @@ def build_signalome_module_table(
 
 def build_kinase_network(
     *,
-    score_matrix: pd.DataFrame,
+    downstream_score_matrix: pd.DataFrame,
     kinase_order: Sequence[str],
     kinase_substrates: Mapping[str, Sequence[str]],
     threshold: float,
@@ -256,7 +256,7 @@ def build_kinase_network(
     )
     if kinase_index.empty:
         raise WorkflowStageError("kinase network requires at least one kinase")
-    available_kinases = set(score_matrix.columns.astype(str).tolist())
+    available_kinases = set(downstream_score_matrix.columns.astype(str).tolist())
     missing_kinases = [
         kinase for kinase in kinase_index if kinase not in available_kinases
     ]
@@ -264,11 +264,11 @@ def build_kinase_network(
         preview = ", ".join(missing_kinases[:3])
         suffix = "..." if len(missing_kinases) > 3 else ""
         raise WorkflowStageError(
-            "score matrix is missing kinases required for signalome network: "
+            "downstream score matrix is missing kinases required for signalome network: "
             f"{preview}{suffix}"
         )
 
-    aligned_scores = score_matrix.loc[:, kinase_index].astype(float)
+    aligned_scores = downstream_score_matrix.loc[:, kinase_index].astype(float)
     correlation_matrix = aligned_scores.corr(method="pearson").fillna(0.0)
     correlation_matrix = correlation_matrix.loc[kinase_index, kinase_index]
     correlation_matrix.index = kinase_index.copy()

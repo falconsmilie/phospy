@@ -18,13 +18,15 @@ class ResolvedSignalomeWorkflowRequest:
     """Interpreter output for signalome workflow execution.
 
     ``site_to_protein`` must provide a non-empty protein identifier for every site in
-    ``prediction_matrix.index``.
+    ``prediction_matrix.index``. ``downstream_score_matrix`` is the same
+    authoritative matrix lane that drove upstream kinase prediction.
     """
 
     dataset: AnalysisReadyPhosphoDataset
     kinase_result: KinaseWorkflowResult
     config: SignalomeConfig
-    score_matrix: pd.DataFrame
+    downstream_score_matrix: pd.DataFrame
+    downstream_score_source: str
     prediction_matrix: pd.DataFrame
     site_to_protein: pd.Series
 

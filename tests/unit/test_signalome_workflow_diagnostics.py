@@ -86,13 +86,16 @@ def _kinase_result(
     dataset: AnalysisReadyPhosphoDataset,
     prediction_matrix: pd.DataFrame,
     score_matrix: pd.DataFrame,
+    combined_score_matrix: pd.DataFrame | None = None,
 ) -> KinaseWorkflowResult:
     return KinaseWorkflowResult(
         dataset=dataset,
         references=_bundle(site_ids=dataset.phospho.index.astype(str).tolist()),
         scoring_result=KinaseScoringResult(
             profile_scores=score_matrix,
-            combined_scores=score_matrix,
+            combined_scores=(
+                score_matrix if combined_score_matrix is None else combined_score_matrix
+            ),
         ),
         prediction_result=KinasePredictionResult(pred_mat=prediction_matrix),
         activity_result=None,
@@ -229,6 +232,42 @@ def test_interpreter_uses_explicit_site_metadata_protein_id_when_present() -> No
     assert interpreted.site_to_protein.tolist() == ["P28482-1", "P28482-2"]
 
 
+def test_interpreter_prefers_combined_scores_for_downstream_signalome_matrix() -> None:
+    dataset = _dataset(site_ids=["P1;S1;", "P2;S2;"])
+    prediction_matrix = _matrix(
+        values=[[0.9, 0.2], [0.1, 0.8]],
+        site_ids=["P1;S1;", "P2;S2;"],
+        kinases=["K1", "K2"],
+    )
+    profile_scores = _matrix(
+        values=[[0.1, 0.9], [0.8, 0.2]],
+        site_ids=["P1;S1;", "P2;S2;"],
+        kinases=["K1", "K2"],
+    )
+    combined_scores = _matrix(
+        values=[[0.7, 0.4], [0.3, 0.6]],
+        site_ids=["P1;S1;", "P2;S2;"],
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=profile_scores,
+            combined_score_matrix=combined_scores,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    pd.testing.assert_frame_equal(
+        interpreted.downstream_score_matrix,
+        combined_scores,
+        check_dtype=False,
+    )
+    assert interpreted.downstream_score_source == "combined_scores"
+
+
 def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_gene_symbol() -> (
     None
 ):
@@ -353,7 +392,8 @@ def test_boundary_error_reports_network_failure_modes() -> None:
             score_matrix=score_matrix_missing_kinase,
         ),
         config=SignalomeConfig(substrate_support_cutoff=0.5),
-        score_matrix=score_matrix_missing_kinase,
+        downstream_score_matrix=score_matrix_missing_kinase,
+        downstream_score_source="combined_scores",
         prediction_matrix=prediction_matrix,
         site_to_protein=pd.Series(
             ["P1", "P2"],
@@ -371,7 +411,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
     assert "shared_kinases=2" in missing_message
     assert "supported_kinases=2" in missing_message
     assert (
-        "stage_error=score matrix is missing kinases required for signalome network"
+        "stage_error=downstream score matrix is missing kinases required for signalome network"
         in missing_message
     )
 
@@ -397,7 +437,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
     assert "seam=signalome.executor.network" in variance_message
     assert "shared_kinases=2" in variance_message
     assert "supported_kinases=2" in variance_message
-    assert "score_sites=2" in variance_message
+    assert "downstream_score_sites=2" in variance_message
     assert "score_variance_kinases=0" in variance_message
     assert "network_correlation_threshold=0.5" in variance_message
 

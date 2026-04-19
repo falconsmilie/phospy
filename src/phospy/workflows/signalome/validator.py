@@ -8,6 +8,7 @@ import pandas as pd
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.validation import WorkflowValidationError
+from phospy.prediction.scoring import select_downstream_score_matrix
 from phospy.validation.common.dataframes import (
     require_dataframe,
     require_numeric_dataframe,
@@ -79,46 +80,45 @@ class SignalomeWorkflowValidator:
             )
 
         scoring_result = request.kinase_result.scoring_result
+        downstream_score_matrix, downstream_score_source = (
+            select_downstream_score_matrix(
+                profile_scores=scoring_result.profile_scores,
+                combined_scores=scoring_result.combined_scores,
+            )
+        )
+        score_field_name = (
+            "signalome workflow request kinase_result.scoring_result."
+            f"{downstream_score_source}"
+        )
         score_matrix = require_dataframe(
-            scoring_result.profile_scores,
-            field_name=(
-                "signalome workflow request kinase_result.scoring_result.profile_scores"
-            ),
+            downstream_score_matrix,
+            field_name=score_field_name,
             allow_empty=False,
             error_type=WorkflowValidationError,
         )
         require_numeric_dataframe(
             score_matrix,
-            field_name=(
-                "signalome workflow request kinase_result.scoring_result.profile_scores"
-            ),
+            field_name=score_field_name,
             error_type=WorkflowValidationError,
         )
         self._require_no_missing_or_infinite(
             score_matrix,
-            field_name=(
-                "signalome workflow request kinase_result.scoring_result.profile_scores"
-            ),
+            field_name=score_field_name,
             allow_missing=False,
         )
         score_matrix = require_unique_index(
             score_matrix,
-            field_name=(
-                "signalome workflow request kinase_result.scoring_result.profile_scores"
-            ),
+            field_name=score_field_name,
             error_type=WorkflowValidationError,
         )
         score_matrix = require_unique_columns(
             score_matrix,
-            field_name=(
-                "signalome workflow request kinase_result.scoring_result.profile_scores"
-            ),
+            field_name=score_field_name,
             error_type=WorkflowValidationError,
         )
         if score_matrix.shape[1] == 0:
             raise WorkflowValidationError(
-                "signalome workflow request kinase_result.scoring_result.profile_scores "
-                "must contain at least one kinase column"
+                f"{score_field_name} must contain at least one kinase column"
             )
         return request
 
