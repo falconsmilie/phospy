@@ -102,8 +102,24 @@ def main() -> None:
         print("Resolved reference organism:", result.references.organism.value)
         print()
         print("Profile score shape:", result.scoring_result.profile_scores.shape)
+        if result.scoring_result.motif_scores is not None:
+            print("Motif score shape:", result.scoring_result.motif_scores.shape)
+        else:
+            print("Motif score table: unavailable")
+        if result.scoring_result.combined_scores is not None:
+            print("Combined score shape:", result.scoring_result.combined_scores.shape)
+        else:
+            print("Combined score table: unavailable")
+        if result.scoring_result.weights is not None:
+            print("Weight table shape:", result.scoring_result.weights.shape)
+        else:
+            print("Weight table: unavailable")
         print("Prediction matrix")
         print(result.prediction_result.pred_mat.round(4))
+        if result.prediction_result.substrate_list is not None:
+            print()
+            print("Prediction substrate list")
+            print(result.prediction_result.substrate_list.round(4))
         if result.activity_result is not None:
             print()
             print("Weighted activity")

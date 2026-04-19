@@ -1,229 +1,162 @@
 # Validation Guide
 
-This guide covers validation for the currently supported rewrite contract only.
+This guide documents validation in the supported rewrite contract.
 
-For public types and signatures, see [`api.md`](api.md).
+For API shapes, see [`api.md`](api.md).
 
-## Boundary
+## Boundary Model
 
-- Supported dataset-build inputs are pandas `DataFrame` objects or file paths through
-  `DatasetBuildRequest`.
-- Supported workflow route is `KinaseWorkflow.run(KinaseWorkflowRequest(...))`.
-- Supported downstream route is
-  `SignalomeWorkflow.run(SignalomeWorkflowRequest(...))`.
-- File-ingestion is part of the dataset builder route only.
+Validation is split across three boundaries:
 
-## Constructor Validation Policy
+- Builder request boundary:
+  validates supported source types (`DataFrame` or file path) and builder conventions.
+- Final dataset boundary:
+  validates strict `AnalysisReadyPhosphoDataset` invariants.
+- Workflow boundaries:
+  validate request DTOs, config ranges, reference compatibility, and runtime/science seams.
 
-Validation ownership is split by boundary.
+## Builder Flexibility vs Dataset Strictness
 
-- Request DTOs are typed containers. Builder/workflow validators own request
-  validation.
-- Result DTOs are typed containers. Executor-owned construction guarantees nested
-  workflow result shape; result DTOs do not re-validate nested public types.
-- Dataset/reference domain models still enforce their own boundary invariants.
-- Deeper semantic policies (numeric ranges, overlap constraints, scientific floors)
-  run in validator/interpreter boundaries and raise domain-specific PhosPy
-  exceptions.
+`DatasetBuildRequest` accepts:
 
-## Dataset Builder Validation
+- `pandas.DataFrame`
+- file path (`str`, `Path`, `PathLike`) to `.csv`, `.tsv`/`.txt`, `.parquet`
 
-Builder request validation is owned by `DatasetBuildRequestValidator`.
-After source loading, DataFrame and file-path routes share the same
-normalization, derivation, and boundary validation rules.
+This flexibility exists only at the builder input boundary.
 
-`AnalysisReadyPhosphoDataset` enforces:
+After source loading, both routes pass through the same normalization path:
 
-- `phospho` and `site_metadata` must be pandas `DataFrame` values or file paths
-- `phospho` must be numeric, non-empty, with unique index and unique columns
-- `site_metadata` must be non-empty and index-aligned to `phospho`
-- `site_metadata` must include:
-  `gene_symbol`, `site`, `site_sequence`
-- `site_metadata.protein_id` is optional but preserved when supplied
-- `site_metadata.gene_symbol`, `site_metadata.site`, and
-  `site_metadata.site_sequence` must be non-empty strings
-- whitespace-only metadata values are treated as blank and rejected
-- `sample_metadata` (if present) must be index-aligned to `phospho.columns`
-- `total` (if present) must be numeric and share columns with `phospho`
-- `organism` (if present) must be an `Organism` enum
-- `transformation_state` is required on direct dataset construction
-- boundary site identifiers must already be canonical (non-empty stripped strings)
-- boundary site identifiers that collide when stripped are rejected
-- boundary constructors do not canonicalize or repair incoming tables
-- dataset builder collaborators are responsible for canonicalization and shaping
+- site ID canonicalization
+- site-metadata alias resolution
+- optional derivation of `gene_symbol` and `site` from strict index format
+- fail-fast rejection of ambiguous/unsupported legacy aliases
 
-Builder convention handling is intentionally explicit and narrow:
+`AnalysisReadyPhosphoDataset` itself is strict and DataFrame-only.
+Workflows consume only this dataset type.
 
-- Supported site-metadata aliases:
-  - `gene_symbol`: `gene_symbol`, `gene_name`
-  - `site`: `site`
-  - `site_sequence`: `site_sequence`, `centralized_sequence`
-  - `protein_id`: `protein_id`
-- Unsupported legacy aliases (`gene`, `residue`, `phosphosite`,
-  `site_position`, `sequence`, `protein`) must be renamed to explicit supported
-  columns (for example `gene_symbol`, `site`, `site_sequence`, `protein_id`) or
-  are rejected
-- If `gene_symbol` and/or `site` are missing, the only supported derivation
-  convention is `site_metadata.index` values formatted as
-  `"<gene_symbol>;<site>;"` (for example `MAPK14;Y182;`) with exact matching
-  delimiters and no extra segments
-- If both `site_metadata.index` and `site_metadata.site_id` are present, they
-  must exactly match after canonicalization; conflicts fail fast
-- If multiple aliases for the same target field are present, or derivation cannot
-  be established from the supported index convention, the builder fails with an
-  actionable `UnsupportedInputFormatError` instead of guessing
+## AnalysisReady Dataset Validation
 
-Dataset validation composition:
+`AnalysisReadyPhosphoDataset` constructor composes:
 
-- `AnalysisReadyDatasetValidator` owns dataset-structure checks.
-- `TransformationStateValidator` owns transformation-state coherence checks.
-- `AnalysisReadyPhosphoDataset.__post_init__` composes both validators at the
-  boundary (higher-layer composition), so `validation.datasets` does not depend on
-  `validation.transformations`.
+- `AnalysisReadyDatasetValidator`
+- `TransformationStateValidator`
+
+Enforced dataset invariants:
+
+- `phospho`: non-empty numeric DataFrame, unique index/columns,
+  canonical site IDs.
+- `site_metadata`: non-empty DataFrame, exact index alignment with `phospho.index`,
+  required columns `gene_symbol`, `site`, `site_sequence` with non-empty strings.
+- `sample_metadata` (if present): index aligns to `phospho.columns`.
+- `total` (if present): non-empty numeric DataFrame, unique index,
+  columns align to `phospho.columns`.
+- `organism` (if present): `Organism` enum.
+- `transformation_state`: typed `TransformationState`, coherent with presence/absence
+  of `total`, and coherent transformation kind between matrices when both exist.
+
+Boundary constructors validate; they do not silently repair invalid data.
+
+## Builder Convention Rules
+
+Supported site-metadata aliases:
+
+- `gene_symbol`: `gene_symbol`, `gene_name`
+- `site`: `site`
+- `site_sequence`: `site_sequence`, `centralized_sequence`
+- `protein_id`: `protein_id`
+
+Unsupported legacy aliases are rejected:
+
+- `gene`
+- `residue`
+- `phosphosite`
+- `site_position`
+- `sequence`
+- `protein`
+
+If `gene_symbol` and/or `site` are missing, builder derivation is allowed only from
+index values exactly matching `"<gene_symbol>;<site>;"`.
+
+If both `site_metadata.index` and `site_metadata.site_id` are present, they must match
+after canonicalization.
 
 ## Reference Validation
 
-`ReferencePreset` and `ReferenceBundle` resolution enforces:
+Reference resolution/compatibility enforces:
 
-- `ReferencePreset.AUTO` requires `dataset.organism`
-- explicit preset organism must match `dataset.organism` when both are set
-- bundled references are currently packaged for rat only
-- `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain valid public enum
-  values but intentionally fail bundled resolution in the current release
-- non-rat workflows must provide a caller-supplied `ReferenceBundle`
-- `ReferenceBundle.kinase_substrate_map` must be non-empty with:
-  `kinase`, `substrate_site`
-- `kinase` and `substrate_site` values must already be canonical strings
-- `substrate_site` values that collide when stripped are rejected
-- duplicate `(kinase, substrate_site)` pairs are rejected
-- `ReferenceBundle.site_sequences` must be non-empty with:
-  `site_sequence` and unique canonical index
-- `site_sequences.index` values that collide when stripped are rejected
-- each `substrate_site` must exist in `site_sequences.index`
-- boundary constructors do not trim/canonicalize/deduplicate reference inputs
-- bundled-reference provider/loading paths perform bundled-data shaping
+- `ReferencePreset.AUTO` requires `dataset.organism`.
+- Explicit preset must match dataset organism when both are set.
+- Explicit `ReferenceBundle.organism` must match dataset organism when both are set.
+- Bundled runtime references are currently rat-only.
+- `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` are valid enum values but are
+  not bundled runtime lanes in this release.
 
-Reference compatibility ownership:
-
-- compatibility between dataset organism and requested references is enforced in
-  `ReferenceResolver` (single owner)
-- `KinaseWorkflowValidator` does not recheck reference compatibility
-- `ReferenceBundleValidator` validates bundle structure/content only
+`ReferenceBundle` structure/content validation enforces non-empty, canonical,
+internally consistent reference tables.
 
 ## Workflow Validation
 
 `KinaseWorkflowValidator` enforces:
 
+- request type is `KinaseWorkflowRequest`
 - `dataset` is `AnalysisReadyPhosphoDataset`
-- `references` is `ReferencePreset` or `ReferenceBundle`
-- `scoring_config` is `KinaseScoringConfig`
-- `scoring_config.min_substrates` is an int and must be `>= 2`
-- `prediction_config` is `KinasePredictionConfig`
-- `activity_config` is `KinaseActivityConfig` or `None`
-- `activity_config.min_substrates` is an int and must be `>= 1`
-- `activity_config.top_n_substrates` is an int and must be `>= 1`
+- `references` is `ReferencePreset | ReferenceBundle`
+- config types and numeric floors/ranges:
+  `scoring_config.min_substrates >= 2`,
+  `prediction_config.top_k >= 1`,
+  `prediction_config.ensemble_size >= 1`,
+  activity config bounds when activity is enabled/configured
 
-Rewrite-era boundary diagnostics (raised as `WorkflowBoundaryError`) also enforce:
+`SignalomeWorkflowValidator` enforces:
 
-- interpreted reference coverage must overlap dataset phosphosites
-- at least one kinase must meet `scoring_config.min_substrates` after overlap
-- prediction ranking must produce at least one ensemble kinase
-- activity (when enabled) requires prediction/phospho overlap and at least one
-  valid kinase candidate after activity-stage filters
+- request type is `SignalomeWorkflowRequest`
+- `kinase_result` is `KinaseWorkflowResult`
+- signalome config bounds in `[0.0, 1.0]`
+- upstream score/prediction matrices are usable numeric matrices for signalome execution
 
-Boundary error messages include:
+Interpreters/executors enforce seam-level scientific/runtime boundary checks and raise
+`WorkflowBoundaryError` with seam names, concrete counts, and `next_action` hints.
 
-- the failing seam (for example `kinase.interpreter.eligible_kinases`)
-- concrete counts (`dataset_sites`, `overlap_sites`, `eligible_kinases`, etc.)
-- active config values (`scoring_config_min_substrates`,
-  `prediction_config_ensemble_size`, `prediction_config_top_k`)
-- a `next_action` hint for likely recovery
+## Nested Result Access (Validation-Relevant Contract)
 
-Stage result access is nested and stable:
+Stable access paths are nested by stage:
 
 - `result.scoring_result.profile_scores`
 - `result.scoring_result.motif_scores`
 - `result.scoring_result.combined_scores`
 - `result.scoring_result.weights`
 - `result.prediction_result.pred_mat`
-- `result.activity_result.weighted_activity` (when enabled)
-- `result.activity_result.ksea_scores` (when enabled)
-- `result.activity_result.ksea_counts` (when enabled)
-- `result.activity_result.target_counts` (when enabled)
-- `result.activity_result.target_table` (when enabled)
+- `result.activity_result.weighted_activity` (when activity is enabled)
+- `signalome_result.kinase_result.prediction_result.pred_mat`
 
-`SignalomeWorkflowValidator` enforces:
+Optional outputs must be checked before dereference:
 
-- `kinase_result` is `KinaseWorkflowResult`
-- `config` is `SignalomeConfig`
-- `config.substrate_support_cutoff` is numeric in `[0.0, 1.0]`
-- `config.network_correlation_threshold` is numeric in `[0.0, 1.0]`
-- `kinase_result` prediction/scoring matrices are non-empty numeric DataFrames
-- threshold semantics are explicit:
-  - substrate support cutoff controls kinase-to-substrate inclusion from prediction
-    scores (biological support selection)
-  - network correlation threshold controls kinase-kinase edge inclusion from score
-    correlations (graph sparsity control)
+- `result.activity_result`
+- `result.prediction_result.substrate_list`
+- `signalome_result.kinase_network.nodes`
+- `signalome_result.expanded_signalome`
 
-Signalome rewrite boundary diagnostics (raised as `WorkflowBoundaryError`) enforce:
-
-- interpreted site alignment has usable overlap across dataset/prediction/score
-- interpreted prediction/scoring matrices have overlapping kinase sets
-- interpreted sites resolve to usable protein identifiers from one explicit path:
-  `dataset.site_metadata.protein_id` (preferred) or non-empty protein prefixes in
-  `dataset.phospho.index` / interpreted site IDs
-- at least one kinase has support above `substrate_support_cutoff`
-- module construction produces non-degenerate usable outputs
-- network construction has required kinases, usable score variance, and at least one
-  pair above `network_correlation_threshold`
-
-Signalome boundary error messages include:
-
-- the failing seam (for example `signalome.executor.network`)
-- concrete counts (`dataset_sites`, `shared_kinases`, `supported_kinases`,
-  `score_variance_kinases`, etc.)
-- active config values (`substrate_support_cutoff`,
-  `network_correlation_threshold`)
-- a `next_action` hint for likely recovery
-
-## Validation Ownership
+## Validation Ownership Summary
 
 | Invariant | Owner |
 | --- | --- |
-| Dataset build request input-source types | `DatasetBuildRequestValidator` |
-| Dataset build request organism type | `DatasetBuildRequestValidator` |
-| Kinase request config ranges and activity policy | `KinaseWorkflowValidator` + `WorkflowConfigValidator` |
-| Signalome request config ranges | `SignalomeWorkflowValidator` + `WorkflowConfigValidator` |
-| Reference preset/bundle compatibility with dataset organism | `ReferenceResolver` |
-| Reference bundle structural/content validity | `ReferenceBundleValidator` |
-| Analysis-ready dataset structural validity | `AnalysisReadyDatasetValidator` |
-| Transformation-state coherence with `total` presence | `TransformationStateValidator` (composed in dataset boundary) |
-| Kinase workflow result nested type shape | executor-owned construction (`KinaseWorkflowExecutor`) |
-| Signalome workflow result nested type shape | executor-owned construction (`SignalomeWorkflowExecutor`) |
-| `SignalomeWorkflowResult.expanded_signalome` dataframe ownership/type | `SignalomeWorkflowResult.__post_init__` (narrow local invariant) |
+| Builder input source type checks | `DatasetBuildRequestValidator` + `DatasetInputSourceValidator` |
+| Builder convention normalization/derivation | `DatasetBuildRequestInterpreter` collaborators |
+| Analysis-ready dataset structure/content | `AnalysisReadyDatasetValidator` |
+| Transformation-state coherence | `TransformationStateValidator` |
+| Reference compatibility (dataset vs preset/bundle) | `ReferenceCompatibilityValidator` / `ReferenceResolver` |
+| Reference bundle structure/content | `ReferenceBundleValidator` |
+| Kinase workflow request/config validity | `KinaseWorkflowValidator` + `WorkflowConfigValidator` |
+| Signalome workflow request/config validity | `SignalomeWorkflowValidator` + `WorkflowConfigValidator` |
+| Kinase/signalome runtime seam diagnostics | workflow interpreters/executors (`WorkflowBoundaryError`) |
 
 ## Quick Troubleshooting
 
 | Problem | Usually means | Good next step |
 | --- | --- | --- |
-| Builder rejects input format | A request field is neither a `DataFrame` nor a supported file path | Pass `DataFrame` values or supported file paths (`.csv`, `.tsv`, `.parquet`) |
-| `ReferencePreset.AUTO` fails | `dataset.organism` is missing | Set `organism` on `DatasetBuildRequest` |
-| Reference mismatch error | Dataset and selected preset organisms conflict | Align `dataset.organism` with `ReferencePreset` |
-| Workflow request type error | Request field types are not the public models | Build the request from top-level `phospy` models |
-| `kinase.interpreter.reference_coverage` | None of the reference substrate sites overlap `dataset.phospho.index` | Use references for the same identifier scheme/organism and verify site IDs |
-| `kinase.interpreter.eligible_kinases` | Overlap exists, but no kinase reaches `scoring_config.min_substrates` | Lower `min_substrates` (not below `2`) or use references with deeper site overlap |
-| `kinase.executor.prediction_ensemble` | Scoring completed, but no kinase had a finite prediction ranking | Provide at least two non-constant sample columns in `dataset.phospho` and/or lower `scoring_config.min_substrates` (not below `2`) |
-| `kinase.activity.input_overlap` | Prediction and activity phospho matrices do not share sufficient phosphosite rows | Ensure `prediction_result.pred_mat` and `dataset.phospho` come from the same run and share site IDs |
-| `kinase.activity.valid_candidates` | Activity stage filtered all kinases out | Lower `activity_config.min_substrates`, raise `activity_config.top_n_substrates`, or lower `activity_config.threshold` |
-| `signalome.interpreter.site_alignment` | Dataset sites and interpreted scoring/prediction site IDs do not overlap | Ensure score/prediction outputs were generated from this dataset and share site IDs |
-| `signalome.interpreter.kinase_overlap` | Score and prediction kinase columns have no shared kinase set | Regenerate kinase outputs so both matrices come from the same lane |
-| `signalome.interpreter.protein_mapping` | Interpreted sites do not resolve to usable proteins | Populate `dataset.site_metadata.protein_id` or provide site IDs with non-empty protein prefixes |
-| `signalome.executor.kinase_support` | No kinase has prediction support above `substrate_support_cutoff` | Lower `substrate_support_cutoff` or provide stronger prediction support |
-| `signalome.executor.module_construction` | Module table collapsed to empty/trivial output | Increase kinase diversity and ensure multiple supported kinases |
-| `signalome.executor.network` | Required kinases are missing from scores, score variance is unusable, or no pair passes the network correlation filter | Align score/prediction kinases, provide variable scoring signal, or lower `network_correlation_threshold` |
-
-Runnable rewrite examples:
-
-- [`../examples/dataset_builder_demo.py`](../examples/dataset_builder_demo.py)
-- [`../examples/simple_workflow_demo.py`](../examples/simple_workflow_demo.py)
-- [`../examples/signalome_workflow_demo.py`](../examples/signalome_workflow_demo.py)
+| Builder rejects input format | Field is neither DataFrame nor supported file path | Pass DataFrame or path to `.csv`/`.tsv`/`.txt`/`.parquet` |
+| Dataset constructor fails on site metadata | Required strict boundary columns/values are missing | Provide `gene_symbol`, `site`, `site_sequence` with non-blank strings |
+| `ReferencePreset.AUTO` fails | Dataset organism is missing | Set `organism` in `DatasetBuildRequest` |
+| Bundled human/mouse preset fails | Bundled references are rat-only in this release | Provide explicit non-rat `ReferenceBundle` |
+| Kinase boundary seam fails | Overlap/support constraints were not met | Read seam details and adjust dataset/references/config |
+| Signalome protein-mapping seam fails | Interpreted sites did not resolve to protein identity | Provide `site_metadata.protein_id` or resolvable site-ID protein prefixes |

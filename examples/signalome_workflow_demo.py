@@ -93,6 +93,21 @@ def main() -> None:
     result = run_demo()
     print("Signalome workflow demo")
     print(
+        "Upstream profile score shape:",
+        result.kinase_result.scoring_result.profile_scores.shape,
+    )
+    print(
+        "Upstream prediction shape:",
+        result.kinase_result.prediction_result.pred_mat.shape,
+    )
+    if result.kinase_result.activity_result is not None:
+        print(
+            "Upstream weighted activity shape:",
+            result.kinase_result.activity_result.weighted_activity.shape,
+        )
+    else:
+        print("Upstream activity output: disabled")
+    print(
         "Module assignment shape:",
         result.module_assignments.table.shape,
     )
@@ -104,6 +119,10 @@ def main() -> None:
         "Kinase network edge shape:",
         result.kinase_network.edges.shape,
     )
+    if result.expanded_signalome is not None:
+        print("Expanded signalome shape:", result.expanded_signalome.shape)
+    else:
+        print("Expanded signalome output: unavailable")
 
 
 if __name__ == "__main__":

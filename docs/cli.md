@@ -104,9 +104,9 @@ Supported file formats for read and write:
   kinase/
     scoring/
       profile_scores.<fmt>
-      motif_scores.<fmt>      # optional, currently not emitted
-      combined_scores.<fmt>   # optional, currently not emitted
-      weights.<fmt>           # optional, currently not emitted
+      motif_scores.<fmt>      # optional by contract
+      combined_scores.<fmt>   # optional by contract
+      weights.<fmt>           # optional by contract
     prediction/
       pred_mat.<fmt>
       substrate_list.<fmt>    # optional
@@ -140,3 +140,10 @@ Supported file formats for read and write:
 ```
 
 `<fmt>` is selected with `--output-format` (`csv`, `tsv`, or `parquet`).
+
+Notes:
+
+- In the default supported kinase lane, scoring currently emits
+  `profile_scores`, `motif_scores`, `combined_scores`, and `weights`.
+- Optional entries above are contract-level optional fields that may be absent in
+  custom/future lanes or when an upstream optional stage is disabled.

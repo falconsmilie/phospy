@@ -1,86 +1,73 @@
 # PhosPy
 
-PhosPy currently exposes a focused rewrite public surface.
+PhosPy exposes a focused rewrite public product in `src/phospy/`.
 
-## Package Boundary
+## Public Product Shape
 
-```text
-src/phospy/         # supported rewrite package
-legacy_archive/phospy_legacy/  # migration reference only (not installed package content)
-```
+- `AnalysisReadyPhosphoDataset` is the workflow dataset boundary.
+- There is one public dataset builder story:
+  `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
+- The builder supports both public input routes:
+  pandas `DataFrame` values and table file paths (`.csv`, `.tsv`/`.txt`, `.parquet`).
+- Public workflows are:
+  `KinaseWorkflow().run(KinaseWorkflowRequest(...))` and
+  `SignalomeWorkflow().run(SignalomeWorkflowRequest(...))`.
+- Public workflows are one request DTO in, one result DTO out.
+- Result models stay nested by stage:
+  `result.scoring_result.profile_scores`,
+  `result.prediction_result.pred_mat`,
+  `result.activity_result.weighted_activity` (when activity is enabled),
+  `signalome_result.kinase_result.prediction_result.pred_mat`.
 
-## Supported Today
+## Boundary Contract
 
-- Dataset builder route: supported
-- Kinase workflow route: supported (including activity-stage outputs when enabled)
-- Signalome workflow route: first real vertical slice (module assignments, modules, network)
+- Builder boundary is flexible about source type (in-memory frames or file paths).
+- Final dataset boundary is strict:
+  `AnalysisReadyPhosphoDataset` validates DataFrame structure/content, canonical site IDs,
+  required metadata (`gene_symbol`, `site`, `site_sequence`), and transformation-state coherence.
+- Workflows consume only `AnalysisReadyPhosphoDataset` (not raw input files/frames).
 
-## Rewrite Contract
+## Supported Science vs Deferred
 
-All public execution entry points use `run(request)`.
+Supported in the current rewrite lane:
+
+- Kinase scoring with nested outputs:
+  `profile_scores`, `motif_scores`, `combined_scores`, `weights`.
+- Profile-driven prediction ranking and matrix assembly (`prediction_result.pred_mat`).
+- Optional kinase activity stage inside `KinaseWorkflow` (`activity_config=None` or
+  `enabled=False` disables it).
+- Signalome workflow outputs:
+  `module_assignments`, `signalome_modules`, `kinase_network`.
+
+Deferred or not in the supported default lane:
+
+- `SignalomeWorkflowResult.expanded_signalome` population (`expanded_signalome` is optional and currently `None` in the default route).
+- Legacy or experimental science lanes not yet ported into the public rewrite path.
+
+## Current Limits
+
+- Supported site-metadata aliases in builder normalization are intentionally narrow:
+  - `gene_symbol`: `gene_symbol`, `gene_name`
+  - `site`: `site`
+  - `site_sequence`: `site_sequence`, `centralized_sequence`
+  - `protein_id`: `protein_id`
+- Unsupported legacy aliases (`gene`, `residue`, `phosphosite`, `site_position`,
+  `sequence`, `protein`) are rejected with actionable errors.
+- `ReferencePreset.AUTO` requires `dataset.organism`.
+- Bundled runtime references are currently rat-only.
+- `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain valid public enum values,
+  but require caller-supplied `ReferenceBundle` in this release.
+- Kinase scoring enforces `scoring_config.min_substrates >= 2`.
+
+## Example
 
 ```python
-import pandas as pd
-
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-    DatasetBuildRequest,
-    KinaseActivityConfig,
-    KinaseScoringConfig,
-    KinaseWorkflowRequest,
-    Organism,
-    ReferenceBundle,
-    KinaseWorkflow,
-)
-
-dataset = AnalysisReadyDatasetBuilder().run(
-    DatasetBuildRequest(
-        phospho=pd.DataFrame(
-            {"sample_a": [1.0, 0.7], "sample_b": [1.2, 0.8]},
-            index=["MAPK14;Y182;", "GSK3B;S9;"],
-        ),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14", "GSK3B"],
-                "site": ["Y182", "S9"],
-                "site_sequence": [
-                    "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                    "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
-                ],
-            },
-            index=["MAPK14;Y182;", "GSK3B;S9;"],
-        ),
-        organism=Organism.RAT,
-    )
-)
-
-references = ReferenceBundle(
-    organism=Organism.RAT,
-    kinase_substrate_map=pd.DataFrame(
-        {
-            "kinase": ["MAP2K6", "MAP2K6"],
-            "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
-        }
-    ),
-    site_sequences=pd.DataFrame(
-        {
-            "site_sequence": dataset.site_metadata.loc[:, "site_sequence"],
-        },
-        index=pd.Index(dataset.site_metadata.index, name="site_id"),
-    ),
-)
+from phospy import KinaseWorkflow, KinaseWorkflowRequest
 
 result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
         dataset=dataset,
         references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
-        activity_config=KinaseActivityConfig(
-            enabled=True,
-            threshold=0.6,
-            min_substrates=3,
-            top_n_substrates=20,
-        ),
     )
 )
 
@@ -90,27 +77,12 @@ if result.activity_result is not None:
     weighted_activity = result.activity_result.weighted_activity
 ```
 
-## Current Limits
+## Package Boundary
 
-- `DatasetBuildRequest` accepts pandas `DataFrame` inputs or supported table file paths.
-- Builder convention handling is explicit: supported site-metadata aliases are
-  `gene`/`gene_name` -> `gene_symbol`, `residue`/`phosphosite`/`site_position` -> `site`,
-  and `centralized_sequence` -> `site_sequence`.
-- Ambiguous legacy names like `sequence` and `protein` are not auto-guessed; rename
-  them to explicit supported fields (`site_sequence`, `protein_id`) for reliable ingestion.
-- `ReferencePreset.AUTO` requires `dataset.organism`.
-- Bundled references are currently available only for the rat lane.
-- `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain valid enum values, but
-  they are not bundled runtime lanes in this release. Use an explicit
-  `ReferenceBundle` for non-rat organisms.
-- Kinase scoring enforces a two-substrate scientific floor
-  (`scoring_config.min_substrates >= 2`). Single-site kinase profiles are rejected.
-- The supported kinase scoring route now emits profile, motif, and
-  profile/motif-combined score tables (`profile_scores`, `motif_scores`,
-  `combined_scores`, `weights`) for scientific audit and parity tracking.
-- Prediction in this release remains profile-driven in the workflow executor,
-  with motif/combined outputs carried in the scoring result contract.
-- `SignalomeWorkflowResult.expanded_signalome` remains optional and is currently `None`.
+```text
+src/phospy/                  # supported rewrite package
+legacy_archive/phospy_legacy # migration reference only (not installed package content)
+```
 
 ## Examples
 
@@ -125,4 +97,3 @@ if result.activity_result is not None:
 - [`docs/output_bundles.md`](docs/output_bundles.md)
 - [`docs/validation.md`](docs/validation.md)
 - [`docs/roadmap.md`](docs/roadmap.md)
-- [`docs/architecture/activity_science_port_review.md`](docs/architecture/activity_science_port_review.md)

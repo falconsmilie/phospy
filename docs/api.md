@@ -1,275 +1,208 @@
 # API Guide
 
-PhosPy currently exposes one supported end-to-end rewrite route:
+This guide describes the current supported rewrite contract only.
 
-`DatasetBuildRequest -> AnalysisReadyDatasetBuilder.run(request) -> AnalysisReadyPhosphoDataset -> KinaseWorkflow.run(request)`
+## Supported Lanes
 
-## Support Boundary
+PhosPy has one public dataset boundary and two public workflow stories:
 
-- `src/phospy/`: supported public rewrite package
-- `legacy_archive/phospy_legacy/`: migration reference only; not an installed package target
-- Dataset builder: supported
-- Kinase workflow: supported (activity stage included when enabled)
-- Signalome workflow: first real vertical slice implemented
-
-## Public Types
-
-Import from top-level `phospy`:
-
-- Dataset and references:
-`AnalysisReadyPhosphoDataset`, `Organism`, `ReferencePreset`, `ReferenceBundle`
-- Builder:
-`DatasetBuildRequest`, `AnalysisReadyDatasetBuilder`
-- Workflows and requests:
-`KinaseWorkflow`, `KinaseWorkflowRequest`,
-`SignalomeWorkflow`, `SignalomeWorkflowRequest`
-- Config models:
-`KinaseScoringConfig`, `KinasePredictionConfig`, `KinaseActivityConfig`,
-`SignalomeConfig`
-- Result models:
-`KinaseWorkflowResult`, `SignalomeWorkflowResult`,
-`KinaseScoringResult`, `KinasePredictionResult`, `KinaseActivityResult`
+- Dataset construction:
+  `DatasetBuildRequest -> AnalysisReadyDatasetBuilder.run(request) -> AnalysisReadyPhosphoDataset`
+- Kinase workflow:
+  `KinaseWorkflow.run(KinaseWorkflowRequest(...)) -> KinaseWorkflowResult`
+- Signalome workflow:
+  `SignalomeWorkflow.run(SignalomeWorkflowRequest(...)) -> SignalomeWorkflowResult`
 
 All public executors use `run(request)`.
 
-## User-Handleable Exceptions
+## Package Boundary
 
-Public constructors and workflow/builder boundaries raise PhosPy exception types
-as the intended failure story. User-handleable exceptions are exported from
-top-level `phospy` and include:
+- `src/phospy/`: supported rewrite package
+- `legacy_archive/phospy_legacy/`: historical migration reference only
 
-- Base:
-`PhosPyError`
-- Input/build:
-`PhosPyInputError`, `UnsupportedInputFormatError`, `PhosPyBuildError`,
-`DatasetBuildError`
-- Validation:
-`PhosPyValidationError`, `DatasetValidationError`, `ReferenceValidationError`,
-`TransformationValidationError`, `WorkflowValidationError`
-- Reference:
-`PhosPyReferenceError`, `ReferenceResolutionError`,
-`ReferenceCompatibilityError`, `UnsupportedOrganismError`
-- Transformation:
-`PhosPyTransformationError`, `InvalidTransformationStateError`,
-`TransformationStateEstablishmentError`, `TransformerExecutionError`
-- Workflow:
-`PhosPyWorkflowError`, `WorkflowBoundaryError`, `WorkflowStageError`
+## Public Types
+
+Import from top-level `phospy`.
+
+- Dataset and references:
+  `AnalysisReadyPhosphoDataset`, `Organism`, `ReferencePreset`, `ReferenceBundle`
+- Builder:
+  `DatasetBuildRequest`, `AnalysisReadyDatasetBuilder`
+- Workflows and requests:
+  `KinaseWorkflow`, `KinaseWorkflowRequest`,
+  `SignalomeWorkflow`, `SignalomeWorkflowRequest`
+- Config models:
+  `KinaseScoringConfig`, `KinasePredictionConfig`, `KinaseActivityConfig`,
+  `SignalomeConfig`
+- Result models:
+  `KinaseWorkflowResult`, `SignalomeWorkflowResult`,
+  `KinaseScoringResult`, `KinasePredictionResult`, `KinaseActivityResult`
 
 ## Builder Contract
 
-`DatasetBuildRequest` accepts in-memory pandas `DataFrame` values or file paths.
-The same convention mapping and validation rules apply after loading for both
-input routes.
+There is one public builder story: `AnalysisReadyDatasetBuilder.run(DatasetBuildRequest(...))`.
 
-- Required: `phospho`, `site_metadata`
-- Optional: `sample_metadata`, `total`, `organism`
-- Final `AnalysisReadyPhosphoDataset.site_metadata` always requires
-  `gene_symbol`, `site`, `site_sequence` with non-blank string values
-  (whitespace-only values are rejected)
-- `site_metadata.protein_id` is an optional identity column and is preserved when
-  provided (it is not treated as `gene_symbol`)
-- Supported site-metadata column conventions in the builder:
-  - `gene_symbol`: `gene_symbol`, `gene_name`
-  - `site`: `site`
-  - `site_sequence`: `site_sequence`, `centralized_sequence`
-  - `protein_id`: `protein_id`
-- Unsupported legacy aliases (`gene`, `residue`, `phosphosite`,
-  `site_position`, `sequence`, `protein`) are rejected with actionable errors
-  unless renamed to supported explicit columns
-- When `gene_symbol` and/or `site` are missing, the builder supports one explicit
-  derivation convention from `site_metadata.index` values formatted as
-  `"<gene_symbol>;<site>;"` (for example `MAPK14;Y182;`) and rejects non-exact
-  variants
-- If both `site_metadata.index` and `site_metadata.site_id` are provided, they
-  must exactly match after canonicalization; conflicting site IDs fail fast
-- If alias resolution or derivation is ambiguous/unsupported, the builder fails
-  fast instead of guessing
-- Transformation state is established inside PhosPy through the supported
-  transformer path at builder execution time.
-- If callers construct `AnalysisReadyPhosphoDataset` directly (instead of using
-  the builder), `transformation_state` must be provided explicitly.
-- Public dataset/reference models are strict boundaries: they validate but do not
-  trim/canonicalize/deduplicate inputs.
-- Dirty or colliding site identifiers at the public boundary fail fast.
-- Input shaping and cleanup responsibilities live below the boundary in builder
-  and bundled-reference provider/loading paths.
-- `ReferencePreset.AUTO` requires `dataset.organism` at workflow execution time
-- Bundled references are currently available for rat only
-- `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` are part of the public enum,
-  but bundled runtime resolution for those presets is intentionally unsupported in
-  this release and fails with `UnsupportedOrganismError`
-- For non-rat workflows, supply an explicit `ReferenceBundle` instead of relying
-  on bundled presets
+`DatasetBuildRequest` supports both public input routes:
 
-## Frame Ownership
+- pandas `DataFrame` values
+- file paths (`str`, `pathlib.Path`, `os.PathLike`) for supported table formats
 
-PhosPy applies a package-wide ownership rule for pandas frames:
+Required request fields:
 
-- public boundary objects own copies of caller-provided frames
-- internal stage DTOs may alias already-owned frames
-- internal assembly paths may transfer ownership without re-copying
+- `phospho`
+- `site_metadata`
 
-See [`frame_ownership.md`](frame_ownership.md) for the full policy.
+Optional request fields:
 
-## Result Contract
+- `sample_metadata`
+- `total`
+- `organism`
 
-`KinaseWorkflowResult` keeps stage outputs nested:
+After loading, both routes share the same normalization and validation path.
 
-- `result.scoring_result`
-- `result.prediction_result`
-- `result.activity_result`
+Supported site-metadata alias mapping is explicit and narrow:
 
-Supported kinase scoring behavior now includes restored legacy science seams:
+- `gene_symbol`: `gene_symbol`, `gene_name`
+- `site`: `site`
+- `site_sequence`: `site_sequence`, `centralized_sequence`
+- `protein_id`: `protein_id`
 
-- `result.scoring_result.profile_scores`: profile-correlation score matrix.
-- `result.scoring_result.motif_scores`: motif-frequency score matrix from
-  reference sequence motifs.
-- `result.scoring_result.combined_scores`: profile/motif weighted combination.
-- `result.scoring_result.weights`: per-kinase motif/profile weight table used by
-  the combination step.
+Unsupported legacy aliases (`gene`, `residue`, `phosphosite`, `site_position`,
+`sequence`, `protein`) are rejected instead of guessed.
 
-Prediction in the current supported route remains profile-driven for ranking and
-matrix assembly, while motif/combined outputs are published for scientific audit
-and parity tracking.
+If `gene_symbol` and/or `site` are absent, one derivation convention is supported:
+`site_metadata.index` values formatted exactly as `"<gene_symbol>;<site>;"`.
 
-No mirrored top-level convenience aliases are part of the rewrite contract.
-Reusable save/load output bundles are provided as external services in
-`phospy.io` (`save_kinase_workflow_bundle`,
-`load_kinase_workflow_bundle`) so result models remain plain containers.
+## Final Dataset Boundary
 
-`SignalomeWorkflowResult` currently returns real tables (`module_assignments`,
-`signalome_modules`, `kinase_network`) from the first vertical slice, while
-`expanded_signalome` remains optional and currently `None`.
-`SignalomeConfig` now uses two explicit thresholds:
+`AnalysisReadyPhosphoDataset` is strict and workflow-facing.
 
-- `substrate_support_cutoff`: prediction-score cutoff for kinase substrate support
-- `network_correlation_threshold`: absolute correlation cutoff for kinase network
-  edges
+- It owns validated tables, not input files.
+- It requires DataFrame values for `phospho` and `site_metadata` at construction time.
+- `site_metadata` must contain `gene_symbol`, `site`, `site_sequence` with non-empty strings.
+- Site identifiers must already be canonical and non-colliding.
+- `sample_metadata` (if present) must align to `phospho.columns`.
+- `total` (if present) must be numeric and column-aligned to `phospho`.
+- `transformation_state` is mandatory on direct dataset construction and must be coherent.
 
-Signalome protein grouping resolves from explicit protein identity:
-`dataset.site_metadata.protein_id` when present, otherwise interpreted site-ID
-protein prefixes. Missing protein identity fails with `WorkflowBoundaryError`.
+Builder flexibility does not weaken this final dataset strictness.
+Workflows consume only `AnalysisReadyPhosphoDataset`.
 
-Kinase activity output exposes the full downstream activity stage:
+## Workflow Contract
 
-- `result.activity_result.weighted_activity`
-- `result.activity_result.ksea_scores`
-- `result.activity_result.ksea_counts`
-- `result.activity_result.target_counts`
-- `result.activity_result.target_table`
+`KinaseWorkflowRequest` fields:
 
-Activity is a supported stage of `KinaseWorkflow`. It remains optional at
-execution time when callers pass `activity_config=None` or
-`activity_config.enabled=False`.
+- `dataset: AnalysisReadyPhosphoDataset`
+- `references: ReferencePreset | ReferenceBundle`
+- `scoring_config: KinaseScoringConfig`
+- `prediction_config: KinasePredictionConfig`
+- `activity_config: KinaseActivityConfig | None`
 
-Activity configuration controls:
+`SignalomeWorkflowRequest` fields:
 
-- `activity_config.threshold`
-- `activity_config.min_substrates`
-- `activity_config.top_n_substrates`
+- `kinase_result: KinaseWorkflowResult`
+- `config: SignalomeConfig`
 
-Kinase scoring support floor:
+## Result Contract (Nested Stage Outputs)
 
-- `scoring_config.min_substrates` defaults to `2`
-- values below `2` are rejected by validation
-- kinases with fewer than `min_substrates` quantified overlap sites are excluded
-  from profile/scoring stages
+`KinaseWorkflowResult`:
 
-See [`output_bundles.md`](output_bundles.md) for manifest format and table
-inventory.
+- `result.dataset`
+- `result.references`
+- `result.scoring_result.profile_scores`
+- `result.scoring_result.motif_scores` (optional field in model)
+- `result.scoring_result.combined_scores` (optional field in model)
+- `result.scoring_result.weights` (optional field in model)
+- `result.prediction_result.pred_mat`
+- `result.prediction_result.substrate_list` (optional)
+- `result.activity_result` (`None` when activity is disabled)
 
-## Example
+`SignalomeWorkflowResult`:
+
+- `result.dataset`
+- `result.kinase_result` (full upstream nested lineage)
+- `result.module_assignments.table`
+- `result.signalome_modules.table`
+- `result.kinase_network.edges`
+- `result.kinase_network.nodes` (optional)
+- `result.expanded_signalome` (optional; currently `None` in the default lane)
+
+No top-level convenience mirrors flatten nested stage outputs.
+
+## Supported Science vs Deferred Science
+
+Supported public lane today:
+
+- Kinase scoring stage outputs profile, motif, and combined scoring tables.
+- Prediction stage remains profile-driven for ranking and prediction matrix assembly.
+- Activity stage is supported and optional inside `KinaseWorkflow`.
+- Signalome stage outputs module assignments, module matrix, and kinase network.
+
+Deferred/experimental/not yet ported into the public lane:
+
+- Population of `SignalomeWorkflowResult.expanded_signalome`.
+- Additional legacy science lanes listed as roadmap follow-ons.
+
+## Reference Resolution
+
+- `ReferencePreset.AUTO` requires `dataset.organism`.
+- Preset/dataset organism compatibility is enforced.
+- Bundled runtime references are currently rat-only.
+- `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain public enum lanes,
+  but bundled resolution for those presets is intentionally unsupported in this release.
+- Non-rat execution uses explicit caller-provided `ReferenceBundle`.
+
+## User-Handleable Exceptions
+
+Top-level `phospy` exports the public exception taxonomy:
+
+- Base:
+  `PhosPyError`
+- Input/build:
+  `PhosPyInputError`, `UnsupportedInputFormatError`, `PhosPyBuildError`,
+  `DatasetBuildError`
+- Validation:
+  `PhosPyValidationError`, `DatasetValidationError`, `ReferenceValidationError`,
+  `TransformationValidationError`, `WorkflowValidationError`
+- Reference:
+  `PhosPyReferenceError`, `ReferenceResolutionError`,
+  `ReferenceCompatibilityError`, `UnsupportedOrganismError`
+- Transformation:
+  `PhosPyTransformationError`, `InvalidTransformationStateError`,
+  `TransformationStateEstablishmentError`, `TransformerExecutionError`
+- Workflow:
+  `PhosPyWorkflowError`, `WorkflowBoundaryError`, `WorkflowStageError`
+
+## Quick Usage Pattern
 
 ```python
-import pandas as pd
-
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
-    KinaseActivityConfig,
-    KinaseScoringConfig,
-    Organism,
-    ReferenceBundle,
     KinaseWorkflow,
     KinaseWorkflowRequest,
+    Organism,
+    ReferencePreset,
 )
 
 dataset = AnalysisReadyDatasetBuilder().run(
     DatasetBuildRequest(
-        phospho=pd.DataFrame(
-            {"sample_a": [1.0, 0.7], "sample_b": [1.2, 0.8]},
-            index=["MAPK14;Y182;", "GSK3B;S9;"],
-        ),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14", "GSK3B"],
-                "site": ["Y182", "S9"],
-                "site_sequence": [
-                    "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                    "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
-                ],
-            },
-            index=["MAPK14;Y182;", "GSK3B;S9;"],
-        ),
+        phospho="./input/phospho.csv",
+        site_metadata="./input/site_metadata.csv",
         organism=Organism.RAT,
     )
 )
 
-references = ReferenceBundle(
-    organism=Organism.RAT,
-    kinase_substrate_map=pd.DataFrame(
-        {
-            "kinase": ["MAP2K6", "MAP2K6"],
-            "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
-        }
-    ),
-    site_sequences=pd.DataFrame(
-        {"site_sequence": dataset.site_metadata.loc[:, "site_sequence"]},
-        index=pd.Index(dataset.site_metadata.index, name="site_id"),
-    ),
+kinase_result = KinaseWorkflow().run(
+    KinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
 )
 
-result = KinaseWorkflow().run(
-    KinaseWorkflowRequest(
-        dataset=dataset,
-        references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
-        activity_config=KinaseActivityConfig(
-            enabled=True,
-            threshold=0.6,
-            min_substrates=3,
-            top_n_substrates=20,
-        ),
-    )
-)
-
-pred_mat = result.prediction_result.pred_mat
-if result.activity_result is not None:
-    weighted_activity = result.activity_result.weighted_activity
+pred_mat = kinase_result.prediction_result.pred_mat
+if kinase_result.activity_result is not None:
+    weighted_activity = kinase_result.activity_result.weighted_activity
 ```
 
-## CLI
+For CLI and bundle persistence details, see:
 
-The rewrite CLI now supports the same narrow lane from files:
-
-1. `dataset-build` (files -> analysis-ready dataset outputs)
-2. `kinase` (files -> dataset build + kinase workflow outputs)
-
-Examples:
-
-```bash
-phospy dataset-build \
-  --phospho ./input/phospho.csv \
-  --site-metadata ./input/site_metadata.csv \
-  --organism rat \
-  --outdir ./out
-
-phospy kinase \
-  --phospho ./input/phospho.csv \
-  --site-metadata ./input/site_metadata.csv \
-  --organism rat \
-  --reference auto \
-  --outdir ./out
-```
-
-Input files currently support `.csv`, `.tsv`/`.txt`, and `.parquet`.
+- [`cli.md`](cli.md)
+- [`output_bundles.md`](output_bundles.md)

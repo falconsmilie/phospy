@@ -1,12 +1,10 @@
 # Output Bundles
 
-`KinaseWorkflowResult` and `SignalomeWorkflowResult` bundle persistence
-are implemented as external services in `phospy.io`, not as methods on the
-result models.
+Workflow bundle persistence is implemented as external services in `phospy.io`,
+not methods on result DTOs.
 
-This follows ADR-005 (result objects stay typed containers) and ADR-015
-(fixtures and manifest assets stay in test/docs areas, not runtime reference
-resources).
+This keeps public result models as nested typed containers and keeps persistence
+as an explicit I/O concern.
 
 ## Supported Services
 
@@ -39,44 +37,34 @@ save_signalome_workflow_bundle(
 loaded_signalome = load_signalome_workflow_bundle(Path("./signalome_bundle"))
 ```
 
-`loaded_kinase` returns:
+Loaded bundle objects include:
 
-- `result`: reconstructed `KinaseWorkflowResult`
-- `config_snapshot`: typed config snapshot for reproducibility
+- reconstructed nested workflow result DTO
+- typed config snapshot
 - `manifest_version`
 
-`loaded_signalome` returns:
+## Manifest Contract (v1)
 
-- `result`: reconstructed `SignalomeWorkflowResult`
-- `config_snapshot`: typed config snapshot for reproducibility
-- `manifest_version`
+Kinase manifest:
 
-## Manifest Contracts (v1)
+- `bundle_type == "kinase_workflow_result"`
+- `manifest_version == 1`
+- top-level sections:
+  `dataset`, `resolved_references`, `outputs`, `config_snapshot`
+
+Signalome manifest:
+
+- `bundle_type == "signalome_workflow_result"`
+- `manifest_version == 1`
+- top-level sections:
+  `dataset`, `resolved_references`, `upstream_kinase_outputs`,
+  `signalome_outputs`, `config_snapshot`
+
+Both manifests store dataset organism and full transformation-state payload.
+
+## Bundle Contents (Default CSV Layout)
 
 Kinase:
-
-- File: `manifest.json`
-- Required:
-`bundle_type == "kinase_workflow_result"`
-- Required:
-`manifest_version == 1`
-- Required sections:
-`dataset`, `resolved_references`, `outputs`, `config_snapshot`
-
-Signalome:
-
-- File: `manifest.json`
-- Required:
-`bundle_type == "signalome_workflow_result"`
-- Required:
-`manifest_version == 1`
-- Required sections:
-`dataset`, `resolved_references`, `upstream_kinase_outputs`,
-`signalome_outputs`, `config_snapshot`
-
-## Bundle Contents (v1)
-
-Kinase (default `csv` layout):
 
 ```text
 manifest.json
@@ -88,9 +76,9 @@ dataset/total.csv                    # optional
 references/kinase_substrate_map.csv
 references/site_sequences.csv
 scoring/profile_scores.csv
-scoring/motif_scores.csv             # optional, currently not emitted
-scoring/combined_scores.csv          # optional, currently not emitted
-scoring/weights.csv                  # optional, currently not emitted
+scoring/motif_scores.csv             # optional
+scoring/combined_scores.csv          # optional
+scoring/weights.csv                  # optional
 prediction/pred_mat.csv
 prediction/substrate_list.csv        # optional
 activity/weighted_activity.csv       # optional
@@ -100,15 +88,7 @@ activity/target_counts.csv           # optional
 activity/target_table.csv            # optional
 ```
 
-When present, activity outputs contain:
-
-- `weighted_activity`: weighted kinase activity matrix
-- `ksea_scores`: KSEA-style kinase score matrix
-- `ksea_counts`: selected substrate counts per kinase
-- `target_counts`: thresholded predicted target counts per kinase
-- `target_table`: thresholded kinase-target edge table
-
-Signalome (default `csv` layout):
+Signalome:
 
 ```text
 manifest.json
@@ -120,9 +100,9 @@ dataset/total.csv                    # optional
 references/kinase_substrate_map.csv
 references/site_sequences.csv
 scoring/profile_scores.csv
-scoring/motif_scores.csv             # optional, currently not emitted
-scoring/combined_scores.csv          # optional, currently not emitted
-scoring/weights.csv                  # optional, currently not emitted
+scoring/motif_scores.csv             # optional
+scoring/combined_scores.csv          # optional
+scoring/weights.csv                  # optional
 prediction/pred_mat.csv
 prediction/substrate_list.csv        # optional
 activity/weighted_activity.csv       # optional
@@ -137,23 +117,28 @@ signalome/kinase_network_nodes.csv   # optional
 signalome/expanded_signalome.csv     # optional
 ```
 
-Signalome manifest metadata explicitly captures:
+Optional means contract-optional, not always absent.
+In the default supported kinase lane, scoring currently populates profile/motif/combined/weight tables.
 
-- dataset metadata:
-`organism`, full `transformation_state`
-- resolved reference metadata:
-resolved reference `organism`
-- upstream kinase stage output table paths:
-scoring, prediction, activity
-- signalome output table paths:
-module assignments, module matrix, kinase network, expanded signalome
-- config snapshot path:
-`config/snapshot.json`
+## Optional Output Semantics
 
-Signalome config snapshots encode:
+- `activity/*` tables are present only when `kinase_result.activity_result` is present.
+- `prediction/substrate_list` is optional.
+- `signalome/kinase_network_nodes` is optional.
+- `signalome/expanded_signalome` is optional and currently absent (`None`) in the default signalome route.
 
-- `substrate_support_cutoff`
-- `network_correlation_threshold`
+## Config Snapshot Fields
 
-The manifest is versioned from day one so future formats can evolve without
-guesswork.
+Kinase config snapshot:
+
+- `scoring_config.min_substrates`
+- `prediction_config.top_k`
+- `prediction_config.ensemble_size`
+- `activity_config` fields when activity is configured
+
+Signalome config snapshot:
+
+- `signalome_config.substrate_support_cutoff`
+- `signalome_config.network_correlation_threshold`
+
+Manifest versioning starts at v1 so future format evolution is explicit.
