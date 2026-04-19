@@ -29,6 +29,8 @@ Validation ownership is split by boundary.
 ## Dataset Builder Validation
 
 Builder request validation is owned by `DatasetBuildRequestValidator`.
+After source loading, DataFrame and file-path routes share the same
+normalization, derivation, and boundary validation rules.
 
 `AnalysisReadyPhosphoDataset` enforces:
 
@@ -53,16 +55,20 @@ Builder request validation is owned by `DatasetBuildRequestValidator`.
 Builder convention handling is intentionally explicit and narrow:
 
 - Supported site-metadata aliases:
-  - `gene_symbol`: `gene_symbol`, `gene`, `gene_name`
-  - `site`: `site`, `residue`, `phosphosite`, `site_position`
+  - `gene_symbol`: `gene_symbol`, `gene_name`
+  - `site`: `site`
   - `site_sequence`: `site_sequence`, `centralized_sequence`
   - `protein_id`: `protein_id`
-- Unsupported ambiguous legacy names (`sequence`, `protein`) must be renamed to
-  explicit supported columns (for example `site_sequence`, `protein_id`) or are
-  rejected
+- Unsupported legacy aliases (`gene`, `residue`, `phosphosite`,
+  `site_position`, `sequence`, `protein`) must be renamed to explicit supported
+  columns (for example `gene_symbol`, `site`, `site_sequence`, `protein_id`) or
+  are rejected
 - If `gene_symbol` and/or `site` are missing, the only supported derivation
   convention is `site_metadata.index` values formatted as
-  `"<gene_symbol>;<site>;"` (for example `MAPK14;Y182;`)
+  `"<gene_symbol>;<site>;"` (for example `MAPK14;Y182;`) with exact matching
+  delimiters and no extra segments
+- If both `site_metadata.index` and `site_metadata.site_id` are present, they
+  must exactly match after canonicalization; conflicts fail fast
 - If multiple aliases for the same target field are present, or derivation cannot
   be established from the supported index convention, the builder fails with an
   actionable `UnsupportedInputFormatError` instead of guessing

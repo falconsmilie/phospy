@@ -9,9 +9,9 @@ import pandas as pd
 from phospy.errors.input import UnsupportedInputFormatError
 from phospy.site_ids import canonicalize_site_index
 
-_GENE_SYMBOL_ALIASES = ("gene_symbol", "gene", "gene_name")
+_GENE_SYMBOL_ALIASES = ("gene_symbol", "gene_name")
 _PROTEIN_ID_ALIASES = ("protein_id",)
-_SITE_ALIASES = ("site", "residue", "phosphosite", "site_position")
+_SITE_ALIASES = ("site",)
 _SITE_SEQUENCE_ALIASES = ("site_sequence", "centralized_sequence")
 
 
@@ -90,10 +90,31 @@ class DatasetConventionNormalizer:
         index_name = (
             str(normalized.index.name).strip().lower() if normalized.index.name else ""
         )
-        if "site_id" in normalized.columns and (
-            isinstance(normalized.index, pd.RangeIndex) or index_name != "site_id"
-        ):
+        has_site_id_column = "site_id" in normalized.columns
+        if has_site_id_column and isinstance(normalized.index, pd.RangeIndex):
             normalized = normalized.set_index("site_id", drop=True)
+        elif has_site_id_column:
+            index_as_site_id = canonicalize_site_index(
+                normalized.index,
+                field_name="dataset build request site_metadata.index",
+                error_type=UnsupportedInputFormatError,
+            )
+            column_as_site_id = canonicalize_site_index(
+                pd.Index(normalized.loc[:, "site_id"], name="site_id"),
+                field_name="dataset build request site_metadata.site_id",
+                error_type=UnsupportedInputFormatError,
+            )
+            if not index_as_site_id.equals(column_as_site_id):
+                raise UnsupportedInputFormatError(
+                    "dataset build request site_metadata has conflicting site "
+                    "identifiers between index and 'site_id' column. use one source "
+                    "of site IDs or make both exactly match"
+                )
+            if index_name != "site_id":
+                normalized.index = pd.Index(
+                    index_as_site_id.tolist(),
+                    name="site_id",
+                )
         normalized.index = canonicalize_site_index(
             normalized.index,
             field_name="dataset build request site_metadata.index",
@@ -234,16 +255,21 @@ def _resolve_alias(
 
 def _reject_unsupported_legacy_aliases(columns: pd.Index) -> None:
     present = _normalized_column_lookup(columns)
-    if "sequence" in present and "site_sequence" not in present:
+    unsupported_aliases: dict[str, str] = {
+        "sequence": "site_sequence",
+        "protein": "protein_id",
+        "gene": "gene_symbol",
+        "residue": "site",
+        "phosphosite": "site",
+        "site_position": "site",
+    }
+    for legacy_name, canonical_name in unsupported_aliases.items():
+        if legacy_name not in present:
+            continue
         raise UnsupportedInputFormatError(
-            "dataset build request site_metadata column 'sequence' is ambiguous and "
-            "unsupported. Use 'site_sequence' or supported alias "
-            "'centralized_sequence' for site-centered sequence values."
-        )
-    if "protein" in present and "protein_id" not in present:
-        raise UnsupportedInputFormatError(
-            "dataset build request site_metadata column 'protein' is ambiguous and "
-            "unsupported. Rename it to 'protein_id' to preserve protein identity."
+            f"dataset build request site_metadata column '{legacy_name}' is "
+            "unsupported for strict convention mapping. Rename it to "
+            f"'{canonical_name}' and provide exactly one '{canonical_name}' column."
         )
 
 
@@ -258,11 +284,15 @@ def _normalized_column_lookup(columns: pd.Index) -> dict[str, list[str]]:
 def _parse_site_metadata_index_convention(
     index: pd.Index,
 ) -> tuple[pd.Series, pd.Series] | None:
-    split = index.to_series().astype(str).str.strip().str.split(";", expand=True)
-    if split.shape[1] < 2:
+    extracted = (
+        index.to_series()
+        .astype(str)
+        .str.extract(r"^\s*(?P<gene>[^;]+?)\s*;\s*(?P<site>[^;]+?)\s*;\s*$")
+    )
+    if extracted.isna().any(axis=None):
         return None
-    genes = split.loc[:, 0].astype(str).str.strip()
-    sites = split.loc[:, 1].astype(str).str.strip()
+    genes = extracted.loc[:, "gene"].astype(str).str.strip()
+    sites = extracted.loc[:, "site"].astype(str).str.strip()
     if (genes == "").any() or (sites == "").any():
         return None
     return genes, sites

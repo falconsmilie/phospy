@@ -21,7 +21,7 @@ def test_normalizer_supports_documented_site_metadata_aliases() -> None:
             {
                 "gene_name": ["MAPK14"],
                 "protein_id": ["P28482-2"],
-                "residue": ["Y182"],
+                "site": ["Y182"],
                 "centralized_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
             },
             index=pd.Index(["MAPK14;Y182;"], name="site_id"),
@@ -42,7 +42,7 @@ def test_normalizer_supports_documented_site_metadata_aliases() -> None:
 def test_normalizer_rejects_unsupported_ambiguous_sequence_column() -> None:
     with pytest.raises(
         UnsupportedInputFormatError,
-        match="column 'sequence' is ambiguous and unsupported",
+        match="column 'sequence' is unsupported",
     ):
         DatasetConventionNormalizer().run(
             phospho=_phospho(),
@@ -62,7 +62,7 @@ def test_normalizer_rejects_unsupported_ambiguous_sequence_column() -> None:
 def test_normalizer_rejects_unsupported_ambiguous_protein_column() -> None:
     with pytest.raises(
         UnsupportedInputFormatError,
-        match="column 'protein' is ambiguous and unsupported",
+        match="column 'protein' is unsupported",
     ):
         DatasetConventionNormalizer().run(
             phospho=_phospho(),
@@ -83,14 +83,55 @@ def test_normalizer_rejects_unsupported_ambiguous_protein_column() -> None:
 def test_normalizer_rejects_multiple_alias_matches_for_same_target() -> None:
     with pytest.raises(
         UnsupportedInputFormatError,
-        match="has ambiguous columns for 'gene_symbol': gene_symbol, gene",
+        match="has ambiguous columns for 'site_sequence': site_sequence, centralized_sequence",
     ):
         DatasetConventionNormalizer().run(
             phospho=_phospho(),
             site_metadata=pd.DataFrame(
                 {
                     "gene_symbol": ["MAPK14"],
-                    "gene": ["MAPK14"],
+                    "site": ["Y182"],
+                    "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                    "centralized_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                },
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+            sample_metadata=None,
+            total=None,
+        )
+
+
+def test_normalizer_rejects_unsupported_legacy_site_alias() -> None:
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match="column 'residue' is unsupported",
+    ):
+        DatasetConventionNormalizer().run(
+            phospho=_phospho(),
+            site_metadata=pd.DataFrame(
+                {
+                    "gene_symbol": ["MAPK14"],
+                    "residue": ["Y182"],
+                    "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                },
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+            sample_metadata=None,
+            total=None,
+        )
+
+
+def test_normalizer_rejects_conflicting_site_id_column_and_index() -> None:
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match="conflicting site identifiers between index and 'site_id' column",
+    ):
+        DatasetConventionNormalizer().run(
+            phospho=_phospho(),
+            site_metadata=pd.DataFrame(
+                {
+                    "site_id": ["AKT1;T308;"],
+                    "gene_symbol": ["MAPK14"],
                     "site": ["Y182"],
                     "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
                 },
@@ -130,6 +171,24 @@ def test_normalizer_fails_when_index_derivation_convention_is_not_met() -> None:
                     "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
                 },
                 index=pd.Index(["MAPK14"], name="site_id"),
+            ),
+            sample_metadata=None,
+            total=None,
+        )
+
+
+def test_normalizer_requires_exact_index_derivation_convention() -> None:
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match="site_metadata is missing required metadata columns",
+    ):
+        DatasetConventionNormalizer().run(
+            phospho=_phospho(),
+            site_metadata=pd.DataFrame(
+                {
+                    "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+                },
+                index=pd.Index(["MAPK14;Y182;EXTRA"], name="site_id"),
             ),
             sample_metadata=None,
             total=None,

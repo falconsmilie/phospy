@@ -58,6 +58,8 @@ top-level `phospy` and include:
 ## Builder Contract
 
 `DatasetBuildRequest` accepts in-memory pandas `DataFrame` values or file paths.
+The same convention mapping and validation rules apply after loading for both
+input routes.
 
 - Required: `phospho`, `site_metadata`
 - Optional: `sample_metadata`, `total`, `organism`
@@ -67,15 +69,19 @@ top-level `phospy` and include:
 - `site_metadata.protein_id` is an optional identity column and is preserved when
   provided (it is not treated as `gene_symbol`)
 - Supported site-metadata column conventions in the builder:
-  - `gene_symbol`: `gene_symbol`, `gene`, `gene_name`
-  - `site`: `site`, `residue`, `phosphosite`, `site_position`
+  - `gene_symbol`: `gene_symbol`, `gene_name`
+  - `site`: `site`
   - `site_sequence`: `site_sequence`, `centralized_sequence`
   - `protein_id`: `protein_id`
-- Unsupported ambiguous legacy names (`sequence`, `protein`) are rejected with
-  actionable errors unless renamed to supported explicit columns
+- Unsupported legacy aliases (`gene`, `residue`, `phosphosite`,
+  `site_position`, `sequence`, `protein`) are rejected with actionable errors
+  unless renamed to supported explicit columns
 - When `gene_symbol` and/or `site` are missing, the builder supports one explicit
   derivation convention from `site_metadata.index` values formatted as
-  `"<gene_symbol>;<site>;"` (for example `MAPK14;Y182;`)
+  `"<gene_symbol>;<site>;"` (for example `MAPK14;Y182;`) and rejects non-exact
+  variants
+- If both `site_metadata.index` and `site_metadata.site_id` are provided, they
+  must exactly match after canonicalization; conflicting site IDs fail fast
 - If alias resolution or derivation is ambiguous/unsupported, the builder fails
   fast instead of guessing
 - Transformation state is established inside PhosPy through the supported

@@ -21,9 +21,8 @@ class SiteSequenceDeriver:
         organism: Organism | None,
     ) -> pd.DataFrame:
         normalized = site_metadata
-        existing = self._existing_site_sequence(normalized)
-        missing = existing.isna() | (existing == "")
-        if not missing.any():
+        if "site_sequence" in normalized.columns:
+            existing = self._validated_existing_site_sequence(normalized)
             normalized.loc[:, "site_sequence"] = existing.astype(str)
             return normalized
         if organism is None:
@@ -36,9 +35,7 @@ class SiteSequenceDeriver:
             site_index=normalized.index,
             organism=organism,
         )
-        resolved = existing
-        resolved.loc[missing] = derived.loc[missing]
-        unresolved = resolved.isna() | (resolved == "")
+        unresolved = derived.isna() | (derived == "")
         if unresolved.any():
             missing_sites = normalized.index[unresolved].astype(str).tolist()[:5]
             preview = ", ".join(missing_sites)
@@ -48,16 +45,24 @@ class SiteSequenceDeriver:
                 "site_sequence values or use supported identifiers for the selected "
                 "organism"
             )
-        normalized.loc[:, "site_sequence"] = resolved.astype(str)
+        normalized.loc[:, "site_sequence"] = derived.astype(str)
         return normalized
 
     @staticmethod
-    def _existing_site_sequence(site_metadata: pd.DataFrame) -> pd.Series:
-        if "site_sequence" not in site_metadata.columns:
-            return pd.Series(index=site_metadata.index, dtype="object")
+    def _validated_existing_site_sequence(site_metadata: pd.DataFrame) -> pd.Series:
         column = site_metadata.loc[:, "site_sequence"]
         as_string = column.astype("string").str.strip()
-        return as_string.fillna("")
+        invalid = as_string.isna() | (as_string == "")
+        if invalid.any():
+            preview = site_metadata.index[invalid.to_numpy()].astype(str).tolist()[:5]
+            joined_preview = ", ".join(preview)
+            raise UnsupportedInputFormatError(
+                "dataset build request site_metadata.site_sequence must contain "
+                "non-empty string values. remove blank values or drop the "
+                f"'site_sequence' column to enable derivation; invalid sites: "
+                f"{joined_preview}"
+            )
+        return as_string
 
     @staticmethod
     def _derive_from_bundled_sequences(

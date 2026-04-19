@@ -39,6 +39,20 @@ def _site_metadata() -> pd.DataFrame:
     )
 
 
+def _as_builder_input(
+    frame: pd.DataFrame,
+    *,
+    use_file_path: bool,
+    tmp_path,
+    filename: str,
+):
+    if not use_file_path:
+        return frame
+    path = tmp_path / filename
+    frame.to_csv(path)
+    return path
+
+
 def _valid_bundle(organism: Organism = Organism.RAT) -> ReferenceBundle:
     return ReferenceBundle(
         organism=organism,
@@ -332,7 +346,7 @@ def test_builder_rejects_ambiguous_sequence_column_without_explicit_convention()
 ):
     with pytest.raises(
         UnsupportedInputFormatError,
-        match="column 'sequence' is ambiguous and unsupported",
+        match="column 'sequence' is unsupported",
     ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(
@@ -350,22 +364,114 @@ def test_builder_rejects_ambiguous_sequence_column_without_explicit_convention()
         )
 
 
-def test_builder_rejects_ambiguous_multi_alias_gene_symbol_mapping() -> None:
+def test_builder_rejects_unsupported_legacy_gene_alias() -> None:
     with pytest.raises(
         UnsupportedInputFormatError,
-        match="has ambiguous columns for 'gene_symbol'",
+        match="column 'gene' is unsupported",
     ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(
                 phospho=_phospho(),
                 site_metadata=pd.DataFrame(
                     {
-                        "gene_symbol": ["MAPK14"],
                         "gene": ["MAPK14"],
                         "site": ["Y182"],
                         "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
                     },
                     index=["MAPK14;Y182;"],
+                ),
+                organism=Organism.RAT,
+            )
+        )
+
+
+@pytest.mark.parametrize("use_file_path", [False, True], ids=["dataframe", "file_path"])
+@pytest.mark.parametrize(
+    ("column_name", "blank_value", "error_type", "message"),
+    [
+        (
+            "gene_symbol",
+            "   ",
+            DatasetValidationError,
+            "dataset.site_metadata.gene_symbol must contain non-empty string values",
+        ),
+        (
+            "site",
+            "   ",
+            DatasetValidationError,
+            "dataset.site_metadata.site must contain non-empty string values",
+        ),
+        (
+            "site_sequence",
+            "   ",
+            UnsupportedInputFormatError,
+            "dataset build request site_metadata.site_sequence must contain non-empty string values",
+        ),
+    ],
+)
+def test_builder_rejects_blank_required_site_metadata_fields_across_input_routes(
+    use_file_path: bool,
+    column_name: str,
+    blank_value: str,
+    error_type,
+    message: str,
+    tmp_path,
+) -> None:
+    site_metadata = _site_metadata().copy(deep=True)
+    site_metadata.loc[:, column_name] = [blank_value]
+    with pytest.raises(
+        error_type,
+        match=message,
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_as_builder_input(
+                    _phospho(),
+                    use_file_path=use_file_path,
+                    tmp_path=tmp_path,
+                    filename="phospho.csv",
+                ),
+                site_metadata=_as_builder_input(
+                    site_metadata,
+                    use_file_path=use_file_path,
+                    tmp_path=tmp_path,
+                    filename="site_metadata.csv",
+                ),
+                organism=Organism.RAT,
+            )
+        )
+
+
+@pytest.mark.parametrize("use_file_path", [False, True], ids=["dataframe", "file_path"])
+def test_builder_rejects_unsupported_legacy_site_alias_across_input_routes(
+    use_file_path: bool,
+    tmp_path,
+) -> None:
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "residue": ["Y182"],
+            "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+        },
+        index=["MAPK14;Y182;"],
+    )
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match="column 'residue' is unsupported",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_as_builder_input(
+                    _phospho(),
+                    use_file_path=use_file_path,
+                    tmp_path=tmp_path,
+                    filename="phospho.csv",
+                ),
+                site_metadata=_as_builder_input(
+                    site_metadata,
+                    use_file_path=use_file_path,
+                    tmp_path=tmp_path,
+                    filename="site_metadata.csv",
                 ),
                 organism=Organism.RAT,
             )
