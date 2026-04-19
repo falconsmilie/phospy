@@ -66,7 +66,10 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
             "tests/unit/test_legacy_donor_science.py::"
             "test_adaptive_sampling_donor_is_archival_and_svm_mode_is_not_rewrite_contract",
         ),
-        rewrite_parity_tests=(),
+        rewrite_parity_tests=(
+            "tests/parity/test_adaptive_prediction_parity.py::"
+            "test_adaptive_ensemble_outputs_match_promoted_fixture_tolerances",
+        ),
         rewrite_integration_tests=(),
         archival_only_tests=(
             "tests_legacy/test_prediction.py::test_predict_accepts_explicit_r_parity_mode",
@@ -140,6 +143,8 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
         rewrite_parity_tests=(
             "tests/parity/test_signalome_workflow_parity.py::"
             "test_signalome_network_edges_match_l6_fixture_pairs_and_sign_counts",
+            "tests/parity/test_signalome_workflow_parity.py::"
+            "test_signalome_network_policy_variants_match_fixed_matrix_expectations",
         ),
         rewrite_integration_tests=(),
         archival_only_tests=(
@@ -161,7 +166,10 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
             "tests/unit/test_legacy_donor_science.py::"
             "test_expanded_signalome_donor_locks_supported_lane_to_materialized_output",
         ),
-        rewrite_parity_tests=(),
+        rewrite_parity_tests=(
+            "tests/parity/test_signalome_workflow_parity.py::"
+            "test_signalome_expanded_slice_matches_l6_selected_akt1_fixture",
+        ),
         rewrite_integration_tests=(
             "tests/integration/test_signalome_workflow_integration.py::"
             "test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path",

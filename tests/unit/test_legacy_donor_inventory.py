@@ -22,6 +22,10 @@ def _assert_test_reference_exists(reference: str) -> None:
     )
 
 
+def _inventory_by_area():
+    return {entry.area: entry for entry in LEGACY_DONOR_AREAS}
+
+
 def test_required_legacy_donor_areas_are_all_in_inventory() -> None:
     inventory_areas = {entry.area for entry in LEGACY_DONOR_AREAS}
     assert inventory_areas == set(REQUIRED_DONOR_AREAS)
@@ -65,9 +69,33 @@ def test_inventory_fixtures_are_promoted_under_rewrite_paths_with_provenance() -
             )
 
 
+def test_key_donor_areas_pin_expected_rewrite_parity_blockers() -> None:
+    expected_parity_tests = {
+        "adaptive sampling / svm_mode": (
+            "tests/parity/test_adaptive_prediction_parity.py::"
+            "test_adaptive_ensemble_outputs_match_promoted_fixture_tolerances",
+        ),
+        "expanded signalome outputs": (
+            "tests/parity/test_signalome_workflow_parity.py::"
+            "test_signalome_expanded_slice_matches_l6_selected_akt1_fixture",
+        ),
+    }
+    inventory_by_area = _inventory_by_area()
+    for area, required_references in expected_parity_tests.items():
+        entry = inventory_by_area[area]
+        assert entry.rewrite_parity_tests, f"{area} must have rewrite parity blockers"
+        for reference in required_references:
+            assert reference in entry.rewrite_parity_tests, (
+                f"{area} missing required rewrite parity blocker: {reference}"
+            )
+            _assert_test_reference_exists(reference)
+
+
 def test_parity_doc_keeps_donor_inventory_visible() -> None:
     parity_doc = (ROOT / "docs" / "parity.md").read_text(encoding="utf-8")
     assert "Legacy Donor Promotion Inventory" in parity_doc
+    assert "adaptive prediction parity" in parity_doc
+    assert "`expanded_signalome`" in parity_doc
     for area in REQUIRED_DONOR_AREAS:
         assert area in parity_doc
     for ticket in OPEN_SCIENCE_GAP_TICKETS:
