@@ -43,7 +43,10 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
             "tests/unit/test_legacy_donor_science.py::"
             "test_profile_policy_donor_locks_strict_median_behavior_and_contract_surface",
         ),
-        rewrite_parity_tests=(),
+        rewrite_parity_tests=(
+            "tests/parity/test_kinase_workflow_parity.py::"
+            "test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_input",
+        ),
         rewrite_integration_tests=(),
         archival_only_tests=(
             "tests_legacy/test_profiles.py::"

@@ -18,7 +18,6 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
-from phospy.errors import WorkflowStageError
 from phospy.transformations.models import TransformationState
 from phospy.workflows.kinase.science import build_kinase_profiles
 from phospy.workflows.signalome.science import (
@@ -106,15 +105,24 @@ def test_profile_policy_donor_locks_strict_median_behavior_and_contract_surface(
     assert result.profile_matrix.at["K1", "sample_c"] == pytest.approx(4.0)
     phospho_with_missing = phospho.copy(deep=True)
     phospho_with_missing.loc["SITE_2", "sample_c"] = float("nan")
-    with pytest.raises(
-        WorkflowStageError, match="seam=kinase.science.input_finite_values"
-    ):
-        build_kinase_profiles(
-            phospho=phospho_with_missing,
-            kinase_substrate_map=kinase_substrate_map,
-            min_substrates=2,
-        )
-    assert "profile_policy" not in {field.name for field in fields(KinaseScoringConfig)}
+    strict = build_kinase_profiles(
+        phospho=phospho_with_missing,
+        kinase_substrate_map=kinase_substrate_map,
+        min_substrates=2,
+        profile_missing_value_strategy="strict",
+    )
+    median_skipna = build_kinase_profiles(
+        phospho=phospho_with_missing,
+        kinase_substrate_map=kinase_substrate_map,
+        min_substrates=2,
+        profile_missing_value_strategy="median_skipna",
+    )
+    assert pd.isna(strict.profile_matrix.at["K1", "sample_c"])
+    assert median_skipna.profile_matrix.at["K1", "sample_c"] == pytest.approx(3.0)
+    assert "profile_missing_value_strategy" in {
+        field.name for field in fields(KinaseScoringConfig)
+    }
+    assert KinaseScoringConfig().profile_missing_value_strategy == "strict"
     with pytest.raises(TypeError, match="profile_policy"):
         KinaseScoringConfig(  # type: ignore[call-arg]
             min_substrates=2,

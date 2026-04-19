@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 from phospy import (
+    AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
     KinaseWorkflowRequest,
+    Organism,
+    ReferenceBundle,
     ReferencePreset,
 )
 from tests.support.rewrite_fixture_data import (
@@ -104,3 +109,89 @@ def test_scoring_outputs_include_motif_and_combined_tables() -> None:
         "motif_rank_weight",
         "profile_rank_weight",
     }
+
+
+def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_input() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 3.0, 2.0, 4.0],
+            "sample_b": [2.0, 4.0, 1.0, 3.0],
+            "sample_c": [3.0, 5.0, 0.0, 2.0],
+        },
+        index=pd.Index(
+            ["GENEA;S1;", "GENEA;S2;", "GENEB;S3;", "GENEB;S4;"],
+            name="site_id",
+        ),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["GENEA", "GENEA", "GENEB", "GENEB"],
+            "site": ["S1", "S2", "S3", "S4"],
+            "site_sequence": ["A" * 31, "B" * 31, "C" * 31, "D" * 31],
+        },
+        index=phospho.index.copy(),
+    )
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+    dataset.phospho.loc["GENEA;S2;", "sample_c"] = float("nan")
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["K_MISSING", "K_MISSING", "K_STABLE", "K_STABLE"],
+                "substrate_site": [
+                    "GENEA;S1;",
+                    "GENEA;S2;",
+                    "GENEB;S3;",
+                    "GENEB;S4;",
+                ],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": site_metadata.loc[:, "site_sequence"].values},
+            index=phospho.index.copy(),
+        ),
+    )
+
+    strict = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                profile_missing_value_strategy="strict",
+            ),
+            prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
+            activity_config=None,
+        )
+    )
+    median_skipna = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                profile_missing_value_strategy="median_skipna",
+            ),
+            prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
+            activity_config=None,
+        )
+    )
+
+    assert strict.scoring_result.profile_scores.loc[:, "K_MISSING"].isna().all()
+    assert median_skipna.scoring_result.profile_scores.loc[:, "K_MISSING"].notna().any()
+    assert strict.scoring_result.combined_scores is not None
+    assert median_skipna.scoring_result.combined_scores is not None
+    assert strict.scoring_result.combined_scores.loc[:, "K_MISSING"].isna().all()
+    assert (
+        median_skipna.scoring_result.combined_scores.loc[:, "K_MISSING"].notna().any()
+    )
+    assert "K_MISSING" not in strict.prediction_result.pred_mat.columns
+    assert "K_MISSING" in median_skipna.prediction_result.pred_mat.columns

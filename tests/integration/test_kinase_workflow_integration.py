@@ -219,6 +219,39 @@ def test_diagnostic_scoring_tables_are_opt_in_without_changing_supported_lane() 
     )
 
 
+def test_profile_missing_value_strategy_flows_from_request_to_science(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataset = build_rat_l6_dataset(n_sites=220)
+    captured_strategies: list[str] = []
+    original_build_kinase_profiles = kinase_executor.build_kinase_profiles
+
+    def _capture_strategy(**kwargs):
+        captured_strategies.append(kwargs["profile_missing_value_strategy"])
+        return original_build_kinase_profiles(**kwargs)
+
+    monkeypatch.setattr(
+        kinase_executor,
+        "build_kinase_profiles",
+        _capture_strategy,
+    )
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                profile_missing_value_strategy="median_skipna",
+            ),
+            prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=8),
+            activity_config=None,
+        )
+    )
+
+    assert captured_strategies == ["median_skipna"]
+    assert not result.scoring_result.profile_scores.empty
+
+
 def test_motif_library_build_is_limited_to_profile_eligible_kinases(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

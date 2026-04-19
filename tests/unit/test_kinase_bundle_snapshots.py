@@ -11,6 +11,7 @@ def test_kinase_snapshot_payload_round_trip_preserves_fields() -> None:
         "scoring_config": {
             "min_substrates": 3,
             "include_diagnostic_scoring_tables": False,
+            "profile_missing_value_strategy": "median_skipna",
         },
         "prediction_config": {"top_k": 5, "ensemble_size": 7},
         "activity_config": {
@@ -45,3 +46,4 @@ def test_kinase_snapshot_legacy_payload_defaults_diagnostic_tables_to_true() -> 
         }
     )
     assert snapshot.scoring_config.include_diagnostic_scoring_tables is True
+    assert snapshot.scoring_config.profile_missing_value_strategy == "strict"

@@ -4,6 +4,10 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
+from phospy.api.configs import (
+    KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA,
+    KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
+)
 from phospy.errors import WorkflowStageError
 from phospy.workflows.kinase.science import (
     build_kinase_profiles,
@@ -62,6 +66,66 @@ def test_build_kinase_profiles_rejects_single_substrate_floor() -> None:
             phospho=phospho,
             kinase_substrate_map=kinase_substrate_map,
             min_substrates=1,
+        )
+
+
+def test_build_kinase_profiles_supports_strict_and_median_skipna_policies() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 3.0, 9.0],
+            "sample_b": [2.0, 4.0, 8.0],
+            "sample_c": [3.0, float("nan"), 7.0],
+        },
+        index=pd.Index(["SITE1", "SITE2", "SITE3"], name="site_id"),
+    )
+    kinase_substrate_map = pd.DataFrame(
+        {
+            "kinase": ["K1", "K1", "K2", "K2"],
+            "substrate_site": ["SITE1", "SITE2", "SITE2", "SITE3"],
+        }
+    )
+
+    strict = build_kinase_profiles(
+        phospho=phospho,
+        kinase_substrate_map=kinase_substrate_map,
+        min_substrates=2,
+        profile_missing_value_strategy=KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
+    )
+    skipna = build_kinase_profiles(
+        phospho=phospho,
+        kinase_substrate_map=kinase_substrate_map,
+        min_substrates=2,
+        profile_missing_value_strategy=(
+            KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA
+        ),
+    )
+
+    assert pd.isna(strict.profile_matrix.at["K1", "sample_c"])
+    assert skipna.profile_matrix.at["K1", "sample_c"] == pytest.approx(3.0)
+    assert pd.isna(strict.profile_matrix.at["K2", "sample_c"])
+    assert skipna.profile_matrix.at["K2", "sample_c"] == pytest.approx(7.0)
+    assert strict.profile_matrix.at["K1", "sample_a"] == pytest.approx(2.0)
+    assert skipna.profile_matrix.at["K1", "sample_a"] == pytest.approx(2.0)
+
+
+def test_build_kinase_profiles_rejects_unknown_missing_value_strategy() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0, 2.0], "sample_b": [3.0, 4.0]},
+        index=pd.Index(["SITE1", "SITE2"], name="site_id"),
+    )
+    kinase_substrate_map = pd.DataFrame(
+        {"kinase": ["K1", "K1"], "substrate_site": ["SITE1", "SITE2"]}
+    )
+
+    with pytest.raises(
+        WorkflowStageError,
+        match="seam=kinase.science.profile_missing_value_strategy",
+    ):
+        build_kinase_profiles(
+            phospho=phospho,
+            kinase_substrate_map=kinase_substrate_map,
+            min_substrates=2,
+            profile_missing_value_strategy="unknown",  # type: ignore[arg-type]
         )
 
 

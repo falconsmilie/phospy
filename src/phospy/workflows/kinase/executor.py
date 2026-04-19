@@ -90,6 +90,9 @@ class KinaseWorkflowExecutor:
             phospho=scoring_phospho,
             kinase_substrate_map=request.kinase_substrate_map,
             min_substrates=request.scoring_config.min_substrates,
+            profile_missing_value_strategy=(
+                request.scoring_config.profile_missing_value_strategy
+            ),
         )
         if profile_build.profile_matrix.empty:
             raise WorkflowStageError(

@@ -5,6 +5,7 @@ from __future__ import annotations
 from phospy.api.configs import (
     KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR,
     KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR,
+    KINASE_PROFILE_MISSING_VALUE_STRATEGIES,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -26,6 +27,15 @@ class WorkflowConfigValidator:
         if not isinstance(config.include_diagnostic_scoring_tables, bool):
             raise WorkflowValidationError(
                 "scoring_config.include_diagnostic_scoring_tables must be a bool"
+            )
+        if (
+            config.profile_missing_value_strategy
+            not in KINASE_PROFILE_MISSING_VALUE_STRATEGIES
+        ):
+            allowed = ", ".join(sorted(KINASE_PROFILE_MISSING_VALUE_STRATEGIES))
+            raise WorkflowValidationError(
+                "scoring_config.profile_missing_value_strategy must be one of: "
+                f"{allowed}"
             )
         require_int_at_least(
             config.min_substrates,

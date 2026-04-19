@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from phospy.api.configs import (
+    KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -17,6 +18,7 @@ from phospy.io.bundles._shared.primitives import (
     require_float,
     require_int,
     require_mapping,
+    require_str,
 )
 
 if TYPE_CHECKING:
@@ -67,6 +69,9 @@ class KinaseWorkflowConfigSnapshot:
                 "min_substrates": self.scoring_config.min_substrates,
                 "include_diagnostic_scoring_tables": (
                     self.scoring_config.include_diagnostic_scoring_tables
+                ),
+                "profile_missing_value_strategy": (
+                    self.scoring_config.profile_missing_value_strategy
                 ),
             },
             "prediction_config": {
@@ -133,6 +138,15 @@ class KinaseWorkflowConfigSnapshot:
                     scoring_payload.get("include_diagnostic_scoring_tables", True),
                     field_name=(
                         f"{scope}.scoring_config.include_diagnostic_scoring_tables"
+                    ),
+                ),
+                profile_missing_value_strategy=require_str(
+                    scoring_payload.get(
+                        "profile_missing_value_strategy",
+                        KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
+                    ),
+                    field_name=(
+                        f"{scope}.scoring_config.profile_missing_value_strategy"
                     ),
                 ),
             ),

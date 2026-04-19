@@ -7,7 +7,13 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from phospy.api.configs import KINASE_SCORING_MIN_SUBSTRATES_FLOOR
+from phospy.api.configs import (
+    KINASE_PROFILE_MISSING_VALUE_STRATEGIES,
+    KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA,
+    KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
+    KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
+    KinaseProfileMissingValueStrategy,
+)
 from phospy.errors.workflows import WorkflowStageError
 
 
@@ -25,6 +31,9 @@ def build_kinase_profiles(
     phospho: pd.DataFrame,
     kinase_substrate_map: pd.DataFrame,
     min_substrates: int,
+    profile_missing_value_strategy: KinaseProfileMissingValueStrategy = (
+        KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
+    ),
 ) -> KinaseProfileBuild:
     """Build kinase substrate profiles from quantified substrate rows."""
 
@@ -36,7 +45,16 @@ def build_kinase_profiles(
             f"{KINASE_SCORING_MIN_SUBSTRATES_FLOOR}"
         )
 
-    numeric_phospho = _require_finite_matrix(
+    if profile_missing_value_strategy not in KINASE_PROFILE_MISSING_VALUE_STRATEGIES:
+        allowed = ", ".join(sorted(KINASE_PROFILE_MISSING_VALUE_STRATEGIES))
+        raise WorkflowStageError(
+            "kinase workflow internal invariant failed at seam="
+            "kinase.science.profile_missing_value_strategy; "
+            "profile_missing_value_strategy must be one of: "
+            f"{allowed}"
+        )
+
+    numeric_phospho = _require_numeric_matrix(
         phospho,
         field_name="kinase.workflow.dataset.phospho",
     )
@@ -55,6 +73,11 @@ def build_kinase_profiles(
         quantified_matrix = numeric_phospho.loc[quantified_sites, :]
         if quantified_matrix.shape[0] == 1:
             profile = quantified_matrix.iloc[0].astype(float)
+        elif (
+            profile_missing_value_strategy
+            == KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA
+        ):
+            profile = quantified_matrix.median(axis=0, skipna=True).astype(float)
         else:
             profile = quantified_matrix.median(axis=0, skipna=False).astype(float)
         profile_rows[str(kinase)] = profile
@@ -98,11 +121,11 @@ def score_profile_correlations(
         raise WorkflowStageError(
             "phospho sample columns must match kinase profile columns"
         )
-    aligned_phospho = _require_finite_matrix(
+    aligned_phospho = _require_numeric_matrix(
         phospho.loc[:, profile_matrix.columns],
         field_name="kinase.workflow.scoring_phospho",
     )
-    profile_matrix = _require_finite_matrix(
+    profile_matrix = _require_numeric_matrix(
         profile_matrix,
         field_name="kinase.workflow.profile_matrix",
     )
@@ -257,16 +280,16 @@ def build_prediction_outputs(
     return pred_mat, substrate_list
 
 
-def _require_finite_matrix(
+def _require_numeric_matrix(
     value: pd.DataFrame,
     *,
     field_name: str,
 ) -> pd.DataFrame:
     numeric = value.astype(float)
-    if not np.isfinite(numeric.to_numpy(dtype=float, copy=False)).all():
+    if np.isinf(numeric.to_numpy(dtype=float, copy=False)).any():
         raise WorkflowStageError(
             "kinase workflow internal invariant failed at "
-            "seam=kinase.science.input_finite_values; "
-            f"{field_name} must contain finite numeric values"
+            "seam=kinase.science.input_non_infinite_values; "
+            f"{field_name} must not contain infinite numeric values"
         )
     return numeric
