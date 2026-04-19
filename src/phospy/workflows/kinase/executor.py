@@ -8,12 +8,17 @@ import pandas as pd
 
 from phospy.activities.models import KinaseActivityResult
 from phospy.activities.scoring import compute_activity_from_inputs
+from phospy.api.configs import (
+    KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
+    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+)
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
 from phospy.prediction.candidates import (
     build_candidate_substrate_list,
     summarize_candidate_shortfall,
 )
+from phospy.prediction.execution import run_adaptive_ensemble_prediction
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
@@ -166,6 +171,31 @@ class KinaseWorkflowExecutor:
         request: ResolvedKinaseWorkflowRequest,
         scoring_execution: _ScoringExecution,
     ) -> KinasePredictionResult:
+        if (
+            request.prediction_config.mode
+            == KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING
+        ):
+            return self._run_deterministic_prediction_lane(
+                request=request,
+                scoring_execution=scoring_execution,
+            )
+        if request.prediction_config.mode == KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE:
+            return self._run_adaptive_prediction_lane(
+                request=request,
+                scoring_execution=scoring_execution,
+            )
+        raise WorkflowStageError(
+            "kinase workflow internal invariant failed at seam="
+            "kinase.executor.prediction_mode; "
+            f"unsupported prediction mode: {request.prediction_config.mode}"
+        )
+
+    def _run_deterministic_prediction_lane(
+        self,
+        *,
+        request: ResolvedKinaseWorkflowRequest,
+        scoring_execution: _ScoringExecution,
+    ) -> KinasePredictionResult:
         downstream_score_matrix = scoring_execution.downstream_score_matrix
         candidate_substrates = build_candidate_substrate_list(
             scores=downstream_score_matrix,
@@ -198,6 +228,7 @@ class KinaseWorkflowExecutor:
                 ranked_kinases=int(kinase_ranking.size),
                 prediction_config_ensemble_size=request.prediction_config.ensemble_size,
                 prediction_config_top_k=request.prediction_config.top_k,
+                prediction_config_mode=request.prediction_config.mode,
                 dataset_samples=request.dataset.phospho.shape[1],
                 downstream_score_source=scoring_execution.downstream_score_source,
                 candidate_qualifying_kinases=candidate_shortfall.qualifying_kinases,
@@ -205,6 +236,87 @@ class KinaseWorkflowExecutor:
             )
         pred_mat, substrate_list = build_prediction_outputs(
             prediction_score_matrix=downstream_score_matrix,
+            selected_kinases=selected_kinases,
+            candidate_substrates=candidate_substrates,
+            top_k=request.prediction_config.top_k,
+        )
+        return KinasePredictionResult._from_owned(
+            pred_mat=pred_mat,
+            substrate_list=substrate_list,
+        )
+
+    def _run_adaptive_prediction_lane(
+        self,
+        *,
+        request: ResolvedKinaseWorkflowRequest,
+        scoring_execution: _ScoringExecution,
+    ) -> KinasePredictionResult:
+        downstream_score_matrix = scoring_execution.downstream_score_matrix
+        candidate_substrates = build_candidate_substrate_list(
+            scores=downstream_score_matrix,
+            top=request.prediction_config.top_k,
+            score_threshold=0.0,
+            inclusion=1,
+        )
+        if not candidate_substrates:
+            candidate_shortfall = summarize_candidate_shortfall(
+                scores=downstream_score_matrix,
+                top=request.prediction_config.top_k,
+                score_threshold=0.0,
+                inclusion=1,
+            )
+            self._raise_boundary_error(
+                seam="kinase.executor.prediction_adaptive_candidates",
+                next_action=(
+                    "provide dataset.phospho with at least two non-constant "
+                    "sample columns or lower scoring_config.min_substrates "
+                    "(scientific floor: min_substrates >= 2)"
+                ),
+                eligible_kinases=len(scoring_execution.quantified_substrates),
+                candidate_kinases=0,
+                prediction_config_mode=request.prediction_config.mode,
+                prediction_config_top_k=request.prediction_config.top_k,
+                prediction_config_ensemble_size=request.prediction_config.ensemble_size,
+                prediction_config_n_iterations=request.prediction_config.n_iterations,
+                dataset_samples=request.dataset.phospho.shape[1],
+                downstream_score_source=scoring_execution.downstream_score_source,
+                candidate_qualifying_kinases=candidate_shortfall.qualifying_kinases,
+                candidate_max_qualifying_sites=candidate_shortfall.max_qualifying_sites,
+            )
+        try:
+            adaptive_scores = run_adaptive_ensemble_prediction(
+                prediction_score_matrix=downstream_score_matrix,
+                candidate_substrates=candidate_substrates,
+                prediction_config=request.prediction_config,
+            )
+        except ImportError as exc:
+            raise WorkflowStageError(
+                "kinase workflow internal invariant failed at seam="
+                "kinase.executor.prediction_adaptive_dependencies; "
+                f"{exc}"
+            ) from exc
+        kinase_ranking = rank_kinases_for_prediction(
+            prediction_score_matrix=adaptive_scores,
+            candidate_substrates=candidate_substrates,
+        )
+        selected_kinases = kinase_ranking.index
+        if selected_kinases.empty:
+            self._raise_boundary_error(
+                seam="kinase.executor.prediction_adaptive_ensemble",
+                next_action=(
+                    "lower prediction_config.top_k, increase dataset signal depth, or "
+                    "review scoring-stage support for adaptive candidates"
+                ),
+                eligible_kinases=len(scoring_execution.quantified_substrates),
+                candidate_kinases=len(candidate_substrates),
+                ranked_kinases=0,
+                prediction_config_mode=request.prediction_config.mode,
+                prediction_config_top_k=request.prediction_config.top_k,
+                prediction_config_ensemble_size=request.prediction_config.ensemble_size,
+                prediction_config_n_iterations=request.prediction_config.n_iterations,
+            )
+        pred_mat, substrate_list = build_prediction_outputs(
+            prediction_score_matrix=adaptive_scores,
             selected_kinases=selected_kinases,
             candidate_substrates=candidate_substrates,
             top_k=request.prediction_config.top_k,

@@ -136,6 +136,10 @@ def test_adaptive_sampling_donor_is_archival_and_svm_mode_is_not_rewrite_contrac
     assert {field.name for field in fields(KinasePredictionConfig)} == {
         "top_k",
         "ensemble_size",
+        "mode",
+        "adaptive_policy",
+        "n_iterations",
+        "random_state",
     }
     with pytest.raises(TypeError, match="svm_mode"):
         KinasePredictionConfig(  # type: ignore[call-arg]
@@ -143,6 +147,7 @@ def test_adaptive_sampling_donor_is_archival_and_svm_mode_is_not_rewrite_contrac
             ensemble_size=2,
             svm_mode="r_parity",
         )
+    assert KinasePredictionConfig().mode == "deterministic_ranking"
 
     promoted_trace_scores = load_adaptive_sampling_edge_combined_scores()
     assert not promoted_trace_scores.empty

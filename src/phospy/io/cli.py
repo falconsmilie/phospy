@@ -12,6 +12,9 @@ from phospy.api.configs import (
     KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES,
     KINASE_ACTIVITY_DEFAULT_THRESHOLD,
     KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES,
+    KINASE_ADAPTIVE_POLICY_STABLE,
+    KINASE_PREDICTION_DEFAULT_ITERATIONS,
+    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -190,7 +193,34 @@ def _add_kinase_runtime_arguments(parser: argparse.ArgumentParser) -> None:
         "--prediction-ensemble-size",
         type=int,
         default=10,
-        help="Number of kinases included in prediction matrix output.",
+        help=(
+            "Mode-dependent ensemble_size: deterministic lane uses it as selected "
+            "kinase cap; adaptive lane uses it as number of ensemble executions."
+        ),
+    )
+    parser.add_argument(
+        "--prediction-mode",
+        default=KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+        choices=["deterministic_ranking", "adaptive_ensemble"],
+        help="Prediction lane: deterministic ranking or adaptive ensemble science.",
+    )
+    parser.add_argument(
+        "--prediction-adaptive-policy",
+        default=KINASE_ADAPTIVE_POLICY_STABLE,
+        choices=["stable", "r_parity"],
+        help="Adaptive sampling policy when --prediction-mode=adaptive_ensemble.",
+    )
+    parser.add_argument(
+        "--prediction-n-iterations",
+        type=int,
+        default=KINASE_PREDICTION_DEFAULT_ITERATIONS,
+        help="Adaptive sampling iterations per ensemble when adaptive mode is used.",
+    )
+    parser.add_argument(
+        "--prediction-random-state",
+        type=int,
+        default=None,
+        help="Optional adaptive prediction random state.",
     )
     parser.add_argument(
         "--skip-activity",
@@ -284,6 +314,10 @@ def _run_kinase_workflow_from_args(args: argparse.Namespace):
         prediction_config=KinasePredictionConfig(
             top_k=args.prediction_top_k,
             ensemble_size=args.prediction_ensemble_size,
+            mode=args.prediction_mode,
+            adaptive_policy=args.prediction_adaptive_policy,
+            n_iterations=args.prediction_n_iterations,
+            random_state=args.prediction_random_state,
         ),
         activity_config=activity_config,
     )

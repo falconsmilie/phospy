@@ -175,6 +175,45 @@ def test_kinase_request_rejects_unknown_profile_missing_value_strategy() -> None
         KinaseWorkflowValidator().run(request)
 
 
+def test_kinase_request_rejects_unknown_prediction_mode() -> None:
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(
+            top_k=5,
+            ensemble_size=5,
+            mode="unsupported",  # type: ignore[arg-type]
+        ),
+        activity_config=None,
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="prediction_config.mode must be one of",
+    ):
+        KinaseWorkflowValidator().run(request)
+
+
+def test_kinase_request_rejects_non_positive_adaptive_iterations() -> None:
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(
+            top_k=5,
+            ensemble_size=5,
+            mode="adaptive_ensemble",
+            n_iterations=0,
+        ),
+        activity_config=None,
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="prediction_config.n_iterations must be greater than or equal to 1",
+    ):
+        KinaseWorkflowValidator().run(request)
+
+
 def test_kinase_request_reference_compatibility_is_enforced_in_resolver() -> None:
     request = KinaseWorkflowRequest(
         dataset=_dataset(),

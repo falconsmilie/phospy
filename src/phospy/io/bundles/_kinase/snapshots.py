@@ -7,6 +7,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from phospy.api.configs import (
+    KINASE_ADAPTIVE_POLICY_STABLE,
+    KINASE_PREDICTION_DEFAULT_ITERATIONS,
+    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
     KinaseActivityConfig,
     KinasePredictionConfig,
@@ -77,6 +80,10 @@ class KinaseWorkflowConfigSnapshot:
             "prediction_config": {
                 "top_k": self.prediction_config.top_k,
                 "ensemble_size": self.prediction_config.ensemble_size,
+                "mode": self.prediction_config.mode,
+                "adaptive_policy": self.prediction_config.adaptive_policy,
+                "n_iterations": self.prediction_config.n_iterations,
+                "random_state": self.prediction_config.random_state,
             },
             "activity_config": activity_payload,
         }
@@ -158,6 +165,35 @@ class KinaseWorkflowConfigSnapshot:
                 ensemble_size=require_int(
                     prediction_payload.get("ensemble_size"),
                     field_name=f"{scope}.prediction_config.ensemble_size",
+                ),
+                mode=require_str(
+                    prediction_payload.get(
+                        "mode",
+                        KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+                    ),
+                    field_name=f"{scope}.prediction_config.mode",
+                ),
+                adaptive_policy=require_str(
+                    prediction_payload.get(
+                        "adaptive_policy",
+                        KINASE_ADAPTIVE_POLICY_STABLE,
+                    ),
+                    field_name=f"{scope}.prediction_config.adaptive_policy",
+                ),
+                n_iterations=require_int(
+                    prediction_payload.get(
+                        "n_iterations",
+                        KINASE_PREDICTION_DEFAULT_ITERATIONS,
+                    ),
+                    field_name=f"{scope}.prediction_config.n_iterations",
+                ),
+                random_state=(
+                    None
+                    if prediction_payload.get("random_state") is None
+                    else require_int(
+                        prediction_payload.get("random_state"),
+                        field_name=f"{scope}.prediction_config.random_state",
+                    )
                 ),
             ),
             activity_config=activity_config,

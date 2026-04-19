@@ -1,0 +1,150 @@
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from phospy.api.configs import KinasePredictionConfig
+from phospy.errors import WorkflowStageError
+from phospy.prediction.execution import run_adaptive_ensemble_prediction
+from phospy.prediction.policies import (
+    PredictionSamplingRandomSource,
+    resolve_prediction_sampling_policy,
+)
+from phospy.prediction.sampling_core import run_adaptive_sampling_ensemble
+from phospy.prediction.sampling_runtime import transform_resampling_probabilities
+
+
+def test_resolve_prediction_sampling_policy_maps_public_modes() -> None:
+    stable = resolve_prediction_sampling_policy("stable")
+    r_parity = resolve_prediction_sampling_policy("r_parity")
+
+    assert stable.seed_strategy == "stable_by_kinase"
+    assert stable.resampling_weight_mode == "default"
+    assert stable.final_score_mode == "mean_probability"
+    assert r_parity.seed_strategy == "global_parity"
+    assert r_parity.resampling_weight_mode == "r_parity"
+    assert r_parity.final_score_mode == "decision_sigmoid"
+
+
+def test_prediction_sampling_random_source_stable_policy_is_order_invariant() -> None:
+    policy = resolve_prediction_sampling_policy("stable")
+    source_a = PredictionSamplingRandomSource(policy=policy, random_state=17)
+    source_b = PredictionSamplingRandomSource(policy=policy, random_state=17)
+
+    a_first = source_a.generators_for_kinase(kinase="KINASE_A")
+    _ = source_a.generators_for_kinase(kinase="KINASE_B")
+    _ = source_b.generators_for_kinase(kinase="KINASE_B")
+    b_second = source_b.generators_for_kinase(kinase="KINASE_A")
+
+    assert int(a_first[0].integers(0, 1000)) == int(b_second[0].integers(0, 1000))
+    assert int(a_first[1].integers(0, 1000)) == int(b_second[1].integers(0, 1000))
+
+
+def test_prediction_sampling_random_source_global_parity_tracks_call_order() -> None:
+    policy = resolve_prediction_sampling_policy("r_parity")
+    source_a = PredictionSamplingRandomSource(policy=policy, random_state=17)
+    source_b = PredictionSamplingRandomSource(policy=policy, random_state=17)
+
+    a_first = source_a.generators_for_kinase(kinase="KINASE_A")
+    _ = source_a.generators_for_kinase(kinase="KINASE_B")
+    _ = source_b.generators_for_kinase(kinase="KINASE_B")
+    b_second = source_b.generators_for_kinase(kinase="KINASE_A")
+
+    assert int(a_first[0].integers(0, 1000)) != int(b_second[0].integers(0, 1000))
+
+
+def test_transform_resampling_probabilities_flattens_stable_policy() -> None:
+    values = np.asarray([0.9, 0.1], dtype=float)
+    transformed = transform_resampling_probabilities(values, adaptive_policy="stable")
+    normalized_input = values / values.sum()
+    normalized_transformed = transformed / transformed.sum()
+
+    assert normalized_transformed[0] < normalized_input[0]
+    assert normalized_transformed[1] > normalized_input[1]
+
+
+def test_run_adaptive_sampling_ensemble_separates_positive_and_negative_sites() -> None:
+    feature_values = np.asarray(
+        [
+            [0.95, 0.1],
+            [0.95, 0.2],
+            [0.88, 0.2],
+            [0.2, 0.88],
+            [0.2, 0.95],
+            [0.1, 0.95],
+        ],
+        dtype=float,
+    )
+    train_values = np.concatenate(
+        [feature_values[:3, :], feature_values[3:, :]],
+        axis=0,
+    )
+    labels = np.asarray([1, 1, 1, 2, 2, 2], dtype=int)
+    scores = run_adaptive_sampling_ensemble(
+        train_values=train_values,
+        train_labels=labels,
+        test_values=feature_values,
+        kernel="rbf",
+        n_iterations=2,
+        resampling_rng=np.random.default_rng(13),
+        sampling_policy=resolve_prediction_sampling_policy("stable"),
+    )
+
+    assert scores.shape == (6,)
+    assert ((scores >= 0.0) & (scores <= 1.0)).all()
+    assert float(scores[:3].mean()) > float(scores[3:].mean())
+
+
+def test_run_adaptive_ensemble_prediction_averages_per_ensemble_scores(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    score_matrix = pd.DataFrame(
+        {"K1": [0.9, 0.5, 0.2]},
+        index=["S1", "S2", "S3"],
+    )
+    call_count = {"count": 0}
+
+    def fake_sampling(**kwargs) -> np.ndarray:
+        del kwargs
+        call_count["count"] += 1
+        if call_count["count"] == 1:
+            return np.asarray([0.2, 0.4, 0.6], dtype=float)
+        return np.asarray([0.4, 0.6, 0.8], dtype=float)
+
+    monkeypatch.setattr(
+        "phospy.prediction.execution.run_adaptive_sampling_ensemble",
+        fake_sampling,
+    )
+    observed = run_adaptive_ensemble_prediction(
+        prediction_score_matrix=score_matrix,
+        candidate_substrates={"K1": ["S1"]},
+        prediction_config=KinasePredictionConfig(
+            top_k=2,
+            ensemble_size=2,
+            mode="adaptive_ensemble",
+            n_iterations=2,
+            random_state=5,
+        ),
+    )
+
+    assert call_count["count"] == 2
+    assert observed.loc[:, "K1"].tolist() == pytest.approx([0.3, 0.5, 0.7])
+
+
+def test_run_adaptive_ensemble_prediction_requires_negative_pool() -> None:
+    score_matrix = pd.DataFrame(
+        {"K1": [0.9, 0.8]},
+        index=["S1", "S2"],
+    )
+    with pytest.raises(WorkflowStageError, match="prediction.adaptive_negative_pool"):
+        run_adaptive_ensemble_prediction(
+            prediction_score_matrix=score_matrix,
+            candidate_substrates={"K1": ["S1", "S2"]},
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                ensemble_size=1,
+                mode="adaptive_ensemble",
+                n_iterations=1,
+            ),
+        )

@@ -5,6 +5,8 @@ from __future__ import annotations
 from phospy.api.configs import (
     KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR,
     KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR,
+    KINASE_ADAPTIVE_POLICIES,
+    KINASE_PREDICTION_MODES,
     KINASE_PROFILE_MISSING_VALUE_STRATEGIES,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     KinaseActivityConfig,
@@ -50,6 +52,23 @@ class WorkflowConfigValidator:
             raise WorkflowValidationError(
                 "kinase workflow request prediction_config must be KinasePredictionConfig"
             )
+        if config.mode not in KINASE_PREDICTION_MODES:
+            allowed_modes = ", ".join(sorted(KINASE_PREDICTION_MODES))
+            raise WorkflowValidationError(
+                f"prediction_config.mode must be one of: {allowed_modes}"
+            )
+        if config.adaptive_policy not in KINASE_ADAPTIVE_POLICIES:
+            allowed_policies = ", ".join(sorted(KINASE_ADAPTIVE_POLICIES))
+            raise WorkflowValidationError(
+                f"prediction_config.adaptive_policy must be one of: {allowed_policies}"
+            )
+        if config.random_state is not None:
+            require_int_at_least(
+                config.random_state,
+                field_name="prediction_config.random_state",
+                minimum=0,
+                error_type=WorkflowValidationError,
+            )
         require_int_at_least(
             config.top_k,
             field_name="prediction_config.top_k",
@@ -59,6 +78,12 @@ class WorkflowConfigValidator:
         require_int_at_least(
             config.ensemble_size,
             field_name="prediction_config.ensemble_size",
+            minimum=1,
+            error_type=WorkflowValidationError,
+        )
+        require_int_at_least(
+            config.n_iterations,
+            field_name="prediction_config.n_iterations",
             minimum=1,
             error_type=WorkflowValidationError,
         )

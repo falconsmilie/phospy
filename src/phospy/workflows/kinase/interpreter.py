@@ -159,6 +159,7 @@ class KinaseWorkflowInterpreter:
             ],
             scoring_config_min_substrates=request.scoring_config.min_substrates,
             prediction_config_ensemble_size=request.prediction_config.ensemble_size,
+            prediction_config_mode=request.prediction_config.mode,
         )
 
     @staticmethod
