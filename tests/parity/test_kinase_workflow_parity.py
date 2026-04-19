@@ -26,7 +26,10 @@ def test_scoring_outputs_match_selected_reference_profile_values() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                include_diagnostic_scoring_tables=True,
+            ),
             prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=12),
             activity_config=None,
         )
@@ -81,7 +84,10 @@ def test_scoring_outputs_include_motif_and_combined_tables() -> None:
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                include_diagnostic_scoring_tables=True,
+            ),
             prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=12),
             activity_config=None,
         )

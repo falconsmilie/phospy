@@ -32,8 +32,11 @@ PhosPy exposes a focused rewrite public product in `src/phospy/`.
 
 Supported in the current rewrite lane:
 
-- Kinase scoring with nested outputs:
-  `profile_scores`, `motif_scores`, `combined_scores`, `weights`.
+- Kinase scoring with authoritative downstream outputs:
+  `profile_scores`, `combined_scores`.
+- Optional diagnostic scoring tables:
+  `motif_scores`, `weights` via
+  `KinaseScoringConfig(include_diagnostic_scoring_tables=True)`.
 - Supported kinase motif scoring consumes `references.site_sequences` from the resolved
   reference bundle.
 - Profile-driven prediction ranking and matrix assembly (`prediction_result.pred_mat`).

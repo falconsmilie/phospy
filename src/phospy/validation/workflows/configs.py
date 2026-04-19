@@ -23,6 +23,10 @@ class WorkflowConfigValidator:
             raise WorkflowValidationError(
                 "kinase workflow request scoring_config must be KinaseScoringConfig"
             )
+        if not isinstance(config.include_diagnostic_scoring_tables, bool):
+            raise WorkflowValidationError(
+                "scoring_config.include_diagnostic_scoring_tables must be a bool"
+            )
         require_int_at_least(
             config.min_substrates,
             field_name="scoring_config.min_substrates",

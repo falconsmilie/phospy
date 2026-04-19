@@ -33,6 +33,7 @@ from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
 
 def test_kinase_scoring_default_sets_two_substrate_support_floor() -> None:
     assert KinaseScoringConfig().min_substrates == 2
+    assert KinaseScoringConfig().include_diagnostic_scoring_tables is False
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -133,6 +134,24 @@ def test_kinase_request_config_policy_fails_at_validator_boundary() -> None:
     with pytest.raises(
         WorkflowValidationError,
         match="scoring_config.min_substrates must be greater than or equal to 2",
+    ):
+        KinaseWorkflowValidator().run(request)
+
+
+def test_kinase_request_rejects_non_bool_diagnostic_scoring_policy() -> None:
+    request = KinaseWorkflowRequest(
+        dataset=_dataset(),
+        references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            include_diagnostic_scoring_tables="yes",  # type: ignore[arg-type]
+        ),
+        prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=5),
+        activity_config=None,
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="scoring_config.include_diagnostic_scoring_tables must be a bool",
     ):
         KinaseWorkflowValidator().run(request)
 

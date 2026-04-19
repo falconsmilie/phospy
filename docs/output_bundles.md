@@ -118,7 +118,9 @@ signalome/expanded_signalome.csv     # optional
 ```
 
 Optional means contract-optional, not always absent.
-In the default supported kinase lane, scoring currently populates profile/motif/combined/weight tables.
+In the default supported kinase lane, scoring populates `profile_scores` and
+`combined_scores`; diagnostic `motif_scores` and `weights` are written only when
+`scoring_config.include_diagnostic_scoring_tables=True`.
 
 ## Optional Output Semantics
 
@@ -126,12 +128,15 @@ In the default supported kinase lane, scoring currently populates profile/motif/
 - `prediction/substrate_list` is optional.
 - `signalome/kinase_network_nodes` is optional.
 - `signalome/expanded_signalome` is optional and currently absent (`None`) in the default signalome route.
+- `scoring/motif_scores` and `scoring/weights` are optional diagnostic tables and
+  are absent in the default scoring lane.
 
 ## Config Snapshot Fields
 
 Kinase config snapshot:
 
 - `scoring_config.min_substrates`
+- `scoring_config.include_diagnostic_scoring_tables`
 - `prediction_config.top_k`
 - `prediction_config.ensemble_size`
 - `activity_config` fields when activity is configured

@@ -58,8 +58,8 @@
 
 ## Scientific Contract Snapshot (Current Lane)
 
-- Kinase scoring publishes `profile_scores`, `motif_scores`, `combined_scores`,
-  and `weights`.
+- Kinase scoring publishes authoritative `profile_scores` and `combined_scores`;
+  `motif_scores` and `weights` are optional diagnostic outputs.
 - Authoritative downstream matrix is `combined_scores` first with
   `profile_scores` fallback.
 - Prediction and signalome consume the same resolved downstream score lane.

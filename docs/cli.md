@@ -143,7 +143,9 @@ Supported file formats for read and write:
 
 Notes:
 
-- In the default supported kinase lane, scoring currently emits
-  `profile_scores`, `motif_scores`, `combined_scores`, and `weights`.
+- In the default supported kinase lane, scoring emits
+  `profile_scores` and `combined_scores`.
+- Diagnostic scoring tables (`motif_scores`, `weights`) are emitted only when
+  `include_diagnostic_scoring_tables=True` is set in the scoring config.
 - Optional entries above are contract-level optional fields that may be absent in
   custom/future lanes or when an upstream optional stage is disabled.

@@ -12,6 +12,7 @@ from phospy import (
     KinaseScoringConfig,
     KinaseWorkflow,
     KinaseWorkflowRequest,
+    ReferenceBundle,
     ReferencePreset,
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
@@ -39,7 +40,8 @@ def test_kinase_workflow_runs_without_dataset_site_sequence_column() -> None:
         )
     )
     assert not result.scoring_result.profile_scores.empty
-    assert result.scoring_result.motif_scores is not None
+    assert result.scoring_result.motif_scores is None
+    assert result.scoring_result.weights is None
     assert not result.prediction_result.pred_mat.empty
 
 
@@ -61,9 +63,9 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
     )
     assert result.scoring_result.profile_scores.shape[0] == dataset.phospho.shape[0]
     assert result.scoring_result.profile_scores.shape[1] > 0
-    assert result.scoring_result.motif_scores is not None
     assert result.scoring_result.combined_scores is not None
-    assert result.scoring_result.weights is not None
+    assert result.scoring_result.motif_scores is None
+    assert result.scoring_result.weights is None
     sequence_sites = set(result.references.site_sequences.index.astype(str))
     assert set(result.scoring_result.profile_scores.index.astype(str)).issubset(
         sequence_sites
@@ -168,3 +170,108 @@ def test_prediction_changes_when_downstream_matrix_switches_profile_vs_combined(
         break
 
     assert matched_a_differing_kinase
+
+
+def test_diagnostic_scoring_tables_are_opt_in_without_changing_supported_lane() -> None:
+    dataset = build_rat_l6_dataset(n_sites=260)
+    request_default = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+        activity_config=None,
+    )
+    request_with_diagnostics = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            include_diagnostic_scoring_tables=True,
+        ),
+        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+        activity_config=None,
+    )
+
+    default_result = KinaseWorkflow().run(request_default)
+    diagnostics_result = KinaseWorkflow().run(request_with_diagnostics)
+
+    assert default_result.scoring_result.motif_scores is None
+    assert default_result.scoring_result.weights is None
+    assert diagnostics_result.scoring_result.motif_scores is not None
+    assert diagnostics_result.scoring_result.weights is not None
+
+    pd.testing.assert_frame_equal(
+        default_result.scoring_result.profile_scores,
+        diagnostics_result.scoring_result.profile_scores,
+        check_dtype=False,
+    )
+    assert default_result.scoring_result.combined_scores is not None
+    assert diagnostics_result.scoring_result.combined_scores is not None
+    pd.testing.assert_frame_equal(
+        default_result.scoring_result.combined_scores,
+        diagnostics_result.scoring_result.combined_scores,
+        check_dtype=False,
+    )
+    pd.testing.assert_frame_equal(
+        default_result.prediction_result.pred_mat,
+        diagnostics_result.prediction_result.pred_mat,
+        check_dtype=False,
+    )
+
+
+def test_motif_library_build_is_limited_to_profile_eligible_kinases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataset = build_rat_l6_dataset(n_sites=40)
+    overlap_sites = dataset.phospho.index.astype(str).tolist()[:2]
+    offlane_sites = [f"OFFLANE{i};S{i};" for i in range(1, 9)]
+    references = ReferenceBundle(
+        organism=dataset.organism,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["K_ELIGIBLE", "K_ELIGIBLE"]
+                + ["K_OFFLANE" for _ in offlane_sites],
+                "substrate_site": overlap_sites + offlane_sites,
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": ["A" * 31 for _ in overlap_sites + offlane_sites]},
+            index=pd.Index(overlap_sites + offlane_sites, name="site_id"),
+        ),
+    )
+    captured_kinases: list[str] = []
+    original_build_motif_library = kinase_executor.build_motif_library
+
+    def _capture_eligible_kinases(*, kinase_substrate_map, site_sequences, flank_size):
+        nonlocal captured_kinases
+        captured_kinases = sorted(
+            kinase_substrate_map.loc[:, "kinase"].astype(str).unique().tolist()
+        )
+        return original_build_motif_library(
+            kinase_substrate_map=kinase_substrate_map,
+            site_sequences=site_sequences,
+            flank_size=flank_size,
+        )
+
+    monkeypatch.setattr(
+        kinase_executor,
+        "build_motif_library",
+        _capture_eligible_kinases,
+    )
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                include_diagnostic_scoring_tables=True,
+            ),
+            prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=1),
+            activity_config=None,
+        )
+    )
+
+    assert captured_kinases == ["K_ELIGIBLE"]
+    assert list(result.scoring_result.profile_scores.columns) == ["K_ELIGIBLE"]
+    assert result.scoring_result.motif_scores is not None
+    assert list(result.scoring_result.motif_scores.columns) == ["K_ELIGIBLE"]

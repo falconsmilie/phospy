@@ -78,9 +78,9 @@ def test_cli_kinase_from_files_writes_supported_lane_outputs(
     assert exit_code == 0
     assert (outdir / "dataset" / "phospho.csv").exists()
     assert (outdir / "kinase" / "scoring" / "profile_scores.csv").exists()
-    assert (outdir / "kinase" / "scoring" / "motif_scores.csv").exists()
     assert (outdir / "kinase" / "scoring" / "combined_scores.csv").exists()
-    assert (outdir / "kinase" / "scoring" / "weights.csv").exists()
+    assert not (outdir / "kinase" / "scoring" / "motif_scores.csv").exists()
+    assert not (outdir / "kinase" / "scoring" / "weights.csv").exists()
     assert (outdir / "kinase" / "prediction" / "pred_mat.csv").exists()
     assert (outdir / "kinase" / "references" / "kinase_substrate_map.csv").exists()
     assert (outdir / "kinase" / "activity" / "weighted_activity.csv").exists()
@@ -129,9 +129,9 @@ def test_cli_signalome_from_files_writes_supported_lane_outputs(
     assert exit_code == 0
     assert (outdir / "dataset" / "phospho.csv").exists()
     assert (outdir / "kinase" / "scoring" / "profile_scores.csv").exists()
-    assert (outdir / "kinase" / "scoring" / "motif_scores.csv").exists()
     assert (outdir / "kinase" / "scoring" / "combined_scores.csv").exists()
-    assert (outdir / "kinase" / "scoring" / "weights.csv").exists()
+    assert not (outdir / "kinase" / "scoring" / "motif_scores.csv").exists()
+    assert not (outdir / "kinase" / "scoring" / "weights.csv").exists()
     assert (outdir / "kinase" / "prediction" / "pred_mat.csv").exists()
     assert (outdir / "kinase" / "references" / "kinase_substrate_map.csv").exists()
     assert (outdir / "kinase" / "manifest.json").exists()

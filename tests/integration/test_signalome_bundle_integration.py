@@ -69,9 +69,9 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert manifest["upstream_kinase_outputs"]["activity"]["enabled"] is False
     assert manifest["upstream_kinase_outputs"]["scoring"]["tables"] == {
         "combined_scores": "scoring/combined_scores.csv",
-        "motif_scores": "scoring/motif_scores.csv",
+        "motif_scores": None,
         "profile_scores": "scoring/profile_scores.csv",
-        "weights": "scoring/weights.csv",
+        "weights": None,
     }
     assert manifest["signalome_outputs"]["tables"] == {
         "expanded_signalome": None,

@@ -75,10 +75,16 @@ class KinaseWorkflowExecutor:
     def _run_scoring_stage(
         self, request: ResolvedKinaseWorkflowRequest
     ) -> _ScoringExecution:
-        # Scoring route:
+        # Authoritative downstream route:
         # - profile correlations from quantified kinase substrates
-        # - motif scoring from reference sequence motifs
-        # - profile/motif weighted combination for downstream prediction
+        # - profile+motif combined scores (with profile fallback)
+        #
+        # Optional diagnostic tables:
+        # - motif_scores
+        # - weights
+        include_diagnostic_tables = (
+            request.scoring_config.include_diagnostic_scoring_tables
+        )
         scoring_phospho = request.dataset.phospho.loc[request.scoring_site_index, :]
         profile_build = build_kinase_profiles(
             phospho=scoring_phospho,
@@ -95,9 +101,15 @@ class KinaseWorkflowExecutor:
             phospho=scoring_phospho,
             profile_matrix=profile_build.profile_matrix,
         )
+        eligible_kinases = set(profile_scores.columns.astype(str))
+        motif_kinase_substrate_map = request.kinase_substrate_map.loc[
+            request.kinase_substrate_map.loc[:, "kinase"]
+            .astype(str)
+            .isin(eligible_kinases)
+        ]
         sequence_series = request.site_sequences.loc[:, "site_sequence"]
         motif_frequency_matrices, motif_sizes = build_motif_library(
-            kinase_substrate_map=request.kinase_substrate_map,
+            kinase_substrate_map=motif_kinase_substrate_map,
             site_sequences=sequence_series,
             flank_size=DEFAULT_MOTIF_FLANK_SIZE,
         )
@@ -116,6 +128,7 @@ class KinaseWorkflowExecutor:
                 motif_sizes=motif_result.motif_sizes,
                 profile_sizes=profile_build.substrate_counts.astype(float),
                 allow_profile_only_fallback=True,
+                emit_weights=include_diagnostic_tables,
             )
         except ValueError as exc:
             raise WorkflowStageError(
@@ -125,7 +138,9 @@ class KinaseWorkflowExecutor:
             ) from exc
         scoring_result = KinaseScoringResult._from_owned(
             profile_scores=profile_scores,
-            motif_scores=motif_result.motif_scores,
+            motif_scores=(
+                motif_result.motif_scores if include_diagnostic_tables else None
+            ),
             combined_scores=combined_scores,
             weights=weights,
         )

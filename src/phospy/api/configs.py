@@ -18,9 +18,14 @@ class KinaseScoringConfig:
 
     `min_substrates` is constrained to the scientific support floor so one-site
     kinase profiles are not part of the default public lane.
+
+    `include_diagnostic_scoring_tables` controls publication of non-authoritative
+    diagnostic scoring outputs (`motif_scores`, `weights`). The authoritative
+    downstream lane (`combined_scores` with profile fallback) is always computed.
     """
 
     min_substrates: int = KINASE_SCORING_MIN_SUBSTRATES_FLOOR
+    include_diagnostic_scoring_tables: bool = False
 
 
 @dataclass(frozen=True, slots=True)

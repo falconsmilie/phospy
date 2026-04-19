@@ -104,6 +104,7 @@ internally consistent reference tables.
 - `references` is `ReferencePreset | ReferenceBundle`
 - config types and numeric floors/ranges:
   `scoring_config.min_substrates >= 2`,
+  `scoring_config.include_diagnostic_scoring_tables` is bool,
   `prediction_config.top_k >= 1`,
   `prediction_config.ensemble_size >= 1`,
   activity config bounds when activity is enabled/configured
@@ -141,9 +142,9 @@ For the supported kinase scoring lane, motif sequence inputs come from
 Stable access paths are nested by stage:
 
 - `result.scoring_result.profile_scores`
-- `result.scoring_result.motif_scores`
 - `result.scoring_result.combined_scores`
-- `result.scoring_result.weights`
+- `result.scoring_result.motif_scores` (optional diagnostics)
+- `result.scoring_result.weights` (optional diagnostics)
 - `result.prediction_result.pred_mat`
 - `result.activity_result.weighted_activity` (when activity is enabled)
 - `signalome_result.kinase_result.prediction_result.pred_mat`

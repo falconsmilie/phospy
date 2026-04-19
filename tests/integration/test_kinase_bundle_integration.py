@@ -78,9 +78,9 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
     }
     assert manifest["outputs"]["scoring"]["tables"] == {
         "combined_scores": "scoring/combined_scores.csv",
-        "motif_scores": "scoring/motif_scores.csv",
+        "motif_scores": None,
         "profile_scores": "scoring/profile_scores.csv",
-        "weights": "scoring/weights.csv",
+        "weights": None,
     }
     assert manifest["outputs"]["prediction"]["tables"] == {
         "pred_mat": "prediction/pred_mat.csv",

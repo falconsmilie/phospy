@@ -20,7 +20,8 @@ Historical code under `legacy_archive/phospy_legacy/` is migration reference onl
 ## Supported Science (Current Lane)
 
 - Kinase scoring publishes:
-  `profile_scores`, `motif_scores`, `combined_scores`, `weights`
+  authoritative `profile_scores` and `combined_scores`, with optional
+  diagnostic `motif_scores` and `weights`
 - Prediction uses the legacy-matching downstream score lane:
   `combined_scores` when present, otherwise `profile_scores`
 - Kinase activity stage is supported and optional

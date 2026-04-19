@@ -30,7 +30,8 @@ def combine_profile_and_motif_scores(
     motif_sizes: pd.Series,
     profile_sizes: pd.Series,
     allow_profile_only_fallback: bool = True,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+    emit_weights: bool = True,
+) -> tuple[pd.DataFrame, pd.DataFrame | None]:
     """Combine motif and profile scores using rank-derived kinase weights."""
 
     profile_kinases = set(profile_scores.columns)
@@ -41,7 +42,9 @@ def combine_profile_and_motif_scores(
             raise ValueError(
                 "no overlapping kinases between motif_scores and profile_scores"
             )
-        weights = _profile_only_weights(profile_scores.columns)
+        weights = (
+            _profile_only_weights(profile_scores.columns) if emit_weights else None
+        )
         return profile_scores.copy(), weights
 
     _require_index_members(motif_sizes, overlap, name="motif_sizes")
@@ -66,15 +69,19 @@ def combine_profile_and_motif_scores(
         ~motif_missing_profile_present,
         profile_scores.loc[:, overlap],
     )
-    weights = pd.DataFrame(
-        {
-            "motif_weight": motif_rank_weight / total_weight,
-            "profile_weight": profile_rank_weight / total_weight,
-            "motif_rank_weight": motif_rank_weight,
-            "profile_rank_weight": profile_rank_weight,
-        },
-        index=overlap,
-    )
+    weights: pd.DataFrame | None
+    if emit_weights:
+        weights = pd.DataFrame(
+            {
+                "motif_weight": motif_rank_weight / total_weight,
+                "profile_weight": profile_rank_weight / total_weight,
+                "motif_rank_weight": motif_rank_weight,
+                "profile_rank_weight": profile_rank_weight,
+            },
+            index=overlap,
+        )
+    else:
+        weights = None
 
     if allow_profile_only_fallback:
         profile_only = [
@@ -85,12 +92,14 @@ def combine_profile_and_motif_scores(
                 [combined_scores, profile_scores.loc[:, profile_only]],
                 axis=1,
             )
-            weights = pd.concat(
-                [weights, _profile_only_weights(profile_only)],
-                axis=0,
-            )
+            if weights is not None:
+                weights = pd.concat(
+                    [weights, _profile_only_weights(profile_only)],
+                    axis=0,
+                )
 
-    weights.index.name = "kinase"
+    if weights is not None:
+        weights.index.name = "kinase"
     return combined_scores, weights
 
 

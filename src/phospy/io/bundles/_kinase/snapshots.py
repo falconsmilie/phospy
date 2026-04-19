@@ -65,6 +65,9 @@ class KinaseWorkflowConfigSnapshot:
         return {
             "scoring_config": {
                 "min_substrates": self.scoring_config.min_substrates,
+                "include_diagnostic_scoring_tables": (
+                    self.scoring_config.include_diagnostic_scoring_tables
+                ),
             },
             "prediction_config": {
                 "top_k": self.prediction_config.top_k,
@@ -125,7 +128,13 @@ class KinaseWorkflowConfigSnapshot:
                 min_substrates=require_int(
                     scoring_payload.get("min_substrates"),
                     field_name=f"{scope}.scoring_config.min_substrates",
-                )
+                ),
+                include_diagnostic_scoring_tables=require_bool(
+                    scoring_payload.get("include_diagnostic_scoring_tables", True),
+                    field_name=(
+                        f"{scope}.scoring_config.include_diagnostic_scoring_tables"
+                    ),
+                ),
             ),
             prediction_config=KinasePredictionConfig(
                 top_k=require_int(

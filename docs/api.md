@@ -111,9 +111,9 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 - `result.dataset`
 - `result.references`
 - `result.scoring_result.profile_scores`
-- `result.scoring_result.motif_scores` (optional field in model)
-- `result.scoring_result.combined_scores` (optional field in model)
-- `result.scoring_result.weights` (optional field in model)
+- `result.scoring_result.combined_scores`
+- `result.scoring_result.motif_scores` (optional diagnostic field)
+- `result.scoring_result.weights` (optional diagnostic field)
 - `result.prediction_result.pred_mat`
 - `result.prediction_result.substrate_list` (optional)
 - `result.activity_result` (`None` when activity is disabled)
@@ -134,7 +134,9 @@ No top-level convenience mirrors flatten nested stage outputs.
 
 Supported public lane today:
 
-- Kinase scoring stage outputs profile, motif, and combined scoring tables.
+- Kinase scoring stage always outputs `profile_scores` and `combined_scores`.
+- Diagnostic scoring tables (`motif_scores`, `weights`) are opt-in via
+  `KinaseScoringConfig(include_diagnostic_scoring_tables=True)`.
 - Motif scoring in the supported kinase lane uses `references.site_sequences`
   from the resolved `ReferenceBundle`.
 - Prediction stage uses a downstream score matrix that resolves to

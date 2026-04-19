@@ -14,9 +14,9 @@ from phospy.errors.validation import PhosPyValidationError
 class KinaseScoringResult:
     """Scoring-stage outputs.
 
-    `profile_scores` is always produced. The downstream workflow resolves its
-    authoritative matrix from `combined_scores` when available, with a
-    profile-only fallback when combined scores are absent.
+    `profile_scores` and `combined_scores` define the supported downstream lane.
+    `motif_scores` and `weights` are optional diagnostic tables controlled by
+    `scoring_config.include_diagnostic_scoring_tables`.
     """
 
     profile_scores: pd.DataFrame

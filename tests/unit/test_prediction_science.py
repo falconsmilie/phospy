@@ -78,3 +78,21 @@ def test_select_downstream_score_matrix_falls_back_to_profile_scores() -> None:
 
     assert selected is profile_scores
     assert source == DOWNSTREAM_SCORE_SOURCE_PROFILE
+
+
+def test_combine_profile_and_motif_scores_can_skip_weight_table() -> None:
+    profile_scores = pd.DataFrame({"K1": [0.2, 0.8]}, index=["S1", "S2"])
+    motif_scores = pd.DataFrame({"K1": [0.7, 0.3]}, index=["S1", "S2"])
+    profile_sizes = pd.Series({"K1": 4.0})
+    motif_sizes = pd.Series({"K1": 4.0})
+
+    combined_scores, weights = combine_profile_and_motif_scores(
+        motif_scores=motif_scores,
+        profile_scores=profile_scores,
+        motif_sizes=motif_sizes,
+        profile_sizes=profile_sizes,
+        emit_weights=False,
+    )
+
+    assert weights is None
+    assert list(combined_scores.columns) == ["K1"]
