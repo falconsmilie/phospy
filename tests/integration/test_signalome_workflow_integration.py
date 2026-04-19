@@ -15,8 +15,10 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    KinaseScoringResult,
     KinaseWorkflow,
     KinaseWorkflowRequest,
+    KinaseWorkflowResult,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflow,
@@ -238,4 +240,49 @@ def test_signalome_network_uses_combined_downstream_scores_when_available(
         combined_lane.module_assignments.table,
         profile_lane.module_assignments.table,
         check_dtype=False,
+    )
+
+
+def test_signalome_workflow_accepts_sparse_missing_combined_score_rows() -> None:
+    dataset = build_rat_l6_dataset(n_sites=260)
+    kinase_result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            activity_config=None,
+        )
+    )
+    combined_scores = kinase_result.scoring_result.combined_scores
+    assert combined_scores is not None
+    sparse_combined_scores = combined_scores.copy(deep=True)
+    sparse_combined_scores.iloc[:5, :] = float("nan")
+    sparse_kinase_result = KinaseWorkflowResult(
+        dataset=kinase_result.dataset,
+        references=kinase_result.references,
+        scoring_result=KinaseScoringResult(
+            profile_scores=kinase_result.scoring_result.profile_scores,
+            motif_scores=kinase_result.scoring_result.motif_scores,
+            combined_scores=sparse_combined_scores,
+            weights=kinase_result.scoring_result.weights,
+        ),
+        prediction_result=kinase_result.prediction_result,
+        activity_result=kinase_result.activity_result,
+    )
+
+    result = SignalomeWorkflow().run(
+        SignalomeWorkflowRequest(
+            kinase_result=sparse_kinase_result,
+            config=SignalomeConfig(
+                substrate_support_cutoff=0.5,
+                network_correlation_threshold=0.2,
+            ),
+        )
+    )
+
+    assert not result.module_assignments.table.empty
+    assert not result.signalome_modules.table.empty
+    assert result.module_assignments.table.shape[0] == int(
+        kinase_result.prediction_result.pred_mat.shape[0]
     )

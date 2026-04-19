@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from phospy.api.requests import SignalomeWorkflowRequest
@@ -20,6 +21,7 @@ class SignalomeWorkflowInterpreter:
     _SITE_ALIGNMENT_SEAM = "signalome.interpreter.site_alignment"
     _KINASE_OVERLAP_SEAM = "signalome.interpreter.kinase_overlap"
     _PROTEIN_MAPPING_SEAM = "signalome.interpreter.protein_mapping"
+    _SCORE_PRECONDITIONING_SEAM = "signalome.interpreter.score_preconditioning"
 
     def run(
         self, request: SignalomeWorkflowRequest
@@ -60,6 +62,9 @@ class SignalomeWorkflowInterpreter:
         aligned_downstream_score_matrix = resolved_downstream_score_matrix.loc[
             aligned_site_index, aligned_kinase_index
         ]
+        preconditioned_downstream_score_matrix = (
+            self._precondition_downstream_score_matrix(aligned_downstream_score_matrix)
+        )
         site_to_protein = self._resolve_site_to_protein(
             dataset=request.kinase_result.dataset,
             site_index=aligned_prediction_matrix.index,
@@ -68,7 +73,7 @@ class SignalomeWorkflowInterpreter:
             dataset=request.kinase_result.dataset,
             kinase_result=request.kinase_result,
             config=request.config,
-            downstream_score_matrix=aligned_downstream_score_matrix,
+            downstream_score_matrix=preconditioned_downstream_score_matrix,
             downstream_score_source=downstream_score_source,
             prediction_matrix=aligned_prediction_matrix,
             site_to_protein=site_to_protein,
@@ -191,6 +196,37 @@ class SignalomeWorkflowInterpreter:
         resolved.index = site_index.copy()
         resolved.name = self._PROTEIN_COLUMN
         return resolved.astype(str)
+
+    def _precondition_downstream_score_matrix(
+        self,
+        score_matrix: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """Prepare aligned upstream scores for score-driven signalome stages.
+
+        All-missing rows are treated as unsupported evidence and removed.
+        Partially missing rows are retained for pairwise-complete correlation.
+        """
+        if score_matrix.empty:
+            return score_matrix
+        score_values = score_matrix.to_numpy(dtype=float, copy=False)
+        infinite_mask = np.isinf(score_values)
+        if infinite_mask.any():
+            self._raise_boundary_error(
+                seam=self._SCORE_PRECONDITIONING_SEAM,
+                next_action=(
+                    "rerun kinase workflow and ensure scoring outputs contain "
+                    "finite values only"
+                ),
+                aligned_score_sites=int(score_matrix.shape[0]),
+                aligned_score_kinases=int(score_matrix.shape[1]),
+                infinite_score_entries=int(infinite_mask.sum()),
+            )
+        supported_row_mask = (
+            score_matrix.notna().any(axis=1).to_numpy(dtype=bool, copy=False)
+        )
+        if supported_row_mask.all():
+            return score_matrix
+        return score_matrix.iloc[supported_row_mask, :]
 
     @staticmethod
     def _protein_from_site_id(site_id: object) -> str:

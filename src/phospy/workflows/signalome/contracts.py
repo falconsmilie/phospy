@@ -19,7 +19,8 @@ class ResolvedSignalomeWorkflowRequest:
 
     ``site_to_protein`` must provide a non-empty protein identifier for every site in
     ``prediction_matrix.index``. ``downstream_score_matrix`` is the same
-    authoritative matrix lane that drove upstream kinase prediction.
+    authoritative matrix lane that drove upstream kinase prediction, after
+    interpreter preconditioning of unsupported all-missing score rows.
     """
 
     dataset: AnalysisReadyPhosphoDataset

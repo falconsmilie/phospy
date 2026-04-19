@@ -115,6 +115,18 @@ internally consistent reference tables.
 - upstream downstream-score/prediction matrices are usable numeric matrices for
   signalome execution (`combined_scores` preferred when available, otherwise
   `profile_scores`)
+- missing values in the upstream downstream score matrix are allowed; this is a
+  normal outcome for correlation-based kinase scoring in low-information rows
+- infinite values in upstream score/prediction matrices remain hard failures
+
+`SignalomeWorkflowInterpreter` preconditions the downstream score lane before
+execution:
+
+- rows with no finite kinase score support (all-missing rows) are excluded from
+  score-driven network correlation inputs
+- partially missing rows are retained and consumed with pairwise-complete
+  correlation handling
+- prediction rows remain available for module assignment logic
 
 Interpreters/executors enforce seam-level scientific/runtime boundary checks and raise
 `WorkflowBoundaryError` with seam names, concrete counts, and `next_action` hints.

@@ -245,7 +245,11 @@ def build_kinase_network(
     kinase_substrates: Mapping[str, Sequence[str]],
     threshold: float,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Build deterministic edge and node tables for kinase network output."""
+    """Build deterministic edge and node tables for kinase network output.
+
+    Missing score entries are consumed via pairwise-complete Pearson
+    correlations after dropping rows with no finite score support.
+    """
 
     kinase_index = pd.Index(
         [str(kinase) for kinase in kinase_order], name=KINASE_COLUMN
@@ -268,8 +272,13 @@ def build_kinase_network(
             f"{preview}{suffix}"
         )
 
-    aligned_scores = downstream_score_matrix.loc[:, kinase_index].astype(float)
-    correlation_matrix = aligned_scores.corr(method="pearson").fillna(0.0)
+    aligned_scores = _precondition_network_scores(
+        downstream_score_matrix=downstream_score_matrix,
+        kinase_index=kinase_index,
+    )
+    correlation_matrix = aligned_scores.corr(method="pearson", min_periods=2).fillna(
+        0.0
+    )
     correlation_matrix = correlation_matrix.loc[kinase_index, kinase_index]
     correlation_matrix.index = kinase_index.copy()
     correlation_matrix.columns = kinase_index.copy()
@@ -346,6 +355,27 @@ def _as_unique_string_index(index: pd.Index, *, context: str) -> pd.Index:
     raise WorkflowStageError(
         f"{context} contains duplicate site identifiers: {preview}{suffix}"
     )
+
+
+def _precondition_network_scores(
+    *,
+    downstream_score_matrix: pd.DataFrame,
+    kinase_index: pd.Index,
+) -> pd.DataFrame:
+    aligned_scores = downstream_score_matrix.loc[:, kinase_index].astype(float)
+    score_values = aligned_scores.to_numpy(dtype=float, copy=False)
+    infinite_mask = np.isinf(score_values)
+    if infinite_mask.any():
+        raise WorkflowStageError(
+            "downstream score matrix contains infinite values after interpreter "
+            "preconditioning"
+        )
+    supported_row_mask = (
+        aligned_scores.notna().any(axis=1).to_numpy(dtype=bool, copy=False)
+    )
+    if supported_row_mask.all():
+        return aligned_scores
+    return aligned_scores.iloc[supported_row_mask, :]
 
 
 def _resolve_site_to_protein(

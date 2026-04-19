@@ -268,6 +268,82 @@ def test_interpreter_prefers_combined_scores_for_downstream_signalome_matrix() -
     assert interpreted.downstream_score_source == "combined_scores"
 
 
+def test_interpreter_preconditions_downstream_scores_without_dropping_prediction_rows() -> (
+    None
+):
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.2, 0.8],
+            [0.7, 0.3],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [float("nan"), float("nan")],
+            [1.0, float("nan")],
+            [2.0, 3.0],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    assert interpreted.prediction_matrix.index.tolist() == site_ids
+    assert interpreted.downstream_score_matrix.index.tolist() == [
+        "P2;S2;",
+        "P3;S3;",
+    ]
+    assert pd.isna(interpreted.downstream_score_matrix.loc["P2;S2;", "K2"])
+
+
+def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> None:
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.2, 0.8],
+            [0.7, 0.3],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [float("nan"), float("nan")],
+            [1.0, 2.0],
+            [2.0, 4.0],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    result = SignalomeWorkflowExecutor().run(interpreted)
+    assert not result.kinase_network.edges.empty
+
+
 def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_gene_symbol() -> (
     None
 ):

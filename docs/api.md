@@ -140,6 +140,9 @@ Supported public lane today:
 - Activity stage is supported and optional inside `KinaseWorkflow`.
 - Signalome stage consumes the same downstream score-matrix lane as prediction
   and outputs module assignments, module matrix, and kinase network.
+- Downstream score missingness is part of the supported scientific contract:
+  all-missing score rows are preconditioned out of score-driven network inputs,
+  partially missing rows are retained, and infinite values remain invalid.
 
 Deferred/experimental/not yet ported into the public lane:
 

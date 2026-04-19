@@ -82,7 +82,11 @@ def score_profile_correlations(
     phospho: pd.DataFrame,
     profile_matrix: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Score each site against kinase profiles using row-wise Pearson correlation."""
+    """Score each site against kinase profiles using row-wise Pearson correlation.
+
+    Correlations with zero-variance denominators are represented as ``NaN`` so
+    downstream stages can distinguish unsupported from low-confidence scores.
+    """
 
     if profile_matrix.empty:
         return pd.DataFrame(

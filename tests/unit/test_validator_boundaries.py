@@ -252,6 +252,30 @@ def test_signalome_validator_allows_prediction_matrix_missingness() -> None:
     assert validated is request
 
 
+def test_signalome_validator_allows_downstream_score_matrix_missingness() -> None:
+    kinase_result = _kinase_result()
+    assert kinase_result.scoring_result.combined_scores is not None
+    combined_with_missing = kinase_result.scoring_result.combined_scores.copy(deep=True)
+    combined_with_missing.iloc[0, 0] = float("nan")
+
+    request = SignalomeWorkflowRequest(
+        kinase_result=KinaseWorkflowResult(
+            dataset=kinase_result.dataset,
+            references=kinase_result.references,
+            scoring_result=KinaseScoringResult(
+                profile_scores=kinase_result.scoring_result.profile_scores,
+                combined_scores=combined_with_missing,
+            ),
+            prediction_result=kinase_result.prediction_result,
+            activity_result=kinase_result.activity_result,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+
+    validated = SignalomeWorkflowValidator().run(request)
+    assert validated is request
+
+
 def test_signalome_validator_prefers_combined_scores_when_available() -> None:
     kinase_result = _kinase_result()
     assert kinase_result.scoring_result.combined_scores is not None

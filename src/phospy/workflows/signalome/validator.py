@@ -104,7 +104,10 @@ class SignalomeWorkflowValidator:
         self._require_no_missing_or_infinite(
             score_matrix,
             field_name=score_field_name,
-            allow_missing=False,
+            # Correlation-based kinase scoring can legitimately emit missing
+            # values (for example, zero-variance denominator collapse).
+            # Missingness is preconditioned downstream by the interpreter.
+            allow_missing=True,
         )
         score_matrix = require_unique_index(
             score_matrix,
