@@ -30,8 +30,15 @@ from phospy.signalomes.models import (
     SignalomeModules,
 )
 from phospy.transformations.models import TransformationState
-from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
-from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
+from phospy.workflows.kinase.contracts import (
+    ResolvedKinaseActivityExecutionConfig,
+    ResolvedKinaseExecutionConfig,
+    ResolvedKinaseWorkflowRequest,
+)
+from phospy.workflows.signalome.contracts import (
+    ResolvedSignalomeExecutionConfig,
+    ResolvedSignalomeWorkflowRequest,
+)
 
 
 def _phospho() -> pd.DataFrame:
@@ -81,6 +88,55 @@ def _bundle() -> ReferenceBundle:
                 ]
             },
             index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+        ),
+    )
+
+
+def _resolved_kinase_execution_config(
+    request: KinaseWorkflowRequest,
+) -> ResolvedKinaseExecutionConfig:
+    activity = (
+        None
+        if request.activity_config is None or not request.activity_config.enabled
+        else ResolvedKinaseActivityExecutionConfig(
+            threshold=float(request.activity_config.threshold),
+            min_substrates=int(request.activity_config.min_substrates),
+            top_n_substrates=int(request.activity_config.top_n_substrates),
+        )
+    )
+    return ResolvedKinaseExecutionConfig(
+        scoring_min_substrates=int(request.scoring_config.min_substrates),
+        include_diagnostic_scoring_tables=bool(
+            request.scoring_config.include_diagnostic_scoring_tables
+        ),
+        profile_missing_value_strategy=request.scoring_config.profile_missing_value_strategy,
+        prediction_top_k=int(request.prediction_config.top_k),
+        prediction_ensemble_size=int(request.prediction_config.ensemble_size),
+        prediction_mode=request.prediction_config.mode,
+        prediction_adaptive_policy=request.prediction_config.adaptive_policy,
+        prediction_n_iterations=int(request.prediction_config.n_iterations),
+        prediction_random_state=request.prediction_config.random_state,
+        activity=activity,
+    )
+
+
+def _resolved_signalome_execution_config(
+    config: SignalomeConfig,
+) -> ResolvedSignalomeExecutionConfig:
+    return ResolvedSignalomeExecutionConfig(
+        substrate_support_cutoff=float(config.substrate_support_cutoff),
+        network_correlation_threshold=float(config.network_correlation_threshold),
+        network_policy=config.network_policy,
+        assignment_policy=config.assignment_policy,
+        module_selection_primary_threshold=float(
+            config.module_selection_primary_correlation_threshold
+        ),
+        module_selection_fallback_threshold=float(
+            config.module_selection_fallback_correlation_threshold
+        ),
+        module_selection_max_clusters=int(config.module_selection_max_clusters),
+        requested_module_count=(
+            None if config.module_count is None else int(config.module_count)
         ),
     )
 
@@ -209,9 +265,7 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
         site_sequences=bundle.site_sequences,
         scoring_site_index=request.dataset.phospho.index.copy(),
         activity_phospho_matrix=request.dataset.phospho.copy(deep=True),
-        scoring_config=request.scoring_config,
-        prediction_config=request.prediction_config,
-        activity_config=request.activity_config,
+        execution_config=_resolved_kinase_execution_config(request),
     )
     expected = KinaseWorkflowResult(
         dataset=request.dataset,
@@ -266,7 +320,7 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
     interpreted = ResolvedSignalomeWorkflowRequest(
         dataset=kinase_result.dataset,
         kinase_result=kinase_result,
-        config=request.config,
+        execution_config=_resolved_signalome_execution_config(request.config),
         downstream_score_matrix=score_matrix,
         downstream_score_source="profile_scores",
         prediction_matrix=kinase_result.prediction_result.pred_mat,

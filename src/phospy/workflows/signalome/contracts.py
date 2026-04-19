@@ -7,10 +7,24 @@ from typing import Protocol
 
 import pandas as pd
 
-from phospy.api.configs import SignalomeConfig
+from phospy.api.configs import SignalomeAssignmentPolicy, SignalomeKinaseNetworkPolicy
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedSignalomeExecutionConfig:
+    """Execution-ready signalome config resolved by the interpreter."""
+
+    substrate_support_cutoff: float
+    network_correlation_threshold: float
+    network_policy: SignalomeKinaseNetworkPolicy
+    assignment_policy: SignalomeAssignmentPolicy
+    module_selection_primary_threshold: float
+    module_selection_fallback_threshold: float
+    module_selection_max_clusters: int
+    requested_module_count: int | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +39,7 @@ class ResolvedSignalomeWorkflowRequest:
 
     dataset: AnalysisReadyPhosphoDataset
     kinase_result: KinaseWorkflowResult
-    config: SignalomeConfig
+    execution_config: ResolvedSignalomeExecutionConfig
     downstream_score_matrix: pd.DataFrame
     downstream_score_source: str
     prediction_matrix: pd.DataFrame
@@ -56,6 +70,7 @@ class SignalomeWorkflowExecutorContract(Protocol):
 
 
 __all__ = [
+    "ResolvedSignalomeExecutionConfig",
     "ResolvedSignalomeWorkflowRequest",
     "SignalomeWorkflowExecutorContract",
     "SignalomeWorkflowInterpreterContract",

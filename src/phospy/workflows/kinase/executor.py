@@ -11,6 +11,7 @@ from phospy.activities.scoring import compute_activity_from_inputs
 from phospy.api.configs import (
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+    KinasePredictionConfig,
 )
 from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
@@ -30,7 +31,10 @@ from phospy.prediction.scoring import (
     select_downstream_score_matrix,
 )
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
-from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
+from phospy.workflows.kinase.contracts import (
+    ResolvedKinaseExecutionConfig,
+    ResolvedKinaseWorkflowRequest,
+)
 from phospy.workflows.kinase.science import (
     build_kinase_profiles,
     build_prediction_outputs,
@@ -60,13 +64,19 @@ class KinaseWorkflowExecutor:
         )
 
     def run(self, request: ResolvedKinaseWorkflowRequest) -> KinaseWorkflowResult:
-        scoring_execution = self._run_scoring_stage(request)
+        config = request.execution_config
+        scoring_execution = self._run_scoring_stage(
+            request=request,
+            config=config,
+        )
         prediction_result = self._run_prediction_stage(
             request=request,
+            config=config,
             scoring_execution=scoring_execution,
         )
         activity_result = self._run_activity_stage(
             request=request,
+            config=config,
             prediction_result=prediction_result,
         )
         return KinaseWorkflowResult(
@@ -78,7 +88,10 @@ class KinaseWorkflowExecutor:
         )
 
     def _run_scoring_stage(
-        self, request: ResolvedKinaseWorkflowRequest
+        self,
+        *,
+        request: ResolvedKinaseWorkflowRequest,
+        config: ResolvedKinaseExecutionConfig,
     ) -> _ScoringExecution:
         # Authoritative downstream route:
         # - profile correlations from quantified kinase substrates
@@ -87,17 +100,13 @@ class KinaseWorkflowExecutor:
         # Optional diagnostic tables:
         # - motif_scores
         # - weights
-        include_diagnostic_tables = (
-            request.scoring_config.include_diagnostic_scoring_tables
-        )
+        include_diagnostic_tables = config.include_diagnostic_scoring_tables
         scoring_phospho = request.dataset.phospho.loc[request.scoring_site_index, :]
         profile_build = build_kinase_profiles(
             phospho=scoring_phospho,
             kinase_substrate_map=request.kinase_substrate_map,
-            min_substrates=request.scoring_config.min_substrates,
-            profile_missing_value_strategy=(
-                request.scoring_config.profile_missing_value_strategy
-            ),
+            min_substrates=config.scoring_min_substrates,
+            profile_missing_value_strategy=config.profile_missing_value_strategy,
         )
         if profile_build.profile_matrix.empty:
             raise WorkflowStageError(
@@ -126,7 +135,7 @@ class KinaseWorkflowExecutor:
             motif_frequency_matrices=motif_frequency_matrices,
             motif_sizes=motif_sizes,
             site_index=scoring_phospho.index,
-            min_motif_size=request.scoring_config.min_substrates,
+            min_motif_size=config.scoring_min_substrates,
             flank_size=DEFAULT_MOTIF_FLANK_SIZE,
         )
         try:
@@ -169,37 +178,38 @@ class KinaseWorkflowExecutor:
         self,
         *,
         request: ResolvedKinaseWorkflowRequest,
+        config: ResolvedKinaseExecutionConfig,
         scoring_execution: _ScoringExecution,
     ) -> KinasePredictionResult:
-        if (
-            request.prediction_config.mode
-            == KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING
-        ):
+        if config.prediction_mode == KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING:
             return self._run_deterministic_prediction_lane(
                 request=request,
+                config=config,
                 scoring_execution=scoring_execution,
             )
-        if request.prediction_config.mode == KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE:
+        if config.prediction_mode == KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE:
             return self._run_adaptive_prediction_lane(
                 request=request,
+                config=config,
                 scoring_execution=scoring_execution,
             )
         raise WorkflowStageError(
             "kinase workflow internal invariant failed at seam="
             "kinase.executor.prediction_mode; "
-            f"unsupported prediction mode: {request.prediction_config.mode}"
+            f"unsupported prediction mode: {config.prediction_mode}"
         )
 
     def _run_deterministic_prediction_lane(
         self,
         *,
         request: ResolvedKinaseWorkflowRequest,
+        config: ResolvedKinaseExecutionConfig,
         scoring_execution: _ScoringExecution,
     ) -> KinasePredictionResult:
         downstream_score_matrix = scoring_execution.downstream_score_matrix
         candidate_substrates = build_candidate_substrate_list(
             scores=downstream_score_matrix,
-            top=request.prediction_config.top_k,
+            top=config.prediction_top_k,
             score_threshold=0.0,
             inclusion=1,
         )
@@ -207,13 +217,11 @@ class KinaseWorkflowExecutor:
             prediction_score_matrix=downstream_score_matrix,
             candidate_substrates=candidate_substrates,
         )
-        selected_kinases = kinase_ranking.head(
-            request.prediction_config.ensemble_size
-        ).index
+        selected_kinases = kinase_ranking.head(config.prediction_ensemble_size).index
         if selected_kinases.empty:
             candidate_shortfall = summarize_candidate_shortfall(
                 scores=downstream_score_matrix,
-                top=request.prediction_config.top_k,
+                top=config.prediction_top_k,
                 score_threshold=0.0,
                 inclusion=1,
             )
@@ -226,9 +234,9 @@ class KinaseWorkflowExecutor:
                 ),
                 eligible_kinases=len(scoring_execution.quantified_substrates),
                 ranked_kinases=int(kinase_ranking.size),
-                prediction_config_ensemble_size=request.prediction_config.ensemble_size,
-                prediction_config_top_k=request.prediction_config.top_k,
-                prediction_config_mode=request.prediction_config.mode,
+                prediction_config_ensemble_size=config.prediction_ensemble_size,
+                prediction_config_top_k=config.prediction_top_k,
+                prediction_config_mode=config.prediction_mode,
                 dataset_samples=request.dataset.phospho.shape[1],
                 downstream_score_source=scoring_execution.downstream_score_source,
                 candidate_qualifying_kinases=candidate_shortfall.qualifying_kinases,
@@ -238,7 +246,7 @@ class KinaseWorkflowExecutor:
             prediction_score_matrix=downstream_score_matrix,
             selected_kinases=selected_kinases,
             candidate_substrates=candidate_substrates,
-            top_k=request.prediction_config.top_k,
+            top_k=config.prediction_top_k,
         )
         return KinasePredictionResult._from_owned(
             pred_mat=pred_mat,
@@ -249,19 +257,20 @@ class KinaseWorkflowExecutor:
         self,
         *,
         request: ResolvedKinaseWorkflowRequest,
+        config: ResolvedKinaseExecutionConfig,
         scoring_execution: _ScoringExecution,
     ) -> KinasePredictionResult:
         downstream_score_matrix = scoring_execution.downstream_score_matrix
         candidate_substrates = build_candidate_substrate_list(
             scores=downstream_score_matrix,
-            top=request.prediction_config.top_k,
+            top=config.prediction_top_k,
             score_threshold=0.0,
             inclusion=1,
         )
         if not candidate_substrates:
             candidate_shortfall = summarize_candidate_shortfall(
                 scores=downstream_score_matrix,
-                top=request.prediction_config.top_k,
+                top=config.prediction_top_k,
                 score_threshold=0.0,
                 inclusion=1,
             )
@@ -274,10 +283,10 @@ class KinaseWorkflowExecutor:
                 ),
                 eligible_kinases=len(scoring_execution.quantified_substrates),
                 candidate_kinases=0,
-                prediction_config_mode=request.prediction_config.mode,
-                prediction_config_top_k=request.prediction_config.top_k,
-                prediction_config_ensemble_size=request.prediction_config.ensemble_size,
-                prediction_config_n_iterations=request.prediction_config.n_iterations,
+                prediction_config_mode=config.prediction_mode,
+                prediction_config_top_k=config.prediction_top_k,
+                prediction_config_ensemble_size=config.prediction_ensemble_size,
+                prediction_config_n_iterations=config.prediction_n_iterations,
                 dataset_samples=request.dataset.phospho.shape[1],
                 downstream_score_source=scoring_execution.downstream_score_source,
                 candidate_qualifying_kinases=candidate_shortfall.qualifying_kinases,
@@ -287,7 +296,7 @@ class KinaseWorkflowExecutor:
             adaptive_scores = run_adaptive_ensemble_prediction(
                 prediction_score_matrix=downstream_score_matrix,
                 candidate_substrates=candidate_substrates,
-                prediction_config=request.prediction_config,
+                prediction_config=self._as_prediction_config(config),
             )
         except ImportError as exc:
             raise WorkflowStageError(
@@ -310,16 +319,16 @@ class KinaseWorkflowExecutor:
                 eligible_kinases=len(scoring_execution.quantified_substrates),
                 candidate_kinases=len(candidate_substrates),
                 ranked_kinases=0,
-                prediction_config_mode=request.prediction_config.mode,
-                prediction_config_top_k=request.prediction_config.top_k,
-                prediction_config_ensemble_size=request.prediction_config.ensemble_size,
-                prediction_config_n_iterations=request.prediction_config.n_iterations,
+                prediction_config_mode=config.prediction_mode,
+                prediction_config_top_k=config.prediction_top_k,
+                prediction_config_ensemble_size=config.prediction_ensemble_size,
+                prediction_config_n_iterations=config.prediction_n_iterations,
             )
         pred_mat, substrate_list = build_prediction_outputs(
             prediction_score_matrix=adaptive_scores,
             selected_kinases=selected_kinases,
             candidate_substrates=candidate_substrates,
-            top_k=request.prediction_config.top_k,
+            top_k=config.prediction_top_k,
         )
         return KinasePredictionResult._from_owned(
             pred_mat=pred_mat,
@@ -330,10 +339,11 @@ class KinaseWorkflowExecutor:
         self,
         *,
         request: ResolvedKinaseWorkflowRequest,
+        config: ResolvedKinaseExecutionConfig,
         prediction_result: KinasePredictionResult,
     ) -> KinaseActivityResult | None:
-        activity_config = request.activity_config
-        if activity_config is None or not activity_config.enabled:
+        activity_config = config.activity
+        if activity_config is None:
             return None
         validated_inputs = self._activity_input_validator.run(
             pred_mat=prediction_result.pred_mat,
@@ -343,6 +353,19 @@ class KinaseWorkflowExecutor:
             top_n_substrates=activity_config.top_n_substrates,
         )
         return compute_activity_from_inputs(validated_inputs)
+
+    @staticmethod
+    def _as_prediction_config(
+        config: ResolvedKinaseExecutionConfig,
+    ) -> KinasePredictionConfig:
+        return KinasePredictionConfig(
+            top_k=config.prediction_top_k,
+            ensemble_size=config.prediction_ensemble_size,
+            mode=config.prediction_mode,
+            adaptive_policy=config.prediction_adaptive_policy,
+            n_iterations=config.prediction_n_iterations,
+            random_state=config.prediction_random_state,
+        )
 
     @staticmethod
     def _raise_boundary_error(

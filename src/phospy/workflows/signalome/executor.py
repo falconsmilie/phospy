@@ -25,19 +25,10 @@ from phospy.signalomes.science import (
     build_signalome_module_table,
     select_kinase_substrates,
 )
-from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
-
-
-@dataclass(frozen=True, slots=True)
-class _ExecutorConfig:
-    substrate_support_cutoff: float
-    network_correlation_threshold: float
-    network_policy: str
-    assignment_policy: str
-    module_selection_primary_threshold: float
-    module_selection_fallback_threshold: float
-    module_selection_max_clusters: int
-    requested_module_count: int | None
+from phospy.workflows.signalome.contracts import (
+    ResolvedSignalomeExecutionConfig,
+    ResolvedSignalomeWorkflowRequest,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,7 +69,7 @@ class SignalomeWorkflowExecutor:
     _EXPANDED_SIGNALOME_SEAM = "signalome.executor.expanded_signalome"
 
     def run(self, request: ResolvedSignalomeWorkflowRequest) -> SignalomeWorkflowResult:
-        config = self._resolve_config(request)
+        config = request.execution_config
         execution_metadata = self._collect_execution_metadata(request)
         clustering_stage = self._run_clustering_and_module_derivation(
             request=request,
@@ -154,31 +145,6 @@ class SignalomeWorkflowExecutor:
         )
 
     @staticmethod
-    def _resolve_config(request: ResolvedSignalomeWorkflowRequest) -> _ExecutorConfig:
-        return _ExecutorConfig(
-            substrate_support_cutoff=float(request.config.substrate_support_cutoff),
-            network_correlation_threshold=float(
-                request.config.network_correlation_threshold
-            ),
-            network_policy=str(request.config.network_policy),
-            assignment_policy=str(request.config.assignment_policy),
-            module_selection_primary_threshold=float(
-                request.config.module_selection_primary_correlation_threshold
-            ),
-            module_selection_fallback_threshold=float(
-                request.config.module_selection_fallback_correlation_threshold
-            ),
-            module_selection_max_clusters=int(
-                request.config.module_selection_max_clusters
-            ),
-            requested_module_count=(
-                None
-                if request.config.module_count is None
-                else int(request.config.module_count)
-            ),
-        )
-
-    @staticmethod
     def _collect_execution_metadata(
         request: ResolvedSignalomeWorkflowRequest,
     ) -> _ExecutionMetadata:
@@ -194,7 +160,7 @@ class SignalomeWorkflowExecutor:
         self,
         *,
         request: ResolvedSignalomeWorkflowRequest,
-        config: _ExecutorConfig,
+        config: ResolvedSignalomeExecutionConfig,
         execution_metadata: _ExecutionMetadata,
     ) -> _ClusteringStage:
         try:
@@ -235,7 +201,7 @@ class SignalomeWorkflowExecutor:
         self,
         *,
         request: ResolvedSignalomeWorkflowRequest,
-        config: _ExecutorConfig,
+        config: ResolvedSignalomeExecutionConfig,
         clustering_result: ClusterSitesResult,
         protein_modules: pd.Series,
         execution_metadata: _ExecutionMetadata,
@@ -265,7 +231,7 @@ class SignalomeWorkflowExecutor:
         self,
         *,
         request: ResolvedSignalomeWorkflowRequest,
-        config: _ExecutorConfig,
+        config: ResolvedSignalomeExecutionConfig,
         clustering_result: ClusterSitesResult,
         module_assignments: pd.DataFrame,
         execution_metadata: _ExecutionMetadata,
@@ -281,7 +247,7 @@ class SignalomeWorkflowExecutor:
                 module_assignments=module_assignments,
                 kinase_substrates=support_summary.kinase_substrates,
                 kinase_order=request.prediction_matrix.columns.astype(str).tolist(),
-                assignment_policy=request.config.assignment_policy,
+                assignment_policy=config.assignment_policy,
             )
         except WorkflowStageError as exc:
             self._raise_boundary_error(
@@ -339,7 +305,7 @@ class SignalomeWorkflowExecutor:
         self,
         *,
         request: ResolvedSignalomeWorkflowRequest,
-        config: _ExecutorConfig,
+        config: ResolvedSignalomeExecutionConfig,
         execution_metadata: _ExecutionMetadata,
     ) -> _SupportSummary:
         kinase_substrates = select_kinase_substrates(
@@ -367,7 +333,7 @@ class SignalomeWorkflowExecutor:
         self,
         *,
         request: ResolvedSignalomeWorkflowRequest,
-        config: _ExecutorConfig,
+        config: ResolvedSignalomeExecutionConfig,
         clustering_result: ClusterSitesResult,
         support_summary: _SupportSummary,
         execution_metadata: _ExecutionMetadata,
@@ -381,7 +347,7 @@ class SignalomeWorkflowExecutor:
                 kinase_order=request.prediction_matrix.columns.astype(str).tolist(),
                 kinase_substrates=support_summary.kinase_substrates,
                 threshold=config.network_correlation_threshold,
-                network_policy=request.config.network_policy,
+                network_policy=config.network_policy,
             )
         except WorkflowStageError as exc:
             self._raise_boundary_error(
@@ -423,7 +389,7 @@ class SignalomeWorkflowExecutor:
         self,
         *,
         request: ResolvedSignalomeWorkflowRequest,
-        config: _ExecutorConfig,
+        config: ResolvedSignalomeExecutionConfig,
         module_assignments: pd.DataFrame,
         signalome_modules: pd.DataFrame,
         network_edges: pd.DataFrame,
@@ -437,7 +403,7 @@ class SignalomeWorkflowExecutor:
                 signalome_modules=signalome_modules,
                 kinase_network_edges=network_edges,
                 kinase_substrates=support_summary.kinase_substrates,
-                assignment_policy=request.config.assignment_policy,
+                assignment_policy=config.assignment_policy,
             )
         except WorkflowStageError as exc:
             self._raise_boundary_error(

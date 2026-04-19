@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Protocol
 import pandas as pd
 
 from phospy.api.configs import (
-    KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
+    KinaseAdaptivePolicy,
+    KinasePredictionMode,
+    KinaseProfileMissingValueStrategy,
 )
 from phospy.api.requests import KinaseWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult
@@ -31,9 +31,32 @@ class ResolvedKinaseWorkflowRequest:
     site_sequences: pd.DataFrame
     scoring_site_index: pd.Index
     activity_phospho_matrix: pd.DataFrame
-    scoring_config: KinaseScoringConfig
-    prediction_config: KinasePredictionConfig
-    activity_config: KinaseActivityConfig | None
+    execution_config: ResolvedKinaseExecutionConfig
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedKinaseActivityExecutionConfig:
+    """Execution-ready kinase activity-stage config."""
+
+    threshold: float
+    min_substrates: int
+    top_n_substrates: int
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedKinaseExecutionConfig:
+    """Execution-ready kinase workflow config resolved by the interpreter."""
+
+    scoring_min_substrates: int
+    include_diagnostic_scoring_tables: bool
+    profile_missing_value_strategy: KinaseProfileMissingValueStrategy
+    prediction_top_k: int
+    prediction_ensemble_size: int
+    prediction_mode: KinasePredictionMode
+    prediction_adaptive_policy: KinaseAdaptivePolicy
+    prediction_n_iterations: int
+    prediction_random_state: int | None
+    activity: ResolvedKinaseActivityExecutionConfig | None
 
 
 class KinaseWorkflowValidatorContract(Protocol):
@@ -63,5 +86,7 @@ __all__ = [
     "KinaseWorkflowExecutorContract",
     "KinaseWorkflowInterpreterContract",
     "KinaseWorkflowValidatorContract",
+    "ResolvedKinaseActivityExecutionConfig",
+    "ResolvedKinaseExecutionConfig",
     "ResolvedKinaseWorkflowRequest",
 ]

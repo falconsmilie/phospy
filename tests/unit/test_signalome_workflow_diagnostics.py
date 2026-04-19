@@ -16,7 +16,10 @@ from phospy import (
 from phospy.errors import WorkflowBoundaryError
 from phospy.errors.workflows import WorkflowStageError
 from phospy.transformations.models import TransformationState
-from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
+from phospy.workflows.signalome.contracts import (
+    ResolvedSignalomeExecutionConfig,
+    ResolvedSignalomeWorkflowRequest,
+)
 from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
 from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
 
@@ -100,6 +103,25 @@ def _kinase_result(
         ),
         prediction_result=KinasePredictionResult(pred_mat=prediction_matrix),
         activity_result=None,
+    )
+
+
+def _execution_config(config: SignalomeConfig) -> ResolvedSignalomeExecutionConfig:
+    return ResolvedSignalomeExecutionConfig(
+        substrate_support_cutoff=float(config.substrate_support_cutoff),
+        network_correlation_threshold=float(config.network_correlation_threshold),
+        network_policy=config.network_policy,
+        assignment_policy=config.assignment_policy,
+        module_selection_primary_threshold=float(
+            config.module_selection_primary_correlation_threshold
+        ),
+        module_selection_fallback_threshold=float(
+            config.module_selection_fallback_correlation_threshold
+        ),
+        module_selection_max_clusters=int(config.module_selection_max_clusters),
+        requested_module_count=(
+            None if config.module_count is None else int(config.module_count)
+        ),
     )
 
 
@@ -267,6 +289,45 @@ def test_interpreter_prefers_combined_scores_for_downstream_signalome_matrix() -
         check_dtype=False,
     )
     assert interpreted.downstream_score_source == "combined_scores"
+
+
+def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
+    dataset = _dataset(site_ids=["P1;S1;", "P2;S2;"])
+    prediction_matrix = _matrix(
+        values=[[0.9, 0.2], [0.1, 0.8]],
+        site_ids=["P1;S1;", "P2;S2;"],
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[[0.7, 0.4], [0.3, 0.6]],
+        site_ids=["P1;S1;", "P2;S2;"],
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+
+    assert interpreted.execution_config.substrate_support_cutoff == pytest.approx(0.5)
+    assert interpreted.execution_config.network_correlation_threshold == pytest.approx(
+        0.5
+    )
+    assert interpreted.execution_config.network_policy == "signed"
+    assert interpreted.execution_config.assignment_policy == "cutoff_binary"
+    assert interpreted.execution_config.requested_module_count is None
+    assert interpreted.execution_config.module_selection_primary_threshold == (
+        pytest.approx(0.5)
+    )
+    assert interpreted.execution_config.module_selection_fallback_threshold == (
+        pytest.approx(0.1)
+    )
+    assert interpreted.execution_config.module_selection_max_clusters == 10
 
 
 def test_interpreter_preconditions_downstream_scores_without_dropping_prediction_rows() -> (
@@ -468,7 +529,9 @@ def test_boundary_error_reports_network_failure_modes() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix_missing_kinase,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        execution_config=_execution_config(
+            SignalomeConfig(substrate_support_cutoff=0.5)
+        ),
         downstream_score_matrix=score_matrix_missing_kinase,
         downstream_score_source="combined_scores",
         prediction_matrix=prediction_matrix,
@@ -731,7 +794,9 @@ def test_executor_orchestrates_signalome_domain_services(
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        execution_config=_execution_config(
+            SignalomeConfig(substrate_support_cutoff=0.5)
+        ),
         downstream_score_matrix=score_matrix,
         downstream_score_source="combined_scores",
         prediction_matrix=prediction_matrix,

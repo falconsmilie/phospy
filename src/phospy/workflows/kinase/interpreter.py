@@ -11,7 +11,11 @@ from phospy.references.resolution import (
     ReferenceResolver,
     ReferenceResolverContract,
 )
-from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
+from phospy.workflows.kinase.contracts import (
+    ResolvedKinaseActivityExecutionConfig,
+    ResolvedKinaseExecutionConfig,
+    ResolvedKinaseWorkflowRequest,
+)
 
 
 class KinaseWorkflowInterpreter:
@@ -57,6 +61,7 @@ class KinaseWorkflowInterpreter:
             site_sequences=site_sequences,
         )
         activity_phospho_matrix = request.dataset.phospho.loc[scoring_site_index, :]
+        execution_config = self._resolve_execution_config(request)
         return ResolvedKinaseWorkflowRequest(
             dataset=request.dataset,
             references=references,
@@ -64,9 +69,39 @@ class KinaseWorkflowInterpreter:
             site_sequences=site_sequences,
             scoring_site_index=scoring_site_index,
             activity_phospho_matrix=activity_phospho_matrix,
-            scoring_config=request.scoring_config,
-            prediction_config=request.prediction_config,
-            activity_config=request.activity_config,
+            execution_config=execution_config,
+        )
+
+    @staticmethod
+    def _resolve_execution_config(
+        request: KinaseWorkflowRequest,
+    ) -> ResolvedKinaseExecutionConfig:
+        activity = (
+            None
+            if request.activity_config is None or not request.activity_config.enabled
+            else ResolvedKinaseActivityExecutionConfig(
+                threshold=float(request.activity_config.threshold),
+                min_substrates=int(request.activity_config.min_substrates),
+                top_n_substrates=int(request.activity_config.top_n_substrates),
+            )
+        )
+        return ResolvedKinaseExecutionConfig(
+            scoring_min_substrates=int(request.scoring_config.min_substrates),
+            include_diagnostic_scoring_tables=bool(
+                request.scoring_config.include_diagnostic_scoring_tables
+            ),
+            profile_missing_value_strategy=request.scoring_config.profile_missing_value_strategy,
+            prediction_top_k=int(request.prediction_config.top_k),
+            prediction_ensemble_size=int(request.prediction_config.ensemble_size),
+            prediction_mode=request.prediction_config.mode,
+            prediction_adaptive_policy=request.prediction_config.adaptive_policy,
+            prediction_n_iterations=int(request.prediction_config.n_iterations),
+            prediction_random_state=(
+                None
+                if request.prediction_config.random_state is None
+                else int(request.prediction_config.random_state)
+            ),
+            activity=activity,
         )
 
     @classmethod

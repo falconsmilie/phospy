@@ -9,7 +9,10 @@ from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.prediction.scoring import select_downstream_score_matrix
-from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
+from phospy.workflows.signalome.contracts import (
+    ResolvedSignalomeExecutionConfig,
+    ResolvedSignalomeWorkflowRequest,
+)
 
 
 class SignalomeWorkflowInterpreter:
@@ -65,6 +68,7 @@ class SignalomeWorkflowInterpreter:
         preconditioned_downstream_score_matrix = (
             self._precondition_downstream_score_matrix(aligned_downstream_score_matrix)
         )
+        execution_config = self._resolve_execution_config(request)
         site_to_protein = self._resolve_site_to_protein(
             dataset=request.kinase_result.dataset,
             site_index=aligned_prediction_matrix.index,
@@ -72,11 +76,38 @@ class SignalomeWorkflowInterpreter:
         return ResolvedSignalomeWorkflowRequest(
             dataset=request.kinase_result.dataset,
             kinase_result=request.kinase_result,
-            config=request.config,
+            execution_config=execution_config,
             downstream_score_matrix=preconditioned_downstream_score_matrix,
             downstream_score_source=downstream_score_source,
             prediction_matrix=aligned_prediction_matrix,
             site_to_protein=site_to_protein,
+        )
+
+    @staticmethod
+    def _resolve_execution_config(
+        request: SignalomeWorkflowRequest,
+    ) -> ResolvedSignalomeExecutionConfig:
+        return ResolvedSignalomeExecutionConfig(
+            substrate_support_cutoff=float(request.config.substrate_support_cutoff),
+            network_correlation_threshold=float(
+                request.config.network_correlation_threshold
+            ),
+            network_policy=request.config.network_policy,
+            assignment_policy=request.config.assignment_policy,
+            module_selection_primary_threshold=float(
+                request.config.module_selection_primary_correlation_threshold
+            ),
+            module_selection_fallback_threshold=float(
+                request.config.module_selection_fallback_correlation_threshold
+            ),
+            module_selection_max_clusters=int(
+                request.config.module_selection_max_clusters
+            ),
+            requested_module_count=(
+                None
+                if request.config.module_count is None
+                else int(request.config.module_count)
+            ),
         )
 
     @staticmethod

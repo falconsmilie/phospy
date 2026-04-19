@@ -5,7 +5,6 @@ import pytest
 
 from phospy import (
     AnalysisReadyPhosphoDataset,
-    KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
@@ -16,8 +15,13 @@ from phospy import (
 from phospy.errors import WorkflowBoundaryError
 from phospy.prediction.models import KinasePredictionResult
 from phospy.transformations.models import TransformationState
-from phospy.workflows.kinase.contracts import ResolvedKinaseWorkflowRequest
+from phospy.workflows.kinase.contracts import (
+    ResolvedKinaseActivityExecutionConfig,
+    ResolvedKinaseExecutionConfig,
+    ResolvedKinaseWorkflowRequest,
+)
 from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
+from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 
 
 def _dataset(
@@ -80,6 +84,22 @@ def _resolved_request(
     scoring_site_index = dataset.phospho.index.intersection(
         references.site_sequences.index
     )
+    execution_config = ResolvedKinaseExecutionConfig(
+        scoring_min_substrates=int(min_substrates),
+        include_diagnostic_scoring_tables=False,
+        profile_missing_value_strategy="strict",
+        prediction_top_k=int(top_k),
+        prediction_ensemble_size=int(ensemble_size),
+        prediction_mode="deterministic_ranking",
+        prediction_adaptive_policy="stable",
+        prediction_n_iterations=5,
+        prediction_random_state=None,
+        activity=ResolvedKinaseActivityExecutionConfig(
+            threshold=float(threshold),
+            min_substrates=int(activity_min_substrates),
+            top_n_substrates=int(activity_top_n_substrates),
+        ),
+    )
     return ResolvedKinaseWorkflowRequest(
         dataset=dataset,
         references=references,
@@ -89,18 +109,42 @@ def _resolved_request(
         activity_phospho_matrix=dataset.phospho.loc[scoring_site_index, :].copy(
             deep=True
         ),
-        scoring_config=KinaseScoringConfig(min_substrates=min_substrates),
-        prediction_config=KinasePredictionConfig(
-            top_k=top_k,
-            ensemble_size=ensemble_size,
-        ),
-        activity_config=KinaseActivityConfig(
-            enabled=True,
-            threshold=threshold,
-            min_substrates=activity_min_substrates,
-            top_n_substrates=activity_top_n_substrates,
+        execution_config=execution_config,
+    )
+
+
+def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
+    dataset = _dataset(
+        site_ids=["MAPK14;Y182;", "GSK3B;S9;"],
+        sample_names=["sample_a", "sample_b"],
+    )
+    request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=_bundle(
+            pd.DataFrame(
+                {
+                    "kinase": ["MAP2K6", "MAP2K6"],
+                    "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+                }
+            )
         ),
     )
+
+    interpreted = KinaseWorkflowInterpreter().run(request)
+
+    assert interpreted.execution_config.scoring_min_substrates == 2
+    assert interpreted.execution_config.include_diagnostic_scoring_tables is False
+    assert interpreted.execution_config.profile_missing_value_strategy == "strict"
+    assert interpreted.execution_config.prediction_mode == "deterministic_ranking"
+    assert interpreted.execution_config.prediction_top_k == 30
+    assert interpreted.execution_config.prediction_ensemble_size == 10
+    assert interpreted.execution_config.prediction_adaptive_policy == "stable"
+    assert interpreted.execution_config.prediction_n_iterations == 5
+    assert interpreted.execution_config.prediction_random_state is None
+    assert interpreted.execution_config.activity is not None
+    assert interpreted.execution_config.activity.threshold == pytest.approx(0.6)
+    assert interpreted.execution_config.activity.min_substrates == 3
+    assert interpreted.execution_config.activity.top_n_substrates == 20
 
 
 def test_workflow_limits_scoring_to_sites_with_reference_sequences() -> None:
@@ -302,6 +346,7 @@ def test_boundary_error_reports_activity_overlap_edge_case() -> None:
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         KinaseWorkflowExecutor()._run_activity_stage(
             request=request,
+            config=request.execution_config,
             prediction_result=prediction_result,
         )
 
@@ -346,6 +391,7 @@ def test_boundary_error_reports_no_activity_candidates_after_filtering() -> None
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         KinaseWorkflowExecutor()._run_activity_stage(
             request=request,
+            config=request.execution_config,
             prediction_result=prediction_result,
         )
 
@@ -390,6 +436,7 @@ def test_activity_stage_returns_weighted_ksea_and_target_outputs() -> None:
 
     result = KinaseWorkflowExecutor()._run_activity_stage(
         request=request,
+        config=request.execution_config,
         prediction_result=prediction_result,
     )
     assert result is not None
@@ -445,10 +492,12 @@ def test_weighted_activity_is_stable_under_zero_padding_matrix_growth() -> None:
 
     compact = KinaseWorkflowExecutor()._run_activity_stage(
         request=request,
+        config=request.execution_config,
         prediction_result=compact_predictions,
     )
     padded = KinaseWorkflowExecutor()._run_activity_stage(
         request=request,
+        config=request.execution_config,
         prediction_result=padded_predictions,
     )
 
