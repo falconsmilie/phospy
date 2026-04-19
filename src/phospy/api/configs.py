@@ -28,6 +28,15 @@ SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT = 0.5
 SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT = 0.1
 SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR = 1
 SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT = 10
+SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY = "cutoff_binary"
+SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP = "weighted_top"
+SignalomeAssignmentPolicy = Literal["cutoff_binary", "weighted_top"]
+SIGNALOME_ASSIGNMENT_POLICIES = frozenset(
+    {
+        SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+        SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+    }
+)
 KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING = "deterministic_ranking"
 KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE = "adaptive_ensemble"
 KinasePredictionMode = Literal[
@@ -121,10 +130,21 @@ class KinaseActivityConfig:
 
 @dataclass(frozen=True, slots=True)
 class SignalomeConfig:
-    """Public signalome workflow configuration."""
+    """Public signalome workflow configuration.
+
+    `assignment_policy` controls module-support attribution:
+
+    - `"cutoff_binary"`: binary support per kinase from
+      `substrate_support_cutoff`.
+    - `"weighted_top"`: fractional support propagated from per-site
+      `top_kinase_weights` ties.
+    """
 
     substrate_support_cutoff: float = 0.5
     network_correlation_threshold: float = 0.5
+    assignment_policy: SignalomeAssignmentPolicy = (
+        SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+    )
     module_count: int | None = None
     module_selection_primary_correlation_threshold: float = (
         SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT
@@ -152,6 +172,9 @@ __all__ = [
     "KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR",
     "KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR",
     "KINASE_SCORING_MIN_SUBSTRATES_FLOOR",
+    "SIGNALOME_ASSIGNMENT_POLICIES",
+    "SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY",
+    "SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP",
     "SIGNALOME_MODULE_COUNT_FLOOR",
     "SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT",
     "SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT",
@@ -163,5 +186,6 @@ __all__ = [
     "KinaseActivityConfig",
     "KinasePredictionConfig",
     "KinaseScoringConfig",
+    "SignalomeAssignmentPolicy",
     "SignalomeConfig",
 ]

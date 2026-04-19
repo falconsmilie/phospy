@@ -294,6 +294,18 @@ def test_signalome_request_network_threshold_policy_fails_at_validator_boundary(
         SignalomeWorkflowValidator().run(request)
 
 
+def test_signalome_request_assignment_policy_fails_at_validator_boundary() -> None:
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(),
+        config=SignalomeConfig(assignment_policy="invalid"),  # type: ignore[arg-type]
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="signalome workflow request config.assignment_policy",
+    ):
+        SignalomeWorkflowValidator().run(request)
+
+
 def test_signalome_request_module_count_policy_fails_at_validator_boundary() -> None:
     request = SignalomeWorkflowRequest(
         kinase_result=_kinase_result(),

@@ -15,6 +15,7 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
+from phospy.api.results import SignalomeWorkflowResult
 from phospy.io.publishers.workflows import publish_signalome_workflow
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
@@ -57,7 +58,10 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
         == output_root / "signalome" / "kinase_network_edges.csv"
     )
     assert written["signalome.manifest"] == output_root / "signalome" / "manifest.json"
-    assert "signalome.expanded_signalome" not in written
+    assert (
+        written["signalome.expanded_signalome"]
+        == output_root / "signalome" / "expanded_signalome.csv"
+    )
 
     assert (output_root / "dataset" / "manifest.json").exists()
     assert (output_root / "kinase" / "manifest.json").exists()
@@ -65,12 +69,12 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
     assert (output_root / "signalome" / "signalome_modules.csv").exists()
     assert (output_root / "signalome" / "kinase_network_nodes.csv").exists()
     assert (output_root / "signalome" / "kinase_network_edges.csv").exists()
-    assert not (output_root / "signalome" / "expanded_signalome.csv").exists()
+    assert (output_root / "signalome" / "expanded_signalome.csv").exists()
 
     manifest = json.loads(
         (output_root / "signalome" / "manifest.json").read_text(encoding="utf-8")
     )
-    assert manifest["expanded_signalome_present"] is False
+    assert manifest["expanded_signalome_present"] is True
     assert manifest["kinase_network_nodes_present"] is True
     assert manifest["output_format"] == "csv"
     assert manifest["reference_organism"] == "rat"
@@ -99,3 +103,26 @@ def _build_signalome_result():
             config=SignalomeConfig(substrate_support_cutoff=0.5),
         )
     )
+
+
+def test_publish_signalome_workflow_omits_expanded_when_result_field_is_none(
+    tmp_path: Path,
+) -> None:
+    result = _build_signalome_result()
+    without_expanded = SignalomeWorkflowResult._from_owned(
+        dataset=result.dataset,
+        kinase_result=result.kinase_result,
+        module_assignments=result.module_assignments,
+        signalome_modules=result.signalome_modules,
+        kinase_network=result.kinase_network,
+        module_selection_diagnostics=result.module_selection_diagnostics,
+        expanded_signalome=None,
+    )
+
+    written = publish_signalome_workflow(
+        without_expanded,
+        tmp_path / "out",
+        output_format="csv",
+    )
+
+    assert "signalome.expanded_signalome" not in written

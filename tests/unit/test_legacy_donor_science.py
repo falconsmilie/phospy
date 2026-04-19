@@ -258,7 +258,7 @@ def test_network_policy_variant_donor_locks_signed_edges_and_narrow_config_surfa
         )
 
 
-def test_expanded_signalome_donor_locks_supported_lane_to_none_output() -> None:
+def test_expanded_signalome_donor_locks_supported_lane_to_materialized_output() -> None:
     kinase_result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
             dataset=_dataset(),
@@ -278,7 +278,12 @@ def test_expanded_signalome_donor_locks_supported_lane_to_none_output() -> None:
         )
     )
 
-    assert signalome_result.expanded_signalome is None
+    expanded = signalome_result.expanded_signalome
+    assert expanded is not None
+    assert not expanded.empty
+    assert {"kinase", "row_kind", "site_id", "site_order"}.issubset(
+        set(expanded.columns)
+    )
 
 
 def test_activity_parity_lock_donor_uses_rewrite_owned_fixture_path() -> None:

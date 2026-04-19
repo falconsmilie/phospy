@@ -52,6 +52,10 @@ SIGNALOME_REWRITE_L6_NETWORK_EDGES_SELECTED = (
     REWRITE_PUBLIC_WORKFLOW_REFERENCE
     / "signalome_rewrite_l6_network_edges_selected.csv"
 )
+SIGNALOME_REWRITE_L6_EXPANDED_AKT1_SELECTED = (
+    REWRITE_PUBLIC_WORKFLOW_REFERENCE
+    / "signalome_rewrite_l6_expanded_akt1_selected.csv"
+)
 SIGNALOME_REWRITE_L6_CONTRACT = (
     REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_contract.json"
 )
@@ -184,6 +188,25 @@ def load_signalome_rewrite_l6_network_edges_selected() -> pd.DataFrame:
             "source_kinase": str,
             "target_kinase": str,
             "correlation": float,
+        }
+    )
+
+
+@lru_cache(maxsize=1)
+def load_signalome_rewrite_l6_expanded_akt1_selected() -> pd.DataFrame:
+    return pd.read_csv(SIGNALOME_REWRITE_L6_EXPANDED_AKT1_SELECTED).astype(
+        {
+            "kinase": str,
+            "assignment_policy": str,
+            "linked_kinases": str,
+            "regulated_module_ids": str,
+            "site_id": str,
+            "site_order": "int64",
+            "module_id": "int64",
+            "support_kinases": str,
+            "support_weight": float,
+            "top_kinase": str,
+            "top_score": float,
         }
     )
 

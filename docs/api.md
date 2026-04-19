@@ -104,6 +104,12 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 - `kinase_result: KinaseWorkflowResult`
 - `config: SignalomeConfig`
 
+`SignalomeConfig` policy fields:
+
+- `substrate_support_cutoff`
+- `network_correlation_threshold`
+- `assignment_policy` (`"cutoff_binary"` or `"weighted_top"`)
+
 ## Result Contract (Nested Stage Outputs)
 
 `KinaseWorkflowResult`:
@@ -126,7 +132,21 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 - `result.signalome_modules.table`
 - `result.kinase_network.edges`
 - `result.kinase_network.nodes` (optional)
-- `result.expanded_signalome` (optional; currently `None` in the default lane)
+- `result.expanded_signalome` (optional DataFrame; populated in the supported lane)
+
+`expanded_signalome` flattened schema:
+
+- `kinase`: focal kinase
+- `row_kind`: `"site"` or `"summary"`
+- `assignment_policy`: emitted assignment policy
+- `linked_kinases`: JSON array string of focal + linked kinases
+- `regulated_module_ids`: JSON array string of module IDs where focal-kinase
+  share is strictly greater than `1.0` percent
+- `site_id`: selected phosphosite ID (`""` on summary rows)
+- `site_order`: zero-based position in the original module-assignment order
+- `protein_id`, `module_id`, `top_kinase`, `top_score`: selected site metadata
+- `support_kinases`: JSON array string of linked kinases supporting the site
+- `support_weight`: site support weight under the selected assignment policy
 
 No top-level convenience mirrors flatten nested stage outputs.
 
@@ -144,14 +164,17 @@ Supported public lane today:
   combined scores are unavailable.
 - Activity stage is supported and optional inside `KinaseWorkflow`.
 - Signalome stage consumes the same downstream score-matrix lane as prediction
-  and outputs module assignments, module matrix, and kinase network.
+  and outputs module assignments, module matrix, kinase network, and
+  `expanded_signalome`.
+- Signalome assignment policy is explicit:
+  `assignment_policy="cutoff_binary"` keeps cutoff/binary support semantics;
+  `assignment_policy="weighted_top"` propagates fractional
+  `top_kinase_weights` support into module shares.
 - Downstream score missingness is part of the supported scientific contract:
   all-missing score rows are preconditioned out of score-driven network inputs,
   partially missing rows are retained, and infinite values remain invalid.
 
 Deferred/experimental/not yet ported into the public lane:
-
-- Population of `SignalomeWorkflowResult.expanded_signalome`.
 - Additional legacy science lanes listed as roadmap follow-ons.
 
 ## Reference Resolution

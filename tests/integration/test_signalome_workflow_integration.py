@@ -105,7 +105,31 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
     assert _is_text_dtype(network_edges.loc[:, "target_kinase"])
     assert is_float_dtype(network_edges.loc[:, "correlation"])
 
-    assert result.expanded_signalome is None
+    expanded = result.expanded_signalome
+    assert expanded is not None
+    assert not expanded.empty
+    assert {
+        "kinase",
+        "row_kind",
+        "assignment_policy",
+        "linked_kinases",
+        "regulated_module_ids",
+        "site_id",
+        "site_order",
+        "protein_id",
+        "module_id",
+        "support_kinases",
+        "support_weight",
+        "top_kinase",
+        "top_score",
+    } == set(expanded.columns)
+    assert _is_text_dtype(expanded.loc[:, "kinase"])
+    assert _is_text_dtype(expanded.loc[:, "row_kind"])
+    assert is_integer_dtype(expanded.loc[:, "site_order"])
+    assert is_integer_dtype(expanded.loc[:, "module_id"])
+    assert is_float_dtype(expanded.loc[:, "support_weight"])
+    assert is_float_dtype(expanded.loc[:, "top_score"])
+    assert (expanded.loc[:, "row_kind"] == "site").any()
 
 
 def test_signalome_workflow_uses_explicit_dataset_protein_identity_when_present() -> (

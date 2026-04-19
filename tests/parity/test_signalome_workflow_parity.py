@@ -18,6 +18,7 @@ from phospy import (
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
     load_signalome_rewrite_l6_contract,
+    load_signalome_rewrite_l6_expanded_akt1_selected,
     load_signalome_rewrite_l6_module_assignments_selected,
     load_signalome_rewrite_l6_modules,
     load_signalome_rewrite_l6_network_edges_selected,
@@ -175,3 +176,30 @@ def test_signalome_network_edges_match_l6_fixture_pairs_and_sign_counts() -> Non
             rel=1e-9,
             abs=1e-12,
         )
+
+
+def test_signalome_expanded_slice_matches_l6_selected_akt1_fixture() -> None:
+    contract = load_signalome_rewrite_l6_contract()
+    expanded = _run_signalome_l6_supported_slice().expanded_signalome
+    assert expanded is not None
+    assert int(expanded.shape[0]) == int(contract["n_expanded_rows"])
+    assert int(expanded.loc[:, "kinase"].nunique()) == int(
+        contract["n_expanded_kinases"]
+    )
+    assert expanded.loc[:, "row_kind"].value_counts().sort_index().astype(
+        "int64"
+    ).to_dict() == dict(contract["expanded_row_kind_counts"])
+    assert expanded.loc[:, "assignment_policy"].dropna().astype(
+        str
+    ).unique().tolist() == [str(contract["assignment_policy"])]
+    expected = load_signalome_rewrite_l6_expanded_akt1_selected()
+
+    observed = (
+        expanded.loc[
+            expanded.loc[:, "kinase"] == "AKT1",
+            expected.columns.tolist(),
+        ]
+        .head(expected.shape[0])
+        .reset_index(drop=True)
+    )
+    pdt.assert_frame_equal(observed, expected, check_dtype=False)

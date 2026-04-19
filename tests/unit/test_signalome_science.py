@@ -5,7 +5,10 @@ from collections.abc import Mapping, Sequence
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.workflows.signalome.science import build_signalome_module_table
+from phospy.workflows.signalome.science import (
+    build_expanded_signalome_table,
+    build_signalome_module_table,
+)
 
 
 def _legacy_build_signalome_module_table(
@@ -108,3 +111,141 @@ def test_build_signalome_module_table_matches_legacy_semantics() -> None:
     )
 
     pdt.assert_frame_equal(observed, expected, check_dtype=False)
+
+
+def test_build_signalome_module_table_weighted_top_propagates_fractional_support() -> (
+    None
+):
+    module_assignments = pd.DataFrame(
+        {
+            "protein_id": ["P1", "P1", "P2", "P2"],
+            "module_id": [1, 1, 2, 2],
+            "top_kinase_weights": [
+                (("K1", 0.5), ("K2", 0.5)),
+                (("K1", 1.0),),
+                (("K2", 1.0),),
+                (("K2", 1.0),),
+            ],
+        },
+        index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
+    )
+
+    weighted = build_signalome_module_table(
+        module_assignments=module_assignments,
+        kinase_substrates={"K1": (), "K2": ()},
+        kinase_order=["K1", "K2"],
+        assignment_policy="weighted_top",
+    )
+    binary = build_signalome_module_table(
+        module_assignments=module_assignments,
+        kinase_substrates={"K1": (), "K2": ()},
+        kinase_order=["K1", "K2"],
+        assignment_policy="cutoff_binary",
+    )
+
+    assert weighted.loc[1, "K1"] == 66.667
+    assert weighted.loc[1, "K2"] == 33.333
+    assert weighted.loc[2, "K2"] == 100.0
+    assert binary.loc[1, "K1"] == 0.0
+    assert binary.loc[1, "K2"] == 0.0
+
+
+def test_build_expanded_signalome_table_tracks_membership_and_site_order() -> None:
+    module_assignments = pd.DataFrame(
+        {
+            "protein_id": ["P1", "P2", "P3", "P4"],
+            "module_id": [2, 1, 2, 3],
+            "top_kinase": ["K2", "K1", "K2", "K3"],
+            "top_score": [0.91, 0.93, 0.92, 0.88],
+            "top_kinase_weights": [
+                (("K2", 1.0),),
+                (("K1", 1.0),),
+                (("K2", 1.0),),
+                (("K3", 1.0),),
+            ],
+        },
+        index=pd.Index(["S3", "S1", "S4", "S2"], name="site_id"),
+    )
+    signalome_modules = pd.DataFrame(
+        {
+            "K1": [5.0, 85.0, 0.0],
+            "K2": [90.0, 10.0, 0.0],
+            "K3": [0.0, 0.0, 100.0],
+        },
+        index=pd.Index([1, 2, 3], name="module_id"),
+    )
+    kinase_network_edges = pd.DataFrame(
+        {
+            "source_kinase": ["K1"],
+            "target_kinase": ["K2"],
+            "correlation": [0.95],
+        }
+    )
+    kinase_substrates = {
+        "K1": ("S1", "S2"),
+        "K2": ("S3", "S4"),
+    }
+
+    expanded = build_expanded_signalome_table(
+        module_assignments=module_assignments,
+        signalome_modules=signalome_modules,
+        kinase_network_edges=kinase_network_edges,
+        kinase_substrates=kinase_substrates,
+        assignment_policy="cutoff_binary",
+    )
+
+    k1_sites = expanded.loc[
+        (expanded.loc[:, "kinase"] == "K1")
+        & (expanded.loc[:, "row_kind"] == "site")
+        & (expanded.loc[:, "site_id"] != ""),
+        :,
+    ]
+    assert k1_sites.loc[:, "site_id"].tolist() == ["S3", "S1", "S4"]
+    assert k1_sites.loc[:, "site_order"].tolist() == [0, 1, 2]
+    assert k1_sites.loc[:, "linked_kinases"].iloc[0] == '["K1","K2"]'
+    assert k1_sites.loc[:, "regulated_module_ids"].iloc[0] == "[1,2]"
+
+
+def test_build_expanded_signalome_table_weighted_top_uses_fractional_site_support() -> (
+    None
+):
+    module_assignments = pd.DataFrame(
+        {
+            "protein_id": ["P1", "P1", "P2"],
+            "module_id": [1, 1, 2],
+            "top_kinase": ["K1", "K1", "K2"],
+            "top_score": [0.95, 0.96, 0.92],
+            "top_kinase_weights": [
+                (("K1", 0.5), ("K2", 0.5)),
+                (("K1", 1.0),),
+                (("K2", 1.0),),
+            ],
+        },
+        index=pd.Index(["S1", "S2", "S3"], name="site_id"),
+    )
+    signalome_modules = pd.DataFrame(
+        {"K1": [90.0, 0.0], "K2": [10.0, 100.0]},
+        index=pd.Index([1, 2], name="module_id"),
+    )
+    kinase_network_edges = pd.DataFrame(
+        {
+            "source_kinase": ["K1"],
+            "target_kinase": ["K2"],
+            "correlation": [0.91],
+        }
+    )
+
+    expanded = build_expanded_signalome_table(
+        module_assignments=module_assignments,
+        signalome_modules=signalome_modules,
+        kinase_network_edges=kinase_network_edges,
+        kinase_substrates={"K1": (), "K2": ()},
+        assignment_policy="weighted_top",
+    )
+
+    site_s1 = expanded.loc[
+        (expanded.loc[:, "kinase"] == "K1") & (expanded.loc[:, "site_id"] == "S1"),
+        :,
+    ].iloc[0]
+    assert site_s1["support_kinases"] == '["K1","K2"]'
+    assert float(site_s1["support_weight"]) == 1.0

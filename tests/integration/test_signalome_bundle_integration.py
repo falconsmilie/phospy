@@ -16,6 +16,7 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
+from phospy.api.results import SignalomeWorkflowResult
 from phospy.io.bundles.signalome import (
     SIGNALOME_BUNDLE_MANIFEST_VERSION,
     SignalomeWorkflowConfigSnapshot,
@@ -74,14 +75,14 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
         "weights": None,
     }
     assert manifest["signalome_outputs"]["tables"] == {
-        "expanded_signalome": None,
+        "expanded_signalome": "signalome/expanded_signalome.csv",
         "kinase_network_edges": "signalome/kinase_network_edges.csv",
         "kinase_network_nodes": "signalome/kinase_network_nodes.csv",
         "module_assignments": "signalome/module_assignments.csv",
         "signalome_modules": "signalome/signalome_modules.csv",
     }
     signalome_metadata = manifest["signalome_outputs"]["metadata"]
-    assert signalome_metadata["expanded_signalome_present"] is False
+    assert signalome_metadata["expanded_signalome_present"] is True
     assert signalome_metadata["kinase_network_nodes_present"] is True
     diagnostics_payload = signalome_metadata["module_selection_diagnostics"]
     assert diagnostics_payload["strategy"] in {
@@ -92,7 +93,7 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert isinstance(diagnostics_payload["candidate_scores"], dict)
 
     loaded = load_signalome_workflow_bundle(bundle_root)
-    assert loaded.result.expanded_signalome is None
+    assert loaded.result.expanded_signalome is not None
 
 
 def test_signalome_config_snapshot_accepts_legacy_cutoff_payload() -> None:
@@ -101,6 +102,37 @@ def test_signalome_config_snapshot_accepts_legacy_cutoff_payload() -> None:
     )
     assert snapshot.signalome_config.substrate_support_cutoff == pytest.approx(0.6)
     assert snapshot.signalome_config.network_correlation_threshold == pytest.approx(0.6)
+    assert snapshot.signalome_config.assignment_policy == "cutoff_binary"
+
+
+def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(
+    tmp_path: Path,
+) -> None:
+    request, result = _build_signalome_request_and_result()
+    without_expanded = SignalomeWorkflowResult._from_owned(
+        dataset=result.dataset,
+        kinase_result=result.kinase_result,
+        module_assignments=result.module_assignments,
+        signalome_modules=result.signalome_modules,
+        kinase_network=result.kinase_network,
+        module_selection_diagnostics=result.module_selection_diagnostics,
+        expanded_signalome=None,
+    )
+    bundle_root = tmp_path / "signalome_bundle_no_expanded"
+
+    save_signalome_workflow_bundle(
+        without_expanded,
+        bundle_root,
+        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
+
+    assert manifest["signalome_outputs"]["tables"]["expanded_signalome"] is None
+    assert manifest["signalome_outputs"]["metadata"]["expanded_signalome_present"] is (
+        False
+    )
+    loaded = load_signalome_workflow_bundle(bundle_root)
+    assert loaded.result.expanded_signalome is None
 
 
 def _build_signalome_request_and_result():
@@ -206,8 +238,10 @@ def _assert_signalome_result_equal(left, right) -> None:
         check_names=False,
     )
     assert left.module_selection_diagnostics == right.module_selection_diagnostics
-    assert left.expanded_signalome is None
-    assert right.expanded_signalome is None
+    _assert_optional_frame_equal(
+        left.expanded_signalome,
+        right.expanded_signalome,
+    )
 
 
 def _assert_optional_frame_equal(left, right) -> None:

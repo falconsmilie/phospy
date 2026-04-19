@@ -18,6 +18,21 @@ def test_signalome_snapshot_supports_legacy_cutoff_payload() -> None:
 
     assert snapshot.signalome_config.substrate_support_cutoff == 0.6
     assert snapshot.signalome_config.network_correlation_threshold == 0.6
+    assert snapshot.signalome_config.assignment_policy == "cutoff_binary"
+
+
+def test_signalome_snapshot_supports_assignment_policy_payload() -> None:
+    snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
+        {
+            "signalome_config": {
+                "substrate_support_cutoff": 0.5,
+                "network_correlation_threshold": 0.6,
+                "assignment_policy": "weighted_top",
+            }
+        }
+    )
+
+    assert snapshot.signalome_config.assignment_policy == "weighted_top"
 
 
 def test_module_assignment_compat_normalization_parses_serialized_fields() -> None:

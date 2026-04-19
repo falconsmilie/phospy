@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 
 import numpy as np
 import pandas as pd
 
+from phospy.api.configs import (
+    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+    SignalomeAssignmentPolicy,
+)
 from phospy.errors.workflows import WorkflowStageError
 
 SITE_ID_COLUMN = "site_id"
@@ -33,6 +39,18 @@ N_SUBSTRATES_COLUMN = "n_substrates"
 SOURCE_KINASE_COLUMN = "source_kinase"
 TARGET_KINASE_COLUMN = "target_kinase"
 CORRELATION_COLUMN = "correlation"
+SUPPORT_WEIGHT_COLUMN = "support_weight"
+
+EXPANDED_SIGNALOME_KINASE_COLUMN = "kinase"
+EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN = "linked_kinases"
+EXPANDED_SIGNALOME_REGULATED_MODULE_IDS_COLUMN = "regulated_module_ids"
+EXPANDED_SIGNALOME_SITE_ORDER_COLUMN = "site_order"
+EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN = "support_kinases"
+EXPANDED_SIGNALOME_ROW_KIND_COLUMN = "row_kind"
+EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN = "assignment_policy"
+
+_JSON_EMPTY_ARRAY = "[]"
+_MIN_EXPANDED_MODULE_SHARE_PERCENT = 1.0
 
 
 def build_module_assignments(
@@ -161,8 +179,18 @@ def build_signalome_module_table(
     module_assignments: pd.DataFrame,
     kinase_substrates: Mapping[str, Sequence[str]],
     kinase_order: Sequence[str],
+    assignment_policy: SignalomeAssignmentPolicy = (
+        SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+    ),
 ) -> pd.DataFrame:
-    """Build module-by-kinase signalome table as percent shares per module."""
+    """Build module-by-kinase signalome table as percent shares per module.
+
+    `assignment_policy` controls support attribution:
+
+    - `cutoff_binary`: binary kinase support from `kinase_substrates`.
+    - `weighted_top`: fractional support propagated from
+      `module_assignments.top_kinase_weights`.
+    """
 
     module_index = pd.Index(
         sorted(
@@ -189,64 +217,89 @@ def build_signalome_module_table(
         .astype("int64")
     )
     protein_to_module = protein_to_module.loc[protein_to_module > 0]
-    site_to_protein = module_assignments.loc[:, PROTEIN_COLUMN].astype(str)
-    site_to_protein.index = pd.Index(
-        site_to_protein.index.astype(str), name=SITE_ID_COLUMN
-    )
-    unique_kinases = tuple(dict.fromkeys(kinase_index.tolist()))
-    kinase_site_map = pd.DataFrame(
-        {
-            KINASE_COLUMN: unique_kinases,
-            SITE_ID_COLUMN: [
-                tuple(
-                    str(site_id) for site_id in kinase_substrates.get(str(kinase), ())
-                )
-                for kinase in unique_kinases
-            ],
-        }
-    )
-    if not kinase_site_map.empty:
-        kinase_site_map = kinase_site_map.loc[
-            kinase_site_map.loc[:, SITE_ID_COLUMN].map(len) > 0
-        ]
-        if not kinase_site_map.empty:
-            kinase_site_map = kinase_site_map.explode(SITE_ID_COLUMN, ignore_index=True)
-            kinase_site_map.loc[:, SITE_ID_COLUMN] = kinase_site_map.loc[
-                :, SITE_ID_COLUMN
-            ].astype(str)
-            kinase_site_map.loc[:, PROTEIN_COLUMN] = kinase_site_map.loc[
-                :, SITE_ID_COLUMN
-            ].map(site_to_protein)
-            kinase_site_map = kinase_site_map.dropna(subset=[PROTEIN_COLUMN])
-            if not kinase_site_map.empty:
-                kinase_site_map.loc[:, PROTEIN_COLUMN] = kinase_site_map.loc[
-                    :, PROTEIN_COLUMN
-                ].astype(str)
-                kinase_site_map = kinase_site_map.drop_duplicates(
-                    subset=[KINASE_COLUMN, PROTEIN_COLUMN],
-                    keep="first",
-                )
-                kinase_site_map.loc[:, MODULE_ID_COLUMN] = kinase_site_map.loc[
-                    :, PROTEIN_COLUMN
-                ].map(protein_to_module)
-                kinase_site_map = kinase_site_map.dropna(subset=[MODULE_ID_COLUMN])
-            if not kinase_site_map.empty:
-                kinase_site_map.loc[:, MODULE_ID_COLUMN] = kinase_site_map.loc[
-                    :, MODULE_ID_COLUMN
-                ].astype("int64")
-                module_hits = (
-                    kinase_site_map.groupby(
-                        [MODULE_ID_COLUMN, KINASE_COLUMN], sort=False
+
+    if assignment_policy == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY:
+        site_to_protein = module_assignments.loc[:, PROTEIN_COLUMN].astype(str)
+        site_to_protein.index = pd.Index(
+            site_to_protein.index.astype(str), name=SITE_ID_COLUMN
+        )
+        unique_kinases = tuple(dict.fromkeys(kinase_index.tolist()))
+        kinase_site_map = pd.DataFrame(
+            {
+                KINASE_COLUMN: unique_kinases,
+                SITE_ID_COLUMN: [
+                    tuple(
+                        str(site_id)
+                        for site_id in kinase_substrates.get(str(kinase), ())
                     )
-                    .size()
-                    .unstack(KINASE_COLUMN, fill_value=0)
-                    .astype(float)
+                    for kinase in unique_kinases
+                ],
+            }
+        )
+        if not kinase_site_map.empty:
+            kinase_site_map = kinase_site_map.loc[
+                kinase_site_map.loc[:, SITE_ID_COLUMN].map(len) > 0
+            ]
+            if not kinase_site_map.empty:
+                kinase_site_map = kinase_site_map.explode(
+                    SITE_ID_COLUMN, ignore_index=True
                 )
-                module_table = module_hits.reindex(
-                    index=module_index,
-                    columns=kinase_index,
-                    fill_value=0.0,
+                kinase_site_map.loc[:, SITE_ID_COLUMN] = kinase_site_map.loc[
+                    :, SITE_ID_COLUMN
+                ].astype(str)
+                kinase_site_map.loc[:, PROTEIN_COLUMN] = kinase_site_map.loc[
+                    :, SITE_ID_COLUMN
+                ].map(site_to_protein)
+                kinase_site_map = kinase_site_map.dropna(subset=[PROTEIN_COLUMN])
+                if not kinase_site_map.empty:
+                    kinase_site_map.loc[:, PROTEIN_COLUMN] = kinase_site_map.loc[
+                        :, PROTEIN_COLUMN
+                    ].astype(str)
+                    kinase_site_map = kinase_site_map.drop_duplicates(
+                        subset=[KINASE_COLUMN, PROTEIN_COLUMN],
+                        keep="first",
+                    )
+                    kinase_site_map.loc[:, MODULE_ID_COLUMN] = kinase_site_map.loc[
+                        :, PROTEIN_COLUMN
+                    ].map(protein_to_module)
+                    kinase_site_map = kinase_site_map.dropna(subset=[MODULE_ID_COLUMN])
+                if not kinase_site_map.empty:
+                    kinase_site_map.loc[:, MODULE_ID_COLUMN] = kinase_site_map.loc[
+                        :, MODULE_ID_COLUMN
+                    ].astype("int64")
+                    module_hits = (
+                        kinase_site_map.groupby(
+                            [MODULE_ID_COLUMN, KINASE_COLUMN], sort=False
+                        )
+                        .size()
+                        .unstack(KINASE_COLUMN, fill_value=0)
+                        .astype(float)
+                    )
+                    module_table = module_hits.reindex(
+                        index=module_index,
+                        columns=kinase_index,
+                        fill_value=0.0,
+                    )
+    elif assignment_policy == SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP:
+        module_table = _build_weighted_top_module_table(
+            module_assignments=module_assignments,
+            module_index=module_index,
+            kinase_index=kinase_index,
+            protein_to_module=protein_to_module,
+        )
+    else:
+        allowed = ", ".join(
+            sorted(
+                (
+                    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+                    SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
                 )
+            )
+        )
+        raise WorkflowStageError(
+            f"unsupported assignment_policy '{assignment_policy}'; expected one of: "
+            f"{allowed}"
+        )
 
     row_totals = module_table.sum(axis=1)
     non_zero_rows = row_totals > 0.0
@@ -256,6 +309,126 @@ def build_signalome_module_table(
             * 100.0
         )
     return module_table.astype(float).round(3)
+
+
+def _build_weighted_top_module_table(
+    *,
+    module_assignments: pd.DataFrame,
+    module_index: pd.Index,
+    kinase_index: pd.Index,
+    protein_to_module: pd.Series,
+) -> pd.DataFrame:
+    if TOP_KINASE_WEIGHTS_COLUMN not in module_assignments.columns:
+        raise WorkflowStageError(
+            "module assignments are missing top_kinase_weights required for "
+            "assignment_policy='weighted_top'"
+        )
+
+    weighted_rows: list[dict[str, object]] = []
+    site_payload = module_assignments.loc[
+        :, [PROTEIN_COLUMN, TOP_KINASE_WEIGHTS_COLUMN]
+    ].copy()
+    site_payload.index = pd.Index(site_payload.index.astype(str), name=SITE_ID_COLUMN)
+    for site_id, row in site_payload.iterrows():
+        protein_id = str(row[PROTEIN_COLUMN])
+        if protein_id not in protein_to_module.index:
+            continue
+        module_id = int(protein_to_module.loc[protein_id])
+        for kinase, weight in _normalize_top_kinase_weights(
+            row[TOP_KINASE_WEIGHTS_COLUMN],
+            site_id=site_id,
+        ):
+            if kinase not in kinase_index:
+                continue
+            weighted_rows.append(
+                {
+                    MODULE_ID_COLUMN: module_id,
+                    KINASE_COLUMN: kinase,
+                    PROTEIN_COLUMN: protein_id,
+                    SUPPORT_WEIGHT_COLUMN: float(weight),
+                }
+            )
+
+    if not weighted_rows:
+        return pd.DataFrame(0.0, index=module_index.copy(), columns=kinase_index.copy())
+
+    weighted_hits = pd.DataFrame.from_records(weighted_rows).astype(
+        {
+            MODULE_ID_COLUMN: "int64",
+            KINASE_COLUMN: str,
+            PROTEIN_COLUMN: str,
+            SUPPORT_WEIGHT_COLUMN: float,
+        }
+    )
+    protein_level_weights = (
+        weighted_hits.groupby(
+            [MODULE_ID_COLUMN, KINASE_COLUMN, PROTEIN_COLUMN],
+            sort=False,
+        )[SUPPORT_WEIGHT_COLUMN]
+        .max()
+        .astype(float)
+        .reset_index()
+    )
+    module_hits = (
+        protein_level_weights.groupby([MODULE_ID_COLUMN, KINASE_COLUMN], sort=False)[
+            SUPPORT_WEIGHT_COLUMN
+        ]
+        .sum()
+        .astype(float)
+        .unstack(KINASE_COLUMN, fill_value=0.0)
+    )
+    return module_hits.reindex(
+        index=module_index.copy(),
+        columns=kinase_index.copy(),
+        fill_value=0.0,
+    ).astype(float)
+
+
+def _normalize_top_kinase_weights(
+    value: object,
+    *,
+    site_id: str,
+) -> tuple[tuple[str, float], ...]:
+    if isinstance(value, dict):
+        pairs = tuple((str(kinase), float(weight)) for kinase, weight in value.items())
+    elif isinstance(value, (tuple, list)):
+        pairs = _normalize_top_kinase_weight_pairs(value, site_id=site_id)
+    elif value is None:
+        pairs = ()
+    else:
+        raise WorkflowStageError(
+            "top_kinase_weights entries must be dicts or (kinase, weight) sequences; "
+            f"received {type(value).__name__} at site_id='{site_id}'"
+        )
+    if not pairs:
+        return ()
+    positive_pairs = tuple((kinase, weight) for kinase, weight in pairs if weight > 0.0)
+    if not positive_pairs:
+        return ()
+    return positive_pairs
+
+
+def _normalize_top_kinase_weight_pairs(
+    values: tuple[object, ...] | list[object],
+    *,
+    site_id: str,
+) -> tuple[tuple[str, float], ...]:
+    normalized: list[tuple[str, float]] = []
+    for value in values:
+        if not isinstance(value, (tuple, list)) or len(value) != 2:
+            raise WorkflowStageError(
+                "top_kinase_weights entries must be (kinase, weight) pairs; "
+                f"received invalid entry at site_id='{site_id}'"
+            )
+        kinase, weight = value
+        try:
+            normalized.append((str(kinase), float(weight)))
+        except (TypeError, ValueError) as exc:
+            raise WorkflowStageError(
+                "top_kinase_weights entries must contain float-compatible weights at "
+                f"site_id='{site_id}'"
+            ) from exc
+    return tuple(normalized)
 
 
 def build_kinase_network(
@@ -363,6 +536,196 @@ def build_kinase_network(
     return edges, nodes
 
 
+def build_expanded_signalome_table(
+    *,
+    module_assignments: pd.DataFrame,
+    signalome_modules: pd.DataFrame,
+    kinase_network_edges: pd.DataFrame,
+    kinase_substrates: Mapping[str, Sequence[str]],
+    assignment_policy: SignalomeAssignmentPolicy = (
+        SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+    ),
+) -> pd.DataFrame:
+    """Build a flattened expanded-signalome table for all supported kinases.
+
+    One site-level row is emitted for every focal kinase/site membership where:
+    1) the site's module is regulated by the focal kinase, and
+    2) the site is supported by at least one linked kinase under the selected
+       assignment policy.
+
+    If a focal kinase has no selected site memberships, one `row_kind=summary`
+    row is emitted to preserve linked-kinase and regulated-module metadata.
+    """
+
+    site_index = pd.Index(module_assignments.index.astype(str), name=SITE_ID_COLUMN)
+    indexed_assignments = module_assignments.copy(deep=False)
+    indexed_assignments.index = site_index
+
+    module_id_values = indexed_assignments.loc[:, MODULE_ID_COLUMN].astype("int64")
+    protein_ids = indexed_assignments.loc[:, PROTEIN_COLUMN].astype(str)
+    top_kinases = (
+        indexed_assignments.loc[:, TOP_KINASE_COLUMN].astype(str)
+        if TOP_KINASE_COLUMN in indexed_assignments.columns
+        else pd.Series("", index=site_index, dtype=str)
+    )
+    top_scores = (
+        indexed_assignments.loc[:, TOP_SCORE_COLUMN].astype(float)
+        if TOP_SCORE_COLUMN in indexed_assignments.columns
+        else pd.Series(np.nan, index=site_index, dtype=float)
+    )
+
+    kinase_order = [str(kinase) for kinase in signalome_modules.columns.astype(str)]
+    neighbor_map = _build_kinase_neighbor_map(
+        kinase_network_edges=kinase_network_edges,
+        kinase_order=kinase_order,
+    )
+    support_by_kinase = _build_site_support_by_kinase(
+        module_assignments=indexed_assignments,
+        site_index=site_index,
+        kinase_substrates=kinase_substrates,
+        assignment_policy=assignment_policy,
+    )
+
+    site_positions = np.arange(site_index.size, dtype=np.int64)
+    site_module_ids = module_id_values.to_numpy(dtype=np.int64, copy=False)
+    site_proteins = protein_ids.to_numpy(dtype=object, copy=False)
+    site_top_kinases = top_kinases.to_numpy(dtype=object, copy=False)
+    site_top_scores = top_scores.to_numpy(dtype=float, copy=False)
+    site_ids = site_index.to_numpy(dtype=object, copy=False)
+
+    expanded_rows: list[dict[str, object]] = []
+    for focal_kinase in kinase_order:
+        linked_kinases = tuple(
+            dict.fromkeys((focal_kinase, *neighbor_map.get(focal_kinase, ())))
+        )
+        regulated_module_ids = tuple(
+            int(module_id)
+            for module_id, share in signalome_modules.loc[:, focal_kinase].items()
+            if float(share) > _MIN_EXPANDED_MODULE_SHARE_PERCENT
+        )
+        regulated_module_set = set(regulated_module_ids)
+
+        linked_kinases_json = json.dumps(
+            list(linked_kinases),
+            separators=(",", ":"),
+            ensure_ascii=True,
+        )
+        regulated_module_ids_json = json.dumps(
+            list(regulated_module_ids),
+            separators=(",", ":"),
+            ensure_ascii=True,
+        )
+
+        matched_site_count = 0
+        for position, site_id, module_id in zip(
+            site_positions,
+            site_ids,
+            site_module_ids,
+            strict=True,
+        ):
+            if int(module_id) not in regulated_module_set:
+                continue
+            support_kinases: list[str] = []
+            support_weight = 0.0
+            for linked_kinase in linked_kinases:
+                kinase_support = support_by_kinase.get(linked_kinase)
+                if kinase_support is None:
+                    continue
+                weight = float(kinase_support[int(position)])
+                if weight <= 0.0:
+                    continue
+                support_kinases.append(linked_kinase)
+                support_weight += weight
+            if support_weight <= 0.0:
+                continue
+            matched_site_count += 1
+            expanded_rows.append(
+                {
+                    EXPANDED_SIGNALOME_KINASE_COLUMN: focal_kinase,
+                    EXPANDED_SIGNALOME_ROW_KIND_COLUMN: "site",
+                    EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN: assignment_policy,
+                    EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN: linked_kinases_json,
+                    EXPANDED_SIGNALOME_REGULATED_MODULE_IDS_COLUMN: regulated_module_ids_json,
+                    SITE_ID_COLUMN: str(site_id),
+                    EXPANDED_SIGNALOME_SITE_ORDER_COLUMN: int(position),
+                    PROTEIN_COLUMN: str(site_proteins[int(position)]),
+                    MODULE_ID_COLUMN: int(module_id),
+                    EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN: json.dumps(
+                        support_kinases,
+                        separators=(",", ":"),
+                        ensure_ascii=True,
+                    ),
+                    SUPPORT_WEIGHT_COLUMN: float(support_weight),
+                    TOP_KINASE_COLUMN: str(site_top_kinases[int(position)]),
+                    TOP_SCORE_COLUMN: float(site_top_scores[int(position)]),
+                }
+            )
+        if matched_site_count == 0:
+            expanded_rows.append(
+                {
+                    EXPANDED_SIGNALOME_KINASE_COLUMN: focal_kinase,
+                    EXPANDED_SIGNALOME_ROW_KIND_COLUMN: "summary",
+                    EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN: assignment_policy,
+                    EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN: linked_kinases_json,
+                    EXPANDED_SIGNALOME_REGULATED_MODULE_IDS_COLUMN: regulated_module_ids_json,
+                    SITE_ID_COLUMN: "",
+                    EXPANDED_SIGNALOME_SITE_ORDER_COLUMN: -1,
+                    PROTEIN_COLUMN: "",
+                    MODULE_ID_COLUMN: 0,
+                    EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN: _JSON_EMPTY_ARRAY,
+                    SUPPORT_WEIGHT_COLUMN: 0.0,
+                    TOP_KINASE_COLUMN: "",
+                    TOP_SCORE_COLUMN: np.nan,
+                }
+            )
+
+    expanded = pd.DataFrame.from_records(
+        expanded_rows,
+        columns=[
+            EXPANDED_SIGNALOME_KINASE_COLUMN,
+            EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
+            EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN,
+            EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN,
+            EXPANDED_SIGNALOME_REGULATED_MODULE_IDS_COLUMN,
+            SITE_ID_COLUMN,
+            EXPANDED_SIGNALOME_SITE_ORDER_COLUMN,
+            PROTEIN_COLUMN,
+            MODULE_ID_COLUMN,
+            EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN,
+            SUPPORT_WEIGHT_COLUMN,
+            TOP_KINASE_COLUMN,
+            TOP_SCORE_COLUMN,
+        ],
+    )
+    expanded = expanded.astype(
+        {
+            EXPANDED_SIGNALOME_KINASE_COLUMN: str,
+            EXPANDED_SIGNALOME_ROW_KIND_COLUMN: str,
+            EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN: str,
+            EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN: str,
+            EXPANDED_SIGNALOME_REGULATED_MODULE_IDS_COLUMN: str,
+            SITE_ID_COLUMN: str,
+            EXPANDED_SIGNALOME_SITE_ORDER_COLUMN: "int64",
+            PROTEIN_COLUMN: str,
+            MODULE_ID_COLUMN: "int64",
+            EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN: str,
+            SUPPORT_WEIGHT_COLUMN: float,
+            TOP_KINASE_COLUMN: str,
+            TOP_SCORE_COLUMN: float,
+        }
+    )
+    return expanded.sort_values(
+        [
+            EXPANDED_SIGNALOME_KINASE_COLUMN,
+            EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
+            EXPANDED_SIGNALOME_SITE_ORDER_COLUMN,
+            SITE_ID_COLUMN,
+        ],
+        ascending=[True, True, True, True],
+        kind="stable",
+    ).reset_index(drop=True)
+
+
 def _as_unique_string_index(index: pd.Index, *, context: str) -> pd.Index:
     resolved = pd.Index(index.astype(str), name=SITE_ID_COLUMN)
     if not resolved.has_duplicates:
@@ -375,6 +738,107 @@ def _as_unique_string_index(index: pd.Index, *, context: str) -> pd.Index:
     raise WorkflowStageError(
         f"{context} contains duplicate site identifiers: {preview}{suffix}"
     )
+
+
+def _build_kinase_neighbor_map(
+    *,
+    kinase_network_edges: pd.DataFrame,
+    kinase_order: Sequence[str],
+) -> dict[str, tuple[str, ...]]:
+    neighbor_sets: dict[str, set[str]] = {str(kinase): set() for kinase in kinase_order}
+    if kinase_network_edges.empty:
+        return {kinase: () for kinase in kinase_order}
+    required = {SOURCE_KINASE_COLUMN, TARGET_KINASE_COLUMN}
+    missing = sorted(
+        required.difference(str(column) for column in kinase_network_edges.columns)
+    )
+    if missing:
+        preview = ", ".join(missing)
+        raise WorkflowStageError(
+            "kinase network edges are missing required columns for expanded signalome: "
+            f"{preview}"
+        )
+    for row in kinase_network_edges.loc[
+        :, [SOURCE_KINASE_COLUMN, TARGET_KINASE_COLUMN]
+    ].itertuples(index=False):
+        source_kinase = str(row.source_kinase)
+        target_kinase = str(row.target_kinase)
+        neighbor_sets.setdefault(source_kinase, set()).add(target_kinase)
+        neighbor_sets.setdefault(target_kinase, set()).add(source_kinase)
+    return {
+        kinase: tuple(sorted(neighbor_sets.get(kinase, set())))
+        for kinase in kinase_order
+    }
+
+
+def _build_site_support_by_kinase(
+    *,
+    module_assignments: pd.DataFrame,
+    site_index: pd.Index,
+    kinase_substrates: Mapping[str, Sequence[str]],
+    assignment_policy: SignalomeAssignmentPolicy,
+) -> dict[str, np.ndarray]:
+    site_size = int(site_index.size)
+    site_positions = {
+        str(site_id): int(position)
+        for position, site_id in enumerate(
+            site_index.to_numpy(dtype=object, copy=False)
+        )
+    }
+    if assignment_policy == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY:
+        support: dict[str, np.ndarray] = {}
+        for kinase, substrates in kinase_substrates.items():
+            weights = np.zeros(site_size, dtype=float)
+            for site_id in substrates:
+                position = site_positions.get(str(site_id))
+                if position is None:
+                    continue
+                weights[position] = 1.0
+            support[str(kinase)] = weights
+        return support
+    if assignment_policy == SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP:
+        return _build_weighted_top_site_support(
+            module_assignments=module_assignments,
+            site_index=site_index,
+        )
+    allowed = ", ".join(
+        sorted(
+            (
+                SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+                SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+            )
+        )
+    )
+    raise WorkflowStageError(
+        f"unsupported assignment_policy '{assignment_policy}'; expected one of: "
+        f"{allowed}"
+    )
+
+
+def _build_weighted_top_site_support(
+    *,
+    module_assignments: pd.DataFrame,
+    site_index: pd.Index,
+) -> dict[str, np.ndarray]:
+    if TOP_KINASE_WEIGHTS_COLUMN not in module_assignments.columns:
+        raise WorkflowStageError(
+            "module assignments are missing top_kinase_weights required for "
+            "assignment_policy='weighted_top'"
+        )
+    support_by_kinase: dict[str, np.ndarray] = {}
+    weight_values = module_assignments.loc[:, TOP_KINASE_WEIGHTS_COLUMN].to_numpy(
+        copy=False
+    )
+    for row_position, value in enumerate(weight_values):
+        site_id = str(site_index[int(row_position)])
+        normalized_weights = _normalize_top_kinase_weights(value, site_id=site_id)
+        for kinase, weight in normalized_weights:
+            kinase_support = support_by_kinase.get(kinase)
+            if kinase_support is None:
+                kinase_support = np.zeros(int(site_index.size), dtype=float)
+                support_by_kinase[kinase] = kinase_support
+            kinase_support[int(row_position)] = float(weight)
+    return support_by_kinase
 
 
 def _precondition_network_scores(

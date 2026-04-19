@@ -34,7 +34,13 @@ class KinaseWorkflowResult:
 
 @dataclass(frozen=True, slots=True)
 class SignalomeWorkflowResult:
-    """Top-level public signalome workflow result."""
+    """Top-level public signalome workflow result.
+
+    `expanded_signalome` is a flattened optional DataFrame contract populated by
+    the supported signalome executor lane. It includes focal-kinase rows with
+    linked-kinase metadata, regulated module IDs, and selected site-membership
+    rows with stable `site_order`.
+    """
 
     dataset: AnalysisReadyPhosphoDataset
     kinase_result: KinaseWorkflowResult

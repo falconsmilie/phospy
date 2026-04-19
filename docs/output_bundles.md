@@ -117,6 +117,11 @@ signalome/kinase_network_nodes.csv   # optional
 signalome/expanded_signalome.csv     # optional
 ```
 
+When present, `signalome/expanded_signalome.csv` uses the same flattened schema
+as `SignalomeWorkflowResult.expanded_signalome` (see `docs/api.md`): focal
+kinase, row kind, assignment policy, linked/regulatory module metadata, and
+site-level membership rows with stable `site_order`.
+
 Optional means contract-optional, not always absent.
 In the default supported kinase lane, scoring populates `profile_scores` and
 `combined_scores`; diagnostic `motif_scores` and `weights` are written only when
@@ -127,7 +132,8 @@ In the default supported kinase lane, scoring populates `profile_scores` and
 - `activity/*` tables are present only when `kinase_result.activity_result` is present.
 - `prediction/substrate_list` is optional.
 - `signalome/kinase_network_nodes` is optional.
-- `signalome/expanded_signalome` is optional and currently absent (`None`) in the default signalome route.
+- `signalome/expanded_signalome` is optional and is populated in the supported
+  signalome route when expanded materialization succeeds.
 - `scoring/motif_scores` and `scoring/weights` are optional diagnostic tables and
   are absent in the default scoring lane.
 
@@ -145,6 +151,7 @@ Signalome config snapshot:
 
 - `signalome_config.substrate_support_cutoff`
 - `signalome_config.network_correlation_threshold`
+- `signalome_config.assignment_policy`
 
 Manifest versioning starts at v1 so future format evolution is explicit.
 

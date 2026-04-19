@@ -6,6 +6,8 @@ import ast
 from collections.abc import Mapping
 
 from phospy.api.configs import (
+    SIGNALOME_ASSIGNMENT_POLICIES,
+    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT,
     SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
     SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT,
@@ -52,6 +54,20 @@ def signalome_config_from_payload_with_legacy_support(
         payload.get("module_count"),
         field_name=f"{scope}.signalome_config.module_count",
     )
+    assignment_policy_raw = payload.get("assignment_policy")
+    assignment_policy = (
+        SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+        if assignment_policy_raw is None
+        else require_str(
+            assignment_policy_raw,
+            field_name=f"{scope}.signalome_config.assignment_policy",
+        )
+    )
+    if assignment_policy not in SIGNALOME_ASSIGNMENT_POLICIES:
+        allowed = ", ".join(sorted(SIGNALOME_ASSIGNMENT_POLICIES))
+        raise PhosPyInputError(
+            f"{scope}.signalome_config.assignment_policy must be one of: {allowed}"
+        )
     return SignalomeConfig(
         substrate_support_cutoff=require_float(
             substrate_support_cutoff,
@@ -61,6 +77,7 @@ def signalome_config_from_payload_with_legacy_support(
             network_correlation_threshold,
             field_name=f"{scope}.signalome_config.network_correlation_threshold",
         ),
+        assignment_policy=assignment_policy,  # type: ignore[arg-type]
         module_count=module_count,
         module_selection_primary_correlation_threshold=require_float(
             payload.get("module_selection_primary_correlation_threshold")

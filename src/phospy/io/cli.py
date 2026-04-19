@@ -16,6 +16,7 @@ from phospy.api.configs import (
     KINASE_PREDICTION_DEFAULT_ITERATIONS,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
+    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -112,6 +113,15 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=0.5,
         help="Absolute correlation threshold for kinase network edge inclusion.",
+    )
+    signalome.add_argument(
+        "--assignment-policy",
+        default=SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+        choices=["cutoff_binary", "weighted_top"],
+        help=(
+            "Signalome assignment policy: cutoff-based binary support or "
+            "weighted top-kinase fractional support."
+        ),
     )
     return parser
 
@@ -271,6 +281,7 @@ def _run_signalome(args: argparse.Namespace) -> None:
             config=SignalomeConfig(
                 substrate_support_cutoff=args.substrate_support_cutoff,
                 network_correlation_threshold=args.network_correlation_threshold,
+                assignment_policy=args.assignment_policy,
             ),
         )
     )

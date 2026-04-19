@@ -17,6 +17,7 @@ from phospy.signalomes.models import (
 )
 from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
 from phospy.workflows.signalome.science import (
+    build_expanded_signalome_table,
     build_kinase_network,
     build_module_assignments,
     build_signalome_module_table,
@@ -31,12 +32,14 @@ class SignalomeWorkflowExecutor:
     _NETWORK_SEAM = "signalome.executor.network"
     _KINASE_SUPPORT_SEAM = "signalome.executor.kinase_support"
     _MODULE_CONSTRUCTION_SEAM = "signalome.executor.module_construction"
+    _EXPANDED_SIGNALOME_SEAM = "signalome.executor.expanded_signalome"
 
     def run(self, request: ResolvedSignalomeWorkflowRequest) -> SignalomeWorkflowResult:
         substrate_support_cutoff = float(request.config.substrate_support_cutoff)
         network_correlation_threshold = float(
             request.config.network_correlation_threshold
         )
+        assignment_policy = str(request.config.assignment_policy)
         module_selection_primary_threshold = float(
             request.config.module_selection_primary_correlation_threshold
         )
@@ -134,6 +137,7 @@ class SignalomeWorkflowExecutor:
                 module_assignments=module_assignments,
                 kinase_substrates=kinase_substrates,
                 kinase_order=request.prediction_matrix.columns.astype(str).tolist(),
+                assignment_policy=request.config.assignment_policy,
             )
         except WorkflowStageError as exc:
             self._raise_boundary_error(
@@ -227,6 +231,29 @@ class SignalomeWorkflowExecutor:
                     clustering_result.module_selection_diagnostics.selected_module_count
                 ),
             )
+        try:
+            expanded_signalome = build_expanded_signalome_table(
+                module_assignments=module_assignments,
+                signalome_modules=signalome_modules,
+                kinase_network_edges=network_edges,
+                kinase_substrates=kinase_substrates,
+                assignment_policy=request.config.assignment_policy,
+            )
+        except WorkflowStageError as exc:
+            self._raise_boundary_error(
+                seam=self._EXPANDED_SIGNALOME_SEAM,
+                next_action=(
+                    "ensure module assignments, module signal, and network topology "
+                    "are mutually consistent for expanded signalome output"
+                ),
+                assignment_policy=assignment_policy,
+                module_count=module_count,
+                supported_kinases=support_counts["supported_kinases"],
+                supported_sites=support_counts["supported_sites"],
+                prediction_sites=int(request.prediction_matrix.shape[0]),
+                prediction_kinases=int(request.prediction_matrix.shape[1]),
+                stage_error=str(exc),
+            )
 
         return SignalomeWorkflowResult._from_owned(
             dataset=request.dataset,
@@ -240,7 +267,7 @@ class SignalomeWorkflowExecutor:
                 nodes=network_nodes,
             ),
             module_selection_diagnostics=clustering_result.module_selection_diagnostics,
-            expanded_signalome=None,
+            expanded_signalome=expanded_signalome,
         )
 
     @staticmethod

@@ -140,7 +140,7 @@ def test_cli_signalome_from_files_writes_supported_lane_outputs(
     assert (outdir / "signalome" / "kinase_network_nodes.csv").exists()
     assert (outdir / "signalome" / "kinase_network_edges.csv").exists()
     assert (outdir / "signalome" / "manifest.json").exists()
-    assert not (outdir / "signalome" / "expanded_signalome.csv").exists()
+    assert (outdir / "signalome" / "expanded_signalome.csv").exists()
 
 
 def test_cli_reports_rewrite_taxonomy_for_input_format_errors(

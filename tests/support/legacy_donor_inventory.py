@@ -159,7 +159,7 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
         science_gap_ticket="SCI-GAP-10",
         rewrite_unit_tests=(
             "tests/unit/test_legacy_donor_science.py::"
-            "test_expanded_signalome_donor_locks_supported_lane_to_none_output",
+            "test_expanded_signalome_donor_locks_supported_lane_to_materialized_output",
         ),
         rewrite_parity_tests=(),
         rewrite_integration_tests=(

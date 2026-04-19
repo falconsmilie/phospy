@@ -41,11 +41,17 @@
     "9": 11
   },
   "module_selection_strategy": "correlation_thresholds",
+  "assignment_policy": "cutoff_binary",
   "n_assignments": 260,
   "n_edges": 66,
   "n_module_kinases": 12,
   "n_modules": 38,
   "n_nodes": 12,
+  "n_expanded_rows": 144,
+  "n_expanded_kinases": 12,
+  "expanded_row_kind_counts": {
+    "site": 144
+  },
   "negative_edge_count": 0,
   "positive_edge_count": 66,
   "selected_module_count": 10,
