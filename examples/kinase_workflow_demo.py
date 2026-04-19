@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the supported builder + kinase workflow route."""
+"""Run the supported dataset-builder + KinaseWorkflow route."""
 
 from __future__ import annotations
 
