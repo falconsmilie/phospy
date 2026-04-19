@@ -204,29 +204,60 @@ def build_signalome_module_table(
     site_to_protein.index = pd.Index(
         site_to_protein.index.astype(str), name=SITE_ID_COLUMN
     )
-
-    for kinase in kinase_index:
-        substrate_sites = pd.Index(
-            [str(site_id) for site_id in kinase_substrates.get(str(kinase), ())],
-            name=SITE_ID_COLUMN,
-        )
-        if substrate_sites.empty:
-            continue
-        substrate_proteins = (
-            site_to_protein.reindex(substrate_sites).dropna().astype(str)
-        )
-        if substrate_proteins.empty:
-            continue
-        unique_proteins = pd.Index(sorted(set(substrate_proteins.tolist())))
-        module_hits = (
-            protein_to_module.reindex(unique_proteins).dropna().astype("int64")
-        )
-        if module_hits.empty:
-            continue
-        counts = module_hits.value_counts().astype(float)
-        module_table.loc[counts.index.astype(int), kinase] = counts.to_numpy(
-            dtype=float, copy=False
-        )
+    unique_kinases = tuple(dict.fromkeys(kinase_index.tolist()))
+    kinase_site_map = pd.DataFrame(
+        {
+            KINASE_COLUMN: unique_kinases,
+            SITE_ID_COLUMN: [
+                tuple(
+                    str(site_id) for site_id in kinase_substrates.get(str(kinase), ())
+                )
+                for kinase in unique_kinases
+            ],
+        }
+    )
+    if not kinase_site_map.empty:
+        kinase_site_map = kinase_site_map.loc[
+            kinase_site_map.loc[:, SITE_ID_COLUMN].map(len) > 0
+        ]
+        if not kinase_site_map.empty:
+            kinase_site_map = kinase_site_map.explode(SITE_ID_COLUMN, ignore_index=True)
+            kinase_site_map.loc[:, SITE_ID_COLUMN] = kinase_site_map.loc[
+                :, SITE_ID_COLUMN
+            ].astype(str)
+            kinase_site_map.loc[:, PROTEIN_COLUMN] = kinase_site_map.loc[
+                :, SITE_ID_COLUMN
+            ].map(site_to_protein)
+            kinase_site_map = kinase_site_map.dropna(subset=[PROTEIN_COLUMN])
+            if not kinase_site_map.empty:
+                kinase_site_map.loc[:, PROTEIN_COLUMN] = kinase_site_map.loc[
+                    :, PROTEIN_COLUMN
+                ].astype(str)
+                kinase_site_map = kinase_site_map.drop_duplicates(
+                    subset=[KINASE_COLUMN, PROTEIN_COLUMN],
+                    keep="first",
+                )
+                kinase_site_map.loc[:, MODULE_ID_COLUMN] = kinase_site_map.loc[
+                    :, PROTEIN_COLUMN
+                ].map(protein_to_module)
+                kinase_site_map = kinase_site_map.dropna(subset=[MODULE_ID_COLUMN])
+            if not kinase_site_map.empty:
+                kinase_site_map.loc[:, MODULE_ID_COLUMN] = kinase_site_map.loc[
+                    :, MODULE_ID_COLUMN
+                ].astype("int64")
+                module_hits = (
+                    kinase_site_map.groupby(
+                        [MODULE_ID_COLUMN, KINASE_COLUMN], sort=False
+                    )
+                    .size()
+                    .unstack(KINASE_COLUMN, fill_value=0)
+                    .astype(float)
+                )
+                module_table = module_hits.reindex(
+                    index=module_index,
+                    columns=kinase_index,
+                    fill_value=0.0,
+                )
 
     row_totals = module_table.sum(axis=1)
     non_zero_rows = row_totals > 0.0

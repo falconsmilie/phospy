@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+
+import pandas as pd
+import pandas.testing as pdt
+
+from phospy.workflows.signalome.science import build_signalome_module_table
+
+
+def _legacy_build_signalome_module_table(
+    *,
+    module_assignments: pd.DataFrame,
+    kinase_substrates: Mapping[str, Sequence[str]],
+    kinase_order: Sequence[str],
+) -> pd.DataFrame:
+    module_index = pd.Index(
+        sorted(
+            {
+                int(value)
+                for value in module_assignments.loc[:, "module_id"]
+                if int(value) > 0
+            }
+        ),
+        name="module_id",
+    )
+    kinase_index = pd.Index([str(kinase) for kinase in kinase_order], name="kinase")
+    module_table = pd.DataFrame(
+        0.0,
+        index=module_index.copy(),
+        columns=kinase_index.copy(),
+    )
+
+    protein_to_module = (
+        module_assignments.loc[:, ["protein_id", "module_id"]]
+        .drop_duplicates(subset=["protein_id"])
+        .set_index("protein_id")
+        .loc[:, "module_id"]
+        .astype("int64")
+    )
+    protein_to_module = protein_to_module.loc[protein_to_module > 0]
+    site_to_protein = module_assignments.loc[:, "protein_id"].astype(str)
+    site_to_protein.index = pd.Index(
+        site_to_protein.index.astype(str),
+        name="site_id",
+    )
+
+    for kinase in kinase_index:
+        substrate_sites = pd.Index(
+            [str(site_id) for site_id in kinase_substrates.get(str(kinase), ())],
+            name="site_id",
+        )
+        if substrate_sites.empty:
+            continue
+        substrate_proteins = (
+            site_to_protein.reindex(substrate_sites).dropna().astype(str)
+        )
+        if substrate_proteins.empty:
+            continue
+        unique_proteins = pd.Index(sorted(set(substrate_proteins.tolist())))
+        module_hits = (
+            protein_to_module.reindex(unique_proteins).dropna().astype("int64")
+        )
+        if module_hits.empty:
+            continue
+        counts = module_hits.value_counts().astype(float)
+        module_table.loc[counts.index.astype(int), kinase] = counts.to_numpy(
+            dtype=float, copy=False
+        )
+
+    row_totals = module_table.sum(axis=1)
+    non_zero_rows = row_totals > 0.0
+    if non_zero_rows.any():
+        module_table.loc[non_zero_rows] = (
+            module_table.loc[non_zero_rows].div(row_totals.loc[non_zero_rows], axis=0)
+            * 100.0
+        )
+    return module_table.astype(float).round(3)
+
+
+def test_build_signalome_module_table_matches_legacy_semantics() -> None:
+    module_assignments = pd.DataFrame(
+        {
+            "protein_id": ["P1", "P1", "P2", "P3", "P4", "P5", "P6", "P3"],
+            "module_id": [1, 1, 2, 2, 0, 3, 3, 3],
+        },
+        index=pd.Index(
+            ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"],
+            name="site_id",
+        ),
+    )
+    kinase_substrates = {
+        "K1": ("S1", "S2", "S4", "S8"),
+        "K2": ("S3", "S5", "S6", "MISSING"),
+        "K3": ("S7",),
+    }
+    kinase_order = ["K2", "K1", "K3", "K1"]
+
+    expected = _legacy_build_signalome_module_table(
+        module_assignments=module_assignments,
+        kinase_substrates=kinase_substrates,
+        kinase_order=kinase_order,
+    )
+    observed = build_signalome_module_table(
+        module_assignments=module_assignments,
+        kinase_substrates=kinase_substrates,
+        kinase_order=kinase_order,
+    )
+
+    pdt.assert_frame_equal(observed, expected, check_dtype=False)

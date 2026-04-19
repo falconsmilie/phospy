@@ -171,24 +171,75 @@ def build_prediction_outputs(
     pred_mat.index.name = prediction_score_matrix.index.name
     pred_mat.columns.name = "kinase"
 
+    score_index = prediction_score_matrix.index
+    score_values = prediction_score_matrix.to_numpy(dtype=float, copy=False)
+    site_ids = score_index.to_numpy(copy=False)
+    use_vectorized_site_indexer = score_index.is_unique
+
     substrate_rows: list[dict[str, object]] = []
-    for kinase in selected_kinases:
+    for kinase_position, kinase in enumerate(selected_kinases):
         candidate_sites = candidate_substrates.get(str(kinase), [])
-        available_sites = [
-            site for site in candidate_sites if site in prediction_score_matrix.index
-        ]
+        if not candidate_sites:
+            continue
+        score_column_position = prediction_score_matrix.columns.get_loc(kinase)
+
+        if use_vectorized_site_indexer:
+            site_positions = score_index.get_indexer(candidate_sites)
+            available_positions = site_positions[site_positions >= 0]
+            if available_positions.size == 0:
+                continue
+            candidate_scores = score_values[available_positions, score_column_position]
+            scored_mask = ~np.isnan(candidate_scores)
+            if not scored_mask.any():
+                continue
+            available_positions = available_positions[scored_mask]
+            candidate_scores = candidate_scores[scored_mask]
+            retained_count = min(int(top_k), int(candidate_scores.size))
+            if retained_count <= 0:
+                continue
+            if retained_count < int(candidate_scores.size):
+                retained_positions = np.argpartition(
+                    -candidate_scores,
+                    retained_count - 1,
+                )[:retained_count]
+                selected_positions = available_positions[retained_positions]
+                selected_scores = candidate_scores[retained_positions]
+            else:
+                selected_positions = available_positions
+                selected_scores = candidate_scores
+
+            ranked_positions = np.lexsort((selected_positions, -selected_scores))
+            selected_positions = selected_positions[ranked_positions]
+            selected_scores = selected_scores[ranked_positions]
+            pred_mat.iloc[selected_positions, kinase_position] = selected_scores
+            for rank, (site_position, score) in enumerate(
+                zip(selected_positions, selected_scores, strict=True),
+                start=1,
+            ):
+                substrate_rows.append(
+                    {
+                        "kinase": str(kinase),
+                        "substrate_site": site_ids[site_position],
+                        "score": float(score),
+                        "rank": rank,
+                    }
+                )
+            continue
+
+        available_sites = [site for site in candidate_sites if site in score_index]
         if not available_sites:
             continue
         ranked_sites = (
             prediction_score_matrix.loc[available_sites, kinase]
             .astype(float)
             .dropna()
-            .sort_values(ascending=False)
-            .head(top_k)
+            .nlargest(top_k, keep="first")
         )
         if ranked_sites.empty:
             continue
-        pred_mat.loc[ranked_sites.index, kinase] = ranked_sites.values
+        pred_mat.loc[ranked_sites.index, kinase] = ranked_sites.to_numpy(
+            dtype=float, copy=False
+        )
         for rank, (site_id, score) in enumerate(ranked_sites.items(), start=1):
             substrate_rows.append(
                 {
