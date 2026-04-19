@@ -142,3 +142,23 @@ Signalome config snapshot:
 - `signalome_config.network_correlation_threshold`
 
 Manifest versioning starts at v1 so future format evolution is explicit.
+
+## Internal Ownership (Rewrite Boundary)
+
+Public entrypoints stay at:
+
+- `phospy.io.bundles.kinase`
+- `phospy.io.bundles.signalome`
+
+Internal implementation is split by concern ownership under:
+
+- `phospy.io.bundles._kinase`: snapshots, manifest contract, writer orchestration,
+  loader orchestration, and result reconstruction
+- `phospy.io.bundles._signalome`: same concern split for signalome bundles
+- `phospy.io.bundles._shared`: low-level JSON/path/table/coercion helpers used by
+  both bundle domains
+
+Compatibility behavior is isolated to signalome compatibility helpers:
+
+- legacy config snapshot cutoff field parsing
+- legacy module-assignment candidate/weight normalization
