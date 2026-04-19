@@ -34,6 +34,16 @@ Activity parity checks cover:
 - `target_counts`
 - `target_table`
 
+Activity parity is a hard regression gate in rewrite CI:
+
+- dedicated job: `activity-parity-gate`
+- required marker selection: `parity and activity_parity`
+- fixture source pinned to `tests/fixtures/rewrite_parity/r_reference_l6/`
+  with provenance in
+  `tests/fixtures/rewrite_parity/r_reference_l6/PROVENANCE.md`
+
+This lane is supported and parity-backed, not provisional.
+
 ## Legacy Donor Promotion Inventory
 
 The rewrite suite now carries donor coverage visibility for the strongest legacy
@@ -93,5 +103,6 @@ Useful variants:
 ```bash
 pytest -m parity -rs
 pytest -m parity -vv
+pytest tests/parity/test_activity_stage_parity.py -m "parity and activity_parity" -vv
 pytest tests/parity/test_signalome_workflow_parity.py -vv
 ```

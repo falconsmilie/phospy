@@ -48,6 +48,10 @@ Activity science port is complete for the supported rewrite scope:
 
 - Scientific kernels are legacy-aligned.
 - Behavior is parity-backed on rewrite-owned fixtures.
+- Activity parity has an explicit hard CI regression gate
+  (`activity-parity-gate`; marker selection `parity and activity_parity`).
+- Fixture provenance and promotion policy are maintained in
+  `tests/fixtures/rewrite_parity/r_reference_l6/PROVENANCE.md`.
 - Activity remains part of `KinaseWorkflow` (no standalone public activity
   workflow).
 - `activity_result` is a supported stage output when activity is enabled.

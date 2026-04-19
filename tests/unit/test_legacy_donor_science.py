@@ -318,6 +318,17 @@ def test_activity_parity_lock_donor_uses_rewrite_owned_fixture_path() -> None:
     source = (ROOT / "tests" / "parity" / "test_activity_stage_parity.py").read_text(
         encoding="utf-8"
     )
-    assert "tests/fixtures/rewrite_parity/r_reference_l6" in source
+    assert 'R_REFERENCE_L6 = ROOT / "tests" / "fixtures" / "rewrite_parity"' in source
+    assert '/ "r_reference_l6"' in source
     assert "tests_legacy/fixtures" not in source
-    assert "pytestmark = pytest.mark.parity" in source
+    assert "pytest.mark.parity" in source
+    assert "pytest.mark.activity_parity" in source
+
+
+def test_activity_parity_lock_donor_requires_explicit_ci_gate() -> None:
+    ci_workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "activity-parity-gate:" in ci_workflow
+    assert "tests/parity/test_activity_stage_parity.py" in ci_workflow
+    assert "activity_parity" in ci_workflow

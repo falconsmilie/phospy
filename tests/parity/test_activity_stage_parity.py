@@ -22,11 +22,20 @@ from phospy.activities.scoring import compute_activity_from_inputs
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 
 ROOT = Path(__file__).resolve().parents[2]
-# Fixture provenance is tracked in:
-# tests/fixtures/rewrite_parity/r_reference_l6/PROVENANCE.md
 R_REFERENCE_L6 = ROOT / "tests" / "fixtures" / "rewrite_parity" / "r_reference_l6"
+R_REFERENCE_PROVENANCE = R_REFERENCE_L6 / "PROVENANCE.md"
+ACTIVITY_PARITY_FIXTURE_FILES = (
+    "l6_phospho_matrix.csv",
+    "native_profile_scores.csv",
+    "predMat.csv",
+    "kinase_activity_matrix.csv",
+    "ksea_scores.csv",
+    "ksea_counts.csv",
+    "kinase_target_counts.csv",
+    "kinase_target_table.csv",
+)
 
-pytestmark = pytest.mark.parity
+pytestmark = [pytest.mark.parity, pytest.mark.activity_parity]
 
 
 def _activity_result():
@@ -71,6 +80,22 @@ def _legacy_activity_result(
         threshold=validated.threshold,
     )
     return weighted_activity, ksea_scores, ksea_counts, target_counts, target_table
+
+
+def test_activity_parity_fixture_set_is_present_readable_and_provenanced() -> None:
+    for file_name in ACTIVITY_PARITY_FIXTURE_FILES:
+        fixture_path = R_REFERENCE_L6 / file_name
+        assert fixture_path.is_file(), f"missing activity parity fixture: {file_name}"
+        assert fixture_path.stat().st_size > 0, f"empty activity fixture: {file_name}"
+        loaded = pd.read_csv(fixture_path)
+        assert not loaded.empty, f"unreadable or empty activity fixture: {file_name}"
+
+    assert R_REFERENCE_PROVENANCE.is_file()
+    provenance_text = R_REFERENCE_PROVENANCE.read_text(encoding="utf-8")
+    assert "Promoted from" in provenance_text
+    assert "Fixture ownership" in provenance_text
+    for file_name in ACTIVITY_PARITY_FIXTURE_FILES:
+        assert f"`{file_name}`" in provenance_text
 
 
 def test_weighted_activity_matches_legacy_reference_fixture() -> None:

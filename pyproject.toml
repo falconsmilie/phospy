@@ -78,6 +78,7 @@ addopts = "-m \"not parity\""
 markers = [
   "integration: multi-component rewrite workflow tests",
   "parity: compare Python outputs against R/PhosR reference fixtures",
+  "activity_parity: hard regression gate for activity-stage parity fixtures and kernels",
 ]
 
 [tool.ruff]
