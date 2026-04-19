@@ -209,7 +209,14 @@ def test_boundary_error_reports_unusable_reference_coverage_counts() -> None:
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         KinaseWorkflow().run(request)
 
-    message = str(exc_info.value)
+    error = exc_info.value
+    message = str(error)
+    assert error.seam == "kinase.interpreter.reference_coverage"
+    assert error.next_action is not None
+    assert error.details["dataset_sites"] == 2
+    assert error.details["reference_sites"] == 2
+    assert error.details["overlap_sites"] == 0
+    assert error.details["scoring_config_min_substrates"] == 2
     assert "seam=kinase.interpreter.reference_coverage" in message
     assert "dataset_sites=2" in message
     assert "reference_sites=2" in message

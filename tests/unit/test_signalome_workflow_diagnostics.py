@@ -149,7 +149,14 @@ def test_boundary_error_reports_no_usable_site_alignment_counts() -> None:
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         SignalomeWorkflowInterpreter().run(request)
 
-    message = str(exc_info.value)
+    error = exc_info.value
+    message = str(error)
+    assert error.seam == "signalome.interpreter.site_alignment"
+    assert error.next_action is not None
+    assert error.details["dataset_sites"] == 2
+    assert error.details["prediction_sites"] == 2
+    assert error.details["score_sites"] == 2
+    assert error.details["shared_sites"] == 0
     assert "seam=signalome.interpreter.site_alignment" in message
     assert "dataset_sites=2" in message
     assert "prediction_sites=2" in message

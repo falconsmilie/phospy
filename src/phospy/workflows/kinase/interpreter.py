@@ -234,10 +234,11 @@ class KinaseWorkflowInterpreter:
         *,
         seam: str,
         next_action: str,
-        **details: int,
+        **details: object,
     ) -> None:
-        details_text = ", ".join(f"{key}={value}" for key, value in details.items())
         raise WorkflowBoundaryError(
-            "kinase workflow boundary validation failed at "
-            f"seam={seam}; {details_text}; next_action={next_action}"
+            seam=seam,
+            next_action=next_action,
+            details=details,
+            message_prefix="kinase workflow boundary validation failed",
         )

@@ -271,10 +271,11 @@ class SignalomeWorkflowInterpreter:
         *,
         seam: str,
         next_action: str,
-        **details: int | float | str,
+        **details: object,
     ) -> None:
-        details_text = ", ".join(f"{key}={value}" for key, value in details.items())
         raise WorkflowBoundaryError(
-            "signalome workflow boundary validation failed at "
-            f"seam={seam}; {details_text}; next_action={next_action}"
+            seam=seam,
+            next_action=next_action,
+            details=details,
+            message_prefix="signalome workflow boundary validation failed",
         )
