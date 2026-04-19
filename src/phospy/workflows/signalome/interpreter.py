@@ -9,6 +9,16 @@ from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.prediction.scoring import select_downstream_score_matrix
+from phospy.signalomes.constants import KINASE_COLUMN, PROTEIN_COLUMN, SITE_ID_COLUMN
+from phospy.workflows.signalome.constants import (
+    SIGNALOME_INTERPRETER_KINASE_OVERLAP_SEAM,
+    SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM,
+    SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM,
+    SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,
+    SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_ID_PREFIX,
+    SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA,
+    SIGNALOME_WORKFLOW_BOUNDARY_MESSAGE_PREFIX,
+)
 from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
@@ -18,13 +28,13 @@ from phospy.workflows.signalome.contracts import (
 class SignalomeWorkflowInterpreter:
     """Resolve a validated signalome request into execution-ready inputs."""
 
-    _SITE_ID_COLUMN = "site_id"
-    _KINASE_COLUMN = "kinase"
-    _PROTEIN_COLUMN = "protein_id"
-    _SITE_ALIGNMENT_SEAM = "signalome.interpreter.site_alignment"
-    _KINASE_OVERLAP_SEAM = "signalome.interpreter.kinase_overlap"
-    _PROTEIN_MAPPING_SEAM = "signalome.interpreter.protein_mapping"
-    _SCORE_PRECONDITIONING_SEAM = "signalome.interpreter.score_preconditioning"
+    _SITE_ID_COLUMN = SITE_ID_COLUMN
+    _KINASE_COLUMN = KINASE_COLUMN
+    _PROTEIN_COLUMN = PROTEIN_COLUMN
+    _SITE_ALIGNMENT_SEAM = SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM
+    _KINASE_OVERLAP_SEAM = SIGNALOME_INTERPRETER_KINASE_OVERLAP_SEAM
+    _PROTEIN_MAPPING_SEAM = SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM
+    _SCORE_PRECONDITIONING_SEAM = SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM
 
     def run(
         self, request: SignalomeWorkflowRequest
@@ -201,7 +211,7 @@ class SignalomeWorkflowInterpreter:
                 .astype(str)
                 .str.strip()
             )
-            resolution_source = "dataset.site_metadata.protein_id"
+            resolution_source = SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA
         else:
             resolved = pd.Series(
                 [self._protein_from_site_id(site_id) for site_id in site_index],
@@ -209,7 +219,7 @@ class SignalomeWorkflowInterpreter:
                 dtype=str,
                 name=self._PROTEIN_COLUMN,
             )
-            resolution_source = "dataset.phospho.index_protein_prefix"
+            resolution_source = SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_ID_PREFIX
         unresolved_mask = resolved.astype(str).str.strip() == ""
         if unresolved_mask.any():
             resolved_sites = int((~unresolved_mask).sum())
@@ -277,5 +287,5 @@ class SignalomeWorkflowInterpreter:
             seam=seam,
             next_action=next_action,
             details=details,
-            message_prefix="signalome workflow boundary validation failed",
+            message_prefix=SIGNALOME_WORKFLOW_BOUNDARY_MESSAGE_PREFIX,
         )

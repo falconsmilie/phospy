@@ -13,9 +13,24 @@ from phospy import (
     SignalomeConfig,
     SignalomeWorkflowRequest,
 )
+from phospy.api.configs import SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
 from phospy.errors import WorkflowBoundaryError
 from phospy.errors.workflows import WorkflowStageError
+from phospy.signalomes.constants import (
+    EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
+    SITE_CLUSTER_COLUMN,
+)
 from phospy.transformations.models import TransformationState
+from phospy.workflows.signalome.constants import (
+    SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM,
+    SIGNALOME_EXECUTOR_KINASE_SUPPORT_SEAM,
+    SIGNALOME_EXECUTOR_MODULE_CONSTRUCTION_SEAM,
+    SIGNALOME_EXECUTOR_NETWORK_SEAM,
+    SIGNALOME_INTERPRETER_KINASE_OVERLAP_SEAM,
+    SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM,
+    SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,
+    SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_ID_PREFIX,
+)
 from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
@@ -151,13 +166,13 @@ def test_boundary_error_reports_no_usable_site_alignment_counts() -> None:
 
     error = exc_info.value
     message = str(error)
-    assert error.seam == "signalome.interpreter.site_alignment"
+    assert error.seam == SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM
     assert error.next_action is not None
     assert error.details["dataset_sites"] == 2
     assert error.details["prediction_sites"] == 2
     assert error.details["score_sites"] == 2
     assert error.details["shared_sites"] == 0
-    assert "seam=signalome.interpreter.site_alignment" in message
+    assert f"seam={SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM}" in message
     assert "dataset_sites=2" in message
     assert "prediction_sites=2" in message
     assert "score_sites=2" in message
@@ -190,7 +205,7 @@ def test_boundary_error_reports_no_overlapping_kinase_set_counts() -> None:
         SignalomeWorkflowInterpreter().run(request)
 
     message = str(exc_info.value)
-    assert "seam=signalome.interpreter.kinase_overlap" in message
+    assert f"seam={SIGNALOME_INTERPRETER_KINASE_OVERLAP_SEAM}" in message
     assert "prediction_kinases=2" in message
     assert "score_kinases=2" in message
     assert "shared_kinases=0" in message
@@ -225,8 +240,11 @@ def test_boundary_error_reports_unusable_protein_mapping_counts() -> None:
         SignalomeWorkflowInterpreter().run(request)
 
     message = str(exc_info.value)
-    assert "seam=signalome.interpreter.protein_mapping" in message
-    assert "protein_resolution_source=dataset.phospho.index_protein_prefix" in message
+    assert f"seam={SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM}" in message
+    assert (
+        "protein_resolution_source="
+        f"{SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_ID_PREFIX}"
+    ) in message
     assert "interpreted_sites=2" in message
     assert "resolved_protein_sites=0" in message
     assert "unresolved_protein_sites=2" in message
@@ -326,7 +344,10 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
         0.5
     )
     assert interpreted.execution_config.network_policy == "signed"
-    assert interpreted.execution_config.assignment_policy == "cutoff_binary"
+    assert (
+        interpreted.execution_config.assignment_policy
+        == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+    )
     assert interpreted.execution_config.requested_module_count is None
     assert interpreted.execution_config.module_selection_primary_threshold == (
         pytest.approx(0.5)
@@ -474,7 +495,7 @@ def test_boundary_error_reports_no_support_cutoff_support_counts() -> None:
         SignalomeWorkflowExecutor().run(interpreted)
 
     message = str(exc_info.value)
-    assert "seam=signalome.executor.kinase_support" in message
+    assert f"seam={SIGNALOME_EXECUTOR_KINASE_SUPPORT_SEAM}" in message
     assert "prediction_sites=2" in message
     assert "prediction_kinases=2" in message
     assert "supported_sites=0" in message
@@ -508,7 +529,7 @@ def test_boundary_error_reports_module_construction_degeneracy_counts() -> None:
         SignalomeWorkflowExecutor().run(interpreted)
 
     message = str(exc_info.value)
-    assert "seam=signalome.executor.module_construction" in message
+    assert f"seam={SIGNALOME_EXECUTOR_MODULE_CONSTRUCTION_SEAM}" in message
     assert "module_count=1" in message
     assert "supported_kinases=1" in message
     assert "prediction_kinases=1" in message
@@ -554,7 +575,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
         SignalomeWorkflowExecutor().run(resolved_missing_kinase)
 
     missing_message = str(missing_exc.value)
-    assert "seam=signalome.executor.network" in missing_message
+    assert f"seam={SIGNALOME_EXECUTOR_NETWORK_SEAM}" in missing_message
     assert "shared_kinases=2" in missing_message
     assert "supported_kinases=2" in missing_message
     assert (
@@ -581,7 +602,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
         SignalomeWorkflowExecutor().run(interpreted)
 
     variance_message = str(variance_exc.value)
-    assert "seam=signalome.executor.network" in variance_message
+    assert f"seam={SIGNALOME_EXECUTOR_NETWORK_SEAM}" in variance_message
     assert "shared_kinases=2" in variance_message
     assert "supported_kinases=2" in variance_message
     assert "downstream_score_sites=2" in variance_message
@@ -636,8 +657,8 @@ def test_boundary_error_reports_expanded_signalome_failure_seam(
         SignalomeWorkflowExecutor().run(interpreted)
 
     message = str(exc_info.value)
-    assert "seam=signalome.executor.expanded_signalome" in message
-    assert "assignment_policy=cutoff_binary" in message
+    assert f"seam={SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM}" in message
+    assert f"assignment_policy={SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY}" in message
     assert "stage_error=expanded signalome seam regression test" in message
 
 
@@ -824,7 +845,7 @@ def test_executor_orchestrates_signalome_domain_services(
                 [1, 2],
                 index=prediction_matrix.index.copy(),
                 dtype=int,
-                name="site_cluster",
+                name=SITE_CLUSTER_COLUMN,
             ),
             module_selection_diagnostics=SignalomeModuleSelectionDiagnostics(
                 strategy="correlation_thresholds",
@@ -884,8 +905,8 @@ def test_executor_orchestrates_signalome_domain_services(
         return pd.DataFrame(
             {
                 "kinase": ["K1"],
-                "row_kind": ["summary"],
-                "assignment_policy": ["cutoff_binary"],
+                "row_kind": [EXPANDED_SIGNALOME_ROW_KIND_SUMMARY],
+                "assignment_policy": [SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY],
                 "linked_kinases": ['["K1","K2"]'],
                 "regulated_module_ids": ["[1]"],
                 "site_id": [""],

@@ -13,6 +13,7 @@ from phospy.signalomes.clustering import (
     cluster_sites_with_diagnostics,
     derive_protein_modules,
 )
+from phospy.signalomes.constants import MODULE_ID_COLUMN
 from phospy.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
@@ -24,6 +25,13 @@ from phospy.signalomes.science import (
     build_module_assignments,
     build_signalome_module_table,
     select_kinase_substrates,
+)
+from phospy.workflows.signalome.constants import (
+    SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM,
+    SIGNALOME_EXECUTOR_KINASE_SUPPORT_SEAM,
+    SIGNALOME_EXECUTOR_MODULE_CONSTRUCTION_SEAM,
+    SIGNALOME_EXECUTOR_NETWORK_SEAM,
+    SIGNALOME_WORKFLOW_BOUNDARY_MESSAGE_PREFIX,
 )
 from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
@@ -62,11 +70,11 @@ class _SignalomeModuleStage:
 class SignalomeWorkflowExecutor:
     """Run signalome stage logic and assemble `SignalomeWorkflowResult`."""
 
-    _MODULE_ID_COLUMN = "module_id"
-    _NETWORK_SEAM = "signalome.executor.network"
-    _KINASE_SUPPORT_SEAM = "signalome.executor.kinase_support"
-    _MODULE_CONSTRUCTION_SEAM = "signalome.executor.module_construction"
-    _EXPANDED_SIGNALOME_SEAM = "signalome.executor.expanded_signalome"
+    _MODULE_ID_COLUMN = MODULE_ID_COLUMN
+    _NETWORK_SEAM = SIGNALOME_EXECUTOR_NETWORK_SEAM
+    _KINASE_SUPPORT_SEAM = SIGNALOME_EXECUTOR_KINASE_SUPPORT_SEAM
+    _MODULE_CONSTRUCTION_SEAM = SIGNALOME_EXECUTOR_MODULE_CONSTRUCTION_SEAM
+    _EXPANDED_SIGNALOME_SEAM = SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM
 
     def run(self, request: ResolvedSignalomeWorkflowRequest) -> SignalomeWorkflowResult:
         config = request.execution_config
@@ -490,5 +498,5 @@ class SignalomeWorkflowExecutor:
             seam=seam,
             next_action=next_action,
             details=details,
-            message_prefix="signalome workflow boundary validation failed",
+            message_prefix=SIGNALOME_WORKFLOW_BOUNDARY_MESSAGE_PREFIX,
         )

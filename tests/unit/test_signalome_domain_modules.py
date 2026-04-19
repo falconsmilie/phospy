@@ -3,6 +3,10 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from phospy.api.configs import (
+    SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+    SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
+)
 from phospy.errors import WorkflowStageError
 from phospy.signalomes.expanded import build_expanded_signalome_table
 from phospy.signalomes.modules import build_signalome_module_table
@@ -23,7 +27,7 @@ def test_domain_modules_weighted_top_requires_weight_column() -> None:
             module_assignments=module_assignments,
             kinase_substrates={"K1": (), "K2": ()},
             kinase_order=["K1", "K2"],
-            assignment_policy="weighted_top",
+            assignment_policy=SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
         )
 
 
@@ -42,7 +46,7 @@ def test_domain_network_rejects_infinite_scores() -> None:
             kinase_order=["K1", "K2"],
             kinase_substrates={"K1": (), "K2": ()},
             threshold=0.5,
-            network_policy="signed",
+            network_policy=SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
         )
 
 
@@ -72,5 +76,5 @@ def test_domain_expanded_requires_network_edge_columns() -> None:
             signalome_modules=signalome_modules,
             kinase_network_edges=invalid_edges,
             kinase_substrates={"K1": ("S1",)},
-            assignment_policy="weighted_top",
+            assignment_policy=SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
         )

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.workflows.signalome.constants import (
+    SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,
+)
 
 
 def test_workflow_boundary_error_supports_message_only_construction() -> None:
@@ -31,7 +34,7 @@ def test_workflow_boundary_error_exposes_structured_diagnostics() -> None:
 def test_workflow_boundary_error_copies_details_mapping() -> None:
     details = {"shared_sites": 0}
     error = WorkflowBoundaryError(
-        seam="signalome.interpreter.site_alignment",
+        seam=SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,
         next_action="align score and prediction matrices",
         details=details,
     )

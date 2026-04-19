@@ -9,6 +9,12 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from phospy.signalomes.constants import (
+    MODULE_ID_COLUMN,
+    PROTEIN_COLUMN,
+    SITE_CLUSTER_COLUMN,
+    SITE_ID_COLUMN,
+)
 from phospy.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
     SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
@@ -113,7 +119,7 @@ def cluster_sites_with_diagnostics(
             labels,
             index=scoring_matrix.index.copy(),
             dtype=int,
-            name="site_cluster",
+            name=SITE_CLUSTER_COLUMN,
         ),
         module_selection_diagnostics=diagnostics,
     )
@@ -172,9 +178,9 @@ def derive_protein_modules(
     aligned_site_to_protein = site_to_protein.copy()
     aligned_site_to_protein.index = pd.Index(
         aligned_site_to_protein.index.astype(str),
-        name="site_id",
+        name=SITE_ID_COLUMN,
     )
-    cluster_index = pd.Index(site_clusters.index.astype(str), name="site_id")
+    cluster_index = pd.Index(site_clusters.index.astype(str), name=SITE_ID_COLUMN)
     missing_sites = [
         site_id
         for site_id in cluster_index
@@ -202,8 +208,8 @@ def derive_protein_modules(
             next_module_id += 1
         assignments[str(protein)] = pattern_to_module[pattern]
 
-    protein_modules = pd.Series(assignments, dtype="int64", name="module_id")
-    protein_modules.index.name = "protein_id"
+    protein_modules = pd.Series(assignments, dtype="int64", name=MODULE_ID_COLUMN)
+    protein_modules.index.name = PROTEIN_COLUMN
     return protein_modules
 
 

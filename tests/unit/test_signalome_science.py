@@ -6,7 +6,16 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
+from phospy.api.configs import (
+    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+)
 from phospy.errors import WorkflowStageError
+from phospy.signalomes.constants import (
+    EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
+    EXPANDED_SIGNALOME_ROW_KIND_SITE,
+    EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
+)
 from phospy.signalomes.science import (
     build_expanded_signalome_table,
     build_kinase_network,
@@ -137,13 +146,13 @@ def test_build_signalome_module_table_weighted_top_propagates_fractional_support
         module_assignments=module_assignments,
         kinase_substrates={"K1": (), "K2": ()},
         kinase_order=["K1", "K2"],
-        assignment_policy="weighted_top",
+        assignment_policy=SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
     )
     binary = build_signalome_module_table(
         module_assignments=module_assignments,
         kinase_substrates={"K1": (), "K2": ()},
         kinase_order=["K1", "K2"],
-        assignment_policy="cutoff_binary",
+        assignment_policy=SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     )
 
     assert weighted.loc[1, "K1"] == 66.667
@@ -328,12 +337,15 @@ def test_build_expanded_signalome_table_tracks_membership_and_site_order() -> No
         signalome_modules=signalome_modules,
         kinase_network_edges=kinase_network_edges,
         kinase_substrates=kinase_substrates,
-        assignment_policy="cutoff_binary",
+        assignment_policy=SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     )
 
     k1_sites = expanded.loc[
         (expanded.loc[:, "kinase"] == "K1")
-        & (expanded.loc[:, "row_kind"] == "site")
+        & (
+            expanded.loc[:, EXPANDED_SIGNALOME_ROW_KIND_COLUMN]
+            == EXPANDED_SIGNALOME_ROW_KIND_SITE
+        )
         & (expanded.loc[:, "site_id"] != ""),
         :,
     ]
@@ -377,7 +389,7 @@ def test_build_expanded_signalome_table_weighted_top_uses_fractional_site_suppor
         signalome_modules=signalome_modules,
         kinase_network_edges=kinase_network_edges,
         kinase_substrates={"K1": (), "K2": ()},
-        assignment_policy="weighted_top",
+        assignment_policy=SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
     )
 
     site_s1 = expanded.loc[
@@ -421,11 +433,15 @@ def test_build_expanded_signalome_table_emits_expected_shape_for_site_and_summar
         signalome_modules=signalome_modules,
         kinase_network_edges=kinase_network_edges,
         kinase_substrates={"K1": ("S1",), "K2": ("S2",), "K3": ()},
-        assignment_policy="cutoff_binary",
+        assignment_policy=SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     )
 
     assert expanded.loc[:, "kinase"].tolist() == ["K1", "K2", "K3"]
-    assert expanded.loc[:, "row_kind"].tolist() == ["site", "site", "summary"]
+    assert expanded.loc[:, EXPANDED_SIGNALOME_ROW_KIND_COLUMN].tolist() == [
+        EXPANDED_SIGNALOME_ROW_KIND_SITE,
+        EXPANDED_SIGNALOME_ROW_KIND_SITE,
+        EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
+    ]
     assert expanded.loc[:, "site_id"].tolist() == ["S1", "S2", ""]
     assert expanded.loc[:, "support_kinases"].tolist() == ['["K1"]', '["K2"]', "[]"]
     assert expanded.loc[:, "regulated_module_ids"].tolist() == ["[1]", "[2]", "[]"]

@@ -21,6 +21,8 @@ from phospy.signalomes.constants import (
     EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN,
     EXPANDED_SIGNALOME_REGULATED_MODULE_IDS_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
+    EXPANDED_SIGNALOME_ROW_KIND_SITE,
+    EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
     EXPANDED_SIGNALOME_SITE_ORDER_COLUMN,
     EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN,
     JSON_EMPTY_ARRAY,
@@ -178,7 +180,7 @@ def build_expanded_signalome_table(
             expanded_rows.append(
                 (
                     focal_kinase,
-                    "site",
+                    EXPANDED_SIGNALOME_ROW_KIND_SITE,
                     assignment_policy,
                     linked_kinases_json,
                     regulated_module_ids_json,
@@ -285,7 +287,7 @@ def _summary_row(
 ) -> tuple[object, ...]:
     return (
         focal_kinase,
-        "summary",
+        EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
         assignment_policy,
         linked_kinases_json,
         regulated_module_ids_json,

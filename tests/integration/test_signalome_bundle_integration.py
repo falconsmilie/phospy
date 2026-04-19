@@ -16,6 +16,7 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
+from phospy.api.configs import SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
 from phospy.api.results import SignalomeWorkflowResult
 from phospy.io.bundles.signalome import (
     SIGNALOME_BUNDLE_MANIFEST_VERSION,
@@ -103,7 +104,10 @@ def test_signalome_config_snapshot_accepts_legacy_cutoff_payload() -> None:
     assert snapshot.signalome_config.substrate_support_cutoff == pytest.approx(0.6)
     assert snapshot.signalome_config.network_correlation_threshold == pytest.approx(0.6)
     assert snapshot.signalome_config.network_policy == "signed"
-    assert snapshot.signalome_config.assignment_policy == "cutoff_binary"
+    assert (
+        snapshot.signalome_config.assignment_policy
+        == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+    )
 
 
 def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(

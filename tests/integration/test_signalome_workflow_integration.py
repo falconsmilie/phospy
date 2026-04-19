@@ -24,6 +24,10 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
+from phospy.signalomes.constants import (
+    EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
+    EXPANDED_SIGNALOME_ROW_KIND_SITE,
+)
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
 pytestmark = pytest.mark.integration
@@ -129,7 +133,10 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
     assert is_integer_dtype(expanded.loc[:, "module_id"])
     assert is_float_dtype(expanded.loc[:, "support_weight"])
     assert is_float_dtype(expanded.loc[:, "top_score"])
-    assert (expanded.loc[:, "row_kind"] == "site").any()
+    assert (
+        expanded.loc[:, EXPANDED_SIGNALOME_ROW_KIND_COLUMN]
+        == EXPANDED_SIGNALOME_ROW_KIND_SITE
+    ).any()
 
 
 def test_signalome_workflow_uses_explicit_dataset_protein_identity_when_present() -> (
