@@ -126,7 +126,10 @@ def test_signalome_modules_match_l6_fixture_table_exactly() -> None:
     assert int(modules.shape[0]) == int(contract["n_modules"])
     assert int(modules.shape[1]) == int(contract["n_module_kinases"])
     pdt.assert_frame_equal(modules, expected_modules, check_dtype=False)
-    assert (modules.sum(axis=1) - 100.0).abs().le(0.01).all()
+    row_sums = modules.sum(axis=1)
+    non_zero_rows = row_sums > 0.0
+    assert non_zero_rows.any()
+    assert (row_sums.loc[non_zero_rows] - 100.0).abs().le(0.01).all()
 
 
 def test_signalome_network_nodes_match_l6_fixture_counts_and_selected_rows() -> None:

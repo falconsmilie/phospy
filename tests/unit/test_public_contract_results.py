@@ -133,6 +133,8 @@ def test_signalome_result_keeps_nested_kinase_result_contract() -> None:
     assert signalome_result.kinase_result is kinase_result
     assert not signalome_result.module_assignments.table.empty
     assert not signalome_result.signalome_modules.table.empty
+    assert signalome_result.module_selection_diagnostics.selected_module_count >= 1
+    assert signalome_result.module_selection_diagnostics.reason
     assert signalome_result.kinase_result.scoring_result.motif_scores is None
     assert signalome_result.kinase_result.scoring_result.combined_scores is not None
     assert signalome_result.kinase_result.scoring_result.weights is None

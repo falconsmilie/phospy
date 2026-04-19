@@ -70,12 +70,16 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
     manifest = json.loads(
         (output_root / "signalome" / "manifest.json").read_text(encoding="utf-8")
     )
-    assert manifest == {
-        "expanded_signalome_present": False,
-        "kinase_network_nodes_present": True,
-        "output_format": "csv",
-        "reference_organism": "rat",
+    assert manifest["expanded_signalome_present"] is False
+    assert manifest["kinase_network_nodes_present"] is True
+    assert manifest["output_format"] == "csv"
+    assert manifest["reference_organism"] == "rat"
+    assert manifest["module_selection_strategy"] in {
+        "correlation_thresholds",
+        "explicit_module_count",
     }
+    assert int(manifest["selected_module_count"]) >= 1
+    assert manifest["used_automatic_module_selection"] is True
 
 
 def _build_signalome_result():

@@ -23,6 +23,7 @@ from phospy.io.bundles._shared.transformation_state import (
 )
 from phospy.io.bundles._signalome.compatibility import (
     normalize_module_assignments_table,
+    signalome_module_selection_diagnostics_from_payload_with_legacy_support,
 )
 from phospy.io.bundles._signalome.manifest import SignalomeManifestSections
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
@@ -209,6 +210,12 @@ def reconstruct_signalome_result(
         prediction_result=prediction_result,
         activity_result=activity_result,
     )
+    module_selection_diagnostics = (
+        signalome_module_selection_diagnostics_from_payload_with_legacy_support(
+            sections.signalome_metadata.get("module_selection_diagnostics"),
+            scope="bundle manifest.signalome_outputs.metadata",
+        )
+    )
     return SignalomeWorkflowResult(
         dataset=dataset,
         kinase_result=kinase_result,
@@ -244,6 +251,7 @@ def reconstruct_signalome_result(
                 field_name="bundle manifest.signalome_outputs.tables.kinase_network_nodes",
             ),
         ),
+        module_selection_diagnostics=module_selection_diagnostics,
         expanded_signalome=read_optional_table(
             bundle_root=bundle_root,
             tables=sections.signalome_tables,

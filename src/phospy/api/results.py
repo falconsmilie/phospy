@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass
+from dataclasses import InitVar, dataclass, field
 
 import pandas as pd
 
@@ -16,6 +16,8 @@ from phospy.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
     SignalomeModules,
+    SignalomeModuleSelectionDiagnostics,
+    default_signalome_module_selection_diagnostics,
 )
 
 
@@ -39,6 +41,9 @@ class SignalomeWorkflowResult:
     module_assignments: SignalomeAssignments
     signalome_modules: SignalomeModules
     kinase_network: KinaseNetwork
+    module_selection_diagnostics: SignalomeModuleSelectionDiagnostics = field(
+        default_factory=default_signalome_module_selection_diagnostics
+    )
     expanded_signalome: pd.DataFrame | None = None
     _assume_owned: InitVar[bool] = False
 
@@ -60,6 +65,7 @@ class SignalomeWorkflowResult:
         module_assignments: SignalomeAssignments,
         signalome_modules: SignalomeModules,
         kinase_network: KinaseNetwork,
+        module_selection_diagnostics: SignalomeModuleSelectionDiagnostics | None = None,
         expanded_signalome: pd.DataFrame | None = None,
     ) -> SignalomeWorkflowResult:
         return cls(
@@ -68,6 +74,11 @@ class SignalomeWorkflowResult:
             module_assignments=module_assignments,
             signalome_modules=signalome_modules,
             kinase_network=kinase_network,
+            module_selection_diagnostics=(
+                default_signalome_module_selection_diagnostics()
+                if module_selection_diagnostics is None
+                else module_selection_diagnostics
+            ),
             expanded_signalome=expanded_signalome,
             _assume_owned=True,
         )

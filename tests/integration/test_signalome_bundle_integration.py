@@ -80,10 +80,16 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
         "module_assignments": "signalome/module_assignments.csv",
         "signalome_modules": "signalome/signalome_modules.csv",
     }
-    assert manifest["signalome_outputs"]["metadata"] == {
-        "expanded_signalome_present": False,
-        "kinase_network_nodes_present": True,
+    signalome_metadata = manifest["signalome_outputs"]["metadata"]
+    assert signalome_metadata["expanded_signalome_present"] is False
+    assert signalome_metadata["kinase_network_nodes_present"] is True
+    diagnostics_payload = signalome_metadata["module_selection_diagnostics"]
+    assert diagnostics_payload["strategy"] in {
+        "correlation_thresholds",
+        "explicit_module_count",
     }
+    assert int(diagnostics_payload["selected_module_count"]) >= 1
+    assert isinstance(diagnostics_payload["candidate_scores"], dict)
 
     loaded = load_signalome_workflow_bundle(bundle_root)
     assert loaded.result.expanded_signalome is None
@@ -199,6 +205,7 @@ def _assert_signalome_result_equal(left, right) -> None:
         check_dtype=False,
         check_names=False,
     )
+    assert left.module_selection_diagnostics == right.module_selection_diagnostics
     assert left.expanded_signalome is None
     assert right.expanded_signalome is None
 

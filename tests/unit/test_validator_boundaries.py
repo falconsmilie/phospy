@@ -294,6 +294,46 @@ def test_signalome_request_network_threshold_policy_fails_at_validator_boundary(
         SignalomeWorkflowValidator().run(request)
 
 
+def test_signalome_request_module_count_policy_fails_at_validator_boundary() -> None:
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(),
+        config=SignalomeConfig(module_count=0),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="signalome workflow request config.module_count",
+    ):
+        SignalomeWorkflowValidator().run(request)
+
+
+def test_signalome_request_module_selection_threshold_policy_fails_at_boundary() -> (
+    None
+):
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(),
+        config=SignalomeConfig(module_selection_primary_correlation_threshold=1.2),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="module_selection_primary_correlation_threshold",
+    ):
+        SignalomeWorkflowValidator().run(request)
+
+
+def test_signalome_request_module_selection_max_clusters_policy_fails_at_boundary() -> (
+    None
+):
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(),
+        config=SignalomeConfig(module_selection_max_clusters=0),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="module_selection_max_clusters",
+    ):
+        SignalomeWorkflowValidator().run(request)
+
+
 def test_signalome_validator_does_not_cast_numeric_matrices(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

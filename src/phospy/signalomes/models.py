@@ -3,11 +3,63 @@
 from __future__ import annotations
 
 from dataclasses import InitVar, dataclass
+from typing import Literal
 
 import pandas as pd
 
 from phospy._frame_ownership import own_dataframe, own_optional_dataframe
 from phospy.errors.validation import PhosPyValidationError
+
+SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS = "correlation_thresholds"
+SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT = "explicit_module_count"
+SignalomeModuleSelectionStrategy = Literal[
+    "correlation_thresholds",
+    "explicit_module_count",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeClusterCandidateScore:
+    """One candidate module-count score summary."""
+
+    min_median_correlation: float
+    mean_median_correlation: float
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeModuleSelectionDiagnostics:
+    """Structured module-selection diagnostics."""
+
+    strategy: SignalomeModuleSelectionStrategy
+    selected_module_count: int
+    requested_module_count: int | None
+    threshold_used: float | None
+    max_clusters_evaluated: int
+    candidate_scores: dict[int, SignalomeClusterCandidateScore]
+    reason: str
+    zero_variance_profile_count: int = 0
+    near_constant_profile_count: int = 0
+    excluded_from_correlation_count: int = 0
+
+    @property
+    def used_automatic_selection(self) -> bool:
+        return self.requested_module_count is None
+
+
+def default_signalome_module_selection_diagnostics() -> (
+    SignalomeModuleSelectionDiagnostics
+):
+    """Return a stable placeholder diagnostics payload."""
+
+    return SignalomeModuleSelectionDiagnostics(
+        strategy=SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
+        selected_module_count=1,
+        requested_module_count=None,
+        threshold_used=None,
+        max_clusters_evaluated=1,
+        candidate_scores={},
+        reason="module selection diagnostics were not captured",
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,3 +142,16 @@ class KinaseNetwork:
         nodes: pd.DataFrame | None = None,
     ) -> KinaseNetwork:
         return cls(edges=edges, nodes=nodes, _assume_owned=True)
+
+
+__all__ = [
+    "KinaseNetwork",
+    "SignalomeAssignments",
+    "SignalomeClusterCandidateScore",
+    "SignalomeModuleSelectionDiagnostics",
+    "SignalomeModuleSelectionStrategy",
+    "SignalomeModules",
+    "SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS",
+    "SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT",
+    "default_signalome_module_selection_diagnostics",
+]

@@ -3,7 +3,15 @@
 from phospy.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
+    SignalomeClusterCandidateScore,
     SignalomeModules,
+    SignalomeModuleSelectionDiagnostics,
 )
 
-__all__ = ["KinaseNetwork", "SignalomeAssignments", "SignalomeModules"]
+__all__ = [
+    "KinaseNetwork",
+    "SignalomeAssignments",
+    "SignalomeClusterCandidateScore",
+    "SignalomeModuleSelectionDiagnostics",
+    "SignalomeModules",
+]

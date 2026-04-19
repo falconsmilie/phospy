@@ -6,6 +6,10 @@ import pandas as pd
 
 from phospy.api.results import SignalomeWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
+from phospy.signalomes.clustering import (
+    cluster_sites_with_diagnostics,
+    derive_protein_modules,
+)
 from phospy.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
@@ -33,10 +37,54 @@ class SignalomeWorkflowExecutor:
         network_correlation_threshold = float(
             request.config.network_correlation_threshold
         )
+        module_selection_primary_threshold = float(
+            request.config.module_selection_primary_correlation_threshold
+        )
+        module_selection_fallback_threshold = float(
+            request.config.module_selection_fallback_correlation_threshold
+        )
+        module_selection_max_clusters = int(
+            request.config.module_selection_max_clusters
+        )
+        requested_module_count = (
+            None
+            if request.config.module_count is None
+            else int(request.config.module_count)
+        )
+        try:
+            clustering_result = cluster_sites_with_diagnostics(
+                scoring_matrix=request.downstream_score_matrix,
+                requested_module_count=requested_module_count,
+                primary_threshold=module_selection_primary_threshold,
+                fallback_threshold=module_selection_fallback_threshold,
+                max_clusters=module_selection_max_clusters,
+            )
+            protein_modules = derive_protein_modules(
+                site_clusters=clustering_result.site_clusters,
+                site_to_protein=request.site_to_protein,
+            )
+        except (WorkflowStageError, ValueError) as exc:
+            self._raise_boundary_error(
+                seam=self._MODULE_CONSTRUCTION_SEAM,
+                next_action=(
+                    "ensure downstream signalome scores are compatible with module "
+                    "selection clustering and module-count policy settings"
+                ),
+                requested_module_count=(
+                    "auto" if requested_module_count is None else requested_module_count
+                ),
+                module_selection_primary_correlation_threshold=module_selection_primary_threshold,
+                module_selection_fallback_correlation_threshold=module_selection_fallback_threshold,
+                module_selection_max_clusters=module_selection_max_clusters,
+                downstream_score_sites=int(request.downstream_score_matrix.shape[0]),
+                downstream_score_kinases=int(request.downstream_score_matrix.shape[1]),
+                stage_error=str(exc),
+            )
         try:
             module_assignments = build_module_assignments(
                 prediction_matrix=request.prediction_matrix,
                 site_to_protein=request.site_to_protein,
+                protein_modules=protein_modules,
             )
         except WorkflowStageError as exc:
             self._raise_boundary_error(
@@ -49,6 +97,17 @@ class SignalomeWorkflowExecutor:
                 prediction_kinases=int(request.prediction_matrix.shape[1]),
                 substrate_support_cutoff=substrate_support_cutoff,
                 network_correlation_threshold=network_correlation_threshold,
+                selected_module_count=int(
+                    clustering_result.module_selection_diagnostics.selected_module_count
+                ),
+                requested_module_count=(
+                    "auto"
+                    if clustering_result.module_selection_diagnostics.requested_module_count
+                    is None
+                    else int(
+                        clustering_result.module_selection_diagnostics.requested_module_count
+                    )
+                ),
                 stage_error=str(exc),
             )
         kinase_substrates = select_kinase_substrates(
@@ -121,6 +180,9 @@ class SignalomeWorkflowExecutor:
                 prediction_kinases=int(request.prediction_matrix.shape[1]),
                 substrate_support_cutoff=substrate_support_cutoff,
                 network_correlation_threshold=network_correlation_threshold,
+                selected_module_count=int(
+                    clustering_result.module_selection_diagnostics.selected_module_count
+                ),
             )
 
         score_variance_kinases = self._score_variance_kinases(
@@ -161,6 +223,9 @@ class SignalomeWorkflowExecutor:
                 downstream_score_source=request.downstream_score_source,
                 score_variance_kinases=score_variance_kinases,
                 network_correlation_threshold=network_correlation_threshold,
+                selected_module_count=int(
+                    clustering_result.module_selection_diagnostics.selected_module_count
+                ),
             )
 
         return SignalomeWorkflowResult._from_owned(
@@ -174,6 +239,7 @@ class SignalomeWorkflowExecutor:
                 edges=network_edges,
                 nodes=network_nodes,
             ),
+            module_selection_diagnostics=clustering_result.module_selection_diagnostics,
             expanded_signalome=None,
         )
 

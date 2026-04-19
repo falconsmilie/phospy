@@ -191,6 +191,13 @@ def publish_signalome_workflow(
             "reference_organism": result.kinase_result.references.organism.value,
             "expanded_signalome_present": result.expanded_signalome is not None,
             "kinase_network_nodes_present": result.kinase_network.nodes is not None,
+            "module_selection_strategy": result.module_selection_diagnostics.strategy,
+            "selected_module_count": int(
+                result.module_selection_diagnostics.selected_module_count
+            ),
+            "used_automatic_module_selection": bool(
+                result.module_selection_diagnostics.used_automatic_selection
+            ),
             "output_format": output_format,
         },
     )

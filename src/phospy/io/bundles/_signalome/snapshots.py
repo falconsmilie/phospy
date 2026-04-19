@@ -48,6 +48,20 @@ class SignalomeWorkflowConfigSnapshot:
                 "network_correlation_threshold": float(
                     self.signalome_config.network_correlation_threshold
                 ),
+                "module_count": (
+                    None
+                    if self.signalome_config.module_count is None
+                    else int(self.signalome_config.module_count)
+                ),
+                "module_selection_primary_correlation_threshold": float(
+                    self.signalome_config.module_selection_primary_correlation_threshold
+                ),
+                "module_selection_fallback_correlation_threshold": float(
+                    self.signalome_config.module_selection_fallback_correlation_threshold
+                ),
+                "module_selection_max_clusters": int(
+                    self.signalome_config.module_selection_max_clusters
+                ),
             }
         }
 

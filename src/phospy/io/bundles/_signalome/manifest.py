@@ -15,6 +15,9 @@ from phospy.io.bundles._shared.primitives import (
 from phospy.io.bundles._shared.transformation_state import (
     transformation_state_to_payload,
 )
+from phospy.io.bundles._signalome.compatibility import (
+    signalome_module_selection_diagnostics_to_payload,
+)
 from phospy.io.bundles._signalome.constants import (
     CONFIG_SNAPSHOT_RELATIVE_PATH,
     SIGNALOME_BUNDLE_KIND,
@@ -34,6 +37,7 @@ class SignalomeManifestSections:
     scoring_tables: Mapping[str, object]
     prediction_tables: Mapping[str, object]
     activity_tables: Mapping[str, object]
+    signalome_metadata: Mapping[str, object]
     signalome_tables: Mapping[str, object]
     config_snapshot_path: str
 
@@ -90,6 +94,9 @@ def build_manifest(
             "metadata": {
                 "kinase_network_nodes_present": result.kinase_network.nodes is not None,
                 "expanded_signalome_present": result.expanded_signalome is not None,
+                "module_selection_diagnostics": signalome_module_selection_diagnostics_to_payload(
+                    result.module_selection_diagnostics
+                ),
             },
             "tables": dict(signalome_tables),
         },
@@ -177,6 +184,10 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
         activity_tables=require_mapping(
             activity_payload.get("tables"),
             field_name="bundle manifest.upstream_kinase_outputs.activity.tables",
+        ),
+        signalome_metadata=require_mapping(
+            signalome_outputs_payload.get("metadata"),
+            field_name="bundle manifest.signalome_outputs.metadata",
         ),
         signalome_tables=require_mapping(
             signalome_outputs_payload.get("tables"),

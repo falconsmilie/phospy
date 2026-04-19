@@ -236,9 +236,12 @@ def test_signalome_network_uses_combined_downstream_scores_when_available(
     assert not combined_lane.kinase_network.edges.equals(
         profile_lane.kinase_network.edges
     )
-    pdt.assert_frame_equal(
-        combined_lane.module_assignments.table,
-        profile_lane.module_assignments.table,
+    assert not combined_lane.module_assignments.table.equals(
+        profile_lane.module_assignments.table
+    )
+    pdt.assert_series_equal(
+        combined_lane.module_assignments.table.loc[:, "top_kinase"],
+        profile_lane.module_assignments.table.loc[:, "top_kinase"],
         check_dtype=False,
     )
 

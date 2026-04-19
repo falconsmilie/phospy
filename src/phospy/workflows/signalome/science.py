@@ -39,6 +39,7 @@ def build_module_assignments(
     *,
     prediction_matrix: pd.DataFrame,
     site_to_protein: pd.Series,
+    protein_modules: pd.Series | None = None,
 ) -> pd.DataFrame:
     """Build site-level module assignments with explicit tie-handling metadata."""
 
@@ -82,24 +83,12 @@ def build_module_assignments(
         dtype=object,
         name=TOP_KINASE_COLUMN,
     )
-    protein_module_resolution = _derive_protein_modules(
+    site_module_resolution = _resolve_site_module_resolution(
         top_kinases=top_kinase_series,
         top_kinase_weights=top_kinase_weights,
         site_to_protein=resolved_site_to_protein,
+        protein_modules=protein_modules,
     )
-    site_proteins = resolved_site_to_protein.to_numpy(dtype=object, copy=False)
-    site_module_resolution = protein_module_resolution.loc[
-        site_proteins,
-        [
-            MODULE_ID_COLUMN,
-            MODULE_TOP_KINASE_COLUMN,
-            MODULE_TOP_KINASE_CANDIDATES_COLUMN,
-            MODULE_TOP_KINASE_TIE_COUNT_COLUMN,
-            MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN,
-            MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN,
-        ],
-    ]
-    site_module_resolution.index = site_index.copy()
 
     assignments = pd.DataFrame(
         {
@@ -433,7 +422,125 @@ def _resolve_site_to_protein(
     return aligned
 
 
-def _derive_protein_modules(
+def _resolve_site_module_resolution(
+    *,
+    top_kinases: pd.Series,
+    top_kinase_weights: Sequence[tuple[tuple[str, float], ...]],
+    site_to_protein: pd.Series,
+    protein_modules: pd.Series | None,
+) -> pd.DataFrame:
+    if protein_modules is None:
+        protein_resolution = _derive_protein_modules_by_top_kinase(
+            top_kinases=top_kinases,
+            top_kinase_weights=top_kinase_weights,
+            site_to_protein=site_to_protein,
+        )
+    else:
+        protein_resolution = _build_protein_resolution_from_modules(
+            top_kinases=top_kinases,
+            top_kinase_weights=top_kinase_weights,
+            site_to_protein=site_to_protein,
+            protein_modules=protein_modules,
+        )
+    site_proteins = site_to_protein.to_numpy(dtype=object, copy=False)
+    site_module_resolution = protein_resolution.loc[
+        site_proteins,
+        [
+            MODULE_ID_COLUMN,
+            MODULE_TOP_KINASE_COLUMN,
+            MODULE_TOP_KINASE_CANDIDATES_COLUMN,
+            MODULE_TOP_KINASE_TIE_COUNT_COLUMN,
+            MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN,
+            MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN,
+        ],
+    ]
+    site_module_resolution.index = site_to_protein.index.copy()
+    return site_module_resolution
+
+
+def _build_protein_resolution_from_modules(
+    *,
+    top_kinases: pd.Series,
+    top_kinase_weights: Sequence[tuple[tuple[str, float], ...]],
+    site_to_protein: pd.Series,
+    protein_modules: pd.Series,
+) -> pd.DataFrame:
+    if len(top_kinases) != len(top_kinase_weights):
+        raise WorkflowStageError(
+            "top kinase weights must align one-to-one with prediction sites"
+        )
+    normalized_modules = _normalize_protein_modules(protein_modules)
+    protein_index = pd.Index(
+        sorted(set(site_to_protein.astype(str).tolist())),
+        name=PROTEIN_COLUMN,
+        dtype=object,
+    )
+    module_ids = pd.Series(
+        np.zeros(len(protein_index), dtype=np.int64),
+        index=protein_index.copy(),
+        dtype="int64",
+    )
+    shared_proteins = protein_index.intersection(normalized_modules.index)
+    if not shared_proteins.empty:
+        module_ids.loc[shared_proteins] = normalized_modules.loc[shared_proteins]
+
+    top_table = pd.DataFrame(
+        {
+            PROTEIN_COLUMN: site_to_protein.to_numpy(dtype=object, copy=False),
+            TOP_KINASE_COLUMN: top_kinases.to_numpy(dtype=object, copy=False),
+            TOP_KINASE_WEIGHTS_COLUMN: list(top_kinase_weights),
+        },
+        index=site_to_protein.index.copy(),
+    )
+    top_table.loc[:, MODULE_ID_COLUMN] = (
+        top_table.loc[:, PROTEIN_COLUMN]
+        .astype(str)
+        .map(module_ids)
+        .fillna(0)
+        .astype("int64")
+    )
+    module_resolution = _derive_module_top_kinase_resolution(top_table)
+    protein_resolution = pd.DataFrame(
+        {
+            MODULE_ID_COLUMN: module_ids.to_numpy(dtype=np.int64, copy=False),
+        },
+        index=protein_index.copy(),
+    )
+    return protein_resolution.join(module_resolution, on=MODULE_ID_COLUMN).astype(
+        {
+            MODULE_ID_COLUMN: "int64",
+            MODULE_TOP_KINASE_COLUMN: str,
+            MODULE_TOP_KINASE_TIE_COUNT_COLUMN: "int64",
+            MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN: bool,
+            MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN: str,
+        }
+    )
+
+
+def _normalize_protein_modules(protein_modules: pd.Series) -> pd.Series:
+    resolved = protein_modules.copy()
+    resolved.index = pd.Index(resolved.index.astype(str), name=PROTEIN_COLUMN)
+    if resolved.index.has_duplicates:
+        duplicated = sorted(
+            {str(value) for value in resolved.index[resolved.index.duplicated()]}
+        )
+        preview = ", ".join(duplicated[:3])
+        suffix = "..." if len(duplicated) > 3 else ""
+        raise WorkflowStageError(
+            f"protein_modules contains duplicate protein identifiers: {preview}{suffix}"
+        )
+    module_values = pd.to_numeric(resolved, errors="coerce")
+    if module_values.isna().any():
+        raise WorkflowStageError("protein_modules must contain integer module IDs")
+    rounded = np.floor(module_values.to_numpy(dtype=float, copy=False))
+    if not np.allclose(module_values.to_numpy(dtype=float, copy=False), rounded):
+        raise WorkflowStageError("protein_modules must contain integer module IDs")
+    integer_values = module_values.astype("int64")
+    integer_values.loc[integer_values < 0] = 0
+    return integer_values.astype("int64")
+
+
+def _derive_protein_modules_by_top_kinase(
     *,
     top_kinases: pd.Series,
     top_kinase_weights: Sequence[tuple[tuple[str, float], ...]],
@@ -513,3 +620,47 @@ def _derive_protein_modules(
             MODULE_ID_COLUMN: "int64",
         }
     )
+
+
+def _derive_module_top_kinase_resolution(top_table: pd.DataFrame) -> pd.DataFrame:
+    module_resolution_rows: list[dict[str, object]] = []
+    module_ids = sorted(
+        {int(module_id) for module_id in top_table.loc[:, MODULE_ID_COLUMN].tolist()}
+    )
+    if 0 not in module_ids:
+        module_ids = [0, *module_ids]
+    for module_id in module_ids:
+        module_group = top_table.loc[
+            top_table.loc[:, MODULE_ID_COLUMN].astype("int64") == int(module_id)
+        ]
+        supported_group = module_group.loc[
+            module_group.loc[:, TOP_KINASE_COLUMN].astype(str) != UNSUPPORTED_KINASE
+        ]
+        counts = supported_group.loc[:, TOP_KINASE_COLUMN].astype(str).value_counts()
+        if not counts.empty and int(module_id) > 0:
+            max_count = int(counts.iloc[0])
+            tied_kinases = tuple(
+                sorted(kinase for kinase in counts[counts == max_count].index.to_list())
+            )
+            dominant_kinase = tied_kinases[0]
+            selection_policy = LEXICOGRAPHIC_TIE_BREAK_POLICY
+        else:
+            tied_kinases = ()
+            dominant_kinase = UNSUPPORTED_KINASE
+            selection_policy = NO_SUPPORT_SELECTION_POLICY
+        module_resolution_rows.append(
+            {
+                MODULE_ID_COLUMN: int(module_id),
+                MODULE_TOP_KINASE_COLUMN: dominant_kinase,
+                MODULE_TOP_KINASE_CANDIDATES_COLUMN: tied_kinases,
+                MODULE_TOP_KINASE_TIE_COUNT_COLUMN: len(tied_kinases),
+                MODULE_TOP_KINASE_IS_AMBIGUOUS_COLUMN: len(tied_kinases) > 1,
+                MODULE_TOP_KINASE_SELECTION_POLICY_COLUMN: selection_policy,
+            }
+        )
+    module_resolution = pd.DataFrame(module_resolution_rows).set_index(MODULE_ID_COLUMN)
+    module_resolution.index = pd.Index(
+        module_resolution.index.astype("int64"),
+        name=MODULE_ID_COLUMN,
+    )
+    return module_resolution

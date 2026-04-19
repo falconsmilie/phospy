@@ -9,6 +9,8 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODES,
     KINASE_PROFILE_MISSING_VALUE_STRATEGIES,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
+    SIGNALOME_MODULE_COUNT_FLOOR,
+    SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -138,6 +140,41 @@ class WorkflowConfigValidator:
             ),
             minimum=0.0,
             maximum=1.0,
+            error_type=WorkflowValidationError,
+        )
+        if config.module_count is not None:
+            require_int_at_least(
+                config.module_count,
+                field_name="signalome workflow request config.module_count",
+                minimum=SIGNALOME_MODULE_COUNT_FLOOR,
+                error_type=WorkflowValidationError,
+            )
+        require_real_between(
+            config.module_selection_primary_correlation_threshold,
+            field_name=(
+                "signalome workflow request config."
+                "module_selection_primary_correlation_threshold"
+            ),
+            minimum=0.0,
+            maximum=1.0,
+            error_type=WorkflowValidationError,
+        )
+        require_real_between(
+            config.module_selection_fallback_correlation_threshold,
+            field_name=(
+                "signalome workflow request config."
+                "module_selection_fallback_correlation_threshold"
+            ),
+            minimum=0.0,
+            maximum=1.0,
+            error_type=WorkflowValidationError,
+        )
+        require_int_at_least(
+            config.module_selection_max_clusters,
+            field_name=(
+                "signalome workflow request config.module_selection_max_clusters"
+            ),
+            minimum=SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR,
             error_type=WorkflowValidationError,
         )
         return config
