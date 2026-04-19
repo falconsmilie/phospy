@@ -14,6 +14,7 @@ from phospy import (
     SignalomeWorkflowRequest,
 )
 from phospy.errors import WorkflowBoundaryError
+from phospy.errors.workflows import WorkflowStageError
 from phospy.transformations.models import TransformationState
 from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
 from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
@@ -516,6 +517,58 @@ def test_boundary_error_reports_network_failure_modes() -> None:
     assert "downstream_score_sites=2" in variance_message
     assert "score_variance_kinases=0" in variance_message
     assert "network_correlation_threshold=0.5" in variance_message
+
+
+def test_boundary_error_reports_expanded_signalome_failure_seam(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.workflows.signalome.executor as executor_module
+
+    dataset = _dataset(site_ids=["P1;S1;", "P2;S2;", "P3;S3;"])
+    prediction_matrix = _matrix(
+        values=[
+            [0.95, 0.1],
+            [0.1, 0.95],
+            [0.8, 0.7],
+        ],
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.8, 0.7],
+        ],
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+
+    def _raise_expanded_stage_error(**_: object) -> pd.DataFrame:
+        raise WorkflowStageError("expanded signalome seam regression test")
+
+    monkeypatch.setattr(
+        executor_module,
+        "build_expanded_signalome_table",
+        _raise_expanded_stage_error,
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        SignalomeWorkflowExecutor().run(interpreted)
+
+    message = str(exc_info.value)
+    assert "seam=signalome.executor.expanded_signalome" in message
+    assert "assignment_policy=cutoff_binary" in message
+    assert "stage_error=expanded signalome seam regression test" in message
 
 
 def test_support_cutoff_changes_substrate_support_without_changing_network_edges() -> (
