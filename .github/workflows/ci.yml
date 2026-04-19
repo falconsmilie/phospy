@@ -82,6 +82,29 @@ jobs:
       - name: Run unit tests
         run: pytest tests/unit
 
+  adaptive-mode-standard-install:
+    needs: repo-hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      - name: Install package from standard dependency set
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest
+      - name: Verify adaptive dependency contract
+        run: |
+          python -c "import importlib.metadata as md; requirements = md.requires('phospy') or []; assert any(req.lower().startswith('scikit-learn') for req in requirements), requirements"
+          python -c "from phospy.prediction.svm import require_sklearn; require_sklearn()"
+      - name: Run adaptive-mode tests
+        run: pytest tests/unit/test_prediction_adaptive_sampling.py tests/unit/test_prediction_mode_regression.py tests/unit/test_prediction_svm_dependency_guard.py
+
   integration-tests:
     needs: repo-hygiene
     runs-on: ubuntu-latest

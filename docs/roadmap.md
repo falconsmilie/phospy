@@ -25,6 +25,7 @@ Historical code under `legacy_archive/phospy_legacy/` is migration reference onl
 - Prediction uses the legacy-matching downstream score lane:
   `combined_scores` when present, otherwise `profile_scores`
 - Adaptive ensemble prediction mode is supported (`mode="adaptive_ensemble"`)
+  in the standard package install (no extra dependency step required)
 - Kinase activity stage is supported and optional
 - Signalome workflow consumes the same downstream score lane and returns module
   assignments, module table, kinase network, and populated

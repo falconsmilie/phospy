@@ -20,6 +20,12 @@ All public executors use `run(request)`.
 - `src/phospy/`: supported package
 - `legacy_archive/phospy_legacy/`: historical migration reference only
 
+## Installation Contract
+
+Standard installation includes all dependencies required by supported prediction
+lanes, including `mode="adaptive_ensemble"` (scikit-learn is part of base
+dependencies). No extra install step is required for adaptive mode.
+
 ## Public Types
 
 Import from top-level `phospy`.
@@ -118,6 +124,9 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 - `adaptive_policy` (`"stable"` or `"r_parity"`)
 - `n_iterations` (validated floor: `>= 1`; used by adaptive lane)
 - `random_state` (`None` or integer `>= 0`)
+
+`"adaptive_ensemble"` is part of the normal supported contract and is expected
+to work after a standard package install.
 
 `SignalomeConfig` fields:
 

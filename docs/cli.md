@@ -35,6 +35,9 @@ phospy kinase \
   --outdir ./out
 ```
 
+`--prediction-mode adaptive_ensemble` is supported in the normal CLI lane and
+works after standard package installation with no extra dependency setup.
+
 ### Signalome Workflow
 
 ```bash

@@ -125,9 +125,10 @@ def require_sklearn() -> tuple[type, type]:
         from sklearn.svm import SVC
     except ImportError as exc:  # pragma: no cover - environment-dependent
         msg = (
-            "adaptive ensemble prediction requires scikit-learn, but it could not "
-            "be imported. Install scikit-learn to use prediction mode "
-            "'adaptive_ensemble'."
+            "adaptive ensemble prediction depends on scikit-learn, which is part "
+            "of PhosPy's standard install. scikit-learn could not be imported, "
+            "which indicates an unexpected environment problem (broken or partial "
+            "installation). Reinstall PhosPy in a clean environment."
         )
         raise ImportError(msg) from exc
     return StandardScaler, SVC

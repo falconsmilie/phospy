@@ -2,6 +2,16 @@
 
 PhosPy exposes a focused public product in `src/phospy/`.
 
+## Installation
+
+Standard installation includes support for both public prediction modes,
+including `mode="adaptive_ensemble"`. No extra dependency step is required for
+the supported adaptive path.
+
+```bash
+pip install .
+```
+
 ## Public Product Shape
 
 - `AnalysisReadyPhosphoDataset` is the workflow dataset boundary.
