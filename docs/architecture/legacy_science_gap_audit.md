@@ -1,118 +1,104 @@
 # Legacy Science Gap Audit: Rewrite vs Legacy Archive
 
-- Date: 2026-04-18
-- Priority: P1
+- Date: 2026-04-19
 - Scope reviewed:
-  - `legacy_archive/phospy_legacy/prediction/*`
-  - `legacy_archive/phospy_legacy/signalomes/*`
-  - `legacy_archive/phospy_legacy/activities/*`
-  - `src/phospy/workflows/*`
-  - rewrite parity fixtures and tests
-- ADR alignment: ADR-012 (fresh-start rewrite), ADR-013 (scientific parity policy)
+  - Legacy science donors under `legacy_archive/phospy_legacy/{prediction,signalomes,activities}`
+  - Rewrite implementation under `src/phospy/`
+  - Parity/unit/integration tests under `tests/`
+- Contract baselines:
+  - ADR-012 (fresh-start rewrite): architecture is rewrite-native
+  - ADR-013 (scientific parity policy): parity is scientific, not structural
+  - ADR-001/002/003/005/011: active public/workflow/dataset/result contracts
 
-This note defines which legacy scientific components are still valid donors for the rewrite and which legacy structures must remain archived.
+This document is governance-facing. It classifies legacy science components by
+their *current rewrite truth* and separates scientific reference value from
+active downstream contract authority.
 
-## P1 Decision Record (2026-04-18)
+## Status Vocabulary (Normative)
 
-This ticket explicitly resolves the three open scientific-route questions:
+- **Supported now**: implemented and part of the supported public lane.
+- **Implemented but not authoritative downstream**: implemented output exists,
+  but it is not the decision-driving downstream lane by itself.
+- **Partially ported**: meaningful subset is implemented; parity-scoped behavior
+  remains missing.
+- **Deferred**: intentionally not in the supported lane yet.
+- **Historical / superseded**: reference context only; not active guidance.
 
-- **Does motif scoring belong in the supported route now?**  
-  **Yes.** Rewrite-native motif scoring is now part of kinase scoring outputs.
-- **Should combined profile/motif scoring return?**  
-  **Yes.** Rewrite now publishes `combined_scores` and per-kinase `weights`.
-- **Is adaptive or richer candidate selection scientifically required now?**  
-  **Richer candidate filtering: Yes (ported).**  
-  **Adaptive sampling: Not yet required for the supported route.** It remains
-  deferred until dependency/runtime policy and reproducibility contracts are
-  formalized for the rewrite package.
+## Governance Snapshot (2026-04-19)
 
-## Downstream Lane Completion (2026-04-19)
+- The supported kinase downstream score lane is `combined_scores` first, with
+  `profile_scores` fallback only when combined scores are unavailable.
+- Prediction and signalome consume the same authoritative downstream score lane.
+- Legacy scientific modules remain science donors only; legacy architecture is
+  not a target structure.
+- No ADR-vs-code conflict was found in this audit pass. If a future conflict is
+  found, it must be called out explicitly instead of harmonized implicitly.
 
-Legacy review outcome (explicit):
+## Science Matrix (Evidence-Backed)
 
-- Downstream prediction was **not** intended to be profile-only when
-  `combined_scores` are available.
-- Candidate selection, kinase ranking, and prediction output assembly should use
-  the combined profile/motif score lane, with profile-only fallback only when
-  combined scores are unavailable.
-- Legacy weighting (`weights`) is applied during profile/motif combination and
-  therefore indirectly drives downstream decision-making through
-  `combined_scores`.
-- Signalome should consume the same authoritative upstream downstream-score lane
-  used for prediction.
-
-Rewrite implementation status:
-
-- Kinase downstream matrix is now explicit and resolved as
-  `combined_scores`-first (`profile_scores` fallback).
-- Prediction candidate selection, ranking, and `pred_mat` construction now all
-  use this explicit downstream matrix.
-- Signalome validator/interpreter/executor now consume the same resolved
-  downstream matrix contract.
-
-## Classification Legend
-
-- `port as-is with adaptation`
-- `port conceptually but reimplement cleanly`
-- `do not port`
-
-## Gap Matrix
-
-| Legacy science component | Current rewrite status | Classification | Parity risk and fixture impact | Follow-on ticket |
+| Scientific area | Current rewrite state | Status | Evidence (code/tests) | Follow-on |
 | --- | --- | --- | --- | --- |
-| Profile scoring kernel (`prediction/scoring.py::score_phosphosite_profiles`) | Implemented in `src/phospy/workflows/kinase/science.py::score_profile_correlations` | `port as-is with adaptation` (already landed) | Low risk. Keep `tests/fixtures/rewrite_parity/r_reference_l6/native_profile_scores.csv` stable. | `SCI-GAP-00` (baseline guardrails only) |
-| Kinase profile construction + substrate support counting (`prediction/profiles.py`) | Implemented with strict missing propagation; no policy surface | `port as-is with adaptation` for current default; extend policy in clean API later | Low/medium. Any future `median_skipna` option will change score baselines and `predMat` expectations. | `SCI-GAP-01` |
-| Motif scoring (frequency matrices, sequence window scoring, min-max scaling) (`prediction/motif_scoring.py`) | Implemented in rewrite scoring stage and published on `KinaseScoringResult.motif_scores` | `port conceptually but reimplement cleanly` (landed) | Medium. Fixture baselines now include motif outputs and should be kept stable for regressions. | Closed |
-| Profile + motif weighted combination (`prediction/scoring.py::combine_profile_and_motif_scores`) | Implemented and used to populate downstream `combined_scores`/`weights` | `port conceptually but reimplement cleanly` (landed) | Medium/high. Downstream prediction/signalome now depend on this matrix selection seam. | Closed |
-| Candidate substrate selection (`prediction/candidates.py`: `top`, `score_threshold`, `inclusion`) | Implemented and now driven by explicit downstream score matrix in kinase executor | `port as-is with adaptation` (landed in supported lane) | Medium. Candidate/ranking shifts are expected when combined and profile order differ. | Closed |
-| Adaptive sampling ensemble prediction core (`prediction/sampling_core.py`, `prediction/execution.py`) | Not implemented (rewrite uses deterministic score ranking) | `port conceptually but reimplement cleanly` | High. Changes full prediction distribution and all downstream activity/signalome fixtures (`predMat`, `kinase_activity_matrix.csv`, `ksea_scores.csv`, signalome contract tables). | `SCI-GAP-05` |
-| Signalome module-count selection and clustering (`signalomes/clustering.py`) | Not implemented (rewrite derives modules from dominant kinase grouping) | `port conceptually but reimplement cleanly` | High. Module IDs, assignment distribution, and network composition will shift. Impacts `signalome_rewrite_l6_contract.json`, modules, assignments, and edge fixtures. | `SCI-GAP-06` |
-| Site/protein assignment tie metadata (`signalomes/assignments.py` top candidates + ambiguity counts) | Partially implemented (candidates + ambiguity metadata present) | `port as-is with adaptation` (already partial; finish parity semantics) | Medium. Tie-distribution counts in `signalome_rewrite_l6_contract.json` must remain deterministic. | `SCI-GAP-07` |
-| Weighted-top tie handling (`top_kinase_weights` + `assignment_policy="weighted_top"`) | Not implemented in rewrite | `port conceptually but reimplement cleanly` | High for ambiguous assignments and module shares. Add explicit tie fixtures from `tests_legacy` weighted-top scenarios. | `SCI-GAP-08` |
-| Signalome network threshold policies (`positive_only`, `absolute_threshold`, `signed`) | Rewrite supports one signed absolute-threshold behavior | `port conceptually but reimplement cleanly` for optional policies; keep current default | Medium. Only affected when policy surface is expanded; current fixtures remain stable if default unchanged. | `SCI-GAP-09` |
-| Expanded signalome generation (`signalomes/assignments.py::build_expanded_signalomes`) | Explicitly not implemented in rewrite (`expanded_signalome=None`) | `port conceptually but reimplement cleanly` | Medium/high for new output contract; add dedicated workflow fixtures instead of mutating existing selected-point contract files. | `SCI-GAP-10` |
-| Activity scoring and KSEA-style calculations (`activities/scoring.py`) | Implemented in rewrite with equivalent kernels and parity tests | `port as-is with adaptation` (already landed) | Low. Keep `kinase_activity_matrix.csv`, `ksea_scores.csv`, `ksea_counts.csv`, and target count fixtures as regression anchors. | `SCI-GAP-11` |
+| Profile scoring kernel + kinase profile build | Implemented and active in kinase scoring route. | Supported now | `src/phospy/workflows/kinase/science.py`, `tests/parity/test_kinase_workflow_parity.py` | Baseline guardrails only |
+| Optional profile missing-value policy variants from legacy (`median_skipna` lane) | Rewrite supports strict current default (`skipna=False`) only. | Partially ported | `build_kinase_profiles` in `src/phospy/workflows/kinase/science.py` | `SCI-GAP-01` |
+| Motif scoring output (`motif_scores`) | Implemented and published in scoring result. | Implemented but not authoritative downstream | `src/phospy/prediction/motif_scoring.py`, `tests/parity/test_prediction_science_parity.py` | Closed for supported lane |
+| Profile+motif weighted combination (`combined_scores`, `weights`) | Implemented and selected as authoritative downstream lane when present. | Supported now | `src/phospy/prediction/scoring.py`, `src/phospy/workflows/kinase/executor.py`, `tests/parity/test_kinase_workflow_parity.py` | Closed for supported lane |
+| Candidate selection/ranking/prediction assembly | Implemented against resolved downstream matrix. | Supported now | `src/phospy/prediction/candidates.py`, `src/phospy/workflows/kinase/science.py` | Closed for supported lane |
+| Adaptive ensemble sampling prediction core | Not implemented; rewrite uses deterministic score ranking lane. | Deferred | No rewrite equivalent of legacy `prediction/sampling_core.py` + `prediction/execution.py` | `SCI-GAP-05` |
+| Activity weighted/KSEA kernels | Implemented and parity-backed in supported kinase workflow. | Supported now | `src/phospy/activities/scoring.py`, `tests/parity/test_activity_stage_parity.py`, `docs/architecture/activity_science_port_review.md` | Keep parity fixture lock (`SCI-GAP-11`) |
+| Signalome consumption of upstream downstream score lane | Implemented; uses same resolved lane as prediction. | Supported now | `src/phospy/workflows/signalome/interpreter.py`, `tests/unit/test_signalome_workflow_diagnostics.py` | Closed for supported lane |
+| Site/protein assignment ambiguity metadata (`top_kinase_candidates`, tie counts) | Implemented with deterministic lexicographic tie policy and ambiguity diagnostics. | Supported now | `src/phospy/workflows/signalome/science.py`, `tests/unit/test_signalome_science_ambiguity.py`, parity contract fixture checks | `SCI-GAP-07` closed for current lane |
+| `top_kinase_weights` propagation into weighted-top assignment policy | Weights metadata exists, but weighted-top assignment policy is not implemented. | Implemented but not authoritative downstream | `top_kinase_weights` in `src/phospy/workflows/signalome/science.py`; no weighted-top policy path in executor | `SCI-GAP-08` |
+| Signalome module-count auto-selection/clustering lane | Not implemented; rewrite uses dominant-kinase grouping route. | Deferred | No rewrite equivalent of `legacy_archive/phospy_legacy/signalomes/clustering.py` | `SCI-GAP-06` |
+| Signalome network policy variants (`positive_only`, etc.) | Signed absolute-threshold behavior is implemented; broader policy surface is absent. | Partially ported | `build_kinase_network` in `src/phospy/workflows/signalome/science.py` | `SCI-GAP-09` |
+| Expanded signalome output | Output contract exists but workflow sets `expanded_signalome=None`. | Deferred | `SignalomeWorkflowResult.expanded_signalome` in `src/phospy/api/results.py`; executor returns `None` | `SCI-GAP-10` |
 
-## Science Worth Reusing
+## Authoritative Downstream Lanes
 
-- Profile correlation scoring and profile construction logic.
-- Motif frequency scoring and profile/motif weighting concepts.
-- Candidate filtering semantics (`top`, threshold, inclusion) before prediction.
-- Adaptive sampling ensemble concept and deterministic RNG policy seams.
-- Signalome clustering/module selection heuristics and diagnostics.
-- Weighted-top tie semantics for ambiguous site assignment.
-- Activity weighted-average and KSEA kernels (already adopted).
+- **Kinase prediction lane**: authoritative matrix is resolved by
+  `select_downstream_score_matrix(...)` to `combined_scores` first, then
+  `profile_scores` fallback.
+- **Signalome score-driven lane**: interpreter resolves and passes the same
+  downstream matrix source used by kinase prediction.
+- **Not authoritative by itself**:
+  - `motif_scores` as a standalone lane
+  - `top_kinase_weights` metadata without weighted-top policy execution
 
-## Legacy Structure Not To Reuse
+## Legacy Scientific Reference vs Active Rewrite Contract
 
-- Legacy package orchestration/wrapper layers in `legacy_archive/phospy_legacy/api/*` and `internal/*`.
-- Compatibility-heavy result facades and mutable alias surfaces in legacy `signalomes/results.py`.
-- Trace sink ownership plumbing and replay/export packaging as architecture templates.
-- Legacy workflow composition classes as direct module templates.
+**Legacy scientific reference (allowed):**
 
-The archive remains a science donor only; implementation must stay in rewrite validator/interpreter/executor boundaries.
+- scoring kernels and motifs from legacy prediction modules
+- adaptive sampling concepts
+- clustering/module-selection heuristics
+- weighted-top assignment semantics
+- activity/KSEA kernels
 
-## Follow-on Ticket Queue
+**Active rewrite contract (binding):**
 
-- `SCI-GAP-01`: Add optional profile missing-value strategy lane (`propagate_any_missing` default, optional `median_skipna`).
-- `SCI-GAP-05`: Implement adaptive ensemble prediction lane behind rewrite-native contract.
-- `SCI-GAP-06`: Introduce signalome clustering and module-count selection with diagnostics.
-- `SCI-GAP-07`: Tighten tie metadata parity semantics for deterministic assignment diagnostics.
-- `SCI-GAP-08`: Add weighted-top assignment policy and support matrix propagation.
-- `SCI-GAP-09`: Add explicit signalome network policy enum and execution paths.
-- `SCI-GAP-10`: Implement `expanded_signalome` output model and fixture-backed regression tests.
-- `SCI-GAP-11`: Keep activity/KSEA parity fixtures as blocking regressions while prediction lane evolves.
+- Public API/request/result boundaries in ADR-001/005/011 and implemented
+  `src/phospy/api/*`
+- Validator/interpreter/executor workflow staging in ADR-002 and
+  `src/phospy/workflows/*`
+- Fresh-start architecture boundary in ADR-012
 
-## Parity and Fixture Strategy
+Legacy structure under `legacy_archive/phospy_legacy/` is **historical /
+superseded architecture context**, not an active contract source.
 
-- Preserve current rewrite fixture baselines for already-landed science (`native_profile_scores`, activity outputs) as non-regression anchors.
-- Promote legacy scientific fixtures into rewrite-owned fixture paths before enabling new lanes:
-  - motif/combined scoring fixtures from `tests_legacy/fixtures/r_reference_l6/`
-  - weighted-top and clustering edge cases from `tests_legacy` synthetic scenarios
-- Expect staged fixture churn in this order:
-  1. scoring fixtures (`motif`, `combined`)
-  2. prediction fixtures (`predMat`, candidate and trace-derived subsets if retained)
-  3. downstream activity fixtures (`kinase_activity_matrix`, `ksea_scores`, counts)
-  4. signalome contract fixtures (`signalome_rewrite_l6_*`)
+## Follow-on Queue (Still Valid)
 
-No parity update should require copying legacy architecture; only scientific outputs and stable contracts are parity targets.
+- `SCI-GAP-01`: optional profile missing-value strategy lane.
+- `SCI-GAP-05`: adaptive ensemble sampling lane.
+- `SCI-GAP-06`: signalome clustering/module-count selection diagnostics.
+- `SCI-GAP-08`: weighted-top assignment policy.
+- `SCI-GAP-09`: explicit network policy variants.
+- `SCI-GAP-10`: `expanded_signalome` population and contract fixtures.
+- `SCI-GAP-11`: keep activity parity fixtures as blocking regressions.
+
+## Historical / Superseded Notes
+
+- Earlier wording that implied “motif/combined science is missing” is
+  superseded.
+- Earlier wording that implied “profile-only downstream is intended” is
+  superseded.
+- Earlier wording that treated legacy package structure as migration target is
+  superseded by ADR-012 and current `src/phospy/` implementation boundaries.

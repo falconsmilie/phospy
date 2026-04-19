@@ -41,11 +41,15 @@ Audit reference:
 - `SCI-GAP-01`: profile missing-value strategy lane (`median_skipna` optional)
 - `SCI-GAP-05`: adaptive sampling ensemble prediction lane
 - `SCI-GAP-06`: signalome clustering and module-count diagnostics
-- `SCI-GAP-07`: deterministic tie-metadata hardening
 - `SCI-GAP-08`: weighted-top assignment policy and fractional module shares
 - `SCI-GAP-09`: signalome network policy expansion
 - `SCI-GAP-10`: `expanded_signalome` output population
 - `SCI-GAP-11`: activity/KSEA parity fixture lock while prediction lane evolves
+
+Closed on current supported lane (tracked historically in the audit):
+
+- `SCI-GAP-07`: deterministic tie-metadata hardening for current lexicographic
+  assignment policy
 
 ## Not a Near-Term Goal
 
