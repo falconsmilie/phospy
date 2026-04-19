@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+import numpy as np
 import pandas as pd
 
 from phospy.api.configs import (
@@ -61,67 +62,13 @@ def build_signalome_module_table(
     protein_to_module = protein_to_module.loc[protein_to_module > 0]
 
     if assignment_policy == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY:
-        site_to_protein = module_assignments.loc[:, PROTEIN_COLUMN].astype(str)
-        site_to_protein.index = pd.Index(
-            site_to_protein.index.astype(str), name=SITE_ID_COLUMN
+        module_table = _build_cutoff_binary_module_table(
+            module_assignments=module_assignments,
+            kinase_substrates=kinase_substrates,
+            module_index=module_index,
+            kinase_index=kinase_index,
+            protein_to_module=protein_to_module,
         )
-        unique_kinases = tuple(dict.fromkeys(kinase_index.tolist()))
-        kinase_site_map = pd.DataFrame(
-            {
-                KINASE_COLUMN: unique_kinases,
-                SITE_ID_COLUMN: [
-                    tuple(
-                        str(site_id)
-                        for site_id in kinase_substrates.get(str(kinase), ())
-                    )
-                    for kinase in unique_kinases
-                ],
-            }
-        )
-        if not kinase_site_map.empty:
-            kinase_site_map = kinase_site_map.loc[
-                kinase_site_map.loc[:, SITE_ID_COLUMN].map(len) > 0
-            ]
-            if not kinase_site_map.empty:
-                kinase_site_map = kinase_site_map.explode(
-                    SITE_ID_COLUMN, ignore_index=True
-                )
-                kinase_site_map.loc[:, SITE_ID_COLUMN] = kinase_site_map.loc[
-                    :, SITE_ID_COLUMN
-                ].astype(str)
-                kinase_site_map.loc[:, PROTEIN_COLUMN] = kinase_site_map.loc[
-                    :, SITE_ID_COLUMN
-                ].map(site_to_protein)
-                kinase_site_map = kinase_site_map.dropna(subset=[PROTEIN_COLUMN])
-                if not kinase_site_map.empty:
-                    kinase_site_map.loc[:, PROTEIN_COLUMN] = kinase_site_map.loc[
-                        :, PROTEIN_COLUMN
-                    ].astype(str)
-                    kinase_site_map = kinase_site_map.drop_duplicates(
-                        subset=[KINASE_COLUMN, PROTEIN_COLUMN],
-                        keep="first",
-                    )
-                    kinase_site_map.loc[:, MODULE_ID_COLUMN] = kinase_site_map.loc[
-                        :, PROTEIN_COLUMN
-                    ].map(protein_to_module)
-                    kinase_site_map = kinase_site_map.dropna(subset=[MODULE_ID_COLUMN])
-                if not kinase_site_map.empty:
-                    kinase_site_map.loc[:, MODULE_ID_COLUMN] = kinase_site_map.loc[
-                        :, MODULE_ID_COLUMN
-                    ].astype("int64")
-                    module_hits = (
-                        kinase_site_map.groupby(
-                            [MODULE_ID_COLUMN, KINASE_COLUMN], sort=False
-                        )
-                        .size()
-                        .unstack(KINASE_COLUMN, fill_value=0)
-                        .astype(float)
-                    )
-                    module_table = module_hits.reindex(
-                        index=module_index,
-                        columns=kinase_index,
-                        fill_value=0.0,
-                    )
     elif assignment_policy == SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP:
         module_table = _build_weighted_top_module_table(
             module_assignments=module_assignments,
@@ -166,35 +113,55 @@ def _build_weighted_top_module_table(
             "assignment_policy='weighted_top'"
         )
 
-    weighted_rows: list[dict[str, object]] = []
+    weighted_rows: list[tuple[int, str, str, float]] = []
+    protein_to_module_lookup = {
+        str(protein_id): int(module_id)
+        for protein_id, module_id in protein_to_module.items()
+        if int(module_id) > 0
+    }
+    kinase_membership = set(str(kinase) for kinase in kinase_index.tolist())
     site_payload = module_assignments.loc[
         :, [PROTEIN_COLUMN, TOP_KINASE_WEIGHTS_COLUMN]
     ].copy()
     site_payload.index = pd.Index(site_payload.index.astype(str), name=SITE_ID_COLUMN)
-    for site_id, row in site_payload.iterrows():
-        protein_id = str(row[PROTEIN_COLUMN])
-        if protein_id not in protein_to_module.index:
+    site_ids = site_payload.index.to_numpy(dtype=object, copy=False)
+    protein_values = site_payload.loc[:, PROTEIN_COLUMN].to_numpy(
+        dtype=object, copy=False
+    )
+    top_weight_values = site_payload.loc[:, TOP_KINASE_WEIGHTS_COLUMN].to_numpy(
+        dtype=object,
+        copy=False,
+    )
+    for site_id, protein_value, top_weight_value in zip(
+        site_ids,
+        protein_values,
+        top_weight_values,
+        strict=True,
+    ):
+        protein_id = str(protein_value)
+        module_id = protein_to_module_lookup.get(protein_id)
+        if module_id is None:
             continue
-        module_id = int(protein_to_module.loc[protein_id])
         for kinase, weight in _normalize_top_kinase_weights(
-            row[TOP_KINASE_WEIGHTS_COLUMN],
-            site_id=site_id,
+            top_weight_value,
+            site_id=str(site_id),
         ):
-            if kinase not in kinase_index:
+            if kinase not in kinase_membership:
                 continue
-            weighted_rows.append(
-                {
-                    MODULE_ID_COLUMN: module_id,
-                    KINASE_COLUMN: kinase,
-                    PROTEIN_COLUMN: protein_id,
-                    SUPPORT_WEIGHT_COLUMN: float(weight),
-                }
-            )
+            weighted_rows.append((module_id, kinase, protein_id, float(weight)))
 
     if not weighted_rows:
         return pd.DataFrame(0.0, index=module_index.copy(), columns=kinase_index.copy())
 
-    weighted_hits = pd.DataFrame.from_records(weighted_rows).astype(
+    weighted_hits = pd.DataFrame.from_records(
+        weighted_rows,
+        columns=[
+            MODULE_ID_COLUMN,
+            KINASE_COLUMN,
+            PROTEIN_COLUMN,
+            SUPPORT_WEIGHT_COLUMN,
+        ],
+    ).astype(
         {
             MODULE_ID_COLUMN: "int64",
             KINASE_COLUMN: str,
@@ -218,6 +185,80 @@ def _build_weighted_top_module_table(
         .sum()
         .astype(float)
         .unstack(KINASE_COLUMN, fill_value=0.0)
+    )
+    return module_hits.reindex(
+        index=module_index.copy(),
+        columns=kinase_index.copy(),
+        fill_value=0.0,
+    ).astype(float)
+
+
+def _build_cutoff_binary_module_table(
+    *,
+    module_assignments: pd.DataFrame,
+    kinase_substrates: Mapping[str, Sequence[str]],
+    module_index: pd.Index,
+    kinase_index: pd.Index,
+    protein_to_module: pd.Series,
+) -> pd.DataFrame:
+    unique_kinases = tuple(
+        dict.fromkeys(str(kinase) for kinase in kinase_index.tolist())
+    )
+    unique_kinase_index = pd.Index(unique_kinases, name=KINASE_COLUMN)
+    if module_index.empty or not unique_kinases:
+        return pd.DataFrame(
+            0.0,
+            index=module_index.copy(),
+            columns=kinase_index.copy(),
+        ).astype(float)
+
+    module_positions = {
+        int(module_id): int(position)
+        for position, module_id in enumerate(
+            module_index.to_numpy(dtype=np.int64, copy=False)
+        )
+    }
+    site_to_protein = module_assignments.loc[:, PROTEIN_COLUMN].astype(str)
+    site_to_protein.index = pd.Index(
+        site_to_protein.index.astype(str),
+        name=SITE_ID_COLUMN,
+    )
+    site_to_protein_lookup = site_to_protein.to_dict()
+    protein_to_module_lookup = {
+        str(protein_id): int(module_id)
+        for protein_id, module_id in protein_to_module.items()
+        if int(module_id) > 0
+    }
+
+    counts_matrix = np.zeros(
+        (int(module_index.size), len(unique_kinases)),
+        dtype=float,
+    )
+    for kinase_position, kinase in enumerate(unique_kinases):
+        substrate_sites = kinase_substrates.get(kinase, ())
+        if not substrate_sites:
+            continue
+        seen_proteins: set[str] = set()
+        for site_id in substrate_sites:
+            protein_id = site_to_protein_lookup.get(str(site_id))
+            if protein_id is None:
+                continue
+            protein_key = str(protein_id)
+            if protein_key in seen_proteins:
+                continue
+            seen_proteins.add(protein_key)
+            module_id = protein_to_module_lookup.get(protein_key)
+            if module_id is None:
+                continue
+            module_position = module_positions.get(module_id)
+            if module_position is None:
+                continue
+            counts_matrix[module_position, kinase_position] += 1.0
+
+    module_hits = pd.DataFrame(
+        counts_matrix,
+        index=module_index.copy(),
+        columns=unique_kinase_index,
     )
     return module_hits.reindex(
         index=module_index.copy(),

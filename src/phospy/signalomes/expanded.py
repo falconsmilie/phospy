@@ -78,24 +78,47 @@ def build_expanded_signalome_table(
         assignment_policy=assignment_policy,
     )
 
-    site_positions = np.arange(site_index.size, dtype=np.int64)
     site_module_ids = module_id_values.to_numpy(dtype=np.int64, copy=False)
     site_proteins = protein_ids.to_numpy(dtype=object, copy=False)
     site_top_kinases = top_kinases.to_numpy(dtype=object, copy=False)
     site_top_scores = top_scores.to_numpy(dtype=float, copy=False)
     site_ids = site_index.to_numpy(dtype=object, copy=False)
+    module_site_positions = _build_module_site_positions(site_module_ids)
+    regulated_modules_by_kinase = _build_regulated_modules_by_kinase(
+        signalome_modules=signalome_modules,
+        kinase_order=kinase_order,
+    )
+    site_size = int(site_index.size)
 
-    expanded_rows: list[dict[str, object]] = []
+    row_columns = [
+        EXPANDED_SIGNALOME_KINASE_COLUMN,
+        EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
+        EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN,
+        EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN,
+        EXPANDED_SIGNALOME_REGULATED_MODULE_IDS_COLUMN,
+        SITE_ID_COLUMN,
+        EXPANDED_SIGNALOME_SITE_ORDER_COLUMN,
+        PROTEIN_COLUMN,
+        MODULE_ID_COLUMN,
+        EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN,
+        SUPPORT_WEIGHT_COLUMN,
+        TOP_KINASE_COLUMN,
+        TOP_SCORE_COLUMN,
+    ]
+    expanded_rows: list[tuple[object, ...]] = []
     for focal_kinase in kinase_order:
         linked_kinases = tuple(
             dict.fromkeys((focal_kinase, *neighbor_map.get(focal_kinase, ())))
         )
-        regulated_module_ids = tuple(
-            int(module_id)
-            for module_id, share in signalome_modules.loc[:, focal_kinase].items()
-            if float(share) > MIN_EXPANDED_MODULE_SHARE_PERCENT
+        linked_support_arrays = tuple(
+            (linked_kinase, support_array)
+            for linked_kinase, support_array in (
+                (linked_kinase, support_by_kinase.get(linked_kinase))
+                for linked_kinase in linked_kinases
+            )
+            if support_array is not None
         )
-        regulated_module_set = set(regulated_module_ids)
+        regulated_module_ids = regulated_modules_by_kinase[focal_kinase]
 
         linked_kinases_json = json.dumps(
             list(linked_kinases),
@@ -108,86 +131,75 @@ def build_expanded_signalome_table(
             ensure_ascii=True,
         )
 
-        matched_site_count = 0
-        for position, site_id, module_id in zip(
-            site_positions,
-            site_ids,
-            site_module_ids,
+        candidate_positions = _collect_regulated_site_positions(
+            regulated_module_ids=regulated_module_ids,
+            module_site_positions=module_site_positions,
+            site_size=site_size,
+        )
+        if candidate_positions.size == 0 or not linked_support_arrays:
+            expanded_rows.append(
+                _summary_row(
+                    focal_kinase=focal_kinase,
+                    assignment_policy=assignment_policy,
+                    linked_kinases_json=linked_kinases_json,
+                    regulated_module_ids_json=regulated_module_ids_json,
+                )
+            )
+            continue
+
+        candidate_support_weights = np.zeros(candidate_positions.size, dtype=float)
+        for _, support_array in linked_support_arrays:
+            candidate_support_weights += support_array[candidate_positions]
+        supported_mask = candidate_support_weights > 0.0
+        if not supported_mask.any():
+            expanded_rows.append(
+                _summary_row(
+                    focal_kinase=focal_kinase,
+                    assignment_policy=assignment_policy,
+                    linked_kinases_json=linked_kinases_json,
+                    regulated_module_ids_json=regulated_module_ids_json,
+                )
+            )
+            continue
+
+        matched_positions = candidate_positions[supported_mask]
+        matched_support_weights = candidate_support_weights[supported_mask]
+        for position, support_weight in zip(
+            matched_positions,
+            matched_support_weights,
             strict=True,
         ):
-            if int(module_id) not in regulated_module_set:
-                continue
-            support_kinases: list[str] = []
-            support_weight = 0.0
-            for linked_kinase in linked_kinases:
-                kinase_support = support_by_kinase.get(linked_kinase)
-                if kinase_support is None:
-                    continue
-                weight = float(kinase_support[int(position)])
-                if weight <= 0.0:
-                    continue
-                support_kinases.append(linked_kinase)
-                support_weight += weight
-            if support_weight <= 0.0:
-                continue
-            matched_site_count += 1
+            row_position = int(position)
+            support_kinases = [
+                linked_kinase
+                for linked_kinase, support_array in linked_support_arrays
+                if float(support_array[row_position]) > 0.0
+            ]
             expanded_rows.append(
-                {
-                    EXPANDED_SIGNALOME_KINASE_COLUMN: focal_kinase,
-                    EXPANDED_SIGNALOME_ROW_KIND_COLUMN: "site",
-                    EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN: assignment_policy,
-                    EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN: linked_kinases_json,
-                    EXPANDED_SIGNALOME_REGULATED_MODULE_IDS_COLUMN: regulated_module_ids_json,
-                    SITE_ID_COLUMN: str(site_id),
-                    EXPANDED_SIGNALOME_SITE_ORDER_COLUMN: int(position),
-                    PROTEIN_COLUMN: str(site_proteins[int(position)]),
-                    MODULE_ID_COLUMN: int(module_id),
-                    EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN: json.dumps(
+                (
+                    focal_kinase,
+                    "site",
+                    assignment_policy,
+                    linked_kinases_json,
+                    regulated_module_ids_json,
+                    str(site_ids[row_position]),
+                    row_position,
+                    str(site_proteins[row_position]),
+                    int(site_module_ids[row_position]),
+                    json.dumps(
                         support_kinases,
                         separators=(",", ":"),
                         ensure_ascii=True,
                     ),
-                    SUPPORT_WEIGHT_COLUMN: float(support_weight),
-                    TOP_KINASE_COLUMN: str(site_top_kinases[int(position)]),
-                    TOP_SCORE_COLUMN: float(site_top_scores[int(position)]),
-                }
-            )
-        if matched_site_count == 0:
-            expanded_rows.append(
-                {
-                    EXPANDED_SIGNALOME_KINASE_COLUMN: focal_kinase,
-                    EXPANDED_SIGNALOME_ROW_KIND_COLUMN: "summary",
-                    EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN: assignment_policy,
-                    EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN: linked_kinases_json,
-                    EXPANDED_SIGNALOME_REGULATED_MODULE_IDS_COLUMN: regulated_module_ids_json,
-                    SITE_ID_COLUMN: "",
-                    EXPANDED_SIGNALOME_SITE_ORDER_COLUMN: -1,
-                    PROTEIN_COLUMN: "",
-                    MODULE_ID_COLUMN: 0,
-                    EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN: JSON_EMPTY_ARRAY,
-                    SUPPORT_WEIGHT_COLUMN: 0.0,
-                    TOP_KINASE_COLUMN: "",
-                    TOP_SCORE_COLUMN: np.nan,
-                }
+                    float(support_weight),
+                    str(site_top_kinases[row_position]),
+                    float(site_top_scores[row_position]),
+                )
             )
 
     expanded = pd.DataFrame.from_records(
         expanded_rows,
-        columns=[
-            EXPANDED_SIGNALOME_KINASE_COLUMN,
-            EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
-            EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN,
-            EXPANDED_SIGNALOME_LINKED_KINASES_COLUMN,
-            EXPANDED_SIGNALOME_REGULATED_MODULE_IDS_COLUMN,
-            SITE_ID_COLUMN,
-            EXPANDED_SIGNALOME_SITE_ORDER_COLUMN,
-            PROTEIN_COLUMN,
-            MODULE_ID_COLUMN,
-            EXPANDED_SIGNALOME_SUPPORT_KINASES_COLUMN,
-            SUPPORT_WEIGHT_COLUMN,
-            TOP_KINASE_COLUMN,
-            TOP_SCORE_COLUMN,
-        ],
+        columns=row_columns,
     )
     expanded = expanded.astype(
         {
@@ -216,6 +228,76 @@ def build_expanded_signalome_table(
         ascending=[True, True, True, True],
         kind="stable",
     ).reset_index(drop=True)
+
+
+def _build_module_site_positions(site_module_ids: np.ndarray) -> dict[int, np.ndarray]:
+    module_site_positions: dict[int, list[int]] = {}
+    for position, module_id in enumerate(site_module_ids):
+        module_site_positions.setdefault(int(module_id), []).append(int(position))
+    return {
+        int(module_id): np.asarray(site_positions, dtype=np.int64)
+        for module_id, site_positions in module_site_positions.items()
+    }
+
+
+def _build_regulated_modules_by_kinase(
+    *,
+    signalome_modules: pd.DataFrame,
+    kinase_order: Sequence[str],
+) -> dict[str, tuple[int, ...]]:
+    module_values = signalome_modules.loc[:, kinase_order].astype(float)
+    module_ids = module_values.index.to_numpy(dtype=np.int64, copy=False)
+    module_matrix = module_values.to_numpy(dtype=float, copy=False)
+    regulated_modules: dict[str, tuple[int, ...]] = {}
+    for column_position, kinase in enumerate(kinase_order):
+        supported = (
+            module_matrix[:, column_position] > MIN_EXPANDED_MODULE_SHARE_PERCENT
+        )
+        regulated_modules[str(kinase)] = tuple(
+            int(module_id) for module_id in module_ids[supported].tolist()
+        )
+    return regulated_modules
+
+
+def _collect_regulated_site_positions(
+    *,
+    regulated_module_ids: Sequence[int],
+    module_site_positions: Mapping[int, np.ndarray],
+    site_size: int,
+) -> np.ndarray:
+    if not regulated_module_ids or site_size <= 0:
+        return np.empty(0, dtype=np.int64)
+    candidate_mask = np.zeros(site_size, dtype=bool)
+    for module_id in regulated_module_ids:
+        site_positions = module_site_positions.get(int(module_id))
+        if site_positions is None or site_positions.size == 0:
+            continue
+        candidate_mask[site_positions] = True
+    return np.flatnonzero(candidate_mask).astype(np.int64, copy=False)
+
+
+def _summary_row(
+    *,
+    focal_kinase: str,
+    assignment_policy: SignalomeAssignmentPolicy,
+    linked_kinases_json: str,
+    regulated_module_ids_json: str,
+) -> tuple[object, ...]:
+    return (
+        focal_kinase,
+        "summary",
+        assignment_policy,
+        linked_kinases_json,
+        regulated_module_ids_json,
+        "",
+        -1,
+        "",
+        0,
+        JSON_EMPTY_ARRAY,
+        0.0,
+        "",
+        np.nan,
+    )
 
 
 def _build_kinase_neighbor_map(
