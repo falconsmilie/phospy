@@ -1,6 +1,6 @@
 # PhosPy
 
-PhosPy exposes a focused rewrite public product in `src/phospy/`.
+PhosPy exposes a focused public product in `src/phospy/`.
 
 ## Public Product Shape
 
@@ -30,7 +30,7 @@ PhosPy exposes a focused rewrite public product in `src/phospy/`.
 
 ## Supported Science vs Deferred
 
-Supported in the current rewrite lane:
+Supported in the current public lane:
 
 - Kinase scoring with authoritative downstream outputs:
   `profile_scores`, `combined_scores`.
@@ -48,7 +48,7 @@ Supported in the current rewrite lane:
 Deferred or not in the supported default lane:
 
 - `SignalomeWorkflowResult.expanded_signalome` population (`expanded_signalome` is optional and currently `None` in the default route).
-- Legacy or experimental science lanes not yet ported into the public rewrite path.
+- Legacy or experimental science lanes not yet ported into the public path.
 
 ## Current Limits
 
@@ -86,14 +86,14 @@ if result.activity_result is not None:
 ## Package Boundary
 
 ```text
-src/phospy/                  # supported rewrite package
+src/phospy/                  # supported package
 legacy_archive/phospy_legacy # migration reference only (not installed package content)
 ```
 
 ## Examples
 
 - [`examples/dataset_builder_demo.py`](examples/dataset_builder_demo.py)
-- [`examples/simple_workflow_demo.py`](examples/simple_workflow_demo.py)
+- [`examples/kinase_workflow_demo.py`](examples/kinase_workflow_demo.py)
 - [`examples/signalome_workflow_demo.py`](examples/signalome_workflow_demo.py)
 
 ## Docs

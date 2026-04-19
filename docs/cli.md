@@ -1,6 +1,6 @@
 # CLI Guide
 
-The supported rewrite CLI lane is intentionally narrow:
+The supported public CLI lane is intentionally narrow:
 
 1. Build an analysis-ready dataset from files.
 2. Run the kinase workflow from files.
@@ -63,7 +63,7 @@ Kinase scoring support floor:
 - `--scoring-min-substrates` defaults to `2`.
 - single-substrate kinase profiles are rejected (`min_substrates` must be `>= 2`).
 
-Bundled preset policy in the rewrite cutover:
+Bundled preset policy in the current public lane:
 
 - bundled runtime coverage is rat-only
 - `--reference auto` and `--reference rat` are the supported bundled paths

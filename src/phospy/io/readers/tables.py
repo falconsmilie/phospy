@@ -11,7 +11,16 @@ from phospy.errors.input import PhosPyInputError, UnsupportedInputFormatError
 _CSV = "csv"
 _TSV = "tsv"
 _PARQUET = "parquet"
-_SUPPORTED_FORMATS = (_CSV, _TSV, _PARQUET)
+_SUPPORTED_OUTPUT_FORMATS = (_CSV, _TSV, _PARQUET)
+_SUPPORTED_INPUT_FORMATS_LABEL = (
+    "csv (.csv), tsv (.tsv), txt as tab-separated tsv (.txt), parquet (.parquet)"
+)
+
+
+def supported_table_input_formats() -> str:
+    """Return the user-facing list of supported table input formats."""
+
+    return _SUPPORTED_INPUT_FORMATS_LABEL
 
 
 def read_table(path: Path) -> pd.DataFrame:
@@ -43,7 +52,7 @@ def read_table(path: Path) -> pd.DataFrame:
         pd.errors.ParserError,
     ) as exc:
         raise PhosPyInputError(
-            f"failed to parse supported table input '{normalized_path}': {exc}"
+            f"failed to parse table input '{normalized_path}': {exc}"
         ) from exc
 
 
@@ -81,9 +90,9 @@ def table_format_from_path(path: Path) -> str:
         return _TSV
     if suffix == ".parquet":
         return _PARQUET
-    supported = ", ".join(_SUPPORTED_FORMATS)
     raise UnsupportedInputFormatError(
-        f"unsupported input format for '{path}'. supported formats: {supported}"
+        "unsupported table file format for "
+        f"'{path}'. supported formats: {supported_table_input_formats()}"
     )
 
 
@@ -97,7 +106,7 @@ def table_suffix_for_format(output_format: str) -> str:
         return ".tsv"
     if normalized == _PARQUET:
         return ".parquet"
-    supported = ", ".join(_SUPPORTED_FORMATS)
+    supported = ", ".join(_SUPPORTED_OUTPUT_FORMATS)
     raise UnsupportedInputFormatError(
         f"unsupported output format '{output_format}'. supported formats: {supported}"
     )

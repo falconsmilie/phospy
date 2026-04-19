@@ -1,4 +1,4 @@
-"""Rewrite-lane CLI parsing and command handlers."""
+"""CLI parsing and command handlers."""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ CLI_EXIT_USER_ERROR = 2
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run the rewrite-lane CLI."""
+    """Run the CLI."""
 
     parser = build_parser()
     try:
@@ -66,12 +66,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build the CLI parser for the supported rewrite lane."""
+    """Build the CLI parser for supported public commands."""
 
     parser = argparse.ArgumentParser(
         prog="phospy",
         description=(
-            "PhosPy rewrite CLI. Supported commands: dataset-build, kinase, signalome."
+            "PhosPy CLI. Supported commands: dataset-build, kinase, signalome."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -118,13 +118,16 @@ def _add_dataset_input_arguments(parser: argparse.ArgumentParser) -> None:
         "--phospho",
         type=Path,
         required=True,
-        help="Path to phospho matrix (.csv, .tsv, or .parquet).",
+        help="Path to phospho matrix (.csv, .tsv, .txt as tab-separated, or .parquet).",
     )
     parser.add_argument(
         "--site-metadata",
         type=Path,
         required=True,
-        help="Path to site metadata table (.csv, .tsv, or .parquet).",
+        help=(
+            "Path to site metadata table "
+            "(.csv, .tsv, .txt as tab-separated, or .parquet)."
+        ),
     )
     parser.add_argument(
         "--sample-metadata",

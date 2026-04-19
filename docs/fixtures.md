@@ -1,15 +1,15 @@
 # Fixtures
 
 This page is the quick map for committed fixture directories used by the
-supported rewrite lanes.
+supported public lanes.
 
 For parity intent and protected seams, see [`parity.md`](parity.md).
 
-## Active Rewrite Fixture Families
+## Active Public Fixture Families
 
 ### `tests/fixtures/rewrite_parity/r_reference_l6`
 
-Rewrite-owned L6 parity inputs/expectations used by active tests in
+Current L6 parity inputs/expectations used by active tests in
 `tests/parity/`.
 
 Included files currently cover:
@@ -24,7 +24,7 @@ Provenance is documented in:
 
 ### `tests/fixtures/public_workflow_reference`
 
-Committed rewrite workflow regression expectations for the public
+Committed workflow regression expectations for the public
 `SignalomeWorkflow` lane:
 
 - `signalome_rewrite_l6_module_assignments_selected.csv`
@@ -36,15 +36,15 @@ Committed rewrite workflow regression expectations for the public
 ## Historical Archive
 
 Legacy fixture trees remain in `tests_legacy/fixtures/` for provenance and
-historical traceability. Active rewrite tests should resolve from
+historical traceability. Active tests should resolve from
 `tests/fixtures/` as their normal source.
 
 ## Public Example Regeneration
 
-The public rewrite examples remain runnable via:
+The public examples remain runnable via:
 
 ```bash
 PYTHONPATH=src python examples/dataset_builder_demo.py
-PYTHONPATH=src python examples/simple_workflow_demo.py
+PYTHONPATH=src python examples/kinase_workflow_demo.py
 PYTHONPATH=src python examples/signalome_workflow_demo.py
 ```

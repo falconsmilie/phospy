@@ -1,4 +1,4 @@
-"""Top-level CLI entrypoint for the supported rewrite lane."""
+"""Top-level CLI entrypoint for supported public commands."""
 
 from __future__ import annotations
 

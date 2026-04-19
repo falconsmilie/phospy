@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from phospy.errors.references import UnsupportedOrganismError
+from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.references.resources import (
     load_bundled_kinase_substrate_map,
@@ -79,7 +79,11 @@ class ReferenceResolver:
                 dataset_organism=dataset_organism,
             )
             return reference_input
-        assert isinstance(reference_input, ReferencePreset)
+        if not isinstance(reference_input, ReferencePreset):
+            raise ReferenceResolutionError(
+                "reference input must be a ReferencePreset or ReferenceBundle; "
+                f"got {type(reference_input).__name__}"
+            )
         organism = self._compatibility_validator.resolve_preset_organism(
             preset=reference_input,
             dataset_organism=dataset_organism,

@@ -24,22 +24,27 @@ class DatasetInputReader:
         validated_source = self._source_validator.run(source, field_name=field_name)
         if isinstance(validated_source, pd.DataFrame):
             return validated_source.copy(deep=True)
-        assert isinstance(validated_source, (str, Path, PathLike))
+        if not isinstance(validated_source, (str, Path, PathLike)):
+            raise PhosPyInputError(
+                f"dataset build request {field_name} source validator produced "
+                f"unsupported value type {type(validated_source).__name__}; expected "
+                "a pandas DataFrame or file path"
+            )
         return self._read_from_path(validated_source, field_name=field_name)
 
     @staticmethod
     def _read_from_path(
         source: str | Path | PathLike, *, field_name: str
     ) -> pd.DataFrame:
-        from phospy.io.readers.tables import read_table
+        from phospy.io.readers.tables import read_table, supported_table_input_formats
 
         path = Path(source.strip()) if isinstance(source, str) else Path(source)
         try:
             return read_table(path)
         except UnsupportedInputFormatError as exc:
             raise UnsupportedInputFormatError(
-                f"dataset build request {field_name} input format is unsupported at "
-                f"'{path}'. supported formats: csv, tsv, parquet"
+                f"dataset build request {field_name} has unsupported file format at "
+                f"'{path}'. supported formats: {supported_table_input_formats()}"
             ) from exc
         except PhosPyInputError as exc:
             raise PhosPyInputError(

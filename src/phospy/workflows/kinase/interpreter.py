@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.api.requests import KinaseWorkflowRequest
-from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
 from phospy.references.resolution import (
     BundledReferenceProvider,
     ReferenceResolver,
@@ -133,7 +133,12 @@ class KinaseWorkflowInterpreter:
         request: KinaseWorkflowRequest,
     ) -> None:
         per_kinase_quantified = overlap_counts["per_kinase_quantified"]
-        assert isinstance(per_kinase_quantified, pd.Series)
+        if not isinstance(per_kinase_quantified, pd.Series):
+            raise PhosPyWorkflowError(
+                "kinase workflow interpreter expected "
+                "overlap_counts['per_kinase_quantified'] to be a pandas Series, "
+                f"got {type(per_kinase_quantified).__name__}"
+            )
         eligible_kinases = per_kinase_quantified[
             per_kinase_quantified >= request.scoring_config.min_substrates
         ]

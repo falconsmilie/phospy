@@ -56,7 +56,10 @@ class ReferenceCompatibilityValidator:
 
         self.run(preset, dataset_organism=dataset_organism)
         if preset is ReferencePreset.AUTO:
-            assert dataset_organism is not None  # validated above
+            if dataset_organism is None:
+                raise ReferenceResolutionError(
+                    "ReferencePreset.AUTO requires dataset.organism"
+                )
             return dataset_organism
         return self._PRESET_TO_ORGANISM[preset]
 

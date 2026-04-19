@@ -1,6 +1,6 @@
 # API Guide
 
-This guide describes the current supported rewrite contract only.
+This guide describes the current supported public contract only.
 
 ## Supported Lanes
 
@@ -17,7 +17,7 @@ All public executors use `run(request)`.
 
 ## Package Boundary
 
-- `src/phospy/`: supported rewrite package
+- `src/phospy/`: supported package
 - `legacy_archive/phospy_legacy/`: historical migration reference only
 
 ## Public Types

@@ -15,7 +15,7 @@ pytestmark = pytest.mark.integration
     "script_name",
     [
         "dataset_builder_demo.py",
-        "simple_workflow_demo.py",
+        "kinase_workflow_demo.py",
         "signalome_workflow_demo.py",
     ],
 )
