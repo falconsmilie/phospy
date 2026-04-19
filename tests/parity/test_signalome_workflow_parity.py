@@ -16,7 +16,7 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
-from phospy.workflows.signalome.science import build_kinase_network
+from phospy.signalomes.science import build_kinase_network
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
     load_signalome_rewrite_l6_contract,

@@ -7,7 +7,7 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.errors import WorkflowStageError
-from phospy.workflows.signalome.science import (
+from phospy.signalomes.science import (
     build_expanded_signalome_table,
     build_kinase_network,
     build_signalome_module_table,

@@ -1,0 +1,76 @@
+from __future__ import annotations
+
+import pandas as pd
+import pytest
+
+from phospy.errors import WorkflowStageError
+from phospy.signalomes.expanded import build_expanded_signalome_table
+from phospy.signalomes.modules import build_signalome_module_table
+from phospy.signalomes.network import build_kinase_network
+
+
+def test_domain_modules_weighted_top_requires_weight_column() -> None:
+    module_assignments = pd.DataFrame(
+        {
+            "protein_id": ["P1", "P2"],
+            "module_id": [1, 2],
+        },
+        index=pd.Index(["S1", "S2"], name="site_id"),
+    )
+
+    with pytest.raises(WorkflowStageError, match="top_kinase_weights"):
+        build_signalome_module_table(
+            module_assignments=module_assignments,
+            kinase_substrates={"K1": (), "K2": ()},
+            kinase_order=["K1", "K2"],
+            assignment_policy="weighted_top",
+        )
+
+
+def test_domain_network_rejects_infinite_scores() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, float("inf")],
+            "K2": [2.0, 3.0],
+        },
+        index=pd.Index(["S1", "S2"], name="site_id"),
+    )
+
+    with pytest.raises(WorkflowStageError, match="contains infinite values"):
+        build_kinase_network(
+            downstream_score_matrix=downstream_scores,
+            kinase_order=["K1", "K2"],
+            kinase_substrates={"K1": (), "K2": ()},
+            threshold=0.5,
+            network_policy="signed",
+        )
+
+
+def test_domain_expanded_requires_network_edge_columns() -> None:
+    module_assignments = pd.DataFrame(
+        {
+            "protein_id": ["P1"],
+            "module_id": [1],
+            "top_kinase": ["K1"],
+            "top_score": [0.9],
+            "top_kinase_weights": [(("K1", 1.0),)],
+        },
+        index=pd.Index(["S1"], name="site_id"),
+    )
+    signalome_modules = pd.DataFrame(
+        {"K1": [100.0]},
+        index=pd.Index([1], name="module_id"),
+    )
+    invalid_edges = pd.DataFrame({"source": ["K1"], "target": ["K2"]})
+
+    with pytest.raises(
+        WorkflowStageError,
+        match="missing required columns for expanded signalome",
+    ):
+        build_expanded_signalome_table(
+            module_assignments=module_assignments,
+            signalome_modules=signalome_modules,
+            kinase_network_edges=invalid_edges,
+            kinase_substrates={"K1": ("S1",)},
+            assignment_policy="weighted_top",
+        )

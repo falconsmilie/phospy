@@ -649,3 +649,148 @@ def test_network_threshold_changes_edge_sparsity_without_changing_substrate_supp
         low_threshold.kinase_network.edges.shape[0]
         > high_threshold.kinase_network.edges.shape[0]
     )
+
+
+def test_executor_orchestrates_signalome_domain_services(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.workflows.signalome.executor as executor_module
+    from phospy.signalomes.clustering import ClusterSitesResult
+    from phospy.signalomes.models import SignalomeModuleSelectionDiagnostics
+
+    site_ids = ["P1;S1;", "P2;S2;"]
+    kinases = ["K1", "K2"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[[0.9, 0.1], [0.1, 0.9]],
+        site_ids=site_ids,
+        kinases=kinases,
+    )
+    score_matrix = _matrix(
+        values=[[1.0, 0.5], [0.2, 1.1]],
+        site_ids=site_ids,
+        kinases=kinases,
+    )
+    resolved = ResolvedSignalomeWorkflowRequest(
+        dataset=dataset,
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        downstream_score_matrix=score_matrix,
+        downstream_score_source="combined_scores",
+        prediction_matrix=prediction_matrix,
+        site_to_protein=pd.Series(
+            ["P1", "P2"],
+            index=pd.Index(site_ids, name="site_id"),
+            name="protein_id",
+            dtype=str,
+        ),
+    )
+
+    call_order: list[str] = []
+
+    def _cluster(**_: object) -> ClusterSitesResult:
+        call_order.append("cluster")
+        return ClusterSitesResult(
+            site_clusters=pd.Series(
+                [1, 2],
+                index=prediction_matrix.index.copy(),
+                dtype=int,
+                name="site_cluster",
+            ),
+            module_selection_diagnostics=SignalomeModuleSelectionDiagnostics(
+                strategy="correlation_thresholds",
+                selected_module_count=2,
+                requested_module_count=None,
+                threshold_used=0.5,
+                max_clusters_evaluated=2,
+                candidate_scores={},
+                reason="test stub",
+            ),
+        )
+
+    def _derive(**_: object) -> pd.Series:
+        call_order.append("derive")
+        return pd.Series({"P1": 1, "P2": 2}, dtype="int64", name="module_id")
+
+    def _assignments(**_: object) -> pd.DataFrame:
+        call_order.append("assignments")
+        return pd.DataFrame(
+            {
+                "protein_id": ["P1", "P2"],
+                "module_id": [1, 2],
+            },
+            index=pd.Index(site_ids, name="site_id"),
+        )
+
+    def _substrates(**_: object) -> dict[str, tuple[str, ...]]:
+        call_order.append("substrates")
+        return {"K1": ("P1;S1;",), "K2": ("P2;S2;",)}
+
+    def _modules(**_: object) -> pd.DataFrame:
+        call_order.append("modules")
+        return pd.DataFrame(
+            {"K1": [100.0, 0.0], "K2": [0.0, 100.0]},
+            index=pd.Index([1, 2], name="module_id"),
+            dtype=float,
+        )
+
+    def _network(**_: object) -> tuple[pd.DataFrame, pd.DataFrame]:
+        call_order.append("network")
+        return (
+            pd.DataFrame(
+                {
+                    "source_kinase": ["K1"],
+                    "target_kinase": ["K2"],
+                    "correlation": [0.95],
+                }
+            ),
+            pd.DataFrame(
+                {"degree": [1, 1], "n_substrates": [1, 1]},
+                index=pd.Index(kinases, name="kinase"),
+            ).astype({"degree": "int64", "n_substrates": "int64"}),
+        )
+
+    def _expanded(**_: object) -> pd.DataFrame:
+        call_order.append("expanded")
+        return pd.DataFrame(
+            {
+                "kinase": ["K1"],
+                "row_kind": ["summary"],
+                "assignment_policy": ["cutoff_binary"],
+                "linked_kinases": ['["K1","K2"]'],
+                "regulated_module_ids": ["[1]"],
+                "site_id": [""],
+                "site_order": [-1],
+                "protein_id": [""],
+                "module_id": [0],
+                "support_kinases": ["[]"],
+                "support_weight": [0.0],
+                "top_kinase": [""],
+                "top_score": [float("nan")],
+            }
+        )
+
+    monkeypatch.setattr(executor_module, "cluster_sites_with_diagnostics", _cluster)
+    monkeypatch.setattr(executor_module, "derive_protein_modules", _derive)
+    monkeypatch.setattr(executor_module, "build_module_assignments", _assignments)
+    monkeypatch.setattr(executor_module, "select_kinase_substrates", _substrates)
+    monkeypatch.setattr(executor_module, "build_signalome_module_table", _modules)
+    monkeypatch.setattr(executor_module, "build_kinase_network", _network)
+    monkeypatch.setattr(executor_module, "build_expanded_signalome_table", _expanded)
+
+    result = SignalomeWorkflowExecutor().run(resolved)
+
+    assert call_order == [
+        "cluster",
+        "derive",
+        "assignments",
+        "substrates",
+        "modules",
+        "network",
+        "expanded",
+    ]
+    assert not result.kinase_network.edges.empty
