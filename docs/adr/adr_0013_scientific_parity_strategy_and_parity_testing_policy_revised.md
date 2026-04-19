@@ -224,6 +224,21 @@ A fixture should include:
 
 Fixture sets should stay selective and meaningful. The goal is not to build a giant archive of every possible example.
 
+## Legacy Donor Promotion Policy (2026-04-19)
+
+Legacy science tests are acceptable donors, but not active parity authorities.
+When a donor scenario is still scientifically relevant, the blocking check must
+be rewrite-owned under `tests/{unit,integration,parity}` with rewrite-owned
+fixture paths under `tests/fixtures/rewrite_parity/**` or
+`tests/fixtures/public_workflow_reference/**`.
+
+`tests_legacy/` remains archival/provenance. It should not be the normal fixture
+source for active rewrite parity.
+
+Rewrite-side visibility of donor coverage should be maintained via an explicit
+inventory and check (currently `tests/support/legacy_donor_inventory.py` and
+`tests/unit/test_legacy_donor_inventory.py`).
+
 ## Reference Output Policy
 
 Expected parity outputs should primarily come from PhosR outputs where available and appropriate.
@@ -402,4 +417,3 @@ Together, these ADRs establish:
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
 YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
-

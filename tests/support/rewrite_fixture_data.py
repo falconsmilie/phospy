@@ -20,6 +20,9 @@ REWRITE_PARITY_REFERENCE = (
 REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE = (
     ROOT / "tests" / "fixtures" / "rewrite_parity" / "fragile_support_reference"
 )
+REWRITE_PARITY_ADAPTIVE_SAMPLING_EDGE = (
+    ROOT / "tests" / "fixtures" / "rewrite_parity" / "adaptive_sampling_edge"
+)
 RAT_L6_PHOSPHO = REWRITE_PARITY_REFERENCE / "l6_phospho_matrix.csv"
 RAT_L6_EXPECTED_PROFILE = REWRITE_PARITY_REFERENCE / "native_profile_scores.csv"
 REWRITE_PUBLIC_WORKFLOW_REFERENCE = (
@@ -127,6 +130,14 @@ def load_fragile_support_combined_weights() -> pd.DataFrame:
 def load_fragile_support_candidate_substrates() -> pd.DataFrame:
     return pd.read_csv(
         REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "candidate_substrates.csv"
+    )
+
+
+@lru_cache(maxsize=1)
+def load_adaptive_sampling_edge_combined_scores() -> pd.DataFrame:
+    return pd.read_csv(
+        REWRITE_PARITY_ADAPTIVE_SAMPLING_EDGE / "combined_scores.csv",
+        index_col=0,
     )
 
 
