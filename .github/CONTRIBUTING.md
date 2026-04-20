@@ -41,7 +41,8 @@ Before a release or substantial pull request, run:
 pre-commit run --all-files
 pytest -m "not parity"
 pytest -m parity
-pytest tests/test_readme_smoke.py tests/test_end_to_end_parity.py
+pytest tests/integration/test_public_examples_smoke.py
+pytest tests/parity/test_public_predmat_parity.py -m parity -s
 ```
 
 For performance-sensitive changes in kinase scoring lanes, also review:
@@ -90,20 +91,24 @@ PhosPy is organised by domain capability first. Put new code in the package that
 
 Start here:
 
-- [`docs/architecture/package-layout.md`](../docs/architecture/package-layout.md)
-- [`docs/adr/0004-reorganise-by-domain.md`](../docs/adr/0004-reorganise-by-domain.md)
+- [`docs/architecture/rewrite_cutover_boundary.md`](../docs/architecture/rewrite_cutover_boundary.md)
+- [`docs/adr/adr_0010_internal_package_and_module_layout.md`](../docs/adr/adr_0010_internal_package_and_module_layout.md)
+- [`docs/adr/adr_0002_internal_workflow_architecture.md`](../docs/adr/adr_0002_internal_workflow_architecture.md)
 
 Rules that matter most:
 
 - keep `phospy.api` thin and orchestration-only
 - put dataset ownership and dataset-shaped builders in `phospy.datasets`
-- put preprocessing in `phospy.preprocessing`
+- put transformation-state establishment and transformer logic in `phospy.transformations`
 - put prediction and `predMat` execution in `phospy.prediction`
 - put kinase activity analysis in `phospy.activities`
+- put signalome science domain logic in `phospy.signalomes`
+- keep workflow validator/interpreter/executor staging in `phospy.workflows`
 - put bundled biological reference handling in `phospy.references`
 - keep `phospy.io` for shared file and publishing concerns, not scientific logic
-- keep `phospy.validation` focused on validation entry points and request models
-- keep `phospy.internal` narrow and internal-only
+- keep `phospy.validation` focused on internal validation domains
+- keep exception taxonomy and user-handleable error classes in `phospy.errors`
+- keep `phospy.data` for packaged runtime resource payloads only
 
 ## Good starting areas
 

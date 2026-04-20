@@ -1,6 +1,6 @@
 # PhosPy Architecture Reset Notes
 
-- Last reconciled: 2026-04-19
+- Last reconciled: 2026-04-20
 - Document role: reset-era architecture note with explicit historical markers
 
 ## Document Status
@@ -63,7 +63,8 @@
 - Authoritative downstream matrix is `combined_scores` first with
   `profile_scores` fallback.
 - Prediction and signalome consume the same resolved downstream score lane.
-- `expanded_signalome` remains deferred (`None` in current supported route).
+- `expanded_signalome` is an official supported signalome output and is
+  populated in the supported executor lane (optional by type for compatibility).
 - Detailed science status and follow-ons live in
   `docs/architecture/legacy_science_gap_audit.md`.
 
@@ -97,9 +98,9 @@ The following principles remain valid and are now enforced by ADRs/code:
 - Dataset boundary: `docs/adr/adr_0003-analysis_ready_dataset_and_preprocessing_boundary.md`
 - Result model rules: `docs/adr/adr_0005__result_model_design.md`
 - Transformation-state contract: `docs/adr/adr_0006_transformation_state_and_transformer_contract.md`
-- Builder public contract: `docs/adr/adr_0011_builder_public_api_contract_revised.md`
-- Fresh-start rewrite strategy: `docs/adr/adr_0012_rewrite_roadmap_and_fresh_start_plan_revised.md`
-- Scientific parity policy: `docs/adr/adr_0013_scientific_parity_strategy_and_parity_testing_policy_revised.md`
+- Builder public contract: `docs/adr/adr_0011_builder_public_api_contract.md`
+- Fresh-start rewrite strategy: `docs/adr/adr_0012_rewrite_roadmap_and_fresh_start_plan.md`
+- Scientific parity policy: `docs/adr/adr_0013_scientific_parity_strategy_and_parity_testing_policy.md`
 
 ## Conflict Handling Rule
 

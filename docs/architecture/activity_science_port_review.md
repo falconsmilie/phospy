@@ -1,6 +1,6 @@
 # Activity Science Port Review (Legacy -> Rewrite)
 
-- Date: 2026-04-18
+- Date: 2026-04-20
 - Scope:
   - Legacy donor science:
     - `legacy_archive/phospy_legacy/activities/scoring.py`
@@ -58,3 +58,16 @@ Activity science port is complete for the supported rewrite scope:
 - Activity remains part of `KinaseWorkflow` (no standalone public activity
   workflow).
 - `activity_result` is a supported stage output when activity is enabled.
+
+## Parity Independence and Cutover Status
+
+- Rewrite-owned fixture expectations exist and are the active authority under
+  `tests/fixtures/rewrite_parity/r_reference_l6/`.
+- The active parity gate does not execute donor code from `legacy_archive/`;
+  it compares rewrite runtime outputs to committed rewrite fixtures.
+- Legacy donor references remain only as archival provenance and lock-style
+  checks (for example, targeted donor-inventory/unit tests), not as the active
+  parity execution path.
+- Remaining cutover for supported activity behavior: none in this scoped pass.
+  Future scientific additions should be tracked as new scoped gaps, not as
+  unfinished activity-port debt.

@@ -167,7 +167,8 @@ to work after a standard package install.
 - `result.kinase_network.nodes` (optional)
 - `result.module_selection_diagnostics`
 - `result.score_preconditioning_diagnostics`
-- `result.expanded_signalome` (optional by type; populated in the supported executor lane)
+- `result.expanded_signalome` (official supported output; optional by type for
+  compatibility, populated in the supported executor lane)
 
 `module_selection_diagnostics` fields:
 
@@ -200,8 +201,9 @@ to work after a standard package install.
   `module_top_kinase_is_ambiguous`, `module_top_kinase_selection_policy`
 
 In the supported signalome lane, `protein_id` is always taken from validated
-`dataset.site_metadata.protein_id`. Gene-symbol-prefixed site IDs are not used as
-protein-identity fallbacks.
+`dataset.site_metadata.protein_id` (required and non-empty for interpreted
+sites). Gene-symbol-prefixed site IDs are not used as protein-identity
+fallbacks.
 
 `assignment_policy` behavior:
 
@@ -239,7 +241,7 @@ No top-level convenience mirrors flatten nested stage outputs.
 
 ## Supported Science vs Deferred Science
 
-Supported public lane today:
+Supported public lane (stable and recommended):
 
 - Kinase scoring stage always outputs `profile_scores` and `combined_scores`.
 - Diagnostic scoring tables (`motif_scores`, `weights`) are opt-in via
@@ -269,6 +271,9 @@ Supported public lane today:
 - Preconditioning drop policy is explicit and stable in the supported lane:
   signalome always allows dropped all-missing rows and reports the exact counts
   via `result.score_preconditioning_diagnostics` (`policy="allow_and_report"`).
+- Active parity regression for this lane is rewrite execution against committed
+  rewrite-owned fixtures; no live `legacy_archive` module execution is part of
+  the active parity gate.
 
 Deferred/experimental/not yet ported into the public lane:
 - Additional legacy science lanes listed as roadmap follow-ons.
