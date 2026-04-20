@@ -1,4 +1,8 @@
-"""Internal executor for the dataset builder path."""
+"""Internal executor for the dataset builder path.
+
+The public builder lane stays intentionally narrow: establish supported
+transformation state while preserving analysis-ready matrix values.
+"""
 
 from __future__ import annotations
 
@@ -19,7 +23,11 @@ from phospy.transformations.transformers import IdentityTransformer
 
 
 class DatasetBuildExecutor:
-    """Construct `AnalysisReadyPhosphoDataset` from interpreted builder input."""
+    """Construct `AnalysisReadyPhosphoDataset` from interpreted builder input.
+
+    Default policy uses the identity transformer, which is a pass-through
+    establisher for already-prepared quantitative matrices.
+    """
 
     def __init__(
         self,

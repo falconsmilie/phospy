@@ -75,7 +75,10 @@ def main() -> None:
         "Organism:",
         None if path_dataset.organism is None else path_dataset.organism.value,
     )
-    print("Transformation state:", path_dataset.transformation_state.label)
+    print(
+        "Transformation state:",
+        f"{path_dataset.transformation_state.label} (builder pass-through lane)",
+    )
 
 
 if __name__ == "__main__":

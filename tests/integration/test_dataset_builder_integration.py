@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pandas.testing as pdt
 import pytest
 
 from phospy import (
@@ -25,7 +26,7 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
             organism=Organism.RAT,
         )
     )
-    assert list(built.phospho.index) == list(phospho.index)
+    pdt.assert_frame_equal(built.phospho, phospho)
     assert list(built.site_metadata.columns) == ["gene_symbol", "site", "site_sequence"]
     assert built.transformation_state == TransformationState.established_raw(
         has_total_matrix=False
@@ -48,6 +49,31 @@ def test_dataset_builder_establishes_transformation_state_via_supported_path() -
         built.transformation_state.phospho.established_by
         == "phospy.transformations.transformers.identity"
     )
+
+
+def test_dataset_builder_preserves_total_matrix_and_establishes_linear_state() -> None:
+    phospho = load_rat_l6_phospho().head(8).copy(deep=True)
+    total = pd.DataFrame(
+        {
+            sample_name: [float(i + 1), float(i + 2)]
+            for i, sample_name in enumerate(phospho.columns.astype(str))
+        },
+        index=pd.Index(["MAPK14", "AKT1"], name="protein_id"),
+    )
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata_for(phospho),
+            total=total,
+            organism=Organism.RAT,
+        )
+    )
+    assert built.total is not None
+    pdt.assert_frame_equal(built.total, total)
+    assert built.transformation_state == TransformationState.established_raw(
+        has_total_matrix=True
+    )
+    assert built.transformation_state.label == "linear"
 
 
 def test_dataset_builder_supports_documented_alias_and_index_derivation_conventions() -> (

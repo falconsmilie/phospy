@@ -81,6 +81,13 @@ If `gene_symbol` and/or `site` are absent, one derivation convention is supporte
 This derivation populates only `gene_symbol` and `site`; it does not infer
 `protein_id`.
 
+Current transformation establishment policy in this public builder lane is
+intentionally narrow:
+
+- builder execution establishes only the supported pass-through `linear` state
+- quantitative matrix values are preserved as provided after builder normalization
+- no additional log or heuristic transformation path is exposed in the public builder
+
 ## Final Dataset Boundary
 
 `AnalysisReadyPhosphoDataset` is strict and workflow-facing.
@@ -100,6 +107,9 @@ Supported establishment paths are:
 - `AnalysisReadyDatasetBuilder.run(...)` (default supported lane)
 - supported transformer execution through the dataset builder executor/resolver
 - supported bundle reconstruction paths
+
+For `AnalysisReadyDatasetBuilder.run(...)`, the established state is currently
+the pass-through `linear` path.
 
 Directly declared transformation-state objects are not accepted as authoritative
 at the dataset boundary unless they were established through one of the supported

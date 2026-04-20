@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pandas.testing as pdt
 import pytest
 
 from phospy.datasets.builders.transformation_resolver import (
@@ -15,6 +16,7 @@ from phospy.errors.validation import TransformationValidationError
 from phospy.references.models import Organism
 from phospy.transformations.contracts import TransformationResult
 from phospy.transformations.models import MatrixTransformationState, TransformationState
+from phospy.transformations.transformers import IdentityTransformer
 
 
 def _phospho() -> pd.DataFrame:
@@ -192,3 +194,14 @@ def test_dataset_boundary_accepts_supported_established_state() -> None:
         ),
     )
     assert dataset.transformation_state.is_established
+
+
+def test_identity_transformer_is_strict_passthrough_establisher() -> None:
+    phospho = _phospho().copy(deep=True)
+    total = _total().copy(deep=True)
+
+    result = IdentityTransformer().run(phospho=phospho, total=total)
+
+    pdt.assert_frame_equal(result.phospho, phospho)
+    pdt.assert_frame_equal(result.total, total)
+    assert result.state == TransformationState.established_raw(has_total_matrix=True)

@@ -38,6 +38,9 @@ pip install .
   `AnalysisReadyPhosphoDataset` validates DataFrame structure/content, canonical site IDs,
   required metadata (`gene_symbol`, `site`), optional `site_sequence` quality when present,
   and transformation-state coherence.
+- Public builder transformation policy is currently narrow and explicit:
+  it establishes only the supported pass-through `linear` state and does not
+  apply additional preprocessing transforms to quantitative matrices.
 - Workflows consume only `AnalysisReadyPhosphoDataset` (not raw input files/frames).
 
 ## Supported Science vs Deferred

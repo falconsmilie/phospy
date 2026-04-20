@@ -63,6 +63,10 @@ A coherent but externally declared state object is rejected unless it was
 established through a supported PhosPy path (builder/resolver transformer lane
 or supported bundle reconstruction lane).
 
+In the current public builder lane, this establishment path is intentionally
+narrow: builder execution establishes pass-through `linear` state only.
+No additional transformation mode is publicly selectable.
+
 ## Builder Convention Rules
 
 Supported site-metadata aliases:

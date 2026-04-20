@@ -1,4 +1,4 @@
-"""Identity transformer used for the initial rewrite boundary."""
+"""Identity transformer for the supported analysis-ready builder lane."""
 
 from __future__ import annotations
 
@@ -9,7 +9,11 @@ from phospy.transformations.models import TransformationState
 
 
 class IdentityTransformer:
-    """Establish a linear transformation state without changing matrix values."""
+    """Establish linear state without changing matrix values.
+
+    This is a strict pass-through establisher used when inputs are already
+    donor-aligned analysis-ready matrices.
+    """
 
     def run(
         self,

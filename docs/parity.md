@@ -46,6 +46,17 @@ The parity suite currently protects rewrite-era parity families for:
   `module_assignments`, `signalome_modules`, `kinase_network.nodes`,
   `kinase_network.edges`, `expanded_signalome`
 
+## Analysis-Ready Transformation Parity Status
+
+Legacy donor preprocessing produced analysis-ready phosphosite matrices before
+workflow execution. In the supported rewrite builder lane, transformation
+establishment therefore remains a narrow pass-through policy:
+
+- `AnalysisReadyDatasetBuilder.run(...)` preserves provided quantitative matrix values
+- builder establishes `transformation_state.label == "linear"` through the
+  supported identity transformer path
+- no broader public transformation-selection API is implied
+
 ## Core Kinase Lane Status (2026-04-20)
 
 The central kinase scoring/prediction lane is closed only when both rewrite
