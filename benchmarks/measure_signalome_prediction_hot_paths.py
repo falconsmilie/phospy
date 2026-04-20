@@ -2,8 +2,8 @@
 """Benchmark signalome/prediction science hot paths against legacy-style baselines.
 
 Targets:
-- `phospy.workflows.signalome.science.build_signalome_module_table`
-- `phospy.workflows.signalome.science.build_expanded_signalome_table`
+- `phospy.signalomes.science.build_signalome_module_table`
+- `phospy.signalomes.science.build_expanded_signalome_table`
 - `phospy.workflows.kinase.science.build_prediction_outputs`
 """
 
@@ -445,11 +445,11 @@ def _build_prediction_inputs(
 
 
 def main() -> None:
-    from phospy.workflows.kinase.science import build_prediction_outputs
-    from phospy.workflows.signalome.science import (
+    from phospy.signalomes.science import (
         build_expanded_signalome_table,
         build_signalome_module_table,
     )
+    from phospy.workflows.kinase.science import build_prediction_outputs
 
     module_assignments, kinase_substrates, kinase_order = _build_signalome_inputs()
     signalome_modules, kinase_network_edges = _build_expanded_inputs(

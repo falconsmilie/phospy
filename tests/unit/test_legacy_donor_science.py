@@ -18,12 +18,12 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
-from phospy.transformations.models import TransformationState
-from phospy.workflows.kinase.science import build_kinase_profiles
-from phospy.workflows.signalome.science import (
+from phospy.signalomes.science import (
     build_kinase_network,
     build_module_assignments,
 )
+from phospy.transformations.models import TransformationState
+from phospy.workflows.kinase.science import build_kinase_profiles
 from tests.support.rewrite_fixture_data import (
     load_adaptive_sampling_edge_combined_scores,
 )

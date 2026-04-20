@@ -9,7 +9,7 @@ This directory contains rewrite-native benchmark scripts that track active code 
   - Targets `phospy.workflows.kinase.executor` via `KinaseWorkflow.run`.
 - `measure_signalome_prediction_hot_paths.py`
   - Measures signalome module-table, expanded-signalome, and prediction-output science hot paths against legacy-style baseline implementations.
-  - Targets `phospy.workflows.signalome.science.build_signalome_module_table`, `phospy.workflows.signalome.science.build_expanded_signalome_table`, and `phospy.workflows.kinase.science.build_prediction_outputs`.
+  - Targets `phospy.signalomes.science.build_signalome_module_table`, `phospy.signalomes.science.build_expanded_signalome_table`, and `phospy.workflows.kinase.science.build_prediction_outputs`.
 
 ## Drift guard
 
