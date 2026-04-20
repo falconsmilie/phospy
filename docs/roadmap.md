@@ -55,8 +55,10 @@ Audit reference:
 - `SCI-GAP-07`: deterministic tie-metadata hardening for current lexicographic
   assignment policy - completed
 
-No open science-parity gap tickets are confirmed in the supported rewrite lane
-as of 2026-04-20.
+Tracked `SCI-GAP-*` tickets above are closed in the supported rewrite lane as
+of 2026-04-20, but this does not imply full legacy-science parity.
+See the full legacy-science inventory in:
+`docs/architecture/legacy_science_gap_audit.md` and `docs/parity.md`.
 
 ## Remaining Roadmap (Real Next Steps)
 

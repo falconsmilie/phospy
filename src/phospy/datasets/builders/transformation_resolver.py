@@ -35,7 +35,7 @@ class DatasetTransformationResolver:
     A configured transformer that establishes state from matrices.
 
     Public builder policy wires this resolver with identity pass-through
-    establishment by default, keeping transformation behavior narrow and honest.
+    establishment by default, keeping transformation behaviour narrow and honest.
     """
 
     def __init__(self, *, transformer: Transformer | None = None) -> None:

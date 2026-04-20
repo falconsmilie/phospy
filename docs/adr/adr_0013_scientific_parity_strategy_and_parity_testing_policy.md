@@ -224,7 +224,7 @@ A fixture should include:
 
 Fixture sets should stay selective and meaningful. The goal is not to build a giant archive of every possible example.
 
-## Legacy Donor Promotion Policy (2026-04-19)
+## Legacy Science Coverage Inventory Policy (2026-04-20)
 
 Legacy science tests are acceptable donors, but not active parity authorities.
 When a donor scenario is still scientifically relevant, the blocking check must
@@ -235,9 +235,14 @@ fixture paths under `tests/fixtures/rewrite_parity/**` or
 `tests_legacy/` remains archival/provenance. It should not be the normal fixture
 source for active rewrite parity.
 
-Rewrite-side visibility of donor coverage should be maintained via an explicit
-inventory and check (currently `tests/support/legacy_donor_inventory.py` and
-`tests/unit/test_legacy_donor_inventory.py`).
+Rewrite-side visibility of full legacy-science coverage should be maintained via
+an explicit inventory and check (`tests/support/legacy_donor_inventory.py` and
+`tests/unit/test_legacy_donor_inventory.py`) that:
+
+- classifies each legacy-science area as `PORTED`, `INTENTIONALLY_RETIRED`,
+  `OPEN_GAP`, or `CONTRACT_CHANGED`
+- distinguishes scoped parity passes from full legacy-science coverage
+- prevents blanket "no open gaps" language when inventory entries remain open
 
 ## Reference Output Policy
 

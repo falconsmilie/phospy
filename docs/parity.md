@@ -3,6 +3,9 @@
 PhosPy parity is intentionally narrow and fixture-backed. The rewrite does not
 claim full package equivalence with PhosR.
 
+Scoped parity passes in this document do not equal full legacy-science parity.
+Legacy-science coverage status is tracked explicitly in the inventory below.
+
 ## What Parity Means Here
 
 Parity in this repository is:
@@ -46,16 +49,16 @@ The parity suite currently protects rewrite-era parity families for:
   `module_assignments`, `signalome_modules`, `kinase_network.nodes`,
   `kinase_network.edges`, `expanded_signalome`
 
-## Analysis-Ready Transformation Parity Status
+## Analysis-Ready Transformation Coverage Status
 
 Legacy donor preprocessing produced analysis-ready phosphosite matrices before
 workflow execution. In the supported rewrite builder lane, transformation
-establishment therefore remains a narrow pass-through policy:
+establishment is currently a contract-changed, narrow pass-through policy:
 
 - `AnalysisReadyDatasetBuilder.run(...)` preserves provided quantitative matrix values
 - builder establishes `transformation_state.label == "linear"` through the
   supported identity transformer path
-- no broader public transformation-selection API is implied
+- no broader legacy-style transformation-selection API is currently supported
 
 ## Core Kinase Lane Status (2026-04-20)
 
@@ -119,22 +122,42 @@ Activity parity is a hard regression gate in rewrite CI:
 
 This lane is supported and parity-backed, not provisional.
 
-## Legacy Donor Promotion Inventory
+## Legacy Science Coverage Inventory
 
-The rewrite suite now carries donor coverage visibility for the strongest legacy
-science scenarios. `tests_legacy/` remains archival/provenance, not the primary
-regression gate.
+This inventory is the parity-governance truth source for what legacy science is
+ported, open, or contract-changed in supported rewrite lanes.
 
-| Donor area | Science-gap ticket | Rewrite-owned blockers | Archival donors (historical only) |
+Status vocabulary:
+
+- `PORTED`: implemented in supported rewrite lanes and guarded by rewrite-owned tests.
+- `INTENTIONALLY_RETIRED`: intentionally unsupported legacy area.
+- `OPEN_GAP`: not yet ported into supported rewrite lane.
+- `CONTRACT_CHANGED`: rewrite intentionally narrows/reshapes behavior vs legacy.
+- The current inventory has no `INTENTIONALLY_RETIRED` rows.
+
+| Legacy science area | Status | Science-gap ticket | Rewrite coverage summary |
 | --- | --- | --- | --- |
-| profile policy behavior | `SCI-GAP-01` | `tests/unit/test_legacy_donor_science.py::test_profile_policy_donor_locks_strict_median_behavior_and_contract_surface` | `tests_legacy/test_profiles.py::test_build_kinase_substrate_profiles_can_skip_missing_values_when_requested` |
-| core kinase scoring/prediction lane | `SCI-GAP-12` | `tests/parity/test_l6_prediction_parity.py::test_l6_full_prediction_and_scoring_parity_against_promoted_reference_tables`; `tests/parity/test_adaptive_replay_parity.py::test_adaptive_replay_trace_parity_matches_promoted_trace_surfaces` | `tests_legacy/test_parity-with_metrics.py::test_l6_native_prediction_rankings_agree_with_r_reference`; `tests_legacy/test_parity-with_metrics.py::test_l6_replayed_prediction_trace_matches_r_sampling_path` |
-| adaptive sampling / svm_mode | `SCI-GAP-05` | `tests/unit/test_legacy_donor_science.py::test_adaptive_sampling_donor_is_archival_and_svm_mode_is_not_rewrite_contract`; `tests/parity/test_adaptive_prediction_parity.py::test_adaptive_ensemble_outputs_match_promoted_fixture_tolerances` (active rewrite two-policy comparison via `adaptive_policy`) | `tests_legacy/test_prediction.py::test_predict_accepts_explicit_r_parity_mode`; `tests_legacy/test_prediction.py::test_resolve_prediction_sampling_policy_maps_public_modes` |
-| signalome clustering/module selection | `SCI-GAP-06` | `tests/unit/test_legacy_donor_science.py::test_signalome_clustering_donor_locks_rewrite_dominant_module_assignment_behavior`; `tests/parity/test_signalome_workflow_parity.py::test_signalome_module_assignments_match_l6_full_fixture_table` | `tests_legacy/test_signalomes.py::test_select_module_count_builds_one_cluster_tree_for_candidate_scoring` |
-| weighted-top assignment behavior | `SCI-GAP-08` | `tests/unit/test_legacy_donor_science.py::test_weighted_top_assignment_donor_locks_fractional_metadata_and_non_fractional_module_selection`; `tests/parity/test_signalome_workflow_parity.py::test_signalome_module_assignments_match_l6_full_fixture_table` | `tests_legacy/test_signalomes.py::test_weighted_top_assignment_policy_propagates_fractional_module_shares` |
-| network policy variants | `SCI-GAP-09` | `tests/unit/test_legacy_donor_science.py::test_network_policy_variant_donor_locks_signed_edges_and_narrow_config_surface`; `tests/parity/test_signalome_workflow_parity.py::test_signalome_network_edges_match_l6_full_fixture_table_with_tolerance`; `tests/parity/test_signalome_workflow_parity.py::test_signalome_network_policy_variants_match_fixed_matrix_expectations` | `tests_legacy/test_signalomes.py::test_build_kinase_network_policies_apply_expected_thresholding` |
-| expanded signalome outputs | `SCI-GAP-10` | `tests/unit/test_legacy_donor_science.py::test_expanded_signalome_donor_locks_supported_lane_to_materialized_output`; `tests/parity/test_signalome_workflow_parity.py::test_signalome_expanded_signalome_matches_l6_full_fixture_table_with_tolerance`; `tests/integration/test_signalome_workflow_integration.py::test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path` | `tests_legacy/test_signalomes.py::test_build_expanded_signalomes_uses_neighbor_map_and_preserves_site_order`; `tests_legacy/test_signalomes.py::test_signalome_result_expanded_signalomes_materialize_with_parity` |
-| activity parity lock | `SCI-GAP-11` | `tests/unit/test_legacy_donor_science.py::test_activity_parity_lock_donor_uses_rewrite_owned_fixture_path`; `tests/parity/test_activity_stage_parity.py::test_weighted_activity_matches_rewrite_reference_fixture` | `tests_legacy/test_activities.py::test_weighted_activity_matches_reference_on_large_sparse_input` |
+| profile policy behavior | PORTED | `SCI-GAP-01` | `strict` + `median_skipna` profile behavior is supported and parity-tested. |
+| core kinase scoring/prediction lane | PORTED | `SCI-GAP-12` | Candidate/ranking/replay behavior is parity-gated in rewrite-owned tests. |
+| adaptive sampling / svm_mode | CONTRACT_CHANGED | `SCI-GAP-05` | Adaptive science is ported, but public contract uses `adaptive_policy` instead of legacy `svm_mode` naming. |
+| signalome clustering/module selection | PORTED | `SCI-GAP-06` | Clustering and module-count diagnostics are implemented and parity-backed. |
+| weighted-top assignment behavior | PORTED | `SCI-GAP-08` | Weighted-top assignment and fractional support propagation are implemented. |
+| network policy variants | PORTED | `SCI-GAP-09` | `positive_only`, `absolute_threshold`, and `signed` are implemented and tested. |
+| expanded signalome outputs | PORTED | `SCI-GAP-10` | `expanded_signalome` is materialized in the supported workflow path. |
+| activity parity lock | PORTED | `SCI-GAP-11` | Activity/KSEA science is rewrite-ported and guarded by parity CI gates. |
+| preprocessing transformation establishment | CONTRACT_CHANGED | - | Builder preprocessing is intentionally narrow: pass-through linear transformation establishment plus limited missing-data policy. |
+| total/protein correction | OPEN_GAP | - | Legacy total/protein correction lane is not yet ported as a supported rewrite lane. |
+| site-matrix construction | OPEN_GAP | - | Legacy site-matrix construction policy surface is not fully ported. |
+| comparison-building | OPEN_GAP | - | Legacy pairwise comparison-building workflow is not in supported rewrite lane. |
+| site-to-protein resolution fallback behavior | CONTRACT_CHANGED | - | Signalome requires explicit `site_metadata.protein_id` and does not apply legacy fallback to site-id prefix. |
+| signalome input route contraction | CONTRACT_CHANGED | - | Supported signalome entrypoint is contracted to `SignalomeWorkflowRequest(kinase_result=...)`. |
+| dataset-vs-reference sequence authority decisions | CONTRACT_CHANGED | - | Motif sequence authority in supported kinase lane is `references.site_sequences`, not dataset-sequence fallback. |
+
+Open legacy-science areas in this inventory:
+
+- `total/protein correction`
+- `site-matrix construction`
+- `comparison-building`
 
 Rewrite-side visibility check:
 

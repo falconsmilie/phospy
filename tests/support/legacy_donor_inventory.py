@@ -2,7 +2,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-REQUIRED_DONOR_AREAS = (
+STATUS_PORTED = "PORTED"
+STATUS_INTENTIONALLY_RETIRED = "INTENTIONALLY_RETIRED"
+STATUS_OPEN_GAP = "OPEN_GAP"
+STATUS_CONTRACT_CHANGED = "CONTRACT_CHANGED"
+
+LEGACY_SCIENCE_STATUS_VALUES = (
+    STATUS_PORTED,
+    STATUS_INTENTIONALLY_RETIRED,
+    STATUS_OPEN_GAP,
+    STATUS_CONTRACT_CHANGED,
+)
+
+REQUIRED_LEGACY_SCIENCE_AREAS = (
     "profile policy behavior",
     "core kinase scoring/prediction lane",
     "adaptive sampling / svm_mode",
@@ -11,6 +23,13 @@ REQUIRED_DONOR_AREAS = (
     "network policy variants",
     "expanded signalome outputs",
     "activity parity lock",
+    "preprocessing transformation establishment",
+    "total/protein correction",
+    "site-matrix construction",
+    "comparison-building",
+    "site-to-protein resolution fallback behavior",
+    "signalome input route contraction",
+    "dataset-vs-reference sequence authority decisions",
 )
 
 TRACKED_SCIENCE_GAP_TICKETS = (
@@ -24,16 +43,19 @@ TRACKED_SCIENCE_GAP_TICKETS = (
     "SCI-GAP-11",
 )
 
-# Governance truth source: no science-gap tickets are currently open in the
-# supported rewrite lane. Historical SCI-GAP ids remain tracked for provenance.
+# Governance truth source:
+# - tracked SCI-GAP tickets are a historical subset only
+# - legacy-science coverage status lives on LEGACY_SCIENCE_AREAS below
 OPEN_SCIENCE_GAP_TICKETS: tuple[str, ...] = ()
 CLOSED_SCIENCE_GAP_TICKETS: tuple[str, ...] = TRACKED_SCIENCE_GAP_TICKETS
 
 
 @dataclass(frozen=True, slots=True)
-class LegacyDonorAreaInventory:
+class LegacyScienceAreaInventory:
     area: str
-    science_gap_ticket: str
+    status: str
+    status_summary: str
+    science_gap_ticket: str | None
     rewrite_unit_tests: tuple[str, ...]
     rewrite_parity_tests: tuple[str, ...]
     rewrite_integration_tests: tuple[str, ...]
@@ -42,9 +64,14 @@ class LegacyDonorAreaInventory:
     provenance_paths: tuple[str, ...]
 
 
-LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
-    LegacyDonorAreaInventory(
+LEGACY_SCIENCE_AREAS: tuple[LegacyScienceAreaInventory, ...] = (
+    LegacyScienceAreaInventory(
         area="profile policy behavior",
+        status=STATUS_PORTED,
+        status_summary=(
+            "Profile missing-value strategies from legacy donor behavior are "
+            "ported in the supported rewrite lane."
+        ),
         science_gap_ticket="SCI-GAP-01",
         rewrite_unit_tests=(
             "tests/unit/test_legacy_donor_science.py::"
@@ -66,8 +93,13 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
             "tests/fixtures/rewrite_parity/r_reference_l6/PROVENANCE.md",
         ),
     ),
-    LegacyDonorAreaInventory(
+    LegacyScienceAreaInventory(
         area="core kinase scoring/prediction lane",
+        status=STATUS_PORTED,
+        status_summary=(
+            "Core downstream scoring, ranking, candidate selection, and replay "
+            "surfaces are parity-gated on promoted rewrite fixtures."
+        ),
         science_gap_ticket="SCI-GAP-12",
         rewrite_unit_tests=(),
         rewrite_parity_tests=(
@@ -102,8 +134,13 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
             "docs/parity.md",
         ),
     ),
-    LegacyDonorAreaInventory(
+    LegacyScienceAreaInventory(
         area="adaptive sampling / svm_mode",
+        status=STATUS_CONTRACT_CHANGED,
+        status_summary=(
+            "Adaptive ensemble science is ported, but legacy svm_mode naming is "
+            "not the rewrite public contract."
+        ),
         science_gap_ticket="SCI-GAP-05",
         rewrite_unit_tests=(
             "tests/unit/test_legacy_donor_science.py::"
@@ -127,8 +164,13 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
             "tests/fixtures/rewrite_parity/adaptive_sampling_edge/PROVENANCE.md",
         ),
     ),
-    LegacyDonorAreaInventory(
+    LegacyScienceAreaInventory(
         area="signalome clustering/module selection",
+        status=STATUS_PORTED,
+        status_summary=(
+            "Signalome clustering and module-count selection diagnostics are "
+            "implemented and parity-locked."
+        ),
         science_gap_ticket="SCI-GAP-06",
         rewrite_unit_tests=(
             "tests/unit/test_legacy_donor_science.py::"
@@ -151,8 +193,13 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
         ),
         provenance_paths=("docs/parity.md",),
     ),
-    LegacyDonorAreaInventory(
+    LegacyScienceAreaInventory(
         area="weighted-top assignment behavior",
+        status=STATUS_PORTED,
+        status_summary=(
+            "Weighted-top assignment and fractional support propagation are "
+            "implemented in the supported signalome lane."
+        ),
         science_gap_ticket="SCI-GAP-08",
         rewrite_unit_tests=(
             "tests/unit/test_legacy_donor_science.py::"
@@ -176,8 +223,13 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
         ),
         provenance_paths=("docs/parity.md",),
     ),
-    LegacyDonorAreaInventory(
+    LegacyScienceAreaInventory(
         area="network policy variants",
+        status=STATUS_PORTED,
+        status_summary=(
+            "Signed, positive_only, and absolute-threshold network policies are "
+            "implemented and parity-tested."
+        ),
         science_gap_ticket="SCI-GAP-09",
         rewrite_unit_tests=(
             "tests/unit/test_legacy_donor_science.py::"
@@ -202,8 +254,13 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
         ),
         provenance_paths=("docs/parity.md",),
     ),
-    LegacyDonorAreaInventory(
+    LegacyScienceAreaInventory(
         area="expanded signalome outputs",
+        status=STATUS_PORTED,
+        status_summary=(
+            "Expanded signalome output population is active in the supported "
+            "workflow executor path."
+        ),
         science_gap_ticket="SCI-GAP-10",
         rewrite_unit_tests=(
             "tests/unit/test_legacy_donor_science.py::"
@@ -230,8 +287,13 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
         ),
         provenance_paths=("docs/parity.md",),
     ),
-    LegacyDonorAreaInventory(
+    LegacyScienceAreaInventory(
         area="activity parity lock",
+        status=STATUS_PORTED,
+        status_summary=(
+            "Activity/KSEA kernels are ported and protected by rewrite-owned "
+            "parity regression gates."
+        ),
         science_gap_ticket="SCI-GAP-11",
         rewrite_unit_tests=(
             "tests/unit/test_legacy_donor_science.py::"
@@ -263,4 +325,217 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
             "tests/fixtures/rewrite_parity/r_reference_l6/PROVENANCE.md",
         ),
     ),
+    LegacyScienceAreaInventory(
+        area="preprocessing transformation establishment",
+        status=STATUS_CONTRACT_CHANGED,
+        status_summary=(
+            "Rewrite builder preprocessing is intentionally narrow: pass-through "
+            "linear transformation establishment plus limited missing-data policy."
+        ),
+        science_gap_ticket=None,
+        rewrite_unit_tests=(
+            "tests/unit/test_validator_boundaries.py::"
+            "test_dataset_build_request_rejects_unknown_missing_data_policy",
+            "tests/unit/test_validator_boundaries.py::"
+            "test_dataset_build_request_rejects_impute_policy_without_min_observed_values",
+            "tests/unit/test_validator_boundaries.py::"
+            "test_dataset_build_request_rejects_min_observed_values_for_forbid_policy",
+        ),
+        rewrite_parity_tests=(),
+        rewrite_integration_tests=(
+            "tests/integration/test_dataset_builder_integration.py::"
+            "test_dataset_builder_establishes_transformation_state_via_supported_path",
+            "tests/integration/test_dataset_builder_integration.py::"
+            "test_dataset_builder_supports_row_median_missing_data_preprocessing_policy",
+        ),
+        archival_only_tests=(
+            "tests_legacy/test_preprocessing.py::"
+            "test_dataset_preprocessing_run_analysis_ready_uses_example_fixture_data",
+        ),
+        promoted_fixture_paths=(),
+        provenance_paths=(
+            "docs/api.md",
+            "docs/validation.md",
+            "docs/parity.md",
+            "docs/architecture/legacy_science_gap_audit.md",
+        ),
+    ),
+    LegacyScienceAreaInventory(
+        area="total/protein correction",
+        status=STATUS_OPEN_GAP,
+        status_summary=(
+            "Legacy total/protein correction science is not ported as a supported "
+            "rewrite lane."
+        ),
+        science_gap_ticket=None,
+        rewrite_unit_tests=(),
+        rewrite_parity_tests=(),
+        rewrite_integration_tests=(),
+        archival_only_tests=(
+            "tests_legacy/test_preprocessing.py::"
+            "test_correct_phospho_to_protein_and_pairwise_comparisons",
+            "tests_legacy/test_preprocessing.py::"
+            "test_protein_correction_service_applies_correction_and_pairwise_augmentation",
+        ),
+        promoted_fixture_paths=(),
+        provenance_paths=(
+            "docs/parity.md",
+            "docs/architecture/legacy_science_gap_audit.md",
+        ),
+    ),
+    LegacyScienceAreaInventory(
+        area="site-matrix construction",
+        status=STATUS_OPEN_GAP,
+        status_summary=(
+            "Legacy site-matrix construction policy surface is not fully ported "
+            "into the supported rewrite builder lane."
+        ),
+        science_gap_ticket=None,
+        rewrite_unit_tests=(),
+        rewrite_parity_tests=(),
+        rewrite_integration_tests=(),
+        archival_only_tests=(
+            "tests_legacy/test_preprocessing.py::"
+            "test_core_preprocessing_config_normalizes_site_matrix_policy_mapping",
+            "tests_legacy/test_preprocessing.py::"
+            "test_analysis_ready_builder_full_inputs_reuses_dataset_preprocessing_seam",
+        ),
+        promoted_fixture_paths=(),
+        provenance_paths=(
+            "docs/parity.md",
+            "docs/architecture/legacy_science_gap_audit.md",
+        ),
+    ),
+    LegacyScienceAreaInventory(
+        area="comparison-building",
+        status=STATUS_OPEN_GAP,
+        status_summary=(
+            "Legacy comparison-building and pairwise augmentation workflow is "
+            "not part of the supported rewrite lane."
+        ),
+        science_gap_ticket=None,
+        rewrite_unit_tests=(),
+        rewrite_parity_tests=(),
+        rewrite_integration_tests=(),
+        archival_only_tests=(
+            "tests_legacy/test_preprocessing.py::"
+            "test_add_pairwise_comparisons_uses_schema_group_names",
+            "tests_legacy/test_preprocessing.py::"
+            "test_add_pairwise_comparisons_rejects_reverse_duplicate_pairs_with_custom_mapping",
+        ),
+        promoted_fixture_paths=(),
+        provenance_paths=(
+            "docs/parity.md",
+            "docs/architecture/legacy_science_gap_audit.md",
+        ),
+    ),
+    LegacyScienceAreaInventory(
+        area="site-to-protein resolution fallback behavior",
+        status=STATUS_CONTRACT_CHANGED,
+        status_summary=(
+            "Rewrite signalome requires explicit dataset protein identity and "
+            "does not use legacy site-id-prefix fallback behavior."
+        ),
+        science_gap_ticket=None,
+        rewrite_unit_tests=(
+            "tests/unit/test_signalome_workflow_diagnostics.py::"
+            "test_interpreter_uses_explicit_site_metadata_protein_id_when_present",
+            "tests/unit/test_signalome_workflow_diagnostics.py::"
+            "test_interpreter_does_not_fallback_to_site_id_prefix_when_protein_id_column_missing",
+        ),
+        rewrite_parity_tests=(),
+        rewrite_integration_tests=(
+            "tests/integration/test_signalome_workflow_integration.py::"
+            "test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id",
+            "tests/integration/test_signalome_workflow_integration.py::"
+            "test_signalome_workflow_uses_explicit_dataset_protein_identity_when_present",
+        ),
+        archival_only_tests=(
+            "tests_legacy/test_datasets_models_site_to_protein_mapping.py::"
+            "test_resolve_site_to_protein_mapping_falls_back_to_next_complete_column",
+        ),
+        promoted_fixture_paths=(),
+        provenance_paths=(
+            "docs/api.md",
+            "docs/parity.md",
+            "docs/architecture/legacy_science_gap_audit.md",
+        ),
+    ),
+    LegacyScienceAreaInventory(
+        area="signalome input route contraction",
+        status=STATUS_CONTRACT_CHANGED,
+        status_summary=(
+            "Supported signalome entrypoint is contracted to "
+            "SignalomeWorkflowRequest(kinase_result=...) rather than broader "
+            "legacy-style direct inputs."
+        ),
+        science_gap_ticket=None,
+        rewrite_unit_tests=(
+            "tests/unit/test_public_contract_workflows.py::"
+            "test_workflow_requests_keep_ingestion_outside_workflows",
+            "tests/unit/test_public_contract_workflows.py::"
+            "test_workflow_run_type_contracts_are_request_to_result",
+        ),
+        rewrite_parity_tests=(),
+        rewrite_integration_tests=(
+            "tests/integration/test_signalome_workflow_integration.py::"
+            "test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path",
+        ),
+        archival_only_tests=(),
+        promoted_fixture_paths=(),
+        provenance_paths=(
+            "docs/api.md",
+            "docs/parity.md",
+            "docs/architecture/legacy_science_gap_audit.md",
+        ),
+    ),
+    LegacyScienceAreaInventory(
+        area="dataset-vs-reference sequence authority decisions",
+        status=STATUS_CONTRACT_CHANGED,
+        status_summary=(
+            "In the supported kinase lane, motif sequence authority is the "
+            "resolved reference bundle (`references.site_sequences`), not dataset "
+            "site metadata fallback."
+        ),
+        science_gap_ticket=None,
+        rewrite_unit_tests=(),
+        rewrite_parity_tests=(),
+        rewrite_integration_tests=(
+            "tests/integration/test_kinase_workflow_integration.py::"
+            "test_kinase_workflow_runs_without_dataset_site_sequence_column",
+            "tests/integration/test_kinase_workflow_integration.py::"
+            "test_kinase_workflow_runs_dataset_to_kinase_path",
+        ),
+        archival_only_tests=(
+            "tests_legacy/test_workflow.py::"
+            "test_kinase_workflow_limits_motif_and_prediction_outputs_to_sites_with_sequences",
+        ),
+        promoted_fixture_paths=(),
+        provenance_paths=(
+            "docs/api.md",
+            "docs/validation.md",
+            "docs/parity.md",
+            "docs/architecture/legacy_science_gap_audit.md",
+        ),
+    ),
+)
+
+OPEN_LEGACY_SCIENCE_AREAS: tuple[str, ...] = tuple(
+    entry.area for entry in LEGACY_SCIENCE_AREAS if entry.status == STATUS_OPEN_GAP
+)
+
+PORTED_LEGACY_SCIENCE_AREAS: tuple[str, ...] = tuple(
+    entry.area for entry in LEGACY_SCIENCE_AREAS if entry.status == STATUS_PORTED
+)
+
+CONTRACT_CHANGED_LEGACY_SCIENCE_AREAS: tuple[str, ...] = tuple(
+    entry.area
+    for entry in LEGACY_SCIENCE_AREAS
+    if entry.status == STATUS_CONTRACT_CHANGED
+)
+
+INTENTIONALLY_RETIRED_LEGACY_SCIENCE_AREAS: tuple[str, ...] = tuple(
+    entry.area
+    for entry in LEGACY_SCIENCE_AREAS
+    if entry.status == STATUS_INTENTIONALLY_RETIRED
 )
