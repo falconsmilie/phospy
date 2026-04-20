@@ -84,6 +84,11 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
     }
     assert int(manifest["selected_module_count"]) >= 1
     assert manifest["used_automatic_module_selection"] is True
+    preconditioning = manifest["score_preconditioning_diagnostics"]
+    assert preconditioning["policy"] == "allow_and_report"
+    assert int(preconditioning["input_row_count"]) >= 0
+    assert int(preconditioning["dropped_all_missing_row_count"]) >= 0
+    assert int(preconditioning["retained_row_count"]) >= 0
 
 
 def _build_signalome_result():

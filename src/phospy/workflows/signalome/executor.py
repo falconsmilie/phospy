@@ -149,6 +149,7 @@ class SignalomeWorkflowExecutor:
                 nodes=network_nodes,
             ),
             module_selection_diagnostics=clustering_result.module_selection_diagnostics,
+            score_preconditioning_diagnostics=request.score_preconditioning_diagnostics,
             expanded_signalome=expanded_signalome,
         )
 

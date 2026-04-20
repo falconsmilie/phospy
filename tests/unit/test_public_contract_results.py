@@ -136,6 +136,11 @@ def test_signalome_result_keeps_nested_kinase_result_contract() -> None:
     assert not signalome_result.signalome_modules.table.empty
     assert signalome_result.module_selection_diagnostics.selected_module_count >= 1
     assert signalome_result.module_selection_diagnostics.reason
+    assert signalome_result.score_preconditioning_diagnostics.input_row_count >= 1
+    assert (
+        signalome_result.score_preconditioning_diagnostics.dropped_all_missing_row_count
+        >= 0
+    )
     assert signalome_result.expanded_signalome is not None
     assert not signalome_result.expanded_signalome.empty
     assert signalome_result.kinase_result.scoring_result.motif_scores is None

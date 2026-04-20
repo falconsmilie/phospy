@@ -134,6 +134,9 @@ execution:
 - partially missing rows are retained and consumed with pairwise-complete
   correlation handling
 - prediction rows remain available for module assignment logic
+- drop policy is `allow_and_report`: non-zero dropped-row counts are surfaced in
+  `signalome_result.score_preconditioning_diagnostics` instead of causing a
+  boundary failure
 
 Interpreters/executors enforce seam-level scientific/runtime boundary checks and raise
 `WorkflowBoundaryError` with seam names, concrete counts, and `next_action` hints.

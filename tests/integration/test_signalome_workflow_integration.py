@@ -355,3 +355,11 @@ def test_signalome_workflow_accepts_sparse_missing_combined_score_rows() -> None
     assert result.module_assignments.table.shape[0] == int(
         kinase_result.prediction_result.pred_mat.shape[0]
     )
+    assert result.score_preconditioning_diagnostics.input_row_count == int(
+        kinase_result.prediction_result.pred_mat.shape[0]
+    )
+    assert result.score_preconditioning_diagnostics.dropped_all_missing_row_count == 5
+    assert result.score_preconditioning_diagnostics.retained_row_count == int(
+        kinase_result.prediction_result.pred_mat.shape[0] - 5
+    )
+    assert result.score_preconditioning_diagnostics.policy == "allow_and_report"

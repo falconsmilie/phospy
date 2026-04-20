@@ -17,6 +17,7 @@ from phospy.io.bundles._shared.transformation_state import (
 )
 from phospy.io.bundles._signalome.compatibility import (
     signalome_module_selection_diagnostics_to_payload,
+    signalome_score_preconditioning_diagnostics_to_payload,
 )
 from phospy.io.bundles._signalome.constants import (
     CONFIG_SNAPSHOT_RELATIVE_PATH,
@@ -96,6 +97,9 @@ def build_manifest(
                 "expanded_signalome_present": result.expanded_signalome is not None,
                 "module_selection_diagnostics": signalome_module_selection_diagnostics_to_payload(
                     result.module_selection_diagnostics
+                ),
+                "score_preconditioning_diagnostics": signalome_score_preconditioning_diagnostics_to_payload(
+                    result.score_preconditioning_diagnostics
                 ),
             },
             "tables": dict(signalome_tables),

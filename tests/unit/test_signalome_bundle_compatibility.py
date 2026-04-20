@@ -11,11 +11,16 @@ from phospy.io.bundles._signalome.compatibility import (
     normalize_module_assignments_table,
     signalome_module_selection_diagnostics_from_payload_with_legacy_support,
     signalome_module_selection_diagnostics_to_payload,
+    signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support,
+    signalome_score_preconditioning_diagnostics_to_payload,
 )
 from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
 from phospy.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SignalomeModuleSelectionDiagnostics,
+    SignalomeScorePreconditioningDiagnostics,
+    default_signalome_score_preconditioning_diagnostics,
 )
 
 
@@ -148,3 +153,32 @@ def test_module_selection_diagnostics_payload_round_trip() -> None:
     )
 
     assert restored == diagnostics
+
+
+def test_score_preconditioning_diagnostics_payload_round_trip() -> None:
+    diagnostics = SignalomeScorePreconditioningDiagnostics(
+        policy=SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+        input_row_count=10,
+        dropped_all_missing_row_count=2,
+        retained_row_count=8,
+    )
+
+    payload = signalome_score_preconditioning_diagnostics_to_payload(diagnostics)
+    restored = (
+        signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support(
+            payload,
+            scope="test",
+        )
+    )
+
+    assert restored == diagnostics
+
+
+def test_score_preconditioning_diagnostics_legacy_payload_defaults() -> None:
+    restored = (
+        signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support(
+            None,
+            scope="test",
+        )
+    )
+    assert restored == default_signalome_score_preconditioning_diagnostics()

@@ -198,6 +198,18 @@ def publish_signalome_workflow(
             "used_automatic_module_selection": bool(
                 result.module_selection_diagnostics.used_automatic_selection
             ),
+            "score_preconditioning_diagnostics": {
+                "policy": result.score_preconditioning_diagnostics.policy,
+                "input_row_count": int(
+                    result.score_preconditioning_diagnostics.input_row_count
+                ),
+                "dropped_all_missing_row_count": int(
+                    result.score_preconditioning_diagnostics.dropped_all_missing_row_count
+                ),
+                "retained_row_count": int(
+                    result.score_preconditioning_diagnostics.retained_row_count
+                ),
+            },
             "output_format": output_format,
         },
     )

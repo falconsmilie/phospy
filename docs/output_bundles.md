@@ -127,6 +127,11 @@ as `SignalomeWorkflowResult.expanded_signalome` (see `docs/api.md`): focal
 kinase, row kind, assignment policy, linked/regulatory module metadata, and
 site-level membership rows with stable `site_order`.
 
+Signalome manifests also persist `score_preconditioning_diagnostics` metadata
+(`policy`, `input_row_count`, `dropped_all_missing_row_count`,
+`retained_row_count`) so dropped all-missing downstream-score rows are explicit
+in published outputs and reloads.
+
 Optional means contract-optional, not always absent.
 In the default supported kinase lane, scoring populates `profile_scores` and
 `combined_scores`; diagnostic `motif_scores` and `weights` are written only when

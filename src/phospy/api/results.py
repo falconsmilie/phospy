@@ -17,7 +17,9 @@ from phospy.signalomes.models import (
     SignalomeAssignments,
     SignalomeModules,
     SignalomeModuleSelectionDiagnostics,
+    SignalomeScorePreconditioningDiagnostics,
     default_signalome_module_selection_diagnostics,
+    default_signalome_score_preconditioning_diagnostics,
 )
 
 
@@ -39,7 +41,8 @@ class SignalomeWorkflowResult:
     `expanded_signalome` is a flattened optional DataFrame contract populated by
     the supported signalome executor lane. It includes focal-kinase rows with
     linked-kinase metadata, regulated module IDs, and selected site-membership
-    rows with stable `site_order`.
+    rows with stable `site_order`. `score_preconditioning_diagnostics` reports
+    downstream-score row preconditioning counts and the active policy.
     """
 
     dataset: AnalysisReadyPhosphoDataset
@@ -49,6 +52,9 @@ class SignalomeWorkflowResult:
     kinase_network: KinaseNetwork
     module_selection_diagnostics: SignalomeModuleSelectionDiagnostics = field(
         default_factory=default_signalome_module_selection_diagnostics
+    )
+    score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics = field(
+        default_factory=default_signalome_score_preconditioning_diagnostics
     )
     expanded_signalome: pd.DataFrame | None = None
     _assume_owned: InitVar[bool] = False
@@ -72,6 +78,8 @@ class SignalomeWorkflowResult:
         signalome_modules: SignalomeModules,
         kinase_network: KinaseNetwork,
         module_selection_diagnostics: SignalomeModuleSelectionDiagnostics | None = None,
+        score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics
+        | None = None,
         expanded_signalome: pd.DataFrame | None = None,
     ) -> SignalomeWorkflowResult:
         return cls(
@@ -84,6 +92,11 @@ class SignalomeWorkflowResult:
                 default_signalome_module_selection_diagnostics()
                 if module_selection_diagnostics is None
                 else module_selection_diagnostics
+            ),
+            score_preconditioning_diagnostics=(
+                default_signalome_score_preconditioning_diagnostics()
+                if score_preconditioning_diagnostics is None
+                else score_preconditioning_diagnostics
             ),
             expanded_signalome=expanded_signalome,
             _assume_owned=True,

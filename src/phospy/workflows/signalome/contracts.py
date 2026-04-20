@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 import pandas as pd
@@ -11,6 +11,10 @@ from phospy.api.configs import SignalomeAssignmentPolicy, SignalomeKinaseNetwork
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.signalomes.models import (
+    SignalomeScorePreconditioningDiagnostics,
+    default_signalome_score_preconditioning_diagnostics,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,7 +39,9 @@ class ResolvedSignalomeWorkflowRequest:
     ``dataset.site_metadata.protein_id`` for every site in ``prediction_matrix.index``.
     ``downstream_score_matrix`` is the same authoritative matrix lane that drove
     upstream kinase prediction, after interpreter preconditioning of unsupported
-    all-missing score rows.
+    all-missing score rows. ``score_preconditioning_diagnostics`` surfaces the
+    aligned input row count, dropped all-missing row count, retained row count,
+    and active drop policy.
     """
 
     dataset: AnalysisReadyPhosphoDataset
@@ -45,6 +51,9 @@ class ResolvedSignalomeWorkflowRequest:
     downstream_score_source: str
     prediction_matrix: pd.DataFrame
     site_to_protein: pd.Series
+    score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics = field(
+        default_factory=default_signalome_score_preconditioning_diagnostics
+    )
 
 
 class SignalomeWorkflowValidatorContract(Protocol):

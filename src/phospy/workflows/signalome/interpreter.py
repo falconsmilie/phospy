@@ -10,6 +10,10 @@ from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.prediction.scoring import select_downstream_score_matrix
 from phospy.signalomes.constants import KINASE_COLUMN, PROTEIN_COLUMN, SITE_ID_COLUMN
+from phospy.signalomes.models import (
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    SignalomeScorePreconditioningDiagnostics,
+)
 from phospy.workflows.signalome.constants import (
     SIGNALOME_INTERPRETER_KINASE_OVERLAP_SEAM,
     SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM,
@@ -74,9 +78,10 @@ class SignalomeWorkflowInterpreter:
         aligned_downstream_score_matrix = resolved_downstream_score_matrix.loc[
             aligned_site_index, aligned_kinase_index
         ]
-        preconditioned_downstream_score_matrix = (
-            self._precondition_downstream_score_matrix(aligned_downstream_score_matrix)
-        )
+        (
+            preconditioned_downstream_score_matrix,
+            score_preconditioning_diagnostics,
+        ) = self._precondition_downstream_score_matrix(aligned_downstream_score_matrix)
         execution_config = self._resolve_execution_config(request)
         site_to_protein = self._resolve_site_to_protein(
             dataset=request.kinase_result.dataset,
@@ -90,6 +95,7 @@ class SignalomeWorkflowInterpreter:
             downstream_score_source=downstream_score_source,
             prediction_matrix=aligned_prediction_matrix,
             site_to_protein=site_to_protein,
+            score_preconditioning_diagnostics=score_preconditioning_diagnostics,
         )
 
     @staticmethod
@@ -243,14 +249,21 @@ class SignalomeWorkflowInterpreter:
     def _precondition_downstream_score_matrix(
         self,
         score_matrix: pd.DataFrame,
-    ) -> pd.DataFrame:
+    ) -> tuple[pd.DataFrame, SignalomeScorePreconditioningDiagnostics]:
         """Prepare aligned upstream scores for score-driven signalome stages.
 
         All-missing rows are treated as unsupported evidence and removed.
         Partially missing rows are retained for pairwise-complete correlation.
         """
         if score_matrix.empty:
-            return score_matrix
+            return (
+                score_matrix,
+                self._score_preconditioning_diagnostics(
+                    input_row_count=0,
+                    dropped_all_missing_row_count=0,
+                    retained_row_count=0,
+                ),
+            )
         score_values = score_matrix.to_numpy(dtype=float, copy=False)
         infinite_mask = np.isinf(score_values)
         if infinite_mask.any():
@@ -267,9 +280,31 @@ class SignalomeWorkflowInterpreter:
         supported_row_mask = (
             score_matrix.notna().any(axis=1).to_numpy(dtype=bool, copy=False)
         )
+        input_row_count = int(score_matrix.shape[0])
+        retained_row_count = int(supported_row_mask.sum())
+        dropped_all_missing_row_count = int(input_row_count - retained_row_count)
+        diagnostics = self._score_preconditioning_diagnostics(
+            input_row_count=input_row_count,
+            dropped_all_missing_row_count=dropped_all_missing_row_count,
+            retained_row_count=retained_row_count,
+        )
         if supported_row_mask.all():
-            return score_matrix
-        return score_matrix.iloc[supported_row_mask, :]
+            return score_matrix, diagnostics
+        return score_matrix.iloc[supported_row_mask, :], diagnostics
+
+    @staticmethod
+    def _score_preconditioning_diagnostics(
+        *,
+        input_row_count: int,
+        dropped_all_missing_row_count: int,
+        retained_row_count: int,
+    ) -> SignalomeScorePreconditioningDiagnostics:
+        return SignalomeScorePreconditioningDiagnostics(
+            input_row_count=int(input_row_count),
+            dropped_all_missing_row_count=int(dropped_all_missing_row_count),
+            retained_row_count=int(retained_row_count),
+            policy=SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+        )
 
     @staticmethod
     def _raise_boundary_error(

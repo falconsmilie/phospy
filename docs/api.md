@@ -166,6 +166,7 @@ to work after a standard package install.
 - `result.kinase_network.edges`
 - `result.kinase_network.nodes` (optional)
 - `result.module_selection_diagnostics`
+- `result.score_preconditioning_diagnostics`
 - `result.expanded_signalome` (optional by type; populated in the supported executor lane)
 
 `module_selection_diagnostics` fields:
@@ -180,6 +181,13 @@ to work after a standard package install.
 - `zero_variance_profile_count`
 - `near_constant_profile_count`
 - `excluded_from_correlation_count`
+
+`score_preconditioning_diagnostics` fields:
+
+- `policy` (`"allow_and_report"` in the supported lane)
+- `input_row_count` (aligned downstream-score rows before preconditioning)
+- `dropped_all_missing_row_count` (rows removed because all kinase scores are missing)
+- `retained_row_count` (rows retained for signalome score-driven stages)
 
 `module_assignments.table` includes site-level assignment metadata:
 
@@ -258,6 +266,9 @@ Supported public lane today:
 - Downstream score missingness is part of the supported scientific contract:
   all-missing score rows are preconditioned out of score-driven network inputs,
   partially missing rows are retained, and infinite values remain invalid.
+- Preconditioning drop policy is explicit and stable in the supported lane:
+  signalome always allows dropped all-missing rows and reports the exact counts
+  via `result.score_preconditioning_diagnostics` (`policy="allow_and_report"`).
 
 Deferred/experimental/not yet ported into the public lane:
 - Additional legacy science lanes listed as roadmap follow-ons.

@@ -20,6 +20,9 @@ from phospy.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
     SITE_CLUSTER_COLUMN,
 )
+from phospy.signalomes.models import (
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+)
 from phospy.transformations.models import TransformationState
 from phospy.workflows.signalome.constants import (
     SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM,
@@ -444,6 +447,54 @@ def test_interpreter_preconditions_downstream_scores_without_dropping_prediction
         "P3;S3;",
     ]
     assert pd.isna(interpreted.downstream_score_matrix.loc["P2;S2;", "K2"])
+    assert interpreted.score_preconditioning_diagnostics.input_row_count == 3
+    assert (
+        interpreted.score_preconditioning_diagnostics.dropped_all_missing_row_count == 1
+    )
+    assert interpreted.score_preconditioning_diagnostics.retained_row_count == 2
+    assert interpreted.score_preconditioning_diagnostics.policy == (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+    )
+
+
+def test_interpreter_reports_zero_drop_preconditioning_diagnostics() -> None:
+    site_ids = ["P1;S1;", "P2;S2;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.2, 0.8],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, float("nan")],
+            [2.0, 3.0],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    assert interpreted.downstream_score_matrix.index.tolist() == site_ids
+    assert interpreted.score_preconditioning_diagnostics.input_row_count == 2
+    assert (
+        interpreted.score_preconditioning_diagnostics.dropped_all_missing_row_count == 0
+    )
+    assert interpreted.score_preconditioning_diagnostics.retained_row_count == 2
+    assert interpreted.score_preconditioning_diagnostics.policy == (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+    )
 
 
 def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> None:
@@ -479,6 +530,12 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     interpreted = SignalomeWorkflowInterpreter().run(request)
     result = SignalomeWorkflowExecutor().run(interpreted)
     assert not result.kinase_network.edges.empty
+    assert result.score_preconditioning_diagnostics.input_row_count == 3
+    assert result.score_preconditioning_diagnostics.dropped_all_missing_row_count == 1
+    assert result.score_preconditioning_diagnostics.retained_row_count == 2
+    assert result.score_preconditioning_diagnostics.policy == (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+    )
 
 
 def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_gene_symbol() -> (

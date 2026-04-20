@@ -16,6 +16,8 @@ SignalomeModuleSelectionStrategy = Literal[
     "correlation_thresholds",
     "explicit_module_count",
 ]
+SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT = "allow_and_report"
+SignalomeScorePreconditioningPolicy = Literal["allow_and_report"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +48,18 @@ class SignalomeModuleSelectionDiagnostics:
         return self.requested_module_count is None
 
 
+@dataclass(frozen=True, slots=True)
+class SignalomeScorePreconditioningDiagnostics:
+    """Structured score preconditioning diagnostics for signalome inputs."""
+
+    input_row_count: int
+    dropped_all_missing_row_count: int
+    retained_row_count: int
+    policy: SignalomeScorePreconditioningPolicy = (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+    )
+
+
 def default_signalome_module_selection_diagnostics() -> (
     SignalomeModuleSelectionDiagnostics
 ):
@@ -59,6 +73,19 @@ def default_signalome_module_selection_diagnostics() -> (
         max_clusters_evaluated=1,
         candidate_scores={},
         reason="module selection diagnostics were not captured",
+    )
+
+
+def default_signalome_score_preconditioning_diagnostics() -> (
+    SignalomeScorePreconditioningDiagnostics
+):
+    """Return a stable placeholder score-preconditioning diagnostics payload."""
+
+    return SignalomeScorePreconditioningDiagnostics(
+        input_row_count=0,
+        dropped_all_missing_row_count=0,
+        retained_row_count=0,
+        policy=SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     )
 
 
@@ -150,7 +177,11 @@ __all__ = [
     "SignalomeClusterCandidateScore",
     "SignalomeModuleSelectionDiagnostics",
     "SignalomeModuleSelectionStrategy",
+    "SignalomeScorePreconditioningDiagnostics",
+    "SignalomeScorePreconditioningPolicy",
     "SignalomeModules",
+    "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT",
+    "default_signalome_score_preconditioning_diagnostics",
     "SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS",
     "SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT",
     "default_signalome_module_selection_diagnostics",

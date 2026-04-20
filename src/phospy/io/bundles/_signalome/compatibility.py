@@ -24,9 +24,12 @@ from phospy.io.bundles._shared.primitives import (
 from phospy.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
     SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SignalomeClusterCandidateScore,
     SignalomeModuleSelectionDiagnostics,
+    SignalomeScorePreconditioningDiagnostics,
     default_signalome_module_selection_diagnostics,
+    default_signalome_score_preconditioning_diagnostics,
 )
 
 
@@ -253,6 +256,71 @@ def signalome_module_selection_diagnostics_from_payload_with_legacy_support(
                 f"{scope}.module_selection_diagnostics.excluded_from_correlation_count"
             ),
         ),
+    )
+
+
+def signalome_score_preconditioning_diagnostics_to_payload(
+    diagnostics: SignalomeScorePreconditioningDiagnostics,
+) -> dict[str, object]:
+    return {
+        "policy": str(diagnostics.policy),
+        "input_row_count": int(diagnostics.input_row_count),
+        "dropped_all_missing_row_count": int(diagnostics.dropped_all_missing_row_count),
+        "retained_row_count": int(diagnostics.retained_row_count),
+    }
+
+
+def signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support(
+    payload: object,
+    *,
+    scope: str,
+) -> SignalomeScorePreconditioningDiagnostics:
+    if payload is None:
+        return default_signalome_score_preconditioning_diagnostics()
+    diagnostics_payload = require_mapping(
+        payload,
+        field_name=f"{scope}.score_preconditioning_diagnostics",
+    )
+    policy = require_str(
+        diagnostics_payload.get(
+            "policy", SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+        ),
+        field_name=f"{scope}.score_preconditioning_diagnostics.policy",
+    )
+    if policy != SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT:
+        raise PhosPyInputError(
+            f"{scope}.score_preconditioning_diagnostics.policy must be "
+            f"'{SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT}'"
+        )
+    input_row_count = _require_int(
+        diagnostics_payload.get("input_row_count"),
+        field_name=f"{scope}.score_preconditioning_diagnostics.input_row_count",
+    )
+    dropped_all_missing_row_count = _require_int(
+        diagnostics_payload.get("dropped_all_missing_row_count"),
+        field_name=(
+            f"{scope}.score_preconditioning_diagnostics.dropped_all_missing_row_count"
+        ),
+    )
+    retained_row_count = _require_int(
+        diagnostics_payload.get("retained_row_count"),
+        field_name=f"{scope}.score_preconditioning_diagnostics.retained_row_count",
+    )
+    if (
+        dropped_all_missing_row_count < 0
+        or retained_row_count < 0
+        or input_row_count < 0
+        or dropped_all_missing_row_count + retained_row_count != input_row_count
+    ):
+        raise PhosPyInputError(
+            f"{scope}.score_preconditioning_diagnostics counts must be non-negative "
+            "and satisfy dropped_all_missing_row_count + retained_row_count = input_row_count"
+        )
+    return SignalomeScorePreconditioningDiagnostics(
+        policy=policy,  # type: ignore[arg-type]
+        input_row_count=input_row_count,
+        dropped_all_missing_row_count=dropped_all_missing_row_count,
+        retained_row_count=retained_row_count,
     )
 
 

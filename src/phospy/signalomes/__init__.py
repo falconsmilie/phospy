@@ -11,6 +11,7 @@ from phospy.signalomes.models import (
     SignalomeClusterCandidateScore,
     SignalomeModules,
     SignalomeModuleSelectionDiagnostics,
+    SignalomeScorePreconditioningDiagnostics,
 )
 from phospy.signalomes.modules import build_signalome_module_table
 from phospy.signalomes.network import build_kinase_network
@@ -26,4 +27,5 @@ __all__ = [
     "build_module_assignments",
     "build_signalome_module_table",
     "select_kinase_substrates",
+    "SignalomeScorePreconditioningDiagnostics",
 ]

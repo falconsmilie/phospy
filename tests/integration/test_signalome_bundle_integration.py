@@ -92,6 +92,11 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     }
     assert int(diagnostics_payload["selected_module_count"]) >= 1
     assert isinstance(diagnostics_payload["candidate_scores"], dict)
+    preconditioning_payload = signalome_metadata["score_preconditioning_diagnostics"]
+    assert preconditioning_payload["policy"] == "allow_and_report"
+    assert int(preconditioning_payload["input_row_count"]) >= 0
+    assert int(preconditioning_payload["dropped_all_missing_row_count"]) >= 0
+    assert int(preconditioning_payload["retained_row_count"]) >= 0
 
     loaded = load_signalome_workflow_bundle(bundle_root)
     assert loaded.result.expanded_signalome is not None
@@ -243,6 +248,10 @@ def _assert_signalome_result_equal(left, right) -> None:
         check_names=False,
     )
     assert left.module_selection_diagnostics == right.module_selection_diagnostics
+    assert (
+        left.score_preconditioning_diagnostics
+        == right.score_preconditioning_diagnostics
+    )
     _assert_optional_frame_equal(
         left.expanded_signalome,
         right.expanded_signalome,
