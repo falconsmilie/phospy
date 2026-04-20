@@ -14,6 +14,7 @@ from phospy.transformations.models import (
     MatrixTransformationState,
     TransformationKind,
     TransformationState,
+    establish_transformation_state,
 )
 
 
@@ -45,9 +46,13 @@ def transformation_state_from_payload(
                 field_name="dataset.metadata.transformation_state.total",
             )
         )
-    return TransformationState(
+    state = TransformationState(
         phospho=_matrix_state_from_payload(phospho_payload),
         total=total_state,
+    )
+    return establish_transformation_state(
+        state,
+        established_via="phospy.io.bundles._shared.transformation_state",
     )
 
 

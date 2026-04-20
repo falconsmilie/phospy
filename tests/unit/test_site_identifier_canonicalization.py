@@ -121,7 +121,9 @@ def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
                 index=pd.Index([101, 202], name="site_id"),
             ),
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
         )
 
 
@@ -155,7 +157,9 @@ def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
                 ),
             ),
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
         )
 
 

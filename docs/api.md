@@ -92,7 +92,18 @@ This derivation populates only `gene_symbol` and `site`; it does not infer
 - Site identifiers must already be canonical and non-colliding.
 - `sample_metadata` (if present) must align to `phospho.columns`.
 - `total` (if present) must be numeric and column-aligned to `phospho`.
-- `transformation_state` is mandatory on direct dataset construction and must be coherent.
+- `transformation_state` is mandatory and must be both coherent and
+  established through a supported PhosPy path.
+
+Supported establishment paths are:
+
+- `AnalysisReadyDatasetBuilder.run(...)` (default supported lane)
+- supported transformer execution through the dataset builder executor/resolver
+- supported bundle reconstruction paths
+
+Directly declared transformation-state objects are not accepted as authoritative
+at the dataset boundary unless they were established through one of the supported
+PhosPy paths above.
 
 Builder flexibility does not weaken this final dataset strictness.
 Workflows consume only `AnalysisReadyPhosphoDataset`.

@@ -73,7 +73,9 @@ def test_public_dataset_isolated_from_caller_mutation() -> None:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        transformation_state=TransformationState.raw(has_total_matrix=False),
+        transformation_state=TransformationState.established_raw(
+            has_total_matrix=False
+        ),
     )
 
     phospho.iloc[0, 0] = 999.0

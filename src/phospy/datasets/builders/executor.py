@@ -9,7 +9,10 @@ from phospy.datasets.builders.transformation_resolver import (
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
-from phospy.errors.transformations import PhosPyTransformationError
+from phospy.errors.transformations import (
+    PhosPyTransformationError,
+    TransformationStateEstablishmentError,
+)
 from phospy.errors.validation import PhosPyValidationError
 from phospy.transformations.contracts import Transformer
 from phospy.transformations.transformers import IdentityTransformer
@@ -39,6 +42,12 @@ class DatasetBuildExecutor:
                 phospho=request.phospho,
                 total=request.total,
             )
+            if not resolved.transformation_state.is_established:
+                raise TransformationStateEstablishmentError(
+                    "transformation resolver returned a non-established "
+                    "transformation state; this violates the dataset boundary "
+                    "contract"
+                )
             return AnalysisReadyPhosphoDataset._from_owned(
                 phospho=resolved.phospho,
                 site_metadata=request.site_metadata,

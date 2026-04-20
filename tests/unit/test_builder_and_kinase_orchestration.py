@@ -67,7 +67,9 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
-        transformation_state=TransformationState.raw(has_total_matrix=False),
+        transformation_state=TransformationState.established_raw(
+            has_total_matrix=False
+        ),
     )
 
 

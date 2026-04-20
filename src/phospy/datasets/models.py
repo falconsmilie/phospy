@@ -64,6 +64,7 @@ class AnalysisReadyPhosphoDataset:
         _TRANSFORMATION_STATE_VALIDATOR.run(
             transformation_state=self.transformation_state,
             has_total_matrix=total is not None,
+            require_established=True,
         )
         object.__setattr__(self, "phospho", phospho)
         object.__setattr__(self, "site_metadata", site_metadata)

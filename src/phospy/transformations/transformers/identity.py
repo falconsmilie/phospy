@@ -19,5 +19,7 @@ class IdentityTransformer:
         return TransformationResult(
             phospho=phospho,
             total=total,
-            state=TransformationState.raw(has_total_matrix=total is not None),
+            state=TransformationState.established_raw(
+                has_total_matrix=total is not None,
+            ),
         )

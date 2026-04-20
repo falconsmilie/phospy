@@ -46,7 +46,9 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             index=index,
         ),
         organism=Organism.RAT,
-        transformation_state=TransformationState.raw(has_total_matrix=False),
+        transformation_state=TransformationState.established_raw(
+            has_total_matrix=False
+        ),
     )
 
 
@@ -128,7 +130,9 @@ def test_dataset_constructor_rejects_non_dataframe_with_dataset_validation_error
                 index=["MAPK14;Y182;"],
             ),
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
         )
 
 
@@ -148,7 +152,9 @@ def test_dataset_constructor_rejects_blank_gene_symbol_values() -> None:
                 index=["MAPK14;Y182;"],
             ),
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
         )
 
 
@@ -168,7 +174,9 @@ def test_dataset_constructor_rejects_blank_site_values() -> None:
                 index=["MAPK14;Y182;"],
             ),
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
         )
 
 
@@ -183,7 +191,9 @@ def test_dataset_constructor_allows_missing_site_sequence_column() -> None:
             index=["MAPK14;Y182;"],
         ),
         organism=Organism.RAT,
-        transformation_state=TransformationState.raw(has_total_matrix=False),
+        transformation_state=TransformationState.established_raw(
+            has_total_matrix=False
+        ),
     )
     assert "site_sequence" not in dataset.site_metadata.columns
 
@@ -204,7 +214,9 @@ def test_dataset_constructor_rejects_blank_site_sequence_values() -> None:
                 index=["MAPK14;Y182;"],
             ),
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
         )
 
 

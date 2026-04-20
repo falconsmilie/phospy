@@ -21,6 +21,7 @@ from phospy.references.resolution import ReferenceResolver
 from phospy.transformations.models import (
     MatrixTransformationState,
     TransformationState,
+    establish_transformation_state,
 )
 
 
@@ -72,7 +73,9 @@ def test_dataset_allows_missing_site_sequence_column() -> None:
         phospho=_phospho(),
         site_metadata=bad_site_metadata,
         organism=Organism.RAT,
-        transformation_state=TransformationState.raw(has_total_matrix=False),
+        transformation_state=TransformationState.established_raw(
+            has_total_matrix=False
+        ),
     )
     assert "site_sequence" not in dataset.site_metadata.columns
 
@@ -88,7 +91,9 @@ def test_dataset_rejects_blank_gene_symbol_values() -> None:
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
         )
 
 
@@ -103,7 +108,9 @@ def test_dataset_rejects_blank_site_values() -> None:
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
         )
 
 
@@ -120,7 +127,9 @@ def test_dataset_rejects_blank_site_sequence_values() -> None:
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
         )
 
 
@@ -130,7 +139,9 @@ def test_dataset_rejects_empty_phospho_matrix() -> None:
             phospho=pd.DataFrame(),
             site_metadata=pd.DataFrame(),
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
         )
 
 
@@ -142,7 +153,9 @@ def test_dataset_rejects_nan_in_phospho_matrix() -> None:
             phospho=phospho,
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
         )
 
 
@@ -156,7 +169,9 @@ def test_dataset_rejects_inf_in_phospho_matrix() -> None:
             phospho=phospho,
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
         )
 
 
@@ -196,7 +211,9 @@ def test_dataset_validates_transformation_state_for_total_matrix() -> None:
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_a": [2.0]}, index=["GENEA"]),
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
         )
 
 
@@ -207,9 +224,12 @@ def test_dataset_rejects_mixed_transformation_kind_between_phospho_and_total() -
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_a": [2.0]}, index=["GENEA"]),
             organism=Organism.RAT,
-            transformation_state=TransformationState(
-                phospho=MatrixTransformationState.linear(),
-                total=MatrixTransformationState.log2(),
+            transformation_state=establish_transformation_state(
+                TransformationState(
+                    phospho=MatrixTransformationState.linear(),
+                    total=MatrixTransformationState.log2(),
+                ),
+                established_via="test.dataset.boundaries",
             ),
         )
 
@@ -223,7 +243,9 @@ def test_dataset_rejects_inf_in_total_matrix() -> None:
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_a": [float("-inf")]}, index=["MAPK14"]),
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=True),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=True
+            ),
         )
 
 
@@ -237,7 +259,9 @@ def test_dataset_rejects_total_matrix_sample_mismatch() -> None:
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_b": [2.0]}, index=["MAPK14"]),
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=True),
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=True
+            ),
         )
 
 
@@ -528,6 +552,8 @@ def test_builder_establishes_transformation_state_with_supported_path() -> None:
         )
     )
     assert built.transformation_state.label == "linear"
+    assert built.transformation_state.is_established
+    assert built.transformation_state.established_via is not None
     assert (
         built.transformation_state.phospho.established_by
         == "phospy.transformations.transformers.identity"

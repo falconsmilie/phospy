@@ -27,7 +27,9 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
     )
     assert list(built.phospho.index) == list(phospho.index)
     assert list(built.site_metadata.columns) == ["gene_symbol", "site", "site_sequence"]
-    assert built.transformation_state == TransformationState.raw(has_total_matrix=False)
+    assert built.transformation_state == TransformationState.established_raw(
+        has_total_matrix=False
+    )
 
 
 def test_dataset_builder_establishes_transformation_state_via_supported_path() -> None:
@@ -40,6 +42,8 @@ def test_dataset_builder_establishes_transformation_state_via_supported_path() -
         )
     )
     assert built.transformation_state.label == "linear"
+    assert built.transformation_state.is_established
+    assert built.transformation_state.established_via is not None
     assert (
         built.transformation_state.phospho.established_by
         == "phospy.transformations.transformers.identity"

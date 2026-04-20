@@ -12,7 +12,10 @@ from phospy.errors.transformations import (
     TransformerExecutionError,
 )
 from phospy.transformations.contracts import Transformer
-from phospy.transformations.models import TransformationState
+from phospy.transformations.models import (
+    TransformationState,
+    establish_transformation_state,
+)
 from phospy.validation.transformations.state import TransformationStateValidator
 
 
@@ -72,10 +75,18 @@ class DatasetTransformationResolver:
             has_total_matrix=transformed.total is not None,
             source="configured transformer",
         )
+        transformer_source = (
+            f"{self._transformer.__class__.__module__}."
+            f"{self._transformer.__class__.__qualname__}"
+        )
+        established_state = establish_transformation_state(
+            transformed.state,
+            established_via=transformer_source,
+        )
         return ResolvedTransformation(
             phospho=transformed.phospho,
             total=transformed.total,
-            transformation_state=transformed.state,
+            transformation_state=established_state,
         )
 
     def _validate_state(

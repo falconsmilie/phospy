@@ -14,10 +14,17 @@ class TransformationStateValidator:
         transformation_state: TransformationState,
         *,
         has_total_matrix: bool,
+        require_established: bool = False,
     ) -> TransformationState:
         if not isinstance(transformation_state, TransformationState):
             raise TransformationValidationError(
                 "dataset.transformation_state must be a TransformationState instance"
+            )
+        if require_established and not transformation_state.is_established:
+            raise TransformationValidationError(
+                "dataset.transformation_state must be established through a "
+                "supported PhosPy path; use AnalysisReadyDatasetBuilder or a "
+                "supported transformer/bundle reconstruction path"
             )
         if has_total_matrix and transformation_state.total is None:
             raise TransformationValidationError(

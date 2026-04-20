@@ -72,7 +72,9 @@ def _dataset(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        transformation_state=TransformationState.raw(has_total_matrix=False),
+        transformation_state=TransformationState.established_raw(
+            has_total_matrix=False
+        ),
     )
 
 

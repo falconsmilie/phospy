@@ -52,10 +52,16 @@ Enforced dataset invariants:
 - `total` (if present): non-empty numeric DataFrame, unique index,
   columns align to `phospho.columns`.
 - `organism` (if present): `Organism` enum.
-- `transformation_state`: typed `TransformationState`, coherent with presence/absence
-  of `total`, and coherent transformation kind between matrices when both exist.
+- `transformation_state`: typed `TransformationState`, established through a
+  supported PhosPy path, coherent with presence/absence of `total`, and coherent
+  transformation kind between matrices when both exist.
 
 Boundary constructors validate; they do not silently repair invalid data.
+
+Transformation-state establishment is enforced at the final dataset boundary.
+A coherent but externally declared state object is rejected unless it was
+established through a supported PhosPy path (builder/resolver transformer lane
+or supported bundle reconstruction lane).
 
 ## Builder Convention Rules
 
@@ -171,7 +177,7 @@ Optional outputs must be checked before dereference:
 | Builder input source type checks | `DatasetBuildRequestValidator` + `DatasetInputSourceValidator` |
 | Builder convention normalization/derivation | `DatasetBuildRequestInterpreter` collaborators |
 | Analysis-ready dataset structure/content | `AnalysisReadyDatasetValidator` |
-| Transformation-state coherence | `TransformationStateValidator` |
+| Transformation-state coherence and establishment | `TransformationStateValidator` |
 | Reference compatibility (dataset vs preset/bundle) | `ReferenceCompatibilityValidator` / `ReferenceResolver` |
 | Reference bundle structure/content | `ReferenceBundleValidator` |
 | Kinase workflow request/config validity | `KinaseWorkflowValidator` + `WorkflowConfigValidator` |
