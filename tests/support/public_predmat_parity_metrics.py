@@ -60,6 +60,14 @@ class PublicPredmatOrderInvarianceMetrics:
     dominant_total: int
 
 
+def _stack_frame(frame: pd.DataFrame) -> pd.Series:
+    try:
+        return frame.stack(future_stack=True)
+    except TypeError:
+        # pandas<2.1 compatibility path (no future_stack argument)
+        return frame.stack(dropna=False)
+
+
 def _build_public_predmat_dataset():
     phospho = load_public_predmat_input_phospho()
     site_sequences = load_public_predmat_input_site_sequences()
@@ -154,22 +162,12 @@ def _collect_lane_metrics(*, adaptive_policy: str) -> PublicPredmatLaneMetrics:
     )
     observed_aligned = observed.sort_index().sort_index(axis=1)
     expected_aligned = expected.sort_index().sort_index(axis=1)
-    delta = (
-        (observed_aligned - expected_aligned)
-        .abs()
-        .stack(
-            dropna=False,
-            future_stack=False,
-        )
-    )
+    delta = (observed_aligned - expected_aligned).abs().pipe(_stack_frame)
     dominant_expected = expected_aligned.idxmax(axis=1)
     dominant_observed = observed_aligned.idxmax(axis=1)
     donor_aligned = donor.sort_index().sort_index(axis=1)
-    donor_long = donor_aligned.stack(dropna=False, future_stack=False).rename("donor")
-    observed_long = observed_aligned.stack(
-        dropna=False,
-        future_stack=False,
-    ).rename("observed")
+    donor_long = _stack_frame(donor_aligned).rename("donor")
+    observed_long = _stack_frame(observed_aligned).rename("observed")
     donor_merged = pd.concat([observed_long, donor_long], axis=1).dropna()
     donor_delta = (donor_merged.loc[:, "observed"] - donor_merged.loc[:, "donor"]).abs()
 
@@ -217,8 +215,8 @@ def collect_public_predmat_benchmark_metrics() -> PublicPredmatBenchmarkMetrics:
     )
     merged = pd.concat(
         [
-            stable_frame.stack(dropna=False, future_stack=False).rename("stable"),
-            r_parity_frame.stack(dropna=False, future_stack=False).rename("r_parity"),
+            _stack_frame(stable_frame).rename("stable"),
+            _stack_frame(r_parity_frame).rename("r_parity"),
         ],
         axis=1,
     ).dropna()

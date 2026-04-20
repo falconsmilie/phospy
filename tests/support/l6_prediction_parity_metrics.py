@@ -75,6 +75,14 @@ class L6PredictionParityMetrics:
     cross_policy_mean_top30_overlap: float
 
 
+def _stack_frame(frame: pd.DataFrame) -> pd.Series:
+    try:
+        return frame.stack(future_stack=True)
+    except TypeError:
+        # pandas<2.1 compatibility path (no future_stack argument)
+        return frame.stack(dropna=False)
+
+
 def _mean_column_correlation(
     observed: pd.DataFrame,
     expected: pd.DataFrame,
@@ -330,7 +338,7 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
     stable_pred = stable_result.prediction_result.pred_mat
     r_parity_pred = r_parity_result.prediction_result.pred_mat
     stable_long = (
-        stable_pred.stack(dropna=False, future_stack=False)
+        _stack_frame(stable_pred)
         .rename("score_stable")
         .reset_index()
         .rename(
@@ -341,7 +349,7 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
         )
     )
     r_parity_long = (
-        r_parity_pred.stack(dropna=False, future_stack=False)
+        _stack_frame(r_parity_pred)
         .rename("score_r_parity")
         .reset_index()
         .rename(
