@@ -83,6 +83,35 @@ def _stack_frame(frame: pd.DataFrame) -> pd.Series:
         return frame.stack(dropna=False)
 
 
+def _safe_corr(
+    left: pd.Series,
+    right: pd.Series,
+    *,
+    method: str,
+) -> float | None:
+    aligned = (
+        pd.concat(
+            [left.astype(float), right.astype(float)],
+            axis=1,
+            join="inner",
+        )
+        .dropna()
+        .reset_index(drop=True)
+    )
+    if aligned.shape[0] < 2:
+        return None
+    left_aligned = aligned.iloc[:, 0]
+    right_aligned = aligned.iloc[:, 1]
+    if left_aligned.nunique(dropna=True) <= 1:
+        return None
+    if right_aligned.nunique(dropna=True) <= 1:
+        return None
+    corr = left_aligned.corr(right_aligned, method=method)
+    if pd.isna(corr):
+        return None
+    return float(corr)
+
+
 def _mean_column_correlation(
     observed: pd.DataFrame,
     expected: pd.DataFrame,
@@ -93,12 +122,13 @@ def _mean_column_correlation(
     common_index = observed.index.intersection(expected.index)
     correlations: list[float] = []
     for column in common_columns:
-        corr = observed.loc[common_index, column].corr(
+        corr = _safe_corr(
+            observed.loc[common_index, column],
             expected.loc[common_index, column],
             method=method,
         )
-        if pd.notna(corr):
-            correlations.append(float(corr))
+        if corr is not None:
+            correlations.append(corr)
     if not correlations:
         return 0.0
     return float(pd.Series(correlations).mean())
@@ -232,12 +262,13 @@ def _collect_ranking_metrics(
         expected_series = expected_pred_mat.loc[observed_series.index, kinase].astype(
             float
         )
-        corr = expected_series.rank(ascending=False, method="average").corr(
+        corr = _safe_corr(
+            expected_series.rank(ascending=False, method="average"),
             observed_series.rank(ascending=False, method="average"),
             method="spearman",
         )
-        if pd.notna(corr):
-            spearman.append(float(corr))
+        if corr is not None:
+            spearman.append(corr)
 
     kinases_compared = len(spearman)
     return RankingParityMetrics(
@@ -400,10 +431,13 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
             expected_pred_mat=expected_pred_mat,
             expected_top30=expected_top30,
         ),
-        cross_policy_prediction_corr=float(
-            merged_non_null.loc[:, "score_stable"].corr(
-                merged_non_null.loc[:, "score_r_parity"]
+        cross_policy_prediction_corr=(
+            _safe_corr(
+                merged_non_null.loc[:, "score_stable"],
+                merged_non_null.loc[:, "score_r_parity"],
+                method="pearson",
             )
+            or 0.0
         )
         if not merged_non_null.empty
         else 0.0,
