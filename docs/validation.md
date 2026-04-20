@@ -77,6 +77,7 @@ Unsupported legacy aliases are rejected:
 
 If `gene_symbol` and/or `site` are missing, builder derivation is allowed only from
 index values exactly matching `"<gene_symbol>;<site>;"`.
+This derivation does not produce `protein_id`.
 
 If both `site_metadata.index` and `site_metadata.site_id` are present, they must match
 after canonicalization.
@@ -117,6 +118,10 @@ internally consistent reference tables.
 - upstream downstream-score/prediction matrices are usable numeric matrices for
   signalome execution (`combined_scores` preferred when available, otherwise
   `profile_scores`)
+- `kinase_result.dataset.site_metadata` is present and index-aligned to
+  `kinase_result.dataset.phospho.index`
+- `kinase_result.dataset.site_metadata.protein_id` is required and must contain
+  non-empty string values
 - missing values in the upstream downstream score matrix are allowed; this is a
   normal outcome for correlation-based kinase scoring in low-information rows
 - infinite values in upstream score/prediction matrices remain hard failures
@@ -179,4 +184,4 @@ Optional outputs must be checked before dereference:
 | `ReferencePreset.AUTO` fails | Dataset organism is missing | Set `organism` in `DatasetBuildRequest` |
 | Bundled human/mouse preset fails | Bundled references are rat-only in this release | Provide explicit non-rat `ReferenceBundle` |
 | Kinase boundary seam fails | Overlap/support constraints were not met | Read seam details and adjust dataset/references/config |
-| Signalome protein-mapping seam fails | Interpreted sites did not resolve to protein identity | Provide `site_metadata.protein_id` or resolvable site-ID protein prefixes |
+| Signalome validation fails on `site_metadata.protein_id` | Explicit protein identity required for supported signalome execution | Provide non-empty `site_metadata.protein_id` for all interpreted sites; gene-symbol site-ID prefixes are not a substitute |

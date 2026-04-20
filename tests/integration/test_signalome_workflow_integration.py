@@ -24,6 +24,7 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
+from phospy.errors import WorkflowValidationError
 from phospy.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_SITE,
@@ -137,6 +138,40 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
         expanded.loc[:, EXPANDED_SIGNALOME_ROW_KIND_COLUMN]
         == EXPANDED_SIGNALOME_ROW_KIND_SITE
     ).any()
+
+
+def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id() -> (
+    None
+):
+    base_dataset = build_rat_l6_dataset(n_sites=260)
+    dataset_without_protein = AnalysisReadyPhosphoDataset(
+        phospho=base_dataset.phospho,
+        site_metadata=base_dataset.site_metadata.drop(columns=["protein_id"]),
+        sample_metadata=base_dataset.sample_metadata,
+        total=base_dataset.total,
+        organism=base_dataset.organism,
+        transformation_state=base_dataset.transformation_state,
+    )
+    kinase_result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset_without_protein,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            activity_config=None,
+        )
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="site_metadata is missing required columns: protein_id",
+    ):
+        SignalomeWorkflow().run(
+            SignalomeWorkflowRequest(
+                kinase_result=kinase_result,
+                config=SignalomeConfig(substrate_support_cutoff=0.5),
+            )
+        )
 
 
 def test_signalome_workflow_uses_explicit_dataset_protein_identity_when_present() -> (

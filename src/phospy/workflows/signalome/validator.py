@@ -10,7 +10,10 @@ from phospy.api.results import KinaseWorkflowResult
 from phospy.errors.validation import WorkflowValidationError
 from phospy.prediction.scoring import select_downstream_score_matrix
 from phospy.validation.common.dataframes import (
+    require_columns,
     require_dataframe,
+    require_exact_index_match,
+    require_non_empty_string_column,
     require_numeric_dataframe,
     require_unique_columns,
     require_unique_index,
@@ -123,6 +126,10 @@ class SignalomeWorkflowValidator:
             raise WorkflowValidationError(
                 f"{score_field_name} must contain at least one kinase column"
             )
+        self._require_explicit_site_metadata_protein_identity(
+            site_metadata=request.kinase_result.dataset.site_metadata,
+            dataset_sites=request.kinase_result.dataset.phospho.index,
+        )
         return request
 
     @staticmethod
@@ -140,3 +147,41 @@ class SignalomeWorkflowValidator:
             raise WorkflowValidationError(
                 f"{field_name} must contain finite numeric values"
             )
+
+    @staticmethod
+    def _require_explicit_site_metadata_protein_identity(
+        *,
+        site_metadata: object,
+        dataset_sites: pd.Index,
+    ) -> None:
+        field_name = "signalome workflow request kinase_result.dataset.site_metadata"
+        site_metadata_frame = require_dataframe(
+            site_metadata,
+            field_name=field_name,
+            allow_empty=False,
+            error_type=WorkflowValidationError,
+        )
+        site_metadata_frame = require_unique_index(
+            site_metadata_frame,
+            field_name=field_name,
+            error_type=WorkflowValidationError,
+        )
+        require_exact_index_match(
+            left=site_metadata_frame.index,
+            right=dataset_sites,
+            left_name=f"{field_name}.index",
+            right_name="signalome workflow request kinase_result.dataset.phospho.index",
+            error_type=WorkflowValidationError,
+        )
+        require_columns(
+            site_metadata_frame,
+            field_name=field_name,
+            required_columns=("protein_id",),
+            error_type=WorkflowValidationError,
+        )
+        require_non_empty_string_column(
+            site_metadata_frame,
+            field_name=field_name,
+            column_name="protein_id",
+            error_type=WorkflowValidationError,
+        )

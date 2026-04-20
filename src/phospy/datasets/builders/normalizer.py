@@ -26,7 +26,11 @@ class NormalizedDatasetInputs:
 
 
 class DatasetConventionNormalizer:
-    """Apply narrow, documented shaping rules for supported inputs."""
+    """Apply narrow, documented shaping rules for supported inputs.
+
+    The supported index derivation convention can populate `gene_symbol` and `site`
+    only. It never infers `protein_id`.
+    """
 
     def run(
         self,
@@ -178,7 +182,9 @@ class DatasetConventionNormalizer:
                 "dataset build request site_metadata is missing required metadata "
                 f"columns ({missing_columns}). Supported conventions: provide "
                 "explicit columns, or use site_metadata.index values formatted as "
-                "'<gene_symbol>;<site>;' (example: 'MAPK14;Y182;')."
+                "'<gene_symbol>;<site>;' (example: 'MAPK14;Y182;'). This "
+                "convention derives only gene_symbol/site; it does not derive "
+                "protein_id required by the supported signalome workflow lane."
             )
 
         genes, sites = parsed

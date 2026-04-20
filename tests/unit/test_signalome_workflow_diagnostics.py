@@ -29,7 +29,7 @@ from phospy.workflows.signalome.constants import (
     SIGNALOME_INTERPRETER_KINASE_OVERLAP_SEAM,
     SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM,
     SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,
-    SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_ID_PREFIX,
+    SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA,
 )
 from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
@@ -47,6 +47,8 @@ def _dataset(
 ) -> AnalysisReadyPhosphoDataset:
     if gene_symbols is None:
         gene_symbols = [str(site_id).split(";", 1)[0] for site_id in site_ids]
+    if protein_ids is None:
+        protein_ids = [str(site_id).split(";", 1)[0].strip() for site_id in site_ids]
     phospho = pd.DataFrame(
         {
             "sample_a": [float(index + 1) for index in range(len(site_ids))],
@@ -59,11 +61,10 @@ def _dataset(
             "gene_symbol": gene_symbols,
             "site": [f"S{index + 1}" for index in range(len(site_ids))],
             "site_sequence": ["A" * 31 for _ in site_ids],
+            "protein_id": protein_ids,
         },
         index=site_ids,
     )
-    if protein_ids is not None:
-        site_metadata.loc[:, "protein_id"] = protein_ids
     return AnalysisReadyPhosphoDataset(
         phospho=phospho,
         site_metadata=site_metadata,
@@ -216,6 +217,7 @@ def test_boundary_error_reports_unusable_protein_mapping_counts() -> None:
     dataset = _dataset(
         site_ids=[";S1;", ";S2;"],
         gene_symbols=["MAPK14", "GSK3B"],
+        protein_ids=["", ""],
     )
     prediction_matrix = _matrix(
         values=[[0.9], [0.8]],
@@ -242,8 +244,7 @@ def test_boundary_error_reports_unusable_protein_mapping_counts() -> None:
     message = str(exc_info.value)
     assert f"seam={SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM}" in message
     assert (
-        "protein_resolution_source="
-        f"{SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_ID_PREFIX}"
+        f"protein_resolution_source={SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA}"
     ) in message
     assert "interpreted_sites=2" in message
     assert "resolved_protein_sites=0" in message
@@ -278,6 +279,52 @@ def test_interpreter_uses_explicit_site_metadata_protein_id_when_present() -> No
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
     assert interpreted.site_to_protein.tolist() == ["P28482-1", "P28482-2"]
+
+
+def test_interpreter_does_not_fallback_to_site_id_prefix_when_protein_id_column_missing() -> (
+    None
+):
+    base_dataset = _dataset(
+        site_ids=["MAPK14;S1;", "MAPK14;S2;"],
+        gene_symbols=["MAPK14", "MAPK14"],
+        protein_ids=["P28482-1", "P28482-2"],
+    )
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=base_dataset.phospho,
+        site_metadata=base_dataset.site_metadata.drop(columns=["protein_id"]),
+        sample_metadata=base_dataset.sample_metadata,
+        total=base_dataset.total,
+        organism=base_dataset.organism,
+        transformation_state=base_dataset.transformation_state,
+    )
+    prediction_matrix = _matrix(
+        values=[[0.9], [0.8]],
+        site_ids=["MAPK14;S1;", "MAPK14;S2;"],
+        kinases=["K1"],
+    )
+    score_matrix = _matrix(
+        values=[[1.0], [2.0]],
+        site_ids=["MAPK14;S1;", "MAPK14;S2;"],
+        kinases=["K1"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        SignalomeWorkflowInterpreter().run(request)
+
+    message = str(exc_info.value)
+    assert f"seam={SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM}" in message
+    assert (
+        f"protein_resolution_source={SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA}"
+    ) in message
+    assert "resolved_protein_sites=0" in message
 
 
 def test_interpreter_prefers_combined_scores_for_downstream_signalome_matrix() -> None:

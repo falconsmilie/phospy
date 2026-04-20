@@ -47,6 +47,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             "gene_symbol": ["MAPK14"],
             "site": ["Y182"],
             "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            "protein_id": ["MAPK14"],
         },
         index=phospho.index,
     )
@@ -354,6 +355,99 @@ def test_signalome_request_module_selection_max_clusters_policy_fails_at_boundar
     with pytest.raises(
         WorkflowValidationError,
         match="module_selection_max_clusters",
+    ):
+        SignalomeWorkflowValidator().run(request)
+
+
+def test_signalome_validator_requires_explicit_site_metadata_protein_id_column() -> (
+    None
+):
+    kinase_result = _kinase_result()
+    dataset_without_protein_id = AnalysisReadyPhosphoDataset(
+        phospho=kinase_result.dataset.phospho,
+        site_metadata=kinase_result.dataset.site_metadata.drop(columns=["protein_id"]),
+        sample_metadata=kinase_result.dataset.sample_metadata,
+        total=kinase_result.dataset.total,
+        organism=kinase_result.dataset.organism,
+        transformation_state=kinase_result.dataset.transformation_state,
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=KinaseWorkflowResult(
+            dataset=dataset_without_protein_id,
+            references=kinase_result.references,
+            scoring_result=kinase_result.scoring_result,
+            prediction_result=kinase_result.prediction_result,
+            activity_result=kinase_result.activity_result,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="site_metadata is missing required columns: protein_id",
+    ):
+        SignalomeWorkflowValidator().run(request)
+
+
+def test_signalome_validator_rejects_empty_site_metadata_protein_id_values() -> None:
+    kinase_result = _kinase_result()
+    site_metadata = kinase_result.dataset.site_metadata.copy(deep=True)
+    site_metadata.loc[:, "protein_id"] = [""]
+    dataset_with_empty_protein_id = AnalysisReadyPhosphoDataset(
+        phospho=kinase_result.dataset.phospho,
+        site_metadata=site_metadata,
+        sample_metadata=kinase_result.dataset.sample_metadata,
+        total=kinase_result.dataset.total,
+        organism=kinase_result.dataset.organism,
+        transformation_state=kinase_result.dataset.transformation_state,
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=KinaseWorkflowResult(
+            dataset=dataset_with_empty_protein_id,
+            references=kinase_result.references,
+            scoring_result=kinase_result.scoring_result,
+            prediction_result=kinase_result.prediction_result,
+            activity_result=kinase_result.activity_result,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="site_metadata.protein_id must contain non-empty string values",
+    ):
+        SignalomeWorkflowValidator().run(request)
+
+
+def test_signalome_validator_rejects_non_string_site_metadata_protein_id_values() -> (
+    None
+):
+    kinase_result = _kinase_result()
+    site_metadata = kinase_result.dataset.site_metadata.copy(deep=True)
+    site_metadata = site_metadata.astype({"protein_id": object})
+    site_metadata.loc[:, "protein_id"] = [123]  # type: ignore[list-item]
+    dataset_with_numeric_protein_id = AnalysisReadyPhosphoDataset(
+        phospho=kinase_result.dataset.phospho,
+        site_metadata=site_metadata,
+        sample_metadata=kinase_result.dataset.sample_metadata,
+        total=kinase_result.dataset.total,
+        organism=kinase_result.dataset.organism,
+        transformation_state=kinase_result.dataset.transformation_state,
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=KinaseWorkflowResult(
+            dataset=dataset_with_numeric_protein_id,
+            references=kinase_result.references,
+            scoring_result=kinase_result.scoring_result,
+            prediction_result=kinase_result.prediction_result,
+            activity_result=kinase_result.activity_result,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+
+    with pytest.raises(
+        WorkflowValidationError,
+        match="site_metadata.protein_id must contain non-empty string values",
     ):
         SignalomeWorkflowValidator().run(request)
 

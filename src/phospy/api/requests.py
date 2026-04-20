@@ -52,9 +52,8 @@ class KinaseWorkflowRequest:
 class SignalomeWorkflowRequest:
     """Request for the public signalome workflow.
 
-    Signalome execution requires resolvable protein identity per interpreted site:
-    ``dataset.site_metadata.protein_id`` when present, otherwise non-empty protein
-    prefixes in the interpreted site identifiers.
+    Signalome execution requires explicit protein identity per interpreted site via
+    ``dataset.site_metadata.protein_id``.
     """
 
     kinase_result: KinaseWorkflowResult

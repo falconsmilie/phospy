@@ -96,6 +96,7 @@ def test_cli_signalome_from_files_writes_supported_lane_outputs(
 ) -> None:
     phospho = load_rat_l6_phospho().head(260).copy(deep=True)
     site_metadata = site_metadata_for(phospho)
+    site_metadata.loc[:, "protein_id"] = site_metadata.loc[:, "gene_symbol"].astype(str)
     phospho_path = tmp_path / "phospho.csv"
     site_metadata_path = tmp_path / "site_metadata.csv"
     outdir = tmp_path / "out"

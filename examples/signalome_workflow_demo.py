@@ -38,6 +38,7 @@ def _build_kinase_result() -> KinaseWorkflowResult:
                 "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
                 "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
             ],
+            "protein_id": ["MAPK14", "GSK3B"],
         },
         index=phospho.index.copy(),
     )

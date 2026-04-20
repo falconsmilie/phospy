@@ -719,13 +719,22 @@ def site_metadata_for(phospho: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def build_rat_l6_dataset(*, n_sites: int | None = 220) -> AnalysisReadyPhosphoDataset:
+def build_rat_l6_dataset(
+    *,
+    n_sites: int | None = 220,
+    include_protein_id: bool = True,
+) -> AnalysisReadyPhosphoDataset:
     phospho = load_rat_l6_phospho().copy(deep=True)
     if n_sites is not None:
         phospho = phospho.head(n_sites)
+    site_metadata = site_metadata_for(phospho).copy(deep=True)
+    if include_protein_id and "protein_id" not in site_metadata.columns:
+        site_metadata.loc[:, "protein_id"] = (
+            site_metadata.loc[:, "gene_symbol"].astype(str).tolist()
+        )
     request = DatasetBuildRequest(
         phospho=phospho,
-        site_metadata=site_metadata_for(phospho),
+        site_metadata=site_metadata,
         organism=Organism.RAT,
     )
     return AnalysisReadyDatasetBuilder().run(request)

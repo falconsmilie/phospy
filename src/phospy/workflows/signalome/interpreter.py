@@ -15,7 +15,6 @@ from phospy.workflows.signalome.constants import (
     SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM,
     SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM,
     SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,
-    SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_ID_PREFIX,
     SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA,
     SIGNALOME_WORKFLOW_BOUNDARY_MESSAGE_PREFIX,
 )
@@ -203,31 +202,34 @@ class SignalomeWorkflowInterpreter:
         site_index: pd.Index,
     ) -> pd.Series:
         metadata = dataset.site_metadata
-        if self._PROTEIN_COLUMN in metadata.columns:
-            resolved = (
-                metadata.reindex(site_index)
-                .loc[:, self._PROTEIN_COLUMN]
-                .fillna("")
-                .astype(str)
-                .str.strip()
+        if self._PROTEIN_COLUMN not in metadata.columns:
+            self._raise_boundary_error(
+                seam=self._PROTEIN_MAPPING_SEAM,
+                next_action=(
+                    "populate dataset.site_metadata.protein_id with explicit protein "
+                    "identifiers for all interpreted sites"
+                ),
+                protein_resolution_source=SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA,
+                interpreted_sites=int(site_index.size),
+                resolved_protein_sites=0,
+                unresolved_protein_sites=int(site_index.size),
             )
-            resolution_source = SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA
-        else:
-            resolved = pd.Series(
-                [self._protein_from_site_id(site_id) for site_id in site_index],
-                index=site_index.copy(),
-                dtype=str,
-                name=self._PROTEIN_COLUMN,
-            )
-            resolution_source = SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_ID_PREFIX
+        resolved = (
+            metadata.reindex(site_index)
+            .loc[:, self._PROTEIN_COLUMN]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+        resolution_source = SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA
         unresolved_mask = resolved.astype(str).str.strip() == ""
         if unresolved_mask.any():
             resolved_sites = int((~unresolved_mask).sum())
             self._raise_boundary_error(
                 seam=self._PROTEIN_MAPPING_SEAM,
                 next_action=(
-                    "populate dataset.site_metadata.protein_id for interpreted sites "
-                    "or provide site IDs with non-empty protein prefixes"
+                    "populate dataset.site_metadata.protein_id with explicit protein "
+                    "identifiers for all interpreted sites"
                 ),
                 protein_resolution_source=resolution_source,
                 interpreted_sites=int(site_index.size),
@@ -268,13 +270,6 @@ class SignalomeWorkflowInterpreter:
         if supported_row_mask.all():
             return score_matrix
         return score_matrix.iloc[supported_row_mask, :]
-
-    @staticmethod
-    def _protein_from_site_id(site_id: object) -> str:
-        raw = str(site_id).strip()
-        if raw == "":
-            return ""
-        return raw.split(";", 1)[0].strip()
 
     @staticmethod
     def _raise_boundary_error(

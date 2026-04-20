@@ -78,6 +78,8 @@ Unsupported legacy aliases (`gene`, `residue`, `phosphosite`, `site_position`,
 
 If `gene_symbol` and/or `site` are absent, one derivation convention is supported:
 `site_metadata.index` values formatted exactly as `"<gene_symbol>;<site>;"`.
+This derivation populates only `gene_symbol` and `site`; it does not infer
+`protein_id`.
 
 ## Final Dataset Boundary
 
@@ -109,6 +111,8 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 
 - `kinase_result: KinaseWorkflowResult`
 - `config: SignalomeConfig`
+- supported prerequisite: `kinase_result.dataset.site_metadata.protein_id` must be
+  present and non-empty for all interpreted sites
 
 `KinaseScoringConfig` fields:
 
@@ -186,6 +190,10 @@ to work after a standard package install.
 - module-level attribution fields: `module_top_kinase`,
   `module_top_kinase_candidates`, `module_top_kinase_tie_count`,
   `module_top_kinase_is_ambiguous`, `module_top_kinase_selection_policy`
+
+In the supported signalome lane, `protein_id` is always taken from validated
+`dataset.site_metadata.protein_id`. Gene-symbol-prefixed site IDs are not used as
+protein-identity fallbacks.
 
 `assignment_policy` behavior:
 
