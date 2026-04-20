@@ -38,7 +38,9 @@ Import from top-level `phospy`.
   `KinaseWorkflow`, `KinaseWorkflowRequest`,
   `SignalomeWorkflow`, `SignalomeWorkflowRequest`
 - Config models:
-  `DatasetPreprocessingConfig`, `KinaseScoringConfig`,
+  `DatasetPreprocessingConfig`, `DatasetMissingDataConfig`,
+  `DatasetTotalProteinCorrectionConfig`, `DatasetSiteMatrixConfig`,
+  `DatasetComparisonBuildingConfig`, `KinaseScoringConfig`,
   `KinasePredictionConfig`, `KinaseActivityConfig`, `SignalomeConfig`
 - Result models:
   `KinaseWorkflowResult`, `SignalomeWorkflowResult`,
@@ -89,15 +91,28 @@ intentionally narrow:
 - quantitative matrix values are preserved as provided after builder normalization
 - no additional log or heuristic transformation path is exposed in the public builder
 
-`DatasetPreprocessingConfig` currently supports a narrow missing-data policy contract:
+`DatasetPreprocessingConfig` is grouped and builder-owned:
 
-- `missing_data_policy="forbid"` (default): no missing-value preprocessing is applied.
-- `missing_data_policy="impute_row_median"`: phosphosite rows with fewer than
-  `min_observed_values` quantified samples are dropped, then remaining missing
-  phospho values are imputed with each row median.
-- `min_observed_values` is required for `"impute_row_median"` and must be
-  `None` for `"forbid"`.
-- No additional preprocessing knobs are currently public.
+- `missing_data` (`DatasetMissingDataConfig`)
+- `total_protein_correction` (`DatasetTotalProteinCorrectionConfig`)
+- `site_matrix` (`DatasetSiteMatrixConfig`)
+- `comparisons` (`DatasetComparisonBuildingConfig`)
+
+Current supported policies:
+
+- `missing_data.policy="forbid"` (default): no missing-value preprocessing.
+- `missing_data.policy="impute_row_median"`: drop rows below
+  `missing_data.min_observed_values`, then row-median imputation.
+- `total_protein_correction.policy="none"` (required in supported lane).
+- `site_matrix.policy="as_input"` (required in supported lane).
+- `comparisons.policy="none"` (required in supported lane).
+
+Reserved but currently unsupported policies are intentionally explicit and fail
+validation in the public builder lane:
+
+- `total_protein_correction.policy="ratio_to_total"`
+- `site_matrix.policy="build_from_metadata"`
+- `comparisons.policy="sample_metadata_pairs"`
 
 ## Final Dataset Boundary
 
@@ -346,6 +361,7 @@ Top-level `phospy` exports the public exception taxonomy:
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     KinaseWorkflow,
     KinaseWorkflowRequest,
@@ -359,7 +375,7 @@ dataset = AnalysisReadyDatasetBuilder().run(
         site_metadata="./input/site_metadata.csv",
         organism=Organism.RAT,
         preprocessing_config=DatasetPreprocessingConfig(
-            missing_data_policy="forbid",
+            missing_data=DatasetMissingDataConfig(policy="forbid"),
         ),
     )
 )

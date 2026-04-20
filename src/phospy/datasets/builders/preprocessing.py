@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy.api.configs import DatasetPreprocessingConfig
 from phospy.datasets.builders.contracts import PreprocessedDatasetBuildTables
 from phospy.datasets.preprocessing.models import PreprocessingPlan, PreprocessingState
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
@@ -23,7 +22,7 @@ class DatasetPreprocessor:
         site_metadata: pd.DataFrame,
         sample_metadata: pd.DataFrame | None = None,
         total: pd.DataFrame | None = None,
-        config: DatasetPreprocessingConfig,
+        plan: PreprocessingPlan,
     ) -> PreprocessedDatasetBuildTables:
         preprocessed_state = self._pipeline.run(
             PreprocessingState(
@@ -31,8 +30,7 @@ class DatasetPreprocessor:
                 site_metadata=site_metadata,
                 sample_metadata=sample_metadata,
                 total=total,
-                config=config,
-                plan=PreprocessingPlan.from_config(config),
+                plan=plan,
             )
         )
         return PreprocessedDatasetBuildTables(

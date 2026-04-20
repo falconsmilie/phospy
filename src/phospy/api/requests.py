@@ -25,6 +25,7 @@ class DatasetBuildRequest:
     """Request for building an ``AnalysisReadyPhosphoDataset``.
 
     Supported public inputs are pandas ``DataFrame`` values or file paths.
+    Preprocessing policy remains builder-owned via ``preprocessing_config``.
     """
 
     phospho: DatasetInput

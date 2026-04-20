@@ -57,7 +57,7 @@ class DatasetBuildExecutor:
                 site_metadata=request.site_metadata,
                 sample_metadata=request.sample_metadata,
                 total=request.total,
-                config=request.preprocessing_config,
+                plan=request.preprocessing_plan,
             )
             resolved = self._transformation_resolver.run(
                 phospho=preprocessed.phospho,

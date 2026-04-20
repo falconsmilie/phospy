@@ -6,6 +6,7 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
+    DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     KinaseActivityConfig,
     KinaseActivityResult,
@@ -25,6 +26,7 @@ from phospy import (
     SignalomeWorkflowResult,
 )
 from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
+from phospy.datasets.preprocessing.models import PreprocessingPlan
 from phospy.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
@@ -246,8 +248,10 @@ def test_builder_orchestration_threads_preprocessing_config_to_executor() -> Non
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
         preprocessing_config=DatasetPreprocessingConfig(
-            missing_data_policy="impute_row_median",
-            min_observed_values=2,
+            missing_data=DatasetMissingDataConfig(
+                policy="impute_row_median",
+                min_observed_values=2,
+            ),
         ),
     )
     calls: list[str] = []
@@ -266,7 +270,9 @@ def test_builder_orchestration_threads_preprocessing_config_to_executor() -> Non
                 sample_metadata=req.sample_metadata,
                 total=req.total,
                 organism=req.organism,
-                preprocessing_config=req.preprocessing_config,
+                preprocessing_plan=PreprocessingPlan.from_config(
+                    req.preprocessing_config
+                ),
             )
 
     class ExecutorSpy:
@@ -274,7 +280,9 @@ def test_builder_orchestration_threads_preprocessing_config_to_executor() -> Non
             self, req: InterpretedDatasetBuildRequest
         ) -> AnalysisReadyPhosphoDataset:
             calls.append("executor")
-            assert req.preprocessing_config == request.preprocessing_config
+            assert req.preprocessing_plan == PreprocessingPlan.from_config(
+                request.preprocessing_config
+            )
             return dataset
 
     built = AnalysisReadyDatasetBuilder(

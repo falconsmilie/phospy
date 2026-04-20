@@ -12,6 +12,7 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
+    DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     Organism,
 )
@@ -46,7 +47,7 @@ def build_from_dataframes() -> AnalysisReadyPhosphoDataset:
         site_metadata=site_metadata,
         organism=Organism.RAT,
         preprocessing_config=DatasetPreprocessingConfig(
-            missing_data_policy="forbid",
+            missing_data=DatasetMissingDataConfig(policy="forbid"),
         ),
     )
     return AnalysisReadyDatasetBuilder().run(request)
@@ -65,8 +66,10 @@ def build_from_file_paths() -> AnalysisReadyPhosphoDataset:
             site_metadata=str(site_metadata_path),
             organism=Organism.RAT,
             preprocessing_config=DatasetPreprocessingConfig(
-                missing_data_policy="impute_row_median",
-                min_observed_values=2,
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_row_median",
+                    min_observed_values=2,
+                ),
             ),
         )
         return AnalysisReadyDatasetBuilder().run(request)

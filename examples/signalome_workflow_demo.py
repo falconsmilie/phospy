@@ -8,6 +8,7 @@ import pandas as pd
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
@@ -49,7 +50,7 @@ def _build_kinase_result() -> KinaseWorkflowResult:
             site_metadata=site_metadata,
             organism=Organism.RAT,
             preprocessing_config=DatasetPreprocessingConfig(
-                missing_data_policy="forbid",
+                missing_data=DatasetMissingDataConfig(policy="forbid"),
             ),
         )
     )

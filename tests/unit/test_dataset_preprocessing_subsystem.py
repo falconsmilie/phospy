@@ -5,7 +5,7 @@ from dataclasses import replace
 import pandas as pd
 import pandas.testing as pdt
 
-from phospy.api.configs import DatasetPreprocessingConfig
+from phospy.api.configs import DatasetMissingDataConfig, DatasetPreprocessingConfig
 from phospy.api.requests import DatasetBuildRequest
 from phospy.datasets.builders.contracts import (
     InterpretedDatasetBuildRequest,
@@ -88,10 +88,12 @@ def test_preprocessing_pipeline_applies_plan_order() -> None:
         site_metadata=_site_metadata(),
         sample_metadata=None,
         total=None,
-        config=DatasetPreprocessingConfig(),
         plan=PreprocessingPlan(
             missing_data_policy="forbid",
-            min_observed_values=None,
+            missing_data_min_observed_values=None,
+            total_protein_correction_policy="none",
+            site_matrix_policy="as_input",
+            comparison_building_policy="none",
             stage_order=("stage_b", "stage_a"),
         ),
     )
@@ -127,10 +129,12 @@ def test_preprocessing_pipeline_passes_stage_state_forward() -> None:
         site_metadata=_site_metadata(),
         sample_metadata=sample_metadata,
         total=total,
-        config=DatasetPreprocessingConfig(),
         plan=PreprocessingPlan(
             missing_data_policy="forbid",
-            min_observed_values=None,
+            missing_data_min_observed_values=None,
+            total_protein_correction_policy="none",
+            site_matrix_policy="as_input",
+            comparison_building_policy="none",
             stage_order=("add_one", "inspect"),
         ),
     )
@@ -155,7 +159,7 @@ def test_dataset_preprocessor_regression_forbid_policy_is_passthrough() -> None:
         site_metadata=site_metadata,
         sample_metadata=sample_metadata,
         total=total,
-        config=DatasetPreprocessingConfig(missing_data_policy="forbid"),
+        plan=PreprocessingPlan.from_config(DatasetPreprocessingConfig()),
     )
 
     assert preprocessed.phospho is phospho
@@ -177,9 +181,13 @@ def test_dataset_preprocessor_regression_impute_row_median_policy() -> None:
         site_metadata=site_metadata,
         sample_metadata=sample_metadata,
         total=total,
-        config=DatasetPreprocessingConfig(
-            missing_data_policy="impute_row_median",
-            min_observed_values=2,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_row_median",
+                    min_observed_values=2,
+                )
+            )
         ),
     )
 
@@ -212,7 +220,7 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
         sample_metadata=sample_metadata,
         total=total,
         organism=Organism.RAT,
-        preprocessing_config=DatasetPreprocessingConfig(),
+        preprocessing_plan=PreprocessingPlan.default(),
     )
 
     preprocessed_tables = PreprocessedDatasetBuildTables(
@@ -230,14 +238,14 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
             site_metadata: pd.DataFrame,
             sample_metadata: pd.DataFrame | None,
             total: pd.DataFrame | None,
-            config: DatasetPreprocessingConfig,
+            plan: PreprocessingPlan,
         ) -> PreprocessedDatasetBuildTables:
             calls.append("preprocessor")
             assert phospho is interpreted.phospho
             assert site_metadata is interpreted.site_metadata
             assert sample_metadata is interpreted.sample_metadata
             assert total is interpreted.total
-            assert config is interpreted.preprocessing_config
+            assert plan is interpreted.preprocessing_plan
             return preprocessed_tables
 
     class ResolverSpy:
@@ -293,8 +301,10 @@ def test_dataset_interpreter_does_not_apply_preprocessing_science() -> None:
         phospho=phospho,
         site_metadata=site_metadata,
         preprocessing_config=DatasetPreprocessingConfig(
-            missing_data_policy="impute_row_median",
-            min_observed_values=2,
+            missing_data=DatasetMissingDataConfig(
+                policy="impute_row_median",
+                min_observed_values=2,
+            ),
         ),
     )
 

@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 import phospy.io as phospy_io
-from phospy.api.configs import DatasetPreprocessingConfig
+from phospy.api.configs import DatasetMissingDataConfig, DatasetPreprocessingConfig
 from phospy.api.requests import DatasetBuildRequest
 from phospy.datasets.builders.public import AnalysisReadyDatasetBuilder
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
@@ -352,8 +352,10 @@ def test_builder_rejects_preprocessing_threshold_above_sample_count() -> None:
                 site_metadata=_site_metadata(),
                 organism=Organism.RAT,
                 preprocessing_config=DatasetPreprocessingConfig(
-                    missing_data_policy="impute_row_median",
-                    min_observed_values=3,
+                    missing_data=DatasetMissingDataConfig(
+                        policy="impute_row_median",
+                        min_observed_values=3,
+                    ),
                 ),
             )
         )

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Protocol
 
 import pandas as pd
 
-from phospy.api.configs import DatasetPreprocessingConfig
+from phospy.datasets.preprocessing.models import PreprocessingPlan
 from phospy.references.models import Organism
 
 if TYPE_CHECKING:
@@ -28,8 +28,8 @@ class InterpretedDatasetBuildRequest:
     sample_metadata: pd.DataFrame | None
     total: pd.DataFrame | None
     organism: Organism | None
-    preprocessing_config: DatasetPreprocessingConfig = field(
-        default_factory=DatasetPreprocessingConfig
+    preprocessing_plan: PreprocessingPlan = field(
+        default_factory=PreprocessingPlan.default
     )
 
 
@@ -76,7 +76,7 @@ class DatasetPreprocessorContract(Protocol):
         site_metadata: pd.DataFrame,
         sample_metadata: pd.DataFrame | None,
         total: pd.DataFrame | None,
-        config: DatasetPreprocessingConfig,
+        plan: PreprocessingPlan,
     ) -> PreprocessedDatasetBuildTables:
         """Apply internal preprocessing stages and return preprocessed tables."""
 

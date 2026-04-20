@@ -36,11 +36,12 @@ After source loading, both routes pass through the same normalization path:
 - fail-fast rejection of ambiguous/unsupported legacy aliases
 
 Before final dataset construction, supported preprocessing policy is applied to
-`phospho` according to `preprocessing_config.missing_data_policy`:
+`phospho` according to `preprocessing_config.missing_data.policy`:
 
 - `"forbid"` (default): no missing-value preprocessing
-- `"impute_row_median"`: drop rows below `min_observed_values`, then row-median
-  imputation for remaining missing phospho values
+- `"impute_row_median"`: drop rows below
+  `missing_data.min_observed_values`, then row-median imputation for remaining
+  missing phospho values
 
 `AnalysisReadyPhosphoDataset` itself is strict and DataFrame-only.
 Workflows consume only this dataset type.
@@ -82,10 +83,18 @@ No additional transformation mode is publicly selectable.
 
 `DatasetPreprocessingConfig` validation enforces:
 
-- `missing_data_policy` must be one of `forbid`, `impute_row_median`
-- `min_observed_values` must be `None` when policy is `forbid`
-- `min_observed_values` must be an integer `>= 1` when policy is `impute_row_median`
-- at execution, `min_observed_values` must not exceed phospho sample count
+- grouped config type checks:
+  `missing_data`, `total_protein_correction`, `site_matrix`, `comparisons`
+- `missing_data.policy` must be one of `forbid`, `impute_row_median`
+- `missing_data.min_observed_values` must be `None` when policy is `forbid`
+- `missing_data.min_observed_values` must be an integer `>= 1` when policy is
+  `impute_row_median`
+- supported lane policy restrictions:
+  - `total_protein_correction.policy` must stay `none`
+  - `site_matrix.policy` must stay `as_input`
+  - `comparisons.policy` must stay `none`
+- at execution, `missing_data.min_observed_values` must not exceed phospho
+  sample count
 
 ## Builder Convention Rules
 

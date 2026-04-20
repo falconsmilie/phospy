@@ -2,7 +2,11 @@
 
 from phospy.api.builders import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
+    DatasetComparisonBuildingConfig,
+    DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
+    DatasetSiteMatrixConfig,
+    DatasetTotalProteinCorrectionConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -28,8 +32,12 @@ from phospy.references.models import ReferenceBundle
 __all__ = [
     "AnalysisReadyDatasetBuilder",
     "AnalysisReadyPhosphoDataset",
+    "DatasetComparisonBuildingConfig",
     "DatasetBuildRequest",
+    "DatasetMissingDataConfig",
     "DatasetPreprocessingConfig",
+    "DatasetSiteMatrixConfig",
+    "DatasetTotalProteinCorrectionConfig",
     "KinaseActivityConfig",
     "KinaseActivityResult",
     "KinasePredictionConfig",

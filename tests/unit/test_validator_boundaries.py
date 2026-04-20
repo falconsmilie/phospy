@@ -4,7 +4,11 @@ import pandas as pd
 import pytest
 
 from phospy.api.configs import (
+    DatasetComparisonBuildingConfig,
+    DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
+    DatasetSiteMatrixConfig,
+    DatasetTotalProteinCorrectionConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -141,8 +145,8 @@ def test_dataset_build_request_has_default_preprocessing_config() -> None:
         ),
     )
     validated = DatasetBuildRequestValidator().run(request)
-    assert validated.preprocessing_config.missing_data_policy == "forbid"
-    assert validated.preprocessing_config.min_observed_values is None
+    assert validated.preprocessing_config.missing_data.policy == "forbid"
+    assert validated.preprocessing_config.missing_data.min_observed_values is None
 
 
 def test_dataset_build_request_rejects_unknown_missing_data_policy() -> None:
@@ -157,12 +161,14 @@ def test_dataset_build_request_rejects_unknown_missing_data_policy() -> None:
             index=["MAPK14;Y182;"],
         ),
         preprocessing_config=DatasetPreprocessingConfig(
-            missing_data_policy="unsupported",  # type: ignore[arg-type]
+            missing_data=DatasetMissingDataConfig(
+                policy="unsupported"  # type: ignore[arg-type]
+            )
         ),
     )
     with pytest.raises(
         PhosPyInputError,
-        match="preprocessing_config.missing_data_policy must be one of",
+        match="preprocessing_config.missing_data.policy must be one of",
     ):
         DatasetBuildRequestValidator().run(request)
 
@@ -181,12 +187,15 @@ def test_dataset_build_request_rejects_impute_policy_without_min_observed_values
             index=["MAPK14;Y182;"],
         ),
         preprocessing_config=DatasetPreprocessingConfig(
-            missing_data_policy="impute_row_median"
+            missing_data=DatasetMissingDataConfig(policy="impute_row_median")
         ),
     )
     with pytest.raises(
         PhosPyInputError,
-        match="min_observed_values must be an int when missing_data_policy='impute_row_median'",
+        match=(
+            "missing_data.min_observed_values must be an int when "
+            "missing_data.policy='impute_row_median'"
+        ),
     ):
         DatasetBuildRequestValidator().run(request)
 
@@ -203,13 +212,88 @@ def test_dataset_build_request_rejects_min_observed_values_for_forbid_policy() -
             index=["MAPK14;Y182;"],
         ),
         preprocessing_config=DatasetPreprocessingConfig(
-            missing_data_policy="forbid",
-            min_observed_values=1,
+            missing_data=DatasetMissingDataConfig(
+                policy="forbid",
+                min_observed_values=1,
+            ),
         ),
     )
     with pytest.raises(
         PhosPyInputError,
-        match="min_observed_values must be None when missing_data_policy='forbid'",
+        match=(
+            "missing_data.min_observed_values must be None when "
+            "missing_data.policy='forbid'"
+        ),
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_rejects_unsupported_total_protein_correction_policy() -> (
+    None
+):
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                policy="ratio_to_total"
+            )
+        ),
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="total_protein_correction.policy is not supported",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_rejects_unsupported_site_matrix_policy() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+        ),
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="site_matrix.policy is not supported",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_rejects_unsupported_comparison_building_policy() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            comparisons=DatasetComparisonBuildingConfig(policy="sample_metadata_pairs")
+        ),
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="comparisons.policy is not supported",
     ):
         DatasetBuildRequestValidator().run(request)
 

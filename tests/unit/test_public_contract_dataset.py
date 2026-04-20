@@ -49,8 +49,12 @@ def test_public_dataset_ingestion_story_is_builder_only() -> None:
     assert dataset_exports == {
         "AnalysisReadyDatasetBuilder",
         "AnalysisReadyPhosphoDataset",
+        "DatasetComparisonBuildingConfig",
         "DatasetBuildRequest",
+        "DatasetMissingDataConfig",
         "DatasetPreprocessingConfig",
+        "DatasetSiteMatrixConfig",
+        "DatasetTotalProteinCorrectionConfig",
     }
     assert not hasattr(phospy, "build_dataset_from_files")
     assert not hasattr(phospy_io, "build_dataset_from_files")
@@ -80,4 +84,4 @@ def test_dataset_build_request_rejects_user_declared_transformation_state() -> N
 
 def test_dataset_preprocessing_config_is_top_level_public_type() -> None:
     assert "DatasetPreprocessingConfig" in phospy.__all__
-    assert DatasetPreprocessingConfig().missing_data_policy == "forbid"
+    assert DatasetPreprocessingConfig().missing_data.policy == "forbid"

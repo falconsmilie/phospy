@@ -30,18 +30,20 @@ class MissingDataStage:
         ):
             raise PhosPyInputError(
                 "dataset build request preprocessing_config contains an unsupported "
-                "missing_data_policy"
+                "missing_data.policy"
             )
 
-        min_observed_values = state.plan.min_observed_values
+        min_observed_values = state.plan.missing_data_min_observed_values
         if not isinstance(min_observed_values, int):
             raise PhosPyInputError(
-                "dataset build request preprocessing_config.min_observed_values "
-                "must be an int when missing_data_policy='impute_row_median'"
+                "dataset build request "
+                "preprocessing_config.missing_data.min_observed_values must be an "
+                "int when missing_data.policy='impute_row_median'"
             )
         if min_observed_values > state.phospho.shape[1]:
             raise PhosPyInputError(
-                "dataset build request preprocessing_config.min_observed_values "
+                "dataset build request "
+                "preprocessing_config.missing_data.min_observed_values "
                 f"({min_observed_values}) cannot exceed the number of phospho "
                 f"samples ({state.phospho.shape[1]})"
             )

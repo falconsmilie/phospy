@@ -7,6 +7,7 @@ from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
 from phospy.datasets.builders.normalizer import DatasetConventionNormalizer
 from phospy.datasets.builders.reader import DatasetInputReader
 from phospy.datasets.builders.sequence_derivation import SiteSequenceDeriver
+from phospy.datasets.preprocessing.models import PreprocessingPlan
 
 
 class DatasetBuildRequestInterpreter:
@@ -61,5 +62,7 @@ class DatasetBuildRequestInterpreter:
             sample_metadata=normalized.sample_metadata,
             total=normalized.total,
             organism=request.organism,
-            preprocessing_config=request.preprocessing_config,
+            preprocessing_plan=PreprocessingPlan.from_config(
+                request.preprocessing_config
+            ),
         )

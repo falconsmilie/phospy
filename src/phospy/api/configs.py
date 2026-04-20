@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 DATASET_MISSING_DATA_POLICY_FORBID = "forbid"
@@ -15,6 +15,33 @@ DATASET_MISSING_DATA_POLICIES = frozenset(
     {
         DATASET_MISSING_DATA_POLICY_FORBID,
         DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
+    }
+)
+DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE = "none"
+DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL = "ratio_to_total"
+DatasetTotalProteinCorrectionPolicy = Literal["none", "ratio_to_total"]
+DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES = frozenset(
+    {
+        DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
+        DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL,
+    }
+)
+DATASET_SITE_MATRIX_POLICY_AS_INPUT = "as_input"
+DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA = "build_from_metadata"
+DatasetSiteMatrixPolicy = Literal["as_input", "build_from_metadata"]
+DATASET_SITE_MATRIX_POLICIES = frozenset(
+    {
+        DATASET_SITE_MATRIX_POLICY_AS_INPUT,
+        DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
+    }
+)
+DATASET_COMPARISON_BUILDING_POLICY_NONE = "none"
+DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS = "sample_metadata_pairs"
+DatasetComparisonBuildingPolicy = Literal["none", "sample_metadata_pairs"]
+DATASET_COMPARISON_BUILDING_POLICIES = frozenset(
+    {
+        DATASET_COMPARISON_BUILDING_POLICY_NONE,
+        DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS,
     }
 )
 KINASE_SCORING_MIN_SUBSTRATES_FLOOR = 2
@@ -89,10 +116,8 @@ KINASE_PREDICTION_DEFAULT_ITERATIONS = 5
 
 
 @dataclass(frozen=True, slots=True)
-class DatasetPreprocessingConfig:
-    """Public preprocessing policy for dataset building.
-
-    `missing_data_policy` controls how missing values in `phospho` are handled:
+class DatasetMissingDataConfig:
+    """Public missing-data policy options for dataset building.
 
     - `"forbid"`: do not preprocess missing values (strict default behavior).
     - `"impute_row_median"`: for each site row, drop rows with fewer than
@@ -101,13 +126,73 @@ class DatasetPreprocessingConfig:
 
     `min_observed_values` is required for `"impute_row_median"` and must stay
     unset for `"forbid"`.
-
-    Builder internals interpret this config into an ordered preprocessing plan
-    executed inside the dataset-owned preprocessing subsystem.
     """
 
-    missing_data_policy: DatasetMissingDataPolicy = DATASET_MISSING_DATA_POLICY_FORBID
+    policy: DatasetMissingDataPolicy = DATASET_MISSING_DATA_POLICY_FORBID
     min_observed_values: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetTotalProteinCorrectionConfig:
+    """Public total/protein correction policy options for dataset building.
+
+    - `"none"`: do not apply total/protein correction (current supported policy).
+    - `"ratio_to_total"`: reserved policy surface for future science restoration.
+    """
+
+    policy: DatasetTotalProteinCorrectionPolicy = (
+        DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetSiteMatrixConfig:
+    """Public site-matrix policy options for dataset building.
+
+    - `"as_input"`: preserve interpreted site matrix as provided.
+    - `"build_from_metadata"`: reserved policy surface for future science restoration.
+    """
+
+    policy: DatasetSiteMatrixPolicy = DATASET_SITE_MATRIX_POLICY_AS_INPUT
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetComparisonBuildingConfig:
+    """Public comparison-building policy options for dataset building.
+
+    - `"none"`: do not build explicit comparisons (current supported policy).
+    - `"sample_metadata_pairs"`: reserved policy surface for future science
+      restoration.
+    """
+
+    policy: DatasetComparisonBuildingPolicy = DATASET_COMPARISON_BUILDING_POLICY_NONE
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetPreprocessingConfig:
+    """Public grouped preprocessing policy for dataset building.
+
+    The builder owns this policy surface. Groups are intentionally separated so
+    supported preprocessing science remains user-visible:
+
+    - `missing_data`: missing-value handling policy.
+    - `total_protein_correction`: total/protein correction policy.
+    - `site_matrix`: site-matrix construction policy.
+    - `comparisons`: comparison-building policy.
+    """
+
+    missing_data: DatasetMissingDataConfig = field(
+        default_factory=DatasetMissingDataConfig
+    )
+    total_protein_correction: DatasetTotalProteinCorrectionConfig = field(
+        default_factory=DatasetTotalProteinCorrectionConfig
+    )
+    site_matrix: DatasetSiteMatrixConfig = field(
+        default_factory=DatasetSiteMatrixConfig
+    )
+    comparisons: DatasetComparisonBuildingConfig = field(
+        default_factory=DatasetComparisonBuildingConfig
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -217,9 +302,21 @@ class SignalomeConfig:
 
 
 __all__ = [
+    "DATASET_COMPARISON_BUILDING_POLICIES",
+    "DATASET_COMPARISON_BUILDING_POLICY_NONE",
+    "DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS",
     "DATASET_MISSING_DATA_POLICIES",
     "DATASET_MISSING_DATA_POLICY_FORBID",
     "DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN",
+    "DATASET_SITE_MATRIX_POLICIES",
+    "DATASET_SITE_MATRIX_POLICY_AS_INPUT",
+    "DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL",
+    "DatasetComparisonBuildingConfig",
+    "DatasetComparisonBuildingPolicy",
+    "DatasetMissingDataConfig",
     "KINASE_ADAPTIVE_POLICIES",
     "KINASE_ADAPTIVE_POLICY_R_PARITY",
     "KINASE_ADAPTIVE_POLICY_STABLE",
@@ -250,6 +347,10 @@ __all__ = [
     "SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT",
     "DatasetMissingDataPolicy",
     "DatasetPreprocessingConfig",
+    "DatasetSiteMatrixConfig",
+    "DatasetSiteMatrixPolicy",
+    "DatasetTotalProteinCorrectionConfig",
+    "DatasetTotalProteinCorrectionPolicy",
     "KinaseAdaptivePolicy",
     "KinaseProfileMissingValueStrategy",
     "KinasePredictionMode",
