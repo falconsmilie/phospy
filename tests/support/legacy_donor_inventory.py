@@ -93,7 +93,7 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
         ),
         rewrite_parity_tests=(
             "tests/parity/test_signalome_workflow_parity.py::"
-            "test_signalome_module_assignments_match_selected_l6_regression_points",
+            "test_signalome_module_assignments_match_l6_full_fixture_table",
         ),
         rewrite_integration_tests=(),
         archival_only_tests=(
@@ -117,7 +117,7 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
         ),
         rewrite_parity_tests=(
             "tests/parity/test_signalome_workflow_parity.py::"
-            "test_signalome_module_assignments_match_selected_l6_regression_points",
+            "test_signalome_module_assignments_match_l6_full_fixture_table",
         ),
         rewrite_integration_tests=(),
         archival_only_tests=(
@@ -128,7 +128,7 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
         ),
         promoted_fixture_paths=(
             "tests/fixtures/public_workflow_reference/"
-            "signalome_rewrite_l6_module_assignments_selected.csv",
+            "signalome_rewrite_l6_module_assignments.csv",
             "tests/fixtures/public_workflow_reference/signalome_rewrite_l6_contract.json",
         ),
         provenance_paths=("docs/parity.md",),
@@ -142,7 +142,7 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
         ),
         rewrite_parity_tests=(
             "tests/parity/test_signalome_workflow_parity.py::"
-            "test_signalome_network_edges_match_l6_fixture_pairs_and_sign_counts",
+            "test_signalome_network_edges_match_l6_full_fixture_table_with_tolerance",
             "tests/parity/test_signalome_workflow_parity.py::"
             "test_signalome_network_policy_variants_match_fixed_matrix_expectations",
         ),
@@ -153,7 +153,7 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
         ),
         promoted_fixture_paths=(
             "tests/fixtures/public_workflow_reference/"
-            "signalome_rewrite_l6_network_edges_selected.csv",
+            "signalome_rewrite_l6_network_edges.csv",
             "tests/fixtures/public_workflow_reference/"
             "signalome_rewrite_l6_network_nodes.csv",
         ),
@@ -168,7 +168,7 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
         ),
         rewrite_parity_tests=(
             "tests/parity/test_signalome_workflow_parity.py::"
-            "test_signalome_expanded_slice_matches_l6_selected_akt1_fixture",
+            "test_signalome_expanded_signalome_matches_l6_full_fixture_table_with_tolerance",
         ),
         rewrite_integration_tests=(
             "tests/integration/test_signalome_workflow_integration.py::"
@@ -181,6 +181,8 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
             "test_signalome_result_expanded_signalomes_materialize_with_parity",
         ),
         promoted_fixture_paths=(
+            "tests/fixtures/public_workflow_reference/"
+            "signalome_rewrite_l6_expanded_signalome.csv",
             "tests/fixtures/public_workflow_reference/signalome_rewrite_l6_contract.json",
         ),
         provenance_paths=("docs/parity.md",),

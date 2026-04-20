@@ -17,19 +17,20 @@ from phospy import (
     SignalomeWorkflowRequest,
 )
 from phospy.signalomes.science import build_kinase_network
-from tests.support.parity_reporting import (
-    format_fraction,
-    format_shape,
-    record_parity_metrics,
-)
+from tests.support.parity_reporting import format_shape, record_parity_metrics
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
     load_signalome_rewrite_l6_contract,
-    load_signalome_rewrite_l6_expanded_akt1_selected,
-    load_signalome_rewrite_l6_module_assignments_selected,
+    load_signalome_rewrite_l6_expanded_signalome,
+    load_signalome_rewrite_l6_module_assignments,
     load_signalome_rewrite_l6_modules,
-    load_signalome_rewrite_l6_network_edges_selected,
+    load_signalome_rewrite_l6_network_edges,
     load_signalome_rewrite_l6_network_nodes,
+    normalize_signalome_expanded_signalome_for_parity,
+    normalize_signalome_module_assignments_for_parity,
+    normalize_signalome_modules_for_parity,
+    normalize_signalome_network_edges_for_parity,
+    normalize_signalome_network_nodes_for_parity,
 )
 
 # Fixture provenance:
@@ -41,6 +42,9 @@ from tests.support.rewrite_fixture_data import (
 # dataset -> KinaseWorkflow -> SignalomeWorkflow with the config in
 # `_run_signalome_l6_supported_slice`.
 pytestmark = pytest.mark.parity
+
+NUMERIC_RTOL = 1e-9
+NUMERIC_ATOL = 1e-12
 
 
 @lru_cache(maxsize=1)
@@ -63,242 +67,226 @@ def _run_signalome_l6_supported_slice():
     )
 
 
-def test_signalome_module_assignments_match_selected_l6_regression_points(
+def _assert_supported_signalome_contract(contract: dict[str, object]) -> None:
+    assert contract["supported_outputs"] == [
+        "signalome_modules",
+        "module_assignments.table",
+        "kinase_network.nodes",
+        "kinase_network.edges",
+        "expanded_signalome",
+    ]
+    assert contract["comparison_rules"] == {
+        "signalome_modules": {
+            "row_order": "fixture_order_semantic",
+            "column_order": "fixture_order_semantic",
+            "comparison": "exact_equality",
+        },
+        "module_assignments.table": {
+            "row_order": "site_id_sorted",
+            "column_order": "fixture_order_semantic",
+            "comparison": "numeric_tolerance",
+            "numeric_rtol": NUMERIC_RTOL,
+            "numeric_atol": NUMERIC_ATOL,
+            "normalization": "canonicalize_collection_columns",
+        },
+        "kinase_network.nodes": {
+            "row_order": "kinase_sorted",
+            "column_order": "fixture_order_semantic",
+            "comparison": "exact_equality",
+        },
+        "kinase_network.edges": {
+            "row_order": "source_target_sorted",
+            "column_order": "fixture_order_semantic",
+            "comparison": "numeric_tolerance",
+            "numeric_rtol": NUMERIC_RTOL,
+            "numeric_atol": NUMERIC_ATOL,
+        },
+        "expanded_signalome": {
+            "row_order": "kinase_row_kind_site_sorted",
+            "column_order": "fixture_order_semantic",
+            "comparison": "numeric_tolerance",
+            "numeric_rtol": NUMERIC_RTOL,
+            "numeric_atol": NUMERIC_ATOL,
+        },
+    }
+
+
+def test_signalome_contract_declares_full_supported_output_parity_lane() -> None:
+    contract = load_signalome_rewrite_l6_contract()
+    _assert_supported_signalome_contract(contract)
+
+
+def test_signalome_module_assignments_match_l6_full_fixture_table(
     request: pytest.FixtureRequest,
 ) -> None:
-    # Contract: selected point checks + structural distribution checks.
-    assignments = _run_signalome_l6_supported_slice().module_assignments.table
     contract = load_signalome_rewrite_l6_contract()
+    _assert_supported_signalome_contract(contract)
+    observed = normalize_signalome_module_assignments_for_parity(
+        _run_signalome_l6_supported_slice().module_assignments.table
+    )
+    expected = normalize_signalome_module_assignments_for_parity(
+        load_signalome_rewrite_l6_module_assignments()
+    )
 
-    assert assignments.index.name == "site_id"
-    assert int(assignments.shape[0]) == int(contract["n_assignments"])
-    assert {
-        "protein_id",
-        "module_id",
-        "top_kinase",
-        "top_score",
-        "top_kinase_candidates",
-        "top_kinase_weights",
-        "top_kinase_tie_count",
-        "top_kinase_is_ambiguous",
-        "top_kinase_selection_policy",
-        "module_top_kinase",
-        "module_top_kinase_candidates",
-        "module_top_kinase_tie_count",
-        "module_top_kinase_is_ambiguous",
-        "module_top_kinase_selection_policy",
-    }.issubset(set(assignments.columns))
-
-    expected_points = load_signalome_rewrite_l6_module_assignments_selected()
-    observed_points = assignments.loc[expected_points.index, expected_points.columns]
+    assert observed.columns.tolist() == expected.columns.tolist()
+    assert int(observed.shape[0]) == int(contract["n_assignments"])
     pdt.assert_frame_equal(
-        observed_points,
-        expected_points,
+        observed,
+        expected,
+        check_dtype=False,
+        check_exact=False,
+        rtol=NUMERIC_RTOL,
+        atol=NUMERIC_ATOL,
+    )
+
+    record_parity_metrics(
+        request.config,
+        family="signalome_workflow",
+        metrics=[
+            ("module assignments full-table parity", "pass"),
+            ("module assignment table shape", format_shape(*observed.shape)),
+            ("module assignment rows compared", int(observed.shape[0])),
+        ],
+    )
+
+
+def test_signalome_modules_match_l6_full_fixture_table_exactly(
+    request: pytest.FixtureRequest,
+) -> None:
+    contract = load_signalome_rewrite_l6_contract()
+    _assert_supported_signalome_contract(contract)
+    observed = normalize_signalome_modules_for_parity(
+        _run_signalome_l6_supported_slice().signalome_modules.table
+    )
+    expected = normalize_signalome_modules_for_parity(
+        load_signalome_rewrite_l6_modules()
+    )
+
+    assert observed.index.tolist() == expected.index.tolist()
+    assert observed.columns.tolist() == expected.columns.tolist()
+    assert int(observed.shape[0]) == int(contract["n_modules"])
+    assert int(observed.shape[1]) == int(contract["n_module_kinases"])
+    pdt.assert_frame_equal(
+        observed,
+        expected,
         check_dtype=False,
     )
 
-    expected_module_id_counts = {
-        int(module_id): int(count)
-        for module_id, count in dict(contract["module_id_counts"]).items()
-    }
-    observed_module_id_counts = (
-        assignments.loc[:, "module_id"]
-        .value_counts()
-        .sort_index()
-        .astype("int64")
-        .to_dict()
-    )
-    assert observed_module_id_counts == expected_module_id_counts
-
-    expected_tie_distribution = {
-        int(tie_count): int(count)
-        for tie_count, count in dict(contract["tie_count_distribution"]).items()
-    }
-    observed_tie_distribution = (
-        assignments.loc[:, "top_kinase_tie_count"]
-        .value_counts()
-        .sort_index()
-        .astype("int64")
-        .to_dict()
-    )
-    assert observed_tie_distribution == expected_tie_distribution
-    assert int(assignments.loc[:, "top_kinase_is_ambiguous"].sum()) == int(
-        contract["ambiguous_assignment_count"]
-    )
     record_parity_metrics(
         request.config,
         family="signalome_workflow",
         metrics=[
-            ("module assignment count", int(assignments.shape[0])),
-            ("module assignment shape", format_shape(*assignments.shape)),
-            (
-                "selected assignment identity checks",
-                format_fraction(
-                    int(expected_points.shape[0]),
-                    int(expected_points.shape[0]),
-                    include_percent=True,
-                ),
-            ),
-            (
-                "ambiguous assignment count",
-                int(assignments.loc[:, "top_kinase_is_ambiguous"].sum()),
-            ),
+            ("signalome modules full-table parity", "pass"),
+            ("module table shape", format_shape(*observed.shape)),
+            ("module rows compared", int(observed.shape[0])),
         ],
     )
 
 
-def test_signalome_modules_match_l6_fixture_table_exactly(
+def test_signalome_network_nodes_match_l6_full_fixture_table(
     request: pytest.FixtureRequest,
 ) -> None:
-    # Contract: exact equality for this small deterministic module table.
-    modules = _run_signalome_l6_supported_slice().signalome_modules.table
-    expected_modules = load_signalome_rewrite_l6_modules()
     contract = load_signalome_rewrite_l6_contract()
-
-    assert int(modules.shape[0]) == int(contract["n_modules"])
-    assert int(modules.shape[1]) == int(contract["n_module_kinases"])
-    pdt.assert_frame_equal(modules, expected_modules, check_dtype=False)
-    row_sums = modules.sum(axis=1)
-    non_zero_rows = row_sums > 0.0
-    assert non_zero_rows.any()
-    assert (row_sums.loc[non_zero_rows] - 100.0).abs().le(0.01).all()
-    record_parity_metrics(
-        request.config,
-        family="signalome_workflow",
-        metrics=[
-            ("module table shape", format_shape(*modules.shape)),
-            ("module count", int(modules.shape[0])),
-            ("module kinase columns", int(modules.shape[1])),
-        ],
-    )
-
-
-def test_signalome_network_nodes_match_l6_fixture_counts_and_selected_rows(
-    request: pytest.FixtureRequest,
-) -> None:
-    # Contract: structural comparison + selected row equality (not full graph parity).
+    _assert_supported_signalome_contract(contract)
     nodes = _run_signalome_l6_supported_slice().kinase_network.nodes
     assert nodes is not None
-    expected_nodes = load_signalome_rewrite_l6_network_nodes()
-    contract = load_signalome_rewrite_l6_contract()
+    observed = normalize_signalome_network_nodes_for_parity(nodes)
+    expected = normalize_signalome_network_nodes_for_parity(
+        load_signalome_rewrite_l6_network_nodes()
+    )
 
-    assert int(nodes.shape[0]) == int(contract["n_nodes"])
-    assert {"degree", "n_substrates"} == set(nodes.columns)
-
-    selected_kinases = expected_nodes.index.astype(str).tolist()[:5]
+    assert observed.columns.tolist() == expected.columns.tolist()
+    assert int(observed.shape[0]) == int(contract["n_nodes"])
     pdt.assert_frame_equal(
-        nodes.loc[selected_kinases, :],
-        expected_nodes.loc[selected_kinases, :],
+        observed,
+        expected,
         check_dtype=False,
     )
+
     record_parity_metrics(
         request.config,
         family="signalome_workflow",
         metrics=[
-            ("network node count", int(nodes.shape[0])),
-            ("network node table shape", format_shape(*nodes.shape)),
+            ("network nodes full-table parity", "pass"),
+            ("network node table shape", format_shape(*observed.shape)),
+            ("network node rows compared", int(observed.shape[0])),
         ],
     )
 
 
-def test_signalome_network_edges_match_l6_fixture_pairs_and_sign_counts(
+def test_signalome_network_edges_match_l6_full_fixture_table_with_tolerance(
     request: pytest.FixtureRequest,
 ) -> None:
-    # Contract: structural counts + selected pair correlations with tolerance.
-    edges = _run_signalome_l6_supported_slice().kinase_network.edges
-    expected_edges = load_signalome_rewrite_l6_network_edges_selected()
     contract = load_signalome_rewrite_l6_contract()
-
-    assert int(edges.shape[0]) == int(contract["n_edges"])
-    assert {"source_kinase", "target_kinase", "correlation"} == set(edges.columns)
-    assert int((edges.loc[:, "correlation"] < 0.0).sum()) == int(
-        contract["negative_edge_count"]
+    _assert_supported_signalome_contract(contract)
+    observed = normalize_signalome_network_edges_for_parity(
+        _run_signalome_l6_supported_slice().kinase_network.edges
     )
-    assert int((edges.loc[:, "correlation"] > 0.0).sum()) == int(
+    expected = normalize_signalome_network_edges_for_parity(
+        load_signalome_rewrite_l6_network_edges()
+    )
+
+    assert observed.columns.tolist() == expected.columns.tolist()
+    assert int(observed.shape[0]) == int(contract["n_edges"])
+    pdt.assert_frame_equal(
+        observed,
+        expected,
+        check_dtype=False,
+        check_exact=False,
+        rtol=NUMERIC_RTOL,
+        atol=NUMERIC_ATOL,
+    )
+    assert int((observed.loc[:, "correlation"] > 0.0).sum()) == int(
         contract["positive_edge_count"]
     )
-    assert str(contract["network_policy"]) == "signed"
+    assert int((observed.loc[:, "correlation"] < 0.0).sum()) == int(
+        contract["negative_edge_count"]
+    )
 
-    expected_indexed = expected_edges.set_index(["source_kinase", "target_kinase"])
-    observed_indexed = edges.set_index(["source_kinase", "target_kinase"]).loc[
-        expected_indexed.index
-    ]
-    for pair, expected_row in expected_indexed.iterrows():
-        assert observed_indexed.at[pair, "correlation"] == pytest.approx(
-            expected_row["correlation"],
-            rel=1e-9,
-            abs=1e-12,
-        )
     record_parity_metrics(
         request.config,
         family="signalome_workflow",
         metrics=[
-            ("network edge count", int(edges.shape[0])),
-            (
-                "network positive edge count",
-                int((edges.loc[:, "correlation"] > 0.0).sum()),
-            ),
-            (
-                "network negative edge count",
-                int((edges.loc[:, "correlation"] < 0.0).sum()),
-            ),
-            ("selected edge-pair checks", int(expected_edges.shape[0])),
+            ("network edges full-table parity", "pass"),
+            ("network edge table shape", format_shape(*observed.shape)),
+            ("network edge rows compared", int(observed.shape[0])),
         ],
     )
 
 
-def test_signalome_expanded_slice_matches_l6_selected_akt1_fixture(
+def test_signalome_expanded_signalome_matches_l6_full_fixture_table_with_tolerance(
     request: pytest.FixtureRequest,
 ) -> None:
     contract = load_signalome_rewrite_l6_contract()
+    _assert_supported_signalome_contract(contract)
     expanded = _run_signalome_l6_supported_slice().expanded_signalome
     assert expanded is not None
-    assert int(expanded.shape[0]) == int(contract["n_expanded_rows"])
-    assert int(expanded.loc[:, "kinase"].nunique()) == int(
-        contract["n_expanded_kinases"]
+    observed = normalize_signalome_expanded_signalome_for_parity(expanded)
+    expected = normalize_signalome_expanded_signalome_for_parity(
+        load_signalome_rewrite_l6_expanded_signalome()
     )
-    assert expanded.loc[:, "row_kind"].value_counts().sort_index().astype(
+
+    assert observed.columns.tolist() == expected.columns.tolist()
+    assert int(observed.shape[0]) == int(contract["n_expanded_rows"])
+    pdt.assert_frame_equal(
+        observed,
+        expected,
+        check_dtype=False,
+        check_exact=False,
+        rtol=NUMERIC_RTOL,
+        atol=NUMERIC_ATOL,
+    )
+    assert observed.loc[:, "row_kind"].value_counts().sort_index().astype(
         "int64"
     ).to_dict() == dict(contract["expanded_row_kind_counts"])
-    assert expanded.loc[:, "assignment_policy"].dropna().astype(
-        str
-    ).unique().tolist() == [str(contract["assignment_policy"])]
-    expected = load_signalome_rewrite_l6_expanded_akt1_selected()
 
-    observed = (
-        expanded.loc[
-            expanded.loc[:, "kinase"] == "AKT1",
-            expected.columns.tolist(),
-        ]
-        .head(expected.shape[0])
-        .reset_index(drop=True)
-    )
-    pdt.assert_frame_equal(observed, expected, check_dtype=False)
-    key_columns = ["site_id", "module_id", "top_kinase"]
-    identity_rows = int(
-        (
-            observed.loc[:, key_columns].astype(str).reset_index(drop=True)
-            == expected.loc[:, key_columns].astype(str).reset_index(drop=True)
-        )
-        .all(axis=1)
-        .sum()
-    )
     record_parity_metrics(
         request.config,
         family="signalome_workflow",
         metrics=[
-            ("expanded signalome row count", int(expanded.shape[0])),
-            (
-                "expanded signalome kinase count",
-                int(expanded.loc[:, "kinase"].nunique()),
-            ),
-            ("expanded AKT1 selected rows", int(expected.shape[0])),
-            (
-                "expanded AKT1 identity checks",
-                format_fraction(
-                    identity_rows, int(expected.shape[0]), include_percent=True
-                ),
-            ),
+            ("expanded signalome full-table parity", "pass"),
+            ("expanded signalome table shape", format_shape(*observed.shape)),
+            ("expanded signalome rows compared", int(observed.shape[0])),
         ],
     )
 

@@ -51,5 +51,74 @@ path (`KinaseWorkflow().run(KinaseWorkflowRequest(...))`) with:
 
 ## signalome Lane Sources
 
-Signalome files in this directory (`signalome_rewrite_l6_*`) remain the active
-rewrite-owned signalome regression references promoted earlier.
+Signalome files in this directory (`signalome_rewrite_l6_*`) are the active
+rewrite-owned, full-output parity references for the supported L6 lane.
+
+### Supported Signalome Outputs
+
+The supported and parity-locked outputs are:
+
+- `signalome_modules`
+- `module_assignments.table`
+- `kinase_network.nodes`
+- `kinase_network.edges`
+- `expanded_signalome`
+
+### Signalome Fixture Files
+
+- `signalome_rewrite_l6_modules.csv`
+- `signalome_rewrite_l6_module_assignments.csv`
+- `signalome_rewrite_l6_network_nodes.csv`
+- `signalome_rewrite_l6_network_edges.csv`
+- `signalome_rewrite_l6_expanded_signalome.csv`
+- `signalome_rewrite_l6_contract.json`
+
+### Signalome Donor Source
+
+- input phospho donor:
+  `tests/fixtures/rewrite_parity/r_reference_l6/l6_phospho_matrix.csv`
+- references donor: bundled `ReferencePreset.AUTO` rat/l6_native references
+
+### Signalome Generation Path
+
+Fixtures were generated from the supported public workflow lane:
+
+```bash
+PYTHONPATH=src .venv/Scripts/python scripts/generate_signalome_public_workflow_reference.py
+```
+
+Generation settings are fixed in the script and parity tests:
+
+- `build_rat_l6_dataset(n_sites=260)`
+- `KinaseScoringConfig(min_substrates=2)`
+- `KinasePredictionConfig(top_k=6, ensemble_size=12)`
+- `SignalomeConfig(substrate_support_cutoff=0.5)`
+
+Generation date for full-output fixture promotion: 2026-04-20.
+
+### Signalome Comparison / Normalization Rules
+
+The authoritative comparison policy is encoded in:
+
+- `signalome_rewrite_l6_contract.json`
+
+and enforced by:
+
+- `tests/parity/test_signalome_workflow_parity.py`
+- normalization helpers in `tests/support/rewrite_fixture_data.py`
+
+Rules include:
+
+- exact equality for `signalome_modules` and `kinase_network.nodes`
+- tolerance-based numeric equality (`rtol=1e-9`, `atol=1e-12`) for
+  `module_assignments.table`, `kinase_network.edges`, and `expanded_signalome`
+- explicit row-order normalization where order is non-semantic
+- explicit fixture column-order locking for all supported outputs
+- canonicalization of collection-like assignment columns to avoid incidental
+  representation noise
+
+### Why This Output Set Is Stable
+
+This fixture family is considered stable because it is generated from a fixed
+supported workflow configuration and fixed fixture input, and parity now asserts
+all supported downstream signalome outputs as full tables.

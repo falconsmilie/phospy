@@ -1,7 +1,84 @@
 {
+  "fixture_set_id": "signalome_rewrite_l6_supported_lane_v2_full_outputs",
+  "generation_date": "2026-04-20",
+  "donor_source": "tests/fixtures/rewrite_parity/r_reference_l6/l6_phospho_matrix.csv + bundled ReferencePreset.AUTO (rat/l6_native)",
+  "generation_path": "scripts/generate_signalome_public_workflow_reference.py",
+  "supported_outputs": [
+    "signalome_modules",
+    "module_assignments.table",
+    "kinase_network.nodes",
+    "kinase_network.edges",
+    "expanded_signalome"
+  ],
+  "comparison_rules": {
+    "signalome_modules": {
+      "row_order": "fixture_order_semantic",
+      "column_order": "fixture_order_semantic",
+      "comparison": "exact_equality"
+    },
+    "module_assignments.table": {
+      "row_order": "site_id_sorted",
+      "column_order": "fixture_order_semantic",
+      "comparison": "numeric_tolerance",
+      "numeric_rtol": 1e-09,
+      "numeric_atol": 1e-12,
+      "normalization": "canonicalize_collection_columns"
+    },
+    "kinase_network.nodes": {
+      "row_order": "kinase_sorted",
+      "column_order": "fixture_order_semantic",
+      "comparison": "exact_equality"
+    },
+    "kinase_network.edges": {
+      "row_order": "source_target_sorted",
+      "column_order": "fixture_order_semantic",
+      "comparison": "numeric_tolerance",
+      "numeric_rtol": 1e-09,
+      "numeric_atol": 1e-12
+    },
+    "expanded_signalome": {
+      "row_order": "kinase_row_kind_site_sorted",
+      "column_order": "fixture_order_semantic",
+      "comparison": "numeric_tolerance",
+      "numeric_rtol": 1e-09,
+      "numeric_atol": 1e-12
+    }
+  },
+  "normalization_rules": {
+    "module_assignments.table": [
+      "cast index to site_id strings",
+      "canonicalize collection-like columns (top_kinase_candidates, top_kinase_weights, module_top_kinase_candidates)",
+      "cast module and tie-count columns to int64",
+      "cast ambiguity flags to bool",
+      "sort rows by site_id"
+    ],
+    "kinase_network.nodes": [
+      "cast kinase index to strings",
+      "cast degree and n_substrates to int64",
+      "sort rows by kinase"
+    ],
+    "kinase_network.edges": [
+      "cast source_kinase and target_kinase to strings",
+      "cast correlation to float",
+      "sort rows by source_kinase,target_kinase"
+    ],
+    "expanded_signalome": [
+      "cast stable schema columns to expected dtypes",
+      "sort rows by kinase,row_kind,site_id,site_order,module_id,protein_id,top_kinase"
+    ]
+  },
+  "stability_rationale": "Outputs are generated from the supported rewrite public lane with fixed fixture input and deterministic workflow settings; parity locks all supported downstream signalome tables.",
   "ambiguous_assignment_count": 0,
   "module_id_counts": {
     "1": 9,
+    "2": 22,
+    "3": 17,
+    "4": 23,
+    "5": 2,
+    "6": 21,
+    "7": 24,
+    "8": 15,
+    "9": 11,
     "10": 4,
     "11": 4,
     "12": 4,
@@ -12,7 +89,6 @@
     "17": 2,
     "18": 8,
     "19": 8,
-    "2": 22,
     "20": 5,
     "21": 2,
     "22": 3,
@@ -23,7 +99,6 @@
     "27": 5,
     "28": 2,
     "29": 5,
-    "3": 17,
     "30": 2,
     "31": 1,
     "32": 3,
@@ -32,13 +107,7 @@
     "35": 2,
     "36": 2,
     "37": 3,
-    "38": 3,
-    "4": 23,
-    "5": 2,
-    "6": 21,
-    "7": 24,
-    "8": 15,
-    "9": 11
+    "38": 3
   },
   "module_selection_strategy": "correlation_thresholds",
   "assignment_policy": "cutoff_binary",

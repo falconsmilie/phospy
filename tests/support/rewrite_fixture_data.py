@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 from functools import lru_cache
 from pathlib import Path
@@ -116,6 +117,9 @@ RAT_L6_SITE_SEQUENCES = (
     / "l6_native"
     / "site_sequences.csv"
 )
+SIGNALOME_REWRITE_L6_ASSIGNMENTS = (
+    REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_module_assignments.csv"
+)
 SIGNALOME_REWRITE_L6_ASSIGNMENTS_SELECTED = (
     REWRITE_PUBLIC_WORKFLOW_REFERENCE
     / "signalome_rewrite_l6_module_assignments_selected.csv"
@@ -126,9 +130,15 @@ SIGNALOME_REWRITE_L6_MODULES = (
 SIGNALOME_REWRITE_L6_NETWORK_NODES = (
     REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_network_nodes.csv"
 )
+SIGNALOME_REWRITE_L6_NETWORK_EDGES = (
+    REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_network_edges.csv"
+)
 SIGNALOME_REWRITE_L6_NETWORK_EDGES_SELECTED = (
     REWRITE_PUBLIC_WORKFLOW_REFERENCE
     / "signalome_rewrite_l6_network_edges_selected.csv"
+)
+SIGNALOME_REWRITE_L6_EXPANDED_SIGNALOME = (
+    REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_expanded_signalome.csv"
 )
 SIGNALOME_REWRITE_L6_EXPANDED_AKT1_SELECTED = (
     REWRITE_PUBLIC_WORKFLOW_REFERENCE
@@ -482,6 +492,13 @@ def load_signalome_rewrite_l6_module_assignments_selected() -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
+def load_signalome_rewrite_l6_module_assignments() -> pd.DataFrame:
+    frame = pd.read_csv(SIGNALOME_REWRITE_L6_ASSIGNMENTS, index_col=0)
+    frame.index = pd.Index(frame.index.astype(str), name="site_id")
+    return frame
+
+
+@lru_cache(maxsize=1)
 def load_signalome_rewrite_l6_modules() -> pd.DataFrame:
     frame = pd.read_csv(SIGNALOME_REWRITE_L6_MODULES, index_col=0)
     frame.index = pd.Index(frame.index.astype("int64"), name="module_id")
@@ -508,6 +525,38 @@ def load_signalome_rewrite_l6_network_edges_selected() -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
+def load_signalome_rewrite_l6_network_edges() -> pd.DataFrame:
+    return pd.read_csv(SIGNALOME_REWRITE_L6_NETWORK_EDGES).astype(
+        {
+            "source_kinase": str,
+            "target_kinase": str,
+            "correlation": float,
+        }
+    )
+
+
+@lru_cache(maxsize=1)
+def load_signalome_rewrite_l6_expanded_signalome() -> pd.DataFrame:
+    return pd.read_csv(SIGNALOME_REWRITE_L6_EXPANDED_SIGNALOME).astype(
+        {
+            "kinase": str,
+            "row_kind": str,
+            "assignment_policy": str,
+            "linked_kinases": str,
+            "regulated_module_ids": str,
+            "site_id": str,
+            "site_order": "int64",
+            "protein_id": str,
+            "module_id": "int64",
+            "support_kinases": str,
+            "support_weight": float,
+            "top_kinase": str,
+            "top_score": float,
+        }
+    )
+
+
+@lru_cache(maxsize=1)
 def load_signalome_rewrite_l6_expanded_akt1_selected() -> pd.DataFrame:
     return pd.read_csv(SIGNALOME_REWRITE_L6_EXPANDED_AKT1_SELECTED).astype(
         {
@@ -524,6 +573,132 @@ def load_signalome_rewrite_l6_expanded_akt1_selected() -> pd.DataFrame:
             "top_score": float,
         }
     )
+
+
+def _normalize_signalome_collection_value(value: object) -> str:
+    parsed = value
+    if value is None:
+        return "[]"
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped == "":
+            return "[]"
+        try:
+            parsed = ast.literal_eval(stripped)
+        except (ValueError, SyntaxError):
+            return stripped
+    elif not isinstance(value, (tuple, list)) and pd.isna(value):
+        return "[]"
+    if isinstance(parsed, (tuple, list)):
+        return json.dumps(
+            [str(item) if item is not None else "" for item in parsed],
+            ensure_ascii=True,
+            separators=(",", ":"),
+        )
+    return str(parsed)
+
+
+def normalize_signalome_modules_for_parity(frame: pd.DataFrame) -> pd.DataFrame:
+    normalized = frame.copy(deep=True)
+    normalized.index = pd.Index(normalized.index.astype("int64"), name="module_id")
+    normalized.columns = pd.Index(normalized.columns.astype(str), name="kinase")
+    return normalized.astype(float).sort_index().sort_index(axis=1)
+
+
+def normalize_signalome_module_assignments_for_parity(
+    frame: pd.DataFrame,
+) -> pd.DataFrame:
+    normalized = frame.copy(deep=True)
+    normalized.index = pd.Index(normalized.index.astype(str), name="site_id")
+    collection_columns = (
+        "top_kinase_candidates",
+        "top_kinase_weights",
+        "module_top_kinase_candidates",
+    )
+    for column in collection_columns:
+        if column in normalized.columns:
+            normalized.loc[:, column] = normalized.loc[:, column].map(
+                _normalize_signalome_collection_value
+            )
+    bool_columns = (
+        "top_kinase_is_ambiguous",
+        "module_top_kinase_is_ambiguous",
+    )
+    for column in bool_columns:
+        if column in normalized.columns:
+            normalized.loc[:, column] = normalized.loc[:, column].map(
+                lambda value: (
+                    value
+                    if isinstance(value, bool)
+                    else str(value).strip().lower() == "true"
+                )
+            )
+    int_columns = (
+        "module_id",
+        "top_kinase_tie_count",
+        "module_top_kinase_tie_count",
+    )
+    for column in int_columns:
+        if column in normalized.columns:
+            normalized.loc[:, column] = normalized.loc[:, column].astype("int64")
+    if "top_score" in normalized.columns:
+        normalized.loc[:, "top_score"] = normalized.loc[:, "top_score"].astype(float)
+    return normalized.sort_index()
+
+
+def normalize_signalome_network_nodes_for_parity(frame: pd.DataFrame) -> pd.DataFrame:
+    normalized = frame.copy(deep=True)
+    normalized.index = pd.Index(normalized.index.astype(str), name="kinase")
+    normalized = normalized.astype({"degree": "int64", "n_substrates": "int64"})
+    return normalized.sort_index()
+
+
+def normalize_signalome_network_edges_for_parity(frame: pd.DataFrame) -> pd.DataFrame:
+    normalized = frame.copy(deep=True).astype(
+        {
+            "source_kinase": str,
+            "target_kinase": str,
+            "correlation": float,
+        }
+    )
+    return normalized.sort_values(
+        ["source_kinase", "target_kinase"],
+        kind="mergesort",
+    ).reset_index(drop=True)
+
+
+def normalize_signalome_expanded_signalome_for_parity(
+    frame: pd.DataFrame,
+) -> pd.DataFrame:
+    normalized = frame.copy(deep=True).astype(
+        {
+            "kinase": str,
+            "row_kind": str,
+            "assignment_policy": str,
+            "linked_kinases": str,
+            "regulated_module_ids": str,
+            "site_id": str,
+            "site_order": "int64",
+            "protein_id": str,
+            "module_id": "int64",
+            "support_kinases": str,
+            "support_weight": float,
+            "top_kinase": str,
+            "top_score": float,
+        }
+    )
+    return normalized.sort_values(
+        [
+            "kinase",
+            "row_kind",
+            "site_id",
+            "site_order",
+            "module_id",
+            "protein_id",
+            "top_kinase",
+        ],
+        kind="mergesort",
+    ).reset_index(drop=True)
 
 
 def site_metadata_for(phospho: pd.DataFrame) -> pd.DataFrame:

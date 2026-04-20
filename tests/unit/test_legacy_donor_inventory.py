@@ -77,7 +77,7 @@ def test_key_donor_areas_pin_expected_rewrite_parity_blockers() -> None:
         ),
         "expanded signalome outputs": (
             "tests/parity/test_signalome_workflow_parity.py::"
-            "test_signalome_expanded_slice_matches_l6_selected_akt1_fixture",
+            "test_signalome_expanded_signalome_matches_l6_full_fixture_table_with_tolerance",
         ),
     }
     inventory_by_area = _inventory_by_area()

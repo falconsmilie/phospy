@@ -31,10 +31,11 @@ Provenance is documented in:
 Committed workflow regression expectations for the public
 `SignalomeWorkflow` lane:
 
-- `signalome_rewrite_l6_module_assignments_selected.csv`
+- `signalome_rewrite_l6_module_assignments.csv`
 - `signalome_rewrite_l6_modules.csv`
 - `signalome_rewrite_l6_network_nodes.csv`
-- `signalome_rewrite_l6_network_edges_selected.csv`
+- `signalome_rewrite_l6_network_edges.csv`
+- `signalome_rewrite_l6_expanded_signalome.csv`
 - `signalome_rewrite_l6_contract.json`
 
 ## Historical Archive
