@@ -1,10 +1,22 @@
-"""Public workflow and stage configuration models."""
+"""Public workflow and dataset-preprocessing configuration models."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Literal
 
+DATASET_MISSING_DATA_POLICY_FORBID = "forbid"
+DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN = "impute_row_median"
+DatasetMissingDataPolicy = Literal[
+    "forbid",
+    "impute_row_median",
+]
+DATASET_MISSING_DATA_POLICIES = frozenset(
+    {
+        DATASET_MISSING_DATA_POLICY_FORBID,
+        DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
+    }
+)
 KINASE_SCORING_MIN_SUBSTRATES_FLOOR = 2
 KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT = "strict"
 KINASE_PROFILE_MISSING_VALUE_STRATEGY_MEDIAN_SKIPNA = "median_skipna"
@@ -74,6 +86,25 @@ KINASE_ADAPTIVE_POLICIES = frozenset(
     }
 )
 KINASE_PREDICTION_DEFAULT_ITERATIONS = 5
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetPreprocessingConfig:
+    """Public preprocessing policy for dataset building.
+
+    `missing_data_policy` controls how missing values in `phospho` are handled:
+
+    - `"forbid"`: do not preprocess missing values (strict default behavior).
+    - `"impute_row_median"`: for each site row, drop rows with fewer than
+      `min_observed_values` quantified samples, then impute remaining missing
+      values with that row's observed-value median.
+
+    `min_observed_values` is required for `"impute_row_median"` and must stay
+    unset for `"forbid"`.
+    """
+
+    missing_data_policy: DatasetMissingDataPolicy = DATASET_MISSING_DATA_POLICY_FORBID
+    min_observed_values: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,6 +214,9 @@ class SignalomeConfig:
 
 
 __all__ = [
+    "DATASET_MISSING_DATA_POLICIES",
+    "DATASET_MISSING_DATA_POLICY_FORBID",
+    "DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN",
     "KINASE_ADAPTIVE_POLICIES",
     "KINASE_ADAPTIVE_POLICY_R_PARITY",
     "KINASE_ADAPTIVE_POLICY_STABLE",
@@ -211,6 +245,8 @@ __all__ = [
     "SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT",
     "SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR",
     "SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT",
+    "DatasetMissingDataPolicy",
+    "DatasetPreprocessingConfig",
     "KinaseAdaptivePolicy",
     "KinaseProfileMissingValueStrategy",
     "KinasePredictionMode",

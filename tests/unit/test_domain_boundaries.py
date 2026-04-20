@@ -4,11 +4,13 @@ import pandas as pd
 import pytest
 
 import phospy.io as phospy_io
+from phospy.api.configs import DatasetPreprocessingConfig
 from phospy.api.requests import DatasetBuildRequest
 from phospy.datasets.builders.public import AnalysisReadyDatasetBuilder
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import (
     DatasetValidationError,
+    PhosPyInputError,
     ReferenceCompatibilityError,
     ReferenceResolutionError,
     ReferenceValidationError,
@@ -337,6 +339,24 @@ def test_builder_supports_file_path_inputs(tmp_path) -> None:
     )
     assert list(built.phospho.index) == ["MAPK14;Y182;"]
     assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"]
+
+
+def test_builder_rejects_preprocessing_threshold_above_sample_count() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="cannot exceed the number of phospho samples",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=_phospho(),
+                site_metadata=_site_metadata(),
+                organism=Organism.RAT,
+                preprocessing_config=DatasetPreprocessingConfig(
+                    missing_data_policy="impute_row_median",
+                    min_observed_values=3,
+                ),
+            )
+        )
 
 
 def test_builder_derives_site_sequence_for_supported_organism() -> None:

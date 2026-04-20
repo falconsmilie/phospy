@@ -6,6 +6,7 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
+    DatasetPreprocessingConfig,
     KinaseActivityConfig,
     KinaseActivityResult,
     KinasePredictionConfig,
@@ -234,6 +235,53 @@ def test_builder_orchestration_uses_collaborators() -> None:
         executor=ExecutorSpy(),
     )
     built = builder.run(request)
+    assert built is dataset
+    assert calls == ["validator", "interpreter", "executor"]
+
+
+def test_builder_orchestration_threads_preprocessing_config_to_executor() -> None:
+    dataset = _dataset()
+    request = DatasetBuildRequest(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        preprocessing_config=DatasetPreprocessingConfig(
+            missing_data_policy="impute_row_median",
+            min_observed_values=2,
+        ),
+    )
+    calls: list[str] = []
+
+    class ValidatorSpy:
+        def run(self, req: DatasetBuildRequest) -> DatasetBuildRequest:
+            calls.append("validator")
+            return req
+
+    class InterpreterSpy:
+        def run(self, req: DatasetBuildRequest) -> InterpretedDatasetBuildRequest:
+            calls.append("interpreter")
+            return InterpretedDatasetBuildRequest(
+                phospho=req.phospho,
+                site_metadata=req.site_metadata,
+                sample_metadata=req.sample_metadata,
+                total=req.total,
+                organism=req.organism,
+                preprocessing_config=req.preprocessing_config,
+            )
+
+    class ExecutorSpy:
+        def run(
+            self, req: InterpretedDatasetBuildRequest
+        ) -> AnalysisReadyPhosphoDataset:
+            calls.append("executor")
+            assert req.preprocessing_config == request.preprocessing_config
+            return dataset
+
+    built = AnalysisReadyDatasetBuilder(
+        validator=ValidatorSpy(),
+        interpreter=InterpreterSpy(),
+        executor=ExecutorSpy(),
+    ).run(request)
     assert built is dataset
     assert calls == ["validator", "interpreter", "executor"]
 

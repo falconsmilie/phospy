@@ -61,4 +61,5 @@ class DatasetBuildRequestInterpreter:
             sample_metadata=normalized.sample_metadata,
             total=normalized.total,
             organism=request.organism,
+            preprocessing_config=request.preprocessing_config,
         )

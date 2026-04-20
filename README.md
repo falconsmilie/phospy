@@ -19,6 +19,8 @@ pip install .
   `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`.
 - The builder supports both public input routes:
   pandas `DataFrame` values and table file paths (`.csv`, `.tsv`/`.txt`, `.parquet`).
+- Builder preprocessing policy is configured through
+  `DatasetBuildRequest.preprocessing_config` (`DatasetPreprocessingConfig`).
 - Public workflows are:
   `KinaseWorkflow().run(KinaseWorkflowRequest(...))` and
   `SignalomeWorkflow().run(SignalomeWorkflowRequest(...))`.
@@ -41,6 +43,9 @@ pip install .
 - Public builder transformation policy is currently narrow and explicit:
   it establishes only the supported pass-through `linear` state and does not
   apply additional preprocessing transforms to quantitative matrices.
+- Missing-data preprocessing policy is explicit and narrow:
+  `preprocessing_config.missing_data_policy="forbid"` (default) or
+  `"impute_row_median"` (requires `preprocessing_config.min_observed_values`).
 - Workflows consume only `AnalysisReadyPhosphoDataset` (not raw input files/frames).
 
 ## Supported Science vs Deferred

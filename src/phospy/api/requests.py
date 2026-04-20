@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from phospy.api.configs import (
+    DatasetPreprocessingConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -31,6 +32,9 @@ class DatasetBuildRequest:
     sample_metadata: DatasetInput | None = None
     total: DatasetInput | None = None
     organism: Organism | None = None
+    preprocessing_config: DatasetPreprocessingConfig = field(
+        default_factory=DatasetPreprocessingConfig
+    )
 
 
 @dataclass(frozen=True, slots=True)

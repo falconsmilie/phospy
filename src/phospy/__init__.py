@@ -2,6 +2,7 @@
 
 from phospy.api.builders import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
+    DatasetPreprocessingConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -51,6 +52,7 @@ __all__ = [
     "AnalysisReadyDatasetBuilder",
     "AnalysisReadyPhosphoDataset",
     "DatasetBuildRequest",
+    "DatasetPreprocessingConfig",
     "DatasetBuildError",
     "DatasetValidationError",
     "InvalidTransformationStateError",

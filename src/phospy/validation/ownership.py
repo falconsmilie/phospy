@@ -23,6 +23,10 @@ VALIDATION_RULE_OWNERS: tuple[ValidationRuleOwner, ...] = (
         owner="DatasetInputSourceValidator.run",
     ),
     ValidationRuleOwner(
+        rule="dataset build preprocessing config policy",
+        owner="DatasetPreprocessingConfigValidator.run",
+    ),
+    ValidationRuleOwner(
         rule="kinase workflow request config policy",
         owner="WorkflowConfigValidator.run_kinase_*",
     ),

@@ -11,7 +11,11 @@ import tomllib
 
 import phospy
 import phospy.io as phospy_io
-from phospy import AnalysisReadyDatasetBuilder, DatasetBuildRequest
+from phospy import (
+    AnalysisReadyDatasetBuilder,
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+)
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,6 +50,7 @@ def test_public_dataset_ingestion_story_is_builder_only() -> None:
         "AnalysisReadyDatasetBuilder",
         "AnalysisReadyPhosphoDataset",
         "DatasetBuildRequest",
+        "DatasetPreprocessingConfig",
     }
     assert not hasattr(phospy, "build_dataset_from_files")
     assert not hasattr(phospy_io, "build_dataset_from_files")
@@ -71,3 +76,8 @@ def test_dataset_build_request_rejects_user_declared_transformation_state() -> N
             site_metadata=object(),
             transformation_state=object(),  # type: ignore[call-arg]
         )
+
+
+def test_dataset_preprocessing_config_is_top_level_public_type() -> None:
+    assert "DatasetPreprocessingConfig" in phospy.__all__
+    assert DatasetPreprocessingConfig().missing_data_policy == "forbid"

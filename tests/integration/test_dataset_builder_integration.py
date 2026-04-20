@@ -7,6 +7,7 @@ import pytest
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    DatasetPreprocessingConfig,
     Organism,
     ReferencePreset,
 )
@@ -122,6 +123,34 @@ def test_dataset_builder_preserves_explicit_protein_identity_column() -> None:
         built.site_metadata.loc[:, "protein_id"].tolist()
         == site_metadata.loc[:, "protein_id"].tolist()
     )
+
+
+def test_dataset_builder_supports_row_median_missing_data_preprocessing_policy() -> (
+    None
+):
+    phospho = load_rat_l6_phospho().head(4).copy(deep=True)
+    phospho.iloc[0, 0] = float("nan")
+    phospho.iloc[1, :] = float("nan")
+    original_index = phospho.index.copy()
+    expected_imputed = phospho.loc[original_index[0]].median(skipna=True)
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata_for(phospho),
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                missing_data_policy="impute_row_median",
+                min_observed_values=2,
+            ),
+        )
+    )
+
+    assert built.phospho.index.tolist() == [
+        site_id for site_id in original_index.tolist() if site_id != original_index[1]
+    ]
+    assert built.phospho.isna().to_numpy().sum() == 0
+    assert built.phospho.loc[original_index[0], phospho.columns[0]] == expected_imputed
 
 
 def test_reference_bundle_rat_tables_are_structurally_coherent() -> None:

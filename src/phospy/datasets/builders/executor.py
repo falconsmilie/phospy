@@ -7,6 +7,7 @@ transformation state while preserving analysis-ready matrix values.
 from __future__ import annotations
 
 from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
+from phospy.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.datasets.builders.transformation_resolver import (
     DatasetTransformationResolver,
 )
@@ -34,6 +35,7 @@ class DatasetBuildExecutor:
         *,
         transformer: Transformer | None = None,
         transformation_resolver: DatasetTransformationResolver | None = None,
+        preprocessor: DatasetPreprocessor | None = None,
     ) -> None:
         self._transformation_resolver = (
             transformation_resolver
@@ -41,13 +43,19 @@ class DatasetBuildExecutor:
                 transformer=transformer or IdentityTransformer()
             )
         )
+        self._preprocessor = preprocessor or DatasetPreprocessor()
 
     def run(
         self, request: InterpretedDatasetBuildRequest
     ) -> AnalysisReadyPhosphoDataset:
         try:
-            resolved = self._transformation_resolver.run(
+            preprocessed = self._preprocessor.run(
                 phospho=request.phospho,
+                site_metadata=request.site_metadata,
+                config=request.preprocessing_config,
+            )
+            resolved = self._transformation_resolver.run(
+                phospho=preprocessed.phospho,
                 total=request.total,
             )
             if not resolved.transformation_state.is_established:
@@ -58,7 +66,7 @@ class DatasetBuildExecutor:
                 )
             return AnalysisReadyPhosphoDataset._from_owned(
                 phospho=resolved.phospho,
-                site_metadata=request.site_metadata,
+                site_metadata=preprocessed.site_metadata,
                 sample_metadata=request.sample_metadata,
                 total=resolved.total,
                 organism=request.organism,

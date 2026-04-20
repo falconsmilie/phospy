@@ -6,15 +6,22 @@ from phospy.api.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.references.models import Organism
 from phospy.validation.datasets.inputs import DatasetInputSourceValidator
+from phospy.validation.datasets.preprocessing import DatasetPreprocessingConfigValidator
 
 
 class DatasetBuildRequestValidator:
     """Validate the supported subset of `DatasetBuildRequest`."""
 
     def __init__(
-        self, *, source_validator: DatasetInputSourceValidator | None = None
+        self,
+        *,
+        source_validator: DatasetInputSourceValidator | None = None,
+        preprocessing_validator: DatasetPreprocessingConfigValidator | None = None,
     ) -> None:
         self._source_validator = source_validator or DatasetInputSourceValidator()
+        self._preprocessing_validator = (
+            preprocessing_validator or DatasetPreprocessingConfigValidator()
+        )
 
     def run(self, request: DatasetBuildRequest) -> DatasetBuildRequest:
         if not isinstance(request, DatasetBuildRequest):
@@ -27,4 +34,5 @@ class DatasetBuildRequestValidator:
         self._source_validator.run(request.total, field_name="total", allow_none=True)
         if request.organism is not None and not isinstance(request.organism, Organism):
             raise PhosPyInputError("dataset build request organism must be an Organism")
+        self._preprocessing_validator.run(request.preprocessing_config)
         return request

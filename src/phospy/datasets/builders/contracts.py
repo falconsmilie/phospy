@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 import pandas as pd
 
+from phospy.api.configs import DatasetPreprocessingConfig
 from phospy.references.models import Organism
 
 if TYPE_CHECKING:
@@ -27,6 +28,9 @@ class InterpretedDatasetBuildRequest:
     sample_metadata: pd.DataFrame | None
     total: pd.DataFrame | None
     organism: Organism | None
+    preprocessing_config: DatasetPreprocessingConfig = field(
+        default_factory=DatasetPreprocessingConfig
+    )
 
 
 class DatasetBuildValidatorContract(Protocol):

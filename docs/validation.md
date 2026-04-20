@@ -22,6 +22,10 @@ Validation is split across three boundaries:
 - `pandas.DataFrame`
 - file path (`str`, `Path`, `PathLike`) to `.csv`, `.tsv`/`.txt`, `.parquet`
 
+Builder preprocessing config is nested under
+`DatasetBuildRequest.preprocessing_config` and validated as one policy object
+rather than root-level scalar fields.
+
 This flexibility exists only at the builder input boundary.
 
 After source loading, both routes pass through the same normalization path:
@@ -30,6 +34,13 @@ After source loading, both routes pass through the same normalization path:
 - site-metadata alias resolution
 - optional derivation of `gene_symbol` and `site` from strict index format
 - fail-fast rejection of ambiguous/unsupported legacy aliases
+
+Before final dataset construction, supported preprocessing policy is applied to
+`phospho` according to `preprocessing_config.missing_data_policy`:
+
+- `"forbid"` (default): no missing-value preprocessing
+- `"impute_row_median"`: drop rows below `min_observed_values`, then row-median
+  imputation for remaining missing phospho values
 
 `AnalysisReadyPhosphoDataset` itself is strict and DataFrame-only.
 Workflows consume only this dataset type.
@@ -66,6 +77,15 @@ or supported bundle reconstruction lane).
 In the current public builder lane, this establishment path is intentionally
 narrow: builder execution establishes pass-through `linear` state only.
 No additional transformation mode is publicly selectable.
+
+## Builder Preprocessing Policy Rules
+
+`DatasetPreprocessingConfig` validation enforces:
+
+- `missing_data_policy` must be one of `forbid`, `impute_row_median`
+- `min_observed_values` must be `None` when policy is `forbid`
+- `min_observed_values` must be an integer `>= 1` when policy is `impute_row_median`
+- at execution, `min_observed_values` must not exceed phospho sample count
 
 ## Builder Convention Rules
 
@@ -179,6 +199,7 @@ Optional outputs must be checked before dereference:
 | Invariant | Owner |
 | --- | --- |
 | Builder input source type checks | `DatasetBuildRequestValidator` + `DatasetInputSourceValidator` |
+| Builder preprocessing config policy | `DatasetPreprocessingConfigValidator` |
 | Builder convention normalization/derivation | `DatasetBuildRequestInterpreter` collaborators |
 | Analysis-ready dataset structure/content | `AnalysisReadyDatasetValidator` |
 | Transformation-state coherence and establishment | `TransformationStateValidator` |

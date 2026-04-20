@@ -8,6 +8,7 @@ import pandas as pd
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    DatasetPreprocessingConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
     KinaseWorkflowRequest,
@@ -47,6 +48,9 @@ def _build_kinase_result() -> KinaseWorkflowResult:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                missing_data_policy="forbid",
+            ),
         )
     )
     references = ReferenceBundle(

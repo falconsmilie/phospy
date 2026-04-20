@@ -124,6 +124,10 @@ def test_major_validation_rules_have_documented_owners() -> None:
     documented = {entry.rule: entry.owner for entry in VALIDATION_RULE_OWNERS}
     assert len(documented) == len(VALIDATION_RULE_OWNERS)
     assert documented["dataset build request input source types"]
+    assert (
+        documented["dataset build preprocessing config policy"]
+        == "DatasetPreprocessingConfigValidator.run"
+    )
     assert documented["kinase workflow request config policy"]
     assert documented["signalome workflow request config policy"]
     assert (

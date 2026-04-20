@@ -38,8 +38,8 @@ Import from top-level `phospy`.
   `KinaseWorkflow`, `KinaseWorkflowRequest`,
   `SignalomeWorkflow`, `SignalomeWorkflowRequest`
 - Config models:
-  `KinaseScoringConfig`, `KinasePredictionConfig`, `KinaseActivityConfig`,
-  `SignalomeConfig`
+  `DatasetPreprocessingConfig`, `KinaseScoringConfig`,
+  `KinasePredictionConfig`, `KinaseActivityConfig`, `SignalomeConfig`
 - Result models:
   `KinaseWorkflowResult`, `SignalomeWorkflowResult`,
   `KinaseScoringResult`, `KinasePredictionResult`, `KinaseActivityResult`
@@ -63,6 +63,7 @@ Optional request fields:
 - `sample_metadata`
 - `total`
 - `organism`
+- `preprocessing_config` (`DatasetPreprocessingConfig`)
 
 After loading, both routes share the same normalization and validation path.
 
@@ -87,6 +88,16 @@ intentionally narrow:
 - builder execution establishes only the supported pass-through `linear` state
 - quantitative matrix values are preserved as provided after builder normalization
 - no additional log or heuristic transformation path is exposed in the public builder
+
+`DatasetPreprocessingConfig` currently supports a narrow missing-data policy contract:
+
+- `missing_data_policy="forbid"` (default): no missing-value preprocessing is applied.
+- `missing_data_policy="impute_row_median"`: phosphosite rows with fewer than
+  `min_observed_values` quantified samples are dropped, then remaining missing
+  phospho values are imputed with each row median.
+- `min_observed_values` is required for `"impute_row_median"` and must be
+  `None` for `"forbid"`.
+- No additional preprocessing knobs are currently public.
 
 ## Final Dataset Boundary
 
@@ -335,6 +346,7 @@ Top-level `phospy` exports the public exception taxonomy:
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    DatasetPreprocessingConfig,
     KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
@@ -346,6 +358,9 @@ dataset = AnalysisReadyDatasetBuilder().run(
         phospho="./input/phospho.csv",
         site_metadata="./input/site_metadata.csv",
         organism=Organism.RAT,
+        preprocessing_config=DatasetPreprocessingConfig(
+            missing_data_policy="forbid",
+        ),
     )
 )
 

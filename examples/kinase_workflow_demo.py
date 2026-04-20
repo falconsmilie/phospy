@@ -12,6 +12,7 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
+    DatasetPreprocessingConfig,
     KinaseActivityConfig,
     KinaseScoringConfig,
     KinaseWorkflow,
@@ -47,6 +48,9 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                missing_data_policy="forbid",
+            ),
         )
     )
 

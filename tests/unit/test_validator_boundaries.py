@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from phospy.api.configs import (
+    DatasetPreprocessingConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -124,6 +125,92 @@ def test_dataset_build_request_checks_organism_type_at_validator_boundary() -> N
         organism="rat",
     )
     with pytest.raises(PhosPyInputError, match="organism must be an Organism"):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_has_default_preprocessing_config() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+    )
+    validated = DatasetBuildRequestValidator().run(request)
+    assert validated.preprocessing_config.missing_data_policy == "forbid"
+    assert validated.preprocessing_config.min_observed_values is None
+
+
+def test_dataset_build_request_rejects_unknown_missing_data_policy() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            missing_data_policy="unsupported",  # type: ignore[arg-type]
+        ),
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="preprocessing_config.missing_data_policy must be one of",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_rejects_impute_policy_without_min_observed_values() -> (
+    None
+):
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            missing_data_policy="impute_row_median"
+        ),
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="min_observed_values must be an int when missing_data_policy='impute_row_median'",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_rejects_min_observed_values_for_forbid_policy() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            missing_data_policy="forbid",
+            min_observed_values=1,
+        ),
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="min_observed_values must be None when missing_data_policy='forbid'",
+    ):
         DatasetBuildRequestValidator().run(request)
 
 
