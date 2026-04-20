@@ -21,6 +21,9 @@ REWRITE_PARITY_REFERENCE = (
 REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE = (
     ROOT / "tests" / "fixtures" / "rewrite_parity" / "fragile_support_reference"
 )
+REWRITE_PARITY_FRAGILE_SUPPORT_MOTIF_MATRICES = (
+    REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "motif_frequency_matrices"
+)
 REWRITE_PARITY_L6_PREDICTION_REFERENCE = (
     ROOT / "tests" / "fixtures" / "rewrite_parity" / "r_reference_l6_prediction"
 )
@@ -276,6 +279,33 @@ def load_fragile_support_motif_scores() -> pd.DataFrame:
         REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "motif_scores.csv",
         index_col=0,
     )
+
+
+@lru_cache(maxsize=1)
+def load_fragile_support_motif_scores_full() -> pd.DataFrame:
+    return pd.read_csv(
+        REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "motif_scores_full.csv",
+        index_col=0,
+    )
+
+
+@lru_cache(maxsize=1)
+def load_fragile_support_motif_site_sequences_full() -> pd.Series:
+    frame = pd.read_csv(
+        REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "motif_site_sequences_full.csv"
+    ).astype({"site_id": str, "centralized_sequence": str})
+    sequence_series = frame.set_index("site_id").loc[:, "centralized_sequence"]
+    sequence_series.index = pd.Index(sequence_series.index.astype(str), name="site_id")
+    sequence_series.name = "centralized_sequence"
+    return sequence_series
+
+
+@lru_cache(maxsize=1)
+def load_fragile_support_motif_frequency_matrices() -> dict[str, pd.DataFrame]:
+    matrices: dict[str, pd.DataFrame] = {}
+    for path in sorted(REWRITE_PARITY_FRAGILE_SUPPORT_MOTIF_MATRICES.glob("*.csv")):
+        matrices[path.stem] = pd.read_csv(path, index_col=0).astype(float)
+    return matrices
 
 
 @lru_cache(maxsize=1)

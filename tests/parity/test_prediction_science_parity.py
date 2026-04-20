@@ -6,7 +6,6 @@ import pytest
 
 from phospy.prediction.candidates import build_candidate_substrate_list
 from phospy.prediction.motif_scoring import (
-    build_motif_library_from_sequences,
     score_phosphosite_motifs,
 )
 from phospy.prediction.scoring import combine_profile_and_motif_scores
@@ -19,13 +18,19 @@ from tests.support.rewrite_fixture_data import (
     load_fragile_support_candidate_substrates,
     load_fragile_support_combined_scores,
     load_fragile_support_combined_weights,
+    load_fragile_support_motif_frequency_matrices,
     load_fragile_support_motif_scores,
+    load_fragile_support_motif_scores_full,
+    load_fragile_support_motif_site_sequences_full,
     load_fragile_support_motif_sizes,
     load_fragile_support_profile_scores,
     load_fragile_support_profile_sizes,
 )
 
 pytestmark = pytest.mark.parity
+MOTIF_NUMERIC_RTOL = 0.0
+# Motif scoring is deterministic; this tolerance only absorbs binary float noise.
+MOTIF_NUMERIC_ATOL = 1e-12
 
 
 def _mean_column_correlation(
@@ -49,45 +54,75 @@ def _mean_column_correlation(
     return float(pd.Series(correlations).mean())
 
 
+def _assert_numeric_table_parity(
+    observed: pd.DataFrame,
+    expected: pd.DataFrame,
+    *,
+    rtol: float,
+    atol: float,
+) -> None:
+    assert observed.index.tolist() == expected.index.tolist()
+    assert observed.columns.tolist() == expected.columns.tolist()
+    pdt.assert_frame_equal(
+        observed,
+        expected,
+        check_dtype=False,
+        check_exact=False,
+        check_names=False,
+        rtol=rtol,
+        atol=atol,
+    )
+
+
 def test_motif_scoring_matches_fragile_support_reference_points(
     request: pytest.FixtureRequest,
 ) -> None:
-    sequence_frame = pd.read_csv(
-        "tests/fixtures/rewrite_parity/fragile_support_reference/site_sequences.csv"
-    )
-    sequence_series = (
-        sequence_frame.set_index("site_id").loc[:, "centralized_sequence"].astype(str)
-    )
-    motif_sequences = pd.read_csv(
-        "tests/fixtures/rewrite_parity/fragile_support_reference/motif_sequences.csv"
-    )
-    motif_sequence_map = {
-        str(kinase): group.loc[:, "sequence"].astype(str).tolist()
-        for kinase, group in motif_sequences.groupby("kinase", sort=False)
-    }
-    expected = load_fragile_support_motif_scores()
+    expected_full = load_fragile_support_motif_scores_full()
+    expected_subset = load_fragile_support_motif_scores()
+    expected_sizes = load_fragile_support_motif_sizes().sort_index()
 
-    motif_matrices, motif_sizes = build_motif_library_from_sequences(
-        motif_sequences=motif_sequence_map,
-    )
-    observed = score_phosphosite_motifs(
-        site_sequences=sequence_series,
-        motif_frequency_matrices=motif_matrices,
-        motif_sizes=motif_sizes,
-        site_index=expected.index,
+    observed_result = score_phosphosite_motifs(
+        site_sequences=load_fragile_support_motif_site_sequences_full(),
+        motif_frequency_matrices=load_fragile_support_motif_frequency_matrices(),
+        motif_sizes=expected_sizes,
+        site_index=expected_full.index,
         min_motif_size=1,
-    ).motif_scores
+    )
+    observed_full = observed_result.motif_scores
+    observed_subset = observed_full.loc[expected_subset.index, expected_subset.columns]
 
-    assert list(observed.index) == list(expected.index)
-    assert set(observed.columns) == set(expected.columns)
-    assert ((observed >= 0.0) & (observed <= 1.0)).all().all()
+    pdt.assert_series_equal(
+        observed_result.motif_sizes.sort_index(),
+        expected_sizes,
+        check_dtype=False,
+        check_exact=True,
+    )
+    _assert_numeric_table_parity(
+        observed_full,
+        expected_full,
+        rtol=MOTIF_NUMERIC_RTOL,
+        atol=MOTIF_NUMERIC_ATOL,
+    )
+    _assert_numeric_table_parity(
+        observed_subset,
+        expected_subset,
+        rtol=MOTIF_NUMERIC_RTOL,
+        atol=MOTIF_NUMERIC_ATOL,
+    )
+    assert ((observed_full >= 0.0) & (observed_full <= 1.0)).all().all()
+
+    full_delta = (observed_full - expected_full).abs().to_numpy()
+    subset_delta = (observed_subset - expected_subset).abs().to_numpy()
     record_parity_metrics(
         request.config,
         family="prediction_science",
         metrics=[
-            ("motif score table shape", format_shape(*observed.shape)),
-            ("sites compared", observed.shape[0]),
-            ("kinases compared", observed.shape[1]),
+            ("motif score full-table parity", "pass"),
+            ("motif score full-table shape", format_shape(*observed_full.shape)),
+            ("motif score subset-table shape", format_shape(*observed_subset.shape)),
+            ("motif score full max abs diff", float(full_delta.max())),
+            ("motif score subset max abs diff", float(subset_delta.max())),
+            ("motif sizes compared", int(expected_sizes.shape[0])),
         ],
     )
 
