@@ -101,6 +101,9 @@ class DatasetPreprocessingConfig:
 
     `min_observed_values` is required for `"impute_row_median"` and must stay
     unset for `"forbid"`.
+
+    Builder internals interpret this config into an ordered preprocessing plan
+    executed inside the dataset-owned preprocessing subsystem.
     """
 
     missing_data_policy: DatasetMissingDataPolicy = DATASET_MISSING_DATA_POLICY_FORBID

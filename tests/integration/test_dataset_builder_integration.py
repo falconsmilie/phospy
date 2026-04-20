@@ -11,6 +11,7 @@ from phospy import (
     Organism,
     ReferencePreset,
 )
+from phospy.errors import DatasetValidationError
 from phospy.references.resolution import ReferenceResolver
 from phospy.transformations.models import TransformationState
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
@@ -151,6 +152,20 @@ def test_dataset_builder_supports_row_median_missing_data_preprocessing_policy()
     ]
     assert built.phospho.isna().to_numpy().sum() == 0
     assert built.phospho.loc[original_index[0], phospho.columns[0]] == expected_imputed
+
+
+def test_dataset_builder_default_forbid_policy_keeps_missingness_strict() -> None:
+    phospho = load_rat_l6_phospho().head(4).copy(deep=True)
+    phospho.iloc[0, 0] = float("nan")
+
+    with pytest.raises(DatasetValidationError, match="must not contain missing values"):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata_for(phospho),
+                organism=Organism.RAT,
+            )
+        )
 
 
 def test_reference_bundle_rat_tables_are_structurally_coherent() -> None:

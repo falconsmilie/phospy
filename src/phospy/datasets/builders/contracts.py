@@ -33,6 +33,16 @@ class InterpretedDatasetBuildRequest:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class PreprocessedDatasetBuildTables:
+    """Tables after internal preprocessing and before state establishment."""
+
+    phospho: pd.DataFrame
+    site_metadata: pd.DataFrame
+    sample_metadata: pd.DataFrame | None
+    total: pd.DataFrame | None
+
+
 class DatasetBuildValidatorContract(Protocol):
     """Internal contract for dataset build request validation."""
 
@@ -56,10 +66,27 @@ class DatasetBuildExecutorContract(Protocol):
         """Execute builder logic and return an analysis-ready dataset."""
 
 
+class DatasetPreprocessorContract(Protocol):
+    """Internal contract for dataset preprocessing before transformation setup."""
+
+    def run(
+        self,
+        *,
+        phospho: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        sample_metadata: pd.DataFrame | None,
+        total: pd.DataFrame | None,
+        config: DatasetPreprocessingConfig,
+    ) -> PreprocessedDatasetBuildTables:
+        """Apply internal preprocessing stages and return preprocessed tables."""
+
+
 __all__ = [
     "DatasetBuildExecutorContract",
     "DatasetBuildInterpreterContract",
+    "DatasetPreprocessorContract",
     "DatasetBuildValidatorContract",
     "DatasetInput",
     "InterpretedDatasetBuildRequest",
+    "PreprocessedDatasetBuildTables",
 ]

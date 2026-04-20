@@ -12,7 +12,7 @@ from phospy.errors.input import PhosPyInputError
 
 
 class DatasetPreprocessingConfigValidator:
-    """Validate the supported public dataset preprocessing config."""
+    """Validate the public config interpreted into the internal preprocessing plan."""
 
     def run(self, config: DatasetPreprocessingConfig) -> DatasetPreprocessingConfig:
         if not isinstance(config, DatasetPreprocessingConfig):
