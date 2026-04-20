@@ -40,6 +40,23 @@ ADAPTIVE_SAMPLING_EDGE_TRACE_CANDIDATES = (
 )
 RAT_L6_PHOSPHO = REWRITE_PARITY_REFERENCE / "l6_phospho_matrix.csv"
 RAT_L6_EXPECTED_PROFILE = REWRITE_PARITY_REFERENCE / "native_profile_scores.csv"
+ACTIVITY_REFERENCE_PROVENANCE = REWRITE_PARITY_REFERENCE / "PROVENANCE.md"
+ACTIVITY_REFERENCE_PREDMAT = REWRITE_PARITY_REFERENCE / "predMat.csv"
+ACTIVITY_REFERENCE_WEIGHTED = REWRITE_PARITY_REFERENCE / "kinase_activity_matrix.csv"
+ACTIVITY_REFERENCE_KSEA_SCORES = REWRITE_PARITY_REFERENCE / "ksea_scores.csv"
+ACTIVITY_REFERENCE_KSEA_COUNTS = REWRITE_PARITY_REFERENCE / "ksea_counts.csv"
+ACTIVITY_REFERENCE_TARGET_COUNTS = REWRITE_PARITY_REFERENCE / "kinase_target_counts.csv"
+ACTIVITY_REFERENCE_TARGET_TABLE = REWRITE_PARITY_REFERENCE / "kinase_target_table.csv"
+ACTIVITY_PARITY_FIXTURE_FILES: tuple[str, ...] = (
+    "l6_phospho_matrix.csv",
+    "native_profile_scores.csv",
+    "predMat.csv",
+    "kinase_activity_matrix.csv",
+    "ksea_scores.csv",
+    "ksea_counts.csv",
+    "kinase_target_counts.csv",
+    "kinase_target_table.csv",
+)
 L6_PREDICTION_REFERENCE_PHOSPHO = (
     REWRITE_PARITY_L6_PREDICTION_REFERENCE / "l6_phospho_matrix.csv"
 )
@@ -141,6 +158,61 @@ def load_rat_l6_sequence_table() -> pd.Series:
 @lru_cache(maxsize=1)
 def load_expected_profile_scores() -> pd.DataFrame:
     return pd.read_csv(RAT_L6_EXPECTED_PROFILE, index_col=0)
+
+
+@lru_cache(maxsize=1)
+def load_activity_reference_predmat() -> pd.DataFrame:
+    return pd.read_csv(ACTIVITY_REFERENCE_PREDMAT, index_col=0)
+
+
+@lru_cache(maxsize=1)
+def load_activity_reference_weighted_activity() -> pd.DataFrame:
+    frame = pd.read_csv(ACTIVITY_REFERENCE_WEIGHTED, index_col=0)
+    frame.index = pd.Index(frame.index.astype(str), name="kinase")
+    return frame.astype(float)
+
+
+@lru_cache(maxsize=1)
+def load_activity_reference_ksea_scores() -> pd.DataFrame:
+    frame = pd.read_csv(ACTIVITY_REFERENCE_KSEA_SCORES, index_col=0)
+    frame.index = pd.Index(frame.index.astype(str), name="kinase")
+    return frame.astype(float)
+
+
+@lru_cache(maxsize=1)
+def load_activity_reference_ksea_counts() -> pd.Series:
+    frame = pd.read_csv(ACTIVITY_REFERENCE_KSEA_COUNTS, index_col=0)
+    counts = frame.iloc[:, 0].astype(int)
+    counts.index = pd.Index(counts.index.astype(str), name="kinase")
+    counts.name = "n_substrates"
+    return counts
+
+
+@lru_cache(maxsize=1)
+def load_activity_reference_target_counts() -> pd.Series:
+    frame = pd.read_csv(ACTIVITY_REFERENCE_TARGET_COUNTS, index_col=0)
+    counts = frame.iloc[:, 0].astype(int)
+    counts.index = pd.Index(counts.index.astype(str), name="kinase")
+    counts.name = "n_targets"
+    return counts
+
+
+@lru_cache(maxsize=1)
+def load_activity_reference_target_table() -> pd.DataFrame:
+    return pd.read_csv(ACTIVITY_REFERENCE_TARGET_TABLE).astype(
+        {"site_id": str, "kinase": str, "score": float}
+    )
+
+
+@lru_cache(maxsize=1)
+def load_activity_reference_provenance_text() -> str:
+    return ACTIVITY_REFERENCE_PROVENANCE.read_text(encoding="utf-8")
+
+
+def activity_parity_fixture_paths() -> tuple[Path, ...]:
+    return tuple(
+        REWRITE_PARITY_REFERENCE / name for name in ACTIVITY_PARITY_FIXTURE_FILES
+    )
 
 
 @lru_cache(maxsize=1)

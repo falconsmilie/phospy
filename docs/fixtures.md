@@ -18,6 +18,10 @@ Included files currently cover:
 - kinase profile scoring checkpoints (`native_profile_scores`)
 - shared L6 phospho input (`l6_phospho_matrix`)
 
+Activity parity tests in `tests/parity/test_activity_stage_parity.py` consume
+these committed files via `tests/support/rewrite_fixture_data.py` and do not run
+live legacy activity code.
+
 Provenance is documented in:
 
 - `tests/fixtures/rewrite_parity/r_reference_l6/PROVENANCE.md`

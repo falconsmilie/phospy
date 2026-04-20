@@ -87,6 +87,9 @@ Activity parity is a hard regression gate in rewrite CI:
 - fixture source pinned to `tests/fixtures/rewrite_parity/r_reference_l6/`
   with provenance in
   `tests/fixtures/rewrite_parity/r_reference_l6/PROVENANCE.md`
+- active parity assertions compare rewrite runtime outputs to committed
+  rewrite-owned fixture expectations; no live `legacy_archive` execution is part
+  of this gate
 
 This lane is supported and parity-backed, not provisional.
 
@@ -104,7 +107,7 @@ regression gate.
 | weighted-top assignment behavior | `SCI-GAP-08` | `tests/unit/test_legacy_donor_science.py::test_weighted_top_assignment_donor_locks_fractional_metadata_and_non_fractional_module_selection`; `tests/parity/test_signalome_workflow_parity.py::test_signalome_module_assignments_match_selected_l6_regression_points` | `tests_legacy/test_signalomes.py::test_weighted_top_assignment_policy_propagates_fractional_module_shares` |
 | network policy variants | `SCI-GAP-09` | `tests/unit/test_legacy_donor_science.py::test_network_policy_variant_donor_locks_signed_edges_and_narrow_config_surface`; `tests/parity/test_signalome_workflow_parity.py::test_signalome_network_edges_match_l6_fixture_pairs_and_sign_counts`; `tests/parity/test_signalome_workflow_parity.py::test_signalome_network_policy_variants_match_fixed_matrix_expectations` | `tests_legacy/test_signalomes.py::test_build_kinase_network_policies_apply_expected_thresholding` |
 | expanded signalome outputs | `SCI-GAP-10` | `tests/unit/test_legacy_donor_science.py::test_expanded_signalome_donor_locks_supported_lane_to_materialized_output`; `tests/parity/test_signalome_workflow_parity.py::test_signalome_expanded_slice_matches_l6_selected_akt1_fixture`; `tests/integration/test_signalome_workflow_integration.py::test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path` | `tests_legacy/test_signalomes.py::test_build_expanded_signalomes_uses_neighbor_map_and_preserves_site_order`; `tests_legacy/test_signalomes.py::test_signalome_result_expanded_signalomes_materialize_with_parity` |
-| activity parity lock | `SCI-GAP-11` | `tests/unit/test_legacy_donor_science.py::test_activity_parity_lock_donor_uses_rewrite_owned_fixture_path`; `tests/parity/test_activity_stage_parity.py::test_weighted_activity_matches_legacy_reference_fixture` | `tests_legacy/test_activities.py::test_weighted_activity_matches_reference_on_large_sparse_input` |
+| activity parity lock | `SCI-GAP-11` | `tests/unit/test_legacy_donor_science.py::test_activity_parity_lock_donor_uses_rewrite_owned_fixture_path`; `tests/parity/test_activity_stage_parity.py::test_weighted_activity_matches_rewrite_reference_fixture` | `tests_legacy/test_activities.py::test_weighted_activity_matches_reference_on_large_sparse_input` |
 
 Rewrite-side visibility check:
 

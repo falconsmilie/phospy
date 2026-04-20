@@ -48,6 +48,9 @@ Activity science port is complete for the supported rewrite scope:
 
 - Scientific kernels are legacy-aligned.
 - Behavior is parity-backed on rewrite-owned fixtures.
+- Active parity execution is rewrite-only (`tests/parity/test_activity_stage_parity.py`
+  compares rewrite runtime outputs to committed fixtures and does not import or
+  execute `legacy_archive` modules).
 - Activity parity has an explicit hard CI regression gate
   (`activity-parity-gate`; marker selection `parity and activity_parity`).
 - Fixture provenance and promotion policy are maintained in

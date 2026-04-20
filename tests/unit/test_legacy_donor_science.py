@@ -318,8 +318,12 @@ def test_activity_parity_lock_donor_uses_rewrite_owned_fixture_path() -> None:
     source = (ROOT / "tests" / "parity" / "test_activity_stage_parity.py").read_text(
         encoding="utf-8"
     )
-    assert 'R_REFERENCE_L6 = ROOT / "tests" / "fixtures" / "rewrite_parity"' in source
-    assert '/ "r_reference_l6"' in source
+    assert "from tests.support.rewrite_fixture_data import (" in source
+    assert "load_activity_reference_predmat" in source
+    assert "load_activity_reference_weighted_activity" in source
+    assert "load_activity_reference_ksea_scores" in source
+    assert "load_activity_reference_target_table" in source
+    assert "legacy_archive" not in source
     assert "tests_legacy/fixtures" not in source
     assert "pytest.mark.parity" in source
     assert "pytest.mark.activity_parity" in source

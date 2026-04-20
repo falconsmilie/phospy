@@ -196,13 +196,11 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
             "tests/parity/test_activity_stage_parity.py::"
             "test_activity_parity_fixture_set_is_present_readable_and_provenanced",
             "tests/parity/test_activity_stage_parity.py::"
-            "test_weighted_activity_matches_legacy_reference_fixture",
+            "test_weighted_activity_matches_rewrite_reference_fixture",
             "tests/parity/test_activity_stage_parity.py::"
-            "test_ksea_outputs_match_legacy_reference_fixture",
+            "test_ksea_outputs_match_rewrite_reference_fixture",
             "tests/parity/test_activity_stage_parity.py::"
-            "test_target_outputs_match_legacy_reference_fixture_and_kernel",
-            "tests/parity/test_activity_stage_parity.py::"
-            "test_activity_kernels_match_legacy_on_ties_missing_values_and_partial_overlap",
+            "test_target_outputs_match_rewrite_reference_fixture",
         ),
         rewrite_integration_tests=(),
         archival_only_tests=(
