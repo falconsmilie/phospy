@@ -88,7 +88,7 @@ test-unit: check-tools
 	$(PYTEST) -m "not parity"
 
 test-parity: check-tools
-	PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 $(PYTEST) -m parity -s
+	$(PYTEST) tests/parity -m parity -s
 
 dataset-builder-demo: check-tools
 	PYTHONPATH=src $(PYTHON) -c "from examples.dataset_builder_demo import main; main()"

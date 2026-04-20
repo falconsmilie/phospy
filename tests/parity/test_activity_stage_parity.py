@@ -20,6 +20,10 @@ from legacy_archive.phospy_legacy.validation.requests.analysis import (
 )
 from phospy.activities.scoring import compute_activity_from_inputs
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
+from tests.support.parity_reporting import (
+    format_shape,
+    record_parity_metrics,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 R_REFERENCE_L6 = ROOT / "tests" / "fixtures" / "rewrite_parity" / "r_reference_l6"
@@ -82,7 +86,9 @@ def _legacy_activity_result(
     return weighted_activity, ksea_scores, ksea_counts, target_counts, target_table
 
 
-def test_activity_parity_fixture_set_is_present_readable_and_provenanced() -> None:
+def test_activity_parity_fixture_set_is_present_readable_and_provenanced(
+    request: pytest.FixtureRequest,
+) -> None:
     for file_name in ACTIVITY_PARITY_FIXTURE_FILES:
         fixture_path = R_REFERENCE_L6 / file_name
         assert fixture_path.is_file(), f"missing activity parity fixture: {file_name}"
@@ -96,16 +102,42 @@ def test_activity_parity_fixture_set_is_present_readable_and_provenanced() -> No
     assert "Fixture ownership" in provenance_text
     for file_name in ACTIVITY_PARITY_FIXTURE_FILES:
         assert f"`{file_name}`" in provenance_text
+    record_parity_metrics(
+        request.config,
+        family="activity_stage",
+        metrics=[
+            ("fixture files checked", len(ACTIVITY_PARITY_FIXTURE_FILES)),
+        ],
+        notes=(f"fixture provenance: {R_REFERENCE_PROVENANCE.as_posix()}",),
+    )
 
 
-def test_weighted_activity_matches_legacy_reference_fixture() -> None:
+def test_weighted_activity_matches_legacy_reference_fixture(
+    request: pytest.FixtureRequest,
+) -> None:
     result, _ = _activity_result()
     expected = pd.read_csv(R_REFERENCE_L6 / "kinase_activity_matrix.csv", index_col=0)
     expected.index.name = "kinase"
     pdt.assert_frame_equal(result.weighted_activity.sort_index(), expected.sort_index())
+    aligned = result.weighted_activity.sort_index() - expected.sort_index()
+    absolute_delta = aligned.abs()
+    record_parity_metrics(
+        request.config,
+        family="activity_stage",
+        metrics=[
+            ("weighted activity shape", format_shape(*result.weighted_activity.shape)),
+            (
+                "weighted activity mean abs diff",
+                float(absolute_delta.to_numpy().mean()),
+            ),
+            ("weighted activity max abs diff", float(absolute_delta.to_numpy().max())),
+        ],
+    )
 
 
-def test_ksea_outputs_match_legacy_reference_fixture() -> None:
+def test_ksea_outputs_match_legacy_reference_fixture(
+    request: pytest.FixtureRequest,
+) -> None:
     result, _ = _activity_result()
     expected_scores = pd.read_csv(R_REFERENCE_L6 / "ksea_scores.csv", index_col=0)
     expected_scores.index.name = "kinase"
@@ -121,9 +153,25 @@ def test_ksea_outputs_match_legacy_reference_fixture() -> None:
     pdt.assert_series_equal(
         result.ksea_counts.sort_index(), expected_counts.sort_index()
     )
+    score_delta = (result.ksea_scores.sort_index() - expected_scores.sort_index()).abs()
+    count_delta = (result.ksea_counts.sort_index() - expected_counts.sort_index()).abs()
+    record_parity_metrics(
+        request.config,
+        family="activity_stage",
+        metrics=[
+            ("ksea score shape", format_shape(*result.ksea_scores.shape)),
+            ("ksea count kinases", int(result.ksea_counts.shape[0])),
+            ("ksea total substrate count", int(result.ksea_counts.sum())),
+            ("ksea score mean abs diff", float(score_delta.to_numpy().mean())),
+            ("ksea score max abs diff", float(score_delta.to_numpy().max())),
+            ("ksea count max abs diff", float(count_delta.max())),
+        ],
+    )
 
 
-def test_target_outputs_match_legacy_reference_fixture_and_kernel() -> None:
+def test_target_outputs_match_legacy_reference_fixture_and_kernel(
+    request: pytest.FixtureRequest,
+) -> None:
     result, pred_mat = _activity_result()
     expected_counts = pd.read_csv(
         R_REFERENCE_L6 / "kinase_target_counts.csv",
@@ -148,6 +196,19 @@ def test_target_outputs_match_legacy_reference_fixture_and_kernel() -> None:
     pdt.assert_frame_equal(
         result.target_table.reset_index(drop=True),
         legacy_target_table.reset_index(drop=True),
+    )
+    target_count_delta = (
+        result.target_counts.sort_index() - expected_counts.sort_index()
+    ).abs()
+    record_parity_metrics(
+        request.config,
+        family="activity_stage",
+        metrics=[
+            ("target count kinases", int(result.target_counts.shape[0])),
+            ("target total count", int(result.target_counts.sum())),
+            ("target count max abs diff", float(target_count_delta.max())),
+            ("target table row count", int(result.target_table.shape[0])),
+        ],
     )
 
 

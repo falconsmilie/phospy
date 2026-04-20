@@ -1,0 +1,70 @@
+{
+  "dataset_fixture": "predmat_input_phospho_matrix.csv",
+  "substrate_map_fixture": "predmat_input_substrate_map.json",
+  "site_sequence_fixture": "predmat_input_site_sequences.json",
+  "prediction_config": {
+    "top_k": 4,
+    "ensemble_size": 3,
+    "mode": "adaptive_ensemble",
+    "n_iterations": 2,
+    "random_state": 17
+  },
+  "policies": {
+    "stable": "adaptive_policy=\"stable\" (legacy-readable default lane)",
+    "r_parity": "adaptive_policy=\"r_parity\""
+  },
+  "benchmarks": {
+    "stable": {
+      "rows": [
+        "SITE_1",
+        "SITE_2",
+        "SITE_3",
+        "SITE_4",
+        "SITE_5",
+        "SITE_6",
+        "SITE_7",
+        "SITE_8"
+      ],
+      "columns": [
+        "KINASE_A",
+        "KINASE_B"
+      ],
+      "dominant_kinase_by_site": {
+        "SITE_1": "KINASE_A",
+        "SITE_2": "KINASE_A",
+        "SITE_3": "KINASE_A",
+        "SITE_4": "KINASE_A",
+        "SITE_5": "KINASE_B",
+        "SITE_6": "KINASE_B",
+        "SITE_7": "KINASE_B",
+        "SITE_8": "KINASE_B"
+      }
+    },
+    "r_parity": {
+      "rows": [
+        "SITE_1",
+        "SITE_2",
+        "SITE_3",
+        "SITE_4",
+        "SITE_5",
+        "SITE_6",
+        "SITE_7",
+        "SITE_8"
+      ],
+      "columns": [
+        "KINASE_A",
+        "KINASE_B"
+      ],
+      "dominant_kinase_by_site": {
+        "SITE_1": "KINASE_A",
+        "SITE_2": "KINASE_A",
+        "SITE_3": "KINASE_A",
+        "SITE_4": "KINASE_A",
+        "SITE_5": "KINASE_B",
+        "SITE_6": "KINASE_B",
+        "SITE_7": "KINASE_B",
+        "SITE_8": "KINASE_B"
+      }
+    }
+  }
+}

@@ -14,6 +14,11 @@ from phospy import (
     ReferenceBundle,
     ReferencePreset,
 )
+from tests.support.parity_reporting import (
+    format_bool,
+    format_shape,
+    record_parity_metrics,
+)
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
     load_expected_profile_scores,
@@ -25,7 +30,9 @@ from tests.support.rewrite_fixture_data import (
 pytestmark = pytest.mark.parity
 
 
-def test_scoring_outputs_match_selected_reference_profile_values() -> None:
+def test_scoring_outputs_match_selected_reference_profile_values(
+    request: pytest.FixtureRequest,
+) -> None:
     dataset = build_rat_l6_dataset(n_sites=None)
     result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
@@ -45,17 +52,46 @@ def test_scoring_outputs_match_selected_reference_profile_values() -> None:
         ("ABCC4;S604;", "MAPK1"),
         ("ABI2;S165;", "PRKAA1"),
     ]
+    point_abs_deltas: list[float] = []
     for site_id, kinase in points:
-        assert result.scoring_result.profile_scores.at[
-            site_id, kinase
-        ] == pytest.approx(
-            expected.at[site_id, kinase],
+        observed_value = float(result.scoring_result.profile_scores.at[site_id, kinase])
+        expected_value = float(expected.at[site_id, kinase])
+        assert observed_value == pytest.approx(
+            expected_value,
             rel=1e-6,
             abs=1e-8,
         )
+        point_abs_deltas.append(abs(observed_value - expected_value))
+
+    record_parity_metrics(
+        request.config,
+        family="kinase_workflow",
+        metrics=[
+            ("dataset site count", dataset.phospho.shape[0]),
+            (
+                "profile score table shape",
+                format_shape(*result.scoring_result.profile_scores.shape),
+            ),
+            (
+                "kinases scored",
+                int(result.scoring_result.profile_scores.shape[1]),
+            ),
+            ("selected reference-point count", len(points)),
+            (
+                "selected reference-point mean abs diff",
+                float(pd.Series(point_abs_deltas).mean()),
+            ),
+            (
+                "selected reference-point max abs diff",
+                float(pd.Series(point_abs_deltas).max()),
+            ),
+        ],
+    )
 
 
-def test_prediction_top_sites_align_with_reference_ranking_subset() -> None:
+def test_prediction_top_sites_align_with_reference_ranking_subset(
+    request: pytest.FixtureRequest,
+) -> None:
     dataset = build_rat_l6_dataset(n_sites=None)
     result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
@@ -81,9 +117,24 @@ def test_prediction_top_sites_align_with_reference_ranking_subset() -> None:
             differing_kinases += 1
 
     assert differing_kinases > 0
+    record_parity_metrics(
+        request.config,
+        family="kinase_workflow",
+        metrics=[
+            ("prediction matrix shape", format_shape(*pred_mat.shape)),
+            ("kinases predicted", int(pred_mat.shape[1])),
+            (
+                "top-site combined-score alignment",
+                f"{pred_mat.shape[1]}/{pred_mat.shape[1]}",
+            ),
+            ("combined-vs-profile top-site divergences", differing_kinases),
+        ],
+    )
 
 
-def test_scoring_outputs_include_motif_and_combined_tables() -> None:
+def test_scoring_outputs_include_motif_and_combined_tables(
+    request: pytest.FixtureRequest,
+) -> None:
     dataset = build_rat_l6_dataset(n_sites=260)
     result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
@@ -109,6 +160,32 @@ def test_scoring_outputs_include_motif_and_combined_tables() -> None:
         "motif_rank_weight",
         "profile_rank_weight",
     }
+    record_parity_metrics(
+        request.config,
+        family="kinase_workflow",
+        metrics=[
+            (
+                "diagnostic motif table present",
+                format_bool(result.scoring_result.motif_scores is not None),
+            ),
+            (
+                "diagnostic combined table present",
+                format_bool(result.scoring_result.combined_scores is not None),
+            ),
+            (
+                "diagnostic weight table present",
+                format_bool(result.scoring_result.weights is not None),
+            ),
+            (
+                "diagnostic motif score shape",
+                format_shape(*result.scoring_result.motif_scores.shape),
+            ),
+            (
+                "diagnostic combined score shape",
+                format_shape(*result.scoring_result.combined_scores.shape),
+            ),
+        ],
+    )
 
 
 def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_input() -> (

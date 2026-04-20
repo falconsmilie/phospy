@@ -157,7 +157,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test]"
       - name: Run activity parity hard gate
-        run: PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest tests/parity/test_activity_stage_parity.py -m "parity and activity_parity" -s
+        run: pytest tests/parity/test_activity_stage_parity.py -m "parity and activity_parity" -s
 
   parity-tests:
     needs: [repo-hygiene, activity-parity-gate]
@@ -175,7 +175,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test]"
       - name: Run parity tests
-        run: PHOSPY_SHOW_PARITY=1 PHOSPY_SHOW_REPLAYED_PREDICTION_MODE_COMPARISON=1 pytest tests/parity -m parity -s
+        run: pytest tests/parity -m parity -s
 
   build-distributions:
     needs: repo-hygiene

@@ -16,7 +16,7 @@ pre-commit install
 ```bash
 pre-commit run --all-files
 pytest -m "not parity"
-pytest -m parity
+pytest tests/parity -m parity -s
 ```
 
 ## Style
@@ -62,7 +62,16 @@ For benchmark tooling edits, also run:
 pytest tests/unit/test_benchmark_scripts_smoke.py
 ```
 
-`make test-parity` prints the standard parity summary output.
+`make test-parity` runs `pytest tests/parity -m parity -s` and prints the
+rewrite-owned parity summary chatter by default (no `PHOSPY_SHOW_*` flags).
+
+Active parity authority is the rewrite suite in `tests/parity/` with fixture
+inputs under:
+
+- `tests/fixtures/rewrite_parity/**`
+- `tests/fixtures/public_workflow_reference/**`
+
+`tests_legacy/` remains archival/provenance only.
 
 ## CI
 
