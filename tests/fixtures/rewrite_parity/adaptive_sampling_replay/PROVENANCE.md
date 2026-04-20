@@ -45,3 +45,7 @@ Active replay parity assertions include:
 - top-rank and top-set overlap metrics
 - deterministic replay checks under fixed seed for both
   `adaptive_policy="stable"` and `adaptive_policy="r_parity"`
+
+This fixture lane is used as a hard rewrite parity gate in
+`tests/parity/test_adaptive_replay_parity.py` with donor-level overlap and
+correlation thresholds.

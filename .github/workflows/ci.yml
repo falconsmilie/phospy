@@ -174,7 +174,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[test]"
-      - name: Run parity tests
+      - name: Run rewrite parity scientific gates
         run: pytest tests/parity -m parity -s
 
   build-distributions:

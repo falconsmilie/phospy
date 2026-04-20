@@ -14,22 +14,22 @@ from tests.support.parity_reporting import (
 
 pytestmark = pytest.mark.parity
 
-PROFILE_MAE_CEILING = 1e-6
-PROFILE_PEARSON_FLOOR = 0.9999
-PROFILE_SPEARMAN_FLOOR = 0.999
-COMBINED_MAE_CEILING = 0.16
-COMBINED_PEARSON_FLOOR = 0.90
-COMBINED_SPEARMAN_FLOOR = 0.80
-WEIGHTS_MAE_CEILING = 0.32
-WEIGHTS_MAX_ABS_DIFF_CEILING = 1.40
-CANDIDATE_OVERLAP_PRECISION_FLOOR = 0.25
-CANDIDATE_OVERLAP_RECALL_FLOOR = 0.25
-RANK_SPEARMAN_FLOOR = 0.50
-TOP10_OVERLAP_FLOOR = 0.33
-TOP20_OVERLAP_FLOOR = 0.39
-TOP30_OVERLAP_FLOOR = 0.39
-GOOD_TOP10_COUNT_FLOOR = 1
-CROSS_POLICY_CORRELATION_FLOOR = 0.90
+PROFILE_MAE_CEILING = 1e-12
+PROFILE_PEARSON_FLOOR = 0.999999
+PROFILE_SPEARMAN_FLOOR = 0.999999
+COMBINED_MAE_CEILING = 1e-12
+COMBINED_PEARSON_FLOOR = 0.999999
+COMBINED_SPEARMAN_FLOOR = 0.999999
+WEIGHTS_MAE_CEILING = 1e-12
+WEIGHTS_MAX_ABS_DIFF_CEILING = 1e-11
+CANDIDATE_OVERLAP_PRECISION_FLOOR = 0.999999
+CANDIDATE_OVERLAP_RECALL_FLOOR = 0.999999
+DEFAULT_RANK_SPEARMAN_FLOOR = 0.96
+DEFAULT_TOP20_OVERLAP_FLOOR = 0.85
+DEFAULT_TOP30_OVERLAP_FLOOR = 0.88
+DEFAULT_GOOD_TOP10_COUNT_FLOOR = 20
+R_PARITY_TOP10_OVERLAP_FLOOR = 0.82
+CROSS_POLICY_CORRELATION_FLOOR = 0.95
 
 
 def test_l6_full_prediction_and_scoring_parity_against_promoted_reference_tables(
@@ -67,14 +67,24 @@ def test_l6_full_prediction_and_scoring_parity_against_promoted_reference_tables
     assert metrics.candidates.overlap_recall >= CANDIDATE_OVERLAP_RECALL_FLOOR
     assert metrics.candidates.shared_kinase_count > 0
 
-    for lane in (metrics.stable_ranking, metrics.r_parity_ranking):
-        assert lane.kinases_compared > 0
-        assert lane.mean_spearman_rank_corr >= RANK_SPEARMAN_FLOOR
-        assert lane.mean_top10_overlap >= TOP10_OVERLAP_FLOOR
-        assert lane.mean_top20_overlap >= TOP20_OVERLAP_FLOOR
-        assert lane.mean_top30_overlap >= TOP30_OVERLAP_FLOOR
-        assert lane.good_top10_count >= GOOD_TOP10_COUNT_FLOOR
-        assert lane.top_rank_total == lane.kinases_compared
+    stable = metrics.stable_ranking
+    r_parity = metrics.r_parity_ranking
+    assert stable.kinases_compared > 0
+    assert r_parity.kinases_compared > 0
+    assert stable.kinases_compared == r_parity.kinases_compared
+
+    assert stable.mean_spearman_rank_corr >= DEFAULT_RANK_SPEARMAN_FLOOR
+    assert stable.mean_top20_overlap >= DEFAULT_TOP20_OVERLAP_FLOOR
+    assert stable.mean_top30_overlap >= DEFAULT_TOP30_OVERLAP_FLOOR
+    assert stable.good_top10_count >= DEFAULT_GOOD_TOP10_COUNT_FLOOR
+    assert stable.top_rank_total == stable.kinases_compared
+
+    assert r_parity.mean_spearman_rank_corr >= stable.mean_spearman_rank_corr
+    assert r_parity.mean_top10_overlap >= R_PARITY_TOP10_OVERLAP_FLOOR
+    assert r_parity.mean_top10_overlap >= stable.mean_top10_overlap
+    assert r_parity.mean_top20_overlap >= stable.mean_top20_overlap
+    assert r_parity.mean_top30_overlap >= stable.mean_top30_overlap
+    assert r_parity.top_rank_total == r_parity.kinases_compared
 
     assert metrics.cross_policy_prediction_corr >= CROSS_POLICY_CORRELATION_FLOOR
 

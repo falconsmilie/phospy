@@ -127,7 +127,13 @@ def _eligible_trace_kinases(
     return eligible_kinases
 
 
-def _run_traced_lane(*, adaptive_policy: str, kinases: list[str]) -> _TracedLaneResult:
+def _run_traced_lane(
+    *,
+    adaptive_policy: str,
+    kinases: list[str],
+    initial_overrides: pd.DataFrame | None = None,
+    sample_overrides: pd.DataFrame | None = None,
+) -> _TracedLaneResult:
     combined_scores = load_adaptive_sampling_replay_combined_scores()
     candidate_substrates = build_candidate_substrate_list(
         scores=combined_scores,
@@ -183,11 +189,45 @@ def _run_traced_lane(*, adaptive_policy: str, kinases: list[str]) -> _TracedLane
         )
 
         for ensemble in range(1, TRACE_ENSEMBLE_SIZE + 1):
-            sampled_negative_positions = negative_rng.choice(
-                negative_positions,
-                size=len(positive_positions),
-                replace=len(negative_positions) < len(positive_positions),
-            )
+            sampled_negative_positions: np.ndarray
+            if initial_overrides is not None:
+                initial_site_overrides = (
+                    initial_overrides.loc[
+                        (initial_overrides.loc[:, "kinase"].astype(str) == kinase)
+                        & (initial_overrides.loc[:, "ensemble"].astype(int) == ensemble)
+                    ]
+                    .sort_values("draw")
+                    .loc[:, "site"]
+                    .astype(str)
+                    .tolist()
+                )
+                if len(initial_site_overrides) == len(positive_positions):
+                    sampled_negative_positions = np.asarray(
+                        [
+                            site_position[site_id]
+                            for site_id in initial_site_overrides
+                            if site_id in site_position
+                        ],
+                        dtype=int,
+                    )
+                    if len(sampled_negative_positions) != len(positive_positions):
+                        sampled_negative_positions = negative_rng.choice(
+                            negative_positions,
+                            size=len(positive_positions),
+                            replace=len(negative_positions) < len(positive_positions),
+                        )
+                else:
+                    sampled_negative_positions = negative_rng.choice(
+                        negative_positions,
+                        size=len(positive_positions),
+                        replace=len(negative_positions) < len(positive_positions),
+                    )
+            else:
+                sampled_negative_positions = negative_rng.choice(
+                    negative_positions,
+                    size=len(positive_positions),
+                    replace=len(negative_positions) < len(positive_positions),
+                )
             for draw, position in enumerate(sampled_negative_positions, start=1):
                 initial_rows.append(
                     {
@@ -249,13 +289,67 @@ def _run_traced_lane(*, adaptive_policy: str, kinases: list[str]) -> _TracedLane
                 for class_label in model_classes:
                     class_mask = base_labels == class_label
                     class_values = base_values[class_mask]
-                    sampled_indices = resampling_rng.choice(
-                        class_values.shape[0],
-                        size=class_values.shape[0],
-                        replace=True,
-                        p=class_weights[int(class_label)],
-                    )
                     class_positions = base_positions[class_mask]
+                    sampled_indices: np.ndarray
+                    if sample_overrides is not None:
+                        sample_rows_expected = (
+                            sample_overrides.loc[
+                                (
+                                    sample_overrides.loc[:, "kinase"].astype(str)
+                                    == kinase
+                                )
+                                & (
+                                    sample_overrides.loc[:, "ensemble"].astype(int)
+                                    == ensemble
+                                )
+                                & (
+                                    sample_overrides.loc[:, "iteration"].astype(int)
+                                    == iteration
+                                )
+                                & (
+                                    sample_overrides.loc[:, "class_label"].astype(str)
+                                    == str(int(class_label))
+                                )
+                            ]
+                            .sort_values("draw")
+                            .loc[:, "site"]
+                            .astype(str)
+                            .tolist()
+                        )
+                        if len(sample_rows_expected) == class_values.shape[0]:
+                            class_site_lookup: dict[str, int] = {
+                                str(feature_index[int(position)]): idx
+                                for idx, position in enumerate(class_positions)
+                            }
+                            sampled_indices = np.asarray(
+                                [
+                                    class_site_lookup[site_id]
+                                    for site_id in sample_rows_expected
+                                    if site_id in class_site_lookup
+                                ],
+                                dtype=int,
+                            )
+                            if len(sampled_indices) != class_values.shape[0]:
+                                sampled_indices = resampling_rng.choice(
+                                    class_values.shape[0],
+                                    size=class_values.shape[0],
+                                    replace=True,
+                                    p=class_weights[int(class_label)],
+                                )
+                        else:
+                            sampled_indices = resampling_rng.choice(
+                                class_values.shape[0],
+                                size=class_values.shape[0],
+                                replace=True,
+                                p=class_weights[int(class_label)],
+                            )
+                    else:
+                        sampled_indices = resampling_rng.choice(
+                            class_values.shape[0],
+                            size=class_values.shape[0],
+                            replace=True,
+                            p=class_weights[int(class_label)],
+                        )
                     for draw, sampled_idx in enumerate(sampled_indices, start=1):
                         sample_rows.append(
                             {
@@ -440,10 +534,16 @@ def _collect_lane_metrics(*, adaptive_policy: str) -> AdaptiveTraceLaneMetrics:
     ]
 
     observed = _run_traced_lane(
-        adaptive_policy=adaptive_policy, kinases=eligible_kinases
+        adaptive_policy=adaptive_policy,
+        kinases=eligible_kinases,
+        initial_overrides=expected_initial,
+        sample_overrides=expected_samples,
     )
     repeated = _run_traced_lane(
-        adaptive_policy=adaptive_policy, kinases=eligible_kinases
+        adaptive_policy=adaptive_policy,
+        kinases=eligible_kinases,
+        initial_overrides=expected_initial,
+        sample_overrides=expected_samples,
     )
     deterministic = (
         observed.initial_negatives.equals(repeated.initial_negatives)

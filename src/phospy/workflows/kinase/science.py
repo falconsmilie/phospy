@@ -31,18 +31,22 @@ def build_kinase_profiles(
     phospho: pd.DataFrame,
     kinase_substrate_map: pd.DataFrame,
     min_substrates: int,
+    allow_single_substrate_profiles: bool = False,
     profile_missing_value_strategy: KinaseProfileMissingValueStrategy = (
         KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
     ),
 ) -> KinaseProfileBuild:
     """Build kinase substrate profiles from quantified substrate rows."""
 
-    if min_substrates < KINASE_SCORING_MIN_SUBSTRATES_FLOOR:
+    required_floor = (
+        1 if allow_single_substrate_profiles else KINASE_SCORING_MIN_SUBSTRATES_FLOOR
+    )
+    if min_substrates < required_floor:
         raise WorkflowStageError(
             "kinase workflow internal invariant failed at seam="
             "kinase.science.min_substrate_floor; "
             f"min_substrates must be greater than or equal to "
-            f"{KINASE_SCORING_MIN_SUBSTRATES_FLOOR}"
+            f"{required_floor}"
         )
 
     if profile_missing_value_strategy not in KINASE_PROFILE_MISSING_VALUE_STRATEGIES:
@@ -183,6 +187,7 @@ def build_prediction_outputs(
     selected_kinases: pd.Index,
     candidate_substrates: dict[str, list[str]],
     top_k: int,
+    retain_full_scores: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Build the prediction matrix and substrate table for selected kinases."""
 
@@ -203,6 +208,33 @@ def build_prediction_outputs(
     for kinase_position, kinase in enumerate(selected_kinases):
         candidate_sites = candidate_substrates.get(str(kinase), [])
         if not candidate_sites:
+            continue
+        if retain_full_scores:
+            full_scores = prediction_score_matrix.loc[:, kinase].astype(float)
+            pred_mat.iloc[:, kinase_position] = full_scores.to_numpy(
+                dtype=float,
+                copy=False,
+            )
+            available_sites = [site for site in candidate_sites if site in score_index]
+            if not available_sites:
+                continue
+            ranked_sites = (
+                full_scores.loc[available_sites]
+                .dropna()
+                .nlargest(
+                    top_k,
+                    keep="first",
+                )
+            )
+            for rank, (site_id, score) in enumerate(ranked_sites.items(), start=1):
+                substrate_rows.append(
+                    {
+                        "kinase": str(kinase),
+                        "substrate_site": site_id,
+                        "score": float(score),
+                        "rank": rank,
+                    }
+                )
             continue
         score_column_position = prediction_score_matrix.columns.get_loc(kinase)
 

@@ -25,6 +25,9 @@ The parity suite currently protects rewrite-era parity families for:
 - full promoted L6 downstream prediction/scoring parity against rewrite-owned
   promoted donor references (`profile_scores`, `combined_scores`, `weights`,
   candidate substrates, ranking/top-k summaries)
+- legacy-grade release gates for the core kinase lane, including strict
+  candidate overlap, ranking agreement thresholds, and replay-surface
+  agreement (no permissive donor-similarity fallback in this lane)
 - adaptive prediction parity from promoted adaptive-sampling fixtures, executed
   in both supported rewrite policy lanes:
   `adaptive_policy="stable"` (default lane) and
@@ -43,6 +46,18 @@ The parity suite currently protects rewrite-era parity families for:
   `module_assignments`, `signalome_modules`, `kinase_network.nodes`,
   `kinase_network.edges`, `expanded_signalome`
 
+## Core Kinase Lane Status (2026-04-20)
+
+The central kinase scoring/prediction lane is closed only when both rewrite
+parity gates pass:
+
+- `tests/parity/test_l6_prediction_parity.py`
+- `tests/parity/test_adaptive_replay_parity.py`
+
+These gates enforce legacy-grade downstream behavior (candidate selection,
+ranking/top-k agreement, and adaptive replay surfaces) against promoted donor
+fixtures.
+
 ## Rewrite-owned parity reporting
 
 Parity chatter is emitted by default from the active rewrite suite under
@@ -53,9 +68,9 @@ When parity tests run, terminal output includes grouped scientific summaries for
 
 - prediction-science parity
 - kinase workflow parity
-- L6 full scoring/prediction parity
+- L6 core kinase scoring/prediction parity
 - adaptive prediction parity
-- adaptive replay-trace parity
+- core kinase adaptive replay-trace parity
 - public end-to-end predMat parity
 - public predMat order-invariance parity
 - activity-stage parity
@@ -102,6 +117,7 @@ regression gate.
 | Donor area | Science-gap ticket | Rewrite-owned blockers | Archival donors (historical only) |
 | --- | --- | --- | --- |
 | profile policy behavior | `SCI-GAP-01` | `tests/unit/test_legacy_donor_science.py::test_profile_policy_donor_locks_strict_median_behavior_and_contract_surface` | `tests_legacy/test_profiles.py::test_build_kinase_substrate_profiles_can_skip_missing_values_when_requested` |
+| core kinase scoring/prediction lane | `SCI-GAP-12` | `tests/parity/test_l6_prediction_parity.py::test_l6_full_prediction_and_scoring_parity_against_promoted_reference_tables`; `tests/parity/test_adaptive_replay_parity.py::test_adaptive_replay_trace_parity_matches_promoted_trace_surfaces` | `tests_legacy/test_parity-with_metrics.py::test_l6_native_prediction_rankings_agree_with_r_reference`; `tests_legacy/test_parity-with_metrics.py::test_l6_replayed_prediction_trace_matches_r_sampling_path` |
 | adaptive sampling / svm_mode | `SCI-GAP-05` | `tests/unit/test_legacy_donor_science.py::test_adaptive_sampling_donor_is_archival_and_svm_mode_is_not_rewrite_contract`; `tests/parity/test_adaptive_prediction_parity.py::test_adaptive_ensemble_outputs_match_promoted_fixture_tolerances` (active rewrite two-policy comparison via `adaptive_policy`) | `tests_legacy/test_prediction.py::test_predict_accepts_explicit_r_parity_mode`; `tests_legacy/test_prediction.py::test_resolve_prediction_sampling_policy_maps_public_modes` |
 | signalome clustering/module selection | `SCI-GAP-06` | `tests/unit/test_legacy_donor_science.py::test_signalome_clustering_donor_locks_rewrite_dominant_module_assignment_behavior`; `tests/parity/test_signalome_workflow_parity.py::test_signalome_module_assignments_match_l6_full_fixture_table` | `tests_legacy/test_signalomes.py::test_select_module_count_builds_one_cluster_tree_for_candidate_scoring` |
 | weighted-top assignment behavior | `SCI-GAP-08` | `tests/unit/test_legacy_donor_science.py::test_weighted_top_assignment_donor_locks_fractional_metadata_and_non_fractional_module_selection`; `tests/parity/test_signalome_workflow_parity.py::test_signalome_module_assignments_match_l6_full_fixture_table` | `tests_legacy/test_signalomes.py::test_weighted_top_assignment_policy_propagates_fractional_module_shares` |
@@ -123,6 +139,9 @@ Rewrite-side visibility check:
 - `tests/fixtures/rewrite_parity/r_reference_l6_prediction/`
 - provenance and promotion history:
   `tests/fixtures/rewrite_parity/r_reference_l6_prediction/PROVENANCE.md`
+- bundled donor motif tables used by the supported rat L6 native bundle:
+  `src/phospy/data/reference_bundles/rat/l6_native/motif_scores.csv`,
+  `src/phospy/data/reference_bundles/rat/l6_native/motif_sizes.csv`
 - `tests/fixtures/rewrite_parity/fragile_support_reference/`
 - provenance and promotion history:
   `tests/fixtures/rewrite_parity/fragile_support_reference/PROVENANCE.md`

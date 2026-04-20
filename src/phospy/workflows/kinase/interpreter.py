@@ -6,6 +6,7 @@ import pandas as pd
 
 from phospy.api.requests import KinaseWorkflowRequest
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
+from phospy.references.models import ReferencePreset
 from phospy.references.resolution import (
     BundledReferenceProvider,
     ReferenceResolver,
@@ -69,6 +70,7 @@ class KinaseWorkflowInterpreter:
             site_sequences=site_sequences,
             scoring_site_index=scoring_site_index,
             activity_phospho_matrix=activity_phospho_matrix,
+            uses_bundled_reference=isinstance(request.references, ReferencePreset),
             execution_config=execution_config,
         )
 

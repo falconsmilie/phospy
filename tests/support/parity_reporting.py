@@ -24,9 +24,9 @@ PARITY_FAMILY_ORDER: tuple[str, ...] = (
 PARITY_FAMILY_TITLES: Mapping[str, str] = {
     "prediction_science": "Prediction-science parity",
     "kinase_workflow": "Kinase workflow parity",
-    "l6_prediction": "L6 full scoring/prediction parity",
+    "l6_prediction": "L6 core kinase scoring/prediction parity",
     "adaptive_prediction": "Adaptive prediction parity",
-    "adaptive_replay": "Adaptive replay-trace parity",
+    "adaptive_replay": "Core kinase adaptive replay-trace parity",
     "public_predmat": "Public end-to-end predMat parity",
     "order_invariance": "Public predMat order-invariance parity",
     "activity_stage": "Activity-stage parity",

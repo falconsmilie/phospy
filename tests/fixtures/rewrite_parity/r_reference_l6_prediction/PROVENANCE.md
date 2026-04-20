@@ -33,3 +33,8 @@ The active rewrite parity test family uses explicit per-surface policies:
   checks.
 - prediction rankings: rank-correlation + top-10/20/30 overlap summaries for
   `adaptive_policy="stable"` and `adaptive_policy="r_parity"`.
+
+Release-gate thresholds for this lane are enforced in
+`tests/parity/test_l6_prediction_parity.py` and mirror the donor baseline from
+the archival parity suite (`tests_legacy/test_parity-with_metrics.py`), rather
+than permissive similarity checks.

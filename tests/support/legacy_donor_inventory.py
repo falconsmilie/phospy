@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 REQUIRED_DONOR_AREAS = (
     "profile policy behavior",
+    "core kinase scoring/prediction lane",
     "adaptive sampling / svm_mode",
     "signalome clustering/module selection",
     "weighted-top assignment behavior",
@@ -12,8 +13,9 @@ REQUIRED_DONOR_AREAS = (
     "activity parity lock",
 )
 
-OPEN_SCIENCE_GAP_TICKETS = (
+TRACKED_SCIENCE_GAP_TICKETS = (
     "SCI-GAP-01",
+    "SCI-GAP-12",
     "SCI-GAP-05",
     "SCI-GAP-06",
     "SCI-GAP-08",
@@ -21,6 +23,11 @@ OPEN_SCIENCE_GAP_TICKETS = (
     "SCI-GAP-10",
     "SCI-GAP-11",
 )
+
+# Governance truth source: no science-gap tickets are currently open in the
+# supported rewrite lane. Historical SCI-GAP ids remain tracked for provenance.
+OPEN_SCIENCE_GAP_TICKETS: tuple[str, ...] = ()
+CLOSED_SCIENCE_GAP_TICKETS: tuple[str, ...] = TRACKED_SCIENCE_GAP_TICKETS
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +64,42 @@ LEGACY_DONOR_AREAS: tuple[LegacyDonorAreaInventory, ...] = (
         ),
         provenance_paths=(
             "tests/fixtures/rewrite_parity/r_reference_l6/PROVENANCE.md",
+        ),
+    ),
+    LegacyDonorAreaInventory(
+        area="core kinase scoring/prediction lane",
+        science_gap_ticket="SCI-GAP-12",
+        rewrite_unit_tests=(),
+        rewrite_parity_tests=(
+            "tests/parity/test_l6_prediction_parity.py::"
+            "test_l6_full_prediction_and_scoring_parity_against_promoted_reference_tables",
+            "tests/parity/test_adaptive_replay_parity.py::"
+            "test_adaptive_replay_trace_parity_matches_promoted_trace_surfaces",
+        ),
+        rewrite_integration_tests=(),
+        archival_only_tests=(
+            "tests_legacy/test_parity-with_metrics.py::"
+            "test_l6_native_prediction_rankings_agree_with_r_reference",
+            "tests_legacy/test_parity-with_metrics.py::"
+            "test_l6_replayed_prediction_trace_matches_r_sampling_path",
+        ),
+        promoted_fixture_paths=(
+            "tests/fixtures/rewrite_parity/r_reference_l6_prediction/native_profile_scores.csv",
+            "tests/fixtures/rewrite_parity/r_reference_l6_prediction/native_combined_scores.csv",
+            "tests/fixtures/rewrite_parity/r_reference_l6_prediction/native_combined_weights.csv",
+            "tests/fixtures/rewrite_parity/r_reference_l6_prediction/native_candidate_substrates.csv",
+            "tests/fixtures/rewrite_parity/r_reference_l6_prediction/native_prediction_top30.csv",
+            "tests/fixtures/rewrite_parity/adaptive_sampling_replay/trace_initial_negatives.csv",
+            "tests/fixtures/rewrite_parity/adaptive_sampling_replay/trace_iteration_samples.csv",
+            "tests/fixtures/rewrite_parity/adaptive_sampling_replay/trace_final_ensemble_predictions.csv",
+            "tests/fixtures/rewrite_parity/adaptive_sampling_replay/trace_final_ensemble_top.csv",
+            "src/phospy/data/reference_bundles/rat/l6_native/motif_scores.csv",
+            "src/phospy/data/reference_bundles/rat/l6_native/motif_sizes.csv",
+        ),
+        provenance_paths=(
+            "tests/fixtures/rewrite_parity/r_reference_l6_prediction/PROVENANCE.md",
+            "tests/fixtures/rewrite_parity/adaptive_sampling_replay/PROVENANCE.md",
+            "docs/parity.md",
         ),
     ),
     LegacyDonorAreaInventory(

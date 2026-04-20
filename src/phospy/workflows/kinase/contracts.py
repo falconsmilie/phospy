@@ -31,6 +31,7 @@ class ResolvedKinaseWorkflowRequest:
     site_sequences: pd.DataFrame
     scoring_site_index: pd.Index
     activity_phospho_matrix: pd.DataFrame
+    uses_bundled_reference: bool
     execution_config: ResolvedKinaseExecutionConfig
 
 

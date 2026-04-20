@@ -80,8 +80,8 @@ KINASE_PREDICTION_DEFAULT_ITERATIONS = 5
 class KinaseScoringConfig:
     """Public scoring-stage configuration.
 
-    `min_substrates` is constrained to the scientific support floor so one-site
-    kinase profiles are not part of the default public lane.
+    `min_substrates` is constrained to the public scoring support floor used by
+    the supported rewrite contract.
 
     `include_diagnostic_scoring_tables` controls publication of non-authoritative
     diagnostic scoring outputs (`motif_scores`, `weights`). The authoritative

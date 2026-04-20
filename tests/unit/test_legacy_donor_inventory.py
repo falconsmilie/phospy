@@ -3,9 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from tests.support.legacy_donor_inventory import (
+    CLOSED_SCIENCE_GAP_TICKETS,
     LEGACY_DONOR_AREAS,
     OPEN_SCIENCE_GAP_TICKETS,
     REQUIRED_DONOR_AREAS,
+    TRACKED_SCIENCE_GAP_TICKETS,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -43,9 +45,9 @@ def test_each_donor_area_has_rewrite_owned_blocking_tests() -> None:
             _assert_test_reference_exists(reference)
 
 
-def test_open_science_gap_tickets_map_to_rewrite_tests_in_inventory() -> None:
+def test_tracked_science_gap_tickets_map_to_rewrite_tests_in_inventory() -> None:
     ticket_to_entry = {entry.science_gap_ticket: entry for entry in LEGACY_DONOR_AREAS}
-    assert set(OPEN_SCIENCE_GAP_TICKETS) == set(ticket_to_entry)
+    assert set(TRACKED_SCIENCE_GAP_TICKETS) == set(ticket_to_entry)
     for ticket, entry in ticket_to_entry.items():
         rewrite_tests = (
             entry.rewrite_unit_tests
@@ -53,6 +55,11 @@ def test_open_science_gap_tickets_map_to_rewrite_tests_in_inventory() -> None:
             + entry.rewrite_integration_tests
         )
         assert rewrite_tests, f"{ticket} must map to at least one rewrite-owned test"
+
+
+def test_open_science_gap_ticket_list_is_truthful_for_current_lane() -> None:
+    assert OPEN_SCIENCE_GAP_TICKETS == ()
+    assert set(CLOSED_SCIENCE_GAP_TICKETS) == set(TRACKED_SCIENCE_GAP_TICKETS)
 
 
 def test_inventory_fixtures_are_promoted_under_rewrite_paths_with_provenance() -> None:
@@ -98,5 +105,5 @@ def test_parity_doc_keeps_donor_inventory_visible() -> None:
     assert "`expanded_signalome`" in parity_doc
     for area in REQUIRED_DONOR_AREAS:
         assert area in parity_doc
-    for ticket in OPEN_SCIENCE_GAP_TICKETS:
+    for ticket in TRACKED_SCIENCE_GAP_TICKETS:
         assert ticket in parity_doc

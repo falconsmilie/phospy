@@ -33,13 +33,16 @@ Historical code under `legacy_archive/phospy_legacy/` is migration reference onl
 - Signalome supports `assignment_policy="weighted_top"` and network-policy
   variants (`positive_only`, `absolute_threshold`, `signed`)
 
-## Science-Parity Ticket Status (2026-04-19)
+## Science-Parity Ticket Status (2026-04-20)
 
 Audit reference:
 [Legacy Science Gap Audit](architecture/legacy_science_gap_audit.md)
 
 - `SCI-GAP-01`: profile missing-value strategy (`strict` + `median_skipna`) -
   completed
+- `SCI-GAP-12`: core kinase downstream scoring/prediction parity restoration -
+  completed (legacy-grade L6 ranking/candidate/replay gates restored in rewrite
+  parity suite)
 - `SCI-GAP-05`: adaptive ensemble prediction lane - completed
 - `SCI-GAP-06`: signalome clustering + module-count diagnostics - completed
 - `SCI-GAP-08`: weighted-top assignment policy + fractional module shares -
@@ -52,8 +55,8 @@ Audit reference:
 - `SCI-GAP-07`: deterministic tie-metadata hardening for current lexicographic
   assignment policy - completed
 
-No open science-parity gap tickets are currently confirmed in the supported
-rewrite lane.
+No open science-parity gap tickets are confirmed in the supported rewrite lane
+as of 2026-04-20.
 
 ## Remaining Roadmap (Real Next Steps)
 

@@ -118,6 +118,82 @@ def load_bundled_site_sequences(organism: Organism) -> pd.DataFrame:
     return site_sequences.rename(columns={"centralized_sequence": "site_sequence"})
 
 
+def load_bundled_motif_scores(organism: Organism) -> pd.DataFrame | None:
+    """Load optional bundled motif-score table for one supported organism."""
+
+    reference_name = bundled_reference_name_for_organism(organism)
+    frame = _read_optional_csv_resource(
+        organism=organism,
+        reference_name=reference_name,
+        filename="motif_scores.csv",
+    )
+    if frame is None:
+        return None
+    if frame.empty:
+        raise ReferenceResolutionError(
+            "bundled motif_scores.csv must be non-empty for "
+            f"{organism.value}/{reference_name}"
+        )
+    if "site_id" in frame.columns:
+        score_frame = frame.set_index("site_id")
+    else:
+        index_name = frame.columns[0]
+        score_frame = frame.set_index(index_name)
+    score_frame.index = canonicalize_site_index(
+        score_frame.index,
+        field_name="bundled reference motif_scores.csv site_id",
+        error_type=ReferenceResolutionError,
+        index_name="site_id",
+    )
+    score_frame.columns = score_frame.columns.astype(str)
+    score_frame.columns.name = "kinase"
+    try:
+        return score_frame.astype(float)
+    except ValueError as exc:
+        raise ReferenceResolutionError(
+            "bundled motif_scores.csv must contain numeric score values for "
+            f"{organism.value}/{reference_name}"
+        ) from exc
+
+
+def load_bundled_motif_sizes(organism: Organism) -> pd.Series | None:
+    """Load optional bundled motif-size metadata for one supported organism."""
+
+    reference_name = bundled_reference_name_for_organism(organism)
+    frame = _read_optional_csv_resource(
+        organism=organism,
+        reference_name=reference_name,
+        filename="motif_sizes.csv",
+    )
+    if frame is None:
+        return None
+    required_columns = {"kinase", "motif_size"}
+    missing = required_columns.difference(frame.columns)
+    if missing:
+        missing_text = ", ".join(sorted(missing))
+        raise ReferenceResolutionError(
+            "bundled motif_sizes.csv is missing required columns for "
+            f"{organism.value}/{reference_name}: {missing_text}"
+        )
+    cleaned = frame.loc[:, ["kinase", "motif_size"]].copy()
+    cleaned.loc[:, "kinase"] = cleaned.loc[:, "kinase"].astype(str).str.strip()
+    if (cleaned.loc[:, "kinase"] == "").any():
+        raise ReferenceResolutionError(
+            "bundled motif_sizes.csv contains blank kinase values for "
+            f"{organism.value}/{reference_name}"
+        )
+    try:
+        sizes = cleaned.set_index("kinase").loc[:, "motif_size"].astype(float)
+    except ValueError as exc:
+        raise ReferenceResolutionError(
+            "bundled motif_sizes.csv must contain numeric motif_size values for "
+            f"{organism.value}/{reference_name}"
+        ) from exc
+    sizes.index.name = "kinase"
+    sizes.name = "motif_size"
+    return sizes
+
+
 def _read_csv_resource(
     *,
     organism: Organism,
@@ -137,5 +213,25 @@ def _read_csv_resource(
             "bundled reference resource is missing for "
             f"{organism.value}/{reference_name}: {filename}"
         )
+    with resources.as_file(resource) as resolved_path:
+        return pd.read_csv(resolved_path)
+
+
+def _read_optional_csv_resource(
+    *,
+    organism: Organism,
+    reference_name: str,
+    filename: str,
+) -> pd.DataFrame | None:
+    package_root = resources.files("phospy")
+    resource = package_root.joinpath(
+        "data",
+        "reference_bundles",
+        organism.value,
+        reference_name,
+        filename,
+    )
+    if not resource.is_file():
+        return None
     with resources.as_file(resource) as resolved_path:
         return pd.read_csv(resolved_path)
