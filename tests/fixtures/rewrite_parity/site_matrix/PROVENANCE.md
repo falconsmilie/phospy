@@ -11,3 +11,5 @@
     surface (`drop_any_missing` + `max_mean_signal`).
 - Active rewrite tests should consume this rewrite fixture folder rather than
   reading from `tests_legacy/fixtures/` directly.
+- Active parity-tier gate:
+  - `tests/parity/test_preprocessing_science_parity.py::test_site_matrix_build_from_metadata_matches_rewrite_reference_fixture`

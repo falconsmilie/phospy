@@ -79,18 +79,15 @@ rewrite lanes (`PARITY_GATED_ACTIVE_SCIENCE`):
 - full-table signalome regression contracts on the supported L6 lane:
   `module_assignments`, `signalome_modules`, `kinase_network.nodes`,
   `kinase_network.edges`, `expanded_signalome`
+- preprocessing-science parity on supported builder lanes:
+  `total_protein_correction.policy="ratio_to_total"`,
+  `site_matrix.policy="build_from_metadata"`, and
+  `comparisons.policy="sample_metadata_pairs"`
 
 ## Donor-Backed Rewrite Coverage (Not Parity-Gated)
 
-These lanes are implemented and supported with rewrite-owned unit/integration
-tests plus donor-informed evidence, but are not currently promoted to the same
-active parity-gated tier:
-
-- builder total/protein correction policy (`ratio_to_total`)
-- builder site-matrix construction policy controls
-  (`missing_data_policy`, `minimum_observed_values`,
-  `duplicate_site_strategy`)
-- builder sample-metadata comparison construction (`sample_metadata_pairs`)
+No lanes in the current audited inventory snapshot dated `2026-04-21` are
+classified in this tier.
 
 ## Contract-Changed Supported Lanes
 
@@ -138,8 +135,8 @@ through `tests_legacy/`.
 When parity tests run, terminal output includes grouped scientific summaries
 for prediction-science parity, kinase workflow parity, L6 core scoring/prediction,
 adaptive prediction, adaptive replay-trace parity, public end-to-end predMat
-parity, predMat order-invariance parity, activity-stage parity, and signalome
-workflow parity.
+parity, predMat order-invariance parity, activity-stage parity,
+preprocessing-science parity, and signalome workflow parity.
 
 No `PHOSPY_SHOW_*` environment variables are required.
 
@@ -160,9 +157,9 @@ areas. `Status` and `Coverage tier` are intentionally separate columns so that
 | expanded signalome outputs | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | `expanded_signalome` is materialized in the supported workflow path and parity-tested. |
 | activity parity lock | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | Activity/KSEA science is rewrite-ported and guarded by parity CI gates. |
 | preprocessing transformation establishment | CONTRACT_CHANGED | CONTRACT_CHANGED_SUPPORTED_LANE | Contract changed (narrow builder establishment policy) | Supported builder lane establishes only `linear` pass-through transformation state. |
-| total/protein correction | PORTED | DONOR_BACKED_REWRITE_COVERAGE | Legacy-equivalent in supported lane | `total_protein_correction.policy="ratio_to_total"` is supported in builder preprocessing with strict phospho/total matching checks. |
-| site-matrix construction | PORTED | DONOR_BACKED_REWRITE_COVERAGE | Legacy-equivalent in supported lane | Legacy-equivalent site-matrix policy controls are implemented in builder preprocessing with donor-fixture and integration coverage. |
-| comparison-building | PORTED | DONOR_BACKED_REWRITE_COVERAGE | Legacy-equivalent in supported lane | Builder preprocessing supports sample-metadata pairwise comparison construction with explicit or inferred pairs. |
+| total/protein correction | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | `total_protein_correction.policy="ratio_to_total"` is parity-gated in rewrite-owned fixture tests, including strict phospho/total alignment behavior. |
+| site-matrix construction | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | Supported site-matrix construction (`build_from_metadata`) is parity-gated with rewrite-owned fixture expectations for row retention, site identity, and output matrix values. |
+| comparison-building | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | Sample-metadata comparison construction is parity-gated for explicit and inferred pair policies, including pair identity/order and expected output values. |
 | site-to-protein resolution fallback behavior | CONTRACT_CHANGED | CONTRACT_CHANGED_SUPPORTED_LANE | Contract changed (no legacy site-id-prefix fallback) | Signalome requires explicit `site_metadata.protein_id`. |
 | signalome input route contraction | CONTRACT_CHANGED | CONTRACT_CHANGED_SUPPORTED_LANE | Contract changed (workflow entrypoint narrowed) | Supported signalome entrypoint is `SignalomeWorkflowRequest(kinase_result=...)`. |
 | dataset-vs-reference sequence authority decisions | CONTRACT_CHANGED | CONTRACT_CHANGED_SUPPORTED_LANE | Contract changed (reference bundle is sequence authority) | Motif sequence authority in supported kinase lane is `references.site_sequences`. |
@@ -196,6 +193,12 @@ Rewrite-side visibility check:
 - `tests/fixtures/rewrite_parity/adaptive_sampling_replay/`
 - provenance and promotion history:
   `tests/fixtures/rewrite_parity/adaptive_sampling_replay/PROVENANCE.md`
+- `tests/fixtures/rewrite_parity/protein_correction/`
+- provenance and promotion history:
+  `tests/fixtures/rewrite_parity/protein_correction/PROVENANCE.md`
+- `tests/fixtures/rewrite_parity/comparison_building/`
+- provenance and promotion history:
+  `tests/fixtures/rewrite_parity/comparison_building/PROVENANCE.md`
 - `tests/fixtures/rewrite_parity/site_matrix/`
 - provenance and promotion history:
   `tests/fixtures/rewrite_parity/site_matrix/PROVENANCE.md`

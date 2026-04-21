@@ -13,3 +13,16 @@ lane.
 `legacy_r_reference_corrected_matrix.csv` captures the donor-corrected phospho
 matrix slice (`phospho_corrected_1..6`) mapped to rewrite sample columns
 (`p_group1..6`) and canonical `site_id` formatting (`GENE;SITE;`).
+
+## Rewrite-Owned Parity Inputs
+
+The active preprocessing parity gate uses rewrite-owned input fixtures in this
+directory:
+
+- `legacy_r_reference_input_phospho.csv`
+- `legacy_r_reference_input_site_metadata.csv`
+- `legacy_r_reference_input_total.csv`
+
+These fixtures encode the supported
+`total_protein_correction.policy="ratio_to_total"` lane directly, so ordinary
+parity execution does not depend on runtime reads from `tests_legacy/`.

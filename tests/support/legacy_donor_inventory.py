@@ -374,7 +374,10 @@ LEGACY_SCIENCE_AREAS: tuple[LegacyScienceAreaInventory, ...] = (
             "tests/unit/test_dataset_preprocessing_subsystem.py::"
             "test_dataset_preprocessor_rejects_correction_when_proteins_are_unmatched",
         ),
-        rewrite_parity_tests=(),
+        rewrite_parity_tests=(
+            "tests/parity/test_preprocessing_science_parity.py::"
+            "test_ratio_to_total_total_protein_correction_matches_rewrite_reference_fixture",
+        ),
         rewrite_integration_tests=(
             "tests/integration/test_dataset_builder_integration.py::"
             "test_dataset_builder_applies_total_protein_correction_when_requested",
@@ -413,7 +416,10 @@ LEGACY_SCIENCE_AREAS: tuple[LegacyScienceAreaInventory, ...] = (
             "tests/unit/test_validator_boundaries.py::"
             "test_dataset_build_request_allows_site_matrix_policy_overrides",
         ),
-        rewrite_parity_tests=(),
+        rewrite_parity_tests=(
+            "tests/parity/test_preprocessing_science_parity.py::"
+            "test_site_matrix_build_from_metadata_matches_rewrite_reference_fixture",
+        ),
         rewrite_integration_tests=(
             "tests/integration/test_dataset_builder_integration.py::"
             "test_dataset_builder_supports_site_matrix_build_from_metadata_policy",
@@ -458,7 +464,12 @@ LEGACY_SCIENCE_AREAS: tuple[LegacyScienceAreaInventory, ...] = (
             "tests/unit/test_dataset_preprocessing_subsystem.py::"
             "test_dataset_preprocessor_comparison_building_matches_legacy_pairwise_expectation",
         ),
-        rewrite_parity_tests=(),
+        rewrite_parity_tests=(
+            "tests/parity/test_preprocessing_science_parity.py::"
+            "test_comparison_building_explicit_pair_matches_rewrite_reference_fixture",
+            "tests/parity/test_preprocessing_science_parity.py::"
+            "test_comparison_building_inferred_pairs_match_rewrite_reference_fixture",
+        ),
         rewrite_integration_tests=(
             "tests/integration/test_dataset_builder_integration.py::"
             "test_dataset_builder_builds_inferred_comparisons_from_sample_metadata",

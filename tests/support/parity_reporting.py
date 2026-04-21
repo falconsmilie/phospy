@@ -18,6 +18,7 @@ PARITY_FAMILY_ORDER: tuple[str, ...] = (
     "public_predmat",
     "order_invariance",
     "activity_stage",
+    "preprocessing_science",
     "signalome_workflow",
 )
 
@@ -30,6 +31,7 @@ PARITY_FAMILY_TITLES: Mapping[str, str] = {
     "public_predmat": "Public end-to-end predMat parity",
     "order_invariance": "Public predMat order-invariance parity",
     "activity_stage": "Activity-stage parity",
+    "preprocessing_science": "Preprocessing-science parity",
     "signalome_workflow": "Signalome workflow parity",
 }
 
@@ -41,6 +43,7 @@ PARITY_FILE_TO_FAMILY: Mapping[str, str] = {
     "test_adaptive_replay_parity.py": "adaptive_replay",
     "test_public_predmat_parity.py": "public_predmat",
     "test_activity_stage_parity.py": "activity_stage",
+    "test_preprocessing_science_parity.py": "preprocessing_science",
     "test_signalome_workflow_parity.py": "signalome_workflow",
 }
 
