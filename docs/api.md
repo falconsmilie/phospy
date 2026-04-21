@@ -432,9 +432,16 @@ Deferred/experimental/not yet ported into the public lane:
 - `ReferencePreset.AUTO` requires `dataset.organism`.
 - Preset/dataset organism compatibility is enforced.
 - Bundled runtime references are currently rat-only.
-- `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain public enum lanes,
+- Enum breadth is broader than bundled runtime support by design:
+  `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain public enum lanes,
   but bundled resolution for those presets is intentionally unsupported in this release.
 - Non-rat execution uses explicit caller-provided `ReferenceBundle`.
+- Public enum availability is syntactic contract surface, not by itself a
+  scientific-support claim for bundled runtime execution.
+- Any future broadening of bundled organism support must ship both:
+  - bundled reference data for the new organism lane, and
+  - parity-backed evidence for that lane in the active regression contract
+    before docs can claim it as supported bundled runtime behavior.
 
 ## User-Handleable Exceptions
 

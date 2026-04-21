@@ -12,7 +12,11 @@ from phospy.errors.validation import ReferenceValidationError
 
 
 class Organism(str, Enum):
-    """Supported organism identifiers for dataset/reference contracts."""
+    """Public organism identifiers used in dataset/reference contracts.
+
+    Enum membership defines contract syntax. Bundled runtime scientific support
+    may be narrower in a given release.
+    """
 
     HUMAN = "human"
     MOUSE = "mouse"
@@ -22,8 +26,8 @@ class Organism(str, Enum):
 class ReferencePreset(str, Enum):
     """Built-in organism presets for bundled-reference resolution.
 
-    Enum values define the public organism lanes. A release may bundle only a
-    subset of those lanes.
+    Enum values define public organism lanes accepted by request contracts.
+    Bundled runtime references may cover only a subset in a given release.
     """
 
     AUTO = "auto"

@@ -156,8 +156,13 @@ Deferred or out of the supported default lane:
   `sequence`, `protein`) are rejected with actionable errors.
 - `ReferencePreset.AUTO` requires `dataset.organism`.
 - Bundled runtime references are currently rat-only.
-- `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain valid public enum values,
+- Enum breadth is intentionally wider than bundled runtime breadth:
+  `ReferencePreset.HUMAN` and `ReferencePreset.MOUSE` remain valid public enum values,
   but require caller-supplied `ReferenceBundle` in this release.
+- Public enum availability is API syntax surface, not by itself a bundled
+  scientific-support claim.
+- Any future claim of broader bundled organism support requires both bundled
+  reference data and parity-backed evidence in the active regression suite.
 - Kinase scoring enforces `scoring_config.min_substrates >= 2`.
 
 ## Example
