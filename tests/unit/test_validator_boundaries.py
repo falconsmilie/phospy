@@ -228,7 +228,29 @@ def test_dataset_build_request_rejects_min_observed_values_for_forbid_policy() -
         DatasetBuildRequestValidator().run(request)
 
 
-def test_dataset_build_request_rejects_unsupported_total_protein_correction_policy() -> (
+def test_dataset_build_request_allows_ratio_total_protein_correction_policy() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        total=pd.DataFrame({"sample_a": [2.0]}, index=["MAPK14"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                policy="ratio_to_total"
+            )
+        ),
+    )
+    validated = DatasetBuildRequestValidator().run(request)
+    assert validated is request
+
+
+def test_dataset_build_request_requires_total_for_ratio_total_protein_correction() -> (
     None
 ):
     request = DatasetBuildRequest(
@@ -249,7 +271,7 @@ def test_dataset_build_request_rejects_unsupported_total_protein_correction_poli
     )
     with pytest.raises(
         PhosPyInputError,
-        match="total_protein_correction.policy is not supported",
+        match="policy='ratio_to_total' requires total input data",
     ):
         DatasetBuildRequestValidator().run(request)
 

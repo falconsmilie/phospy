@@ -362,25 +362,36 @@ LEGACY_SCIENCE_AREAS: tuple[LegacyScienceAreaInventory, ...] = (
     ),
     LegacyScienceAreaInventory(
         area="total/protein correction",
-        status=STATUS_OPEN_GAP,
+        status=STATUS_PORTED,
         status_summary=(
-            "Legacy total/protein correction science is not ported as a supported "
-            "rewrite lane."
+            "Legacy-style total/protein correction is implemented in the "
+            "supported builder preprocessing lane behind explicit policy."
         ),
         science_gap_ticket=None,
-        rewrite_unit_tests=(),
+        rewrite_unit_tests=(
+            "tests/unit/test_dataset_preprocessing_subsystem.py::"
+            "test_dataset_preprocessor_total_protein_correction_matches_legacy_donor_fixture",
+            "tests/unit/test_dataset_preprocessing_subsystem.py::"
+            "test_dataset_preprocessor_rejects_correction_when_proteins_are_unmatched",
+        ),
         rewrite_parity_tests=(),
-        rewrite_integration_tests=(),
+        rewrite_integration_tests=(
+            "tests/integration/test_dataset_builder_integration.py::"
+            "test_dataset_builder_applies_total_protein_correction_when_requested",
+        ),
         archival_only_tests=(
             "tests_legacy/test_preprocessing.py::"
             "test_correct_phospho_to_protein_and_pairwise_comparisons",
             "tests_legacy/test_preprocessing.py::"
             "test_protein_correction_service_applies_correction_and_pairwise_augmentation",
         ),
-        promoted_fixture_paths=(),
+        promoted_fixture_paths=(
+            "tests/fixtures/rewrite_parity/protein_correction/"
+            "legacy_r_reference_corrected_matrix.csv",
+        ),
         provenance_paths=(
+            "tests/fixtures/rewrite_parity/protein_correction/PROVENANCE.md",
             "docs/parity.md",
-            "docs/architecture/legacy_science_gap_audit.md",
         ),
     ),
     LegacyScienceAreaInventory(

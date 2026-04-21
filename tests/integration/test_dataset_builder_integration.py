@@ -9,10 +9,11 @@ from phospy import (
     DatasetBuildRequest,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
+    DatasetTotalProteinCorrectionConfig,
     Organism,
     ReferencePreset,
 )
-from phospy.errors import DatasetValidationError
+from phospy.errors import DatasetValidationError, PhosPyInputError
 from phospy.references.resolution import ReferenceResolver
 from phospy.transformations.models import TransformationState
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
@@ -77,6 +78,68 @@ def test_dataset_builder_preserves_total_matrix_and_establishes_linear_state() -
         has_total_matrix=True
     )
     assert built.transformation_state.label == "linear"
+
+
+def test_dataset_builder_applies_total_protein_correction_when_requested() -> None:
+    phospho = load_rat_l6_phospho().head(6).copy(deep=True)
+    site_metadata = site_metadata_for(phospho)
+    gene_symbols = site_metadata.loc[:, "gene_symbol"].astype(str)
+    unique_genes = pd.Index(
+        dict.fromkeys(gene_symbols.tolist()).keys(), name="protein_id"
+    )
+    total = pd.DataFrame(
+        {
+            sample_name: [
+                float(gene_position + sample_position + 1)
+                for gene_position in range(len(unique_genes))
+            ]
+            for sample_position, sample_name in enumerate(phospho.columns.astype(str))
+        },
+        index=unique_genes,
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            total=total,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                    policy="ratio_to_total"
+                )
+            ),
+        )
+    )
+
+    total_by_site = total.reindex(gene_symbols.tolist())
+    total_by_site.index = phospho.index
+    expected = phospho - total_by_site
+    pdt.assert_frame_equal(built.phospho, expected)
+    pdt.assert_frame_equal(built.total, total)
+    assert built.transformation_state == TransformationState.established_raw(
+        has_total_matrix=True
+    )
+
+
+def test_dataset_builder_requires_total_when_ratio_correction_is_requested() -> None:
+    phospho = load_rat_l6_phospho().head(4).copy(deep=True)
+    with pytest.raises(
+        PhosPyInputError,
+        match="policy='ratio_to_total' requires total input data",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata_for(phospho),
+                organism=Organism.RAT,
+                preprocessing_config=DatasetPreprocessingConfig(
+                    total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                        policy="ratio_to_total"
+                    )
+                ),
+            )
+        )
 
 
 def test_dataset_builder_supports_documented_alias_and_index_derivation_conventions() -> (

@@ -88,7 +88,8 @@ Current transformation establishment policy in this public builder lane is
 intentionally narrow:
 
 - builder execution establishes only the supported pass-through `linear` state
-- quantitative matrix values are preserved as provided after builder normalization
+- quantitative matrix values are preserved as provided after builder normalization,
+  except when an explicit preprocessing policy modifies them
 - no additional log or heuristic transformation path is exposed in the public builder
 
 `DatasetPreprocessingConfig` is grouped and builder-owned:
@@ -103,14 +104,18 @@ Current supported policies:
 - `missing_data.policy="forbid"` (default): no missing-value preprocessing.
 - `missing_data.policy="impute_row_median"`: drop rows below
   `missing_data.min_observed_values`, then row-median imputation.
-- `total_protein_correction.policy="none"` (required in supported lane).
+- `total_protein_correction.policy="none"` (default): no total/protein correction.
+- `total_protein_correction.policy="ratio_to_total"`: subtract matched
+  `total` abundance from `phospho` abundance per sample column in builder
+  preprocessing. This policy requires `total` input, exact
+  `total.columns == phospho.columns`, and complete
+  `site_metadata.gene_symbol` vs `total.index` matching.
 - `site_matrix.policy="as_input"` (required in supported lane).
 - `comparisons.policy="none"` (required in supported lane).
 
 Reserved but currently unsupported policies are intentionally explicit and fail
 validation in the public builder lane:
 
-- `total_protein_correction.policy="ratio_to_total"`
 - `site_matrix.policy="build_from_metadata"`
 - `comparisons.policy="sample_metadata_pairs"`
 
@@ -136,6 +141,8 @@ Supported establishment paths are:
 
 For `AnalysisReadyDatasetBuilder.run(...)`, the established state is currently
 the pass-through `linear` path.
+When `total_protein_correction.policy="ratio_to_total"` is used, corrected
+quantitative values are represented directly in `dataset.phospho`.
 
 Directly declared transformation-state objects are not accepted as authoritative
 at the dataset boundary unless they were established through one of the supported

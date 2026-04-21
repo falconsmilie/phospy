@@ -36,12 +36,15 @@ After source loading, both routes pass through the same normalization path:
 - fail-fast rejection of ambiguous/unsupported legacy aliases
 
 Before final dataset construction, supported preprocessing policy is applied to
-`phospho` according to `preprocessing_config.missing_data.policy`:
+`phospho` according to `preprocessing_config`:
 
 - `"forbid"` (default): no missing-value preprocessing
 - `"impute_row_median"`: drop rows below
   `missing_data.min_observed_values`, then row-median imputation for remaining
   missing phospho values
+- `"ratio_to_total"` under `preprocessing_config.total_protein_correction.policy`:
+  subtract matched total-protein abundance from phosphosite abundance before
+  transformation-state establishment
 
 `AnalysisReadyPhosphoDataset` itself is strict and DataFrame-only.
 Workflows consume only this dataset type.
@@ -90,11 +93,18 @@ No additional transformation mode is publicly selectable.
 - `missing_data.min_observed_values` must be an integer `>= 1` when policy is
   `impute_row_median`
 - supported lane policy restrictions:
-  - `total_protein_correction.policy` must stay `none`
+  - `total_protein_correction.policy` must be one of `none`, `ratio_to_total`
   - `site_matrix.policy` must stay `as_input`
   - `comparisons.policy` must stay `none`
 - at execution, `missing_data.min_observed_values` must not exceed phospho
   sample count
+- at request validation, `total_protein_correction.policy='ratio_to_total'`
+  requires `request.total` to be present
+- at execution, `total_protein_correction.policy='ratio_to_total'` requires:
+  - `total.columns` exactly matching `phospho.columns`
+  - numeric phospho/total columns
+  - unique normalized `total.index` identifiers
+  - complete matching between `site_metadata.gene_symbol` and `total.index`
 
 ## Builder Convention Rules
 

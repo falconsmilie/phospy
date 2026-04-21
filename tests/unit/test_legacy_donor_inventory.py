@@ -180,7 +180,6 @@ def test_release_facing_parity_docs_do_not_claim_blanket_no_open_legacy_science_
         assert phrase not in audit_doc
 
     expected_open_gap_rows = {
-        "total/protein correction",
         "site-matrix construction",
         "comparison-building",
     }

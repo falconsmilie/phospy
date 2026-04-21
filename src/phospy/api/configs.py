@@ -136,8 +136,9 @@ class DatasetMissingDataConfig:
 class DatasetTotalProteinCorrectionConfig:
     """Public total/protein correction policy options for dataset building.
 
-    - `"none"`: do not apply total/protein correction (current supported policy).
-    - `"ratio_to_total"`: reserved policy surface for future science restoration.
+    - `"none"`: do not apply total/protein correction.
+    - `"ratio_to_total"`: subtract matched total/protein abundance from phosphosite
+      abundance in the builder preprocessing lane.
     """
 
     policy: DatasetTotalProteinCorrectionPolicy = (

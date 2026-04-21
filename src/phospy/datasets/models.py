@@ -19,7 +19,12 @@ _TRANSFORMATION_STATE_VALIDATOR = TransformationStateValidator()
 
 @dataclass(frozen=True, slots=True)
 class AnalysisReadyPhosphoDataset:
-    """Public analysis-ready dataset contract."""
+    """Public analysis-ready dataset contract.
+
+    `phospho` stores the quantitative matrix after builder preprocessing policy
+    has been applied. When total/protein correction is enabled in the builder
+    lane, corrected values are represented directly in this matrix.
+    """
 
     phospho: pd.DataFrame
     site_metadata: pd.DataFrame

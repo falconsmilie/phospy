@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import Path
 
 import pandas as pd
 import pandas.testing as pdt
+import pytest
 
-from phospy.api.configs import DatasetMissingDataConfig, DatasetPreprocessingConfig
+from phospy.api.configs import (
+    DatasetMissingDataConfig,
+    DatasetPreprocessingConfig,
+    DatasetTotalProteinCorrectionConfig,
+)
 from phospy.api.requests import DatasetBuildRequest
 from phospy.datasets.builders.contracts import (
     InterpretedDatasetBuildRequest,
@@ -17,8 +23,11 @@ from phospy.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.datasets.builders.transformation_resolver import ResolvedTransformation
 from phospy.datasets.preprocessing.models import PreprocessingPlan, PreprocessingState
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.errors.input import PhosPyInputError
 from phospy.references.models import Organism
 from phospy.transformations.models import TransformationState
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def _phospho() -> pd.DataFrame:
@@ -205,6 +214,173 @@ def test_dataset_preprocessor_regression_impute_row_median_policy() -> None:
     pdt.assert_frame_equal(preprocessed.site_metadata, expected_site_metadata)
     assert preprocessed.sample_metadata is sample_metadata
     assert preprocessed.total is total
+
+
+def test_dataset_preprocessor_applies_total_protein_correction_ratio_policy() -> None:
+    phospho = _phospho()
+    site_metadata = _site_metadata()
+    total = pd.DataFrame(
+        {
+            "sample_a": [0.5, 2.0, 1.0],
+            "sample_b": [1.0, 1.0, 1.0],
+            "sample_c": [1.5, 0.5, 1.0],
+        },
+        index=pd.Index(["MAPK14", "GSK3B", "AKT1"], name="protein_id"),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=total,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                    policy="ratio_to_total"
+                )
+            )
+        ),
+    )
+
+    expected = pd.DataFrame(
+        {
+            "sample_a": [0.5, 0.0, 2.0],
+            "sample_b": [1.0, 0.0, 3.0],
+            "sample_c": [1.5, 1.0, 4.0],
+        },
+        index=phospho.index.copy(),
+    )
+    pdt.assert_frame_equal(preprocessed.phospho, expected)
+    assert preprocessed.site_metadata is site_metadata
+    assert preprocessed.total is total
+
+
+def test_dataset_preprocessor_rejects_correction_when_total_columns_mismatch() -> None:
+    phospho = _phospho()
+    site_metadata = _site_metadata()
+    total = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0, 3.0],
+            "sample_b": [1.0, 2.0, 3.0],
+        },
+        index=pd.Index(["MAPK14", "GSK3B", "AKT1"], name="protein_id"),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="requires total columns to exactly match phospho columns",
+    ):
+        DatasetPreprocessor().run(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=total,
+            plan=PreprocessingPlan.from_config(
+                DatasetPreprocessingConfig(
+                    total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                        policy="ratio_to_total"
+                    )
+                )
+            ),
+        )
+
+
+def test_dataset_preprocessor_rejects_correction_when_proteins_are_unmatched() -> None:
+    phospho = _phospho()
+    site_metadata = _site_metadata()
+    total = _total(phospho.columns)
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="requires complete phospho/total matching but would drop",
+    ):
+        DatasetPreprocessor().run(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=total,
+            plan=PreprocessingPlan.from_config(
+                DatasetPreprocessingConfig(
+                    total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                        policy="ratio_to_total"
+                    )
+                )
+            ),
+        )
+
+
+def test_dataset_preprocessor_total_protein_correction_matches_legacy_donor_fixture() -> (
+    None
+):
+    phospho_fixture = pd.read_csv(
+        ROOT / "tests_legacy" / "fixtures" / "r_reference" / "df_phospho_filtered.csv"
+    )
+    total_fixture = pd.read_csv(
+        ROOT / "tests_legacy" / "fixtures" / "r_reference" / "df_total_filtered.csv"
+    )
+    corrected_fixture = pd.read_csv(
+        ROOT
+        / "tests"
+        / "fixtures"
+        / "rewrite_parity"
+        / "protein_correction"
+        / "legacy_r_reference_corrected_matrix.csv"
+    )
+
+    phospho_columns = tuple(f"p_group{group}" for group in range(1, 7))
+    total_columns = tuple(f"group{group}" for group in range(1, 7))
+
+    site_tokens = (
+        phospho_fixture.loc[:, "gene_p_site"]
+        .astype(str)
+        .str.split("_", n=1, expand=True)
+    )
+    site_index = pd.Index(
+        site_tokens.loc[:, 0].astype(str)
+        + ";"
+        + site_tokens.loc[:, 1].astype(str)
+        + ";",
+        name="site_id",
+    )
+
+    phospho = phospho_fixture.loc[:, list(phospho_columns)].copy()
+    phospho.columns = pd.Index(phospho_columns)
+    phospho.index = site_index
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": phospho_fixture.loc[:, "gene_names"].astype(str).tolist(),
+            "site": site_tokens.loc[:, 1].astype(str).tolist(),
+        },
+        index=site_index.copy(),
+    )
+
+    total = total_fixture.loc[:, list(total_columns)].copy()
+    total.columns = pd.Index(phospho_columns)
+    total.index = pd.Index(total_fixture.loc[:, "genes"].astype(str), name="protein_id")
+
+    expected = (
+        corrected_fixture.set_index("site_id")
+        .loc[:, list(phospho_columns)]
+        .astype(float)
+        .copy()
+    )
+    expected.index = site_index.copy()
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=total,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                    policy="ratio_to_total"
+                )
+            )
+        ),
+    )
+
+    pdt.assert_frame_equal(preprocessed.phospho, expected)
 
 
 def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:

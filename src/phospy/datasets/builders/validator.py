@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from phospy.api.configs import DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL
 from phospy.api.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
 from phospy.references.models import Organism
@@ -35,4 +36,13 @@ class DatasetBuildRequestValidator:
         if request.organism is not None and not isinstance(request.organism, Organism):
             raise PhosPyInputError("dataset build request organism must be an Organism")
         self._preprocessing_validator.run(request.preprocessing_config)
+        if (
+            request.preprocessing_config.total_protein_correction.policy
+            == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL
+            and request.total is None
+        ):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                "policy='ratio_to_total' requires total input data"
+            )
         return request

@@ -36,7 +36,7 @@
 | expanded signalome outputs | PORTED | `SCI-GAP-10` | `expanded_signalome` is materialized in the supported workflow path. |
 | activity parity lock | PORTED | `SCI-GAP-11` | Activity/KSEA science is rewrite-ported and guarded by parity CI gates. |
 | preprocessing transformation establishment | CONTRACT_CHANGED | - | Builder preprocessing is intentionally narrow: pass-through linear transformation establishment plus limited missing-data policy. |
-| total/protein correction | OPEN_GAP | - | Legacy total/protein correction lane is not yet ported as a supported rewrite lane. |
+| total/protein correction | PORTED | - | `total_protein_correction.policy="ratio_to_total"` is supported in builder preprocessing with strict phospho/total matching checks. |
 | site-matrix construction | OPEN_GAP | - | Legacy site-matrix construction policy surface is not fully ported. |
 | comparison-building | OPEN_GAP | - | Legacy pairwise comparison-building workflow is not in supported rewrite lane. |
 | site-to-protein resolution fallback behavior | CONTRACT_CHANGED | - | Signalome requires explicit `site_metadata.protein_id` and does not apply legacy fallback to site-id prefix. |
@@ -45,7 +45,6 @@
 
 ## Open Legacy-Science Areas
 
-- `total/protein correction`
 - `site-matrix construction`
 - `comparison-building`
 

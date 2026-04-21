@@ -11,7 +11,6 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_POLICIES,
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES,
-    DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
     DatasetComparisonBuildingConfig,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
@@ -98,11 +97,6 @@ class DatasetPreprocessingConfigValidator:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.total_protein_correction."
                 f"policy must be one of: {supported}"
-            )
-        if policy != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE:
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.total_protein_correction."
-                "policy is not supported in the current public builder lane"
             )
 
     def _validate_site_matrix(self, config: DatasetSiteMatrixConfig) -> None:

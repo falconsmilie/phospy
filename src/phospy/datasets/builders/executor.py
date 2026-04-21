@@ -1,7 +1,7 @@
 """Internal executor for the dataset builder path.
 
 The public builder lane stays intentionally narrow: establish supported
-transformation state while preserving analysis-ready matrix values.
+transformation state after applying explicit builder preprocessing policy.
 """
 
 from __future__ import annotations
