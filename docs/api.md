@@ -114,10 +114,21 @@ Current supported policies:
 - `site_matrix.policy="build_from_metadata"`: construct site-matrix-ready rows
   from `site_metadata.gene_symbol`, `site_metadata.site`, and
   `site_metadata.site_sequence` after upstream missing-data and
-  total/protein-correction stages. This stage drops rows with missing
-  `site_sequence` or incomplete phospho values, resolves duplicate constructed
-  site IDs by retaining the row with strongest mean signal, and rewrites
-  `dataset.phospho`/`dataset.site_metadata` to the constructed site IDs.
+  total/protein-correction stages.
+  Additional supported policy controls under `DatasetSiteMatrixConfig`:
+  - `missing_data_policy="drop_any_missing"` (default): keep only complete rows.
+  - `missing_data_policy="retain_missing"`: keep rows with partial missingness.
+  - `missing_data_policy="require_min_observed_values"`: keep rows with at least
+    `minimum_observed_values` quantified phospho columns.
+  - `duplicate_site_strategy="max_mean_signal"` (default): keep strongest row.
+  - `duplicate_site_strategy="first"`: keep first duplicate row.
+  - `duplicate_site_strategy="aggregate_mean"`: aggregate duplicate rows by mean.
+  - `duplicate_site_strategy="aggregate_median"`: aggregate duplicate rows by median.
+  - `duplicate_site_strategy="error"`: fail on duplicate constructed site IDs.
+  Site IDs are constructed deterministically as canonical
+  `GENE_SYMBOL;SITE_TOKEN;` identifiers.
+  When `site_matrix.policy="as_input"`, these execution-only fields must remain
+  at defaults and are rejected if overridden.
 - `comparisons.policy="none"` (default): do not construct comparison columns.
 - `comparisons.policy="sample_metadata_pairs"`: build dataset-level pairwise
   comparison columns in `dataset.comparisons` from grouped sample metadata.

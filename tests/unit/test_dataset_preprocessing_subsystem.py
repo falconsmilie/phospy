@@ -354,6 +354,247 @@ def test_dataset_preprocessor_builds_site_matrix_from_metadata_policy() -> None:
     pdt.assert_frame_equal(preprocessed.site_metadata, expected_site_metadata)
 
 
+def test_dataset_preprocessor_site_matrix_retain_missing_policy_keeps_partial_rows() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [2.0, 8.0],
+            "sample_b": [float("nan"), 8.5],
+        },
+        index=pd.Index(["row_a", "row_b"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(
+                    policy="build_from_metadata",
+                    missing_data_policy="retain_missing",
+                )
+            )
+        ),
+    )
+
+    assert preprocessed.phospho.index.tolist() == ["AKT1;T308;", "MAPK14;Y182;"]
+    assert pd.isna(preprocessed.phospho.loc["MAPK14;Y182;", "sample_b"])
+    stats = preprocessed.phospho.attrs.get("site_matrix_row_drop_stats")
+    assert stats is not None
+    assert stats["missing_data_policy"] == "retain_missing"
+    assert stats["required_observed_count"] == 0
+
+
+def test_dataset_preprocessor_site_matrix_supports_min_observed_and_duplicate_aggregate_mean() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 3.0, float("nan")],
+            "sample_b": [2.0, 4.0, float("nan")],
+            "sample_c": [float("nan"), float("nan"), 9.0],
+        },
+        index=pd.Index(["row_a", "row_b", "row_c"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
+            "site": ["Y182", "Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "uid": ["A", "B", "C"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(
+                    policy="build_from_metadata",
+                    missing_data_policy="require_min_observed_values",
+                    minimum_observed_values=1,
+                    duplicate_site_strategy="aggregate_mean",
+                )
+            )
+        ),
+    )
+
+    assert preprocessed.phospho.index.tolist() == ["AKT1;T308;", "MAPK14;Y182;"]
+    assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(2.0)
+    assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(3.0)
+    assert pd.isna(preprocessed.phospho.loc["MAPK14;Y182;", "sample_c"])
+    assert preprocessed.site_metadata.loc["MAPK14;Y182;", "uid"] == "A"
+
+
+def test_dataset_preprocessor_site_matrix_duplicate_first_strategy_keeps_first_row() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 3.0],
+            "sample_b": [2.0, 4.0],
+        },
+        index=pd.Index(["row_a", "row_b"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "uid": ["A", "B"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(
+                    policy="build_from_metadata",
+                    duplicate_site_strategy="first",
+                    missing_data_policy="retain_missing",
+                )
+            )
+        ),
+    )
+
+    assert preprocessed.phospho.index.tolist() == ["MAPK14;Y182;"]
+    assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(1.0)
+    assert preprocessed.site_metadata.loc["MAPK14;Y182;", "uid"] == "A"
+
+
+def test_dataset_preprocessor_site_matrix_duplicate_aggregate_median_strategy() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 30.0, 3.0],
+            "sample_b": [2.0, 40.0, 4.0],
+        },
+        index=pd.Index(["row_a", "row_b", "row_c"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
+            "site": ["Y182", "Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+            "uid": ["A", "B", "C"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(
+                    policy="build_from_metadata",
+                    duplicate_site_strategy="aggregate_median",
+                    missing_data_policy="retain_missing",
+                )
+            )
+        ),
+    )
+
+    assert preprocessed.phospho.index.tolist() == ["AKT1;T308;", "MAPK14;Y182;"]
+    assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(15.5)
+    assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(21.0)
+    assert preprocessed.site_metadata.loc["MAPK14;Y182;", "uid"] == "A"
+
+
+def test_dataset_preprocessor_rejects_site_matrix_min_observed_above_sample_count() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [2.0]},
+        index=pd.Index(["row_a"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["SEQ_A"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="minimum_observed_values cannot exceed phospho sample count",
+    ):
+        DatasetPreprocessor().run(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=None,
+            plan=PreprocessingPlan.from_config(
+                DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(
+                        policy="build_from_metadata",
+                        missing_data_policy="require_min_observed_values",
+                        minimum_observed_values=3,
+                    )
+                )
+            ),
+        )
+
+
+def test_dataset_preprocessor_rejects_site_matrix_duplicate_rows_in_error_mode() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0, 3.0], "sample_b": [2.0, 4.0]},
+        index=pd.Index(["row_a", "row_b"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14"],
+            "site": ["Y182", "Y182"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="duplicate_site_strategy='error'",
+    ):
+        DatasetPreprocessor().run(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=None,
+            plan=PreprocessingPlan.from_config(
+                DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(
+                        policy="build_from_metadata",
+                        duplicate_site_strategy="error",
+                    )
+                )
+            ),
+        )
+
+
 def test_dataset_preprocessor_rejects_site_matrix_build_without_site_sequence() -> None:
     phospho = _phospho()
     site_metadata = _site_metadata().drop(columns=["site_sequence"])
@@ -505,13 +746,28 @@ def test_dataset_preprocessor_total_protein_correction_matches_legacy_donor_fixt
 
 def test_dataset_preprocessor_site_matrix_build_matches_legacy_donor_fixture() -> None:
     corrected_fixture = pd.read_csv(
-        ROOT / "tests_legacy" / "fixtures" / "r_reference" / "df_phospho_corrected.csv"
+        ROOT
+        / "tests"
+        / "fixtures"
+        / "rewrite_parity"
+        / "site_matrix"
+        / "legacy_r_reference_phospho_corrected.csv"
     )
     expected_matrix_fixture = pd.read_csv(
-        ROOT / "tests_legacy" / "fixtures" / "r_reference" / "mat_phospho_corrected.csv"
+        ROOT
+        / "tests"
+        / "fixtures"
+        / "rewrite_parity"
+        / "site_matrix"
+        / "legacy_r_reference_expected_matrix.csv"
     )
     expected_input_fixture = pd.read_csv(
-        ROOT / "tests_legacy" / "fixtures" / "r_reference" / "phosr_input.csv"
+        ROOT
+        / "tests"
+        / "fixtures"
+        / "rewrite_parity"
+        / "site_matrix"
+        / "legacy_r_reference_expected_phosr_input.csv"
     )
 
     corrected_cols = tuple(f"phospho_corrected_{position}" for position in range(1, 7))

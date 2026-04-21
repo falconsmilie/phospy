@@ -98,6 +98,17 @@ No additional transformation mode is publicly selectable.
 - supported lane policy restrictions:
   - `total_protein_correction.policy` must be one of `none`, `ratio_to_total`
   - `site_matrix.policy` must be one of `as_input`, `build_from_metadata`
+  - `site_matrix.duplicate_site_strategy` must be one of:
+    `max_mean_signal`, `first`, `aggregate_mean`, `aggregate_median`, `error`
+  - `site_matrix.missing_data_policy` must be one of:
+    `drop_any_missing`, `retain_missing`, `require_min_observed_values`
+  - `site_matrix.minimum_observed_values` must be an integer `>= 1` when
+    `site_matrix.missing_data_policy='require_min_observed_values'`
+  - `site_matrix.minimum_observed_values` must be `None` for other
+    `site_matrix.missing_data_policy` values
+  - when `site_matrix.policy='as_input'`, site-matrix execution-only fields
+    (`duplicate_site_strategy`, `missing_data_policy`,
+    `minimum_observed_values`) must remain unset/default
   - `comparisons.policy` must be one of `none`, `sample_metadata_pairs`
   - `comparisons.sample_group_column` must be a non-empty string
   - when `comparisons.policy='none'`, `comparisons.pairs` must be unset
@@ -118,11 +129,18 @@ No additional transformation mode is publicly selectable.
   - complete matching between `site_metadata.gene_symbol` and `total.index`
 - at execution, `site_matrix.policy='build_from_metadata'` requires:
   - `site_metadata` columns `gene_symbol`, `site`, `site_sequence`
-  - non-empty `gene_symbol`/`site` values for all rows
-  - at least one retained row after dropping rows with missing `site_sequence`
-    and rows with incomplete phospho values
-  - duplicate constructed site IDs are collapsed by keeping the row with the
-    strongest mean phospho signal
+  - non-empty values for all rows in `gene_symbol`/`site` and site tokens that
+    normalize to canonical `SITE_TOKEN` form (for example `S123`)
+  - deterministic site identity construction as canonical
+    `GENE_SYMBOL;SITE_TOKEN;`
+  - row retention by explicit `site_matrix.missing_data_policy`:
+    - `drop_any_missing`: drop rows with incomplete phospho values
+    - `retain_missing`: retain incomplete rows
+    - `require_min_observed_values`: retain rows meeting minimum quantified count
+  - duplicate-site handling by explicit `site_matrix.duplicate_site_strategy`:
+    - `max_mean_signal`, `first`, `aggregate_mean`, `aggregate_median`, or `error`
+  - at least one retained row after sequence filtering, missing-data policy, and
+    duplicate-site handling (otherwise a diagnostic-rich input error is raised)
 - at execution, `comparisons.policy='sample_metadata_pairs'` requires:
   - `sample_metadata.index` exactly matching `phospho.columns`
   - `sample_metadata[comparisons.sample_group_column]` with non-empty values

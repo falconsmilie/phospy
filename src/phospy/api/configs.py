@@ -35,6 +35,44 @@ DATASET_SITE_MATRIX_POLICIES = frozenset(
         DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
     }
 )
+DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL = "max_mean_signal"
+DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST = "first"
+DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN = "aggregate_mean"
+DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN = "aggregate_median"
+DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_ERROR = "error"
+DatasetSiteMatrixDuplicateSiteStrategy = Literal[
+    "max_mean_signal",
+    "first",
+    "aggregate_mean",
+    "aggregate_median",
+    "error",
+]
+DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES = frozenset(
+    {
+        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
+        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST,
+        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN,
+        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN,
+        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_ERROR,
+    }
+)
+DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING = "drop_any_missing"
+DATASET_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING = "retain_missing"
+DATASET_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES = (
+    "require_min_observed_values"
+)
+DatasetSiteMatrixMissingDataPolicy = Literal[
+    "drop_any_missing",
+    "retain_missing",
+    "require_min_observed_values",
+]
+DATASET_SITE_MATRIX_MISSING_DATA_POLICIES = frozenset(
+    {
+        DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
+        DATASET_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING,
+        DATASET_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES,
+    }
+)
 DATASET_COMPARISON_BUILDING_POLICY_NONE = "none"
 DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS = "sample_metadata_pairs"
 DatasetComparisonBuildingPolicy = Literal["none", "sample_metadata_pairs"]
@@ -152,14 +190,36 @@ class DatasetTotalProteinCorrectionConfig:
 class DatasetSiteMatrixConfig:
     """Public site-matrix policy options for dataset building.
 
+    `policy` controls whether the stage runs:
+
     - `"as_input"`: preserve interpreted site matrix as provided.
     - `"build_from_metadata"`: construct site-matrix-ready rows from
       `site_metadata` (`gene_symbol`, `site`, `site_sequence`) after upstream
-      missing-data/total-correction preprocessing. This internal stage remains
-      below the final `AnalysisReadyPhosphoDataset` boundary.
+      missing-data/total-correction preprocessing.
+
+    When `policy="build_from_metadata"`:
+
+    - `missing_data_policy` controls row retention before duplicate handling:
+      - `"drop_any_missing"`: keep only rows with complete phospho values.
+      - `"retain_missing"`: keep rows even if some phospho values are missing.
+      - `"require_min_observed_values"`: keep rows with at least
+        `minimum_observed_values` quantified phospho values.
+    - `duplicate_site_strategy` controls duplicate-site collapse:
+      - `"max_mean_signal"` (legacy default): keep row with strongest signal.
+      - `"first"`: keep first encountered row for each duplicate site.
+      - `"aggregate_mean"`: aggregate duplicate phospho values by column mean.
+      - `"aggregate_median"`: aggregate duplicate phospho values by column median.
+      - `"error"`: fail when duplicate constructed site identifiers are present.
     """
 
     policy: DatasetSiteMatrixPolicy = DATASET_SITE_MATRIX_POLICY_AS_INPUT
+    duplicate_site_strategy: DatasetSiteMatrixDuplicateSiteStrategy = (
+        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL
+    )
+    missing_data_policy: DatasetSiteMatrixMissingDataPolicy = (
+        DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
+    )
+    minimum_observed_values: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -325,8 +385,18 @@ __all__ = [
     "DATASET_MISSING_DATA_POLICY_FORBID",
     "DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN",
     "DATASET_SITE_MATRIX_POLICIES",
+    "DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES",
+    "DATASET_SITE_MATRIX_MISSING_DATA_POLICIES",
     "DATASET_SITE_MATRIX_POLICY_AS_INPUT",
     "DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA",
+    "DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL",
+    "DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST",
+    "DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN",
+    "DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN",
+    "DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_ERROR",
+    "DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING",
+    "DATASET_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING",
+    "DATASET_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL",
@@ -365,6 +435,8 @@ __all__ = [
     "DatasetMissingDataPolicy",
     "DatasetPreprocessingConfig",
     "DatasetSiteMatrixConfig",
+    "DatasetSiteMatrixDuplicateSiteStrategy",
+    "DatasetSiteMatrixMissingDataPolicy",
     "DatasetSiteMatrixPolicy",
     "DatasetTotalProteinCorrectionConfig",
     "DatasetTotalProteinCorrectionPolicy",

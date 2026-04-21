@@ -89,7 +89,7 @@ def test_open_gap_truth_source_distinguishes_ticket_status_from_coverage_status(
     None
 ):
     assert OPEN_SCIENCE_GAP_TICKETS == ()
-    assert OPEN_LEGACY_SCIENCE_AREAS
+    assert OPEN_LEGACY_SCIENCE_AREAS == ()
     assert set(OPEN_SCIENCE_GAP_TICKETS).issubset(TRACKED_SCIENCE_GAP_TICKETS)
     assert set(CLOSED_SCIENCE_GAP_TICKETS) == set(TRACKED_SCIENCE_GAP_TICKETS)
 
@@ -183,11 +183,5 @@ def test_release_facing_parity_docs_do_not_claim_blanket_no_open_legacy_science_
         assert phrase not in readme_doc
         assert phrase not in audit_doc
 
-    expected_open_gap_rows = {
-        "site-matrix construction",
-    }
-    for area in expected_open_gap_rows:
-        row = f"| {area} | {STATUS_OPEN_GAP} |"
-        assert row in parity_doc
-        assert row in audit_doc
-        assert area in roadmap_doc
+    assert "| site-matrix construction | PORTED |" in parity_doc
+    assert "| site-matrix construction | PORTED |" in audit_doc

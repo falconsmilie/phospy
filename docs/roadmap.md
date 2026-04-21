@@ -62,19 +62,16 @@ See the full legacy-science inventory in:
 
 ## Remaining Roadmap (Real Next Steps)
 
-The remaining roadmap includes one confirmed open legacy-science area plus
-governance/doc synchronization.
+The remaining roadmap is governance/doc synchronization and parity-maintenance
+hygiene for already-landed legacy-science areas.
 
-1. Close the remaining open legacy-science area in the inventory:
-   - `site-matrix construction` (`OPEN_GAP`, partial rewrite lane exists but full
-     legacy policy surface is not yet marked landed)
-2. Keep contract docs aligned with landed science status across `docs/roadmap.md`,
+1. Keep contract docs aligned with landed science status across `docs/roadmap.md`,
    `docs/api.md`, and `docs/parity.md` so deferred wording does not reappear for
    completed lanes.
-3. Keep governance truth sources synchronized in the same change window:
+2. Keep governance truth sources synchronized in the same change window:
    `docs/architecture/legacy_science_gap_audit.md`, parity donor inventory, and
    release notes/changelog entries.
-4. Maintain parity-lock hygiene for landed science lanes by updating fixture
+3. Maintain parity-lock hygiene for landed science lanes by updating fixture
    provenance and regression references when parity fixtures are promoted or
    refreshed.
 

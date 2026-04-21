@@ -40,14 +40,8 @@ Landed in current rewrite code (`PORTED`):
 - `expanded signalome outputs`
 - `activity parity lock`
 - `total/protein correction`
-- `comparison-building`
-
-Open in current rewrite code (`OPEN_GAP`):
-
 - `site-matrix construction`
-- Current rewrite includes a `build_from_metadata` lane in
-  `src/phospy/datasets/preprocessing/stages/site_matrix.py`, but this audit does
-  not treat that as full legacy policy-surface parity.
+- `comparison-building`
 
 Out of scope for this audit pass:
 
@@ -71,7 +65,7 @@ Historical gap labels retained for traceability only:
 | activity parity lock | PORTED | `SCI-GAP-11` | `src/phospy/activities/scoring.py`; `src/phospy/workflows/kinase/executor.py` | `tests/unit/test_legacy_donor_science.py::test_activity_parity_lock_donor_uses_rewrite_owned_fixture_path`; `tests/parity/test_activity_stage_parity.py::test_weighted_activity_matches_rewrite_reference_fixture` | Activity/KSEA science is rewrite-ported and protected by rewrite parity gates. |
 | preprocessing transformation establishment | CONTRACT_CHANGED | - | `src/phospy/datasets/builders/transformation_resolver.py`; `src/phospy/transformations/transformers/identity.py` | `tests/integration/test_dataset_builder_integration.py::test_dataset_builder_establishes_transformation_state_via_supported_path`; `tests/unit/test_dataset_transformation_state_establishment.py::test_identity_transformer_is_strict_passthrough_establisher` | Transformation establishment in the supported builder lane is intentionally narrow (`linear` identity establishment). |
 | total/protein correction | PORTED | - | `src/phospy/datasets/preprocessing/stages/total_protein_correction.py`; `src/phospy/datasets/preprocessing/pipeline.py` | `tests/unit/test_dataset_preprocessing_subsystem.py::test_dataset_preprocessor_total_protein_correction_matches_legacy_donor_fixture`; `tests/integration/test_dataset_builder_integration.py::test_dataset_builder_applies_total_protein_correction_when_requested` | `total_protein_correction.policy="ratio_to_total"` is supported with strict phospho/total matching checks. |
-| site-matrix construction | OPEN_GAP | - | `src/phospy/datasets/preprocessing/stages/site_matrix.py` (partial lane present) | `tests/unit/test_dataset_preprocessing_subsystem.py::test_dataset_preprocessor_site_matrix_build_matches_legacy_donor_fixture`; `tests/integration/test_dataset_builder_integration.py::test_dataset_builder_supports_site_matrix_build_from_metadata_policy` | Supported rewrite includes `site_matrix.policy="build_from_metadata"` behavior, but full legacy site-matrix policy surface is not marked landed in this audit. |
+| site-matrix construction | PORTED | - | `src/phospy/datasets/preprocessing/stages/site_matrix.py`; `src/phospy/validation/datasets/preprocessing.py`; `src/phospy/api/configs.py` | `tests/unit/test_dataset_preprocessing_subsystem.py::test_dataset_preprocessor_site_matrix_build_matches_legacy_donor_fixture`; `tests/unit/test_dataset_preprocessing_subsystem.py::test_dataset_preprocessor_site_matrix_supports_min_observed_and_duplicate_aggregate_mean`; `tests/unit/test_dataset_preprocessing_subsystem.py::test_dataset_preprocessor_rejects_site_matrix_duplicate_rows_in_error_mode`; `tests/integration/test_dataset_builder_integration.py::test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy` | Supported rewrite now exposes legacy-equivalent site-matrix policy controls (`missing_data_policy`, `minimum_observed_values`, `duplicate_site_strategy`) and enforces deterministic site identity, duplicate handling, and row-drop diagnostics in preprocessing. |
 | comparison-building | PORTED | - | `src/phospy/datasets/preprocessing/stages/comparisons.py`; `src/phospy/datasets/preprocessing/pipeline.py` | `tests/unit/test_dataset_preprocessing_subsystem.py::test_dataset_preprocessor_comparison_building_matches_legacy_pairwise_expectation`; `tests/integration/test_dataset_builder_integration.py::test_dataset_builder_builds_inferred_comparisons_from_sample_metadata` | Sample-metadata-based pairwise comparison construction is supported (explicit or inferred pairs). |
 | site-to-protein resolution fallback behavior | CONTRACT_CHANGED | - | `src/phospy/workflows/signalome/interpreter.py` (`_resolve_site_to_protein`) | `tests/unit/test_signalome_workflow_diagnostics.py::test_interpreter_does_not_fallback_to_site_id_prefix_when_protein_id_column_missing`; `tests/integration/test_signalome_workflow_integration.py::test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id` | Signalome requires explicit `site_metadata.protein_id`; no legacy site-id-prefix fallback. |
 | signalome input route contraction | CONTRACT_CHANGED | - | `src/phospy/workflows/signalome/public.py`; `src/phospy/api/requests.py` | `tests/unit/test_public_contract_workflows.py::test_workflow_requests_keep_ingestion_outside_workflows`; `tests/integration/test_signalome_workflow_integration.py::test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path` | Supported signalome entrypoint remains contracted to `SignalomeWorkflowRequest(kinase_result=...)`. |
@@ -79,9 +73,7 @@ Historical gap labels retained for traceability only:
 
 ## Open Legacy-Science Areas
 
-- `site-matrix construction` (`OPEN_GAP`)
-
-This open gap remains even though tracked historical `SCI-GAP-*` tickets are closed.
+- No `OPEN_GAP` areas remain in this audited inventory as of 2026-04-21.
 
 ## Maintenance Rule (Governance)
 

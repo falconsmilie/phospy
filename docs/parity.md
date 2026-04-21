@@ -152,15 +152,14 @@ Status vocabulary:
 | activity parity lock | PORTED | `SCI-GAP-11` | Activity/KSEA science is rewrite-ported and guarded by parity CI gates. |
 | preprocessing transformation establishment | CONTRACT_CHANGED | - | Transformation establishment in the supported builder lane is intentionally narrow (`linear` identity establishment). |
 | total/protein correction | PORTED | - | `total_protein_correction.policy="ratio_to_total"` is supported in builder preprocessing with strict phospho/total matching checks. |
-| site-matrix construction | OPEN_GAP | - | Legacy site-matrix construction policy surface is not fully ported. |
+| site-matrix construction | PORTED | - | Legacy-equivalent site-matrix policy controls (`missing_data_policy`, `minimum_observed_values`, `duplicate_site_strategy`) are implemented in builder preprocessing with donor-fixture and integration coverage. |
 | comparison-building | PORTED | - | Builder preprocessing supports sample-metadata-based pairwise comparison construction with explicit or inferred pairs. |
 | site-to-protein resolution fallback behavior | CONTRACT_CHANGED | - | Signalome requires explicit `site_metadata.protein_id` and does not apply legacy fallback to site-id prefix. |
 | signalome input route contraction | CONTRACT_CHANGED | - | Supported signalome entrypoint is contracted to `SignalomeWorkflowRequest(kinase_result=...)`. |
 | dataset-vs-reference sequence authority decisions | CONTRACT_CHANGED | - | Motif sequence authority in supported kinase lane is `references.site_sequences`, not dataset-sequence fallback. |
 
 Open legacy-science areas in this inventory:
-
-- `site-matrix construction`
+- none in the audited inventory as of 2026-04-21.
 
 Rewrite-side visibility check:
 
@@ -188,6 +187,9 @@ Rewrite-side visibility check:
 - `tests/fixtures/rewrite_parity/adaptive_sampling_replay/`
 - provenance and promotion history:
   `tests/fixtures/rewrite_parity/adaptive_sampling_replay/PROVENANCE.md`
+- `tests/fixtures/rewrite_parity/site_matrix/`
+- provenance and promotion history:
+  `tests/fixtures/rewrite_parity/site_matrix/PROVENANCE.md`
 
 These files are the normal source for active parity tests in `tests/parity/`
 and helpers in `tests/support/rewrite_fixture_data.py`.

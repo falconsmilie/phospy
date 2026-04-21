@@ -396,23 +396,50 @@ LEGACY_SCIENCE_AREAS: tuple[LegacyScienceAreaInventory, ...] = (
     ),
     LegacyScienceAreaInventory(
         area="site-matrix construction",
-        status=STATUS_OPEN_GAP,
+        status=STATUS_PORTED,
         status_summary=(
-            "Legacy site-matrix construction policy surface is not fully ported "
-            "into the supported rewrite builder lane."
+            "Legacy site-matrix construction policy surface is ported in the "
+            "supported rewrite builder preprocessing lane, including duplicate "
+            "and missing-data policy controls."
         ),
         science_gap_ticket=None,
-        rewrite_unit_tests=(),
+        rewrite_unit_tests=(
+            "tests/unit/test_dataset_preprocessing_subsystem.py::"
+            "test_dataset_preprocessor_site_matrix_build_matches_legacy_donor_fixture",
+            "tests/unit/test_dataset_preprocessing_subsystem.py::"
+            "test_dataset_preprocessor_site_matrix_supports_min_observed_and_duplicate_aggregate_mean",
+            "tests/unit/test_dataset_preprocessing_subsystem.py::"
+            "test_dataset_preprocessor_rejects_site_matrix_duplicate_rows_in_error_mode",
+            "tests/unit/test_validator_boundaries.py::"
+            "test_dataset_build_request_allows_site_matrix_policy_overrides",
+        ),
         rewrite_parity_tests=(),
-        rewrite_integration_tests=(),
+        rewrite_integration_tests=(
+            "tests/integration/test_dataset_builder_integration.py::"
+            "test_dataset_builder_supports_site_matrix_build_from_metadata_policy",
+            "tests/integration/test_dataset_builder_integration.py::"
+            "test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy",
+        ),
         archival_only_tests=(
             "tests_legacy/test_preprocessing.py::"
             "test_core_preprocessing_config_normalizes_site_matrix_policy_mapping",
+            "tests_legacy/test_matrices.py::"
+            "test_build_site_matrix_can_require_minimum_observed_values",
+            "tests_legacy/test_matrices.py::"
+            "test_build_site_matrix_can_aggregate_duplicate_rows_by_mean",
             "tests_legacy/test_preprocessing.py::"
             "test_analysis_ready_builder_full_inputs_reuses_dataset_preprocessing_seam",
         ),
-        promoted_fixture_paths=(),
+        promoted_fixture_paths=(
+            "tests/fixtures/rewrite_parity/site_matrix/"
+            "legacy_r_reference_phospho_corrected.csv",
+            "tests/fixtures/rewrite_parity/site_matrix/"
+            "legacy_r_reference_expected_matrix.csv",
+            "tests/fixtures/rewrite_parity/site_matrix/"
+            "legacy_r_reference_expected_phosr_input.csv",
+        ),
         provenance_paths=(
+            "tests/fixtures/rewrite_parity/site_matrix/PROVENANCE.md",
             "docs/parity.md",
             "docs/architecture/legacy_science_gap_audit.md",
         ),

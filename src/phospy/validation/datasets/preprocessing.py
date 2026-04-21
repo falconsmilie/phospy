@@ -9,7 +9,13 @@ from phospy.api.configs import (
     DATASET_MISSING_DATA_POLICIES,
     DATASET_MISSING_DATA_POLICY_FORBID,
     DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
+    DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES,
+    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
+    DATASET_SITE_MATRIX_MISSING_DATA_POLICIES,
+    DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
+    DATASET_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES,
     DATASET_SITE_MATRIX_POLICIES,
+    DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES,
     DatasetComparisonBuildingConfig,
     DatasetMissingDataConfig,
@@ -112,6 +118,82 @@ class DatasetPreprocessingConfigValidator:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.site_matrix.policy "
                 f"must be one of: {supported}"
+            )
+        duplicate_site_strategy = config.duplicate_site_strategy
+        if duplicate_site_strategy not in DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES:
+            supported_duplicates = ", ".join(
+                sorted(DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES)
+            )
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_matrix."
+                "duplicate_site_strategy must be one of: "
+                f"{supported_duplicates}"
+            )
+
+        missing_data_policy = config.missing_data_policy
+        if missing_data_policy not in DATASET_SITE_MATRIX_MISSING_DATA_POLICIES:
+            supported_missing_policies = ", ".join(
+                sorted(DATASET_SITE_MATRIX_MISSING_DATA_POLICIES)
+            )
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_matrix."
+                "missing_data_policy must be one of: "
+                f"{supported_missing_policies}"
+            )
+
+        minimum_observed_values = config.minimum_observed_values
+        if (
+            missing_data_policy
+            == DATASET_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES
+        ):
+            if not isinstance(minimum_observed_values, int):
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.site_matrix."
+                    "minimum_observed_values must be an int when "
+                    "site_matrix.missing_data_policy='require_min_observed_values'"
+                )
+            if minimum_observed_values < 1:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.site_matrix."
+                    "minimum_observed_values must be greater than or equal to 1 "
+                    "when site_matrix.missing_data_policy="
+                    "'require_min_observed_values'"
+                )
+        elif minimum_observed_values is not None:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_matrix."
+                "minimum_observed_values must be None unless "
+                "site_matrix.missing_data_policy='require_min_observed_values'"
+            )
+
+        if policy != DATASET_SITE_MATRIX_POLICY_AS_INPUT:
+            return
+
+        if (
+            duplicate_site_strategy
+            != DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL
+        ):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_matrix."
+                "duplicate_site_strategy is only valid when "
+                "site_matrix.policy='build_from_metadata'"
+            )
+
+        if (
+            missing_data_policy
+            != DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
+        ):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_matrix."
+                "missing_data_policy is only valid when "
+                "site_matrix.policy='build_from_metadata'"
+            )
+
+        if minimum_observed_values is not None:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_matrix."
+                "minimum_observed_values is only valid when "
+                "site_matrix.policy='build_from_metadata'"
             )
 
     def _validate_comparisons(self, config: DatasetComparisonBuildingConfig) -> None:

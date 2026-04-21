@@ -295,6 +295,144 @@ def test_dataset_build_request_allows_site_matrix_build_from_metadata_policy() -
     assert validated is request
 
 
+def test_dataset_build_request_allows_site_matrix_policy_overrides() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0], "sample_b": [2.0]}, index=["ROW_1"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["ROW_1"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            site_matrix=DatasetSiteMatrixConfig(
+                policy="build_from_metadata",
+                duplicate_site_strategy="aggregate_mean",
+                missing_data_policy="require_min_observed_values",
+                minimum_observed_values=1,
+            )
+        ),
+    )
+
+    validated = DatasetBuildRequestValidator().run(request)
+    assert validated is request
+
+
+def test_dataset_build_request_rejects_site_matrix_minimum_observed_without_policy() -> (
+    None
+):
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["ROW_1"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["ROW_1"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            site_matrix=DatasetSiteMatrixConfig(
+                policy="build_from_metadata",
+                missing_data_policy="drop_any_missing",
+                minimum_observed_values=1,
+            )
+        ),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="minimum_observed_values must be None unless",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_rejects_site_matrix_require_min_without_threshold() -> (
+    None
+):
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["ROW_1"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["ROW_1"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            site_matrix=DatasetSiteMatrixConfig(
+                policy="build_from_metadata",
+                missing_data_policy="require_min_observed_values",
+            )
+        ),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="minimum_observed_values must be an int when",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_rejects_site_matrix_missing_policy_overrides_when_as_input() -> (
+    None
+):
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["ROW_1"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["ROW_1"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            site_matrix=DatasetSiteMatrixConfig(
+                policy="as_input",
+                missing_data_policy="retain_missing",
+            )
+        ),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing_data_policy is only valid when site_matrix.policy='build_from_metadata'",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_rejects_site_matrix_duplicate_overrides_when_as_input() -> (
+    None
+):
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["ROW_1"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["ROW_1"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            site_matrix=DatasetSiteMatrixConfig(
+                policy="as_input",
+                duplicate_site_strategy="first",
+            )
+        ),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="duplicate_site_strategy is only valid when site_matrix.policy='build_from_metadata'",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
 def test_dataset_build_request_allows_sample_metadata_pairs_comparison_policy() -> None:
     request = DatasetBuildRequest(
         phospho=pd.DataFrame(
