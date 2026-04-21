@@ -53,6 +53,12 @@ pip install .
 
 ## Supported Science vs Deferred
 
+Scientific confidence is tiered in this project. `implemented`, `supported`,
+`parity-gated`, and `closed` are not interchangeable claims. See
+[`docs/parity.md`](docs/parity.md) for tier definitions and
+[`docs/architecture/legacy_science_gap_audit.md`](docs/architecture/legacy_science_gap_audit.md)
+for area-level evidence.
+
 Supported in the current public lane:
 
 - Kinase scoring with authoritative downstream outputs:
@@ -60,14 +66,11 @@ Supported in the current public lane:
 - Optional diagnostic scoring tables:
   `motif_scores`, `weights` via
   `KinaseScoringConfig(include_diagnostic_scoring_tables=True)`.
-- Supported kinase motif scoring consumes `references.site_sequences` from the resolved
-  reference bundle.
 - Profile-driven prediction ranking and matrix assembly (`prediction_result.pred_mat`).
-- Kinase prediction config supports:
-  - `mode` (`deterministic_ranking` or `adaptive_ensemble`)
-  - `adaptive_policy` (`stable` or `r_parity`)
-  - `n_iterations` (adaptive resampling iterations)
-- Kinase scoring config supports:
+- Kinase prediction config supports `mode` (`deterministic_ranking` or
+  `adaptive_ensemble`), `adaptive_policy` (`stable` or `r_parity`), and
+  `n_iterations` (adaptive resampling iterations).
+- Kinase scoring config supports
   `profile_missing_value_strategy` (`strict` or `median_skipna`).
 - Optional kinase activity stage inside `KinaseWorkflow` (`activity_config=None` or
   `enabled=False` disables it).
@@ -79,17 +82,22 @@ Supported in the current public lane:
   `module_selection_fallback_correlation_threshold`,
   `module_selection_max_clusters`.
 - Builder preprocessing supports explicit:
-  `total_protein_correction.policy="ratio_to_total"` and
+  `total_protein_correction.policy="ratio_to_total"`,
+  `site_matrix.policy="build_from_metadata"`, and
   `comparisons.policy="sample_metadata_pairs"` lanes.
-- Builder preprocessing also supports:
-  `site_matrix.policy="build_from_metadata"` as a supported rewrite lane; full
-  legacy site-matrix policy parity remains open.
 
-Deferred or not in the supported default lane:
-- Legacy or experimental science lanes not yet ported into the public path.
-- Full legacy site-matrix policy parity remains open; see the legacy-science
-  inventory in [`docs/parity.md`](docs/parity.md) and
-  [`docs/architecture/legacy_science_gap_audit.md`](docs/architecture/legacy_science_gap_audit.md).
+Contract-changed supported lanes include:
+
+- adaptive public naming with `adaptive_policy` rather than legacy `svm_mode`
+- signalome input contracted to `SignalomeWorkflowRequest(kinase_result=...)`
+- signalome protein identity from explicit `site_metadata.protein_id` (no legacy
+  site-id-prefix fallback)
+- motif sequence authority from `references.site_sequences` in the resolved
+  reference bundle
+
+Deferred or out of the supported default lane:
+- legacy or experimental science lanes not yet ported into the public path
+- legacy-science surfaces not listed in the audited inventory documents above
 
 ## Current Limits
 
