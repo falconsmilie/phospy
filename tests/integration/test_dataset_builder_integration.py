@@ -278,7 +278,6 @@ def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> 
                 site_matrix=DatasetSiteMatrixConfig(
                     policy="build_from_metadata",
                     duplicate_site_strategy="aggregate_mean",
-                    missing_data_policy="retain_missing",
                 )
             ),
         )
@@ -288,6 +287,51 @@ def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> 
     assert built.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(2.0)
     assert built.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(3.0)
     assert built.site_metadata.loc["MAPK14;Y182;", "source_uid"] == "UID_A"
+
+
+@pytest.mark.parametrize(
+    "missing_data_policy",
+    ("retain_missing", "require_min_observed_values"),
+)
+def test_dataset_builder_rejects_incompatible_site_matrix_missing_data_modes_early(
+    missing_data_policy: str,
+) -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0],
+            "sample_b": [2.0],
+        },
+        index=pd.Index(["row_a"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["SEQ_A"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            f"missing_data_policy='{missing_data_policy}' is not supported for strict "
+            "AnalysisReadyPhosphoDataset construction"
+        ),
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                organism=Organism.RAT,
+                preprocessing_config=DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(
+                        policy="build_from_metadata",
+                        missing_data_policy=missing_data_policy,  # type: ignore[arg-type]
+                    )
+                ),
+            )
+        )
 
 
 def test_dataset_builder_builds_inferred_comparisons_from_sample_metadata() -> None:

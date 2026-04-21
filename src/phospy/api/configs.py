@@ -57,20 +57,10 @@ DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES = frozenset(
     }
 )
 DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING = "drop_any_missing"
-DATASET_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING = "retain_missing"
-DATASET_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES = (
-    "require_min_observed_values"
-)
-DatasetSiteMatrixMissingDataPolicy = Literal[
-    "drop_any_missing",
-    "retain_missing",
-    "require_min_observed_values",
-]
+DatasetSiteMatrixMissingDataPolicy = Literal["drop_any_missing",]
 DATASET_SITE_MATRIX_MISSING_DATA_POLICIES = frozenset(
     {
         DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
-        DATASET_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING,
-        DATASET_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES,
     }
 )
 DATASET_COMPARISON_BUILDING_POLICY_NONE = "none"
@@ -210,15 +200,17 @@ class DatasetSiteMatrixConfig:
 
     - `missing_data_policy` controls row retention before duplicate handling:
       - `"drop_any_missing"`: keep only rows with complete phospho values.
-      - `"retain_missing"`: keep rows even if some phospho values are missing.
-      - `"require_min_observed_values"`: keep rows with at least
-        `minimum_observed_values` quantified phospho values.
+        This is the only supported public mode for construction of strict
+        `AnalysisReadyPhosphoDataset` outputs.
     - `duplicate_site_strategy` controls duplicate-site collapse:
       - `"max_mean_signal"` (legacy default): keep row with strongest signal.
       - `"first"`: keep first encountered row for each duplicate site.
       - `"aggregate_mean"`: aggregate duplicate phospho values by column mean.
       - `"aggregate_median"`: aggregate duplicate phospho values by column median.
       - `"error"`: fail when duplicate constructed site identifiers are present.
+
+    `minimum_observed_values` is retained for internal preprocessing compatibility
+    and must stay unset in the supported public builder lane.
     """
 
     policy: DatasetSiteMatrixPolicy = DATASET_SITE_MATRIX_POLICY_AS_INPUT
@@ -420,8 +412,6 @@ __all__ = [
     "DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN",
     "DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_ERROR",
     "DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING",
-    "DATASET_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING",
-    "DATASET_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL",

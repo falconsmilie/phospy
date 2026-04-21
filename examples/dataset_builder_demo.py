@@ -94,7 +94,7 @@ def build_with_site_matrix_from_metadata() -> tuple[
                 missing_data=DatasetMissingDataConfig(policy="forbid"),
                 site_matrix=DatasetSiteMatrixConfig(
                     policy="build_from_metadata",
-                    missing_data_policy="retain_missing",
+                    missing_data_policy="drop_any_missing",
                 ),
             ),
         )

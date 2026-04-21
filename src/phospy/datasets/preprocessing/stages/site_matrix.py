@@ -14,8 +14,6 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST,
     DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
-    DATASET_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES,
-    DATASET_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING,
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
 )
@@ -38,6 +36,10 @@ _SITE_TOKEN_PATTERN = re.compile(r"^[A-Za-z]+\d+$")
 _GENE_TOKEN_PATTERN = re.compile(r"^[^;\s]+$")
 _ROW_DROP_STATS_ATTR = "site_matrix_row_drop_stats"
 _SITE_MATRIX_POLICY_ATTR = "site_matrix_policy"
+_INTERNAL_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING = "retain_missing"
+_INTERNAL_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES = (
+    "require_min_observed_values"
+)
 _SUPPORTED_DUPLICATE_SITE_STRATEGIES = {
     DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST,
@@ -239,12 +241,14 @@ def _apply_missing_data_policy(
     if missing_data_policy == DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING:
         retained_mask = phospho.notna().all(axis=1)
         required_observed_count = phospho.shape[1]
-    elif missing_data_policy == DATASET_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING:
+    elif (
+        missing_data_policy == _INTERNAL_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING
+    ):
         retained_mask = pd.Series(True, index=phospho.index)
         required_observed_count = 0
     elif (
         missing_data_policy
-        == DATASET_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES
+        == _INTERNAL_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES
     ):
         if minimum_observed_values is None:
             raise PhosPyInputError(

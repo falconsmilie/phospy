@@ -314,8 +314,14 @@ def test_dataset_build_request_allows_site_matrix_policy_overrides() -> None:
         ),
     )
 
-    validated = DatasetBuildRequestValidator().run(request)
-    assert validated is request
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "missing_data_policy='require_min_observed_values' is not supported "
+            "for strict AnalysisReadyPhosphoDataset construction"
+        ),
+    ):
+        DatasetBuildRequestValidator().run(request)
 
 
 def test_dataset_build_request_rejects_site_matrix_minimum_observed_without_policy() -> (
@@ -342,7 +348,10 @@ def test_dataset_build_request_rejects_site_matrix_minimum_observed_without_poli
 
     with pytest.raises(
         PhosPyInputError,
-        match="minimum_observed_values must be None unless",
+        match=(
+            "minimum_observed_values is not supported for strict "
+            "AnalysisReadyPhosphoDataset construction and must be None"
+        ),
     ):
         DatasetBuildRequestValidator().run(request)
 
@@ -370,7 +379,10 @@ def test_dataset_build_request_rejects_site_matrix_require_min_without_threshold
 
     with pytest.raises(
         PhosPyInputError,
-        match="minimum_observed_values must be an int when",
+        match=(
+            "missing_data_policy='require_min_observed_values' is not supported "
+            "for strict AnalysisReadyPhosphoDataset construction"
+        ),
     ):
         DatasetBuildRequestValidator().run(request)
 
@@ -398,7 +410,10 @@ def test_dataset_build_request_rejects_site_matrix_missing_policy_overrides_when
 
     with pytest.raises(
         PhosPyInputError,
-        match="missing_data_policy is only valid when site_matrix.policy='build_from_metadata'",
+        match=(
+            "missing_data_policy='retain_missing' is not supported for strict "
+            "AnalysisReadyPhosphoDataset construction"
+        ),
     ):
         DatasetBuildRequestValidator().run(request)
 

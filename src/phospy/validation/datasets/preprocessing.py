@@ -13,7 +13,6 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICIES,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
-    DATASET_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES,
     DATASET_SITE_MATRIX_POLICIES,
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES,
@@ -24,6 +23,10 @@ from phospy.api.configs import (
     DatasetTotalProteinCorrectionConfig,
 )
 from phospy.errors.input import PhosPyInputError
+
+_INCOMPATIBLE_SITE_MATRIX_MISSING_DATA_POLICIES = frozenset(
+    {"retain_missing", "require_min_observed_values"}
+)
 
 
 class DatasetPreprocessingConfigValidator:
@@ -132,6 +135,13 @@ class DatasetPreprocessingConfigValidator:
 
         missing_data_policy = config.missing_data_policy
         if missing_data_policy not in DATASET_SITE_MATRIX_MISSING_DATA_POLICIES:
+            if missing_data_policy in _INCOMPATIBLE_SITE_MATRIX_MISSING_DATA_POLICIES:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.site_matrix."
+                    f"missing_data_policy='{missing_data_policy}' is not supported "
+                    "for strict AnalysisReadyPhosphoDataset construction. "
+                    "Use site_matrix.missing_data_policy='drop_any_missing'."
+                )
             supported_missing_policies = ", ".join(
                 sorted(DATASET_SITE_MATRIX_MISSING_DATA_POLICIES)
             )
@@ -142,28 +152,11 @@ class DatasetPreprocessingConfigValidator:
             )
 
         minimum_observed_values = config.minimum_observed_values
-        if (
-            missing_data_policy
-            == DATASET_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES
-        ):
-            if not isinstance(minimum_observed_values, int):
-                raise PhosPyInputError(
-                    "dataset build request preprocessing_config.site_matrix."
-                    "minimum_observed_values must be an int when "
-                    "site_matrix.missing_data_policy='require_min_observed_values'"
-                )
-            if minimum_observed_values < 1:
-                raise PhosPyInputError(
-                    "dataset build request preprocessing_config.site_matrix."
-                    "minimum_observed_values must be greater than or equal to 1 "
-                    "when site_matrix.missing_data_policy="
-                    "'require_min_observed_values'"
-                )
-        elif minimum_observed_values is not None:
+        if minimum_observed_values is not None:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.site_matrix."
-                "minimum_observed_values must be None unless "
-                "site_matrix.missing_data_policy='require_min_observed_values'"
+                "minimum_observed_values is not supported for strict "
+                "AnalysisReadyPhosphoDataset construction and must be None"
             )
 
         if policy != DATASET_SITE_MATRIX_POLICY_AS_INPUT:

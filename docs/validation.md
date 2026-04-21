@@ -116,12 +116,10 @@ No additional transformation mode is publicly selectable.
   - `site_matrix.policy` must be one of `as_input`, `build_from_metadata`
   - `site_matrix.duplicate_site_strategy` must be one of:
     `max_mean_signal`, `first`, `aggregate_mean`, `aggregate_median`, `error`
-  - `site_matrix.missing_data_policy` must be one of:
-    `drop_any_missing`, `retain_missing`, `require_min_observed_values`
-  - `site_matrix.minimum_observed_values` must be an integer `>= 1` when
-    `site_matrix.missing_data_policy='require_min_observed_values'`
-  - `site_matrix.minimum_observed_values` must be `None` for other
-    `site_matrix.missing_data_policy` values
+  - `site_matrix.missing_data_policy` must be `drop_any_missing` for strict
+    `AnalysisReadyPhosphoDataset` construction
+  - `site_matrix.minimum_observed_values` is not supported in the public
+    strict analysis-ready lane and must be `None`
   - when `site_matrix.policy='as_input'`, site-matrix execution-only fields
     (`duplicate_site_strategy`, `missing_data_policy`,
     `minimum_observed_values`) must remain unset/default
@@ -152,10 +150,10 @@ No additional transformation mode is publicly selectable.
     normalize to canonical `SITE_TOKEN` form (for example `S123`)
   - deterministic site identity construction as canonical
     `GENE_SYMBOL;SITE_TOKEN;`
-  - row retention by explicit `site_matrix.missing_data_policy`:
+  - row retention by explicit public `site_matrix.missing_data_policy`:
     - `drop_any_missing`: drop rows with incomplete phospho values
-    - `retain_missing`: retain incomplete rows
-    - `require_min_observed_values`: retain rows meeting minimum quantified count
+    - retained-missingness site-matrix modes are rejected at public config
+      validation as incompatible with strict analysis-ready dataset construction
   - duplicate-site handling by explicit `site_matrix.duplicate_site_strategy`:
     - `max_mean_signal`, `first`, `aggregate_mean`, `aggregate_median`, or `error`
   - at least one retained row after sequence filtering, missing-data policy, and

@@ -26,7 +26,8 @@ class DatasetBuildRequest:
 
     Supported public inputs are pandas ``DataFrame`` values or file paths.
     Preprocessing policy remains builder-owned via ``preprocessing_config``,
-    including explicit site-matrix duplicate/missing-data policy controls.
+    including explicit site-matrix duplicate-policy controls under a strict
+    complete-case analysis-ready boundary.
     """
 
     phospho: DatasetInput
