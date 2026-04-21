@@ -10,20 +10,24 @@ import phospy.errors as public_errors
 from phospy import (
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
-    DatasetValidationError,
-    KinasePredictionResult,
-    KinaseScoringResult,
     KinaseWorkflowResult,
     Organism,
     PhosPyInputError,
     PhosPyValidationError,
     ReferenceBundle,
-    ReferenceValidationError,
-    SignalomeWorkflowResult,
     UnsupportedInputFormatError,
-    WorkflowValidationError,
+)
+from phospy.api.results import (
+    KinasePredictionResult,
+    KinaseScoringResult,
+    SignalomeWorkflowResult,
 )
 from phospy.datasets.builders.validator import DatasetBuildRequestValidator
+from phospy.errors import (
+    DatasetValidationError,
+    ReferenceValidationError,
+    WorkflowValidationError,
+)
 from phospy.io.readers.tables import read_table
 from phospy.signalomes.models import (
     KinaseNetwork,
@@ -31,6 +35,33 @@ from phospy.signalomes.models import (
     SignalomeModules,
 )
 from tests.support.transformation_states import supported_linear_state
+
+TOP_LEVEL_ERROR_FACADE = {
+    "PhosPyError",
+    "PhosPyInputError",
+    "UnsupportedInputFormatError",
+    "PhosPyBuildError",
+    "PhosPyValidationError",
+    "PhosPyReferenceError",
+    "UnsupportedOrganismError",
+    "PhosPyTransformationError",
+    "PhosPyWorkflowError",
+    "WorkflowBoundaryError",
+}
+
+NON_FACADE_ERROR_TYPES = {
+    "DatasetBuildError",
+    "DatasetValidationError",
+    "ReferenceValidationError",
+    "TransformationValidationError",
+    "WorkflowValidationError",
+    "ReferenceCompatibilityError",
+    "ReferenceResolutionError",
+    "InvalidTransformationStateError",
+    "TransformationStateEstablishmentError",
+    "TransformerExecutionError",
+    "WorkflowStageError",
+}
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -92,10 +123,14 @@ def _kinase_result() -> KinaseWorkflowResult:
     )
 
 
-def test_top_level_exception_exports_match_error_taxonomy() -> None:
-    assert set(public_errors.__all__).issubset(set(phospy.__all__))
-    for exported in public_errors.__all__:
+def test_top_level_exception_exports_match_curated_facade() -> None:
+    assert TOP_LEVEL_ERROR_FACADE.issubset(set(public_errors.__all__))
+    assert TOP_LEVEL_ERROR_FACADE.issubset(set(phospy.__all__))
+    for exported in TOP_LEVEL_ERROR_FACADE:
         assert getattr(phospy, exported) is getattr(public_errors, exported)
+    for exported in NON_FACADE_ERROR_TYPES:
+        assert exported in public_errors.__all__
+        assert exported not in phospy.__all__
 
 
 def test_dataset_build_request_uses_phospy_exception_for_invalid_sources() -> None:

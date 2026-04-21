@@ -2,8 +2,10 @@
 
 Import guidance:
 - User code should import from top-level `phospy`.
-- Public API definitions are authored under `phospy.api`.
-- Top-level exports intentionally re-export the supported `phospy.api` surface.
+- `phospy.api` is the canonical authored API-definition namespace.
+- Top-level exports are a curated facade, not a full mirror of all public modules.
+- `phospy.errors` exposes the full error taxonomy; top-level keeps a focused
+  subset of user-handleable exceptions.
 """
 
 from phospy.api import (
@@ -16,15 +18,13 @@ from phospy.api import (
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
     KinaseActivityConfig,
-    KinaseActivityResult,
     KinasePredictionConfig,
-    KinasePredictionResult,
     KinaseScoringConfig,
-    KinaseScoringResult,
     KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
+    ReferenceBundle,
     ReferencePreset,
     SignalomeConfig,
     SignalomeWorkflow,
@@ -32,9 +32,6 @@ from phospy.api import (
     SignalomeWorkflowResult,
 )
 from phospy.errors import (
-    DatasetBuildError,
-    DatasetValidationError,
-    InvalidTransformationStateError,
     PhosPyBuildError,
     PhosPyError,
     PhosPyInputError,
@@ -42,41 +39,33 @@ from phospy.errors import (
     PhosPyTransformationError,
     PhosPyValidationError,
     PhosPyWorkflowError,
-    ReferenceCompatibilityError,
-    ReferenceResolutionError,
-    ReferenceValidationError,
-    TransformationStateEstablishmentError,
-    TransformationValidationError,
-    TransformerExecutionError,
     UnsupportedInputFormatError,
     UnsupportedOrganismError,
     WorkflowBoundaryError,
-    WorkflowStageError,
-    WorkflowValidationError,
 )
-from phospy.references.models import ReferenceBundle
 
 __all__ = [
     "AnalysisReadyDatasetBuilder",
     "AnalysisReadyPhosphoDataset",
-    "DatasetComparisonBuildingConfig",
     "DatasetBuildRequest",
+    "DatasetComparisonBuildingConfig",
     "DatasetMissingDataConfig",
     "DatasetPreprocessingConfig",
     "DatasetSiteMatrixConfig",
     "DatasetTotalProteinCorrectionConfig",
-    "DatasetBuildError",
-    "DatasetValidationError",
-    "InvalidTransformationStateError",
     "KinaseActivityConfig",
-    "KinaseActivityResult",
     "KinasePredictionConfig",
-    "KinasePredictionResult",
     "KinaseScoringConfig",
-    "KinaseScoringResult",
+    "KinaseWorkflow",
     "KinaseWorkflowRequest",
     "KinaseWorkflowResult",
     "Organism",
+    "ReferenceBundle",
+    "ReferencePreset",
+    "SignalomeConfig",
+    "SignalomeWorkflow",
+    "SignalomeWorkflowRequest",
+    "SignalomeWorkflowResult",
     "PhosPyBuildError",
     "PhosPyError",
     "PhosPyInputError",
@@ -84,22 +73,7 @@ __all__ = [
     "PhosPyTransformationError",
     "PhosPyValidationError",
     "PhosPyWorkflowError",
-    "ReferenceCompatibilityError",
-    "ReferenceBundle",
-    "ReferenceResolutionError",
-    "ReferenceValidationError",
-    "ReferencePreset",
-    "SignalomeConfig",
-    "SignalomeWorkflow",
-    "SignalomeWorkflowRequest",
-    "SignalomeWorkflowResult",
-    "TransformationStateEstablishmentError",
-    "TransformationValidationError",
-    "TransformerExecutionError",
     "UnsupportedInputFormatError",
     "UnsupportedOrganismError",
     "WorkflowBoundaryError",
-    "WorkflowStageError",
-    "WorkflowValidationError",
-    "KinaseWorkflow",
 ]

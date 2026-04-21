@@ -10,10 +10,10 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
-    KinasePredictionResult,
     Organism,
 )
 from phospy.activities.models import KinaseActivityInputs, PredMatOverlapSummary
+from phospy.api.results import KinasePredictionResult
 from phospy.datasets.builders.executor import DatasetBuildExecutor
 from phospy.datasets.builders.interpreter import DatasetBuildRequestInterpreter
 from tests.support.transformation_states import supported_linear_state

@@ -5,8 +5,6 @@ import pytest
 
 from phospy import (
     AnalysisReadyPhosphoDataset,
-    KinasePredictionResult,
-    KinaseScoringResult,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
@@ -18,6 +16,7 @@ from phospy.api.configs import (
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
 )
+from phospy.api.results import KinasePredictionResult, KinaseScoringResult
 from phospy.errors import WorkflowBoundaryError
 from phospy.errors.workflows import WorkflowStageError
 from phospy.signalomes.constants import (

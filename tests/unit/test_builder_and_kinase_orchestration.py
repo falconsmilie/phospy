@@ -9,11 +9,8 @@ from phospy import (
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     KinaseActivityConfig,
-    KinaseActivityResult,
     KinasePredictionConfig,
-    KinasePredictionResult,
     KinaseScoringConfig,
-    KinaseScoringResult,
     KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
@@ -24,6 +21,11 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
+)
+from phospy.api.results import (
+    KinaseActivityResult,
+    KinasePredictionResult,
+    KinaseScoringResult,
 )
 from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
 from phospy.datasets.preprocessing.models import PreprocessingPlan

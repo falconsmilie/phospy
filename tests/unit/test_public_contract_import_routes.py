@@ -15,11 +15,45 @@ USER_FACING_IMPORT_FILES = (
     ROOT / "examples" / "signalome_workflow_demo.py",
 )
 
+TOP_LEVEL_API_FACADE = {
+    "AnalysisReadyDatasetBuilder",
+    "AnalysisReadyPhosphoDataset",
+    "DatasetBuildRequest",
+    "DatasetComparisonBuildingConfig",
+    "DatasetMissingDataConfig",
+    "DatasetPreprocessingConfig",
+    "DatasetSiteMatrixConfig",
+    "DatasetTotalProteinCorrectionConfig",
+    "KinaseActivityConfig",
+    "KinasePredictionConfig",
+    "KinaseScoringConfig",
+    "KinaseWorkflow",
+    "KinaseWorkflowRequest",
+    "KinaseWorkflowResult",
+    "Organism",
+    "ReferenceBundle",
+    "ReferencePreset",
+    "SignalomeConfig",
+    "SignalomeWorkflow",
+    "SignalomeWorkflowRequest",
+    "SignalomeWorkflowResult",
+}
 
-def test_top_level_facade_re_exports_canonical_api_namespace() -> None:
-    assert set(public_api.__all__).issubset(set(phospy.__all__))
-    for exported in public_api.__all__:
+NON_FACADE_API_TYPES = {
+    "KinaseActivityResult",
+    "KinasePredictionResult",
+    "KinaseScoringResult",
+}
+
+
+def test_top_level_facade_re_exports_curated_canonical_api_types() -> None:
+    assert TOP_LEVEL_API_FACADE.issubset(set(public_api.__all__))
+    assert TOP_LEVEL_API_FACADE.issubset(set(phospy.__all__))
+    for exported in TOP_LEVEL_API_FACADE:
         assert getattr(phospy, exported) is getattr(public_api, exported)
+    for exported in NON_FACADE_API_TYPES:
+        assert exported in public_api.__all__
+        assert exported not in phospy.__all__
 
 
 def test_readme_and_api_guide_document_import_contract() -> None:

@@ -37,7 +37,10 @@ examples, and quickstarts.
 This split is intentional:
 
 - `phospy.api` owns API definition and package structure.
-- top-level `phospy` is the stable facade users are expected to import from.
+- top-level `phospy` is the stable curated facade users are expected to import
+  from.
+- detailed authored types that are not part of the curated facade remain under
+  `phospy.api` (for example `phospy.api.results` stage result containers).
 
 ## Public Types
 
@@ -56,8 +59,11 @@ Import from top-level `phospy`.
   `DatasetComparisonBuildingConfig`, `KinaseScoringConfig`,
   `KinasePredictionConfig`, `KinaseActivityConfig`, `SignalomeConfig`
 - Result models:
-  `KinaseWorkflowResult`, `SignalomeWorkflowResult`,
-  `KinaseScoringResult`, `KinasePredictionResult`, `KinaseActivityResult`
+  `KinaseWorkflowResult`, `SignalomeWorkflowResult`
+
+Stage-level result containers (`KinaseScoringResult`, `KinasePredictionResult`,
+`KinaseActivityResult`) remain public in the canonical authored namespace:
+`phospy.api.results`.
 
 ## Builder Contract
 
@@ -413,24 +419,18 @@ Deferred/experimental/not yet ported into the public lane:
 
 ## User-Handleable Exceptions
 
-Top-level `phospy` exports the public exception taxonomy:
+Top-level `phospy` exports a focused, user-handleable error facade:
 
-- Base:
-  `PhosPyError`
-- Input/build:
-  `PhosPyInputError`, `UnsupportedInputFormatError`, `PhosPyBuildError`,
-  `DatasetBuildError`
-- Validation:
-  `PhosPyValidationError`, `DatasetValidationError`, `ReferenceValidationError`,
-  `TransformationValidationError`, `WorkflowValidationError`
-- Reference:
-  `PhosPyReferenceError`, `ReferenceResolutionError`,
-  `ReferenceCompatibilityError`, `UnsupportedOrganismError`
-- Transformation:
-  `PhosPyTransformationError`, `InvalidTransformationStateError`,
-  `TransformationStateEstablishmentError`, `TransformerExecutionError`
-- Workflow:
-  `PhosPyWorkflowError`, `WorkflowBoundaryError`, `WorkflowStageError`
+- `PhosPyError`
+- `PhosPyInputError`, `UnsupportedInputFormatError`
+- `PhosPyBuildError`
+- `PhosPyValidationError`
+- `PhosPyReferenceError`, `UnsupportedOrganismError`
+- `PhosPyTransformationError`
+- `PhosPyWorkflowError`, `WorkflowBoundaryError`
+
+The complete public exception taxonomy remains available under
+`phospy.errors`.
 
 ## Quick Usage Pattern
 

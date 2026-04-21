@@ -24,6 +24,10 @@ Both namespaces are public, but they have different roles:
 
 - Use top-level `phospy` for normal usage and all user-facing snippets.
 - Use `phospy.api` when you need explicit package-owned API definition paths.
+- Treat top-level `phospy` as a curated facade rather than a mirror of every
+  public submodule export.
+- Use `phospy.api.results` for detailed stage-result container types and
+  `phospy.errors` for the full exception taxonomy.
 
 ## Public Product Shape
 

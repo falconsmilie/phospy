@@ -15,7 +15,6 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseScoringResult,
     KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
@@ -24,6 +23,7 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
+from phospy.api.results import KinaseScoringResult
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
