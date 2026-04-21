@@ -40,9 +40,11 @@ pip install .
   `AnalysisReadyPhosphoDataset` validates DataFrame structure/content, canonical site IDs,
   required metadata (`gene_symbol`, `site`), optional `site_sequence` quality when present,
   and transformation-state coherence.
-- Public builder transformation policy is currently narrow and explicit:
-  it establishes only the supported pass-through `linear` state and does not
-  apply additional preprocessing transforms to quantitative matrices.
+- Public builder transformation-state establishment is intentionally narrow:
+  it establishes the supported pass-through `linear` state only.
+- Builder preprocessing can still apply explicit supported policies before
+  state establishment (`impute_row_median`, `ratio_to_total`,
+  `build_from_metadata`, and grouped comparison construction).
 - Missing-data preprocessing policy is explicit and grouped:
   `preprocessing_config.missing_data.policy="forbid"` (default) or
   `"impute_row_median"` (requires
@@ -76,9 +78,18 @@ Supported in the current public lane:
   `module_count`, `module_selection_primary_correlation_threshold`,
   `module_selection_fallback_correlation_threshold`,
   `module_selection_max_clusters`.
+- Builder preprocessing supports explicit:
+  `total_protein_correction.policy="ratio_to_total"` and
+  `comparisons.policy="sample_metadata_pairs"` lanes.
+- Builder preprocessing also supports:
+  `site_matrix.policy="build_from_metadata"` as a supported rewrite lane; full
+  legacy site-matrix policy parity remains open.
 
 Deferred or not in the supported default lane:
 - Legacy or experimental science lanes not yet ported into the public path.
+- Full legacy site-matrix policy parity remains open; see the legacy-science
+  inventory in [`docs/parity.md`](docs/parity.md) and
+  [`docs/architecture/legacy_science_gap_audit.md`](docs/architecture/legacy_science_gap_audit.md).
 
 ## Current Limits
 

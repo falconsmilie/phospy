@@ -166,6 +166,7 @@ def test_release_facing_parity_docs_do_not_claim_blanket_no_open_legacy_science_
 ):
     parity_doc = (ROOT / "docs" / "parity.md").read_text(encoding="utf-8")
     roadmap_doc = (ROOT / "docs" / "roadmap.md").read_text(encoding="utf-8")
+    readme_doc = (ROOT / "README.md").read_text(encoding="utf-8")
     audit_doc = (
         ROOT / "docs" / "architecture" / "legacy_science_gap_audit.md"
     ).read_text(encoding="utf-8")
@@ -173,10 +174,13 @@ def test_release_facing_parity_docs_do_not_claim_blanket_no_open_legacy_science_
     forbidden_phrases = (
         "No open science-parity gap tickets are confirmed in the supported rewrite lane",
         "None confirmed in this scoped pass.",
+        "does not apply additional preprocessing transforms to quantitative matrices.",
+        "The remaining roadmap is documentation and governance alignment, not core",
     )
     for phrase in forbidden_phrases:
         assert phrase not in parity_doc
         assert phrase not in roadmap_doc
+        assert phrase not in readme_doc
         assert phrase not in audit_doc
 
     expected_open_gap_rows = {
@@ -186,3 +190,4 @@ def test_release_facing_parity_docs_do_not_claim_blanket_no_open_legacy_science_
         row = f"| {area} | {STATUS_OPEN_GAP} |"
         assert row in parity_doc
         assert row in audit_doc
+        assert area in roadmap_doc

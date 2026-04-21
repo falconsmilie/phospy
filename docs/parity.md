@@ -5,6 +5,8 @@ claim full package equivalence with PhosR.
 
 Scoped parity passes in this document do not equal full legacy-science parity.
 Legacy-science coverage status is tracked explicitly in the inventory below.
+Audit boundaries, explicit exclusions, and maintenance rules are tracked in:
+`docs/architecture/legacy_science_gap_audit.md`.
 
 ## What Parity Means Here
 
@@ -59,6 +61,9 @@ establishment is currently a contract-changed, narrow pass-through policy:
 - builder establishes `transformation_state.label == "linear"` through the
   supported identity transformer path
 - no broader legacy-style transformation-selection API is currently supported
+- additional preprocessing stages are supported separately behind explicit policy
+  flags (`ratio_to_total`, `build_from_metadata`, `sample_metadata_pairs`) and
+  are tracked independently in the inventory below
 
 ## Core Kinase Lane Status (2026-04-20)
 
@@ -145,7 +150,7 @@ Status vocabulary:
 | network policy variants | PORTED | `SCI-GAP-09` | `positive_only`, `absolute_threshold`, and `signed` are implemented and tested. |
 | expanded signalome outputs | PORTED | `SCI-GAP-10` | `expanded_signalome` is materialized in the supported workflow path. |
 | activity parity lock | PORTED | `SCI-GAP-11` | Activity/KSEA science is rewrite-ported and guarded by parity CI gates. |
-| preprocessing transformation establishment | CONTRACT_CHANGED | - | Builder preprocessing is intentionally narrow: pass-through linear transformation establishment plus limited missing-data policy. |
+| preprocessing transformation establishment | CONTRACT_CHANGED | - | Transformation establishment in the supported builder lane is intentionally narrow (`linear` identity establishment). |
 | total/protein correction | PORTED | - | `total_protein_correction.policy="ratio_to_total"` is supported in builder preprocessing with strict phospho/total matching checks. |
 | site-matrix construction | OPEN_GAP | - | Legacy site-matrix construction policy surface is not fully ported. |
 | comparison-building | PORTED | - | Builder preprocessing supports sample-metadata-based pairwise comparison construction with explicit or inferred pairs. |

@@ -33,7 +33,7 @@ Historical code under `legacy_archive/phospy_legacy/` is migration reference onl
 - Signalome supports `assignment_policy="weighted_top"` and network-policy
   variants (`positive_only`, `absolute_threshold`, `signed`)
 
-## Science-Parity Ticket Status (2026-04-20)
+## Science-Parity Ticket Status (2026-04-21)
 
 Audit reference:
 [Legacy Science Gap Audit](architecture/legacy_science_gap_audit.md)
@@ -62,16 +62,19 @@ See the full legacy-science inventory in:
 
 ## Remaining Roadmap (Real Next Steps)
 
-The remaining roadmap is documentation and governance alignment, not core
-science implementation.
+The remaining roadmap includes one confirmed open legacy-science area plus
+governance/doc synchronization.
 
-1. Keep contract docs aligned with landed science status across `docs/roadmap.md`,
+1. Close the remaining open legacy-science area in the inventory:
+   - `site-matrix construction` (`OPEN_GAP`, partial rewrite lane exists but full
+     legacy policy surface is not yet marked landed)
+2. Keep contract docs aligned with landed science status across `docs/roadmap.md`,
    `docs/api.md`, and `docs/parity.md` so deferred wording does not reappear for
    completed lanes.
-2. Keep governance truth sources synchronized in the same change window:
+3. Keep governance truth sources synchronized in the same change window:
    `docs/architecture/legacy_science_gap_audit.md`, parity donor inventory, and
    release notes/changelog entries.
-3. Maintain parity-lock hygiene for landed science lanes by updating fixture
+4. Maintain parity-lock hygiene for landed science lanes by updating fixture
    provenance and regression references when parity fixtures are promoted or
    refreshed.
 
