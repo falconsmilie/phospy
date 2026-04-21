@@ -36,3 +36,13 @@ on 2026-04-19.
 - `trace_final_ensemble_decision_values.csv`
 - `trace_final_ensemble_top.csv`
 - `README.md`
+
+## Assertion Contract Layout
+
+`tests/parity/test_adaptive_prediction_parity.py` keeps donor parity and
+cross-policy divergence as separate contracts:
+
+- donor-vs-rewrite parity for `adaptive_policy="stable"`
+- donor-vs-rewrite parity for `adaptive_policy="r_parity"`
+- cross-policy divergence (`stable` vs `r_parity`) reported as a separate
+  comparison surface and not interpreted as donor-port failure

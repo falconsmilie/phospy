@@ -59,5 +59,17 @@ The active rewrite parity test family uses explicit per-surface policies:
 - `r_parity` policy checks are reported on both ranking surfaces against the
   promoted stable fixture lane and are interpreted as bounded divergence gates.
 
+## Assertion Contract Layout
+
+`tests/parity/test_l6_prediction_parity.py` is organized as separate contract
+assertion groups so failure semantics are unambiguous:
+
+- donor-vs-rewrite scoring table parity (`profile`, `combined`, `weights`)
+- donor-vs-rewrite prediction-matrix parity (`pred_mat` vs `predMat.csv`)
+- donor-vs-rewrite candidate-set parity
+- donor-vs-rewrite ranked top-k export parity
+- cross-policy divergence (`stable` vs `r_parity`) reported separately from
+  donor parity
+
 Release-gate thresholds for this lane are enforced in
 `tests/parity/test_l6_prediction_parity.py`.

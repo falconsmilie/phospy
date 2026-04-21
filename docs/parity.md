@@ -77,13 +77,16 @@ rewrite lanes (`PARITY_GATED_ACTIVE_SCIENCE`):
 - full promoted L6 downstream prediction/scoring parity against rewrite-owned
   promoted reference tables (`profile_scores`, `combined_scores`, `weights`,
   candidate substrates, prediction-matrix ranking summaries, top-k export
-  ranking summaries)
+  ranking summaries), with donor-vs-rewrite and cross-policy divergence
+  assertions reported as separate contracts
 - release gates for the core kinase lane, including strict candidate overlap,
   prediction-matrix ranking agreement thresholds, top-k export agreement
   thresholds, and replay-surface agreement in rewrite-owned fixture lanes
 - adaptive prediction parity from promoted adaptive-sampling fixtures, executed
   in both supported rewrite policy lanes:
-  `adaptive_policy="stable"` and `adaptive_policy="r_parity"`
+  `adaptive_policy="stable"` and `adaptive_policy="r_parity"`, with
+  donor-vs-rewrite policy checks and stable-vs-r_parity divergence checks
+  reported separately
 - adaptive replay-trace parity from promoted replay fixtures, including initial
   negative-set replay surfaces, per-iteration sample-membership replay
   surfaces, final ensemble probabilities, top-k replay summaries, and

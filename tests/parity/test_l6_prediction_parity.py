@@ -22,37 +22,33 @@ COMBINED_PEARSON_FLOOR = 0.999999
 COMBINED_SPEARMAN_FLOOR = 0.999999
 WEIGHTS_MAE_CEILING = 1e-12
 WEIGHTS_MAX_ABS_DIFF_CEILING = 1e-11
+PREDICTION_MATRIX_MAE_CEILING = 1e-12
+PREDICTION_MATRIX_PEARSON_FLOOR = 0.999999
+PREDICTION_MATRIX_SPEARMAN_FLOOR = 0.999999
 CANDIDATE_OVERLAP_PRECISION_FLOOR = 0.999999
 CANDIDATE_OVERLAP_RECALL_FLOOR = 0.999999
-DEFAULT_PRED_MAT_RANK_SPEARMAN_FLOOR = 0.96
-DEFAULT_PRED_MAT_TOP20_OVERLAP_FLOOR = 0.75
-DEFAULT_PRED_MAT_TOP30_OVERLAP_FLOOR = 0.65
-DEFAULT_PRED_MAT_GOOD_TOP10_COUNT_FLOOR = 20
-R_PARITY_PRED_MAT_RANK_SPEARMAN_FLOOR = 0.94
-R_PARITY_PRED_MAT_TOP10_OVERLAP_FLOOR = 0.74
-R_PARITY_PRED_MAT_TOP20_OVERLAP_FLOOR = 0.72
-R_PARITY_PRED_MAT_TOP30_OVERLAP_FLOOR = 0.65
-R_PARITY_PRED_MAT_TOP_RANK_MATCH_FLOOR = 20
-DEFAULT_TOPK_EXPORT_TOP20_OVERLAP_FLOOR = 0.75
-DEFAULT_TOPK_EXPORT_TOP30_OVERLAP_FLOOR = 0.65
-DEFAULT_TOPK_EXPORT_GOOD_TOP10_COUNT_FLOOR = 20
-R_PARITY_TOPK_EXPORT_TOP10_OVERLAP_FLOOR = 0.74
-R_PARITY_TOPK_EXPORT_TOP20_OVERLAP_FLOOR = 0.72
-R_PARITY_TOPK_EXPORT_TOP30_OVERLAP_FLOOR = 0.65
-R_PARITY_TOPK_EXPORT_TOP_RANK_MATCH_FLOOR = 20
-CROSS_POLICY_CORRELATION_FLOOR = 0.95
+PRED_MAT_RANK_SPEARMAN_FLOOR = 0.96
+PRED_MAT_TOP20_OVERLAP_FLOOR = 0.75
+PRED_MAT_TOP30_OVERLAP_FLOOR = 0.65
+PRED_MAT_GOOD_TOP10_COUNT_FLOOR = 20
+TOPK_EXPORT_TOP20_OVERLAP_FLOOR = 0.75
+TOPK_EXPORT_TOP30_OVERLAP_FLOOR = 0.65
+TOPK_EXPORT_GOOD_TOP10_COUNT_FLOOR = 20
+CROSS_POLICY_PRED_MAT_CORRELATION_FLOOR = 0.95
 
 
-def test_l6_full_prediction_and_scoring_parity_against_promoted_reference_tables(
-    request: pytest.FixtureRequest,
-) -> None:
+def test_l6_scoring_tables_parity_donor_vs_rewrite() -> None:
     metrics = collect_l6_prediction_parity_metrics()
 
-    assert metrics.profile.shared_site_count == metrics.profile.observed_shape[0]
+    assert metrics.profile.shared_site_count == metrics.profile.observed_shape[0], (
+        "donor-vs-rewrite profile parity regressed on shared site coverage"
+    )
     assert metrics.profile.expected_shape[0] == metrics.profile.observed_shape[0]
     assert metrics.profile.shared_kinase_count == metrics.profile.observed_shape[1]
     assert metrics.profile.expected_shape[1] >= metrics.profile.observed_shape[1]
-    assert metrics.profile.mean_abs_diff <= PROFILE_MAE_CEILING
+    assert metrics.profile.mean_abs_diff <= PROFILE_MAE_CEILING, (
+        "donor-vs-rewrite profile parity regressed on absolute error"
+    )
     assert metrics.profile.mean_pearson_corr >= PROFILE_PEARSON_FLOOR
     assert metrics.profile.mean_spearman_corr >= PROFILE_SPEARMAN_FLOOR
 
@@ -61,7 +57,9 @@ def test_l6_full_prediction_and_scoring_parity_against_promoted_reference_tables
     assert metrics.combined.shared_kinase_count >= 15
     assert metrics.combined.shared_kinase_count <= metrics.combined.observed_shape[1]
     assert metrics.combined.expected_shape[1] >= metrics.combined.observed_shape[1]
-    assert metrics.combined.mean_abs_diff <= COMBINED_MAE_CEILING
+    assert metrics.combined.mean_abs_diff <= COMBINED_MAE_CEILING, (
+        "donor-vs-rewrite combined-score parity regressed on absolute error"
+    )
     assert metrics.combined.mean_pearson_corr >= COMBINED_PEARSON_FLOOR
     assert metrics.combined.mean_spearman_corr >= COMBINED_SPEARMAN_FLOOR
 
@@ -71,264 +69,292 @@ def test_l6_full_prediction_and_scoring_parity_against_promoted_reference_tables
     assert metrics.weights.mean_abs_diff <= WEIGHTS_MAE_CEILING
     assert metrics.weights.max_abs_diff <= WEIGHTS_MAX_ABS_DIFF_CEILING
 
-    assert metrics.candidates.observed_rows > 0
-    assert metrics.candidates.expected_rows > 0
-    assert metrics.candidates.overlap_rows > 0
-    assert metrics.candidates.overlap_precision >= CANDIDATE_OVERLAP_PRECISION_FLOOR
-    assert metrics.candidates.overlap_recall >= CANDIDATE_OVERLAP_RECALL_FLOOR
-    assert metrics.candidates.shared_kinase_count > 0
 
-    stable_pred_mat = metrics.stable_pred_mat_ranking
-    r_parity_pred_mat = metrics.r_parity_pred_mat_ranking
-    stable_topk_export = metrics.stable_topk_export_ranking
-    r_parity_topk_export = metrics.r_parity_topk_export_ranking
-    assert stable_pred_mat.kinases_compared > 0
-    assert r_parity_pred_mat.kinases_compared > 0
-    assert stable_topk_export.kinases_compared > 0
-    assert r_parity_topk_export.kinases_compared > 0
-    assert stable_pred_mat.kinases_compared == r_parity_pred_mat.kinases_compared
-    assert stable_topk_export.kinases_compared == r_parity_topk_export.kinases_compared
+def test_l6_prediction_matrix_parity_donor_vs_rewrite() -> None:
+    metrics = collect_l6_prediction_parity_metrics()
+    parity = metrics.prediction_matrix
+    ranking = metrics.prediction_matrix_ranking
+
+    assert parity.shared_site_count == parity.observed_shape[0], (
+        "prediction-matrix donor-vs-rewrite parity regressed on shared site coverage"
+    )
+    assert parity.expected_shape[0] == parity.observed_shape[0]
+    assert parity.shared_kinase_count == parity.observed_shape[1]
+    assert parity.expected_shape[1] >= parity.observed_shape[1]
+    assert parity.mean_abs_diff <= PREDICTION_MATRIX_MAE_CEILING, (
+        "prediction-matrix donor-vs-rewrite parity regressed on MAE"
+    )
+    assert parity.mean_pearson_corr >= PREDICTION_MATRIX_PEARSON_FLOOR
+    assert parity.mean_spearman_corr >= PREDICTION_MATRIX_SPEARMAN_FLOOR
+
+    assert ranking.kinases_compared > 0
+    assert ranking.mean_spearman_rank_corr >= PRED_MAT_RANK_SPEARMAN_FLOOR
+    assert ranking.mean_top20_overlap >= PRED_MAT_TOP20_OVERLAP_FLOOR
+    assert ranking.mean_top30_overlap >= PRED_MAT_TOP30_OVERLAP_FLOOR
+    assert ranking.good_top10_count >= PRED_MAT_GOOD_TOP10_COUNT_FLOOR
+    assert ranking.top_rank_total == ranking.kinases_compared
+
+
+def test_l6_candidate_selection_parity_donor_vs_rewrite() -> None:
+    metrics = collect_l6_prediction_parity_metrics()
+    candidates = metrics.candidates
+
+    assert candidates.observed_rows > 0
+    assert candidates.expected_rows > 0
+    assert candidates.overlap_rows > 0
+    assert candidates.overlap_precision >= CANDIDATE_OVERLAP_PRECISION_FLOOR, (
+        "candidate-set donor-vs-rewrite parity regressed on precision"
+    )
+    assert candidates.overlap_recall >= CANDIDATE_OVERLAP_RECALL_FLOOR, (
+        "candidate-set donor-vs-rewrite parity regressed on recall"
+    )
+    assert candidates.shared_kinase_count > 0
+
+
+def test_l6_ranked_topk_export_parity_donor_vs_rewrite() -> None:
+    metrics = collect_l6_prediction_parity_metrics()
+    ranking = metrics.ranked_topk_export
+
+    assert ranking.kinases_compared > 0
+    assert ranking.mean_top20_overlap >= TOPK_EXPORT_TOP20_OVERLAP_FLOOR, (
+        "top-k export donor-vs-rewrite parity regressed on top-20 overlap"
+    )
+    assert ranking.mean_top30_overlap >= TOPK_EXPORT_TOP30_OVERLAP_FLOOR
+    assert ranking.good_top10_count >= TOPK_EXPORT_GOOD_TOP10_COUNT_FLOOR
+    assert ranking.top_rank_total == ranking.kinases_compared
+
+
+def test_l6_policy_divergence_stable_vs_r_parity_is_reported_separately() -> None:
+    metrics = collect_l6_prediction_parity_metrics()
+    divergence = metrics.policy_divergence
+    pred_mat = divergence.prediction_matrix_ranking
+    topk = divergence.ranked_topk_export
 
     assert (
-        stable_pred_mat.mean_spearman_rank_corr >= DEFAULT_PRED_MAT_RANK_SPEARMAN_FLOOR
-    )
-    assert stable_pred_mat.mean_top20_overlap >= DEFAULT_PRED_MAT_TOP20_OVERLAP_FLOOR
-    assert stable_pred_mat.mean_top30_overlap >= DEFAULT_PRED_MAT_TOP30_OVERLAP_FLOOR
-    assert stable_pred_mat.good_top10_count >= DEFAULT_PRED_MAT_GOOD_TOP10_COUNT_FLOOR
-    assert stable_pred_mat.top_rank_total == stable_pred_mat.kinases_compared
+        divergence.prediction_matrix_score_corr
+        >= CROSS_POLICY_PRED_MAT_CORRELATION_FLOOR
+    ), "cross-policy divergence regressed on prediction-matrix score correlation"
+    assert pred_mat.kinases_compared > 0
+    assert pred_mat.top_rank_total == pred_mat.kinases_compared
+    assert topk.kinases_compared > 0
+    assert topk.top_rank_total == topk.kinases_compared
 
-    assert (
-        r_parity_pred_mat.mean_spearman_rank_corr
-        >= R_PARITY_PRED_MAT_RANK_SPEARMAN_FLOOR
-    )
-    assert r_parity_pred_mat.mean_top10_overlap >= R_PARITY_PRED_MAT_TOP10_OVERLAP_FLOOR
-    assert r_parity_pred_mat.mean_top20_overlap >= R_PARITY_PRED_MAT_TOP20_OVERLAP_FLOOR
-    assert r_parity_pred_mat.mean_top30_overlap >= R_PARITY_PRED_MAT_TOP30_OVERLAP_FLOOR
-    assert r_parity_pred_mat.top_rank_matches >= R_PARITY_PRED_MAT_TOP_RANK_MATCH_FLOOR
-    assert r_parity_pred_mat.top_rank_total == r_parity_pred_mat.kinases_compared
 
-    assert (
-        stable_topk_export.mean_top20_overlap >= DEFAULT_TOPK_EXPORT_TOP20_OVERLAP_FLOOR
-    )
-    assert (
-        stable_topk_export.mean_top30_overlap >= DEFAULT_TOPK_EXPORT_TOP30_OVERLAP_FLOOR
-    )
-    assert (
-        stable_topk_export.good_top10_count
-        >= DEFAULT_TOPK_EXPORT_GOOD_TOP10_COUNT_FLOOR
-    )
-    assert stable_topk_export.top_rank_total == stable_topk_export.kinases_compared
-
-    assert (
-        r_parity_topk_export.mean_top10_overlap
-        >= R_PARITY_TOPK_EXPORT_TOP10_OVERLAP_FLOOR
-    )
-    assert (
-        r_parity_topk_export.mean_top20_overlap
-        >= R_PARITY_TOPK_EXPORT_TOP20_OVERLAP_FLOOR
-    )
-    assert (
-        r_parity_topk_export.mean_top30_overlap
-        >= R_PARITY_TOPK_EXPORT_TOP30_OVERLAP_FLOOR
-    )
-    assert (
-        r_parity_topk_export.top_rank_matches
-        >= R_PARITY_TOPK_EXPORT_TOP_RANK_MATCH_FLOOR
-    )
-    assert r_parity_topk_export.top_rank_total == r_parity_topk_export.kinases_compared
-
-    assert metrics.cross_policy_prediction_corr >= CROSS_POLICY_CORRELATION_FLOOR
+def test_l6_prediction_parity_reporting_is_surface_explicit(
+    request: pytest.FixtureRequest,
+) -> None:
+    metrics = collect_l6_prediction_parity_metrics()
+    divergence = metrics.policy_divergence
 
     record_parity_metrics(
         request.config,
         family="l6_prediction",
         metrics=[
-            ("profile score shape", format_shape(*metrics.profile.observed_shape)),
+            (
+                "profile score shape (donor vs rewrite)",
+                format_shape(*metrics.profile.observed_shape),
+            ),
             (
                 "profile score donor shape",
                 format_shape(*metrics.profile.expected_shape),
             ),
-            ("profile score mean abs diff", metrics.profile.mean_abs_diff),
             (
-                "profile score mean Pearson correlation",
+                "profile score mean abs diff (donor vs rewrite)",
+                metrics.profile.mean_abs_diff,
+            ),
+            (
+                "profile score mean Pearson correlation (donor vs rewrite)",
                 format_percent(metrics.profile.mean_pearson_corr),
             ),
             (
-                "profile score mean Spearman correlation",
+                "profile score mean Spearman correlation (donor vs rewrite)",
                 format_percent(metrics.profile.mean_spearman_corr),
             ),
-            ("combined score shape", format_shape(*metrics.combined.observed_shape)),
+            (
+                "combined score shape (donor vs rewrite)",
+                format_shape(*metrics.combined.observed_shape),
+            ),
             (
                 "combined score donor shape",
                 format_shape(*metrics.combined.expected_shape),
             ),
-            ("combined score mean abs diff", metrics.combined.mean_abs_diff),
             (
-                "combined score mean Pearson correlation",
+                "combined score mean abs diff (donor vs rewrite)",
+                metrics.combined.mean_abs_diff,
+            ),
+            (
+                "combined score mean Pearson correlation (donor vs rewrite)",
                 format_percent(metrics.combined.mean_pearson_corr),
             ),
             (
-                "combined score mean Spearman correlation",
+                "combined score mean Spearman correlation (donor vs rewrite)",
                 format_percent(metrics.combined.mean_spearman_corr),
             ),
-            ("weight table shape", format_shape(*metrics.weights.observed_shape)),
-            ("weight table donor shape", format_shape(*metrics.weights.expected_shape)),
-            ("weight table mean abs diff", metrics.weights.mean_abs_diff),
-            ("weight table max abs diff", metrics.weights.max_abs_diff),
             (
-                "candidate rows (rewrite, candidate-set surface)",
+                "weight table shape (donor vs rewrite)",
+                format_shape(*metrics.weights.observed_shape),
+            ),
+            ("weight table donor shape", format_shape(*metrics.weights.expected_shape)),
+            (
+                "weight table mean abs diff (donor vs rewrite)",
+                metrics.weights.mean_abs_diff,
+            ),
+            (
+                "weight table max abs diff (donor vs rewrite)",
+                metrics.weights.max_abs_diff,
+            ),
+            (
+                "prediction matrix shape (donor vs rewrite)",
+                format_shape(*metrics.prediction_matrix.observed_shape),
+            ),
+            (
+                "prediction matrix donor shape",
+                format_shape(*metrics.prediction_matrix.expected_shape),
+            ),
+            (
+                "prediction matrix mean abs diff (donor vs rewrite)",
+                metrics.prediction_matrix.mean_abs_diff,
+            ),
+            (
+                "prediction matrix mean Pearson correlation (donor vs rewrite)",
+                format_percent(metrics.prediction_matrix.mean_pearson_corr),
+            ),
+            (
+                "prediction matrix mean Spearman correlation (donor vs rewrite)",
+                format_percent(metrics.prediction_matrix.mean_spearman_corr),
+            ),
+            (
+                "candidate rows (rewrite, donor-vs-rewrite candidate-set surface)",
                 metrics.candidates.observed_rows,
             ),
             (
-                "candidate rows (donor, candidate-set surface)",
+                "candidate rows (donor, donor-vs-rewrite candidate-set surface)",
                 metrics.candidates.expected_rows,
             ),
             (
-                "candidate overlap precision (candidate-set surface)",
+                "candidate overlap precision (donor-vs-rewrite candidate-set surface)",
                 format_percent(metrics.candidates.overlap_precision),
             ),
             (
-                "candidate overlap recall (candidate-set surface)",
+                "candidate overlap recall (donor-vs-rewrite candidate-set surface)",
                 format_percent(metrics.candidates.overlap_recall),
             ),
             (
-                "candidate overlap F1 (candidate-set surface)",
+                "candidate overlap F1 (donor-vs-rewrite candidate-set surface)",
                 format_percent(metrics.candidates.overlap_f1),
             ),
             (
-                "stable rank mean Spearman (prediction matrix surface)",
-                format_percent(metrics.stable_pred_mat_ranking.mean_spearman_rank_corr),
-            ),
-            (
-                "stable rank top-10 overlap (prediction matrix surface)",
-                format_percent(metrics.stable_pred_mat_ranking.mean_top10_overlap),
-            ),
-            (
-                "stable rank top-20 overlap (prediction matrix surface)",
-                format_percent(metrics.stable_pred_mat_ranking.mean_top20_overlap),
-            ),
-            (
-                "stable rank top-30 overlap (prediction matrix surface)",
-                format_percent(metrics.stable_pred_mat_ranking.mean_top30_overlap),
-            ),
-            (
-                "stable top-rank matches (prediction matrix surface)",
-                format_fraction(
-                    metrics.stable_pred_mat_ranking.top_rank_matches,
-                    metrics.stable_pred_mat_ranking.top_rank_total,
-                    include_percent=True,
-                ),
-            ),
-            (
-                "r_parity rank mean Spearman (prediction matrix surface)",
+                "prediction-matrix ranking mean Spearman (donor vs rewrite)",
                 format_percent(
-                    metrics.r_parity_pred_mat_ranking.mean_spearman_rank_corr
+                    metrics.prediction_matrix_ranking.mean_spearman_rank_corr
                 ),
             ),
             (
-                "r_parity rank top-10 overlap (prediction matrix surface)",
-                format_percent(metrics.r_parity_pred_mat_ranking.mean_top10_overlap),
+                "prediction-matrix ranking top-10 overlap (donor vs rewrite)",
+                format_percent(metrics.prediction_matrix_ranking.mean_top10_overlap),
             ),
             (
-                "r_parity rank top-20 overlap (prediction matrix surface)",
-                format_percent(metrics.r_parity_pred_mat_ranking.mean_top20_overlap),
+                "prediction-matrix ranking top-20 overlap (donor vs rewrite)",
+                format_percent(metrics.prediction_matrix_ranking.mean_top20_overlap),
             ),
             (
-                "r_parity rank top-30 overlap (prediction matrix surface)",
-                format_percent(metrics.r_parity_pred_mat_ranking.mean_top30_overlap),
+                "prediction-matrix ranking top-30 overlap (donor vs rewrite)",
+                format_percent(metrics.prediction_matrix_ranking.mean_top30_overlap),
             ),
             (
-                "r_parity top-rank matches (prediction matrix surface)",
+                "prediction-matrix top-rank matches (donor vs rewrite)",
                 format_fraction(
-                    metrics.r_parity_pred_mat_ranking.top_rank_matches,
-                    metrics.r_parity_pred_mat_ranking.top_rank_total,
+                    metrics.prediction_matrix_ranking.top_rank_matches,
+                    metrics.prediction_matrix_ranking.top_rank_total,
                     include_percent=True,
                 ),
             ),
             (
-                "stable rank mean Spearman (top-k export surface)",
+                "top-k export ranking mean Spearman (donor vs rewrite)",
+                format_percent(metrics.ranked_topk_export.mean_spearman_rank_corr),
+            ),
+            (
+                "top-k export ranking top-10 overlap (donor vs rewrite)",
+                format_percent(metrics.ranked_topk_export.mean_top10_overlap),
+            ),
+            (
+                "top-k export ranking top-20 overlap (donor vs rewrite)",
+                format_percent(metrics.ranked_topk_export.mean_top20_overlap),
+            ),
+            (
+                "top-k export ranking top-30 overlap (donor vs rewrite)",
+                format_percent(metrics.ranked_topk_export.mean_top30_overlap),
+            ),
+            (
+                "top-k export top-rank matches (donor vs rewrite)",
+                format_fraction(
+                    metrics.ranked_topk_export.top_rank_matches,
+                    metrics.ranked_topk_export.top_rank_total,
+                    include_percent=True,
+                ),
+            ),
+            (
+                "prediction matrix score correlation (cross-policy divergence: stable vs r_parity)",
+                format_percent(divergence.prediction_matrix_score_corr),
+            ),
+            (
+                "prediction matrix score mean abs diff (cross-policy divergence: stable vs r_parity)",
+                divergence.prediction_matrix_score_mae,
+            ),
+            (
+                "prediction-matrix ranking mean Spearman (cross-policy divergence: stable vs r_parity)",
                 format_percent(
-                    metrics.stable_topk_export_ranking.mean_spearman_rank_corr
+                    divergence.prediction_matrix_ranking.mean_spearman_rank_corr
                 ),
             ),
             (
-                "stable rank top-10 overlap (top-k export surface)",
-                format_percent(metrics.stable_topk_export_ranking.mean_top10_overlap),
+                "prediction-matrix ranking top-10 overlap (cross-policy divergence: stable vs r_parity)",
+                format_percent(divergence.prediction_matrix_ranking.mean_top10_overlap),
             ),
             (
-                "stable rank top-20 overlap (top-k export surface)",
-                format_percent(metrics.stable_topk_export_ranking.mean_top20_overlap),
+                "prediction-matrix ranking top-20 overlap (cross-policy divergence: stable vs r_parity)",
+                format_percent(divergence.prediction_matrix_ranking.mean_top20_overlap),
             ),
             (
-                "stable rank top-30 overlap (top-k export surface)",
-                format_percent(metrics.stable_topk_export_ranking.mean_top30_overlap),
+                "prediction-matrix ranking top-30 overlap (cross-policy divergence: stable vs r_parity)",
+                format_percent(divergence.prediction_matrix_ranking.mean_top30_overlap),
             ),
             (
-                "stable top-rank matches (top-k export surface)",
+                "prediction-matrix top-rank matches (cross-policy divergence: stable vs r_parity)",
                 format_fraction(
-                    metrics.stable_topk_export_ranking.top_rank_matches,
-                    metrics.stable_topk_export_ranking.top_rank_total,
+                    divergence.prediction_matrix_ranking.top_rank_matches,
+                    divergence.prediction_matrix_ranking.top_rank_total,
                     include_percent=True,
                 ),
             ),
             (
-                "r_parity rank mean Spearman (top-k export surface)",
-                format_percent(
-                    metrics.r_parity_topk_export_ranking.mean_spearman_rank_corr
-                ),
+                "top-k export ranking mean Spearman (cross-policy divergence: stable vs r_parity)",
+                format_percent(divergence.ranked_topk_export.mean_spearman_rank_corr),
             ),
             (
-                "r_parity rank top-10 overlap (top-k export surface)",
-                format_percent(metrics.r_parity_topk_export_ranking.mean_top10_overlap),
+                "top-k export ranking top-10 overlap (cross-policy divergence: stable vs r_parity)",
+                format_percent(divergence.ranked_topk_export.mean_top10_overlap),
             ),
             (
-                "r_parity rank top-20 overlap (top-k export surface)",
-                format_percent(metrics.r_parity_topk_export_ranking.mean_top20_overlap),
+                "top-k export ranking top-20 overlap (cross-policy divergence: stable vs r_parity)",
+                format_percent(divergence.ranked_topk_export.mean_top20_overlap),
             ),
             (
-                "r_parity rank top-30 overlap (top-k export surface)",
-                format_percent(metrics.r_parity_topk_export_ranking.mean_top30_overlap),
+                "top-k export ranking top-30 overlap (cross-policy divergence: stable vs r_parity)",
+                format_percent(divergence.ranked_topk_export.mean_top30_overlap),
             ),
             (
-                "r_parity top-rank matches (top-k export surface)",
+                "top-k export top-rank matches (cross-policy divergence: stable vs r_parity)",
                 format_fraction(
-                    metrics.r_parity_topk_export_ranking.top_rank_matches,
-                    metrics.r_parity_topk_export_ranking.top_rank_total,
+                    divergence.ranked_topk_export.top_rank_matches,
+                    divergence.ranked_topk_export.top_rank_total,
                     include_percent=True,
                 ),
-            ),
-            (
-                "stable vs r_parity prediction correlation",
-                format_percent(metrics.cross_policy_prediction_corr),
-            ),
-            (
-                "stable vs r_parity prediction mean abs diff",
-                metrics.cross_policy_prediction_mae,
-            ),
-            (
-                "stable vs r_parity top-10 overlap",
-                format_percent(metrics.cross_policy_mean_top10_overlap),
-            ),
-            (
-                "stable vs r_parity top-20 overlap",
-                format_percent(metrics.cross_policy_mean_top20_overlap),
-            ),
-            (
-                "stable vs r_parity top-30 overlap",
-                format_percent(metrics.cross_policy_mean_top30_overlap),
             ),
         ],
         notes=(
             "fixture lane: tests/fixtures/rewrite_parity/r_reference_l6_prediction/",
-            "policy labels: adaptive_policy=stable (default lane), adaptive_policy=r_parity",
-            "prediction-matrix ranking surface: pred_mat (rewrite) vs predMat.csv (fixture)",
-            (
-                "top-k export ranking surface: substrate_list (rewrite) vs "
-                "native_prediction_top30.csv (fixture)"
-            ),
-            (
-                "candidate-set surface: substrate_list kinase/site pairs vs "
-                "native_candidate_substrates.csv"
-            ),
+            "donor-vs-rewrite contracts: prediction matrix, candidate set, and ranked top-k export are asserted independently",
+            "cross-policy contract: stable (default) vs r_parity divergence is asserted independently from donor parity",
         ),
     )

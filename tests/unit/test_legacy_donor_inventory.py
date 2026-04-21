@@ -173,7 +173,7 @@ def test_key_legacy_science_areas_pin_expected_rewrite_parity_blockers() -> None
     expected_parity_tests = {
         "adaptive sampling / svm_mode": (
             "tests/parity/test_adaptive_prediction_parity.py::"
-            "test_adaptive_ensemble_outputs_match_promoted_fixture_tolerances",
+            "test_adaptive_prediction_cross_policy_divergence_stable_vs_r_parity",
         ),
         "expanded signalome outputs": (
             "tests/parity/test_signalome_workflow_parity.py::"

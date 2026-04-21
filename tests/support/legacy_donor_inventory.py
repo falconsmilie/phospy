@@ -105,7 +105,11 @@ LEGACY_SCIENCE_AREAS: tuple[LegacyScienceAreaInventory, ...] = (
         rewrite_unit_tests=(),
         rewrite_parity_tests=(
             "tests/parity/test_l6_prediction_parity.py::"
-            "test_l6_full_prediction_and_scoring_parity_against_promoted_reference_tables",
+            "test_l6_prediction_matrix_parity_donor_vs_rewrite",
+            "tests/parity/test_l6_prediction_parity.py::"
+            "test_l6_candidate_selection_parity_donor_vs_rewrite",
+            "tests/parity/test_l6_prediction_parity.py::"
+            "test_l6_ranked_topk_export_parity_donor_vs_rewrite",
             "tests/parity/test_adaptive_replay_parity.py::"
             "test_adaptive_replay_trace_parity_matches_promoted_trace_surfaces",
         ),
@@ -149,7 +153,7 @@ LEGACY_SCIENCE_AREAS: tuple[LegacyScienceAreaInventory, ...] = (
         ),
         rewrite_parity_tests=(
             "tests/parity/test_adaptive_prediction_parity.py::"
-            "test_adaptive_ensemble_outputs_match_promoted_fixture_tolerances",
+            "test_adaptive_prediction_cross_policy_divergence_stable_vs_r_parity",
         ),
         rewrite_integration_tests=(),
         archival_only_tests=(
