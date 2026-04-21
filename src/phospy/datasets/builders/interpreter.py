@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from phospy.api.configs import DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA
 from phospy.api.requests import DatasetBuildRequest
 from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
 from phospy.datasets.builders.normalizer import DatasetConventionNormalizer
@@ -52,9 +53,14 @@ class DatasetBuildRequestInterpreter:
             sample_metadata=sample_metadata,
             total=total,
         )
+        preprocessing_plan = PreprocessingPlan.from_config(request.preprocessing_config)
         enriched_site_metadata = self._site_sequence_deriver.run(
             normalized.site_metadata,
             organism=request.organism,
+            allow_partial=(
+                preprocessing_plan.site_matrix_policy
+                == DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA
+            ),
         )
         return InterpretedDatasetBuildRequest(
             phospho=normalized.phospho,
@@ -62,7 +68,5 @@ class DatasetBuildRequestInterpreter:
             sample_metadata=normalized.sample_metadata,
             total=normalized.total,
             organism=request.organism,
-            preprocessing_plan=PreprocessingPlan.from_config(
-                request.preprocessing_config
-            ),
+            preprocessing_plan=preprocessing_plan,
         )

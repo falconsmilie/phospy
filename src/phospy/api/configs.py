@@ -193,8 +193,9 @@ class DatasetSiteMatrixConfig:
 
     - `"as_input"`: preserve interpreted site matrix as provided.
     - `"build_from_metadata"`: construct site-matrix-ready rows from
-      `site_metadata` (`gene_symbol`, `site`, `site_sequence`) after upstream
-      missing-data/total-correction preprocessing.
+      `site_metadata` (`gene_symbol`, `site`) after upstream
+      missing-data/total-correction preprocessing, using row-level
+      `site_sequence` support from supplied values and/or supported derivation.
 
     When `policy="build_from_metadata"`:
 

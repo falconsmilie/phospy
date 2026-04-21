@@ -19,9 +19,28 @@ class SiteSequenceDeriver:
         site_metadata: pd.DataFrame,
         *,
         organism: Organism | None,
+        allow_partial: bool = False,
     ) -> pd.DataFrame:
         normalized = site_metadata
         if "site_sequence" in normalized.columns:
+            if allow_partial:
+                existing = self._normalized_optional_site_sequence(
+                    normalized.loc[:, "site_sequence"]
+                )
+                if organism is not None and bool(existing.isna().any()):
+                    derived = self._derive_from_bundled_sequences_if_available(
+                        site_index=normalized.index,
+                        organism=organism,
+                    )
+                    if derived is not None:
+                        derived_optional = self._normalized_optional_site_sequence(
+                            derived
+                        )
+                        existing = existing.where(
+                            existing.notna(), other=derived_optional
+                        )
+                normalized.loc[:, "site_sequence"] = existing.astype("string")
+                return normalized
             existing = self._validated_existing_site_sequence(normalized)
             normalized.loc[:, "site_sequence"] = existing.astype(str)
             return normalized
@@ -32,6 +51,11 @@ class SiteSequenceDeriver:
             organism=organism,
         )
         if derived is None:
+            return normalized
+        if allow_partial:
+            normalized.loc[:, "site_sequence"] = (
+                self._normalized_optional_site_sequence(derived).astype("string")
+            )
             return normalized
         unresolved = derived.isna() | (derived == "")
         if unresolved.any():
@@ -54,6 +78,12 @@ class SiteSequenceDeriver:
                 f"{joined_preview}"
             )
         return as_string
+
+    @staticmethod
+    def _normalized_optional_site_sequence(column: pd.Series) -> pd.Series:
+        as_string = column.astype("string").str.strip()
+        missing = column.isna() | as_string.isna() | (as_string == "")
+        return as_string.where(~missing, other=pd.NA)
 
     @staticmethod
     def _derive_from_bundled_sequences_if_available(

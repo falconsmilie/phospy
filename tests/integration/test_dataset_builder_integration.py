@@ -289,6 +289,153 @@ def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> 
     assert built.site_metadata.loc["MAPK14;Y182;", "source_uid"] == "UID_A"
 
 
+def test_dataset_builder_site_matrix_derivation_keeps_all_fully_resolvable_rows() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [1.5, 2.5],
+        },
+        index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "GSK3B"],
+            "site": ["Y182", "S9"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+            ),
+        )
+    )
+
+    assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
+    assert built.site_metadata.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
+    assert built.site_metadata.loc[:, "site_sequence"].isna().sum() == 0
+    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
+    assert row_drop_stats is not None
+    assert row_drop_stats["dropped_missing_sequence"] == 0
+    assert row_drop_stats["retained_rows"] == 2
+
+
+def test_dataset_builder_site_matrix_derivation_excludes_only_unresolved_rows() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0, 3.0],
+            "sample_b": [1.5, 2.5, 3.5],
+        },
+        index=pd.Index(["MAPK14;Y182;", "FAKE1;S1;", "GSK3B;S9;"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "FAKE1", "GSK3B"],
+            "site": ["Y182", "S1", "S9"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+            ),
+        )
+    )
+
+    assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
+    assert built.site_metadata.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
+    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
+    assert row_drop_stats is not None
+    assert row_drop_stats["input_rows"] == 3
+    assert row_drop_stats["dropped_missing_sequence"] == 1
+    assert row_drop_stats["retained_rows"] == 2
+
+
+def test_dataset_builder_site_matrix_excludes_unusable_supplied_sequence_rows() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [1.5, 2.5],
+        },
+        index=pd.Index(["MAPK14;Y182;", "FAKE1;S1;"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "FAKE1"],
+            "site": ["Y182", "S1"],
+            "site_sequence": ["RHFSLQERLLGRTKLTDFGLARHTDDEMTGYVA", "  "],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+            ),
+        )
+    )
+
+    assert built.phospho.index.tolist() == ["MAPK14;Y182;"]
+    assert built.site_metadata.index.tolist() == ["MAPK14;Y182;"]
+    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
+    assert row_drop_stats is not None
+    assert row_drop_stats["input_rows"] == 2
+    assert row_drop_stats["dropped_missing_sequence"] == 1
+    assert row_drop_stats["retained_rows"] == 1
+
+
+def test_dataset_builder_site_matrix_derivation_reports_no_rows_when_fully_unresolvable() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [1.5, 2.5],
+        },
+        index=pd.Index(["FAKE1;S1;", "FAKE2;T2;"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["FAKE1", "FAKE2"],
+            "site": ["S1", "T2"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "site-matrix construction produced no retained rows after filtering; "
+            "input_rows=2, dropped_missing_sequence=2"
+        ),
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                organism=Organism.RAT,
+                preprocessing_config=DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+                ),
+            )
+        )
+
+
 @pytest.mark.parametrize(
     "missing_data_policy",
     ("retain_missing", "require_min_observed_values"),
@@ -425,7 +572,10 @@ def test_dataset_builder_rejects_site_matrix_build_without_site_sequence_column(
 
     with pytest.raises(
         PhosPyInputError,
-        match="site-matrix construction requires site_metadata columns: site_sequence",
+        match=(
+            "site-matrix construction produced no retained rows after filtering; "
+            "input_rows=4, dropped_missing_sequence=4"
+        ),
     ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(

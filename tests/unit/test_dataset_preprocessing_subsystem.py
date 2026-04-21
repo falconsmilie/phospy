@@ -601,7 +601,10 @@ def test_dataset_preprocessor_rejects_site_matrix_build_without_site_sequence() 
 
     with pytest.raises(
         PhosPyInputError,
-        match="site-matrix construction requires site_metadata columns: site_sequence",
+        match=(
+            "site-matrix construction produced no retained rows after filtering; "
+            "input_rows=3, dropped_missing_sequence=3"
+        ),
     ):
         DatasetPreprocessor().run(
             phospho=phospho,

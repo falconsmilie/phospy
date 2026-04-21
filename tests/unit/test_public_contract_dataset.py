@@ -6,6 +6,7 @@ from dataclasses import fields
 from pathlib import Path
 from typing import get_type_hints
 
+import pandas as pd
 import pytest
 import tomllib
 
@@ -15,6 +16,8 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
+    DatasetSiteMatrixConfig,
+    Organism,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 
@@ -85,3 +88,36 @@ def test_dataset_build_request_rejects_user_declared_transformation_state() -> N
 def test_dataset_preprocessing_config_is_top_level_public_type() -> None:
     assert "DatasetPreprocessingConfig" in phospy.__all__
     assert DatasetPreprocessingConfig().missing_data.policy == "forbid"
+
+
+def test_site_matrix_build_contract_is_row_wise_for_mixed_sequence_support() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0, 3.0],
+            "sample_b": [1.5, 2.5, 3.5],
+        },
+        index=pd.Index(["MAPK14;Y182;", "FAKE1;S1;", "GSK3B;S9;"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "FAKE1", "GSK3B"],
+            "site": ["Y182", "S1", "S9"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+            ),
+        )
+    )
+
+    assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
+    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
+    assert row_drop_stats is not None
+    assert row_drop_stats["dropped_missing_sequence"] == 1

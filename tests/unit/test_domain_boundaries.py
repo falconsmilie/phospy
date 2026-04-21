@@ -4,7 +4,11 @@ import pandas as pd
 import pytest
 
 import phospy.io as phospy_io
-from phospy.api.configs import DatasetMissingDataConfig, DatasetPreprocessingConfig
+from phospy.api.configs import (
+    DatasetMissingDataConfig,
+    DatasetPreprocessingConfig,
+    DatasetSiteMatrixConfig,
+)
 from phospy.api.requests import DatasetBuildRequest
 from phospy.datasets.builders.public import AnalysisReadyDatasetBuilder
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
@@ -557,6 +561,80 @@ def test_builder_allows_missing_site_sequence_when_not_provided_or_derivable() -
         )
     )
     assert "site_sequence" not in built.site_metadata.columns
+
+
+def test_builder_site_matrix_excludes_only_unresolved_rows_in_mixed_support_case() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0, 3.0],
+            "sample_b": [1.5, 2.5, 3.5],
+        },
+        index=pd.Index(["MAPK14;Y182;", "FAKE1;S1;", "GSK3B;S9;"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "FAKE1", "GSK3B"],
+            "site": ["Y182", "S1", "S9"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+            ),
+        )
+    )
+
+    assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
+    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
+    assert row_drop_stats is not None
+    assert row_drop_stats["input_rows"] == 3
+    assert row_drop_stats["dropped_missing_sequence"] == 1
+    assert row_drop_stats["retained_rows"] == 2
+
+
+def test_builder_site_matrix_reports_no_retained_rows_when_all_rows_lack_sequence_support() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [1.5, 2.5],
+        },
+        index=pd.Index(["FAKE1;S1;", "FAKE2;T2;"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["FAKE1", "FAKE2"],
+            "site": ["S1", "T2"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "site-matrix construction produced no retained rows after filtering; "
+            "input_rows=2, dropped_missing_sequence=2"
+        ),
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                organism=Organism.RAT,
+                preprocessing_config=DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+                ),
+            )
+        )
 
 
 def test_io_namespace_does_not_expose_parallel_dataset_file_builder() -> None:

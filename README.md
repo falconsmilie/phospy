@@ -66,6 +66,9 @@ Both namespaces are public, but they have different roles:
   preprocessing: it requires usable `site_sequence` rows to construct
   site-level sequence context, and rows without usable sequence are excluded
   from that construction path.
+- In this lane, sequence support is established row-by-row from supplied
+  `site_metadata.site_sequence` values and/or bundled derivation when available.
+  Mixed-support inputs retain resolvable rows and exclude only unresolved rows.
 - Choosing `build_from_metadata` can therefore reduce row retention relative to
   the original metadata table.
 - This is a policy-specific preprocessing requirement, not a contradiction of

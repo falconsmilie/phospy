@@ -8,8 +8,11 @@ import pytest
 import phospy
 import phospy.errors as public_errors
 from phospy import (
+    AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
     DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    DatasetSiteMatrixConfig,
     KinaseWorkflowResult,
     Organism,
     PhosPyInputError,
@@ -163,6 +166,43 @@ def test_dataset_build_request_uses_phospy_exception_for_invalid_sources() -> No
         match="dataset build request phospho must be a pandas DataFrame or a file path",
     ):
         DatasetBuildRequestValidator().run(request)
+
+
+def test_builder_site_matrix_reports_no_retained_rows_when_all_sequence_support_is_missing() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [1.5, 2.5],
+        },
+        index=pd.Index(["FAKE1;S1;", "FAKE2;T2;"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["FAKE1", "FAKE2"],
+            "site": ["S1", "T2"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "site-matrix construction produced no retained rows after filtering; "
+            "input_rows=2, dropped_missing_sequence=2"
+        ),
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                organism=Organism.RAT,
+                preprocessing_config=DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+                ),
+            )
+        )
 
 
 def test_dataset_constructor_rejects_non_dataframe_with_dataset_validation_error() -> (

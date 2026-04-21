@@ -142,7 +142,9 @@ No additional transformation mode is publicly selectable.
   - unique normalized `total.index` identifiers
   - complete matching between `site_metadata.gene_symbol` and `total.index`
 - at execution, `site_matrix.policy='build_from_metadata'` requires:
-  - `site_metadata` columns `gene_symbol`, `site`, `site_sequence`
+  - `site_metadata` columns `gene_symbol`, `site`
+  - row-level sequence support established from supplied
+    `site_metadata.site_sequence` values and/or bundled derivation when available
   - usable row-level `site_sequence` values for rows that should participate in
     site-matrix construction; rows lacking usable sequence are excluded from
     this path rather than auto-filled or inferred

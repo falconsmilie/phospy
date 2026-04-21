@@ -30,7 +30,6 @@ _SITE_ID_COLUMN = "site_id"
 _REQUIRED_SITE_METADATA_COLUMNS = (
     _GENE_SYMBOL_COLUMN,
     _SITE_COLUMN,
-    _SITE_SEQUENCE_COLUMN,
 )
 _SITE_TOKEN_PATTERN = re.compile(r"^[A-Za-z]+\d+$")
 _GENE_TOKEN_PATTERN = re.compile(r"^[^;\s]+$")
@@ -78,10 +77,18 @@ class SiteMatrixStage:
             state.site_metadata,
             column_name=_SITE_COLUMN,
         )
-        site_sequence = _resolve_optional_string_column(
-            state.site_metadata,
-            column_name=_SITE_SEQUENCE_COLUMN,
-        )
+        if _SITE_SEQUENCE_COLUMN in state.site_metadata.columns:
+            site_sequence = _resolve_optional_string_column(
+                state.site_metadata,
+                column_name=_SITE_SEQUENCE_COLUMN,
+            )
+        else:
+            site_sequence = pd.Series(
+                pd.NA,
+                index=state.site_metadata.index.copy(),
+                dtype="string",
+                name=_SITE_SEQUENCE_COLUMN,
+            )
         constructed_site_id = _build_site_identifier(gene_symbol=gene_symbol, site=site)
 
         has_sequence = site_sequence.notna()

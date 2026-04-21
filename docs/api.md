@@ -131,13 +131,15 @@ Current supported policies:
   `site_metadata.gene_symbol` vs `total.index` matching.
 - `site_matrix.policy="as_input"` (default): preserve interpreted phospho/site rows.
 - `site_matrix.policy="build_from_metadata"`: construct site-matrix-ready rows
-  from `site_metadata.gene_symbol`, `site_metadata.site`, and
-  `site_metadata.site_sequence` after upstream missing-data and
+  from `site_metadata.gene_symbol`/`site_metadata.site` after upstream missing-data and
   total/protein-correction stages.
-  This path is sequence-dependent at preprocessing time: rows must have usable
-  `site_sequence` values to participate in construction. Rows lacking usable
-  sequence are excluded from this path, so retained rows can be narrower than
-  the original metadata table.
+  This path is sequence-dependent at preprocessing time: usable sequence support
+  is established row-wise from supplied `site_metadata.site_sequence` values
+  and/or bundled derivation when available. Rows lacking usable sequence support
+  are excluded from this path, so retained rows can be narrower than the
+  original metadata table.
+  Mixed-support inputs therefore keep resolvable rows instead of collapsing the
+  entire derived-sequence path.
   This requirement is specific to the selected preprocessing policy and does
   not change the final dataset boundary where `site_sequence` remains optional.
   Additional supported policy controls under `DatasetSiteMatrixConfig`:
@@ -473,7 +475,8 @@ if kinase_result.activity_result is not None:
 
 If you choose `site_matrix.policy="build_from_metadata"`, inspect row-retention
 counts after builder execution (`dataset.phospho.shape[0]` versus input row
-count). Rows without usable `site_sequence` do not participate in that
+count). Sequence support is resolved row-by-row from supplied and/or derivable
+`site_sequence` values; unsupported rows do not participate in that
 construction path and are excluded there. See
 [`examples/dataset_builder_demo.py`](../examples/dataset_builder_demo.py) for a
 concrete retained-vs-excluded example.
