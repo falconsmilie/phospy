@@ -45,6 +45,14 @@ pip install .
 - Builder preprocessing can still apply explicit supported policies before
   state establishment (`impute_row_median`, `ratio_to_total`,
   `build_from_metadata`, and grouped comparison construction).
+- `site_matrix.policy="build_from_metadata"` is sequence-dependent builder
+  preprocessing: it requires usable `site_sequence` rows to construct
+  site-level sequence context, and rows without usable sequence are excluded
+  from that construction path.
+- Choosing `build_from_metadata` can therefore reduce row retention relative to
+  the original metadata table.
+- This is a policy-specific preprocessing requirement, not a contradiction of
+  the final dataset boundary where `site_sequence` may still be optional.
 - Missing-data preprocessing policy is explicit and grouped:
   `preprocessing_config.missing_data.policy="forbid"` (default) or
   `"impute_row_median"` (requires
@@ -157,6 +165,10 @@ legacy_archive/phospy_legacy # migration reference only (not installed package c
 - [`examples/dataset_builder_demo.py`](examples/dataset_builder_demo.py)
 - [`examples/kinase_workflow_demo.py`](examples/kinase_workflow_demo.py)
 - [`examples/signalome_workflow_demo.py`](examples/signalome_workflow_demo.py)
+
+`examples/dataset_builder_demo.py` includes a `site_matrix.policy="build_from_metadata"`
+row-retention walkthrough, including unusable-sequence handling and
+retained-row diagnostics.
 
 ## Docs
 

@@ -115,6 +115,12 @@ Current supported policies:
   from `site_metadata.gene_symbol`, `site_metadata.site`, and
   `site_metadata.site_sequence` after upstream missing-data and
   total/protein-correction stages.
+  This path is sequence-dependent at preprocessing time: rows must have usable
+  `site_sequence` values to participate in construction. Rows lacking usable
+  sequence are excluded from this path, so retained rows can be narrower than
+  the original metadata table.
+  This requirement is specific to the selected preprocessing policy and does
+  not change the final dataset boundary where `site_sequence` remains optional.
   Additional supported policy controls under `DatasetSiteMatrixConfig`:
   - `missing_data_policy="drop_any_missing"` (default): keep only complete rows.
   - `missing_data_policy="retain_missing"`: keep rows with partial missingness.
@@ -149,6 +155,9 @@ Current supported policies:
 - It requires DataFrame values for `phospho` and `site_metadata` at construction time.
 - `site_metadata` must contain `gene_symbol`, `site` with non-empty strings.
 - `site_sequence` is optional at this boundary; when present it must be non-empty.
+- Final-boundary optionality does not remove policy-specific preprocessing
+  requirements: `site_matrix.policy="build_from_metadata"` still requires
+  usable sequence-bearing rows for that construction path.
 - Site identifiers must already be canonical and non-colliding.
 - `sample_metadata` (if present) must align to `phospho.columns`.
 - `total` (if present) must be numeric and column-aligned to `phospho`.
@@ -443,6 +452,13 @@ pred_mat = kinase_result.prediction_result.pred_mat
 if kinase_result.activity_result is not None:
     weighted_activity = kinase_result.activity_result.weighted_activity
 ```
+
+If you choose `site_matrix.policy="build_from_metadata"`, inspect row-retention
+counts after builder execution (`dataset.phospho.shape[0]` versus input row
+count). Rows without usable `site_sequence` do not participate in that
+construction path and are excluded there. See
+[`examples/dataset_builder_demo.py`](../examples/dataset_builder_demo.py) for a
+concrete retained-vs-excluded example.
 
 For CLI and bundle persistence details, see:
 

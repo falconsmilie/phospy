@@ -49,6 +49,15 @@ Before final dataset construction, supported preprocessing policy is applied to
   construct site-matrix-ready rows from metadata after upstream missing-data and
   total/protein-correction stages
 
+Important contract distinction:
+
+- Final dataset boundary: `site_metadata.site_sequence` is optional in
+  `AnalysisReadyPhosphoDataset` (validated when present).
+- Policy-specific preprocessing boundary:
+  `site_matrix.policy="build_from_metadata"` still requires usable
+  sequence-bearing rows for that path and excludes rows without usable sequence
+  from that construction path.
+
 `AnalysisReadyPhosphoDataset` itself is strict and DataFrame-only.
 Workflows consume only this dataset type.
 
@@ -133,6 +142,9 @@ No additional transformation mode is publicly selectable.
   - complete matching between `site_metadata.gene_symbol` and `total.index`
 - at execution, `site_matrix.policy='build_from_metadata'` requires:
   - `site_metadata` columns `gene_symbol`, `site`, `site_sequence`
+  - usable row-level `site_sequence` values for rows that should participate in
+    site-matrix construction; rows lacking usable sequence are excluded from
+    this path rather than auto-filled or inferred
   - non-empty values for all rows in `gene_symbol`/`site` and site tokens that
     normalize to canonical `SITE_TOKEN` form (for example `S123`)
   - deterministic site identity construction as canonical
@@ -145,6 +157,8 @@ No additional transformation mode is publicly selectable.
     - `max_mean_signal`, `first`, `aggregate_mean`, `aggregate_median`, or `error`
   - at least one retained row after sequence filtering, missing-data policy, and
     duplicate-site handling (otherwise a diagnostic-rich input error is raised)
+  - effective row retention can be narrower than the original metadata table as
+    a supported consequence of the selected preprocessing policy
 - at execution, `comparisons.policy='sample_metadata_pairs'` requires:
   - `sample_metadata.index` exactly matching `phospho.columns`
   - `sample_metadata[comparisons.sample_group_column]` with non-empty values
@@ -286,6 +300,7 @@ Optional outputs must be checked before dereference:
 | --- | --- | --- |
 | Builder rejects input format | Field is neither DataFrame nor supported file path | Pass DataFrame or path to `.csv`/`.tsv`/`.txt`/`.parquet` |
 | Dataset constructor fails on site metadata | Required strict boundary columns/values are missing | Provide `gene_symbol` and `site` with non-blank strings |
+| Row count unexpectedly drops with `site_matrix.policy='build_from_metadata'` | Rows without usable `site_sequence` cannot participate in sequence-derived site-matrix construction and are excluded | Compare input row count vs `dataset.phospho.shape[0]`, review `site_metadata.site_sequence` completeness, and choose policy intentionally |
 | `ReferencePreset.AUTO` fails | Dataset organism is missing | Set `organism` in `DatasetBuildRequest` |
 | Bundled human/mouse preset fails | Bundled references are rat-only in this release | Provide explicit non-rat `ReferenceBundle` |
 | Kinase boundary seam fails | Overlap/support constraints were not met | Read seam details and adjust dataset/references/config |
