@@ -114,21 +114,30 @@ Rules that matter most:
 
 The public roadmap lives in [`docs/roadmap.md`](../docs/roadmap.md). Good contributions usually improve the supported surface without over-claiming: clearer diagnostics, tighter validation, better docs, and carefully scoped PhosR-inspired additions.
 
-## Scientific policy defaults
+## Public config surface (current)
 
-PhosPy keeps key scientific heuristics explicit. Do not bury these decisions in helper functions or silent defaults.
+PhosPy keeps scientific decisions explicit through public request/config models.
+Do not introduce new policy wrapper objects or hidden helper-level defaults.
 
-Current policy objects are:
+Use the current public contract from `phospy.api`:
 
-- `SiteMatrixPolicy(duplicate_site_strategy="max_mean_signal", missing_data_policy="drop_any_missing")`
-  - owns duplicate phosphosite collapse and missing-data filtering during site-matrix creation
-- `KinaseProfilePolicy(missing_value_strategy="propagate_any_missing")`
-  - owns missing-value handling during kinase substrate profile aggregation
-- `SignalomeModuleSelectionPolicy(strategy="correlation_thresholds")`
-  - owns automatic signalome module-count selection through the explicit `module_selection_strategy` field
+- `DatasetBuildRequest(..., preprocessing_config=DatasetPreprocessingConfig(...))`
+- `KinaseWorkflowRequest(..., scoring_config=KinaseScoringConfig(...), prediction_config=KinasePredictionConfig(...), activity_config=KinaseActivityConfig(...) | None)`
+- `SignalomeWorkflowRequest(..., config=SignalomeConfig(...))`
 
-Keep these policies visible at the public boundary that owns them:
+Builder preprocessing policy is grouped under `DatasetPreprocessingConfig`:
 
-- duplicate-site policy stays with preprocessing and site-matrix construction
-- missing-value policy stays with kinase profile aggregation
-- signalome module-selection policy stays with signalome clustering
+- `missing_data=DatasetMissingDataConfig(policy="forbid" | "impute_row_median", min_observed_values=...)`
+- `total_protein_correction=DatasetTotalProteinCorrectionConfig(policy="none" | "ratio_to_total")`
+- `site_matrix=DatasetSiteMatrixConfig(policy="as_input" | "build_from_metadata", duplicate_site_strategy=..., missing_data_policy="drop_any_missing")`
+- `comparisons=DatasetComparisonBuildingConfig(policy="none" | "sample_metadata_pairs", sample_group_column=..., pairs=...)`
+
+Workflow-stage scientific controls stay at their owning stage:
+
+- kinase scoring controls stay in `KinaseScoringConfig` (`min_substrates`, `include_diagnostic_scoring_tables`, `profile_missing_value_strategy`)
+- kinase prediction controls stay in `KinasePredictionConfig` (`mode`, `adaptive_policy`, `top_k`, `ensemble_size`, `n_iterations`, `random_state`)
+- signalome controls stay in `SignalomeConfig` (`network_policy`, `assignment_policy`, `score_preconditioning_policy`, `module_count`, module-selection thresholds)
+
+When contributing examples or new APIs, verify names and fields against
+[`docs/api.md`](../docs/api.md) and keep `phospy.api` as the authoritative
+contract namespace.
