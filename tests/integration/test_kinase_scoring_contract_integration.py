@@ -11,6 +11,10 @@ from phospy import (
     KinaseWorkflowRequest,
     ReferencePreset,
 )
+from phospy.api.configs import (
+    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+    KINASE_PREDICTION_MODES,
+)
 from phospy.references.resolution import ReferenceResolver
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
@@ -48,43 +52,41 @@ def _run_workflow(*, dataset, references, mode: str):
 def test_scoring_stage_is_prediction_mode_invariant_for_supported_lane() -> None:
     dataset = build_rat_l6_dataset(n_sites=220)
     references = _resolved_bundle_for_dataset(dataset)
-    deterministic = _run_workflow(
+    baseline = _run_workflow(
         dataset=dataset,
         references=references,
-        mode="deterministic_ranking",
-    )
-    adaptive = _run_workflow(
-        dataset=dataset,
-        references=references,
-        mode="adaptive_ensemble",
+        mode=KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     )
 
-    pd.testing.assert_frame_equal(
-        deterministic.scoring_result.profile_scores,
-        adaptive.scoring_result.profile_scores,
-        check_dtype=False,
-    )
-    assert deterministic.scoring_result.combined_scores is not None
-    assert adaptive.scoring_result.combined_scores is not None
-    pd.testing.assert_frame_equal(
-        deterministic.scoring_result.combined_scores,
-        adaptive.scoring_result.combined_scores,
-        check_dtype=False,
-    )
-    assert deterministic.scoring_result.motif_scores is not None
-    assert adaptive.scoring_result.motif_scores is not None
-    pd.testing.assert_frame_equal(
-        deterministic.scoring_result.motif_scores,
-        adaptive.scoring_result.motif_scores,
-        check_dtype=False,
-    )
-    assert deterministic.scoring_result.weights is not None
-    assert adaptive.scoring_result.weights is not None
-    pd.testing.assert_frame_equal(
-        deterministic.scoring_result.weights,
-        adaptive.scoring_result.weights,
-        check_dtype=False,
-    )
+    for mode in sorted(KINASE_PREDICTION_MODES):
+        result = _run_workflow(
+            dataset=dataset,
+            references=references,
+            mode=mode,
+        )
+
+        pd.testing.assert_frame_equal(
+            result.scoring_result.profile_scores,
+            baseline.scoring_result.profile_scores,
+        )
+        assert result.scoring_result.combined_scores is not None
+        assert baseline.scoring_result.combined_scores is not None
+        pd.testing.assert_frame_equal(
+            result.scoring_result.combined_scores,
+            baseline.scoring_result.combined_scores,
+        )
+        assert result.scoring_result.motif_scores is not None
+        assert baseline.scoring_result.motif_scores is not None
+        pd.testing.assert_frame_equal(
+            result.scoring_result.motif_scores,
+            baseline.scoring_result.motif_scores,
+        )
+        assert result.scoring_result.weights is not None
+        assert baseline.scoring_result.weights is not None
+        pd.testing.assert_frame_equal(
+            result.scoring_result.weights,
+            baseline.scoring_result.weights,
+        )
 
 
 def test_scoring_stage_is_reference_input_form_invariant_for_equivalent_content() -> (

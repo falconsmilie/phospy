@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from phospy import (
     AnalysisReadyPhosphoDataset,
@@ -10,6 +11,10 @@ from phospy import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+)
+from phospy.api.configs import (
+    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+    KINASE_PREDICTION_MODES,
 )
 from phospy.transformations.models import TransformationState
 
@@ -68,6 +73,90 @@ def _references() -> ReferenceBundle:
             index=site_ids,
         ),
     )
+
+
+def _run_workflow(
+    *,
+    workflow: KinaseWorkflow,
+    dataset: AnalysisReadyPhosphoDataset,
+    references: ReferenceBundle,
+    scoring_config: KinaseScoringConfig,
+    prediction_mode: str,
+):
+    return workflow.run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=scoring_config,
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                ensemble_size=2,
+                mode=prediction_mode,
+                n_iterations=2,
+                random_state=7,
+            ),
+            activity_config=None,
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    "include_diagnostics",
+    [False, True],
+    ids=["without_diagnostics", "with_diagnostics"],
+)
+def test_supported_prediction_modes_preserve_scoring_stage_semantics(
+    include_diagnostics: bool,
+) -> None:
+    workflow = KinaseWorkflow()
+    dataset = _dataset()
+    references = _references()
+    scoring_config = KinaseScoringConfig(
+        min_substrates=2,
+        include_diagnostic_scoring_tables=include_diagnostics,
+    )
+    baseline = _run_workflow(
+        workflow=workflow,
+        dataset=dataset,
+        references=references,
+        scoring_config=scoring_config,
+        prediction_mode=KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+    )
+
+    for prediction_mode in sorted(KINASE_PREDICTION_MODES):
+        result = _run_workflow(
+            workflow=workflow,
+            dataset=dataset,
+            references=references,
+            scoring_config=scoring_config,
+            prediction_mode=prediction_mode,
+        )
+        pd.testing.assert_frame_equal(
+            result.scoring_result.profile_scores,
+            baseline.scoring_result.profile_scores,
+        )
+        assert result.scoring_result.combined_scores is not None
+        assert baseline.scoring_result.combined_scores is not None
+        pd.testing.assert_frame_equal(
+            result.scoring_result.combined_scores,
+            baseline.scoring_result.combined_scores,
+        )
+        if include_diagnostics:
+            assert result.scoring_result.motif_scores is not None
+            assert baseline.scoring_result.motif_scores is not None
+            pd.testing.assert_frame_equal(
+                result.scoring_result.motif_scores,
+                baseline.scoring_result.motif_scores,
+            )
+            assert result.scoring_result.weights is not None
+            assert baseline.scoring_result.weights is not None
+            pd.testing.assert_frame_equal(
+                result.scoring_result.weights,
+                baseline.scoring_result.weights,
+            )
+        else:
+            assert result.scoring_result.motif_scores is None
+            assert result.scoring_result.weights is None
 
 
 def test_prediction_modes_keep_distinct_ensemble_size_semantics() -> None:
