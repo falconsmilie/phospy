@@ -18,16 +18,16 @@ from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.validation.workflows.configs import WorkflowConfigValidator
+from phospy.validation.workflows.configs import SignalomeConfigValidator
 
 
 class SignalomeWorkflowValidator:
     """Validate `SignalomeWorkflowRequest` before interpretation."""
 
     def __init__(
-        self, *, config_validator: WorkflowConfigValidator | None = None
+        self, *, config_validator: SignalomeConfigValidator | None = None
     ) -> None:
-        self._config_validator = config_validator or WorkflowConfigValidator()
+        self._config_validator = config_validator or SignalomeConfigValidator()
 
     def run(self, request: SignalomeWorkflowRequest) -> SignalomeWorkflowRequest:
         if not isinstance(request, SignalomeWorkflowRequest):
@@ -38,7 +38,7 @@ class SignalomeWorkflowValidator:
             raise WorkflowValidationError(
                 "signalome workflow request kinase_result must be KinaseWorkflowResult"
             )
-        self._config_validator.run_signalome(request.config)
+        self._config_validator.run(request.config)
 
         prediction_matrix = require_dataframe(
             request.kinase_result.prediction_result.pred_mat,

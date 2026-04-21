@@ -6,7 +6,7 @@ from phospy.api.requests import KinaseWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
 from phospy.references.models import ReferenceBundle, ReferencePreset
-from phospy.validation.workflows.configs import WorkflowConfigValidator
+from phospy.validation.workflows.configs import KinaseWorkflowConfigValidator
 
 
 class KinaseWorkflowValidator:
@@ -15,9 +15,9 @@ class KinaseWorkflowValidator:
     def __init__(
         self,
         *,
-        config_validator: WorkflowConfigValidator | None = None,
+        config_validator: KinaseWorkflowConfigValidator | None = None,
     ) -> None:
-        self._config_validator = config_validator or WorkflowConfigValidator()
+        self._config_validator = config_validator or KinaseWorkflowConfigValidator()
 
     def run(self, request: KinaseWorkflowRequest) -> KinaseWorkflowRequest:
         if not isinstance(request, KinaseWorkflowRequest):
@@ -32,7 +32,9 @@ class KinaseWorkflowValidator:
             raise WorkflowValidationError(
                 "kinase workflow request references must be ReferencePreset or ReferenceBundle"
             )
-        self._config_validator.run_kinase_scoring(request.scoring_config)
-        self._config_validator.run_kinase_prediction(request.prediction_config)
-        self._config_validator.run_kinase_activity(request.activity_config)
+        self._config_validator.run(
+            scoring_config=request.scoring_config,
+            prediction_config=request.prediction_config,
+            activity_config=request.activity_config,
+        )
         return request

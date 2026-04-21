@@ -126,8 +126,14 @@ def test_major_validation_rules_have_documented_owners() -> None:
         documented["dataset build preprocessing config policy"]
         == "DatasetPreprocessingConfigValidator.run"
     )
-    assert documented["kinase workflow request config policy"]
-    assert documented["signalome workflow request config policy"]
+    assert (
+        documented["kinase workflow request config policy"]
+        == "KinaseWorkflowConfigValidator.run"
+    )
+    assert (
+        documented["signalome workflow request config policy"]
+        == "SignalomeConfigValidator.run"
+    )
     assert (
         documented["reference input compatibility (preset/bundle vs dataset organism)"]
         == "ReferenceCompatibilityValidator.run"

@@ -269,8 +269,8 @@ Optional outputs must be checked before dereference:
 | Transformation-state coherence and establishment | `TransformationStateValidator` |
 | Reference compatibility (dataset vs preset/bundle) | `ReferenceCompatibilityValidator` / `ReferenceResolver` |
 | Reference bundle structure/content | `ReferenceBundleValidator` |
-| Kinase workflow request/config validity | `KinaseWorkflowValidator` + `WorkflowConfigValidator` |
-| Signalome workflow request/config validity | `SignalomeWorkflowValidator` + `WorkflowConfigValidator` |
+| Kinase workflow request/config validity | `KinaseWorkflowValidator` + `KinaseWorkflowConfigValidator` |
+| Signalome workflow request/config validity | `SignalomeWorkflowValidator` + `SignalomeConfigValidator` |
 | Kinase/signalome runtime seam diagnostics | workflow interpreters/executors (`WorkflowBoundaryError`) |
 
 ## Quick Troubleshooting

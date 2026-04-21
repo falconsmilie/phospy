@@ -28,11 +28,11 @@ VALIDATION_RULE_OWNERS: tuple[ValidationRuleOwner, ...] = (
     ),
     ValidationRuleOwner(
         rule="kinase workflow request config policy",
-        owner="WorkflowConfigValidator.run_kinase_*",
+        owner="KinaseWorkflowConfigValidator.run",
     ),
     ValidationRuleOwner(
         rule="signalome workflow request config policy",
-        owner="WorkflowConfigValidator.run_signalome",
+        owner="SignalomeConfigValidator.run",
     ),
     ValidationRuleOwner(
         rule="reference input compatibility (preset/bundle vs dataset organism)",

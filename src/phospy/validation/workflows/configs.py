@@ -22,10 +22,27 @@ from phospy.errors.validation import WorkflowValidationError
 from phospy.validation.common.numbers import require_int_at_least, require_real_between
 
 
-class WorkflowConfigValidator:
-    """Validate workflow config objects and local invariants."""
+class KinaseWorkflowConfigValidator:
+    """Validate kinase workflow config objects and local invariants."""
 
-    def run_kinase_scoring(self, config: object) -> KinaseScoringConfig:
+    def run(
+        self,
+        *,
+        scoring_config: object,
+        prediction_config: object,
+        activity_config: object | None,
+    ) -> tuple[
+        KinaseScoringConfig,
+        KinasePredictionConfig,
+        KinaseActivityConfig | None,
+    ]:
+        validated_scoring = self._validate_scoring(scoring_config)
+        validated_prediction = self._validate_prediction(prediction_config)
+        validated_activity = self._validate_activity(activity_config)
+        return validated_scoring, validated_prediction, validated_activity
+
+    @staticmethod
+    def _validate_scoring(config: object) -> KinaseScoringConfig:
         if not isinstance(config, KinaseScoringConfig):
             raise WorkflowValidationError(
                 "kinase workflow request scoring_config must be KinaseScoringConfig"
@@ -51,7 +68,8 @@ class WorkflowConfigValidator:
         )
         return config
 
-    def run_kinase_prediction(self, config: object) -> KinasePredictionConfig:
+    @staticmethod
+    def _validate_prediction(config: object) -> KinasePredictionConfig:
         if not isinstance(config, KinasePredictionConfig):
             raise WorkflowValidationError(
                 "kinase workflow request prediction_config must be KinasePredictionConfig"
@@ -93,7 +111,8 @@ class WorkflowConfigValidator:
         )
         return config
 
-    def run_kinase_activity(self, config: object | None) -> KinaseActivityConfig | None:
+    @staticmethod
+    def _validate_activity(config: object | None) -> KinaseActivityConfig | None:
         if config is None:
             return None
         if not isinstance(config, KinaseActivityConfig):
@@ -123,7 +142,11 @@ class WorkflowConfigValidator:
         )
         return config
 
-    def run_signalome(self, config: object) -> SignalomeConfig:
+
+class SignalomeConfigValidator:
+    """Validate signalome workflow config objects and local invariants."""
+
+    def run(self, config: object) -> SignalomeConfig:
         if not isinstance(config, SignalomeConfig):
             raise WorkflowValidationError(
                 "signalome workflow request config must be SignalomeConfig"
@@ -192,3 +215,6 @@ class WorkflowConfigValidator:
             error_type=WorkflowValidationError,
         )
         return config
+
+
+__all__ = ["KinaseWorkflowConfigValidator", "SignalomeConfigValidator"]
