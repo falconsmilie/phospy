@@ -11,12 +11,14 @@ import pandas as pd
 from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
+    KinaseWorkflow,
+)
+from phospy.api import (
     DatasetBuildRequest,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     KinaseActivityConfig,
     KinaseScoringConfig,
-    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,

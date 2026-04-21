@@ -5,20 +5,22 @@ import pandas as pd
 from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
+    KinaseWorkflow,
+    SignalomeWorkflow,
+)
+from phospy.api import (
     DatasetBuildRequest,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
     ReferencePreset,
     SignalomeConfig,
-    SignalomeWorkflow,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
 )

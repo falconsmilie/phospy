@@ -8,14 +8,16 @@ import pytest
 
 from phospy import (
     AnalysisReadyPhosphoDataset,
+    KinaseWorkflow,
+    SignalomeWorkflow,
+)
+from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
     SignalomeConfig,
-    SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
 from phospy.signalomes.science import (

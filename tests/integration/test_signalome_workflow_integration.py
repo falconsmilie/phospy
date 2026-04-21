@@ -13,14 +13,16 @@ from pandas.api.types import (
 import phospy.workflows.signalome.interpreter as signalome_interpreter
 from phospy import (
     AnalysisReadyPhosphoDataset,
+    KinaseWorkflow,
+    SignalomeWorkflow,
+)
+from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflow,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     ReferencePreset,
     SignalomeConfig,
-    SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import KinaseScoringResult

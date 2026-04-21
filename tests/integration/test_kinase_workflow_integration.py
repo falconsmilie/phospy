@@ -7,10 +7,12 @@ import pytest
 import phospy.workflows.kinase.executor as kinase_executor
 from phospy import (
     AnalysisReadyPhosphoDataset,
+    KinaseWorkflow,
+)
+from phospy.api import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflow,
     KinaseWorkflowRequest,
     ReferenceBundle,
     ReferencePreset,

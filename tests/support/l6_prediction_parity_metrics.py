@@ -6,9 +6,11 @@ from functools import lru_cache
 import pandas as pd
 
 from phospy import (
+    KinaseWorkflow,
+)
+from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflow,
     KinaseWorkflowRequest,
     ReferencePreset,
 )

@@ -6,10 +6,13 @@ import pandas as pd
 import pytest
 
 import phospy
+import phospy.api as public_api
 import phospy.errors as public_errors
 from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
+)
+from phospy.api import (
     DatasetBuildRequest,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
@@ -148,11 +151,13 @@ def _kinase_result() -> KinaseWorkflowResult:
 
 def test_top_level_exception_exports_match_curated_facade() -> None:
     assert TOP_LEVEL_ERROR_FACADE.issubset(set(public_errors.__all__))
-    assert TOP_LEVEL_ERROR_FACADE.issubset(set(phospy.__all__))
+    assert TOP_LEVEL_ERROR_FACADE.issubset(set(public_api.__all__))
     for exported in TOP_LEVEL_ERROR_FACADE:
-        assert getattr(phospy, exported) is getattr(public_errors, exported)
+        assert getattr(public_api, exported) is getattr(public_errors, exported)
+        assert exported not in phospy.__all__
     for exported in NON_FACADE_ERROR_TYPES:
         assert exported in public_errors.__all__
+        assert exported in public_api.__all__
         assert exported not in phospy.__all__
 
 

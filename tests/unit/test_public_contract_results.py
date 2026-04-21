@@ -6,15 +6,17 @@ import pandas as pd
 import phospy.api.results as result_models
 from phospy import (
     AnalysisReadyPhosphoDataset,
+    KinaseWorkflow,
+    SignalomeWorkflow,
+)
+from phospy.api import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
     SignalomeConfig,
-    SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (

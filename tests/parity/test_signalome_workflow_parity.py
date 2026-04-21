@@ -7,13 +7,15 @@ import pandas.testing as pdt
 import pytest
 
 from phospy import (
+    KinaseWorkflow,
+    SignalomeWorkflow,
+)
+from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflow,
     KinaseWorkflowRequest,
     ReferencePreset,
     SignalomeConfig,
-    SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
 from phospy.signalomes.science import build_kinase_network

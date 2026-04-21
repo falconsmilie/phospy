@@ -31,14 +31,11 @@ def test_public_workflow_and_request_exports_match_contract() -> None:
         "SignalomeWorkflowRequest",
     }
     assert set(workflow_models.__all__) == {"KinaseWorkflow", "SignalomeWorkflow"}
-    assert {
-        "KinaseWorkflow",
-        "KinaseWorkflowRequest",
-        "KinaseWorkflowResult",
-        "SignalomeWorkflow",
-        "SignalomeWorkflowRequest",
-        "SignalomeWorkflowResult",
-    }.issubset(set(phospy.__all__))
+    assert {"KinaseWorkflow", "SignalomeWorkflow"}.issubset(set(phospy.__all__))
+    assert "KinaseWorkflowRequest" not in phospy.__all__
+    assert "SignalomeWorkflowRequest" not in phospy.__all__
+    assert "KinaseWorkflowResult" not in phospy.__all__
+    assert "SignalomeWorkflowResult" not in phospy.__all__
 
 
 def test_public_workflows_expose_run_only() -> None:

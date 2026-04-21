@@ -5,9 +5,11 @@ import pytest
 
 from phospy import (
     AnalysisReadyPhosphoDataset,
+    KinaseWorkflow,
+)
+from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,

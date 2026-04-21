@@ -17,17 +17,33 @@ pip install .
 `phospy.api` is the canonical namespace where public API types are defined and
 organised in source.
 
-Top-level `phospy` is the primary supported import route for user code,
-examples, and quickstarts.
-
 Both namespaces are public, but they have different roles:
 
-- Use top-level `phospy` for normal usage and all user-facing snippets.
-- Use `phospy.api` when you need explicit package-owned API definition paths.
-- Treat top-level `phospy` as a curated facade rather than a mirror of every
-  public submodule export.
-- Use `phospy.api.results` for detailed stage-result container types and
-  `phospy.errors` for the full exception taxonomy.
+- `phospy.api` is the authoritative full public contract namespace.
+- top-level `phospy` is a curated convenience surface for the four main product
+  entrypoints only:
+  `AnalysisReadyDatasetBuilder`, `AnalysisReadyPhosphoDataset`,
+  `KinaseWorkflow`, `SignalomeWorkflow`.
+- Import requests, configs, results, enums/references, and errors from
+  `phospy.api`.
+
+Simple product-entrypoint usage:
+
+```python
+from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
+```
+
+Full contract usage:
+
+```python
+from phospy.api import (
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    DatasetSiteMatrixConfig,
+    KinaseWorkflowRequest,
+    PhosPyValidationError,
+)
+```
 
 ## Public Product Shape
 
@@ -147,7 +163,8 @@ Deferred or out of the supported default lane:
 ## Example
 
 ```python
-from phospy import KinaseWorkflow, KinaseWorkflowRequest
+from phospy import KinaseWorkflow
+from phospy.api import KinaseWorkflowRequest
 
 result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
@@ -165,7 +182,8 @@ if result.activity_result is not None:
 Signalome outputs now include module-selection diagnostics and expanded signalome rows:
 
 ```python
-from phospy import SignalomeWorkflow, SignalomeWorkflowRequest
+from phospy import SignalomeWorkflow
+from phospy.api import SignalomeWorkflowRequest
 
 signalome_result = SignalomeWorkflow().run(
     SignalomeWorkflowRequest(kinase_result=result)

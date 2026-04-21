@@ -7,13 +7,15 @@ import pandas as pd
 import pytest
 
 from phospy import (
+    KinaseWorkflow,
+    SignalomeWorkflow,
+)
+from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflow,
     KinaseWorkflowRequest,
     ReferencePreset,
     SignalomeConfig,
-    SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
 from phospy.api.configs import SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY

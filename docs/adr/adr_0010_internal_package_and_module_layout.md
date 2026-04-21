@@ -109,8 +109,7 @@ It should contain the public models and entry points that are defined and
 organised as package-owned API contracts.
 
 Normal user-facing imports should stay anchored at top-level `phospy`, which
-acts as the primary facade and intentionally re-exports the supported
-`phospy.api` surface.
+acts as a minimal convenience entrypoint for the main product objects only.
 
 A likely shape is:
 
@@ -127,7 +126,8 @@ This package should stay intentionally small.
 
 It should not become a mirror of the entire internal package structure.
 
-User-handleable exceptions should be exported from the top-level package rather than treated as primarily living under `api/errors.py`. They may still be available across the system internally, but the main public import story should stay anchored at the top package.
+User-handleable exceptions remain implemented in `errors/`, but supported
+public exception imports should be centralised under `phospy.api`.
 
 ## Datasets Package
 
@@ -356,7 +356,7 @@ Internal implementation packages may be richer, but their structure should not l
 In practice:
 
 - `api/` stays small and curated as the canonical API-definition namespace
-- top-level `phospy` stays the primary user-facing import facade
+- top-level `phospy` stays a small convenience entrypoint
 - internal packages stay domain-oriented
 - callers should not need to understand the internal package layout to use the package correctly
 
@@ -459,7 +459,7 @@ This option was rejected because it would create navigation overhead and complex
 The following decisions are now resolved for this ADR.
 
 1. Builder collaborators should remain under the dataset-builder area rather than being spread across the codebase.
-2. User-handleable exceptions should primarily be exported from the top-level package.
+2. User-handleable exceptions should be publicly centralised through `phospy.api`.
 3. Workflow `contracts.py` modules should primarily hold internal stage DTOs; tightly scoped workflow-local protocols may live there when justified, but broader behavioural protocols should move to a more explicit internal module.
 4. Reader logic should remain under `io/readers/` internally, while builder file-path entry points hide that structure from the public usage story.
 5. `activities/` and `signalomes/` should evolve consistently if they grow.

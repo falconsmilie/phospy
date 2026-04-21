@@ -31,39 +31,45 @@ dependencies). No extra install step is required for adaptive mode.
 `phospy.api` is the canonical namespace where public API types are defined and
 organised in source.
 
-Top-level `phospy` is the primary supported import route for user-facing code,
-examples, and quickstarts.
-
 This split is intentional:
 
-- `phospy.api` owns API definition and package structure.
-- top-level `phospy` is the stable curated facade users are expected to import
-  from.
-- detailed authored types that are not part of the curated facade remain under
-  `phospy.api` (for example `phospy.api.results` stage result containers).
+- `phospy.api` is the authoritative full public contract namespace.
+- top-level `phospy` is a curated convenience surface for only:
+  `AnalysisReadyDatasetBuilder`, `AnalysisReadyPhosphoDataset`,
+  `KinaseWorkflow`, `SignalomeWorkflow`.
+- requests, configs, results, support types, and exceptions are imported from
+  `phospy.api`.
+
+Simple product-entrypoint usage:
+
+```python
+from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
+```
+
+Full contract usage:
+
+```python
+from phospy.api import (
+    DatasetBuildRequest,
+    DatasetPreprocessingConfig,
+    DatasetSiteMatrixConfig,
+    KinaseWorkflowRequest,
+    PhosPyValidationError,
+)
+```
 
 ## Public Types
 
-Import from top-level `phospy`.
+Use `phospy.api` for the supported contract surface.
 
-- Dataset and references:
-  `AnalysisReadyPhosphoDataset`, `Organism`, `ReferencePreset`, `ReferenceBundle`
-- Builder:
-  `DatasetBuildRequest`, `AnalysisReadyDatasetBuilder`
-- Workflows and requests:
-  `KinaseWorkflow`, `KinaseWorkflowRequest`,
-  `SignalomeWorkflow`, `SignalomeWorkflowRequest`
-- Config models:
-  `DatasetPreprocessingConfig`, `DatasetMissingDataConfig`,
-  `DatasetTotalProteinCorrectionConfig`, `DatasetSiteMatrixConfig`,
-  `DatasetComparisonBuildingConfig`, `KinaseScoringConfig`,
-  `KinasePredictionConfig`, `KinaseActivityConfig`, `SignalomeConfig`
-- Result models:
-  `KinaseWorkflowResult`, `SignalomeWorkflowResult`
-
-Stage-level result containers (`KinaseScoringResult`, `KinasePredictionResult`,
-`KinaseActivityResult`) remain public in the canonical authored namespace:
-`phospy.api.results`.
+- Main product entrypoints (convenience imports available from top-level
+  `phospy` and from `phospy.api`):
+  `AnalysisReadyDatasetBuilder`, `AnalysisReadyPhosphoDataset`,
+  `KinaseWorkflow`, `SignalomeWorkflow`
+- Request/config/result/reference/enum types:
+  import from `phospy.api`
+- Error taxonomy:
+  import from `phospy.api`
 
 ## Builder Contract
 
@@ -432,28 +438,20 @@ Deferred/experimental/not yet ported into the public lane:
 
 ## User-Handleable Exceptions
 
-Top-level `phospy` exports a focused, user-handleable error facade:
-
-- `PhosPyError`
-- `PhosPyInputError`, `UnsupportedInputFormatError`
-- `PhosPyBuildError`
-- `PhosPyValidationError`
-- `PhosPyReferenceError`, `UnsupportedOrganismError`
-- `PhosPyTransformationError`
-- `PhosPyWorkflowError`, `WorkflowBoundaryError`
-
-The complete public exception taxonomy remains available under
-`phospy.errors`.
+Import public exceptions from `phospy.api`.
+`phospy.errors` remains available as the underlying taxonomy module.
 
 ## Quick Usage Pattern
 
 ```python
 from phospy import (
     AnalysisReadyDatasetBuilder,
+    KinaseWorkflow,
+)
+from phospy.api import (
     DatasetBuildRequest,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
-    KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferencePreset,

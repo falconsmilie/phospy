@@ -9,10 +9,12 @@ import pandas as pd
 from phospy import (
     AnalysisReadyDatasetBuilder,
     AnalysisReadyPhosphoDataset,
+)
+from phospy.activities.models import KinaseActivityInputs, PredMatOverlapSummary
+from phospy.api import (
     DatasetBuildRequest,
     Organism,
 )
-from phospy.activities.models import KinaseActivityInputs, PredMatOverlapSummary
 from phospy.api.results import KinasePredictionResult
 from phospy.datasets.builders.executor import DatasetBuildExecutor
 from phospy.datasets.builders.interpreter import DatasetBuildRequestInterpreter

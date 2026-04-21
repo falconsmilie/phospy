@@ -6,6 +6,8 @@ import pytest
 
 from phospy import (
     AnalysisReadyDatasetBuilder,
+)
+from phospy.api import (
     DatasetBuildRequest,
     DatasetComparisonBuildingConfig,
     DatasetMissingDataConfig,

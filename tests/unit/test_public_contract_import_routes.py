@@ -15,43 +15,36 @@ USER_FACING_IMPORT_FILES = (
     ROOT / "examples" / "signalome_workflow_demo.py",
 )
 
-TOP_LEVEL_API_FACADE = {
+TOP_LEVEL_CONVENIENCE_SURFACE = {
     "AnalysisReadyDatasetBuilder",
     "AnalysisReadyPhosphoDataset",
+    "KinaseWorkflow",
+    "SignalomeWorkflow",
+}
+
+API_ONLY_CONTRACT_TYPES = {
     "DatasetBuildRequest",
-    "DatasetComparisonBuildingConfig",
-    "DatasetMissingDataConfig",
     "DatasetPreprocessingConfig",
     "DatasetSiteMatrixConfig",
-    "DatasetTotalProteinCorrectionConfig",
-    "KinaseActivityConfig",
-    "KinasePredictionConfig",
-    "KinaseScoringConfig",
-    "KinaseWorkflow",
     "KinaseWorkflowRequest",
     "KinaseWorkflowResult",
     "Organism",
     "ReferenceBundle",
     "ReferencePreset",
     "SignalomeConfig",
-    "SignalomeWorkflow",
     "SignalomeWorkflowRequest",
     "SignalomeWorkflowResult",
-}
-
-NON_FACADE_API_TYPES = {
-    "KinaseActivityResult",
-    "KinasePredictionResult",
-    "KinaseScoringResult",
+    "PhosPyValidationError",
+    "UnsupportedInputFormatError",
 }
 
 
-def test_top_level_facade_re_exports_curated_canonical_api_types() -> None:
-    assert TOP_LEVEL_API_FACADE.issubset(set(public_api.__all__))
-    assert TOP_LEVEL_API_FACADE.issubset(set(phospy.__all__))
-    for exported in TOP_LEVEL_API_FACADE:
+def test_top_level_package_exports_only_curated_convenience_surface() -> None:
+    assert set(phospy.__all__) == TOP_LEVEL_CONVENIENCE_SURFACE
+    assert TOP_LEVEL_CONVENIENCE_SURFACE.issubset(set(public_api.__all__))
+    for exported in TOP_LEVEL_CONVENIENCE_SURFACE:
         assert getattr(phospy, exported) is getattr(public_api, exported)
-    for exported in NON_FACADE_API_TYPES:
+    for exported in API_ONLY_CONTRACT_TYPES:
         assert exported in public_api.__all__
         assert exported not in phospy.__all__
 
@@ -63,16 +56,18 @@ def test_readme_and_api_guide_document_import_contract() -> None:
     canonical_phrase = (
         "`phospy.api` is the canonical namespace where public API types are defined"
     )
-    primary_route_phrase = "Top-level `phospy` is the primary supported import route"
+    convenience_phrase = "top-level `phospy` is a curated convenience surface"
 
     assert canonical_phrase in readme
     assert canonical_phrase in api_guide
-    assert primary_route_phrase in readme
-    assert primary_route_phrase in api_guide
+    assert convenience_phrase in readme
+    assert convenience_phrase in api_guide
 
 
-def test_user_facing_guides_and_examples_use_top_level_import_route() -> None:
+def test_user_facing_guides_and_examples_use_phospy_api_for_contract_types() -> None:
     for file_path in USER_FACING_IMPORT_FILES:
         source = file_path.read_text(encoding="utf-8")
-        assert "from phospy.api import" not in source
-        assert "import phospy.api" not in source
+        assert "from phospy.api import" in source
+        assert "from phospy import DatasetBuildRequest" not in source
+        assert "from phospy import KinaseWorkflowRequest" not in source
+        assert "from phospy import SignalomeWorkflowRequest" not in source

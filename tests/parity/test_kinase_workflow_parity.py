@@ -5,10 +5,12 @@ import pytest
 
 from phospy import (
     AnalysisReadyDatasetBuilder,
+    KinaseWorkflow,
+)
+from phospy.api import (
     DatasetBuildRequest,
     KinasePredictionConfig,
     KinaseScoringConfig,
-    KinaseWorkflow,
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,

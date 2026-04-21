@@ -5,6 +5,8 @@ import pytest
 
 from phospy import (
     AnalysisReadyPhosphoDataset,
+)
+from phospy.api import (
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,

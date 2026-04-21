@@ -1,11 +1,7 @@
-"""Canonical namespace where the PhosPy public API is defined.
+"""Authoritative namespace for the supported PhosPy public contract.
 
-`phospy.api` owns the package-authored public surface (requests, configs,
-results, workflows, dataset and enum entry points).
-
-Normal user code should import from top-level `phospy`, which provides the
-primary stable facade. Top-level `phospy` re-exports this namespace
-intentionally.
+`phospy.api` owns the supported package contract: requests, configs, results,
+workflows, dataset/reference entrypoints, and public exception types.
 """
 
 from phospy.api.builders import AnalysisReadyDatasetBuilder
@@ -35,6 +31,29 @@ from phospy.api.results import (
     SignalomeWorkflowResult,
 )
 from phospy.api.workflows import KinaseWorkflow, SignalomeWorkflow
+from phospy.errors import (
+    DatasetBuildError,
+    DatasetValidationError,
+    InvalidTransformationStateError,
+    PhosPyBuildError,
+    PhosPyError,
+    PhosPyInputError,
+    PhosPyReferenceError,
+    PhosPyTransformationError,
+    PhosPyValidationError,
+    PhosPyWorkflowError,
+    ReferenceCompatibilityError,
+    ReferenceResolutionError,
+    ReferenceValidationError,
+    TransformationStateEstablishmentError,
+    TransformationValidationError,
+    TransformerExecutionError,
+    UnsupportedInputFormatError,
+    UnsupportedOrganismError,
+    WorkflowBoundaryError,
+    WorkflowStageError,
+    WorkflowValidationError,
+)
 from phospy.references.models import ReferenceBundle
 
 __all__ = [
@@ -62,4 +81,25 @@ __all__ = [
     "SignalomeWorkflowRequest",
     "SignalomeWorkflowResult",
     "KinaseWorkflow",
+    "DatasetBuildError",
+    "DatasetValidationError",
+    "InvalidTransformationStateError",
+    "PhosPyBuildError",
+    "PhosPyError",
+    "PhosPyInputError",
+    "PhosPyReferenceError",
+    "PhosPyTransformationError",
+    "PhosPyValidationError",
+    "PhosPyWorkflowError",
+    "ReferenceCompatibilityError",
+    "ReferenceResolutionError",
+    "ReferenceValidationError",
+    "TransformationStateEstablishmentError",
+    "TransformationValidationError",
+    "TransformerExecutionError",
+    "UnsupportedInputFormatError",
+    "UnsupportedOrganismError",
+    "WorkflowBoundaryError",
+    "WorkflowStageError",
+    "WorkflowValidationError",
 ]

@@ -3,7 +3,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyPhosphoDataset, Organism
+from phospy import AnalysisReadyPhosphoDataset
+from phospy.api import Organism
 from phospy.errors import DatasetValidationError
 from tests.support.transformation_states import supported_linear_state
 
