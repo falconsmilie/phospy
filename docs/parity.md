@@ -19,7 +19,8 @@ Every scientific lane should be described with one of these coverage tiers:
 
 - `PARITY_GATED_ACTIVE_SCIENCE`: rewrite-owned behavior guarded by active
   parity-focused tests in `tests/parity/` and treated as the highest regression
-  confidence tier in this project.
+  confidence tier in this project. Promotion to this tier requires explicit
+  `tests/parity/...` test evidence in the legacy-science audit inventory.
 - `DONOR_BACKED_REWRITE_COVERAGE`: rewrite-implemented behavior supported by
   rewrite-owned unit/integration coverage and donor-informed fixtures/evidence,
   but not promoted to the same parity-gated tier.
@@ -34,6 +35,21 @@ Legacy inventory status labels are a separate axis and remain:
 `PORTED`, `CONTRACT_CHANGED`, `OPEN_GAP`, `INTENTIONALLY_RETIRED`.
 Status labels describe governance state; coverage tiers describe confidence and
 regression protection strength.
+
+## Promotion Guardrails (Normative)
+
+- Every new or changed science area must be added to the legacy-science
+  inventory with both `Status` and `Coverage tier`.
+- `implemented`, `PORTED`, and closed ticket labels are not enough to claim
+  parity closure.
+- `PARITY_GATED_ACTIVE_SCIENCE` claims require active rewrite-owned parity tests
+  under `tests/parity/` plus rewrite-owned fixture/provenance evidence.
+- If that gate evidence does not exist yet, classify the area as
+  `DONOR_BACKED_REWRITE_COVERAGE`,
+  `CONTRACT_CHANGED_SUPPORTED_LANE`, or `OPEN_SCIENTIFIC_GAP`.
+- When parity gates are added, removed, or materially changed, update all of:
+  `docs/parity.md`, `docs/architecture/legacy_science_gap_audit.md`, and
+  `tests/support/legacy_donor_inventory.py` in the same change.
 
 ## What Parity Means Here
 
@@ -60,10 +76,11 @@ rewrite lanes (`PARITY_GATED_ACTIVE_SCIENCE`):
 - kinase workflow parity on the supported L6 rewrite lane
 - full promoted L6 downstream prediction/scoring parity against rewrite-owned
   promoted reference tables (`profile_scores`, `combined_scores`, `weights`,
-  candidate substrates, ranking/top-k summaries)
+  candidate substrates, prediction-matrix ranking summaries, top-k export
+  ranking summaries)
 - release gates for the core kinase lane, including strict candidate overlap,
-  ranking agreement thresholds, and replay-surface agreement in rewrite-owned
-  fixture lanes
+  prediction-matrix ranking agreement thresholds, top-k export agreement
+  thresholds, and replay-surface agreement in rewrite-owned fixture lanes
 - adaptive prediction parity from promoted adaptive-sampling fixtures, executed
   in both supported rewrite policy lanes:
   `adaptive_policy="stable"` and `adaptive_policy="r_parity"`
@@ -122,9 +139,9 @@ tier only when both rewrite parity gates pass:
 - `tests/parity/test_l6_prediction_parity.py`
 - `tests/parity/test_adaptive_replay_parity.py`
 
-These gates enforce downstream behavior (candidate selection, ranking/top-k
-agreement, and adaptive replay surfaces) against promoted rewrite fixture
-references.
+These gates enforce downstream behavior (candidate selection, prediction-matrix
+ranking agreement, top-k export agreement, and adaptive replay surfaces)
+against promoted rewrite fixture references.
 
 ## Rewrite-Owned Parity Reporting
 
@@ -139,6 +156,21 @@ parity, predMat order-invariance parity, activity-stage parity,
 preprocessing-science parity, and signalome workflow parity.
 
 No `PHOSPY_SHOW_*` environment variables are required.
+
+## Active Parity Gate Files (2026-04-21)
+
+Active parity-gated science currently resolves through the following
+rewrite-owned parity files:
+
+- `tests/parity/test_prediction_science_parity.py`
+- `tests/parity/test_kinase_workflow_parity.py`
+- `tests/parity/test_l6_prediction_parity.py`
+- `tests/parity/test_adaptive_prediction_parity.py`
+- `tests/parity/test_adaptive_replay_parity.py`
+- `tests/parity/test_public_predmat_parity.py`
+- `tests/parity/test_activity_stage_parity.py`
+- `tests/parity/test_preprocessing_science_parity.py`
+- `tests/parity/test_signalome_workflow_parity.py`
 
 ## Legacy Science Coverage Inventory
 

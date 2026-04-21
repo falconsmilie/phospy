@@ -11,6 +11,8 @@
 This audit uses the same tier model as `docs/parity.md`:
 
 - `PARITY_GATED_ACTIVE_SCIENCE`: active parity-focused regression protection.
+  This tier requires explicit active rewrite-owned `tests/parity/...` evidence
+  in this audit table for the claimed area.
 - `DONOR_BACKED_REWRITE_COVERAGE`: rewrite-owned unit/integration support plus
   donor-backed evidence, but not promoted to parity-gated tier.
 - `CONTRACT_CHANGED_SUPPORTED_LANE`: intentionally narrowed or reshaped rewrite
@@ -102,15 +104,23 @@ evidence-tier classification.
 
 ## Maintenance Rule (Governance)
 
+- New science areas must be added to this inventory with both a `Status` value
+  and an explicit `Coverage tier` value.
 - An area should not be described as parity-gated unless active parity-focused
   tests protect it in supported rewrite lanes.
+- For `PARITY_GATED_ACTIVE_SCIENCE`, the `Active rewrite test evidence` column
+  must include at least one active `tests/parity/...` reference for that area.
+- If parity-focused gate evidence is not yet active, classify the area as
+  `DONOR_BACKED_REWRITE_COVERAGE`,
+  `CONTRACT_CHANGED_SUPPORTED_LANE`, or `OPEN_SCIENTIFIC_GAP` until promoted.
 - `PORTED` alone is not sufficient to imply parity-gated closure; use the
   coverage-tier column.
 - Closed ticket state alone is insufficient to mark an area `PORTED`.
 - Areas omitted from this audit must be listed as explicit exclusions here or
   tracked as open elsewhere.
 - `tests/unit/test_legacy_donor_inventory.py` keeps area/status inventory rows
-  synchronized across parity governance docs.
+  synchronized across parity governance docs and guards conservative
+  parity-gate evidence rules.
 
 ## Historical Notes
 

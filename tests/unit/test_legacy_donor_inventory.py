@@ -35,6 +35,49 @@ def _assert_test_reference_exists(
     )
 
 
+def _parse_legacy_science_inventory_table(doc_text: str) -> dict[str, dict[str, str]]:
+    lines = doc_text.splitlines()
+    heading_index = next(
+        (
+            index
+            for index, line in enumerate(lines)
+            if line.startswith("## Legacy Science Coverage Inventory")
+        ),
+        None,
+    )
+    assert heading_index is not None, "missing legacy-science inventory heading"
+
+    table_start = next(
+        (
+            index
+            for index in range(heading_index + 1, len(lines))
+            if lines[index].lstrip().startswith("|")
+        ),
+        None,
+    )
+    assert table_start is not None, "missing legacy-science inventory table"
+    assert table_start + 1 < len(lines), "missing inventory table separator"
+
+    header_cells = [
+        cell.strip() for cell in lines[table_start].strip().strip("|").split("|")
+    ]
+    assert "Legacy science area" in header_cells
+    assert "Coverage tier" in header_cells
+
+    rows: dict[str, dict[str, str]] = {}
+    for line in lines[table_start + 2 :]:
+        if not line.lstrip().startswith("|"):
+            break
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) != len(header_cells):
+            continue
+        row = dict(zip(header_cells, cells, strict=True))
+        area = row.get("Legacy science area")
+        if area:
+            rows[area] = row
+    return rows
+
+
 def _inventory_by_area():
     return {entry.area: entry for entry in LEGACY_SCIENCE_AREAS}
 
@@ -159,6 +202,50 @@ def test_governance_docs_keep_legacy_science_inventory_statuses_in_sync() -> Non
         row = f"| {entry.area} | {entry.status} |"
         assert row in parity_doc, f"missing parity row: {row}"
         assert row in audit_doc, f"missing audit row: {row}"
+
+
+def test_governance_docs_keep_legacy_science_coverage_tiers_in_sync() -> None:
+    parity_doc = (ROOT / "docs" / "parity.md").read_text(encoding="utf-8")
+    audit_doc = (
+        ROOT / "docs" / "architecture" / "legacy_science_gap_audit.md"
+    ).read_text(encoding="utf-8")
+    parity_rows = _parse_legacy_science_inventory_table(parity_doc)
+    audit_rows = _parse_legacy_science_inventory_table(audit_doc)
+    for entry in LEGACY_SCIENCE_AREAS:
+        assert entry.area in parity_rows, f"missing parity inventory area: {entry.area}"
+        assert entry.area in audit_rows, f"missing audit inventory area: {entry.area}"
+        parity_tier = parity_rows[entry.area]["Coverage tier"]
+        audit_tier = audit_rows[entry.area]["Coverage tier"]
+        assert parity_tier == audit_tier, (
+            f"coverage tier drift for {entry.area}: "
+            f"parity={parity_tier!r}, audit={audit_tier!r}"
+        )
+
+
+def test_parity_gated_areas_require_active_rewrite_parity_tests() -> None:
+    audit_doc = (
+        ROOT / "docs" / "architecture" / "legacy_science_gap_audit.md"
+    ).read_text(encoding="utf-8")
+    audit_rows = _parse_legacy_science_inventory_table(audit_doc)
+    inventory_by_area = _inventory_by_area()
+    for area, row in audit_rows.items():
+        if row["Coverage tier"] != "PARITY_GATED_ACTIVE_SCIENCE":
+            continue
+        entry = inventory_by_area[area]
+        assert entry.rewrite_parity_tests, (
+            f"parity-gated area must map to active rewrite parity tests: {area}"
+        )
+        assert "tests/parity/" in row.get("Active rewrite test evidence", ""), (
+            f"parity-gated area must cite tests/parity evidence in audit table: {area}"
+        )
+        for reference in entry.rewrite_parity_tests:
+            assert reference.startswith("tests/parity/"), (
+                "parity-gated area test reference must be in tests/parity: "
+                f"{area} -> {reference}"
+            )
+            _assert_test_reference_exists(
+                reference, allowed_prefixes=("tests/parity/",)
+            )
 
 
 def test_release_facing_parity_docs_do_not_claim_blanket_no_open_legacy_science_gaps() -> (

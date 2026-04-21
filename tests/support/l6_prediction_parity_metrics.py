@@ -68,8 +68,10 @@ class L6PredictionParityMetrics:
     combined: TableParityMetrics
     weights: TableParityMetrics
     candidates: CandidateParityMetrics
-    stable_ranking: RankingParityMetrics
-    r_parity_ranking: RankingParityMetrics
+    stable_pred_mat_ranking: RankingParityMetrics
+    r_parity_pred_mat_ranking: RankingParityMetrics
+    stable_topk_export_ranking: RankingParityMetrics
+    r_parity_topk_export_ranking: RankingParityMetrics
     cross_policy_prediction_corr: float
     cross_policy_prediction_mae: float
     cross_policy_mean_top10_overlap: float
@@ -219,21 +221,38 @@ def _top_n_overlap(
     return len(set(expected_top) & set(observed_top)) / float(len(expected_top))
 
 
-def _collect_ranking_metrics(
-    *,
-    observed_pred_mat: pd.DataFrame,
-    expected_pred_mat: pd.DataFrame,
-    expected_top30: pd.DataFrame,
-) -> RankingParityMetrics:
-    expected_ranked_map = {
-        str(kinase): group.sort_values("rank").loc[:, "site_id"].astype(str).tolist()
-        for kinase, group in expected_top30.groupby("kinase", sort=False)
+def _spearman_rank_corr_from_ranked_sites(
+    expected_ranked: list[str],
+    observed_ranked: list[str],
+) -> float | None:
+    expected_rank_by_site = {
+        site_id: rank for rank, site_id in enumerate(expected_ranked, start=1)
     }
-    kinases = sorted(
-        set(observed_pred_mat.columns.astype(str))
-        & set(expected_pred_mat.columns.astype(str))
-        & set(expected_ranked_map)
+    observed_rank_by_site = {
+        site_id: rank for rank, site_id in enumerate(observed_ranked, start=1)
+    }
+    shared_sites = [
+        site_id for site_id in expected_ranked if site_id in observed_rank_by_site
+    ]
+    if len(shared_sites) < 2:
+        return None
+    expected_ranks = pd.Series(
+        [expected_rank_by_site[site_id] for site_id in shared_sites],
+        dtype=float,
     )
+    observed_ranks = pd.Series(
+        [observed_rank_by_site[site_id] for site_id in shared_sites],
+        dtype=float,
+    )
+    return _safe_corr(expected_ranks, observed_ranks, method="spearman")
+
+
+def _collect_ranking_metrics_from_ranked_sites(
+    *,
+    observed_ranked_by_kinase: dict[str, list[str]],
+    expected_ranked_by_kinase: dict[str, list[str]],
+) -> RankingParityMetrics:
+    kinases = sorted(set(observed_ranked_by_kinase) & set(expected_ranked_by_kinase))
     top10: list[float] = []
     top20: list[float] = []
     top30: list[float] = []
@@ -241,17 +260,10 @@ def _collect_ranking_metrics(
     top_rank_matches = 0
 
     for kinase in kinases:
-        observed_series = observed_pred_mat.loc[:, kinase].astype(float).dropna()
-        if observed_series.empty:
+        observed_ranked = observed_ranked_by_kinase[kinase]
+        expected_ranked = expected_ranked_by_kinase[kinase]
+        if not expected_ranked:
             continue
-        observed_ranked = (
-            observed_pred_mat.loc[:, kinase]
-            .astype(float)
-            .sort_values(ascending=False)
-            .index.astype(str)
-            .tolist()
-        )
-        expected_ranked = expected_ranked_map[kinase]
         top10.append(_top_n_overlap(expected_ranked, observed_ranked, 10))
         top20.append(_top_n_overlap(expected_ranked, observed_ranked, 20))
         top30.append(_top_n_overlap(expected_ranked, observed_ranked, 30))
@@ -261,18 +273,11 @@ def _collect_ranking_metrics(
             and observed_ranked[0] == expected_ranked[0]
         ):
             top_rank_matches += 1
-        expected_series = expected_pred_mat.loc[observed_series.index, kinase].astype(
-            float
-        )
-        corr = _safe_corr(
-            expected_series.rank(ascending=False, method="average"),
-            observed_series.rank(ascending=False, method="average"),
-            method="spearman",
-        )
+        corr = _spearman_rank_corr_from_ranked_sites(expected_ranked, observed_ranked)
         if corr is not None:
             spearman.append(corr)
 
-    kinases_compared = len(spearman)
+    kinases_compared = len(top10)
     return RankingParityMetrics(
         kinases_compared=kinases_compared,
         mean_spearman_rank_corr=float(pd.Series(spearman).mean()) if spearman else 0.0,
@@ -296,6 +301,43 @@ def _ranked_sites_by_kinase(pred_mat: pd.DataFrame) -> dict[str, list[str]]:
             .tolist()
         )
         ranked[kinase] = ordered
+    return ranked
+
+
+def _normalize_prediction_topk_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    normalized = frame.rename(columns={"substrate_site": "site_id"}).copy(deep=True)
+    required_columns = {"kinase", "site_id"}
+    if not required_columns.issubset(normalized.columns):
+        raise AssertionError(
+            "expected top-k prediction frame to contain kinase/site_id columns"
+        )
+    normalized = normalized.astype({"kinase": str, "site_id": str})
+    if "rank" in normalized.columns:
+        normalized.loc[:, "rank"] = normalized.loc[:, "rank"].astype("int64")
+    else:
+        if "pred_score" in normalized.columns:
+            normalized = normalized.sort_values(
+                ["kinase", "pred_score"],
+                ascending=[True, False],
+                kind="mergesort",
+            )
+        else:
+            normalized = normalized.sort_values(["kinase"], kind="mergesort")
+        normalized.loc[:, "rank"] = (
+            normalized.groupby("kinase", sort=False).cumcount() + 1
+        )
+    return (
+        normalized.loc[:, ["kinase", "site_id", "rank"]]
+        .sort_values(["kinase", "rank"], kind="mergesort")
+        .reset_index(drop=True)
+    )
+
+
+def _ranked_sites_from_prediction_topk(frame: pd.DataFrame) -> dict[str, list[str]]:
+    ranked: dict[str, list[str]] = {}
+    for kinase, group in frame.groupby("kinase", sort=False):
+        ordered = group.sort_values("rank", kind="mergesort").loc[:, "site_id"].tolist()
+        ranked[str(kinase)] = [str(site_id) for site_id in ordered]
     return ranked
 
 
@@ -359,14 +401,21 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
     expected_weights = load_l6_prediction_reference_weights()
     expected_candidates = load_l6_prediction_reference_candidate_substrates()
     expected_pred_mat = load_l6_prediction_reference_predmat()
-    expected_top30 = load_l6_prediction_reference_top30()
+    expected_top30_frame = _normalize_prediction_topk_frame(
+        load_l6_prediction_reference_top30()
+    )
 
-    observed_candidates = stable_result.prediction_result.substrate_list
-    if observed_candidates is None:
+    stable_substrate_list = stable_result.prediction_result.substrate_list
+    if stable_substrate_list is None:
         raise AssertionError("expected substrate_list to be present for L6 parity")
-    observed_candidates_frame = observed_candidates.loc[
-        :, ["kinase", "substrate_site"]
-    ].rename(columns={"substrate_site": "site_id"})
+    stable_topk_export_frame = _normalize_prediction_topk_frame(stable_substrate_list)
+    stable_candidates_frame = stable_topk_export_frame.loc[:, ["kinase", "site_id"]]
+    r_parity_substrate_list = r_parity_result.prediction_result.substrate_list
+    if r_parity_substrate_list is None:
+        raise AssertionError("expected substrate_list to be present for L6 r_parity")
+    r_parity_topk_export_frame = _normalize_prediction_topk_frame(
+        r_parity_substrate_list
+    )
 
     stable_pred = stable_result.prediction_result.pred_mat
     r_parity_pred = r_parity_result.prediction_result.pred_mat
@@ -403,8 +452,14 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
         merged_non_null.loc[:, "score_stable"]
         - merged_non_null.loc[:, "score_r_parity"]
     ).abs()
-    stable_ranked = _ranked_sites_by_kinase(stable_pred)
-    r_parity_ranked = _ranked_sites_by_kinase(r_parity_pred)
+    expected_pred_mat_ranked = _ranked_sites_by_kinase(expected_pred_mat)
+    stable_pred_ranked = _ranked_sites_by_kinase(stable_pred)
+    r_parity_pred_ranked = _ranked_sites_by_kinase(r_parity_pred)
+    expected_topk_ranked = _ranked_sites_from_prediction_topk(expected_top30_frame)
+    stable_topk_ranked = _ranked_sites_from_prediction_topk(stable_topk_export_frame)
+    r_parity_topk_ranked = _ranked_sites_from_prediction_topk(
+        r_parity_topk_export_frame
+    )
 
     return L6PredictionParityMetrics(
         profile=_collect_table_parity_metrics(
@@ -420,18 +475,24 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
             expected=expected_weights,
         ),
         candidates=_collect_candidate_metrics(
-            observed=observed_candidates_frame,
+            observed=stable_candidates_frame,
             expected=expected_candidates,
         ),
-        stable_ranking=_collect_ranking_metrics(
-            observed_pred_mat=stable_pred,
-            expected_pred_mat=expected_pred_mat,
-            expected_top30=expected_top30,
+        stable_pred_mat_ranking=_collect_ranking_metrics_from_ranked_sites(
+            observed_ranked_by_kinase=stable_pred_ranked,
+            expected_ranked_by_kinase=expected_pred_mat_ranked,
         ),
-        r_parity_ranking=_collect_ranking_metrics(
-            observed_pred_mat=r_parity_pred,
-            expected_pred_mat=expected_pred_mat,
-            expected_top30=expected_top30,
+        r_parity_pred_mat_ranking=_collect_ranking_metrics_from_ranked_sites(
+            observed_ranked_by_kinase=r_parity_pred_ranked,
+            expected_ranked_by_kinase=expected_pred_mat_ranked,
+        ),
+        stable_topk_export_ranking=_collect_ranking_metrics_from_ranked_sites(
+            observed_ranked_by_kinase=stable_topk_ranked,
+            expected_ranked_by_kinase=expected_topk_ranked,
+        ),
+        r_parity_topk_export_ranking=_collect_ranking_metrics_from_ranked_sites(
+            observed_ranked_by_kinase=r_parity_topk_ranked,
+            expected_ranked_by_kinase=expected_topk_ranked,
         ),
         cross_policy_prediction_corr=(
             _safe_corr(
@@ -447,18 +508,18 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
         if not cross_policy_delta.empty
         else 0.0,
         cross_policy_mean_top10_overlap=_mean_top_n_overlap(
-            stable_ranked,
-            r_parity_ranked,
+            stable_pred_ranked,
+            r_parity_pred_ranked,
             top_n=10,
         ),
         cross_policy_mean_top20_overlap=_mean_top_n_overlap(
-            stable_ranked,
-            r_parity_ranked,
+            stable_pred_ranked,
+            r_parity_pred_ranked,
             top_n=20,
         ),
         cross_policy_mean_top30_overlap=_mean_top_n_overlap(
-            stable_ranked,
-            r_parity_ranked,
+            stable_pred_ranked,
+            r_parity_pred_ranked,
             top_n=30,
         ),
     )

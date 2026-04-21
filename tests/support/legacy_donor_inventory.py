@@ -97,8 +97,9 @@ LEGACY_SCIENCE_AREAS: tuple[LegacyScienceAreaInventory, ...] = (
         area="core kinase scoring/prediction lane",
         status=STATUS_PORTED,
         status_summary=(
-            "Core downstream scoring, ranking, candidate selection, and replay "
-            "surfaces are parity-gated on promoted rewrite fixtures."
+            "Core downstream scoring, candidate selection, prediction-matrix "
+            "ranking, top-k export ranking, and replay surfaces are parity-gated "
+            "on promoted rewrite fixtures."
         ),
         science_gap_ticket="SCI-GAP-12",
         rewrite_unit_tests=(),

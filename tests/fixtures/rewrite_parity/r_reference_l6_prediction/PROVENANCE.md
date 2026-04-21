@@ -28,8 +28,8 @@ Rewrite refresh source (2026-04-21):
   - `native_combined_scores.csv`
   - `native_combined_weights.csv`
   - `native_candidate_substrates.csv`
-  - `native_prediction_top30.csv`
-  - `predMat.csv`
+  - `predMat.csv` (full prediction matrix surface)
+  - `native_prediction_top30.csv` (candidate-restricted ranked export surface)
 - `native_profile_scores.csv` remains promoted from the donor lane and is still
   parity-locked separately on the shared surface.
 
@@ -47,12 +47,17 @@ The active rewrite parity test family uses explicit per-surface policies:
 
 - profile scores: strict shared-surface numeric parity (very tight tolerance).
 - combined scores / weights: strict parity against promoted rewrite references.
-- candidate substrates: strict overlap against promoted rewrite references.
-- prediction rankings:
-  - stable lane: strict ranked-reference parity floors against promoted rewrite
-    reference tables.
-  - `r_parity` lane: bounded divergence floors versus the promoted stable
-    reference lane.
+- candidate-set parity:
+  - compare rewrite `substrate_list` kinase/site pairs with
+    `native_candidate_substrates.csv`.
+- prediction matrix ranking parity:
+  - derive ranked sites directly from rewrite `pred_mat` and fixture
+    `predMat.csv` (like-for-like matrix surface).
+- top-k ranked export parity:
+  - compare rewrite `substrate_list` ranked output with
+    `native_prediction_top30.csv` (candidate-restricted export surface).
+- `r_parity` policy checks are reported on both ranking surfaces against the
+  promoted stable fixture lane and are interpreted as bounded divergence gates.
 
 Release-gate thresholds for this lane are enforced in
 `tests/parity/test_l6_prediction_parity.py`.
