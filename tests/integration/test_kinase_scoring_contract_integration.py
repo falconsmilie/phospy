@@ -131,6 +131,59 @@ def test_scoring_stage_is_reference_input_form_invariant_for_equivalent_content(
     )
 
 
+def test_supported_lane_is_reference_input_form_invariant_for_equivalent_content(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataset = build_rat_l6_dataset(n_sites=220)
+    explicit_bundle = _resolved_bundle_for_dataset(dataset)
+    captured_sources: list[str] = []
+    original_select_downstream = kinase_executor.select_downstream_score_matrix
+
+    def _capture_selected(*, profile_scores, combined_scores):
+        selected, source = original_select_downstream(
+            profile_scores=profile_scores,
+            combined_scores=combined_scores,
+        )
+        captured_sources.append(source)
+        return selected, source
+
+    monkeypatch.setattr(
+        kinase_executor,
+        "select_downstream_score_matrix",
+        _capture_selected,
+    )
+
+    from_preset = _run_workflow(
+        dataset=dataset,
+        references=ReferencePreset.AUTO,
+        mode="deterministic_ranking",
+    )
+    from_bundle = _run_workflow(
+        dataset=dataset,
+        references=explicit_bundle,
+        mode="deterministic_ranking",
+    )
+
+    pd.testing.assert_frame_equal(
+        from_preset.scoring_result.profile_scores,
+        from_bundle.scoring_result.profile_scores,
+        check_dtype=False,
+    )
+    assert from_preset.scoring_result.combined_scores is not None
+    assert from_bundle.scoring_result.combined_scores is not None
+    pd.testing.assert_frame_equal(
+        from_preset.scoring_result.combined_scores,
+        from_bundle.scoring_result.combined_scores,
+        check_dtype=False,
+    )
+    assert captured_sources == ["combined_scores", "combined_scores"]
+    pd.testing.assert_frame_equal(
+        from_preset.prediction_result.pred_mat,
+        from_bundle.prediction_result.pred_mat,
+        check_dtype=False,
+    )
+
+
 def test_prediction_stage_consumes_authoritative_combined_scoring_outputs_across_modes_and_reference_forms(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

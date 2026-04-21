@@ -11,9 +11,11 @@ from phospy import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    ReferencePreset,
 )
 from phospy.errors import WorkflowBoundaryError
 from phospy.prediction.models import KinasePredictionResult
+from phospy.references.resolution import ReferenceResolver
 from phospy.transformations.models import TransformationState
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseActivityExecutionConfig,
@@ -22,6 +24,7 @@ from phospy.workflows.kinase.contracts import (
 )
 from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
 
 def _dataset(
@@ -147,6 +150,57 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
     assert interpreted.execution_config.activity.threshold == pytest.approx(0.6)
     assert interpreted.execution_config.activity.min_substrates == 3
     assert interpreted.execution_config.activity.top_n_substrates == 20
+
+
+def test_scoring_stage_is_reference_input_form_invariant_for_equivalent_content() -> (
+    None
+):
+    dataset = build_rat_l6_dataset(n_sites=220)
+    explicit_bundle = ReferenceResolver().run(
+        ReferencePreset.AUTO,
+        dataset_organism=dataset.organism,
+    )
+    preset_request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=ReferencePreset.AUTO,
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=8),
+        activity_config=None,
+    )
+    bundle_request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=explicit_bundle,
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=8),
+        activity_config=None,
+    )
+    interpreter = KinaseWorkflowInterpreter()
+    executor = KinaseWorkflowExecutor()
+    interpreted_preset = interpreter.run(preset_request)
+    interpreted_bundle = interpreter.run(bundle_request)
+    from_preset = executor._run_scoring_stage(
+        request=interpreted_preset,
+        config=interpreted_preset.execution_config,
+    )
+    from_bundle = executor._run_scoring_stage(
+        request=interpreted_bundle,
+        config=interpreted_bundle.execution_config,
+    )
+
+    pd.testing.assert_frame_equal(
+        from_preset.scoring_result.profile_scores,
+        from_bundle.scoring_result.profile_scores,
+        check_dtype=False,
+    )
+    assert from_preset.scoring_result.combined_scores is not None
+    assert from_bundle.scoring_result.combined_scores is not None
+    pd.testing.assert_frame_equal(
+        from_preset.scoring_result.combined_scores,
+        from_bundle.scoring_result.combined_scores,
+        check_dtype=False,
+    )
+    assert from_preset.downstream_score_source == "combined_scores"
+    assert from_preset.downstream_score_source == from_bundle.downstream_score_source
 
 
 def test_workflow_limits_scoring_to_sites_with_reference_sequences() -> None:
