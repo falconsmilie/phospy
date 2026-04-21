@@ -19,17 +19,17 @@ from phospy.references.resolution import ReferenceResolver
 from tests.support.transformation_states import supported_linear_state
 
 
-def test_builder_canonicalizes_mixed_site_id_types_and_reorders_site_metadata() -> None:
+def test_builder_canonicalizes_site_ids_and_reorders_site_metadata() -> None:
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 3.0],
             "sample_b": [2.0, 4.0],
         },
-        index=pd.Index([101, " 202 "], name="site_id"),
+        index=pd.Index([" MAPK14;Y182; ", "AKT1;T308;"], name="site_id"),
     )
     site_metadata = pd.DataFrame(
         {
-            "site_id": ["202", 101],
+            "site_id": ["AKT1;T308;", " MAPK14;Y182; "],
             "gene_symbol": ["AKT1", "MAPK14"],
             "site": ["T308", "Y182"],
             "site_sequence": ["A" * 31, "B" * 31],
@@ -44,10 +44,10 @@ def test_builder_canonicalizes_mixed_site_id_types_and_reorders_site_metadata() 
         )
     )
 
-    assert list(built.phospho.index) == ["101", "202"]
-    assert list(built.site_metadata.index) == ["101", "202"]
-    assert built.site_metadata.loc["101", "gene_symbol"] == "MAPK14"
-    assert built.site_metadata.loc["202", "gene_symbol"] == "AKT1"
+    assert list(built.phospho.index) == ["MAPK14;Y182;", "AKT1;T308;"]
+    assert list(built.site_metadata.index) == ["MAPK14;Y182;", "AKT1;T308;"]
+    assert built.site_metadata.loc["MAPK14;Y182;", "gene_symbol"] == "MAPK14"
+    assert built.site_metadata.loc["AKT1;T308;", "gene_symbol"] == "AKT1"
 
 
 def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:

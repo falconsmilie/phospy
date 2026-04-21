@@ -220,18 +220,18 @@ def test_boundary_error_reports_no_overlapping_kinase_set_counts() -> None:
 
 def test_boundary_error_reports_unusable_protein_mapping_counts() -> None:
     dataset = _dataset(
-        site_ids=[";S1;", ";S2;"],
+        site_ids=["MAPK14;S1;", "GSK3B;S2;"],
         gene_symbols=["MAPK14", "GSK3B"],
         protein_ids=["", ""],
     )
     prediction_matrix = _matrix(
         values=[[0.9], [0.8]],
-        site_ids=[";S1;", ";S2;"],
+        site_ids=["MAPK14;S1;", "GSK3B;S2;"],
         kinases=["K1"],
     )
     score_matrix = _matrix(
         values=[[1.0], [2.0]],
-        site_ids=[";S1;", ";S2;"],
+        site_ids=["MAPK14;S1;", "GSK3B;S2;"],
         kinases=["K1"],
     )
     request = SignalomeWorkflowRequest(
@@ -259,18 +259,18 @@ def test_boundary_error_reports_unusable_protein_mapping_counts() -> None:
 
 def test_interpreter_uses_explicit_site_metadata_protein_id_when_present() -> None:
     dataset = _dataset(
-        site_ids=[";S1;", ";S2;"],
+        site_ids=["MAPK14;S1;", "MAPK14;S2;"],
         gene_symbols=["MAPK14", "MAPK14"],
         protein_ids=["P28482-1", "P28482-2"],
     )
     prediction_matrix = _matrix(
         values=[[0.9], [0.8]],
-        site_ids=[";S1;", ";S2;"],
+        site_ids=["MAPK14;S1;", "MAPK14;S2;"],
         kinases=["K1"],
     )
     score_matrix = _matrix(
         values=[[1.0], [2.0]],
-        site_ids=[";S1;", ";S2;"],
+        site_ids=["MAPK14;S1;", "MAPK14;S2;"],
         kinases=["K1"],
     )
     request = SignalomeWorkflowRequest(

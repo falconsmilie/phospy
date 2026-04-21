@@ -173,6 +173,10 @@ Current supported policies:
 - It owns validated tables, not input files.
 - It requires DataFrame values for `phospho` and `site_metadata` at construction time.
 - `site_metadata` must contain `gene_symbol`, `site` with non-empty strings.
+- Site identity coherence is strict: each `phospho.index` row ID must be
+  interpretable as `"<gene_symbol>;<site>;"`, and parsed values must exactly
+  match the corresponding `site_metadata.gene_symbol` and `site_metadata.site`
+  row values.
 - `site_sequence` is optional at this boundary; when present it must be non-empty.
 - Final-boundary optionality does not remove policy-specific preprocessing
   requirements: `site_matrix.policy="build_from_metadata"` still requires

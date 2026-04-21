@@ -74,6 +74,9 @@ Enforced dataset invariants:
   canonical site IDs.
 - `site_metadata`: non-empty DataFrame, exact index alignment with `phospho.index`,
   required columns `gene_symbol`, `site` with non-empty strings.
+- site-identity coherence: each `phospho.index` row ID must be parseable as
+  `"<gene_symbol>;<site>;"` and the parsed values must exactly match
+  `site_metadata.gene_symbol` and `site_metadata.site` for the same row.
 - `site_metadata.site_sequence` is optional; if present it must contain non-empty strings.
 - `sample_metadata` (if present): index aligns to `phospho.columns`.
 - `total` (if present): non-empty numeric DataFrame, unique index,
@@ -300,6 +303,7 @@ Optional outputs must be checked before dereference:
 | --- | --- | --- |
 | Builder rejects input format | Field is neither DataFrame nor supported file path | Pass DataFrame or path to `.csv`/`.tsv`/`.txt`/`.parquet` |
 | Dataset constructor fails on site metadata | Required strict boundary columns/values are missing | Provide `gene_symbol` and `site` with non-blank strings |
+| Dataset constructor fails on site-identity coherence | `phospho.index` site IDs disagree with row-level `site_metadata.gene_symbol` / `site_metadata.site` (or site IDs are not parseable as `"<gene_symbol>;<site>;"`) | Ensure each row ID and metadata row describe the same site; fix source data rather than mutating at runtime |
 | Row count unexpectedly drops with `site_matrix.policy='build_from_metadata'` | Rows without usable `site_sequence` cannot participate in sequence-derived site-matrix construction and are excluded | Compare input row count vs `dataset.phospho.shape[0]`, review `site_metadata.site_sequence` completeness, and choose policy intentionally |
 | `ReferencePreset.AUTO` fails | Dataset organism is missing | Set `organism` in `DatasetBuildRequest` |
 | Bundled human/mouse preset fails | Bundled references are rat-only in this release | Provide explicit non-rat `ReferenceBundle` |

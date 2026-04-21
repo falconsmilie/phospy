@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -25,6 +26,8 @@ from tests.support.rewrite_fixture_data import (
     load_public_predmat_rewrite_r_parity,
     load_public_predmat_rewrite_stable,
 )
+
+_CANONICAL_SITE_ID_PATTERN = re.compile(r"^\s*[^;]+\s*;\s*[^;]+\s*;\s*$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,15 +71,46 @@ def _stack_frame(frame: pd.DataFrame) -> pd.Series:
         return frame.stack(dropna=False)
 
 
+def _canonical_public_site_components(site_id: object) -> tuple[str, str, str]:
+    raw_site = str(site_id).strip()
+    if _CANONICAL_SITE_ID_PATTERN.fullmatch(raw_site):
+        parts = raw_site.split(";")
+        gene_symbol = parts[0].strip()
+        site = parts[1].strip()
+        return f"{gene_symbol};{site};", gene_symbol, site
+
+    gene_symbol = raw_site.split("_", 1)[0].strip()
+    site = raw_site
+    return f"{gene_symbol};{site};", gene_symbol, site
+
+
+def _canonicalize_public_site_frame_index(frame: pd.DataFrame) -> pd.DataFrame:
+    normalized = frame.copy(deep=True)
+    canonical_index = [
+        _canonical_public_site_components(site_id)[0] for site_id in normalized.index
+    ]
+    normalized.index = pd.Index(canonical_index, name=normalized.index.name)
+    return normalized
+
+
 def _build_public_predmat_dataset():
-    phospho = load_public_predmat_input_phospho()
+    input_phospho = load_public_predmat_input_phospho()
+    raw_site_ids = input_phospho.index.astype(str).tolist()
+    phospho = input_phospho.copy(deep=True)
     site_sequences = load_public_predmat_input_site_sequences()
+    canonical_components = [
+        _canonical_public_site_components(site_id) for site_id in phospho.index
+    ]
+    phospho.index = pd.Index(
+        [canonical_site_id for canonical_site_id, _, _ in canonical_components],
+        name=phospho.index.name,
+    )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": [str(site_id).split("_")[0] for site_id in phospho.index],
-            "site": [str(site_id) for site_id in phospho.index],
+            "gene_symbol": [gene_symbol for _, gene_symbol, _ in canonical_components],
+            "site": [site for _, _, site in canonical_components],
             "site_sequence": [
-                str(site_sequences[str(site_id)]) for site_id in phospho.index
+                str(site_sequences[str(site_id).strip()]) for site_id in raw_site_ids
             ],
         },
         index=phospho.index.copy(),
@@ -101,11 +135,16 @@ def _build_public_predmat_references(*, reverse_order: bool) -> ReferenceBundle:
         sequence_items = list(reversed(sequence_items))
 
     substrate_rows = [
-        {"kinase": str(kinase), "substrate_site": str(site_id)}
+        {
+            "kinase": str(kinase),
+            "substrate_site": _canonical_public_site_components(site_id)[0],
+        }
         for kinase, sites in kinase_items
         for site_id in sites
     ]
-    sequence_index = [str(site_id) for site_id, _ in sequence_items]
+    sequence_index = [
+        _canonical_public_site_components(site_id)[0] for site_id, _ in sequence_items
+    ]
     sequence_values = [str(sequence) for _, sequence in sequence_items]
     return ReferenceBundle(
         organism=Organism.RAT,
@@ -160,6 +199,8 @@ def _collect_lane_metrics(*, adaptive_policy: str) -> PublicPredmatLaneMetrics:
         if adaptive_policy == "stable"
         else load_public_predmat_legacy_r_parity_donor()
     )
+    expected = _canonicalize_public_site_frame_index(expected)
+    donor = _canonicalize_public_site_frame_index(donor)
     observed_aligned = observed.sort_index().sort_index(axis=1)
     expected_aligned = expected.sort_index().sort_index(axis=1)
     delta = (observed_aligned - expected_aligned).abs().pipe(_stack_frame)

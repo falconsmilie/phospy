@@ -81,6 +81,26 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
     )
 
 
+def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
+    index = pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id")
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": [3.0, 4.0],
+        },
+        index=index,
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["A" * 31, "B" * 31],
+        },
+        index=index,
+    )
+    return phospho, site_metadata
+
+
 def _references() -> ReferenceBundle:
     index = pd.Index(["MAPK14;Y182;"], name="site_id")
     return ReferenceBundle(
@@ -202,6 +222,62 @@ def test_dataset_constructor_rejects_blank_site_values() -> None:
                 },
                 index=["MAPK14;Y182;"],
             ),
+            organism=Organism.RAT,
+            transformation_state=supported_linear_state(has_total_matrix=False),
+        )
+
+
+def test_dataset_constructor_accepts_site_identity_coherence() -> None:
+    phospho, site_metadata = _coherent_site_identity_inputs()
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
+        transformation_state=supported_linear_state(has_total_matrix=False),
+    )
+    assert list(dataset.phospho.index) == ["MAPK14;Y182;", "AKT1;T308;"]
+
+
+def test_dataset_constructor_rejects_site_identity_gene_symbol_mismatch() -> None:
+    phospho, site_metadata = _coherent_site_identity_inputs()
+    site_metadata.loc["MAPK14;Y182;", "gene_symbol"] = "MAPK1"
+    with pytest.raises(
+        DatasetValidationError,
+        match="site-identity coherence failed",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            transformation_state=supported_linear_state(has_total_matrix=False),
+        )
+
+
+def test_dataset_constructor_rejects_site_identity_site_mismatch() -> None:
+    phospho, site_metadata = _coherent_site_identity_inputs()
+    site_metadata.loc["MAPK14;Y182;", "site"] = "T185"
+    with pytest.raises(
+        DatasetValidationError,
+        match="site-identity coherence failed",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            transformation_state=supported_linear_state(has_total_matrix=False),
+        )
+
+
+def test_dataset_constructor_rejects_when_one_row_has_site_identity_mismatch() -> None:
+    phospho, site_metadata = _coherent_site_identity_inputs()
+    site_metadata.loc["AKT1;T308;", "site"] = "S473"
+    with pytest.raises(
+        DatasetValidationError,
+        match="site-identity coherence failed.*AKT1;T308;",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=phospho,
+            site_metadata=site_metadata,
             organism=Organism.RAT,
             transformation_state=supported_linear_state(has_total_matrix=False),
         )

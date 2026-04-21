@@ -29,6 +29,8 @@ class AnalysisReadyPhosphoDataset:
     artefacts remain private to preprocessing internals.
     Optional `comparisons` can carry builder-constructed dataset-level pairwise
     columns aligned to `phospho.index`.
+    Site identity is strict at this boundary: canonical phospho row IDs must be
+    coherent with `site_metadata.gene_symbol` / `site_metadata.site`.
     """
 
     phospho: pd.DataFrame

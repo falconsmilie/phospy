@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import pandas as pd
 
 from phospy.errors.validation import DatasetValidationError
@@ -21,11 +23,16 @@ from phospy.validation.common.missing_values import (
     require_missing_value_policy,
 )
 
+_SITE_IDENTITY_PATTERN = re.compile(
+    r"^\s*(?P<gene_symbol>[^;]+?)\s*;\s*(?P<site>[^;]+?)\s*;\s*$"
+)
+
 
 class AnalysisReadyDatasetValidator:
     """Validate the public `AnalysisReadyPhosphoDataset` contract."""
 
     _REQUIRED_SITE_COLUMNS = ("gene_symbol", "site")
+    _IDENTITY_ERROR_PREVIEW_LIMIT = 5
 
     def run(
         self,
@@ -113,6 +120,10 @@ class AnalysisReadyDatasetValidator:
                 column_name="site_sequence",
                 error_type=DatasetValidationError,
             )
+        self._require_site_identity_coherence(
+            phospho_index=phospho_frame.index,
+            site_metadata=site_metadata_frame,
+        )
 
         if sample_metadata is not None:
             sample_metadata_frame = require_dataframe(
@@ -195,3 +206,81 @@ class AnalysisReadyDatasetValidator:
             raise DatasetValidationError(
                 "dataset.organism must be an Organism enum value or None"
             )
+
+    def _require_site_identity_coherence(
+        self,
+        *,
+        phospho_index: pd.Index,
+        site_metadata: pd.DataFrame,
+    ) -> None:
+        unparseable_site_ids: list[str] = []
+        mismatched_rows: list[str] = []
+
+        for site_id in phospho_index:
+            parsed = _parse_site_identity(site_id)
+            if parsed is None:
+                unparseable_site_ids.append(site_id)
+                continue
+
+            expected_gene_symbol, expected_site = parsed
+            observed_gene_symbol = site_metadata.at[site_id, "gene_symbol"]
+            observed_site = site_metadata.at[site_id, "site"]
+            if (
+                observed_gene_symbol != expected_gene_symbol
+                or observed_site != expected_site
+            ):
+                mismatched_rows.append(
+                    f"{site_id} expected(gene_symbol={expected_gene_symbol!r}, "
+                    f"site={expected_site!r}) observed(gene_symbol={observed_gene_symbol!r}, "
+                    f"site={observed_site!r})"
+                )
+
+        if not unparseable_site_ids and not mismatched_rows:
+            return
+
+        details: list[str] = []
+        if unparseable_site_ids:
+            preview = ", ".join(
+                repr(site_id)
+                for site_id in unparseable_site_ids[
+                    : self._IDENTITY_ERROR_PREVIEW_LIMIT
+                ]
+            )
+            suffix = (
+                ""
+                if len(unparseable_site_ids) <= self._IDENTITY_ERROR_PREVIEW_LIMIT
+                else " ..."
+            )
+            details.append(
+                f"unparseable site IDs for '<gene_symbol>;<site>;': {preview}{suffix}"
+            )
+        if mismatched_rows:
+            preview = "; ".join(mismatched_rows[: self._IDENTITY_ERROR_PREVIEW_LIMIT])
+            suffix = (
+                ""
+                if len(mismatched_rows) <= self._IDENTITY_ERROR_PREVIEW_LIMIT
+                else " ..."
+            )
+            details.append(f"mismatched rows: {preview}{suffix}")
+
+        joined_details = "; ".join(details)
+        raise DatasetValidationError(
+            "dataset site-identity coherence failed: dataset.phospho.index canonical "
+            "site IDs must agree with dataset.site_metadata.gene_symbol and "
+            f"dataset.site_metadata.site; {joined_details}"
+        )
+
+
+def _parse_site_identity(site_id: object) -> tuple[str, str] | None:
+    if not isinstance(site_id, str):
+        return None
+
+    match = _SITE_IDENTITY_PATTERN.fullmatch(site_id)
+    if match is None:
+        return None
+
+    gene_symbol = match.group("gene_symbol").strip()
+    site = match.group("site").strip()
+    if gene_symbol == "" or site == "":
+        return None
+    return gene_symbol, site
