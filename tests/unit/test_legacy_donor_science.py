@@ -22,11 +22,11 @@ from phospy.signalomes.science import (
     build_kinase_network,
     build_module_assignments,
 )
-from phospy.transformations.models import TransformationState
 from phospy.workflows.kinase.science import build_kinase_profiles
 from tests.support.rewrite_fixture_data import (
     load_adaptive_sampling_edge_combined_scores,
 )
+from tests.support.transformation_states import supported_linear_state
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -53,9 +53,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        transformation_state=TransformationState.established_raw(
-            has_total_matrix=False
-        ),
+        transformation_state=supported_linear_state(has_total_matrix=False),
     )
 
 

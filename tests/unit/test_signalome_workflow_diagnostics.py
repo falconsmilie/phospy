@@ -23,7 +23,6 @@ from phospy.signalomes.constants import (
 from phospy.signalomes.models import (
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
 )
-from phospy.transformations.models import TransformationState
 from phospy.workflows.signalome.constants import (
     SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM,
     SIGNALOME_EXECUTOR_KINASE_SUPPORT_SEAM,
@@ -40,6 +39,7 @@ from phospy.workflows.signalome.contracts import (
 )
 from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
 from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
+from tests.support.transformation_states import supported_linear_state
 
 
 def _dataset(
@@ -72,9 +72,7 @@ def _dataset(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        transformation_state=TransformationState.established_raw(
-            has_total_matrix=False
-        ),
+        transformation_state=supported_linear_state(has_total_matrix=False),
     )
 
 

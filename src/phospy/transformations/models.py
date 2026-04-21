@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Final
@@ -11,6 +12,12 @@ from phospy.errors.transformations import InvalidTransformationStateError
 IDENTITY_TRANSFORMATION_ESTABLISHER: Final[str] = (
     "phospy.transformations.transformers.identity"
 )
+_SUPPORTED_ESTABLISHMENT_CALLER_PREFIXES: Final[tuple[str, ...]] = (
+    "phospy.datasets.builders.transformation_resolver",
+    "phospy.io.bundles._shared.transformation_state",
+    "phospy.transformations.transformers",
+)
+_SUPPORTED_ESTABLISHMENT_MARKER: Final[object] = object()
 
 
 class TransformationKind(str, Enum):
@@ -85,8 +92,8 @@ class TransformationState:
         repr=False,
         compare=False,
     )
-    _is_established: bool = field(
-        default=False,
+    _supported_establishment_marker: object | None = field(
+        default=None,
         init=False,
         repr=False,
         compare=False,
@@ -130,7 +137,10 @@ class TransformationState:
     def is_established(self) -> bool:
         """Whether this state was established through a supported PhosPy path."""
 
-        return self._is_established and self._established_via is not None
+        return (
+            self._supported_establishment_marker is _SUPPORTED_ESTABLISHMENT_MARKER
+            and self._established_via is not None
+        )
 
     @classmethod
     def raw(cls, *, has_total_matrix: bool = False) -> TransformationState:
@@ -150,24 +160,39 @@ class TransformationState:
         has_total_matrix: bool = False,
         established_via: str = IDENTITY_TRANSFORMATION_ESTABLISHER,
     ) -> TransformationState:
-        """Create a canonical linear state established by a supported path."""
+        """Create a canonical linear state through a supported establisher lane."""
 
+        _require_supported_establishment_caller()
         return cls.raw(has_total_matrix=has_total_matrix)._with_establishment(
-            established_via=established_via
+            established_via=established_via,
+            supported_establishment_marker=_SUPPORTED_ESTABLISHMENT_MARKER,
         )
 
-    def _with_establishment(self, *, established_via: str) -> TransformationState:
+    def _with_establishment(
+        self,
+        *,
+        established_via: str,
+        supported_establishment_marker: object,
+    ) -> TransformationState:
         source = established_via.strip()
         if not source:
             raise InvalidTransformationStateError(
                 "transformation state establishment source must be a non-empty string"
+            )
+        if supported_establishment_marker is not _SUPPORTED_ESTABLISHMENT_MARKER:
+            raise InvalidTransformationStateError(
+                "transformation state establishment requires a supported-path marker"
             )
         established = TransformationState(
             phospho=self.phospho,
             total=self.total,
         )
         object.__setattr__(established, "_established_via", source)
-        object.__setattr__(established, "_is_established", True)
+        object.__setattr__(
+            established,
+            "_supported_establishment_marker",
+            supported_establishment_marker,
+        )
         return established
 
 
@@ -176,10 +201,49 @@ def establish_transformation_state(
     *,
     established_via: str,
 ) -> TransformationState:
-    """Return a state marked as established through a supported source."""
+    """Return a state marked as established through a supported source lane."""
 
     if not isinstance(state, TransformationState):
         raise InvalidTransformationStateError(
             "transformation state establishment requires a TransformationState value"
         )
-    return state._with_establishment(established_via=established_via)
+    _require_supported_establishment_caller()
+    return state._with_establishment(
+        established_via=established_via,
+        supported_establishment_marker=_SUPPORTED_ESTABLISHMENT_MARKER,
+    )
+
+
+def _require_supported_establishment_caller() -> None:
+    caller_module = _caller_module_name()
+    if _is_supported_establishment_caller(caller_module):
+        return
+    raise InvalidTransformationStateError(
+        "transformation state can be established only through supported PhosPy "
+        "builder/transformer or bundle reconstruction paths"
+    )
+
+
+def _caller_module_name() -> str | None:
+    frame = inspect.currentframe()
+    if frame is None:
+        return None
+    try:
+        target_frame = frame
+        for _ in range(3):
+            target_frame = target_frame.f_back
+            if target_frame is None:
+                return None
+        module_name = target_frame.f_globals.get("__name__")
+        return module_name if isinstance(module_name, str) else None
+    finally:
+        del frame
+
+
+def _is_supported_establishment_caller(module_name: str | None) -> bool:
+    if module_name is None:
+        return False
+    return any(
+        module_name == prefix or module_name.startswith(f"{prefix}.")
+        for prefix in _SUPPORTED_ESTABLISHMENT_CALLER_PREFIXES
+    )

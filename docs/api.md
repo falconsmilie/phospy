@@ -171,6 +171,9 @@ quantitative values are represented directly in `dataset.phospho`.
 Directly declared transformation-state objects are not accepted as authoritative
 at the dataset boundary unless they were established through one of the supported
 PhosPy paths above.
+Direct caller-side minting is explicitly rejected: `TransformationState.established_raw(...)`
+and `establish_transformation_state(...)` are accepted only from supported
+internal builder/transformer or bundle-reconstruction lanes.
 
 Builder flexibility does not weaken this final dataset strictness.
 Workflows consume only `AnalysisReadyPhosphoDataset`.

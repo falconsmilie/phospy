@@ -80,6 +80,10 @@ Transformation-state establishment is enforced at the final dataset boundary.
 A coherent but externally declared state object is rejected unless it was
 established through a supported PhosPy path (builder/resolver transformer lane
 or supported bundle reconstruction lane).
+Direct caller-side establishment attempts are rejected at construction time:
+`TransformationState.established_raw(...)` and
+`establish_transformation_state(...)` only accept supported internal caller
+lanes.
 
 In the current public builder lane, this establishment path is intentionally
 narrow: builder execution establishes pass-through `linear` state only.

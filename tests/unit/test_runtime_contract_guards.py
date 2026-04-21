@@ -14,9 +14,9 @@ from phospy.errors import (
 )
 from phospy.references.models import Organism, ReferencePreset
 from phospy.references.resolution import ReferenceResolver
-from phospy.transformations.models import TransformationState
 from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from tests.support.transformation_states import supported_linear_state
 
 
 class _BrokenSourceValidator:
@@ -37,9 +37,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             index=index,
         ),
         organism=Organism.RAT,
-        transformation_state=TransformationState.established_raw(
-            has_total_matrix=False
-        ),
+        transformation_state=supported_linear_state(has_total_matrix=False),
     )
 
 

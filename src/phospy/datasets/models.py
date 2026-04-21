@@ -79,7 +79,7 @@ class AnalysisReadyPhosphoDataset:
             comparisons=comparisons,
             organism=self.organism,
         )
-        _TRANSFORMATION_STATE_VALIDATOR.run(
+        transformation_state = _TRANSFORMATION_STATE_VALIDATOR.run(
             transformation_state=self.transformation_state,
             has_total_matrix=total is not None,
             require_established=True,
@@ -89,6 +89,7 @@ class AnalysisReadyPhosphoDataset:
         object.__setattr__(self, "sample_metadata", sample_metadata)
         object.__setattr__(self, "total", total)
         object.__setattr__(self, "comparisons", comparisons)
+        object.__setattr__(self, "transformation_state", transformation_state)
 
     @classmethod
     def _from_owned(

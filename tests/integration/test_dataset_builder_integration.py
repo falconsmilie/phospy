@@ -34,9 +34,7 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
     )
     pdt.assert_frame_equal(built.phospho, phospho)
     assert list(built.site_metadata.columns) == ["gene_symbol", "site", "site_sequence"]
-    assert built.transformation_state == TransformationState.established_raw(
-        has_total_matrix=False
-    )
+    assert built.transformation_state == TransformationState.raw(has_total_matrix=False)
 
 
 def test_dataset_builder_establishes_transformation_state_via_supported_path() -> None:
@@ -76,9 +74,7 @@ def test_dataset_builder_preserves_total_matrix_and_establishes_linear_state() -
     )
     assert built.total is not None
     pdt.assert_frame_equal(built.total, total)
-    assert built.transformation_state == TransformationState.established_raw(
-        has_total_matrix=True
-    )
+    assert built.transformation_state == TransformationState.raw(has_total_matrix=True)
     assert built.transformation_state.label == "linear"
 
 
@@ -119,9 +115,7 @@ def test_dataset_builder_applies_total_protein_correction_when_requested() -> No
     expected = phospho - total_by_site
     pdt.assert_frame_equal(built.phospho, expected)
     pdt.assert_frame_equal(built.total, total)
-    assert built.transformation_state == TransformationState.established_raw(
-        has_total_matrix=True
-    )
+    assert built.transformation_state == TransformationState.raw(has_total_matrix=True)
 
 
 def test_dataset_builder_requires_total_when_ratio_correction_is_requested() -> None:

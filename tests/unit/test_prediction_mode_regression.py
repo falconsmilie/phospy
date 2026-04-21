@@ -16,7 +16,7 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_PREDICTION_MODES,
 )
-from phospy.transformations.models import TransformationState
+from tests.support.transformation_states import supported_linear_state
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -44,9 +44,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        transformation_state=TransformationState.established_raw(
-            has_total_matrix=False
-        ),
+        transformation_state=supported_linear_state(has_total_matrix=False),
     )
 
 

@@ -16,7 +16,7 @@ from phospy.errors import (
 )
 from phospy.references.models import ReferencePreset
 from phospy.references.resolution import ReferenceResolver
-from phospy.transformations.models import TransformationState
+from tests.support.transformation_states import supported_linear_state
 
 
 def test_builder_canonicalizes_mixed_site_id_types_and_reorders_site_metadata() -> None:
@@ -121,9 +121,7 @@ def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
                 index=pd.Index([101, 202], name="site_id"),
             ),
             organism=Organism.RAT,
-            transformation_state=TransformationState.established_raw(
-                has_total_matrix=False
-            ),
+            transformation_state=supported_linear_state(has_total_matrix=False),
         )
 
 
@@ -157,9 +155,7 @@ def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
                 ),
             ),
             organism=Organism.RAT,
-            transformation_state=TransformationState.established_raw(
-                has_total_matrix=False
-            ),
+            transformation_state=supported_linear_state(has_total_matrix=False),
         )
 
 

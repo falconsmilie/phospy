@@ -32,7 +32,6 @@ from phospy.signalomes.models import (
     SignalomeAssignments,
     SignalomeModules,
 )
-from phospy.transformations.models import TransformationState
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseActivityExecutionConfig,
     ResolvedKinaseExecutionConfig,
@@ -42,6 +41,7 @@ from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
 )
+from tests.support.transformation_states import supported_linear_state
 
 
 def _phospho() -> pd.DataFrame:
@@ -70,9 +70,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
-        transformation_state=TransformationState.established_raw(
-            has_total_matrix=False
-        ),
+        transformation_state=supported_linear_state(has_total_matrix=False),
     )
 
 

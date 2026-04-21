@@ -9,14 +9,20 @@ from phospy.datasets.builders.transformation_resolver import (
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.transformations import (
+    InvalidTransformationStateError,
     TransformationStateEstablishmentError,
     TransformerExecutionError,
 )
 from phospy.errors.validation import TransformationValidationError
 from phospy.references.models import Organism
 from phospy.transformations.contracts import TransformationResult
-from phospy.transformations.models import MatrixTransformationState, TransformationState
+from phospy.transformations.models import (
+    MatrixTransformationState,
+    TransformationState,
+    establish_transformation_state,
+)
 from phospy.transformations.transformers import IdentityTransformer
+from tests.support.transformation_states import supported_linear_state
 
 
 def _phospho() -> pd.DataFrame:
@@ -185,15 +191,47 @@ def test_dataset_boundary_rejects_declared_transformation_state_bypass() -> None
 
 
 def test_dataset_boundary_accepts_supported_established_state() -> None:
+    supported_state = (
+        DatasetTransformationResolver(transformer=IdentityTransformer())
+        .run(
+            phospho=_phospho(),
+            total=None,
+        )
+        .transformation_state
+    )
     dataset = AnalysisReadyPhosphoDataset(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
-        transformation_state=TransformationState.established_raw(
-            has_total_matrix=False
-        ),
+        transformation_state=supported_state,
     )
     assert dataset.transformation_state.is_established
+
+
+def test_direct_mint_established_raw_is_rejected() -> None:
+    with pytest.raises(
+        InvalidTransformationStateError,
+        match="can be established only through supported PhosPy",
+    ):
+        TransformationState.established_raw(has_total_matrix=False)
+
+
+def test_direct_establishment_function_call_is_rejected() -> None:
+    with pytest.raises(
+        InvalidTransformationStateError,
+        match="can be established only through supported PhosPy",
+    ):
+        establish_transformation_state(
+            TransformationState.raw(has_total_matrix=False),
+            established_via="tests.unit.test_dataset_transformation_state_establishment",
+        )
+
+
+def test_dataset_boundary_distinguishes_declared_from_supported_state() -> None:
+    declared = TransformationState.raw(has_total_matrix=False)
+    supported = supported_linear_state(has_total_matrix=False)
+    assert not declared.is_established
+    assert supported.is_established
 
 
 def test_identity_transformer_is_strict_passthrough_establisher() -> None:
@@ -204,4 +242,5 @@ def test_identity_transformer_is_strict_passthrough_establisher() -> None:
 
     pdt.assert_frame_equal(result.phospho, phospho)
     pdt.assert_frame_equal(result.total, total)
-    assert result.state == TransformationState.established_raw(has_total_matrix=True)
+    assert result.state.is_established
+    assert result.state.kind.value == "linear"

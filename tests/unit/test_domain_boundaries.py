@@ -22,9 +22,8 @@ from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.references.resolution import ReferenceResolver
 from phospy.transformations.models import (
     MatrixTransformationState,
-    TransformationState,
-    establish_transformation_state,
 )
+from tests.support.transformation_states import supported_linear_state
 
 
 def _phospho() -> pd.DataFrame:
@@ -75,9 +74,7 @@ def test_dataset_allows_missing_site_sequence_column() -> None:
         phospho=_phospho(),
         site_metadata=bad_site_metadata,
         organism=Organism.RAT,
-        transformation_state=TransformationState.established_raw(
-            has_total_matrix=False
-        ),
+        transformation_state=supported_linear_state(has_total_matrix=False),
     )
     assert "site_sequence" not in dataset.site_metadata.columns
 
@@ -93,9 +90,7 @@ def test_dataset_rejects_blank_gene_symbol_values() -> None:
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
-            transformation_state=TransformationState.established_raw(
-                has_total_matrix=False
-            ),
+            transformation_state=supported_linear_state(has_total_matrix=False),
         )
 
 
@@ -110,9 +105,7 @@ def test_dataset_rejects_blank_site_values() -> None:
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
-            transformation_state=TransformationState.established_raw(
-                has_total_matrix=False
-            ),
+            transformation_state=supported_linear_state(has_total_matrix=False),
         )
 
 
@@ -129,9 +122,7 @@ def test_dataset_rejects_blank_site_sequence_values() -> None:
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
-            transformation_state=TransformationState.established_raw(
-                has_total_matrix=False
-            ),
+            transformation_state=supported_linear_state(has_total_matrix=False),
         )
 
 
@@ -141,9 +132,7 @@ def test_dataset_rejects_empty_phospho_matrix() -> None:
             phospho=pd.DataFrame(),
             site_metadata=pd.DataFrame(),
             organism=Organism.RAT,
-            transformation_state=TransformationState.established_raw(
-                has_total_matrix=False
-            ),
+            transformation_state=supported_linear_state(has_total_matrix=False),
         )
 
 
@@ -155,9 +144,7 @@ def test_dataset_rejects_nan_in_phospho_matrix() -> None:
             phospho=phospho,
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
-            transformation_state=TransformationState.established_raw(
-                has_total_matrix=False
-            ),
+            transformation_state=supported_linear_state(has_total_matrix=False),
         )
 
 
@@ -171,9 +158,7 @@ def test_dataset_rejects_inf_in_phospho_matrix() -> None:
             phospho=phospho,
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
-            transformation_state=TransformationState.established_raw(
-                has_total_matrix=False
-            ),
+            transformation_state=supported_linear_state(has_total_matrix=False),
         )
 
 
@@ -213,26 +198,20 @@ def test_dataset_validates_transformation_state_for_total_matrix() -> None:
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_a": [2.0]}, index=["GENEA"]),
             organism=Organism.RAT,
-            transformation_state=TransformationState.established_raw(
-                has_total_matrix=False
-            ),
+            transformation_state=supported_linear_state(has_total_matrix=False),
         )
 
 
 def test_dataset_rejects_mixed_transformation_kind_between_phospho_and_total() -> None:
+    supported_state = supported_linear_state(has_total_matrix=True)
+    object.__setattr__(supported_state, "total", MatrixTransformationState.log2())
     with pytest.raises(TransformationValidationError):
         AnalysisReadyPhosphoDataset(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_a": [2.0]}, index=["GENEA"]),
             organism=Organism.RAT,
-            transformation_state=establish_transformation_state(
-                TransformationState(
-                    phospho=MatrixTransformationState.linear(),
-                    total=MatrixTransformationState.log2(),
-                ),
-                established_via="test.dataset.boundaries",
-            ),
+            transformation_state=supported_state,
         )
 
 
@@ -245,9 +224,7 @@ def test_dataset_rejects_inf_in_total_matrix() -> None:
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_a": [float("-inf")]}, index=["MAPK14"]),
             organism=Organism.RAT,
-            transformation_state=TransformationState.established_raw(
-                has_total_matrix=True
-            ),
+            transformation_state=supported_linear_state(has_total_matrix=True),
         )
 
 
@@ -261,9 +238,7 @@ def test_dataset_rejects_total_matrix_sample_mismatch() -> None:
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_b": [2.0]}, index=["MAPK14"]),
             organism=Organism.RAT,
-            transformation_state=TransformationState.established_raw(
-                has_total_matrix=True
-            ),
+            transformation_state=supported_linear_state(has_total_matrix=True),
         )
 
 
@@ -276,9 +251,7 @@ def test_dataset_accepts_aligned_numeric_comparisons() -> None:
             index=["MAPK14;Y182;"],
         ),
         organism=Organism.RAT,
-        transformation_state=TransformationState.established_raw(
-            has_total_matrix=False
-        ),
+        transformation_state=supported_linear_state(has_total_matrix=False),
     )
     assert dataset.comparisons is not None
     assert dataset.comparisons.loc["MAPK14;Y182;", "p_group1_group4"] == 3.0
@@ -297,9 +270,7 @@ def test_dataset_rejects_comparisons_index_mismatch() -> None:
                 index=["AKT1;T308;"],
             ),
             organism=Organism.RAT,
-            transformation_state=TransformationState.established_raw(
-                has_total_matrix=False
-            ),
+            transformation_state=supported_linear_state(has_total_matrix=False),
         )
 
 

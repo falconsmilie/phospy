@@ -27,7 +27,7 @@ from phospy.datasets.preprocessing.models import PreprocessingPlan, Preprocessin
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
 from phospy.errors.input import PhosPyInputError
 from phospy.references.models import Organism
-from phospy.transformations.models import TransformationState
+from tests.support.transformation_states import supported_linear_state
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -1061,9 +1061,7 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
             return ResolvedTransformation(
                 phospho=phospho,
                 total=total,
-                transformation_state=TransformationState.established_raw(
-                    has_total_matrix=True
-                ),
+                transformation_state=supported_linear_state(has_total_matrix=True),
             )
 
     built = DatasetBuildExecutor(

@@ -30,10 +30,10 @@ from phospy.errors import (
 )
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
-from phospy.transformations.models import TransformationState
 from phospy.workflows.kinase.public import KinaseWorkflow
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
+from tests.support.transformation_states import supported_linear_state
 
 
 def test_kinase_scoring_default_sets_two_substrate_support_floor() -> None:
@@ -60,9 +60,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        transformation_state=TransformationState.established_raw(
-            has_total_matrix=False
-        ),
+        transformation_state=supported_linear_state(has_total_matrix=False),
     )
 
 

@@ -19,12 +19,12 @@ from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import ReferenceCompatibilityError
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.references.resolution import ReferenceResolver
-from phospy.transformations.models import TransformationState
 from phospy.validation.datasets.analysis_ready import AnalysisReadyDatasetValidator
 from phospy.validation.ownership import VALIDATION_RULE_OWNERS
 from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
 from phospy.workflows.kinase.public import KinaseWorkflow
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
+from tests.support.transformation_states import supported_linear_state
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -40,9 +40,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             index=index,
         ),
         organism=Organism.RAT,
-        transformation_state=TransformationState.established_raw(
-            has_total_matrix=False
-        ),
+        transformation_state=supported_linear_state(has_total_matrix=False),
     )
 
 
