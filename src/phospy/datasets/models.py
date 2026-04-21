@@ -27,6 +27,8 @@ class AnalysisReadyPhosphoDataset:
     site-matrix construction is enabled in the builder lane, this matrix already
     reflects the constructed site-matrix-ready rows. Intermediate site-matrix
     artefacts remain private to preprocessing internals.
+    Optional `comparisons` can carry builder-constructed dataset-level pairwise
+    columns aligned to `phospho.index`.
     """
 
     phospho: pd.DataFrame
@@ -34,6 +36,7 @@ class AnalysisReadyPhosphoDataset:
     transformation_state: TransformationState
     sample_metadata: pd.DataFrame | None = None
     total: pd.DataFrame | None = None
+    comparisons: pd.DataFrame | None = None
     organism: Organism | None = None
     _assume_owned: InitVar[bool] = False
 
@@ -62,11 +65,18 @@ class AnalysisReadyPhosphoDataset:
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
+        comparisons = own_optional_dataframe(
+            self.comparisons,
+            field_name="dataset.comparisons",
+            error_type=DatasetValidationError,
+            assume_owned=_assume_owned,
+        )
         _DATASET_VALIDATOR.run(
             phospho=phospho,
             site_metadata=site_metadata,
             sample_metadata=sample_metadata,
             total=total,
+            comparisons=comparisons,
             organism=self.organism,
         )
         _TRANSFORMATION_STATE_VALIDATOR.run(
@@ -78,6 +88,7 @@ class AnalysisReadyPhosphoDataset:
         object.__setattr__(self, "site_metadata", site_metadata)
         object.__setattr__(self, "sample_metadata", sample_metadata)
         object.__setattr__(self, "total", total)
+        object.__setattr__(self, "comparisons", comparisons)
 
     @classmethod
     def _from_owned(
@@ -88,6 +99,7 @@ class AnalysisReadyPhosphoDataset:
         transformation_state: TransformationState,
         sample_metadata: pd.DataFrame | None = None,
         total: pd.DataFrame | None = None,
+        comparisons: pd.DataFrame | None = None,
         organism: Organism | None = None,
     ) -> AnalysisReadyPhosphoDataset:
         return cls(
@@ -96,6 +108,7 @@ class AnalysisReadyPhosphoDataset:
             transformation_state=transformation_state,
             sample_metadata=sample_metadata,
             total=total,
+            comparisons=comparisons,
             organism=organism,
             _assume_owned=True,
         )

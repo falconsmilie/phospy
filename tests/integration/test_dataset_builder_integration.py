@@ -7,6 +7,7 @@ import pytest
 from phospy import (
     AnalysisReadyDatasetBuilder,
     DatasetBuildRequest,
+    DatasetComparisonBuildingConfig,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
@@ -254,6 +255,89 @@ def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> No
     assert built.phospho.iloc[0, 1] == pytest.approx(2.5)
     assert built.site_metadata.index.tolist() == ["MAPK14;Y182;"]
     assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"] == "SEQ_B"
+
+
+def test_dataset_builder_builds_inferred_comparisons_from_sample_metadata() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_1": [8.0, 2.0],
+            "sample_2": [8.0, 4.0],
+            "sample_3": [5.0, 1.0],
+            "sample_4": [5.0, 1.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+    sample_metadata = pd.DataFrame(
+        {"comparison_group": ["group1", "group1", "group4", "group4"]},
+        index=phospho.columns.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=sample_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                comparisons=DatasetComparisonBuildingConfig(
+                    policy="sample_metadata_pairs"
+                )
+            ),
+        )
+    )
+
+    assert built.comparisons is not None
+    expected = pd.DataFrame(
+        {"p_group1_group4": [3.0, 2.0]},
+        index=phospho.index.copy(),
+    )
+    pdt.assert_frame_equal(built.comparisons, expected)
+
+
+def test_dataset_builder_rejects_comparison_groups_missing_from_metadata() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [7.0], "sample_b": [4.0]},
+        index=pd.Index(["PRKACA;S339;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["PRKACA"],
+            "site": ["S339"],
+            "site_sequence": ["AAAAAA"],
+        },
+        index=phospho.index.copy(),
+    )
+    sample_metadata = pd.DataFrame(
+        {"comparison_group": ["sample_a", "sample_b"]},
+        index=phospho.columns.copy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="references unknown sample groups",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                organism=Organism.RAT,
+                preprocessing_config=DatasetPreprocessingConfig(
+                    comparisons=DatasetComparisonBuildingConfig(
+                        policy="sample_metadata_pairs",
+                        pairs=(("sample_a", "missing_group"),),
+                    )
+                ),
+            )
+        )
 
 
 def test_dataset_builder_rejects_site_matrix_build_without_site_sequence_column() -> (

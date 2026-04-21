@@ -38,7 +38,7 @@
 | preprocessing transformation establishment | CONTRACT_CHANGED | - | Builder preprocessing is intentionally narrow: pass-through linear transformation establishment plus limited missing-data policy. |
 | total/protein correction | PORTED | - | `total_protein_correction.policy="ratio_to_total"` is supported in builder preprocessing with strict phospho/total matching checks. |
 | site-matrix construction | OPEN_GAP | - | Legacy site-matrix construction policy surface is not fully ported. |
-| comparison-building | OPEN_GAP | - | Legacy pairwise comparison-building workflow is not in supported rewrite lane. |
+| comparison-building | PORTED | - | Builder preprocessing supports sample-metadata-based pairwise comparison construction with explicit or inferred pairs. |
 | site-to-protein resolution fallback behavior | CONTRACT_CHANGED | - | Signalome requires explicit `site_metadata.protein_id` and does not apply legacy fallback to site-id prefix. |
 | signalome input route contraction | CONTRACT_CHANGED | - | Supported signalome entrypoint is contracted to `SignalomeWorkflowRequest(kinase_result=...)`. |
 | dataset-vs-reference sequence authority decisions | CONTRACT_CHANGED | - | Motif sequence authority in supported kinase lane is `references.site_sequences`, not dataset-sequence fallback. |
@@ -46,7 +46,6 @@
 ## Open Legacy-Science Areas
 
 - `site-matrix construction`
-- `comparison-building`
 
 These are open legacy-science gaps even though currently tracked `SCI-GAP-*`
 tickets are closed.

@@ -38,4 +38,5 @@ class DatasetPreprocessor:
             site_metadata=preprocessed_state.site_metadata,
             sample_metadata=preprocessed_state.sample_metadata,
             total=preprocessed_state.total,
+            comparisons=preprocessed_state.comparisons,
         )

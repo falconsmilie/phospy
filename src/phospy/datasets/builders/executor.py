@@ -75,6 +75,7 @@ class DatasetBuildExecutor:
                 site_metadata=preprocessed.site_metadata,
                 sample_metadata=preprocessed.sample_metadata,
                 total=resolved.total,
+                comparisons=preprocessed.comparisons,
                 organism=request.organism,
                 transformation_state=resolved.transformation_state,
             )

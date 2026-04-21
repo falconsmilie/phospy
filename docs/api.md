@@ -118,11 +118,17 @@ Current supported policies:
   `site_sequence` or incomplete phospho values, resolves duplicate constructed
   site IDs by retaining the row with strongest mean signal, and rewrites
   `dataset.phospho`/`dataset.site_metadata` to the constructed site IDs.
-- `comparisons.policy="none"` (required in supported lane).
-
-Reserved but currently unsupported policy:
-
-- `comparisons.policy="sample_metadata_pairs"`
+- `comparisons.policy="none"` (default): do not construct comparison columns.
+- `comparisons.policy="sample_metadata_pairs"`: build dataset-level pairwise
+  comparison columns in `dataset.comparisons` from grouped sample metadata.
+  Required and supported inputs:
+  - `sample_metadata` must be provided
+  - `sample_metadata.index` must align to `phospho.columns`
+  - `sample_metadata[comparisons.sample_group_column]` must contain one
+    non-empty group label per sample
+  - `comparisons.pairs` can pass explicit `(left_group, right_group)` pairs;
+    when omitted, all unique pairwise combinations are inferred from observed
+    groups.
 
 ## Final Dataset Boundary
 
@@ -135,6 +141,8 @@ Reserved but currently unsupported policy:
 - Site identifiers must already be canonical and non-colliding.
 - `sample_metadata` (if present) must align to `phospho.columns`.
 - `total` (if present) must be numeric and column-aligned to `phospho`.
+- `comparisons` (if present) must be numeric, non-missing, and aligned to
+  `phospho.index`.
 - `transformation_state` is mandatory and must be both coherent and
   established through a supported PhosPy path.
 

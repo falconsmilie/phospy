@@ -8,6 +8,7 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.api.configs import (
+    DatasetComparisonBuildingConfig,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
@@ -61,6 +62,15 @@ def _site_metadata(index: pd.Index | None = None) -> pd.DataFrame:
 def _sample_metadata(columns: pd.Index) -> pd.DataFrame:
     return pd.DataFrame(
         {"batch": [1, 1, 2]},
+        index=columns,
+    )
+
+
+def _comparison_sample_metadata(columns: pd.Index) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "comparison_group": ["group1", "group1", "group4", "group4"],
+        },
         index=columns,
     )
 
@@ -230,6 +240,24 @@ def test_preprocessing_plan_orders_site_matrix_after_total_correction() -> None:
         "missing_data",
         "total_protein_correction",
         "site_matrix",
+    )
+
+
+def test_preprocessing_plan_orders_comparisons_after_upstream_stages() -> None:
+    plan = PreprocessingPlan.from_config(
+        DatasetPreprocessingConfig(
+            total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                policy="ratio_to_total"
+            ),
+            site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata"),
+            comparisons=DatasetComparisonBuildingConfig(policy="sample_metadata_pairs"),
+        )
+    )
+    assert plan.stage_order == (
+        "missing_data",
+        "total_protein_correction",
+        "site_matrix",
+        "comparisons",
     )
 
 
@@ -550,6 +578,177 @@ def test_dataset_preprocessor_site_matrix_build_matches_legacy_donor_fixture() -
         preprocessed.site_metadata.loc[:, ["gene_symbol", "site", "site_sequence"]],
         expected_site_metadata,
     )
+
+
+def test_dataset_preprocessor_builds_inferred_comparisons_from_sample_groups() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_1": [8.0, 2.0],
+            "sample_2": [8.0, 4.0],
+            "sample_3": [5.0, 1.0],
+            "sample_4": [5.0, 1.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = _site_metadata(phospho.index)
+    sample_metadata = _comparison_sample_metadata(phospho.columns)
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=sample_metadata,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                comparisons=DatasetComparisonBuildingConfig(
+                    policy="sample_metadata_pairs"
+                )
+            )
+        ),
+    )
+
+    assert preprocessed.comparisons is not None
+    expected = pd.DataFrame(
+        {"p_group1_group4": [3.0, 2.0]},
+        index=phospho.index.copy(),
+    )
+    pdt.assert_frame_equal(preprocessed.comparisons, expected)
+
+
+def test_dataset_preprocessor_builds_explicit_comparison_pairs() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_1": [8.0],
+            "sample_2": [8.0],
+            "sample_3": [5.0],
+            "sample_4": [5.0],
+        },
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = _site_metadata(phospho.index)
+    sample_metadata = _comparison_sample_metadata(phospho.columns)
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=sample_metadata,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                comparisons=DatasetComparisonBuildingConfig(
+                    policy="sample_metadata_pairs",
+                    pairs=(("group4", "group1"),),
+                )
+            )
+        ),
+    )
+
+    assert preprocessed.comparisons is not None
+    expected = pd.DataFrame(
+        {"p_group4_group1": [-3.0]},
+        index=phospho.index.copy(),
+    )
+    pdt.assert_frame_equal(preprocessed.comparisons, expected)
+
+
+def test_dataset_preprocessor_rejects_comparison_building_without_sample_metadata() -> (
+    None
+):
+    with pytest.raises(
+        PhosPyInputError,
+        match="policy='sample_metadata_pairs' requires sample_metadata input data",
+    ):
+        DatasetPreprocessor().run(
+            phospho=_phospho().iloc[:, :2].copy(deep=True),
+            site_metadata=_site_metadata().iloc[:3].copy(deep=True),
+            sample_metadata=None,
+            total=None,
+            plan=PreprocessingPlan.from_config(
+                DatasetPreprocessingConfig(
+                    comparisons=DatasetComparisonBuildingConfig(
+                        policy="sample_metadata_pairs"
+                    )
+                )
+            ),
+        )
+
+
+def test_dataset_preprocessor_rejects_comparison_building_without_group_column() -> (
+    None
+):
+    phospho = _phospho().iloc[:, :2].copy(deep=True)
+    site_metadata = _site_metadata()
+    sample_metadata = pd.DataFrame({"batch": [1, 2]}, index=phospho.columns)
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="requires sample_metadata column 'comparison_group'",
+    ):
+        DatasetPreprocessor().run(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=sample_metadata,
+            total=None,
+            plan=PreprocessingPlan.from_config(
+                DatasetPreprocessingConfig(
+                    comparisons=DatasetComparisonBuildingConfig(
+                        policy="sample_metadata_pairs"
+                    )
+                )
+            ),
+        )
+
+
+def test_dataset_preprocessor_comparison_building_matches_legacy_pairwise_expectation() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [7.0],
+            "sample_b": [4.0],
+        },
+        index=pd.Index(["PRKACA;S339;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["PRKACA"],
+            "site": ["S339"],
+            "site_sequence": ["AAAAAA"],
+        },
+        index=phospho.index.copy(),
+    )
+    sample_metadata = pd.DataFrame(
+        {"comparison_group": ["sample_a", "sample_b"]},
+        index=phospho.columns.copy(),
+    )
+    expected_fixture = pd.read_csv(
+        ROOT
+        / "tests"
+        / "fixtures"
+        / "rewrite_parity"
+        / "comparison_building"
+        / "legacy_pairwise_expected.csv"
+    ).set_index("site_id")
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=sample_metadata,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                comparisons=DatasetComparisonBuildingConfig(
+                    policy="sample_metadata_pairs",
+                    pairs=(("sample_a", "sample_b"),),
+                )
+            )
+        ),
+    )
+
+    assert preprocessed.comparisons is not None
+    expected = expected_fixture.astype(float).copy()
+    expected.index = phospho.index.copy()
+    pdt.assert_frame_equal(preprocessed.comparisons, expected)
 
 
 def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:

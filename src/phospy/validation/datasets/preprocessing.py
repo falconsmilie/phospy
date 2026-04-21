@@ -5,6 +5,7 @@ from __future__ import annotations
 from phospy.api.configs import (
     DATASET_COMPARISON_BUILDING_POLICIES,
     DATASET_COMPARISON_BUILDING_POLICY_NONE,
+    DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS,
     DATASET_MISSING_DATA_POLICIES,
     DATASET_MISSING_DATA_POLICY_FORBID,
     DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
@@ -127,8 +128,68 @@ class DatasetPreprocessingConfigValidator:
                 "dataset build request preprocessing_config.comparisons.policy "
                 f"must be one of: {supported}"
             )
-        if policy != DATASET_COMPARISON_BUILDING_POLICY_NONE:
+        sample_group_column = config.sample_group_column
+        if not isinstance(sample_group_column, str) or not sample_group_column.strip():
             raise PhosPyInputError(
-                "dataset build request preprocessing_config.comparisons.policy is not "
-                "supported in the current public builder lane"
+                "dataset build request preprocessing_config.comparisons."
+                "sample_group_column must be a non-empty string"
             )
+        pairs = config.pairs
+        if policy == DATASET_COMPARISON_BUILDING_POLICY_NONE:
+            if pairs is not None:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.comparisons.pairs "
+                    "must be None when comparisons.policy='none'"
+                )
+            return
+
+        if policy != DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config contains an unsupported "
+                "comparisons.policy"
+            )
+        if pairs is None:
+            return
+        if not isinstance(pairs, (tuple, list)):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.comparisons.pairs must be "
+                "a sequence of (left_group, right_group) pairs when provided"
+            )
+        resolved_pairs = tuple(pairs)
+        if not resolved_pairs:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.comparisons.pairs must "
+                "contain at least one pair when provided"
+            )
+        seen_pairs: set[tuple[str, str]] = set()
+        for pair in resolved_pairs:
+            if not isinstance(pair, tuple) or len(pair) != 2:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.comparisons.pairs "
+                    "must contain only (left_group, right_group) tuples"
+                )
+            left_group, right_group = pair
+            if not isinstance(left_group, str) or not left_group.strip():
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.comparisons.pairs "
+                    "must contain non-empty left_group strings"
+                )
+            if not isinstance(right_group, str) or not right_group.strip():
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.comparisons.pairs "
+                    "must contain non-empty right_group strings"
+                )
+            left = left_group.strip()
+            right = right_group.strip()
+            if left == right:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.comparisons.pairs "
+                    "cannot contain self-comparison pairs"
+                )
+            canonical_pair = tuple(sorted((left, right)))
+            if canonical_pair in seen_pairs:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.comparisons.pairs "
+                    "contains duplicate pairs regardless of direction"
+                )
+            seen_pairs.add(canonical_pair)

@@ -8,10 +8,12 @@ from typing import Protocol
 import pandas as pd
 
 from phospy.api.configs import (
+    DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
     DATASET_COMPARISON_BUILDING_POLICY_NONE,
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
     DatasetComparisonBuildingPolicy,
+    DatasetComparisonPair,
     DatasetMissingDataPolicy,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixPolicy,
@@ -34,6 +36,10 @@ class PreprocessingPlan:
     total_protein_correction_policy: DatasetTotalProteinCorrectionPolicy
     site_matrix_policy: DatasetSiteMatrixPolicy
     comparison_building_policy: DatasetComparisonBuildingPolicy
+    comparison_sample_group_column: str = (
+        DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN
+    )
+    comparison_pairs: tuple[DatasetComparisonPair, ...] | None = None
     stage_order: tuple[str, ...] = DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT
 
     @classmethod
@@ -54,6 +60,12 @@ class PreprocessingPlan:
             total_protein_correction_policy=config.total_protein_correction.policy,
             site_matrix_policy=config.site_matrix.policy,
             comparison_building_policy=config.comparisons.policy,
+            comparison_sample_group_column=config.comparisons.sample_group_column,
+            comparison_pairs=(
+                None
+                if config.comparisons.pairs is None
+                else tuple(config.comparisons.pairs)
+            ),
             stage_order=tuple(stage_order),
         )
 
@@ -71,6 +83,7 @@ class PreprocessingState:
     sample_metadata: pd.DataFrame | None
     total: pd.DataFrame | None
     plan: PreprocessingPlan
+    comparisons: pd.DataFrame | None = None
 
 
 class PreprocessingStage(Protocol):

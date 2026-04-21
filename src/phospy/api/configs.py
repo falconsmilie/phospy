@@ -38,6 +38,8 @@ DATASET_SITE_MATRIX_POLICIES = frozenset(
 DATASET_COMPARISON_BUILDING_POLICY_NONE = "none"
 DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS = "sample_metadata_pairs"
 DatasetComparisonBuildingPolicy = Literal["none", "sample_metadata_pairs"]
+DatasetComparisonPair = tuple[str, str]
+DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN = "comparison_group"
 DATASET_COMPARISON_BUILDING_POLICIES = frozenset(
     {
         DATASET_COMPARISON_BUILDING_POLICY_NONE,
@@ -164,12 +166,21 @@ class DatasetSiteMatrixConfig:
 class DatasetComparisonBuildingConfig:
     """Public comparison-building policy options for dataset building.
 
-    - `"none"`: do not build explicit comparisons (current supported policy).
-    - `"sample_metadata_pairs"`: reserved policy surface for future science
-      restoration.
+    - `"none"`: do not build dataset-level pairwise comparisons.
+    - `"sample_metadata_pairs"`: build comparison columns from grouped sample
+      metadata.
+
+    For `"sample_metadata_pairs"`:
+
+    - `sample_group_column` must exist in `sample_metadata` and define one
+      non-empty group label per sample.
+    - `pairs` supports explicit pass-through comparisons as `(left, right)`
+      tuples. If omitted, comparisons are inferred from all observed groups.
     """
 
     policy: DatasetComparisonBuildingPolicy = DATASET_COMPARISON_BUILDING_POLICY_NONE
+    sample_group_column: str = DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN
+    pairs: tuple[DatasetComparisonPair, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -307,6 +318,7 @@ class SignalomeConfig:
 
 __all__ = [
     "DATASET_COMPARISON_BUILDING_POLICIES",
+    "DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN",
     "DATASET_COMPARISON_BUILDING_POLICY_NONE",
     "DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS",
     "DATASET_MISSING_DATA_POLICIES",
@@ -319,6 +331,7 @@ __all__ = [
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL",
     "DatasetComparisonBuildingConfig",
+    "DatasetComparisonPair",
     "DatasetComparisonBuildingPolicy",
     "DatasetMissingDataConfig",
     "KINASE_ADAPTIVE_POLICIES",

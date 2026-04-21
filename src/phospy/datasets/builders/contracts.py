@@ -41,6 +41,7 @@ class PreprocessedDatasetBuildTables:
     site_metadata: pd.DataFrame
     sample_metadata: pd.DataFrame | None
     total: pd.DataFrame | None
+    comparisons: pd.DataFrame | None = None
 
 
 class DatasetBuildValidatorContract(Protocol):

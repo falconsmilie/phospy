@@ -419,23 +419,34 @@ LEGACY_SCIENCE_AREAS: tuple[LegacyScienceAreaInventory, ...] = (
     ),
     LegacyScienceAreaInventory(
         area="comparison-building",
-        status=STATUS_OPEN_GAP,
+        status=STATUS_PORTED,
         status_summary=(
-            "Legacy comparison-building and pairwise augmentation workflow is "
-            "not part of the supported rewrite lane."
+            "Legacy pairwise comparison-building is supported in the builder "
+            "preprocessing lane via sample-metadata grouping policy."
         ),
         science_gap_ticket=None,
-        rewrite_unit_tests=(),
+        rewrite_unit_tests=(
+            "tests/unit/test_dataset_preprocessing_subsystem.py::"
+            "test_dataset_preprocessor_builds_inferred_comparisons_from_sample_groups",
+            "tests/unit/test_dataset_preprocessing_subsystem.py::"
+            "test_dataset_preprocessor_comparison_building_matches_legacy_pairwise_expectation",
+        ),
         rewrite_parity_tests=(),
-        rewrite_integration_tests=(),
+        rewrite_integration_tests=(
+            "tests/integration/test_dataset_builder_integration.py::"
+            "test_dataset_builder_builds_inferred_comparisons_from_sample_metadata",
+        ),
         archival_only_tests=(
             "tests_legacy/test_preprocessing.py::"
             "test_add_pairwise_comparisons_uses_schema_group_names",
             "tests_legacy/test_preprocessing.py::"
             "test_add_pairwise_comparisons_rejects_reverse_duplicate_pairs_with_custom_mapping",
         ),
-        promoted_fixture_paths=(),
+        promoted_fixture_paths=(
+            "tests/fixtures/rewrite_parity/comparison_building/legacy_pairwise_expected.csv",
+        ),
         provenance_paths=(
+            "tests/fixtures/rewrite_parity/comparison_building/PROVENANCE.md",
             "docs/parity.md",
             "docs/architecture/legacy_science_gap_audit.md",
         ),

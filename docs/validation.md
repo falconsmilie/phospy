@@ -98,11 +98,19 @@ No additional transformation mode is publicly selectable.
 - supported lane policy restrictions:
   - `total_protein_correction.policy` must be one of `none`, `ratio_to_total`
   - `site_matrix.policy` must be one of `as_input`, `build_from_metadata`
-  - `comparisons.policy` must stay `none`
+  - `comparisons.policy` must be one of `none`, `sample_metadata_pairs`
+  - `comparisons.sample_group_column` must be a non-empty string
+  - when `comparisons.policy='none'`, `comparisons.pairs` must be unset
+  - when `comparisons.pairs` is provided:
+    - pairs must be `(left_group, right_group)` tuples
+    - pair group names must be non-empty
+    - self pairs and reverse-direction duplicates are rejected
 - at execution, `missing_data.min_observed_values` must not exceed phospho
   sample count
 - at request validation, `total_protein_correction.policy='ratio_to_total'`
   requires `request.total` to be present
+- at request validation, `comparisons.policy='sample_metadata_pairs'` requires
+  `request.sample_metadata` to be present
 - at execution, `total_protein_correction.policy='ratio_to_total'` requires:
   - `total.columns` exactly matching `phospho.columns`
   - numeric phospho/total columns
@@ -115,6 +123,11 @@ No additional transformation mode is publicly selectable.
     and rows with incomplete phospho values
   - duplicate constructed site IDs are collapsed by keeping the row with the
     strongest mean phospho signal
+- at execution, `comparisons.policy='sample_metadata_pairs'` requires:
+  - `sample_metadata.index` exactly matching `phospho.columns`
+  - `sample_metadata[comparisons.sample_group_column]` with non-empty values
+  - explicit pairs (when provided) to reference only observed sample groups
+  - inferred mode (no explicit pairs) to have at least two observed groups
 
 ## Builder Convention Rules
 

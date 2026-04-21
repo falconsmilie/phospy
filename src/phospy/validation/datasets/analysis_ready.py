@@ -34,6 +34,7 @@ class AnalysisReadyDatasetValidator:
         site_metadata: pd.DataFrame,
         sample_metadata: pd.DataFrame | None,
         total: pd.DataFrame | None,
+        comparisons: pd.DataFrame | None,
         organism: Organism | None,
     ) -> None:
         phospho_frame = require_dataframe(
@@ -125,6 +126,37 @@ class AnalysisReadyDatasetValidator:
                 right=phospho_frame.columns,
                 left_name="dataset.sample_metadata.index",
                 right_name="dataset.phospho.columns",
+                error_type=DatasetValidationError,
+            )
+
+        if comparisons is not None:
+            comparisons_frame = require_dataframe(
+                comparisons,
+                field_name="dataset.comparisons",
+                allow_empty=False,
+                error_type=DatasetValidationError,
+            )
+            require_numeric_dataframe(
+                comparisons_frame,
+                field_name="dataset.comparisons",
+                error_type=DatasetValidationError,
+            )
+            require_missing_value_policy(
+                comparisons_frame,
+                field_name="dataset.comparisons",
+                policy=MissingValuePolicy.FORBID,
+                error_type=DatasetValidationError,
+            )
+            require_unique_columns(
+                comparisons_frame,
+                field_name="dataset.comparisons",
+                error_type=DatasetValidationError,
+            )
+            require_exact_index_match(
+                left=comparisons_frame.index,
+                right=phospho_frame.index,
+                left_name="dataset.comparisons.index",
+                right_name="dataset.phospho.index",
                 error_type=DatasetValidationError,
             )
 

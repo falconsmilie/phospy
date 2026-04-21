@@ -181,7 +181,6 @@ def test_release_facing_parity_docs_do_not_claim_blanket_no_open_legacy_science_
 
     expected_open_gap_rows = {
         "site-matrix construction",
-        "comparison-building",
     }
     for area in expected_open_gap_rows:
         row = f"| {area} | {STATUS_OPEN_GAP} |"

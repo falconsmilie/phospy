@@ -295,7 +295,35 @@ def test_dataset_build_request_allows_site_matrix_build_from_metadata_policy() -
     assert validated is request
 
 
-def test_dataset_build_request_rejects_unsupported_comparison_building_policy() -> None:
+def test_dataset_build_request_allows_sample_metadata_pairs_comparison_policy() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame(
+            {"sample_a": [1.0], "sample_b": [2.0]},
+            index=["MAPK14;Y182;"],
+        ),
+        sample_metadata=pd.DataFrame(
+            {"comparison_group": ["group_a", "group_b"]},
+            index=["sample_a", "sample_b"],
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            comparisons=DatasetComparisonBuildingConfig(policy="sample_metadata_pairs")
+        ),
+    )
+    validated = DatasetBuildRequestValidator().run(request)
+    assert validated is request
+
+
+def test_dataset_build_request_requires_sample_metadata_for_comparison_building() -> (
+    None
+):
     request = DatasetBuildRequest(
         phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
         site_metadata=pd.DataFrame(
@@ -312,7 +340,64 @@ def test_dataset_build_request_rejects_unsupported_comparison_building_policy() 
     )
     with pytest.raises(
         PhosPyInputError,
-        match="comparisons.policy is not supported",
+        match="policy='sample_metadata_pairs' requires sample_metadata input data",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_rejects_duplicate_comparison_pairs_in_config() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame(
+            {"sample_a": [1.0], "sample_b": [2.0]},
+            index=["MAPK14;Y182;"],
+        ),
+        sample_metadata=pd.DataFrame(
+            {"comparison_group": ["group_a", "group_b"]},
+            index=["sample_a", "sample_b"],
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            comparisons=DatasetComparisonBuildingConfig(
+                policy="sample_metadata_pairs",
+                pairs=(("group_a", "group_b"), ("group_b", "group_a")),
+            )
+        ),
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="contains duplicate pairs regardless of direction",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_rejects_pairs_when_comparison_policy_is_none() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            comparisons=DatasetComparisonBuildingConfig(
+                policy="none",
+                pairs=(("group1", "group4"),),
+            )
+        ),
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="comparisons.pairs must be None when comparisons.policy='none'",
     ):
         DatasetBuildRequestValidator().run(request)
 

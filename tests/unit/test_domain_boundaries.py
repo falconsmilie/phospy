@@ -267,6 +267,42 @@ def test_dataset_rejects_total_matrix_sample_mismatch() -> None:
         )
 
 
+def test_dataset_accepts_aligned_numeric_comparisons() -> None:
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        comparisons=pd.DataFrame(
+            {"p_group1_group4": [3.0]},
+            index=["MAPK14;Y182;"],
+        ),
+        organism=Organism.RAT,
+        transformation_state=TransformationState.established_raw(
+            has_total_matrix=False
+        ),
+    )
+    assert dataset.comparisons is not None
+    assert dataset.comparisons.loc["MAPK14;Y182;", "p_group1_group4"] == 3.0
+
+
+def test_dataset_rejects_comparisons_index_mismatch() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.comparisons.index must exactly match dataset.phospho.index",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            comparisons=pd.DataFrame(
+                {"p_group1_group4": [3.0]},
+                index=["AKT1;T308;"],
+            ),
+            organism=Organism.RAT,
+            transformation_state=TransformationState.established_raw(
+                has_total_matrix=False
+            ),
+        )
+
+
 def test_reference_bundle_requires_non_empty_resources() -> None:
     with pytest.raises(ReferenceValidationError):
         ReferenceBundle(
