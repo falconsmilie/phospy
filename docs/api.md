@@ -138,6 +138,9 @@ Current supported policies:
   and/or bundled derivation when available. Rows lacking usable sequence support
   are excluded from this path, so retained rows can be narrower than the
   original metadata table.
+  Bundled derivation resolves per-row site identity from `gene_symbol` + `site`
+  (with row-index fallback when needed), so mixed-support inputs can retain
+  derivable/supplied rows together.
   Mixed-support inputs therefore keep resolvable rows instead of collapsing the
   entire derived-sequence path.
   This requirement is specific to the selected preprocessing policy and does

@@ -77,25 +77,17 @@ class SiteMatrixStage:
             state.site_metadata,
             column_name=_SITE_COLUMN,
         )
-        if _SITE_SEQUENCE_COLUMN in state.site_metadata.columns:
-            site_sequence = _resolve_optional_string_column(
-                state.site_metadata,
-                column_name=_SITE_SEQUENCE_COLUMN,
-            )
-        else:
-            site_sequence = pd.Series(
-                pd.NA,
-                index=state.site_metadata.index.copy(),
-                dtype="string",
-                name=_SITE_SEQUENCE_COLUMN,
-            )
         constructed_site_id = _build_site_identifier(gene_symbol=gene_symbol, site=site)
-
-        has_sequence = site_sequence.notna()
-        with_sequence_phospho = state.phospho.loc[has_sequence]
-        with_sequence_site_metadata = state.site_metadata.loc[has_sequence]
-        with_sequence_site_id = constructed_site_id.loc[has_sequence]
-        dropped_missing_sequence = int((~has_sequence).sum())
+        (
+            with_sequence_phospho,
+            with_sequence_site_metadata,
+            with_sequence_site_id,
+            dropped_missing_sequence,
+        ) = _select_rows_with_usable_sequence_support(
+            phospho=state.phospho,
+            site_metadata=state.site_metadata,
+            constructed_site_id=constructed_site_id,
+        )
 
         (
             policy_filtered_phospho,
@@ -201,6 +193,33 @@ def _resolve_optional_string_column(
     normalized = column.astype("string").str.strip()
     missing_mask = column.isna() | normalized.isna() | (normalized == "")
     return normalized.where(~missing_mask, other=pd.NA)
+
+
+def _select_rows_with_usable_sequence_support(
+    *,
+    phospho: pd.DataFrame,
+    site_metadata: pd.DataFrame,
+    constructed_site_id: pd.Series,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, int]:
+    if _SITE_SEQUENCE_COLUMN in site_metadata.columns:
+        site_sequence = _resolve_optional_string_column(
+            site_metadata,
+            column_name=_SITE_SEQUENCE_COLUMN,
+        )
+    else:
+        site_sequence = pd.Series(
+            pd.NA,
+            index=site_metadata.index.copy(),
+            dtype="string",
+            name=_SITE_SEQUENCE_COLUMN,
+        )
+    has_sequence = site_sequence.notna()
+    return (
+        phospho.loc[has_sequence],
+        site_metadata.loc[has_sequence],
+        constructed_site_id.loc[has_sequence],
+        int((~has_sequence).sum()),
+    )
 
 
 def _build_site_identifier(

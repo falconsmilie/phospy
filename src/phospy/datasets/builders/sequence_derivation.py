@@ -12,7 +12,12 @@ from phospy.site_ids import canonicalize_site_index
 
 
 class SiteSequenceDeriver:
-    """Validate/provision `site_sequence` as optional builder enrichment."""
+    """Validate/provision `site_sequence` as optional builder enrichment.
+
+    In partial mode (`allow_partial=True`), enrichment is row-wise:
+    rows with supplied or derivable sequence support keep their values, while
+    unresolved rows remain missing for downstream policy-specific exclusion.
+    """
 
     def run(
         self,
@@ -29,7 +34,7 @@ class SiteSequenceDeriver:
                 )
                 if organism is not None and bool(existing.isna().any()):
                     derived = self._derive_from_bundled_sequences_if_available(
-                        site_index=normalized.index,
+                        site_metadata=normalized,
                         organism=organism,
                     )
                     if derived is not None:
@@ -47,7 +52,7 @@ class SiteSequenceDeriver:
         if organism is None:
             return normalized
         derived = self._derive_from_bundled_sequences_if_available(
-            site_index=normalized.index,
+            site_metadata=normalized,
             organism=organism,
         )
         if derived is None:
@@ -88,7 +93,7 @@ class SiteSequenceDeriver:
     @staticmethod
     def _derive_from_bundled_sequences_if_available(
         *,
-        site_index: pd.Index,
+        site_metadata: pd.DataFrame,
         organism: Organism,
     ) -> pd.Series | None:
         try:
@@ -101,9 +106,38 @@ class SiteSequenceDeriver:
             field_name="bundled site sequence index",
             error_type=UnsupportedInputFormatError,
         )
-        normalized_site_index = canonicalize_site_index(
-            site_index,
-            field_name="dataset site_metadata.index",
-            error_type=UnsupportedInputFormatError,
+        site_lookup_index = _resolve_row_level_site_lookup_index(site_metadata)
+        derived = sequence_map.reindex(
+            pd.Index(site_lookup_index.astype("object").tolist())
         )
-        return sequence_map.reindex(normalized_site_index)
+        derived.index = site_metadata.index.copy()
+        derived.name = "site_sequence"
+        return derived
+
+
+def _resolve_row_level_site_lookup_index(site_metadata: pd.DataFrame) -> pd.Series:
+    metadata_site_ids = _resolve_site_ids_from_metadata_columns(site_metadata)
+    index_site_ids = _resolve_site_ids_from_index(site_metadata.index)
+    return metadata_site_ids.where(metadata_site_ids.notna(), other=index_site_ids)
+
+
+def _resolve_site_ids_from_metadata_columns(site_metadata: pd.DataFrame) -> pd.Series:
+    if (
+        "gene_symbol" not in site_metadata.columns
+        or "site" not in site_metadata.columns
+    ):
+        return pd.Series(pd.NA, index=site_metadata.index.copy(), dtype="string")
+    gene_symbol = site_metadata.loc[:, "gene_symbol"].astype("string").str.strip()
+    site = site_metadata.loc[:, "site"].astype("string").str.strip()
+    has_tokens = gene_symbol.notna() & site.notna() & (gene_symbol != "") & (site != "")
+    normalized = (gene_symbol.str.upper() + ";" + site.str.upper() + ";").astype(
+        "string"
+    )
+    return normalized.where(has_tokens, other=pd.NA)
+
+
+def _resolve_site_ids_from_index(index: pd.Index) -> pd.Series:
+    index_series = pd.Series(index.tolist(), index=index.copy(), dtype="string")
+    normalized = index_series.str.strip()
+    has_tokens = normalized.notna() & (normalized != "")
+    return normalized.where(has_tokens, other=pd.NA)

@@ -68,6 +68,8 @@ Both namespaces are public, but they have different roles:
   from that construction path.
 - In this lane, sequence support is established row-by-row from supplied
   `site_metadata.site_sequence` values and/or bundled derivation when available.
+  Bundled derivation resolves each row from `gene_symbol` + `site` identity
+  (falling back to row index labels when needed).
   Mixed-support inputs retain resolvable rows and exclude only unresolved rows.
 - Choosing `build_from_metadata` can therefore reduce row retention relative to
   the original metadata table.
