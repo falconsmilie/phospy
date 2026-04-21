@@ -151,7 +151,10 @@ class DatasetSiteMatrixConfig:
     """Public site-matrix policy options for dataset building.
 
     - `"as_input"`: preserve interpreted site matrix as provided.
-    - `"build_from_metadata"`: reserved policy surface for future science restoration.
+    - `"build_from_metadata"`: construct site-matrix-ready rows from
+      `site_metadata` (`gene_symbol`, `site`, `site_sequence`) after upstream
+      missing-data/total-correction preprocessing. This internal stage remains
+      below the final `AnalysisReadyPhosphoDataset` boundary.
     """
 
     policy: DatasetSiteMatrixPolicy = DATASET_SITE_MATRIX_POLICY_AS_INPUT

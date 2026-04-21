@@ -23,7 +23,10 @@ class AnalysisReadyPhosphoDataset:
 
     `phospho` stores the quantitative matrix after builder preprocessing policy
     has been applied. When total/protein correction is enabled in the builder
-    lane, corrected values are represented directly in this matrix.
+    lane, corrected values are represented directly in this matrix. When
+    site-matrix construction is enabled in the builder lane, this matrix already
+    reflects the constructed site-matrix-ready rows. Intermediate site-matrix
+    artefacts remain private to preprocessing internals.
     """
 
     phospho: pd.DataFrame

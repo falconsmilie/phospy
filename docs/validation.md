@@ -45,6 +45,9 @@ Before final dataset construction, supported preprocessing policy is applied to
 - `"ratio_to_total"` under `preprocessing_config.total_protein_correction.policy`:
   subtract matched total-protein abundance from phosphosite abundance before
   transformation-state establishment
+- `"build_from_metadata"` under `preprocessing_config.site_matrix.policy`:
+  construct site-matrix-ready rows from metadata after upstream missing-data and
+  total/protein-correction stages
 
 `AnalysisReadyPhosphoDataset` itself is strict and DataFrame-only.
 Workflows consume only this dataset type.
@@ -94,7 +97,7 @@ No additional transformation mode is publicly selectable.
   `impute_row_median`
 - supported lane policy restrictions:
   - `total_protein_correction.policy` must be one of `none`, `ratio_to_total`
-  - `site_matrix.policy` must stay `as_input`
+  - `site_matrix.policy` must be one of `as_input`, `build_from_metadata`
   - `comparisons.policy` must stay `none`
 - at execution, `missing_data.min_observed_values` must not exceed phospho
   sample count
@@ -105,6 +108,13 @@ No additional transformation mode is publicly selectable.
   - numeric phospho/total columns
   - unique normalized `total.index` identifiers
   - complete matching between `site_metadata.gene_symbol` and `total.index`
+- at execution, `site_matrix.policy='build_from_metadata'` requires:
+  - `site_metadata` columns `gene_symbol`, `site`, `site_sequence`
+  - non-empty `gene_symbol`/`site` values for all rows
+  - at least one retained row after dropping rows with missing `site_sequence`
+    and rows with incomplete phospho values
+  - duplicate constructed site IDs are collapsed by keeping the row with the
+    strongest mean phospho signal
 
 ## Builder Convention Rules
 

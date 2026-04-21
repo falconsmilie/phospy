@@ -10,6 +10,7 @@ import pytest
 from phospy.api.configs import (
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
+    DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
 )
 from phospy.api.requests import DatasetBuildRequest
@@ -216,6 +217,22 @@ def test_dataset_preprocessor_regression_impute_row_median_policy() -> None:
     assert preprocessed.total is total
 
 
+def test_preprocessing_plan_orders_site_matrix_after_total_correction() -> None:
+    plan = PreprocessingPlan.from_config(
+        DatasetPreprocessingConfig(
+            total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                policy="ratio_to_total"
+            ),
+            site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata"),
+        )
+    )
+    assert plan.stage_order == (
+        "missing_data",
+        "total_protein_correction",
+        "site_matrix",
+    )
+
+
 def test_dataset_preprocessor_applies_total_protein_correction_ratio_policy() -> None:
     phospho = _phospho()
     site_metadata = _site_metadata()
@@ -253,6 +270,81 @@ def test_dataset_preprocessor_applies_total_protein_correction_ratio_policy() ->
     pdt.assert_frame_equal(preprocessed.phospho, expected)
     assert preprocessed.site_metadata is site_metadata
     assert preprocessed.total is total
+
+
+def test_dataset_preprocessor_builds_site_matrix_from_metadata_policy() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [2.0, 8.0, 5.0, 1.0],
+            "sample_b": [2.5, 8.5, 5.5, float("nan")],
+        },
+        index=pd.Index(
+            ["row_a", "row_b", "row_c", "row_d"],
+            name="input_row",
+        ),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14", "AKT1", "GSK3B"],
+            "site": ["Y182", "Y182", "T308", "S9"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "", "SEQ_D"],
+            "source_uid": ["UID_A", "UID_B", "UID_C", "UID_D"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+            )
+        ),
+    )
+
+    expected_phospho = pd.DataFrame(
+        {
+            "sample_a": [8.0],
+            "sample_b": [8.5],
+        },
+        index=pd.Index(["MAPK14;Y182;"], name="input_row"),
+    )
+    expected_site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["SEQ_B"],
+            "source_uid": ["UID_B"],
+        },
+        index=expected_phospho.index.copy(),
+    )
+
+    pdt.assert_frame_equal(preprocessed.phospho, expected_phospho)
+    pdt.assert_frame_equal(preprocessed.site_metadata, expected_site_metadata)
+
+
+def test_dataset_preprocessor_rejects_site_matrix_build_without_site_sequence() -> None:
+    phospho = _phospho()
+    site_metadata = _site_metadata().drop(columns=["site_sequence"])
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="site-matrix construction requires site_metadata columns: site_sequence",
+    ):
+        DatasetPreprocessor().run(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=None,
+            plan=PreprocessingPlan.from_config(
+                DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+                )
+            ),
+        )
 
 
 def test_dataset_preprocessor_rejects_correction_when_total_columns_mismatch() -> None:
@@ -381,6 +473,83 @@ def test_dataset_preprocessor_total_protein_correction_matches_legacy_donor_fixt
     )
 
     pdt.assert_frame_equal(preprocessed.phospho, expected)
+
+
+def test_dataset_preprocessor_site_matrix_build_matches_legacy_donor_fixture() -> None:
+    corrected_fixture = pd.read_csv(
+        ROOT / "tests_legacy" / "fixtures" / "r_reference" / "df_phospho_corrected.csv"
+    )
+    expected_matrix_fixture = pd.read_csv(
+        ROOT / "tests_legacy" / "fixtures" / "r_reference" / "mat_phospho_corrected.csv"
+    )
+    expected_input_fixture = pd.read_csv(
+        ROOT / "tests_legacy" / "fixtures" / "r_reference" / "phosr_input.csv"
+    )
+
+    corrected_cols = tuple(f"phospho_corrected_{position}" for position in range(1, 7))
+    phospho = corrected_fixture.loc[:, list(corrected_cols)].astype(float).copy()
+    phospho.index = pd.Index(
+        corrected_fixture.loc[:, "uid"].astype(str),
+        name="source_uid",
+    )
+
+    site_tokens = (
+        corrected_fixture.loc[:, "gene_p_site"]
+        .astype(str)
+        .str.split("_", n=1, expand=True)
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": corrected_fixture.loc[:, "gene_names"].astype(str).tolist(),
+            "site": site_tokens.loc[:, 1].astype(str).tolist(),
+            "site_sequence": corrected_fixture.loc[:, "centralized_sequence"]
+            .astype(str)
+            .tolist(),
+        },
+        index=phospho.index.copy(),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+            )
+        ),
+    )
+
+    expected_phospho = (
+        expected_matrix_fixture.set_index(expected_matrix_fixture.columns[0])
+        .loc[:, list(corrected_cols)]
+        .astype(float)
+    )
+    expected_phospho.index = pd.Index(
+        expected_phospho.index.astype(str), name="source_uid"
+    )
+    expected_site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": expected_input_fixture.loc[:, "gene_names"]
+            .astype(str)
+            .tolist(),
+            "site": expected_input_fixture.loc[:, "p_site"].astype(str).tolist(),
+            "site_sequence": expected_input_fixture.loc[:, "centralized_sequence"]
+            .astype(str)
+            .tolist(),
+        },
+        index=pd.Index(
+            expected_input_fixture.loc[:, "site_id"].astype(str),
+            name="source_uid",
+        ),
+    )
+
+    pdt.assert_frame_equal(preprocessed.phospho, expected_phospho)
+    pdt.assert_frame_equal(
+        preprocessed.site_metadata.loc[:, ["gene_symbol", "site", "site_sequence"]],
+        expected_site_metadata,
+    )
 
 
 def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:

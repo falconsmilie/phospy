@@ -30,7 +30,8 @@ class DatasetBuildExecutor:
     """Construct `AnalysisReadyPhosphoDataset` from interpreted builder input.
 
     Default policy uses the identity transformer, which is a pass-through
-    establisher for already-prepared quantitative matrices.
+    establisher for already-prepared quantitative matrices after internal
+    preprocessing stages (including optional site-matrix construction).
     """
 
     def __init__(

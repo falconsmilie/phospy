@@ -110,13 +110,18 @@ Current supported policies:
   preprocessing. This policy requires `total` input, exact
   `total.columns == phospho.columns`, and complete
   `site_metadata.gene_symbol` vs `total.index` matching.
-- `site_matrix.policy="as_input"` (required in supported lane).
+- `site_matrix.policy="as_input"` (default): preserve interpreted phospho/site rows.
+- `site_matrix.policy="build_from_metadata"`: construct site-matrix-ready rows
+  from `site_metadata.gene_symbol`, `site_metadata.site`, and
+  `site_metadata.site_sequence` after upstream missing-data and
+  total/protein-correction stages. This stage drops rows with missing
+  `site_sequence` or incomplete phospho values, resolves duplicate constructed
+  site IDs by retaining the row with strongest mean signal, and rewrites
+  `dataset.phospho`/`dataset.site_metadata` to the constructed site IDs.
 - `comparisons.policy="none"` (required in supported lane).
 
-Reserved but currently unsupported policies are intentionally explicit and fail
-validation in the public builder lane:
+Reserved but currently unsupported policy:
 
-- `site_matrix.policy="build_from_metadata"`
 - `comparisons.policy="sample_metadata_pairs"`
 
 ## Final Dataset Boundary

@@ -9,6 +9,7 @@ from phospy import (
     DatasetBuildRequest,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
+    DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
     Organism,
     ReferencePreset,
@@ -218,6 +219,62 @@ def test_dataset_builder_supports_row_median_missing_data_preprocessing_policy()
     ]
     assert built.phospho.isna().to_numpy().sum() == 0
     assert built.phospho.loc[original_index[0], phospho.columns[0]] == expected_imputed
+
+
+def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0, 3.0],
+            "sample_b": [1.5, 2.5, float("nan")],
+        },
+        index=pd.Index(["row_a", "row_b", "row_c"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14", "AKT1"],
+            "site": ["Y182", "Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+            ),
+        )
+    )
+
+    assert built.phospho.index.tolist() == ["MAPK14;Y182;"]
+    assert built.phospho.iloc[0, 0] == pytest.approx(2.0)
+    assert built.phospho.iloc[0, 1] == pytest.approx(2.5)
+    assert built.site_metadata.index.tolist() == ["MAPK14;Y182;"]
+    assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"] == "SEQ_B"
+
+
+def test_dataset_builder_rejects_site_matrix_build_without_site_sequence_column() -> (
+    None
+):
+    phospho = load_rat_l6_phospho().head(4).copy(deep=True)
+    site_metadata = site_metadata_for(phospho).drop(columns=["site_sequence"])
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="site-matrix construction requires site_metadata columns: site_sequence",
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                preprocessing_config=DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+                ),
+            )
+        )
 
 
 def test_dataset_builder_default_forbid_policy_keeps_missingness_strict() -> None:

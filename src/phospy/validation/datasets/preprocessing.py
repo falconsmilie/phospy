@@ -9,7 +9,6 @@ from phospy.api.configs import (
     DATASET_MISSING_DATA_POLICY_FORBID,
     DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
     DATASET_SITE_MATRIX_POLICIES,
-    DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES,
     DatasetComparisonBuildingConfig,
     DatasetMissingDataConfig,
@@ -112,11 +111,6 @@ class DatasetPreprocessingConfigValidator:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.site_matrix.policy "
                 f"must be one of: {supported}"
-            )
-        if policy != DATASET_SITE_MATRIX_POLICY_AS_INPUT:
-            raise PhosPyInputError(
-                "dataset build request preprocessing_config.site_matrix.policy is not "
-                "supported in the current public builder lane"
             )
 
     def _validate_comparisons(self, config: DatasetComparisonBuildingConfig) -> None:

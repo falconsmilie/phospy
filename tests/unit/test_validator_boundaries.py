@@ -276,7 +276,7 @@ def test_dataset_build_request_requires_total_for_ratio_total_protein_correction
         DatasetBuildRequestValidator().run(request)
 
 
-def test_dataset_build_request_rejects_unsupported_site_matrix_policy() -> None:
+def test_dataset_build_request_allows_site_matrix_build_from_metadata_policy() -> None:
     request = DatasetBuildRequest(
         phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
         site_metadata=pd.DataFrame(
@@ -291,11 +291,8 @@ def test_dataset_build_request_rejects_unsupported_site_matrix_policy() -> None:
             site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
         ),
     )
-    with pytest.raises(
-        PhosPyInputError,
-        match="site_matrix.policy is not supported",
-    ):
-        DatasetBuildRequestValidator().run(request)
+    validated = DatasetBuildRequestValidator().run(request)
+    assert validated is request
 
 
 def test_dataset_build_request_rejects_unsupported_comparison_building_policy() -> None:
