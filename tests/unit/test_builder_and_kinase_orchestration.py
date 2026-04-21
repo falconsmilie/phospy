@@ -323,7 +323,6 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
         site_sequences=bundle.site_sequences,
         scoring_site_index=request.dataset.phospho.index.copy(),
         activity_phospho_matrix=request.dataset.phospho.copy(deep=True),
-        uses_bundled_reference=True,
         execution_config=_resolved_kinase_execution_config(request),
     )
     expected = KinaseWorkflowResult(

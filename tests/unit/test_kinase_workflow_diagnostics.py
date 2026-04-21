@@ -111,7 +111,6 @@ def _resolved_request(
         activity_phospho_matrix=dataset.phospho.loc[scoring_site_index, :].copy(
             deep=True
         ),
-        uses_bundled_reference=False,
         execution_config=execution_config,
     )
 

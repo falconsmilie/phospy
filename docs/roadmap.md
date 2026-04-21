@@ -41,8 +41,8 @@ Audit reference:
 - `SCI-GAP-01`: profile missing-value strategy (`strict` + `median_skipna`) -
   completed
 - `SCI-GAP-12`: core kinase downstream scoring/prediction parity restoration -
-  completed (legacy-grade L6 ranking/candidate/replay gates restored in rewrite
-  parity suite)
+  completed (L6 ranking/candidate/replay gates are enforced in rewrite-owned
+  parity lanes)
 - `SCI-GAP-05`: adaptive ensemble prediction lane - completed
 - `SCI-GAP-06`: signalome clustering + module-count diagnostics - completed
 - `SCI-GAP-08`: weighted-top assignment policy + fractional module shares -

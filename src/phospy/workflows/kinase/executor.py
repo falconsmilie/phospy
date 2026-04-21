@@ -31,10 +31,6 @@ from phospy.prediction.scoring import (
     combine_profile_and_motif_scores,
     select_downstream_score_matrix,
 )
-from phospy.references.resources import (
-    load_bundled_motif_scores,
-    load_bundled_motif_sizes,
-)
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
@@ -106,19 +102,13 @@ class KinaseWorkflowExecutor:
         # - motif_scores
         # - weights
         include_diagnostic_tables = config.include_diagnostic_scoring_tables
-        use_adaptive_parity_scoring = (
-            config.prediction_mode == KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE
-            and request.uses_bundled_reference
-        )
-        scoring_min_substrates = (
-            1 if use_adaptive_parity_scoring else int(config.scoring_min_substrates)
-        )
+        scoring_min_substrates = int(config.scoring_min_substrates)
         scoring_phospho = request.dataset.phospho.loc[request.scoring_site_index, :]
         profile_build = build_kinase_profiles(
             phospho=scoring_phospho,
             kinase_substrate_map=request.kinase_substrate_map,
             min_substrates=scoring_min_substrates,
-            allow_single_substrate_profiles=use_adaptive_parity_scoring,
+            allow_single_substrate_profiles=False,
             profile_missing_value_strategy=config.profile_missing_value_strategy,
         )
         if profile_build.profile_matrix.empty:
@@ -144,7 +134,6 @@ class KinaseWorkflowExecutor:
             scoring_phospho=scoring_phospho,
             motif_kinase_substrate_map=motif_kinase_substrate_map,
             sequence_series=sequence_series,
-            prefer_bundled_tables=use_adaptive_parity_scoring,
         )
         try:
             combined_scores, weights = combine_profile_and_motif_scores(
@@ -152,7 +141,7 @@ class KinaseWorkflowExecutor:
                 profile_scores=profile_scores,
                 motif_sizes=motif_result.motif_sizes,
                 profile_sizes=profile_build.substrate_counts.astype(float),
-                allow_profile_only_fallback=not use_adaptive_parity_scoring,
+                allow_profile_only_fallback=True,
                 emit_weights=include_diagnostic_tables,
             )
         except ValueError as exc:
@@ -190,35 +179,7 @@ class KinaseWorkflowExecutor:
         scoring_phospho: pd.DataFrame,
         motif_kinase_substrate_map: pd.DataFrame,
         sequence_series: pd.Series,
-        prefer_bundled_tables: bool,
     ) -> MotifScoringResult:
-        if prefer_bundled_tables and request.uses_bundled_reference:
-            motif_scores = load_bundled_motif_scores(request.references.organism)
-            motif_sizes = load_bundled_motif_sizes(request.references.organism)
-            if motif_scores is not None and motif_sizes is not None:
-                missing_sites = scoring_phospho.index.difference(motif_scores.index)
-                if missing_sites.empty:
-                    min_motif_size = int(scoring_min_substrates)
-                    eligible_sizes = motif_sizes.loc[
-                        motif_sizes.astype(float) >= float(min_motif_size)
-                    ].astype(float)
-                    selected_kinases = [
-                        kinase
-                        for kinase in motif_scores.columns.astype(str)
-                        if kinase in set(eligible_sizes.index.astype(str))
-                    ]
-                    aligned_scores = motif_scores.loc[
-                        scoring_phospho.index,
-                        selected_kinases,
-                    ]
-                    selected_sizes = eligible_sizes.loc[selected_kinases]
-                    selected_sizes.index.name = "kinase"
-                    return MotifScoringResult(
-                        motif_scores=aligned_scores.astype(float),
-                        motif_sizes=selected_sizes.astype(float),
-                        sequence_windows=sequence_series.loc[scoring_phospho.index],
-                    )
-
         motif_frequency_matrices, motif_sizes = build_motif_library(
             kinase_substrate_map=motif_kinase_substrate_map,
             site_sequences=sequence_series,

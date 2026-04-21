@@ -136,6 +136,9 @@ Optional means contract-optional, not always absent.
 In the default supported kinase lane, scoring populates `profile_scores` and
 `combined_scores`; diagnostic `motif_scores` and `weights` are written only when
 `scoring_config.include_diagnostic_scoring_tables=True`.
+Scoring semantics are upstream-stage stable: they are determined by dataset +
+resolved references + scoring config, and are not redefined by prediction mode
+or reference input provenance (preset vs equivalent explicit bundle).
 
 ## Optional Output Semantics
 

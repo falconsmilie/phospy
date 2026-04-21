@@ -28,11 +28,11 @@ The parity suite currently protects rewrite-era parity families for:
 - prediction-science parity on the fragile-support rewrite fixture lane
 - kinase workflow parity on the supported L6 rewrite lane
 - full promoted L6 downstream prediction/scoring parity against rewrite-owned
-  promoted donor references (`profile_scores`, `combined_scores`, `weights`,
+  promoted reference tables (`profile_scores`, `combined_scores`, `weights`,
   candidate substrates, ranking/top-k summaries)
-- legacy-grade release gates for the core kinase lane, including strict
-  candidate overlap, ranking agreement thresholds, and replay-surface
-  agreement (no permissive donor-similarity fallback in this lane)
+- release gates for the core kinase lane, including strict candidate overlap,
+  ranking agreement thresholds, and replay-surface agreement in rewrite-owned
+  fixture lanes
 - adaptive prediction parity from promoted adaptive-sampling fixtures, executed
   in both supported rewrite policy lanes:
   `adaptive_policy="stable"` (default lane) and
@@ -73,9 +73,9 @@ parity gates pass:
 - `tests/parity/test_l6_prediction_parity.py`
 - `tests/parity/test_adaptive_replay_parity.py`
 
-These gates enforce legacy-grade downstream behavior (candidate selection,
-ranking/top-k agreement, and adaptive replay surfaces) against promoted donor
-fixtures.
+These gates enforce downstream behavior (candidate selection, ranking/top-k
+agreement, and adaptive replay surfaces) against promoted rewrite fixture
+references.
 
 ## Rewrite-owned parity reporting
 

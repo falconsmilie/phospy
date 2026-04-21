@@ -277,6 +277,11 @@ class KinaseScoringConfig:
     `min_substrates` is constrained to the public scoring support floor used by
     the supported rewrite contract.
 
+    Supported scoring semantics are stage-pure: score generation is determined
+    only by analysis-ready dataset values, resolved reference content, and this
+    explicit scoring configuration. Prediction mode and reference input
+    provenance (preset vs explicit bundle) do not redefine scoring behavior.
+
     `include_diagnostic_scoring_tables` controls publication of non-authoritative
     diagnostic scoring outputs (`motif_scores`, `weights`). The authoritative
     downstream lane (`combined_scores` with profile fallback) is always computed.

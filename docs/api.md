@@ -210,6 +210,21 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 `"adaptive_ensemble"` is part of the normal supported contract and is expected
 to work after a standard package install.
 
+Kinase scoring authority in the supported lane:
+
+- Scoring is a function of:
+  - `request.dataset` (analysis-ready phospho matrix)
+  - resolved `ReferenceBundle` content (`kinase_substrate_map`, `site_sequences`)
+  - `request.scoring_config`
+- Scoring is not changed by:
+  - `prediction_config.mode` (`deterministic_ranking` vs `adaptive_ensemble`)
+  - whether references were supplied via `ReferencePreset` or explicit
+    `ReferenceBundle` when both resolve to equivalent reference content
+- Adaptive prediction is downstream of scoring and consumes the same authoritative
+  scoring outputs as deterministic prediction.
+- Adaptive-policy settings (`adaptive_policy`) are prediction-stage controls and
+  do not opt into a separate scoring contract.
+
 `SignalomeConfig` fields:
 
 - `substrate_support_cutoff`

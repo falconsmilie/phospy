@@ -37,6 +37,8 @@ phospy kinase \
 
 `--prediction-mode adaptive_ensemble` is supported in the normal CLI lane and
 works after standard package installation with no extra dependency setup.
+Prediction mode changes only prediction-stage behavior; it does not redefine
+upstream kinase scoring semantics.
 
 ### Signalome Workflow
 
@@ -153,6 +155,9 @@ Notes:
 
 - In the default supported kinase lane, scoring emits
   `profile_scores` and `combined_scores`.
+- These scoring outputs are determined by the analysis-ready dataset, resolved
+  references, and scoring config; they do not change based on prediction mode
+  or whether references were passed as a preset vs an equivalent explicit bundle.
 - Diagnostic scoring tables (`motif_scores`, `weights`) are emitted only when
   `include_diagnostic_scoring_tables=True` is set in the scoring config.
 - Optional entries above are contract-level optional fields that may be absent in

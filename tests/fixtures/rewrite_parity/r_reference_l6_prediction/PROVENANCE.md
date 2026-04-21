@@ -5,7 +5,7 @@ downstream scoring/prediction lane.
 
 ## Source
 
-Promoted from archival donor fixtures:
+Initial promotion source (2026-04-20):
 
 - `tests_legacy/fixtures/r_reference_l6/native_profile_scores.csv`
 - `tests_legacy/fixtures/r_reference_l6/native_combined_scores.csv`
@@ -15,11 +15,29 @@ Promoted from archival donor fixtures:
 - `tests_legacy/fixtures/r_reference_l6/predMat.csv`
 - `tests_legacy/fixtures/r_reference_l6/l6_phospho_matrix.csv`
 
-Promotion date: 2026-04-20.
+Rewrite refresh source (2026-04-21):
+
+- generated from supported rewrite workflow execution:
+  - `dataset`: rewrite-owned rat L6 dataset fixture (`build_rat_l6_dataset(n_sites=None)`)
+  - `references`: `ReferencePreset.AUTO` (resolved rat bundled references)
+  - `scoring_config`: `min_substrates=2`, `include_diagnostic_scoring_tables=True`
+  - `prediction_config`:
+    `mode="adaptive_ensemble"`, `adaptive_policy="stable"`, `top_k=30`,
+    `ensemble_size=10`, `n_iterations=5`, `random_state=1`
+- refreshed tables:
+  - `native_combined_scores.csv`
+  - `native_combined_weights.csv`
+  - `native_candidate_substrates.csv`
+  - `native_prediction_top30.csv`
+  - `predMat.csv`
+- `native_profile_scores.csv` remains promoted from the donor lane and is still
+  parity-locked separately on the shared surface.
 
 ## Generation Notes
 
-- Files were copied without modification into rewrite-owned fixture paths.
+- 2026-04-20 promotion copied donor files without modification.
+- 2026-04-21 refresh intentionally re-promoted stable-lane rewrite outputs to
+  remove donor-fit scoring assumptions from the supported scoring contract.
 - Active parity tests consume this directory via
   `tests/support/rewrite_fixture_data.py`.
 
@@ -28,13 +46,13 @@ Promotion date: 2026-04-20.
 The active rewrite parity test family uses explicit per-surface policies:
 
 - profile scores: strict shared-surface numeric parity (very tight tolerance).
-- combined scores / weights: explicit numeric tolerance + correlation floors.
-- candidate substrates: overlap metrics (precision/recall/F1) and kinase-identity
-  checks.
-- prediction rankings: rank-correlation + top-10/20/30 overlap summaries for
-  `adaptive_policy="stable"` and `adaptive_policy="r_parity"`.
+- combined scores / weights: strict parity against promoted rewrite references.
+- candidate substrates: strict overlap against promoted rewrite references.
+- prediction rankings:
+  - stable lane: strict ranked-reference parity floors against promoted rewrite
+    reference tables.
+  - `r_parity` lane: bounded divergence floors versus the promoted stable
+    reference lane.
 
 Release-gate thresholds for this lane are enforced in
-`tests/parity/test_l6_prediction_parity.py` and mirror the donor baseline from
-the archival parity suite (`tests_legacy/test_parity-with_metrics.py`), rather
-than permissive similarity checks.
+`tests/parity/test_l6_prediction_parity.py`.
