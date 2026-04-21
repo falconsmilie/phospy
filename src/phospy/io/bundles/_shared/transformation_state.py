@@ -10,6 +10,9 @@ from phospy.io.bundles._shared.primitives import (
     require_mapping,
     require_str,
 )
+from phospy.transformations._authority import (
+    _bundle_reconstruction_establishment_authority,
+)
 from phospy.transformations.models import (
     MatrixTransformationState,
     TransformationKind,
@@ -53,6 +56,7 @@ def transformation_state_from_payload(
     return establish_transformation_state(
         state,
         established_via="phospy.io.bundles._shared.transformation_state",
+        _authority=_bundle_reconstruction_establishment_authority(),
     )
 
 

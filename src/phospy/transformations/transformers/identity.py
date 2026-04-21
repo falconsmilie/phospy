@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.transformations._authority import (
+    _identity_transformer_establishment_authority,
+)
 from phospy.transformations.contracts import TransformationResult
 from phospy.transformations.models import TransformationState
 
@@ -25,5 +28,6 @@ class IdentityTransformer:
             total=total,
             state=TransformationState.established_raw(
                 has_total_matrix=total is not None,
+                _authority=_identity_transformer_establishment_authority(),
             ),
         )

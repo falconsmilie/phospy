@@ -11,6 +11,9 @@ from phospy.errors.transformations import (
     TransformationStateEstablishmentError,
     TransformerExecutionError,
 )
+from phospy.transformations._authority import (
+    _dataset_resolver_establishment_authority,
+)
 from phospy.transformations.contracts import Transformer
 from phospy.transformations.models import (
     TransformationState,
@@ -85,6 +88,7 @@ class DatasetTransformationResolver:
         established_state = establish_transformation_state(
             transformed.state,
             established_via=transformer_source,
+            _authority=_dataset_resolver_establishment_authority(),
         )
         return ResolvedTransformation(
             phospho=transformed.phospho,

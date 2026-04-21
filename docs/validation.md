@@ -82,8 +82,8 @@ established through a supported PhosPy path (builder/resolver transformer lane
 or supported bundle reconstruction lane).
 Direct caller-side establishment attempts are rejected at construction time:
 `TransformationState.established_raw(...)` and
-`establish_transformation_state(...)` only accept supported internal caller
-lanes.
+`establish_transformation_state(...)` only accept approved internal
+establishment authority from supported lanes.
 
 In the current public builder lane, this establishment path is intentionally
 narrow: builder execution establishes pass-through `linear` state only.

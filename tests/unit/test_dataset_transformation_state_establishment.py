@@ -14,6 +14,9 @@ from phospy.errors.transformations import (
     TransformerExecutionError,
 )
 from phospy.errors.validation import TransformationValidationError
+from phospy.io.bundles._shared.transformation_state import (
+    transformation_state_from_payload,
+)
 from phospy.references.models import Organism
 from phospy.transformations.contracts import TransformationResult
 from phospy.transformations.models import (
@@ -223,7 +226,19 @@ def test_direct_establishment_function_call_is_rejected() -> None:
     ):
         establish_transformation_state(
             TransformationState.raw(has_total_matrix=False),
-            established_via="tests.unit.test_dataset_transformation_state_establishment",
+            established_via="phospy.datasets.builders.transformation_resolver",
+        )
+
+
+def test_fake_authority_object_is_rejected_even_with_supported_source() -> None:
+    with pytest.raises(
+        InvalidTransformationStateError,
+        match="can be established only through supported PhosPy",
+    ):
+        establish_transformation_state(
+            TransformationState.raw(has_total_matrix=False),
+            established_via="phospy.datasets.builders.transformation_resolver",
+            _authority=object(),
         )
 
 
@@ -244,3 +259,19 @@ def test_identity_transformer_is_strict_passthrough_establisher() -> None:
     pdt.assert_frame_equal(result.total, total)
     assert result.state.is_established
     assert result.state.kind.value == "linear"
+
+
+def test_bundle_reconstruction_lane_establishes_state() -> None:
+    state = transformation_state_from_payload(
+        {
+            "phospho": {
+                "kind": "linear",
+                "transformed": False,
+                "established_by": "bundle.fixture",
+            },
+            "total": None,
+        }
+    )
+
+    assert state.is_established
+    assert state.established_via == "phospy.io.bundles._shared.transformation_state"
