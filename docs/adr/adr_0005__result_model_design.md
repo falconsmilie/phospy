@@ -6,7 +6,6 @@
 - **Title:** Result Model Design for PhosPy
 - **Status:** Accepted
 - **Date:** 2026-04-16
-- **Authors:** OpenAI ChatGPT with project direction from the PhosPy maintainer
 - **Decision Type:** Architecture Decision Record
 
 ## Abstract
