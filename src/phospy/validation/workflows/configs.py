@@ -13,6 +13,7 @@ from phospy.api.configs import (
     SIGNALOME_KINASE_NETWORK_POLICIES,
     SIGNALOME_MODULE_COUNT_FLOOR,
     SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICIES,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -177,6 +178,17 @@ class SignalomeConfigValidator:
             allowed_policies = ", ".join(sorted(SIGNALOME_ASSIGNMENT_POLICIES))
             raise WorkflowValidationError(
                 "signalome workflow request config.assignment_policy "
+                f"must be one of: {allowed_policies}"
+            )
+        if (
+            config.score_preconditioning_policy
+            not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES
+        ):
+            allowed_policies = ", ".join(
+                sorted(SIGNALOME_SCORE_PRECONDITIONING_POLICIES)
+            )
+            raise WorkflowValidationError(
+                "signalome workflow request config.score_preconditioning_policy "
                 f"must be one of: {allowed_policies}"
             )
         if config.module_count is not None:

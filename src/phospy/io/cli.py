@@ -20,6 +20,8 @@ from phospy.api.configs import (
     SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
     SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -137,6 +139,18 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Signalome assignment policy: cutoff-based binary support or "
             "weighted top-kinase fractional support."
+        ),
+    )
+    signalome.add_argument(
+        "--score-preconditioning-policy",
+        default=SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+        choices=[
+            SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+            SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+        ],
+        help=(
+            "Downstream score preconditioning policy: allow dropped all-missing "
+            "rows with diagnostics, or fail when any drop would occur."
         ),
     )
     return parser
@@ -299,6 +313,7 @@ def _run_signalome(args: argparse.Namespace) -> None:
                 network_correlation_threshold=args.network_correlation_threshold,
                 network_policy=args.network_policy,
                 assignment_policy=args.assignment_policy,
+                score_preconditioning_policy=args.score_preconditioning_policy,
             ),
         )
     )

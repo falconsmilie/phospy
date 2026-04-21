@@ -13,15 +13,16 @@ from phospy import (
     SignalomeConfig,
     SignalomeWorkflowRequest,
 )
-from phospy.api.configs import SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+from phospy.api.configs import (
+    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+)
 from phospy.errors import WorkflowBoundaryError
 from phospy.errors.workflows import WorkflowStageError
 from phospy.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
     SITE_CLUSTER_COLUMN,
-)
-from phospy.signalomes.models import (
-    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
 )
 from phospy.workflows.signalome.constants import (
     SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM,
@@ -30,6 +31,7 @@ from phospy.workflows.signalome.constants import (
     SIGNALOME_EXECUTOR_NETWORK_SEAM,
     SIGNALOME_INTERPRETER_KINASE_OVERLAP_SEAM,
     SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM,
+    SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM,
     SIGNALOME_INTERPRETER_SITE_ALIGNMENT_SEAM,
     SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA,
 )
@@ -131,6 +133,7 @@ def _execution_config(config: SignalomeConfig) -> ResolvedSignalomeExecutionConf
         network_correlation_threshold=float(config.network_correlation_threshold),
         network_policy=config.network_policy,
         assignment_policy=config.assignment_policy,
+        score_preconditioning_policy=config.score_preconditioning_policy,
         module_selection_primary_threshold=float(
             config.module_selection_primary_correlation_threshold
         ),
@@ -398,6 +401,9 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
         interpreted.execution_config.assignment_policy
         == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
     )
+    assert interpreted.execution_config.score_preconditioning_policy == (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+    )
     assert interpreted.execution_config.requested_module_count is None
     assert interpreted.execution_config.module_selection_primary_threshold == (
         pytest.approx(0.5)
@@ -494,6 +500,158 @@ def test_interpreter_reports_zero_drop_preconditioning_diagnostics() -> None:
     assert interpreted.score_preconditioning_diagnostics.retained_row_count == 2
     assert interpreted.score_preconditioning_diagnostics.policy == (
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+    )
+
+
+def test_interpreter_respects_explicit_allow_and_report_preconditioning_policy() -> (
+    None
+):
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.2, 0.8],
+            [0.7, 0.3],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [float("nan"), float("nan")],
+            [1.0, float("nan")],
+            [2.0, 3.0],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(
+            substrate_support_cutoff=0.5,
+            score_preconditioning_policy=(
+                SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+            ),
+        ),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    assert interpreted.downstream_score_matrix.index.tolist() == [
+        "P2;S2;",
+        "P3;S3;",
+    ]
+    assert interpreted.score_preconditioning_diagnostics.input_row_count == 3
+    assert (
+        interpreted.score_preconditioning_diagnostics.dropped_all_missing_row_count == 1
+    )
+    assert interpreted.score_preconditioning_diagnostics.retained_row_count == 2
+    assert interpreted.score_preconditioning_diagnostics.policy == (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+    )
+
+
+def test_interpreter_fails_when_error_on_drop_policy_detects_all_missing_rows() -> None:
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.2, 0.8],
+            [0.7, 0.3],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [float("nan"), float("nan")],
+            [1.0, float("nan")],
+            [2.0, 3.0],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(
+            substrate_support_cutoff=0.5,
+            score_preconditioning_policy=(
+                SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+            ),
+        ),
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        SignalomeWorkflowInterpreter().run(request)
+
+    error = exc_info.value
+    message = str(error)
+    assert error.seam == SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM
+    assert error.details["aligned_score_sites"] == 3
+    assert error.details["aligned_score_kinases"] == 2
+    assert error.details["dropped_all_missing_row_count"] == 1
+    assert error.details["retained_row_count"] == 2
+    assert error.details["score_preconditioning_policy"] == (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+    )
+    assert "dropped_all_missing_row_count=1" in message
+    assert (
+        "score_preconditioning_policy="
+        f"{SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP}"
+    ) in message
+
+
+def test_interpreter_allows_error_on_drop_policy_when_no_rows_require_drop() -> None:
+    site_ids = ["P1;S1;", "P2;S2;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.2, 0.8],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, float("nan")],
+            [2.0, 3.0],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(
+            substrate_support_cutoff=0.5,
+            score_preconditioning_policy=(
+                SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+            ),
+        ),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    assert interpreted.downstream_score_matrix.index.tolist() == site_ids
+    assert interpreted.score_preconditioning_diagnostics.input_row_count == 2
+    assert (
+        interpreted.score_preconditioning_diagnostics.dropped_all_missing_row_count == 0
+    )
+    assert interpreted.score_preconditioning_diagnostics.retained_row_count == 2
+    assert interpreted.score_preconditioning_diagnostics.policy == (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
     )
 
 

@@ -42,7 +42,8 @@ class SignalomeWorkflowResult:
     the supported signalome executor lane. It includes focal-kinase rows with
     linked-kinase metadata, regulated module IDs, and selected site-membership
     rows with stable `site_order`. `score_preconditioning_diagnostics` reports
-    downstream-score row preconditioning counts and the active policy.
+    downstream-score row preconditioning counts and the active
+    `SignalomeConfig.score_preconditioning_policy`.
     """
 
     dataset: AnalysisReadyPhosphoDataset

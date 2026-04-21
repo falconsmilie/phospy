@@ -113,6 +113,7 @@ def test_signalome_config_snapshot_accepts_legacy_cutoff_payload() -> None:
         snapshot.signalome_config.assignment_policy
         == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
     )
+    assert snapshot.signalome_config.score_preconditioning_policy == "allow_and_report"
 
 
 def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(

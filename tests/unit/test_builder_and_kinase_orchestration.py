@@ -131,6 +131,7 @@ def _resolved_signalome_execution_config(
         network_correlation_threshold=float(config.network_correlation_threshold),
         network_policy=config.network_policy,
         assignment_policy=config.assignment_policy,
+        score_preconditioning_policy=config.score_preconditioning_policy,
         module_selection_primary_threshold=float(
             config.module_selection_primary_correlation_threshold
         ),

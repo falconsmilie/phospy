@@ -5,13 +5,17 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from phospy.api.configs import (
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+    SignalomeScorePreconditioningPolicy,
+)
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.prediction.scoring import select_downstream_score_matrix
 from phospy.signalomes.constants import KINASE_COLUMN, PROTEIN_COLUMN, SITE_ID_COLUMN
 from phospy.signalomes.models import (
-    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SignalomeScorePreconditioningDiagnostics,
 )
 from phospy.workflows.signalome.constants import (
@@ -78,11 +82,14 @@ class SignalomeWorkflowInterpreter:
         aligned_downstream_score_matrix = resolved_downstream_score_matrix.loc[
             aligned_site_index, aligned_kinase_index
         ]
+        execution_config = self._resolve_execution_config(request)
         (
             preconditioned_downstream_score_matrix,
             score_preconditioning_diagnostics,
-        ) = self._precondition_downstream_score_matrix(aligned_downstream_score_matrix)
-        execution_config = self._resolve_execution_config(request)
+        ) = self._precondition_downstream_score_matrix(
+            aligned_downstream_score_matrix,
+            policy=execution_config.score_preconditioning_policy,
+        )
         site_to_protein = self._resolve_site_to_protein(
             dataset=request.kinase_result.dataset,
             site_index=aligned_prediction_matrix.index,
@@ -109,6 +116,7 @@ class SignalomeWorkflowInterpreter:
             ),
             network_policy=request.config.network_policy,
             assignment_policy=request.config.assignment_policy,
+            score_preconditioning_policy=request.config.score_preconditioning_policy,
             module_selection_primary_threshold=float(
                 request.config.module_selection_primary_correlation_threshold
             ),
@@ -249,10 +257,13 @@ class SignalomeWorkflowInterpreter:
     def _precondition_downstream_score_matrix(
         self,
         score_matrix: pd.DataFrame,
+        *,
+        policy: SignalomeScorePreconditioningPolicy,
     ) -> tuple[pd.DataFrame, SignalomeScorePreconditioningDiagnostics]:
         """Prepare aligned upstream scores for score-driven signalome stages.
 
-        All-missing rows are treated as unsupported evidence and removed.
+        All-missing rows are treated as unsupported evidence and handled by the
+        configured policy.
         Partially missing rows are retained for pairwise-complete correlation.
         """
         if score_matrix.empty:
@@ -262,6 +273,7 @@ class SignalomeWorkflowInterpreter:
                     input_row_count=0,
                     dropped_all_missing_row_count=0,
                     retained_row_count=0,
+                    policy=policy,
                 ),
             )
         score_values = score_matrix.to_numpy(dtype=float, copy=False)
@@ -287,7 +299,34 @@ class SignalomeWorkflowInterpreter:
             input_row_count=input_row_count,
             dropped_all_missing_row_count=dropped_all_missing_row_count,
             retained_row_count=retained_row_count,
+            policy=policy,
         )
+        if policy == SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP:
+            if dropped_all_missing_row_count > 0:
+                self._raise_boundary_error(
+                    seam=self._SCORE_PRECONDITIONING_SEAM,
+                    next_action=(
+                        "set config.score_preconditioning_policy='allow_and_report' "
+                        "to proceed with explicit row dropping, or ensure upstream "
+                        "downstream scores contain non-missing support for every "
+                        "interpreted site"
+                    ),
+                    aligned_score_sites=input_row_count,
+                    aligned_score_kinases=int(score_matrix.shape[1]),
+                    dropped_all_missing_row_count=dropped_all_missing_row_count,
+                    retained_row_count=retained_row_count,
+                    score_preconditioning_policy=policy,
+                )
+            return score_matrix, diagnostics
+        if policy != SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT:
+            self._raise_boundary_error(
+                seam=self._SCORE_PRECONDITIONING_SEAM,
+                next_action=(
+                    "use a supported score preconditioning policy from "
+                    "SignalomeConfig.score_preconditioning_policy"
+                ),
+                score_preconditioning_policy=policy,
+            )
         if supported_row_mask.all():
             return score_matrix, diagnostics
         return score_matrix.iloc[supported_row_mask, :], diagnostics
@@ -298,12 +337,13 @@ class SignalomeWorkflowInterpreter:
         input_row_count: int,
         dropped_all_missing_row_count: int,
         retained_row_count: int,
+        policy: SignalomeScorePreconditioningPolicy,
     ) -> SignalomeScorePreconditioningDiagnostics:
         return SignalomeScorePreconditioningDiagnostics(
             input_row_count=int(input_row_count),
             dropped_all_missing_row_count=int(dropped_all_missing_row_count),
             retained_row_count=int(retained_row_count),
-            policy=SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+            policy=policy,
         )
 
     @staticmethod

@@ -235,6 +235,7 @@ Kinase scoring authority in the supported lane:
 - `network_correlation_threshold`
 - `network_policy` (`"positive_only"`, `"absolute_threshold"`, or `"signed"`)
 - `assignment_policy` (`"cutoff_binary"` or `"weighted_top"`)
+- `score_preconditioning_policy` (`"allow_and_report"` default, or `"error_on_drop"`)
 - `module_count` (`None` for automatic module-count selection)
 - `module_selection_primary_correlation_threshold`
 - `module_selection_fallback_correlation_threshold`
@@ -282,7 +283,8 @@ Kinase scoring authority in the supported lane:
 
 `score_preconditioning_diagnostics` fields:
 
-- `policy` (`"allow_and_report"` in the supported lane)
+- `policy` (`"allow_and_report"` or `"error_on_drop"` from
+  `SignalomeConfig.score_preconditioning_policy`)
 - `input_row_count` (aligned downstream-score rows before preconditioning)
 - `dropped_all_missing_row_count` (rows removed because all kinase scores are missing)
 - `retained_row_count` (rows retained for signalome score-driven stages)
@@ -363,11 +365,14 @@ Supported public lane (stable and recommended):
   keeps absolute correlations above threshold and emits signed edge
   correlations.
 - Downstream score missingness is part of the supported scientific contract:
-  all-missing score rows are preconditioned out of score-driven network inputs,
-  partially missing rows are retained, and infinite values remain invalid.
-- Preconditioning drop policy is explicit and stable in the supported lane:
-  signalome always allows dropped all-missing rows and reports the exact counts
-  via `result.score_preconditioning_diagnostics` (`policy="allow_and_report"`).
+  all-missing score rows are explicitly policy-governed preconditioning
+  candidates, partially missing rows are retained, and infinite values remain
+  invalid.
+- Preconditioning drop policy is caller-owned in the supported lane:
+  `score_preconditioning_policy="allow_and_report"` drops all-missing rows and
+  reports counts via `result.score_preconditioning_diagnostics`;
+  `score_preconditioning_policy="error_on_drop"` fails interpretation when any
+  all-missing row would be dropped.
 - Active parity regression for this lane is rewrite execution against committed
   rewrite-owned fixtures; no live `legacy_archive` module execution is part of
   the active parity gate.

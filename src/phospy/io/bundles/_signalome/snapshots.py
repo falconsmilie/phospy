@@ -50,6 +50,9 @@ class SignalomeWorkflowConfigSnapshot:
                 ),
                 "network_policy": str(self.signalome_config.network_policy),
                 "assignment_policy": str(self.signalome_config.assignment_policy),
+                "score_preconditioning_policy": str(
+                    self.signalome_config.score_preconditioning_policy
+                ),
                 "module_count": (
                     None
                     if self.signalome_config.module_count is None

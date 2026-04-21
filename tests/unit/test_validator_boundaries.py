@@ -732,6 +732,20 @@ def test_signalome_request_network_policy_fails_at_validator_boundary() -> None:
         SignalomeWorkflowValidator().run(request)
 
 
+def test_signalome_request_preconditioning_policy_fails_at_validator_boundary() -> None:
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(),
+        config=SignalomeConfig(
+            score_preconditioning_policy="invalid"  # type: ignore[arg-type]
+        ),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match="signalome workflow request config.score_preconditioning_policy",
+    ):
+        SignalomeWorkflowValidator().run(request)
+
+
 def test_signalome_request_module_count_policy_fails_at_validator_boundary() -> None:
     request = SignalomeWorkflowRequest(
         kinase_result=_kinase_result(),

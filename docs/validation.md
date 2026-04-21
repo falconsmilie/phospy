@@ -223,14 +223,21 @@ internally consistent reference tables.
 `SignalomeWorkflowInterpreter` preconditions the downstream score lane before
 execution:
 
-- rows with no finite kinase score support (all-missing rows) are excluded from
-  score-driven network correlation inputs
+- rows with no finite kinase score support (all-missing rows) are identified as
+  unsupported evidence for score-driven network correlation inputs
 - partially missing rows are retained and consumed with pairwise-complete
   correlation handling
 - prediction rows remain available for module assignment logic
-- drop policy is `allow_and_report`: non-zero dropped-row counts are surfaced in
-  `signalome_result.score_preconditioning_diagnostics` instead of causing a
-  boundary failure
+- drop policy is caller-owned via
+  `SignalomeConfig.score_preconditioning_policy`:
+  - `allow_and_report` (default): continue and surface dropped-row counts in
+    `signalome_result.score_preconditioning_diagnostics`
+  - `error_on_drop`: fail at the interpreter boundary when any all-missing row
+    would be dropped, with explicit policy/count details in the boundary error
+
+This policy is a scientific contract decision: it controls whether the effective
+score matrix used for signalome clustering/network stages may be narrower than
+the aligned upstream matrix.
 
 Interpreters/executors enforce seam-level scientific/runtime boundary checks and raise
 `WorkflowBoundaryError` with seam names, concrete counts, and `next_action` hints.

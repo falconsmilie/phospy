@@ -8,6 +8,11 @@ from typing import Literal
 import pandas as pd
 
 from phospy._frame_ownership import own_dataframe, own_optional_dataframe
+from phospy.api.configs import (
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+    SignalomeScorePreconditioningPolicy,
+)
 from phospy.errors.validation import PhosPyValidationError
 
 SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS = "correlation_thresholds"
@@ -16,8 +21,6 @@ SignalomeModuleSelectionStrategy = Literal[
     "correlation_thresholds",
     "explicit_module_count",
 ]
-SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT = "allow_and_report"
-SignalomeScorePreconditioningPolicy = Literal["allow_and_report"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,6 +184,7 @@ __all__ = [
     "SignalomeScorePreconditioningPolicy",
     "SignalomeModules",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT",
+    "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP",
     "default_signalome_score_preconditioning_diagnostics",
     "SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS",
     "SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT",

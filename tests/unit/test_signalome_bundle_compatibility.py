@@ -18,6 +18,7 @@ from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
 from phospy.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     SignalomeModuleSelectionDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
     default_signalome_score_preconditioning_diagnostics,
@@ -35,6 +36,9 @@ def test_signalome_snapshot_supports_legacy_cutoff_payload() -> None:
     assert (
         snapshot.signalome_config.assignment_policy
         == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+    )
+    assert snapshot.signalome_config.score_preconditioning_policy == (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
     )
 
 
@@ -86,6 +90,9 @@ def test_signalome_snapshot_round_trip_preserves_network_policy() -> None:
             network_correlation_threshold=0.7,
             network_policy="absolute_threshold",
             assignment_policy=SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+            score_preconditioning_policy=(
+                SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+            ),
         )
     )
 
@@ -100,6 +107,9 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
             "network_correlation_threshold": 0.73,
             "network_policy": "absolute_threshold",
             "assignment_policy": SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+            "score_preconditioning_policy": (
+                SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+            ),
             "module_count": 6,
             "module_selection_primary_correlation_threshold": 0.67,
             "module_selection_fallback_correlation_threshold": 0.23,
@@ -161,6 +171,25 @@ def test_score_preconditioning_diagnostics_payload_round_trip() -> None:
         input_row_count=10,
         dropped_all_missing_row_count=2,
         retained_row_count=8,
+    )
+
+    payload = signalome_score_preconditioning_diagnostics_to_payload(diagnostics)
+    restored = (
+        signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support(
+            payload,
+            scope="test",
+        )
+    )
+
+    assert restored == diagnostics
+
+
+def test_score_preconditioning_diagnostics_accepts_error_on_drop_policy() -> None:
+    diagnostics = SignalomeScorePreconditioningDiagnostics(
+        policy=SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+        input_row_count=10,
+        dropped_all_missing_row_count=0,
+        retained_row_count=10,
     )
 
     payload = signalome_score_preconditioning_diagnostics_to_payload(diagnostics)

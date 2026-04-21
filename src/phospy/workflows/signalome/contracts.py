@@ -7,7 +7,11 @@ from typing import Protocol
 
 import pandas as pd
 
-from phospy.api.configs import SignalomeAssignmentPolicy, SignalomeKinaseNetworkPolicy
+from phospy.api.configs import (
+    SignalomeAssignmentPolicy,
+    SignalomeKinaseNetworkPolicy,
+    SignalomeScorePreconditioningPolicy,
+)
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
@@ -25,6 +29,7 @@ class ResolvedSignalomeExecutionConfig:
     network_correlation_threshold: float
     network_policy: SignalomeKinaseNetworkPolicy
     assignment_policy: SignalomeAssignmentPolicy
+    score_preconditioning_policy: SignalomeScorePreconditioningPolicy
     module_selection_primary_threshold: float
     module_selection_fallback_threshold: float
     module_selection_max_clusters: int
@@ -41,7 +46,7 @@ class ResolvedSignalomeWorkflowRequest:
     upstream kinase prediction, after interpreter preconditioning of unsupported
     all-missing score rows. ``score_preconditioning_diagnostics`` surfaces the
     aligned input row count, dropped all-missing row count, retained row count,
-    and active drop policy.
+    and active `SignalomeConfig.score_preconditioning_policy`.
     """
 
     dataset: AnalysisReadyPhosphoDataset

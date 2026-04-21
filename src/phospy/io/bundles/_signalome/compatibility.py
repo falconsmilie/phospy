@@ -13,6 +13,8 @@ from phospy.api.configs import (
     SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT,
     SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
     SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICIES,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SignalomeConfig,
 )
 from phospy.errors.input import PhosPyInputError
@@ -24,7 +26,6 @@ from phospy.io.bundles._shared.primitives import (
 from phospy.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
     SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
-    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SignalomeClusterCandidateScore,
     SignalomeModuleSelectionDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
@@ -91,6 +92,20 @@ def signalome_config_from_payload_with_legacy_support(
         raise PhosPyInputError(
             f"{scope}.signalome_config.network_policy must be one of: {allowed}"
         )
+    score_preconditioning_policy_raw = payload.get("score_preconditioning_policy")
+    score_preconditioning_policy = (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+        if score_preconditioning_policy_raw is None
+        else require_str(
+            score_preconditioning_policy_raw,
+            field_name=f"{scope}.signalome_config.score_preconditioning_policy",
+        )
+    )
+    if score_preconditioning_policy not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES:
+        allowed = ", ".join(sorted(SIGNALOME_SCORE_PRECONDITIONING_POLICIES))
+        raise PhosPyInputError(
+            f"{scope}.signalome_config.score_preconditioning_policy must be one of: {allowed}"
+        )
     return SignalomeConfig(
         substrate_support_cutoff=require_float(
             substrate_support_cutoff,
@@ -102,6 +117,7 @@ def signalome_config_from_payload_with_legacy_support(
         ),
         network_policy=network_policy,  # type: ignore[arg-type]
         assignment_policy=assignment_policy,  # type: ignore[arg-type]
+        score_preconditioning_policy=score_preconditioning_policy,  # type: ignore[arg-type]
         module_count=module_count,
         module_selection_primary_correlation_threshold=require_float(
             payload.get("module_selection_primary_correlation_threshold")
@@ -287,10 +303,11 @@ def signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support
         ),
         field_name=f"{scope}.score_preconditioning_diagnostics.policy",
     )
-    if policy != SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT:
+    if policy not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES:
+        allowed = ", ".join(sorted(SIGNALOME_SCORE_PRECONDITIONING_POLICIES))
         raise PhosPyInputError(
-            f"{scope}.score_preconditioning_diagnostics.policy must be "
-            f"'{SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT}'"
+            f"{scope}.score_preconditioning_diagnostics.policy must be one of: "
+            f"{allowed}"
         )
     input_row_count = _require_int(
         diagnostics_payload.get("input_row_count"),

@@ -24,10 +24,13 @@ from phospy import (
     SignalomeWorkflow,
     SignalomeWorkflowRequest,
 )
-from phospy.errors import WorkflowValidationError
+from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_COLUMN,
     EXPANDED_SIGNALOME_ROW_KIND_SITE,
+)
+from phospy.workflows.signalome.constants import (
+    SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM,
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
@@ -363,3 +366,54 @@ def test_signalome_workflow_accepts_sparse_missing_combined_score_rows() -> None
         kinase_result.prediction_result.pred_mat.shape[0] - 5
     )
     assert result.score_preconditioning_diagnostics.policy == "allow_and_report"
+
+
+def test_signalome_workflow_rejects_sparse_missing_combined_rows_under_error_policy() -> (
+    None
+):
+    dataset = build_rat_l6_dataset(n_sites=260)
+    kinase_result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            activity_config=None,
+        )
+    )
+    combined_scores = kinase_result.scoring_result.combined_scores
+    assert combined_scores is not None
+    sparse_combined_scores = combined_scores.copy(deep=True)
+    sparse_combined_scores.iloc[:5, :] = float("nan")
+    sparse_kinase_result = KinaseWorkflowResult(
+        dataset=kinase_result.dataset,
+        references=kinase_result.references,
+        scoring_result=KinaseScoringResult(
+            profile_scores=kinase_result.scoring_result.profile_scores,
+            motif_scores=kinase_result.scoring_result.motif_scores,
+            combined_scores=sparse_combined_scores,
+            weights=kinase_result.scoring_result.weights,
+        ),
+        prediction_result=kinase_result.prediction_result,
+        activity_result=kinase_result.activity_result,
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        SignalomeWorkflow().run(
+            SignalomeWorkflowRequest(
+                kinase_result=sparse_kinase_result,
+                config=SignalomeConfig(
+                    substrate_support_cutoff=0.5,
+                    network_correlation_threshold=0.2,
+                    score_preconditioning_policy="error_on_drop",
+                ),
+            )
+        )
+
+    error = exc_info.value
+    message = str(error)
+    assert error.seam == SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM
+    assert error.details["dropped_all_missing_row_count"] == 5
+    assert error.details["score_preconditioning_policy"] == "error_on_drop"
+    assert "dropped_all_missing_row_count=5" in message
+    assert "score_preconditioning_policy=error_on_drop" in message

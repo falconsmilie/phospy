@@ -90,6 +90,7 @@ def run_demo() -> SignalomeWorkflowResult:
             config=SignalomeConfig(
                 substrate_support_cutoff=0.5,
                 network_correlation_threshold=0.5,
+                score_preconditioning_policy="allow_and_report",
             ),
         )
     )
@@ -129,6 +130,17 @@ def main() -> None:
         "Module selection strategy/count:",
         result.module_selection_diagnostics.strategy,
         result.module_selection_diagnostics.selected_module_count,
+    )
+    print(
+        "Score preconditioning policy/counts:",
+        result.score_preconditioning_diagnostics.policy,
+        {
+            "input_rows": result.score_preconditioning_diagnostics.input_row_count,
+            "dropped_all_missing_rows": (
+                result.score_preconditioning_diagnostics.dropped_all_missing_row_count
+            ),
+            "retained_rows": result.score_preconditioning_diagnostics.retained_row_count,
+        },
     )
     if result.expanded_signalome is None:
         raise RuntimeError(

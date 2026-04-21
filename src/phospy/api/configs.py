@@ -116,6 +116,15 @@ SIGNALOME_ASSIGNMENT_POLICIES = frozenset(
         SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
     }
 )
+SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT = "allow_and_report"
+SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP = "error_on_drop"
+SignalomeScorePreconditioningPolicy = Literal["allow_and_report", "error_on_drop"]
+SIGNALOME_SCORE_PRECONDITIONING_POLICIES = frozenset(
+    {
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+    }
+)
 SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY = "positive_only"
 SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD = "absolute_threshold"
 SIGNALOME_KINASE_NETWORK_POLICY_SIGNED = "signed"
@@ -361,6 +370,14 @@ class SignalomeConfig:
       `substrate_support_cutoff`.
     - `"weighted_top"`: fractional support propagated from per-site
       `top_kinase_weights` ties.
+
+    `score_preconditioning_policy` controls how all-missing downstream score
+    rows are handled before score-driven signalome stages:
+
+    - `"allow_and_report"` (default): drop all-missing rows and continue,
+      reporting exact counts in diagnostics.
+    - `"error_on_drop"`: fail signalome interpretation when any all-missing
+      rows would be dropped.
     """
 
     substrate_support_cutoff: float = 0.5
@@ -370,6 +387,9 @@ class SignalomeConfig:
     )
     assignment_policy: SignalomeAssignmentPolicy = (
         SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
+    )
+    score_preconditioning_policy: SignalomeScorePreconditioningPolicy = (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
     )
     module_count: int | None = None
     module_selection_primary_correlation_threshold: float = (
@@ -428,6 +448,9 @@ __all__ = [
     "SIGNALOME_ASSIGNMENT_POLICIES",
     "SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY",
     "SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP",
+    "SIGNALOME_SCORE_PRECONDITIONING_POLICIES",
+    "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT",
+    "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP",
     "SIGNALOME_KINASE_NETWORK_POLICIES",
     "SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD",
     "SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY",
@@ -453,5 +476,6 @@ __all__ = [
     "KinaseScoringConfig",
     "SignalomeAssignmentPolicy",
     "SignalomeKinaseNetworkPolicy",
+    "SignalomeScorePreconditioningPolicy",
     "SignalomeConfig",
 ]

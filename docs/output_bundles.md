@@ -192,6 +192,8 @@ Signalome config snapshot (all persisted fields):
   (`"positive_only"`, `"absolute_threshold"`, `"signed"`).
 - `signalome_config.assignment_policy`: module assignment policy
   (`"cutoff_binary"`, `"weighted_top"`).
+- `signalome_config.score_preconditioning_policy`: downstream score
+  preconditioning policy (`"allow_and_report"` or `"error_on_drop"`).
 - `signalome_config.module_count`: explicit module count request when set.
 - `signalome_config.module_selection_primary_correlation_threshold`
 - `signalome_config.module_selection_fallback_correlation_threshold`
@@ -214,8 +216,9 @@ Legacy reload compatibility (normalization on load):
   `n_iterations=5`, and `random_state=None`.
 - Signalome legacy `signalome_cutoff` is accepted and mapped to both
   `substrate_support_cutoff` and `network_correlation_threshold`.
-  Missing `network_policy`, `assignment_policy`, and module-selection fields
-  are normalized to current default values.
+  Missing `network_policy`, `assignment_policy`,
+  `score_preconditioning_policy`, and module-selection fields are normalized to
+  current default values.
 
 Manifest versioning starts at v1 so future format evolution is explicit.
 
