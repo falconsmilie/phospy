@@ -44,6 +44,18 @@ The decision is driven by the following considerations:
 
 PhosPy will expose a deliberately small public API centred on one dataset model and two primary workflows.
 
+### Public namespace ownership and import guidance
+
+The public API has two intentional layers with different roles:
+
+- `phospy.api` is the canonical namespace where public API types are defined and organised in source.
+- top-level `phospy` is the primary supported import route for user-facing code, examples, and documentation.
+
+Top-level `phospy` re-exports the supported user-facing surface from `phospy.api`.
+
+`phospy.api` remains public and stable as the ownership namespace, but normal
+user guidance should default to top-level `phospy` imports.
+
 ### Public API scope
 
 The intended public surface is:

@@ -1,4 +1,12 @@
-"""Public API namespace for PhosPy."""
+"""Canonical namespace where the PhosPy public API is defined.
+
+`phospy.api` owns the package-authored public surface (requests, configs,
+results, workflows, dataset and enum entry points).
+
+Normal user code should import from top-level `phospy`, which provides the
+primary stable facade. Top-level `phospy` re-exports this namespace
+intentionally.
+"""
 
 from phospy.api.builders import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (

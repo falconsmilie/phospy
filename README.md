@@ -12,6 +12,19 @@ the supported adaptive path.
 pip install .
 ```
 
+## Public Import Contract
+
+`phospy.api` is the canonical namespace where public API types are defined and
+organised in source.
+
+Top-level `phospy` is the primary supported import route for user code,
+examples, and quickstarts.
+
+Both namespaces are public, but they have different roles:
+
+- Use top-level `phospy` for normal usage and all user-facing snippets.
+- Use `phospy.api` when you need explicit package-owned API definition paths.
+
 ## Public Product Shape
 
 - `AnalysisReadyPhosphoDataset` is the workflow dataset boundary.

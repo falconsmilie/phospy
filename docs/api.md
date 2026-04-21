@@ -26,6 +26,19 @@ Standard installation includes all dependencies required by supported prediction
 lanes, including `mode="adaptive_ensemble"` (scikit-learn is part of base
 dependencies). No extra install step is required for adaptive mode.
 
+## Import Contract
+
+`phospy.api` is the canonical namespace where public API types are defined and
+organised in source.
+
+Top-level `phospy` is the primary supported import route for user-facing code,
+examples, and quickstarts.
+
+This split is intentional:
+
+- `phospy.api` owns API definition and package structure.
+- top-level `phospy` is the stable facade users are expected to import from.
+
 ## Public Types
 
 Import from top-level `phospy`.

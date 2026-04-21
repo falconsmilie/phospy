@@ -104,9 +104,14 @@ The exact names may vary slightly, but this is the intended shape.
 
 ## Public API Package
 
-The `api/` package should define the public product-facing surface.
+The `api/` package should define the canonical public API ownership surface.
 
-It should contain the public models and entry points that users are expected to import directly.
+It should contain the public models and entry points that are defined and
+organised as package-owned API contracts.
+
+Normal user-facing imports should stay anchored at top-level `phospy`, which
+acts as the primary facade and intentionally re-exports the supported
+`phospy.api` surface.
 
 A likely shape is:
 
@@ -351,7 +356,8 @@ Internal implementation packages may be richer, but their structure should not l
 
 In practice:
 
-- `api/` stays small and curated
+- `api/` stays small and curated as the canonical API-definition namespace
+- top-level `phospy` stays the primary user-facing import facade
 - internal packages stay domain-oriented
 - callers should not need to understand the internal package layout to use the package correctly
 
@@ -528,4 +534,3 @@ Together, these ADRs establish:
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
 YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
-

@@ -223,7 +223,8 @@ The builder contract should be part of the public API.
 
 A healthy direction is:
 
-- builder available from a clearly public API import path
+- builder defined in the canonical `phospy.api` ownership namespace and
+  re-exported from top-level `phospy` as the primary user-facing import route
 - internal builder collaborators remain internal
 - public docs present builder usage as the standard route for messy inputs
 
@@ -345,4 +346,3 @@ Together, these ADRs establish:
 Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
 
 YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
-

@@ -1,32 +1,36 @@
-"""Public package contract for the PhosPy rewrite."""
+"""Primary user-facing facade for the PhosPy public API.
 
-from phospy.api.builders import AnalysisReadyDatasetBuilder
-from phospy.api.configs import (
+Import guidance:
+- User code should import from top-level `phospy`.
+- Public API definitions are authored under `phospy.api`.
+- Top-level exports intentionally re-export the supported `phospy.api` surface.
+"""
+
+from phospy.api import (
+    AnalysisReadyDatasetBuilder,
+    AnalysisReadyPhosphoDataset,
+    DatasetBuildRequest,
     DatasetComparisonBuildingConfig,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
     KinaseActivityConfig,
-    KinasePredictionConfig,
-    KinaseScoringConfig,
-    SignalomeConfig,
-)
-from phospy.api.datasets import AnalysisReadyPhosphoDataset
-from phospy.api.enums import Organism, ReferencePreset
-from phospy.api.requests import (
-    DatasetBuildRequest,
-    KinaseWorkflowRequest,
-    SignalomeWorkflowRequest,
-)
-from phospy.api.results import (
     KinaseActivityResult,
+    KinasePredictionConfig,
     KinasePredictionResult,
+    KinaseScoringConfig,
     KinaseScoringResult,
+    KinaseWorkflow,
+    KinaseWorkflowRequest,
     KinaseWorkflowResult,
+    Organism,
+    ReferencePreset,
+    SignalomeConfig,
+    SignalomeWorkflow,
+    SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
 )
-from phospy.api.workflows import KinaseWorkflow, SignalomeWorkflow
 from phospy.errors import (
     DatasetBuildError,
     DatasetValidationError,
