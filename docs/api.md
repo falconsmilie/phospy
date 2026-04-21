@@ -144,8 +144,11 @@ Current supported policies:
   not change the final dataset boundary where `site_sequence` remains optional.
   Additional supported policy controls under `DatasetSiteMatrixConfig`:
   - `missing_data_policy="drop_any_missing"` (default): keep only complete rows.
-  - strict analysis-ready boundary alignment: retained-missingness site-matrix
-    modes are not supported in the public builder lane.
+    This is the supported public complete-case lane for
+    `AnalysisReadyPhosphoDataset` construction.
+  - retained-missingness site-matrix modes
+    (`retain_missing`, `require_min_observed_values`) are internal-only
+    compatibility behavior and are rejected at public request validation.
   - `minimum_observed_values` is internal-only compatibility state and must
     remain unset in the supported public builder lane.
   - `duplicate_site_strategy="max_mean_signal"` (default): keep strongest row.

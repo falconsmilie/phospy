@@ -201,8 +201,11 @@ class DatasetSiteMatrixConfig:
 
     - `missing_data_policy` controls row retention before duplicate handling:
       - `"drop_any_missing"`: keep only rows with complete phospho values.
-        This is the only supported public mode for construction of strict
-        `AnalysisReadyPhosphoDataset` outputs.
+        This complete-case policy is the only supported public mode for
+        construction of strict `AnalysisReadyPhosphoDataset` outputs.
+        Retained-missingness site-matrix modes
+        (`"retain_missing"`, `"require_min_observed_values"`) are internal
+        compatibility modes and are rejected in the public builder lane.
     - `duplicate_site_strategy` controls duplicate-site collapse:
       - `"max_mean_signal"` (legacy default): keep row with strongest signal.
       - `"first"`: keep first encountered row for each duplicate site.
@@ -211,7 +214,7 @@ class DatasetSiteMatrixConfig:
       - `"error"`: fail when duplicate constructed site identifiers are present.
 
     `minimum_observed_values` is retained for internal preprocessing compatibility
-    and must stay unset in the supported public builder lane.
+    and must stay unset in the supported public complete-case builder lane.
     """
 
     policy: DatasetSiteMatrixPolicy = DATASET_SITE_MATRIX_POLICY_AS_INPUT

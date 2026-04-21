@@ -19,6 +19,10 @@ from phospy import (
     DatasetSiteMatrixConfig,
     Organism,
 )
+from phospy.api.configs import (
+    DATASET_SITE_MATRIX_MISSING_DATA_POLICIES,
+    DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
+)
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -88,6 +92,16 @@ def test_dataset_build_request_rejects_user_declared_transformation_state() -> N
 def test_dataset_preprocessing_config_is_top_level_public_type() -> None:
     assert "DatasetPreprocessingConfig" in phospy.__all__
     assert DatasetPreprocessingConfig().missing_data.policy == "forbid"
+
+
+def test_site_matrix_missing_data_public_contract_is_complete_case_only() -> None:
+    assert DATASET_SITE_MATRIX_MISSING_DATA_POLICIES == frozenset(
+        {DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING}
+    )
+    assert (
+        DatasetSiteMatrixConfig(policy="build_from_metadata").missing_data_policy
+        == DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
+    )
 
 
 def test_site_matrix_build_contract_is_row_wise_for_mixed_sequence_support() -> None:

@@ -27,6 +27,9 @@ from phospy.errors.input import PhosPyInputError
 _INCOMPATIBLE_SITE_MATRIX_MISSING_DATA_POLICIES = frozenset(
     {"retain_missing", "require_min_observed_values"}
 )
+_SUPPORTED_SITE_MATRIX_MISSING_DATA_POLICY = (
+    DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
+)
 
 
 class DatasetPreprocessingConfigValidator:
@@ -139,8 +142,10 @@ class DatasetPreprocessingConfigValidator:
                 raise PhosPyInputError(
                     "dataset build request preprocessing_config.site_matrix."
                     f"missing_data_policy='{missing_data_policy}' is not supported "
-                    "for strict AnalysisReadyPhosphoDataset construction. "
-                    "Use site_matrix.missing_data_policy='drop_any_missing'."
+                    "for strict AnalysisReadyPhosphoDataset construction in the "
+                    "public complete-case builder lane. Use "
+                    "site_matrix.missing_data_policy="
+                    f"'{_SUPPORTED_SITE_MATRIX_MISSING_DATA_POLICY}'."
                 )
             supported_missing_policies = ", ".join(
                 sorted(DATASET_SITE_MATRIX_MISSING_DATA_POLICIES)

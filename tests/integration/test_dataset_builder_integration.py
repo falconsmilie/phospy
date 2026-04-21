@@ -481,6 +481,48 @@ def test_dataset_builder_rejects_incompatible_site_matrix_missing_data_modes_ear
         )
 
 
+@pytest.mark.parametrize(
+    "missing_data_policy",
+    ("retain_missing", "require_min_observed_values"),
+)
+def test_dataset_builder_rejects_dead_end_site_matrix_missing_modes_before_dataset_boundary(
+    missing_data_policy: str,
+) -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [float("nan")]},
+        index=pd.Index(["row_a"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["SEQ_A"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            f"missing_data_policy='{missing_data_policy}' is not supported for strict "
+            "AnalysisReadyPhosphoDataset construction"
+        ),
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                organism=Organism.RAT,
+                preprocessing_config=DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(
+                        policy="build_from_metadata",
+                        missing_data_policy=missing_data_policy,  # type: ignore[arg-type]
+                    )
+                ),
+            )
+        )
+
+
 def test_dataset_builder_builds_inferred_comparisons_from_sample_metadata() -> None:
     phospho = pd.DataFrame(
         {

@@ -205,6 +205,47 @@ def test_builder_site_matrix_reports_no_retained_rows_when_all_sequence_support_
         )
 
 
+@pytest.mark.parametrize(
+    "missing_data_policy",
+    ("retain_missing", "require_min_observed_values"),
+)
+def test_builder_rejects_internal_only_site_matrix_missing_modes_at_public_boundary(
+    missing_data_policy: str,
+) -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [float("nan")]},
+        index=pd.Index(["ROW_1"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            f"missing_data_policy='{missing_data_policy}' is not supported for strict "
+            "AnalysisReadyPhosphoDataset construction"
+        ),
+    ):
+        AnalysisReadyDatasetBuilder().run(
+            DatasetBuildRequest(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                preprocessing_config=DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(
+                        policy="build_from_metadata",
+                        missing_data_policy=missing_data_policy,  # type: ignore[arg-type]
+                    )
+                ),
+            )
+        )
+
+
 def test_dataset_constructor_rejects_non_dataframe_with_dataset_validation_error() -> (
     None
 ):
