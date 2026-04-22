@@ -34,3 +34,36 @@ Current status:
 
 - This generator is archival parity-debug tooling and not part of the active
   maintainer fixture-regeneration workflow.
+
+## Fragile-Support Seam Fixture Generation (historical)
+
+- `generate_fragile_support_reference.py`
+
+Why this existed:
+
+- During an earlier seam-oriented parity-debug phase, maintainers used this
+  script to regenerate `fragile_support_reference` from low-level
+  prediction/profile internals.
+
+Current status:
+
+- The script is retained for historical parity forensics only.
+- It is not part of the supported fixture bootstrap path or routine maintainer
+  workflow.
+
+## L6 Seam-Stress Fixture Generation (historical)
+
+- `generate_l6_seam_stress_reference.py`
+
+Why this existed:
+
+- During an earlier L6 seam-level parity-debug phase, maintainers used this
+  script to slice L6 donor-backed references into a seam-stress fixture family
+  and probe candidate-selection and score-combination seam behavior.
+
+Current status:
+
+- The script depends on older seam-oriented helper surfaces and historical
+  fixture-layout assumptions.
+- It is retained as archival parity-maintenance tooling only and is not part
+  of the supported current maintainer lane.

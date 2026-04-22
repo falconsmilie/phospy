@@ -76,7 +76,8 @@ Parity here does not mean:
 The following areas currently run as active parity-focused science in supported
 rewrite lanes (`PARITY_GATED_ACTIVE_SCIENCE`):
 
-- prediction-science parity on the fragile-support rewrite fixture lane
+- prediction-science parity on committed rewrite prediction-science fixtures
+  (including fragile-support reference tables)
 - kinase workflow parity on the supported L6 rewrite lane
 - adaptive prediction parity from promoted adaptive-sampling fixtures, executed
   in both supported rewrite policy lanes:
@@ -296,6 +297,8 @@ Rewrite-side visibility check:
 - `tests/fixtures/rewrite_parity/fragile_support_reference/`
 - provenance and promotion history:
   `tests/fixtures/rewrite_parity/fragile_support_reference/PROVENANCE.md`
+- historical regeneration utility (archived; not in default maintainer lane):
+  `scripts/archive/generate_fragile_support_reference.py`
 - `tests/fixtures/rewrite_parity/adaptive_sampling_edge/`
 - provenance and promotion history:
   `tests/fixtures/rewrite_parity/adaptive_sampling_edge/PROVENANCE.md`

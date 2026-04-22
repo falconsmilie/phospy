@@ -1,4 +1,15 @@
 #!/usr/bin/env python3
+"""Historical L6 seam-stress fixture generator.
+
+Archival status:
+- This script was used during an earlier L6 seam-level parity/debug phase.
+- It depends on seam-oriented helpers (`build_candidate_substrate_list`,
+  `combine_profile_and_motif_scores`) and historical fixture-layout
+  assumptions.
+- It is retained for parity forensics only and is not part of the supported
+  current maintainer workflow.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -7,12 +18,10 @@ from pathlib import Path
 
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
-SOURCE_DIR = ROOT / "tests" / "fixtures" / "rewrite_parity" / "r_reference_l6"
-DEFAULT_OUTPUT_DIR = (
-    ROOT / "tests" / "fixtures" / "rewrite_parity" / "r_reference_l6_seam_stress"
-)
+SOURCE_DIR = ROOT / "tests_legacy" / "fixtures" / "r_reference_l6"
+DEFAULT_OUTPUT_DIR = ROOT / "tests_legacy" / "fixtures" / "r_reference_l6_seam_stress"
 TRACE_SOURCE_DIR = SOURCE_DIR / "prediction_trace"
 
 CANDIDATE_TOP = 50

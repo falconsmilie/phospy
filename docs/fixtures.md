@@ -19,14 +19,17 @@ The default output/input roots used by `Makefile` and fixture scripts are:
 
 - `scripts/generate_r_fixtures.R` -> `tests/fixtures/rewrite_parity/r_reference`
 - `scripts/generate_r_l6_fixtures.R` -> `tests/fixtures/rewrite_parity/r_reference_l6`
-- `scripts/generate_fragile_support_reference.py` -> `tests/fixtures/rewrite_parity/fragile_support_reference`
-- `scripts/generate_l6_seam_stress_reference.py` -> `tests/fixtures/rewrite_parity/r_reference_l6_seam_stress`
 - `scripts/generate_signalome_public_workflow_reference.py` -> `tests/fixtures/public_workflow_reference`
 
 Supported parity maintenance is centered on:
 
 - rewrite-owned committed fixture families under `tests/fixtures/rewrite_parity/`
 - active replay and parity tests in `tests/parity/`
+
+`tests/fixtures/rewrite_parity/fragile_support_reference` remains committed for
+active prediction-science parity checks, but its regeneration script is
+archived at `scripts/archive/generate_fragile_support_reference.py` and is not
+part of the supported default maintainer regeneration lane.
 
 ## Active Public Fixture Families
 
@@ -84,10 +87,12 @@ Archival parity-debug tools:
 - `scripts/archive/export_python_prediction_traces.py`
 - `scripts/archive/diff_prediction_trace_probabilities.py`
 - `scripts/archive/generate_synthetic_adaptive_sampling_edge_fixtures.py`
+- `scripts/archive/generate_fragile_support_reference.py`
+- `scripts/archive/generate_l6_seam_stress_reference.py`
 
-These scripts were used during an earlier donor-parity debugging phase to
-inspect adaptive prediction seam behavior. They are retained for parity
-forensics and are not part of the supported default maintainer lane.
+These scripts were used during earlier donor-parity and seam-level debugging
+phases. They are retained for parity forensics and are not part of the
+supported default maintainer lane.
 
 The following top-level roots are historical/legacy carryovers and are not used
 as default maintainer output locations:
@@ -95,7 +100,7 @@ as default maintainer output locations:
 - `tests/fixtures/r_reference`
 - `tests/fixtures/r_reference_l6`
 - `tests/fixtures/fragile_support_reference`
-- `tests/fixtures/r_reference_l6_seam_stress`
+- `tests_legacy/fixtures/r_reference_l6_seam_stress`
 - `tests/fixtures/python_reference_l6`
 
 ## Public Example Regeneration

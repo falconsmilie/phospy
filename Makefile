@@ -18,14 +18,12 @@ FIXTURES_ROOT ?= tests/fixtures
 REWRITE_PARITY_ROOT ?= $(FIXTURES_ROOT)/rewrite_parity
 R_L6_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference_l6
 R_SMALL_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference
-FRAGILE_OUTDIR ?= $(REWRITE_PARITY_ROOT)/fragile_support_reference
-L6_STRESS_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference_l6_seam_stress
 PUBLIC_WORKFLOW_OUTDIR ?= $(FIXTURES_ROOT)/public_workflow_reference
 
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
 	install install-dev lint format pre-commit test test-unit test-parity test-seams build clean \
-	fixtures fixtures-r-small fixtures-r-l6 traces-r fixtures-fragile fixtures-r-l6-seam-stress \
+	fixtures fixtures-r-small fixtures-r-l6 traces-r \
 	fixtures-public-workflow-reference fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
 
@@ -48,8 +46,6 @@ help:
 	@echo   make fixtures-r-small              Generate the small R-backed fixture family
 	@echo   make fixtures-r-l6                 Generate the main L6 R-backed fixture family
 	@echo   make traces-r                      Regenerate the committed R L6 prediction trace
-	@echo   make fixtures-fragile              Generate the curated fragile-support seam fixture
-	@echo   make fixtures-r-l6-seam-stress     Generate the smaller R-backed L6 seam-stress fixture
 	@echo   make fixtures-public-workflow-reference Regenerate public workflow signalome fixtures
 	@echo   make fixtures-all                  Bootstrap active maintainer fixture families from scratch
 	@echo   make fixtures                      Alias for fixtures-all
@@ -108,12 +104,6 @@ fixtures-r-l6: check-r-tools fixtures-dirs
 traces-r: check-r-tools fixtures-dirs
 	$(RSCRIPT) scripts/generate_r_l6_fixtures.R --outdir "$(R_L6_OUTDIR)" --trace_kinases "$(TRACE_KINASES)" --trace_top_n "$(TRACE_TOP_N)"
 
-fixtures-fragile: check-tools fixtures-r-l6
-	$(PYTHON) scripts/generate_fragile_support_reference.py --source-dir "$(R_L6_OUTDIR)" --outdir "$(FRAGILE_OUTDIR)"
-
-fixtures-r-l6-seam-stress: check-tools fixtures-r-l6
-	$(PYTHON) scripts/generate_l6_seam_stress_reference.py --outdir "$(L6_STRESS_OUTDIR)"
-
 fixtures-public-workflow-reference: check-tools fixtures-dirs
 	$(PYTHON) scripts/generate_signalome_public_workflow_reference.py --outdir "$(PUBLIC_WORKFLOW_OUTDIR)"
 
@@ -123,7 +113,7 @@ test-seams: check-tools
 		tests/parity/test_adaptive_prediction_parity.py \
 		tests/parity/test_adaptive_replay_parity.py
 
-fixtures-all: fixtures-r-small fixtures-fragile fixtures-r-l6-seam-stress fixtures-public-workflow-reference
+fixtures-all: fixtures-r-small fixtures-r-l6 fixtures-public-workflow-reference
 
 build: check-tools
 	$(BUILD)

@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""Archived fragile-support fixture generator from an earlier seam-debug phase.
+
+This script depends on older low-level prediction/profile internals and is kept
+only for parity forensics. It is not part of the current supported maintainer
+workflow.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -8,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 
 DEFAULT_SOURCE_DIR = ROOT / "tests" / "fixtures" / "rewrite_parity" / "r_reference_l6"
@@ -39,8 +46,8 @@ TOP = 50
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate the curated fragile-support reference dataset derived from "
-            "the committed L6 R reference outputs."
+            "Archived utility: regenerate the curated fragile-support reference "
+            "dataset from committed L6 R reference outputs."
         )
     )
     parser.add_argument(

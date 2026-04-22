@@ -22,6 +22,16 @@ for selected kinases (`AKT1`, `IRAK1`, `LCK`, `MAPK1`, `PRKAA1`, `PRKAA2`).
 exactly reproduce the promoted full motif score table under the current motif
 scoring kernel.
 
+## Regeneration Status
+
+As of 2026-04-22, the older seam-level regeneration utility for this fixture
+family is archived at:
+
+- `scripts/archive/generate_fragile_support_reference.py`
+
+It is retained only for historical parity forensics and is not part of the
+default supported maintainer fixture-bootstrap workflow.
+
 ## Included Files
 
 - `phospho_matrix.csv`
