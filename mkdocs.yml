@@ -19,33 +19,25 @@ nav:
       - Quickstart: getting-started/quickstart-first-workflow.md
       - Core Concepts: concepts/core-concepts.md
       - Choose Your Path: learning-paths/choose-your-path.md
-  - Tutorials and User Guides:
-      - Overview: user-guides/index.md
+  - Workflows and Usage:
+      - Workflow Overview: workflow-guides/index.md
       - CLI Guide: cli.md
       - Output Bundles: output_bundles.md
-  - Workflow Guides:
-      - Overview: workflow-guides/index.md
-  - API and Reference:
-      - Overview: reference/index.md
+      - User Guides Overview: user-guides/index.md
+  - Troubleshooting: troubleshooting.md
+  - API and Validation:
       - API Guide: api.md
-  - Validation and Contracts:
-      - Overview: contracts/index.md
       - Validation Guide: validation.md
+      - Reference Overview: reference/index.md
+      - Contracts Overview: contracts/index.md
       - Frame Ownership Policy: frame_ownership.md
-  - Architecture and ADRs:
-      - Architecture Overview: architecture/index.md
-      - ADR Index: adr/index.md
-  - Scientific Parity and Governance:
+  - Scientific Context:
       - Overview: science/index.md
       - Parity to PhosR: parity.md
       - Roadmap: roadmap.md
       - Release Notes 1.5.0: release_notes/1.5.0.md
-      - Legacy Science Gap Audit: architecture/legacy_science_gap_audit.md
-      - Activity Science Port Review: architecture/activity_science_port_review.md
-  - Contributor and Maintainer:
-      - Overview: contributor/index.md
+  - Maintainer Docs:
+      - Contributor Overview: contributor/index.md
+      - Architecture Overview: architecture/index.md
+      - ADR Index: adr/index.md
       - Fixtures: fixtures.md
-      - Rewrite Cutover Boundary: architecture/rewrite_cutover_boundary.md
-      - Architecture Reset Notes: architecture/phospy_architecture_reset_notes.md
-  - Documentation Architecture:
-      - Audit and Restructure Plan: documentation_audit.md

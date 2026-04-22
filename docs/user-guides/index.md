@@ -1,14 +1,22 @@
 # Tutorials and User Guides
 
-This section is for practical usage after you understand the basic workflow.
+This section is for practical usage after completing quickstart.
+
+## Use This Section For
+
+- command-line execution patterns
+- output export and reproducible bundle handling
+- moving from first run to repeatable workflows
 
 ## Recommended Reading Order
 
-1. [Quickstart: first workflow](../getting-started/quickstart-first-workflow.md)
+1. [Workflow guides](../workflow-guides/index.md)
 2. [CLI Guide](../cli.md)
 3. [Output Bundles](../output_bundles.md)
+4. [Troubleshooting](../troubleshooting.md)
 
 ## Related
 
-- [Workflow guides](../workflow-guides/index.md)
+- [Getting started](../getting-started/index.md)
+- [API Guide](../api.md)
 - [Validation and contracts](../contracts/index.md)
