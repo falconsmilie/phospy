@@ -3,6 +3,9 @@
 This page is the quick map for committed fixture directories used by the
 supported public lanes.
 
+> Audience: contributors and maintainers working on tests, parity, and provenance.
+> If you are using PhosPy as an end user, this page is optional.
+
 For parity intent and protected seams, see [`parity.md`](parity.md).
 
 ## Active Public Fixture Families
@@ -53,3 +56,8 @@ PYTHONPATH=src python examples/dataset_builder_demo.py
 PYTHONPATH=src python examples/kinase_workflow_demo.py
 PYTHONPATH=src python examples/signalome_workflow_demo.py
 ```
+
+## Where Next
+
+- Governance policy around fixture use: [Parity to PhosR](parity.md)
+- Maintainer navigation hub: [Contributor and maintainer docs](contributor/index.md)

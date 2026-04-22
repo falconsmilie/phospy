@@ -2,6 +2,9 @@
 
 This page is directional and non-committal; it is not a release promise.
 
+> Audience: advanced users and maintainers tracking project direction and governance follow-ons.
+> If you need onboarding, begin with [Getting started](getting-started/index.md).
+
 ## Current Supported Product Contract
 
 Supported today in `src/phospy/`:
@@ -80,3 +83,9 @@ governance synchronization.
 
 - broad parity claims across all legacy lanes
 - public expansion of unsupported legacy-facing APIs
+
+## Where Next
+
+- Scientific confidence tiers and gates: [Parity to PhosR](parity.md)
+- Detailed evidence inventory: [Legacy science gap audit](architecture/legacy_science_gap_audit.md)
+- Current public contract: [API Guide](api.md)

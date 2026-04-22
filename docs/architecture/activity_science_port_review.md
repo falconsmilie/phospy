@@ -12,6 +12,9 @@
     - `src/phospy/validation/workflows/activity.py`
     - `src/phospy/workflows/kinase/executor.py`
 
+> Audience: maintainers auditing activity-science parity evidence.
+> For first-time usage, use [Quickstart](../getting-started/quickstart-first-workflow.md).
+
 This review is science-focused. Architectural differences (legacy analyzer/writer
 classes vs rewrite validator/interpreter/executor boundaries) are intentionally
 excluded from gap classification.
@@ -71,3 +74,9 @@ Activity science port is complete for the supported rewrite scope:
 - Remaining cutover for supported activity behavior: none in this scoped pass.
   Future scientific additions should be tracked as new scoped gaps, not as
   unfinished activity-port debt.
+
+## Where Next
+
+- Broader parity tier policy: [Parity to PhosR](../parity.md)
+- Full inventory context: [Legacy science gap audit](legacy_science_gap_audit.md)
+- Maintainer entry: [Contributor and maintainer docs](../contributor/index.md)

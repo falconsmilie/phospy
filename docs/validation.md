@@ -2,6 +2,11 @@
 
 This guide documents validation in the supported rewrite contract.
 
+> Audience: advanced users who need strict contract and invariant behavior.
+> New users should begin with
+> [Quickstart](getting-started/quickstart-first-workflow.md) and
+> [Core concepts](concepts/core-concepts.md).
+
 For API shapes, see [`api.md`](api.md).
 
 ## Boundary Model
@@ -336,3 +341,9 @@ Optional outputs must be checked before dereference:
 | Bundled human/mouse preset fails | Bundled references are rat-only in this release | Provide explicit non-rat `ReferenceBundle` |
 | Kinase boundary seam fails | Overlap/support constraints were not met | Read seam details and adjust dataset/references/config |
 | Signalome validation fails on `site_metadata.protein_id` | Explicit protein identity required for supported signalome execution | Provide non-empty `site_metadata.protein_id` for all interpreted sites; gene-symbol site-ID prefixes are not a substitute |
+
+## Where Next
+
+- Public API contract details: [API Guide](api.md)
+- User-level workflow navigation: [Workflow guides](workflow-guides/index.md)
+- Governance-level science interpretation: [Parity to PhosR](parity.md)

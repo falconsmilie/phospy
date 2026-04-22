@@ -6,6 +6,10 @@
 - This audit is intentionally conservative and scoped. It is not a blanket
   claim of whole-project legacy parity.
 
+> Audience: maintainers and advanced users tracking scientific evidence posture.
+> If you are new to PhosPy usage, start at [Getting started](../getting-started/index.md)
+> and use this page later for governance-level detail.
+
 ## Coverage Tier Vocabulary (Normative)
 
 This audit uses the same tier model as `docs/parity.md`:
@@ -166,3 +170,9 @@ Unresolved design decisions in this lane at this audit snapshot:
   continuity.
 - Historical ticket closure is not interpreted as whole-surface scientific
   parity closure.
+
+## Where Next
+
+- Tier definitions and active parity gates: [Parity to PhosR](../parity.md)
+- Directional project status: [Roadmap](../roadmap.md)
+- Maintainer entry hub: [Contributor and maintainer docs](../contributor/index.md)

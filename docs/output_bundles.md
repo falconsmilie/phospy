@@ -3,6 +3,10 @@
 Workflow bundle persistence is implemented as external services in `phospy.io`,
 not methods on result DTOs.
 
+> Audience: users who need reproducible saved outputs and maintainers owning I/O contracts.
+> New users can start with [Quickstart](getting-started/quickstart-first-workflow.md)
+> and return here when persisting workflow results.
+
 This keeps public result models as nested typed containers and keeps persistence
 as an explicit I/O concern.
 
@@ -241,3 +245,9 @@ Compatibility behavior is isolated to signalome compatibility helpers:
 
 - legacy config snapshot cutoff field parsing
 - legacy module-assignment candidate/weight normalization
+
+## Where Next
+
+- CLI output paths and flags: [CLI Guide](cli.md)
+- Request/result contract details: [API Guide](api.md)
+- Validation and boundary guarantees: [Validation Guide](validation.md)

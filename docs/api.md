@@ -2,6 +2,11 @@
 
 This guide describes the current supported public contract only.
 
+> Audience: advanced users and maintainers who need exact public contract detail.
+> If you are new to PhosPy, start with
+> [What is PhosPy?](getting-started/what-is-phospy.md) and
+> [Quickstart](getting-started/quickstart-first-workflow.md) first.
+
 ## Supported Lanes
 
 PhosPy has one public dataset boundary and two public workflow stories:
@@ -514,3 +519,9 @@ For CLI and bundle persistence details, see:
 
 - [`cli.md`](cli.md)
 - [`output_bundles.md`](output_bundles.md)
+
+## Where Next
+
+- Validation guarantees: [Validation Guide](validation.md)
+- Workflow-oriented navigation: [Workflow guides](workflow-guides/index.md)
+- Scientific confidence and parity policy: [Scientific parity and governance](science/index.md)

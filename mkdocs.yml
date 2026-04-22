@@ -1,0 +1,50 @@
+site_name: PhosPy Documentation
+site_description: Layered documentation for beginner onboarding and advanced reference
+repo_url: https://github.com/falconsmilie/phospy
+docs_dir: docs
+
+theme:
+  name: mkdocs
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - tables
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Overview: getting-started/index.md
+      - What Is PhosPy?: getting-started/what-is-phospy.md
+      - Quickstart: getting-started/quickstart-first-workflow.md
+      - Core Concepts: concepts/core-concepts.md
+      - Choose Your Path: learning-paths/choose-your-path.md
+  - Tutorials and User Guides:
+      - Overview: user-guides/index.md
+      - CLI Guide: cli.md
+      - Output Bundles: output_bundles.md
+  - Workflow Guides:
+      - Overview: workflow-guides/index.md
+  - API and Reference:
+      - Overview: reference/index.md
+      - API Guide: api.md
+  - Validation and Contracts:
+      - Overview: contracts/index.md
+      - Validation Guide: validation.md
+      - Frame Ownership Policy: frame_ownership.md
+  - Architecture and ADRs:
+      - Architecture Overview: architecture/index.md
+      - ADR Index: adr/index.md
+  - Scientific Parity and Governance:
+      - Overview: science/index.md
+      - Parity to PhosR: parity.md
+      - Roadmap: roadmap.md
+      - Legacy Science Gap Audit: architecture/legacy_science_gap_audit.md
+      - Activity Science Port Review: architecture/activity_science_port_review.md
+  - Contributor and Maintainer:
+      - Overview: contributor/index.md
+      - Fixtures: fixtures.md
+      - Rewrite Cutover Boundary: architecture/rewrite_cutover_boundary.md
+      - Architecture Reset Notes: architecture/phospy_architecture_reset_notes.md
+  - Documentation Architecture:
+      - Audit and Restructure Plan: documentation_audit.md

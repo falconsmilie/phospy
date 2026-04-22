@@ -6,6 +6,9 @@ PhosPy uses one package-wide rule for pandas `DataFrame` / `Series` ownership:
 2. Internal stage DTOs may alias already-owned frames.
 3. Internal assembly paths may transfer ownership without re-copying.
 
+> Audience: advanced users and contributors dealing with mutation/copy semantics.
+> For first usage, go to [Getting started](getting-started/index.md).
+
 ## Public Boundaries
 
 By default, public boundary models defensively copy incoming pandas objects:
@@ -41,3 +44,9 @@ Ownership-transfer safety requirement:
 
 - once a frame is transferred as owned to a downstream stage, upstream code must
   treat it as immutable.
+
+## Where Next
+
+- Boundary invariants and error behavior: [Validation Guide](validation.md)
+- API shape and result models: [API Guide](api.md)
+- Contributor navigation: [Contributor and maintainer docs](contributor/index.md)

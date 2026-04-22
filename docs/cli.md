@@ -6,6 +6,11 @@ The supported public CLI lane is intentionally narrow:
 2. Run the kinase workflow from files.
 3. Run the signalome workflow from files via dataset -> kinase -> signalome.
 
+> Audience: users who prefer command-line execution.
+> If this is your first run, read
+> [What is PhosPy?](getting-started/what-is-phospy.md) and
+> [Quickstart](getting-started/quickstart-first-workflow.md) first.
+
 ## Commands
 
 ### Dataset Build
@@ -162,3 +167,9 @@ Notes:
   `include_diagnostic_scoring_tables=True` is set in the scoring config.
 - Optional entries above are contract-level optional fields that may be absent in
   custom/future lanes or when an upstream optional stage is disabled.
+
+## Where Next
+
+- API request/result details: [API Guide](api.md)
+- Validation behavior for CLI errors: [Validation Guide](validation.md)
+- Persisting/reloading outputs: [Output Bundles](output_bundles.md)

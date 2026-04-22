@@ -3,6 +3,10 @@
 PhosPy parity is intentionally narrow and fixture-backed. The rewrite does not
 claim full package equivalence with PhosR.
 
+> Audience: advanced users and maintainers tracking scientific confidence and governance tiers.
+> If you are onboarding, start with [Getting started](getting-started/index.md)
+> and return here when you need parity/governance detail.
+
 This page is the project truth source for scientific regression confidence
 tiers. In this repository, `implemented`, `supported`, `parity-gated`, and
 `closed` are not interchangeable terms.
@@ -350,3 +354,9 @@ pytest -m parity -vv
 pytest tests/parity/test_activity_stage_parity.py -m "parity and activity_parity" -vv
 pytest tests/parity/test_signalome_workflow_parity.py -vv
 ```
+
+## Where Next
+
+- Inventory and evidence detail: [Legacy science gap audit](architecture/legacy_science_gap_audit.md)
+- High-level project status: [Roadmap](roadmap.md)
+- Contract behavior context: [API Guide](api.md), [Validation Guide](validation.md)

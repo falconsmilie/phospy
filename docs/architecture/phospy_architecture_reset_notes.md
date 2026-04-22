@@ -3,6 +3,9 @@
 - Last reconciled: 2026-04-20
 - Document role: reset-era architecture note with explicit historical markers
 
+> Audience: maintainers and contributors reviewing architecture history and authority order.
+> New users should start at [Getting started](../getting-started/index.md).
+
 ## Document Status
 
 - **Active contract source**: accepted ADRs (`docs/adr/adr_0001` through
@@ -109,3 +112,9 @@ The following principles remain valid and are now enforced by ADRs/code:
 If this note and an accepted ADR diverge, ADR text governs. If code diverges
 from accepted ADRs, document the conflict explicitly rather than normalizing it
 through ambiguous wording.
+
+## Where Next
+
+- Current architecture navigation: [Architecture index](index.md)
+- Decision records: [ADR Index](../adr/index.md)
+- Public usage contract: [API Guide](../api.md)
