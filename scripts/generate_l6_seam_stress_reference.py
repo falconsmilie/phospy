@@ -9,8 +9,10 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-SOURCE_DIR = ROOT / "tests" / "fixtures" / "r_reference_l6"
-DEFAULT_OUTPUT_DIR = ROOT / "tests" / "fixtures" / "r_reference_l6_seam_stress"
+SOURCE_DIR = ROOT / "tests" / "fixtures" / "rewrite_parity" / "r_reference_l6"
+DEFAULT_OUTPUT_DIR = (
+    ROOT / "tests" / "fixtures" / "rewrite_parity" / "r_reference_l6_seam_stress"
+)
 TRACE_SOURCE_DIR = SOURCE_DIR / "prediction_trace"
 
 CANDIDATE_TOP = 50

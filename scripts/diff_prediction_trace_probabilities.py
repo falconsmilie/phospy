@@ -16,12 +16,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--r-trace-dir",
-        default="tests/fixtures/r_reference_l6/prediction_trace",
+        default="tests/fixtures/rewrite_parity/r_reference_l6/prediction_trace",
         help="Directory containing R-exported prediction trace CSVs.",
     )
     parser.add_argument(
         "--python-trace-dir",
-        default="tests/fixtures/python_reference_l6/prediction_trace",
+        default="tests/fixtures/rewrite_parity/python_reference_l6/prediction_trace",
         help="Directory containing Python-exported prediction trace CSVs.",
     )
     parser.add_argument(

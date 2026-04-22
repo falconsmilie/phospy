@@ -45,7 +45,7 @@ read_args <- function() {
   defaults <- list(
     total = "examples/data/total.tsv",
     phospho = "examples/data/phospho.tsv",
-    outdir = "tests/fixtures/r_reference"
+    outdir = "tests/fixtures/rewrite_parity/r_reference"
   )
 
   if (length(args) == 0) {

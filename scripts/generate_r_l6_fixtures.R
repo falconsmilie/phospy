@@ -18,7 +18,7 @@ multiAdaSampling_fn <- getFromNamespace("multiAdaSampling", "PhosR")
 read_args <- function() {
   args <- commandArgs(trailingOnly = TRUE)
   defaults <- list(
-    outdir = "tests/fixtures/r_reference_l6",
+    outdir = "tests/fixtures/rewrite_parity/r_reference_l6",
     trace_kinases = "PRKAA1,MAPK1,MAPK9,IRAK1,TBK1,LCK",
     trace_top_n = "10"
   )

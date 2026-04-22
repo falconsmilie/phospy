@@ -15,13 +15,14 @@ RM ?= rm -rf
 TRACE_KINASES ?= PRKAA1,MAPK1
 TRACE_TOP_N ?= 10
 FIXTURES_ROOT ?= tests/fixtures
-PYTHON_TRACE_ROOT ?= $(FIXTURES_ROOT)/python_reference_l6
+REWRITE_PARITY_ROOT ?= $(FIXTURES_ROOT)/rewrite_parity
+PYTHON_TRACE_ROOT ?= $(REWRITE_PARITY_ROOT)/python_reference_l6
 PYTHON_TRACE_OUTDIR ?= $(PYTHON_TRACE_ROOT)/prediction_trace
-R_L6_OUTDIR ?= $(FIXTURES_ROOT)/r_reference_l6
-R_SMALL_OUTDIR ?= $(FIXTURES_ROOT)/r_reference
-FRAGILE_OUTDIR ?= $(FIXTURES_ROOT)/fragile_support_reference
-L6_STRESS_OUTDIR ?= $(FIXTURES_ROOT)/r_reference_l6_seam_stress
-SYNTHETIC_EDGE_OUTDIR ?= $(FIXTURES_ROOT)/synthetic_adaptive_sampling_edge
+R_L6_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference_l6
+R_SMALL_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference
+FRAGILE_OUTDIR ?= $(REWRITE_PARITY_ROOT)/fragile_support_reference
+L6_STRESS_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference_l6_seam_stress
+SYNTHETIC_EDGE_OUTDIR ?= $(REWRITE_PARITY_ROOT)/adaptive_sampling_edge
 PUBLIC_WORKFLOW_OUTDIR ?= $(FIXTURES_ROOT)/public_workflow_reference
 
 .PHONY: help \

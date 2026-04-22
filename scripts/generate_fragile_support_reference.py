@@ -11,8 +11,10 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 
-DEFAULT_SOURCE_DIR = ROOT / "tests" / "fixtures" / "r_reference_l6"
-DEFAULT_OUTPUT_DIR = ROOT / "tests" / "fixtures" / "fragile_support_reference"
+DEFAULT_SOURCE_DIR = ROOT / "tests" / "fixtures" / "rewrite_parity" / "r_reference_l6"
+DEFAULT_OUTPUT_DIR = (
+    ROOT / "tests" / "fixtures" / "rewrite_parity" / "fragile_support_reference"
+)
 SELECTED_KINASES: tuple[str, ...] = (
     "MAPK1",
     "AKT1",

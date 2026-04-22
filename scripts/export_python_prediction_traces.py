@@ -25,12 +25,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--combined-scores",
-        default="tests/fixtures/r_reference_l6/native_combined_scores.csv",
+        default="tests/fixtures/rewrite_parity/r_reference_l6/native_combined_scores.csv",
         help="Path to the combined score matrix CSV.",
     )
     parser.add_argument(
         "--outdir",
-        default="tests/fixtures/python_reference_l6/prediction_trace",
+        default="tests/fixtures/rewrite_parity/python_reference_l6/prediction_trace",
         help="Directory where Python trace CSVs will be written.",
     )
     parser.add_argument(
