@@ -105,8 +105,7 @@ signalome_result = SignalomeWorkflow().run(
 
 ## Import Contract
 
-`phospy.api` is the authoritative namespace where public API types are
-defined and organised in source.
+`phospy.api` is the canonical namespace where public API types are defined and organised in source.
 
 Both namespaces are public, with different roles:
 
