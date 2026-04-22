@@ -10,6 +10,11 @@ tests in `tests/parity/` via `tests/support/rewrite_fixture_data.py`.
   - `d55b164`
   - `6e10739`
 
+## Fixture ownership
+
+- Rewrite parity maintainers own this fixture family as a blocking regression
+  asset for activity-stage parity.
+
 ## Included Files
 
 - `l6_phospho_matrix.csv`
