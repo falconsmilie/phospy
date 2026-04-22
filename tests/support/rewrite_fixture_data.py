@@ -125,10 +125,6 @@ RAT_L6_SITE_SEQUENCES = (
 SIGNALOME_REWRITE_L6_ASSIGNMENTS = (
     REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_module_assignments.csv"
 )
-SIGNALOME_REWRITE_L6_ASSIGNMENTS_SELECTED = (
-    REWRITE_PUBLIC_WORKFLOW_REFERENCE
-    / "signalome_rewrite_l6_module_assignments_selected.csv"
-)
 SIGNALOME_REWRITE_L6_MODULES = (
     REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_modules.csv"
 )
@@ -138,16 +134,8 @@ SIGNALOME_REWRITE_L6_NETWORK_NODES = (
 SIGNALOME_REWRITE_L6_NETWORK_EDGES = (
     REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_network_edges.csv"
 )
-SIGNALOME_REWRITE_L6_NETWORK_EDGES_SELECTED = (
-    REWRITE_PUBLIC_WORKFLOW_REFERENCE
-    / "signalome_rewrite_l6_network_edges_selected.csv"
-)
 SIGNALOME_REWRITE_L6_EXPANDED_SIGNALOME = (
     REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_expanded_signalome.csv"
-)
-SIGNALOME_REWRITE_L6_EXPANDED_AKT1_SELECTED = (
-    REWRITE_PUBLIC_WORKFLOW_REFERENCE
-    / "signalome_rewrite_l6_expanded_akt1_selected.csv"
 )
 SIGNALOME_REWRITE_L6_CONTRACT = (
     REWRITE_PUBLIC_WORKFLOW_REFERENCE / "signalome_rewrite_l6_contract.json"
@@ -387,20 +375,6 @@ def load_adaptive_sampling_replay_trace_iteration_samples() -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
-def load_adaptive_sampling_replay_trace_iteration_probabilities() -> pd.DataFrame:
-    return pd.read_csv(
-        REWRITE_PARITY_ADAPTIVE_SAMPLING_REPLAY / "trace_iteration_probabilities.csv"
-    )
-
-
-@lru_cache(maxsize=1)
-def load_adaptive_sampling_replay_trace_iteration_decision_values() -> pd.DataFrame:
-    return pd.read_csv(
-        REWRITE_PARITY_ADAPTIVE_SAMPLING_REPLAY / "trace_iteration_decision_values.csv"
-    )
-
-
-@lru_cache(maxsize=1)
 def load_adaptive_sampling_replay_trace_final_predictions() -> pd.DataFrame:
     return pd.read_csv(
         REWRITE_PARITY_ADAPTIVE_SAMPLING_REPLAY / "trace_final_ensemble_predictions.csv"
@@ -508,22 +482,6 @@ def load_public_predmat_legacy_r_parity_donor() -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
-def load_signalome_rewrite_l6_module_assignments_selected() -> pd.DataFrame:
-    frame = pd.read_csv(SIGNALOME_REWRITE_L6_ASSIGNMENTS_SELECTED, index_col=0)
-    frame.index = pd.Index(frame.index.astype(str), name="site_id")
-    return frame.astype(
-        {
-            "protein_id": str,
-            "module_id": "int64",
-            "top_kinase": str,
-            "top_score": float,
-            "top_kinase_tie_count": "int64",
-            "top_kinase_is_ambiguous": bool,
-        }
-    )
-
-
-@lru_cache(maxsize=1)
 def load_signalome_rewrite_l6_module_assignments() -> pd.DataFrame:
     frame = pd.read_csv(SIGNALOME_REWRITE_L6_ASSIGNMENTS, index_col=0)
     frame.index = pd.Index(frame.index.astype(str), name="site_id")
@@ -543,17 +501,6 @@ def load_signalome_rewrite_l6_network_nodes() -> pd.DataFrame:
     frame = pd.read_csv(SIGNALOME_REWRITE_L6_NETWORK_NODES, index_col=0)
     frame.index = pd.Index(frame.index.astype(str), name="kinase")
     return frame.astype({"degree": "int64", "n_substrates": "int64"})
-
-
-@lru_cache(maxsize=1)
-def load_signalome_rewrite_l6_network_edges_selected() -> pd.DataFrame:
-    return pd.read_csv(SIGNALOME_REWRITE_L6_NETWORK_EDGES_SELECTED).astype(
-        {
-            "source_kinase": str,
-            "target_kinase": str,
-            "correlation": float,
-        }
-    )
 
 
 @lru_cache(maxsize=1)
@@ -579,25 +526,6 @@ def load_signalome_rewrite_l6_expanded_signalome() -> pd.DataFrame:
             "site_id": str,
             "site_order": "int64",
             "protein_id": str,
-            "module_id": "int64",
-            "support_kinases": str,
-            "support_weight": float,
-            "top_kinase": str,
-            "top_score": float,
-        }
-    )
-
-
-@lru_cache(maxsize=1)
-def load_signalome_rewrite_l6_expanded_akt1_selected() -> pd.DataFrame:
-    return pd.read_csv(SIGNALOME_REWRITE_L6_EXPANDED_AKT1_SELECTED).astype(
-        {
-            "kinase": str,
-            "assignment_policy": str,
-            "linked_kinases": str,
-            "regulated_module_ids": str,
-            "site_id": str,
-            "site_order": "int64",
             "module_id": "int64",
             "support_kinases": str,
             "support_weight": float,

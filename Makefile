@@ -55,7 +55,7 @@ help:
 
 help-archive:
 	@echo Archived/niche maintainer targets:
-	@echo   make fixtures-r-small-archive      (archival) Regenerate legacy small R fixtures
+	@echo   make fixtures-r-small-archive      (archival forensic only) Regenerate legacy small R fixtures (excluded from fixtures-all)
 
 check-tools:
 	@command -v "$(PYTHON)" >/dev/null 2>&1 || { printf 'Python executable not found: %s\n' "$(PYTHON)" >&2; exit 1; }
@@ -103,6 +103,7 @@ demo-all: dataset-builder-demo kinase-workflow-demo signalome-workflow-demo
 fixtures: fixtures-all
 
 fixtures-r-small-archive: check-r-tools
+	@echo "archival-only target: outputs are historical provenance and not part of active fixture bootstrap"
 	$(RSCRIPT) $(ARCHIVE_SCRIPTS_DIR)/generate_r_fixtures.R --outdir "$(R_SMALL_ARCHIVE_OUTDIR)"
 
 fixtures-r-l6: check-r-tools fixtures-dirs

@@ -36,6 +36,8 @@ Current status:
   and parity tests.
 - These trace scripts are archived and should not be treated as required for
   routine development or release maintenance.
+- Non-gated trace-debug tables promoted during earlier seam work are now
+  classified as archival provenance under `tests/fixtures/archive/`.
 
 ## Synthetic Adaptive Edge Fixtures (historical)
 

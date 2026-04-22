@@ -1,145 +1,96 @@
 # Fixtures
 
-This page is the quick map for committed fixture directories used by the
-supported public lanes.
+This page is the fixture governance truth source for active, archival, and
+removable material.
 
-> Audience: contributors and maintainers working on tests, parity, and provenance.
-> If you are using PhosPy as an end user, this page is optional.
+> Audience: contributors and maintainers working on parity, provenance, and
+> fixture regeneration.
 
-For parity intent and protected seams, see [`parity.md`](parity.md).
+For parity intent and science coverage tiers, see [`parity.md`](parity.md).
 
-## Canonical Active Roots
+## Classification Model
 
-- Rewrite-owned fixture families: `tests/fixtures/rewrite_parity/*`
-- Public workflow regression family: `tests/fixtures/public_workflow_reference`
+Every committed fixture/output family must be explicitly classified as one of:
 
-## Maintainer Regeneration Defaults
+- `active`: used by active tests or supported rewrite reference workflows
+- `archival`: retained only for provenance/forensics, not part of routine
+  maintainer lanes
+- `removable`: dead weight with no active test/provenance role; should be
+  deleted
 
-The default output/input roots used by `Makefile` and fixture scripts are:
+## Active Fixture Lanes
 
-- `scripts/active/generate_r_l6_fixtures.R` -> `tests/fixtures/rewrite_parity/r_reference_l6`
-- `scripts/active/generate_signalome_public_workflow_reference.py` -> `tests/fixtures/public_workflow_reference`
+Canonical active roots:
 
-Repository script layout follows status-first separation:
+- `tests/fixtures/rewrite_parity/`
+- `tests/fixtures/public_workflow_reference/`
 
-- `scripts/active/`: supported current maintainer generators
-- `scripts/support/`: helper modules used by active generators
-- `scripts/archive/`: historical parity/debug tooling
+Default supported maintainer generators:
 
-Supported parity maintenance is centered on:
+- `scripts/active/generate_r_l6_fixtures.R` ->
+  `tests/fixtures/rewrite_parity/r_reference_l6`
+- `scripts/active/generate_signalome_public_workflow_reference.py` ->
+  `tests/fixtures/public_workflow_reference`
 
-- rewrite-owned committed fixture families under `tests/fixtures/rewrite_parity/`
-- active replay and parity tests in `tests/parity/`
-
-Primary bootstrap lane:
+Primary active bootstrap lane:
 
 ```bash
 make fixtures-all
 ```
 
-`fixtures-all` intentionally regenerates only active rewrite-owned/public
-workflow fixture families.
+`fixtures-all` intentionally regenerates active rewrite/public workflow fixture
+families only.
 
-`tests/fixtures/rewrite_parity/fragile_support_reference` remains committed for
-active prediction-science parity checks, but its regeneration script is
-archived at `scripts/archive/generate_fragile_support_reference.py` and is not
-part of the supported default maintainer regeneration lane.
+## Legacy-Script Output Classification Register (2026-04-22)
 
-## Archived / Niche Maintainer Tooling
+| Family | Legacy/archived script lineage | Classification | Current role |
+| --- | --- | --- | --- |
+| `tests/fixtures/rewrite_parity/r_reference_l6/` | activity tables were materialized with archived `scripts/archive/generate_activity_donor_snapshot.py` from promoted donor inputs | `active` | activity-stage parity gate (`tests/parity/test_activity_stage_parity.py`) |
+| `tests/fixtures/rewrite_parity/r_reference_l6_prediction/` | promoted donor prediction outputs with rewrite refresh | `active` | L6 prediction parity gate (`tests/parity/test_l6_prediction_parity.py`) |
+| `tests/fixtures/rewrite_parity/fragile_support_reference/` | regeneration utility archived at `scripts/archive/generate_fragile_support_reference.py` | `active` | prediction-science parity gate (`tests/parity/test_prediction_science_parity.py`) |
+| `tests/fixtures/rewrite_parity/adaptive_sampling_edge/` | originated from archived synthetic seam tooling (`scripts/archive/generate_synthetic_adaptive_sampling_edge_fixtures.py`) | `active` | adaptive prediction parity gate (`tests/parity/test_adaptive_prediction_parity.py`) |
+| `tests/fixtures/rewrite_parity/adaptive_sampling_replay/` | promoted donor replay traces from legacy L6 prediction trace outputs | `active` | adaptive replay parity gate (`tests/parity/test_adaptive_replay_parity.py`) |
+| `tests/fixtures/rewrite_parity/protein_correction/` | promoted legacy donor preprocessing outputs | `active` | preprocessing parity gate (`tests/parity/test_preprocessing_science_parity.py`) |
+| `tests/fixtures/rewrite_parity/site_matrix/` | promoted legacy donor site-matrix outputs | `active` | preprocessing parity gate (`tests/parity/test_preprocessing_science_parity.py`) |
+| `tests/fixtures/rewrite_parity/comparison_building/` | promoted legacy donor comparison-building outputs | `active` | preprocessing parity gate (`tests/parity/test_preprocessing_science_parity.py`) |
+| `tests/fixtures/public_workflow_reference/` | includes rewrite-owned public workflow outputs plus donor benchmark context tables | `active` | public workflow parity gates (`tests/parity/test_public_predmat_parity.py`, `tests/parity/test_signalome_workflow_parity.py`) |
+| `tests/fixtures/archive/adaptive_sampling_edge_trace_debug/` | non-gated seam-debug trace tables moved out of active lane on 2026-04-22 | `archival` | provenance/forensics only |
+| `tests/fixtures/archive/adaptive_sampling_replay_trace_debug/` | non-gated replay debug trace tables moved out of active lane on 2026-04-22 | `archival` | provenance/forensics only |
+| `tests_legacy/fixtures/python_reference_l6/prediction_trace*/` | outputs from archived python prediction trace export workflows | `archival` | historical seam/probability-trace forensics only |
+| `tests_legacy/fixtures/r_reference/` | historical small R fixture generator (`scripts/archive/generate_r_fixtures.R`) | `archival` | legacy parity forensics only |
+| `tests_legacy/fixtures/r_reference_l6/` | historical donor L6 reference tree used as promotion source | `archival` | provenance source only; active tests consume promoted rewrite-owned copies |
+| `tests_legacy/fixtures/r_reference_l6_seam_stress/` | historical seam-stress generator (`scripts/archive/generate_l6_seam_stress_reference.py`) | `archival` | seam-forensics only |
+| `tests_legacy/fixtures/synthetic_adaptive_sampling_edge/` | historical synthetic adaptive seam-debug source tree | `archival` | provenance source only |
+| `tests_legacy/fixtures/fragile_support_reference/` | historical fragile-support seam-debug source tree | `archival` | provenance source only |
+| `tests_legacy/fixtures/public_workflow_reference/` | historical donor public-workflow outputs | `archival` | provenance source only |
+| `tests/fixtures/public_workflow_reference/signalome_rewrite_l6_*_selected.csv` | older debug slice exports | `removable` | deleted on 2026-04-22 (not used by active tests/docs) |
+| probability-diff report outputs (`scripts/archive/diff_prediction_trace_probabilities.py`) | debug report artifacts from archived trace-diff tooling | `removable` | no committed outputs are retained in active fixture roots |
 
-`scripts/archive/generate_r_fixtures.R` is retained as archival small-fixture tooling
-for historical parity forensics. It is not part of routine rewrite
-maintenance.
+## Maintainer Targets and Archive Policy
 
-- default output root: `tests_legacy/fixtures/r_reference`
-- archival target: `make fixtures-r-small-archive`
-- excluded from the primary bootstrap lane (`make fixtures-all`)
+Repository script layout is status-first:
 
-## Active Public Fixture Families
+- `scripts/active/`: supported current maintainer generators
+- `scripts/support/`: helpers used by active generators
+- `scripts/archive/`: historical parity/debug tooling
 
-### `tests/fixtures/rewrite_parity/r_reference_l6`
+Archived/niche target retained for explicit forensics:
 
-Current L6 parity inputs/expectations used by active tests in
-`tests/parity/`.
+- `make fixtures-r-small-archive`
 
-Included files currently cover:
+This target is archival only and excluded from `make fixtures-all`.
 
-- activity-stage fixture checks (`predMat`, `ksea_*`, `kinase_*`)
-- kinase profile scoring checkpoints (`native_profile_scores`)
-- shared L6 phospho input (`l6_phospho_matrix`)
+## Archive Notes
 
-Activity parity tests in `tests/parity/test_activity_stage_parity.py` consume
-these committed files via `tests/support/rewrite_fixture_data.py` and do not run
-live legacy activity code.
+Archival fixture trees:
 
-Provenance is documented in:
+- `tests/fixtures/archive/`
+- `tests_legacy/fixtures/`
 
-- `tests/fixtures/rewrite_parity/r_reference_l6/PROVENANCE.md`
-
-### `tests/fixtures/public_workflow_reference`
-
-Committed workflow regression expectations for the public
-`SignalomeWorkflow` lane:
-
-- `signalome_rewrite_l6_module_assignments.csv`
-- `signalome_rewrite_l6_modules.csv`
-- `signalome_rewrite_l6_network_nodes.csv`
-- `signalome_rewrite_l6_network_edges.csv`
-- `signalome_rewrite_l6_expanded_signalome.csv`
-- `signalome_rewrite_l6_contract.json`
-
-Supported regeneration path:
-
-```bash
-make fixtures-public-workflow-reference
-```
-
-The generator (`scripts/active/generate_signalome_public_workflow_reference.py`) uses a
-maintainer-owned helper in `scripts/support/public_workflow_reference.py`
-instead of test-only support modules.
-
-## Historical Archive
-
-Legacy fixture trees remain in `tests_legacy/fixtures/` for provenance and
-historical traceability. Active tests should resolve from
-`tests/fixtures/` as their normal source.
-
-Archived script tooling mostly lives under `scripts/archive/`.
-
-Archival parity-debug tools:
-
-- `scripts/archive/generate_r_fixtures.R` (retained archival small-fixture generator)
-- `scripts/archive/export_python_prediction_traces.py`
-- `scripts/archive/diff_prediction_trace_probabilities.py`
-- `scripts/archive/generate_synthetic_adaptive_sampling_edge_fixtures.py`
-- `scripts/archive/generate_fragile_support_reference.py`
-- `scripts/archive/generate_l6_seam_stress_reference.py`
-
-These scripts were used during earlier donor-parity and seam-level debugging
-phases. They are retained for parity forensics and are not part of the
-supported default maintainer lane.
-
-The following top-level roots are historical/legacy carryovers and are not used
-as default maintainer output locations:
-
-- `tests/fixtures/r_reference`
-- `tests/fixtures/r_reference_l6`
-- `tests/fixtures/fragile_support_reference`
-- `tests_legacy/fixtures/r_reference`
-- `tests_legacy/fixtures/r_reference_l6_seam_stress`
-- `tests/fixtures/python_reference_l6`
-
-## Public Example Regeneration
-
-The public examples remain runnable via:
-
-```bash
-PYTHONPATH=src python examples/dataset_builder_demo.py
-PYTHONPATH=src python examples/kinase_workflow_demo.py
-PYTHONPATH=src python examples/signalome_workflow_demo.py
-```
+Archive material is retained for provenance and audit workflows, not routine
+rewrite maintenance.
 
 ## Where Next
 
-- Governance policy around fixture use: [Parity to PhosR](parity.md)
+- Parity governance and confidence tiers: [Parity to PhosR](parity.md)
 - Maintainer navigation hub: [Contributor and maintainer docs](contributor/index.md)

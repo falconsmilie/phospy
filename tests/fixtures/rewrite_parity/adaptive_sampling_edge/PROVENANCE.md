@@ -23,19 +23,18 @@ on 2026-04-19.
 
 - `combined_scores.csv`
 - `trace_candidates.csv`
-- `trace_selected_candidates.csv`
-- `trace_negative_pool.csv`
-- `trace_initial_negatives.csv`
-- `trace_iteration_labels.csv`
-- `trace_iteration_decision_values.csv`
-- `trace_iteration_probabilities.csv`
-- `trace_iteration_probability_parameters.csv`
-- `trace_iteration_resampling_weights.csv`
-- `trace_iteration_samples.csv`
 - `trace_final_ensemble_predictions.csv`
-- `trace_final_ensemble_decision_values.csv`
 - `trace_final_ensemble_top.csv`
 - `README.md`
+
+## Archived Debug Tables
+
+On 2026-04-22, non-gated seam-debug trace tables were moved to:
+
+- `tests/fixtures/archive/adaptive_sampling_edge_trace_debug/`
+
+These files are retained as historical provenance only and are not part of the
+active parity gate lane.
 
 ## Assertion Contract Layout
 

@@ -331,6 +331,8 @@ and helpers in `tests/support/rewrite_fixture_data.py`.
 
 ### Historical reference archive
 
+- `tests/fixtures/archive/` contains archived provenance/debug fixture outputs
+  that are intentionally outside active parity gates.
 - `tests_legacy/fixtures/` is retained for provenance and archival material.
 - Active rewrite parity tests should not resolve fixtures from this path as
   their normal source.
