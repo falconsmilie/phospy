@@ -33,7 +33,7 @@ Historical code under `legacy_archive/phospy_legacy/` is migration reference onl
 - Signalome supports `assignment_policy="weighted_top"` and network-policy
   variants (`positive_only`, `absolute_threshold`, `signed`)
 
-## Science-Parity Ticket Status (2026-04-21)
+## Science-Parity Ticket Status (2026-04-22)
 
 Audit reference:
 [Legacy Science Gap Audit](architecture/legacy_science_gap_audit.md)
@@ -41,8 +41,8 @@ Audit reference:
 - `SCI-GAP-01`: profile missing-value strategy (`strict` + `median_skipna`) -
   completed
 - `SCI-GAP-12`: core kinase downstream scoring/prediction parity restoration -
-  completed (L6 ranking/candidate/replay gates are enforced in rewrite-owned
-  parity lanes)
+  implemented, with ranking parity confidence still provisional until Ticket 1
+  and Ticket 2 repair comparison surfaces and re-baseline ranking gates
 - `SCI-GAP-05`: adaptive ensemble prediction lane - completed
 - `SCI-GAP-06`: signalome clustering + module-count diagnostics - completed
 - `SCI-GAP-08`: weighted-top assignment policy + fractional module shares -
@@ -56,24 +56,25 @@ Audit reference:
   assignment policy - completed
 
 Tracked `SCI-GAP-*` tickets above are closed in the supported rewrite lane as
-of 2026-04-20, but this does not imply full legacy-science parity.
+of 2026-04-20, but ticket closure labels do not imply full legacy-science
+parity or ranking-parity closure in the core kinase lane.
 See the full legacy-science inventory in:
 `docs/architecture/legacy_science_gap_audit.md` and `docs/parity.md`.
 
 ## Remaining Roadmap (Real Next Steps)
 
-The remaining roadmap is governance/doc synchronization and parity-maintenance
-hygiene for already-landed legacy-science areas.
+The remaining roadmap includes parity-harness repair work plus ongoing
+governance synchronization.
 
-1. Keep contract docs aligned with landed science status across `docs/roadmap.md`,
-   `docs/api.md`, and `docs/parity.md` so deferred wording does not reappear for
-   completed lanes.
-2. Keep governance truth sources synchronized in the same change window:
-   `docs/architecture/legacy_science_gap_audit.md`, parity donor inventory, and
-   release notes/changelog entries.
-3. Maintain parity-lock hygiene for landed science lanes by updating fixture
-   provenance and regression references when parity fixtures are promoted or
-   refreshed.
+1. Ticket 1: repair kinase ranking comparison surfaces so governance reporting
+   uses explicit like-for-like source and policy comparisons (no mixed
+   donor-vs-rewrite and policy-vs-policy surfaces).
+2. Ticket 2: re-baseline/tighten kinase ranking gates only after Ticket 1 and
+   promote ranking claims back to parity-gated closure only on repaired
+   surfaces.
+3. Keep governance truth sources synchronized in the same change window:
+   `docs/architecture/legacy_science_gap_audit.md`, `docs/parity.md`, parity
+   donor inventory, and release notes/changelog entries.
 
 ## Not a Near-Term Goal
 

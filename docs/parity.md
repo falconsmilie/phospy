@@ -74,14 +74,6 @@ rewrite lanes (`PARITY_GATED_ACTIVE_SCIENCE`):
 
 - prediction-science parity on the fragile-support rewrite fixture lane
 - kinase workflow parity on the supported L6 rewrite lane
-- full promoted L6 downstream prediction/scoring parity against rewrite-owned
-  promoted reference tables (`profile_scores`, `combined_scores`, `weights`,
-  candidate substrates, prediction-matrix ranking summaries, top-k export
-  ranking summaries), with rewrite-fixture contract and cross-policy divergence
-  assertions reported as separate contracts
-- release gates for the core kinase lane, including strict candidate overlap,
-  prediction-matrix ranking agreement thresholds, top-k export agreement
-  thresholds, and replay-surface agreement in rewrite-owned fixture lanes
 - adaptive prediction parity from promoted adaptive-sampling fixtures, executed
   in both supported rewrite policy lanes:
   `adaptive_policy="stable"` and `adaptive_policy="r_parity"`, with
@@ -106,8 +98,15 @@ rewrite lanes (`PARITY_GATED_ACTIVE_SCIENCE`):
 
 ## Donor-Backed Rewrite Coverage (Not Parity-Gated)
 
-No lanes in the current audited inventory snapshot dated `2026-04-22` are
-classified in this tier.
+The following lane is currently classified in this tier:
+
+- core kinase scoring/prediction lane (`SCI-GAP-12`)
+- numeric scoring, candidate-selection, and replay evidence is strong on
+  promoted rewrite fixtures
+- ranking parity confidence remains provisional while comparison surfaces mix
+  donor-vs-rewrite and policy-vs-policy views
+- parity-tier closure for ranking behavior is deferred until Ticket 1 and
+  Ticket 2 are completed
 
 ## Contract-Changed Supported Lanes
 
@@ -136,10 +135,14 @@ These lanes are intentionally supported but not legacy-equivalent by contract:
 | Missing motif-value handling | Profile score is preserved when motif value is missing for that kinase/site cell | No explicit profile-rescue path in legacy combine | Intentional and supported |
 | Workflow candidate filtering defaults | Candidate selection uses `score_threshold=0.0`, `inclusion=1` with caller-owned `top_k` | Legacy defaults used `score_threshold=0.8`, `inclusion=20`, `top=50` | Intentional and supported |
 | Request/config knobs | Legacy knobs (`allow_profile_only_fallback`, `score_threshold`, `inclusion`, `min_motif_size`, `svm_mode`, `profile_policy`) are out of public contract | Legacy prediction config exposed those knobs | Intentional and supported |
+| Ranking parity measurement surface | Ranking checks still include mixed donor-vs-rewrite and policy-vs-policy comparison surfaces in governance reporting | Closure-grade ranking parity requires like-for-like source and policy surfaces | Provisional evidence only until Ticket 1 and Ticket 2 are completed |
 | Parity wording drift in this repo | Historical labels still use `donor-vs-rewrite` wording on rewrite-owned fixture surfaces | N/A | Temporary and should be removed for parity clarity |
 
 Unresolved design decisions in this lane at this audit snapshot (`2026-04-22`):
-- none currently tracked.
+- Ticket 1: normalize ranking comparison surfaces so governance bars are
+  source-consistent and policy-consistent.
+- Ticket 2: restore closure-grade ranking gates only after Ticket 1 is complete
+  and remove interim loosened-threshold logic from closure decisions.
 
 ## Open Scientific Gaps
 
@@ -151,26 +154,33 @@ This is not a blanket claim that every possible legacy-science surface is
 closed; it applies only to the explicit inventory and boundaries documented
 here and in the architecture audit.
 
+No `OPEN_GAP` row in this snapshot should be interpreted as closure of kinase
+ranking parity confidence while Ticket 1 and Ticket 2 are still open.
+
 ## Core Kinase Lane Status (2026-04-22)
 
-The central kinase scoring/prediction lane is treated as closed at the parity
-tier only when both rewrite parity gates pass:
+The central kinase scoring/prediction lane is not treated as parity-closed for
+ranking behavior at this snapshot.
+
+Active rewrite parity evidence still runs through:
 
 - `tests/parity/test_l6_prediction_parity.py`
 - `tests/parity/test_adaptive_replay_parity.py`
 
-These gates enforce downstream behavior (candidate selection, prediction-matrix
-ranking agreement, top-k export agreement, and adaptive replay surfaces)
-against promoted rewrite fixture references.
+This evidence gives strong confidence for scoring numerics, candidate
+selection, and replay behavior in promoted rewrite fixture lanes.
+
+Ranking outputs and ranking-threshold governance remain provisional while
+comparison surfaces are inconsistent; ranking closure is deferred until
+Ticket 1 and Ticket 2 are completed.
 
 This parity status does not override contract-changed defaults in this lane;
 those defaults are intentionally documented and tested as rewrite contract.
 
 ## L6 Ranking Gate Policy (2026-04-22)
 
-For `tests/parity/test_l6_prediction_parity.py`, ranking thresholds are
-enforced as rewrite-contract ranking gates on explicitly like-for-like
-comparison surfaces:
+For `tests/parity/test_l6_prediction_parity.py`, the following ranking
+thresholds currently run as interim regression checks:
 
 - prediction-matrix ranking hard gates:
   - mean Spearman rank correlation `>= 0.96`
@@ -183,19 +193,28 @@ comparison surfaces:
   - mean top-30 overlap `>= 0.88`
   - kinases with top-10 overlap >= 70%: `>= 20`
 
-Hard-gate intent:
+Current governance interpretation:
 
-- these thresholds are release-governance blockers for ranking degradation in
-  the supported/default lane
-- values are intentional and align with legacy ranking quality expectations,
-  not temporary accommodations for mismatched parity surfaces
+- these checks are useful for drift detection, but they are not closure-grade
+  parity evidence while comparison surfaces remain mixed
+- current ranking-threshold posture remains provisional because donor-vs-rewrite
+  and policy-vs-policy comparisons are still mixed in reported surfaces
+- current thresholds were loosened before measurement-surface repair and should
+  not be interpreted as final parity bars
 
 Informational diagnostics (non-threshold-bearing):
 
 - `test_l6_prediction_parity_reporting_is_surface_explicit` is marked
   `parity_diagnostic` and records surface metrics for operator visibility
-- this diagnostic reporting is separate from hard regression assertions and does
-  not itself define release bars
+- this diagnostic reporting is separate from provisional threshold assertions
+  and does not itself define release bars
+
+Promotion requirement for ranking-closure claims:
+
+- Ticket 1 must repair comparison surfaces to explicitly like-for-like source
+  and policy comparisons
+- Ticket 2 must re-baseline/tighten ranking gates on the repaired surface
+  before ranking parity can be treated as parity-gated closure
 
 ## Rewrite-Owned Parity Reporting
 
@@ -213,7 +232,7 @@ No `PHOSPY_SHOW_*` environment variables are required.
 
 ## Active Parity Gate Files (2026-04-22)
 
-Active parity-gated science currently resolves through the following
+Active rewrite parity evidence currently resolves through the following
 rewrite-owned parity files:
 
 - `tests/parity/test_prediction_science_parity.py`
@@ -235,7 +254,7 @@ areas. `Status` and `Coverage tier` are intentionally separate columns so that
 | Legacy science area | Status | Coverage tier | Contract relation | Rewrite coverage summary |
 | --- | --- | --- | --- | --- |
 | profile policy behavior | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | `strict` + `median_skipna` profile behavior is supported and parity-tested. |
-| core kinase scoring/prediction lane | CONTRACT_CHANGED | PARITY_GATED_ACTIVE_SCIENCE | Contract changed (supported defaults and fallback policy differ from legacy) | Candidate/ranking/replay behavior remains parity-gated on promoted rewrite fixtures while contract-changed defaults are asserted separately. |
+| core kinase scoring/prediction lane | CONTRACT_CHANGED | DONOR_BACKED_REWRITE_COVERAGE | Contract changed (supported defaults and fallback policy differ from legacy) | Numeric scoring/candidate/replay evidence is strong on promoted fixtures, but ranking parity remains provisional until Ticket 1 and Ticket 2 repair the comparison surface and gate posture. |
 | adaptive sampling / svm_mode | CONTRACT_CHANGED | CONTRACT_CHANGED_SUPPORTED_LANE | Contract changed (`adaptive_policy` replaces legacy `svm_mode` naming) | Adaptive science is implemented with parity evidence, but contract naming intentionally differs from legacy. |
 | signalome clustering/module selection | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | Clustering and module-count diagnostics are implemented and parity-backed. |
 | weighted-top assignment behavior | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | Weighted-top assignment and fractional support propagation are implemented and parity-backed. |

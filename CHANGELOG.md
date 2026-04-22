@@ -8,6 +8,7 @@ All notable changes to this project are documented here.
 
 - Narrowed `phospy.prediction` package-level default exports to the stable prediction types and moved low-level mechanics out of the default surface.
 - Removed package-level compatibility re-exports from `phospy.prediction`; advanced helpers now require concrete-module imports.
+- Reworded parity governance docs to classify core kinase ranking parity as provisional evidence (not closure-grade) until Ticket 1 and Ticket 2 are completed.
 
 ### Migration
 

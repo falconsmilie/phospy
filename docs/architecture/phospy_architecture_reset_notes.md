@@ -66,7 +66,9 @@
 - `expanded_signalome` is an official supported signalome output and is
   populated in the supported executor lane (optional by type for compatibility).
 - Detailed science status and follow-ons live in
-  `docs/architecture/legacy_science_gap_audit.md`.
+  `docs/architecture/legacy_science_gap_audit.md`, including governance
+  caveats for provisional kinase ranking parity confidence (Ticket 1 and
+  Ticket 2).
 
 ## Historical / Superseded Reset Content
 
