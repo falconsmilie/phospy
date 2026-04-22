@@ -26,7 +26,7 @@
 ### Package boundary
 
 - Supported package: `src/phospy/`
-- Historical reference archive: `legacy_archive/phospy_legacy/`
+- Historical reference material: archived project snapshots in git history
 - Legacy package structure is not a migration target (ADR-012).
 
 ### Public product shape

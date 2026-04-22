@@ -673,62 +673,57 @@ def test_dataset_preprocessor_rejects_correction_when_proteins_are_unmatched() -
         )
 
 
-def test_dataset_preprocessor_total_protein_correction_matches_legacy_donor_fixture() -> (
+def test_dataset_preprocessor_total_protein_correction_matches_historical_baseline_fixture() -> (
     None
 ):
     phospho_fixture = pd.read_csv(
-        ROOT / "tests_legacy" / "fixtures" / "r_reference" / "df_phospho_filtered.csv"
-    )
+        ROOT
+        / "tests"
+        / "fixtures"
+        / "rewrite_parity"
+        / "protein_correction"
+        / "reference_input_phospho.csv"
+    ).set_index("site_id")
+    site_metadata_fixture = pd.read_csv(
+        ROOT
+        / "tests"
+        / "fixtures"
+        / "rewrite_parity"
+        / "protein_correction"
+        / "reference_input_site_metadata.csv"
+    ).set_index("site_id")
     total_fixture = pd.read_csv(
-        ROOT / "tests_legacy" / "fixtures" / "r_reference" / "df_total_filtered.csv"
-    )
+        ROOT
+        / "tests"
+        / "fixtures"
+        / "rewrite_parity"
+        / "protein_correction"
+        / "reference_input_total.csv"
+    ).set_index("protein_id")
     corrected_fixture = pd.read_csv(
         ROOT
         / "tests"
         / "fixtures"
         / "rewrite_parity"
         / "protein_correction"
-        / "legacy_r_reference_corrected_matrix.csv"
-    )
+        / "reference_corrected_matrix.csv"
+    ).set_index("site_id")
 
-    phospho_columns = tuple(f"p_group{group}" for group in range(1, 7))
-    total_columns = tuple(f"group{group}" for group in range(1, 7))
-
-    site_tokens = (
-        phospho_fixture.loc[:, "gene_p_site"]
-        .astype(str)
-        .str.split("_", n=1, expand=True)
-    )
-    site_index = pd.Index(
-        site_tokens.loc[:, 0].astype(str)
-        + ";"
-        + site_tokens.loc[:, 1].astype(str)
-        + ";",
+    phospho_columns = tuple(phospho_fixture.columns.astype(str))
+    phospho = phospho_fixture.astype(float).copy()
+    phospho.columns = pd.Index(phospho_columns)
+    phospho.index = pd.Index(phospho_fixture.index.astype(str), name="site_id")
+    site_metadata = site_metadata_fixture.copy()
+    site_metadata.index = pd.Index(
+        site_metadata_fixture.index.astype(str),
         name="site_id",
     )
-
-    phospho = phospho_fixture.loc[:, list(phospho_columns)].copy()
-    phospho.columns = pd.Index(phospho_columns)
-    phospho.index = site_index
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": phospho_fixture.loc[:, "gene_names"].astype(str).tolist(),
-            "site": site_tokens.loc[:, 1].astype(str).tolist(),
-        },
-        index=site_index.copy(),
-    )
-
-    total = total_fixture.loc[:, list(total_columns)].copy()
+    total = total_fixture.astype(float).copy()
     total.columns = pd.Index(phospho_columns)
-    total.index = pd.Index(total_fixture.loc[:, "genes"].astype(str), name="protein_id")
+    total.index = pd.Index(total_fixture.index.astype(str), name="protein_id")
 
-    expected = (
-        corrected_fixture.set_index("site_id")
-        .loc[:, list(phospho_columns)]
-        .astype(float)
-        .copy()
-    )
-    expected.index = site_index.copy()
+    expected = corrected_fixture.loc[:, list(phospho_columns)].astype(float).copy()
+    expected.index = pd.Index(corrected_fixture.index.astype(str), name="site_id")
 
     preprocessed = DatasetPreprocessor().run(
         phospho=phospho,
@@ -747,14 +742,16 @@ def test_dataset_preprocessor_total_protein_correction_matches_legacy_donor_fixt
     pdt.assert_frame_equal(preprocessed.phospho, expected)
 
 
-def test_dataset_preprocessor_site_matrix_build_matches_legacy_donor_fixture() -> None:
+def test_dataset_preprocessor_site_matrix_build_matches_historical_baseline_fixture() -> (
+    None
+):
     corrected_fixture = pd.read_csv(
         ROOT
         / "tests"
         / "fixtures"
         / "rewrite_parity"
         / "site_matrix"
-        / "legacy_r_reference_phospho_corrected.csv"
+        / "reference_phospho_corrected.csv"
     )
     expected_matrix_fixture = pd.read_csv(
         ROOT
@@ -762,7 +759,7 @@ def test_dataset_preprocessor_site_matrix_build_matches_legacy_donor_fixture() -
         / "fixtures"
         / "rewrite_parity"
         / "site_matrix"
-        / "legacy_r_reference_expected_matrix.csv"
+        / "reference_expected_matrix.csv"
     )
     expected_input_fixture = pd.read_csv(
         ROOT
@@ -770,7 +767,7 @@ def test_dataset_preprocessor_site_matrix_build_matches_legacy_donor_fixture() -
         / "fixtures"
         / "rewrite_parity"
         / "site_matrix"
-        / "legacy_r_reference_expected_phosr_input.csv"
+        / "reference_expected_input.csv"
     )
 
     corrected_cols = tuple(f"phospho_corrected_{position}" for position in range(1, 7))
@@ -958,7 +955,7 @@ def test_dataset_preprocessor_rejects_comparison_building_without_group_column()
         )
 
 
-def test_dataset_preprocessor_comparison_building_matches_legacy_pairwise_expectation() -> (
+def test_dataset_preprocessor_comparison_building_matches_reference_pairwise_expectation() -> (
     None
 ):
     phospho = pd.DataFrame(
@@ -986,7 +983,7 @@ def test_dataset_preprocessor_comparison_building_matches_legacy_pairwise_expect
         / "fixtures"
         / "rewrite_parity"
         / "comparison_building"
-        / "legacy_pairwise_expected.csv"
+        / "reference_pairwise_expected.csv"
     ).set_index("site_id")
 
     preprocessed = DatasetPreprocessor().run(

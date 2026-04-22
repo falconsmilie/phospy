@@ -1,5 +1,0 @@
-"proteins","uid","gene_names","gene_p_site","phospho_sty_probabilities","number_of_phospho_sty","localization_prob","score_for_localization","centralized_sequence","p_group1","p_group2","p_group3","p_group4","p_group5","p_group6","group1","group2","group3","group4","group5","group6","phospho_corrected_1","phospho_corrected_2","phospho_corrected_3","phospho_corrected_4","phospho_corrected_5","phospho_corrected_6","p_group1_group4","p_group2_group5","p_group3_group6","p_group1_group2","p_group1_group3","p_group2_group3","p_group4_group5","p_group4_group6","p_group5_group6"
-"P17612","UID1","PRKACA","PRKACA_S339",0.95,1,0.9,10,"AAAAAA",10,11,NA,13,14,15,2,3,4,5,6,7,8,8,NA,8,8,8,0,0,NA,0,NA,NA,0,0,0
-"P17612","UID2","PRKACA","PRKACA_S339",0.95,1,0.9,10,"BBBBBB",11,NA,13,14,15,16,2,3,4,5,6,7,9,NA,9,9,9,9,0,NA,0,NA,0,NA,0,0,0
-"Q06187","UID3","BTK","BTK_Y551",0.98,1,0.92,12,"CCCCCC",8,8,8,9,9,9,4,4,4,5,5,5,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0
-"P63085","UID4","MAPK1","MAPK1_T185",0.96,1,0.88,11,"DDDDDD",NA,11,10,9,8,7,3,3,3,2,2,2,NA,8,7,7,6,5,NA,2,2,NA,NA,1,1,2,1

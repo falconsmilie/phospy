@@ -231,12 +231,11 @@ be rewrite-owned under `tests/{unit,integration,parity}` with rewrite-owned
 fixture paths under `tests/fixtures/rewrite_parity/**` or
 `tests/fixtures/public_workflow_reference/**`.
 
-`tests_legacy/` remains archival/provenance. It should not be the normal fixture
-source for active rewrite parity.
+Historical archive trees should not be the normal fixture source for active
+rewrite parity.
 
-Rewrite-side visibility of full legacy-science coverage should be maintained via
-an explicit inventory and check (`tests/support/legacy_donor_inventory.py` and
-`tests/unit/test_legacy_donor_inventory.py`) that:
+Rewrite-side visibility of full legacy-science coverage should be maintained
+via an explicit inventory and check that:
 
 - classifies each legacy-science area as `PORTED`, `INTENTIONALLY_RETIRED`,
   `OPEN_GAP`, or `CONTRACT_CHANGED`

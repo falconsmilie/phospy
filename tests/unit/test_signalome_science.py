@@ -23,7 +23,7 @@ from phospy.signalomes.science import (
 )
 
 
-def _legacy_build_signalome_module_table(
+def _historical_baseline_build_signalome_module_table(
     *,
     module_assignments: pd.DataFrame,
     kinase_substrates: Mapping[str, Sequence[str]],
@@ -93,7 +93,7 @@ def _legacy_build_signalome_module_table(
     return module_table.astype(float).round(3)
 
 
-def test_build_signalome_module_table_matches_legacy_semantics() -> None:
+def test_build_signalome_module_table_matches_historical_baseline_semantics() -> None:
     module_assignments = pd.DataFrame(
         {
             "protein_id": ["P1", "P1", "P2", "P3", "P4", "P5", "P6", "P3"],
@@ -111,7 +111,7 @@ def test_build_signalome_module_table_matches_legacy_semantics() -> None:
     }
     kinase_order = ["K2", "K1", "K3", "K1"]
 
-    expected = _legacy_build_signalome_module_table(
+    expected = _historical_baseline_build_signalome_module_table(
         module_assignments=module_assignments,
         kinase_substrates=kinase_substrates,
         kinase_order=kinase_order,

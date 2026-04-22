@@ -128,7 +128,7 @@ class DatasetConventionNormalizer:
 
     @staticmethod
     def _normalize_site_metadata_columns(site_metadata: pd.DataFrame) -> pd.DataFrame:
-        _reject_unsupported_legacy_aliases(site_metadata.columns)
+        _reject_unsupported_historical_aliases(site_metadata.columns)
         rename_map: dict[str, str] = {}
         gene_column = _resolve_alias(
             site_metadata.columns,
@@ -259,7 +259,7 @@ def _resolve_alias(
     return None
 
 
-def _reject_unsupported_legacy_aliases(columns: pd.Index) -> None:
+def _reject_unsupported_historical_aliases(columns: pd.Index) -> None:
     present = _normalized_column_lookup(columns)
     unsupported_aliases: dict[str, str] = {
         "sequence": "site_sequence",
@@ -269,11 +269,11 @@ def _reject_unsupported_legacy_aliases(columns: pd.Index) -> None:
         "phosphosite": "site",
         "site_position": "site",
     }
-    for legacy_name, canonical_name in unsupported_aliases.items():
-        if legacy_name not in present:
+    for alias_name, canonical_name in unsupported_aliases.items():
+        if alias_name not in present:
             continue
         raise UnsupportedInputFormatError(
-            f"dataset build request site_metadata column '{legacy_name}' is "
+            f"dataset build request site_metadata column '{alias_name}' is "
             "unsupported for strict convention mapping. Rename it to "
             f"'{canonical_name}' and provide exactly one '{canonical_name}' column."
         )

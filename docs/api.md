@@ -23,7 +23,6 @@ All public executors use `run(request)`.
 ## Package Boundary
 
 - `src/phospy/`: supported package
-- `legacy_archive/phospy_legacy/`: historical migration reference only
 
 ## Installation Contract
 
@@ -263,18 +262,18 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 - `n_iterations` (validated floor: `>= 1`; used by adaptive lane)
 - `random_state` (`None` or integer `>= 0`)
 
-## Kinase Rewrite-vs-Legacy Difference Inventory (2026-04-22)
+## Kinase Contract Difference Inventory (2026-04-22)
 
 This table is the supported contract truth source for kinase
-scoring/prediction behavior where rewrite and legacy differ.
+scoring/prediction behavior where current and historical baselines differ.
 
-| Behavior seam | Rewrite contract (supported) | Legacy baseline | Classification |
+| Behavior seam | Supported contract | Historical baseline | Classification |
 | --- | --- | --- | --- |
 | Profile-only fallback in profile+motif combine | Workflow scoring always calls profile+motif combine with profile-only fallback enabled (`allow_profile_only_fallback=True`) | Legacy public config default was `allow_profile_only_fallback=False` | Intentional and supported |
 | Missing motif values when profile is present | Combined scores restore profile values for `(motif is missing) AND (profile is present)` cells instead of leaving missing combined values | Legacy combine path did not apply this rescue mask | Intentional and supported |
 | Candidate filter defaults in workflow prediction lanes | Deterministic/adaptive workflow lanes use fixed candidate filters `score_threshold=0.0` and `inclusion=1`; only `top_k` is caller-facing | Legacy defaults were `score_threshold=0.8`, `inclusion=20`, `top=50` | Intentional and supported |
-| Prediction/scoring public knobs | Legacy knobs (`min_motif_size`, `allow_profile_only_fallback`, `score_threshold`, `inclusion`, `svm_mode`, `profile_policy`) are not public request fields in the supported rewrite lane | Those knobs were exposed in legacy `PredictionRunConfig` | Intentional and supported |
-| Public prediction mode surface | Public `mode` is explicit (`deterministic_ranking` default, `adaptive_ensemble` optional), with adaptive behavior further selected by `adaptive_policy` | Legacy public lane was `svm_mode`-centric and did not expose the deterministic ranking mode as the default contract lane | Intentional and supported |
+| Prediction/scoring public knobs | Historical knobs (`min_motif_size`, `allow_profile_only_fallback`, `score_threshold`, `inclusion`, `svm_mode`, `profile_policy`) are not public request fields in the supported lane | Those knobs were exposed in historical `PredictionRunConfig` | Intentional and supported |
+| Public prediction mode surface | Public `mode` is explicit (`deterministic_ranking` default, `adaptive_ensemble` optional), with adaptive behavior further selected by `adaptive_policy` | Historical public lane was `svm_mode`-centric and did not expose deterministic ranking as the default contract lane | Intentional and supported |
 
 Inventory status in this audit:
 
@@ -443,9 +442,9 @@ Supported public lane (stable and recommended):
   reports counts via `result.score_preconditioning_diagnostics`;
   `score_preconditioning_policy="error_on_drop"` fails interpretation when any
   all-missing row would be dropped.
-- Active parity regression for this lane is rewrite execution against committed
-  rewrite-owned fixtures; no live `legacy_archive` module execution is part of
-  the active parity gate.
+- Active parity regression for this lane is execution against committed
+  rewrite-owned fixtures; no archived runtime-module execution is part of the
+  active parity gate.
 
 Deferred/experimental/not yet ported into the public lane:
 - Additional legacy science lanes listed as roadmap follow-ons.

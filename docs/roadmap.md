@@ -18,14 +18,12 @@ Supported today in `src/phospy/`:
 - rat bundled-reference runtime lane with `ReferencePreset.AUTO`/`RAT`
 - external bundle persistence in `phospy.io`
 
-Historical code under `legacy_archive/phospy_legacy/` is migration reference only.
-
 ## Supported Science (Current Lane)
 
 - Kinase scoring publishes:
   authoritative `profile_scores` and `combined_scores`, with optional
   diagnostic `motif_scores` and `weights`
-- Prediction uses the legacy-matching downstream score lane:
+- Prediction uses the established downstream score lane:
   `combined_scores` when present, otherwise `profile_scores`
 - Adaptive ensemble prediction mode is supported (`mode="adaptive_ensemble"`)
   in the standard package install (no extra dependency step required)

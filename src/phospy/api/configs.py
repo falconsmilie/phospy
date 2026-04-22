@@ -207,7 +207,7 @@ class DatasetSiteMatrixConfig:
         (`"retain_missing"`, `"require_min_observed_values"`) are internal
         compatibility modes and are rejected in the public builder lane.
     - `duplicate_site_strategy` controls duplicate-site collapse:
-      - `"max_mean_signal"` (legacy default): keep row with strongest signal.
+      - `"max_mean_signal"` (default): keep row with strongest signal.
       - `"first"`: keep first encountered row for each duplicate site.
       - `"aggregate_mean"`: aggregate duplicate phospho values by column mean.
       - `"aggregate_median"`: aggregate duplicate phospho values by column median.
@@ -312,7 +312,7 @@ class KinasePredictionConfig:
     `mode` selects the prediction lane:
 
     - `"deterministic_ranking"`: deterministic top-kinase selection from
-      downstream scores (legacy rewrite shortcut lane).
+      downstream scores.
     - `"adaptive_ensemble"`: real adaptive ensemble execution ported from donor
       science.
 

@@ -1,7 +1,0 @@
-kinase,substrate_count,motif_size,candidate_count,included_in_candidate_list,candidate_status,motif_profile_spearman,motif_weight,profile_weight
-LCK,1,32,2,False,dropped,-0.028417456565391356,0.5578858913022596,0.4421141086977403
-PRKAA1,4,52,17,False,just_below_inclusion,0.22847366729381124,0.5,0.5
-PRKAA2,1,13,24,True,just_above_inclusion,0.4012316944885334,0.5,0.5
-AKT1,5,84,27,True,just_above_inclusion,0.035437132374311356,0.5,0.5
-MAPK1,8,241,36,True,robust,0.3066148991459371,0.5,0.5
-IRAK1,1,8,38,True,robust,0.2614703028024905,0.3868528072345416,0.6131471927654585

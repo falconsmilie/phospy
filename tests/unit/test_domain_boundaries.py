@@ -421,7 +421,7 @@ def test_builder_rejects_ambiguous_sequence_column_without_explicit_convention()
         )
 
 
-def test_builder_rejects_unsupported_legacy_gene_alias() -> None:
+def test_builder_rejects_unsupported_historical_gene_alias() -> None:
     with pytest.raises(
         UnsupportedInputFormatError,
         match="column 'gene' is unsupported",
@@ -500,7 +500,7 @@ def test_builder_rejects_blank_required_site_metadata_fields_across_input_routes
 
 
 @pytest.mark.parametrize("use_file_path", [False, True], ids=["dataframe", "file_path"])
-def test_builder_rejects_unsupported_legacy_site_alias_across_input_routes(
+def test_builder_rejects_unsupported_historical_site_alias_across_input_routes(
     use_file_path: bool,
     tmp_path,
 ) -> None:

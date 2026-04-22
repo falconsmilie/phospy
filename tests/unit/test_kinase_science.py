@@ -151,7 +151,9 @@ def test_build_prediction_outputs_uses_missing_values_for_unsupported_cells() ->
     assert int(substrate_list.shape[0]) == 2
 
 
-def test_build_prediction_outputs_matches_legacy_selection_semantics() -> None:
+def test_build_prediction_outputs_matches_historical_baseline_selection_semantics() -> (
+    None
+):
     score_matrix = pd.DataFrame(
         {
             "K1": [0.8, 0.4, float("nan"), 0.95, 0.2, 0.7],
@@ -167,7 +169,9 @@ def test_build_prediction_outputs_matches_legacy_selection_semantics() -> None:
     }
     top_k = 3
 
-    def _legacy_build_prediction_outputs() -> tuple[pd.DataFrame, pd.DataFrame]:
+    def _historical_baseline_build_prediction_outputs() -> tuple[
+        pd.DataFrame, pd.DataFrame
+    ]:
         pred_mat = pd.DataFrame(
             float("nan"),
             index=score_matrix.index.copy(),
@@ -208,7 +212,9 @@ def test_build_prediction_outputs_matches_legacy_selection_semantics() -> None:
         )
         return pred_mat, substrate_list
 
-    expected_pred_mat, expected_substrate_list = _legacy_build_prediction_outputs()
+    expected_pred_mat, expected_substrate_list = (
+        _historical_baseline_build_prediction_outputs()
+    )
     observed_pred_mat, observed_substrate_list = build_prediction_outputs(
         prediction_score_matrix=score_matrix,
         selected_kinases=selected_kinases,

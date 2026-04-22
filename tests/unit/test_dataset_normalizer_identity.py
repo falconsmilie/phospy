@@ -101,7 +101,7 @@ def test_normalizer_rejects_multiple_alias_matches_for_same_target() -> None:
         )
 
 
-def test_normalizer_rejects_unsupported_legacy_site_alias() -> None:
+def test_normalizer_rejects_unsupported_historical_site_alias() -> None:
     with pytest.raises(
         UnsupportedInputFormatError,
         match="column 'residue' is unsupported",

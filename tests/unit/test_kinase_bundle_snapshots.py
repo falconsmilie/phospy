@@ -44,7 +44,9 @@ def test_kinase_snapshot_requires_scoring_config_object() -> None:
         )
 
 
-def test_kinase_snapshot_legacy_payload_defaults_diagnostic_tables_to_true() -> None:
+def test_kinase_snapshot_compatibility_payload_defaults_diagnostic_tables_to_true() -> (
+    None
+):
     snapshot = KinaseWorkflowConfigSnapshot.from_payload(
         {
             "scoring_config": {"min_substrates": 2},

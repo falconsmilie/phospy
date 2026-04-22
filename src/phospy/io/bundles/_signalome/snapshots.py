@@ -10,7 +10,7 @@ from phospy.api.configs import SignalomeConfig
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import require_mapping
 from phospy.io.bundles._signalome.compatibility import (
-    signalome_config_from_payload_with_legacy_support,
+    signalome_config_from_payload_with_compatibility_support,
 )
 
 if TYPE_CHECKING:
@@ -82,7 +82,7 @@ class SignalomeWorkflowConfigSnapshot:
             field_name=f"{scope}.signalome_config",
         )
         return cls(
-            signalome_config=signalome_config_from_payload_with_legacy_support(
+            signalome_config=signalome_config_from_payload_with_compatibility_support(
                 signalome_payload,
                 scope=scope,
             )

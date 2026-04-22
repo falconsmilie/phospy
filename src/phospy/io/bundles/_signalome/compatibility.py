@@ -34,19 +34,19 @@ from phospy.signalomes.models import (
 )
 
 
-def signalome_config_from_payload_with_legacy_support(
+def signalome_config_from_payload_with_compatibility_support(
     payload: Mapping[str, object],
     *,
     scope: str,
 ) -> SignalomeConfig:
-    """Parse signalome config payload with explicit legacy cutoff fallback."""
+    """Parse signalome config payload with explicit compatibility cutoff fallback."""
 
-    legacy_cutoff = payload.get("signalome_cutoff")
+    compatibility_cutoff = payload.get("signalome_cutoff")
     substrate_support_cutoff = payload.get("substrate_support_cutoff")
     network_correlation_threshold = payload.get("network_correlation_threshold")
     if substrate_support_cutoff is None and network_correlation_threshold is None:
-        substrate_support_cutoff = legacy_cutoff
-        network_correlation_threshold = legacy_cutoff
+        substrate_support_cutoff = compatibility_cutoff
+        network_correlation_threshold = compatibility_cutoff
     module_selection_max_clusters_raw = payload.get("module_selection_max_clusters")
     module_selection_max_clusters = (
         SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT
@@ -175,7 +175,7 @@ def signalome_module_selection_diagnostics_to_payload(
     }
 
 
-def signalome_module_selection_diagnostics_from_payload_with_legacy_support(
+def signalome_module_selection_diagnostics_from_payload_with_compatibility_support(
     payload: object,
     *,
     scope: str,
@@ -286,7 +286,7 @@ def signalome_score_preconditioning_diagnostics_to_payload(
     }
 
 
-def signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support(
+def signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support(
     payload: object,
     *,
     scope: str,
@@ -342,7 +342,7 @@ def signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support
 
 
 def normalize_module_assignments_table(table):
-    """Normalize legacy tuple/list/dict-serialized signalome assignment fields."""
+    """Normalize compatibility tuple/list/dict-serialized signalome assignment fields."""
 
     normalized = table.copy(deep=True)
     candidate_columns = [

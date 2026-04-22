@@ -51,7 +51,7 @@ _SUPPORTED_DUPLICATE_SITE_STRATEGIES = {
 class SiteMatrixStage:
     """Build site-matrix-ready phospho rows from site metadata when requested.
 
-    This stage ports the legacy site-matrix policy surface behind
+    This stage ports the historical-baseline site-matrix policy surface behind
     `site_matrix.policy='build_from_metadata'`.
     """
 

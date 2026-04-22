@@ -49,16 +49,16 @@ def test_ratio_to_total_total_protein_correction_matches_rewrite_reference_fixtu
     request: pytest.FixtureRequest,
 ) -> None:
     phospho = pd.read_csv(
-        PROTEIN_CORRECTION_FIXTURES / "legacy_r_reference_input_phospho.csv"
+        PROTEIN_CORRECTION_FIXTURES / "reference_input_phospho.csv"
     ).set_index("site_id")
     site_metadata = pd.read_csv(
-        PROTEIN_CORRECTION_FIXTURES / "legacy_r_reference_input_site_metadata.csv"
+        PROTEIN_CORRECTION_FIXTURES / "reference_input_site_metadata.csv"
     ).set_index("site_id")
     total = pd.read_csv(
-        PROTEIN_CORRECTION_FIXTURES / "legacy_r_reference_input_total.csv"
+        PROTEIN_CORRECTION_FIXTURES / "reference_input_total.csv"
     ).set_index("protein_id")
     expected = pd.read_csv(
-        PROTEIN_CORRECTION_FIXTURES / "legacy_r_reference_corrected_matrix.csv"
+        PROTEIN_CORRECTION_FIXTURES / "reference_corrected_matrix.csv"
     ).set_index("site_id")
 
     preprocessed = DatasetPreprocessor().run(
@@ -105,13 +105,13 @@ def test_site_matrix_build_from_metadata_matches_rewrite_reference_fixture(
     request: pytest.FixtureRequest,
 ) -> None:
     corrected_fixture = pd.read_csv(
-        SITE_MATRIX_FIXTURES / "legacy_r_reference_phospho_corrected.csv"
+        SITE_MATRIX_FIXTURES / "reference_phospho_corrected.csv"
     )
     expected_matrix_fixture = pd.read_csv(
-        SITE_MATRIX_FIXTURES / "legacy_r_reference_expected_matrix.csv"
+        SITE_MATRIX_FIXTURES / "reference_expected_matrix.csv"
     )
     expected_input_fixture = pd.read_csv(
-        SITE_MATRIX_FIXTURES / "legacy_r_reference_expected_phosr_input.csv"
+        SITE_MATRIX_FIXTURES / "reference_expected_input.csv"
     )
 
     corrected_cols = tuple(f"phospho_corrected_{position}" for position in range(1, 7))
@@ -220,13 +220,13 @@ def test_comparison_building_explicit_pair_matches_rewrite_reference_fixture(
     request: pytest.FixtureRequest,
 ) -> None:
     phospho = pd.read_csv(
-        COMPARISON_FIXTURES / "legacy_pairwise_input_phospho.csv"
+        COMPARISON_FIXTURES / "reference_pairwise_input_phospho.csv"
     ).set_index("site_id")
     sample_metadata = pd.read_csv(
-        COMPARISON_FIXTURES / "legacy_pairwise_input_sample_metadata.csv"
+        COMPARISON_FIXTURES / "reference_pairwise_input_sample_metadata.csv"
     ).set_index("sample_id")
     expected = pd.read_csv(
-        COMPARISON_FIXTURES / "legacy_pairwise_expected.csv"
+        COMPARISON_FIXTURES / "reference_pairwise_expected.csv"
     ).set_index("site_id")
     site_metadata = _site_metadata_from_site_ids(phospho.index)
 

@@ -2,10 +2,8 @@
 
 - Date: 2026-04-20
 - Scope:
-  - Legacy donor science:
-    - `legacy_archive/phospy_legacy/activities/scoring.py`
-    - `legacy_archive/phospy_legacy/activities/analysis.py`
-    - `legacy_archive/phospy_legacy/activities/results.py`
+  - Historical baseline science:
+    - promoted from archived project snapshots in git history
   - Rewrite implementation:
     - `src/phospy/activities/scoring.py`
     - `src/phospy/activities/models.py`
@@ -15,13 +13,13 @@
 > Audience: maintainers auditing activity-science parity evidence.
 > For first-time usage, use [Quickstart](../getting-started/quickstart-first-workflow.md).
 
-This review is science-focused. Architectural differences (legacy analyzer/writer
+This review is science-focused. Architectural differences (historical analyzer/writer
 classes vs rewrite validator/interpreter/executor boundaries) are intentionally
 excluded from gap classification.
 
 ## Scientific Verification Matrix
 
-| Scientific behavior | Legacy reference | Rewrite status | Gap |
+| Scientific behavior | Historical baseline | Rewrite status | Gap |
 | --- | --- | --- | --- |
 | Weighted kinase activity kernel | weighted mean over top-N predicted substrates, overlap-aware, sample-wise NaN handling | Matched in `_compute_weighted_kinase_activity` + `_nan_aware_weighted_average` | None |
 | KSEA-style score kernel | thresholded substrate selection + per-sample mean with NaN skip | Matched in `_compute_ksea_scores` + `_nan_aware_mean_array` | None |
@@ -49,11 +47,11 @@ the supported workflow contract.
 
 Activity science port is complete for the supported rewrite scope:
 
-- Scientific kernels are legacy-aligned.
+- Scientific kernels are baseline-aligned.
 - Behavior is parity-backed on rewrite-owned fixtures.
 - Active parity execution is rewrite-only (`tests/parity/test_activity_stage_parity.py`
   compares rewrite runtime outputs to committed fixtures and does not import or
-  execute `legacy_archive` modules).
+  execute archived-runtime modules).
 - Activity parity has an explicit hard CI regression gate
   (`activity-parity-gate`; marker selection `parity and activity_parity`).
 - Fixture provenance and promotion policy are maintained in
@@ -66,7 +64,7 @@ Activity science port is complete for the supported rewrite scope:
 
 - Rewrite-owned fixture expectations exist and are the active authority under
   `tests/fixtures/rewrite_parity/r_reference_l6/`.
-- The active parity gate does not execute donor code from `legacy_archive/`;
+- The active parity gate does not execute historical donor code;
   it compares rewrite runtime outputs to committed rewrite fixtures.
 - Legacy donor references remain only as archival provenance and lock-style
   checks (for example, targeted donor-inventory/unit tests), not as the active

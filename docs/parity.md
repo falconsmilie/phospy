@@ -51,9 +51,9 @@ regression protection strength.
 - If that gate evidence does not exist yet, classify the area as
   `DONOR_BACKED_REWRITE_COVERAGE`,
   `CONTRACT_CHANGED_SUPPORTED_LANE`, or `OPEN_SCIENTIFIC_GAP`.
-- When parity gates are added, removed, or materially changed, update all of:
-  `docs/parity.md`, `docs/architecture/legacy_science_gap_audit.md`, and
-  `tests/support/legacy_donor_inventory.py` in the same change.
+- When parity gates are added, removed, or materially changed, update
+  `docs/parity.md` and `docs/architecture/legacy_science_gap_audit.md` in the
+  same change.
 
 ## What Parity Means Here
 
@@ -224,8 +224,7 @@ Promotion requirement for ranking-closure claims:
 ## Rewrite-Owned Parity Reporting
 
 Parity chatter is emitted by default from `tests/parity/`. Reporting is
-rewrite-owned (`tests/support/` + `tests/conftest.py`) and is not routed
-through `tests_legacy/`.
+rewrite-owned (`tests/support/` + `tests/conftest.py`).
 
 When parity tests run, terminal output includes grouped scientific summaries
 for prediction-science parity, kinase workflow parity, L6 core scoring/prediction,
@@ -278,8 +277,8 @@ Open legacy-science areas in this inventory snapshot (`2026-04-22`):
 - none currently classified `OPEN_GAP` in the audited list.
 
 Rewrite-side visibility check:
-
-- `tests/unit/test_legacy_donor_inventory.py`
+- parity inventory rows and coverage-tier claims are validated directly in
+  `docs/parity.md` and `docs/architecture/legacy_science_gap_audit.md`.
 
 ## Fixture Locations
 
@@ -297,8 +296,6 @@ Rewrite-side visibility check:
 - `tests/fixtures/rewrite_parity/fragile_support_reference/`
 - provenance and promotion history:
   `tests/fixtures/rewrite_parity/fragile_support_reference/PROVENANCE.md`
-- historical regeneration utility (archived; not in default maintainer lane):
-  `scripts/archive/generate_fragile_support_reference.py`
 - `tests/fixtures/rewrite_parity/adaptive_sampling_edge/`
 - provenance and promotion history:
   `tests/fixtures/rewrite_parity/adaptive_sampling_edge/PROVENANCE.md`
@@ -331,13 +328,9 @@ and helpers in `tests/support/rewrite_fixture_data.py`.
 
 ### Historical reference archive
 
-- `tests/fixtures/archive/` contains archived provenance/debug fixture outputs
-  that are intentionally outside active parity gates.
-- `tests_legacy/fixtures/` is retained for provenance and archival material.
-- Active rewrite parity tests should not resolve fixtures from this path as
-  their normal source.
-- `tests_legacy/test_parity-with_metrics.py` is archival/provenance only and is
-  not active reporting infrastructure for rewrite parity runs.
+- Historical parity and debug artifacts live in repository history.
+- Active parity tests resolve only from committed fixture roots under
+  `tests/fixtures/`.
 
 ## Run the Parity Suite
 

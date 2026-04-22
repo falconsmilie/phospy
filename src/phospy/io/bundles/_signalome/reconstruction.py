@@ -23,8 +23,8 @@ from phospy.io.bundles._shared.transformation_state import (
 )
 from phospy.io.bundles._signalome.compatibility import (
     normalize_module_assignments_table,
-    signalome_module_selection_diagnostics_from_payload_with_legacy_support,
-    signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support,
+    signalome_module_selection_diagnostics_from_payload_with_compatibility_support,
+    signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support,
 )
 from phospy.io.bundles._signalome.manifest import SignalomeManifestSections
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
@@ -212,16 +212,14 @@ def reconstruct_signalome_result(
         activity_result=activity_result,
     )
     module_selection_diagnostics = (
-        signalome_module_selection_diagnostics_from_payload_with_legacy_support(
+        signalome_module_selection_diagnostics_from_payload_with_compatibility_support(
             sections.signalome_metadata.get("module_selection_diagnostics"),
             scope="bundle manifest.signalome_outputs.metadata",
         )
     )
-    score_preconditioning_diagnostics = (
-        signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support(
-            sections.signalome_metadata.get("score_preconditioning_diagnostics"),
-            scope="bundle manifest.signalome_outputs.metadata",
-        )
+    score_preconditioning_diagnostics = signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support(
+        sections.signalome_metadata.get("score_preconditioning_diagnostics"),
+        scope="bundle manifest.signalome_outputs.metadata",
     )
     return SignalomeWorkflowResult(
         dataset=dataset,

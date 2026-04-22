@@ -19,11 +19,11 @@ from phospy.api import (
     ReferenceBundle,
 )
 from tests.support.rewrite_fixture_data import (
+    load_public_predmat_historical_baseline_default,
+    load_public_predmat_historical_baseline_r_parity,
     load_public_predmat_input_phospho,
     load_public_predmat_input_site_sequences,
     load_public_predmat_input_substrate_map,
-    load_public_predmat_legacy_default_donor,
-    load_public_predmat_legacy_r_parity_donor,
     load_public_predmat_rewrite_contract,
     load_public_predmat_rewrite_r_parity,
     load_public_predmat_rewrite_stable,
@@ -197,9 +197,9 @@ def _collect_lane_metrics(*, adaptive_policy: str) -> PublicPredmatLaneMetrics:
         else load_public_predmat_rewrite_r_parity()
     )
     donor = (
-        load_public_predmat_legacy_default_donor()
+        load_public_predmat_historical_baseline_default()
         if adaptive_policy == "stable"
-        else load_public_predmat_legacy_r_parity_donor()
+        else load_public_predmat_historical_baseline_r_parity()
     )
     expected = _canonicalize_public_site_frame_index(expected)
     donor = _canonicalize_public_site_frame_index(donor)

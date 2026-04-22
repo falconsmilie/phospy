@@ -10,7 +10,7 @@
     "random_state": 17
   },
   "policies": {
-    "stable": "adaptive_policy=\"stable\" (legacy-readable default lane)",
+    "stable": "adaptive_policy=\"stable\" (default lane)",
     "r_parity": "adaptive_policy=\"r_parity\""
   },
   "benchmarks": {

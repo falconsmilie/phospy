@@ -9,9 +9,9 @@ from phospy.api.configs import (
 )
 from phospy.io.bundles._signalome.compatibility import (
     normalize_module_assignments_table,
-    signalome_module_selection_diagnostics_from_payload_with_legacy_support,
+    signalome_module_selection_diagnostics_from_payload_with_compatibility_support,
     signalome_module_selection_diagnostics_to_payload,
-    signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support,
+    signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support,
     signalome_score_preconditioning_diagnostics_to_payload,
 )
 from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
@@ -25,7 +25,7 @@ from phospy.signalomes.models import (
 )
 
 
-def test_signalome_snapshot_supports_legacy_cutoff_payload() -> None:
+def test_signalome_snapshot_supports_compatibility_cutoff_payload() -> None:
     snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
         {"signalome_config": {"signalome_cutoff": 0.6}}
     )
@@ -59,7 +59,9 @@ def test_signalome_snapshot_supports_assignment_policy_payload() -> None:
     )
 
 
-def test_signalome_snapshot_supports_network_policy_payload_and_legacy_alias() -> None:
+def test_signalome_snapshot_supports_network_policy_payload_and_compatibility_alias() -> (
+    None
+):
     explicit = SignalomeWorkflowConfigSnapshot.from_payload(
         {
             "signalome_config": {
@@ -69,7 +71,7 @@ def test_signalome_snapshot_supports_network_policy_payload_and_legacy_alias() -
             }
         }
     )
-    legacy_alias = SignalomeWorkflowConfigSnapshot.from_payload(
+    compatibility_alias = SignalomeWorkflowConfigSnapshot.from_payload(
         {
             "signalome_config": {
                 "substrate_support_cutoff": 0.5,
@@ -80,7 +82,7 @@ def test_signalome_snapshot_supports_network_policy_payload_and_legacy_alias() -
     )
 
     assert explicit.signalome_config.network_policy == "absolute_threshold"
-    assert legacy_alias.signalome_config.network_policy == "positive_only"
+    assert compatibility_alias.signalome_config.network_policy == "positive_only"
 
 
 def test_signalome_snapshot_round_trip_preserves_network_policy() -> None:
@@ -157,9 +159,11 @@ def test_module_selection_diagnostics_payload_round_trip() -> None:
     )
 
     payload = signalome_module_selection_diagnostics_to_payload(diagnostics)
-    restored = signalome_module_selection_diagnostics_from_payload_with_legacy_support(
-        payload,
-        scope="test",
+    restored = (
+        signalome_module_selection_diagnostics_from_payload_with_compatibility_support(
+            payload,
+            scope="test",
+        )
     )
 
     assert restored == diagnostics
@@ -174,11 +178,9 @@ def test_score_preconditioning_diagnostics_payload_round_trip() -> None:
     )
 
     payload = signalome_score_preconditioning_diagnostics_to_payload(diagnostics)
-    restored = (
-        signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support(
-            payload,
-            scope="test",
-        )
+    restored = signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support(
+        payload,
+        scope="test",
     )
 
     assert restored == diagnostics
@@ -193,21 +195,17 @@ def test_score_preconditioning_diagnostics_accepts_error_on_drop_policy() -> Non
     )
 
     payload = signalome_score_preconditioning_diagnostics_to_payload(diagnostics)
-    restored = (
-        signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support(
-            payload,
-            scope="test",
-        )
+    restored = signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support(
+        payload,
+        scope="test",
     )
 
     assert restored == diagnostics
 
 
-def test_score_preconditioning_diagnostics_legacy_payload_defaults() -> None:
-    restored = (
-        signalome_score_preconditioning_diagnostics_from_payload_with_legacy_support(
-            None,
-            scope="test",
-        )
+def test_score_preconditioning_diagnostics_compatibility_payload_defaults() -> None:
+    restored = signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support(
+        None,
+        scope="test",
     )
     assert restored == default_signalome_score_preconditioning_diagnostics()

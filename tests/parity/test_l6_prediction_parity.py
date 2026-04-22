@@ -29,7 +29,7 @@ CANDIDATE_OVERLAP_PRECISION_FLOOR = 0.999999
 CANDIDATE_OVERLAP_RECALL_FLOOR = 0.999999
 CANDIDATE_OVERLAP_F1_FLOOR = 0.999999
 # Hard regression gates for promoted-reference ranking agreement.
-# These bars intentionally mirror the legacy release thresholds now that the
+# These bars intentionally mirror historical release thresholds now that the
 # ranking comparison surface is like-for-like (predMat-derived ranking compared
 # to promoted predMat reference ranking, and ranked top-k export compared to
 # promoted top-k reference ranking).

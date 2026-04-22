@@ -6,18 +6,17 @@ active tests in `tests/parity/test_public_predmat_parity.py` and
 
 ## predMat Lane Sources
 
-Input fixtures promoted from archival example data:
+Input fixtures promoted from archived project history and materialized here as
+supported parity inputs:
 
-- `examples/_archived_legacy/data/predmat_phospho_matrix.csv`
-- `examples/_archived_legacy/data/predmat_substrate_map.json`
-- `examples/_archived_legacy/data/predmat_site_sequences.json`
+- `predmat_input_phospho_matrix.csv`
+- `predmat_input_substrate_map.json`
+- `predmat_input_site_sequences.json`
 
-Archival donor benchmarks retained for provenance:
+Historical baseline benchmarks retained for provenance:
 
-- `predmat_legacy_default_donor.csv` from
-  `tests_legacy/fixtures/public_workflow_reference/predmat_default.csv`
-- `predmat_legacy_r_parity_donor.csv` from
-  `tests_legacy/fixtures/public_workflow_reference/predmat_r_parity.csv`
+- `predmat_historical_baseline_default.csv`
+- `predmat_historical_baseline_r_parity.csv`
 
 Rewrite-owned committed benchmark outputs:
 

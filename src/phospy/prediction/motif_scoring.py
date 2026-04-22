@@ -174,7 +174,7 @@ def score_phosphosite_motifs(
 
 
 def minmax_scale_columns(mat: pd.DataFrame) -> pd.DataFrame:
-    """Apply column-wise min-max scaling used by legacy motif scoring."""
+    """Apply column-wise min-max scaling used by baseline motif scoring."""
 
     scaled = mat.astype(float).copy()
     for column in scaled.columns:

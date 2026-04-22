@@ -50,7 +50,7 @@ class KinaseActivityInputs:
 class KinaseActivityResult:
     """Activity-stage outputs.
 
-    Outputs are deliberately table-first and mirror the legacy scientific stage:
+    Outputs are deliberately table-first and mirror the historical baseline stage:
 
     - ``weighted_activity``: weighted kinase activity matrix
     - ``ksea_scores``: KSEA-style sample-by-kinase score matrix

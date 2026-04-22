@@ -104,7 +104,7 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert loaded.result.expanded_signalome is not None
 
 
-def test_signalome_config_snapshot_accepts_legacy_cutoff_payload() -> None:
+def test_signalome_config_snapshot_accepts_compatibility_cutoff_payload() -> None:
     snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
         {"signalome_config": {"signalome_cutoff": 0.6}}
     )

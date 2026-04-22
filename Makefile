@@ -17,16 +17,13 @@ TRACE_TOP_N ?= 10
 FIXTURES_ROOT ?= tests/fixtures
 REWRITE_PARITY_ROOT ?= $(FIXTURES_ROOT)/rewrite_parity
 R_L6_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference_l6
-R_SMALL_ARCHIVE_OUTDIR ?= tests_legacy/fixtures/r_reference
 PUBLIC_WORKFLOW_OUTDIR ?= $(FIXTURES_ROOT)/public_workflow_reference
 ACTIVE_SCRIPTS_DIR ?= scripts/active
-ARCHIVE_SCRIPTS_DIR ?= scripts/archive
 
-.PHONY: help help-archive \
+.PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
 	install install-dev lint format pre-commit test test-unit test-parity test-seams build clean \
 	fixtures fixtures-r-l6 traces-r \
-	fixtures-r-small-archive \
 	fixtures-public-workflow-reference fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
 
@@ -50,12 +47,7 @@ help:
 	@echo   make traces-r                      Regenerate the committed R L6 prediction trace
 	@echo   make fixtures-public-workflow-reference Regenerate public workflow signalome fixtures
 	@echo   make fixtures-all                  Bootstrap active maintainer fixture families from scratch
-	@echo   make help-archive                  Show archived/niche maintainer targets
 	@echo   make fixtures                      Alias for fixtures-all
-
-help-archive:
-	@echo Archived/niche maintainer targets:
-	@echo   make fixtures-r-small-archive      (archival forensic only) Regenerate legacy small R fixtures (excluded from fixtures-all)
 
 check-tools:
 	@command -v "$(PYTHON)" >/dev/null 2>&1 || { printf 'Python executable not found: %s\n' "$(PYTHON)" >&2; exit 1; }
@@ -101,10 +93,6 @@ signalome-workflow-demo: check-tools
 demo-all: dataset-builder-demo kinase-workflow-demo signalome-workflow-demo
 
 fixtures: fixtures-all
-
-fixtures-r-small-archive: check-r-tools
-	@echo "archival-only target: outputs are historical provenance and not part of active fixture bootstrap"
-	$(RSCRIPT) $(ARCHIVE_SCRIPTS_DIR)/generate_r_fixtures.R --outdir "$(R_SMALL_ARCHIVE_OUTDIR)"
 
 fixtures-r-l6: check-r-tools fixtures-dirs
 	$(RSCRIPT) $(ACTIVE_SCRIPTS_DIR)/generate_r_l6_fixtures.R --outdir "$(R_L6_OUTDIR)"

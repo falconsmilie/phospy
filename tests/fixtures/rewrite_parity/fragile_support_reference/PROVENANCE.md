@@ -1,36 +1,12 @@
 # Rewrite Parity Fixture Provenance (`fragile_support_reference`)
 
-These files are rewrite-owned copies used by active parity tests for restored
-prediction science seams (motif scoring, combined profile/motif weighting, and
-candidate selection).
+These files are rewrite-owned baseline copies used by active prediction-science
+parity tests (motif scoring, profile/motif weighting, and candidate selection).
 
 ## Source
 
-Promoted from:
-
-`tests_legacy/fixtures/fragile_support_reference/`
-
-on 2026-04-18.
-
-Additional motif-lock fixtures were promoted/reconstructed on 2026-04-20 from:
-
-- `tests_legacy/fixtures/r_reference_l6/native_motif_scores.csv`
-- `tests_legacy/fixtures/r_reference_l6/l6_site_sequences.csv`
-
-for selected kinases (`AKT1`, `IRAK1`, `LCK`, `MAPK1`, `PRKAA1`, `PRKAA2`).
-`motif_frequency_matrices/*.csv` are rewrite-owned reconstructed matrices that
-exactly reproduce the promoted full motif score table under the current motif
-scoring kernel.
-
-## Regeneration Status
-
-As of 2026-04-22, the older seam-level regeneration utility for this fixture
-family is archived at:
-
-- `scripts/archive/generate_fragile_support_reference.py`
-
-It is retained only for historical parity forensics and is not part of the
-default supported maintainer fixture-bootstrap workflow.
+- Promoted from historical project snapshots on 2026-04-18.
+- Additional motif-lock fixtures were promoted/reconstructed on 2026-04-20.
 
 ## Included Files
 

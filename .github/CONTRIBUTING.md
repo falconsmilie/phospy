@@ -63,8 +63,8 @@ For benchmark tooling edits, also run:
 pytest tests/unit/test_benchmark_scripts_smoke.py
 ```
 
-`make test-parity` runs `pytest tests/parity -m parity -s` and prints the
-rewrite-owned parity summary chatter by default (no `PHOSPY_SHOW_*` flags).
+`make test-parity` runs `pytest tests/parity -m parity -s` and prints parity
+summary output by default (no `PHOSPY_SHOW_*` flags).
 
 Core kinase L6 ranking release gates are enforced in
 `tests/parity/test_l6_prediction_parity.py` with explicit hard thresholds
@@ -73,13 +73,11 @@ Core kinase L6 ranking release gates are enforced in
 Informational parity-reporting tests are marked `parity_diagnostic` and are not
 threshold-bearing release blockers.
 
-Active parity authority is the rewrite suite in `tests/parity/` with fixture
+Active parity authority is the suite in `tests/parity/` with fixture
 inputs under:
 
 - `tests/fixtures/rewrite_parity/**`
 - `tests/fixtures/public_workflow_reference/**`
-
-`tests_legacy/` remains archival/provenance only.
 
 ## CI
 

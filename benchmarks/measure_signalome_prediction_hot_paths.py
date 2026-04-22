@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark signalome/prediction science hot paths against legacy-style baselines.
+"""Benchmark signalome/prediction science hot paths against historical baselines.
 
 Targets:
 - `phospy.signalomes.science.build_signalome_module_table`
@@ -33,7 +33,7 @@ def _time_call(repeats: int, func, *args, **kwargs) -> float:
     return sum(durations) / len(durations)
 
 
-def _legacy_build_signalome_module_table(
+def _historical_baseline_build_signalome_module_table(
     *,
     module_assignments: pd.DataFrame,
     kinase_substrates: Mapping[str, Sequence[str]],
@@ -103,7 +103,7 @@ def _legacy_build_signalome_module_table(
     return module_table.astype(float).round(3)
 
 
-def _legacy_build_prediction_outputs(
+def _historical_baseline_build_prediction_outputs(
     *,
     prediction_score_matrix: pd.DataFrame,
     selected_kinases: pd.Index,
@@ -248,7 +248,7 @@ def _build_expanded_inputs(
     return signalome_modules, kinase_network_edges
 
 
-def _legacy_build_expanded_signalome_table(
+def _historical_baseline_build_expanded_signalome_table(
     *,
     module_assignments: pd.DataFrame,
     signalome_modules: pd.DataFrame,
@@ -460,7 +460,7 @@ def main() -> None:
         _build_prediction_inputs()
     )
 
-    baseline_modules = _legacy_build_signalome_module_table(
+    baseline_modules = _historical_baseline_build_signalome_module_table(
         module_assignments=module_assignments,
         kinase_substrates=kinase_substrates,
         kinase_order=kinase_order,
@@ -473,7 +473,7 @@ def main() -> None:
     pd.testing.assert_frame_equal(
         baseline_modules, optimized_modules, check_dtype=False
     )
-    baseline_expanded = _legacy_build_expanded_signalome_table(
+    baseline_expanded = _historical_baseline_build_expanded_signalome_table(
         module_assignments=module_assignments,
         signalome_modules=signalome_modules,
         kinase_network_edges=kinase_network_edges,
@@ -491,11 +491,13 @@ def main() -> None:
         check_dtype=False,
     )
 
-    baseline_pred_mat, baseline_substrate_list = _legacy_build_prediction_outputs(
-        prediction_score_matrix=prediction_score_matrix,
-        selected_kinases=selected_kinases,
-        candidate_substrates=candidate_substrates,
-        top_k=top_k,
+    baseline_pred_mat, baseline_substrate_list = (
+        _historical_baseline_build_prediction_outputs(
+            prediction_score_matrix=prediction_score_matrix,
+            selected_kinases=selected_kinases,
+            candidate_substrates=candidate_substrates,
+            top_k=top_k,
+        )
     )
     optimized_pred_mat, optimized_substrate_list = build_prediction_outputs(
         prediction_score_matrix=prediction_score_matrix,
@@ -515,9 +517,9 @@ def main() -> None:
     )
 
     repeats = 4
-    signalome_legacy_seconds = _time_call(
+    signalome_baseline_seconds = _time_call(
         repeats,
-        _legacy_build_signalome_module_table,
+        _historical_baseline_build_signalome_module_table,
         module_assignments=module_assignments,
         kinase_substrates=kinase_substrates,
         kinase_order=kinase_order,
@@ -529,9 +531,9 @@ def main() -> None:
         kinase_substrates=kinase_substrates,
         kinase_order=kinase_order,
     )
-    expanded_legacy_seconds = _time_call(
+    expanded_baseline_seconds = _time_call(
         repeats,
-        _legacy_build_expanded_signalome_table,
+        _historical_baseline_build_expanded_signalome_table,
         module_assignments=module_assignments,
         signalome_modules=signalome_modules,
         kinase_network_edges=kinase_network_edges,
@@ -545,9 +547,9 @@ def main() -> None:
         kinase_network_edges=kinase_network_edges,
         kinase_substrates=kinase_substrates,
     )
-    prediction_legacy_seconds = _time_call(
+    prediction_baseline_seconds = _time_call(
         repeats,
-        _legacy_build_prediction_outputs,
+        _historical_baseline_build_prediction_outputs,
         prediction_score_matrix=prediction_score_matrix,
         selected_kinases=selected_kinases,
         candidate_substrates=candidate_substrates,
@@ -563,23 +565,23 @@ def main() -> None:
     )
 
     print(f"repeats={repeats}")
-    print(f"signalome_legacy_mean_seconds={signalome_legacy_seconds:.6f}")
+    print(f"signalome_baseline_mean_seconds={signalome_baseline_seconds:.6f}")
     print(f"signalome_optimized_mean_seconds={signalome_optimized_seconds:.6f}")
     print(
         "signalome_speedup="
-        f"{(signalome_legacy_seconds / signalome_optimized_seconds):.3f}x"
+        f"{(signalome_baseline_seconds / signalome_optimized_seconds):.3f}x"
     )
-    print(f"expanded_legacy_mean_seconds={expanded_legacy_seconds:.6f}")
+    print(f"expanded_baseline_mean_seconds={expanded_baseline_seconds:.6f}")
     print(f"expanded_optimized_mean_seconds={expanded_optimized_seconds:.6f}")
     print(
         "expanded_speedup="
-        f"{(expanded_legacy_seconds / expanded_optimized_seconds):.3f}x"
+        f"{(expanded_baseline_seconds / expanded_optimized_seconds):.3f}x"
     )
-    print(f"prediction_legacy_mean_seconds={prediction_legacy_seconds:.6f}")
+    print(f"prediction_baseline_mean_seconds={prediction_baseline_seconds:.6f}")
     print(f"prediction_optimized_mean_seconds={prediction_optimized_seconds:.6f}")
     print(
         "prediction_speedup="
-        f"{(prediction_legacy_seconds / prediction_optimized_seconds):.3f}x"
+        f"{(prediction_baseline_seconds / prediction_optimized_seconds):.3f}x"
     )
 
 

@@ -71,9 +71,9 @@ def test_cluster_sites_matches_two_pass_partition_for_selected_module_count() ->
         1, min(diagnostics.selected_module_count, scoring_values.shape[0])
     )
     if module_count == 1:
-        legacy_labels = np.ones(scoring_values.shape[0], dtype=int)
+        baseline_labels = np.ones(scoring_values.shape[0], dtype=int)
     else:
-        legacy_labels = fit_cluster_labels(scoring_values, module_count) + 1
+        baseline_labels = fit_cluster_labels(scoring_values, module_count) + 1
 
     clustered = cluster_sites_with_diagnostics(
         scoring_matrix=scoring_matrix,
@@ -81,7 +81,7 @@ def test_cluster_sites_matches_two_pass_partition_for_selected_module_count() ->
     )
     observed_labels = clustered.site_clusters.to_numpy(dtype=int, copy=False)
     observed_partition = observed_labels[:, None] == observed_labels[None, :]
-    legacy_partition = legacy_labels[:, None] == legacy_labels[None, :]
+    baseline_partition = baseline_labels[:, None] == baseline_labels[None, :]
 
     assert clustered.module_selection_diagnostics == diagnostics
-    assert np.array_equal(observed_partition, legacy_partition)
+    assert np.array_equal(observed_partition, baseline_partition)

@@ -40,7 +40,7 @@ def _public_methods(cls: type[object]) -> set[str]:
     }
 
 
-def test_packaging_contract_excludes_legacy_package_namespace() -> None:
+def test_packaging_contract_excludes_archived_package_namespace() -> None:
     pyproject = ROOT / "pyproject.toml"
     config = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     package_find = config["tool"]["setuptools"]["packages"]["find"]
@@ -48,7 +48,7 @@ def test_packaging_contract_excludes_legacy_package_namespace() -> None:
     assert {"phospy_legacy", "phospy_legacy.*"}.issubset(set(package_find["exclude"]))
 
 
-def test_source_tree_does_not_expose_legacy_namespace() -> None:
+def test_source_tree_does_not_expose_archived_namespace() -> None:
     assert importlib.util.find_spec("phospy_legacy") is None
 
 

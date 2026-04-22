@@ -106,11 +106,11 @@ PUBLIC_PREDMAT_REWRITE_R_PARITY = (
 PUBLIC_PREDMAT_REWRITE_CONTRACT = (
     REWRITE_PUBLIC_WORKFLOW_REFERENCE / "predmat_rewrite_contract.json"
 )
-PUBLIC_PREDMAT_LEGACY_DONOR_DEFAULT = (
-    REWRITE_PUBLIC_WORKFLOW_REFERENCE / "predmat_legacy_default_donor.csv"
+PUBLIC_PREDMAT_HISTORICAL_BASELINE_DEFAULT = (
+    REWRITE_PUBLIC_WORKFLOW_REFERENCE / "predmat_historical_baseline_default.csv"
 )
-PUBLIC_PREDMAT_LEGACY_DONOR_R_PARITY = (
-    REWRITE_PUBLIC_WORKFLOW_REFERENCE / "predmat_legacy_r_parity_donor.csv"
+PUBLIC_PREDMAT_HISTORICAL_BASELINE_R_PARITY = (
+    REWRITE_PUBLIC_WORKFLOW_REFERENCE / "predmat_historical_baseline_r_parity.csv"
 )
 RAT_L6_SITE_SEQUENCES = (
     ROOT
@@ -472,13 +472,13 @@ def load_public_predmat_rewrite_r_parity() -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
-def load_public_predmat_legacy_default_donor() -> pd.DataFrame:
-    return pd.read_csv(PUBLIC_PREDMAT_LEGACY_DONOR_DEFAULT, index_col=0)
+def load_public_predmat_historical_baseline_default() -> pd.DataFrame:
+    return pd.read_csv(PUBLIC_PREDMAT_HISTORICAL_BASELINE_DEFAULT, index_col=0)
 
 
 @lru_cache(maxsize=1)
-def load_public_predmat_legacy_r_parity_donor() -> pd.DataFrame:
-    return pd.read_csv(PUBLIC_PREDMAT_LEGACY_DONOR_R_PARITY, index_col=0)
+def load_public_predmat_historical_baseline_r_parity() -> pd.DataFrame:
+    return pd.read_csv(PUBLIC_PREDMAT_HISTORICAL_BASELINE_R_PARITY, index_col=0)
 
 
 @lru_cache(maxsize=1)

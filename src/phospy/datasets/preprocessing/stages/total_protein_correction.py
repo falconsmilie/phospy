@@ -20,7 +20,7 @@ _GENE_SYMBOL_COLUMN = "gene_symbol"
 
 
 class TotalProteinCorrectionStage:
-    """Apply legacy-style phospho-to-total correction when explicitly requested."""
+    """Apply historical-baseline phospho-to-total correction when requested."""
 
     stage_key = DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION
 

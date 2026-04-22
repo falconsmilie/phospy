@@ -94,7 +94,6 @@ For strict contract details, use [docs/api.md](docs/api.md) and [docs/validation
 ## Project Boundary and Scientific Scope
 
 - Supported package boundary: `src/phospy/`
-- Historical migration archive: `legacy_archive/phospy_legacy/`
 - Scientific confidence and parity claims are tiered and explicit; see:
   - [docs/parity.md](docs/parity.md)
   - [docs/architecture/legacy_science_gap_audit.md](docs/architecture/legacy_science_gap_audit.md)
