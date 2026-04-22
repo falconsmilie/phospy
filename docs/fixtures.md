@@ -79,10 +79,11 @@ historical traceability. Active tests should resolve from
 
 Archived script tooling also lives under `scripts/archive/`.
 
-Prediction-trace archival tools:
+Archival parity-debug tools:
 
 - `scripts/archive/export_python_prediction_traces.py`
 - `scripts/archive/diff_prediction_trace_probabilities.py`
+- `scripts/archive/generate_synthetic_adaptive_sampling_edge_fixtures.py`
 
 These scripts were used during an earlier donor-parity debugging phase to
 inspect adaptive prediction seam behavior. They are retained for parity

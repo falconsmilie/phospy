@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+"""Archived parity-debug utility from an earlier adaptive seam phase.
+
+This script was used to generate deterministic synthetic adaptive-sampling
+fixtures during donor-parity seam investigation. It depends on an older
+predictor-seam mental model and is not part of the supported maintainer lane.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -7,12 +14,12 @@ from pathlib import Path
 
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-DEFAULT_FIXTURE_DIR = Path("tests/fixtures/synthetic_adaptive_sampling_edge")
+DEFAULT_FIXTURE_DIR = Path("tests/fixtures/rewrite_parity/adaptive_sampling_edge")
 TOP = 4
 SCORE_THRESHOLD = 0.85
 INCLUSION = 2
@@ -26,8 +33,8 @@ TRACE_KINASES = ["KINASE_A", "KINASE_B"]
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate deterministic synthetic fixtures for adaptive-sampling "
-            "edge-case replay tests."
+            "Archived utility: generate deterministic synthetic fixtures for "
+            "adaptive-sampling edge-case replay tests."
         )
     )
     parser.add_argument(

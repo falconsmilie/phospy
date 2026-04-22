@@ -20,3 +20,17 @@ Current status:
   and parity tests.
 - These trace scripts are archived and should not be treated as required for
   routine development or release maintenance.
+
+## Synthetic Adaptive Edge Fixtures (historical)
+
+- `generate_synthetic_adaptive_sampling_edge_fixtures.py`
+
+Why this existed:
+
+- During earlier adaptive prediction seam debugging, maintainers used a small
+  synthetic fixture family to pin deterministic edge-case sampling behavior.
+
+Current status:
+
+- This generator is archival parity-debug tooling and not part of the active
+  maintainer fixture-regeneration workflow.
