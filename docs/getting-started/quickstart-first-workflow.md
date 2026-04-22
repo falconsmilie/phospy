@@ -15,10 +15,23 @@ Normal package install:
 pip install phospy
 ```
 
+If you need parquet file support (`.parquet` input/output), install the optional
+parquet extra:
+
+```bash
+pip install "phospy[parquet]"
+```
+
 If you are developing from a local clone instead:
 
 ```bash
 pip install -e ".[dev]"
+```
+
+For editable installs with parquet support:
+
+```bash
+pip install -e ".[dev,parquet]"
 ```
 
 ## 2. Know Required Data and Reference Scope

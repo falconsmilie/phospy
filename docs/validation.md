@@ -26,6 +26,8 @@ Validation is split across three boundaries:
 
 - `pandas.DataFrame`
 - file path (`str`, `Path`, `PathLike`) to `.csv`, `.tsv`/`.txt`, `.parquet`
+  (`.parquet` requires optional parquet dependencies; install with
+  `pip install "phospy[parquet]"`)
 
 Builder preprocessing config is nested under
 `DatasetBuildRequest.preprocessing_config` and validated as one policy object
@@ -333,7 +335,7 @@ Optional outputs must be checked before dereference:
 
 | Problem | Usually means | Good next step |
 | --- | --- | --- |
-| Builder rejects input format | Field is neither DataFrame nor supported file path | Pass DataFrame or path to `.csv`/`.tsv`/`.txt`/`.parquet` |
+| Builder rejects input format | Field is neither DataFrame nor supported file path | Pass DataFrame or path to `.csv`/`.tsv`/`.txt`, or install parquet extras before using `.parquet` (`pip install "phospy[parquet]"`) |
 | Dataset constructor fails on site metadata | Required strict boundary columns/values are missing | Provide `gene_symbol` and `site` with non-blank strings |
 | Dataset constructor fails on site-identity coherence | `phospho.index` site IDs disagree with row-level `site_metadata.gene_symbol` / `site_metadata.site` (or site IDs are not parseable as `"<gene_symbol>;<site>;"`) | Ensure each row ID and metadata row describe the same site; fix source data rather than mutating at runtime |
 | Row count unexpectedly drops with `site_matrix.policy='build_from_metadata'` | Rows without usable `site_sequence` cannot participate in sequence-derived site-matrix construction and are excluded | Compare input row count vs `dataset.phospho.shape[0]`, review `site_metadata.site_sequence` completeness, and choose policy intentionally |

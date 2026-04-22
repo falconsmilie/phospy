@@ -12,10 +12,23 @@ For normal package use:
 pip install phospy
 ```
 
+If you plan to read/write `.parquet` inputs or outputs, install the optional
+parquet extra:
+
+```bash
+pip install "phospy[parquet]"
+```
+
 For local contributor installs from a clone:
 
 ```bash
 pip install -e ".[dev]"
+```
+
+For editable installs with parquet support:
+
+```bash
+pip install -e ".[dev,parquet]"
 ```
 
 ## First Run (Supported Happy Path)

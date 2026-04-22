@@ -94,7 +94,7 @@ Supported file formats for read and write:
 
 - `.csv`
 - `.tsv` / `.txt`
-- `.parquet`
+- `.parquet` (requires optional parquet dependencies; install with `pip install "phospy[parquet]"`)
 
 ## Output Layout
 
@@ -155,6 +155,7 @@ Supported file formats for read and write:
 ```
 
 `<fmt>` is selected with `--output-format` (`csv`, `tsv`, or `parquet`).
+Parquet output requires optional parquet dependencies (`pip install "phospy[parquet]"`).
 
 Notes:
 
