@@ -20,6 +20,7 @@ If you are new to PhosPy, use this sequence:
 | Run workflows from the command line | [CLI Guide](cli.md) |
 | Understand dataset -> kinase -> signalome flow | [Workflow guides](workflow-guides/index.md) |
 | Integrate PhosPy in Python code | [API Guide](api.md) |
+| Understand what 1.5.0 ships | [Release Notes 1.5.0](release_notes/1.5.0.md) |
 | Diagnose validation or runtime errors | [Troubleshooting](troubleshooting.md) |
 
 ## Docs Areas

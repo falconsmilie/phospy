@@ -105,8 +105,8 @@ signalome_result = SignalomeWorkflow().run(
 
 ## Import Contract
 
-`phospy.api` is the canonical namespace where public API types are defined and
-organized in source.
+`phospy.api` is the authoritative namespace where public API types are
+defined and organised in source.
 
 Both namespaces are public, with different roles:
 
@@ -129,7 +129,7 @@ inputs, or advanced scoring/signalome configuration.
 
 ## Where To Go Next
 
-- Release framing for current contract: [Release Notes 1.5.0](docs/release_notes/1.5.0.md)
+- Release framing for the shipped 1.5.0 contract: [Release Notes 1.5.0](docs/release_notes/1.5.0.md)
 - Guided onboarding: [Quickstart: first workflow](docs/getting-started/quickstart-first-workflow.md)
 - CLI scope and command usage: [CLI Guide](docs/cli.md)
 - Full contract details: [API Guide](docs/api.md), [Validation Guide](docs/validation.md)

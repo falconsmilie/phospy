@@ -10,60 +10,52 @@ All notable changes to this project are documented here.
 
 ## [1.5.0] - 2026-04-22
 
-### What 1.5.0 Is
+### Release Overview
 
-- PhosPy `1.5.0` presents the rewrite as a focused shipped product contract:
-  one analysis-ready dataset boundary and one supported workflow chain
-  (`build -> kinase -> optional signalome`).
-- Release framing is based on the current contract as shipped, not on
-  continuity messaging for older surfaces.
+- PhosPy `1.5.0` presents the rewrite as a deliberate shipped product with one
+  analysis-ready dataset boundary and one supported workflow chain:
+  `build -> kinase -> optional signalome`.
+- Release framing in `1.5.0` is based on the supported package contract as
+  shipped, not on continuity messaging for older package shapes.
 
 ### Supported Product Shape
 
 - Supported workflow story:
   `DatasetBuildRequest -> AnalysisReadyDatasetBuilder.run(...) -> AnalysisReadyPhosphoDataset -> KinaseWorkflow.run(...) -> SignalomeWorkflow.run(...)` (optional signalome step).
-- Namespace roles are explicit:
-  top-level `phospy` is a curated convenience surface, while `phospy.api` is
-  the authoritative namespace for requests/configs/results/references/exceptions.
+- `phospy` remains a small convenience surface for the main dataset and
+  workflow entrypoints.
+- `phospy.api` is the authoritative namespace for requests, configs, results,
+  references/enums, and public exceptions.
 
-### Scientific Scope and Parity Posture
+### Scientific Scope and Bundled References
 
 - Scientific claims in this release are seam-level and fixture-backed, not
   blanket legacy-equivalence claims.
-- The core kinase scoring/prediction L6 lane is parity-gated for ranking
-  behavior on explicit like-for-like comparison surfaces.
-- Contract-changed supported lanes are intentionally documented as contract
-  changes.
-
-### Bundled-Reference Scope
-
+- The core L6 kinase scoring and prediction lane is parity-gated for ranking
+  behaviour on explicit like-for-like comparison surfaces.
+- Contract-changed supported lanes are described as contract-changed rather
+  than presented as broad legacy-equivalent parity.
 - Bundled runtime references are rat-only in `1.5.0`.
 - `ReferencePreset.AUTO` requires `dataset.organism` and resolves bundled data
   for the rat lane.
 - Human and mouse execution require caller-supplied `ReferenceBundle`.
 
-### Notable User-Facing Improvements
+### User-Facing Highlights
 
-- Clearer public API/import boundaries between `phospy` and `phospy.api`.
-- Narrowed `phospy.prediction` default exports to stable surfaces; advanced
-  helpers now require concrete-module imports.
+- Clearer public API boundaries between the top-level `phospy` convenience
+  surface and the `phospy.api` authority surface.
+- Narrowed prediction-related default exports so stable imports are easier to
+  identify and advanced helpers move behind concrete-module imports.
 - Repaired and governance-locked L6 ranking parity gates on explicit
   like-for-like surfaces.
-
-### Internal and Governance Alignment
-
-- Added explicit ranking surface-contract assertions and centralized L6 ranking
-  gate thresholds in `tests/support/l6_prediction_parity_thresholds.py`.
-- Updated parity governance and release-facing docs to use the same lane
-  classification and scope language.
+- Release messaging, parity documentation, validation documentation, and public
+  contract documentation now use aligned scope language.
 
 ### Documentation
 
-- Dedicated release notes:
-  `docs/release_notes/1.5.0.md`.
-- Main contract docs:
-  `docs/api.md`, `docs/validation.md`, `docs/contracts/index.md`,
-  `docs/parity.md`.
+- Dedicated release notes: `docs/release_notes/1.5.0.md`.
+- Main contract and evidence docs: `docs/api.md`, `docs/validation.md`,
+  `docs/contracts/index.md`, `docs/reference/index.md`, `docs/parity.md`.
 
 ## [1.4.0] - 2026-04-15
 
