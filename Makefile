@@ -22,12 +22,13 @@ R_SMALL_OUTDIR ?= $(FIXTURES_ROOT)/r_reference
 FRAGILE_OUTDIR ?= $(FIXTURES_ROOT)/fragile_support_reference
 L6_STRESS_OUTDIR ?= $(FIXTURES_ROOT)/r_reference_l6_seam_stress
 SYNTHETIC_EDGE_OUTDIR ?= $(FIXTURES_ROOT)/synthetic_adaptive_sampling_edge
+PUBLIC_WORKFLOW_OUTDIR ?= $(FIXTURES_ROOT)/public_workflow_reference
 
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
 	install install-dev lint format pre-commit test test-unit test-parity test-seams build clean \
 	fixtures fixtures-r-small fixtures-r-l6 traces-r fixtures-fragile fixtures-r-l6-seam-stress \
-	traces-python traces-python-replay fixtures-synthetic-edge fixtures-all \
+	traces-python traces-python-replay fixtures-synthetic-edge fixtures-public-workflow-reference fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
 
 help:
@@ -54,6 +55,7 @@ help:
 	@echo   make traces-python                 Export Python prediction traces
 	@echo   make traces-python-replay          Export Python traces replaying R sampling rows
 	@echo   make fixtures-synthetic-edge       Generate the synthetic adaptive-sampling edge fixture
+	@echo   make fixtures-public-workflow-reference Regenerate public workflow signalome fixtures
 	@echo   make fixtures-all                  Bootstrap every committed fixture family from scratch
 	@echo   make fixtures                      Alias for fixtures-all
 
@@ -135,13 +137,16 @@ traces-python-replay: check-tools fixtures-r-l6 traces-python fixtures-dirs
 fixtures-synthetic-edge: check-tools fixtures-dirs
 	$(PYTHON) scripts/generate_synthetic_adaptive_sampling_edge_fixtures.py --outdir "$(SYNTHETIC_EDGE_OUTDIR)"
 
+fixtures-public-workflow-reference: check-tools fixtures-dirs
+	$(PYTHON) scripts/generate_signalome_public_workflow_reference.py --outdir "$(PUBLIC_WORKFLOW_OUTDIR)"
+
 test-seams: check-tools
 	$(PYTEST) -q \
 		tests/parity/test_prediction_science_parity.py \
 		tests/parity/test_adaptive_prediction_parity.py \
 		tests/parity/test_adaptive_replay_parity.py
 
-fixtures-all: fixtures-r-small traces-python fixtures-fragile fixtures-r-l6-seam-stress fixtures-synthetic-edge
+fixtures-all: fixtures-r-small traces-python fixtures-fragile fixtures-r-l6-seam-stress fixtures-synthetic-edge fixtures-public-workflow-reference
 
 build: check-tools
 	$(BUILD)

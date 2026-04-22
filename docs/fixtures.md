@@ -41,6 +41,16 @@ Committed workflow regression expectations for the public
 - `signalome_rewrite_l6_expanded_signalome.csv`
 - `signalome_rewrite_l6_contract.json`
 
+Supported regeneration path:
+
+```bash
+make fixtures-public-workflow-reference
+```
+
+The generator (`scripts/generate_signalome_public_workflow_reference.py`) uses a
+maintainer-owned helper in `scripts/support/public_workflow_reference.py`
+instead of test-only support modules.
+
 ## Historical Archive
 
 Legacy fixture trees remain in `tests_legacy/fixtures/` for provenance and

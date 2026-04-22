@@ -40,7 +40,7 @@ def main() -> None:
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
 
-    from phospy import (
+    from phospy.api import (
         KinasePredictionConfig,
         KinaseScoringConfig,
         KinaseWorkflow,
@@ -50,7 +50,7 @@ def main() -> None:
         SignalomeWorkflow,
         SignalomeWorkflowRequest,
     )
-    from tests.support.rewrite_fixture_data import build_rat_l6_dataset
+    from scripts.support.public_workflow_reference import build_rat_l6_dataset
 
     dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = KinaseWorkflow().run(

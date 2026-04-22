@@ -92,6 +92,13 @@ GitHub Actions runs:
 
 If you intentionally change fixture-producing behaviour, regenerate the affected fixtures and explain the contract change clearly in the pull request.
 
+For the active public signalome workflow fixture family
+(`tests/fixtures/public_workflow_reference/signalome_rewrite_l6_*`), use:
+
+```bash
+make fixtures-public-workflow-reference
+```
+
 ## Package layout
 
 PhosPy is organised by domain capability first. Put new code in the package that owns the behaviour instead of adding new root-level modules.
