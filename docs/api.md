@@ -258,6 +258,24 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 - `n_iterations` (validated floor: `>= 1`; used by adaptive lane)
 - `random_state` (`None` or integer `>= 0`)
 
+## Kinase Rewrite-vs-Legacy Difference Inventory (2026-04-22)
+
+This table is the supported contract truth source for kinase
+scoring/prediction behavior where rewrite and legacy differ.
+
+| Behavior seam | Rewrite contract (supported) | Legacy baseline | Classification |
+| --- | --- | --- | --- |
+| Profile-only fallback in profile+motif combine | Workflow scoring always calls profile+motif combine with profile-only fallback enabled (`allow_profile_only_fallback=True`) | Legacy public config default was `allow_profile_only_fallback=False` | Intentional and supported |
+| Missing motif values when profile is present | Combined scores restore profile values for `(motif is missing) AND (profile is present)` cells instead of leaving missing combined values | Legacy combine path did not apply this rescue mask | Intentional and supported |
+| Candidate filter defaults in workflow prediction lanes | Deterministic/adaptive workflow lanes use fixed candidate filters `score_threshold=0.0` and `inclusion=1`; only `top_k` is caller-facing | Legacy defaults were `score_threshold=0.8`, `inclusion=20`, `top=50` | Intentional and supported |
+| Prediction/scoring public knobs | Legacy knobs (`min_motif_size`, `allow_profile_only_fallback`, `score_threshold`, `inclusion`, `svm_mode`, `profile_policy`) are not public request fields in the supported rewrite lane | Those knobs were exposed in legacy `PredictionRunConfig` | Intentional and supported |
+| Public prediction mode surface | Public `mode` is explicit (`deterministic_ranking` default, `adaptive_ensemble` optional), with adaptive behavior further selected by `adaptive_policy` | Legacy public lane was `svm_mode`-centric and did not expose the deterministic ranking mode as the default contract lane | Intentional and supported |
+
+Inventory status in this audit:
+
+- Temporary parity differences to remove: none in runtime behavior; parity/reporting wording drift is tracked in `docs/parity.md`.
+- Unresolved design decisions: none currently tracked for kinase scoring/prediction runtime behavior.
+
 `"adaptive_ensemble"` is part of the normal supported contract and is expected
 to work after a standard package install.
 

@@ -266,6 +266,30 @@ For the supported kinase scoring lane, motif sequence inputs come from
 `references.site_sequences` (resolved reference bundle), not from
 `dataset.site_metadata.site_sequence`.
 
+## Kinase Scoring/Prediction Contract Classification (2026-04-22)
+
+Validation and workflow execution intentionally enforce rewrite contract
+behavior that differs from legacy defaults in the kinase scoring/prediction
+path:
+
+- `KinaseWorkflowExecutor` uses profile+motif combine with profile fallback
+  enabled and preserves profile evidence when motif values are missing.
+- Workflow prediction candidate filtering uses fixed execution semantics:
+  `score_threshold=0.0`, `inclusion=1`, and caller-owned `top_k`.
+- Public request/config validation accepts rewrite knobs only:
+  `mode`, `adaptive_policy`, `top_k`, `ensemble_size`, `n_iterations`,
+  `random_state`, and scoring `profile_missing_value_strategy`.
+- Legacy prediction/scoring knobs are intentionally out of contract and should
+  fail fast at request-object construction (for example `svm_mode`,
+  `allow_profile_only_fallback`, `score_threshold`, `inclusion`,
+  `profile_policy`).
+
+Classification for these differences:
+
+- Intentional and supported: all runtime differences listed above.
+- Temporary and should be removed for parity: none in runtime behavior.
+- Unresolved and requires design decision: none currently tracked in this lane.
+
 ## Nested Result Access (Validation-Relevant Contract)
 
 Stable access paths are nested by stage:

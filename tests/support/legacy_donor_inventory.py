@@ -95,23 +95,24 @@ LEGACY_SCIENCE_AREAS: tuple[LegacyScienceAreaInventory, ...] = (
     ),
     LegacyScienceAreaInventory(
         area="core kinase scoring/prediction lane",
-        status=STATUS_PORTED,
+        status=STATUS_CONTRACT_CHANGED,
         status_summary=(
             "Core downstream scoring, candidate selection, prediction-matrix "
             "ranking, top-k export ranking, and replay surfaces are parity-gated "
-            "on promoted rewrite fixtures."
+            "on promoted rewrite fixtures, while supported defaults intentionally "
+            "differ from legacy."
         ),
         science_gap_ticket="SCI-GAP-12",
         rewrite_unit_tests=(),
         rewrite_parity_tests=(
             "tests/parity/test_l6_prediction_parity.py::"
-            "test_l6_prediction_matrix_numeric_parity_donor_vs_rewrite",
+            "test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces",
             "tests/parity/test_l6_prediction_parity.py::"
-            "test_l6_prediction_matrix_ranking_parity_donor_vs_rewrite",
+            "test_l6_prediction_matrix_ranking_parity_matches_promoted_reference_surfaces",
             "tests/parity/test_l6_prediction_parity.py::"
-            "test_l6_candidate_selection_parity_donor_vs_rewrite",
+            "test_l6_candidate_selection_parity_matches_promoted_reference_surfaces",
             "tests/parity/test_l6_prediction_parity.py::"
-            "test_l6_ranked_topk_export_parity_donor_vs_rewrite",
+            "test_l6_ranked_topk_export_parity_matches_promoted_reference_surfaces",
             "tests/parity/test_adaptive_replay_parity.py::"
             "test_adaptive_replay_trace_parity_matches_promoted_trace_surfaces",
         ),

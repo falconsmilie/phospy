@@ -136,7 +136,8 @@ def test_profile_policy_donor_locks_strict_median_behavior_and_contract_surface(
 def test_adaptive_sampling_donor_is_archival_and_svm_mode_is_not_rewrite_contract() -> (
     None
 ):
-    assert {field.name for field in fields(KinasePredictionConfig)} == {
+    prediction_fields = {field.name for field in fields(KinasePredictionConfig)}
+    assert prediction_fields == {
         "top_k",
         "ensemble_size",
         "mode",
@@ -144,11 +145,32 @@ def test_adaptive_sampling_donor_is_archival_and_svm_mode_is_not_rewrite_contrac
         "n_iterations",
         "random_state",
     }
+    assert prediction_fields.isdisjoint(
+        {
+            "svm_mode",
+            "allow_profile_only_fallback",
+            "score_threshold",
+            "inclusion",
+            "min_motif_size",
+        }
+    )
     with pytest.raises(TypeError, match="svm_mode"):
         KinasePredictionConfig(  # type: ignore[call-arg]
             top_k=3,
             ensemble_size=2,
             svm_mode="r_parity",
+        )
+    with pytest.raises(TypeError, match="score_threshold"):
+        KinasePredictionConfig(  # type: ignore[call-arg]
+            top_k=3,
+            ensemble_size=2,
+            score_threshold=0.8,
+        )
+    with pytest.raises(TypeError, match="allow_profile_only_fallback"):
+        KinasePredictionConfig(  # type: ignore[call-arg]
+            top_k=3,
+            ensemble_size=2,
+            allow_profile_only_fallback=True,
         )
     assert KinasePredictionConfig().mode == "deterministic_ranking"
 

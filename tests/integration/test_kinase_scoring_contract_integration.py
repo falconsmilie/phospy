@@ -196,6 +196,7 @@ def test_prediction_stage_consumes_authoritative_combined_scoring_outputs_across
     captured_sources: list[str] = []
     captured_selected_scores: list[pd.DataFrame] = []
     captured_prediction_inputs: list[pd.DataFrame] = []
+    captured_candidate_filters: list[tuple[int, float, int]] = []
 
     original_select_downstream = kinase_executor.select_downstream_score_matrix
     original_build_candidates = kinase_executor.build_candidate_substrate_list
@@ -211,6 +212,9 @@ def test_prediction_stage_consumes_authoritative_combined_scoring_outputs_across
 
     def _capture_prediction_input(*, scores, top, score_threshold, inclusion):
         captured_prediction_inputs.append(scores.copy(deep=True))
+        captured_candidate_filters.append(
+            (int(top), float(score_threshold), int(inclusion))
+        )
         return original_build_candidates(
             scores=scores,
             top=top,
@@ -253,6 +257,39 @@ def test_prediction_stage_consumes_authoritative_combined_scoring_outputs_across
             result.scoring_result.combined_scores,
             check_dtype=False,
         )
+        assert captured_candidate_filters[-1] == (6, 0.0, 1)
 
     assert len(captured_sources) == len(runs)
     assert set(captured_sources) == {"combined_scores"}
+    assert len(captured_candidate_filters) == len(runs)
+    assert {
+        (score_threshold, inclusion)
+        for _top, score_threshold, inclusion in captured_candidate_filters
+    } == {(0.0, 1)}
+
+
+def test_supported_lane_combined_scoring_always_enables_profile_only_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataset = build_rat_l6_dataset(n_sites=220)
+    references = _resolved_bundle_for_dataset(dataset)
+    captured_fallback_flags: list[bool] = []
+    original_combine = kinase_executor.combine_profile_and_motif_scores
+
+    def _capture_combine(**kwargs):
+        captured_fallback_flags.append(bool(kwargs["allow_profile_only_fallback"]))
+        return original_combine(**kwargs)
+
+    monkeypatch.setattr(
+        kinase_executor,
+        "combine_profile_and_motif_scores",
+        _capture_combine,
+    )
+
+    _run_workflow(
+        dataset=dataset,
+        references=references,
+        mode="deterministic_ranking",
+    )
+
+    assert captured_fallback_flags == [True]

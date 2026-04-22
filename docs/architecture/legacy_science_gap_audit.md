@@ -1,6 +1,6 @@
 # Legacy Science Gap Audit: Rewrite vs Legacy Archive
 
-- Date: 2026-04-21
+- Date: 2026-04-22
 - Purpose: governance truth source for legacy-science coverage status in
   rewrite-native code.
 - This audit is intentionally conservative and scoped. It is not a blanket
@@ -50,7 +50,7 @@ Out of scope for this pass:
 - runtime/performance parity and implementation details of `legacy_archive/`
 - claims of full package equivalence beyond the audited seams in this document
 
-## Current Snapshot (2026-04-21)
+## Current Snapshot (2026-04-22)
 
 Current audited inventory split by tier:
 
@@ -75,12 +75,25 @@ Historical ticket labels are retained for traceability only:
 `SCI-GAP-01/05/06/08/09/10/11/12` are historical labels, not a substitute for
 evidence-tier classification.
 
+## Kinase Scoring/Prediction Rewrite-vs-Legacy Classification (2026-04-22)
+
+| Difference | Rewrite contract | Legacy baseline | Classification |
+| --- | --- | --- | --- |
+| Profile-only fallback in score combine | Enabled in supported workflow scoring path | Legacy default disabled | Intentional and supported |
+| Missing motif-value handling | Profile score is preserved when motif value is missing for that kinase/site cell | No explicit profile-rescue path in legacy combine | Intentional and supported |
+| Workflow candidate filtering defaults | Candidate selection uses `score_threshold=0.0`, `inclusion=1` with caller-owned `top_k` | Legacy defaults used `score_threshold=0.8`, `inclusion=20`, `top=50` | Intentional and supported |
+| Request/config knobs | Legacy knobs (`allow_profile_only_fallback`, `score_threshold`, `inclusion`, `min_motif_size`, `svm_mode`, `profile_policy`) are out of public contract | Legacy prediction config exposed those knobs | Intentional and supported |
+| Parity wording drift in this repo | Historical labels still use `donor-vs-rewrite` wording on rewrite-owned fixture surfaces | N/A | Temporary and should be removed for parity clarity |
+
+Unresolved design decisions in this lane at this audit snapshot:
+- none currently tracked.
+
 ## Legacy Science Coverage Inventory (Code + Test Evidence)
 
 | Legacy science area | Status | Coverage tier | Contract relation | Science-gap ticket | Rewrite-native code evidence | Active rewrite test evidence | Current rewrite truth |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | profile policy behavior | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | `SCI-GAP-01` | `src/phospy/workflows/kinase/science.py` (`build_kinase_profiles`) | `tests/unit/test_legacy_donor_science.py::test_profile_policy_donor_locks_strict_median_behavior_and_contract_surface`; `tests/parity/test_kinase_workflow_parity.py::test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_input` | `strict` + `median_skipna` profile behavior is supported and parity-tested. |
-| core kinase scoring/prediction lane | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | `SCI-GAP-12` | `src/phospy/workflows/kinase/executor.py`; `src/phospy/prediction/` | `tests/parity/test_l6_prediction_parity.py::test_l6_prediction_matrix_numeric_parity_donor_vs_rewrite`; `tests/parity/test_l6_prediction_parity.py::test_l6_prediction_matrix_ranking_parity_donor_vs_rewrite`; `tests/parity/test_l6_prediction_parity.py::test_l6_candidate_selection_parity_donor_vs_rewrite`; `tests/parity/test_l6_prediction_parity.py::test_l6_ranked_topk_export_parity_donor_vs_rewrite`; `tests/parity/test_adaptive_replay_parity.py::test_adaptive_replay_trace_parity_matches_promoted_trace_surfaces` | Candidate selection, prediction-matrix parity, ranking/top-k, and replay surfaces are parity-gated in active rewrite tests. |
+| core kinase scoring/prediction lane | CONTRACT_CHANGED | PARITY_GATED_ACTIVE_SCIENCE | Contract changed (supported defaults and fallback policy differ from legacy) | `SCI-GAP-12` | `src/phospy/workflows/kinase/executor.py`; `src/phospy/prediction/` | `tests/parity/test_l6_prediction_parity.py::test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces`; `tests/parity/test_l6_prediction_parity.py::test_l6_prediction_matrix_ranking_parity_matches_promoted_reference_surfaces`; `tests/parity/test_l6_prediction_parity.py::test_l6_candidate_selection_parity_matches_promoted_reference_surfaces`; `tests/parity/test_l6_prediction_parity.py::test_l6_ranked_topk_export_parity_matches_promoted_reference_surfaces`; `tests/parity/test_adaptive_replay_parity.py::test_adaptive_replay_trace_parity_matches_promoted_trace_surfaces` | Candidate selection, prediction-matrix parity, ranking/top-k, and replay surfaces remain parity-gated on promoted rewrite fixtures while contract-changed defaults are asserted directly. |
 | adaptive sampling / svm_mode | CONTRACT_CHANGED | CONTRACT_CHANGED_SUPPORTED_LANE | Contract changed (`adaptive_policy` replaces legacy `svm_mode` naming) | `SCI-GAP-05` | `src/phospy/prediction/execution.py`; `src/phospy/api/configs.py` (`adaptive_policy`) | `tests/unit/test_legacy_donor_science.py::test_adaptive_sampling_donor_is_archival_and_svm_mode_is_not_rewrite_contract`; `tests/parity/test_adaptive_prediction_parity.py::test_adaptive_prediction_matrix_divergence_cross_policy_stable_vs_r_parity`; `tests/parity/test_adaptive_prediction_parity.py::test_adaptive_ranked_output_divergence_cross_policy_stable_vs_r_parity` | Adaptive science is implemented and tested, but rewrite public contract intentionally differs from legacy naming. |
 | signalome clustering/module selection | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | `SCI-GAP-06` | `src/phospy/workflows/signalome/executor.py`; `src/phospy/signalomes/clustering.py` | `tests/unit/test_legacy_donor_science.py::test_signalome_clustering_donor_locks_rewrite_dominant_module_assignment_behavior`; `tests/parity/test_signalome_workflow_parity.py::test_signalome_module_assignments_match_l6_full_fixture_table` | Clustering and module-count diagnostics are implemented in the supported signalome workflow lane and parity-tested. |
 | weighted-top assignment behavior | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | `SCI-GAP-08` | `src/phospy/signalomes/modules.py`; `src/phospy/signalomes/assignments.py` | `tests/unit/test_legacy_donor_science.py::test_weighted_top_assignment_donor_locks_fractional_metadata_and_non_fractional_module_selection`; `tests/parity/test_signalome_workflow_parity.py::test_signalome_module_assignments_match_l6_full_fixture_table` | Weighted-top assignment and fractional support propagation are implemented and parity-backed. |
@@ -98,7 +111,7 @@ evidence-tier classification.
 ## Open Legacy-Science Areas
 
 - No `OPEN_GAP` rows exist in this audited inventory snapshot as of
-  `2026-04-21`.
+  `2026-04-22`.
 - `OPEN_SCIENTIFIC_GAP` remains a required tier for future unresolved surfaces.
 - This statement is scoped to this inventory and its audit boundaries only.
 

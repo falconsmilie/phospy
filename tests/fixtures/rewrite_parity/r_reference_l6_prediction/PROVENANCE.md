@@ -64,21 +64,24 @@ The active rewrite parity test family uses explicit per-surface policies:
 `tests/parity/test_l6_prediction_parity.py` is organized as separate contract
 assertion groups so failure semantics are unambiguous:
 
-- donor-vs-rewrite scoring table parity (`profile`, `combined`, `weights`)
-- donor-vs-rewrite prediction-matrix numeric parity (`pred_mat` vs `predMat.csv`)
-- donor-vs-rewrite prediction-matrix ranking parity (rank-order derived from
-  `pred_mat` vs rank-order derived from `predMat.csv`)
-- donor-vs-rewrite candidate-set parity
-- donor-vs-rewrite ranked top-k export parity
+- rewrite-vs-promoted-reference scoring table parity
+  (`profile`, `combined`, `weights`)
+- rewrite-vs-promoted-reference prediction-matrix numeric parity
+  (`pred_mat` vs `predMat.csv`)
+- rewrite-vs-promoted-reference prediction-matrix ranking parity (rank-order
+  derived from `pred_mat` vs rank-order derived from `predMat.csv`)
+- rewrite-vs-promoted-reference candidate-set parity
+- rewrite-vs-promoted-reference ranked top-k export parity
 - cross-policy divergence on prediction-matrix surface (`stable` vs `r_parity`)
 - cross-policy divergence on ranked top-k export surface (`stable` vs
   `r_parity`)
-- all cross-policy divergence checks are reported separately from donor parity
+- all cross-policy divergence checks are reported separately from promoted
+  reference parity
 
 Release-gate thresholds for this lane are enforced in
 `tests/parity/test_l6_prediction_parity.py`.
 
-As of 2026-04-22, donor-vs-rewrite ranking hard gates in that file are:
+As of 2026-04-22, ranking hard gates in that file are:
 
 - prediction-matrix and top-k export mean Spearman rank correlation `>= 0.96`
 - prediction-matrix and top-k export mean top-20 overlap `>= 0.85`
