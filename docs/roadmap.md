@@ -42,8 +42,8 @@ Audit reference:
 - `SCI-GAP-01`: profile missing-value strategy (`strict` + `median_skipna`) -
   completed
 - `SCI-GAP-12`: core kinase downstream scoring/prediction parity restoration -
-  implemented, with ranking parity confidence still provisional until Ticket 1
-  and Ticket 2 repair comparison surfaces and re-baseline ranking gates
+  completed with repaired like-for-like ranking comparison surfaces and active
+  ranking closure gates in parity CI
 - `SCI-GAP-05`: adaptive ensemble prediction lane - completed
 - `SCI-GAP-06`: signalome clustering + module-count diagnostics - completed
 - `SCI-GAP-08`: weighted-top assignment policy + fractional module shares -
@@ -57,25 +57,24 @@ Audit reference:
   assignment policy - completed
 
 Tracked `SCI-GAP-*` tickets above are closed in the supported rewrite lane as
-of 2026-04-20, but ticket closure labels do not imply full legacy-science
-parity or ranking-parity closure in the core kinase lane.
+of 2026-04-20. Ticket closure labels alone still do not imply full
+legacy-science parity outside the audited inventory and explicit coverage tiers.
 See the full legacy-science inventory in:
 `docs/architecture/legacy_science_gap_audit.md` and `docs/parity.md`.
 
 ## Remaining Roadmap (Real Next Steps)
 
-The remaining roadmap includes parity-harness repair work plus ongoing
-governance synchronization.
+The remaining roadmap focuses on sustaining parity governance quality rather
+than reopening repaired ranking-surface work.
 
-1. Ticket 1: repair kinase ranking comparison surfaces so governance reporting
-   uses explicit like-for-like source and policy comparisons (no mixed
-   donor-vs-rewrite and policy-vs-policy surfaces).
-2. Ticket 2: re-baseline/tighten kinase ranking gates only after Ticket 1 and
-   promote ranking claims back to parity-gated closure only on repaired
-   surfaces.
-3. Keep governance truth sources synchronized in the same change window:
-   `docs/architecture/legacy_science_gap_audit.md`, `docs/parity.md`, parity
-   donor inventory, and release notes/changelog entries.
+1. Keep governance truth sources synchronized in the same change window:
+   `docs/architecture/legacy_science_gap_audit.md`, `docs/parity.md`, and
+   release notes/changelog entries.
+2. Keep ranking surface contracts explicit in parity metrics helpers so
+   closure-grade ranking assertions remain source-consistent and
+   policy-consistent.
+3. Revisit ranking thresholds only through evidence-backed fixture updates and
+   explicit release-governance review.
 
 ## Not a Near-Term Goal
 

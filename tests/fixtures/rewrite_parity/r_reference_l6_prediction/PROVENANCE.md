@@ -7,6 +7,7 @@ scoring/prediction lane.
 
 - Initial promotion from historical project snapshots (2026-04-20).
 - Rewrite refresh from supported workflow execution (2026-04-21).
+- Ranking-surface repair and closure-gate restoration review (2026-04-22).
 
 ## Comparison Policy Notes
 
@@ -20,4 +21,5 @@ The active parity family uses explicit per-surface policies:
 - cross-policy divergence checks (`stable` vs `r_parity`) reported separately
 
 Release-gate thresholds for this lane are enforced in
-`tests/parity/test_l6_prediction_parity.py`.
+`tests/parity/test_l6_prediction_parity.py`, with threshold configuration in
+`tests/support/l6_prediction_parity_thresholds.py`.

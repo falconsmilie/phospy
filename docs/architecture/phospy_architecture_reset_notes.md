@@ -70,8 +70,8 @@
   populated in the supported executor lane (optional by type for compatibility).
 - Detailed science status and follow-ons live in
   `docs/architecture/legacy_science_gap_audit.md`, including governance
-  caveats for provisional kinase ranking parity confidence (Ticket 1 and
-  Ticket 2).
+  details for repaired kinase ranking comparison surfaces and active
+  ranking parity gates in the supported L6 lane.
 
 ## Historical / Superseded Reset Content
 

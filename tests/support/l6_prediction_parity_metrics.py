@@ -63,6 +63,15 @@ class RankingParityMetrics:
 
 
 @dataclass(frozen=True, slots=True)
+class RankingSurfaceContract:
+    surface_name: str
+    observed_source: str
+    expected_source: str
+    observed_policy: str
+    expected_policy: str
+
+
+@dataclass(frozen=True, slots=True)
 class PredictionMatrixSurface:
     frame: pd.DataFrame
 
@@ -86,7 +95,9 @@ class L6PredictionParityMetrics:
     prediction_matrix: TableParityMetrics
     candidates: CandidateParityMetrics
     prediction_matrix_ranking: RankingParityMetrics
+    prediction_matrix_ranking_contract: RankingSurfaceContract
     ranked_topk_export: RankingParityMetrics
+    ranked_topk_export_contract: RankingSurfaceContract
     policy_divergence: PolicyDivergenceMetrics
 
 
@@ -95,7 +106,9 @@ class PolicyDivergenceMetrics:
     prediction_matrix_score_corr: float
     prediction_matrix_score_mae: float
     prediction_matrix_ranking: RankingParityMetrics
+    prediction_matrix_ranking_contract: RankingSurfaceContract
     ranked_topk_export: RankingParityMetrics
+    ranked_topk_export_contract: RankingSurfaceContract
 
 
 def _stack_frame(frame: pd.DataFrame) -> pd.Series:
@@ -418,6 +431,20 @@ def _collect_policy_divergence_metrics(
     ).abs()
     stable_pred_ranked = _rank_prediction_matrix_surface(stable_prediction_matrix)
     r_parity_pred_ranked = _rank_prediction_matrix_surface(r_parity_prediction_matrix)
+    prediction_matrix_contract = RankingSurfaceContract(
+        surface_name="prediction_matrix",
+        observed_source="rewrite_prediction_matrix",
+        expected_source="rewrite_prediction_matrix",
+        observed_policy="r_parity",
+        expected_policy="stable",
+    )
+    ranked_topk_contract = RankingSurfaceContract(
+        surface_name="ranked_topk_export",
+        observed_source="rewrite_ranked_topk_export",
+        expected_source="rewrite_ranked_topk_export",
+        observed_policy="r_parity",
+        expected_policy="stable",
+    )
     return PolicyDivergenceMetrics(
         prediction_matrix_score_corr=(
             _safe_corr(
@@ -436,10 +463,12 @@ def _collect_policy_divergence_metrics(
             observed=r_parity_pred_ranked,
             expected=stable_pred_ranked,
         ),
+        prediction_matrix_ranking_contract=prediction_matrix_contract,
         ranked_topk_export=_collect_ranking_metrics(
             observed=_rank_topk_export_surface(r_parity_topk_export),
             expected=_rank_topk_export_surface(stable_topk_export),
         ),
+        ranked_topk_export_contract=ranked_topk_contract,
     )
 
 
@@ -521,6 +550,20 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
     )
     expected_topk_ranked = _rank_topk_export_surface(expected_topk_export_surface)
     stable_topk_ranked = _rank_topk_export_surface(stable_topk_export_surface)
+    prediction_matrix_contract = RankingSurfaceContract(
+        surface_name="prediction_matrix",
+        observed_source="rewrite_prediction_matrix",
+        expected_source="promoted_reference_prediction_matrix",
+        observed_policy="stable",
+        expected_policy="stable",
+    )
+    ranked_topk_contract = RankingSurfaceContract(
+        surface_name="ranked_topk_export",
+        observed_source="rewrite_ranked_topk_export",
+        expected_source="promoted_reference_ranked_topk_export",
+        observed_policy="stable",
+        expected_policy="stable",
+    )
 
     return L6PredictionParityMetrics(
         profile=_collect_table_parity_metrics(
@@ -547,10 +590,12 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
             observed=stable_pred_ranked,
             expected=expected_pred_mat_ranked,
         ),
+        prediction_matrix_ranking_contract=prediction_matrix_contract,
         ranked_topk_export=_collect_ranking_metrics(
             observed=stable_topk_ranked,
             expected=expected_topk_ranked,
         ),
+        ranked_topk_export_contract=ranked_topk_contract,
         policy_divergence=_collect_policy_divergence_metrics(
             stable_prediction_matrix=stable_prediction_matrix_surface,
             r_parity_prediction_matrix=r_parity_prediction_matrix_surface,

@@ -5,6 +5,11 @@ import pytest
 from tests.support.l6_prediction_parity_metrics import (
     collect_l6_prediction_parity_metrics,
 )
+from tests.support.l6_prediction_parity_thresholds import (
+    L6_CROSS_POLICY_PREDICTION_MATRIX_DIVERGENCE_GATES,
+    L6_PREDICTION_MATRIX_RANKING_GATES,
+    L6_RANKED_TOPK_EXPORT_RANKING_GATES,
+)
 from tests.support.parity_reporting import (
     format_fraction,
     format_percent,
@@ -28,20 +33,36 @@ PREDICTION_MATRIX_SPEARMAN_FLOOR = 0.999999
 CANDIDATE_OVERLAP_PRECISION_FLOOR = 0.999999
 CANDIDATE_OVERLAP_RECALL_FLOOR = 0.999999
 CANDIDATE_OVERLAP_F1_FLOOR = 0.999999
-# Hard regression gates for promoted-reference ranking agreement.
-# These bars intentionally mirror historical release thresholds now that the
-# ranking comparison surface is like-for-like (predMat-derived ranking compared
-# to promoted predMat reference ranking, and ranked top-k export compared to
-# promoted top-k reference ranking).
-PRED_MAT_RANK_SPEARMAN_FLOOR = 0.96
-PRED_MAT_TOP20_OVERLAP_FLOOR = 0.85
-PRED_MAT_TOP30_OVERLAP_FLOOR = 0.88
-PRED_MAT_GOOD_TOP10_COUNT_FLOOR = 20
-TOPK_EXPORT_RANK_SPEARMAN_FLOOR = 0.96
-TOPK_EXPORT_TOP20_OVERLAP_FLOOR = 0.85
-TOPK_EXPORT_TOP30_OVERLAP_FLOOR = 0.88
-TOPK_EXPORT_GOOD_TOP10_COUNT_FLOOR = 20
-CROSS_POLICY_PRED_MAT_CORRELATION_FLOOR = 0.95
+
+
+def _assert_rewrite_vs_promoted_reference_contract(
+    *,
+    surface_name: str,
+    observed_source: str,
+    expected_source: str,
+    observed_policy: str,
+    expected_policy: str,
+) -> None:
+    assert observed_policy == "stable"
+    assert expected_policy == "stable"
+    assert observed_source.startswith("rewrite_")
+    assert expected_source.startswith("promoted_reference_")
+    assert surface_name in {"prediction_matrix", "ranked_topk_export"}
+
+
+def _assert_cross_policy_contract(
+    *,
+    surface_name: str,
+    observed_source: str,
+    expected_source: str,
+    observed_policy: str,
+    expected_policy: str,
+) -> None:
+    assert observed_policy == "r_parity"
+    assert expected_policy == "stable"
+    assert observed_source.startswith("rewrite_")
+    assert expected_source.startswith("rewrite_")
+    assert surface_name in {"prediction_matrix", "ranked_topk_export"}
 
 
 def test_l6_scoring_tables_parity_matches_promoted_reference_surfaces() -> None:
@@ -99,19 +120,35 @@ def test_l6_prediction_matrix_numeric_parity_matches_promoted_reference_surfaces
 def test_l6_prediction_matrix_ranking_parity_matches_promoted_reference_surfaces() -> (
     None
 ):
-    ranking = collect_l6_prediction_parity_metrics().prediction_matrix_ranking
+    metrics = collect_l6_prediction_parity_metrics()
+    ranking = metrics.prediction_matrix_ranking
+    contract = metrics.prediction_matrix_ranking_contract
+
+    _assert_rewrite_vs_promoted_reference_contract(
+        surface_name=contract.surface_name,
+        observed_source=contract.observed_source,
+        expected_source=contract.expected_source,
+        observed_policy=contract.observed_policy,
+        expected_policy=contract.expected_policy,
+    )
 
     assert ranking.kinases_compared > 0
-    assert ranking.mean_spearman_rank_corr >= PRED_MAT_RANK_SPEARMAN_FLOOR, (
-        "prediction-matrix ranking parity regressed on per-kinase Spearman agreement"
+    assert (
+        ranking.mean_spearman_rank_corr
+        >= L6_PREDICTION_MATRIX_RANKING_GATES.mean_spearman_rank_corr_floor
+    ), "prediction-matrix ranking parity regressed on per-kinase Spearman agreement"
+    assert (
+        ranking.mean_top20_overlap
+        >= L6_PREDICTION_MATRIX_RANKING_GATES.mean_top20_overlap_floor
+    ), "prediction-matrix ranking parity regressed on top-20 overlap"
+    assert (
+        ranking.mean_top30_overlap
+        >= L6_PREDICTION_MATRIX_RANKING_GATES.mean_top30_overlap_floor
     )
-    assert ranking.mean_top20_overlap >= PRED_MAT_TOP20_OVERLAP_FLOOR, (
-        "prediction-matrix ranking parity regressed on top-20 overlap"
-    )
-    assert ranking.mean_top30_overlap >= PRED_MAT_TOP30_OVERLAP_FLOOR
-    assert ranking.good_top10_count >= PRED_MAT_GOOD_TOP10_COUNT_FLOOR, (
-        "prediction-matrix ranking parity regressed on top-10 agreement coverage"
-    )
+    assert (
+        ranking.good_top10_count
+        >= L6_PREDICTION_MATRIX_RANKING_GATES.good_top10_count_floor
+    ), "prediction-matrix ranking parity regressed on top-10 agreement coverage"
     assert ranking.top_rank_total == ranking.kinases_compared
 
 
@@ -137,16 +174,33 @@ def test_l6_candidate_selection_parity_matches_promoted_reference_surfaces() -> 
 def test_l6_ranked_topk_export_parity_matches_promoted_reference_surfaces() -> None:
     metrics = collect_l6_prediction_parity_metrics()
     ranking = metrics.ranked_topk_export
+    contract = metrics.ranked_topk_export_contract
+
+    _assert_rewrite_vs_promoted_reference_contract(
+        surface_name=contract.surface_name,
+        observed_source=contract.observed_source,
+        expected_source=contract.expected_source,
+        observed_policy=contract.observed_policy,
+        expected_policy=contract.expected_policy,
+    )
 
     assert ranking.kinases_compared > 0
-    assert ranking.mean_spearman_rank_corr >= TOPK_EXPORT_RANK_SPEARMAN_FLOOR, (
-        "ranked top-k export parity regressed on per-kinase Spearman agreement"
+    assert (
+        ranking.mean_spearman_rank_corr
+        >= L6_RANKED_TOPK_EXPORT_RANKING_GATES.mean_spearman_rank_corr_floor
+    ), "ranked top-k export parity regressed on per-kinase Spearman agreement"
+    assert (
+        ranking.mean_top20_overlap
+        >= L6_RANKED_TOPK_EXPORT_RANKING_GATES.mean_top20_overlap_floor
+    ), "top-k export parity regressed on top-20 overlap"
+    assert (
+        ranking.mean_top30_overlap
+        >= L6_RANKED_TOPK_EXPORT_RANKING_GATES.mean_top30_overlap_floor
     )
-    assert ranking.mean_top20_overlap >= TOPK_EXPORT_TOP20_OVERLAP_FLOOR, (
-        "top-k export parity regressed on top-20 overlap"
+    assert (
+        ranking.good_top10_count
+        >= L6_RANKED_TOPK_EXPORT_RANKING_GATES.good_top10_count_floor
     )
-    assert ranking.mean_top30_overlap >= TOPK_EXPORT_TOP30_OVERLAP_FLOOR
-    assert ranking.good_top10_count >= TOPK_EXPORT_GOOD_TOP10_COUNT_FLOOR
     assert ranking.top_rank_total == ranking.kinases_compared
 
 
@@ -154,10 +208,19 @@ def test_l6_cross_policy_prediction_matrix_divergence_stable_vs_r_parity() -> No
     metrics = collect_l6_prediction_parity_metrics()
     divergence = metrics.policy_divergence
     pred_mat = divergence.prediction_matrix_ranking
+    contract = divergence.prediction_matrix_ranking_contract
+
+    _assert_cross_policy_contract(
+        surface_name=contract.surface_name,
+        observed_source=contract.observed_source,
+        expected_source=contract.expected_source,
+        observed_policy=contract.observed_policy,
+        expected_policy=contract.expected_policy,
+    )
 
     assert (
         divergence.prediction_matrix_score_corr
-        >= CROSS_POLICY_PRED_MAT_CORRELATION_FLOOR
+        >= L6_CROSS_POLICY_PREDICTION_MATRIX_DIVERGENCE_GATES.score_correlation_floor
     ), (
         "cross-policy prediction-matrix divergence regressed on score correlation "
         "(stable vs r_parity)"
@@ -167,7 +230,17 @@ def test_l6_cross_policy_prediction_matrix_divergence_stable_vs_r_parity() -> No
 
 
 def test_l6_cross_policy_ranked_topk_divergence_stable_vs_r_parity() -> None:
-    topk = collect_l6_prediction_parity_metrics().policy_divergence.ranked_topk_export
+    divergence = collect_l6_prediction_parity_metrics().policy_divergence
+    topk = divergence.ranked_topk_export
+    contract = divergence.ranked_topk_export_contract
+
+    _assert_cross_policy_contract(
+        surface_name=contract.surface_name,
+        observed_source=contract.observed_source,
+        expected_source=contract.expected_source,
+        observed_policy=contract.observed_policy,
+        expected_policy=contract.expected_policy,
+    )
 
     assert topk.kinases_compared > 0
     assert topk.top_rank_total == topk.kinases_compared

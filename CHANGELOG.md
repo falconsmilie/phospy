@@ -8,7 +8,9 @@ All notable changes to this project are documented here.
 
 - Narrowed `phospy.prediction` package-level default exports to the stable prediction types and moved low-level mechanics out of the default surface.
 - Removed package-level compatibility re-exports from `phospy.prediction`; advanced helpers now require concrete-module imports.
-- Reworded parity governance docs to classify core kinase ranking parity as provisional evidence (not closure-grade) until Ticket 1 and Ticket 2 are completed.
+- Repaired core kinase ranking comparison surfaces to explicit like-for-like contracts and restored closure-grade ranking parity gates for the L6 supported lane.
+- Added explicit ranking surface-contract assertions and centralized L6 ranking gate thresholds in `tests/support/l6_prediction_parity_thresholds.py`.
+- Synchronized parity governance and release-facing docs to classify the core kinase scoring/prediction lane as parity-gated for ranking on the repaired surface.
 
 ### Migration
 
