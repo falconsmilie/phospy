@@ -19,11 +19,14 @@ The default output/input roots used by `Makefile` and fixture scripts are:
 
 - `scripts/generate_r_fixtures.R` -> `tests/fixtures/rewrite_parity/r_reference`
 - `scripts/generate_r_l6_fixtures.R` -> `tests/fixtures/rewrite_parity/r_reference_l6`
-- `scripts/export_python_prediction_traces.py` -> `tests/fixtures/rewrite_parity/python_reference_l6/prediction_trace`
 - `scripts/generate_fragile_support_reference.py` -> `tests/fixtures/rewrite_parity/fragile_support_reference`
 - `scripts/generate_l6_seam_stress_reference.py` -> `tests/fixtures/rewrite_parity/r_reference_l6_seam_stress`
-- `scripts/diff_prediction_trace_probabilities.py` compares `tests/fixtures/rewrite_parity/r_reference_l6/prediction_trace` (R trace) against `tests/fixtures/rewrite_parity/python_reference_l6/prediction_trace` (Python trace)
 - `scripts/generate_signalome_public_workflow_reference.py` -> `tests/fixtures/public_workflow_reference`
+
+Supported parity maintenance is centered on:
+
+- rewrite-owned committed fixture families under `tests/fixtures/rewrite_parity/`
+- active replay and parity tests in `tests/parity/`
 
 ## Active Public Fixture Families
 
@@ -73,6 +76,17 @@ instead of test-only support modules.
 Legacy fixture trees remain in `tests_legacy/fixtures/` for provenance and
 historical traceability. Active tests should resolve from
 `tests/fixtures/` as their normal source.
+
+Archived script tooling also lives under `scripts/archive/`.
+
+Prediction-trace archival tools:
+
+- `scripts/archive/export_python_prediction_traces.py`
+- `scripts/archive/diff_prediction_trace_probabilities.py`
+
+These scripts were used during an earlier donor-parity debugging phase to
+inspect adaptive prediction seam behavior. They are retained for parity
+forensics and are not part of the supported default maintainer lane.
 
 The following top-level roots are historical/legacy carryovers and are not used
 as default maintainer output locations:

@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+"""Archived parity-forensics utility from an earlier donor-parity phase.
+
+This script exported Python-side prediction seam traces for R/Python learner
+diagnostics during initial rewrite parity bring-up. It is not part of the
+supported current maintainer workflow.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -21,7 +28,10 @@ def ensure_src_on_path() -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Export Python prediction debug traces in a CSV layout comparable to the R trace fixtures."
+        description=(
+            "Archived utility: export Python prediction debug traces in a CSV "
+            "layout comparable to historical R trace fixtures."
+        )
     )
     parser.add_argument(
         "--combined-scores",

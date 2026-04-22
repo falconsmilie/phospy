@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+"""Archived parity-forensics utility from an earlier donor-parity phase.
+
+This script compared historical R and Python prediction seam trace tables to
+isolate learner-level differences. It is retained for forensic reference only
+and is not part of the supported current maintainer workflow.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -10,7 +17,7 @@ import pandas as pd
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Compare R and Python prediction traces at the learner seam by diffing "
+            "Archived utility: compare R and Python prediction traces at the learner seam by diffing "
             "per-iteration probabilities, decision values, and class-specific resampling weights."
         )
     )
@@ -22,7 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--python-trace-dir",
         default="tests/fixtures/rewrite_parity/python_reference_l6/prediction_trace",
-        help="Directory containing Python-exported prediction trace CSVs.",
+        help="Directory containing historical Python-exported prediction trace CSVs.",
     )
     parser.add_argument(
         "--kinases",

@@ -16,8 +16,6 @@ TRACE_KINASES ?= PRKAA1,MAPK1
 TRACE_TOP_N ?= 10
 FIXTURES_ROOT ?= tests/fixtures
 REWRITE_PARITY_ROOT ?= $(FIXTURES_ROOT)/rewrite_parity
-PYTHON_TRACE_ROOT ?= $(REWRITE_PARITY_ROOT)/python_reference_l6
-PYTHON_TRACE_OUTDIR ?= $(PYTHON_TRACE_ROOT)/prediction_trace
 R_L6_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference_l6
 R_SMALL_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference
 FRAGILE_OUTDIR ?= $(REWRITE_PARITY_ROOT)/fragile_support_reference
@@ -29,7 +27,7 @@ PUBLIC_WORKFLOW_OUTDIR ?= $(FIXTURES_ROOT)/public_workflow_reference
 	check-tools check-r-tools fixtures-dirs \
 	install install-dev lint format pre-commit test test-unit test-parity test-seams build clean \
 	fixtures fixtures-r-small fixtures-r-l6 traces-r fixtures-fragile fixtures-r-l6-seam-stress \
-	traces-python traces-python-replay fixtures-synthetic-edge fixtures-public-workflow-reference fixtures-all \
+	fixtures-synthetic-edge fixtures-public-workflow-reference fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
 
 help:
@@ -53,8 +51,6 @@ help:
 	@echo   make traces-r                      Regenerate the committed R L6 prediction trace
 	@echo   make fixtures-fragile              Generate the curated fragile-support seam fixture
 	@echo   make fixtures-r-l6-seam-stress     Generate the smaller R-backed L6 seam-stress fixture
-	@echo   make traces-python                 Export Python prediction traces
-	@echo   make traces-python-replay          Export Python traces replaying R sampling rows
 	@echo   make fixtures-synthetic-edge       Generate the synthetic adaptive-sampling edge fixture
 	@echo   make fixtures-public-workflow-reference Regenerate public workflow signalome fixtures
 	@echo   make fixtures-all                  Bootstrap every committed fixture family from scratch
@@ -67,7 +63,7 @@ check-r-tools:
 	@command -v "$(RSCRIPT)" >/dev/null 2>&1 || { printf 'Rscript executable not found: %s\n' "$(RSCRIPT)" >&2; exit 1; }
 
 fixtures-dirs:
-	@$(MKDIR_P) "$(FIXTURES_ROOT)" "$(PYTHON_TRACE_ROOT)"
+	@$(MKDIR_P) "$(FIXTURES_ROOT)" "$(REWRITE_PARITY_ROOT)"
 
 install: check-tools
 	$(PIP) install -e .
@@ -120,21 +116,6 @@ fixtures-fragile: check-tools fixtures-r-l6
 fixtures-r-l6-seam-stress: check-tools fixtures-r-l6
 	$(PYTHON) scripts/generate_l6_seam_stress_reference.py --outdir "$(L6_STRESS_OUTDIR)"
 
-traces-python: check-tools fixtures-r-l6 fixtures-dirs
-	$(PYTHON) scripts/export_python_prediction_traces.py \
-		--trace-kinases "$(TRACE_KINASES)" \
-		--svm-mode r_parity \
-		--debug-top-n "$(TRACE_TOP_N)" \
-		--outdir "$(PYTHON_TRACE_OUTDIR)"
-
-traces-python-replay: check-tools fixtures-r-l6 traces-python fixtures-dirs
-	$(PYTHON) scripts/export_python_prediction_traces.py \
-		--trace-kinases "$(TRACE_KINASES)" \
-		--svm-mode r_parity \
-		--debug-top-n "$(TRACE_TOP_N)" \
-		--sampling-trace-dir "$(R_L6_OUTDIR)/prediction_trace" \
-		--outdir "$(PYTHON_TRACE_OUTDIR)"
-
 fixtures-synthetic-edge: check-tools fixtures-dirs
 	$(PYTHON) scripts/generate_synthetic_adaptive_sampling_edge_fixtures.py --outdir "$(SYNTHETIC_EDGE_OUTDIR)"
 
@@ -147,7 +128,7 @@ test-seams: check-tools
 		tests/parity/test_adaptive_prediction_parity.py \
 		tests/parity/test_adaptive_replay_parity.py
 
-fixtures-all: fixtures-r-small traces-python fixtures-fragile fixtures-r-l6-seam-stress fixtures-synthetic-edge fixtures-public-workflow-reference
+fixtures-all: fixtures-r-small fixtures-fragile fixtures-r-l6-seam-stress fixtures-synthetic-edge fixtures-public-workflow-reference
 
 build: check-tools
 	$(BUILD)
