@@ -6,10 +6,45 @@ The supported public CLI lane is intentionally narrow:
 2. Run the kinase workflow from files.
 3. Run the signalome workflow from files via dataset -> kinase -> signalome.
 
+This scope is intentional, not partial parity with the Python API.
+
+## Scope Boundary vs Python API
+
+Use this as the contract boundary:
+
+| Capability | CLI (`phospy ...`) | Python API (`phospy.api`) |
+| --- | --- | --- |
+| File-based dataset -> kinase -> signalome execution | Supported | Supported |
+| File-based input/output format selection (`csv`/`tsv`/`parquet`) | Supported | Supported |
+| Selected kinase runtime knobs (scoring/prediction/activity flags) | Supported | Supported |
+| Selected signalome knobs (`substrate_support_cutoff`, network policy/threshold, assignment policy, score preconditioning policy) | Supported | Supported |
+| DataFrame/in-memory inputs and outputs | Not exposed | Supported |
+| Full dataset preprocessing surface (`DatasetPreprocessingConfig`: missing-data, total correction, site-matrix, comparisons) | Not exposed | Supported |
+| Explicit `ReferenceBundle` injection (including non-bundled organism execution lanes) | Not exposed | Supported |
+| Full scoring/signalome config surfaces (for example diagnostic scoring tables, profile missing-value strategy, module-count/selection knobs) | Not exposed | Supported |
+
+The CLI purposely exposes a stable, high-value file-first execution lane.
+For full request/config control, use the Python API.
+
 > Audience: users who prefer command-line execution.
 > If this is your first run, read
 > [What is PhosPy?](getting-started/what-is-phospy.md) and
 > [Quickstart](getting-started/quickstart-first-workflow.md) first.
+
+## Choose the Right Interface
+
+Use the CLI when you want:
+
+- reproducible file-driven runs in the supported happy path
+- straightforward pipeline execution from shell scripts/automation
+- a constrained set of high-value runtime knobs
+
+Use the Python API when you need:
+
+- non-file inputs (DataFrames) or in-memory orchestration
+- dataset preprocessing policy control (`DatasetPreprocessingConfig`)
+- explicit `ReferenceBundle` wiring (for example human/mouse custom bundles)
+- full request/config surface area for scoring or signalome behavior
 
 ## Commands
 

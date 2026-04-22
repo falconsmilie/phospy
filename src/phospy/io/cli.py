@@ -80,7 +80,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="phospy",
         description=(
-            "PhosPy CLI. Supported commands: dataset-build, kinase, signalome."
+            "PhosPy CLI. Supported commands: dataset-build, kinase, signalome. "
+            "This CLI intentionally covers the file-first supported lane; use "
+            "phospy.api for advanced preprocessing and full request/config control."
         ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)

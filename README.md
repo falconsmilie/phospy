@@ -116,10 +116,22 @@ Both namespaces are public, with different roles:
 - requests, configs, results, enums/references, and errors are imported from
   `phospy.api`
 
+## CLI vs Python API
+
+The `phospy` CLI is intentionally narrow and file-first. It supports the public
+happy-path flow (`dataset-build`, `kinase`, `signalome`) with selected
+high-value runtime knobs.
+
+Use the CLI for reproducible command-line execution from files. Use the Python
+API (`phospy.api`) when you need the full request/config surface, including
+`DatasetPreprocessingConfig`, explicit `ReferenceBundle` injection, DataFrame
+inputs, or advanced scoring/signalome configuration.
+
 ## Where To Go Next
 
 - Release framing for current contract: [Release Notes 1.5.0](docs/release_notes/1.5.0.md)
 - Guided onboarding: [Quickstart: first workflow](docs/getting-started/quickstart-first-workflow.md)
+- CLI scope and command usage: [CLI Guide](docs/cli.md)
 - Full contract details: [API Guide](docs/api.md), [Validation Guide](docs/validation.md)
 - Runnable demos (after you understand the first-run flow):
   - `python examples/dataset_builder_demo.py`
