@@ -6,7 +6,7 @@ import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
 DEFAULT_OUTPUT_DIR = ROOT / "tests" / "fixtures" / "public_workflow_reference"
 
@@ -93,7 +93,7 @@ def main() -> None:
         {
             "fixture_set_id": "signalome_rewrite_l6_supported_lane_v2_full_outputs",
             "donor_source": "tests/fixtures/rewrite_parity/r_reference_l6/l6_phospho_matrix.csv + bundled ReferencePreset.AUTO (rat/l6_native)",
-            "generation_path": "scripts/generate_signalome_public_workflow_reference.py",
+            "generation_path": "scripts/active/generate_signalome_public_workflow_reference.py",
             "supported_outputs": [
                 "signalome_modules",
                 "module_assignments.table",

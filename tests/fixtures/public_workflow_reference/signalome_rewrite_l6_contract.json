@@ -2,7 +2,7 @@
   "fixture_set_id": "signalome_rewrite_l6_supported_lane_v2_full_outputs",
   "generation_date": "2026-04-20",
   "donor_source": "tests/fixtures/rewrite_parity/r_reference_l6/l6_phospho_matrix.csv + bundled ReferencePreset.AUTO (rat/l6_native)",
-  "generation_path": "scripts/generate_signalome_public_workflow_reference.py",
+  "generation_path": "scripts/active/generate_signalome_public_workflow_reference.py",
   "supported_outputs": [
     "signalome_modules",
     "module_assignments.table",

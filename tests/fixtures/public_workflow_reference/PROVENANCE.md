@@ -84,7 +84,7 @@ The supported and parity-locked outputs are:
 Fixtures were generated from the supported public workflow lane:
 
 ```bash
-PYTHONPATH=src .venv/Scripts/python scripts/generate_signalome_public_workflow_reference.py
+PYTHONPATH=src .venv/Scripts/python scripts/active/generate_signalome_public_workflow_reference.py
 ```
 
 Generation settings are fixed in the script and parity tests:

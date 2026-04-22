@@ -3,6 +3,22 @@
 These scripts are retained for historical provenance and parity forensics.
 They are not part of the supported maintainer workflow.
 
+## Small R Fixture Regeneration (historical)
+
+- `generate_r_fixtures.R`
+
+Why this existed:
+
+- During earlier migration phases, maintainers regenerated a small synthetic
+  R-backed fixture family for parity forensics under `tests_legacy/fixtures/`.
+
+Current status:
+
+- This script is archival-only and intentionally excluded from
+  `make fixtures-all`.
+- Use `make fixtures-r-small-archive` only when explicit historical
+  parity-forensics work is needed.
+
 ## Prediction Trace Forensics (historical)
 
 - `export_python_prediction_traces.py`

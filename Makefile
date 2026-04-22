@@ -19,8 +19,10 @@ REWRITE_PARITY_ROOT ?= $(FIXTURES_ROOT)/rewrite_parity
 R_L6_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference_l6
 R_SMALL_ARCHIVE_OUTDIR ?= tests_legacy/fixtures/r_reference
 PUBLIC_WORKFLOW_OUTDIR ?= $(FIXTURES_ROOT)/public_workflow_reference
+ACTIVE_SCRIPTS_DIR ?= scripts/active
+ARCHIVE_SCRIPTS_DIR ?= scripts/archive
 
-.PHONY: help \
+.PHONY: help help-archive \
 	check-tools check-r-tools fixtures-dirs \
 	install install-dev lint format pre-commit test test-unit test-parity test-seams build clean \
 	fixtures fixtures-r-l6 traces-r \
@@ -48,8 +50,12 @@ help:
 	@echo   make traces-r                      Regenerate the committed R L6 prediction trace
 	@echo   make fixtures-public-workflow-reference Regenerate public workflow signalome fixtures
 	@echo   make fixtures-all                  Bootstrap active maintainer fixture families from scratch
-	@echo   make fixtures-r-small-archive      (archival) Regenerate legacy small R fixtures
+	@echo   make help-archive                  Show archived/niche maintainer targets
 	@echo   make fixtures                      Alias for fixtures-all
+
+help-archive:
+	@echo Archived/niche maintainer targets:
+	@echo   make fixtures-r-small-archive      (archival) Regenerate legacy small R fixtures
 
 check-tools:
 	@command -v "$(PYTHON)" >/dev/null 2>&1 || { printf 'Python executable not found: %s\n' "$(PYTHON)" >&2; exit 1; }
@@ -97,16 +103,16 @@ demo-all: dataset-builder-demo kinase-workflow-demo signalome-workflow-demo
 fixtures: fixtures-all
 
 fixtures-r-small-archive: check-r-tools
-	$(RSCRIPT) scripts/generate_r_fixtures.R --outdir "$(R_SMALL_ARCHIVE_OUTDIR)"
+	$(RSCRIPT) $(ARCHIVE_SCRIPTS_DIR)/generate_r_fixtures.R --outdir "$(R_SMALL_ARCHIVE_OUTDIR)"
 
 fixtures-r-l6: check-r-tools fixtures-dirs
-	$(RSCRIPT) scripts/generate_r_l6_fixtures.R --outdir "$(R_L6_OUTDIR)"
+	$(RSCRIPT) $(ACTIVE_SCRIPTS_DIR)/generate_r_l6_fixtures.R --outdir "$(R_L6_OUTDIR)"
 
 traces-r: check-r-tools fixtures-dirs
-	$(RSCRIPT) scripts/generate_r_l6_fixtures.R --outdir "$(R_L6_OUTDIR)" --trace_kinases "$(TRACE_KINASES)" --trace_top_n "$(TRACE_TOP_N)"
+	$(RSCRIPT) $(ACTIVE_SCRIPTS_DIR)/generate_r_l6_fixtures.R --outdir "$(R_L6_OUTDIR)" --trace_kinases "$(TRACE_KINASES)" --trace_top_n "$(TRACE_TOP_N)"
 
 fixtures-public-workflow-reference: check-tools fixtures-dirs
-	$(PYTHON) scripts/generate_signalome_public_workflow_reference.py --outdir "$(PUBLIC_WORKFLOW_OUTDIR)"
+	$(PYTHON) $(ACTIVE_SCRIPTS_DIR)/generate_signalome_public_workflow_reference.py --outdir "$(PUBLIC_WORKFLOW_OUTDIR)"
 
 test-seams: check-tools
 	$(PYTEST) -q \

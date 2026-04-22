@@ -17,8 +17,14 @@ For parity intent and protected seams, see [`parity.md`](parity.md).
 
 The default output/input roots used by `Makefile` and fixture scripts are:
 
-- `scripts/generate_r_l6_fixtures.R` -> `tests/fixtures/rewrite_parity/r_reference_l6`
-- `scripts/generate_signalome_public_workflow_reference.py` -> `tests/fixtures/public_workflow_reference`
+- `scripts/active/generate_r_l6_fixtures.R` -> `tests/fixtures/rewrite_parity/r_reference_l6`
+- `scripts/active/generate_signalome_public_workflow_reference.py` -> `tests/fixtures/public_workflow_reference`
+
+Repository script layout follows status-first separation:
+
+- `scripts/active/`: supported current maintainer generators
+- `scripts/support/`: helper modules used by active generators
+- `scripts/archive/`: historical parity/debug tooling
 
 Supported parity maintenance is centered on:
 
@@ -41,7 +47,7 @@ part of the supported default maintainer regeneration lane.
 
 ## Archived / Niche Maintainer Tooling
 
-`scripts/generate_r_fixtures.R` is retained as archival small-fixture tooling
+`scripts/archive/generate_r_fixtures.R` is retained as archival small-fixture tooling
 for historical parity forensics. It is not part of routine rewrite
 maintenance.
 
@@ -88,7 +94,7 @@ Supported regeneration path:
 make fixtures-public-workflow-reference
 ```
 
-The generator (`scripts/generate_signalome_public_workflow_reference.py`) uses a
+The generator (`scripts/active/generate_signalome_public_workflow_reference.py`) uses a
 maintainer-owned helper in `scripts/support/public_workflow_reference.py`
 instead of test-only support modules.
 
@@ -102,7 +108,7 @@ Archived script tooling mostly lives under `scripts/archive/`.
 
 Archival parity-debug tools:
 
-- `scripts/generate_r_fixtures.R` (retained archival small-fixture generator)
+- `scripts/archive/generate_r_fixtures.R` (retained archival small-fixture generator)
 - `scripts/archive/export_python_prediction_traces.py`
 - `scripts/archive/diff_prediction_trace_probabilities.py`
 - `scripts/archive/generate_synthetic_adaptive_sampling_edge_fixtures.py`
