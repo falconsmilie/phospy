@@ -63,6 +63,22 @@ class RankingParityMetrics:
 
 
 @dataclass(frozen=True, slots=True)
+class PredictionMatrixSurface:
+    frame: pd.DataFrame
+
+
+@dataclass(frozen=True, slots=True)
+class RankedTopKExportSurface:
+    frame: pd.DataFrame
+
+
+@dataclass(frozen=True, slots=True)
+class RankedSiteOrderSurface:
+    surface_name: str
+    ranked_by_kinase: dict[str, list[str]]
+
+
+@dataclass(frozen=True, slots=True)
 class L6PredictionParityMetrics:
     profile: TableParityMetrics
     combined: TableParityMetrics
@@ -250,12 +266,18 @@ def _spearman_rank_corr_from_ranked_sites(
     return _safe_corr(expected_ranks, observed_ranks, method="spearman")
 
 
-def _collect_ranking_metrics_from_ranked_sites(
+def _collect_ranking_metrics(
     *,
-    observed_ranked_by_kinase: dict[str, list[str]],
-    expected_ranked_by_kinase: dict[str, list[str]],
+    observed: RankedSiteOrderSurface,
+    expected: RankedSiteOrderSurface,
 ) -> RankingParityMetrics:
-    kinases = sorted(set(observed_ranked_by_kinase) & set(expected_ranked_by_kinase))
+    if observed.surface_name != expected.surface_name:
+        raise AssertionError(
+            "ranking parity expects aligned surfaces "
+            f"(observed={observed.surface_name}, expected={expected.surface_name})"
+        )
+
+    kinases = sorted(set(observed.ranked_by_kinase) & set(expected.ranked_by_kinase))
     top10: list[float] = []
     top20: list[float] = []
     top30: list[float] = []
@@ -263,8 +285,8 @@ def _collect_ranking_metrics_from_ranked_sites(
     top_rank_matches = 0
 
     for kinase in kinases:
-        observed_ranked = observed_ranked_by_kinase[kinase]
-        expected_ranked = expected_ranked_by_kinase[kinase]
+        observed_ranked = observed.ranked_by_kinase[kinase]
+        expected_ranked = expected.ranked_by_kinase[kinase]
         if not expected_ranked:
             continue
         top10.append(_top_n_overlap(expected_ranked, observed_ranked, 10))
@@ -293,20 +315,23 @@ def _collect_ranking_metrics_from_ranked_sites(
     )
 
 
-def _ranked_sites_from_prediction_matrix(
-    pred_mat: pd.DataFrame,
-) -> dict[str, list[str]]:
-    ranked: dict[str, list[str]] = {}
-    for kinase in pred_mat.columns.astype(str):
+def _rank_prediction_matrix_surface(
+    surface: PredictionMatrixSurface,
+) -> RankedSiteOrderSurface:
+    ranked_by_kinase: dict[str, list[str]] = {}
+    for kinase in surface.frame.columns.astype(str):
         ordered = (
-            pred_mat.loc[:, kinase]
+            surface.frame.loc[:, kinase]
             .astype(float)
             .sort_values(ascending=False, kind="mergesort")
             .index.astype(str)
             .tolist()
         )
-        ranked[kinase] = ordered
-    return ranked
+        ranked_by_kinase[kinase] = ordered
+    return RankedSiteOrderSurface(
+        surface_name="prediction_matrix",
+        ranked_by_kinase=ranked_by_kinase,
+    )
 
 
 def _normalize_prediction_topk_frame(frame: pd.DataFrame) -> pd.DataFrame:
@@ -338,40 +363,45 @@ def _normalize_prediction_topk_frame(frame: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def _ranked_sites_from_prediction_topk(frame: pd.DataFrame) -> dict[str, list[str]]:
-    ranked: dict[str, list[str]] = {}
-    for kinase, group in frame.groupby("kinase", sort=False):
+def _rank_topk_export_surface(
+    surface: RankedTopKExportSurface,
+) -> RankedSiteOrderSurface:
+    ranked_by_kinase: dict[str, list[str]] = {}
+    for kinase, group in surface.frame.groupby("kinase", sort=False):
         ordered = group.sort_values("rank", kind="mergesort").loc[:, "site_id"].tolist()
-        ranked[str(kinase)] = [str(site_id) for site_id in ordered]
-    return ranked
+        ranked_by_kinase[str(kinase)] = [str(site_id) for site_id in ordered]
+    return RankedSiteOrderSurface(
+        surface_name="ranked_topk_export",
+        ranked_by_kinase=ranked_by_kinase,
+    )
 
 
 def _collect_policy_divergence_metrics(
     *,
-    stable_prediction_matrix: pd.DataFrame,
-    r_parity_prediction_matrix: pd.DataFrame,
-    stable_topk_export: dict[str, list[str]],
-    r_parity_topk_export: dict[str, list[str]],
+    stable_prediction_matrix: PredictionMatrixSurface,
+    r_parity_prediction_matrix: PredictionMatrixSurface,
+    stable_topk_export: RankedTopKExportSurface,
+    r_parity_topk_export: RankedTopKExportSurface,
 ) -> PolicyDivergenceMetrics:
     stable_long = (
-        _stack_frame(stable_prediction_matrix)
+        _stack_frame(stable_prediction_matrix.frame)
         .rename("score_stable")
         .reset_index()
         .rename(
             columns={
                 "level_1": "kinase",
-                stable_prediction_matrix.index.name or "level_0": "site_id",
+                stable_prediction_matrix.frame.index.name or "level_0": "site_id",
             }
         )
     )
     r_parity_long = (
-        _stack_frame(r_parity_prediction_matrix)
+        _stack_frame(r_parity_prediction_matrix.frame)
         .rename("score_r_parity")
         .reset_index()
         .rename(
             columns={
                 "level_1": "kinase",
-                r_parity_prediction_matrix.index.name or "level_0": "site_id",
+                r_parity_prediction_matrix.frame.index.name or "level_0": "site_id",
             }
         )
     )
@@ -386,10 +416,8 @@ def _collect_policy_divergence_metrics(
         merged_non_null.loc[:, "score_stable"]
         - merged_non_null.loc[:, "score_r_parity"]
     ).abs()
-    stable_pred_ranked = _ranked_sites_from_prediction_matrix(stable_prediction_matrix)
-    r_parity_pred_ranked = _ranked_sites_from_prediction_matrix(
-        r_parity_prediction_matrix
-    )
+    stable_pred_ranked = _rank_prediction_matrix_surface(stable_prediction_matrix)
+    r_parity_pred_ranked = _rank_prediction_matrix_surface(r_parity_prediction_matrix)
     return PolicyDivergenceMetrics(
         prediction_matrix_score_corr=(
             _safe_corr(
@@ -404,13 +432,13 @@ def _collect_policy_divergence_metrics(
         prediction_matrix_score_mae=float(absolute_delta.mean())
         if not absolute_delta.empty
         else 0.0,
-        prediction_matrix_ranking=_collect_ranking_metrics_from_ranked_sites(
-            observed_ranked_by_kinase=r_parity_pred_ranked,
-            expected_ranked_by_kinase=stable_pred_ranked,
+        prediction_matrix_ranking=_collect_ranking_metrics(
+            observed=r_parity_pred_ranked,
+            expected=stable_pred_ranked,
         ),
-        ranked_topk_export=_collect_ranking_metrics_from_ranked_sites(
-            observed_ranked_by_kinase=r_parity_topk_export,
-            expected_ranked_by_kinase=stable_topk_export,
+        ranked_topk_export=_collect_ranking_metrics(
+            observed=_rank_topk_export_surface(r_parity_topk_export),
+            expected=_rank_topk_export_surface(stable_topk_export),
         ),
     )
 
@@ -456,31 +484,43 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
     expected_weights = load_l6_prediction_reference_weights()
     expected_candidates = load_l6_prediction_reference_candidate_substrates()
     expected_pred_mat = load_l6_prediction_reference_predmat()
-    expected_top30_frame = _normalize_prediction_topk_frame(
-        load_l6_prediction_reference_top30()
+    expected_topk_export_surface = RankedTopKExportSurface(
+        frame=_normalize_prediction_topk_frame(load_l6_prediction_reference_top30())
     )
 
     stable_substrate_list = stable_result.prediction_result.substrate_list
     if stable_substrate_list is None:
         raise AssertionError("expected substrate_list to be present for L6 parity")
-    stable_topk_export_frame = _normalize_prediction_topk_frame(stable_substrate_list)
-    stable_candidates_frame = stable_topk_export_frame.loc[:, ["kinase", "site_id"]]
+    stable_topk_export_surface = RankedTopKExportSurface(
+        frame=_normalize_prediction_topk_frame(stable_substrate_list)
+    )
+    stable_candidates_frame = stable_topk_export_surface.frame.loc[
+        :, ["kinase", "site_id"]
+    ]
     r_parity_substrate_list = r_parity_result.prediction_result.substrate_list
     if r_parity_substrate_list is None:
         raise AssertionError("expected substrate_list to be present for L6 r_parity")
-    r_parity_topk_export_frame = _normalize_prediction_topk_frame(
-        r_parity_substrate_list
+    r_parity_topk_export_surface = RankedTopKExportSurface(
+        frame=_normalize_prediction_topk_frame(r_parity_substrate_list)
     )
 
-    stable_pred = stable_result.prediction_result.pred_mat
-    r_parity_pred = r_parity_result.prediction_result.pred_mat
-    expected_pred_mat_ranked = _ranked_sites_from_prediction_matrix(expected_pred_mat)
-    stable_pred_ranked = _ranked_sites_from_prediction_matrix(stable_pred)
-    expected_topk_ranked = _ranked_sites_from_prediction_topk(expected_top30_frame)
-    stable_topk_ranked = _ranked_sites_from_prediction_topk(stable_topk_export_frame)
-    r_parity_topk_ranked = _ranked_sites_from_prediction_topk(
-        r_parity_topk_export_frame
+    stable_prediction_matrix_surface = PredictionMatrixSurface(
+        frame=stable_result.prediction_result.pred_mat
     )
+    r_parity_prediction_matrix_surface = PredictionMatrixSurface(
+        frame=r_parity_result.prediction_result.pred_mat
+    )
+    expected_prediction_matrix_surface = PredictionMatrixSurface(
+        frame=expected_pred_mat
+    )
+    expected_pred_mat_ranked = _rank_prediction_matrix_surface(
+        expected_prediction_matrix_surface
+    )
+    stable_pred_ranked = _rank_prediction_matrix_surface(
+        stable_prediction_matrix_surface
+    )
+    expected_topk_ranked = _rank_topk_export_surface(expected_topk_export_surface)
+    stable_topk_ranked = _rank_topk_export_surface(stable_topk_export_surface)
 
     return L6PredictionParityMetrics(
         profile=_collect_table_parity_metrics(
@@ -496,25 +536,25 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
             expected=expected_weights,
         ),
         prediction_matrix=_collect_table_parity_metrics(
-            observed=stable_pred,
+            observed=stable_prediction_matrix_surface.frame,
             expected=expected_pred_mat,
         ),
         candidates=_collect_candidate_metrics(
             observed=stable_candidates_frame,
             expected=expected_candidates,
         ),
-        prediction_matrix_ranking=_collect_ranking_metrics_from_ranked_sites(
-            observed_ranked_by_kinase=stable_pred_ranked,
-            expected_ranked_by_kinase=expected_pred_mat_ranked,
+        prediction_matrix_ranking=_collect_ranking_metrics(
+            observed=stable_pred_ranked,
+            expected=expected_pred_mat_ranked,
         ),
-        ranked_topk_export=_collect_ranking_metrics_from_ranked_sites(
-            observed_ranked_by_kinase=stable_topk_ranked,
-            expected_ranked_by_kinase=expected_topk_ranked,
+        ranked_topk_export=_collect_ranking_metrics(
+            observed=stable_topk_ranked,
+            expected=expected_topk_ranked,
         ),
         policy_divergence=_collect_policy_divergence_metrics(
-            stable_prediction_matrix=stable_pred,
-            r_parity_prediction_matrix=r_parity_pred,
-            stable_topk_export=stable_topk_ranked,
-            r_parity_topk_export=r_parity_topk_ranked,
+            stable_prediction_matrix=stable_prediction_matrix_surface,
+            r_parity_prediction_matrix=r_parity_prediction_matrix_surface,
+            stable_topk_export=stable_topk_export_surface,
+            r_parity_topk_export=r_parity_topk_export_surface,
         ),
     )

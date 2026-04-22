@@ -31,61 +31,94 @@ CROSS_POLICY_DIVERGENCE_TOP20_OVERLAP_FLOOR = 0.99
 CROSS_POLICY_DIVERGENCE_TOP30_OVERLAP_FLOOR = 0.99
 
 
-def test_adaptive_prediction_surface_coverage_is_consistent_across_policies() -> None:
+def test_adaptive_candidate_selection_counts_match_trace_per_policy() -> None:
     metrics = collect_adaptive_policy_comparison_metrics()
     stable = metrics.stable
     r_parity = metrics.r_parity
 
     assert stable.candidate_count == stable.selected_trace_candidate_count
     assert r_parity.candidate_count == r_parity.selected_trace_candidate_count
+
+
+def test_adaptive_candidate_selection_surface_is_policy_invariant() -> None:
+    metrics = collect_adaptive_policy_comparison_metrics()
+    stable = metrics.stable
+    r_parity = metrics.r_parity
+
     assert stable.candidate_count == r_parity.candidate_count
     assert stable.candidate_kinase_count == r_parity.candidate_kinase_count
+
+
+def test_adaptive_prediction_matrix_surface_is_policy_invariant() -> None:
+    metrics = collect_adaptive_policy_comparison_metrics()
+    stable = metrics.stable
+    r_parity = metrics.r_parity
+
     assert stable.prediction_shape == r_parity.prediction_shape
     assert stable.kinases_compared == r_parity.kinases_compared
     assert stable.donor_prediction_rows == r_parity.donor_prediction_rows
 
 
-def test_adaptive_prediction_donor_parity_stable_policy() -> None:
+def test_adaptive_prediction_matrix_parity_donor_vs_rewrite_stable_policy() -> None:
     stable = collect_adaptive_policy_comparison_metrics().stable
 
     assert stable.donor_prediction_corr >= STABLE_DONOR_CORRELATION_FLOOR, (
-        "stable donor-vs-rewrite parity regressed on prediction correlation"
+        "stable donor-vs-rewrite prediction-matrix parity regressed on correlation"
     )
     assert stable.donor_prediction_mae <= STABLE_DONOR_MAE_CEILING, (
-        "stable donor-vs-rewrite parity regressed on prediction MAE"
+        "stable donor-vs-rewrite prediction-matrix parity regressed on MAE"
     )
+
+
+def test_adaptive_ranked_output_parity_donor_vs_rewrite_stable_policy() -> None:
+    stable = collect_adaptive_policy_comparison_metrics().stable
+
     assert stable.donor_top_rank_matches >= STABLE_DONOR_TOP_RANK_MATCH_FLOOR
     assert stable.donor_mean_top10_overlap >= STABLE_DONOR_TOP10_OVERLAP_FLOOR
     assert stable.donor_mean_top20_overlap >= STABLE_DONOR_TOP20_OVERLAP_FLOOR
     assert stable.donor_mean_top30_overlap >= STABLE_DONOR_TOP30_OVERLAP_FLOOR
 
 
-def test_adaptive_prediction_donor_parity_r_parity_policy() -> None:
+def test_adaptive_prediction_matrix_parity_donor_vs_rewrite_r_parity_policy() -> None:
     r_parity = collect_adaptive_policy_comparison_metrics().r_parity
 
     assert r_parity.donor_prediction_corr >= R_PARITY_DONOR_CORRELATION_FLOOR, (
-        "r_parity donor-vs-rewrite parity regressed on prediction correlation"
+        "r_parity donor-vs-rewrite prediction-matrix parity regressed on correlation"
     )
     assert r_parity.donor_prediction_mae <= R_PARITY_DONOR_MAE_CEILING, (
-        "r_parity donor-vs-rewrite parity regressed on prediction MAE"
+        "r_parity donor-vs-rewrite prediction-matrix parity regressed on MAE"
     )
+
+
+def test_adaptive_ranked_output_parity_donor_vs_rewrite_r_parity_policy() -> None:
+    r_parity = collect_adaptive_policy_comparison_metrics().r_parity
+
     assert (
         r_parity.donor_top_set_overlap_matches >= R_PARITY_DONOR_TOP_SET_OVERLAP_FLOOR
-    )
+    ), "r_parity donor-vs-rewrite ranked-output parity regressed on top-set overlap"
+    assert r_parity.donor_top_rank_total > 0
+    assert r_parity.donor_top_rank_matches > 0
 
 
-def test_adaptive_prediction_cross_policy_divergence_stable_vs_r_parity() -> None:
+def test_adaptive_prediction_matrix_divergence_cross_policy_stable_vs_r_parity() -> (
+    None
+):
     metrics = collect_adaptive_policy_comparison_metrics()
 
     assert (
         metrics.cross_policy_prediction_corr
         >= CROSS_POLICY_DIVERGENCE_CORRELATION_FLOOR
-    ), "cross-policy divergence regressed on prediction correlation"
+    ), "cross-policy prediction-matrix divergence regressed on correlation"
     assert metrics.cross_policy_prediction_mae <= CROSS_POLICY_DIVERGENCE_MAE_CEILING
+
+
+def test_adaptive_ranked_output_divergence_cross_policy_stable_vs_r_parity() -> None:
+    metrics = collect_adaptive_policy_comparison_metrics()
+
     assert (
         metrics.cross_policy_top_set_overlap_matches
         >= CROSS_POLICY_DIVERGENCE_TOP_SET_OVERLAP_FLOOR
-    )
+    ), "cross-policy ranked-output divergence regressed on top-set overlap"
     assert metrics.cross_policy_top_rank_matches < metrics.cross_policy_top_rank_total
     assert (
         metrics.cross_policy_mean_top10_overlap
@@ -112,6 +145,7 @@ def test_adaptive_prediction_parity_reporting_is_contract_explicit(
         request.config,
         family="adaptive_prediction",
         metrics=[
+            ("contract: donor-vs-rewrite | candidate-selection surface", "asserted"),
             ("adaptive_policy: stable (default)", "executed"),
             (
                 "stable prediction shape (donor vs rewrite)",
@@ -127,6 +161,7 @@ def test_adaptive_prediction_parity_reporting_is_contract_explicit(
                 "stable prediction mean abs diff (donor vs rewrite)",
                 stable.donor_prediction_mae,
             ),
+            ("contract: donor-vs-rewrite | ranked-output surface (stable)", "asserted"),
             (
                 "stable top-4 rank matches (donor vs rewrite)",
                 format_fraction(
@@ -163,6 +198,10 @@ def test_adaptive_prediction_parity_reporting_is_contract_explicit(
                 r_parity.donor_prediction_mae,
             ),
             (
+                "contract: donor-vs-rewrite | ranked-output surface (r_parity)",
+                "asserted",
+            ),
+            (
                 "r_parity top-4 rank matches (donor vs rewrite)",
                 format_fraction(
                     r_parity.donor_top_rank_matches,
@@ -190,7 +229,10 @@ def test_adaptive_prediction_parity_reporting_is_contract_explicit(
                 "r_parity top-30 overlap (donor vs rewrite)",
                 format_percent(r_parity.donor_mean_top30_overlap),
             ),
-            ("cross-policy divergence surface", "stable (default) vs r_parity"),
+            (
+                "contract: cross-policy divergence | prediction-matrix surface",
+                "stable (default) vs r_parity",
+            ),
             (
                 "cross-policy prediction correlation (stable vs r_parity)",
                 format_percent(metrics.cross_policy_prediction_corr),
@@ -198,6 +240,10 @@ def test_adaptive_prediction_parity_reporting_is_contract_explicit(
             (
                 "cross-policy prediction mean abs diff (stable vs r_parity)",
                 metrics.cross_policy_prediction_mae,
+            ),
+            (
+                "contract: cross-policy divergence | ranked-output surface",
+                "stable (default) vs r_parity",
             ),
             (
                 "cross-policy top-4 rank matches (stable vs r_parity)",

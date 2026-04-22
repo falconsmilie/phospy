@@ -42,7 +42,13 @@ on 2026-04-19.
 `tests/parity/test_adaptive_prediction_parity.py` keeps donor parity and
 cross-policy divergence as separate contracts:
 
-- donor-vs-rewrite parity for `adaptive_policy="stable"`
-- donor-vs-rewrite parity for `adaptive_policy="r_parity"`
-- cross-policy divergence (`stable` vs `r_parity`) reported as a separate
-  comparison surface and not interpreted as donor-port failure
+- donor-vs-rewrite candidate-selection parity (trace-aligned counts and policy
+  invariance checks)
+- donor-vs-rewrite prediction-matrix parity for `adaptive_policy="stable"`
+- donor-vs-rewrite ranked-output parity for `adaptive_policy="stable"`
+- donor-vs-rewrite prediction-matrix parity for `adaptive_policy="r_parity"`
+- donor-vs-rewrite ranked-output parity for `adaptive_policy="r_parity"`
+- cross-policy prediction-matrix divergence (`stable` vs `r_parity`)
+- cross-policy ranked-output divergence (`stable` vs `r_parity`)
+- cross-policy divergence is reported explicitly as policy comparison and is
+  not interpreted as donor-port failure
