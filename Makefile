@@ -28,35 +28,34 @@ SYNTHETIC_EDGE_OUTDIR ?= $(FIXTURES_ROOT)/synthetic_adaptive_sampling_edge
 	install install-dev lint format pre-commit test test-unit test-parity test-seams build clean \
 	fixtures fixtures-r-small fixtures-r-l6 traces-r fixtures-fragile fixtures-r-l6-seam-stress \
 	traces-python traces-python-replay fixtures-synthetic-edge fixtures-all \
-	dataset-builder-demo simple-workflow-demo signalome-workflow-demo demo-all
+	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
 
 help:
-	@printf '%s\n' \
-	  'Available targets:' \
-	  '  make install                       Install the package in editable mode' \
-	  '  make install-dev                   Install editable package with dev and test extras' \
-	  '  make lint                          Run Ruff checks' \
-	  '  make format                        Run Ruff formatter' \
-	  '  make pre-commit                    Run all pre-commit hooks' \
-	  '  make test-unit                     Run the non-parity pytest suite' \
-	  '  make test-parity                   Run the parity pytest suite' \
-	  '  make test                          Run unit and parity tests' \
-	  '  make test-seams                    Run the seam-focused parity tests' \
-	  '  make dataset-builder-demo          Run examples.dataset_builder_demo.main()' \
-	  '  make simple-workflow-demo          Run examples.simple_workflow_demo.main()' \
-	  '  make signalome-workflow-demo       Run examples.signalome_workflow_demo.main()' \
-	  '  make build                         Build source and wheel distributions' \
-	  '  make clean                         Remove common local build and test artefacts' \
-	  '  make fixtures-r-small              Generate the small R-backed fixture family' \
-	  '  make fixtures-r-l6                 Generate the main L6 R-backed fixture family' \
-	  '  make traces-r                      Regenerate the committed R L6 prediction trace' \
-	  '  make fixtures-fragile              Generate the curated fragile-support seam fixture' \
-	  '  make fixtures-r-l6-seam-stress     Generate the smaller R-backed L6 seam-stress fixture' \
-	  '  make traces-python                 Export Python prediction traces' \
-	  '  make traces-python-replay          Export Python traces replaying R sampling rows' \
-	  '  make fixtures-synthetic-edge       Generate the synthetic adaptive-sampling edge fixture' \
-	  '  make fixtures-all                  Bootstrap every committed fixture family from scratch' \
-	  '  make fixtures                      Alias for fixtures-all'
+	@echo Available targets:
+	@echo   make install                       Install the package in editable mode
+	@echo   make install-dev                   Install editable package with dev and test extras
+	@echo   make lint                          Run Ruff checks
+	@echo   make format                        Run Ruff formatter
+	@echo   make pre-commit                    Run all pre-commit hooks
+	@echo   make test-unit                     Run the non-parity pytest suite
+	@echo   make test-parity                   Run the parity pytest suite
+	@echo   make test                          Run unit and parity tests
+	@echo   make test-seams                    Run seam-focused rewrite parity tests
+	@echo   make dataset-builder-demo          Run examples.dataset_builder_demo.main()
+	@echo   make kinase-workflow-demo          Run examples.kinase_workflow_demo.main()
+	@echo   make signalome-workflow-demo       Run examples.signalome_workflow_demo.main()
+	@echo   make build                         Build source and wheel distributions
+	@echo   make clean                         Remove common local build and test artefacts
+	@echo   make fixtures-r-small              Generate the small R-backed fixture family
+	@echo   make fixtures-r-l6                 Generate the main L6 R-backed fixture family
+	@echo   make traces-r                      Regenerate the committed R L6 prediction trace
+	@echo   make fixtures-fragile              Generate the curated fragile-support seam fixture
+	@echo   make fixtures-r-l6-seam-stress     Generate the smaller R-backed L6 seam-stress fixture
+	@echo   make traces-python                 Export Python prediction traces
+	@echo   make traces-python-replay          Export Python traces replaying R sampling rows
+	@echo   make fixtures-synthetic-edge       Generate the synthetic adaptive-sampling edge fixture
+	@echo   make fixtures-all                  Bootstrap every committed fixture family from scratch
+	@echo   make fixtures                      Alias for fixtures-all
 
 check-tools:
 	@command -v "$(PYTHON)" >/dev/null 2>&1 || { printf 'Python executable not found: %s\n' "$(PYTHON)" >&2; exit 1; }
@@ -93,13 +92,13 @@ test-parity: check-tools
 dataset-builder-demo: check-tools
 	PYTHONPATH=src $(PYTHON) -c "from examples.dataset_builder_demo import main; main()"
 
-simple-workflow-demo: check-tools
-	PYTHONPATH=src $(PYTHON) -c "from examples.simple_workflow_demo import main; main()"
+kinase-workflow-demo: check-tools
+	PYTHONPATH=src $(PYTHON) -c "from examples.kinase_workflow_demo import main; main()"
 
 signalome-workflow-demo: check-tools
 	PYTHONPATH=src $(PYTHON) -c "from examples.signalome_workflow_demo import main; main()"
 
-demo-all: dataset-builder-demo simple-workflow-demo signalome-workflow-demo
+demo-all: dataset-builder-demo kinase-workflow-demo signalome-workflow-demo
 
 fixtures: fixtures-all
 
@@ -137,7 +136,10 @@ fixtures-synthetic-edge: check-tools fixtures-dirs
 	$(PYTHON) scripts/generate_synthetic_adaptive_sampling_edge_fixtures.py --outdir "$(SYNTHETIC_EDGE_OUTDIR)"
 
 test-seams: check-tools
-	$(PYTEST) -q tests/test_reference_workflow_seams.py tests/test_fragile_support_reference.py
+	$(PYTEST) -q \
+		tests/parity/test_prediction_science_parity.py \
+		tests/parity/test_adaptive_prediction_parity.py \
+		tests/parity/test_adaptive_replay_parity.py
 
 fixtures-all: fixtures-r-small traces-python fixtures-fragile fixtures-r-l6-seam-stress fixtures-synthetic-edge
 
