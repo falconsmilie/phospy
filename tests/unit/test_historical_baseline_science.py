@@ -81,7 +81,7 @@ def _references() -> ReferenceBundle:
     )
 
 
-def test_profile_policy_donor_locks_strict_median_behavior_and_contract_surface() -> (
+def test_profile_policy_historical_baseline_locks_strict_median_behavior_and_contract_surface() -> (
     None
 ):
     phospho = pd.DataFrame(
@@ -133,7 +133,7 @@ def test_profile_policy_donor_locks_strict_median_behavior_and_contract_surface(
         )
 
 
-def test_adaptive_sampling_donor_is_archival_and_svm_mode_is_not_rewrite_contract() -> (
+def test_adaptive_sampling_historical_baseline_is_archival_and_svm_mode_is_not_rewrite_contract() -> (
     None
 ):
     prediction_fields = {field.name for field in fields(KinasePredictionConfig)}
@@ -179,7 +179,7 @@ def test_adaptive_sampling_donor_is_archival_and_svm_mode_is_not_rewrite_contrac
     assert list(promoted_trace_scores.index.astype(str))[:2] == ["SITE_A", "SITE_B"]
 
 
-def test_signalome_clustering_donor_locks_rewrite_dominant_module_assignment_behavior() -> (
+def test_signalome_clustering_historical_baseline_locks_dominant_module_assignment_behavior() -> (
     None
 ):
     prediction_matrix = pd.DataFrame(
@@ -217,7 +217,7 @@ def test_signalome_clustering_donor_locks_rewrite_dominant_module_assignment_beh
         )
 
 
-def test_weighted_top_assignment_donor_locks_fractional_metadata_and_non_fractional_module_selection() -> (
+def test_weighted_top_assignment_historical_baseline_locks_fractional_metadata_and_non_fractional_module_selection() -> (
     None
 ):
     prediction_matrix = pd.DataFrame(
@@ -249,7 +249,7 @@ def test_weighted_top_assignment_donor_locks_fractional_metadata_and_non_fractio
     assert int(assignments.loc["P1;S1;", "module_id"]) == 1
 
 
-def test_network_policy_variant_donor_locks_signed_edges_and_narrow_config_surface() -> (
+def test_network_policy_variant_historical_baseline_locks_signed_edges_and_narrow_config_surface() -> (
     None
 ):
     downstream_scores = pd.DataFrame(
@@ -311,7 +311,9 @@ def test_network_policy_variant_donor_locks_signed_edges_and_narrow_config_surfa
     )
 
 
-def test_expanded_signalome_donor_locks_supported_lane_to_materialized_output() -> None:
+def test_expanded_signalome_historical_baseline_locks_supported_lane_to_materialized_output() -> (
+    None
+):
     kinase_result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
             dataset=_dataset(),
@@ -339,7 +341,9 @@ def test_expanded_signalome_donor_locks_supported_lane_to_materialized_output() 
     )
 
 
-def test_activity_parity_lock_donor_uses_rewrite_owned_fixture_path() -> None:
+def test_activity_parity_lock_historical_baseline_uses_rewrite_owned_fixture_path() -> (
+    None
+):
     source = (ROOT / "tests" / "parity" / "test_activity_stage_parity.py").read_text(
         encoding="utf-8"
     )
@@ -354,7 +358,7 @@ def test_activity_parity_lock_donor_uses_rewrite_owned_fixture_path() -> None:
     assert "pytest.mark.activity_parity" in source
 
 
-def test_activity_parity_lock_donor_requires_explicit_ci_gate() -> None:
+def test_activity_parity_lock_historical_baseline_requires_explicit_ci_gate() -> None:
     ci_workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(
         encoding="utf-8"
     )
