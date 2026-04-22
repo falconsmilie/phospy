@@ -105,6 +105,7 @@ Both namespaces are public, with different roles:
 
 ## Where To Go Next
 
+- Release framing for current contract: [Release Notes 1.5.0](docs/release_notes/1.5.0.md)
 - Guided onboarding: [Quickstart: first workflow](docs/getting-started/quickstart-first-workflow.md)
 - Full contract details: [API Guide](docs/api.md), [Validation Guide](docs/validation.md)
 - Runnable demos (after you understand the first-run flow):
