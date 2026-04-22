@@ -28,13 +28,17 @@ PREDICTION_MATRIX_SPEARMAN_FLOOR = 0.999999
 CANDIDATE_OVERLAP_PRECISION_FLOOR = 0.999999
 CANDIDATE_OVERLAP_RECALL_FLOOR = 0.999999
 CANDIDATE_OVERLAP_F1_FLOOR = 0.999999
+# Hard regression gates for donor-vs-rewrite ranking agreement.
+# These bars intentionally mirror the legacy release thresholds now that the
+# ranking comparison surface is like-for-like (predMat-derived ranking compared
+# to predMat donor ranking, and ranked top-k export compared to top-k donor).
 PRED_MAT_RANK_SPEARMAN_FLOOR = 0.96
-PRED_MAT_TOP20_OVERLAP_FLOOR = 0.75
-PRED_MAT_TOP30_OVERLAP_FLOOR = 0.65
+PRED_MAT_TOP20_OVERLAP_FLOOR = 0.85
+PRED_MAT_TOP30_OVERLAP_FLOOR = 0.88
 PRED_MAT_GOOD_TOP10_COUNT_FLOOR = 20
 TOPK_EXPORT_RANK_SPEARMAN_FLOOR = 0.96
-TOPK_EXPORT_TOP20_OVERLAP_FLOOR = 0.75
-TOPK_EXPORT_TOP30_OVERLAP_FLOOR = 0.65
+TOPK_EXPORT_TOP20_OVERLAP_FLOOR = 0.85
+TOPK_EXPORT_TOP30_OVERLAP_FLOOR = 0.88
 TOPK_EXPORT_GOOD_TOP10_COUNT_FLOOR = 20
 CROSS_POLICY_PRED_MAT_CORRELATION_FLOOR = 0.95
 
@@ -167,6 +171,7 @@ def test_l6_cross_policy_ranked_topk_divergence_stable_vs_r_parity() -> None:
     assert topk.top_rank_total == topk.kinases_compared
 
 
+@pytest.mark.parity_diagnostic
 def test_l6_prediction_parity_reporting_is_surface_explicit(
     request: pytest.FixtureRequest,
 ) -> None:

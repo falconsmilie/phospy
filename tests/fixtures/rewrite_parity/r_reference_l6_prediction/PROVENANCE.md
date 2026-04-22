@@ -77,3 +77,15 @@ assertion groups so failure semantics are unambiguous:
 
 Release-gate thresholds for this lane are enforced in
 `tests/parity/test_l6_prediction_parity.py`.
+
+As of 2026-04-22, donor-vs-rewrite ranking hard gates in that file are:
+
+- prediction-matrix and top-k export mean Spearman rank correlation `>= 0.96`
+- prediction-matrix and top-k export mean top-20 overlap `>= 0.85`
+- prediction-matrix and top-k export mean top-30 overlap `>= 0.88`
+- prediction-matrix and top-k export good-top10-count `>= 20`
+
+These values intentionally restore the legacy release-quality ranking bar after
+the parity comparison surfaces were corrected to be like-for-like. Reporting
+tests that emit parity summaries are informational diagnostics and are not used
+as threshold-bearing release blockers.

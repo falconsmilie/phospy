@@ -66,6 +66,13 @@ pytest tests/unit/test_benchmark_scripts_smoke.py
 `make test-parity` runs `pytest tests/parity -m parity -s` and prints the
 rewrite-owned parity summary chatter by default (no `PHOSPY_SHOW_*` flags).
 
+Core kinase L6 ranking release gates are enforced in
+`tests/parity/test_l6_prediction_parity.py` with explicit hard thresholds
+(`Spearman >= 0.96`, `top-20 overlap >= 0.85`, `top-30 overlap >= 0.88`,
+`good_top10_count >= 20` on both prediction-matrix and top-k export surfaces).
+Informational parity-reporting tests are marked `parity_diagnostic` and are not
+threshold-bearing release blockers.
+
 Active parity authority is the rewrite suite in `tests/parity/` with fixture
 inputs under:
 

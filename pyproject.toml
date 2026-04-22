@@ -80,6 +80,7 @@ markers = [
   "integration: multi-component rewrite workflow tests",
   "parity: compare Python outputs against R/PhosR reference fixtures",
   "activity_parity: hard regression gate for activity-stage parity fixtures and kernels",
+  "parity_diagnostic: informational parity reporting tests (not threshold-bearing release gates)",
 ]
 
 [tool.ruff]

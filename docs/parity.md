@@ -146,6 +146,37 @@ These gates enforce downstream behavior (candidate selection, prediction-matrix
 ranking agreement, top-k export agreement, and adaptive replay surfaces)
 against promoted rewrite fixture references.
 
+## L6 Ranking Gate Policy (2026-04-22)
+
+For `tests/parity/test_l6_prediction_parity.py`, donor-vs-rewrite ranking
+thresholds are restored to the legacy release bar now that the ranking
+comparison surface is explicitly like-for-like:
+
+- prediction-matrix ranking hard gates:
+  - mean Spearman rank correlation `>= 0.96`
+  - mean top-20 overlap `>= 0.85`
+  - mean top-30 overlap `>= 0.88`
+  - kinases with top-10 overlap >= 70%: `>= 20`
+- ranked top-k export hard gates:
+  - mean Spearman rank correlation `>= 0.96`
+  - mean top-20 overlap `>= 0.85`
+  - mean top-30 overlap `>= 0.88`
+  - kinases with top-10 overlap >= 70%: `>= 20`
+
+Hard-gate intent:
+
+- these thresholds are release-governance blockers for ranking degradation in
+  the supported/default lane
+- values are intentional and align with legacy ranking quality expectations,
+  not temporary accommodations for mismatched parity surfaces
+
+Informational diagnostics (non-threshold-bearing):
+
+- `test_l6_prediction_parity_reporting_is_surface_explicit` is marked
+  `parity_diagnostic` and records surface metrics for operator visibility
+- this diagnostic reporting is separate from hard regression assertions and does
+  not itself define release bars
+
 ## Rewrite-Owned Parity Reporting
 
 Parity chatter is emitted by default from `tests/parity/`. Reporting is
