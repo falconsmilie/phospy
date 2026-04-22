@@ -26,9 +26,35 @@ All public executors use `run(request)`.
 
 ## Installation Contract
 
+Release-facing install:
+
+```bash
+pip install phospy
+```
+
+Contributor install from a local clone:
+
+```bash
+pip install -e ".[dev]"
+```
+
 Standard installation includes all dependencies required by supported prediction
 lanes, including `mode="adaptive_ensemble"` (scikit-learn is part of base
 dependencies). No extra install step is required for adaptive mode.
+
+## Recommended First-Run Lane
+
+The supported first-run path is:
+
+1. build `AnalysisReadyPhosphoDataset` with `dataset.organism=Organism.RAT`
+2. run `KinaseWorkflowRequest(..., references=ReferencePreset.AUTO)`
+3. optionally run `SignalomeWorkflowRequest(kinase_result=...)`
+
+Reference expectations for this lane:
+
+- `ReferencePreset.AUTO` requires `dataset.organism`
+- bundled runtime references are rat-only in this release
+- human/mouse execution requires an explicit caller-supplied `ReferenceBundle`
 
 ## Import Contract
 
@@ -473,27 +499,47 @@ Import public exceptions from `phospy.api`.
 ## Quick Usage Pattern
 
 ```python
+import pandas as pd
+
 from phospy import (
     AnalysisReadyDatasetBuilder,
     KinaseWorkflow,
+    SignalomeWorkflow,
 )
 from phospy.api import (
     DatasetBuildRequest,
-    DatasetMissingDataConfig,
-    DatasetPreprocessingConfig,
     KinaseWorkflowRequest,
     Organism,
     ReferencePreset,
+    SignalomeWorkflowRequest,
+)
+
+phospho = pd.DataFrame(
+    {
+        "sample_a": [1.00, 0.70],
+        "sample_b": [1.10, 0.80],
+        "sample_c": [0.95, 0.75],
+    },
+    index=["TSC2;S939;", "GSK3B;S9;"],
+)
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["TSC2", "GSK3B"],
+        "site": ["S939", "S9"],
+        "site_sequence": [
+            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
+            "_______MSGRPRTTSFAESCKPVQQPSAFG",
+        ],
+        "protein_id": ["TSC2", "GSK3B"],
+    },
+    index=phospho.index.copy(),
 )
 
 dataset = AnalysisReadyDatasetBuilder().run(
     DatasetBuildRequest(
-        phospho="./input/phospho.csv",
-        site_metadata="./input/site_metadata.csv",
+        phospho=phospho,
+        site_metadata=site_metadata,
         organism=Organism.RAT,
-        preprocessing_config=DatasetPreprocessingConfig(
-            missing_data=DatasetMissingDataConfig(policy="forbid"),
-        ),
     )
 )
 
@@ -502,9 +548,13 @@ kinase_result = KinaseWorkflow().run(
 )
 
 pred_mat = kinase_result.prediction_result.pred_mat
-if kinase_result.activity_result is not None:
-    weighted_activity = kinase_result.activity_result.weighted_activity
+signalome_result = SignalomeWorkflow().run(
+    SignalomeWorkflowRequest(kinase_result=kinase_result)
+)
 ```
+
+`SignalomeWorkflow` requires non-empty `dataset.site_metadata.protein_id` values
+for interpreted sites.
 
 If you choose `site_matrix.policy="build_from_metadata"`, inspect row-retention
 counts after builder execution (`dataset.phospho.shape[0]` versus input row

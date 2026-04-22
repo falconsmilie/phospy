@@ -1,55 +1,92 @@
 # PhosPy
 
-PhosPy is a Python package for phosphoproteomics workflows with an explicit, typed public contract.
+PhosPy is a Python package for phosphoproteomics workflows with a strict public
+contract around one dataset boundary and two workflow entrypoints
+(`KinaseWorkflow`, `SignalomeWorkflow`).
 
-It provides:
+## Install
 
-- one analysis-ready dataset boundary
-- one dataset builder story
-- one kinase workflow story
-- one signalome workflow story
-
-## Start Here
-
-Install:
+For normal package use:
 
 ```bash
-pip install .
+pip install phospy
 ```
 
-Run the official examples:
+For local contributor installs from a clone:
 
 ```bash
-python examples/dataset_builder_demo.py
-python examples/kinase_workflow_demo.py
-python examples/signalome_workflow_demo.py
+pip install -e ".[dev]"
 ```
 
-Then follow the guided docs path:
+## First Run (Supported Happy Path)
 
-1. [Docs Home](docs/index.md)
-2. [What is PhosPy?](docs/getting-started/what-is-phospy.md)
-3. [Quickstart: first workflow](docs/getting-started/quickstart-first-workflow.md)
-4. [Core concepts](docs/concepts/core-concepts.md)
+Bundled runtime references in this release are rat-only. The recommended first
+workflow is:
 
-## Minimal API Example
+1. build an analysis-ready dataset with `organism=Organism.RAT`
+2. run kinase with `references=ReferencePreset.AUTO`
+3. optionally run signalome on the kinase result
+
+Minimum input tables:
+
+- `phospho`: numeric site-by-sample matrix with canonical site IDs as row index
+- `site_metadata`: rows aligned to `phospho.index`, with `gene_symbol` and `site`
+- add `protein_id` if you plan to run `SignalomeWorkflow`
+
+For human/mouse lanes, pass an explicit `ReferenceBundle` instead of `AUTO`.
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
-from phospy.api import DatasetBuildRequest, KinaseWorkflowRequest
+import pandas as pd
+
+from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow, SignalomeWorkflow
+from phospy.api import (
+    DatasetBuildRequest,
+    KinaseWorkflowRequest,
+    Organism,
+    ReferencePreset,
+    SignalomeWorkflowRequest,
+)
+
+phospho = pd.DataFrame(
+    {
+        "sample_a": [1.00, 0.70],
+        "sample_b": [1.10, 0.80],
+        "sample_c": [0.95, 0.75],
+    },
+    index=["TSC2;S939;", "GSK3B;S9;"],
+)
+site_metadata = pd.DataFrame(
+    {
+        "gene_symbol": ["TSC2", "GSK3B"],
+        "site": ["S939", "S9"],
+        "site_sequence": [
+            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
+            "_______MSGRPRTTSFAESCKPVQQPSAFG",
+        ],
+        "protein_id": ["TSC2", "GSK3B"],
+    },
+    index=phospho.index.copy(),
+)
 
 dataset = AnalysisReadyDatasetBuilder().run(
     DatasetBuildRequest(
-        phospho=phospho_df,
-        site_metadata=site_metadata_df,
+        phospho=phospho,
+        site_metadata=site_metadata,
+        organism=Organism.RAT,
     )
 )
 
-result = KinaseWorkflow().run(
+kinase_result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
         dataset=dataset,
-        references=references,
+        references=ReferencePreset.AUTO,
     )
+)
+pred_mat = kinase_result.prediction_result.pred_mat
+
+# Optional signalome step (requires site_metadata.protein_id)
+signalome_result = SignalomeWorkflow().run(
+    SignalomeWorkflowRequest(kinase_result=kinase_result)
 )
 ```
 
@@ -58,42 +95,19 @@ result = KinaseWorkflow().run(
 `phospy.api` is the canonical namespace where public API types are defined and
 organized in source.
 
-Both namespaces are public, but they have different roles:
+Both namespaces are public, with different roles:
 
-- top-level `phospy` is a curated convenience surface for the four main product
-  entrypoints only:
+- top-level `phospy` is a curated convenience surface for only:
   `AnalysisReadyDatasetBuilder`, `AnalysisReadyPhosphoDataset`,
-  `KinaseWorkflow`, `SignalomeWorkflow`.
-- import requests, configs, results, enums/references, and errors from
-  `phospy.api`.
+  `KinaseWorkflow`, `SignalomeWorkflow`
+- requests, configs, results, enums/references, and errors are imported from
+  `phospy.api`
 
-## Supported Public Product Shape
+## Where To Go Next
 
-- Dataset builder:
-  `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`
-- Dataset boundary:
-  `AnalysisReadyPhosphoDataset`
-- Kinase workflow:
-  `KinaseWorkflow().run(KinaseWorkflowRequest(...))`
-- Signalome workflow:
-  `SignalomeWorkflow().run(SignalomeWorkflowRequest(...))`
-
-For strict contract details, use [docs/api.md](docs/api.md) and [docs/validation.md](docs/validation.md).
-
-## Documentation Map
-
-- Beginner onboarding: [docs/getting-started](docs/getting-started/index.md)
-- Tutorials and user guides: [docs/user-guides](docs/user-guides/index.md)
-- Workflow guides: [docs/workflow-guides](docs/workflow-guides/index.md)
-- API/reference: [docs/reference](docs/reference/index.md)
-- Validation/contracts: [docs/contracts](docs/contracts/index.md)
-- Architecture/ADRs: [docs/architecture](docs/architecture/index.md), [docs/adr](docs/adr/index.md)
-- Scientific/parity/governance: [docs/science](docs/science/index.md)
-- Contributor/maintainer docs: [docs/contributor](docs/contributor/index.md)
-
-## Project Boundary and Scientific Scope
-
-- Supported package boundary: `src/phospy/`
-- Scientific confidence and parity claims are tiered and explicit; see:
-  - [docs/parity.md](docs/parity.md)
-  - [docs/architecture/legacy_science_gap_audit.md](docs/architecture/legacy_science_gap_audit.md)
+- Guided onboarding: [Quickstart: first workflow](docs/getting-started/quickstart-first-workflow.md)
+- Full contract details: [API Guide](docs/api.md), [Validation Guide](docs/validation.md)
+- Runnable demos (after you understand the first-run flow):
+  - `python examples/dataset_builder_demo.py`
+  - `python examples/kinase_workflow_demo.py`
+  - `python examples/signalome_workflow_demo.py`

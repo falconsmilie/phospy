@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the supported dataset-builder + KinaseWorkflow route."""
+"""Run the supported first-run dataset-builder + kinase workflow lane."""
 
 from __future__ import annotations
 
@@ -15,14 +15,10 @@ from phospy import (
 )
 from phospy.api import (
     DatasetBuildRequest,
-    DatasetMissingDataConfig,
-    DatasetPreprocessingConfig,
-    KinaseActivityConfig,
-    KinaseScoringConfig,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
-    ReferenceBundle,
+    ReferencePreset,
 )
 
 
@@ -30,19 +26,20 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
     phospho = pd.DataFrame(
         {
             "sample_a": [1.00, 0.70],
-            "sample_b": [1.15, 0.80],
+            "sample_b": [1.10, 0.80],
             "sample_c": [0.95, 0.75],
         },
-        index=["MAPK14;Y182;", "GSK3B;S9;"],
+        index=["TSC2;S939;", "GSK3B;S9;"],
     )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["MAPK14", "GSK3B"],
-            "site": ["Y182", "S9"],
+            "gene_symbol": ["TSC2", "GSK3B"],
+            "site": ["S939", "S9"],
             "site_sequence": [
-                "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
+                "_______MSGRPRTTSFAESCKPVQQPSAFG",
             ],
+            "protein_id": ["TSC2", "GSK3B"],
         },
         index=phospho.index.copy(),
     )
@@ -51,9 +48,6 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
-            preprocessing_config=DatasetPreprocessingConfig(
-                missing_data=DatasetMissingDataConfig(policy="forbid"),
-            ),
         )
     )
 
@@ -61,30 +55,11 @@ def build_demo_dataset() -> AnalysisReadyPhosphoDataset:
 def run_demo(outdir: Path) -> tuple[KinaseWorkflowResult, dict[str, Path]]:
     outdir.mkdir(parents=True, exist_ok=True)
     dataset = build_demo_dataset()
-    references = ReferenceBundle(
-        organism=Organism.RAT,
-        kinase_substrate_map=pd.DataFrame(
-            {
-                "kinase": ["MAP2K6", "MAP2K6"],
-                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
-            }
-        ),
-        site_sequences=pd.DataFrame(
-            {"site_sequence": dataset.site_metadata.loc[:, "site_sequence"]},
-            index=pd.Index(dataset.site_metadata.index, name="site_id"),
-        ),
-    )
     result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
             dataset=dataset,
-            references=references,
-            scoring_config=KinaseScoringConfig(min_substrates=2),
-            activity_config=KinaseActivityConfig(
-                enabled=True,
-                threshold=0.6,
-                min_substrates=2,
-                top_n_substrates=2,
-            ),
+            references=ReferencePreset.AUTO,
+            activity_config=None,
         )
     )
 

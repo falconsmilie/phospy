@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build analysis-ready datasets and show site-matrix row-retention behavior."""
+"""Build analysis-ready datasets for the supported first-run lane."""
 
 from __future__ import annotations
 
@@ -28,16 +28,17 @@ def _example_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
             "sample_a": [1.0, 0.7],
             "sample_b": [1.2, 0.8],
         },
-        index=["MAPK14;Y182;", "GSK3B;S9;"],
+        index=["TSC2;S939;", "GSK3B;S9;"],
     )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["MAPK14", "GSK3B"],
-            "site": ["Y182", "S9"],
+            "gene_symbol": ["TSC2", "GSK3B"],
+            "site": ["S939", "S9"],
             "site_sequence": [
-                "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-                "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+                "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
+                "_______MSGRPRTTSFAESCKPVQQPSAFG",
             ],
+            "protein_id": ["TSC2", "GSK3B"],
         },
         index=phospho.index.copy(),
     )

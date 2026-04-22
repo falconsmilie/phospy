@@ -1,43 +1,70 @@
 # Quickstart: First Workflow
 
-This guide gets you to a first successful PhosPy run with the supported happy path.
+This quickstart is the supported first-run lane:
+
+1. install the package
+2. build an analysis-ready dataset
+3. run kinase with bundled references via `ReferencePreset.AUTO`
+4. optionally run signalome
 
 ## 1. Install
 
+Normal package install:
+
 ```bash
-pip install .
+pip install phospy
 ```
 
-## 2. Build an Analysis-Ready Dataset
+If you are developing from a local clone instead:
+
+```bash
+pip install -e ".[dev]"
+```
+
+## 2. Know Required Data and Reference Scope
+
+You need:
+
+- `phospho`: numeric site-by-sample matrix with canonical site IDs in the index
+- `site_metadata`: row-aligned to `phospho.index`, with `gene_symbol` and `site`
+- `protein_id` in `site_metadata` if you plan to run signalome
+
+Reference behavior:
+
+- `ReferencePreset.AUTO` resolves bundled references from `dataset.organism`.
+- Bundled runtime references in this release are rat-only.
+- For human/mouse lanes, provide an explicit `ReferenceBundle`.
+
+## 3. Build Dataset + Run Kinase (Recommended First Run)
 
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder
+from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
 from phospy.api import (
     DatasetBuildRequest,
-    DatasetMissingDataConfig,
-    DatasetPreprocessingConfig,
+    KinaseWorkflowRequest,
     Organism,
+    ReferencePreset,
 )
 
 phospho = pd.DataFrame(
     {
         "sample_a": [1.00, 0.70],
-        "sample_b": [1.15, 0.80],
+        "sample_b": [1.10, 0.80],
         "sample_c": [0.95, 0.75],
     },
-    index=["MAPK14;Y182;", "GSK3B;S9;"],
+    index=["TSC2;S939;", "GSK3B;S9;"],
 )
 site_metadata = pd.DataFrame(
     {
-        "gene_symbol": ["MAPK14", "GSK3B"],
-        "site": ["Y182", "S9"],
+        "gene_symbol": ["TSC2", "GSK3B"],
+        "site": ["S939", "S9"],
         "site_sequence": [
-            "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
-            "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
+            "_______MSGRPRTTSFAESCKPVQQPSAFG",
         ],
-        "protein_id": ["MAPK14", "GSK3B"],
+        "protein_id": ["TSC2", "GSK3B"],
     },
     index=phospho.index.copy(),
 )
@@ -47,81 +74,45 @@ dataset = AnalysisReadyDatasetBuilder().run(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        preprocessing_config=DatasetPreprocessingConfig(
-            missing_data=DatasetMissingDataConfig(policy="forbid"),
-        ),
     )
-)
-```
-
-## 3. Run Kinase Workflow
-
-```python
-from phospy import KinaseWorkflow
-from phospy.api import (
-    KinaseScoringConfig,
-    KinaseWorkflowRequest,
-    Organism,
-    ReferenceBundle,
-)
-
-references = ReferenceBundle(
-    organism=Organism.RAT,
-    kinase_substrate_map=pd.DataFrame(
-        {
-            "kinase": ["MAP2K6", "MAP2K6", "AKT1", "AKT1"],
-            "substrate_site": [
-                "MAPK14;Y182;",
-                "GSK3B;S9;",
-                "MAPK14;Y182;",
-                "GSK3B;S9;",
-            ],
-        }
-    ),
-    site_sequences=pd.DataFrame(
-        {"site_sequence": dataset.site_metadata.loc[:, "site_sequence"]},
-        index=pd.Index(dataset.site_metadata.index, name="site_id"),
-    ),
 )
 
 kinase_result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
         dataset=dataset,
-        references=references,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
+        references=ReferencePreset.AUTO,
     )
 )
 
 pred_mat = kinase_result.prediction_result.pred_mat
+print(pred_mat.round(4))
 ```
 
-## 4. (Optional) Run Signalome Workflow
+## 4. Optional: Run Signalome
+
+Signalome requires `dataset.site_metadata.protein_id` with non-empty values for
+all sites.
 
 ```python
 from phospy import SignalomeWorkflow
-from phospy.api import SignalomeConfig, SignalomeWorkflowRequest
+from phospy.api import SignalomeWorkflowRequest
 
 signalome_result = SignalomeWorkflow().run(
-    SignalomeWorkflowRequest(
-        kinase_result=kinase_result,
-        config=SignalomeConfig(
-            substrate_support_cutoff=0.5,
-            network_correlation_threshold=0.5,
-        ),
-    )
+    SignalomeWorkflowRequest(kinase_result=kinase_result)
 )
+print(signalome_result.module_assignments.table.head())
 ```
 
-## 5. Use Official Examples
+## 5. Then Use Examples and Deeper Docs
 
-If you want runnable scripts instead of snippets:
+Runnable scripts:
 
 - `python examples/dataset_builder_demo.py`
 - `python examples/kinase_workflow_demo.py`
 - `python examples/signalome_workflow_demo.py`
 
-## What To Learn Next
+Learn next:
 
 - Concepts: [Core concepts](../concepts/core-concepts.md)
 - Practical usage: [Tutorials and user guides](../user-guides/index.md)
-- Full contract details: [API Guide](../api.md), [Validation Guide](../validation.md)
+- Contract details: [API Guide](../api.md), [Validation Guide](../validation.md)
