@@ -17,13 +17,14 @@ TRACE_TOP_N ?= 10
 FIXTURES_ROOT ?= tests/fixtures
 REWRITE_PARITY_ROOT ?= $(FIXTURES_ROOT)/rewrite_parity
 R_L6_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference_l6
-R_SMALL_OUTDIR ?= $(REWRITE_PARITY_ROOT)/r_reference
+R_SMALL_ARCHIVE_OUTDIR ?= tests_legacy/fixtures/r_reference
 PUBLIC_WORKFLOW_OUTDIR ?= $(FIXTURES_ROOT)/public_workflow_reference
 
 .PHONY: help \
 	check-tools check-r-tools fixtures-dirs \
 	install install-dev lint format pre-commit test test-unit test-parity test-seams build clean \
-	fixtures fixtures-r-small fixtures-r-l6 traces-r \
+	fixtures fixtures-r-l6 traces-r \
+	fixtures-r-small-archive \
 	fixtures-public-workflow-reference fixtures-all \
 	dataset-builder-demo kinase-workflow-demo signalome-workflow-demo demo-all
 
@@ -43,11 +44,11 @@ help:
 	@echo   make signalome-workflow-demo       Run examples.signalome_workflow_demo.main()
 	@echo   make build                         Build source and wheel distributions
 	@echo   make clean                         Remove common local build and test artefacts
-	@echo   make fixtures-r-small              Generate the small R-backed fixture family
 	@echo   make fixtures-r-l6                 Generate the main L6 R-backed fixture family
 	@echo   make traces-r                      Regenerate the committed R L6 prediction trace
 	@echo   make fixtures-public-workflow-reference Regenerate public workflow signalome fixtures
 	@echo   make fixtures-all                  Bootstrap active maintainer fixture families from scratch
+	@echo   make fixtures-r-small-archive      (archival) Regenerate legacy small R fixtures
 	@echo   make fixtures                      Alias for fixtures-all
 
 check-tools:
@@ -95,8 +96,8 @@ demo-all: dataset-builder-demo kinase-workflow-demo signalome-workflow-demo
 
 fixtures: fixtures-all
 
-fixtures-r-small: check-r-tools fixtures-dirs
-	$(RSCRIPT) scripts/generate_r_fixtures.R --outdir "$(R_SMALL_OUTDIR)"
+fixtures-r-small-archive: check-r-tools
+	$(RSCRIPT) scripts/generate_r_fixtures.R --outdir "$(R_SMALL_ARCHIVE_OUTDIR)"
 
 fixtures-r-l6: check-r-tools fixtures-dirs
 	$(RSCRIPT) scripts/generate_r_l6_fixtures.R --outdir "$(R_L6_OUTDIR)"
@@ -113,7 +114,7 @@ test-seams: check-tools
 		tests/parity/test_adaptive_prediction_parity.py \
 		tests/parity/test_adaptive_replay_parity.py
 
-fixtures-all: fixtures-r-small fixtures-r-l6 fixtures-public-workflow-reference
+fixtures-all: fixtures-r-l6 fixtures-public-workflow-reference
 
 build: check-tools
 	$(BUILD)

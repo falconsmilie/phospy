@@ -17,7 +17,6 @@ For parity intent and protected seams, see [`parity.md`](parity.md).
 
 The default output/input roots used by `Makefile` and fixture scripts are:
 
-- `scripts/generate_r_fixtures.R` -> `tests/fixtures/rewrite_parity/r_reference`
 - `scripts/generate_r_l6_fixtures.R` -> `tests/fixtures/rewrite_parity/r_reference_l6`
 - `scripts/generate_signalome_public_workflow_reference.py` -> `tests/fixtures/public_workflow_reference`
 
@@ -26,10 +25,29 @@ Supported parity maintenance is centered on:
 - rewrite-owned committed fixture families under `tests/fixtures/rewrite_parity/`
 - active replay and parity tests in `tests/parity/`
 
+Primary bootstrap lane:
+
+```bash
+make fixtures-all
+```
+
+`fixtures-all` intentionally regenerates only active rewrite-owned/public
+workflow fixture families.
+
 `tests/fixtures/rewrite_parity/fragile_support_reference` remains committed for
 active prediction-science parity checks, but its regeneration script is
 archived at `scripts/archive/generate_fragile_support_reference.py` and is not
 part of the supported default maintainer regeneration lane.
+
+## Archived / Niche Maintainer Tooling
+
+`scripts/generate_r_fixtures.R` is retained as archival small-fixture tooling
+for historical parity forensics. It is not part of routine rewrite
+maintenance.
+
+- default output root: `tests_legacy/fixtures/r_reference`
+- archival target: `make fixtures-r-small-archive`
+- excluded from the primary bootstrap lane (`make fixtures-all`)
 
 ## Active Public Fixture Families
 
@@ -80,10 +98,11 @@ Legacy fixture trees remain in `tests_legacy/fixtures/` for provenance and
 historical traceability. Active tests should resolve from
 `tests/fixtures/` as their normal source.
 
-Archived script tooling also lives under `scripts/archive/`.
+Archived script tooling mostly lives under `scripts/archive/`.
 
 Archival parity-debug tools:
 
+- `scripts/generate_r_fixtures.R` (retained archival small-fixture generator)
 - `scripts/archive/export_python_prediction_traces.py`
 - `scripts/archive/diff_prediction_trace_probabilities.py`
 - `scripts/archive/generate_synthetic_adaptive_sampling_edge_fixtures.py`
@@ -100,6 +119,7 @@ as default maintainer output locations:
 - `tests/fixtures/r_reference`
 - `tests/fixtures/r_reference_l6`
 - `tests/fixtures/fragile_support_reference`
+- `tests_legacy/fixtures/r_reference`
 - `tests_legacy/fixtures/r_reference_l6_seam_stress`
 - `tests/fixtures/python_reference_l6`
 

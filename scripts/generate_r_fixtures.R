@@ -1,5 +1,10 @@
 #!/usr/bin/env Rscript
 
+# ARCHIVAL TOOLING:
+# This script regenerates the small synthetic R reference fixture set for
+# historical forensics only. It is intentionally excluded from the primary
+# maintainer bootstrap lane (`make fixtures-all`).
+
 suppressPackageStartupMessages({
   library(readr)
   library(dplyr)
@@ -45,7 +50,7 @@ read_args <- function() {
   defaults <- list(
     total = "examples/data/total.tsv",
     phospho = "examples/data/phospho.tsv",
-    outdir = "tests/fixtures/rewrite_parity/r_reference"
+    outdir = "tests_legacy/fixtures/r_reference"
   )
 
   if (length(args) == 0) {
@@ -353,6 +358,11 @@ main <- function() {
   outdir <- args$outdir
   dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
+  message(
+    "Running archival small-fixture regeneration. ",
+    "This tool is not part of the primary fixtures-all bootstrap."
+  )
+
   total_path <- args$total
   phospho_path <- args$phospho
 
@@ -534,7 +544,7 @@ main <- function() {
   )
 
   write_session_info(outdir)
-  message("Done. R reference fixtures written to: ", outdir)
+  message("Done. Archival R reference fixtures written to: ", outdir)
 }
 
 main()
