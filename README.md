@@ -138,6 +138,7 @@ publications described in [`NOTICE.md`](NOTICE.md).
 
 - Release framing for the shipped 1.5.0 contract: [Release Notes 1.5.0](docs/release_notes/1.5.0.md)
 - Guided onboarding: [Quickstart: first workflow](docs/getting-started/quickstart-first-workflow.md)
+- First failure recovery: [Troubleshooting: first-run and supported-lane failures](docs/getting-started/troubleshooting-first-run.md)
 - CLI scope and command usage: [CLI Guide](docs/cli.md)
 - Full contract details: [API Guide](docs/api.md), [Validation Guide](docs/validation.md)
 - Runnable demos (after you understand the first-run flow):

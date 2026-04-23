@@ -17,6 +17,7 @@ nav:
       - Overview: getting-started/index.md
       - What Is PhosPy?: getting-started/what-is-phospy.md
       - Quickstart: getting-started/quickstart-first-workflow.md
+      - Troubleshooting First Run: getting-started/troubleshooting-first-run.md
       - Core Concepts: concepts/core-concepts.md
       - Choose Your Path: learning-paths/choose-your-path.md
   - Workflows and Usage:
@@ -24,7 +25,7 @@ nav:
       - CLI Guide: cli.md
       - Output Bundles: output_bundles.md
       - User Guides Overview: user-guides/index.md
-  - Troubleshooting: troubleshooting.md
+  - Troubleshooting: getting-started/troubleshooting-first-run.md
   - API and Validation:
       - API Guide: api.md
       - Validation Guide: validation.md

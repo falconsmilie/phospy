@@ -124,7 +124,11 @@ signalome_result = SignalomeWorkflow().run(
 print(signalome_result.module_assignments.table.head())
 ```
 
-## 5. Then Use Examples and Deeper Docs
+## 5. If It Fails Early
+
+Use [Troubleshooting: first-run and supported-lane failures](troubleshooting-first-run.md) before reading the full validation contract. It is organised by the error you saw and covers the most common supported-lane mistakes.
+
+## 6. Then Use Examples and Deeper Docs
 
 Runnable scripts:
 
@@ -136,4 +140,5 @@ Learn next:
 
 - Concepts: [Core concepts](../concepts/core-concepts.md)
 - Practical usage: [Tutorials and user guides](../user-guides/index.md)
+- First-run recovery: [Troubleshooting: first-run and supported-lane failures](troubleshooting-first-run.md)
 - Contract details: [API Guide](../api.md), [Validation Guide](../validation.md)

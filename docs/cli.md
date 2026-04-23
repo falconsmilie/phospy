@@ -28,8 +28,9 @@ For full request/config control, use the Python API.
 
 > Audience: users who prefer command-line execution.
 > If this is your first run, read
-> [What is PhosPy?](getting-started/what-is-phospy.md) and
-> [Quickstart](getting-started/quickstart-first-workflow.md) first.
+> [What is PhosPy?](getting-started/what-is-phospy.md),
+> [Quickstart](getting-started/quickstart-first-workflow.md), and
+> [Troubleshooting: first-run and supported-lane failures](getting-started/troubleshooting-first-run.md).
 
 ## Choose the Right Interface
 
@@ -206,6 +207,7 @@ Notes:
 
 ## Where Next
 
+- First-run recovery: [Troubleshooting: first-run and supported-lane failures](getting-started/troubleshooting-first-run.md)
 - API request/result details: [API Guide](api.md)
 - Validation behavior for CLI errors: [Validation Guide](validation.md)
 - Persisting/reloading outputs: [Output Bundles](output_bundles.md)

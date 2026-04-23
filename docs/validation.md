@@ -4,7 +4,8 @@ This guide documents validation in the supported rewrite contract.
 
 > Audience: advanced users who need strict contract and invariant behavior.
 > New users should begin with
-> [Quickstart](getting-started/quickstart-first-workflow.md) and
+> [Quickstart](getting-started/quickstart-first-workflow.md),
+> [Troubleshooting: first-run and supported-lane failures](getting-started/troubleshooting-first-run.md), and
 > [Core concepts](concepts/core-concepts.md).
 
 For API shapes, see [`api.md`](api.md).
@@ -342,6 +343,8 @@ Optional outputs must be checked before dereference:
 | Kinase/signalome runtime seam diagnostics | workflow interpreters/executors (`WorkflowBoundaryError`) |
 
 ## Quick Troubleshooting
+
+Start with [Troubleshooting: first-run and supported-lane failures](getting-started/troubleshooting-first-run.md) if you want symptom-first guidance. Use the table below when you already know you need contract-level detail.
 
 | Problem | Usually means | Good next step |
 | --- | --- | --- |

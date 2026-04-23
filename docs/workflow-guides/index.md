@@ -27,8 +27,8 @@ The supported signalome lane requires explicit protein identity:
 ## Common Failure Points
 
 - Input table shape/required columns:
-  [Troubleshooting](../troubleshooting.md#dataset-build-and-input-shape-issues)
+  [Troubleshooting](../getting-started/troubleshooting-first-run.md#input-and-file-loading-failures)
 - Reference and organism compatibility:
-  [Troubleshooting](../troubleshooting.md#reference-and-organism-resolution-issues)
+  [Troubleshooting](../getting-started/troubleshooting-first-run.md#auto-reference-resolution-fails)
 - Signalome prerequisites (`protein_id`):
-  [Troubleshooting](../troubleshooting.md#signalome-preconditions-and-runtime-issues)
+  [Troubleshooting](../getting-started/troubleshooting-first-run.md#signalome-fails-on-protein_id)

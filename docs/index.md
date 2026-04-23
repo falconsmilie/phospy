@@ -21,14 +21,14 @@ If you are new to PhosPy, use this sequence:
 | Understand dataset -> kinase -> signalome flow | [Workflow guides](workflow-guides/index.md) |
 | Integrate PhosPy in Python code | [API Guide](api.md) |
 | Understand what 1.5.0 ships | [Release Notes 1.5.0](release_notes/1.5.0.md) |
-| Diagnose validation or runtime errors | [Troubleshooting](troubleshooting.md) |
+| Diagnose validation or runtime errors | [Troubleshooting](getting-started/troubleshooting-first-run.md) |
 
 ## Docs Areas
 
 - [Getting started](getting-started/index.md) for onboarding and first success.
 - [Workflows and usage](workflow-guides/index.md) for task-oriented execution docs.
 - [API and validation](reference/index.md) for strict contract details.
-- [Troubleshooting](troubleshooting.md) for common errors and recovery paths.
+- [Troubleshooting](getting-started/troubleshooting-first-run.md) for common errors and recovery paths.
 
 ## Maintainer Material
 

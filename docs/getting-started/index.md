@@ -6,8 +6,9 @@ This section is the fastest path to a successful first run.
 
 1. [What is PhosPy?](what-is-phospy.md)
 2. [Quickstart: first workflow](quickstart-first-workflow.md)
-3. [Core concepts](../concepts/core-concepts.md)
-4. [Choose your path](../learning-paths/choose-your-path.md)
+3. [Troubleshooting: first-run and supported-lane failures](troubleshooting-first-run.md)
+4. [Core concepts](../concepts/core-concepts.md)
+5. [Choose your path](../learning-paths/choose-your-path.md)
 
 ## What "Done" Looks Like
 
@@ -21,5 +22,5 @@ After completing this section, you should be able to:
 
 - [Workflow guides](../workflow-guides/index.md)
 - [CLI Guide](../cli.md)
-- [Troubleshooting](../troubleshooting.md)
+- [Troubleshooting: first-run and supported-lane failures](troubleshooting-first-run.md)
 - [API and reference](../reference/index.md)
