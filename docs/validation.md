@@ -21,6 +21,19 @@ Validation is split across three boundaries:
 - Workflow boundaries:
   validate request DTOs, config ranges, reference compatibility, and runtime/science seams.
 
+## Signalome Protein-Identity Prerequisite
+
+Supported signalome execution has an explicit protein-identity contract:
+
+- signalome requires explicit, non-empty `dataset.site_metadata.protein_id`
+  for every interpreted site
+- gene-symbol site IDs (for example `"<gene_symbol>;<site>;"`) encode site
+  identity, not protein identity, and are not a fallback substitute
+- this is an intentional scientific boundary for protein-aware signalome
+  grouping and module assignment
+- builder flexibility at ingestion does not weaken this downstream workflow
+  contract
+
 ## Builder Flexibility vs Dataset Strictness
 
 `DatasetBuildRequest` accepts:
@@ -244,9 +257,9 @@ internally consistent reference tables.
 - `kinase_result.dataset.site_metadata` is present and index-aligned to
   `kinase_result.dataset.phospho.index`
 - `kinase_result.dataset.site_metadata.protein_id` is required and must contain
-  non-empty string values
-- gene-symbol-prefixed site IDs are not accepted as protein-identity fallback;
-  explicit `site_metadata.protein_id` remains mandatory
+  non-empty string values for every interpreted site
+- gene-symbol-prefixed site IDs are site identity and are not accepted as
+  protein-identity fallback
 - missing values in the upstream downstream score matrix are allowed; this is a
   normal outcome for correlation-based kinase scoring in low-information rows
 - infinite values in upstream score/prediction matrices remain hard failures

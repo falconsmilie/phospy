@@ -50,6 +50,12 @@ def _build_kinase_result() -> KinaseWorkflowResult:
             organism=Organism.RAT,
         )
     )
+    protein_ids = dataset.site_metadata["protein_id"].astype("string").str.strip()
+    if not protein_ids.ne("").all():
+        raise RuntimeError(
+            "Supported signalome lane requires explicit non-empty "
+            "site_metadata.protein_id for every interpreted site."
+        )
     return KinaseWorkflow().run(
         KinaseWorkflowRequest(
             dataset=dataset,

@@ -50,6 +50,17 @@ The supported first-run path is:
 2. run `KinaseWorkflowRequest(..., references=ReferencePreset.AUTO)`
 3. optionally run `SignalomeWorkflowRequest(kinase_result=...)`
 
+Signalome protein-identity prerequisite (supported lane):
+
+- signalome requires explicit, non-empty `dataset.site_metadata.protein_id`
+  for every interpreted site
+- gene-symbol site IDs (for example `"<gene_symbol>;<site>;"`) encode site
+  identity, not protein identity, and are not a fallback substitute
+- this is an intentional scientific boundary for protein-aware signalome
+  grouping and module assignment
+- builder flexibility at ingestion does not weaken this downstream workflow
+  contract
+
 Reference expectations for this lane:
 
 - `ReferencePreset.AUTO` requires `dataset.organism`
@@ -273,11 +284,12 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 
 Signalome protein-identity contract (supported lane):
 
-- signalome requires explicit `dataset.site_metadata.protein_id` values
-- gene-symbol site IDs (for example `"<gene_symbol>;<site>;"`) are site identity,
-  not protein identity, and are not used as fallback protein mapping
-- this is an intentional scientific boundary: downstream signalome grouping and
-  module assignment are protein-identity-aware
+- signalome requires explicit, non-empty `dataset.site_metadata.protein_id`
+  for every interpreted site
+- gene-symbol site IDs (for example `"<gene_symbol>;<site>;"`) encode site
+  identity, not protein identity, and are not a fallback substitute
+- this is an intentional scientific boundary for protein-aware signalome
+  grouping and module assignment
 - builder flexibility at ingestion does not weaken this downstream workflow
   contract
 
@@ -561,8 +573,9 @@ signalome_result = SignalomeWorkflow().run(
 )
 ```
 
-`SignalomeWorkflow` requires non-empty `dataset.site_metadata.protein_id` values
-for interpreted sites.
+`SignalomeWorkflow` requires explicit, non-empty
+`dataset.site_metadata.protein_id` values for interpreted sites. Gene-symbol
+site IDs are not a protein-identity fallback.
 
 If you choose `site_matrix.policy="build_from_metadata"`, inspect row-retention
 counts after builder execution (`dataset.phospho.shape[0]` versus input row

@@ -20,6 +20,15 @@ from phospy.validation.common.dataframes import (
 )
 from phospy.validation.workflows.configs import SignalomeConfigValidator
 
+SIGNALOME_PROTEIN_IDENTITY_CONTRACT_NOTE = (
+    "Supported signalome execution requires explicit non-empty "
+    "site_metadata.protein_id for every interpreted site. "
+    "Gene-symbol site-ID prefixes encode site identity, not protein identity, "
+    "and are not a fallback substitute. "
+    "This is an intentional scientific boundary for protein-aware signalome "
+    "grouping and module assignment."
+)
+
 
 class SignalomeWorkflowValidator:
     """Validate `SignalomeWorkflowRequest` before interpretation."""
@@ -182,9 +191,7 @@ class SignalomeWorkflowValidator:
             )
         except WorkflowValidationError as exc:
             raise WorkflowValidationError(
-                f"{exc}. Supported signalome execution requires explicit "
-                "site_metadata.protein_id; gene-symbol site-ID prefixes are not a "
-                "protein-identity substitute."
+                f"{exc}. {SIGNALOME_PROTEIN_IDENTITY_CONTRACT_NOTE}"
             ) from exc
         try:
             require_non_empty_string_column(
@@ -195,7 +202,5 @@ class SignalomeWorkflowValidator:
             )
         except WorkflowValidationError as exc:
             raise WorkflowValidationError(
-                f"{exc}. Supported signalome execution requires explicit "
-                "site_metadata.protein_id; gene-symbol site-ID prefixes are not a "
-                "protein-identity substitute."
+                f"{exc}. {SIGNALOME_PROTEIN_IDENTITY_CONTRACT_NOTE}"
             ) from exc

@@ -42,7 +42,8 @@ You need:
 - `site_metadata`: row-aligned to `phospho.index`, with `gene_symbol` and `site`
 - a supported public builder path that converges on a missing-value-free
   `AnalysisReadyPhosphoDataset`
-- `protein_id` in `site_metadata` if you plan to run signalome
+- explicit, non-empty `site_metadata.protein_id` for every interpreted site if
+  you plan to run signalome
 
 Signalome protein-identity prerequisite (important):
 
@@ -50,6 +51,7 @@ Signalome protein-identity prerequisite (important):
 - gene-symbol site-ID prefixes (for example `"<gene_symbol>;<site>;"`) are not a
   substitute for protein identity
 - this is intentional scientific contract strictness, not convenience fallback behaviour
+- builder flexibility at ingestion does not weaken this downstream contract
 
 Reference behavior:
 

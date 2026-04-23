@@ -11,7 +11,9 @@ PhosPy has one supported workflow chain:
 The supported signalome lane requires explicit protein identity:
 
 - `kinase_result.dataset.site_metadata.protein_id` must exist and be non-empty
-- gene-symbol site-ID prefixes are not a protein-identity fallback
+  for every interpreted site
+- gene-symbol site-ID prefixes encode site identity and are not a
+  protein-identity fallback substitute
 - this is an intentional scientific boundary for protein-aware grouping/module
   assignment, not runtime strictness by accident
 - builder input flexibility does not weaken this downstream workflow contract
