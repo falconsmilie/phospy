@@ -1,55 +1,39 @@
 # What Is PhosPy?
 
-PhosPy is a Python package for phosphoproteomics workflows with a strict public contract.
+PhosPy is a Python package for phosphoproteomics workflows.
 
-In plain terms, PhosPy helps you move through one supported workflow chain:
+In practical terms, it helps you do three things:
 
-1. start with quantified phosphosite data
-2. build a validated analysis-ready dataset
-3. run kinase scoring and prediction
-4. optionally group results into signalome outputs
+1. turn phosphosite data into a validated analysis-ready dataset
+2. score and predict kinase activity from that dataset
+3. optionally group results into signalome outputs
 
 PhosPy does **not** expose a web server or REST API. You use it through Python
-classes or the `phospy` CLI.
+or the `phospy` CLI.
 
-## Who Is It For?
+## Who this is for
 
-PhosPy is useful if you are:
+PhosPy is aimed at scientists who want a reproducible workflow, plus engineers
+and maintainers who need clear public boundaries.
 
-- a scientist who wants a reproducible, documented workflow surface
-- an engineer who wants clear typed boundaries and validation rules
-- a maintainer who needs explicit support, parity, and contract documentation
+## The supported beginner lane
 
-## Supported Product Shape
+For the smoothest first run:
 
-The supported public shape is intentionally focused:
+- use a `phospho` matrix and matching `site_metadata`
+- set `organism=Organism.RAT`
+- run kinase with `ReferencePreset.AUTO`
+- add `protein_id` only if you plan to run signalome
 
-- Build analysis-ready data:
-  `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`
-- Run kinase workflow:
-  `KinaseWorkflow().run(KinaseWorkflowRequest(...))`
-- Run signalome workflow:
-  `SignalomeWorkflow().run(SignalomeWorkflowRequest(...))`
+Bundled runtime references are rat-only in this release. Human and mouse lanes
+need an explicit `ReferenceBundle` in Python.
 
-For full contract details, see [API Guide](../api.md).
+## The public shape
 
-## What You Need for a First Success
+The supported public shape is intentionally small:
 
-For the beginner-friendly supported lane, keep the setup small:
-
-- a `phospho` matrix with site IDs like `TSC2;S939;`
-- matching `site_metadata` with `gene_symbol` and `site`
-- `organism=Organism.RAT` if you want bundled references through `ReferencePreset.AUTO`
-- `protein_id` only when you plan to run signalome
-
-## What PhosPy Is Not
-
-- It is not a broad utility toolbox with many loosely defined entrypoints.
-- It does not claim blanket parity for all historical PhosR lanes.
-- It does not hide scientific or architectural limits; those are documented explicitly.
-
-For parity and scientific confidence tiers, see [Parity to PhosR](../parity.md).
-
-## Next Step
+- `AnalysisReadyDatasetBuilder().run(DatasetBuildRequest(...))`
+- `KinaseWorkflow().run(KinaseWorkflowRequest(...))`
+- `SignalomeWorkflow().run(SignalomeWorkflowRequest(...))`
 
 Continue with [Quickstart: first workflow](quickstart-first-workflow.md).

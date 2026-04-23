@@ -1,6 +1,6 @@
 # Quickstart: First Workflow
 
-This quickstart is the supported first-run lane:
+This is the recommended first-run lane:
 
 1. install the package
 2. build an analysis-ready, missing-value-free dataset
@@ -11,34 +11,19 @@ This quickstart is the supported first-run lane:
 
 PhosPy requires Python 3.10 or newer.
 
-Normal package install:
-
 ```bash
 pip install phospy
 ```
 
-If you need parquet file support (`.parquet` input or output), install the optional
-parquet extra:
+If you need `.parquet` input or output:
 
 ```bash
 pip install "phospy[parquet]"
 ```
 
-If you are developing from a local clone instead:
+## 2. Prepare two input tables
 
-```bash
-pip install -e ".[dev]"
-```
-
-For editable installs with parquet support:
-
-```bash
-pip install -e ".[dev,parquet]"
-```
-
-## 2. Know the Minimum Data You Need
-
-For the smallest supported Python example, prepare these two tables:
+For a simple first run, you need:
 
 - `phospho`: numeric site-by-sample matrix
 - `site_metadata`: one row per phosphosite, aligned to `phospho.index`
@@ -48,26 +33,19 @@ Required `site_metadata` columns:
 - `gene_symbol`
 - `site`
 
-Useful rule of thumb:
+Useful checks:
 
 - row IDs should look like `TSC2;S939;`
-- `site_metadata.index` should line up exactly with `phospho.index`
-- add `protein_id` only if you want to run signalome
+- `site_metadata.index` should exactly match `phospho.index`
+- add `protein_id` only if you plan to run signalome
 
-Signalome protein-identity prerequisite:
+Reference rules for this quickstart:
 
-- signalome requires explicit, non-empty `site_metadata.protein_id`
-- gene-symbol site-ID prefixes (for example `"<gene_symbol>;<site>;"`) are not a
-  substitute for protein identity
-- builder flexibility at ingestion does not weaken this downstream contract
+- `ReferencePreset.AUTO` resolves from `dataset.organism`
+- bundled runtime references are rat-only in this release
+- for human or mouse work, provide an explicit `ReferenceBundle`
 
-Reference behaviour:
-
-- `ReferencePreset.AUTO` resolves bundled references from `dataset.organism`
-- bundled runtime references in this release are rat-only
-- for human or mouse lanes, provide an explicit `ReferenceBundle`
-
-## 3. Copy-Paste Python Example
+## 3. Copy-paste Python example
 
 ```python
 import pandas as pd
@@ -126,10 +104,10 @@ What success looks like:
 - `dataset.organism.value == "rat"`
 - `pred_mat` is present and non-empty
 
-## 4. Optional: Run Signalome
+## 4. Optional: run signalome
 
-Signalome requires `dataset.site_metadata.protein_id` with non-empty values for
-all sites.
+Signalome requires explicit, non-empty `dataset.site_metadata.protein_id` for
+all interpreted sites.
 
 ```python
 from phospy import SignalomeWorkflow
@@ -141,42 +119,30 @@ signalome_result = SignalomeWorkflow().run(
 print(signalome_result.module_assignments.table.head())
 ```
 
-What success looks like here:
+What success looks like:
 
 - `signalome_result.module_assignments.table` is non-empty
 - `signalome_result.signalome_modules.table` is non-empty
 - `signalome_result.expanded_signalome` is populated in the supported signalome lane
 
-## 5. CLI Version of the Same Happy Path
-
-If you prefer files instead of in-memory DataFrames, the matching CLI lane is:
+## 5. CLI version of the same lane
 
 ```bash
-phospy kinase \
-  --phospho ./input/phospho.csv \
-  --site-metadata ./input/site_metadata.csv \
-  --organism rat \
-  --reference auto \
-  --outdir ./out
+phospy kinase   --phospho ./input/phospho.csv   --site-metadata ./input/site_metadata.csv   --organism rat   --reference auto   --outdir ./out
 ```
 
 The command prints a short summary of the files it wrote under `./out`.
 
-## 6. If It Fails Early
+## 6. If it fails
 
-Use [Troubleshooting: first-run and supported-lane failures](troubleshooting-first-run.md) before reading the full validation contract. It is organised by the error you saw and covers the most common supported-lane mistakes.
+Use [Troubleshooting: first run](troubleshooting-first-run.md). It covers the
+most common beginner mistakes first.
 
-## 7. Then Use Examples and Deeper Docs
+## 7. Next pages
 
-Runnable scripts:
-
+- [CLI Guide](../cli.md)
+- [API Guide](../api.md)
+- [Validation Guide](../validation.md)
 - `python examples/dataset_builder_demo.py`
 - `python examples/kinase_workflow_demo.py`
 - `python examples/signalome_workflow_demo.py`
-
-Learn next:
-
-- Concepts: [Core concepts](../concepts/core-concepts.md)
-- Practical usage: [Tutorials and user guides](../user-guides/index.md)
-- First-run recovery: [Troubleshooting: first-run and supported-lane failures](troubleshooting-first-run.md)
-- Contract details: [API Guide](../api.md), [Validation Guide](../validation.md)

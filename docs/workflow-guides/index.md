@@ -1,36 +1,14 @@
-# Workflow Guides
+# Workflow Overview
 
-PhosPy has one supported workflow chain:
+PhosPy supports one public workflow chain:
 
-1. Build `AnalysisReadyPhosphoDataset`
-2. Run `KinaseWorkflow`
-3. Run `SignalomeWorkflow` (optional, downstream of kinase result)
+1. build `AnalysisReadyPhosphoDataset`
+2. run `KinaseWorkflow`
+3. optionally run `SignalomeWorkflow`
 
-## Signalome Protein-Identity Contract
+For most users, the quickstart already covers this path:
 
-The supported signalome lane requires explicit protein identity:
-
-- `kinase_result.dataset.site_metadata.protein_id` must exist and be non-empty
-  for every interpreted site
-- gene-symbol site-ID prefixes encode site identity and are not a
-  protein-identity fallback substitute
-- this is an intentional scientific boundary for protein-aware grouping/module
-  assignment, not runtime strictness by accident
-- builder input flexibility does not weaken this downstream workflow contract
-
-## Stage-by-Stage Guide
-
-- Beginner walkthrough: [Quickstart: first workflow](../getting-started/quickstart-first-workflow.md)
-- API shape and request/result contracts: [API Guide](../api.md)
-- Validation rules at each boundary: [Validation Guide](../validation.md)
-- CLI workflow execution: [CLI Guide](../cli.md)
-- Persisting results to bundles: [Output Bundles](../output_bundles.md)
-
-## Common Failure Points
-
-- Input table shape/required columns:
-  [Troubleshooting](../getting-started/troubleshooting-first-run.md#input-and-file-loading-failures)
-- Reference and organism compatibility:
-  [Troubleshooting](../getting-started/troubleshooting-first-run.md#auto-reference-resolution-fails)
-- Signalome prerequisites (`protein_id`):
-  [Troubleshooting](../getting-started/troubleshooting-first-run.md#signalome-fails-on-protein_id)
+- [Quickstart](../getting-started/quickstart-first-workflow.md)
+- [CLI Guide](../cli.md)
+- [API Guide](../api.md)
+- [Troubleshooting](../getting-started/troubleshooting-first-run.md)

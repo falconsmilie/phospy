@@ -1,8 +1,11 @@
 # ADR Index
 
-Architecture Decision Records (ADRs) are the authoritative design record for major contract and architecture choices.
+Architecture Decision Records explain why major design choices were made.
 
-## ADR List
+Use the [API Guide](../api.md) and [Validation Guide](../validation.md) for current behaviour.
+Use these ADRs when you need rationale and tradeoffs.
+
+## ADRs
 
 - [ADR 0001: Public API Contract for PhosPy](adr_0001_public_api_contract.md)
 - [ADR 0002: Internal Workflow Architecture for PhosPy](adr_0002_internal_workflow_architecture.md)
@@ -19,8 +22,3 @@ Architecture Decision Records (ADRs) are the authoritative design record for maj
 - [ADR 0013: Scientific Parity Strategy and Parity-Testing Policy for PhosPy](adr_0013_scientific_parity_strategy_and_parity_testing_policy.md)
 - [ADR 0014: Test Suite Structure and Policy for PhosPy](adr_0014_test_suite_structure_and_policy.md)
 - [ADR 0015: Reference and Fixture Data Policy for PhosPy](adr_0015_reference_and_fixture_data_policy.md)
-
-## When To Use ADRs
-
-- Use ADRs when you need rationale and tradeoffs, not just current behavior.
-- Use [API Guide](../api.md) and [Validation Guide](../validation.md) for current public usage contract.

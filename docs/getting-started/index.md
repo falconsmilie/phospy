@@ -1,26 +1,14 @@
 # Getting Started
 
-This section is the fastest path to a successful first run.
+This section is the beginner lane.
 
-## Recommended Order
+Read these pages in order:
 
-1. [What is PhosPy?](what-is-phospy.md)
-2. [Quickstart: first workflow](quickstart-first-workflow.md)
-3. [Troubleshooting: first-run and supported-lane failures](troubleshooting-first-run.md)
-4. [Core concepts](../concepts/core-concepts.md)
-5. [Choose your path](../learning-paths/choose-your-path.md)
+1. [Quickstart: first workflow](quickstart-first-workflow.md)
+2. [Troubleshooting: first run](troubleshooting-first-run.md)
+3. [What Is PhosPy?](what-is-phospy.md) if you want a short orientation page
 
-## What "Done" Looks Like
+After that, pick the interface you prefer:
 
-After completing this section, you should be able to:
-
-- prepare required input tables
-- build `AnalysisReadyPhosphoDataset`
-- run kinase (and optionally signalome) in the supported lane
-
-## Next Stops
-
-- [Workflow guides](../workflow-guides/index.md)
 - [CLI Guide](../cli.md)
-- [Troubleshooting: first-run and supported-lane failures](troubleshooting-first-run.md)
-- [API and reference](../reference/index.md)
+- [API Guide](../api.md)

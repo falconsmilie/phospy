@@ -1,57 +1,32 @@
-# Troubleshooting: first-run and supported-lane failures
+# Troubleshooting: first run and supported-lane failures
 
-Start here when your first PhosPy run fails, or when a supported dataset -> kinase -> signalome run stops at a contract boundary.
+Use this page when your first PhosPy run fails. It is written for the supported
+beginner lane first, not for every advanced edge case.
 
-This page is organised by symptom:
+## Fast sanity check
 
-- what you saw
-- what it usually means
-- what to check next
-- where to go for deeper contract detail
+Before reading anything deeper, confirm these basics:
 
-Use it before diving into the full [Validation Guide](../validation.md).
-
-## Fast Sanity Check
-
-Before chasing a deeper bug, confirm these basics:
-
-- you installed `phospy` into the same Python environment you are using
-- your phospho row IDs look like `GENE;SITE;` such as `TSC2;S939;`
-- `site_metadata.index` lines up exactly with `phospho.index`
-- you are using `organism=Organism.RAT` or `--organism rat` for the bundled first-run lane
+- `phospho.index` contains site IDs like `GENE;SITE;`
+- `site_metadata.index` exactly matches `phospho.index`
+- `site_metadata` includes `gene_symbol` and `site`
+- you set `organism=Organism.RAT` or `--organism rat` for bundled first runs
 - you added `protein_id` only if you are running signalome
 
-## Confirm You Are in the Supported Lane
+## Common failures
 
-The quickest supported first run in 1.5.0 is:
+| What you saw | Usually means | What to do |
+| --- | --- | --- |
+| `ModuleNotFoundError: No module named 'phospy'` | Wrong environment | Activate the environment where you installed PhosPy |
+| `phospy: command not found` | CLI not on your path | Install the package in the active environment and reopen the shell |
+| parquet read/write failure | Optional dependency missing | Install `phospy[parquet]` |
+| `ReferencePreset.AUTO requires dataset.organism` | Organism was not set | Set `organism=Organism.RAT` or `--organism rat` |
+| human/mouse bundled-reference failure | Bundled references are rat-only | Use an explicit `ReferenceBundle` in Python |
+| signalome error mentioning `protein_id` | Protein identity is required | Add a non-empty `protein_id` column |
+| rows disappeared during site-matrix building | Some rows could not be kept in that preprocessing lane | Check sequence support and chosen preprocessing policy |
+| overlap/support boundary error | Dataset and references do not overlap enough | Read the seam details and adjust inputs or references |
 
-1. install `phospy` (or `phospy[parquet]` if you need parquet)
-2. build a dataset with `organism=Organism.RAT` or `--organism rat`
-3. run kinase with `ReferencePreset.AUTO` or `--reference auto`
-4. run signalome only if `site_metadata.protein_id` is present and non-empty
-
-Also remember:
-
-- bundled runtime references are rat-only in this release
-- human and mouse runs need an explicit `ReferenceBundle` in Python
-- the CLI is intentionally file-first and does not expose the full Python API surface
-
-## Jump to the Symptom You Saw
-
-| What you saw | Go to |
-| --- | --- |
-| Import fails or the `phospy` command is missing | [Import or CLI command is not available](#import-or-cli-command-is-not-available) |
-| File/path/format/parquet error | [Input and file-loading failures](#input-and-file-loading-failures) |
-| `ReferencePreset.AUTO requires dataset.organism` | [AUTO reference resolution fails](#auto-reference-resolution-fails) |
-| Human or mouse bundled-reference failure | [Bundled reference organism failure](#bundled-reference-organism-failure) |
-| Signalome complains about `protein_id` | [Signalome fails on protein_id](#signalome-fails-on-protein_id) |
-| Dataset row count drops during site-matrix preprocessing | [Site-matrix row drops](#site-matrix-row-drops) |
-| Kinase workflow fails with overlap/support seam details | [Kinase overlap or support boundary failure](#kinase-overlap-or-support-boundary-failure) |
-| Signalome fails later with support/network seam details | [Signalome support or network boundary failure](#signalome-support-or-network-boundary-failure) |
-
-## Import or CLI Command Is Not Available
-
-### What you saw
+## Import or CLI command not available
 
 Examples:
 
@@ -60,260 +35,89 @@ ModuleNotFoundError: No module named 'phospy'
 phospy: command not found
 ```
 
-### What it usually means
+Fix:
 
-You are not running in the environment where PhosPy was installed, or you followed local-clone install instructions for a situation that only needed a normal package install.
+- reinstall in the active environment
+- confirm `python -m pip show phospy`
+- if needed, run the CLI as `python -m phospy.cli --help`
 
-### What to check next
+## Input and file-loading failures
 
-- For normal use, install with `pip install phospy`.
-- If you need parquet input/output, install with `pip install "phospy[parquet]"`.
-- For a local clone, use `pip install -e ".[dev]"` or `pip install -e ".[dev,parquet]"`.
-- Make sure the Python interpreter that runs your script is the same one where you installed the package.
-- Make sure the shell that runs `phospy ...` can see the same environment.
+Supported file formats are:
 
-### Where to go deeper
+- `.csv`
+- `.tsv`
+- `.txt` (tab-separated)
+- `.parquet` with the optional parquet extra installed
 
-- [Quickstart: first workflow](quickstart-first-workflow.md)
-- [CLI Guide](../cli.md)
+Also check:
 
-## Input and File-Loading Failures
+- `site_metadata.index` matches `phospho.index`
+- `site_metadata` has `gene_symbol` and `site`
+- values in `phospho` are numeric
 
-### What you saw
+## AUTO reference resolution fails
 
-Common public error text includes:
+If you see an error about `ReferencePreset.AUTO` or missing organism, the usual
+cause is simple: `dataset.organism` was never set.
 
-```text
-input file does not exist: ...
-unsupported table file format for '...'. supported formats: csv (.csv), tsv (.tsv), txt as tab-separated tsv (.txt), parquet (.parquet)
-parquet input requires optional parquet dependencies (for example pyarrow)
-failed to parse table input '...': ...
-```
+Beginner fix:
 
-### What it usually means
+- Python: `organism=Organism.RAT`
+- CLI: `--organism rat`
 
-The CLI or builder received a missing path, an unsupported suffix, a file that does not parse as a table, or a parquet file without the optional parquet dependency installed.
+## Bundled reference organism failure
 
-### What to check next
+Bundled runtime references are rat-only in this release.
 
-- Confirm the file path is correct.
-- Use only `.csv`, `.tsv`, `.txt`, or `.parquet`.
-- Treat `.txt` as tab-separated input, not arbitrary plain text.
-- Install the parquet extra before using `.parquet`:
-  `pip install "phospy[parquet]"`.
-- If you are using the Python API, remember the builder accepts either a `DataFrame` or a supported file path at the request boundary.
+That means:
 
-### Where to go deeper
+- `ReferencePreset.AUTO` is the easiest bundled first-run lane when the dataset organism is rat
+- human and mouse work need an explicit `ReferenceBundle`
+- enum presence does not mean bundled data ships for every organism
 
-- [CLI Guide](../cli.md#input-formats)
-- [Validation Guide: Builder flexibility vs dataset strictness](../validation.md#builder-flexibility-vs-dataset-strictness)
+## Signalome fails on `protein_id`
 
-## AUTO Reference Resolution Fails
+Signalome requires explicit protein identity.
 
-### What you saw
+Fix:
 
-```text
-ReferencePreset.AUTO requires dataset.organism
-```
+- add `site_metadata.protein_id`
+- make sure it is non-empty for every interpreted site
 
-### What it usually means
+Important: a site ID such as `TSC2;S939;` gives site identity, not protein
+identity. It is not a fallback for `protein_id`.
 
-You asked PhosPy to resolve bundled references from the dataset organism, but the dataset does not carry an organism.
+## Site-matrix row drops
 
-### What to check next
+If you use site-matrix building from metadata, row count can become smaller than
+the original metadata table.
 
-- In Python, set `organism` when building the dataset:
-  `DatasetBuildRequest(..., organism=Organism.RAT)`.
-- In the CLI, pass `--organism rat` before using `--reference auto`.
-- Rebuild the dataset first, then rerun kinase.
+This is not always a bug. Common reasons are:
 
-### Where to go deeper
+- missing sequence support for some rows
+- duplicate-site handling collapsing rows
+- the public lane keeping only rows that can end in a strict dataset
 
-- [Quickstart: first workflow](quickstart-first-workflow.md)
-- [Validation Guide: Reference validation](../validation.md#reference-validation)
+Check the input row count against `dataset.phospho.shape[0]` and review the
+preprocessing policy you selected.
 
-## Bundled Reference Organism Failure
+## Kinase or signalome boundary errors
 
-### What you saw
+Some workflow failures include seam names, counts, and a `next_action` hint.
+Those messages are trying to be useful, not dramatic.
 
-Common public error text includes:
+Typical causes:
 
-```text
-no bundled references are available for organism 'human' in the current release; supported bundled organisms: rat; non-bundled organism lanes require a caller-supplied ReferenceBundle
-```
+- too little overlap between dataset sites and reference sites
+- too little support after scoring thresholds
+- signalome inputs not suitable for downstream network/module stages
 
-You may also see:
+Read the error details first. They usually tell you which boundary failed.
 
-```text
-dataset.organism and requested reference preset must match
-references.organism must match dataset.organism when both are present
-```
+## Still stuck?
 
-### What it usually means
-
-You are trying to use a bundled lane that is not shipped in 1.5.0, or your dataset organism and reference selection disagree.
-
-### What to check next
-
-- Use rat for the bundled first-run lane.
-- For human or mouse work, use the Python API and provide an explicit `ReferenceBundle`.
-- Keep `dataset.organism`, requested preset, and explicit bundle organism aligned.
-- Do not expect `ReferencePreset.HUMAN` or `ReferencePreset.MOUSE` to load bundled runtime references in this release.
-
-### Where to go deeper
-
-- [Quickstart: first workflow](quickstart-first-workflow.md#2-know-required-data-and-reference-scope)
-- [Validation Guide: Reference validation](../validation.md#reference-validation)
-- [API Guide](../api.md)
-
-## Signalome Fails on protein_id
-
-### What you saw
-
-Common public error text includes:
-
-```text
-site_metadata is missing required columns: protein_id
-site_metadata.protein_id must contain non-empty string values
-```
-
-The public error text also makes the contract explicit:
-
-```text
-Supported signalome execution requires explicit site_metadata.protein_id; gene-symbol site-ID prefixes are not a protein-identity substitute.
-```
-
-### What it usually means
-
-Signalome needs explicit protein identity for the interpreted dataset sites. A gene-symbol-prefixed site ID such as `"MAPK14;T180;"` is not enough.
-
-### What to check next
-
-- Add a `protein_id` column to `site_metadata` before dataset build.
-- Make sure every value is a non-empty string.
-- Do not rely on `gene_symbol` or the site-ID prefix as a substitute for protein identity.
-- Rebuild the dataset, rerun kinase, then rerun signalome.
-
-### Where to go deeper
-
-- [Quickstart: first workflow](quickstart-first-workflow.md#4-optional-run-signalome)
-- [Validation Guide: Workflow validation](../validation.md#workflow-validation)
-- [Workflow guides](../workflow-guides/index.md)
-
-## Site-Matrix Row Drops
-
-### What you saw
-
-This is often not an exception. Instead, the built dataset contains fewer rows than the source input when you use:
-
-```text
-site_matrix.policy='build_from_metadata'
-```
-
-You may also find diagnostics on the built phospho matrix:
-
-```python
-row_drop_stats = dataset.phospho.attrs.get("site_matrix_row_drop_stats")
-print(row_drop_stats)
-```
-
-### What it usually means
-
-The supported site-matrix build lane keeps only rows that can be constructed cleanly from metadata. Rows without usable `site_sequence` support are excluded from that path. In the strict public lane, the supported site-matrix missing-data policy is `drop_any_missing`.
-
-### What to check next
-
-- Inspect `dataset.phospho.attrs["site_matrix_row_drop_stats"]`.
-- Check whether `site_metadata.site_sequence` is missing, blank, or unresolved for dropped rows.
-- Check whether incomplete phospho values are being dropped by `missing_data_policy='drop_any_missing'`.
-- Treat the row loss as a preprocessing-policy effect, not a silent bug.
-
-### Where to go deeper
-
-- [Validation Guide: Builder flexibility vs dataset strictness](../validation.md#builder-flexibility-vs-dataset-strictness)
-- [Validation Guide: Builder preprocessing policy rules](../validation.md#builder-preprocessing-policy-rules)
-- [API Guide](../api.md)
-
-## Kinase Overlap or Support Boundary Failure
-
-### What you saw
-
-Typical public boundary errors include seam details such as:
-
-```text
-kinase workflow boundary validation failed at seam=kinase.interpreter.reference_coverage
-kinase workflow boundary validation failed at seam=kinase.interpreter.eligible_kinases
-kinase workflow boundary validation failed at seam=kinase.interpreter.sequence_support
-```
-
-The details usually include counts such as `overlap_sites=0`, `eligible_kinases=0`, or `sequence_supported_sites=0`, plus a `next_action=...` hint.
-
-### What it usually means
-
-One of the core support checks failed:
-
-- the dataset phosphosite IDs do not overlap the resolved reference substrate sites
-- overlap exists, but not enough kinases meet `scoring_config.min_substrates`
-- resolved `references.site_sequences` does not support any dataset sites for kinase scoring
-
-### What to check next
-
-- Verify dataset site IDs are canonical and look like `"<gene_symbol>;<site>;"`.
-- Confirm dataset organism and reference selection are compatible.
-- If overlap is shallow, use references with better coverage for the dataset.
-- If the failure is about eligible kinases, remember the scientific floor remains `min_substrates >= 2`.
-- Read the `seam=...`, count fields, and `next_action=...` text closely. Those details are part of the public recovery path.
-
-### Where to go deeper
-
-- [Validation Guide: Workflow validation](../validation.md#workflow-validation)
-- [API Guide](../api.md)
-
-## Signalome Support or Network Boundary Failure
-
-### What you saw
-
-Typical public boundary errors include seam details such as:
-
-```text
-seam=signalome.executor.kinase_support
-seam=signalome.executor.network
-seam=signalome.interpreter.site_alignment
-seam=signalome.interpreter.kinase_overlap
-```
-
-These errors also include concrete counts and a `next_action=...` hint.
-
-### What it usually means
-
-The interpreted kinase result is not usable for the requested signalome stage. Common causes are:
-
-- no kinases pass `substrate_support_cutoff`
-- prediction and downstream score matrices do not align on sites or kinase columns
-- downstream score signal is too weak or not variable enough for network construction
-
-### What to check next
-
-- Confirm the kinase result is from the same dataset you intend to analyse.
-- Lower `substrate_support_cutoff` only if that still makes scientific sense for your run.
-- Inspect `kinase_result.prediction_result.pred_mat` and the downstream score matrix being used.
-- Read the boundary counts and `next_action=...` text rather than treating the failure as a generic crash.
-
-### Where to go deeper
-
-- [Validation Guide: Workflow validation](../validation.md#workflow-validation)
-- [API Guide](../api.md)
-
-## Still Stuck?
-
-Capture the exact error text, the request or CLI command you used, and which stage failed:
-
-- dataset build
-- reference resolution
-- kinase
-- signalome
-
-Then compare the failure with the deeper contract pages:
+Use the stricter pages only after this one:
 
 - [Validation Guide](../validation.md)
 - [API Guide](../api.md)

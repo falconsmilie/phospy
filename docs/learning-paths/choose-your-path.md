@@ -1,45 +1,26 @@
 # Choose Your Path
 
-Use this page after quickstart to move into the right depth for your role.
+Use this page only if you already finished the quickstart.
 
-## If You Are a Scientist New to Python Packaging
+## Scientist using PhosPy for the first time
 
-Start with:
+Go to:
 
-1. [Tutorials and user guides](../user-guides/index.md)
-2. [Workflow guides](../workflow-guides/index.md)
-3. [CLI Guide](../cli.md)
+1. [CLI Guide](../cli.md)
+2. [Troubleshooting](../getting-started/troubleshooting-first-run.md)
+3. [Output Bundles](../output_bundles.md)
 
-Then use:
+## Python user who wants the full contract
 
-- [Validation Guide](../validation.md) when interpreting input errors
-- [Output Bundles](../output_bundles.md) for reproducible outputs
+Go to:
 
-## If You Are an Engineer New to Phosphoproteomics Terms
+1. [API Guide](../api.md)
+2. [Validation Guide](../validation.md)
 
-Start with:
+## Maintainer or contributor
 
-1. [Core concepts](../concepts/core-concepts.md)
-2. [API Guide](../api.md)
-3. [Validation and contracts](../contracts/index.md)
+Go to:
 
-Then use:
-
-- [Scientific parity and governance](../science/index.md) for confidence and support tiers
-
-## If You Need Strict Contract and Architecture Detail
-
-Go directly to:
-
-- [API and reference](../reference/index.md)
-- [Validation and contracts](../contracts/index.md)
-- [Architecture and ADRs](../architecture/index.md)
-- [Scientific parity and governance](../science/index.md)
-
-## If You Are Contributing to PhosPy
-
-Start with:
-
-1. [Contributor and maintainer docs](../contributor/index.md)
-2. [ADR Index](../adr/index.md)
-3. [Rewrite cutover boundary](../architecture/rewrite_cutover_boundary.md)
+1. [Contributor overview](../contributor/index.md)
+2. [Architecture index](../architecture/index.md)
+3. [ADR Index](../adr/index.md)

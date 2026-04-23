@@ -1,5 +1,5 @@
 site_name: PhosPy Documentation
-site_description: Layered documentation for beginner onboarding and advanced reference
+site_description: PhosPy docs for scientists, Python users, and contributors
 repo_url: https://github.com/falconsmilie/phospy
 docs_dir: docs
 
@@ -13,32 +13,16 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Getting Started:
-      - Overview: getting-started/index.md
-      - What Is PhosPy?: getting-started/what-is-phospy.md
-      - Quickstart: getting-started/quickstart-first-workflow.md
-      - Troubleshooting First Run: getting-started/troubleshooting-first-run.md
-      - Core Concepts: concepts/core-concepts.md
-      - Choose Your Path: learning-paths/choose-your-path.md
-  - Workflows and Usage:
-      - Workflow Overview: workflow-guides/index.md
-      - CLI Guide: cli.md
-      - Output Bundles: output_bundles.md
-      - User Guides Overview: user-guides/index.md
+  - Quickstart: getting-started/quickstart-first-workflow.md
   - Troubleshooting: getting-started/troubleshooting-first-run.md
-  - API and Validation:
-      - API Guide: api.md
-      - Validation Guide: validation.md
-      - Reference Overview: reference/index.md
-      - Contracts Overview: contracts/index.md
-      - Frame Ownership Policy: frame_ownership.md
-  - Scientific Context:
-      - Overview: science/index.md
-      - Parity to PhosR: parity.md
-      - Roadmap: roadmap.md
-      - Release Notes 1.5.0: release_notes/1.5.0.md
+  - CLI Guide: cli.md
+  - API Guide: api.md
+  - Validation Guide: validation.md
+  - Output Bundles: output_bundles.md
+  - Release Notes 1.5.0: release_notes/1.5.0.md
   - Maintainer Docs:
-      - Contributor Overview: contributor/index.md
-      - Architecture Overview: architecture/index.md
+      - Overview: contributor/index.md
+      - Architecture: architecture/index.md
       - ADR Index: adr/index.md
+      - Parity to PhosR: parity.md
       - Fixtures: fixtures.md

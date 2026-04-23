@@ -1,21 +1,21 @@
 # Security Policy
 
-## Supported Versions
+## Supported versions
 
-PhosPy is a small project. Security fixes are only expected for the latest released version.
+Security fixes are expected only for the latest released version of PhosPy.
 
 | Version | Supported |
 | --- | --- |
 | Latest release | Yes |
 | Older releases | No |
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-If you believe you found a security issue in PhosPy, please report it privately.
+Please report suspected security issues privately.
 
-Do not open a public GitHub issue for suspected security problems.
+Do not open a public GitHub issue for a real or suspected vulnerability.
 
-Report security concerns to:
+Contact:
 
 shane @ rededitor dot net
 
@@ -23,44 +23,23 @@ Please include:
 
 - a clear description of the issue
 - steps to reproduce it
-- the affected version or versions
+- the affected version
 - the likely impact
-- proof of concept, sample input, or screenshots where useful
+- any proof of concept or sample input that helps confirm the report
 
-## What Counts as a Security Report
+## Good fits for this channel
 
-Good fits for this channel include issues such as:
+Examples include:
 
-- unsafe file handling that could expose data
-- code execution paths that should not be reachable
-- packaging or distribution problems with security impact
-- dependency or configuration behaviour that creates a real vulnerability in PhosPy
+- unsafe file handling
+- unintended code execution paths
+- packaging or distribution issues with real security impact
 
-The following should use the normal issue tracker instead:
+## Not a security report
 
-- scientific correctness or parity regressions without a security impact
+Please use the normal issue tracker for:
+
+- scientific correctness or parity regressions without security impact
 - documentation bugs
 - feature requests
-- installation help or general usage questions
-
-## What to Expect
-
-The maintainers will aim to:
-
-- acknowledge receipt of the report
-- confirm whether the issue is reproducible
-- assess whether it is a genuine security problem
-- prepare a fix or mitigation where appropriate
-- ship the fix in a normal project release
-
-Response times may vary with maintainer availability and the complexity of the report.
-
-## Scope
-
-This policy applies to security issues in the PhosPy codebase and its published packages.
-
-The following are generally out of scope unless they directly create a vulnerability in PhosPy itself:
-
-- problems in third-party platforms or services
-- vulnerabilities in dependencies not caused by PhosPy code or packaging
-- theoretical concerns without a clear and reproducible security impact
+- installation or usage questions

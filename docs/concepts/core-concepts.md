@@ -1,57 +1,25 @@
 # Core Concepts
 
-PhosPy is easiest to use when you keep five core boundaries in mind.
+If you keep these five boundaries in mind, PhosPy becomes much easier to read.
 
-## 1. Analysis-Ready Dataset Boundary
+## 1. Dataset boundary
 
-`AnalysisReadyPhosphoDataset` is the strict workflow input boundary.
+`AnalysisReadyPhosphoDataset` is the strict workflow input.
 
-- Workflows consume this model, not raw files or loose frames.
-- Structural/content validation is enforced at construction.
+## 2. Builder boundary
 
-Deep detail: [Validation Guide](../validation.md).
+`AnalysisReadyDatasetBuilder` is the public ingestion path from DataFrames or files.
 
-## 2. Builder Boundary
+## 3. Workflow boundary
 
-`AnalysisReadyDatasetBuilder` is the public ingestion path.
+Each workflow takes one request object and returns one typed result object.
 
-- It accepts file paths or DataFrames.
-- It applies supported preprocessing policies.
-- It returns a strict `AnalysisReadyPhosphoDataset`.
+## 4. Reference boundary
 
-Deep detail: [API Guide](../api.md#builder-contract).
+Workflows use either a `ReferencePreset` or an explicit `ReferenceBundle`.
 
-## 3. Workflow Requests and Results
+## 5. Signalome protein identity boundary
 
-Each workflow is one request DTO in, one typed result DTO out.
+Signalome needs explicit `protein_id`. Site IDs are not a fallback.
 
-- `KinaseWorkflowRequest -> KinaseWorkflowResult`
-- `SignalomeWorkflowRequest -> SignalomeWorkflowResult`
-
-Results are nested by stage (for example `result.scoring_result.profile_scores`).
-
-Deep detail: [API Guide](../api.md#result-contract-nested-stage-outputs).
-
-## 4. References Are Explicit Contract Inputs
-
-Workflows depend on explicit reference resolution (`ReferencePreset` or `ReferenceBundle`).
-
-- Bundled runtime references are intentionally narrow in the current release.
-- Non-bundled lanes require explicit caller-provided references.
-
-Deep detail: [API Guide](../api.md#reference-resolution).
-
-## 5. Supported Science vs Governance Claims
-
-PhosPy distinguishes:
-
-- what is implemented
-- what is supported
-- what is parity-gated
-- what is contract-changed relative to legacy behavior
-
-Deep detail: [Parity to PhosR](../parity.md), [Legacy science gap audit](../architecture/legacy_science_gap_audit.md).
-
-## Next Step
-
-Choose a deeper path in [Choose your path](../learning-paths/choose-your-path.md).
+For day-to-day use, return to the [Quickstart](../getting-started/quickstart-first-workflow.md) or [API Guide](../api.md).

@@ -1,8 +1,12 @@
 # PhosPy
 
-PhosPy is a Python package for phosphoproteomics workflows with a strict public
-contract around one dataset boundary and two workflow entrypoints
-(`KinaseWorkflow`, `SignalomeWorkflow`).
+PhosPy is a Python package for phosphoproteomics workflows.
+
+It supports one clear public workflow:
+
+1. build an analysis-ready dataset
+2. run kinase scoring and prediction
+3. optionally run signalome analysis
 
 PhosPy does **not** expose HTTP endpoints or a web service. The supported user
 interfaces are:
@@ -14,48 +18,41 @@ interfaces are:
 
 PhosPy requires Python 3.10 or newer.
 
-For normal package use:
-
 ```bash
 pip install phospy
 ```
 
-If you plan to read or write `.parquet` inputs or outputs, install the optional
-parquet extra:
+If you need `.parquet` input or output support:
 
 ```bash
 pip install "phospy[parquet]"
 ```
 
-For local contributor installs from a clone:
+For local development from a clone:
 
 ```bash
 pip install -e ".[dev]"
+pip install -e ".[dev,parquet]"  # optional parquet support
 ```
 
-For editable installs with parquet support:
+## First Run
 
-```bash
-pip install -e ".[dev,parquet]"
-```
+The recommended beginner lane is deliberately small:
 
-## First Run (Supported Happy Path)
-
-Bundled runtime references in this release are rat-only. The recommended first
-workflow is:
-
-1. build an analysis-ready dataset with `organism=Organism.RAT`
+1. build a dataset with `organism=Organism.RAT`
 2. run kinase with `references=ReferencePreset.AUTO`
-3. optionally run signalome on the kinase result
+3. run signalome only when `site_metadata.protein_id` is present
 
-Before you start, make sure your input tables match this minimum shape:
+Bundled runtime references in this release are rat-only. For human or mouse
+work, pass an explicit `ReferenceBundle` in Python instead of `AUTO`.
 
-- `phospho`: numeric site-by-sample matrix with site IDs as the row index
-- `site_metadata`: rows aligned to `phospho.index`, with `gene_symbol` and `site`
+### Minimum input shape
+
+- `phospho`: numeric site-by-sample matrix
+- `site_metadata`: rows aligned to `phospho.index`
+- required `site_metadata` columns: `gene_symbol`, `site`
 - site IDs should look like `TSC2;S939;`
-- add `protein_id` if you plan to run `SignalomeWorkflow`
-
-For human or mouse lanes, pass an explicit `ReferenceBundle` instead of `AUTO`.
+- add `protein_id` if you plan to run signalome
 
 ### Minimal Python example
 
@@ -106,30 +103,23 @@ kinase_result = KinaseWorkflow().run(
         references=ReferencePreset.AUTO,
     )
 )
-pred_mat = kinase_result.prediction_result.pred_mat
 
-# Optional signalome step (requires site_metadata.protein_id)
 signalome_result = SignalomeWorkflow().run(
     SignalomeWorkflowRequest(kinase_result=kinase_result)
 )
 ```
 
-If you copy the example as-is, you should end up with:
+If you copy the example as-is, you should get:
 
 - a strict `AnalysisReadyPhosphoDataset`
 - `dataset.phospho.shape == (2, 3)`
-- a non-empty kinase prediction matrix in `pred_mat`
+- a non-empty kinase prediction matrix
 - a signalome result only when `protein_id` is present for every interpreted site
 
 ### Minimal CLI example
 
 ```bash
-phospy kinase \
-  --phospho ./input/phospho.csv \
-  --site-metadata ./input/site_metadata.csv \
-  --organism rat \
-  --reference auto \
-  --outdir ./out
+phospy kinase   --phospho ./input/phospho.csv   --site-metadata ./input/site_metadata.csv   --organism rat   --reference auto   --outdir ./out
 ```
 
 That command writes a dataset directory, a kinase directory, and a short summary
@@ -144,34 +134,30 @@ Both namespaces are public, with different roles:
 - top-level `phospy` is a curated convenience surface for only:
   `AnalysisReadyDatasetBuilder`, `AnalysisReadyPhosphoDataset`,
   `KinaseWorkflow`, `SignalomeWorkflow`
-- requests, configs, results, enums or references, and errors are imported from
+- requests, configs, results, enums, references, and errors are imported from
   `phospy.api`
 
 ## CLI vs Python API
 
-The `phospy` CLI is intentionally narrow and file-first. It supports the public
-happy-path flow (`dataset-build`, `kinase`, `signalome`) with selected
-high-value runtime knobs.
+Use the CLI for file-based runs in the supported public lane.
 
-Use the CLI for reproducible command-line execution from files. Use the Python
-API (`phospy.api`) when you need the full request and config surface, including
-`DatasetPreprocessingConfig`, explicit `ReferenceBundle` injection, DataFrame
-inputs, or advanced scoring and signalome configuration.
+Use the Python API (`phospy.api`) when you need:
+
+- DataFrame inputs
+- explicit `ReferenceBundle` injection
+- dataset preprocessing control
+- advanced scoring or signalome configuration
+
+## Documentation
+
+Read these in order if you are new:
+
+1. [Quickstart](docs/getting-started/quickstart-first-workflow.md)
+2. [Troubleshooting](docs/getting-started/troubleshooting-first-run.md)
+3. [CLI Guide](docs/cli.md) or [API Guide](docs/api.md)
 
 ## Citation
 
 If you use PhosPy in scientific work, cite this software release using
 [`CITATION.cff`](CITATION.cff) and also cite the upstream PhosR project and
 publications described in [`NOTICE.md`](NOTICE.md).
-
-## Where To Go Next
-
-- Guided onboarding: [Quickstart: first workflow](docs/getting-started/quickstart-first-workflow.md)
-- First failure recovery: [Troubleshooting: first-run and supported-lane failures](docs/getting-started/troubleshooting-first-run.md)
-- CLI scope and command usage: [CLI Guide](docs/cli.md)
-- Full contract details: [API Guide](docs/api.md), [Validation Guide](docs/validation.md)
-- Release framing for the shipped 1.5.0 contract: [Release Notes 1.5.0](docs/release_notes/1.5.0.md)
-- Runnable demos after you understand the first-run flow:
-  - `python examples/dataset_builder_demo.py`
-  - `python examples/kinase_workflow_demo.py`
-  - `python examples/signalome_workflow_demo.py`
