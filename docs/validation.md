@@ -243,9 +243,19 @@ internally consistent reference tables.
   `kinase_result.dataset.phospho.index`
 - `kinase_result.dataset.site_metadata.protein_id` is required and must contain
   non-empty string values
+- gene-symbol-prefixed site IDs are not accepted as protein-identity fallback;
+  explicit `site_metadata.protein_id` remains mandatory
 - missing values in the upstream downstream score matrix are allowed; this is a
   normal outcome for correlation-based kinase scoring in low-information rows
 - infinite values in upstream score/prediction matrices remain hard failures
+
+Why this contract is strict:
+
+- signalome grouping/module assignment is protein-identity-aware
+- deriving only `gene_symbol`/`site` at builder input does not establish protein
+  identity
+- builder flexibility at ingestion does not weaken the downstream supported
+  signalome contract
 
 `SignalomeWorkflowInterpreter` preconditions the downstream score lane before
 execution:

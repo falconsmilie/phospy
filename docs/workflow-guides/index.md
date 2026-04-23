@@ -6,6 +6,16 @@ PhosPy has one supported workflow chain:
 2. Run `KinaseWorkflow`
 3. Run `SignalomeWorkflow` (optional, downstream of kinase result)
 
+## Signalome Protein-Identity Contract
+
+The supported signalome lane requires explicit protein identity:
+
+- `kinase_result.dataset.site_metadata.protein_id` must exist and be non-empty
+- gene-symbol site-ID prefixes are not a protein-identity fallback
+- this is an intentional scientific boundary for protein-aware grouping/module
+  assignment, not runtime strictness by accident
+- builder input flexibility does not weaken this downstream workflow contract
+
 ## Stage-by-Stage Guide
 
 - Beginner walkthrough: [Quickstart: first workflow](../getting-started/quickstart-first-workflow.md)

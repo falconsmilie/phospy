@@ -173,15 +173,29 @@ class SignalomeWorkflowValidator:
             right_name="signalome workflow request kinase_result.dataset.phospho.index",
             error_type=WorkflowValidationError,
         )
-        require_columns(
-            site_metadata_frame,
-            field_name=field_name,
-            required_columns=("protein_id",),
-            error_type=WorkflowValidationError,
-        )
-        require_non_empty_string_column(
-            site_metadata_frame,
-            field_name=field_name,
-            column_name="protein_id",
-            error_type=WorkflowValidationError,
-        )
+        try:
+            require_columns(
+                site_metadata_frame,
+                field_name=field_name,
+                required_columns=("protein_id",),
+                error_type=WorkflowValidationError,
+            )
+        except WorkflowValidationError as exc:
+            raise WorkflowValidationError(
+                f"{exc}. Supported signalome execution requires explicit "
+                "site_metadata.protein_id; gene-symbol site-ID prefixes are not a "
+                "protein-identity substitute."
+            ) from exc
+        try:
+            require_non_empty_string_column(
+                site_metadata_frame,
+                field_name=field_name,
+                column_name="protein_id",
+                error_type=WorkflowValidationError,
+            )
+        except WorkflowValidationError as exc:
+            raise WorkflowValidationError(
+                f"{exc}. Supported signalome execution requires explicit "
+                "site_metadata.protein_id; gene-symbol site-ID prefixes are not a "
+                "protein-identity substitute."
+            ) from exc

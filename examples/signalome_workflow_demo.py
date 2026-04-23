@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Run the supported signalome workflow route from bundled-reference kinase output."""
+"""Run the supported signalome workflow route from bundled-reference kinase output.
+
+Signalome contract note: explicit ``site_metadata.protein_id`` is required.
+Gene-symbol site-ID prefixes are not treated as protein-identity fallback.
+"""
 
 from __future__ import annotations
 
@@ -39,6 +43,7 @@ def _build_kinase_result() -> KinaseWorkflowResult:
                 "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
                 "_______MSGRPRTTSFAESCKPVQQPSAFG",
             ],
+            # Required in the supported signalome lane.
             "protein_id": ["TSC2", "GSK3B"],
         },
         index=phospho.index.copy(),

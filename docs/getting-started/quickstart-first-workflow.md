@@ -42,6 +42,13 @@ You need:
 - `site_metadata`: row-aligned to `phospho.index`, with `gene_symbol` and `site`
 - `protein_id` in `site_metadata` if you plan to run signalome
 
+Signalome protein-identity prerequisite (important):
+
+- signalome requires explicit, non-empty `site_metadata.protein_id`
+- gene-symbol site-ID prefixes (for example `"<gene_symbol>;<site>;"`) are not a
+  substitute for protein identity
+- this is intentional scientific contract strictness, not convenience fallback behaviour
+
 Reference behavior:
 
 - `ReferencePreset.AUTO` resolves bundled references from `dataset.organism`.
@@ -104,7 +111,8 @@ print(pred_mat.round(4))
 ## 4. Optional: Run Signalome
 
 Signalome requires `dataset.site_metadata.protein_id` with non-empty values for
-all sites.
+all sites. This contract is intentionally strict because downstream signalome
+grouping/module assignment is protein-identity-aware.
 
 ```python
 from phospy import SignalomeWorkflow

@@ -273,6 +273,16 @@ Workflows consume only `AnalysisReadyPhosphoDataset`.
 - supported prerequisite: `kinase_result.dataset.site_metadata.protein_id` must be
   present and non-empty for all interpreted sites
 
+Signalome protein-identity contract (supported lane):
+
+- signalome requires explicit `dataset.site_metadata.protein_id` values
+- gene-symbol site IDs (for example `"<gene_symbol>;<site>;"`) are site identity,
+  not protein identity, and are not used as fallback protein mapping
+- this is an intentional scientific boundary: downstream signalome grouping and
+  module assignment are protein-identity-aware
+- builder flexibility at ingestion does not weaken this downstream workflow
+  contract
+
 `KinaseScoringConfig` fields:
 
 - `min_substrates` (validated floor: `>= 2`)
@@ -397,7 +407,7 @@ Kinase scoring authority in the supported lane:
 In the supported signalome lane, `protein_id` is always taken from validated
 `dataset.site_metadata.protein_id` (required and non-empty for interpreted
 sites). Gene-symbol-prefixed site IDs are not used as protein-identity
-fallbacks.
+fallbacks. This strictness is intentional in the supported scientific lane.
 
 `assignment_policy` behavior:
 
