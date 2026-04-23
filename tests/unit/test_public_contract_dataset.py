@@ -8,7 +8,11 @@ from typing import get_type_hints
 
 import pandas as pd
 import pytest
-import tomllib
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
+    import tomli as tomllib
 
 import phospy
 import phospy.api as public_api
