@@ -12,12 +12,41 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.parametrize(
-    "script_name",
+    ("script_name", "expected_markers"),
     [
-        "dataset_builder_demo.py",
-        "kinase_workflow_demo.py",
-        "signalome_workflow_demo.py",
+        (
+            "dataset_builder_demo.py",
+            [
+                "Preferred 1.5.0 dataset builder lane",
+                "Bundled reference-compatible organism: rat",
+                "protein_id present for all sites: True",
+            ],
+        ),
+        (
+            "kinase_workflow_demo.py",
+            [
+                "Preferred 1.5.0 kinase workflow lane",
+                "Reference input: ReferencePreset.AUTO",
+                "Resolved reference organism: rat",
+            ],
+        ),
+        (
+            "signalome_workflow_demo.py",
+            [
+                "Preferred 1.5.0 signalome workflow lane",
+                "protein_id present for all sites: True",
+                "Resolved reference organism: rat",
+            ],
+        ),
     ],
 )
-def test_public_example_script_runs(script_name: str) -> None:
+def test_public_example_script_runs(
+    script_name: str,
+    expected_markers: list[str],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     runpy.run_path(str(EXAMPLES_DIR / script_name), run_name="__main__")
+    captured = capsys.readouterr()
+
+    for marker in expected_markers:
+        assert marker in captured.out

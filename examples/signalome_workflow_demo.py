@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the supported signalome workflow route from bundled-reference kinase output.
+"""Run the preferred 1.5.0 signalome workflow lane.
 
 Signalome contract note: explicit ``site_metadata.protein_id`` is required.
 Gene-symbol site-ID prefixes are not treated as protein-identity fallback.
@@ -9,18 +9,13 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy import (
-    AnalysisReadyDatasetBuilder,
-    KinaseWorkflow,
-    SignalomeWorkflow,
-)
+from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow, SignalomeWorkflow
 from phospy.api import (
     DatasetBuildRequest,
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     Organism,
     ReferencePreset,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
     SignalomeWorkflowResult,
 )
@@ -67,35 +62,22 @@ def _build_kinase_result() -> KinaseWorkflowResult:
 def run_demo() -> SignalomeWorkflowResult:
     kinase_result = _build_kinase_result()
     return SignalomeWorkflow().run(
-        SignalomeWorkflowRequest(
-            kinase_result=kinase_result,
-            config=SignalomeConfig(
-                substrate_support_cutoff=0.5,
-                network_correlation_threshold=0.5,
-                score_preconditioning_policy="allow_and_report",
-            ),
-        )
+        SignalomeWorkflowRequest(kinase_result=kinase_result)
     )
 
 
 def main() -> None:
     result = run_demo()
-    print("Signalome workflow demo")
+    protein_ids = result.kinase_result.dataset.site_metadata["protein_id"]
+    print("Preferred 1.5.0 signalome workflow lane")
     print(
-        "Upstream profile score shape:",
-        result.kinase_result.scoring_result.profile_scores.shape,
+        "protein_id present for all sites:",
+        bool(protein_ids.astype("string").str.strip().ne("").all()),
     )
     print(
-        "Upstream prediction shape:",
-        result.kinase_result.prediction_result.pred_mat.shape,
+        "Resolved reference organism:",
+        result.kinase_result.references.organism.value,
     )
-    if result.kinase_result.activity_result is not None:
-        print(
-            "Upstream weighted activity shape:",
-            result.kinase_result.activity_result.weighted_activity.shape,
-        )
-    else:
-        print("Upstream activity output: disabled")
     print(
         "Module assignment shape:",
         result.module_assignments.table.shape,
@@ -107,22 +89,6 @@ def main() -> None:
     print(
         "Kinase network edge shape:",
         result.kinase_network.edges.shape,
-    )
-    print(
-        "Module selection strategy/count:",
-        result.module_selection_diagnostics.strategy,
-        result.module_selection_diagnostics.selected_module_count,
-    )
-    print(
-        "Score preconditioning policy/counts:",
-        result.score_preconditioning_diagnostics.policy,
-        {
-            "input_rows": result.score_preconditioning_diagnostics.input_row_count,
-            "dropped_all_missing_rows": (
-                result.score_preconditioning_diagnostics.dropped_all_missing_row_count
-            ),
-            "retained_rows": result.score_preconditioning_diagnostics.retained_row_count,
-        },
     )
     if result.expanded_signalome is None:
         raise RuntimeError(
