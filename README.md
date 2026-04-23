@@ -4,6 +4,8 @@ PhosPy is a Python package for phosphoproteomics workflows with a strict public
 contract around one dataset boundary and two workflow entrypoints
 (`KinaseWorkflow`, `SignalomeWorkflow`).
 
+User documentation: https://phospy.com/docs/
+
 ## Install
 
 For normal package use:
@@ -125,6 +127,12 @@ Use the CLI for reproducible command-line execution from files. Use the Python
 API (`phospy.api`) when you need the full request/config surface, including
 `DatasetPreprocessingConfig`, explicit `ReferenceBundle` injection, DataFrame
 inputs, or advanced scoring/signalome configuration.
+
+## Citation
+
+If you use PhosPy in scientific work, cite this software release using
+[`CITATION.cff`](CITATION.cff) and also cite the upstream PhosR project and
+publications described in [`NOTICE.md`](NOTICE.md).
 
 ## Where To Go Next
 

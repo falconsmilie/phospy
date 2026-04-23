@@ -4,12 +4,18 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "phospy"
-version = "1.4.0"
+version = "1.5.0"
 description = "Python native implementation of selected PhosR style workflows for phosphoproteomics."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "GPL-3.0"
 license-files = ["LICENSE", "NOTICE.md"]
+authors = [
+  { name = "PhosPy Contributors" },
+]
+maintainers = [
+  { name = "falconsmilie" },
+]
 
 keywords = [
   "phosphoproteomics",
@@ -46,9 +52,11 @@ dependencies = [
 [project.urls]
 Homepage = "https://phospy.com"
 Repository = "https://github.com/falconsmilie/phospy"
-Documentation = "https://github.com/falconsmilie/phospy/tree/main/docs"
+Documentation = "https://phospy.com/docs/"
 Issues = "https://github.com/falconsmilie/phospy/issues"
 Changelog = "https://github.com/falconsmilie/phospy/blob/main/CHANGELOG.md"
+Citation = "https://github.com/falconsmilie/phospy/blob/main/CITATION.cff"
+"Release Notes" = "https://github.com/falconsmilie/phospy/blob/main/docs/release_notes/1.5.0.md"
 
 [project.optional-dependencies]
 parquet = [
