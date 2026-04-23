@@ -3,7 +3,7 @@
 This quickstart is the supported first-run lane:
 
 1. install the package
-2. build an analysis-ready dataset
+2. build an analysis-ready, missing-value-free dataset
 3. run kinase with bundled references via `ReferencePreset.AUTO`
 4. optionally run signalome
 
@@ -40,6 +40,8 @@ You need:
 
 - `phospho`: numeric site-by-sample matrix with canonical site IDs in the index
 - `site_metadata`: row-aligned to `phospho.index`, with `gene_symbol` and `site`
+- a supported public builder path that converges on a missing-value-free
+  `AnalysisReadyPhosphoDataset`
 - `protein_id` in `site_metadata` if you plan to run signalome
 
 Signalome protein-identity prerequisite (important):

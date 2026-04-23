@@ -189,32 +189,32 @@ class DatasetTotalProteinCorrectionConfig:
 class DatasetSiteMatrixConfig:
     """Public site-matrix policy options for dataset building.
 
-    `policy` controls whether the stage runs:
+    The supported public builder story is intentionally narrow: PhosPy builds a
+    strict, missing-value-free `AnalysisReadyPhosphoDataset`.
 
-    - `"as_input"`: preserve interpreted site matrix as provided.
+    `policy` controls whether the site-matrix stage runs:
+
+    - `"as_input"`: preserve interpreted site-matrix-ready rows as provided.
     - `"build_from_metadata"`: construct site-matrix-ready rows from
       `site_metadata` (`gene_symbol`, `site`) after upstream
       missing-data/total-correction preprocessing, using row-level
       `site_sequence` support from supplied values and/or supported derivation.
 
-    When `policy="build_from_metadata"`:
+    When `policy="build_from_metadata"`, the supported public row-retention mode is
+    fixed to `missing_data_policy="drop_any_missing"`, so only complete phospho
+    rows enter strict `AnalysisReadyPhosphoDataset` construction.
 
-    - `missing_data_policy` controls row retention before duplicate handling:
-      - `"drop_any_missing"`: keep only rows with complete phospho values.
-        This complete-case policy is the only supported public mode for
-        construction of strict `AnalysisReadyPhosphoDataset` outputs.
-        Retained-missingness site-matrix modes
-        (`"retain_missing"`, `"require_min_observed_values"`) are internal
-        compatibility modes and are rejected in the public builder lane.
-    - `duplicate_site_strategy` controls duplicate-site collapse:
-      - `"max_mean_signal"` (default): keep row with strongest signal.
-      - `"first"`: keep first encountered row for each duplicate site.
-      - `"aggregate_mean"`: aggregate duplicate phospho values by column mean.
-      - `"aggregate_median"`: aggregate duplicate phospho values by column median.
-      - `"error"`: fail when duplicate constructed site identifiers are present.
+    `duplicate_site_strategy` controls duplicate-site collapse for the retained
+    complete-case rows:
 
-    `minimum_observed_values` is retained for internal preprocessing compatibility
-    and must stay unset in the supported public complete-case builder lane.
+    - `"max_mean_signal"` (default): keep the row with strongest signal.
+    - `"first"`: keep the first encountered row for each duplicate site.
+    - `"aggregate_mean"`: aggregate duplicate phospho values by column mean.
+    - `"aggregate_median"`: aggregate duplicate phospho values by column median.
+    - `"error"`: fail when duplicate constructed site identifiers are present.
+
+    `minimum_observed_values` remains internal-only compatibility state and must
+    stay unset in the supported public builder lane.
     """
 
     policy: DatasetSiteMatrixPolicy = DATASET_SITE_MATRIX_POLICY_AS_INPUT

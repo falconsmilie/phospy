@@ -71,3 +71,20 @@ def test_user_facing_guides_and_examples_use_phospy_api_for_contract_types() -> 
         assert "from phospy import DatasetBuildRequest" not in source
         assert "from phospy import KinaseWorkflowRequest" not in source
         assert "from phospy import SignalomeWorkflowRequest" not in source
+
+
+def test_public_docs_present_analysis_ready_builder_lane_as_missing_value_free() -> (
+    None
+):
+    api_guide = (ROOT / "docs" / "api.md").read_text(encoding="utf-8")
+    validation_guide = (ROOT / "docs" / "validation.md").read_text(encoding="utf-8")
+    quickstart = (
+        ROOT / "docs" / "getting-started" / "quickstart-first-workflow.md"
+    ).read_text(encoding="utf-8")
+
+    assert "missing-value-free `AnalysisReadyPhosphoDataset`" in api_guide
+    assert (
+        "`AnalysisReadyPhosphoDataset` itself is strict, missing-value-free"
+        in validation_guide
+    )
+    assert "build an analysis-ready, missing-value-free dataset" in quickstart

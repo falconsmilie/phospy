@@ -62,6 +62,7 @@ The public builder contract should:
 - support a small set of known input conventions
 - avoid aggressive auto-recognition or heuristic guessing
 - keep transformation handling implicit under preprocessing policy rather than exposing it as a prominent public choice
+- keep the supported site-matrix lane intentionally narrow so the public route still returns a missing-value-free `AnalysisReadyPhosphoDataset`
 - fail quickly on unsupported input conventions with clear and actionable messages
 - return only `AnalysisReadyPhosphoDataset`
 

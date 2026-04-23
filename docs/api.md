@@ -169,27 +169,18 @@ Current supported policies:
 - `site_matrix.policy="build_from_metadata"`: construct site-matrix-ready rows
   from `site_metadata.gene_symbol`/`site_metadata.site` after upstream missing-data and
   total/protein-correction stages.
-  This path is sequence-dependent at preprocessing time: usable sequence support
-  is established row-wise from supplied `site_metadata.site_sequence` values
-  and/or bundled derivation when available. Rows lacking usable sequence support
-  are excluded from this path, so retained rows can be narrower than the
-  original metadata table.
-  Bundled derivation resolves per-row site identity from `gene_symbol` + `site`
-  (with row-index fallback when needed), so mixed-support inputs can retain
-  derivable/supplied rows together.
-  Mixed-support inputs therefore keep resolvable rows instead of collapsing the
-  entire derived-sequence path.
-  This requirement is specific to the selected preprocessing policy and does
-  not change the final dataset boundary where `site_sequence` remains optional.
-  Additional supported policy controls under `DatasetSiteMatrixConfig`:
-  - `missing_data_policy="drop_any_missing"` (default): keep only complete rows.
-    This is the supported public complete-case lane for
-    `AnalysisReadyPhosphoDataset` construction.
-  - retained-missingness site-matrix modes
-    (`retain_missing`, `require_min_observed_values`) are internal-only
-    compatibility behavior and are rejected at public request validation.
-  - `minimum_observed_values` is internal-only compatibility state and must
-    remain unset in the supported public builder lane.
+  This public builder lane is intentionally strict: it must still end in a
+  missing-value-free `AnalysisReadyPhosphoDataset`.
+  Sequence support is established row-wise from supplied
+  `site_metadata.site_sequence` values and/or bundled derivation when available.
+  Rows lacking usable sequence support are excluded from this path, so retained
+  rows can be narrower than the original metadata table. Bundled derivation
+  resolves per-row site identity from `gene_symbol` + `site` (with row-index
+  fallback when needed), so mixed-support inputs can retain only the rows that
+  are fully resolvable for this supported lane.
+  Supported public controls under `DatasetSiteMatrixConfig` for this path:
+  - `missing_data_policy="drop_any_missing"` (default and only supported public
+    row-retention mode): keep only complete rows before dataset construction.
   - `duplicate_site_strategy="max_mean_signal"` (default): keep strongest row.
   - `duplicate_site_strategy="first"`: keep first duplicate row.
   - `duplicate_site_strategy="aggregate_mean"`: aggregate duplicate rows by mean.
@@ -197,6 +188,10 @@ Current supported policies:
   - `duplicate_site_strategy="error"`: fail on duplicate constructed site IDs.
   Site IDs are constructed deterministically as canonical
   `GENE_SYMBOL;SITE_TOKEN;` identifiers.
+  Internal retained-missingness compatibility behaviour is not part of the
+  supported public builder contract and is rejected at public request validation.
+  `minimum_observed_values` is likewise internal-only compatibility state and
+  must remain unset in the supported public builder lane.
   When `site_matrix.policy="as_input"`, these execution-only fields must remain
   at defaults and are rejected if overridden.
 - `comparisons.policy="none"` (default): do not construct comparison columns.
@@ -214,6 +209,9 @@ Current supported policies:
 ## Final Dataset Boundary
 
 `AnalysisReadyPhosphoDataset` is strict and workflow-facing.
+
+It is the public analysis-ready boundary: the supported builder lane must hand
+off a missing-value-free dataset to workflows.
 
 - It owns validated tables, not input files.
 - It requires DataFrame values for `phospho` and `site_metadata` at construction time.

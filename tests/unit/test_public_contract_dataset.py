@@ -97,10 +97,19 @@ def test_site_matrix_missing_data_public_contract_is_complete_case_only() -> Non
     assert DATASET_SITE_MATRIX_MISSING_DATA_POLICIES == frozenset(
         {DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING}
     )
+    config = DatasetSiteMatrixConfig(policy="build_from_metadata")
     assert (
-        DatasetSiteMatrixConfig(policy="build_from_metadata").missing_data_policy
+        config.missing_data_policy
         == DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
     )
+    assert config.minimum_observed_values is None
+
+
+def test_site_matrix_config_docstring_foregrounds_strict_public_lane() -> None:
+    docstring = DatasetSiteMatrixConfig.__doc__
+    assert docstring is not None
+    assert "missing-value-free `AnalysisReadyPhosphoDataset`" in docstring
+    assert "internal-only compatibility state" in docstring
 
 
 def test_site_matrix_build_contract_is_row_wise_for_mixed_sequence_support() -> None:

@@ -62,7 +62,7 @@ This builder path is responsible for:
 - preserving or deriving `site_sequence` before final dataset construction when useful
 - invoking transformation handling through the supported transformer path
 - composing shared validation-domain components
-- returning a validated `AnalysisReadyPhosphoDataset`
+- returning a validated, missing-value-free `AnalysisReadyPhosphoDataset` in the supported public lane
 
 The builder path should be the main public route from messy inputs to the strict dataset boundary.
 

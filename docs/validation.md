@@ -66,8 +66,8 @@ Important contract distinction:
   sequence-bearing rows for that path and excludes rows without usable sequence
   from that construction path.
 
-`AnalysisReadyPhosphoDataset` itself is strict and DataFrame-only.
-Workflows consume only this dataset type.
+`AnalysisReadyPhosphoDataset` itself is strict, missing-value-free, and
+DataFrame-only. Workflows consume only this dataset type.
 
 ## AnalysisReady Dataset Validation
 
@@ -78,8 +78,8 @@ Workflows consume only this dataset type.
 
 Enforced dataset invariants:
 
-- `phospho`: non-empty numeric DataFrame, unique index/columns,
-  canonical site IDs.
+- `phospho`: non-empty numeric DataFrame, missing-value-free, unique
+  index/columns, canonical site IDs.
 - `site_metadata`: non-empty DataFrame, exact index alignment with `phospho.index`,
   required columns `gene_symbol`, `site` with non-empty strings.
 - site-identity coherence: each `phospho.index` row ID must be parseable as
@@ -162,11 +162,12 @@ No additional transformation mode is publicly selectable.
     normalize to canonical `SITE_TOKEN` form (for example `S123`)
   - deterministic site identity construction as canonical
     `GENE_SYMBOL;SITE_TOKEN;`
-  - row retention by explicit public `site_matrix.missing_data_policy`:
-    - `drop_any_missing`: drop rows with incomplete phospho values
-    - retained-missingness site-matrix modes (`retain_missing`,
-      `require_min_observed_values`) are rejected at public config validation
-      as incompatible with strict analysis-ready dataset construction
+  - the supported public row-retention rule is
+    `site_matrix.missing_data_policy='drop_any_missing'`, so rows with
+    incomplete phospho values are excluded before final dataset construction
+  - retained-missingness site-matrix behaviour remains internal-only and is
+    rejected at public config validation as incompatible with strict
+    `AnalysisReadyPhosphoDataset` construction
   - duplicate-site handling by explicit `site_matrix.duplicate_site_strategy`:
     - `max_mean_signal`, `first`, `aggregate_mean`, `aggregate_median`, or `error`
   - at least one retained row after sequence filtering, missing-data policy, and
