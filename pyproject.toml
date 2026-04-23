@@ -14,7 +14,7 @@ authors = [
   { name = "PhosPy Contributors" },
 ]
 maintainers = [
-  { name = "falconsmilie" },
+  { name = "falconsmilie (Shane)" },
 ]
 
 keywords = [
@@ -53,7 +53,7 @@ dependencies = [
 [project.urls]
 Homepage = "https://phospy.com"
 Repository = "https://github.com/falconsmilie/phospy"
-Documentation = "https://phospy.com/docs/"
+Documentation = "https://github.com/falconsmilie/phospy/blob/main/docs/index.md"
 Issues = "https://github.com/falconsmilie/phospy/issues"
 Changelog = "https://github.com/falconsmilie/phospy/blob/main/CHANGELOG.md"
 Citation = "https://github.com/falconsmilie/phospy/blob/main/CITATION.cff"
