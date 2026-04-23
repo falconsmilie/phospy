@@ -101,6 +101,7 @@ kinase_result = KinaseWorkflow().run(
     KinaseWorkflowRequest(
         dataset=dataset,
         references=ReferencePreset.AUTO,
+        activity_config=None,  # keep the 2-site first-run example in the supported lane
     )
 )
 

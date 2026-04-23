@@ -22,6 +22,7 @@ Before reading anything deeper, confirm these basics:
 | parquet read/write failure | Optional dependency missing | Install `phospy[parquet]` |
 | `ReferencePreset.AUTO requires dataset.organism` | Organism was not set | Set `organism=Organism.RAT` or `--organism rat` |
 | human/mouse bundled-reference failure | Bundled references are rat-only | Use an explicit `ReferenceBundle` in Python |
+| `seam=kinase.activity.valid_candidates` with tiny toy inputs | Default activity filters are stricter than a 2-site demo matrix | Set `activity_config=None` for first-run toy examples, or lower `activity_config.min_substrates`/`activity_config.threshold` |
 | signalome error mentioning `protein_id` | Protein identity is required | Add a non-empty `protein_id` column |
 | rows disappeared during site-matrix building | Some rows could not be kept in that preprocessing lane | Check sequence support and chosen preprocessing policy |
 | overlap/support boundary error | Dataset and references do not overlap enough | Read the seam details and adjust inputs or references |
