@@ -11,6 +11,16 @@ This page is organised by symptom:
 
 Use it before diving into the full [Validation Guide](../validation.md).
 
+## Fast Sanity Check
+
+Before chasing a deeper bug, confirm these basics:
+
+- you installed `phospy` into the same Python environment you are using
+- your phospho row IDs look like `GENE;SITE;` such as `TSC2;S939;`
+- `site_metadata.index` lines up exactly with `phospho.index`
+- you are using `organism=Organism.RAT` or `--organism rat` for the bundled first-run lane
+- you added `protein_id` only if you are running signalome
+
 ## Confirm You Are in the Supported Lane
 
 The quickest supported first run in 1.5.0 is:

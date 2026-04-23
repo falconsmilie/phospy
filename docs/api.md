@@ -7,6 +7,21 @@ This guide describes the current supported public contract only.
 > [What is PhosPy?](getting-started/what-is-phospy.md) and
 > [Quickstart](getting-started/quickstart-first-workflow.md) first.
 
+PhosPy does not expose HTTP endpoints. Its supported public interfaces are the
+Python API documented here and the file-first [`phospy` CLI](cli.md).
+
+## Quick Reference
+
+| You want to... | Use this |
+| --- | --- |
+| Build a workflow-ready dataset | `DatasetBuildRequest` + `AnalysisReadyDatasetBuilder.run(...)` |
+| Run kinase scoring and prediction | `KinaseWorkflowRequest` + `KinaseWorkflow.run(...)` |
+| Run signalome from a kinase result | `SignalomeWorkflowRequest` + `SignalomeWorkflow.run(...)` |
+| Select bundled references | `ReferencePreset` |
+| Inject your own references | `ReferenceBundle` |
+| Adjust preprocessing or scoring behaviour | config dataclasses from `phospy.api` |
+| Catch user-facing validation failures | public exception types from `phospy.api` |
+
 ## Supported Lanes
 
 PhosPy has one public dataset boundary and two public workflow stories:

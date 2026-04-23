@@ -9,13 +9,15 @@ This quickstart is the supported first-run lane:
 
 ## 1. Install
 
+PhosPy requires Python 3.10 or newer.
+
 Normal package install:
 
 ```bash
 pip install phospy
 ```
 
-If you need parquet file support (`.parquet` input/output), install the optional
+If you need parquet file support (`.parquet` input or output), install the optional
 parquet extra:
 
 ```bash
@@ -34,32 +36,38 @@ For editable installs with parquet support:
 pip install -e ".[dev,parquet]"
 ```
 
-## 2. Know Required Data and Reference Scope
+## 2. Know the Minimum Data You Need
 
-You need:
+For the smallest supported Python example, prepare these two tables:
 
-- `phospho`: numeric site-by-sample matrix with canonical site IDs in the index
-- `site_metadata`: row-aligned to `phospho.index`, with `gene_symbol` and `site`
-- a supported public builder path that converges on a missing-value-free
-  `AnalysisReadyPhosphoDataset`
-- explicit, non-empty `site_metadata.protein_id` for every interpreted site if
-  you plan to run signalome
+- `phospho`: numeric site-by-sample matrix
+- `site_metadata`: one row per phosphosite, aligned to `phospho.index`
 
-Signalome protein-identity prerequisite (important):
+Required `site_metadata` columns:
+
+- `gene_symbol`
+- `site`
+
+Useful rule of thumb:
+
+- row IDs should look like `TSC2;S939;`
+- `site_metadata.index` should line up exactly with `phospho.index`
+- add `protein_id` only if you want to run signalome
+
+Signalome protein-identity prerequisite:
 
 - signalome requires explicit, non-empty `site_metadata.protein_id`
 - gene-symbol site-ID prefixes (for example `"<gene_symbol>;<site>;"`) are not a
   substitute for protein identity
-- this is intentional scientific contract strictness, not convenience fallback behaviour
 - builder flexibility at ingestion does not weaken this downstream contract
 
-Reference behavior:
+Reference behaviour:
 
-- `ReferencePreset.AUTO` resolves bundled references from `dataset.organism`.
-- Bundled runtime references in this release are rat-only.
-- For human/mouse lanes, provide an explicit `ReferenceBundle`.
+- `ReferencePreset.AUTO` resolves bundled references from `dataset.organism`
+- bundled runtime references in this release are rat-only
+- for human or mouse lanes, provide an explicit `ReferenceBundle`
 
-## 3. Build Dataset + Run Kinase (Recommended First Run)
+## 3. Copy-Paste Python Example
 
 ```python
 import pandas as pd
@@ -112,11 +120,16 @@ pred_mat = kinase_result.prediction_result.pred_mat
 print(pred_mat.round(4))
 ```
 
+What success looks like:
+
+- `dataset.phospho.shape == (2, 3)`
+- `dataset.organism.value == "rat"`
+- `pred_mat` is present and non-empty
+
 ## 4. Optional: Run Signalome
 
 Signalome requires `dataset.site_metadata.protein_id` with non-empty values for
-all sites. This contract is intentionally strict because downstream signalome
-grouping/module assignment is protein-identity-aware.
+all sites.
 
 ```python
 from phospy import SignalomeWorkflow
@@ -128,11 +141,32 @@ signalome_result = SignalomeWorkflow().run(
 print(signalome_result.module_assignments.table.head())
 ```
 
-## 5. If It Fails Early
+What success looks like here:
+
+- `signalome_result.module_assignments.table` is non-empty
+- `signalome_result.signalome_modules.table` is non-empty
+- `signalome_result.expanded_signalome` is populated in the supported signalome lane
+
+## 5. CLI Version of the Same Happy Path
+
+If you prefer files instead of in-memory DataFrames, the matching CLI lane is:
+
+```bash
+phospy kinase \
+  --phospho ./input/phospho.csv \
+  --site-metadata ./input/site_metadata.csv \
+  --organism rat \
+  --reference auto \
+  --outdir ./out
+```
+
+The command prints a short summary of the files it wrote under `./out`.
+
+## 6. If It Fails Early
 
 Use [Troubleshooting: first-run and supported-lane failures](troubleshooting-first-run.md) before reading the full validation contract. It is organised by the error you saw and covers the most common supported-lane mistakes.
 
-## 6. Then Use Examples and Deeper Docs
+## 7. Then Use Examples and Deeper Docs
 
 Runnable scripts:
 

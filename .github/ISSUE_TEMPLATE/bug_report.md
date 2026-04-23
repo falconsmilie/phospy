@@ -1,38 +1,47 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: ''
-labels: ''
-assignees: ''
-
+about: Report a reproducible problem in the PhosPy package, docs, examples, or CLI
+title: "[Bug]: "
+labels: ""
+assignees: ""
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**What went wrong?**
+Describe the bug in one or two clear sentences.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**How can we reproduce it?**
+Share the smallest example that still shows the problem.
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+- exact Python code, CLI command, or file layout
+- expected behaviour
+- actual behaviour
+- full error message or traceback
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Environment**
+Please complete what you can:
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+- PhosPy version:
+- Python version:
+- Install method (`pip install phospy`, editable install, etc.):
+- OS:
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+**Input details**
+If relevant, describe the input shape:
+
+- phospho rows x columns:
+- site_metadata columns present:
+- organism or reference preset used:
+- whether `protein_id` was present:
+
+**Does this affect...**
+Check any that apply:
+
+- [ ] Python API
+- [ ] CLI
+- [ ] Documentation
+- [ ] Example script
+- [ ] Output bundle read or write
+- [ ] Scientific or parity behaviour
 
 **Additional context**
-Add any other context about the problem here.
+Add any extra context, screenshots, or attached sample files here.

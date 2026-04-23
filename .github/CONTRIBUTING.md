@@ -19,6 +19,21 @@ pytest -m "not parity"
 pytest tests/parity -m parity -s
 ```
 
+## Docs and Example Changes
+
+If you change `README.md`, public docs under `docs/`, or the runnable examples,
+run the contract and smoke checks that protect the documented surface:
+
+```bash
+pytest tests/unit/test_public_contract_import_routes.py
+pytest tests/unit/test_public_examples_contract.py
+pytest tests/integration/test_public_examples_smoke.py
+pytest tests/integration/test_cli_smoke.py
+```
+
+Those tests catch drift between documentation, examples, CLI behaviour, and the
+actual public package contract.
+
 ## Style
 
 PhosPy uses Ruff for linting and formatting.

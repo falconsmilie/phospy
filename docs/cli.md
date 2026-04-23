@@ -32,6 +32,17 @@ For full request/config control, use the Python API.
 > [Quickstart](getting-started/quickstart-first-workflow.md), and
 > [Troubleshooting: first-run and supported-lane failures](getting-started/troubleshooting-first-run.md).
 
+## Before You Run a Command
+
+For the smoothest first run, check these four things first:
+
+- your input files exist and use `.csv`, `.tsv`, `.txt`, or `.parquet`
+- `site_metadata` rows align to the phospho row index
+- `--organism rat` is set if you plan to use bundled references with `--reference auto`
+- `protein_id` is present for every interpreted site if you plan to use `phospy signalome`
+
+Every successful CLI command prints a short summary of the files it wrote.
+
 ## Choose the Right Interface
 
 Use the CLI when you want:
@@ -80,6 +91,8 @@ phospy kinase \
 works after standard package installation with no extra dependency setup.
 Prediction mode changes only prediction-stage behavior; it does not redefine
 upstream kinase scoring semantics.
+
+Use `--skip-activity` when you want scoring and prediction outputs only.
 
 ### Signalome Workflow
 

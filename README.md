@@ -4,9 +4,15 @@ PhosPy is a Python package for phosphoproteomics workflows with a strict public
 contract around one dataset boundary and two workflow entrypoints
 (`KinaseWorkflow`, `SignalomeWorkflow`).
 
-User documentation: https://phospy.com/docs/
+PhosPy does **not** expose HTTP endpoints or a web service. The supported user
+interfaces are:
+
+- the Python API
+- the `phospy` command-line interface
 
 ## Install
+
+PhosPy requires Python 3.10 or newer.
 
 For normal package use:
 
@@ -14,7 +20,7 @@ For normal package use:
 pip install phospy
 ```
 
-If you plan to read/write `.parquet` inputs or outputs, install the optional
+If you plan to read or write `.parquet` inputs or outputs, install the optional
 parquet extra:
 
 ```bash
@@ -42,13 +48,16 @@ workflow is:
 2. run kinase with `references=ReferencePreset.AUTO`
 3. optionally run signalome on the kinase result
 
-Minimum input tables:
+Before you start, make sure your input tables match this minimum shape:
 
-- `phospho`: numeric site-by-sample matrix with canonical site IDs as row index
+- `phospho`: numeric site-by-sample matrix with site IDs as the row index
 - `site_metadata`: rows aligned to `phospho.index`, with `gene_symbol` and `site`
+- site IDs should look like `TSC2;S939;`
 - add `protein_id` if you plan to run `SignalomeWorkflow`
 
-For human/mouse lanes, pass an explicit `ReferenceBundle` instead of `AUTO`.
+For human or mouse lanes, pass an explicit `ReferenceBundle` instead of `AUTO`.
+
+### Minimal Python example
 
 ```python
 import pandas as pd
@@ -105,6 +114,27 @@ signalome_result = SignalomeWorkflow().run(
 )
 ```
 
+If you copy the example as-is, you should end up with:
+
+- a strict `AnalysisReadyPhosphoDataset`
+- `dataset.phospho.shape == (2, 3)`
+- a non-empty kinase prediction matrix in `pred_mat`
+- a signalome result only when `protein_id` is present for every interpreted site
+
+### Minimal CLI example
+
+```bash
+phospy kinase \
+  --phospho ./input/phospho.csv \
+  --site-metadata ./input/site_metadata.csv \
+  --organism rat \
+  --reference auto \
+  --outdir ./out
+```
+
+That command writes a dataset directory, a kinase directory, and a short summary
+of written file paths.
+
 ## Import Contract
 
 `phospy.api` is the canonical namespace where public API types are defined and organised in source.
@@ -114,7 +144,7 @@ Both namespaces are public, with different roles:
 - top-level `phospy` is a curated convenience surface for only:
   `AnalysisReadyDatasetBuilder`, `AnalysisReadyPhosphoDataset`,
   `KinaseWorkflow`, `SignalomeWorkflow`
-- requests, configs, results, enums/references, and errors are imported from
+- requests, configs, results, enums or references, and errors are imported from
   `phospy.api`
 
 ## CLI vs Python API
@@ -124,9 +154,9 @@ happy-path flow (`dataset-build`, `kinase`, `signalome`) with selected
 high-value runtime knobs.
 
 Use the CLI for reproducible command-line execution from files. Use the Python
-API (`phospy.api`) when you need the full request/config surface, including
+API (`phospy.api`) when you need the full request and config surface, including
 `DatasetPreprocessingConfig`, explicit `ReferenceBundle` injection, DataFrame
-inputs, or advanced scoring/signalome configuration.
+inputs, or advanced scoring and signalome configuration.
 
 ## Citation
 
@@ -136,12 +166,12 @@ publications described in [`NOTICE.md`](NOTICE.md).
 
 ## Where To Go Next
 
-- Release framing for the shipped 1.5.0 contract: [Release Notes 1.5.0](docs/release_notes/1.5.0.md)
 - Guided onboarding: [Quickstart: first workflow](docs/getting-started/quickstart-first-workflow.md)
 - First failure recovery: [Troubleshooting: first-run and supported-lane failures](docs/getting-started/troubleshooting-first-run.md)
 - CLI scope and command usage: [CLI Guide](docs/cli.md)
 - Full contract details: [API Guide](docs/api.md), [Validation Guide](docs/validation.md)
-- Runnable demos (after you understand the first-run flow):
+- Release framing for the shipped 1.5.0 contract: [Release Notes 1.5.0](docs/release_notes/1.5.0.md)
+- Runnable demos after you understand the first-run flow:
   - `python examples/dataset_builder_demo.py`
   - `python examples/kinase_workflow_demo.py`
   - `python examples/signalome_workflow_demo.py`

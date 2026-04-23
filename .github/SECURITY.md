@@ -24,8 +24,24 @@ Please include:
 - a clear description of the issue
 - steps to reproduce it
 - the affected version or versions
-- proof of concept, sample input, or screenshots where useful
 - the likely impact
+- proof of concept, sample input, or screenshots where useful
+
+## What Counts as a Security Report
+
+Good fits for this channel include issues such as:
+
+- unsafe file handling that could expose data
+- code execution paths that should not be reachable
+- packaging or distribution problems with security impact
+- dependency or configuration behaviour that creates a real vulnerability in PhosPy
+
+The following should use the normal issue tracker instead:
+
+- scientific correctness or parity regressions without a security impact
+- documentation bugs
+- feature requests
+- installation help or general usage questions
 
 ## What to Expect
 
@@ -47,5 +63,4 @@ The following are generally out of scope unless they directly create a vulnerabi
 
 - problems in third-party platforms or services
 - vulnerabilities in dependencies not caused by PhosPy code or packaging
-- installation help, usage questions, or feature requests
 - theoretical concerns without a clear and reproducible security impact

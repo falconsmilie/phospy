@@ -1,20 +1,33 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
-title: ''
-labels: ''
-assignees: ''
-
+about: Suggest a new capability or an improvement to the supported PhosPy workflow surface
+title: "[Feature]: "
+labels: ""
+assignees: ""
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+**What problem are you trying to solve?**
+Describe the user need or workflow pain point.
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+**What would you like PhosPy to do?**
+Describe the behaviour you want, as concretely as you can.
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+**Where should this live?**
+Check any that apply:
+
+- [ ] Python API
+- [ ] CLI
+- [ ] Documentation
+- [ ] Example scripts
+- [ ] Output bundles
+- [ ] Validation or diagnostics
+- [ ] Scientific workflow logic
+
+**What would the input and output look like?**
+If you can, show a small example request, command, table shape, or expected result.
+
+**What alternatives have you considered?**
+Describe any workaround, competing design, or related package behaviour.
 
 **Additional context**
-Add any other context or screenshots about the feature request here.
+Add any other context here.
