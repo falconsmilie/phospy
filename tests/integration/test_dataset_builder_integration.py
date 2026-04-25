@@ -55,6 +55,25 @@ def test_dataset_builder_populates_preprocessing_report_for_successful_build() -
         "output_rows",
         "notes",
     }.issubset(set(report.operations.columns))
+    assert report.duplicate_site_resolution is not None
+    assert report.metadata_conflicts is not None
+    assert {
+        "site_id",
+        "source_row_id",
+        "retained",
+        "resolution_strategy",
+        "retained_reason",
+        "dropped_reason",
+        "observed_values",
+        "mean_signal",
+    }.issubset(set(report.duplicate_site_resolution.columns))
+    assert {
+        "site_id",
+        "field",
+        "values",
+        "n_distinct_values",
+        "source_row_ids",
+    }.issubset(set(report.metadata_conflicts.columns))
     assert "missing_data" in set(report.row_counts.loc[:, "stage"])
     assert "site_matrix" in set(report.row_counts.loc[:, "stage"])
     assert "final_dataset_construction" in set(report.row_counts.loc[:, "stage"])
@@ -324,6 +343,17 @@ def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> 
     assert built.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(2.0)
     assert built.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(3.0)
     assert built.site_metadata.loc["MAPK14;Y182;", "source_uid"] == "UID_A"
+    assert built.preprocessing_report is not None
+    assert built.preprocessing_report.duplicate_site_resolution is not None
+    assert built.preprocessing_report.metadata_conflicts is not None
+    duplicate_rows = built.preprocessing_report.duplicate_site_resolution
+    assert duplicate_rows.shape[0] == 2
+    assert duplicate_rows["source_row_id"].tolist() == ["row_a", "row_b"]
+    assert duplicate_rows["retained"].tolist() == [True, True]
+    assert duplicate_rows["n_aggregated_rows"].tolist() == [2, 2]
+    conflicts = built.preprocessing_report.metadata_conflicts
+    assert not conflicts.empty
+    assert "site_sequence" in set(conflicts.loc[:, "field"])
 
 
 def test_dataset_builder_site_matrix_derivation_keeps_all_fully_resolvable_rows() -> (

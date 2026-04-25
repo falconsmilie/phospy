@@ -103,6 +103,12 @@ This is not always a bug. Common reasons are:
 Check the input row count against `dataset.phospho.shape[0]` and review the
 preprocessing policy you selected.
 
+If site-matrix duplicate handling ran, inspect
+`dataset.preprocessing_report.duplicate_site_resolution` and
+`dataset.preprocessing_report.metadata_conflicts` to see which source rows were
+retained, dropped, or aggregated and whether duplicate rows disagreed on key
+metadata fields.
+
 ## Kinase or signalome boundary errors
 
 Some workflow failures include seam names, counts, and a `next_action` hint.

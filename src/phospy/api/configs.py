@@ -207,11 +207,20 @@ class DatasetSiteMatrixConfig:
     `duplicate_site_strategy` controls duplicate-site collapse for the retained
     complete-case rows:
 
-    - `"max_mean_signal"` (default): keep the row with strongest signal.
-    - `"first"`: keep the first encountered row for each duplicate site.
-    - `"aggregate_mean"`: aggregate duplicate phospho values by column mean.
-    - `"aggregate_median"`: aggregate duplicate phospho values by column median.
-    - `"error"`: fail when duplicate constructed site identifiers are present.
+    - `"error"`: strict/scientifically cautious mode; fail when duplicate
+      constructed site identifiers are present.
+    - `"first"`: convenient input-order rule; keep the first encountered row and
+      drop later duplicates.
+    - `"max_mean_signal"` (default): keep the highest-mean signal row among
+      duplicates, which can favor higher-abundance / stronger-signal rows.
+    - `"aggregate_mean"`: aggregate duplicate phospho values by column mean,
+      preserving all rows numerically but potentially blurring distinct peptide
+      contexts.
+    - `"aggregate_median"`: aggregate duplicate phospho values by column median,
+      preserving all rows numerically with similar context-blurring trade-offs.
+
+    Duplicate-row resolution and metadata conflicts are reported through
+    `dataset.preprocessing_report` when this stage executes.
 
     `minimum_observed_values` remains internal-only compatibility state and must
     stay unset in the supported public builder lane.

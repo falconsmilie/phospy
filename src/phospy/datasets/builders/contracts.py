@@ -44,6 +44,8 @@ class PreprocessedDatasetBuildTables:
     comparisons: pd.DataFrame | None = None
     preprocessing_row_counts: pd.DataFrame | None = None
     preprocessing_operations: pd.DataFrame | None = None
+    duplicate_site_resolution: pd.DataFrame | None = None
+    metadata_conflicts: pd.DataFrame | None = None
 
 
 class DatasetBuildValidatorContract(Protocol):

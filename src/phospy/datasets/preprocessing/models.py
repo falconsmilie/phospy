@@ -100,6 +100,19 @@ class PreprocessingState:
     total: pd.DataFrame | None
     plan: PreprocessingPlan
     comparisons: pd.DataFrame | None = None
+    duplicate_site_resolution: pd.DataFrame | None = None
+    metadata_conflicts: pd.DataFrame | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DuplicateSiteResolutionResult:
+    """Duplicate-site policy output with structured provenance tables."""
+
+    phospho: pd.DataFrame
+    site_metadata: pd.DataFrame
+    dropped_row_count: int
+    duplicate_site_resolution: pd.DataFrame
+    metadata_conflicts: pd.DataFrame
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +139,7 @@ __all__ = [
     "DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT",
     "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",
+    "DuplicateSiteResolutionResult",
     "PreprocessingPlan",
     "PreprocessingStageExecution",
     "PreprocessingStage",

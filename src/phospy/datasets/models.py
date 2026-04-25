@@ -30,6 +30,30 @@ _PREPROCESSING_REPORT_OPERATION_COLUMNS = (
     "output_rows",
     "notes",
 )
+_PREPROCESSING_REPORT_DUPLICATE_SITE_RESOLUTION_COLUMNS = (
+    "site_id",
+    "source_row_id",
+    "retained",
+    "resolution_strategy",
+    "retained_reason",
+    "dropped_reason",
+    "observed_values",
+    "mean_signal",
+    "n_source_rows",
+    "n_aggregated_rows",
+    "source_protein_id",
+    "source_gene_symbol",
+    "source_site",
+    "source_site_sequence",
+    "metadata_conflict_detected",
+)
+_PREPROCESSING_REPORT_METADATA_CONFLICT_COLUMNS = (
+    "site_id",
+    "field",
+    "values",
+    "n_distinct_values",
+    "source_row_ids",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +62,8 @@ class DatasetPreprocessingReport:
 
     row_counts: pd.DataFrame
     operations: pd.DataFrame
+    duplicate_site_resolution: pd.DataFrame | None = None
+    metadata_conflicts: pd.DataFrame | None = None
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
@@ -50,6 +76,18 @@ class DatasetPreprocessingReport:
         operations = own_dataframe(
             self.operations,
             field_name="dataset.preprocessing_report.operations",
+            error_type=DatasetValidationError,
+            assume_owned=_assume_owned,
+        )
+        duplicate_site_resolution = own_optional_dataframe(
+            self.duplicate_site_resolution,
+            field_name="dataset.preprocessing_report.duplicate_site_resolution",
+            error_type=DatasetValidationError,
+            assume_owned=_assume_owned,
+        )
+        metadata_conflicts = own_optional_dataframe(
+            self.metadata_conflicts,
+            field_name="dataset.preprocessing_report.metadata_conflicts",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
@@ -75,8 +113,34 @@ class DatasetPreprocessingReport:
                 "dataset.preprocessing_report.operations is missing required "
                 f"columns: {missing}"
             )
+        if duplicate_site_resolution is not None:
+            missing_duplicate_columns = [
+                column
+                for column in _PREPROCESSING_REPORT_DUPLICATE_SITE_RESOLUTION_COLUMNS
+                if column not in duplicate_site_resolution.columns
+            ]
+            if missing_duplicate_columns:
+                missing = ", ".join(missing_duplicate_columns)
+                raise DatasetValidationError(
+                    "dataset.preprocessing_report.duplicate_site_resolution is "
+                    f"missing required columns: {missing}"
+                )
+        if metadata_conflicts is not None:
+            missing_conflict_columns = [
+                column
+                for column in _PREPROCESSING_REPORT_METADATA_CONFLICT_COLUMNS
+                if column not in metadata_conflicts.columns
+            ]
+            if missing_conflict_columns:
+                missing = ", ".join(missing_conflict_columns)
+                raise DatasetValidationError(
+                    "dataset.preprocessing_report.metadata_conflicts is missing "
+                    f"required columns: {missing}"
+                )
         object.__setattr__(self, "row_counts", row_counts)
         object.__setattr__(self, "operations", operations)
+        object.__setattr__(self, "duplicate_site_resolution", duplicate_site_resolution)
+        object.__setattr__(self, "metadata_conflicts", metadata_conflicts)
 
     @classmethod
     def _from_owned(
@@ -84,10 +148,14 @@ class DatasetPreprocessingReport:
         *,
         row_counts: pd.DataFrame,
         operations: pd.DataFrame,
+        duplicate_site_resolution: pd.DataFrame | None = None,
+        metadata_conflicts: pd.DataFrame | None = None,
     ) -> DatasetPreprocessingReport:
         return cls(
             row_counts=row_counts,
             operations=operations,
+            duplicate_site_resolution=duplicate_site_resolution,
+            metadata_conflicts=metadata_conflicts,
             _assume_owned=True,
         )
 

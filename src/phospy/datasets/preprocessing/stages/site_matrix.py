@@ -19,6 +19,7 @@ from phospy.api.configs import (
 )
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+    DuplicateSiteResolutionResult,
     PreprocessingState,
 )
 from phospy.errors.input import PhosPyInputError
@@ -46,6 +47,38 @@ _SUPPORTED_DUPLICATE_SITE_STRATEGIES = {
     DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN,
     DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_ERROR,
 }
+_METADATA_CONFLICT_FIELDS = (
+    "protein_id",
+    "gene_symbol",
+    "site",
+    "site_sequence",
+    "residue",
+    "position",
+)
+_DUPLICATE_SITE_RESOLUTION_COLUMNS = (
+    "site_id",
+    "source_row_id",
+    "retained",
+    "resolution_strategy",
+    "retained_reason",
+    "dropped_reason",
+    "observed_values",
+    "mean_signal",
+    "n_source_rows",
+    "n_aggregated_rows",
+    "source_protein_id",
+    "source_gene_symbol",
+    "source_site",
+    "source_site_sequence",
+    "metadata_conflict_detected",
+)
+_METADATA_CONFLICT_COLUMNS = (
+    "site_id",
+    "field",
+    "values",
+    "n_distinct_values",
+    "source_row_ids",
+)
 
 
 class SiteMatrixStage:
@@ -105,19 +138,17 @@ class SiteMatrixStage:
             policy_filtered_phospho.index
         ]
 
-        (
-            deduplicated_phospho,
-            deduplicated_site_metadata,
-            deduplicated_site_rows,
-        ) = _apply_duplicate_site_policy(
+        duplicate_site_result = _apply_duplicate_site_policy(
             phospho=policy_filtered_phospho,
             site_metadata=policy_filtered_site_metadata,
             constructed_site_id=policy_filtered_site_id,
             duplicate_site_strategy=state.plan.site_matrix_duplicate_site_strategy,
         )
 
-        final_phospho = deduplicated_phospho.sort_index(kind="stable")
-        final_site_metadata = deduplicated_site_metadata.reindex(final_phospho.index)
+        final_phospho = duplicate_site_result.phospho.sort_index(kind="stable")
+        final_site_metadata = duplicate_site_result.site_metadata.reindex(
+            final_phospho.index
+        )
         final_site_index = pd.Index(
             final_phospho.index.tolist(), name=state.phospho.index.name
         )
@@ -130,7 +161,7 @@ class SiteMatrixStage:
             "dropped_incomplete_values": dropped_incomplete_values,
             "missing_data_policy": state.plan.site_matrix_missing_data_policy,
             "required_observed_count": required_observed_count,
-            "deduplicated_site_rows": deduplicated_site_rows,
+            "deduplicated_site_rows": duplicate_site_result.dropped_row_count,
             "duplicate_site_strategy": state.plan.site_matrix_duplicate_site_strategy,
             "retained_rows": int(len(final_phospho.index)),
         }
@@ -150,6 +181,8 @@ class SiteMatrixStage:
             state,
             phospho=final_phospho,
             site_metadata=final_site_metadata,
+            duplicate_site_resolution=duplicate_site_result.duplicate_site_resolution,
+            metadata_conflicts=duplicate_site_result.metadata_conflicts,
         )
 
     @staticmethod
@@ -307,7 +340,7 @@ def _apply_duplicate_site_policy(
     site_metadata: pd.DataFrame,
     constructed_site_id: pd.Series,
     duplicate_site_strategy: str,
-) -> tuple[pd.DataFrame, pd.DataFrame, int]:
+) -> DuplicateSiteResolutionResult:
     if duplicate_site_strategy not in _SUPPORTED_DUPLICATE_SITE_STRATEGIES:
         raise PhosPyInputError(
             "dataset build request preprocessing_config contains an unsupported "
@@ -320,7 +353,13 @@ def _apply_duplicate_site_policy(
         empty_site_metadata = site_metadata.copy()
         empty_phospho.index = empty_site_index
         empty_site_metadata.index = empty_site_index.copy()
-        return empty_phospho, empty_site_metadata, 0
+        return DuplicateSiteResolutionResult(
+            phospho=empty_phospho,
+            site_metadata=empty_site_metadata,
+            dropped_row_count=0,
+            duplicate_site_resolution=_empty_duplicate_site_resolution(),
+            metadata_conflicts=_empty_metadata_conflicts(),
+        )
 
     duplicate_mask = constructed_site_id.duplicated(keep=False)
     if not bool(duplicate_mask.any()):
@@ -331,7 +370,36 @@ def _apply_duplicate_site_policy(
         direct_site_metadata = site_metadata.copy()
         direct_phospho.index = final_site_index
         direct_site_metadata.index = final_site_index.copy()
-        return direct_phospho, direct_site_metadata, 0
+        return DuplicateSiteResolutionResult(
+            phospho=direct_phospho,
+            site_metadata=direct_site_metadata,
+            dropped_row_count=0,
+            duplicate_site_resolution=_empty_duplicate_site_resolution(),
+            metadata_conflicts=_empty_metadata_conflicts(),
+        )
+
+    dedupe_work = pd.DataFrame(
+        {
+            _SITE_ID_COLUMN: constructed_site_id.astype(str),
+            "source_row_id": phospho.index.astype(str),
+            "observed_values": phospho.notna().sum(axis=1),
+            "mean_signal": phospho.mean(axis=1, skipna=True),
+            "row_order": range(len(phospho.index)),
+        },
+        index=phospho.index,
+    )
+    duplicate_work = dedupe_work.loc[duplicate_mask].copy()
+    duplicate_work.loc[:, "n_source_rows"] = (
+        duplicate_work.groupby(_SITE_ID_COLUMN, sort=False)
+        .size()
+        .reindex(duplicate_work.loc[:, _SITE_ID_COLUMN])
+        .to_numpy()
+    )
+    metadata_conflicts = _build_metadata_conflicts(
+        site_metadata=site_metadata.loc[duplicate_mask],
+        constructed_site_id=constructed_site_id.loc[duplicate_mask],
+    )
+    conflict_site_ids = set(metadata_conflicts.loc[:, "site_id"].astype(str).tolist())
 
     if duplicate_site_strategy == DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_ERROR:
         duplicate_sites = (
@@ -345,7 +413,8 @@ def _apply_duplicate_site_policy(
             "dataset build request preprocessing site-matrix construction found "
             "duplicate constructed site identifiers and "
             "site_matrix.duplicate_site_strategy='error': "
-            f"{preview}"
+            f"{preview}. Use a non-error duplicate strategy to emit duplicate-site "
+            "resolution and metadata-conflict diagnostics."
         )
 
     if duplicate_site_strategy == DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST:
@@ -362,10 +431,21 @@ def _apply_duplicate_site_policy(
         )
         selected_phospho.index = final_site_index
         selected_site_metadata.index = final_site_index.copy()
-        return (
-            selected_phospho,
-            selected_site_metadata,
-            int(len(phospho.index) - len(selected_phospho.index)),
+        duplicate_site_resolution = _build_duplicate_site_resolution(
+            duplicate_work=duplicate_work,
+            site_metadata=site_metadata,
+            selected_rows=selected_rows,
+            duplicate_site_strategy=duplicate_site_strategy,
+            retained_reason="selected first row by input order",
+            dropped_reason="dropped because another row was selected first by input order",
+            conflict_site_ids=conflict_site_ids,
+        )
+        return DuplicateSiteResolutionResult(
+            phospho=selected_phospho,
+            site_metadata=selected_site_metadata,
+            dropped_row_count=int(len(phospho.index) - len(selected_phospho.index)),
+            duplicate_site_resolution=duplicate_site_resolution,
+            metadata_conflicts=metadata_conflicts,
         )
 
     if (
@@ -400,10 +480,23 @@ def _apply_duplicate_site_policy(
         )
         selected_phospho.index = final_site_index
         selected_site_metadata.index = final_site_index.copy()
-        return (
-            selected_phospho,
-            selected_site_metadata,
-            int(len(phospho.index) - len(selected_phospho.index)),
+        duplicate_site_resolution = _build_duplicate_site_resolution(
+            duplicate_work=duplicate_work,
+            site_metadata=site_metadata,
+            selected_rows=selected_rows,
+            duplicate_site_strategy=duplicate_site_strategy,
+            retained_reason=(
+                "selected row with highest mean signal under max_mean_signal criteria"
+            ),
+            dropped_reason="dropped because another row ranked higher by max_mean_signal criteria",
+            conflict_site_ids=conflict_site_ids,
+        )
+        return DuplicateSiteResolutionResult(
+            phospho=selected_phospho,
+            site_metadata=selected_site_metadata,
+            dropped_row_count=int(len(phospho.index) - len(selected_phospho.index)),
+            duplicate_site_resolution=duplicate_site_resolution,
+            metadata_conflicts=metadata_conflicts,
         )
 
     if duplicate_site_strategy in {
@@ -430,13 +523,159 @@ def _apply_duplicate_site_policy(
         grouped_metadata.index = pd.Index(
             grouped_metadata.index.astype(str), name=_SITE_ID_COLUMN
         )
-        return (
-            grouped_phospho,
-            grouped_metadata,
-            int(len(phospho.index) - len(grouped_phospho.index)),
+        duplicate_site_resolution = _build_duplicate_site_resolution(
+            duplicate_work=duplicate_work,
+            site_metadata=site_metadata,
+            selected_rows=duplicate_work.index,
+            duplicate_site_strategy=duplicate_site_strategy,
+            retained_reason=(
+                "contributed to site-level aggregate from duplicate source rows"
+            ),
+            dropped_reason=None,
+            conflict_site_ids=conflict_site_ids,
+            aggregated=True,
+        )
+        return DuplicateSiteResolutionResult(
+            phospho=grouped_phospho,
+            site_metadata=grouped_metadata,
+            dropped_row_count=int(len(phospho.index) - len(grouped_phospho.index)),
+            duplicate_site_resolution=duplicate_site_resolution,
+            metadata_conflicts=metadata_conflicts,
         )
 
     raise RuntimeError("site-matrix duplicate strategy dispatch fell through")
+
+
+def _empty_duplicate_site_resolution() -> pd.DataFrame:
+    return pd.DataFrame.from_records([], columns=_DUPLICATE_SITE_RESOLUTION_COLUMNS)
+
+
+def _empty_metadata_conflicts() -> pd.DataFrame:
+    return pd.DataFrame.from_records([], columns=_METADATA_CONFLICT_COLUMNS)
+
+
+def _build_duplicate_site_resolution(
+    *,
+    duplicate_work: pd.DataFrame,
+    site_metadata: pd.DataFrame,
+    selected_rows: pd.Index,
+    duplicate_site_strategy: str,
+    retained_reason: str,
+    dropped_reason: str | None,
+    conflict_site_ids: set[str],
+    aggregated: bool = False,
+) -> pd.DataFrame:
+    if duplicate_work.empty:
+        return _empty_duplicate_site_resolution()
+
+    selected_row_ids = set(selected_rows.astype(str).tolist())
+    source_metadata = site_metadata.loc[duplicate_work.index]
+    resolution = pd.DataFrame(
+        {
+            "site_id": duplicate_work.loc[:, _SITE_ID_COLUMN].astype(str).tolist(),
+            "source_row_id": duplicate_work.loc[:, "source_row_id"]
+            .astype(str)
+            .tolist(),
+            "retained": duplicate_work.index.astype(str)
+            .isin(selected_row_ids)
+            .tolist(),
+            "resolution_strategy": duplicate_site_strategy,
+            "observed_values": duplicate_work.loc[:, "observed_values"].to_numpy(),
+            "mean_signal": duplicate_work.loc[:, "mean_signal"].to_numpy(),
+            "n_source_rows": duplicate_work.loc[:, "n_source_rows"].to_numpy(),
+            "source_protein_id": _resolve_source_metadata_column(
+                source_metadata, "protein_id"
+            ),
+            "source_gene_symbol": _resolve_source_metadata_column(
+                source_metadata, "gene_symbol"
+            ),
+            "source_site": _resolve_source_metadata_column(source_metadata, "site"),
+            "source_site_sequence": _resolve_source_metadata_column(
+                source_metadata, "site_sequence"
+            ),
+        },
+        index=duplicate_work.index,
+    )
+    if aggregated:
+        resolution.loc[:, "retained"] = True
+        resolution.loc[:, "retained_reason"] = retained_reason
+        resolution.loc[:, "dropped_reason"] = pd.NA
+        resolution.loc[:, "n_aggregated_rows"] = resolution.loc[:, "n_source_rows"]
+    else:
+        retained_mask = resolution.loc[:, "retained"]
+        resolution.loc[retained_mask, "retained_reason"] = retained_reason
+        resolution.loc[~retained_mask, "retained_reason"] = pd.NA
+        if dropped_reason is None:
+            resolution.loc[~retained_mask, "dropped_reason"] = pd.NA
+        else:
+            resolution.loc[~retained_mask, "dropped_reason"] = dropped_reason
+        resolution.loc[retained_mask, "dropped_reason"] = pd.NA
+        resolution.loc[:, "n_aggregated_rows"] = pd.NA
+    resolution.loc[:, "metadata_conflict_detected"] = (
+        resolution.loc[:, "site_id"].astype(str).isin(conflict_site_ids)
+    )
+    return resolution.loc[:, list(_DUPLICATE_SITE_RESOLUTION_COLUMNS)].reset_index(
+        drop=True
+    )
+
+
+def _resolve_source_metadata_column(
+    site_metadata: pd.DataFrame, column: str
+) -> pd.Series:
+    if column not in site_metadata.columns:
+        return pd.Series(pd.NA, index=site_metadata.index)
+    return site_metadata.loc[:, column].copy()
+
+
+def _build_metadata_conflicts(
+    *,
+    site_metadata: pd.DataFrame,
+    constructed_site_id: pd.Series,
+) -> pd.DataFrame:
+    if site_metadata.empty:
+        return _empty_metadata_conflicts()
+
+    duplicate_groups = site_metadata.assign(
+        **{
+            _SITE_ID_COLUMN: constructed_site_id.astype(str),
+            "source_row_id": site_metadata.index.astype(str),
+        }
+    )
+    records: list[dict[str, object]] = []
+    for site_id, group in duplicate_groups.groupby(_SITE_ID_COLUMN, sort=False):
+        source_row_ids = tuple(group.loc[:, "source_row_id"].astype(str).tolist())
+        for field in _METADATA_CONFLICT_FIELDS:
+            if field not in group.columns:
+                continue
+            observed_values = group.loc[:, field]
+            distinct_values = []
+            for value in observed_values.tolist():
+                normalized = _normalize_metadata_value(value)
+                if normalized not in distinct_values:
+                    distinct_values.append(normalized)
+            if len(distinct_values) <= 1:
+                continue
+            records.append(
+                {
+                    "site_id": str(site_id),
+                    "field": field,
+                    "values": tuple(str(value) for value in distinct_values),
+                    "n_distinct_values": len(distinct_values),
+                    "source_row_ids": source_row_ids,
+                }
+            )
+    if not records:
+        return _empty_metadata_conflicts()
+    return pd.DataFrame.from_records(records, columns=_METADATA_CONFLICT_COLUMNS)
+
+
+def _normalize_metadata_value(value: object) -> str:
+    if pd.isna(value):
+        return "<NA>"
+    if isinstance(value, str):
+        trimmed = value.strip()
+        return trimmed if trimmed else "<EMPTY>"
+    return str(value)
 
 
 def _format_row_drop_diagnostics(row_drop_stats: dict[str, int | str]) -> str:

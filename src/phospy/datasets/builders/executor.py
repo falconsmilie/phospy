@@ -40,6 +40,30 @@ _OPERATION_COLUMNS = (
     "output_rows",
     "notes",
 )
+_DUPLICATE_SITE_RESOLUTION_COLUMNS = (
+    "site_id",
+    "source_row_id",
+    "retained",
+    "resolution_strategy",
+    "retained_reason",
+    "dropped_reason",
+    "observed_values",
+    "mean_signal",
+    "n_source_rows",
+    "n_aggregated_rows",
+    "source_protein_id",
+    "source_gene_symbol",
+    "source_site",
+    "source_site_sequence",
+    "metadata_conflict_detected",
+)
+_METADATA_CONFLICT_COLUMNS = (
+    "site_id",
+    "field",
+    "values",
+    "n_distinct_values",
+    "source_row_ids",
+)
 _FINAL_DATASET_STAGE = "final_dataset_construction"
 
 
@@ -90,6 +114,8 @@ class DatasetBuildExecutor:
             report = _build_dataset_preprocessing_report(
                 row_counts=preprocessed.preprocessing_row_counts,
                 operations=preprocessed.preprocessing_operations,
+                duplicate_site_resolution=preprocessed.duplicate_site_resolution,
+                metadata_conflicts=preprocessed.metadata_conflicts,
                 final_dataset_rows=int(len(resolved.phospho.index)),
                 transformation_state_label=resolved.transformation_state.label,
             )
@@ -120,6 +146,8 @@ def _build_dataset_preprocessing_report(
     *,
     row_counts: pd.DataFrame | None,
     operations: pd.DataFrame | None,
+    duplicate_site_resolution: pd.DataFrame | None,
+    metadata_conflicts: pd.DataFrame | None,
     final_dataset_rows: int,
     transformation_state_label: str,
 ) -> DatasetPreprocessingReport:
@@ -132,6 +160,16 @@ def _build_dataset_preprocessing_report(
         pd.DataFrame.from_records([], columns=_OPERATION_COLUMNS)
         if operations is None
         else operations
+    )
+    base_duplicate_site_resolution = (
+        pd.DataFrame.from_records([], columns=_DUPLICATE_SITE_RESOLUTION_COLUMNS)
+        if duplicate_site_resolution is None
+        else duplicate_site_resolution
+    )
+    base_metadata_conflicts = (
+        pd.DataFrame.from_records([], columns=_METADATA_CONFLICT_COLUMNS)
+        if metadata_conflicts is None
+        else metadata_conflicts
     )
     final_row_counts = pd.concat(
         [
@@ -181,4 +219,6 @@ def _build_dataset_preprocessing_report(
     return DatasetPreprocessingReport._from_owned(
         row_counts=final_row_counts,
         operations=final_operations,
+        duplicate_site_resolution=base_duplicate_site_resolution,
+        metadata_conflicts=base_metadata_conflicts,
     )

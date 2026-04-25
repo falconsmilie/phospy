@@ -101,6 +101,8 @@ class DatasetPreprocessor:
             comparisons=preprocessed_state.comparisons,
             preprocessing_row_counts=row_counts,
             preprocessing_operations=operations,
+            duplicate_site_resolution=preprocessed_state.duplicate_site_resolution,
+            metadata_conflicts=preprocessed_state.metadata_conflicts,
         )
 
 

@@ -134,6 +134,18 @@ all interpreted sites.
 
 This public builder lane is intentionally strict and still ends in a missing-value-free `AnalysisReadyPhosphoDataset`.
 
+Duplicate-site strategy trade-offs:
+
+- `error`: cautious mode; fail on duplicate constructed sites instead of silently choosing one row.
+- `first`: simple and convenient, but later duplicate rows are discarded by input order.
+- `max_mean_signal`: keeps the strongest observed row, but can bias toward high-abundance / strong-signal rows.
+- `aggregate_mean` / `aggregate_median`: preserve duplicate rows numerically via aggregation, but can blur distinct phosphosite or peptide contexts.
+
+When site-matrix duplicate handling runs, `dataset.preprocessing_report` includes:
+
+- `duplicate_site_resolution`: one row per source duplicate row, including retained/dropped or aggregated contribution details.
+- `metadata_conflicts`: duplicate-site metadata disagreement records (for example conflicting `protein_id` or `site_sequence` values).
+
 #### `DatasetComparisonBuildingConfig`
 
 - `policy="none"`
@@ -196,6 +208,7 @@ Key fields include:
 - `comparisons` (optional)
 - `organism` (optional)
 - `transformation_state`
+- `preprocessing_report` (optional)
 
 ### `KinaseWorkflowResult`
 
