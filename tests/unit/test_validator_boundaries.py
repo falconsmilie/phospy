@@ -156,145 +156,61 @@ def test_dataset_build_request_has_default_preprocessing_config() -> None:
 
 
 def test_dataset_build_request_rejects_unknown_intensity_transform_policy() -> None:
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["MAPK14;Y182;"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            intensity_transform=DatasetIntensityTransformConfig(
-                policy="unsupported",  # type: ignore[arg-type]
-                pseudocount=1.0,
-            )
-        ),
-    )
     with pytest.raises(
         PhosPyInputError,
         match="preprocessing_config.intensity_transform.policy must be one of",
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetIntensityTransformConfig(
+            policy="unsupported",  # type: ignore[arg-type]
+            pseudocount=1.0,
+        )
 
 
 def test_dataset_build_request_rejects_negative_log2_pseudocount() -> None:
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["MAPK14;Y182;"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            intensity_transform=DatasetIntensityTransformConfig(
-                policy="log2",
-                pseudocount=-0.1,
-            )
-        ),
-    )
     with pytest.raises(
         PhosPyInputError,
         match="intensity_transform.pseudocount must be greater than or equal to 0",
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetIntensityTransformConfig(
+            policy="log2",
+            pseudocount=-0.1,
+        )
 
 
 def test_dataset_build_request_rejects_non_finite_log2_pseudocount() -> None:
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["MAPK14;Y182;"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            intensity_transform=DatasetIntensityTransformConfig(
-                policy="log2",
-                pseudocount=float("inf"),
-            )
-        ),
-    )
     with pytest.raises(
         PhosPyInputError,
         match="intensity_transform.pseudocount must be finite",
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetIntensityTransformConfig(
+            policy="log2",
+            pseudocount=float("inf"),
+        )
 
 
 def test_dataset_build_request_rejects_unknown_normalisation_policy() -> None:
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["MAPK14;Y182;"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            normalisation=DatasetNormalisationConfig(
-                policy="unsupported",  # type: ignore[arg-type]
-            )
-        ),
-    )
     with pytest.raises(
         PhosPyInputError,
         match="preprocessing_config.normalisation.policy must be one of",
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetNormalisationConfig(
+            policy="unsupported",  # type: ignore[arg-type]
+        )
 
 
 def test_dataset_build_request_rejects_unknown_missing_data_policy() -> None:
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["MAPK14;Y182;"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            missing_data=DatasetMissingDataConfig(
-                policy="unsupported"  # type: ignore[arg-type]
-            )
-        ),
-    )
     with pytest.raises(
         PhosPyInputError,
         match="preprocessing_config.missing_data.policy must be one of",
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetMissingDataConfig(
+            policy="unsupported"  # type: ignore[arg-type]
+        )
 
 
 def test_dataset_build_request_rejects_impute_policy_without_min_observed_values() -> (
     None
 ):
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["MAPK14;Y182;"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            missing_data=DatasetMissingDataConfig(policy="impute_row_median")
-        ),
-    )
     with pytest.raises(
         PhosPyInputError,
         match=(
@@ -302,27 +218,10 @@ def test_dataset_build_request_rejects_impute_policy_without_min_observed_values
             "missing_data.policy='impute_row_median'"
         ),
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetMissingDataConfig(policy="impute_row_median")
 
 
 def test_dataset_build_request_rejects_min_observed_values_for_forbid_policy() -> None:
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["MAPK14;Y182;"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            missing_data=DatasetMissingDataConfig(
-                policy="forbid",
-                min_observed_values=1,
-            ),
-        ),
-    )
     with pytest.raises(
         PhosPyInputError,
         match=(
@@ -330,7 +229,10 @@ def test_dataset_build_request_rejects_min_observed_values_for_forbid_policy() -
             "missing_data.policy='forbid'"
         ),
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetMissingDataConfig(
+            policy="forbid",
+            min_observed_values=1,
+        )
 
 
 def test_dataset_build_request_allows_ratio_total_protein_correction_policy() -> None:
@@ -401,26 +303,6 @@ def test_dataset_build_request_allows_site_matrix_build_from_metadata_policy() -
 
 
 def test_dataset_build_request_allows_site_matrix_policy_overrides() -> None:
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0], "sample_b": [2.0]}, index=["ROW_1"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["ROW_1"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            site_matrix=DatasetSiteMatrixConfig(
-                policy="build_from_metadata",
-                duplicate_site_strategy="aggregate_mean",
-                missing_data_policy="require_min_observed_values",
-                minimum_observed_values=1,
-            )
-        ),
-    )
-
     with pytest.raises(
         PhosPyInputError,
         match=(
@@ -428,31 +310,17 @@ def test_dataset_build_request_allows_site_matrix_policy_overrides() -> None:
             "for strict AnalysisReadyPhosphoDataset construction"
         ),
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetSiteMatrixConfig(
+            policy="build_from_metadata",
+            duplicate_site_strategy="aggregate_mean",
+            missing_data_policy="require_min_observed_values",
+            minimum_observed_values=1,
+        )
 
 
 def test_dataset_build_request_rejects_site_matrix_minimum_observed_without_policy() -> (
     None
 ):
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["ROW_1"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["ROW_1"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            site_matrix=DatasetSiteMatrixConfig(
-                policy="build_from_metadata",
-                missing_data_policy="drop_any_missing",
-                minimum_observed_values=1,
-            )
-        ),
-    )
-
     with pytest.raises(
         PhosPyInputError,
         match=(
@@ -460,30 +328,16 @@ def test_dataset_build_request_rejects_site_matrix_minimum_observed_without_poli
             "AnalysisReadyPhosphoDataset construction and must be None"
         ),
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetSiteMatrixConfig(
+            policy="build_from_metadata",
+            missing_data_policy="drop_any_missing",
+            minimum_observed_values=1,
+        )
 
 
 def test_dataset_build_request_rejects_site_matrix_require_min_without_threshold() -> (
     None
 ):
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["ROW_1"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["ROW_1"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            site_matrix=DatasetSiteMatrixConfig(
-                policy="build_from_metadata",
-                missing_data_policy="require_min_observed_values",
-            )
-        ),
-    )
-
     with pytest.raises(
         PhosPyInputError,
         match=(
@@ -491,30 +345,15 @@ def test_dataset_build_request_rejects_site_matrix_require_min_without_threshold
             "for strict AnalysisReadyPhosphoDataset construction"
         ),
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetSiteMatrixConfig(
+            policy="build_from_metadata",
+            missing_data_policy="require_min_observed_values",
+        )
 
 
 def test_dataset_build_request_rejects_site_matrix_missing_policy_overrides_when_as_input() -> (
     None
 ):
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["ROW_1"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["ROW_1"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            site_matrix=DatasetSiteMatrixConfig(
-                policy="as_input",
-                missing_data_policy="retain_missing",
-            )
-        ),
-    )
-
     with pytest.raises(
         PhosPyInputError,
         match=(
@@ -522,35 +361,23 @@ def test_dataset_build_request_rejects_site_matrix_missing_policy_overrides_when
             "AnalysisReadyPhosphoDataset construction"
         ),
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetSiteMatrixConfig(
+            policy="as_input",
+            missing_data_policy="retain_missing",
+        )
 
 
 def test_dataset_build_request_rejects_site_matrix_duplicate_overrides_when_as_input() -> (
     None
 ):
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["ROW_1"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["ROW_1"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            site_matrix=DatasetSiteMatrixConfig(
-                policy="as_input",
-                duplicate_site_strategy="first",
-            )
-        ),
-    )
-
     with pytest.raises(
         PhosPyInputError,
         match="duplicate_site_strategy is only valid when site_matrix.policy='build_from_metadata'",
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetSiteMatrixConfig(
+            policy="as_input",
+            duplicate_site_strategy="first",
+        )
 
 
 def test_dataset_build_request_allows_sample_metadata_pairs_comparison_policy() -> None:
@@ -604,150 +431,80 @@ def test_dataset_build_request_requires_sample_metadata_for_comparison_building(
 
 
 def test_dataset_build_request_rejects_duplicate_comparison_pairs_in_config() -> None:
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame(
-            {"sample_a": [1.0], "sample_b": [2.0]},
-            index=["MAPK14;Y182;"],
-        ),
-        sample_metadata=pd.DataFrame(
-            {"comparison_group": ["group_a", "group_b"]},
-            index=["sample_a", "sample_b"],
-        ),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["MAPK14;Y182;"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            comparisons=DatasetComparisonBuildingConfig(
-                policy="sample_metadata_pairs",
-                pairs=(("group_a", "group_b"), ("group_b", "group_a")),
-            )
-        ),
-    )
     with pytest.raises(
         PhosPyInputError,
         match="contains duplicate pairs regardless of direction",
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetComparisonBuildingConfig(
+            policy="sample_metadata_pairs",
+            pairs=(("group_a", "group_b"), ("group_b", "group_a")),
+        )
 
 
 def test_dataset_build_request_rejects_pairs_when_comparison_policy_is_none() -> None:
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["MAPK14;Y182;"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            comparisons=DatasetComparisonBuildingConfig(
-                policy="none",
-                pairs=(("group1", "group4"),),
-            )
-        ),
-    )
     with pytest.raises(
         PhosPyInputError,
         match="comparisons.pairs must be None when comparisons.policy='none'",
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetComparisonBuildingConfig(
+            policy="none",
+            pairs=(("group1", "group4"),),
+        )
 
 
 def test_kinase_request_config_policy_fails_at_validator_boundary() -> None:
-    request = KinaseWorkflowRequest(
-        dataset=_dataset(),
-        references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(min_substrates=1),
-        prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=5),
-        activity_config=None,
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="scoring_config.min_substrates must be greater than or equal to 2",
     ):
-        KinaseWorkflowValidator().run(request)
+        KinaseScoringConfig(min_substrates=1)
 
 
 def test_kinase_request_rejects_non_bool_diagnostic_scoring_policy() -> None:
-    request = KinaseWorkflowRequest(
-        dataset=_dataset(),
-        references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(
-            min_substrates=2,
-            include_diagnostic_scoring_tables="yes",  # type: ignore[arg-type]
-        ),
-        prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=5),
-        activity_config=None,
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="scoring_config.include_diagnostic_scoring_tables must be a bool",
     ):
-        KinaseWorkflowValidator().run(request)
+        KinaseScoringConfig(
+            min_substrates=2,
+            include_diagnostic_scoring_tables="yes",  # type: ignore[arg-type]
+        )
 
 
 def test_kinase_request_rejects_unknown_profile_missing_value_strategy() -> None:
-    request = KinaseWorkflowRequest(
-        dataset=_dataset(),
-        references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(
-            min_substrates=2,
-            profile_missing_value_strategy="unsupported",  # type: ignore[arg-type]
-        ),
-        prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=5),
-        activity_config=None,
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="scoring_config.profile_missing_value_strategy must be one of",
     ):
-        KinaseWorkflowValidator().run(request)
+        KinaseScoringConfig(
+            min_substrates=2,
+            profile_missing_value_strategy="unsupported",  # type: ignore[arg-type]
+        )
 
 
 def test_kinase_request_rejects_unknown_prediction_mode() -> None:
-    request = KinaseWorkflowRequest(
-        dataset=_dataset(),
-        references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(
-            top_k=5,
-            ensemble_size=5,
-            mode="unsupported",  # type: ignore[arg-type]
-        ),
-        activity_config=None,
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="prediction_config.mode must be one of",
     ):
-        KinaseWorkflowValidator().run(request)
+        KinasePredictionConfig(
+            top_k=5,
+            ensemble_size=5,
+            mode="unsupported",  # type: ignore[arg-type]
+        )
 
 
 def test_kinase_request_rejects_non_positive_adaptive_iterations() -> None:
-    request = KinaseWorkflowRequest(
-        dataset=_dataset(),
-        references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(
-            top_k=5,
-            ensemble_size=5,
-            mode="adaptive_ensemble",
-            n_iterations=0,
-        ),
-        activity_config=None,
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="prediction_config.n_iterations must be greater than or equal to 1",
     ):
-        KinaseWorkflowValidator().run(request)
+        KinasePredictionConfig(
+            top_k=5,
+            ensemble_size=5,
+            mode="adaptive_ensemble",
+            n_iterations=0,
+        )
 
 
 def test_kinase_request_reference_compatibility_is_enforced_in_resolver() -> None:
@@ -765,147 +522,101 @@ def test_kinase_request_reference_compatibility_is_enforced_in_resolver() -> Non
 
 
 def test_kinase_activity_config_policy_fails_at_validator_boundary() -> None:
-    request = KinaseWorkflowRequest(
-        dataset=_dataset(),
-        references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=5),
-        activity_config=KinaseActivityConfig(
-            enabled=True,
-            threshold=0.6,
-            min_substrates=0,
-            top_n_substrates=20,
-        ),
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="activity_config.min_substrates must be greater than or equal to 1",
     ):
-        KinaseWorkflowValidator().run(request)
+        KinaseActivityConfig(
+            enabled=True,
+            threshold=0.6,
+            min_substrates=0,
+            top_n_substrates=20,
+        )
 
 
 def test_kinase_activity_top_n_config_policy_fails_at_validator_boundary() -> None:
-    request = KinaseWorkflowRequest(
-        dataset=_dataset(),
-        references=ReferencePreset.AUTO,
-        scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=5),
-        activity_config=KinaseActivityConfig(
-            enabled=True,
-            threshold=0.6,
-            min_substrates=1,
-            top_n_substrates=0,
-        ),
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="activity_config.top_n_substrates must be greater than or equal to 1",
     ):
-        KinaseWorkflowValidator().run(request)
+        KinaseActivityConfig(
+            enabled=True,
+            threshold=0.6,
+            min_substrates=1,
+            top_n_substrates=0,
+        )
 
 
 def test_signalome_request_support_cutoff_policy_fails_at_validator_boundary() -> None:
-    request = SignalomeWorkflowRequest(
-        kinase_result=_kinase_result(),
-        config=SignalomeConfig(substrate_support_cutoff=1.5),
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="signalome workflow request config.substrate_support_cutoff",
     ):
-        SignalomeWorkflowValidator().run(request)
+        SignalomeConfig(substrate_support_cutoff=1.5)
 
 
 def test_signalome_request_network_threshold_policy_fails_at_validator_boundary() -> (
     None
 ):
-    request = SignalomeWorkflowRequest(
-        kinase_result=_kinase_result(),
-        config=SignalomeConfig(network_correlation_threshold=-0.1),
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="signalome workflow request config.network_correlation_threshold",
     ):
-        SignalomeWorkflowValidator().run(request)
+        SignalomeConfig(network_correlation_threshold=-0.1)
 
 
 def test_signalome_request_assignment_policy_fails_at_validator_boundary() -> None:
-    request = SignalomeWorkflowRequest(
-        kinase_result=_kinase_result(),
-        config=SignalomeConfig(assignment_policy="invalid"),  # type: ignore[arg-type]
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="signalome workflow request config.assignment_policy",
     ):
-        SignalomeWorkflowValidator().run(request)
+        SignalomeConfig(assignment_policy="invalid")  # type: ignore[arg-type]
 
 
 def test_signalome_request_network_policy_fails_at_validator_boundary() -> None:
-    request = SignalomeWorkflowRequest(
-        kinase_result=_kinase_result(),
-        config=SignalomeConfig(network_policy="invalid"),  # type: ignore[arg-type]
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="signalome workflow request config.network_policy",
     ):
-        SignalomeWorkflowValidator().run(request)
+        SignalomeConfig(network_policy="invalid")  # type: ignore[arg-type]
 
 
 def test_signalome_request_preconditioning_policy_fails_at_validator_boundary() -> None:
-    request = SignalomeWorkflowRequest(
-        kinase_result=_kinase_result(),
-        config=SignalomeConfig(
-            score_preconditioning_policy="invalid"  # type: ignore[arg-type]
-        ),
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="signalome workflow request config.score_preconditioning_policy",
     ):
-        SignalomeWorkflowValidator().run(request)
+        SignalomeConfig(
+            score_preconditioning_policy="invalid"  # type: ignore[arg-type]
+        )
 
 
 def test_signalome_request_module_count_policy_fails_at_validator_boundary() -> None:
-    request = SignalomeWorkflowRequest(
-        kinase_result=_kinase_result(),
-        config=SignalomeConfig(module_count=0),
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="signalome workflow request config.module_count",
     ):
-        SignalomeWorkflowValidator().run(request)
+        SignalomeConfig(module_count=0)
 
 
 def test_signalome_request_module_selection_threshold_policy_fails_at_boundary() -> (
     None
 ):
-    request = SignalomeWorkflowRequest(
-        kinase_result=_kinase_result(),
-        config=SignalomeConfig(module_selection_primary_correlation_threshold=1.2),
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="module_selection_primary_correlation_threshold",
     ):
-        SignalomeWorkflowValidator().run(request)
+        SignalomeConfig(module_selection_primary_correlation_threshold=1.2)
 
 
 def test_signalome_request_module_selection_max_clusters_policy_fails_at_boundary() -> (
     None
 ):
-    request = SignalomeWorkflowRequest(
-        kinase_result=_kinase_result(),
-        config=SignalomeConfig(module_selection_max_clusters=0),
-    )
     with pytest.raises(
         WorkflowValidationError,
         match="module_selection_max_clusters",
     ):
-        SignalomeWorkflowValidator().run(request)
+        SignalomeConfig(module_selection_max_clusters=0)
 
 
 def test_signalome_validator_requires_explicit_site_metadata_protein_id_column() -> (

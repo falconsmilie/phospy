@@ -3,10 +3,13 @@ from __future__ import annotations
 import inspect
 from typing import get_type_hints
 
+import pytest
+
 import phospy
 import phospy.api.requests as request_models
 import phospy.api.workflows as workflow_models
 from phospy import KinaseWorkflow, SignalomeWorkflow
+from phospy.api.configs import KinaseScoringConfig, SignalomeConfig
 from phospy.api.requests import (
     DatasetBuildRequest,
     KinaseWorkflowRequest,
@@ -14,6 +17,7 @@ from phospy.api.requests import (
 )
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.errors import WorkflowValidationError
 
 
 def _public_methods(cls: type[object]) -> set[str]:
@@ -68,3 +72,13 @@ def test_workflow_requests_keep_ingestion_outside_workflows() -> None:
     assert kinase_request_hints["dataset"] is AnalysisReadyPhosphoDataset
     assert signalome_request_hints["kinase_result"] is KinaseWorkflowResult
     assert kinase_request_hints["dataset"] is not DatasetBuildRequest
+
+
+def test_workflow_configs_self_validate_local_policy_constraints() -> None:
+    with pytest.raises(WorkflowValidationError, match="scoring_config.min_substrates"):
+        KinaseScoringConfig(min_substrates=1)
+    with pytest.raises(
+        WorkflowValidationError,
+        match="signalome workflow request config.network_policy",
+    ):
+        SignalomeConfig(network_policy="invalid")  # type: ignore[arg-type]

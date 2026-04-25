@@ -77,6 +77,27 @@ def _comparison_sample_metadata(columns: pd.Index) -> pd.DataFrame:
     )
 
 
+def _internal_site_matrix_config(
+    *,
+    policy: str = "build_from_metadata",
+    duplicate_site_strategy: str = "max_mean_signal",
+    missing_data_policy: str = "drop_any_missing",
+    minimum_observed_values: int | None = None,
+) -> DatasetSiteMatrixConfig:
+    """Construct a site-matrix config bypassing public constructor validation.
+
+    Subsystem tests use this to exercise internal preprocessing-lane behaviors
+    that are intentionally unsupported on the public config surface.
+    """
+
+    config = object.__new__(DatasetSiteMatrixConfig)
+    object.__setattr__(config, "policy", policy)
+    object.__setattr__(config, "duplicate_site_strategy", duplicate_site_strategy)
+    object.__setattr__(config, "missing_data_policy", missing_data_policy)
+    object.__setattr__(config, "minimum_observed_values", minimum_observed_values)
+    return config
+
+
 def _total(columns: pd.Index) -> pd.DataFrame:
     return pd.DataFrame(
         {
@@ -382,7 +403,7 @@ def test_dataset_preprocessor_site_matrix_retain_missing_policy_keeps_partial_ro
         total=None,
         plan=PreprocessingPlan.from_config(
             DatasetPreprocessingConfig(
-                site_matrix=DatasetSiteMatrixConfig(
+                site_matrix=_internal_site_matrix_config(
                     policy="build_from_metadata",
                     missing_data_policy="retain_missing",
                 )
@@ -426,7 +447,7 @@ def test_dataset_preprocessor_site_matrix_supports_min_observed_and_duplicate_ag
         total=None,
         plan=PreprocessingPlan.from_config(
             DatasetPreprocessingConfig(
-                site_matrix=DatasetSiteMatrixConfig(
+                site_matrix=_internal_site_matrix_config(
                     policy="build_from_metadata",
                     missing_data_policy="require_min_observed_values",
                     minimum_observed_values=1,
@@ -470,7 +491,7 @@ def test_dataset_preprocessor_site_matrix_duplicate_first_strategy_keeps_first_r
         total=None,
         plan=PreprocessingPlan.from_config(
             DatasetPreprocessingConfig(
-                site_matrix=DatasetSiteMatrixConfig(
+                site_matrix=_internal_site_matrix_config(
                     policy="build_from_metadata",
                     duplicate_site_strategy="first",
                     missing_data_policy="retain_missing",
@@ -509,7 +530,7 @@ def test_dataset_preprocessor_site_matrix_duplicate_aggregate_median_strategy() 
         total=None,
         plan=PreprocessingPlan.from_config(
             DatasetPreprocessingConfig(
-                site_matrix=DatasetSiteMatrixConfig(
+                site_matrix=_internal_site_matrix_config(
                     policy="build_from_metadata",
                     duplicate_site_strategy="aggregate_median",
                     missing_data_policy="retain_missing",
@@ -551,7 +572,7 @@ def test_dataset_preprocessor_rejects_site_matrix_min_observed_above_sample_coun
             total=None,
             plan=PreprocessingPlan.from_config(
                 DatasetPreprocessingConfig(
-                    site_matrix=DatasetSiteMatrixConfig(
+                    site_matrix=_internal_site_matrix_config(
                         policy="build_from_metadata",
                         missing_data_policy="require_min_observed_values",
                         minimum_observed_values=3,

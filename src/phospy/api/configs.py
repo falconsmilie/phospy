@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Literal
+
+from phospy.errors.input import PhosPyInputError
+from phospy.errors.validation import WorkflowValidationError
 
 DATASET_MISSING_DATA_POLICY_FORBID = "forbid"
 DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN = "impute_row_median"
@@ -172,6 +176,48 @@ KINASE_ADAPTIVE_POLICIES = frozenset(
     }
 )
 KINASE_PREDICTION_DEFAULT_ITERATIONS = 5
+_INCOMPATIBLE_SITE_MATRIX_MISSING_DATA_POLICIES = frozenset(
+    {"retain_missing", "require_min_observed_values"}
+)
+_SUPPORTED_SITE_MATRIX_MISSING_DATA_POLICY = (
+    DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
+)
+
+
+def _require_int_at_least(
+    value: object,
+    *,
+    field_name: str,
+    minimum: int,
+    error_type: type[Exception],
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise error_type(f"{field_name} must be an int")
+    if value < minimum:
+        raise error_type(f"{field_name} must be greater than or equal to {minimum}")
+    return value
+
+
+def _require_real_between(
+    value: object,
+    *,
+    field_name: str,
+    minimum: float,
+    maximum: float,
+    error_type: type[Exception],
+) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise error_type(
+            f"{field_name} must be a float between {float(minimum):.1f} and "
+            f"{float(maximum):.1f}"
+        )
+    numeric_value = float(value)
+    if not minimum <= numeric_value <= maximum:
+        raise error_type(
+            f"{field_name} must be between {float(minimum):.1f} and "
+            f"{float(maximum):.1f}"
+        )
+    return numeric_value
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,6 +236,46 @@ class DatasetMissingDataConfig:
     policy: DatasetMissingDataPolicy = DATASET_MISSING_DATA_POLICY_FORBID
     min_observed_values: int | None = None
 
+    def __post_init__(self) -> None:
+        policy = self.policy
+        if policy not in DATASET_MISSING_DATA_POLICIES:
+            supported = ", ".join(sorted(DATASET_MISSING_DATA_POLICIES))
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data.policy "
+                f"must be one of: {supported}"
+            )
+
+        min_observed_values = self.min_observed_values
+        if policy == DATASET_MISSING_DATA_POLICY_FORBID:
+            if min_observed_values is not None:
+                raise PhosPyInputError(
+                    "dataset build request "
+                    "preprocessing_config.missing_data.min_observed_values must be "
+                    "None when missing_data.policy='forbid'"
+                )
+            return
+        if policy == DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN:
+            if isinstance(min_observed_values, bool) or not isinstance(
+                min_observed_values, int
+            ):
+                raise PhosPyInputError(
+                    "dataset build request "
+                    "preprocessing_config.missing_data.min_observed_values must be an "
+                    "int when missing_data.policy='impute_row_median'"
+                )
+            if min_observed_values < 1:
+                raise PhosPyInputError(
+                    "dataset build request "
+                    "preprocessing_config.missing_data.min_observed_values "
+                    "must be greater than or equal to 1 when "
+                    "missing_data.policy='impute_row_median'"
+                )
+            return
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config contains an unsupported "
+            "missing_data.policy"
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class DatasetIntensityTransformConfig:
@@ -206,6 +292,32 @@ class DatasetIntensityTransformConfig:
     )
     pseudocount: float = 1.0
 
+    def __post_init__(self) -> None:
+        policy = self.policy
+        if policy not in DATASET_INTENSITY_TRANSFORM_POLICIES:
+            supported = ", ".join(sorted(DATASET_INTENSITY_TRANSFORM_POLICIES))
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.intensity_transform."
+                f"policy must be one of: {supported}"
+            )
+
+        pseudocount = self.pseudocount
+        if isinstance(pseudocount, bool) or not isinstance(pseudocount, (int, float)):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.intensity_transform."
+                "pseudocount must be a float or int"
+            )
+        if not math.isfinite(float(pseudocount)):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.intensity_transform."
+                "pseudocount must be finite"
+            )
+        if pseudocount < 0:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.intensity_transform."
+                "pseudocount must be greater than or equal to 0"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class DatasetNormalisationConfig:
@@ -217,6 +329,15 @@ class DatasetNormalisationConfig:
     """
 
     policy: DatasetNormalisationPolicy = DATASET_NORMALISATION_POLICY_NONE
+
+    def __post_init__(self) -> None:
+        policy = self.policy
+        if policy not in DATASET_NORMALISATION_POLICIES:
+            supported = ", ".join(sorted(DATASET_NORMALISATION_POLICIES))
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.normalisation.policy "
+                f"must be one of: {supported}"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -231,6 +352,15 @@ class DatasetTotalProteinCorrectionConfig:
     policy: DatasetTotalProteinCorrectionPolicy = (
         DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
     )
+
+    def __post_init__(self) -> None:
+        policy = self.policy
+        if policy not in DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES:
+            supported = ", ".join(sorted(DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES))
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                f"policy must be one of: {supported}"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -283,6 +413,64 @@ class DatasetSiteMatrixConfig:
     )
     minimum_observed_values: int | None = None
 
+    def __post_init__(self) -> None:
+        policy = self.policy
+        if policy not in DATASET_SITE_MATRIX_POLICIES:
+            supported = ", ".join(sorted(DATASET_SITE_MATRIX_POLICIES))
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_matrix.policy "
+                f"must be one of: {supported}"
+            )
+
+        duplicate_site_strategy = self.duplicate_site_strategy
+        if duplicate_site_strategy not in DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES:
+            supported_duplicates = ", ".join(
+                sorted(DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES)
+            )
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_matrix."
+                "duplicate_site_strategy must be one of: "
+                f"{supported_duplicates}"
+            )
+
+        missing_data_policy = self.missing_data_policy
+        if missing_data_policy not in DATASET_SITE_MATRIX_MISSING_DATA_POLICIES:
+            if missing_data_policy in _INCOMPATIBLE_SITE_MATRIX_MISSING_DATA_POLICIES:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.site_matrix."
+                    f"missing_data_policy='{missing_data_policy}' is not supported "
+                    "for strict AnalysisReadyPhosphoDataset construction in the "
+                    "public complete-case builder lane. Use "
+                    "site_matrix.missing_data_policy="
+                    f"'{_SUPPORTED_SITE_MATRIX_MISSING_DATA_POLICY}'."
+                )
+            supported_missing_policies = ", ".join(
+                sorted(DATASET_SITE_MATRIX_MISSING_DATA_POLICIES)
+            )
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_matrix."
+                "missing_data_policy must be one of: "
+                f"{supported_missing_policies}"
+            )
+
+        minimum_observed_values = self.minimum_observed_values
+        if minimum_observed_values is not None:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_matrix."
+                "minimum_observed_values is not supported for strict "
+                "AnalysisReadyPhosphoDataset construction and must be None"
+            )
+
+        if policy == DATASET_SITE_MATRIX_POLICY_AS_INPUT and (
+            duplicate_site_strategy
+            != DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL
+        ):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_matrix."
+                "duplicate_site_strategy is only valid when "
+                "site_matrix.policy='build_from_metadata'"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class DatasetComparisonBuildingConfig:
@@ -303,6 +491,79 @@ class DatasetComparisonBuildingConfig:
     policy: DatasetComparisonBuildingPolicy = DATASET_COMPARISON_BUILDING_POLICY_NONE
     sample_group_column: str = DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN
     pairs: tuple[DatasetComparisonPair, ...] | None = None
+
+    def __post_init__(self) -> None:
+        policy = self.policy
+        if policy not in DATASET_COMPARISON_BUILDING_POLICIES:
+            supported = ", ".join(sorted(DATASET_COMPARISON_BUILDING_POLICIES))
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.comparisons.policy "
+                f"must be one of: {supported}"
+            )
+        sample_group_column = self.sample_group_column
+        if not isinstance(sample_group_column, str) or not sample_group_column.strip():
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.comparisons."
+                "sample_group_column must be a non-empty string"
+            )
+        pairs = self.pairs
+        if policy == DATASET_COMPARISON_BUILDING_POLICY_NONE:
+            if pairs is not None:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.comparisons.pairs "
+                    "must be None when comparisons.policy='none'"
+                )
+            return
+        if policy != DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config contains an unsupported "
+                "comparisons.policy"
+            )
+        if pairs is None:
+            return
+        if not isinstance(pairs, (tuple, list)):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.comparisons.pairs must be "
+                "a sequence of (left_group, right_group) pairs when provided"
+            )
+        resolved_pairs = tuple(pairs)
+        if not resolved_pairs:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.comparisons.pairs must "
+                "contain at least one pair when provided"
+            )
+        seen_pairs: set[tuple[str, str]] = set()
+        for pair in resolved_pairs:
+            if not isinstance(pair, tuple) or len(pair) != 2:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.comparisons.pairs "
+                    "must contain only (left_group, right_group) tuples"
+                )
+            left_group, right_group = pair
+            if not isinstance(left_group, str) or not left_group.strip():
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.comparisons.pairs "
+                    "must contain non-empty left_group strings"
+                )
+            if not isinstance(right_group, str) or not right_group.strip():
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.comparisons.pairs "
+                    "must contain non-empty right_group strings"
+                )
+            left = left_group.strip()
+            right = right_group.strip()
+            if left == right:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.comparisons.pairs "
+                    "cannot contain self-comparison pairs"
+                )
+            canonical_pair = tuple(sorted((left, right)))
+            if canonical_pair in seen_pairs:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.comparisons.pairs "
+                    "contains duplicate pairs regardless of direction"
+                )
+            seen_pairs.add(canonical_pair)
 
 
 @dataclass(frozen=True, slots=True)
@@ -339,6 +600,40 @@ class DatasetPreprocessingConfig:
         default_factory=DatasetComparisonBuildingConfig
     )
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.intensity_transform, DatasetIntensityTransformConfig):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.intensity_transform "
+                "must be a DatasetIntensityTransformConfig"
+            )
+        if not isinstance(self.normalisation, DatasetNormalisationConfig):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.normalisation must be a "
+                "DatasetNormalisationConfig"
+            )
+        if not isinstance(self.missing_data, DatasetMissingDataConfig):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.missing_data must be a "
+                "DatasetMissingDataConfig"
+            )
+        if not isinstance(
+            self.total_protein_correction, DatasetTotalProteinCorrectionConfig
+        ):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction "
+                "must be a DatasetTotalProteinCorrectionConfig"
+            )
+        if not isinstance(self.site_matrix, DatasetSiteMatrixConfig):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.site_matrix must be a "
+                "DatasetSiteMatrixConfig"
+            )
+        if not isinstance(self.comparisons, DatasetComparisonBuildingConfig):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.comparisons must be a "
+                "DatasetComparisonBuildingConfig"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class KinaseScoringConfig:
@@ -369,6 +664,27 @@ class KinaseScoringConfig:
         KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
     )
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.include_diagnostic_scoring_tables, bool):
+            raise WorkflowValidationError(
+                "scoring_config.include_diagnostic_scoring_tables must be a bool"
+            )
+        if (
+            self.profile_missing_value_strategy
+            not in KINASE_PROFILE_MISSING_VALUE_STRATEGIES
+        ):
+            allowed = ", ".join(sorted(KINASE_PROFILE_MISSING_VALUE_STRATEGIES))
+            raise WorkflowValidationError(
+                "scoring_config.profile_missing_value_strategy must be one of: "
+                f"{allowed}"
+            )
+        _require_int_at_least(
+            self.min_substrates,
+            field_name="scoring_config.min_substrates",
+            minimum=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
+            error_type=WorkflowValidationError,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class KinasePredictionConfig:
@@ -395,6 +711,43 @@ class KinasePredictionConfig:
     n_iterations: int = KINASE_PREDICTION_DEFAULT_ITERATIONS
     random_state: int | None = None
 
+    def __post_init__(self) -> None:
+        if self.mode not in KINASE_PREDICTION_MODES:
+            allowed_modes = ", ".join(sorted(KINASE_PREDICTION_MODES))
+            raise WorkflowValidationError(
+                f"prediction_config.mode must be one of: {allowed_modes}"
+            )
+        if self.adaptive_policy not in KINASE_ADAPTIVE_POLICIES:
+            allowed_policies = ", ".join(sorted(KINASE_ADAPTIVE_POLICIES))
+            raise WorkflowValidationError(
+                f"prediction_config.adaptive_policy must be one of: {allowed_policies}"
+            )
+        if self.random_state is not None:
+            _require_int_at_least(
+                self.random_state,
+                field_name="prediction_config.random_state",
+                minimum=0,
+                error_type=WorkflowValidationError,
+            )
+        _require_int_at_least(
+            self.top_k,
+            field_name="prediction_config.top_k",
+            minimum=1,
+            error_type=WorkflowValidationError,
+        )
+        _require_int_at_least(
+            self.ensemble_size,
+            field_name="prediction_config.ensemble_size",
+            minimum=1,
+            error_type=WorkflowValidationError,
+        )
+        _require_int_at_least(
+            self.n_iterations,
+            field_name="prediction_config.n_iterations",
+            minimum=1,
+            error_type=WorkflowValidationError,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class KinaseActivityConfig:
@@ -410,6 +763,29 @@ class KinaseActivityConfig:
     threshold: float = KINASE_ACTIVITY_DEFAULT_THRESHOLD
     min_substrates: int = KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES
     top_n_substrates: int = KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.enabled, bool):
+            raise WorkflowValidationError("activity_config.enabled must be a bool")
+        _require_real_between(
+            self.threshold,
+            field_name="activity_config.threshold",
+            minimum=0.0,
+            maximum=1.0,
+            error_type=WorkflowValidationError,
+        )
+        _require_int_at_least(
+            self.min_substrates,
+            field_name="activity_config.min_substrates",
+            minimum=KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR,
+            error_type=WorkflowValidationError,
+        )
+        _require_int_at_least(
+            self.top_n_substrates,
+            field_name="activity_config.top_n_substrates",
+            minimum=KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR,
+            error_type=WorkflowValidationError,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -460,6 +836,80 @@ class SignalomeConfig:
         SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT
     )
     module_selection_max_clusters: int = SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT
+
+    def __post_init__(self) -> None:
+        _require_real_between(
+            self.substrate_support_cutoff,
+            field_name="signalome workflow request config.substrate_support_cutoff",
+            minimum=0.0,
+            maximum=1.0,
+            error_type=WorkflowValidationError,
+        )
+        _require_real_between(
+            self.network_correlation_threshold,
+            field_name=(
+                "signalome workflow request config.network_correlation_threshold"
+            ),
+            minimum=0.0,
+            maximum=1.0,
+            error_type=WorkflowValidationError,
+        )
+        if self.network_policy not in SIGNALOME_KINASE_NETWORK_POLICIES:
+            allowed_policies = ", ".join(sorted(SIGNALOME_KINASE_NETWORK_POLICIES))
+            raise WorkflowValidationError(
+                "signalome workflow request config.network_policy "
+                f"must be one of: {allowed_policies}"
+            )
+        if self.assignment_policy not in SIGNALOME_ASSIGNMENT_POLICIES:
+            allowed_policies = ", ".join(sorted(SIGNALOME_ASSIGNMENT_POLICIES))
+            raise WorkflowValidationError(
+                "signalome workflow request config.assignment_policy "
+                f"must be one of: {allowed_policies}"
+            )
+        if (
+            self.score_preconditioning_policy
+            not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES
+        ):
+            allowed_policies = ", ".join(
+                sorted(SIGNALOME_SCORE_PRECONDITIONING_POLICIES)
+            )
+            raise WorkflowValidationError(
+                "signalome workflow request config.score_preconditioning_policy "
+                f"must be one of: {allowed_policies}"
+            )
+        if self.module_count is not None:
+            _require_int_at_least(
+                self.module_count,
+                field_name="signalome workflow request config.module_count",
+                minimum=SIGNALOME_MODULE_COUNT_FLOOR,
+                error_type=WorkflowValidationError,
+            )
+        _require_real_between(
+            self.module_selection_primary_correlation_threshold,
+            field_name=(
+                "signalome workflow request config."
+                "module_selection_primary_correlation_threshold"
+            ),
+            minimum=0.0,
+            maximum=1.0,
+            error_type=WorkflowValidationError,
+        )
+        _require_real_between(
+            self.module_selection_fallback_correlation_threshold,
+            field_name=(
+                "signalome workflow request config."
+                "module_selection_fallback_correlation_threshold"
+            ),
+            minimum=0.0,
+            maximum=1.0,
+            error_type=WorkflowValidationError,
+        )
+        _require_int_at_least(
+            self.module_selection_max_clusters,
+            field_name="signalome workflow request config.module_selection_max_clusters",
+            minimum=SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR,
+            error_type=WorkflowValidationError,
+        )
 
 
 __all__ = [

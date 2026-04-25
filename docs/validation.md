@@ -87,6 +87,12 @@ Main expectations:
 - `site_matrix`
 - `comparisons`
 
+Public preprocessing config dataclasses validate local policy/value constraints
+at construction time. Unsupported config-local state is rejected immediately.
+`DatasetPreprocessingConfigValidator` still validates the request boundary type
+and nested config object types; cross-object request requirements remain in
+`DatasetBuildRequestValidator`.
+
 Key public rules:
 
 - `intensity_transform.policy="identity"` is the default
@@ -97,6 +103,7 @@ Key public rules:
 - `missing_data.policy="impute_row_median"` requires `min_observed_values`
 - `total_protein_correction.policy="ratio_to_total"` requires a `total` table aligned to the phospho samples
 - `site_matrix.policy="build_from_metadata"` may reduce row count when rows cannot be supported in that lane
+- `site_matrix.minimum_observed_values` is internal-only compatibility state and must remain `None` in the public lane
 - the public builder lane still ends in a missing-value-free `AnalysisReadyPhosphoDataset`
 - `comparisons.policy="sample_metadata_pairs"` requires matching `sample_metadata` and a usable sample-group column
 - when comparison building runs, `dataset.comparisons` stays the compact workflow matrix and comparison provenance is exposed in `dataset.preprocessing_report.comparison_group_stats` and `dataset.preprocessing_report.comparison_pair_stats`
@@ -124,17 +131,22 @@ Reference rules are simple but strict:
 
 - `dataset` is `AnalysisReadyPhosphoDataset`
 - `references` is `ReferencePreset` or `ReferenceBundle`
-- config values are in supported ranges
+- config objects are the right public dataclass types
 - scoring support floor is respected (`min_substrates >= 2`)
+
+`KinaseScoringConfig`, `KinasePredictionConfig`, and `KinaseActivityConfig`
+validate local policy/range rules at object construction.
 
 ### Signalome workflow
 
 `SignalomeWorkflowRequest` validation checks:
 
 - `kinase_result` is `KinaseWorkflowResult`
-- signalome config values are in supported ranges
+- `config` is `SignalomeConfig`
 - upstream matrices are usable for signalome execution
 - `kinase_result.dataset.site_metadata.protein_id` exists and is non-empty for all interpreted sites
+
+`SignalomeConfig` validates local policy/range rules at object construction.
 
 Signalome is intentionally strict about protein identity. A site ID such as
 `TSC2;S939;` is not a substitute for `protein_id`.

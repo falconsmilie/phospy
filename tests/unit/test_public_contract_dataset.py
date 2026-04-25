@@ -30,6 +30,7 @@ from phospy.api import (
 from phospy.api.configs import (
     DATASET_SITE_MATRIX_MISSING_DATA_POLICIES,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
+    DatasetMissingDataConfig,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 
@@ -107,6 +108,18 @@ def test_site_matrix_missing_data_public_contract_is_complete_case_only() -> Non
         == DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
     )
     assert config.minimum_observed_values is None
+
+
+def test_public_dataset_configs_reject_unsupported_local_state_on_construction() -> (
+    None
+):
+    with pytest.raises(PhosPyInputError, match="minimum_observed_values"):
+        DatasetSiteMatrixConfig(
+            policy="build_from_metadata",
+            minimum_observed_values=1,
+        )
+    with pytest.raises(PhosPyInputError, match="missing_data.min_observed_values"):
+        DatasetMissingDataConfig(policy="forbid", min_observed_values=2)
 
 
 def test_site_matrix_config_docstring_foregrounds_strict_public_lane() -> None:

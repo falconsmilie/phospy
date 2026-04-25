@@ -106,6 +106,14 @@ all interpreted sites.
 
 ## Config models
 
+Public config dataclasses are strict constructors: invalid local policy or
+numeric state is rejected when the config object is created.
+
+Request/workflow validators still run and still own cross-object checks (for
+example, `ratio_to_total` requiring `total`, `sample_metadata_pairs` requiring
+`sample_metadata`, reference compatibility, and workflow input object
+boundaries).
+
 ### Dataset preprocessing
 
 `DatasetPreprocessingConfig` groups six builder-owned areas:
@@ -157,6 +165,8 @@ scientifically appropriate for your experiment design.
 - public missing-data handling for this stage: `missing_data_policy="drop_any_missing"`
 
 This public builder lane is intentionally strict and still ends in a missing-value-free `AnalysisReadyPhosphoDataset`.
+`minimum_observed_values` is internal-only compatibility state and must stay
+`None` in the public config lane.
 
 Duplicate-site strategy trade-offs:
 

@@ -1,0 +1,360 @@
+from __future__ import annotations
+
+import pytest
+
+from phospy.api.configs import (
+    DatasetComparisonBuildingConfig,
+    DatasetIntensityTransformConfig,
+    DatasetMissingDataConfig,
+    DatasetNormalisationConfig,
+    DatasetPreprocessingConfig,
+    DatasetSiteMatrixConfig,
+    DatasetTotalProteinCorrectionConfig,
+    KinaseActivityConfig,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    SignalomeConfig,
+)
+from phospy.errors import PhosPyInputError, WorkflowValidationError
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "pattern"),
+    [
+        (
+            {"policy": "unsupported"},
+            "preprocessing_config.missing_data.policy must be one of",
+        ),
+        (
+            {"policy": "forbid", "min_observed_values": 2},
+            "missing_data.min_observed_values must be None when missing_data.policy='forbid'",
+        ),
+        (
+            {"policy": "impute_row_median", "min_observed_values": None},
+            "missing_data.min_observed_values must be an int",
+        ),
+        (
+            {"policy": "impute_row_median", "min_observed_values": True},
+            "missing_data.min_observed_values must be an int",
+        ),
+        (
+            {"policy": "impute_row_median", "min_observed_values": 0},
+            "missing_data.min_observed_values must be greater than or equal to 1",
+        ),
+    ],
+)
+def test_dataset_missing_data_config_self_validates(
+    kwargs: dict[str, object], pattern: str
+) -> None:
+    with pytest.raises(PhosPyInputError, match=pattern):
+        DatasetMissingDataConfig(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "pattern"),
+    [
+        (
+            {"policy": "unsupported", "pseudocount": 1.0},
+            "preprocessing_config.intensity_transform.policy must be one of",
+        ),
+        (
+            {"policy": "log2", "pseudocount": "1.0"},
+            "intensity_transform.pseudocount must be a float or int",
+        ),
+        (
+            {"policy": "log2", "pseudocount": True},
+            "intensity_transform.pseudocount must be a float or int",
+        ),
+        (
+            {"policy": "log2", "pseudocount": float("nan")},
+            "intensity_transform.pseudocount must be finite",
+        ),
+        (
+            {"policy": "log2", "pseudocount": -0.1},
+            "intensity_transform.pseudocount must be greater than or equal to 0",
+        ),
+    ],
+)
+def test_dataset_intensity_transform_config_self_validates(
+    kwargs: dict[str, object], pattern: str
+) -> None:
+    with pytest.raises(PhosPyInputError, match=pattern):
+        DatasetIntensityTransformConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_dataset_normalisation_config_rejects_unknown_policy() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="preprocessing_config.normalisation.policy must be one of",
+    ):
+        DatasetNormalisationConfig(policy="unsupported")  # type: ignore[arg-type]
+
+
+def test_dataset_total_protein_correction_config_rejects_unknown_policy() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="preprocessing_config.total_protein_correction.policy must be one of",
+    ):
+        DatasetTotalProteinCorrectionConfig(policy="unsupported")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "pattern"),
+    [
+        (
+            {"policy": "invalid"},
+            "preprocessing_config.site_matrix.policy must be one of",
+        ),
+        (
+            {"policy": "build_from_metadata", "duplicate_site_strategy": "invalid"},
+            "site_matrix.duplicate_site_strategy must be one of",
+        ),
+        (
+            {"policy": "build_from_metadata", "missing_data_policy": "retain_missing"},
+            "missing_data_policy='retain_missing' is not supported",
+        ),
+        (
+            {
+                "policy": "build_from_metadata",
+                "missing_data_policy": "require_min_observed_values",
+            },
+            "missing_data_policy='require_min_observed_values' is not supported",
+        ),
+        (
+            {"policy": "build_from_metadata", "minimum_observed_values": 1},
+            "minimum_observed_values is not supported",
+        ),
+        (
+            {"policy": "as_input", "duplicate_site_strategy": "first"},
+            "duplicate_site_strategy is only valid when site_matrix.policy='build_from_metadata'",
+        ),
+    ],
+)
+def test_dataset_site_matrix_config_self_validates(
+    kwargs: dict[str, object], pattern: str
+) -> None:
+    with pytest.raises(PhosPyInputError, match=pattern):
+        DatasetSiteMatrixConfig(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "pattern"),
+    [
+        (
+            {"policy": "invalid"},
+            "preprocessing_config.comparisons.policy must be one of",
+        ),
+        (
+            {"policy": "sample_metadata_pairs", "sample_group_column": ""},
+            "comparisons.sample_group_column must be a non-empty string",
+        ),
+        (
+            {"policy": "none", "pairs": (("a", "b"),)},
+            "comparisons.pairs must be None when comparisons.policy='none'",
+        ),
+        (
+            {"policy": "sample_metadata_pairs", "pairs": ()},
+            "comparisons.pairs must contain at least one pair when provided",
+        ),
+        (
+            {"policy": "sample_metadata_pairs", "pairs": ("a",)},
+            "comparisons.pairs must contain only",
+        ),
+        (
+            {"policy": "sample_metadata_pairs", "pairs": (("a", ""),)},
+            "comparisons.pairs must contain non-empty right_group strings",
+        ),
+        (
+            {"policy": "sample_metadata_pairs", "pairs": (("a", "a"),)},
+            "comparisons.pairs cannot contain self-comparison pairs",
+        ),
+        (
+            {
+                "policy": "sample_metadata_pairs",
+                "pairs": (("a", "b"), ("b", "a")),
+            },
+            "contains duplicate pairs regardless of direction",
+        ),
+    ],
+)
+def test_dataset_comparison_building_config_self_validates(
+    kwargs: dict[str, object], pattern: str
+) -> None:
+    with pytest.raises(PhosPyInputError, match=pattern):
+        DatasetComparisonBuildingConfig(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "pattern"),
+    [
+        (
+            {"missing_data": object()},
+            "preprocessing_config.missing_data must be a DatasetMissingDataConfig",
+        ),
+        (
+            {"intensity_transform": object()},
+            "preprocessing_config.intensity_transform must be a DatasetIntensityTransformConfig",
+        ),
+        (
+            {"comparisons": object()},
+            "preprocessing_config.comparisons must be a DatasetComparisonBuildingConfig",
+        ),
+    ],
+)
+def test_dataset_preprocessing_config_rejects_wrong_nested_types(
+    kwargs: dict[str, object], pattern: str
+) -> None:
+    with pytest.raises(PhosPyInputError, match=pattern):
+        DatasetPreprocessingConfig(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "pattern"),
+    [
+        (
+            {"min_substrates": 1},
+            "scoring_config.min_substrates must be greater than or equal to 2",
+        ),
+        (
+            {"include_diagnostic_scoring_tables": "yes"},
+            "scoring_config.include_diagnostic_scoring_tables must be a bool",
+        ),
+        (
+            {"profile_missing_value_strategy": "invalid"},
+            "scoring_config.profile_missing_value_strategy must be one of",
+        ),
+    ],
+)
+def test_kinase_scoring_config_self_validates(
+    kwargs: dict[str, object], pattern: str
+) -> None:
+    with pytest.raises(WorkflowValidationError, match=pattern):
+        KinaseScoringConfig(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "pattern"),
+    [
+        (
+            {"mode": "invalid"},
+            "prediction_config.mode must be one of",
+        ),
+        (
+            {"adaptive_policy": "invalid"},
+            "prediction_config.adaptive_policy must be one of",
+        ),
+        (
+            {"top_k": 0},
+            "prediction_config.top_k must be greater than or equal to 1",
+        ),
+        (
+            {"ensemble_size": 0},
+            "prediction_config.ensemble_size must be greater than or equal to 1",
+        ),
+        (
+            {"n_iterations": 0},
+            "prediction_config.n_iterations must be greater than or equal to 1",
+        ),
+        (
+            {"random_state": -1},
+            "prediction_config.random_state must be greater than or equal to 0",
+        ),
+        (
+            {"random_state": True},
+            "prediction_config.random_state must be an int",
+        ),
+    ],
+)
+def test_kinase_prediction_config_self_validates(
+    kwargs: dict[str, object], pattern: str
+) -> None:
+    with pytest.raises(WorkflowValidationError, match=pattern):
+        KinasePredictionConfig(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "pattern"),
+    [
+        (
+            {"enabled": "yes"},
+            "activity_config.enabled must be a bool",
+        ),
+        (
+            {"threshold": 1.2},
+            "activity_config.threshold must be between 0.0 and 1.0",
+        ),
+        (
+            {"threshold": True},
+            "activity_config.threshold must be a float between 0.0 and 1.0",
+        ),
+        (
+            {"min_substrates": 0},
+            "activity_config.min_substrates must be greater than or equal to 1",
+        ),
+        (
+            {"top_n_substrates": 0},
+            "activity_config.top_n_substrates must be greater than or equal to 1",
+        ),
+    ],
+)
+def test_kinase_activity_config_self_validates(
+    kwargs: dict[str, object], pattern: str
+) -> None:
+    with pytest.raises(WorkflowValidationError, match=pattern):
+        KinaseActivityConfig(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "pattern"),
+    [
+        (
+            {"substrate_support_cutoff": 1.5},
+            "signalome workflow request config.substrate_support_cutoff",
+        ),
+        (
+            {"substrate_support_cutoff": True},
+            "signalome workflow request config.substrate_support_cutoff",
+        ),
+        (
+            {"network_correlation_threshold": -0.1},
+            "signalome workflow request config.network_correlation_threshold",
+        ),
+        (
+            {"network_policy": "invalid"},
+            "signalome workflow request config.network_policy",
+        ),
+        (
+            {"assignment_policy": "invalid"},
+            "signalome workflow request config.assignment_policy",
+        ),
+        (
+            {"score_preconditioning_policy": "invalid"},
+            "signalome workflow request config.score_preconditioning_policy",
+        ),
+        (
+            {"module_count": 0},
+            "signalome workflow request config.module_count",
+        ),
+        (
+            {"module_count": True},
+            "signalome workflow request config.module_count must be an int",
+        ),
+        (
+            {"module_selection_primary_correlation_threshold": 1.2},
+            "module_selection_primary_correlation_threshold",
+        ),
+        (
+            {"module_selection_fallback_correlation_threshold": -0.1},
+            "module_selection_fallback_correlation_threshold",
+        ),
+        (
+            {"module_selection_max_clusters": 0},
+            "module_selection_max_clusters",
+        ),
+    ],
+)
+def test_signalome_config_self_validates(
+    kwargs: dict[str, object], pattern: str
+) -> None:
+    with pytest.raises(WorkflowValidationError, match=pattern):
+        SignalomeConfig(**kwargs)  # type: ignore[arg-type]
