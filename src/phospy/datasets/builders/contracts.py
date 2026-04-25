@@ -42,6 +42,8 @@ class PreprocessedDatasetBuildTables:
     sample_metadata: pd.DataFrame | None
     total: pd.DataFrame | None
     comparisons: pd.DataFrame | None = None
+    comparison_group_stats: pd.DataFrame | None = None
+    comparison_pair_stats: pd.DataFrame | None = None
     preprocessing_row_counts: pd.DataFrame | None = None
     preprocessing_operations: pd.DataFrame | None = None
     duplicate_site_resolution: pd.DataFrame | None = None

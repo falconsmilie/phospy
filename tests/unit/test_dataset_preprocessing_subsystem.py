@@ -1005,6 +1005,96 @@ def test_dataset_preprocessor_comparison_building_matches_reference_pairwise_exp
     expected = expected_fixture.astype(float).copy()
     expected.index = phospho.index.copy()
     pdt.assert_frame_equal(preprocessed.comparisons, expected)
+    assert preprocessed.comparison_group_stats is not None
+    assert preprocessed.comparison_pair_stats is not None
+    assert {"n", "mean", "sd", "sem"}.issubset(
+        set(preprocessed.comparison_group_stats.columns)
+    )
+    assert {
+        "left_n",
+        "right_n",
+        "left_mean",
+        "right_mean",
+        "left_sd",
+        "right_sd",
+        "left_sem",
+        "right_sem",
+        "effect_size",
+    }.issubset(set(preprocessed.comparison_pair_stats.columns))
+    pair_stats = preprocessed.comparison_pair_stats.copy(deep=True)
+    assert pair_stats.shape[0] == preprocessed.comparisons.shape[0]
+    paired_with_matrix = pair_stats.merge(
+        preprocessed.comparisons.reset_index()
+        .rename(columns={"index": "site_id"})
+        .rename(columns={"p_sample_a_sample_b": "expected_effect_size"}),
+        how="inner",
+        on="site_id",
+    )
+    assert paired_with_matrix.shape[0] == preprocessed.comparisons.shape[0]
+    assert (
+        paired_with_matrix.loc[:, "effect_size"]
+        == paired_with_matrix.loc[:, "expected_effect_size"]
+    ).all()
+
+
+def test_dataset_preprocessor_comparison_stats_follow_pandas_single_sample_convention() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_1": [8.0, 2.0],
+            "sample_2": [10.0, 4.0],
+            "sample_3": [5.0, 1.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = _site_metadata(phospho.index)
+    sample_metadata = pd.DataFrame(
+        {"comparison_group": ["group1", "group1", "group2"]},
+        index=phospho.columns.copy(),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=sample_metadata,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                comparisons=DatasetComparisonBuildingConfig(
+                    policy="sample_metadata_pairs"
+                )
+            )
+        ),
+    )
+
+    assert preprocessed.comparisons is not None
+    expected = pd.DataFrame(
+        {"p_group1_group2": [4.0, 2.0]},
+        index=phospho.index.copy(),
+    )
+    pdt.assert_frame_equal(preprocessed.comparisons, expected)
+    assert preprocessed.comparison_group_stats is not None
+    assert preprocessed.comparison_pair_stats is not None
+
+    group_stats = preprocessed.comparison_group_stats
+    group2_rows = group_stats.loc[group_stats["group"] == "group2"].sort_values(
+        "site_id"
+    )
+    assert group2_rows["n"].tolist() == [1, 1]
+    assert group2_rows["mean"].tolist() == [1.0, 5.0]
+    assert group2_rows["sd"].isna().all()
+    assert group2_rows["sem"].isna().all()
+
+    pair_stats = preprocessed.comparison_pair_stats.sort_values("site_id")
+    assert pair_stats["comparison"].tolist() == ["p_group1_group2", "p_group1_group2"]
+    assert pair_stats["left_n"].tolist() == [2, 2]
+    assert pair_stats["right_n"].tolist() == [1, 1]
+    assert pair_stats["left_mean"].tolist() == [3.0, 9.0]
+    assert pair_stats["right_mean"].tolist() == [1.0, 5.0]
+    assert pair_stats["right_sd"].isna().all()
+    assert pair_stats["right_sem"].isna().all()
+    assert pair_stats["effect_size"].tolist() == [2.0, 4.0]
 
 
 def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:

@@ -109,6 +109,12 @@ If site-matrix duplicate handling ran, inspect
 retained, dropped, or aggregated and whether duplicate rows disagreed on key
 metadata fields.
 
+If comparison building ran (`comparisons.policy="sample_metadata_pairs"`),
+inspect `dataset.preprocessing_report.comparison_group_stats` and
+`dataset.preprocessing_report.comparison_pair_stats` to see the replicate-level
+summaries and pairwise values behind each `dataset.comparisons` effect-size
+column.
+
 ## Kinase or signalome boundary errors
 
 Some workflow failures include seam names, counts, and a `next_action` hint.

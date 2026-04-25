@@ -64,6 +64,39 @@ _METADATA_CONFLICT_COLUMNS = (
     "n_distinct_values",
     "source_row_ids",
 )
+_COMPARISON_GROUP_STATS_COLUMNS = (
+    "site_id",
+    "group",
+    "n",
+    "mean",
+    "sd",
+    "sem",
+    "median",
+    "min",
+    "max",
+    "sample_ids",
+)
+_COMPARISON_PAIR_STATS_COLUMNS = (
+    "site_id",
+    "comparison",
+    "left_group",
+    "right_group",
+    "left_n",
+    "right_n",
+    "left_mean",
+    "right_mean",
+    "left_sd",
+    "right_sd",
+    "left_sem",
+    "right_sem",
+    "effect_size",
+    "left_median",
+    "right_median",
+    "left_min",
+    "right_min",
+    "left_max",
+    "right_max",
+)
 _FINAL_DATASET_STAGE = "final_dataset_construction"
 
 
@@ -116,6 +149,8 @@ class DatasetBuildExecutor:
                 operations=preprocessed.preprocessing_operations,
                 duplicate_site_resolution=preprocessed.duplicate_site_resolution,
                 metadata_conflicts=preprocessed.metadata_conflicts,
+                comparison_group_stats=preprocessed.comparison_group_stats,
+                comparison_pair_stats=preprocessed.comparison_pair_stats,
                 final_dataset_rows=int(len(resolved.phospho.index)),
                 transformation_state_label=resolved.transformation_state.label,
             )
@@ -148,6 +183,8 @@ def _build_dataset_preprocessing_report(
     operations: pd.DataFrame | None,
     duplicate_site_resolution: pd.DataFrame | None,
     metadata_conflicts: pd.DataFrame | None,
+    comparison_group_stats: pd.DataFrame | None,
+    comparison_pair_stats: pd.DataFrame | None,
     final_dataset_rows: int,
     transformation_state_label: str,
 ) -> DatasetPreprocessingReport:
@@ -170,6 +207,16 @@ def _build_dataset_preprocessing_report(
         pd.DataFrame.from_records([], columns=_METADATA_CONFLICT_COLUMNS)
         if metadata_conflicts is None
         else metadata_conflicts
+    )
+    base_comparison_group_stats = (
+        pd.DataFrame.from_records([], columns=_COMPARISON_GROUP_STATS_COLUMNS)
+        if comparison_group_stats is None
+        else comparison_group_stats
+    )
+    base_comparison_pair_stats = (
+        pd.DataFrame.from_records([], columns=_COMPARISON_PAIR_STATS_COLUMNS)
+        if comparison_pair_stats is None
+        else comparison_pair_stats
     )
     final_row_counts = pd.concat(
         [
@@ -221,4 +268,6 @@ def _build_dataset_preprocessing_report(
         operations=final_operations,
         duplicate_site_resolution=base_duplicate_site_resolution,
         metadata_conflicts=base_metadata_conflicts,
+        comparison_group_stats=base_comparison_group_stats,
+        comparison_pair_stats=base_comparison_pair_stats,
     )

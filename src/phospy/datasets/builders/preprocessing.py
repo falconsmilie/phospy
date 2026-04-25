@@ -99,6 +99,8 @@ class DatasetPreprocessor:
             sample_metadata=preprocessed_state.sample_metadata,
             total=preprocessed_state.total,
             comparisons=preprocessed_state.comparisons,
+            comparison_group_stats=preprocessed_state.comparison_group_stats,
+            comparison_pair_stats=preprocessed_state.comparison_pair_stats,
             preprocessing_row_counts=row_counts,
             preprocessing_operations=operations,
             duplicate_site_resolution=preprocessed_state.duplicate_site_resolution,

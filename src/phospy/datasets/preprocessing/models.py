@@ -100,8 +100,19 @@ class PreprocessingState:
     total: pd.DataFrame | None
     plan: PreprocessingPlan
     comparisons: pd.DataFrame | None = None
+    comparison_group_stats: pd.DataFrame | None = None
+    comparison_pair_stats: pd.DataFrame | None = None
     duplicate_site_resolution: pd.DataFrame | None = None
     metadata_conflicts: pd.DataFrame | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ComparisonBuildResult:
+    """Structured comparison-building output with provenance sidecars."""
+
+    comparisons: pd.DataFrame
+    comparison_group_stats: pd.DataFrame
+    comparison_pair_stats: pd.DataFrame
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,6 +150,7 @@ __all__ = [
     "DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT",
     "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",
+    "ComparisonBuildResult",
     "DuplicateSiteResolutionResult",
     "PreprocessingPlan",
     "PreprocessingStageExecution",

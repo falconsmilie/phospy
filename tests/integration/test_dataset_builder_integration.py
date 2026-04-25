@@ -57,6 +57,8 @@ def test_dataset_builder_populates_preprocessing_report_for_successful_build() -
     }.issubset(set(report.operations.columns))
     assert report.duplicate_site_resolution is not None
     assert report.metadata_conflicts is not None
+    assert report.comparison_group_stats is not None
+    assert report.comparison_pair_stats is not None
     assert {
         "site_id",
         "source_row_id",
@@ -74,6 +76,24 @@ def test_dataset_builder_populates_preprocessing_report_for_successful_build() -
         "n_distinct_values",
         "source_row_ids",
     }.issubset(set(report.metadata_conflicts.columns))
+    assert {"site_id", "group", "n", "mean", "sd", "sem"}.issubset(
+        set(report.comparison_group_stats.columns)
+    )
+    assert {
+        "site_id",
+        "comparison",
+        "left_n",
+        "right_n",
+        "left_mean",
+        "right_mean",
+        "left_sd",
+        "right_sd",
+        "left_sem",
+        "right_sem",
+        "effect_size",
+    }.issubset(set(report.comparison_pair_stats.columns))
+    assert report.comparison_group_stats.empty
+    assert report.comparison_pair_stats.empty
     assert "missing_data" in set(report.row_counts.loc[:, "stage"])
     assert "site_matrix" in set(report.row_counts.loc[:, "stage"])
     assert "final_dataset_construction" in set(report.row_counts.loc[:, "stage"])
@@ -672,6 +692,41 @@ def test_dataset_builder_builds_inferred_comparisons_from_sample_metadata() -> N
         index=phospho.index.copy(),
     )
     pdt.assert_frame_equal(built.comparisons, expected)
+    assert built.preprocessing_report is not None
+    assert built.preprocessing_report.comparison_group_stats is not None
+    assert built.preprocessing_report.comparison_pair_stats is not None
+    group_stats = built.preprocessing_report.comparison_group_stats
+    pair_stats = built.preprocessing_report.comparison_pair_stats
+    assert not group_stats.empty
+    assert not pair_stats.empty
+    assert {"site_id", "group", "n", "mean", "sd", "sem"}.issubset(
+        set(group_stats.columns)
+    )
+    assert {
+        "site_id",
+        "comparison",
+        "left_n",
+        "right_n",
+        "left_mean",
+        "right_mean",
+        "left_sd",
+        "right_sd",
+        "left_sem",
+        "right_sem",
+        "effect_size",
+    }.issubset(set(pair_stats.columns))
+    comparison_long = built.comparisons.reset_index().melt(
+        id_vars=["site_id"],
+        var_name="comparison",
+        value_name="expected_effect_size",
+    )
+    merged = pair_stats.merge(
+        comparison_long,
+        how="inner",
+        on=["site_id", "comparison"],
+    )
+    assert merged.shape[0] == built.comparisons.shape[0]
+    assert (merged.loc[:, "effect_size"] == merged.loc[:, "expected_effect_size"]).all()
 
 
 def test_dataset_builder_rejects_comparison_groups_missing_from_metadata() -> None:

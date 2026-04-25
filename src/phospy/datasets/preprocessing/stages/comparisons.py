@@ -14,11 +14,45 @@ from phospy.api.configs import (
 )
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
+    ComparisonBuildResult,
     PreprocessingState,
 )
 from phospy.errors.input import PhosPyInputError
 
 _COMPARISON_OUTPUT_PREFIX = "p_"
+_GROUP_STATS_COLUMNS = (
+    "site_id",
+    "group",
+    "n",
+    "mean",
+    "sd",
+    "sem",
+    "median",
+    "min",
+    "max",
+    "sample_ids",
+)
+_PAIR_STATS_COLUMNS = (
+    "site_id",
+    "comparison",
+    "left_group",
+    "right_group",
+    "left_n",
+    "right_n",
+    "left_mean",
+    "right_mean",
+    "left_sd",
+    "right_sd",
+    "left_sem",
+    "right_sem",
+    "effect_size",
+    "left_median",
+    "right_median",
+    "left_min",
+    "right_min",
+    "left_max",
+    "right_max",
+)
 
 
 class ComparisonsStage:
@@ -66,15 +100,17 @@ class ComparisonsStage:
             groups=tuple(group_to_samples.keys()),
             explicit_pairs=state.plan.comparison_pairs,
         )
-        group_means = _build_group_means(
+        build_result = _build_comparison_build_result(
             phospho=state.phospho,
             group_to_samples=group_to_samples,
-        )
-        comparison_matrix = _build_comparison_matrix(
-            group_means=group_means,
             pairs=pairs,
         )
-        return replace(state, comparisons=comparison_matrix)
+        return replace(
+            state,
+            comparisons=build_result.comparisons,
+            comparison_group_stats=build_result.comparison_group_stats,
+            comparison_pair_stats=build_result.comparison_pair_stats,
+        )
 
 
 def _resolve_group_labels(
@@ -181,6 +217,62 @@ def _build_group_means(
     )
 
 
+def _build_group_statistics(
+    *,
+    phospho: pd.DataFrame,
+    group_to_samples: dict[str, list[str]],
+) -> tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
+    group_records: list[pd.DataFrame] = []
+    group_summaries: dict[str, pd.DataFrame] = {}
+    site_ids = phospho.index.astype(str).tolist()
+    for group_name, sample_columns in group_to_samples.items():
+        group_values = phospho.loc[:, sample_columns]
+        n = group_values.count(axis=1).astype(int)
+        mean = group_values.mean(axis=1, skipna=True)
+        sd = group_values.std(axis=1, skipna=True)
+        sem = sd / n.astype("float64").pow(0.5).where(n > 0)
+        median = group_values.median(axis=1, skipna=True)
+        minimum = group_values.min(axis=1, skipna=True)
+        maximum = group_values.max(axis=1, skipna=True)
+        summary = pd.DataFrame(
+            {
+                "n": n,
+                "mean": mean,
+                "sd": sd,
+                "sem": sem,
+                "median": median,
+                "min": minimum,
+                "max": maximum,
+            },
+            index=phospho.index.copy(),
+        )
+        group_summaries[group_name] = summary
+        group_records.append(
+            pd.DataFrame(
+                {
+                    "site_id": site_ids,
+                    "group": [group_name] * len(site_ids),
+                    "n": n.to_numpy(),
+                    "mean": mean.to_numpy(),
+                    "sd": sd.to_numpy(),
+                    "sem": sem.to_numpy(),
+                    "median": median.to_numpy(),
+                    "min": minimum.to_numpy(),
+                    "max": maximum.to_numpy(),
+                    "sample_ids": [tuple(sample_columns)] * len(site_ids),
+                },
+                columns=_GROUP_STATS_COLUMNS,
+            )
+        )
+    if not group_records:
+        return (
+            pd.DataFrame.from_records([], columns=_GROUP_STATS_COLUMNS),
+            group_summaries,
+        )
+    group_stats = pd.concat(group_records, axis=0, ignore_index=True)
+    return group_stats, group_summaries
+
+
 def _build_comparison_matrix(
     *,
     group_means: pd.DataFrame,
@@ -192,6 +284,79 @@ def _build_comparison_matrix(
             group_means.loc[:, left_group] - group_means.loc[:, right_group]
         )
     return comparison_matrix
+
+
+def _build_pair_statistics(
+    *,
+    phospho: pd.DataFrame,
+    pairs: tuple[DatasetComparisonPair, ...],
+    comparison_matrix: pd.DataFrame,
+    group_summaries: dict[str, pd.DataFrame],
+) -> pd.DataFrame:
+    pair_records: list[pd.DataFrame] = []
+    site_ids = phospho.index.astype(str).tolist()
+    for left_group, right_group in pairs:
+        left_summary = group_summaries[left_group]
+        right_summary = group_summaries[right_group]
+        comparison_name = f"{_COMPARISON_OUTPUT_PREFIX}{left_group}_{right_group}"
+        effect_size = comparison_matrix.loc[:, comparison_name]
+        pair_records.append(
+            pd.DataFrame(
+                {
+                    "site_id": site_ids,
+                    "comparison": [comparison_name] * len(site_ids),
+                    "left_group": [left_group] * len(site_ids),
+                    "right_group": [right_group] * len(site_ids),
+                    "left_n": left_summary.loc[:, "n"].to_numpy(),
+                    "right_n": right_summary.loc[:, "n"].to_numpy(),
+                    "left_mean": left_summary.loc[:, "mean"].to_numpy(),
+                    "right_mean": right_summary.loc[:, "mean"].to_numpy(),
+                    "left_sd": left_summary.loc[:, "sd"].to_numpy(),
+                    "right_sd": right_summary.loc[:, "sd"].to_numpy(),
+                    "left_sem": left_summary.loc[:, "sem"].to_numpy(),
+                    "right_sem": right_summary.loc[:, "sem"].to_numpy(),
+                    "effect_size": effect_size.to_numpy(),
+                    "left_median": left_summary.loc[:, "median"].to_numpy(),
+                    "right_median": right_summary.loc[:, "median"].to_numpy(),
+                    "left_min": left_summary.loc[:, "min"].to_numpy(),
+                    "right_min": right_summary.loc[:, "min"].to_numpy(),
+                    "left_max": left_summary.loc[:, "max"].to_numpy(),
+                    "right_max": right_summary.loc[:, "max"].to_numpy(),
+                },
+                columns=_PAIR_STATS_COLUMNS,
+            )
+        )
+    if not pair_records:
+        return pd.DataFrame.from_records([], columns=_PAIR_STATS_COLUMNS)
+    return pd.concat(pair_records, axis=0, ignore_index=True)
+
+
+def _build_comparison_build_result(
+    *,
+    phospho: pd.DataFrame,
+    group_to_samples: dict[str, list[str]],
+    pairs: tuple[DatasetComparisonPair, ...],
+) -> ComparisonBuildResult:
+    group_stats, group_summaries = _build_group_statistics(
+        phospho=phospho,
+        group_to_samples=group_to_samples,
+    )
+    group_means = _build_group_means(
+        phospho=phospho,
+        group_to_samples=group_to_samples,
+    )
+    comparisons = _build_comparison_matrix(group_means=group_means, pairs=pairs)
+    pair_stats = _build_pair_statistics(
+        phospho=phospho,
+        pairs=pairs,
+        comparison_matrix=comparisons,
+        group_summaries=group_summaries,
+    )
+    return ComparisonBuildResult(
+        comparisons=comparisons,
+        comparison_group_stats=group_stats,
+        comparison_pair_stats=pair_stats,
+    )
 
 
 __all__ = ["ComparisonsStage"]

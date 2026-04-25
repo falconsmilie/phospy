@@ -93,6 +93,7 @@ Key public rules:
 - `site_matrix.policy="build_from_metadata"` may reduce row count when rows cannot be supported in that lane
 - the public builder lane still ends in a missing-value-free `AnalysisReadyPhosphoDataset`
 - `comparisons.policy="sample_metadata_pairs"` requires matching `sample_metadata` and a usable sample-group column
+- when comparison building runs, `dataset.comparisons` stays the compact workflow matrix and comparison provenance is exposed in `dataset.preprocessing_report.comparison_group_stats` and `dataset.preprocessing_report.comparison_pair_stats`
 
 ## Reference validation
 

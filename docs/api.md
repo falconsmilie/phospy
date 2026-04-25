@@ -153,6 +153,14 @@ When site-matrix duplicate handling runs, `dataset.preprocessing_report` include
 - `sample_group_column` defaults to `comparison_group`
 - `pairs` may be provided explicitly, otherwise observed group pairs are inferred
 
+When comparison building runs:
+
+- `dataset.comparisons` remains the compact site-by-comparison effect-size matrix used by workflows.
+- `dataset.preprocessing_report.comparison_group_stats` provides replicate-group summary context (for example `n`, `mean`, `sd`, `sem`) for each site and group.
+- `dataset.preprocessing_report.comparison_pair_stats` provides pairwise evidence (left/right group summaries plus `effect_size`) for each site/comparison row.
+
+These sidecar tables improve transparency and auditability. They are not a replacement for full differential phosphoproteomics modelling.
+
 ### Kinase configs
 
 #### `KinaseScoringConfig`

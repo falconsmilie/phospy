@@ -54,6 +54,29 @@ _PREPROCESSING_REPORT_METADATA_CONFLICT_COLUMNS = (
     "n_distinct_values",
     "source_row_ids",
 )
+_PREPROCESSING_REPORT_COMPARISON_GROUP_STATS_COLUMNS = (
+    "site_id",
+    "group",
+    "n",
+    "mean",
+    "sd",
+    "sem",
+)
+_PREPROCESSING_REPORT_COMPARISON_PAIR_STATS_COLUMNS = (
+    "site_id",
+    "comparison",
+    "left_group",
+    "right_group",
+    "left_n",
+    "right_n",
+    "left_mean",
+    "right_mean",
+    "left_sd",
+    "right_sd",
+    "left_sem",
+    "right_sem",
+    "effect_size",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +87,8 @@ class DatasetPreprocessingReport:
     operations: pd.DataFrame
     duplicate_site_resolution: pd.DataFrame | None = None
     metadata_conflicts: pd.DataFrame | None = None
+    comparison_group_stats: pd.DataFrame | None = None
+    comparison_pair_stats: pd.DataFrame | None = None
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
@@ -88,6 +113,18 @@ class DatasetPreprocessingReport:
         metadata_conflicts = own_optional_dataframe(
             self.metadata_conflicts,
             field_name="dataset.preprocessing_report.metadata_conflicts",
+            error_type=DatasetValidationError,
+            assume_owned=_assume_owned,
+        )
+        comparison_group_stats = own_optional_dataframe(
+            self.comparison_group_stats,
+            field_name="dataset.preprocessing_report.comparison_group_stats",
+            error_type=DatasetValidationError,
+            assume_owned=_assume_owned,
+        )
+        comparison_pair_stats = own_optional_dataframe(
+            self.comparison_pair_stats,
+            field_name="dataset.preprocessing_report.comparison_pair_stats",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
@@ -137,10 +174,36 @@ class DatasetPreprocessingReport:
                     "dataset.preprocessing_report.metadata_conflicts is missing "
                     f"required columns: {missing}"
                 )
+        if comparison_group_stats is not None:
+            missing_group_stats_columns = [
+                column
+                for column in _PREPROCESSING_REPORT_COMPARISON_GROUP_STATS_COLUMNS
+                if column not in comparison_group_stats.columns
+            ]
+            if missing_group_stats_columns:
+                missing = ", ".join(missing_group_stats_columns)
+                raise DatasetValidationError(
+                    "dataset.preprocessing_report.comparison_group_stats is "
+                    f"missing required columns: {missing}"
+                )
+        if comparison_pair_stats is not None:
+            missing_pair_stats_columns = [
+                column
+                for column in _PREPROCESSING_REPORT_COMPARISON_PAIR_STATS_COLUMNS
+                if column not in comparison_pair_stats.columns
+            ]
+            if missing_pair_stats_columns:
+                missing = ", ".join(missing_pair_stats_columns)
+                raise DatasetValidationError(
+                    "dataset.preprocessing_report.comparison_pair_stats is "
+                    f"missing required columns: {missing}"
+                )
         object.__setattr__(self, "row_counts", row_counts)
         object.__setattr__(self, "operations", operations)
         object.__setattr__(self, "duplicate_site_resolution", duplicate_site_resolution)
         object.__setattr__(self, "metadata_conflicts", metadata_conflicts)
+        object.__setattr__(self, "comparison_group_stats", comparison_group_stats)
+        object.__setattr__(self, "comparison_pair_stats", comparison_pair_stats)
 
     @classmethod
     def _from_owned(
@@ -150,12 +213,16 @@ class DatasetPreprocessingReport:
         operations: pd.DataFrame,
         duplicate_site_resolution: pd.DataFrame | None = None,
         metadata_conflicts: pd.DataFrame | None = None,
+        comparison_group_stats: pd.DataFrame | None = None,
+        comparison_pair_stats: pd.DataFrame | None = None,
     ) -> DatasetPreprocessingReport:
         return cls(
             row_counts=row_counts,
             operations=operations,
             duplicate_site_resolution=duplicate_site_resolution,
             metadata_conflicts=metadata_conflicts,
+            comparison_group_stats=comparison_group_stats,
+            comparison_pair_stats=comparison_pair_stats,
             _assume_owned=True,
         )
 
