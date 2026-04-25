@@ -102,6 +102,15 @@ class PreprocessingState:
     comparisons: pd.DataFrame | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class PreprocessingStageExecution:
+    """Executed preprocessing stage row-count summary."""
+
+    stage: str
+    input_rows: int
+    output_rows: int
+
+
 class PreprocessingStage(Protocol):
     """Single internal preprocessing stage contract."""
 
@@ -118,6 +127,7 @@ __all__ = [
     "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",
     "PreprocessingPlan",
+    "PreprocessingStageExecution",
     "PreprocessingStage",
     "PreprocessingState",
 ]

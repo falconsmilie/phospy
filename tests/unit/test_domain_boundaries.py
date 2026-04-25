@@ -83,6 +83,18 @@ def test_dataset_allows_missing_site_sequence_column() -> None:
     assert "site_sequence" not in dataset.site_metadata.columns
 
 
+def test_dataset_exposes_optional_preprocessing_report_field() -> None:
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        transformation_state=supported_linear_state(has_total_matrix=False),
+    )
+
+    assert hasattr(dataset, "preprocessing_report")
+    assert dataset.preprocessing_report is None
+
+
 def test_dataset_rejects_blank_gene_symbol_values() -> None:
     bad_site_metadata = _site_metadata().copy(deep=True)
     bad_site_metadata.loc[:, "gene_symbol"] = ["   "]

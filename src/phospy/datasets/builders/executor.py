@@ -6,6 +6,8 @@ transformation state after applying explicit builder preprocessing policy.
 
 from __future__ import annotations
 
+import pandas as pd
+
 from phospy.datasets.builders.contracts import (
     DatasetPreprocessorContract,
     InterpretedDatasetBuildRequest,
@@ -14,7 +16,10 @@ from phospy.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.datasets.builders.transformation_resolver import (
     DatasetTransformationResolver,
 )
-from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.models import (
+    AnalysisReadyPhosphoDataset,
+    DatasetPreprocessingReport,
+)
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.transformations import (
@@ -24,6 +29,18 @@ from phospy.errors.transformations import (
 from phospy.errors.validation import PhosPyValidationError
 from phospy.transformations.contracts import Transformer
 from phospy.transformations.transformers import IdentityTransformer
+
+_ROW_COUNT_COLUMNS = ("stage", "input_rows", "output_rows", "dropped_rows")
+_OPERATION_COLUMNS = (
+    "step_order",
+    "stage",
+    "operation",
+    "parameters",
+    "input_rows",
+    "output_rows",
+    "notes",
+)
+_FINAL_DATASET_STAGE = "final_dataset_construction"
 
 
 class DatasetBuildExecutor:
@@ -70,6 +87,12 @@ class DatasetBuildExecutor:
                     "transformation state; this violates the dataset boundary "
                     "contract"
                 )
+            report = _build_dataset_preprocessing_report(
+                row_counts=preprocessed.preprocessing_row_counts,
+                operations=preprocessed.preprocessing_operations,
+                final_dataset_rows=int(len(resolved.phospho.index)),
+                transformation_state_label=resolved.transformation_state.label,
+            )
             return AnalysisReadyPhosphoDataset._from_owned(
                 phospho=resolved.phospho,
                 site_metadata=preprocessed.site_metadata,
@@ -78,6 +101,7 @@ class DatasetBuildExecutor:
                 comparisons=preprocessed.comparisons,
                 organism=request.organism,
                 transformation_state=resolved.transformation_state,
+                preprocessing_report=report,
             )
         except (
             PhosPyInputError,
@@ -90,3 +114,71 @@ class DatasetBuildExecutor:
             raise DatasetBuildError(
                 "failed to construct AnalysisReadyPhosphoDataset from interpreted input"
             ) from exc
+
+
+def _build_dataset_preprocessing_report(
+    *,
+    row_counts: pd.DataFrame | None,
+    operations: pd.DataFrame | None,
+    final_dataset_rows: int,
+    transformation_state_label: str,
+) -> DatasetPreprocessingReport:
+    base_row_counts = (
+        pd.DataFrame.from_records([], columns=_ROW_COUNT_COLUMNS)
+        if row_counts is None
+        else row_counts
+    )
+    base_operations = (
+        pd.DataFrame.from_records([], columns=_OPERATION_COLUMNS)
+        if operations is None
+        else operations
+    )
+    final_row_counts = pd.concat(
+        [
+            base_row_counts,
+            pd.DataFrame.from_records(
+                [
+                    {
+                        "stage": _FINAL_DATASET_STAGE,
+                        "input_rows": final_dataset_rows,
+                        "output_rows": final_dataset_rows,
+                        "dropped_rows": 0,
+                    }
+                ],
+                columns=_ROW_COUNT_COLUMNS,
+            ),
+        ],
+        axis=0,
+        ignore_index=True,
+    )
+    if base_operations.empty:
+        final_step_order = 1
+    else:
+        final_step_order = int(base_operations.loc[:, "step_order"].max()) + 1
+    final_operations = pd.concat(
+        [
+            base_operations,
+            pd.DataFrame.from_records(
+                [
+                    {
+                        "step_order": final_step_order,
+                        "stage": _FINAL_DATASET_STAGE,
+                        "operation": "construct_analysis_ready_dataset",
+                        "parameters": {
+                            "transformation_state_label": transformation_state_label
+                        },
+                        "input_rows": final_dataset_rows,
+                        "output_rows": final_dataset_rows,
+                        "notes": "analysis-ready dataset boundary construction",
+                    }
+                ],
+                columns=_OPERATION_COLUMNS,
+            ),
+        ],
+        axis=0,
+        ignore_index=True,
+    )
+    return DatasetPreprocessingReport._from_owned(
+        row_counts=final_row_counts,
+        operations=final_operations,
+    )

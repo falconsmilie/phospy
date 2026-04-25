@@ -24,6 +24,7 @@ TOP_LEVEL_CONVENIENCE_SURFACE = {
 
 API_ONLY_CONTRACT_TYPES = {
     "DatasetBuildRequest",
+    "DatasetPreprocessingReport",
     "DatasetPreprocessingConfig",
     "DatasetSiteMatrixConfig",
     "KinaseWorkflowRequest",

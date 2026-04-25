@@ -15,6 +15,81 @@ from phospy.validation.transformations.state import TransformationStateValidator
 
 _DATASET_VALIDATOR = AnalysisReadyDatasetValidator()
 _TRANSFORMATION_STATE_VALIDATOR = TransformationStateValidator()
+_PREPROCESSING_REPORT_ROW_COUNT_COLUMNS = (
+    "stage",
+    "input_rows",
+    "output_rows",
+    "dropped_rows",
+)
+_PREPROCESSING_REPORT_OPERATION_COLUMNS = (
+    "step_order",
+    "stage",
+    "operation",
+    "parameters",
+    "input_rows",
+    "output_rows",
+    "notes",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetPreprocessingReport:
+    """Public provenance report for dataset preprocessing."""
+
+    row_counts: pd.DataFrame
+    operations: pd.DataFrame
+    _assume_owned: InitVar[bool] = False
+
+    def __post_init__(self, _assume_owned: bool) -> None:
+        row_counts = own_dataframe(
+            self.row_counts,
+            field_name="dataset.preprocessing_report.row_counts",
+            error_type=DatasetValidationError,
+            assume_owned=_assume_owned,
+        )
+        operations = own_dataframe(
+            self.operations,
+            field_name="dataset.preprocessing_report.operations",
+            error_type=DatasetValidationError,
+            assume_owned=_assume_owned,
+        )
+        missing_row_columns = [
+            column
+            for column in _PREPROCESSING_REPORT_ROW_COUNT_COLUMNS
+            if column not in row_counts.columns
+        ]
+        if missing_row_columns:
+            missing = ", ".join(missing_row_columns)
+            raise DatasetValidationError(
+                "dataset.preprocessing_report.row_counts is missing required "
+                f"columns: {missing}"
+            )
+        missing_operation_columns = [
+            column
+            for column in _PREPROCESSING_REPORT_OPERATION_COLUMNS
+            if column not in operations.columns
+        ]
+        if missing_operation_columns:
+            missing = ", ".join(missing_operation_columns)
+            raise DatasetValidationError(
+                "dataset.preprocessing_report.operations is missing required "
+                f"columns: {missing}"
+            )
+        object.__setattr__(self, "row_counts", row_counts)
+        object.__setattr__(self, "operations", operations)
+
+    @classmethod
+    def _from_owned(
+        cls,
+        *,
+        row_counts: pd.DataFrame,
+        operations: pd.DataFrame,
+    ) -> DatasetPreprocessingReport:
+        return cls(
+            row_counts=row_counts,
+            operations=operations,
+            _assume_owned=True,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +115,7 @@ class AnalysisReadyPhosphoDataset:
     total: pd.DataFrame | None = None
     comparisons: pd.DataFrame | None = None
     organism: Organism | None = None
+    preprocessing_report: DatasetPreprocessingReport | None = None
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
@@ -86,6 +162,14 @@ class AnalysisReadyPhosphoDataset:
             has_total_matrix=total is not None,
             require_established=True,
         )
+        if self.preprocessing_report is not None and not isinstance(
+            self.preprocessing_report,
+            DatasetPreprocessingReport,
+        ):
+            raise DatasetValidationError(
+                "dataset.preprocessing_report must be DatasetPreprocessingReport "
+                "or None"
+            )
         object.__setattr__(self, "phospho", phospho)
         object.__setattr__(self, "site_metadata", site_metadata)
         object.__setattr__(self, "sample_metadata", sample_metadata)
@@ -104,6 +188,7 @@ class AnalysisReadyPhosphoDataset:
         total: pd.DataFrame | None = None,
         comparisons: pd.DataFrame | None = None,
         organism: Organism | None = None,
+        preprocessing_report: DatasetPreprocessingReport | None = None,
     ) -> AnalysisReadyPhosphoDataset:
         return cls(
             phospho=phospho,
@@ -113,5 +198,6 @@ class AnalysisReadyPhosphoDataset:
             total=total,
             comparisons=comparisons,
             organism=organism,
+            preprocessing_report=preprocessing_report,
             _assume_owned=True,
         )

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from phospy.datasets.preprocessing.models import PreprocessingStage, PreprocessingState
+from phospy.datasets.preprocessing.models import (
+    PreprocessingStage,
+    PreprocessingStageExecution,
+    PreprocessingState,
+)
 from phospy.datasets.preprocessing.stages.comparisons import ComparisonsStage
 from phospy.datasets.preprocessing.stages.missing_data import MissingDataStage
 from phospy.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
@@ -33,7 +37,15 @@ class PreprocessingPipeline:
             )
 
     def run(self, state: PreprocessingState) -> PreprocessingState:
+        final_state, _ = self.run_with_trace(state)
+        return final_state
+
+    def run_with_trace(
+        self,
+        state: PreprocessingState,
+    ) -> tuple[PreprocessingState, tuple[PreprocessingStageExecution, ...]]:
         current = state
+        trace: list[PreprocessingStageExecution] = []
         for stage_key in current.plan.stage_order:
             stage = self._stages_by_key.get(stage_key)
             if stage is None:
@@ -41,8 +53,17 @@ class PreprocessingPipeline:
                     "dataset preprocessing plan references an unsupported stage: "
                     f"{stage_key}"
                 )
+            input_rows = int(len(current.phospho.index))
             current = stage.run(current)
-        return current
+            output_rows = int(len(current.phospho.index))
+            trace.append(
+                PreprocessingStageExecution(
+                    stage=stage_key,
+                    input_rows=input_rows,
+                    output_rows=output_rows,
+                )
+            )
+        return current, tuple(trace)
 
 
 __all__ = ["PreprocessingPipeline"]

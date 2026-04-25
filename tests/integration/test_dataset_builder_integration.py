@@ -25,6 +25,41 @@ from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadat
 pytestmark = pytest.mark.integration
 
 
+def test_dataset_builder_populates_preprocessing_report_for_successful_build() -> None:
+    phospho = load_rat_l6_phospho().head(16).copy(deep=True)
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata_for(phospho),
+            organism=Organism.RAT,
+        )
+    )
+
+    pdt.assert_frame_equal(built.phospho, phospho)
+    report = built.preprocessing_report
+    assert report is not None
+    assert report.row_counts.shape[0] >= 1
+    assert report.operations.shape[0] >= 1
+    assert {
+        "stage",
+        "input_rows",
+        "output_rows",
+        "dropped_rows",
+    }.issubset(set(report.row_counts.columns))
+    assert {
+        "step_order",
+        "stage",
+        "operation",
+        "parameters",
+        "input_rows",
+        "output_rows",
+        "notes",
+    }.issubset(set(report.operations.columns))
+    assert "missing_data" in set(report.row_counts.loc[:, "stage"])
+    assert "site_matrix" in set(report.row_counts.loc[:, "stage"])
+    assert "final_dataset_construction" in set(report.row_counts.loc[:, "stage"])
+
+
 def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
     phospho = load_rat_l6_phospho().head(32).copy(deep=True)
     built = AnalysisReadyDatasetBuilder().run(

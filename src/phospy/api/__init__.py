@@ -16,7 +16,10 @@ from phospy.api.configs import (
     KinaseScoringConfig,
     SignalomeConfig,
 )
-from phospy.api.datasets import AnalysisReadyPhosphoDataset
+from phospy.api.datasets import (
+    AnalysisReadyPhosphoDataset,
+    DatasetPreprocessingReport,
+)
 from phospy.api.enums import Organism, ReferencePreset
 from phospy.api.requests import (
     DatasetBuildRequest,
@@ -59,6 +62,7 @@ from phospy.references.models import ReferenceBundle
 __all__ = [
     "AnalysisReadyDatasetBuilder",
     "AnalysisReadyPhosphoDataset",
+    "DatasetPreprocessingReport",
     "DatasetComparisonBuildingConfig",
     "DatasetBuildRequest",
     "DatasetMissingDataConfig",
