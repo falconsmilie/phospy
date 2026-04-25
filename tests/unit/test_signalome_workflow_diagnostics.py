@@ -26,6 +26,7 @@ from phospy.signalomes.constants import (
     SITE_CLUSTER_COLUMN,
 )
 from phospy.workflows.signalome.constants import (
+    SIGNALOME_EXECUTOR_CONTEXT_TABLES_SEAM,
     SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM,
     SIGNALOME_EXECUTOR_KINASE_SUPPORT_SEAM,
     SIGNALOME_EXECUTOR_MODULE_CONSTRUCTION_SEAM,
@@ -146,6 +147,37 @@ def _execution_config(config: SignalomeConfig) -> ResolvedSignalomeExecutionConf
             None if config.module_count is None else int(config.module_count)
         ),
     )
+
+
+def _interpreted_request_for_context_failure() -> ResolvedSignalomeWorkflowRequest:
+    dataset = _dataset(site_ids=["P1;S1;", "P2;S2;", "P3;S3;"])
+    prediction_matrix = _matrix(
+        values=[
+            [0.95, 0.1],
+            [0.1, 0.95],
+            [0.8, 0.7],
+        ],
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.8, 0.7],
+        ],
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(substrate_support_cutoff=0.5),
+    )
+    return SignalomeWorkflowInterpreter().run(request)
 
 
 def test_boundary_error_reports_no_usable_site_alignment_counts() -> None:
@@ -923,6 +955,74 @@ def test_boundary_error_reports_expanded_signalome_failure_seam(
     assert f"seam={SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM}" in message
     assert f"assignment_policy={SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY}" in message
     assert "stage_error=expanded signalome seam regression test" in message
+
+
+def test_boundary_error_reports_context_table_site_membership_failure_seam(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.workflows.signalome.executor as executor_module
+
+    interpreted = _interpreted_request_for_context_failure()
+
+    def _raise_site_membership_error(**_: object) -> pd.DataFrame:
+        raise ValueError("site membership context seam regression test")
+
+    monkeypatch.setattr(
+        executor_module,
+        "build_site_membership_table",
+        _raise_site_membership_error,
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        SignalomeWorkflowExecutor().run(interpreted)
+
+    error = exc_info.value
+    message = str(error)
+    assert error.seam == SIGNALOME_EXECUTOR_CONTEXT_TABLES_SEAM
+    assert "prediction_sites=3" in message
+    assert "prediction_kinases=2" in message
+    assert "module_assignment_rows=3" in message
+    assert "module_assignment_columns=" in message
+    assert "site_cluster_count=" in message
+    assert "supported_sites=3" in message
+    assert "supported_kinases=2" in message
+    assert "substrate_support_cutoff=0.5" in message
+    assert f"assignment_policy={SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY}" in message
+    assert "stage_error=site membership context seam regression test" in message
+
+
+def test_boundary_error_reports_context_table_protein_context_failure_seam(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.workflows.signalome.executor as executor_module
+
+    interpreted = _interpreted_request_for_context_failure()
+
+    def _raise_protein_context_error(**_: object) -> pd.DataFrame:
+        raise WorkflowStageError("protein context seam regression test")
+
+    monkeypatch.setattr(
+        executor_module,
+        "build_protein_site_context_table",
+        _raise_protein_context_error,
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        SignalomeWorkflowExecutor().run(interpreted)
+
+    error = exc_info.value
+    message = str(error)
+    assert error.seam == SIGNALOME_EXECUTOR_CONTEXT_TABLES_SEAM
+    assert "prediction_sites=3" in message
+    assert "prediction_kinases=2" in message
+    assert "module_assignment_rows=3" in message
+    assert "module_assignment_columns=" in message
+    assert "site_cluster_count=" in message
+    assert "supported_sites=3" in message
+    assert "supported_kinases=2" in message
+    assert "substrate_support_cutoff=0.5" in message
+    assert f"assignment_policy={SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY}" in message
+    assert "stage_error=protein context seam regression test" in message
 
 
 def test_support_cutoff_changes_substrate_support_without_changing_network_edges() -> (

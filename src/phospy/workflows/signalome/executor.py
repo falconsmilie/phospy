@@ -17,8 +17,6 @@ from phospy.signalomes.constants import MODULE_ID_COLUMN
 from phospy.signalomes.context import (
     build_protein_site_context_table,
     build_site_membership_table,
-    empty_protein_site_context_table,
-    empty_site_membership_table,
 )
 from phospy.signalomes.models import (
     KinaseNetwork,
@@ -33,6 +31,7 @@ from phospy.signalomes.science import (
     select_kinase_substrates,
 )
 from phospy.workflows.signalome.constants import (
+    SIGNALOME_EXECUTOR_CONTEXT_TABLES_SEAM,
     SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM,
     SIGNALOME_EXECUTOR_KINASE_SUPPORT_SEAM,
     SIGNALOME_EXECUTOR_MODULE_CONSTRUCTION_SEAM,
@@ -87,6 +86,7 @@ class SignalomeWorkflowExecutor:
     _KINASE_SUPPORT_SEAM = SIGNALOME_EXECUTOR_KINASE_SUPPORT_SEAM
     _MODULE_CONSTRUCTION_SEAM = SIGNALOME_EXECUTOR_MODULE_CONSTRUCTION_SEAM
     _EXPANDED_SIGNALOME_SEAM = SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM
+    _CONTEXT_TABLES_SEAM = SIGNALOME_EXECUTOR_CONTEXT_TABLES_SEAM
 
     def run(self, request: ResolvedSignalomeWorkflowRequest) -> SignalomeWorkflowResult:
         config = request.execution_config
@@ -133,6 +133,7 @@ class SignalomeWorkflowExecutor:
             clustering_result=clustering_stage.clustering_result,
             module_assignments=module_assignments,
             support_summary=signalome_module_stage.support_summary,
+            execution_metadata=execution_metadata,
         )
 
         return self._assemble_result(
@@ -178,14 +179,15 @@ class SignalomeWorkflowExecutor:
             protein_site_context=protein_site_context,
         )
 
-    @staticmethod
     def _build_signalome_context_tables(
+        self,
         *,
         request: ResolvedSignalomeWorkflowRequest,
         config: ResolvedSignalomeExecutionConfig,
         clustering_result: ClusterSitesResult,
         module_assignments: pd.DataFrame,
         support_summary: _SupportSummary,
+        execution_metadata: _ExecutionMetadata,
     ) -> _SignalomeContextStage:
         try:
             site_membership = build_site_membership_table(
@@ -204,10 +206,22 @@ class SignalomeWorkflowExecutor:
                 site_membership=site_membership,
                 protein_site_context=protein_site_context,
             )
-        except Exception:
-            return _SignalomeContextStage(
-                site_membership=empty_site_membership_table(),
-                protein_site_context=empty_protein_site_context_table(),
+        except (WorkflowStageError, ValueError, TypeError, KeyError) as exc:
+            self._raise_boundary_error(
+                seam=self._CONTEXT_TABLES_SEAM,
+                next_action=(
+                    "ensure module assignments, site clusters, site metadata, "
+                    "prediction scores, and supported substrate mappings are "
+                    "mutually consistent before building signalome context tables"
+                ),
+                **self._prediction_shape_details(execution_metadata),
+                module_assignment_rows=int(module_assignments.shape[0]),
+                module_assignment_columns=int(module_assignments.shape[1]),
+                site_cluster_count=int(clustering_result.site_clusters.nunique()),
+                **self._support_details(support_summary.support_counts),
+                substrate_support_cutoff=config.substrate_support_cutoff,
+                assignment_policy=config.assignment_policy,
+                stage_error=str(exc),
             )
 
     @staticmethod
