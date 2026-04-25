@@ -20,6 +20,7 @@ from phospy.io.bundles._shared.primitives import (
 from phospy.io.bundles._shared.transformation_state import (
     transformation_state_to_payload,
 )
+from phospy.provenance.serialization import to_payload as provenance_to_payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +35,7 @@ class KinaseManifestSections:
     scoring_tables: Mapping[str, object]
     prediction_tables: Mapping[str, object]
     activity_tables: Mapping[str, object]
+    provenance_payload: Mapping[str, object] | None
     config_snapshot_path: str
 
 
@@ -84,6 +86,11 @@ def build_manifest(
                 "tables": dict(activity_tables),
             },
         },
+        "provenance": (
+            None
+            if result.provenance is None
+            else provenance_to_payload(result.provenance)
+        ),
         "config_snapshot": CONFIG_SNAPSHOT_RELATIVE_PATH,
     }
 
@@ -134,6 +141,15 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
         outputs_payload.get("activity"),
         field_name="bundle manifest.outputs.activity",
     )
+    provenance_raw = payload.get("provenance")
+    provenance_payload = (
+        None
+        if provenance_raw is None
+        else require_mapping(
+            provenance_raw,
+            field_name="bundle manifest.provenance",
+        )
+    )
 
     return KinaseManifestSections(
         manifest_version=manifest_version,
@@ -165,6 +181,7 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
             activity_payload.get("tables"),
             field_name="bundle manifest.outputs.activity.tables",
         ),
+        provenance_payload=provenance_payload,
         config_snapshot_path=require_str(
             payload.get("config_snapshot"),
             field_name="bundle manifest.config_snapshot",

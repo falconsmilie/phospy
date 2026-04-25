@@ -5,8 +5,11 @@ from __future__ import annotations
 from typing import Protocol
 
 from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
+from phospy.provenance.hashing import fingerprint_table
+from phospy.provenance.models import ReferenceProvenance
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.references.resources import (
+    bundled_reference_name_for_organism,
     load_bundled_kinase_substrate_map,
     load_bundled_site_sequences,
 )
@@ -43,12 +46,29 @@ class BundledReferenceProvider:
             raise UnsupportedOrganismError(
                 "bundled reference provider requires a supported Organism"
             )
+        bundle_id = bundled_reference_name_for_organism(organism)
         kinase_substrate_map = load_bundled_kinase_substrate_map(organism)
         site_sequences = load_bundled_site_sequences(organism)
+        provenance = ReferenceProvenance(
+            source_type="bundled",
+            organism=organism.value,
+            bundle_id=bundle_id,
+            table_fingerprints=(
+                fingerprint_table(
+                    kinase_substrate_map,
+                    name="references.kinase_substrate_map",
+                ),
+                fingerprint_table(
+                    site_sequences,
+                    name="references.site_sequences",
+                ),
+            ),
+        )
         return ReferenceBundle._from_owned(
             organism=organism,
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,
+            provenance=provenance,
         )
 
 

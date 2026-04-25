@@ -49,6 +49,7 @@ def test_kinase_bundle_round_trip_preserves_outputs_and_config(
 
     assert loaded.manifest_version == KINASE_BUNDLE_MANIFEST_VERSION
     assert loaded.config_snapshot == config_snapshot
+    assert loaded.result.provenance == result.provenance
     _assert_kinase_result_equal(loaded.result, result)
 
 
@@ -98,6 +99,20 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
             "target_table": "activity/target_table.csv",
         },
     }
+    assert "provenance" in manifest
+    provenance = manifest["provenance"]
+    assert provenance["environment"]["package_name"] == "phospy"
+    assert provenance["environment"]["python_version"]
+    dependency_versions = provenance["environment"]["dependency_versions"]
+    assert {"numpy", "pandas", "scikit-learn"}.issubset(set(dependency_versions.keys()))
+    input_names = {entry["name"] for entry in provenance["input_tables"]}
+    output_names = {entry["name"] for entry in provenance["output_tables"]}
+    assert "dataset.phospho" in input_names
+    assert "references.kinase_substrate_map" in input_names
+    assert "outputs.scoring.profile_scores" in output_names
+    assert "outputs.prediction.pred_mat" in output_names
+    assert provenance["workflow_name"] == "kinase_workflow"
+    assert "prediction_config" in provenance["workflow_parameters"]
 
 
 def test_kinase_bundle_round_trip_supports_disabled_activity(
@@ -128,6 +143,29 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
             "target_table": None,
         },
     }
+
+
+def test_kinase_bundle_loads_legacy_manifest_without_provenance(
+    tmp_path: Path,
+) -> None:
+    request = _build_request(activity=False)
+    result = KinaseWorkflow().run(request)
+    bundle_root = tmp_path / "kinase_bundle_legacy"
+
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.pop("provenance", None)
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
+    )
+
+    loaded = load_kinase_workflow_bundle(bundle_root)
+    assert loaded.result.provenance is None
 
 
 def _build_request(*, activity: bool) -> KinaseWorkflowRequest:

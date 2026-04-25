@@ -935,3 +935,73 @@ def test_reference_bundle_rat_tables_are_structurally_coherent() -> None:
     )
     known_sites = set(bundle.site_sequences.index.astype(str))
     assert substrate_sites.issubset(known_sites)
+
+
+def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, float("nan"), 2.0, float("nan")],
+            "sample_b": [2.0, 2.0, 3.0, float("nan")],
+            "sample_c": [3.0, 3.0, 4.0, float("nan")],
+        },
+        index=pd.Index(["row_a", "row_b", "row_c", "row_d"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14", "AKT1", "GSK3B"],
+            "site": ["Y182", "Y182", "T308", "S9"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "", "SEQ_D"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_row_median",
+                    min_observed_values=2,
+                ),
+                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata"),
+            ),
+        )
+    )
+
+    assert built.preprocessing_report is not None
+    provenance = built.provenance
+    assert provenance is not None
+    assert provenance.environment.package_name == "phospy"
+    assert provenance.workflow_name == "dataset_builder"
+    assert provenance.reference is None
+    assert provenance.random_state is None
+    input_names = {item.name for item in provenance.input_tables}
+    output_names = {item.name for item in provenance.output_tables}
+    assert "dataset.phospho" in input_names
+    assert "dataset.site_metadata" in input_names
+    assert "dataset.phospho" in output_names
+    assert "dataset.site_metadata" in output_names
+
+    missing_stage = next(
+        stage
+        for stage in provenance.preprocessing_stages
+        if stage.stage == "missing_data"
+    )
+    assert missing_stage.operation == "impute_row_median"
+    assert set(missing_stage.dropped_row_ids) == {"row_d"}
+    assert missing_stage.imputed_cell_count == 1
+    assert set(missing_stage.imputed_row_ids) == {"row_b"}
+
+    site_matrix_stage = next(
+        stage
+        for stage in provenance.preprocessing_stages
+        if stage.stage == "site_matrix"
+    )
+    assert site_matrix_stage.operation == "build_from_metadata"
+    diagnostics = site_matrix_stage.diagnostics or {}
+    assert "row_c" in set(diagnostics["dropped_missing_sequence_row_ids"])
+    assert diagnostics["duplicate_site_strategy"] == "max_mean_signal"
+    assert diagnostics["missing_data_policy"] == "drop_any_missing"
+    assert "MAPK14;Y182;" in set(diagnostics["final_constructed_site_ids"])

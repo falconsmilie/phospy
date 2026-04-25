@@ -8,6 +8,7 @@ import pandas as pd
 
 from phospy._frame_ownership import own_dataframe, own_optional_dataframe
 from phospy.errors.validation import DatasetValidationError
+from phospy.provenance.models import RunProvenance
 from phospy.references.models import Organism
 from phospy.transformations.models import TransformationState
 from phospy.validation.datasets.analysis_ready import AnalysisReadyDatasetValidator
@@ -251,6 +252,7 @@ class AnalysisReadyPhosphoDataset:
     comparisons: pd.DataFrame | None = None
     organism: Organism | None = None
     preprocessing_report: DatasetPreprocessingReport | None = None
+    provenance: RunProvenance | None = None
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
@@ -305,6 +307,12 @@ class AnalysisReadyPhosphoDataset:
                 "dataset.preprocessing_report must be DatasetPreprocessingReport "
                 "or None"
             )
+        if self.provenance is not None and not isinstance(
+            self.provenance, RunProvenance
+        ):
+            raise DatasetValidationError(
+                "dataset.provenance must be RunProvenance or None"
+            )
         object.__setattr__(self, "phospho", phospho)
         object.__setattr__(self, "site_metadata", site_metadata)
         object.__setattr__(self, "sample_metadata", sample_metadata)
@@ -324,6 +332,7 @@ class AnalysisReadyPhosphoDataset:
         comparisons: pd.DataFrame | None = None,
         organism: Organism | None = None,
         preprocessing_report: DatasetPreprocessingReport | None = None,
+        provenance: RunProvenance | None = None,
     ) -> AnalysisReadyPhosphoDataset:
         return cls(
             phospho=phospho,
@@ -334,5 +343,6 @@ class AnalysisReadyPhosphoDataset:
             comparisons=comparisons,
             organism=organism,
             preprocessing_report=preprocessing_report,
+            provenance=provenance,
             _assume_owned=True,
         )

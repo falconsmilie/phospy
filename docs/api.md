@@ -244,6 +244,15 @@ Key fields include:
 - `organism` (optional)
 - `transformation_state`
 - `preprocessing_report` (optional)
+- `provenance` (optional `RunProvenance`; machine-readable audit/replay metadata)
+
+`preprocessing_report` and `provenance` serve different purposes:
+
+- `preprocessing_report` is human-facing and table-oriented (`row_counts`,
+  `operations`, duplicate-site and comparison sidecars).
+- `provenance` is machine-readable and contract-oriented (table fingerprints,
+  environment versions, preprocessing execution hashes, workflow parameters,
+  random-state metadata, and output fingerprints).
 
 ### `KinaseWorkflowResult`
 
@@ -254,6 +263,7 @@ Key fields:
 - `scoring_result`
 - `prediction_result`
 - `activity_result` (optional)
+- `provenance` (optional `RunProvenance`)
 
 Common nested outputs:
 
@@ -276,6 +286,7 @@ Key fields:
 - `expanded_signalome` (optional by contract, populated in the supported lane)
 - `site_membership` (optional; site-level signalome membership provenance)
 - `protein_site_context` (optional; protein-level multi-site context summary)
+- `provenance` (optional `RunProvenance`)
 
 Common nested outputs:
 

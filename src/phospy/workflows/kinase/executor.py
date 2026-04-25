@@ -27,9 +27,17 @@ from phospy.prediction.motif_scoring import (
     build_motif_library,
     score_phosphosite_motifs,
 )
+from phospy.prediction.policies import resolve_prediction_sampling_policy
 from phospy.prediction.scoring import (
     combine_profile_and_motif_scores,
     select_downstream_score_matrix,
+)
+from phospy.provenance.environment import collect_environment_provenance
+from phospy.provenance.hashing import fingerprint_optional_table
+from phospy.provenance.models import (
+    PreprocessingStageProvenance,
+    RunProvenance,
+    TableFingerprint,
 )
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.contracts import (
@@ -80,12 +88,20 @@ class KinaseWorkflowExecutor:
             config=config,
             prediction_result=prediction_result,
         )
+        provenance = _build_kinase_run_provenance(
+            request=request,
+            config=config,
+            scoring_result=scoring_execution.scoring_result,
+            prediction_result=prediction_result,
+            activity_result=activity_result,
+        )
         return KinaseWorkflowResult(
             dataset=request.dataset,
             references=request.references,
             scoring_result=scoring_execution.scoring_result,
             prediction_result=prediction_result,
             activity_result=activity_result,
+            provenance=provenance,
         )
 
     def _run_scoring_stage(
@@ -401,3 +417,134 @@ class KinaseWorkflowExecutor:
             details=details,
             message_prefix="kinase workflow boundary validation failed",
         )
+
+
+def _build_kinase_run_provenance(
+    *,
+    request: ResolvedKinaseWorkflowRequest,
+    config: ResolvedKinaseExecutionConfig,
+    scoring_result: KinaseScoringResult,
+    prediction_result: KinasePredictionResult,
+    activity_result: KinaseActivityResult | None,
+) -> RunProvenance:
+    input_tables = _collect_fingerprints(
+        (
+            ("dataset.phospho", request.dataset.phospho),
+            ("dataset.site_metadata", request.dataset.site_metadata),
+            ("dataset.sample_metadata", request.dataset.sample_metadata),
+            ("dataset.total", request.dataset.total),
+            ("dataset.comparisons", request.dataset.comparisons),
+            (
+                "references.kinase_substrate_map",
+                request.references.kinase_substrate_map,
+            ),
+            ("references.site_sequences", request.references.site_sequences),
+        )
+    )
+    output_tables = _collect_fingerprints(
+        (
+            ("outputs.scoring.profile_scores", scoring_result.profile_scores),
+            ("outputs.scoring.motif_scores", scoring_result.motif_scores),
+            ("outputs.scoring.combined_scores", scoring_result.combined_scores),
+            ("outputs.scoring.weights", scoring_result.weights),
+            ("outputs.prediction.pred_mat", prediction_result.pred_mat),
+            ("outputs.prediction.substrate_list", prediction_result.substrate_list),
+            (
+                "outputs.activity.weighted_activity",
+                None if activity_result is None else activity_result.weighted_activity,
+            ),
+            (
+                "outputs.activity.ksea_scores",
+                None if activity_result is None else activity_result.ksea_scores,
+            ),
+            (
+                "outputs.activity.ksea_counts",
+                (
+                    None
+                    if activity_result is None
+                    else activity_result.ksea_counts.to_frame(name="n_substrates")
+                ),
+            ),
+            (
+                "outputs.activity.target_counts",
+                (
+                    None
+                    if activity_result is None
+                    else activity_result.target_counts.to_frame(name="n_targets")
+                ),
+            ),
+            (
+                "outputs.activity.target_table",
+                None if activity_result is None else activity_result.target_table,
+            ),
+        )
+    )
+    return RunProvenance(
+        environment=collect_environment_provenance(),
+        input_tables=input_tables,
+        preprocessing_stages=_dataset_preprocessing_stages(request),
+        reference=request.references.provenance,
+        workflow_name="kinase_workflow",
+        workflow_parameters={
+            "scoring_config": {
+                "min_substrates": int(config.scoring_min_substrates),
+                "include_diagnostic_scoring_tables": bool(
+                    config.include_diagnostic_scoring_tables
+                ),
+                "profile_missing_value_strategy": str(
+                    config.profile_missing_value_strategy
+                ),
+            },
+            "prediction_config": {
+                "top_k": int(config.prediction_top_k),
+                "ensemble_size": int(config.prediction_ensemble_size),
+                "mode": str(config.prediction_mode),
+                "adaptive_policy": str(config.prediction_adaptive_policy),
+                "n_iterations": int(config.prediction_n_iterations),
+                "random_state": config.prediction_random_state,
+            },
+            "activity_config": (
+                None
+                if config.activity is None
+                else {
+                    "threshold": float(config.activity.threshold),
+                    "min_substrates": int(config.activity.min_substrates),
+                    "top_n_substrates": int(config.activity.top_n_substrates),
+                }
+            ),
+        },
+        random_state=config.prediction_random_state,
+        random_seed_policy=_resolve_seed_policy(config),
+        output_tables=output_tables,
+    )
+
+
+def _resolve_seed_policy(config: ResolvedKinaseExecutionConfig) -> str | None:
+    if config.prediction_mode == KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING:
+        return None
+    if config.prediction_mode != KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE:
+        return None
+    return resolve_prediction_sampling_policy(
+        config.prediction_adaptive_policy
+    ).seed_strategy
+
+
+def _dataset_preprocessing_stages(
+    request: ResolvedKinaseWorkflowRequest,
+) -> tuple[PreprocessingStageProvenance, ...]:
+    provenance = request.dataset.provenance
+    if provenance is None:
+        return ()
+    return tuple(provenance.preprocessing_stages)
+
+
+def _collect_fingerprints(
+    entries: tuple[tuple[str, pd.DataFrame | None], ...],
+) -> tuple[TableFingerprint, ...]:
+    fingerprints: list[TableFingerprint] = []
+    for name, table in entries:
+        fingerprint = fingerprint_optional_table(table, name=name)
+        if fingerprint is None:
+            continue
+        fingerprints.append(fingerprint)
+    return tuple(fingerprints)

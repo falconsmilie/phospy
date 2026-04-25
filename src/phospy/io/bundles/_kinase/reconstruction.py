@@ -23,6 +23,7 @@ from phospy.io.bundles._shared.transformation_state import (
     transformation_state_from_payload,
 )
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.provenance.serialization import from_payload as provenance_from_payload
 from phospy.references.models import ReferenceBundle
 
 
@@ -33,6 +34,11 @@ def reconstruct_kinase_result(
 ) -> KinaseWorkflowResult:
     """Rebuild a KinaseWorkflowResult from already-validated manifest sections."""
 
+    provenance = (
+        None
+        if sections.provenance_payload is None
+        else provenance_from_payload(sections.provenance_payload)
+    )
     dataset = AnalysisReadyPhosphoDataset(
         phospho=read_required_table(
             bundle_root=bundle_root,
@@ -190,4 +196,5 @@ def reconstruct_kinase_result(
         scoring_result=scoring_result,
         prediction_result=prediction_result,
         activity_result=activity_result,
+        provenance=provenance,
     )

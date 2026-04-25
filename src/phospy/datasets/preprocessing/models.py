@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 import pandas as pd
@@ -154,11 +154,29 @@ class DuplicateSiteResolutionResult:
 
 @dataclass(frozen=True, slots=True)
 class PreprocessingStageExecution:
-    """Executed preprocessing stage row-count summary."""
+    """Executed preprocessing stage provenance trace."""
 
     stage: str
-    input_rows: int
-    output_rows: int
+    operation: str
+    parameters: dict[str, object]
+    input_shape: tuple[int, int]
+    output_shape: tuple[int, int]
+    input_hash: str
+    output_hash: str
+    dropped_row_ids: tuple[str, ...] = ()
+    dropped_row_count: int = 0
+    imputed_cell_count: int = 0
+    imputed_row_ids: tuple[str, ...] = ()
+    notes: str | None = None
+    diagnostics: dict[str, object] = field(default_factory=dict)
+
+    @property
+    def input_rows(self) -> int:
+        return int(self.input_shape[0])
+
+    @property
+    def output_rows(self) -> int:
+        return int(self.output_shape[0])
 
 
 class PreprocessingStage(Protocol):

@@ -24,6 +24,7 @@ from phospy.io.bundles._signalome.constants import (
     SIGNALOME_BUNDLE_KIND,
     SIGNALOME_BUNDLE_MANIFEST_VERSION,
 )
+from phospy.provenance.serialization import to_payload as provenance_to_payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +41,7 @@ class SignalomeManifestSections:
     activity_tables: Mapping[str, object]
     signalome_metadata: Mapping[str, object]
     signalome_tables: Mapping[str, object]
+    provenance_payload: Mapping[str, object] | None
     config_snapshot_path: str
 
 
@@ -104,6 +106,11 @@ def build_manifest(
             },
             "tables": dict(signalome_tables),
         },
+        "provenance": (
+            None
+            if result.provenance is None
+            else provenance_to_payload(result.provenance)
+        ),
         "config_snapshot": CONFIG_SNAPSHOT_RELATIVE_PATH,
     }
 
@@ -158,6 +165,15 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
         payload.get("signalome_outputs"),
         field_name="bundle manifest.signalome_outputs",
     )
+    provenance_raw = payload.get("provenance")
+    provenance_payload = (
+        None
+        if provenance_raw is None
+        else require_mapping(
+            provenance_raw,
+            field_name="bundle manifest.provenance",
+        )
+    )
 
     return SignalomeManifestSections(
         manifest_version=manifest_version,
@@ -197,6 +213,7 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
             signalome_outputs_payload.get("tables"),
             field_name="bundle manifest.signalome_outputs.tables",
         ),
+        provenance_payload=provenance_payload,
         config_snapshot_path=require_str(
             payload.get("config_snapshot"),
             field_name="bundle manifest.config_snapshot",

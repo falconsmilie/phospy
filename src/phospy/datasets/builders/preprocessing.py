@@ -102,6 +102,7 @@ class DatasetPreprocessor:
             comparison_pair_stats=preprocessed_state.comparison_pair_stats,
             preprocessing_row_counts=row_counts,
             preprocessing_operations=operations,
+            preprocessing_trace=trace,
             duplicate_site_resolution=preprocessed_state.duplicate_site_resolution,
             metadata_conflicts=preprocessed_state.metadata_conflicts,
         )
@@ -133,25 +134,35 @@ def _build_preprocessing_provenance_tables(
             stage_input_rows = row_cursor
             stage_output_rows = row_cursor
             notes = "stage not scheduled in preprocessing plan"
+            operation = _resolve_stage_operation(plan=plan, stage=stage)
+            parameters = _resolve_stage_parameters(plan=plan, stage=stage)
         else:
             stage_input_rows = int(record.input_rows)
             stage_output_rows = int(record.output_rows)
-            notes = "stage executed"
+            notes = (
+                "stage executed" if record.notes is None else str(record.notes).strip()
+            )
+            operation = record.operation
+            parameters = dict(record.parameters)
         row_cursor = stage_output_rows
         row_counts_records.append(
             {
                 "stage": stage,
                 "input_rows": stage_input_rows,
                 "output_rows": stage_output_rows,
-                "dropped_rows": max(stage_input_rows - stage_output_rows, 0),
+                "dropped_rows": (
+                    max(stage_input_rows - stage_output_rows, 0)
+                    if record is None
+                    else int(max(record.dropped_row_count, 0))
+                ),
             }
         )
         operations_records.append(
             {
                 "step_order": step_order,
                 "stage": stage,
-                "operation": _resolve_stage_operation(plan=plan, stage=stage),
-                "parameters": _resolve_stage_parameters(plan=plan, stage=stage),
+                "operation": operation,
+                "parameters": parameters,
                 "input_rows": stage_input_rows,
                 "output_rows": stage_output_rows,
                 "notes": notes,

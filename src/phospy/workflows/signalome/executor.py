@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 import pandas as pd
 
 from phospy.api.results import SignalomeWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
+from phospy.provenance.environment import collect_environment_provenance
+from phospy.provenance.hashing import fingerprint_optional_table
+from phospy.provenance.models import (
+    PreprocessingStageProvenance,
+    RunProvenance,
+    TableFingerprint,
+)
+from phospy.provenance.serialization import to_payload as provenance_to_payload
 from phospy.signalomes.clustering import (
     ClusterSitesResult,
     cluster_sites_with_diagnostics,
@@ -135,6 +143,18 @@ class SignalomeWorkflowExecutor:
             support_summary=signalome_module_stage.support_summary,
             execution_metadata=execution_metadata,
         )
+        provenance = _build_signalome_run_provenance(
+            request=request,
+            config=config,
+            clustering_result=clustering_stage.clustering_result,
+            module_assignments=module_assignments,
+            signalome_modules=signalome_module_stage.signalome_modules,
+            network_edges=network_edges,
+            network_nodes=network_nodes,
+            expanded_signalome=expanded_signalome,
+            site_membership=context_stage.site_membership,
+            protein_site_context=context_stage.protein_site_context,
+        )
 
         return self._assemble_result(
             request=request,
@@ -146,6 +166,7 @@ class SignalomeWorkflowExecutor:
             expanded_signalome=expanded_signalome,
             site_membership=context_stage.site_membership,
             protein_site_context=context_stage.protein_site_context,
+            provenance=provenance,
         )
 
     @staticmethod
@@ -160,6 +181,7 @@ class SignalomeWorkflowExecutor:
         expanded_signalome: pd.DataFrame,
         site_membership: pd.DataFrame,
         protein_site_context: pd.DataFrame,
+        provenance: RunProvenance,
     ) -> SignalomeWorkflowResult:
         return SignalomeWorkflowResult._from_owned(
             dataset=request.dataset,
@@ -177,6 +199,7 @@ class SignalomeWorkflowExecutor:
             expanded_signalome=expanded_signalome,
             site_membership=site_membership,
             protein_site_context=protein_site_context,
+            provenance=provenance,
         )
 
     def _build_signalome_context_tables(
@@ -572,3 +595,113 @@ class SignalomeWorkflowExecutor:
             details=details,
             message_prefix=SIGNALOME_WORKFLOW_BOUNDARY_MESSAGE_PREFIX,
         )
+
+
+def _build_signalome_run_provenance(
+    *,
+    request: ResolvedSignalomeWorkflowRequest,
+    config: ResolvedSignalomeExecutionConfig,
+    clustering_result: ClusterSitesResult,
+    module_assignments: pd.DataFrame,
+    signalome_modules: pd.DataFrame,
+    network_edges: pd.DataFrame,
+    network_nodes: pd.DataFrame,
+    expanded_signalome: pd.DataFrame,
+    site_membership: pd.DataFrame,
+    protein_site_context: pd.DataFrame,
+) -> RunProvenance:
+    input_tables = _collect_fingerprints(
+        (
+            ("dataset.phospho", request.dataset.phospho),
+            ("dataset.site_metadata", request.dataset.site_metadata),
+            ("dataset.sample_metadata", request.dataset.sample_metadata),
+            ("dataset.total", request.dataset.total),
+            ("dataset.comparisons", request.dataset.comparisons),
+            ("upstream.prediction.pred_mat", request.prediction_matrix),
+            (
+                "upstream.scoring.downstream_score_matrix",
+                request.downstream_score_matrix,
+            ),
+        )
+    )
+    output_tables = _collect_fingerprints(
+        (
+            ("outputs.signalome.module_assignments", module_assignments),
+            ("outputs.signalome.signalome_modules", signalome_modules),
+            ("outputs.signalome.kinase_network.edges", network_edges),
+            ("outputs.signalome.kinase_network.nodes", network_nodes),
+            ("outputs.signalome.expanded_signalome", expanded_signalome),
+            ("outputs.signalome.site_membership", site_membership),
+            ("outputs.signalome.protein_site_context", protein_site_context),
+        )
+    )
+    upstream_provenance = request.kinase_result.provenance
+    return RunProvenance(
+        environment=collect_environment_provenance(),
+        input_tables=input_tables,
+        preprocessing_stages=_dataset_preprocessing_stages(request),
+        reference=request.kinase_result.references.provenance,
+        workflow_name="signalome_workflow",
+        workflow_parameters={
+            "signalome_config": {
+                "substrate_support_cutoff": float(config.substrate_support_cutoff),
+                "network_correlation_threshold": float(
+                    config.network_correlation_threshold
+                ),
+                "network_policy": str(config.network_policy),
+                "assignment_policy": str(config.assignment_policy),
+                "score_preconditioning_policy": str(
+                    config.score_preconditioning_policy
+                ),
+                "module_selection_primary_correlation_threshold": float(
+                    config.module_selection_primary_threshold
+                ),
+                "module_selection_fallback_correlation_threshold": float(
+                    config.module_selection_fallback_threshold
+                ),
+                "module_selection_max_clusters": int(
+                    config.module_selection_max_clusters
+                ),
+                "module_count": (
+                    None
+                    if config.requested_module_count is None
+                    else int(config.requested_module_count)
+                ),
+            },
+            "module_selection_diagnostics": asdict(
+                clustering_result.module_selection_diagnostics
+            ),
+            "score_preconditioning_diagnostics": asdict(
+                request.score_preconditioning_diagnostics
+            ),
+            "upstream_kinase_provenance": (
+                None
+                if upstream_provenance is None
+                else provenance_to_payload(upstream_provenance)
+            ),
+        },
+        random_state=None,
+        random_seed_policy=None,
+        output_tables=output_tables,
+    )
+
+
+def _dataset_preprocessing_stages(
+    request: ResolvedSignalomeWorkflowRequest,
+) -> tuple[PreprocessingStageProvenance, ...]:
+    provenance = request.dataset.provenance
+    if provenance is None:
+        return ()
+    return tuple(provenance.preprocessing_stages)
+
+
+def _collect_fingerprints(
+    entries: tuple[tuple[str, pd.DataFrame | None], ...],
+) -> tuple[TableFingerprint, ...]:
+    fingerprints: list[TableFingerprint] = []
+    for name, table in entries:
+        fingerprint = fingerprint_optional_table(table, name=name)
+        if fingerprint is None:
+            continue
+        fingerprints.append(fingerprint)
+    return tuple(fingerprints)

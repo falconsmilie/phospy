@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 
 from phospy.activities.models import KinaseActivityResult
@@ -28,6 +29,7 @@ from phospy.io.bundles._signalome.compatibility import (
 )
 from phospy.io.bundles._signalome.manifest import SignalomeManifestSections
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.provenance.serialization import from_payload as provenance_from_payload
 from phospy.references.models import ReferenceBundle
 from phospy.signalomes.models import (
     KinaseNetwork,
@@ -42,6 +44,19 @@ def reconstruct_signalome_result(
     sections: SignalomeManifestSections,
 ) -> SignalomeWorkflowResult:
     """Rebuild a SignalomeWorkflowResult from validated manifest sections."""
+
+    signalome_provenance = (
+        None
+        if sections.provenance_payload is None
+        else provenance_from_payload(sections.provenance_payload)
+    )
+    upstream_kinase_provenance = None
+    if signalome_provenance is not None:
+        upstream_raw = signalome_provenance.workflow_parameters.get(
+            "upstream_kinase_provenance"
+        )
+        if isinstance(upstream_raw, Mapping):
+            upstream_kinase_provenance = provenance_from_payload(upstream_raw)
 
     dataset = AnalysisReadyPhosphoDataset(
         phospho=read_required_table(
@@ -210,6 +225,7 @@ def reconstruct_signalome_result(
         scoring_result=scoring_result,
         prediction_result=prediction_result,
         activity_result=activity_result,
+        provenance=upstream_kinase_provenance,
     )
     module_selection_diagnostics = (
         signalome_module_selection_diagnostics_from_payload_with_compatibility_support(
@@ -264,4 +280,5 @@ def reconstruct_signalome_result(
             table_key="expanded_signalome",
             field_name="bundle manifest.signalome_outputs.tables.expanded_signalome",
         ),
+        provenance=signalome_provenance,
     )

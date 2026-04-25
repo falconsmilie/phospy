@@ -9,7 +9,10 @@ from typing import TYPE_CHECKING, Protocol
 
 import pandas as pd
 
-from phospy.datasets.preprocessing.models import PreprocessingPlan
+from phospy.datasets.preprocessing.models import (
+    PreprocessingPlan,
+    PreprocessingStageExecution,
+)
 from phospy.references.models import Organism
 
 if TYPE_CHECKING:
@@ -46,6 +49,7 @@ class PreprocessedDatasetBuildTables:
     comparison_pair_stats: pd.DataFrame | None = None
     preprocessing_row_counts: pd.DataFrame | None = None
     preprocessing_operations: pd.DataFrame | None = None
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None = None
     duplicate_site_resolution: pd.DataFrame | None = None
     metadata_conflicts: pd.DataFrame | None = None
 

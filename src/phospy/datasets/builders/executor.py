@@ -6,12 +6,15 @@ transformation state after applying explicit builder preprocessing policy.
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 import pandas as pd
 
 from phospy.api.configs import DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
 from phospy.datasets.builders.contracts import (
     DatasetPreprocessorContract,
     InterpretedDatasetBuildRequest,
+    PreprocessedDatasetBuildTables,
 )
 from phospy.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.datasets.builders.transformation_resolver import (
@@ -21,7 +24,10 @@ from phospy.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
 )
-from phospy.datasets.preprocessing.models import PreprocessingPlan
+from phospy.datasets.preprocessing.models import (
+    PreprocessingPlan,
+    PreprocessingStageExecution,
+)
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.transformations import (
@@ -29,6 +35,13 @@ from phospy.errors.transformations import (
     TransformationStateEstablishmentError,
 )
 from phospy.errors.validation import PhosPyValidationError
+from phospy.provenance.environment import collect_environment_provenance
+from phospy.provenance.hashing import fingerprint_optional_table
+from phospy.provenance.models import (
+    PreprocessingStageProvenance,
+    RunProvenance,
+    TableFingerprint,
+)
 from phospy.transformations.contracts import Transformer
 from phospy.transformations.models import TransformationKind
 from phospy.transformations.transformers import IdentityTransformer
@@ -160,6 +173,14 @@ class DatasetBuildExecutor:
                 final_dataset_rows=int(len(resolved.phospho.index)),
                 transformation_state_label=resolved.transformation_state.label,
             )
+            provenance = _build_dataset_run_provenance(
+                request=request,
+                preprocessed=preprocessed,
+                resolved_phospho=resolved.phospho,
+                resolved_total=resolved.total,
+                preprocessing_trace=preprocessed.preprocessing_trace,
+                transformation_state_label=resolved.transformation_state.label,
+            )
             return AnalysisReadyPhosphoDataset._from_owned(
                 phospho=resolved.phospho,
                 site_metadata=preprocessed.site_metadata,
@@ -169,6 +190,7 @@ class DatasetBuildExecutor:
                 organism=request.organism,
                 transformation_state=resolved.transformation_state,
                 preprocessing_report=report,
+                provenance=provenance,
             )
         except (
             PhosPyInputError,
@@ -288,3 +310,82 @@ def _resolve_expected_transformation_kind(
     ):
         return TransformationKind.LOG2
     return TransformationKind.LINEAR
+
+
+def _build_dataset_run_provenance(
+    *,
+    request: InterpretedDatasetBuildRequest,
+    preprocessed: PreprocessedDatasetBuildTables,
+    resolved_phospho: pd.DataFrame,
+    resolved_total: pd.DataFrame | None,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+    transformation_state_label: str,
+) -> RunProvenance:
+    input_tables = _collect_fingerprints(
+        (
+            ("dataset.phospho", request.phospho),
+            ("dataset.site_metadata", request.site_metadata),
+            ("dataset.sample_metadata", request.sample_metadata),
+            ("dataset.total", request.total),
+        )
+    )
+    output_tables = _collect_fingerprints(
+        (
+            ("dataset.phospho", resolved_phospho),
+            ("dataset.site_metadata", preprocessed.site_metadata),
+            ("dataset.sample_metadata", preprocessed.sample_metadata),
+            ("dataset.total", resolved_total),
+            ("dataset.comparisons", preprocessed.comparisons),
+        )
+    )
+    return RunProvenance(
+        environment=collect_environment_provenance(),
+        input_tables=input_tables,
+        preprocessing_stages=_stage_trace_to_provenance(preprocessing_trace),
+        reference=None,
+        workflow_name="dataset_builder",
+        workflow_parameters={
+            "preprocessing_plan": asdict(request.preprocessing_plan),
+            "transformation_state_label": transformation_state_label,
+        },
+        random_state=None,
+        random_seed_policy=None,
+        output_tables=output_tables,
+    )
+
+
+def _collect_fingerprints(
+    entries: tuple[tuple[str, pd.DataFrame | None], ...],
+) -> tuple[TableFingerprint, ...]:
+    fingerprints: list[TableFingerprint] = []
+    for name, table in entries:
+        fingerprint = fingerprint_optional_table(table, name=name)
+        if fingerprint is None:
+            continue
+        fingerprints.append(fingerprint)
+    return tuple(fingerprints)
+
+
+def _stage_trace_to_provenance(
+    trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> tuple[PreprocessingStageProvenance, ...]:
+    if trace is None:
+        return ()
+    return tuple(
+        PreprocessingStageProvenance(
+            stage=item.stage,
+            operation=item.operation,
+            parameters=dict(item.parameters),
+            input_shape=item.input_shape,
+            output_shape=item.output_shape,
+            input_hash=item.input_hash,
+            output_hash=item.output_hash,
+            dropped_row_ids=item.dropped_row_ids,
+            dropped_row_count=int(item.dropped_row_count),
+            imputed_cell_count=int(item.imputed_cell_count),
+            imputed_row_ids=item.imputed_row_ids,
+            notes=item.notes,
+            diagnostics=dict(item.diagnostics),
+        )
+        for item in trace
+    )

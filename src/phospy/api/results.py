@@ -11,6 +11,7 @@ from phospy.activities.models import KinaseActivityResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.provenance.models import RunProvenance
 from phospy.references.models import ReferenceBundle
 from phospy.signalomes.models import (
     KinaseNetwork,
@@ -32,6 +33,7 @@ class KinaseWorkflowResult:
     scoring_result: KinaseScoringResult
     prediction_result: KinasePredictionResult
     activity_result: KinaseActivityResult | None = None
+    provenance: RunProvenance | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +64,7 @@ class SignalomeWorkflowResult:
     expanded_signalome: pd.DataFrame | None = None
     site_membership: pd.DataFrame | None = None
     protein_site_context: pd.DataFrame | None = None
+    provenance: RunProvenance | None = None
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
@@ -83,6 +86,12 @@ class SignalomeWorkflowResult:
             error_type=WorkflowValidationError,
             assume_owned=_assume_owned,
         )
+        if self.provenance is not None and not isinstance(
+            self.provenance, RunProvenance
+        ):
+            raise WorkflowValidationError(
+                "signalome_result.provenance must be RunProvenance or None"
+            )
         object.__setattr__(self, "expanded_signalome", expanded_signalome)
         object.__setattr__(self, "site_membership", site_membership)
         object.__setattr__(self, "protein_site_context", protein_site_context)
@@ -102,6 +111,7 @@ class SignalomeWorkflowResult:
         expanded_signalome: pd.DataFrame | None = None,
         site_membership: pd.DataFrame | None = None,
         protein_site_context: pd.DataFrame | None = None,
+        provenance: RunProvenance | None = None,
     ) -> SignalomeWorkflowResult:
         return cls(
             dataset=dataset,
@@ -122,6 +132,7 @@ class SignalomeWorkflowResult:
             expanded_signalome=expanded_signalome,
             site_membership=site_membership,
             protein_site_context=protein_site_context,
+            provenance=provenance,
             _assume_owned=True,
         )
 

@@ -54,7 +54,7 @@ Kinase manifest:
 - `bundle_type == "kinase_workflow_result"`
 - `manifest_version == 1`
 - top-level sections:
-  `dataset`, `resolved_references`, `outputs`, `config_snapshot`
+  `dataset`, `resolved_references`, `outputs`, `provenance`, `config_snapshot`
 
 Signalome manifest:
 
@@ -62,7 +62,7 @@ Signalome manifest:
 - `manifest_version == 1`
 - top-level sections:
   `dataset`, `resolved_references`, `upstream_kinase_outputs`,
-  `signalome_outputs`, `config_snapshot`
+  `signalome_outputs`, `provenance`, `config_snapshot`
 - `signalome_outputs.metadata` includes:
   - `kinase_network_nodes_present`
   - `expanded_signalome_present`
@@ -70,6 +70,17 @@ Signalome manifest:
     threshold/candidate diagnostics, and degeneracy counters)
 
 Both manifests store dataset organism and full transformation-state payload.
+
+`provenance` is machine-readable run metadata (`RunProvenance`) and includes:
+
+- environment versions (`phospy`, Python, dependency versions)
+- input/output table fingerprints
+- preprocessing stage execution trace (shape/hash/drop/imputation metadata)
+- reference identity/fingerprints
+- workflow parameters and random-state policy
+
+Legacy bundles without top-level `provenance` remain loadable; loaders reconstruct
+results with `result.provenance=None` for those manifests.
 
 ## Bundle Contents (Default CSV Layout)
 

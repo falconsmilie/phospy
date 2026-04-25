@@ -26,6 +26,7 @@ from phospy.io.bundles.signalome import (
     load_signalome_workflow_bundle,
     save_signalome_workflow_bundle,
 )
+from phospy.provenance.serialization import to_payload as provenance_to_payload
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
 pytestmark = pytest.mark.integration
@@ -50,6 +51,16 @@ def test_signalome_bundle_round_trip_preserves_outputs_and_config(
 
     assert loaded.manifest_version == SIGNALOME_BUNDLE_MANIFEST_VERSION
     assert loaded.config_snapshot == config_snapshot
+    assert loaded.result.provenance is not None
+    assert result.provenance is not None
+    assert provenance_to_payload(loaded.result.provenance) == provenance_to_payload(
+        result.provenance
+    )
+    assert loaded.result.kinase_result.provenance is not None
+    assert result.kinase_result.provenance is not None
+    assert provenance_to_payload(
+        loaded.result.kinase_result.provenance
+    ) == provenance_to_payload(result.kinase_result.provenance)
     _assert_signalome_result_equal(loaded.result, result)
 
 
@@ -99,6 +110,18 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert int(preconditioning_payload["input_row_count"]) >= 0
     assert int(preconditioning_payload["dropped_all_missing_row_count"]) >= 0
     assert int(preconditioning_payload["retained_row_count"]) >= 0
+    assert "provenance" in manifest
+    provenance = manifest["provenance"]
+    assert provenance["workflow_name"] == "signalome_workflow"
+    assert provenance["environment"]["package_name"] == "phospy"
+    assert "signalome_config" in provenance["workflow_parameters"]
+    assert "module_selection_diagnostics" in provenance["workflow_parameters"]
+    assert provenance["workflow_parameters"]["upstream_kinase_provenance"] is not None
+    output_names = {entry["name"] for entry in provenance["output_tables"]}
+    assert "outputs.signalome.module_assignments" in output_names
+    assert "outputs.signalome.signalome_modules" in output_names
+    assert "outputs.signalome.kinase_network.edges" in output_names
+    assert "outputs.signalome.expanded_signalome" in output_names
 
     loaded = load_signalome_workflow_bundle(bundle_root)
     assert loaded.result.expanded_signalome is not None
@@ -146,6 +169,29 @@ def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(
     )
     loaded = load_signalome_workflow_bundle(bundle_root)
     assert loaded.result.expanded_signalome is None
+
+
+def test_signalome_bundle_loads_legacy_manifest_without_provenance(
+    tmp_path: Path,
+) -> None:
+    request, result = _build_signalome_request_and_result()
+    bundle_root = tmp_path / "signalome_bundle_legacy"
+
+    save_signalome_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.pop("provenance", None)
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    loaded = load_signalome_workflow_bundle(bundle_root)
+    assert loaded.result.provenance is None
 
 
 def _build_signalome_request_and_result():

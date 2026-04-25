@@ -91,6 +91,17 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
     assert int(preconditioning["input_row_count"]) >= 0
     assert int(preconditioning["dropped_all_missing_row_count"]) >= 0
     assert int(preconditioning["retained_row_count"]) >= 0
+    assert manifest["provenance"]["workflow_name"] == "signalome_workflow"
+
+    dataset_manifest = json.loads(
+        (output_root / "dataset" / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert dataset_manifest["provenance"]["workflow_name"] == "dataset_builder"
+
+    kinase_manifest = json.loads(
+        (output_root / "kinase" / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert kinase_manifest["provenance"]["workflow_name"] == "kinase_workflow"
 
 
 def _build_signalome_result():

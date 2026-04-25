@@ -9,6 +9,8 @@ import pandas as pd
 
 from phospy._frame_ownership import own_dataframe
 from phospy.errors.validation import ReferenceValidationError
+from phospy.provenance.hashing import fingerprint_table
+from phospy.provenance.models import ReferenceProvenance
 
 
 class Organism(str, Enum):
@@ -43,6 +45,7 @@ class ReferenceBundle:
     organism: Organism
     kinase_substrate_map: pd.DataFrame
     site_sequences: pd.DataFrame
+    provenance: ReferenceProvenance | None = None
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
@@ -66,8 +69,30 @@ class ReferenceBundle:
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,
         )
+        provenance = self.provenance
+        if provenance is None:
+            provenance = ReferenceProvenance(
+                source_type="explicit",
+                organism=self.organism.value,
+                bundle_id=None,
+                table_fingerprints=(
+                    fingerprint_table(
+                        kinase_substrate_map,
+                        name="references.kinase_substrate_map",
+                    ),
+                    fingerprint_table(
+                        site_sequences,
+                        name="references.site_sequences",
+                    ),
+                ),
+            )
+        elif not isinstance(provenance, ReferenceProvenance):
+            raise ReferenceValidationError(
+                "references.provenance must be ReferenceProvenance or None"
+            )
         object.__setattr__(self, "kinase_substrate_map", kinase_substrate_map)
         object.__setattr__(self, "site_sequences", site_sequences)
+        object.__setattr__(self, "provenance", provenance)
 
     @classmethod
     def _from_owned(
@@ -76,10 +101,12 @@ class ReferenceBundle:
         organism: Organism,
         kinase_substrate_map: pd.DataFrame,
         site_sequences: pd.DataFrame,
+        provenance: ReferenceProvenance | None = None,
     ) -> ReferenceBundle:
         return cls(
             organism=organism,
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,
+            provenance=provenance,
             _assume_owned=True,
         )

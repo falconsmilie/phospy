@@ -9,6 +9,7 @@ from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
 from phospy.io.readers.tables import table_suffix_for_format, write_table
+from phospy.provenance.serialization import to_payload as provenance_to_payload
 
 
 def publish_dataset(
@@ -48,6 +49,11 @@ def publish_dataset(
             "organism": None if dataset.organism is None else dataset.organism.value,
             "transformation_state": dataset.transformation_state.label,
             "output_format": output_format,
+            "provenance": (
+                None
+                if dataset.provenance is None
+                else provenance_to_payload(dataset.provenance)
+            ),
         },
     )
     written["dataset.manifest"] = manifest_path
@@ -140,6 +146,11 @@ def publish_kinase_workflow(
             "reference_organism": result.references.organism.value,
             "activity_enabled": result.activity_result is not None,
             "output_format": output_format,
+            "provenance": (
+                None
+                if result.provenance is None
+                else provenance_to_payload(result.provenance)
+            ),
         },
     )
     written["kinase.manifest"] = manifest_path
@@ -211,6 +222,11 @@ def publish_signalome_workflow(
                 ),
             },
             "output_format": output_format,
+            "provenance": (
+                None
+                if result.provenance is None
+                else provenance_to_payload(result.provenance)
+            ),
         },
     )
     written["signalome.manifest"] = manifest_path

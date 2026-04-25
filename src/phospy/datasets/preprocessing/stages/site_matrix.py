@@ -36,6 +36,7 @@ _SITE_TOKEN_PATTERN = re.compile(r"^[A-Za-z]+\d+$")
 _GENE_TOKEN_PATTERN = re.compile(r"^[^;\s]+$")
 _ROW_DROP_STATS_ATTR = "site_matrix_row_drop_stats"
 _SITE_MATRIX_POLICY_ATTR = "site_matrix_policy"
+_SITE_MATRIX_PROVENANCE_ATTR = "site_matrix_provenance"
 _INTERNAL_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING = "retain_missing"
 _INTERNAL_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES = (
     "require_min_observed_values"
@@ -116,6 +117,7 @@ class SiteMatrixStage:
             with_sequence_site_metadata,
             with_sequence_site_id,
             dropped_missing_sequence,
+            dropped_missing_sequence_row_ids,
         ) = _select_rows_with_usable_sequence_support(
             phospho=state.phospho,
             site_metadata=state.site_metadata,
@@ -126,6 +128,7 @@ class SiteMatrixStage:
             policy_filtered_phospho,
             dropped_incomplete_values,
             required_observed_count,
+            dropped_incomplete_row_ids,
         ) = _apply_missing_data_policy(
             phospho=with_sequence_phospho,
             missing_data_policy=state.plan.site_matrix_missing_data_policy,
@@ -154,6 +157,22 @@ class SiteMatrixStage:
         )
         final_phospho.index = final_site_index
         final_site_metadata.index = final_site_index.copy()
+        duplicate_dropped_row_ids = tuple(
+            str(row_id)
+            for row_id in duplicate_site_result.duplicate_site_resolution.loc[
+                ~duplicate_site_result.duplicate_site_resolution.loc[:, "retained"],
+                "source_row_id",
+            ]
+            .astype(str)
+            .tolist()
+        )
+        dropped_row_ids = _unique_strings_preserve_order(
+            (
+                *dropped_missing_sequence_row_ids,
+                *dropped_incomplete_row_ids,
+                *duplicate_dropped_row_ids,
+            )
+        )
 
         row_drop_stats = {
             "input_rows": int(len(state.phospho.index)),
@@ -176,6 +195,21 @@ class SiteMatrixStage:
         final_site_metadata.attrs[_ROW_DROP_STATS_ATTR] = row_drop_stats.copy()
         final_phospho.attrs[_SITE_MATRIX_POLICY_ATTR] = policy
         final_site_metadata.attrs[_SITE_MATRIX_POLICY_ATTR] = policy
+        site_matrix_provenance = {
+            "dropped_missing_sequence_row_ids": dropped_missing_sequence_row_ids,
+            "dropped_incomplete_row_ids": dropped_incomplete_row_ids,
+            "dropped_row_ids": dropped_row_ids,
+            "duplicate_site_strategy": state.plan.site_matrix_duplicate_site_strategy,
+            "missing_data_policy": state.plan.site_matrix_missing_data_policy,
+            "required_observed_count": required_observed_count,
+            "final_constructed_site_ids": tuple(
+                str(site_id) for site_id in final_phospho.index.tolist()
+            ),
+        }
+        final_phospho.attrs[_SITE_MATRIX_PROVENANCE_ATTR] = site_matrix_provenance
+        final_site_metadata.attrs[_SITE_MATRIX_PROVENANCE_ATTR] = (
+            site_matrix_provenance.copy()
+        )
 
         return replace(
             state,
@@ -233,7 +267,7 @@ def _select_rows_with_usable_sequence_support(
     phospho: pd.DataFrame,
     site_metadata: pd.DataFrame,
     constructed_site_id: pd.Series,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, int]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, int, tuple[str, ...]]:
     if _SITE_SEQUENCE_COLUMN in site_metadata.columns:
         site_sequence = _resolve_optional_string_column(
             site_metadata,
@@ -247,11 +281,15 @@ def _select_rows_with_usable_sequence_support(
             name=_SITE_SEQUENCE_COLUMN,
         )
     has_sequence = site_sequence.notna()
+    dropped_row_ids = tuple(
+        str(row_id) for row_id in phospho.index[~has_sequence].tolist()
+    )
     return (
         phospho.loc[has_sequence],
         site_metadata.loc[has_sequence],
         constructed_site_id.loc[has_sequence],
         int((~has_sequence).sum()),
+        dropped_row_ids,
     )
 
 
@@ -296,7 +334,7 @@ def _apply_missing_data_policy(
     phospho: pd.DataFrame,
     missing_data_policy: str,
     minimum_observed_values: int | None,
-) -> tuple[pd.DataFrame, int, int]:
+) -> tuple[pd.DataFrame, int, int, tuple[str, ...]]:
     if missing_data_policy == DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING:
         retained_mask = phospho.notna().all(axis=1)
         required_observed_count = phospho.shape[1]
@@ -331,7 +369,10 @@ def _apply_missing_data_policy(
 
     filtered = phospho.loc[retained_mask]
     dropped_rows = int(len(phospho.index) - len(filtered.index))
-    return filtered, dropped_rows, required_observed_count
+    dropped_row_ids = tuple(
+        str(row_id) for row_id in phospho.index[~retained_mask].tolist()
+    )
+    return filtered, dropped_rows, required_observed_count, dropped_row_ids
 
 
 def _apply_duplicate_site_policy(
@@ -704,6 +745,17 @@ def _format_row_drop_diagnostics(row_drop_stats: dict[str, int | str]) -> str:
         f"other_dropped_rows={other_dropped_rows}, "
         f"retained_rows={retained_rows}"
     )
+
+
+def _unique_strings_preserve_order(values: tuple[str, ...]) -> tuple[str, ...]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        ordered.append(value)
+    return tuple(ordered)
 
 
 __all__ = ["SiteMatrixStage"]
