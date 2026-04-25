@@ -116,6 +116,8 @@ If you copy the example as-is, you should get:
 - `dataset.phospho.shape == (2, 3)`
 - a non-empty kinase prediction matrix
 - a signalome result only when `protein_id` is present for every interpreted site
+- compact module summaries via `signalome_result.signalome_modules.table`
+- optional provenance sidecars via `signalome_result.site_membership` and `signalome_result.protein_site_context`
 
 ### Minimal CLI example
 

@@ -43,7 +43,9 @@ class SignalomeWorkflowResult:
     linked-kinase metadata, regulated module IDs, and selected site-membership
     rows with stable `site_order`. `score_preconditioning_diagnostics` reports
     downstream-score row preconditioning counts and the active
-    `SignalomeConfig.score_preconditioning_policy`.
+    `SignalomeConfig.score_preconditioning_policy`. `site_membership` and
+    `protein_site_context` provide optional signalome provenance sidecars for
+    site-level and protein-level phosphosite context.
     """
 
     dataset: AnalysisReadyPhosphoDataset
@@ -58,6 +60,8 @@ class SignalomeWorkflowResult:
         default_factory=default_signalome_score_preconditioning_diagnostics
     )
     expanded_signalome: pd.DataFrame | None = None
+    site_membership: pd.DataFrame | None = None
+    protein_site_context: pd.DataFrame | None = None
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
@@ -67,7 +71,21 @@ class SignalomeWorkflowResult:
             error_type=WorkflowValidationError,
             assume_owned=_assume_owned,
         )
+        site_membership = own_optional_dataframe(
+            self.site_membership,
+            field_name="signalome_result.site_membership",
+            error_type=WorkflowValidationError,
+            assume_owned=_assume_owned,
+        )
+        protein_site_context = own_optional_dataframe(
+            self.protein_site_context,
+            field_name="signalome_result.protein_site_context",
+            error_type=WorkflowValidationError,
+            assume_owned=_assume_owned,
+        )
         object.__setattr__(self, "expanded_signalome", expanded_signalome)
+        object.__setattr__(self, "site_membership", site_membership)
+        object.__setattr__(self, "protein_site_context", protein_site_context)
 
     @classmethod
     def _from_owned(
@@ -82,6 +100,8 @@ class SignalomeWorkflowResult:
         score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics
         | None = None,
         expanded_signalome: pd.DataFrame | None = None,
+        site_membership: pd.DataFrame | None = None,
+        protein_site_context: pd.DataFrame | None = None,
     ) -> SignalomeWorkflowResult:
         return cls(
             dataset=dataset,
@@ -100,6 +120,8 @@ class SignalomeWorkflowResult:
                 else score_preconditioning_diagnostics
             ),
             expanded_signalome=expanded_signalome,
+            site_membership=site_membership,
+            protein_site_context=protein_site_context,
             _assume_owned=True,
         )
 

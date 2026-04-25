@@ -471,6 +471,54 @@ def test_signalome_result_validates_expanded_signalome_field_type() -> None:
         )
 
 
+def test_signalome_result_validates_site_membership_field_type() -> None:
+    kinase_result = _kinase_result()
+    with pytest.raises(
+        WorkflowValidationError,
+        match="signalome_result.site_membership must be a pandas DataFrame",
+    ):
+        SignalomeWorkflowResult(
+            dataset=kinase_result.dataset,
+            kinase_result=kinase_result,
+            module_assignments=SignalomeAssignments(
+                table=pd.DataFrame({"site_id": ["MAPK14;Y182;"], "module": [1]})
+            ),
+            signalome_modules=SignalomeModules(
+                table=pd.DataFrame({"module": [1], "size": [1]})
+            ),
+            kinase_network=KinaseNetwork(
+                edges=pd.DataFrame(
+                    {"source": ["MAP2K6"], "target": ["MAP2K6"], "weight": [1.0]}
+                )
+            ),
+            site_membership=[],
+        )
+
+
+def test_signalome_result_validates_protein_site_context_field_type() -> None:
+    kinase_result = _kinase_result()
+    with pytest.raises(
+        WorkflowValidationError,
+        match="signalome_result.protein_site_context must be a pandas DataFrame",
+    ):
+        SignalomeWorkflowResult(
+            dataset=kinase_result.dataset,
+            kinase_result=kinase_result,
+            module_assignments=SignalomeAssignments(
+                table=pd.DataFrame({"site_id": ["MAPK14;Y182;"], "module": [1]})
+            ),
+            signalome_modules=SignalomeModules(
+                table=pd.DataFrame({"module": [1], "size": [1]})
+            ),
+            kinase_network=KinaseNetwork(
+                edges=pd.DataFrame(
+                    {"source": ["MAP2K6"], "target": ["MAP2K6"], "weight": [1.0]}
+                )
+            ),
+            protein_site_context=[],
+        )
+
+
 def test_table_reader_translates_missing_path_to_phospy_input_error(
     tmp_path: Path,
 ) -> None:

@@ -247,6 +247,8 @@ Key fields:
 - `module_selection_diagnostics`
 - `score_preconditioning_diagnostics`
 - `expanded_signalome` (optional by contract, populated in the supported lane)
+- `site_membership` (optional; site-level signalome membership provenance)
+- `protein_site_context` (optional; protein-level multi-site context summary)
 
 Common nested outputs:
 
@@ -254,6 +256,14 @@ Common nested outputs:
 - `result.signalome_modules.table`
 - `result.kinase_network.edges`
 - `result.expanded_signalome`
+- `result.site_membership`
+- `result.protein_site_context`
+
+Signalome context note:
+
+- `result.signalome_modules.table` remains the compact protein/module summary table.
+- `result.site_membership` shows site-level membership context, including excluded rows and reasons.
+- `result.protein_site_context` highlights multi-site proteins and flags potentially ambiguous biological interpretation when site clusters or module context disagree.
 
 ## Enums and references
 

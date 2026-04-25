@@ -143,8 +143,12 @@ def test_signalome_result_keeps_nested_kinase_result_contract() -> None:
         signalome_result.score_preconditioning_diagnostics.dropped_all_missing_row_count
         >= 0
     )
+    assert signalome_result.site_membership is not None
+    assert signalome_result.protein_site_context is not None
     assert signalome_result.expanded_signalome is not None
     assert not signalome_result.expanded_signalome.empty
+    assert not signalome_result.site_membership.empty
+    assert not signalome_result.protein_site_context.empty
     assert signalome_result.kinase_result.scoring_result.motif_scores is None
     assert signalome_result.kinase_result.scoring_result.combined_scores is not None
     assert signalome_result.kinase_result.scoring_result.weights is None

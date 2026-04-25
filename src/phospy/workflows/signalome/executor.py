@@ -14,6 +14,12 @@ from phospy.signalomes.clustering import (
     derive_protein_modules,
 )
 from phospy.signalomes.constants import MODULE_ID_COLUMN
+from phospy.signalomes.context import (
+    build_protein_site_context_table,
+    build_site_membership_table,
+    empty_protein_site_context_table,
+    empty_site_membership_table,
+)
 from phospy.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
@@ -67,6 +73,12 @@ class _SignalomeModuleStage:
     support_summary: _SupportSummary
 
 
+@dataclass(frozen=True, slots=True)
+class _SignalomeContextStage:
+    site_membership: pd.DataFrame
+    protein_site_context: pd.DataFrame
+
+
 class SignalomeWorkflowExecutor:
     """Run signalome stage logic and assemble `SignalomeWorkflowResult`."""
 
@@ -115,6 +127,13 @@ class SignalomeWorkflowExecutor:
             module_count=signalome_module_stage.module_count,
             execution_metadata=execution_metadata,
         )
+        context_stage = self._build_signalome_context_tables(
+            request=request,
+            config=config,
+            clustering_result=clustering_stage.clustering_result,
+            module_assignments=module_assignments,
+            support_summary=signalome_module_stage.support_summary,
+        )
 
         return self._assemble_result(
             request=request,
@@ -124,6 +143,8 @@ class SignalomeWorkflowExecutor:
             network_edges=network_edges,
             network_nodes=network_nodes,
             expanded_signalome=expanded_signalome,
+            site_membership=context_stage.site_membership,
+            protein_site_context=context_stage.protein_site_context,
         )
 
     @staticmethod
@@ -136,6 +157,8 @@ class SignalomeWorkflowExecutor:
         network_edges: pd.DataFrame,
         network_nodes: pd.DataFrame,
         expanded_signalome: pd.DataFrame,
+        site_membership: pd.DataFrame,
+        protein_site_context: pd.DataFrame,
     ) -> SignalomeWorkflowResult:
         return SignalomeWorkflowResult._from_owned(
             dataset=request.dataset,
@@ -151,7 +174,41 @@ class SignalomeWorkflowExecutor:
             module_selection_diagnostics=clustering_result.module_selection_diagnostics,
             score_preconditioning_diagnostics=request.score_preconditioning_diagnostics,
             expanded_signalome=expanded_signalome,
+            site_membership=site_membership,
+            protein_site_context=protein_site_context,
         )
+
+    @staticmethod
+    def _build_signalome_context_tables(
+        *,
+        request: ResolvedSignalomeWorkflowRequest,
+        config: ResolvedSignalomeExecutionConfig,
+        clustering_result: ClusterSitesResult,
+        module_assignments: pd.DataFrame,
+        support_summary: _SupportSummary,
+    ) -> _SignalomeContextStage:
+        try:
+            site_membership = build_site_membership_table(
+                module_assignments=module_assignments,
+                site_clusters=clustering_result.site_clusters,
+                site_metadata=request.dataset.site_metadata,
+                prediction_matrix=request.prediction_matrix,
+                kinase_substrates=support_summary.kinase_substrates,
+                substrate_support_cutoff=config.substrate_support_cutoff,
+                assignment_policy=config.assignment_policy,
+            )
+            protein_site_context = build_protein_site_context_table(
+                site_membership=site_membership
+            )
+            return _SignalomeContextStage(
+                site_membership=site_membership,
+                protein_site_context=protein_site_context,
+            )
+        except Exception:
+            return _SignalomeContextStage(
+                site_membership=empty_site_membership_table(),
+                protein_site_context=empty_protein_site_context_table(),
+            )
 
     @staticmethod
     def _collect_execution_metadata(

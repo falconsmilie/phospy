@@ -125,6 +125,13 @@ What success looks like:
 - `signalome_result.module_assignments.table` is non-empty
 - `signalome_result.signalome_modules.table` is non-empty
 - `signalome_result.expanded_signalome` is populated in the supported signalome lane
+- `signalome_result.site_membership` is available for site-level provenance context
+- `signalome_result.protein_site_context` flags multi-site proteins where protein summaries can hide site-level disagreement
+
+Interpretation tip:
+
+- Use `signalome_result.signalome_modules.table` as the compact module summary.
+- Use `signalome_result.site_membership` and `signalome_result.protein_site_context` when you need to inspect how individual phosphosites contributed to protein/module assignments.
 
 ## 5. CLI version of the same lane
 
