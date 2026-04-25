@@ -5,7 +5,9 @@ import pytest
 
 from phospy.api.configs import (
     DatasetComparisonBuildingConfig,
+    DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
+    DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
@@ -143,8 +145,113 @@ def test_dataset_build_request_has_default_preprocessing_config() -> None:
         ),
     )
     validated = DatasetBuildRequestValidator().run(request)
+    assert validated.preprocessing_config.intensity_transform.policy == "identity"
+    assert (
+        validated.preprocessing_config.intensity_transform.pseudocount
+        == pytest.approx(1.0)
+    )
+    assert validated.preprocessing_config.normalisation.policy == "none"
     assert validated.preprocessing_config.missing_data.policy == "forbid"
     assert validated.preprocessing_config.missing_data.min_observed_values is None
+
+
+def test_dataset_build_request_rejects_unknown_intensity_transform_policy() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="unsupported",  # type: ignore[arg-type]
+                pseudocount=1.0,
+            )
+        ),
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="preprocessing_config.intensity_transform.policy must be one of",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_rejects_negative_log2_pseudocount() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=-0.1,
+            )
+        ),
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="intensity_transform.pseudocount must be greater than or equal to 0",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_rejects_non_finite_log2_pseudocount() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=float("inf"),
+            )
+        ),
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="intensity_transform.pseudocount must be finite",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_rejects_unknown_normalisation_policy() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            normalisation=DatasetNormalisationConfig(
+                policy="unsupported",  # type: ignore[arg-type]
+            )
+        ),
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match="preprocessing_config.normalisation.policy must be one of",
+    ):
+        DatasetBuildRequestValidator().run(request)
 
 
 def test_dataset_build_request_rejects_unknown_missing_data_policy() -> None:

@@ -7,7 +7,9 @@ import pandas as pd
 from phospy.datasets.builders.contracts import PreprocessedDatasetBuildTables
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    DATASET_PREPROCESSING_STAGE_NORMALISATION,
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
@@ -28,13 +30,8 @@ _OPERATION_COLUMNS = (
 )
 _PREPROCESSING_INPUT_STAGE = "preprocessing_input"
 _PREPROCESSING_COMPLETE_STAGE = "preprocessing_complete"
-_STAGE_LABEL_TO_OPERATION = {
-    DATASET_PREPROCESSING_STAGE_MISSING_DATA: "apply_missing_data_policy",
-    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION: "apply_total_protein_correction",
-    DATASET_PREPROCESSING_STAGE_SITE_MATRIX: "apply_site_matrix_policy",
-    DATASET_PREPROCESSING_STAGE_COMPARISONS: "build_comparisons",
-}
 _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
+    DATASET_PREPROCESSING_STAGE_NORMALISATION: (),
     DATASET_PREPROCESSING_STAGE_MISSING_DATA: (
         "missing_data_policy",
         "missing_data_min_observed_values",
@@ -58,6 +55,8 @@ _PROVENANCE_CANONICAL_STAGES = (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    DATASET_PREPROCESSING_STAGE_NORMALISATION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
 )
 
@@ -151,7 +150,7 @@ def _build_preprocessing_provenance_tables(
             {
                 "step_order": step_order,
                 "stage": stage,
-                "operation": _STAGE_LABEL_TO_OPERATION[stage],
+                "operation": _resolve_stage_operation(plan=plan, stage=stage),
                 "parameters": _resolve_stage_parameters(plan=plan, stage=stage),
                 "input_rows": stage_input_rows,
                 "output_rows": stage_output_rows,
@@ -182,5 +181,23 @@ def _build_preprocessing_provenance_tables(
 def _resolve_stage_parameters(
     *, plan: PreprocessingPlan, stage: str
 ) -> dict[str, object]:
+    if stage == DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM:
+        return {"pseudocount": float(plan.intensity_transform_pseudocount)}
     parameter_names = _STAGE_LABEL_TO_PARAMETERS.get(stage, ())
     return {name: getattr(plan, name) for name in parameter_names}
+
+
+def _resolve_stage_operation(*, plan: PreprocessingPlan, stage: str) -> str:
+    if stage == DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM:
+        return plan.intensity_transform_policy
+    if stage == DATASET_PREPROCESSING_STAGE_NORMALISATION:
+        return plan.normalisation_policy
+    if stage == DATASET_PREPROCESSING_STAGE_MISSING_DATA:
+        return plan.missing_data_policy
+    if stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
+        return plan.total_protein_correction_policy
+    if stage == DATASET_PREPROCESSING_STAGE_SITE_MATRIX:
+        return plan.site_matrix_policy
+    if stage == DATASET_PREPROCESSING_STAGE_COMPARISONS:
+        return plan.comparison_building_policy
+    return "unsupported_stage"

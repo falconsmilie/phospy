@@ -7,7 +7,9 @@ workflows, dataset/reference entrypoints, and public exception types.
 from phospy.api.builders import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
     DatasetComparisonBuildingConfig,
+    DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
+    DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
@@ -64,8 +66,10 @@ __all__ = [
     "AnalysisReadyPhosphoDataset",
     "DatasetPreprocessingReport",
     "DatasetComparisonBuildingConfig",
+    "DatasetIntensityTransformConfig",
     "DatasetBuildRequest",
     "DatasetMissingDataConfig",
+    "DatasetNormalisationConfig",
     "DatasetPreprocessingConfig",
     "DatasetSiteMatrixConfig",
     "DatasetTotalProteinCorrectionConfig",

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.api.configs import DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
 from phospy.datasets.builders.contracts import (
     DatasetPreprocessorContract,
     InterpretedDatasetBuildRequest,
@@ -20,6 +21,7 @@ from phospy.datasets.models import (
     AnalysisReadyPhosphoDataset,
     DatasetPreprocessingReport,
 )
+from phospy.datasets.preprocessing.models import PreprocessingPlan
 from phospy.errors.build import DatasetBuildError
 from phospy.errors.input import PhosPyInputError
 from phospy.errors.transformations import (
@@ -28,6 +30,7 @@ from phospy.errors.transformations import (
 )
 from phospy.errors.validation import PhosPyValidationError
 from phospy.transformations.contracts import Transformer
+from phospy.transformations.models import TransformationKind
 from phospy.transformations.transformers import IdentityTransformer
 
 _ROW_COUNT_COLUMNS = ("stage", "input_rows", "output_rows", "dropped_rows")
@@ -137,6 +140,9 @@ class DatasetBuildExecutor:
             resolved = self._transformation_resolver.run(
                 phospho=preprocessed.phospho,
                 total=preprocessed.total,
+                expected_kind=_resolve_expected_transformation_kind(
+                    request.preprocessing_plan
+                ),
             )
             if not resolved.transformation_state.is_established:
                 raise TransformationStateEstablishmentError(
@@ -271,3 +277,14 @@ def _build_dataset_preprocessing_report(
         comparison_group_stats=base_comparison_group_stats,
         comparison_pair_stats=base_comparison_pair_stats,
     )
+
+
+def _resolve_expected_transformation_kind(
+    preprocessing_plan: PreprocessingPlan,
+) -> TransformationKind:
+    if (
+        preprocessing_plan.intensity_transform_policy
+        == DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
+    ):
+        return TransformationKind.LOG2
+    return TransformationKind.LINEAR

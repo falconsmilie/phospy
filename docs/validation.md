@@ -78,8 +78,10 @@ Main expectations:
 
 ## Preprocessing rules
 
-`DatasetPreprocessingConfig` groups four policy areas:
+`DatasetPreprocessingConfig` groups six policy areas:
 
+- `intensity_transform`
+- `normalisation`
 - `missing_data`
 - `total_protein_correction`
 - `site_matrix`
@@ -87,6 +89,10 @@ Main expectations:
 
 Key public rules:
 
+- `intensity_transform.policy="identity"` is the default
+- `intensity_transform.policy="log2"` requires non-negative `pseudocount` and values where `value + pseudocount > 0`
+- `normalisation.policy="none"` is the default
+- `normalisation.policy="median_center"` and `normalisation.policy="quantile"` are explicit opt-in methods
 - `missing_data.policy="forbid"` is the strict default
 - `missing_data.policy="impute_row_median"` requires `min_observed_values`
 - `total_protein_correction.policy="ratio_to_total"` requires a `total` table aligned to the phospho samples
@@ -94,6 +100,9 @@ Key public rules:
 - the public builder lane still ends in a missing-value-free `AnalysisReadyPhosphoDataset`
 - `comparisons.policy="sample_metadata_pairs"` requires matching `sample_metadata` and a usable sample-group column
 - when comparison building runs, `dataset.comparisons` stays the compact workflow matrix and comparison provenance is exposed in `dataset.preprocessing_report.comparison_group_stats` and `dataset.preprocessing_report.comparison_pair_stats`
+
+Not yet supported in this public lane: `knn` imputation, `min_prob` imputation,
+and `combat` batch correction.
 
 ## Reference validation
 

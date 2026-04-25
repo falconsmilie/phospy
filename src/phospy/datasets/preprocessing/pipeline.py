@@ -8,7 +8,11 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingState,
 )
 from phospy.datasets.preprocessing.stages.comparisons import ComparisonsStage
+from phospy.datasets.preprocessing.stages.intensity_transform import (
+    IntensityTransformStage,
+)
 from phospy.datasets.preprocessing.stages.missing_data import MissingDataStage
+from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
 from phospy.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
 from phospy.datasets.preprocessing.stages.total_protein_correction import (
     TotalProteinCorrectionStage,
@@ -28,6 +32,8 @@ class PreprocessingPipeline:
             MissingDataStage(),
             TotalProteinCorrectionStage(),
             SiteMatrixStage(),
+            IntensityTransformStage(),
+            NormalisationStage(),
             ComparisonsStage(),
         )
         self._stages_by_key = {stage.stage_key: stage for stage in stages}

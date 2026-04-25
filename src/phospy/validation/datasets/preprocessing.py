@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import math
+
 from phospy.api.configs import (
     DATASET_COMPARISON_BUILDING_POLICIES,
     DATASET_COMPARISON_BUILDING_POLICY_NONE,
     DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS,
+    DATASET_INTENSITY_TRANSFORM_POLICIES,
     DATASET_MISSING_DATA_POLICIES,
     DATASET_MISSING_DATA_POLICY_FORBID,
     DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
+    DATASET_NORMALISATION_POLICIES,
     DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES,
     DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICIES,
@@ -17,7 +21,9 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES,
     DatasetComparisonBuildingConfig,
+    DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
+    DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
@@ -42,11 +48,62 @@ class DatasetPreprocessingConfigValidator:
                 "DatasetPreprocessingConfig"
             )
 
+        self._validate_intensity_transform(config.intensity_transform)
+        self._validate_normalisation(config.normalisation)
         self._validate_missing_data(config.missing_data)
         self._validate_total_protein_correction(config.total_protein_correction)
         self._validate_site_matrix(config.site_matrix)
         self._validate_comparisons(config.comparisons)
         return config
+
+    def _validate_intensity_transform(
+        self, config: DatasetIntensityTransformConfig
+    ) -> None:
+        if not isinstance(config, DatasetIntensityTransformConfig):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.intensity_transform "
+                "must be a DatasetIntensityTransformConfig"
+            )
+
+        policy = config.policy
+        if policy not in DATASET_INTENSITY_TRANSFORM_POLICIES:
+            supported = ", ".join(sorted(DATASET_INTENSITY_TRANSFORM_POLICIES))
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.intensity_transform."
+                f"policy must be one of: {supported}"
+            )
+
+        pseudocount = config.pseudocount
+        if isinstance(pseudocount, bool) or not isinstance(pseudocount, (int, float)):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.intensity_transform."
+                "pseudocount must be a float or int"
+            )
+        if not math.isfinite(float(pseudocount)):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.intensity_transform."
+                "pseudocount must be finite"
+            )
+        if pseudocount < 0:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.intensity_transform."
+                "pseudocount must be greater than or equal to 0"
+            )
+
+    def _validate_normalisation(self, config: DatasetNormalisationConfig) -> None:
+        if not isinstance(config, DatasetNormalisationConfig):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.normalisation must be a "
+                "DatasetNormalisationConfig"
+            )
+
+        policy = config.policy
+        if policy not in DATASET_NORMALISATION_POLICIES:
+            supported = ", ".join(sorted(DATASET_NORMALISATION_POLICIES))
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.normalisation.policy "
+                f"must be one of: {supported}"
+            )
 
     def _validate_missing_data(self, config: DatasetMissingDataConfig) -> None:
         if not isinstance(config, DatasetMissingDataConfig):

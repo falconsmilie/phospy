@@ -10,13 +10,18 @@ import pandas as pd
 from phospy.api.configs import (
     DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN,
     DATASET_COMPARISON_BUILDING_POLICY_NONE,
+    DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
+    DATASET_MISSING_DATA_POLICY_FORBID,
+    DATASET_NORMALISATION_POLICY_NONE,
     DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
     DatasetComparisonBuildingPolicy,
     DatasetComparisonPair,
+    DatasetIntensityTransformPolicy,
     DatasetMissingDataPolicy,
+    DatasetNormalisationPolicy,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixDuplicateSiteStrategy,
     DatasetSiteMatrixMissingDataPolicy,
@@ -27,6 +32,8 @@ from phospy.api.configs import (
 DATASET_PREPROCESSING_STAGE_MISSING_DATA = "missing_data"
 DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION = "total_protein_correction"
 DATASET_PREPROCESSING_STAGE_SITE_MATRIX = "site_matrix"
+DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM = "intensity_transform"
+DATASET_PREPROCESSING_STAGE_NORMALISATION = "normalisation"
 DATASET_PREPROCESSING_STAGE_COMPARISONS = "comparisons"
 DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT = (DATASET_PREPROCESSING_STAGE_MISSING_DATA,)
 
@@ -35,10 +42,17 @@ DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT = (DATASET_PREPROCESSING_STAGE_MISSING
 class PreprocessingPlan:
     """Execution-ready internal preprocessing plan derived from public config."""
 
-    missing_data_policy: DatasetMissingDataPolicy
-    missing_data_min_observed_values: int | None
-    total_protein_correction_policy: DatasetTotalProteinCorrectionPolicy
-    site_matrix_policy: DatasetSiteMatrixPolicy
+    intensity_transform_policy: DatasetIntensityTransformPolicy = (
+        DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
+    )
+    intensity_transform_pseudocount: float = 1.0
+    normalisation_policy: DatasetNormalisationPolicy = DATASET_NORMALISATION_POLICY_NONE
+    missing_data_policy: DatasetMissingDataPolicy = DATASET_MISSING_DATA_POLICY_FORBID
+    missing_data_min_observed_values: int | None = None
+    total_protein_correction_policy: DatasetTotalProteinCorrectionPolicy = (
+        DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
+    )
+    site_matrix_policy: DatasetSiteMatrixPolicy = DATASET_SITE_MATRIX_POLICY_AS_INPUT
     comparison_building_policy: DatasetComparisonBuildingPolicy = (
         DATASET_COMPARISON_BUILDING_POLICY_NONE
     )
@@ -65,9 +79,21 @@ class PreprocessingPlan:
             stage_order.append(DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION)
         if config.site_matrix.policy != DATASET_SITE_MATRIX_POLICY_AS_INPUT:
             stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_MATRIX)
+        if (
+            config.intensity_transform.policy
+            != DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
+        ):
+            stage_order.append(DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM)
+        if config.normalisation.policy != DATASET_NORMALISATION_POLICY_NONE:
+            stage_order.append(DATASET_PREPROCESSING_STAGE_NORMALISATION)
         if config.comparisons.policy != DATASET_COMPARISON_BUILDING_POLICY_NONE:
             stage_order.append(DATASET_PREPROCESSING_STAGE_COMPARISONS)
         return cls(
+            intensity_transform_policy=config.intensity_transform.policy,
+            intensity_transform_pseudocount=float(
+                config.intensity_transform.pseudocount
+            ),
+            normalisation_policy=config.normalisation.policy,
             missing_data_policy=config.missing_data.policy,
             missing_data_min_observed_values=config.missing_data.min_observed_values,
             total_protein_correction_policy=config.total_protein_correction.policy,
@@ -146,7 +172,9 @@ class PreprocessingStage(Protocol):
 
 __all__ = [
     "DATASET_PREPROCESSING_STAGE_COMPARISONS",
+    "DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM",
     "DATASET_PREPROCESSING_STAGE_MISSING_DATA",
+    "DATASET_PREPROCESSING_STAGE_NORMALISATION",
     "DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT",
     "DATASET_PREPROCESSING_STAGE_SITE_MATRIX",
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",

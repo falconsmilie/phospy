@@ -108,12 +108,36 @@ all interpreted sites.
 
 ### Dataset preprocessing
 
-`DatasetPreprocessingConfig` groups four builder-owned areas:
+`DatasetPreprocessingConfig` groups six builder-owned areas:
 
+- `intensity_transform: DatasetIntensityTransformConfig`
+- `normalisation: DatasetNormalisationConfig`
 - `missing_data: DatasetMissingDataConfig`
 - `total_protein_correction: DatasetTotalProteinCorrectionConfig`
 - `site_matrix: DatasetSiteMatrixConfig`
 - `comparisons: DatasetComparisonBuildingConfig`
+
+All preprocessing methods are explicit opt-in choices. Defaults remain
+conservative (`intensity_transform="identity"`, `normalisation="none"`,
+`missing_data="forbid"`).
+
+#### `DatasetIntensityTransformConfig`
+
+- `policy="identity"` (default)
+- `policy="log2"` applies `log2(value + pseudocount)` to quantitative intensities
+- `pseudocount` must be non-negative
+
+Use `log2` when intensities are positive (or become positive after adding the
+configured pseudocount).
+
+#### `DatasetNormalisationConfig`
+
+- `policy="none"` (default)
+- `policy="median_center"` subtracts each sample column median
+- `policy="quantile"` forces sample columns to share one empirical distribution
+
+Use quantile normalisation only when matched-distribution assumptions are
+scientifically appropriate for your experiment design.
 
 #### `DatasetMissingDataConfig`
 
@@ -160,6 +184,9 @@ When comparison building runs:
 - `dataset.preprocessing_report.comparison_pair_stats` provides pairwise evidence (left/right group summaries plus `effect_size`) for each site/comparison row.
 
 These sidecar tables improve transparency and auditability. They are not a replacement for full differential phosphoproteomics modelling.
+
+Planned/future lanes (not currently supported in this public contract) include:
+`knn` imputation, `min_prob` imputation, and `combat` batch correction.
 
 ### Kinase configs
 

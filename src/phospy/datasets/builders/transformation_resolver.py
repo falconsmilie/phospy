@@ -16,9 +16,12 @@ from phospy.transformations._authority import (
 )
 from phospy.transformations.contracts import Transformer
 from phospy.transformations.models import (
+    MatrixTransformationState,
+    TransformationKind,
     TransformationState,
     establish_transformation_state,
 )
+from phospy.transformations.transformers import IdentityTransformer
 from phospy.validation.transformations.state import TransformationStateValidator
 
 
@@ -50,6 +53,7 @@ class DatasetTransformationResolver:
         *,
         phospho: pd.DataFrame,
         total: pd.DataFrame | None,
+        expected_kind: TransformationKind | None = None,
     ) -> ResolvedTransformation:
         if self._transformer is None:
             raise TransformationStateEstablishmentError(
@@ -76,8 +80,26 @@ class DatasetTransformationResolver:
                 "Use a transformer that preserves phospho/total matrix presence."
             )
 
+        state = transformed.state
+        if (
+            expected_kind is not None
+            and state.phospho.kind is not expected_kind
+            and isinstance(self._transformer, IdentityTransformer)
+        ):
+            state = _build_identity_state_for_kind(
+                expected_kind=expected_kind,
+                has_total_matrix=transformed.total is not None,
+            )
+        if expected_kind is not None and state.phospho.kind is not expected_kind:
+            raise TransformationStateEstablishmentError(
+                "configured transformer produced a transformation kind that is "
+                "incompatible with the configured preprocessing intensity "
+                f"transform policy; expected '{expected_kind.value}' but "
+                f"received '{state.phospho.kind.value}'"
+            )
+
         self._validate_state(
-            transformed.state,
+            state,
             has_total_matrix=transformed.total is not None,
             source="configured transformer",
         )
@@ -86,7 +108,7 @@ class DatasetTransformationResolver:
             f"{self._transformer.__class__.__qualname__}"
         )
         established_state = establish_transformation_state(
-            transformed.state,
+            state,
             established_via=transformer_source,
             _authority=_dataset_resolver_establishment_authority(),
         )
@@ -112,3 +134,27 @@ class DatasetTransformationResolver:
             raise TransformationStateEstablishmentError(
                 f"{source} produced an invalid transformation state: {exc}"
             ) from exc
+
+
+def _build_identity_state_for_kind(
+    *,
+    expected_kind: TransformationKind,
+    has_total_matrix: bool,
+) -> TransformationState:
+    if expected_kind is TransformationKind.LINEAR:
+        return TransformationState.raw(has_total_matrix=has_total_matrix)
+    if expected_kind is TransformationKind.LOG2:
+        phospho_state = MatrixTransformationState.log2(
+            established_by="phospy.transformations.transformers.identity"
+        )
+        if has_total_matrix:
+            return TransformationState(
+                phospho=phospho_state,
+                total=MatrixTransformationState.log2(
+                    established_by="phospy.transformations.transformers.identity"
+                ),
+            )
+        return TransformationState(phospho=phospho_state, total=None)
+    raise TransformationStateEstablishmentError(
+        f"unsupported expected transformation kind for resolver: {expected_kind}"
+    )

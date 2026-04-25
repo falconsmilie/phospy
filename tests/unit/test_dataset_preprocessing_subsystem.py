@@ -9,7 +9,9 @@ import pytest
 
 from phospy.api.configs import (
     DatasetComparisonBuildingConfig,
+    DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
+    DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
@@ -1144,10 +1146,12 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
             *,
             phospho: pd.DataFrame,
             total: pd.DataFrame | None,
+            expected_kind: object | None = None,
         ) -> ResolvedTransformation:
             calls.append("resolver")
             assert phospho is preprocessed_tables.phospho
             assert total is preprocessed_tables.total
+            assert expected_kind is not None
             return ResolvedTransformation(
                 phospho=phospho,
                 total=total,
@@ -1200,3 +1204,242 @@ def test_dataset_interpreter_does_not_apply_preprocessing_science() -> None:
 
     assert interpreted.phospho.isna().to_numpy().sum() == 2
     assert interpreted.phospho.index.tolist() == ["MAPK14;Y182;", "GSK3B;S9;"]
+
+
+def test_preprocessing_plan_defaults_keep_identity_transform_and_no_normalisation() -> (
+    None
+):
+    plan = PreprocessingPlan.from_config(DatasetPreprocessingConfig())
+    assert plan.intensity_transform_policy == "identity"
+    assert plan.intensity_transform_pseudocount == pytest.approx(1.0)
+    assert plan.normalisation_policy == "none"
+    assert "intensity_transform" not in plan.stage_order
+    assert "normalisation" not in plan.stage_order
+
+
+def test_dataset_preprocessor_applies_log2_intensity_transform_policy() -> None:
+    phospho = _phospho()
+    site_metadata = _site_metadata()
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                )
+            )
+        ),
+    )
+
+    expected = pd.DataFrame(
+        {
+            "sample_a": [1.0, 1.584962500721156, 2.0],
+            "sample_b": [1.584962500721156, 1.0, 2.321928094887362],
+            "sample_c": [2.0, 1.3219280948873624, 2.584962500721156],
+        },
+        index=phospho.index.copy(),
+    )
+    pdt.assert_frame_equal(preprocessed.phospho, expected)
+    assert preprocessed.phospho.index.equals(phospho.index)
+    assert preprocessed.phospho.columns.equals(phospho.columns)
+    assert preprocessed.site_metadata is site_metadata
+
+
+def test_dataset_preprocessor_rejects_log2_transform_when_values_are_invalid() -> None:
+    phospho = _phospho()
+    phospho.loc["MAPK14;Y182;", "sample_a"] = -1.0
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="requires all non-missing values plus pseudocount to be greater than 0",
+    ):
+        DatasetPreprocessor().run(
+            phospho=phospho,
+            site_metadata=_site_metadata(),
+            sample_metadata=None,
+            total=None,
+            plan=PreprocessingPlan.from_config(
+                DatasetPreprocessingConfig(
+                    intensity_transform=DatasetIntensityTransformConfig(
+                        policy="log2",
+                        pseudocount=1.0,
+                    )
+                )
+            ),
+        )
+
+
+def test_dataset_preprocessor_applies_median_center_normalisation_policy() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0, 3.0],
+            "sample_b": [4.0, 2.0, 0.0],
+        },
+        index=_phospho().index.copy(),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                normalisation=DatasetNormalisationConfig(policy="median_center")
+            )
+        ),
+    )
+
+    expected = pd.DataFrame(
+        {
+            "sample_a": [-1.0, 0.0, 1.0],
+            "sample_b": [2.0, 0.0, -2.0],
+        },
+        index=phospho.index.copy(),
+    )
+    pdt.assert_frame_equal(preprocessed.phospho, expected)
+    assert preprocessed.phospho.index.equals(phospho.index)
+    assert preprocessed.phospho.columns.equals(phospho.columns)
+
+
+def test_dataset_preprocessor_quantile_normalisation_equalises_column_distributions() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [5.0, 2.0, 3.0, 4.0],
+            "sample_b": [4.0, 1.0, 2.5, 2.0],
+            "sample_c": [8.0, 6.0, 7.0, 9.0],
+        },
+        index=pd.Index(["A;S1;", "B;S1;", "C;S1;", "D;S1;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["A", "B", "C", "D"],
+            "site": ["S1", "S1", "S1", "S1"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                normalisation=DatasetNormalisationConfig(policy="quantile")
+            )
+        ),
+    )
+
+    sorted_a = sorted(preprocessed.phospho.loc[:, "sample_a"].tolist())
+    sorted_b = sorted(preprocessed.phospho.loc[:, "sample_b"].tolist())
+    sorted_c = sorted(preprocessed.phospho.loc[:, "sample_c"].tolist())
+    assert sorted_a == pytest.approx(sorted_b)
+    assert sorted_b == pytest.approx(sorted_c)
+    assert preprocessed.phospho.index.equals(phospho.index)
+    assert preprocessed.phospho.columns.equals(phospho.columns)
+    assert preprocessed.site_metadata is site_metadata
+
+
+def test_dataset_preprocessor_quantile_normalisation_is_deterministic_with_ties_and_missing() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 1.0, 3.0, float("nan")],
+            "sample_b": [4.0, 2.0, 2.0, 1.0],
+            "sample_c": [7.0, 8.0, 9.0, 10.0],
+        },
+        index=pd.Index(["A;S1;", "B;S1;", "C;S1;", "D;S1;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["A", "B", "C", "D"],
+            "site": ["S1", "S1", "S1", "S1"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C", "SEQ_D"],
+        },
+        index=phospho.index.copy(),
+    )
+    config = DatasetPreprocessingConfig(
+        normalisation=DatasetNormalisationConfig(policy="quantile")
+    )
+
+    first = DatasetPreprocessor().run(
+        phospho=phospho.copy(deep=True),
+        site_metadata=site_metadata.copy(deep=True),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(config),
+    )
+    second = DatasetPreprocessor().run(
+        phospho=phospho.copy(deep=True),
+        site_metadata=site_metadata.copy(deep=True),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan.from_config(config),
+    )
+
+    pdt.assert_frame_equal(first.phospho, second.phospho)
+    assert first.phospho.loc["A;S1;", "sample_a"] == pytest.approx(
+        first.phospho.loc["B;S1;", "sample_a"]
+    )
+    assert pd.isna(first.phospho.loc["D;S1;", "sample_a"])
+
+
+@pytest.mark.parametrize(
+    ("intensity_transform", "normalisation", "expected"),
+    [
+        (
+            DatasetIntensityTransformConfig(policy="log2", pseudocount=1.0),
+            DatasetNormalisationConfig(policy="none"),
+            "intensity_transform.policy='log2' requires numeric phospho columns",
+        ),
+        (
+            DatasetIntensityTransformConfig(policy="identity", pseudocount=1.0),
+            DatasetNormalisationConfig(policy="median_center"),
+            "normalisation.policy='median_center' requires numeric phospho columns",
+        ),
+    ],
+)
+def test_dataset_preprocessor_rejects_non_numeric_phospho_columns_for_new_methods(
+    intensity_transform: DatasetIntensityTransformConfig,
+    normalisation: DatasetNormalisationConfig,
+    expected: str,
+) -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "metadata_note": ["a", "b"],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    with pytest.raises(PhosPyInputError, match=expected):
+        DatasetPreprocessor().run(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=None,
+            plan=PreprocessingPlan.from_config(
+                DatasetPreprocessingConfig(
+                    intensity_transform=intensity_transform,
+                    normalisation=normalisation,
+                )
+            ),
+        )

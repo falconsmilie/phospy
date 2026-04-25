@@ -17,6 +17,26 @@ DATASET_MISSING_DATA_POLICIES = frozenset(
         DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
     }
 )
+DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY = "identity"
+DATASET_INTENSITY_TRANSFORM_POLICY_LOG2 = "log2"
+DatasetIntensityTransformPolicy = Literal["identity", "log2"]
+DATASET_INTENSITY_TRANSFORM_POLICIES = frozenset(
+    {
+        DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
+        DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
+    }
+)
+DATASET_NORMALISATION_POLICY_NONE = "none"
+DATASET_NORMALISATION_POLICY_MEDIAN_CENTER = "median_center"
+DATASET_NORMALISATION_POLICY_QUANTILE = "quantile"
+DatasetNormalisationPolicy = Literal["none", "median_center", "quantile"]
+DATASET_NORMALISATION_POLICIES = frozenset(
+    {
+        DATASET_NORMALISATION_POLICY_NONE,
+        DATASET_NORMALISATION_POLICY_MEDIAN_CENTER,
+        DATASET_NORMALISATION_POLICY_QUANTILE,
+    }
+)
 DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE = "none"
 DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL = "ratio_to_total"
 DatasetTotalProteinCorrectionPolicy = Literal["none", "ratio_to_total"]
@@ -172,6 +192,34 @@ class DatasetMissingDataConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class DatasetIntensityTransformConfig:
+    """Public intensity transform policy options for dataset building.
+
+    - `"identity"`: no transform (strict default).
+    - `"log2"`: apply `log2(value + pseudocount)` to quantitative matrix values.
+
+    `pseudocount` must be non-negative.
+    """
+
+    policy: DatasetIntensityTransformPolicy = (
+        DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
+    )
+    pseudocount: float = 1.0
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetNormalisationConfig:
+    """Public normalisation policy options for dataset building.
+
+    - `"none"`: no normalisation (strict default).
+    - `"median_center"`: subtract sample-wise medians.
+    - `"quantile"`: force sample columns to share one empirical distribution.
+    """
+
+    policy: DatasetNormalisationPolicy = DATASET_NORMALISATION_POLICY_NONE
+
+
+@dataclass(frozen=True, slots=True)
 class DatasetTotalProteinCorrectionConfig:
     """Public total/protein correction policy options for dataset building.
 
@@ -264,12 +312,20 @@ class DatasetPreprocessingConfig:
     The builder owns this policy surface. Groups are intentionally separated so
     supported preprocessing science remains user-visible:
 
+    - `intensity_transform`: quantitative transform policy.
+    - `normalisation`: sample-wise normalisation policy.
     - `missing_data`: missing-value handling policy.
     - `total_protein_correction`: total/protein correction policy.
     - `site_matrix`: site-matrix construction policy.
     - `comparisons`: comparison-building policy.
     """
 
+    intensity_transform: DatasetIntensityTransformConfig = field(
+        default_factory=DatasetIntensityTransformConfig
+    )
+    normalisation: DatasetNormalisationConfig = field(
+        default_factory=DatasetNormalisationConfig
+    )
     missing_data: DatasetMissingDataConfig = field(
         default_factory=DatasetMissingDataConfig
     )
@@ -411,9 +467,16 @@ __all__ = [
     "DATASET_COMPARISON_BUILDING_DEFAULT_SAMPLE_GROUP_COLUMN",
     "DATASET_COMPARISON_BUILDING_POLICY_NONE",
     "DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS",
+    "DATASET_INTENSITY_TRANSFORM_POLICIES",
+    "DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY",
+    "DATASET_INTENSITY_TRANSFORM_POLICY_LOG2",
     "DATASET_MISSING_DATA_POLICIES",
     "DATASET_MISSING_DATA_POLICY_FORBID",
     "DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN",
+    "DATASET_NORMALISATION_POLICIES",
+    "DATASET_NORMALISATION_POLICY_MEDIAN_CENTER",
+    "DATASET_NORMALISATION_POLICY_NONE",
+    "DATASET_NORMALISATION_POLICY_QUANTILE",
     "DATASET_SITE_MATRIX_POLICIES",
     "DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES",
     "DATASET_SITE_MATRIX_MISSING_DATA_POLICIES",
@@ -431,7 +494,11 @@ __all__ = [
     "DatasetComparisonBuildingConfig",
     "DatasetComparisonPair",
     "DatasetComparisonBuildingPolicy",
+    "DatasetIntensityTransformConfig",
+    "DatasetIntensityTransformPolicy",
     "DatasetMissingDataConfig",
+    "DatasetNormalisationConfig",
+    "DatasetNormalisationPolicy",
     "KINASE_ADAPTIVE_POLICIES",
     "KINASE_ADAPTIVE_POLICY_R_PARITY",
     "KINASE_ADAPTIVE_POLICY_STABLE",

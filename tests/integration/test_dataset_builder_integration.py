@@ -10,7 +10,9 @@ from phospy import (
 from phospy.api import (
     DatasetBuildRequest,
     DatasetComparisonBuildingConfig,
+    DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
+    DatasetNormalisationConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
@@ -803,6 +805,124 @@ def test_dataset_builder_default_forbid_policy_keeps_missingness_strict() -> Non
                 organism=Organism.RAT,
             )
         )
+
+
+def test_dataset_builder_log2_preprocessing_records_operation_and_state() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 3.0],
+            "sample_b": [2.0, 7.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                )
+            ),
+        )
+    )
+
+    assert built.transformation_state.label == "log2"
+    assert built.preprocessing_report is not None
+    operations = built.preprocessing_report.operations
+    log2_operation = operations.loc[
+        (operations.loc[:, "stage"] == "intensity_transform")
+        & (operations.loc[:, "notes"] == "stage executed")
+    ]
+    assert log2_operation.shape[0] == 1
+    assert log2_operation.iloc[0]["operation"] == "log2"
+    assert log2_operation.iloc[0]["parameters"] == {"pseudocount": 1.0}
+
+
+def test_dataset_builder_median_center_preprocessing_records_operation() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 3.0, 5.0],
+            "sample_b": [2.0, 3.0, 4.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;", "GSK3B;S9;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+            "site": ["Y182", "T308", "S9"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            preprocessing_config=DatasetPreprocessingConfig(
+                normalisation=DatasetNormalisationConfig(policy="median_center")
+            ),
+        )
+    )
+
+    assert built.preprocessing_report is not None
+    operations = built.preprocessing_report.operations
+    normalisation_operation = operations.loc[
+        (operations.loc[:, "stage"] == "normalisation")
+        & (operations.loc[:, "notes"] == "stage executed")
+    ]
+    assert normalisation_operation.shape[0] == 1
+    assert normalisation_operation.iloc[0]["operation"] == "median_center"
+    assert normalisation_operation.iloc[0]["parameters"] == {}
+
+
+def test_dataset_builder_quantile_preprocessing_records_operation() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [4.0, 1.0, 3.0],
+            "sample_b": [5.0, 2.0, 1.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;", "GSK3B;S9;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+            "site": ["Y182", "T308", "S9"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+        },
+        index=phospho.index.copy(),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            preprocessing_config=DatasetPreprocessingConfig(
+                normalisation=DatasetNormalisationConfig(policy="quantile")
+            ),
+        )
+    )
+
+    assert built.preprocessing_report is not None
+    operations = built.preprocessing_report.operations
+    normalisation_operation = operations.loc[
+        (operations.loc[:, "stage"] == "normalisation")
+        & (operations.loc[:, "notes"] == "stage executed")
+    ]
+    assert normalisation_operation.shape[0] == 1
+    assert normalisation_operation.iloc[0]["operation"] == "quantile"
+    assert normalisation_operation.iloc[0]["parameters"] == {}
 
 
 def test_reference_bundle_rat_tables_are_structurally_coherent() -> None:

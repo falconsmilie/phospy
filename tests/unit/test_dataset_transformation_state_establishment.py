@@ -21,6 +21,7 @@ from phospy.references.models import Organism
 from phospy.transformations.contracts import TransformationResult
 from phospy.transformations.models import (
     MatrixTransformationState,
+    TransformationKind,
     TransformationState,
     establish_transformation_state,
 )
@@ -259,6 +260,20 @@ def test_identity_transformer_is_strict_passthrough_establisher() -> None:
     pdt.assert_frame_equal(result.total, total)
     assert result.state.is_established
     assert result.state.kind.value == "linear"
+
+
+def test_resolver_can_establish_log2_state_for_identity_transformer_when_expected() -> (
+    None
+):
+    resolver = DatasetTransformationResolver(transformer=IdentityTransformer())
+    resolved = resolver.run(
+        phospho=_phospho(),
+        total=_total(),
+        expected_kind=TransformationKind.LOG2,
+    )
+    assert resolved.transformation_state.phospho.kind.value == "log2"
+    assert resolved.transformation_state.total is not None
+    assert resolved.transformation_state.total.kind.value == "log2"
 
 
 def test_bundle_reconstruction_lane_establishes_state() -> None:
