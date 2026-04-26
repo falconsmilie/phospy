@@ -1,0 +1,109 @@
+"""Public kinase prediction configuration models."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Literal
+
+from phospy.api.configs.common import _require_int_at_least
+from phospy.errors.validation import WorkflowValidationError
+
+KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING = "deterministic_ranking"
+KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE = "adaptive_ensemble"
+KinasePredictionMode = Literal[
+    "deterministic_ranking",
+    "adaptive_ensemble",
+]
+KINASE_PREDICTION_MODES = frozenset(
+    {
+        KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+        KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
+    }
+)
+KINASE_ADAPTIVE_POLICY_STABLE = "stable"
+KINASE_ADAPTIVE_POLICY_R_PARITY = "r_parity"
+KinaseAdaptivePolicy = Literal["stable", "r_parity"]
+KINASE_ADAPTIVE_POLICIES = frozenset(
+    {
+        KINASE_ADAPTIVE_POLICY_STABLE,
+        KINASE_ADAPTIVE_POLICY_R_PARITY,
+    }
+)
+KINASE_PREDICTION_DEFAULT_ITERATIONS = 5
+
+
+@dataclass(frozen=True, slots=True)
+class KinasePredictionConfig:
+    """Public prediction-stage configuration.
+
+    `mode` selects the prediction lane:
+
+    - `"deterministic_ranking"`: deterministic top-kinase selection from
+      downstream scores.
+    - `"adaptive_ensemble"`: real adaptive ensemble execution ported from donor
+      science.
+
+    `ensemble_size` is mode-dependent by design and should be interpreted with
+    `mode`:
+
+    - deterministic lane: maximum number of selected kinase columns.
+    - adaptive lane: number of ensemble executions per kinase.
+    """
+
+    top_k: int = 30
+    ensemble_size: int = 10
+    mode: KinasePredictionMode = KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING
+    adaptive_policy: KinaseAdaptivePolicy = KINASE_ADAPTIVE_POLICY_STABLE
+    n_iterations: int = KINASE_PREDICTION_DEFAULT_ITERATIONS
+    random_state: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.mode not in KINASE_PREDICTION_MODES:
+            allowed_modes = ", ".join(sorted(KINASE_PREDICTION_MODES))
+            raise WorkflowValidationError(
+                f"prediction_config.mode must be one of: {allowed_modes}"
+            )
+        if self.adaptive_policy not in KINASE_ADAPTIVE_POLICIES:
+            allowed_policies = ", ".join(sorted(KINASE_ADAPTIVE_POLICIES))
+            raise WorkflowValidationError(
+                f"prediction_config.adaptive_policy must be one of: {allowed_policies}"
+            )
+        if self.random_state is not None:
+            _require_int_at_least(
+                self.random_state,
+                field_name="prediction_config.random_state",
+                minimum=0,
+                error_type=WorkflowValidationError,
+            )
+        _require_int_at_least(
+            self.top_k,
+            field_name="prediction_config.top_k",
+            minimum=1,
+            error_type=WorkflowValidationError,
+        )
+        _require_int_at_least(
+            self.ensemble_size,
+            field_name="prediction_config.ensemble_size",
+            minimum=1,
+            error_type=WorkflowValidationError,
+        )
+        _require_int_at_least(
+            self.n_iterations,
+            field_name="prediction_config.n_iterations",
+            minimum=1,
+            error_type=WorkflowValidationError,
+        )
+
+
+__all__ = [
+    "KINASE_ADAPTIVE_POLICIES",
+    "KINASE_ADAPTIVE_POLICY_R_PARITY",
+    "KINASE_ADAPTIVE_POLICY_STABLE",
+    "KINASE_PREDICTION_DEFAULT_ITERATIONS",
+    "KINASE_PREDICTION_MODES",
+    "KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE",
+    "KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING",
+    "KinaseAdaptivePolicy",
+    "KinasePredictionConfig",
+    "KinasePredictionMode",
+]
