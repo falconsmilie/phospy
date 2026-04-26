@@ -64,3 +64,7 @@ class WorkflowBoundaryError(WorkflowValidationError):
 
 class WorkflowStageError(PhosPyWorkflowError):
     """An internal workflow stage failed after request interpretation."""
+
+
+class SignalomeScaleError(WorkflowValidationError):
+    """Signalome scale guard blocked an unsafe expensive execution path."""

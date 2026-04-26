@@ -747,6 +747,24 @@ def test_signalome_request_module_selection_max_clusters_policy_fails_at_boundar
         SignalomeConfig(module_selection_max_clusters=0)
 
 
+def test_signalome_request_clustering_backend_policy_fails_at_boundary() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="signalome workflow request config.clustering_backend",
+    ):
+        SignalomeConfig(clustering_backend="unsupported")  # type: ignore[arg-type]
+
+
+def test_signalome_request_max_exact_clustering_sites_policy_fails_at_boundary() -> (
+    None
+):
+    with pytest.raises(
+        WorkflowValidationError,
+        match="max_exact_clustering_sites",
+    ):
+        SignalomeConfig(max_exact_clustering_sites=0)
+
+
 def test_signalome_validator_requires_explicit_site_metadata_protein_id_column() -> (
     None
 ):

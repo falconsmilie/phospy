@@ -80,14 +80,22 @@ Current module-selection scoring contract constants:
 ```python
 MAX_FULL_CORRELATION_SITE_COUNT = 2000
 MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER = 256
+SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT = 2000
 ```
 
 Behavior:
 
-- for `n_sites <= 2000`, module-count scoring uses a full site-by-site correlation matrix,
-- for `n_sites > 2000`, module-count scoring uses sampled within-cluster correlation estimates,
-- sampled scoring is deterministic and order-invariant in the current implementation,
-- approximation use is reported in `SignalomeModuleSelectionDiagnostics.reason`.
+- `SignalomeConfig.clustering_backend="exact"` uses full site-by-site
+  correlation scoring for module-count candidates,
+- exact mode is hard-guarded by
+  `SignalomeConfig.max_exact_clustering_sites` (default `2000`): runs above
+  this limit fail early with `SignalomeScaleError` before clustering starts,
+- `SignalomeConfig.clustering_backend="approximate"` uses sampled within-cluster
+  correlation estimates for module-count candidate scoring,
+- sampled scoring is deterministic and order-invariant in the current
+  implementation,
+- approximation use is reported in `SignalomeModuleSelectionDiagnostics.reason`
+  and recorded in run provenance (`workflow_parameters.scale_guard`).
 
 Example:
 
@@ -96,7 +104,7 @@ diagnostics = result.module_selection_diagnostics
 print(diagnostics.reason)
 ```
 
-Full-correlation memory floor:
+Exact full-correlation memory floor:
 
 ```text
 n_sites x n_sites x 8 bytes
@@ -104,16 +112,20 @@ n_sites x n_sites x 8 bytes
 
 Example: a `2000 x 2000` float64 correlation matrix is about `32 MiB` before pandas/object overhead and additional intermediate arrays.
 
-Important limit note:
+Important limit notes:
 
 `build_cluster_tree()` remains pairwise/agglomerative and can become expensive as site count grows. Approximate correlation scoring avoids full correlation-matrix materialisation, but does not make clustering free.
+
+Exact-mode guard failures are intentional scientific/runtime boundaries. Do not
+silently reinterpret them as automatic approximation; choose approximation or
+site filtering explicitly and record that choice in provenance.
 
 ## Recommended ranges
 
 | Area | Current recommended range | Behaviour above range |
 | --- | ---: | --- |
-| Signalome full correlation | up to 2,000 sites | sampled correlation estimates activate |
-| Signalome clustering | low thousands of sites | runtime grows quickly because clustering is pairwise |
+| Signalome exact candidate scoring | up to configured `max_exact_clustering_sites` (default `2,000`) | workflow fails early with `SignalomeScaleError` |
+| Signalome approximate candidate scoring | low thousands of sites | runtime grows quickly because clustering is pairwise |
 | Quantile normalisation | thousands to low tens of thousands of sites, tens of samples | dense copies and sorting may become memory-heavy |
 | Motif scoring | thousands of sites x hundreds of kinases | cost grows with scored sites, eligible kinases, and window width |
 | Kinase-substrate reference maps | large maps are acceptable | overlap filtering should prevent off-lane kinases dominating |

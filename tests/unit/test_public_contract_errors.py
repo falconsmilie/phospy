@@ -70,6 +70,7 @@ NON_FACADE_ERROR_TYPES = {
     "TransformationStateEstablishmentError",
     "TransformerExecutionError",
     "WorkflowStageError",
+    "SignalomeScaleError",
 }
 
 

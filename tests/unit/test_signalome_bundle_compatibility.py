@@ -44,6 +44,8 @@ def test_signalome_snapshot_supports_compatibility_cutoff_payload() -> None:
     assert snapshot.signalome_config.score_preconditioning_policy == (
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
     )
+    assert snapshot.signalome_config.clustering_backend == "exact"
+    assert snapshot.signalome_config.max_exact_clustering_sites == 2000
 
 
 def test_signalome_snapshot_supports_assignment_policy_payload() -> None:
@@ -116,6 +118,8 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
             "score_preconditioning_policy": (
                 SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
             ),
+            "clustering_backend": "approximate",
+            "max_exact_clustering_sites": 2500,
             "module_count": 6,
             "module_selection_primary_correlation_threshold": 0.67,
             "module_selection_fallback_correlation_threshold": 0.23,

@@ -154,6 +154,8 @@ def _resolved_signalome_execution_config(
             config.module_selection_fallback_correlation_threshold
         ),
         module_selection_max_clusters=int(config.module_selection_max_clusters),
+        clustering_backend=config.clustering_backend,
+        max_exact_clustering_sites=int(config.max_exact_clustering_sites),
         requested_module_count=(
             None if config.module_count is None else int(config.module_count)
         ),

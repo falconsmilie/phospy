@@ -381,6 +381,14 @@ def test_kinase_activity_config_self_validates(
             {"module_selection_max_clusters": 0},
             "module_selection_max_clusters",
         ),
+        (
+            {"clustering_backend": "invalid"},
+            "signalome workflow request config.clustering_backend",
+        ),
+        (
+            {"max_exact_clustering_sites": 0},
+            "signalome workflow request config.max_exact_clustering_sites",
+        ),
     ],
 )
 def test_signalome_config_self_validates(

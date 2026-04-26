@@ -8,8 +8,11 @@ from collections.abc import Mapping
 from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICIES,
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_CLUSTERING_BACKEND_EXACT,
+    SIGNALOME_CLUSTERING_BACKENDS,
     SIGNALOME_KINASE_NETWORK_POLICIES,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
+    SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT,
     SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT,
     SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
     SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT,
@@ -108,6 +111,29 @@ def signalome_config_from_payload_with_compatibility_support(
         raise PhosPyInputError(
             f"{scope}.signalome_config.score_preconditioning_policy must be one of: {allowed}"
         )
+    clustering_backend_raw = payload.get("clustering_backend")
+    clustering_backend = (
+        SIGNALOME_CLUSTERING_BACKEND_EXACT
+        if clustering_backend_raw is None
+        else require_str(
+            clustering_backend_raw,
+            field_name=f"{scope}.signalome_config.clustering_backend",
+        )
+    )
+    if clustering_backend not in SIGNALOME_CLUSTERING_BACKENDS:
+        allowed = ", ".join(sorted(SIGNALOME_CLUSTERING_BACKENDS))
+        raise PhosPyInputError(
+            f"{scope}.signalome_config.clustering_backend must be one of: {allowed}"
+        )
+    max_exact_clustering_sites_raw = payload.get("max_exact_clustering_sites")
+    max_exact_clustering_sites = (
+        SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT
+        if max_exact_clustering_sites_raw is None
+        else _require_int(
+            max_exact_clustering_sites_raw,
+            field_name=f"{scope}.signalome_config.max_exact_clustering_sites",
+        )
+    )
     return SignalomeConfig(
         substrate_support_cutoff=require_float(
             substrate_support_cutoff,
@@ -120,6 +146,8 @@ def signalome_config_from_payload_with_compatibility_support(
         network_policy=network_policy,  # type: ignore[arg-type]
         assignment_policy=assignment_policy,  # type: ignore[arg-type]
         score_preconditioning_policy=score_preconditioning_policy,  # type: ignore[arg-type]
+        clustering_backend=clustering_backend,  # type: ignore[arg-type]
+        max_exact_clustering_sites=max_exact_clustering_sites,
         module_count=module_count,
         module_selection_primary_correlation_threshold=require_float(
             payload.get("module_selection_primary_correlation_threshold")

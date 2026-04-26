@@ -191,6 +191,13 @@ validate local policy/range rules at object construction.
 - `kinase_result.dataset.site_metadata.protein_id` exists and is non-empty for all interpreted sites
 
 `SignalomeConfig` validates local policy/range rules at object construction.
+This includes `clustering_backend` policy values and
+`max_exact_clustering_sites >= 1`.
+
+Signalome execution also enforces a runtime scale guard: when
+`clustering_backend="exact"` and interpreted site count exceeds
+`max_exact_clustering_sites`, execution fails early with `SignalomeScaleError`
+before expensive clustering starts.
 
 Signalome is intentionally strict about protein identity. A site ID such as
 `TSC2;S939;` is not a substitute for `protein_id`.
@@ -215,6 +222,7 @@ network/module preconditions.
 | dataset organism missing for `AUTO` | set `organism=Organism.RAT` for bundled first runs |
 | bundled human/mouse preset fails | use an explicit `ReferenceBundle` |
 | signalome fails on `protein_id` | add a non-empty `protein_id` column |
+| signalome exact mode fails with `SignalomeScaleError` | reduce interpreted sites, use `clustering_backend="approximate"`, or deliberately raise `max_exact_clustering_sites` |
 | rows dropped in site-matrix building | review sequence support and preprocessing policy |
 
 ## Validation ownership summary

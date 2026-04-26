@@ -284,11 +284,24 @@ Fields:
 - `module_selection_primary_correlation_threshold`
 - `module_selection_fallback_correlation_threshold`
 - `module_selection_max_clusters`
+- `clustering_backend`: `exact`, `approximate`
+- `max_exact_clustering_sites` (default `2000`)
 
-Signalome module-selection scoring uses a full site-by-site correlation path up
-to `MAX_FULL_CORRELATION_SITE_COUNT` (`2000`), then switches to sampled
-within-cluster correlation estimates above that threshold. Approximation use is
-reported through `result.module_selection_diagnostics.reason`.
+Signalome now enforces a hard scale guard for exact mode. When
+`clustering_backend="exact"` and interpreted site count exceeds
+`max_exact_clustering_sites`, execution fails before clustering starts with a
+typed `SignalomeScaleError`.
+
+Approximate mode (`clustering_backend="approximate"`) uses sampled
+within-cluster correlation estimates for module-selection candidate scoring.
+This can change module boundaries and downstream biological interpretation
+compared with exact candidate scoring, so treat it as an explicit scientific
+choice.
+
+Successful runs record scale decisions in provenance under
+`result.provenance.workflow_parameters["scale_guard"]` (`site_count`,
+`clustering_backend`, `max_exact_clustering_sites`, `scale_guard_passed`,
+`approximation_used`).
 
 See [Performance Contracts](performance.md#signalome-clustering-and-module-selection).
 
@@ -467,6 +480,7 @@ Common ones to catch:
 - `UnsupportedOrganismError`
 - `WorkflowValidationError`
 - `WorkflowBoundaryError`
+- `SignalomeScaleError`
 
 ## Small working example
 

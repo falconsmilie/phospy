@@ -5,6 +5,7 @@ from __future__ import annotations
 import heapq
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -36,6 +37,10 @@ from phospy.signalomes.models import (
 MAX_FULL_CORRELATION_SITE_COUNT = 2000
 MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER = 256
 NEAR_CONSTANT_PROFILE_VARIANCE_TOLERANCE = 1e-12
+SIGNALOME_CLUSTERING_SCORING_MODE_AUTO = "auto"
+SIGNALOME_CLUSTERING_SCORING_MODE_EXACT = "exact"
+SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE = "approximate"
+SignalomeClusteringScoringMode = Literal["auto", "exact", "approximate"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +78,9 @@ def cluster_sites(
     primary_threshold: float = 0.5,
     fallback_threshold: float = 0.1,
     max_clusters: int = 10,
+    scoring_mode: SignalomeClusteringScoringMode = (
+        SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
+    ),
 ) -> pd.Series:
     """Cluster phosphosites into site clusters."""
 
@@ -82,6 +90,7 @@ def cluster_sites(
         primary_threshold=primary_threshold,
         fallback_threshold=fallback_threshold,
         max_clusters=max_clusters,
+        scoring_mode=scoring_mode,
     ).site_clusters
 
 
@@ -92,6 +101,9 @@ def cluster_sites_with_diagnostics(
     primary_threshold: float = 0.5,
     fallback_threshold: float = 0.1,
     max_clusters: int = 10,
+    scoring_mode: SignalomeClusteringScoringMode = (
+        SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
+    ),
 ) -> ClusterSitesResult:
     """Cluster phosphosites and capture module-selection diagnostics."""
 
@@ -102,6 +114,7 @@ def cluster_sites_with_diagnostics(
         primary_threshold=primary_threshold,
         fallback_threshold=fallback_threshold,
         max_clusters=max_clusters,
+        scoring_mode=scoring_mode,
     )
     diagnostics = selection.diagnostics
     n_sites = int(scoring_values.shape[0])
@@ -142,6 +155,9 @@ def select_module_count(
     primary_threshold: float = 0.5,
     fallback_threshold: float = 0.1,
     max_clusters: int = 10,
+    scoring_mode: SignalomeClusteringScoringMode = (
+        SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
+    ),
 ) -> int:
     """Select a module count from a scoring matrix."""
 
@@ -151,6 +167,7 @@ def select_module_count(
         primary_threshold=primary_threshold,
         fallback_threshold=fallback_threshold,
         max_clusters=max_clusters,
+        scoring_mode=scoring_mode,
     ).selected_module_count
 
 
@@ -161,6 +178,9 @@ def select_module_count_with_diagnostics(
     primary_threshold: float = 0.5,
     fallback_threshold: float = 0.1,
     max_clusters: int = 10,
+    scoring_mode: SignalomeClusteringScoringMode = (
+        SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
+    ),
 ) -> SignalomeModuleSelectionDiagnostics:
     """Select a module count and return diagnostics."""
 
@@ -175,6 +195,7 @@ def select_module_count_with_diagnostics(
         primary_threshold=primary_threshold,
         fallback_threshold=fallback_threshold,
         max_clusters=max_clusters,
+        scoring_mode=scoring_mode,
     ).diagnostics
 
 
@@ -230,11 +251,20 @@ def _compute_module_selection(
     primary_threshold: float = 0.5,
     fallback_threshold: float = 0.1,
     max_clusters: int = 10,
+    scoring_mode: SignalomeClusteringScoringMode = (
+        SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
+    ),
 ) -> _ModuleSelectionComputation:
     _validate_threshold(primary_threshold, field_name="primary_threshold")
     _validate_threshold(fallback_threshold, field_name="fallback_threshold")
     if max_clusters < 1:
         raise ValueError("max_clusters must be >= 1")
+    if scoring_mode not in {
+        SIGNALOME_CLUSTERING_SCORING_MODE_AUTO,
+        SIGNALOME_CLUSTERING_SCORING_MODE_EXACT,
+        SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE,
+    }:
+        raise ValueError("scoring_mode must be one of: auto, exact, approximate")
 
     scoring_array = np.asarray(scoring_values, dtype=float)
     if scoring_array.ndim != 2:
@@ -261,6 +291,7 @@ def _compute_module_selection(
             candidate_range=range(2, resolved_max_clusters + 1),
             profile_degeneracy=profile_degeneracy,
             n_sites=n_sites,
+            scoring_mode=scoring_mode,
         )
     )
 
@@ -441,6 +472,7 @@ def _compute_candidate_cluster_scores(
     candidate_range: range,
     profile_degeneracy: _ProfileDegeneracySummary,
     n_sites: int,
+    scoring_mode: SignalomeClusteringScoringMode,
 ) -> tuple[dict[int, SignalomeClusterCandidateScore], dict[int, np.ndarray], str]:
     """Score candidate cluster counts using full or sampled correlation paths."""
 
@@ -454,7 +486,11 @@ def _compute_candidate_cluster_scores(
         cluster_counts=candidate_counts,
     )
 
-    if n_sites <= MAX_FULL_CORRELATION_SITE_COUNT:
+    use_full_correlations = scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_EXACT or (
+        scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
+        and n_sites <= MAX_FULL_CORRELATION_SITE_COUNT
+    )
+    if use_full_correlations:
         site_correlations = build_correlation_matrix_with_exclusions(
             correlation_values,
             excluded_mask=profile_degeneracy.excluded_mask,
@@ -492,11 +528,17 @@ def _compute_candidate_cluster_scores(
             min_median_correlation=float(min(cluster_medians)),
             mean_median_correlation=float(np.mean(cluster_medians)),
         )
-    approximation_note = (
-        " Used sampled within-cluster correlation estimates (seeded, "
-        "order-invariant sampling) to avoid materializing a full site-by-site "
-        "correlation matrix."
-    )
+    if scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE:
+        approximation_note = (
+            " Used sampled within-cluster correlation estimates (seeded, "
+            "order-invariant sampling) because scoring_mode='approximate'."
+        )
+    else:
+        approximation_note = (
+            " Used sampled within-cluster correlation estimates (seeded, "
+            "order-invariant sampling) to avoid materializing a full site-by-site "
+            "correlation matrix."
+        )
     return candidate_scores, candidate_labels, approximation_note
 
 
@@ -1010,6 +1052,10 @@ __all__ = [
     "MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER",
     "MAX_FULL_CORRELATION_SITE_COUNT",
     "NEAR_CONSTANT_PROFILE_VARIANCE_TOLERANCE",
+    "SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE",
+    "SIGNALOME_CLUSTERING_SCORING_MODE_AUTO",
+    "SIGNALOME_CLUSTERING_SCORING_MODE_EXACT",
+    "SignalomeClusteringScoringMode",
     "build_correlation_exclusion_note",
     "build_correlation_matrix_with_exclusions",
     "build_cluster_labels_from_tree",

@@ -53,6 +53,10 @@ class SignalomeWorkflowConfigSnapshot:
                 "score_preconditioning_policy": str(
                     self.signalome_config.score_preconditioning_policy
                 ),
+                "clustering_backend": str(self.signalome_config.clustering_backend),
+                "max_exact_clustering_sites": int(
+                    self.signalome_config.max_exact_clustering_sites
+                ),
                 "module_count": (
                     None
                     if self.signalome_config.module_count is None

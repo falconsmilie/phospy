@@ -13,6 +13,18 @@ SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT = 0.5
 SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT = 0.1
 SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR = 1
 SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT = 10
+SIGNALOME_CLUSTERING_BACKEND_EXACT = "exact"
+SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE = "approximate"
+SignalomeClusteringBackend = Literal["exact", "approximate"]
+SIGNALOME_CLUSTERING_BACKENDS = frozenset(
+    {
+        SIGNALOME_CLUSTERING_BACKEND_EXACT,
+        SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
+    }
+)
+SIGNALOME_MAX_EXACT_CLUSTERING_SITES_FLOOR = 1
+# This default matches the established full-correlation contract threshold.
+SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT = 2000
 SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY = "cutoff_binary"
 SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP = "weighted_top"
 SignalomeAssignmentPolicy = Literal["cutoff_binary", "weighted_top"]
@@ -75,6 +87,15 @@ class SignalomeConfig:
       reporting exact counts in diagnostics.
     - `"error_on_drop"`: fail signalome interpretation when any all-missing
       rows would be dropped.
+
+    `clustering_backend` controls module-selection candidate-score evaluation:
+
+    - `"exact"`: use full site-by-site correlations for candidate scoring.
+    - `"approximate"`: use sampled within-cluster correlation estimates.
+
+    `max_exact_clustering_sites` hard-limits exact candidate-scoring execution.
+    When `clustering_backend="exact"` and interpreted site count exceeds this
+    limit, signalome execution fails before clustering starts.
     """
 
     substrate_support_cutoff: float = 0.5
@@ -96,6 +117,8 @@ class SignalomeConfig:
         SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT
     )
     module_selection_max_clusters: int = SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT
+    clustering_backend: SignalomeClusteringBackend = SIGNALOME_CLUSTERING_BACKEND_EXACT
+    max_exact_clustering_sites: int = SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT
 
     def __post_init__(self) -> None:
         _require_real_between(
@@ -170,9 +193,24 @@ class SignalomeConfig:
             minimum=SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR,
             error_type=WorkflowValidationError,
         )
+        if self.clustering_backend not in SIGNALOME_CLUSTERING_BACKENDS:
+            allowed_backends = ", ".join(sorted(SIGNALOME_CLUSTERING_BACKENDS))
+            raise WorkflowValidationError(
+                "signalome workflow request config.clustering_backend "
+                f"must be one of: {allowed_backends}"
+            )
+        _require_int_at_least(
+            self.max_exact_clustering_sites,
+            field_name="signalome workflow request config.max_exact_clustering_sites",
+            minimum=SIGNALOME_MAX_EXACT_CLUSTERING_SITES_FLOOR,
+            error_type=WorkflowValidationError,
+        )
 
 
 __all__ = [
+    "SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE",
+    "SIGNALOME_CLUSTERING_BACKEND_EXACT",
+    "SIGNALOME_CLUSTERING_BACKENDS",
     "SIGNALOME_ASSIGNMENT_POLICIES",
     "SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY",
     "SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP",
@@ -185,10 +223,13 @@ __all__ = [
     "SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT",
     "SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR",
     "SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT",
+    "SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT",
+    "SIGNALOME_MAX_EXACT_CLUSTERING_SITES_FLOOR",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICIES",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP",
     "SignalomeAssignmentPolicy",
+    "SignalomeClusteringBackend",
     "SignalomeConfig",
     "SignalomeKinaseNetworkPolicy",
     "SignalomeScorePreconditioningPolicy",

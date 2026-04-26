@@ -82,6 +82,9 @@ and full `processing_state` payload.
 - preprocessing stage execution trace (shape/hash/drop/imputation metadata)
 - reference identity/fingerprints
 - workflow parameters and random-state policy
+  - signalome runs include `workflow_parameters.scale_guard` with
+    `site_count`, `clustering_backend`, `max_exact_clustering_sites`,
+    `scale_guard_passed`, and `approximation_used`
 
 Legacy bundles without top-level `provenance` remain loadable; loaders reconstruct
 results with `result.provenance=None` for those manifests.
@@ -223,6 +226,9 @@ Signalome config snapshot (all persisted fields):
   (`"cutoff_binary"`, `"weighted_top"`).
 - `signalome_config.score_preconditioning_policy`: downstream score
   preconditioning policy (`"allow_and_report"` or `"error_on_drop"`).
+- `signalome_config.clustering_backend`: module-selection scoring mode
+  (`"exact"` or `"approximate"`).
+- `signalome_config.max_exact_clustering_sites`: hard guard limit for exact mode.
 - `signalome_config.module_count`: explicit module count request when set.
 - `signalome_config.module_selection_primary_correlation_threshold`
 - `signalome_config.module_selection_fallback_correlation_threshold`

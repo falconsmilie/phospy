@@ -15,6 +15,9 @@ from phospy.api import (
 )
 from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
+    SIGNALOME_CLUSTERING_BACKEND_EXACT,
+    SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
 )
@@ -23,7 +26,11 @@ from phospy.api.results import (
     KinaseScoringResult,
     SignalomeWorkflowResult,
 )
-from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
+from phospy.errors import (
+    SignalomeScaleError,
+    WorkflowBoundaryError,
+    WorkflowValidationError,
+)
 from phospy.errors.workflows import WorkflowStageError
 from phospy.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
@@ -158,6 +165,8 @@ def _execution_config(config: SignalomeConfig) -> ResolvedSignalomeExecutionConf
             config.module_selection_fallback_correlation_threshold
         ),
         module_selection_max_clusters=int(config.module_selection_max_clusters),
+        clustering_backend=config.clustering_backend,
+        max_exact_clustering_sites=int(config.max_exact_clustering_sites),
         requested_module_count=(
             None if config.module_count is None else int(config.module_count)
         ),
@@ -472,6 +481,12 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
         pytest.approx(0.1)
     )
     assert interpreted.execution_config.module_selection_max_clusters == 10
+    assert interpreted.execution_config.clustering_backend == (
+        SIGNALOME_CLUSTERING_BACKEND_EXACT
+    )
+    assert interpreted.execution_config.max_exact_clustering_sites == (
+        SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT
+    )
 
 
 def test_interpreter_preconditions_downstream_scores_without_dropping_prediction_rows() -> (
@@ -754,6 +769,126 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     assert result.score_preconditioning_diagnostics.policy == (
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
     )
+    assert result.provenance is not None
+    scale_guard = result.provenance.workflow_parameters["scale_guard"]
+    assert scale_guard == {
+        "site_count": 2,
+        "clustering_backend": SIGNALOME_CLUSTERING_BACKEND_EXACT,
+        "max_exact_clustering_sites": SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT,
+        "scale_guard_passed": True,
+        "approximation_used": False,
+    }
+
+
+def test_scale_guard_fails_exact_mode_before_clustering_execution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.workflows.signalome.executor as executor_module
+
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.95, 0.1],
+            [0.1, 0.95],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(
+            substrate_support_cutoff=0.5,
+            clustering_backend=SIGNALOME_CLUSTERING_BACKEND_EXACT,
+            max_exact_clustering_sites=2,
+        ),
+    )
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+
+    cluster_calls: list[str] = []
+
+    def _cluster_should_not_run(**_: object) -> object:
+        cluster_calls.append("called")
+        raise AssertionError("clustering should not run when scale guard fails")
+
+    monkeypatch.setattr(
+        executor_module,
+        "cluster_sites_with_diagnostics",
+        _cluster_should_not_run,
+    )
+
+    with pytest.raises(SignalomeScaleError) as exc_info:
+        SignalomeWorkflowExecutor().run(interpreted)
+
+    message = str(exc_info.value).lower()
+    assert "3 sites" in message
+    assert "limit of 2" in message
+    assert "clustering_backend='exact'" in message
+    assert "clustering_backend='approximate'" in message
+    assert "filter sites" in message
+    assert "module boundaries" in message
+    assert cluster_calls == []
+
+
+def test_scale_guard_allows_approximate_mode_above_exact_limit() -> None:
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.95, 0.1],
+            [0.1, 0.95],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(
+            substrate_support_cutoff=0.5,
+            clustering_backend=SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
+            max_exact_clustering_sites=1,
+        ),
+    )
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    result = SignalomeWorkflowExecutor().run(interpreted)
+
+    assert result.provenance is not None
+    scale_guard = result.provenance.workflow_parameters["scale_guard"]
+    assert scale_guard == {
+        "site_count": 3,
+        "clustering_backend": SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
+        "max_exact_clustering_sites": 1,
+        "scale_guard_passed": True,
+        "approximation_used": True,
+    }
 
 
 def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_gene_symbol() -> (

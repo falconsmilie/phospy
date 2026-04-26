@@ -24,6 +24,7 @@ from phospy.errors.validation import (
 )
 from phospy.errors.workflows import (
     PhosPyWorkflowError,
+    SignalomeScaleError,
     WorkflowBoundaryError,
     WorkflowStageError,
 )
@@ -42,6 +43,7 @@ __all__ = [
     "ReferenceCompatibilityError",
     "ReferenceResolutionError",
     "ReferenceValidationError",
+    "SignalomeScaleError",
     "TransformationStateEstablishmentError",
     "TransformationValidationError",
     "TransformerExecutionError",

@@ -19,9 +19,12 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
+    SIGNALOME_CLUSTERING_BACKEND_EXACT,
     SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
     SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
+    SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     KinaseActivityConfig,
@@ -155,6 +158,27 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Downstream score preconditioning policy: allow dropped all-missing "
             "rows with diagnostics, or fail when any drop would occur."
+        ),
+    )
+    signalome.add_argument(
+        "--clustering-backend",
+        default=SIGNALOME_CLUSTERING_BACKEND_EXACT,
+        choices=[
+            SIGNALOME_CLUSTERING_BACKEND_EXACT,
+            SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
+        ],
+        help=(
+            "Signalome module-selection scoring mode: exact full-correlation "
+            "candidate scoring or approximate sampled candidate scoring."
+        ),
+    )
+    signalome.add_argument(
+        "--max-exact-clustering-sites",
+        type=int,
+        default=SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT,
+        help=(
+            "Hard execution guard for clustering_backend=exact. Exact mode fails "
+            "before clustering when interpreted site count exceeds this limit."
         ),
     )
     return parser
@@ -328,6 +352,8 @@ def _run_signalome(args: argparse.Namespace) -> None:
                 network_policy=args.network_policy,
                 assignment_policy=args.assignment_policy,
                 score_preconditioning_policy=args.score_preconditioning_policy,
+                clustering_backend=args.clustering_backend,
+                max_exact_clustering_sites=args.max_exact_clustering_sites,
             ),
         )
     )
