@@ -173,10 +173,15 @@ scientific contract:
 - expected motif window length is `15` residues (centre index `7`)
 - centre residue is validated against site identity when available
 - supported residue characters are the 20 canonical amino acids
-- missing, short, off-centre, site-residue-mismatched, and unsupported
-  sequences are excluded from motif scoring
-- sequence validation diagnostics are exposed on
+- query/target windows that are missing, short, off-centre,
+  site-residue-mismatched, or unsupported are excluded from motif scoring
+- reference/library windows are validated with the same rules before motif
+  profile construction; invalid reference windows are excluded from motif model
+  construction
+- query-side sequence validation diagnostics are exposed on
   `result.scoring_result.motif_sequence_validation`
+- reference-library validation diagnostics are exposed on
+  `result.scoring_result.motif_library_validation`
 
 `KinaseScoringConfig`, `KinasePredictionConfig`, and `KinaseActivityConfig`
 validate local policy/range rules at object construction.

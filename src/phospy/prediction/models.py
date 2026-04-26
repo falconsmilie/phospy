@@ -8,6 +8,7 @@ import pandas as pd
 
 from phospy._frame_ownership import own_optional_dataframe
 from phospy.errors.validation import PhosPyValidationError
+from phospy.prediction.motif_scoring import MotifLibraryValidationResult
 from phospy.prediction.sequence_validation import SequenceValidationResult
 from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
 
@@ -27,6 +28,7 @@ class KinaseScoringResult:
     rank_weighted_fusion_scores: pd.DataFrame | None = None
     score_fusion_weights: pd.DataFrame | None = None
     motif_sequence_validation: SequenceValidationResult | None = None
+    motif_library_validation: MotifLibraryValidationResult | None = None
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
@@ -76,6 +78,14 @@ class KinaseScoringResult:
                 "scoring_result.motif_sequence_validation must be "
                 "SequenceValidationResult or None"
             )
+        if self.motif_library_validation is not None and not isinstance(
+            self.motif_library_validation,
+            MotifLibraryValidationResult,
+        ):
+            raise PhosPyValidationError(
+                "scoring_result.motif_library_validation must be "
+                "MotifLibraryValidationResult or None"
+            )
 
     @classmethod
     def _from_owned(
@@ -86,6 +96,7 @@ class KinaseScoringResult:
         rank_weighted_fusion_scores: pd.DataFrame | None = None,
         score_fusion_weights: pd.DataFrame | None = None,
         motif_sequence_validation: SequenceValidationResult | None = None,
+        motif_library_validation: MotifLibraryValidationResult | None = None,
     ) -> KinaseScoringResult:
         return cls(
             profile_scores=profile_scores,
@@ -93,6 +104,7 @@ class KinaseScoringResult:
             rank_weighted_fusion_scores=rank_weighted_fusion_scores,
             score_fusion_weights=score_fusion_weights,
             motif_sequence_validation=motif_sequence_validation,
+            motif_library_validation=motif_library_validation,
             _assume_owned=True,
         )
 

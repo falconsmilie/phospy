@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -9,15 +10,22 @@ import numpy as np
 import pandas as pd
 
 from phospy.prediction.sequence_validation import (
+    SEQUENCE_VALIDATION_STATUS_MISSING_SEQUENCE,
+    SEQUENCE_VALIDATION_STATUS_OFF_CENTRE_SEQUENCE,
+    SEQUENCE_VALIDATION_STATUS_SHORT_SEQUENCE,
+    SEQUENCE_VALIDATION_STATUS_SITE_RESIDUE_MISMATCH,
+    SEQUENCE_VALIDATION_STATUS_UNSUPPORTED_RESIDUE_CHARACTER,
     SEQUENCE_VALIDATION_STATUS_VALID,
     SUPPORTED_AMINO_ACIDS,
     MotifSequenceValidator,
     SequenceValidationInput,
     SequenceValidationResult,
+    SequenceValidationStatus,
 )
 
 AMINO_ACIDS: tuple[str, ...] = SUPPORTED_AMINO_ACIDS
 DEFAULT_MOTIF_FLANK_SIZE = 7
+_MOTIF_LIBRARY_VALIDATION_ATTR = "motif_library_validation"
 _ASCII_LOOKUP_SIZE = 256
 _INVALID_AMINO_ACID_INDEX = -1
 _AMINO_ACID_INDEX_LOOKUP = np.full(
@@ -37,6 +45,100 @@ class MotifScoringResult:
     motif_sizes: pd.Series
     sequence_windows: pd.Series
     sequence_validation: SequenceValidationResult
+    library_validation: MotifLibraryValidationResult | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MotifLibraryValidationRow:
+    """Per-reference motif-library validation outcome."""
+
+    reference_id: str
+    kinase: str
+    sequence: str | None
+    status: SequenceValidationStatus
+    reason: str | None
+    expected_centre_residue: str | None
+    observed_centre_residue: str | None
+    sequence_length: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class MotifLibraryValidationResult:
+    """Structured diagnostics for motif-library/reference sequence validation."""
+
+    total_reference_sequences: int
+    accepted_reference_sequences: int
+    excluded_reference_sequences: int
+    missing_sequences: int
+    short_sequences: int
+    off_centre_sequences: int
+    site_residue_mismatches: int
+    unsupported_residue_characters: int
+    sequences_excluded_from_motif_profile_construction: int
+    expected_window_size: int
+    supported_amino_acids: tuple[str, ...]
+    accepted_window_length_policy: str
+    unsupported_residue_policy: str
+    excluded_reference_ids: tuple[str, ...]
+    rows: tuple[MotifLibraryValidationRow, ...]
+
+    def summary(self) -> dict[str, object]:
+        """Return compact diagnostics for run-level reporting/provenance."""
+
+        return {
+            "reference_sequences_provided": self.total_reference_sequences,
+            "reference_sequences_accepted": self.accepted_reference_sequences,
+            "reference_sequences_excluded": self.excluded_reference_sequences,
+            "excluded_missing_sequence": self.missing_sequences,
+            "excluded_short_window": self.short_sequences,
+            "excluded_unsupported_residue": self.unsupported_residue_characters,
+            "excluded_off_centre_residue": self.off_centre_sequences,
+            "excluded_site_residue_mismatch": self.site_residue_mismatches,
+            "sequences_excluded_from_motif_profile_construction": (
+                self.sequences_excluded_from_motif_profile_construction
+            ),
+            "expected_window_size": self.expected_window_size,
+            "accepted_window_length_policy": self.accepted_window_length_policy,
+            "unsupported_residue_policy": self.unsupported_residue_policy,
+            "supported_amino_acids": list(self.supported_amino_acids),
+        }
+
+    def to_frame(self) -> pd.DataFrame:
+        """Return row-level library validation provenance as a compact table."""
+
+        columns = [
+            "reference_id",
+            "kinase",
+            "sequence",
+            "status",
+            "reason",
+            "observed_centre_residue",
+            "expected_centre_residue",
+            "sequence_length",
+        ]
+        return pd.DataFrame(
+            [
+                {
+                    "reference_id": row.reference_id,
+                    "kinase": row.kinase,
+                    "sequence": row.sequence,
+                    "status": row.status,
+                    "reason": row.reason,
+                    "observed_centre_residue": row.observed_centre_residue,
+                    "expected_centre_residue": row.expected_centre_residue,
+                    "sequence_length": row.sequence_length,
+                }
+                for row in self.rows
+            ],
+            columns=columns,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class _LibraryCandidate:
+    reference_id: str
+    kinase: str
+    sequence_window: object
 
 
 def build_motif_library(
@@ -50,32 +152,29 @@ def build_motif_library(
     if flank_size < 0:
         raise ValueError("flank_size must be >= 0")
 
-    if site_sequences.empty:
-        return {}, pd.Series(dtype=float, name="motif_size")
-
-    sequence_index = set(site_sequences.index.astype(str))
-    frequency_matrices: dict[str, pd.DataFrame] = {}
-    motif_sizes: dict[str, float] = {}
+    sequence_lookup = {
+        str(site_id): sequence for site_id, sequence in site_sequences.items()
+    }
+    candidates: list[_LibraryCandidate] = []
     for kinase, grouped in kinase_substrate_map.groupby("kinase", sort=False):
         sites = list(dict.fromkeys(grouped.loc[:, "substrate_site"].astype(str)))
-        sequence_sites = [site for site in sites if site in sequence_index]
-        if not sequence_sites:
-            continue
-        windows = _coerce_sequence_series(
-            site_sequences.loc[sequence_sites],
-            flank_size=flank_size,
-        )
-        windows = windows.dropna()
-        if windows.empty:
-            continue
-        frequency_matrices[str(kinase)] = _build_frequency_matrix_from_windows(
-            windows,
-            context=f"kinase={kinase}",
-        )
-        motif_sizes[str(kinase)] = float(len(windows))
+        for reference_id in sites:
+            candidates.append(
+                _LibraryCandidate(
+                    reference_id=reference_id,
+                    kinase=str(kinase),
+                    sequence_window=_extract_sequence_window(
+                        sequence_lookup.get(reference_id, np.nan),
+                        flank_size,
+                    ),
+                )
+            )
 
-    size_series = pd.Series(motif_sizes, dtype=float, name="motif_size")
-    size_series.index.name = "kinase"
+    frequency_matrices, size_series, validation = _build_motif_library_from_candidates(
+        candidates,
+        flank_size=flank_size,
+    )
+    size_series.attrs[_MOTIF_LIBRARY_VALIDATION_ATTR] = validation
     return frequency_matrices, size_series
 
 
@@ -88,20 +187,123 @@ def build_motif_library_from_sequences(
 
     if flank_size < 0:
         raise ValueError("flank_size must be >= 0")
+
+    candidates: list[_LibraryCandidate] = []
+    for kinase, sequences in motif_sequences.items():
+        kinase_name = str(kinase)
+        for index, sequence in enumerate(sequences):
+            candidates.append(
+                _LibraryCandidate(
+                    reference_id=f"{kinase_name}#{index}",
+                    kinase=kinase_name,
+                    sequence_window=_extract_sequence_window(sequence, flank_size),
+                )
+            )
+    frequency_matrices, size_series, validation = _build_motif_library_from_candidates(
+        candidates,
+        flank_size=flank_size,
+    )
+    size_series.attrs[_MOTIF_LIBRARY_VALIDATION_ATTR] = validation
+    return frequency_matrices, size_series
+
+
+def get_motif_library_validation(
+    motif_sizes: pd.Series,
+) -> MotifLibraryValidationResult | None:
+    """Extract attached motif-library validation diagnostics from motif sizes."""
+
+    validation = motif_sizes.attrs.get(_MOTIF_LIBRARY_VALIDATION_ATTR)
+    if isinstance(validation, MotifLibraryValidationResult):
+        return validation
+    return None
+
+
+def _build_motif_library_from_candidates(
+    candidates: Sequence[_LibraryCandidate],
+    *,
+    flank_size: int,
+) -> tuple[dict[str, pd.DataFrame], pd.Series, MotifLibraryValidationResult]:
+    expected_window_size = (2 * flank_size) + 1
+    validator = MotifSequenceValidator(expected_window_size=expected_window_size)
+    validation_inputs = [
+        SequenceValidationInput(
+            site_id=candidate.reference_id,
+            site_sequence=candidate.sequence_window,
+        )
+        for candidate in candidates
+    ]
+    validation_result = validator.run(rows=validation_inputs)
+    status_counts = Counter(row.status for row in validation_result.rows)
+
+    accepted_windows_by_kinase: dict[str, list[str]] = {}
+    validation_rows: list[MotifLibraryValidationRow] = []
+    excluded_reference_ids: list[str] = []
+    for candidate, row in zip(candidates, validation_result.rows, strict=True):
+        validation_rows.append(
+            MotifLibraryValidationRow(
+                reference_id=candidate.reference_id,
+                kinase=candidate.kinase,
+                sequence=row.sequence,
+                status=row.status,
+                reason=row.reason,
+                expected_centre_residue=row.expected_centre_residue,
+                observed_centre_residue=row.observed_centre_residue,
+                sequence_length=row.sequence_length,
+            )
+        )
+        if row.status != SEQUENCE_VALIDATION_STATUS_VALID:
+            excluded_reference_ids.append(candidate.reference_id)
+            continue
+        if row.sequence is None:
+            continue
+        accepted_windows_by_kinase.setdefault(candidate.kinase, []).append(row.sequence)
+
     frequency_matrices: dict[str, pd.DataFrame] = {}
     motif_sizes: dict[str, float] = {}
-    for kinase, sequences in motif_sequences.items():
-        windows = _coerce_sequence_series(sequences, flank_size=flank_size).dropna()
-        if windows.empty:
+    for kinase, windows in accepted_windows_by_kinase.items():
+        if not windows:
             continue
-        frequency_matrices[str(kinase)] = _build_frequency_matrix_from_windows(
-            windows,
+        windows_series = pd.Series(windows, dtype=object)
+        frequency_matrices[kinase] = _build_frequency_matrix_from_windows(
+            windows_series,
             context=f"kinase={kinase}",
         )
-        motif_sizes[str(kinase)] = float(len(windows))
+        motif_sizes[kinase] = float(len(windows_series))
+
     size_series = pd.Series(motif_sizes, dtype=float, name="motif_size")
     size_series.index.name = "kinase"
-    return frequency_matrices, size_series
+    validation = MotifLibraryValidationResult(
+        total_reference_sequences=validation_result.total_sequences,
+        accepted_reference_sequences=validation_result.valid_sequences,
+        excluded_reference_sequences=validation_result.invalid_sequences,
+        missing_sequences=status_counts[SEQUENCE_VALIDATION_STATUS_MISSING_SEQUENCE],
+        short_sequences=status_counts[SEQUENCE_VALIDATION_STATUS_SHORT_SEQUENCE],
+        off_centre_sequences=status_counts[
+            SEQUENCE_VALIDATION_STATUS_OFF_CENTRE_SEQUENCE
+        ],
+        site_residue_mismatches=status_counts[
+            SEQUENCE_VALIDATION_STATUS_SITE_RESIDUE_MISMATCH
+        ],
+        unsupported_residue_characters=status_counts[
+            SEQUENCE_VALIDATION_STATUS_UNSUPPORTED_RESIDUE_CHARACTER
+        ],
+        sequences_excluded_from_motif_profile_construction=(
+            validation_result.invalid_sequences
+        ),
+        expected_window_size=expected_window_size,
+        supported_amino_acids=tuple(AMINO_ACIDS),
+        accepted_window_length_policy=(
+            f"windows must be exactly {expected_window_size} residues "
+            "(2 * flank_size + 1) after centre-window extraction"
+        ),
+        unsupported_residue_policy=(
+            "exclude any window containing non-canonical amino acids; "
+            f"supported residues: {', '.join(AMINO_ACIDS)}"
+        ),
+        excluded_reference_ids=tuple(excluded_reference_ids),
+        rows=tuple(validation_rows),
+    )
+    return frequency_matrices, size_series, validation
 
 
 def score_phosphosite_motifs(
@@ -112,6 +314,7 @@ def score_phosphosite_motifs(
     site_index: Sequence[str] | None = None,
     min_motif_size: int = 1,
     flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
+    library_validation: MotifLibraryValidationResult | None = None,
 ) -> MotifScoringResult:
     """Score phosphosite sequences against per-kinase motif frequency matrices.
 
@@ -181,6 +384,7 @@ def score_phosphosite_motifs(
         motif_sizes=selected_sizes,
         sequence_windows=windows,
         sequence_validation=validation,
+        library_validation=library_validation,
     )
 
 
@@ -378,9 +582,12 @@ def _require_fully_supported_encoded_sequences(
 
 __all__ = [
     "DEFAULT_MOTIF_FLANK_SIZE",
+    "MotifLibraryValidationResult",
+    "MotifLibraryValidationRow",
     "MotifScoringResult",
     "build_motif_library",
     "build_motif_library_from_sequences",
+    "get_motif_library_validation",
     "minmax_scale_columns",
     "score_phosphosite_motifs",
 ]

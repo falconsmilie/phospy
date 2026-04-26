@@ -232,10 +232,16 @@ Motif sequence-context validation is strict in the supported lane:
 - scoring expects a centered motif window of length `15` (flank size `7`, centre index `7`)
 - supported residue alphabet is the 20 canonical amino acids:
   `A C D E F G H I K L M N P Q R S T V W Y`
-- sequences that are missing, short, off-centre, site-residue mismatched, or
+- query/target sequences that are missing, short, off-centre, site-residue mismatched, or
   contain unsupported residue characters are excluded from motif scoring
-- excluded sites are reported through
+- reference/library sequences used to build motif profiles are validated with the
+  same sequence rules before profile construction; invalid reference windows are
+  excluded from motif frequency/profile construction (never neutral/partial
+  encoded)
+- excluded query sites are reported through
   `result.scoring_result.motif_sequence_validation`
+- excluded/accepted reference windows are reported through
+  `result.scoring_result.motif_library_validation`
 
 Performance notes:
 
@@ -372,6 +378,7 @@ Common nested outputs:
 - `result.scoring_result.profile_scores`
 - `result.scoring_result.rank_weighted_fusion_scores`
 - `result.scoring_result.motif_sequence_validation`
+- `result.scoring_result.motif_library_validation`
 - `result.prediction_result.pred_mat`
 - `result.activity_result.weighted_activity` when activity is enabled
 - `result.activity_result.thresholded_substrate_mean_activity` when activity is enabled
@@ -392,6 +399,13 @@ Method notes:
 - Excluded sequence rows keep traceability through
   `motif_sequence_validation.rows`; excluded sites are not assigned ordinary
   motif scores (`motif_scores` remains missing/`NaN` for those rows).
+- `motif_library_validation.summary()` reports motif-library build diagnostics,
+  including provided/accepted/excluded reference counts, exclusion reasons
+  (`missing`, `short`, `unsupported`, `off_centre`, `site_residue_mismatch`),
+  and accepted-window/unsupported-residue policies.
+- `motif_library_validation.rows` preserves per-reference provenance
+  (`reference_id`, `kinase`, `sequence`, `status`, `reason`,
+  observed/expected centre residues).
 
 ### `SignalomeWorkflowResult`
 

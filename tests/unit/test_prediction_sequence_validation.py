@@ -12,7 +12,9 @@ from phospy.api import (
 )
 from phospy.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
+    build_motif_library,
     build_motif_library_from_sequences,
+    get_motif_library_validation,
     score_phosphosite_motifs,
 )
 from phospy.prediction.sequence_validation import (
@@ -167,19 +169,19 @@ def test_motif_scoring_excludes_invalid_sequences_and_reports_diagnostics() -> N
 
 
 def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
-    site_ids = pd.Index(["MAPK1;S202;", "MAPK1;T205;"], name="site_id")
+    site_ids = pd.Index(["MAPK1;S202;", "MAPK1;T205;", "MAPK1;S210;"], name="site_id")
     phospho = pd.DataFrame(
         {
-            "sample_a": [1.0, 2.0],
-            "sample_b": [2.0, 1.0],
+            "sample_a": [1.0, 2.0, 1.5],
+            "sample_b": [2.0, 1.0, 1.2],
         },
         index=site_ids,
     )
     site_metadata = pd.DataFrame(
         {
-            "gene_symbol": ["MAPK1", "MAPK1"],
-            "site": ["S202", "T205"],
-            "site_sequence": ["A" * 31, "A" * 31],
+            "gene_symbol": ["MAPK1", "MAPK1", "MAPK1"],
+            "site": ["S202", "T205", "S210"],
+            "site_sequence": ["A" * 31, "A" * 31, "A" * 31],
         },
         index=site_ids,
     )
@@ -197,12 +199,16 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
         kinase_substrate_map=pd.DataFrame(
             {
                 "kinase": ["KINASE_A", "KINASE_A"],
-                "substrate_site": site_ids.tolist(),
+                "substrate_site": ["MAPK1;S202;", "MAPK1;T205;"],
             }
         ),
         site_sequences=pd.DataFrame(
             {
-                "site_sequence": ["AAAAAAASAAAAAAA", "AAAAAAAXAAAAAAA"],
+                "site_sequence": [
+                    "AAAAAAASAAAAAAA",
+                    "VVVVVVVTVVVVVVV",
+                    "AAAAAAAXAAAAAAA",
+                ],
             },
             index=site_ids,
         ),
@@ -231,6 +237,209 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
 
     assert scoring_result.motif_sequence_validation is not None
     summary = scoring_result.motif_sequence_validation.summary()
+    assert summary["total_sequences"] == 3
+    assert summary["valid_sequences"] == 2
+    assert summary["invalid_sequences"] == 1
+    assert summary["short_sequences"] == 0
+    assert summary["off_centre_sequences"] == 0
+    assert summary["site_residue_mismatches"] == 0
+    assert summary["unsupported_residue_characters"] == 1
+    assert summary["sequences_excluded_from_motif_scoring"] == 1
+
+    assert scoring_result.motif_library_validation is not None
+    library_summary = scoring_result.motif_library_validation.summary()
+    assert library_summary["reference_sequences_provided"] == 2
+    assert library_summary["reference_sequences_accepted"] == 2
+    assert library_summary["reference_sequences_excluded"] == 0
+    assert library_summary["excluded_missing_sequence"] == 0
+    assert library_summary["excluded_short_window"] == 0
+    assert library_summary["excluded_unsupported_residue"] == 0
+    assert library_summary["excluded_off_centre_residue"] == 0
+    assert library_summary["excluded_site_residue_mismatch"] == 0
+    assert library_summary["expected_window_size"] == 15
+
+    assert scoring_result.motif_scores is not None
+    assert pd.isna(scoring_result.motif_scores.loc["MAPK1;S210;", "KINASE_A"])
+
+
+def test_motif_library_accepts_valid_reference_sequence_and_builds_profile() -> None:
+    motif_frequency_matrices, motif_sizes = build_motif_library(
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["K1"],
+                "substrate_site": ["MAPK1;S202;"],
+            }
+        ),
+        site_sequences=pd.Series(
+            {"MAPK1;S202;": "AAAAAAASAAAAAAA"},
+            dtype=object,
+        ),
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+
+    assert motif_sizes.loc["K1"] == 1.0
+    matrix = motif_frequency_matrices["K1"]
+    assert matrix.loc["S", "p8"] == 1.0
+
+    validation = get_motif_library_validation(motif_sizes)
+    assert validation is not None
+    assert validation.accepted_reference_sequences == 1
+    assert validation.excluded_reference_sequences == 0
+
+
+def test_motif_library_excludes_invalid_reference_windows_and_reports_diagnostics() -> (
+    None
+):
+    motif_frequency_matrices, motif_sizes = build_motif_library(
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["K1"] * 6,
+                "substrate_site": [
+                    "MAPK1;S202;",
+                    "MAPK1;S203;",
+                    "MAPK1;S204;",
+                    "MAPK1;S205;",
+                    "MAPK1;S206;",
+                    "MAPK1;S207;",
+                ],
+            }
+        ),
+        site_sequences=pd.Series(
+            {
+                "MAPK1;S202;": "AAAAAAASAAAAAAA",
+                "MAPK1;S203;": "ASAA",
+                "MAPK1;S204;": "AAAAAAAXAAAAAAA",
+                "MAPK1;S205;": "SAAAAAAAAAAAAAA",
+                "MAPK1;S206;": "AAAAAAATAAAAAAA",
+            },
+            dtype=object,
+        ),
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+
+    validation = get_motif_library_validation(motif_sizes)
+    assert validation is not None
+    summary = validation.summary()
+    assert summary["reference_sequences_provided"] == 6
+    assert summary["reference_sequences_accepted"] == 1
+    assert summary["reference_sequences_excluded"] == 5
+    assert summary["excluded_missing_sequence"] == 1
+    assert summary["excluded_short_window"] == 1
+    assert summary["excluded_unsupported_residue"] == 1
+    assert summary["excluded_off_centre_residue"] == 1
+    assert summary["excluded_site_residue_mismatch"] == 1
+    assert summary["expected_window_size"] == 15
+    assert "exactly 15 residues" in summary["accepted_window_length_policy"]
+    assert "supported residues" in summary["unsupported_residue_policy"]
+    assert motif_sizes.loc["K1"] == 1.0
+    assert motif_frequency_matrices["K1"].loc["S", "p8"] == 1.0
+
+
+def test_invalid_reference_sequences_do_not_change_motif_profile() -> None:
+    valid_map = pd.DataFrame(
+        {
+            "kinase": ["K1"],
+            "substrate_site": ["MAPK1;S202;"],
+        }
+    )
+    valid_sequences = pd.Series(
+        {"MAPK1;S202;": "AAAAAAASAAAAAAA"},
+        dtype=object,
+    )
+    baseline_matrices, baseline_sizes = build_motif_library(
+        kinase_substrate_map=valid_map,
+        site_sequences=valid_sequences,
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+
+    mixed_map = pd.DataFrame(
+        {
+            "kinase": ["K1", "K1", "K1"],
+            "substrate_site": ["MAPK1;S202;", "MAPK1;S203;", "MAPK1;S204;"],
+        }
+    )
+    mixed_sequences = pd.Series(
+        {
+            "MAPK1;S202;": "AAAAAAASAAAAAAA",
+            "MAPK1;S203;": "AAAAAAAXAAAAAAA",
+            "MAPK1;S204;": "ASAA",
+        },
+        dtype=object,
+    )
+    mixed_matrices, mixed_sizes = build_motif_library(
+        kinase_substrate_map=mixed_map,
+        site_sequences=mixed_sequences,
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+
+    pd.testing.assert_series_equal(baseline_sizes, mixed_sizes)
+    pd.testing.assert_frame_equal(baseline_matrices["K1"], mixed_matrices["K1"])
+
+
+def test_motif_library_validation_rows_preserve_reference_provenance() -> None:
+    _, motif_sizes = build_motif_library(
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["K1", "K1"],
+                "substrate_site": ["MAPK1;S202;", "MAPK1;S203;"],
+            }
+        ),
+        site_sequences=pd.Series(
+            {
+                "MAPK1;S202;": "AAAAAAASAAAAAAA",
+                "MAPK1;S203;": "AAAAAAATAAAAAAA",
+            },
+            dtype=object,
+        ),
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+
+    validation = get_motif_library_validation(motif_sizes)
+    assert validation is not None
+    assert len(validation.rows) == 2
+
+    rows = {(row.kinase, row.reference_id): row for row in validation.rows}
+    assert rows[("K1", "MAPK1;S202;")].status == "valid"
+    mismatch = rows[("K1", "MAPK1;S203;")]
+    assert mismatch.status == SEQUENCE_VALIDATION_STATUS_SITE_RESIDUE_MISMATCH
+    assert mismatch.expected_centre_residue == "S"
+    assert mismatch.observed_centre_residue == "T"
+    assert mismatch.reason is not None
+
+
+def test_query_sequence_validation_behavior_remains_unchanged_with_library_validation() -> (
+    None
+):
+    motif_frequency_matrices, motif_sizes = build_motif_library(
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["K1", "K1"],
+                "substrate_site": ["MAPK1;S202;", "MAPK1;S203;"],
+            }
+        ),
+        site_sequences=pd.Series(
+            {
+                "MAPK1;S202;": "AAAAAAASAAAAAAA",
+                "MAPK1;S203;": "AAAAAAAXAAAAAAA",
+            },
+            dtype=object,
+        ),
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+    motif_result = score_phosphosite_motifs(
+        site_sequences={
+            "MAPK1;S202;": "AAAAAAASAAAAAAA",
+            "MAPK1;S210;": "AAAAAAAXAAAAAAA",
+        },
+        motif_frequency_matrices=motif_frequency_matrices,
+        motif_sizes=motif_sizes,
+        site_index=pd.Index(["MAPK1;S202;", "MAPK1;S210;"], name="site_id"),
+        min_motif_size=1,
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        library_validation=get_motif_library_validation(motif_sizes),
+    )
+
+    summary = motif_result.sequence_validation.summary()
     assert summary["total_sequences"] == 2
     assert summary["valid_sequences"] == 1
     assert summary["invalid_sequences"] == 1
@@ -239,6 +448,3 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
     assert summary["site_residue_mismatches"] == 0
     assert summary["unsupported_residue_characters"] == 1
     assert summary["sequences_excluded_from_motif_scoring"] == 1
-
-    assert scoring_result.motif_scores is not None
-    assert pd.isna(scoring_result.motif_scores.loc["MAPK1;T205;", "KINASE_A"])

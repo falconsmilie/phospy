@@ -1,6 +1,6 @@
 site_id,protein_id,module_id,top_kinase,top_score,top_kinase_candidates,top_kinase_weights,top_kinase_tie_count,top_kinase_is_ambiguous,top_kinase_selection_policy,module_top_kinase,module_top_kinase_candidates,module_top_kinase_tie_count,module_top_kinase_is_ambiguous,module_top_kinase_selection_policy
 AAK1;S677;,AAK1,1,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ABCC4;S604;,ABCC4,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ABCC4;S604;,ABCC4,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
 ABI2;S165;,ABI2,3,__UNSUPPORTED__,,(),(),0,False,no_support,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
 ABI2;S168;,ABI2,3,__UNSUPPORTED__,,(),(),0,False,no_support,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
 ABL2;S799;,ABL2,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
@@ -8,110 +8,110 @@ ABLIM3;S566;,ABLIM3,5,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,
 ABLIM3;S575;,ABLIM3,5,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 ACACA;S79;,ACACA,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 ACIN1;S711;,ACIN1,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ADD1;S613;,ADD1,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ADD1;T614;,ADD1,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ADNP;S971;,ADNP,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ADD1;S613;,ADD1,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ADD1;T614;,ADD1,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ADNP;S971;,ADNP,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
 AFF4;S823;,AFF4,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AGAP3;S107;,AGAP3,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AGAP3;S107;,AGAP3,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
 AHCTF1;S1214;,AHCTF1,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AHNAK;S1191;,AHNAK,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AHNAK;S177;,AHNAK,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AHNAK;S2060;,AHNAK,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AHNAK;S211;,AHNAK,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AHNAK;S2117;,AHNAK,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AHNAK;S222;,AHNAK,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AHNAK;S3915;,AHNAK,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AHNAK;S42;,AHNAK,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AHNAK;S4597;,AHNAK,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AHNAK;S5243;,AHNAK,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AHNAK;T4049;,AHNAK,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AHNAK2;S425;,AHNAK2,9,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AHNAK2;T438;,AHNAK2,9,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AHNAK;S1191;,AHNAK,9,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AHNAK;S177;,AHNAK,9,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AHNAK;S2060;,AHNAK,9,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AHNAK;S211;,AHNAK,9,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AHNAK;S2117;,AHNAK,9,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AHNAK;S222;,AHNAK,9,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AHNAK;S3915;,AHNAK,9,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AHNAK;S42;,AHNAK,9,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AHNAK;S4597;,AHNAK,9,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AHNAK;S5243;,AHNAK,9,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AHNAK;T4049;,AHNAK,9,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AHNAK2;S425;,AHNAK2,10,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AHNAK2;T438;,AHNAK2,10,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 AIMP1;S110;,AIMP1,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AJUBA;S129;,AJUBA,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AJUBA;S129;,AJUBA,11,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK1,"('MAPK1',)",1,False,max_score_then_lexicographic_tiebreak
 AKAP1;S103;,AKAP1,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 AKAP10;S278;,AKAP10,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AKAP11;S1090;,AKAP11,10,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AKAP11;S21;,AKAP11,10,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AKAP11;S23;,AKAP11,10,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AKAP11;S448;,AKAP11,10,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AKAP13;S2515;,AKAP13,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AKAP2;S152;,AKAP2,11,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AKAP2;S730;,AKAP2,11,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AKAP11;S1090;,AKAP11,12,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AKAP11;S21;,AKAP11,12,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AKAP11;S23;,AKAP11,12,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AKAP11;S448;,AKAP11,12,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AKAP13;S2515;,AKAP13,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AKAP2;S152;,AKAP2,13,__UNSUPPORTED__,,(),(),0,False,no_support,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
+AKAP2;S730;,AKAP2,13,__UNSUPPORTED__,,(),(),0,False,no_support,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
 AKAP6;S562;,AKAP6,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AKAP9;S3669;,AKAP9,1,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AKT1S1;S184;,AKT1S1,12,Yang.mTOR,0.9935089358818218,"('Yang.mTOR',)","(('Yang.mTOR', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,Yang.mTOR,"('Yang.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
-AKT1S1;T247;,AKT1S1,12,__UNSUPPORTED__,,(),(),0,False,no_support,Yang.mTOR,"('Yang.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
-ALKBH5;S362;,ALKBH5,13,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ALKBH5;S376;,ALKBH5,13,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AKAP9;S3669;,AKAP9,14,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AKT1S1;S184;,AKT1S1,13,Yang.mTOR,0.9935942102779559,"('Yang.mTOR',)","(('Yang.mTOR', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
+AKT1S1;T247;,AKT1S1,13,__UNSUPPORTED__,,(),(),0,False,no_support,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
+ALKBH5;S362;,ALKBH5,15,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ALKBH5;S376;,ALKBH5,15,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 AMOTL1;S580;,AMOTL1,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ANP32A;S15;,ANP32A,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-AP3D1;S755;,AP3D1,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ARFGAP2;S145;,ARFGAP2,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-ARFGEF2;S214;,ARFGEF2,1,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ANP32A;S15;,ANP32A,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AP3D1;S755;,AP3D1,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ARFGAP2;S145;,ARFGAP2,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+ARFGEF2;S214;,ARFGEF2,14,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 ARFIP1;S39;,ARFIP1,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 ARHGAP17;S710;,ARHGAP17,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ARHGAP22;S200;,ARHGAP22,11,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ARHGAP22;S236;,ARHGAP22,11,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ARHGAP22;S200;,ARHGAP22,16,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ARHGAP22;S236;,ARHGAP22,16,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 ARHGAP35;S1174;,ARHGAP35,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ARHGAP39;S284;,ARHGAP39,1,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ARHGAP5;S1195;,ARHGAP5,15,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ARHGAP5;S1202;,ARHGAP5,15,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ARHGAP5;S967;,ARHGAP5,15,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ARHGEF12;S337;,ARHGEF12,12,__UNSUPPORTED__,,(),(),0,False,no_support,Yang.mTOR,"('Yang.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
-ARHGEF12;S341;,ARHGEF12,12,__UNSUPPORTED__,,(),(),0,False,no_support,Yang.mTOR,"('Yang.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+ARHGAP39;S284;,ARHGAP39,14,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ARHGAP5;S1195;,ARHGAP5,17,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ARHGAP5;S1202;,ARHGAP5,17,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ARHGAP5;S967;,ARHGAP5,17,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ARHGEF12;S337;,ARHGEF12,18,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ARHGEF12;S341;,ARHGEF12,18,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 ARHGEF17;S995;,ARHGEF17,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ARHGEF5;S721;,ARHGEF5,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ARPP21;S256;,ARPP21,16,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ATF7;T53;,ATF7,16,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ATG14;S5;,ATG14,17,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
-ATG2A;S1246;,ATG2A,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-ATG2B;S240;,ATG2B,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ATG2B;S255;,ATG2B,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ARHGEF5;S721;,ARHGEF5,14,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ARPP21;S256;,ARPP21,19,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ATF7;T53;,ATF7,19,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ATG14;S5;,ATG14,20,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
+ATG2A;S1246;,ATG2A,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+ATG2B;S240;,ATG2B,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ATG2B;S255;,ATG2B,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 ATRX;S761;,ATRX,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ATXN2;S622;,ATXN2,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-ATXN2L;S109;,ATXN2L,18,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
-ATXN2L;S447;,ATXN2L,18,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
-AZI1;S114;,AZI1,3,__UNSUPPORTED__,,(),(),0,False,no_support,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
-AZI1;S304;,AZI1,3,__UNSUPPORTED__,,(),(),0,False,no_support,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
-BAD;S171;,BAD,16,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BAG3;S271;,BAG3,19,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BAG3;S387;,BAG3,19,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BAG3;S388;,BAG3,19,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BAIAP2L1;S218;,BAIAP2L1,20,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BAIAP2L1;S380;,BAIAP2L1,20,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BAZ2A;S1388;,BAZ2A,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-BBX;S243;,BBX,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BCL9L;S116;,BCL9L,21,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BCL9L;S21;,BCL9L,21,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BCL9L;S25;,BCL9L,21,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BICD2;S611;,BICD2,22,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BICD2;S819;,BICD2,22,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BRAF;S134;,BRAF,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-BRD8;S274;,BRD8,23,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BRD8;T270;,BRD8,23,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-BSDC1;S216;,BSDC1,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ATXN2;S622;,ATXN2,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+ATXN2L;S109;,ATXN2L,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+ATXN2L;S447;,ATXN2L,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+AZI1;S114;,AZI1,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+AZI1;S304;,AZI1,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BAD;S171;,BAD,19,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BAG3;S271;,BAG3,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BAG3;S387;,BAG3,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BAG3;S388;,BAG3,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BAIAP2L1;S218;,BAIAP2L1,21,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BAIAP2L1;S380;,BAIAP2L1,21,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BAZ2A;S1388;,BAZ2A,11,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK1,"('MAPK1',)",1,False,max_score_then_lexicographic_tiebreak
+BBX;S243;,BBX,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+BCL9L;S116;,BCL9L,22,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BCL9L;S21;,BCL9L,22,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BCL9L;S25;,BCL9L,22,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BICD2;S611;,BICD2,23,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BICD2;S819;,BICD2,23,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BRAF;S134;,BRAF,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+BRD8;S274;,BRD8,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BRD8;T270;,BRD8,8,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+BSDC1;S216;,BSDC1,1,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 C2CD4C;S262;,C2CD4C,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 CACNB1;S53;,CACNB1,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-CALD1;S527;,CALD1,17,Yang.Akt,0.9863347956923332,"('Yang.Akt',)","(('Yang.Akt', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
+CALD1;S527;,CALD1,20,Yang.Akt,0.9863347956923332,"('Yang.Akt',)","(('Yang.Akt', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
 CAMK2D;T371;,CAMK2D,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-CAMSAP1;S1154;,CAMSAP1,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-CAMSAP1;S517;,CAMSAP1,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-CAP2;S301;,CAP2,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+CAMSAP1;S1154;,CAMSAP1,18,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+CAMSAP1;S517;,CAMSAP1,18,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+CAP2;S301;,CAP2,14,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 CBX5;S93;,CBX5,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-CCDC6;S143;,CCDC6,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-CCDC88A;S1638;,CCDC88A,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-CCDC91;S71;,CCDC91,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-CDC42EP2;S137;,CDC42EP2,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-CDC42EP2;S141;,CDC42EP2,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-CDC42EP4;S140;,CDC42EP4,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-CDKN1A;S69;,CDKN1A,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+CCDC6;S143;,CCDC6,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+CCDC88A;S1638;,CCDC88A,1,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+CCDC91;S71;,CCDC91,14,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+CDC42EP2;S137;,CDC42EP2,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+CDC42EP2;S141;,CDC42EP2,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+CDC42EP4;S140;,CDC42EP4,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+CDKN1A;S69;,CDKN1A,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
 CDKN1B;S12;,CDKN1B,24,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 CDKN1B;S7;,CDKN1B,24,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-CEP170B;S1166;,CEP170B,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+CEP170B;S1166;,CEP170B,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 CEP68;S503;,CEP68,25,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 CEP68;S510;,CEP68,25,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-CHAMP1;S532;,CHAMP1,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
+CHAMP1;S532;,CHAMP1,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
 CHD8;S549;,CHD8,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 CHRND;S379;,CHRND,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 CIC;S1394;,CIC,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
@@ -122,123 +122,123 @@ COBL;S31;,COBL,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,
 COBL;S34;,COBL,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 COG3;S536;,COG3,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 CORO7;S298;,CORO7,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-DAB2IP;S802;,DAB2IP,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-DAP;S2;,DAP,17,MAPK1,0.984810450709477,"('MAPK1',)","(('MAPK1', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
-DAP;S3;,DAP,17,MAPK3,0.9787530906709718,"('MAPK3',)","(('MAPK3', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
+DAB2IP;S802;,DAB2IP,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+DAP;S2;,DAP,20,MAPK1,0.984810450709477,"('MAPK1',)","(('MAPK1', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
+DAP;S3;,DAP,20,MAPK3,0.9787530906709718,"('MAPK3',)","(('MAPK3', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
 DBNDD1;S123;,DBNDD1,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-DCAF6;S336;,DCAF6,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-DCLK1;S30;,DCLK1,16,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-DDX19A;S86;,DDX19A,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+DCAF6;S336;,DCAF6,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+DCLK1;S30;,DCLK1,19,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+DDX19A;S86;,DDX19A,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
 DDX3X;S261;,DDX3X,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 DENND4C;S1037;,DENND4C,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-DLG2;S323;,DLG2,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-DLG2;S328;,DLG2,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-DMXL1;S574;,DMXL1,16,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+DLG2;S323;,DLG2,26,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
+DLG2;S328;,DLG2,26,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
+DMXL1;S574;,DMXL1,19,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 DNAJC2;T48;,DNAJC2,1,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-DNAJC25;T353;,DNAJC25,17,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
-DOCK6;S1339;,DOCK6,1,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-DOCK7;S1361;,DOCK7,13,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-DOCK7;S2107;,DOCK7,13,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+DNAJC25;T353;,DNAJC25,20,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
+DOCK6;S1339;,DOCK6,14,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+DOCK7;S1361;,DOCK7,10,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+DOCK7;S2107;,DOCK7,10,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 DOPEY1;S1261;,DOPEY1,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-DTNA;S606;,DTNA,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
+DTNA;S606;,DTNA,14,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 DUSP27;S366;,DUSP27,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 DUSP27;S368;,DUSP27,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 DUSP27;S370;,DUSP27,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 DUSP27;S427;,DUSP27,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 DYNC1H1;S4365;,DYNC1H1,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-DYNC1I2;S81;,DYNC1I2,14,Yang.Erk1,0.9961198992856738,"('Yang.Erk1',)","(('Yang.Erk1', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
+DYNC1I2;S81;,DYNC1I2,11,MAPK1,0.998206691227768,"('MAPK1',)","(('MAPK1', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1',)",1,False,max_score_then_lexicographic_tiebreak
 EEF2;T57;,EEF2,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-EEF2K;S365;,EEF2K,16,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+EEF2K;S365;,EEF2K,19,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 EHBP1L1;S1363;,EHBP1L1,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-EHD4;S459;,EHD4,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+EHD4;S459;,EHD4,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
 EIF3A;S584;,EIF3A,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 EIF4B;S422;,EIF4B,3,RPS6KB1,0.9958110815479687,"('RPS6KB1',)","(('RPS6KB1', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
 EIF4B;S424;,EIF4B,3,__UNSUPPORTED__,,(),(),0,False,no_support,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
 EIF4B;S425;,EIF4B,3,__UNSUPPORTED__,,(),(),0,False,no_support,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
 EIF4B;T420;,EIF4B,3,__UNSUPPORTED__,,(),(),0,False,no_support,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
-EIF4EBP1;S64;,EIF4EBP1,14,Humphrey.mTOR,0.9973584298486571,"('Humphrey.mTOR',)","(('Humphrey.mTOR', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-EIF4EBP2;S2;,EIF4EBP2,17,Humphrey.Akt,0.9902374545824595,"('Humphrey.Akt',)","(('Humphrey.Akt', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
-EIF5B;S183;,EIF5B,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ELMSAN1;S456;,ELMSAN1,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+EIF4EBP1;S64;,EIF4EBP1,2,Humphrey.mTOR,0.9974033687923186,"('Humphrey.mTOR',)","(('Humphrey.mTOR', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+EIF4EBP2;S2;,EIF4EBP2,20,Humphrey.Akt,0.9902374545824595,"('Humphrey.Akt',)","(('Humphrey.Akt', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
+EIF5B;S183;,EIF5B,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ELMSAN1;S456;,ELMSAN1,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 EPS8;S659;,EPS8,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ETL4;S1844;,ETL4,14,MAPK1,0.9870100880319251,"('MAPK1',)","(('MAPK1', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-ETV3;S139;,ETV3,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-FAM120C;S55;,FAM120C,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-FAM134C;S313;,FAM134C,16,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-FAM134C;S320;,FAM134C,16,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-FAM171A2;S423;,FAM171A2,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-FAM65A;S752;,FAM65A,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-FBXO30;S379;,FBXO30,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-FHOD1;S489;,FHOD1,15,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-FHOD1;S501;,FHOD1,15,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-FHOD1;S504;,FHOD1,15,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-FHOD1;S513;,FHOD1,15,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-FHOD1;S523;,FHOD1,15,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ETL4;S1844;,ETL4,11,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK1,"('MAPK1',)",1,False,max_score_then_lexicographic_tiebreak
+ETV3;S139;,ETV3,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+FAM120C;S55;,FAM120C,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+FAM134C;S313;,FAM134C,19,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+FAM134C;S320;,FAM134C,19,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+FAM171A2;S423;,FAM171A2,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+FAM65A;S752;,FAM65A,14,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+FBXO30;S379;,FBXO30,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+FHOD1;S489;,FHOD1,27,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+FHOD1;S501;,FHOD1,27,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+FHOD1;S504;,FHOD1,27,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+FHOD1;S513;,FHOD1,27,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+FHOD1;S523;,FHOD1,27,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 FLNC;S2147;,FLNC,3,__UNSUPPORTED__,,(),(),0,False,no_support,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
 FLNC;S2234;,FLNC,3,__UNSUPPORTED__,,(),(),0,False,no_support,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
-FMN1;S589;,FMN1,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-FOSL2;S320;,FOSL2,17,MAPK3,0.999768555839829,"('MAPK3',)","(('MAPK3', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
-FOSL2;T322;,FOSL2,17,MAPK1,0.9931596314706035,"('MAPK1',)","(('MAPK1', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
-FOXK1;S225;,FOXK1,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-FOXK2;T200;,FOXK2,1,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+FMN1;S589;,FMN1,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+FOSL2;S320;,FOSL2,20,MAPK3,0.999768555839829,"('MAPK3',)","(('MAPK3', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
+FOSL2;T322;,FOSL2,20,MAPK1,0.9931596314706035,"('MAPK1',)","(('MAPK1', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
+FOXK1;S225;,FOXK1,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+FOXK2;T200;,FOXK2,14,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 FOXO3;S252;,FOXO3,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 FRMD8;S21;,FRMD8,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 FRYL;T1959;,FRYL,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-GAB1;S418;,GAB1,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-GAB2;S142;,GAB2,26,__UNSUPPORTED__,,(),(),0,False,no_support,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
-GAB2;S143;,GAB2,26,__UNSUPPORTED__,,(),(),0,False,no_support,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
-GAB2;S211;,GAB2,26,AKT2,0.9957139304594568,"('AKT2',)","(('AKT2', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
-GAB2;S365;,GAB2,26,__UNSUPPORTED__,,(),(),0,False,no_support,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
-GAB2;T388;,GAB2,26,AKT2,0.9957139304594568,"('AKT2',)","(('AKT2', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
+GAB1;S418;,GAB1,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+GAB2;S142;,GAB2,13,__UNSUPPORTED__,,(),(),0,False,no_support,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
+GAB2;S143;,GAB2,13,__UNSUPPORTED__,,(),(),0,False,no_support,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
+GAB2;S211;,GAB2,13,AKT2,0.9957139304594568,"('AKT2',)","(('AKT2', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
+GAB2;S365;,GAB2,13,__UNSUPPORTED__,,(),(),0,False,no_support,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
+GAB2;T388;,GAB2,13,AKT2,0.9957139304594568,"('AKT2',)","(('AKT2', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,AKT2,"('AKT2',)",1,False,max_score_then_lexicographic_tiebreak
 GATAD2A;S103;,GATAD2A,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 GATAD2A;S96;,GATAD2A,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-GATAD2B;S338;,GATAD2B,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-GBF1;S1786;,GBF1,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-GIGYF1;S28;,GIGYF1,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-GIT2;S568;,GIT2,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+GATAD2B;S338;,GATAD2B,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+GBF1;S1786;,GBF1,11,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK1,"('MAPK1',)",1,False,max_score_then_lexicographic_tiebreak
+GIGYF1;S28;,GIGYF1,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+GIT2;S568;,GIT2,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 GOLGA4;S116;,GOLGA4,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-GSK3A;S21;,GSK3A,27,PRKCA,0.9659517796535294,"('PRKCA', 'PRKCB')","(('PRKCA', 0.5), ('PRKCB', 0.5))",2,True,max_score_then_lexicographic_tiebreak,PRKCA,"('PRKCA',)",1,False,max_score_then_lexicographic_tiebreak
-GSK3A;S41;,GSK3A,27,__UNSUPPORTED__,,(),(),0,False,no_support,PRKCA,"('PRKCA',)",1,False,max_score_then_lexicographic_tiebreak
-GSK3B;S9;,GSK3B,28,RPS6KB1,0.9958110815479689,"('RPS6KB1',)","(('RPS6KB1', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
-GYS1;S728;,GYS1,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-HBP1;S401;,HBP1,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+GSK3A;S21;,GSK3A,28,PRKCA,0.9659517796535294,"('PRKCA', 'PRKCB')","(('PRKCA', 0.5), ('PRKCB', 0.5))",2,True,max_score_then_lexicographic_tiebreak,PRKCA,"('PRKCA',)",1,False,max_score_then_lexicographic_tiebreak
+GSK3A;S41;,GSK3A,28,__UNSUPPORTED__,,(),(),0,False,no_support,PRKCA,"('PRKCA',)",1,False,max_score_then_lexicographic_tiebreak
+GSK3B;S9;,GSK3B,29,RPS6KB1,0.9958110815479689,"('RPS6KB1',)","(('RPS6KB1', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
+GYS1;S728;,GYS1,11,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK1,"('MAPK1',)",1,False,max_score_then_lexicographic_tiebreak
+HBP1;S401;,HBP1,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
 HBS1L;S147;,HBS1L,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-HDAC6;S21;,HDAC6,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-HECTD1;S1392;,HECTD1,29,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-HECTD1;S1393;,HECTD1,29,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-HECTD1;S1573;,HECTD1,29,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-HELB;S944;,HELB,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-HERC1;S1163;,HERC1,12,__UNSUPPORTED__,,(),(),0,False,no_support,Yang.mTOR,"('Yang.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
-HERC1;T1154;,HERC1,12,__UNSUPPORTED__,,(),(),0,False,no_support,Yang.mTOR,"('Yang.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
-HIRIP3;S27;,HIRIP3,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-HN1L;S97;,HN1L,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
+HDAC6;S21;,HDAC6,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+HECTD1;S1392;,HECTD1,30,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+HECTD1;S1393;,HECTD1,30,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+HECTD1;S1573;,HECTD1,30,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+HELB;S944;,HELB,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+HERC1;S1163;,HERC1,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+HERC1;T1154;,HERC1,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+HIRIP3;S27;,HIRIP3,14,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+HN1L;S97;,HN1L,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
 HOMER3;S158;,HOMER3,1,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-HUWE1;S1876;,HUWE1,30,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-HUWE1;S3639;,HUWE1,30,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-HUWE1;S3898;,HUWE1,30,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-HUWE1;T3903;,HUWE1,30,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+HUWE1;S1876;,HUWE1,31,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+HUWE1;S3639;,HUWE1,31,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+HUWE1;S3898;,HUWE1,31,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+HUWE1;T3903;,HUWE1,31,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 IREB2;S178;,IREB2,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-IRF2BPL;S69;,IRF2BPL,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ITSN1;S1063;,ITSN1,13,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-ITSN1;S315;,ITSN1,13,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+IRF2BPL;S69;,IRF2BPL,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+ITSN1;S1063;,ITSN1,10,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+ITSN1;S315;,ITSN1,10,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 JMY;S56;,JMY,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-JSRP1;S47;,JSRP1,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+JSRP1;S47;,JSRP1,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
 KANK2;S358;,KANK2,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 KCTD3;S809;,KCTD3,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-KDM2A;S718;,KDM2A,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
-KDM2A;T713;,KDM2A,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
+KDM2A;S718;,KDM2A,26,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
+KDM2A;T713;,KDM2A,26,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
 KDM5C;S316;,KDM5C,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-KPNA1;S2;,KPNA1,17,PRKCA,0.9488952472210761,"('PRKCA', 'PRKCB')","(('PRKCA', 0.5), ('PRKCB', 0.5))",2,True,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
-KPNA1;T3;,KPNA1,17,Yang.mTOR,0.9647660530195702,"('Yang.mTOR',)","(('Yang.mTOR', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
+KPNA1;S2;,KPNA1,20,PRKCA,0.9488952472210761,"('PRKCA', 'PRKCB')","(('PRKCA', 0.5), ('PRKCB', 0.5))",2,True,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
+KPNA1;T3;,KPNA1,20,Yang.mTOR,0.9647660530195702,"('Yang.mTOR',)","(('Yang.mTOR', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK1,"('MAPK1', 'MAPK3')",2,True,max_score_then_lexicographic_tiebreak
 LAMTOR1;S98;,LAMTOR1,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-LARP1;S916;,LARP1,31,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-LARP1;T932;,LARP1,31,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+LARP1;S916;,LARP1,32,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+LARP1;T932;,LARP1,32,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 LARP4B;S498;,LARP4B,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-LDB3;S112;,LDB3,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-LIMA1;S360;,LIMA1,18,MAPK3,0.980148801344199,"('MAPK3',)","(('MAPK3', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
-LIMA1;S603;,LIMA1,18,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
-LIMA1;S608;,LIMA1,18,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
-LIMA1;S703;,LIMA1,18,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
+LDB3;S112;,LDB3,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
+LIMA1;S360;,LIMA1,26,MAPK3,0.9787752245664915,"('MAPK3',)","(('MAPK3', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
+LIMA1;S603;,LIMA1,26,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
+LIMA1;S608;,LIMA1,26,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
+LIMA1;S703;,LIMA1,26,__UNSUPPORTED__,,(),(),0,False,no_support,MAPK3,"('MAPK3',)",1,False,max_score_then_lexicographic_tiebreak
 LMNA;S404;,LMNA,3,__UNSUPPORTED__,,(),(),0,False,no_support,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
 LMNA;S406;,LMNA,3,__UNSUPPORTED__,,(),(),0,False,no_support,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
 LMNA;S407;,LMNA,3,__UNSUPPORTED__,,(),(),0,False,no_support,RPS6KB1,"('RPS6KB1',)",1,False,max_score_then_lexicographic_tiebreak
@@ -248,14 +248,14 @@ LMO7;S1541;,LMO7,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),
 LMO7;S1543;,LMO7,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 LOC100360205;S239;,LOC100360205,7,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 LOC100365259;S393;,LOC100365259,1,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-LOC100910104;S475;,LOC100910104,21,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-LOC100910104;S532;,LOC100910104,21,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-LOC100910104;S719;,LOC100910104,21,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+LOC100910104;S475;,LOC100910104,33,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+LOC100910104;S532;,LOC100910104,33,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+LOC100910104;S719;,LOC100910104,33,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
 LOC100910646;S166;,LOC100910646,4,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-LOC100911178;S1643;,LOC100911178,2,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-LOC100911302;S1721;,LOC100911302,14,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR', 'MAPK1', 'Yang.Erk1')",3,True,max_score_then_lexicographic_tiebreak
+LOC100911178;S1643;,LOC100911178,14,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+LOC100911302;S1721;,LOC100911302,2,__UNSUPPORTED__,,(),(),0,False,no_support,Humphrey.mTOR,"('Humphrey.mTOR',)",1,False,max_score_then_lexicographic_tiebreak
 LOC100911677;S490;,LOC100911677,6,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-LOC100912115;S649;,LOC100912115,1,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
-LOC312502;S1164;,LOC312502,32,Yang.Akt,0.9711732082356912,"('Yang.Akt',)","(('Yang.Akt', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,Yang.Akt,"('Yang.Akt',)",1,False,max_score_then_lexicographic_tiebreak
-LOC312502;S138;,LOC312502,32,__UNSUPPORTED__,,(),(),0,False,no_support,Yang.Akt,"('Yang.Akt',)",1,False,max_score_then_lexicographic_tiebreak
-LOC312502;S139;,LOC312502,32,__UNSUPPORTED__,,(),(),0,False,no_support,Yang.Akt,"('Yang.Akt',)",1,False,max_score_then_lexicographic_tiebreak
+LOC100912115;S649;,LOC100912115,14,__UNSUPPORTED__,,(),(),0,False,no_support,__UNSUPPORTED__,(),0,False,no_support
+LOC312502;S1164;,LOC312502,34,Yang.Akt,0.9711732082356912,"('Yang.Akt',)","(('Yang.Akt', 1.0),)",1,False,max_score_then_lexicographic_tiebreak,Yang.Akt,"('Yang.Akt',)",1,False,max_score_then_lexicographic_tiebreak
+LOC312502;S138;,LOC312502,34,__UNSUPPORTED__,,(),(),0,False,no_support,Yang.Akt,"('Yang.Akt',)",1,False,max_score_then_lexicographic_tiebreak
+LOC312502;S139;,LOC312502,34,__UNSUPPORTED__,,(),(),0,False,no_support,Yang.Akt,"('Yang.Akt',)",1,False,max_score_then_lexicographic_tiebreak

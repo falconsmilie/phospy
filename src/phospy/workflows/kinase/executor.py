@@ -25,6 +25,7 @@ from phospy.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
     MotifScoringResult,
     build_motif_library,
+    get_motif_library_validation,
     score_phosphosite_motifs,
 )
 from phospy.prediction.policies import resolve_prediction_sampling_policy
@@ -172,14 +173,22 @@ class KinaseWorkflowExecutor:
                 "kinase.executor.rank_weighted_fusion_scoring; "
                 f"{exc}"
             ) from exc
+        diagnostic_motif_scores: pd.DataFrame | None = None
+        if include_diagnostic_tables:
+            diagnostic_motif_scores = motif_result.motif_scores
+            if diagnostic_motif_scores.empty:
+                diagnostic_motif_scores = pd.DataFrame(
+                    index=motif_result.motif_scores.index.copy(),
+                    columns=profile_scores.columns.copy(),
+                    dtype=float,
+                )
         scoring_result = KinaseScoringResult._from_owned(
             profile_scores=profile_scores,
-            motif_scores=(
-                motif_result.motif_scores if include_diagnostic_tables else None
-            ),
+            motif_scores=diagnostic_motif_scores,
             rank_weighted_fusion_scores=rank_weighted_fusion_scores,
             score_fusion_weights=score_fusion_weights,
             motif_sequence_validation=motif_result.sequence_validation,
+            motif_library_validation=motif_result.library_validation,
         )
         downstream_score_matrix, downstream_score_source = (
             select_downstream_score_matrix(
@@ -208,6 +217,7 @@ class KinaseWorkflowExecutor:
             site_sequences=sequence_series,
             flank_size=DEFAULT_MOTIF_FLANK_SIZE,
         )
+        motif_library_validation = get_motif_library_validation(motif_sizes)
         return score_phosphosite_motifs(
             site_sequences=sequence_series.loc[scoring_phospho.index],
             motif_frequency_matrices=motif_frequency_matrices,
@@ -215,6 +225,7 @@ class KinaseWorkflowExecutor:
             site_index=scoring_phospho.index,
             min_motif_size=scoring_min_substrates,
             flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+            library_validation=motif_library_validation,
         )
 
     def _run_prediction_stage(
@@ -509,6 +520,16 @@ def _build_kinase_run_provenance(
             ),
         )
     )
+    scoring_diagnostics = (
+        {}
+        if scoring_result.motif_sequence_validation is None
+        else scoring_result.motif_sequence_validation.summary()
+    )
+    if scoring_result.motif_library_validation is not None:
+        scoring_diagnostics["motif_library_validation"] = (
+            scoring_result.motif_library_validation.summary()
+        )
+
     return RunProvenance(
         environment=collect_environment_provenance(),
         input_tables=input_tables,
@@ -525,11 +546,7 @@ def _build_kinase_run_provenance(
                     config.profile_missing_value_strategy
                 ),
             },
-            "scoring_diagnostics": (
-                {}
-                if scoring_result.motif_sequence_validation is None
-                else scoring_result.motif_sequence_validation.summary()
-            ),
+            "scoring_diagnostics": scoring_diagnostics,
             "prediction_config": {
                 "top_k": int(config.prediction_top_k),
                 "deterministic_max_selected_kinases": int(
