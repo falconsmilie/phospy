@@ -118,6 +118,29 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
     assert _is_text_dtype(network_edges.loc[:, "source_kinase"])
     assert _is_text_dtype(network_edges.loc[:, "target_kinase"])
     assert is_float_dtype(network_edges.loc[:, "correlation"])
+    candidate_correlations = result.kinase_network.candidate_correlations
+    assert candidate_correlations is not None
+    assert not candidate_correlations.empty
+    assert {
+        "source_kinase",
+        "target_kinase",
+        "correlation",
+        "correlation_status",
+        "valid_observations",
+        "correlation_reason",
+    } == set(candidate_correlations.columns)
+    assert _is_text_dtype(candidate_correlations.loc[:, "source_kinase"])
+    assert _is_text_dtype(candidate_correlations.loc[:, "target_kinase"])
+    assert is_float_dtype(candidate_correlations.loc[:, "correlation"])
+    assert _is_text_dtype(candidate_correlations.loc[:, "correlation_status"])
+    assert is_integer_dtype(candidate_correlations.loc[:, "valid_observations"])
+    assert (
+        result.kinase_network.correlation_diagnostics.total_candidate_correlations
+        == int(candidate_correlations.shape[0])
+    )
+    assert result.kinase_network.correlation_diagnostics.finite_correlations >= int(
+        network_edges.shape[0]
+    )
 
     expanded = result.expanded_signalome
     assert expanded is not None

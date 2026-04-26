@@ -221,6 +221,14 @@ def save_signalome_workflow_bundle(
             written=written,
             written_key="signalome.kinase_network.nodes",
         ),
+        "kinase_network_candidate_correlations": write_optional_bundle_table(
+            table=result.kinase_network.candidate_correlations,
+            bundle_root=bundle_root,
+            relative_path=Path("signalome")
+            / f"kinase_network_candidate_correlations{suffix}",
+            written=written,
+            written_key="signalome.kinase_network.candidate_correlations",
+        ),
         "expanded_signalome": write_optional_bundle_table(
             table=result.expanded_signalome,
             bundle_root=bundle_root,

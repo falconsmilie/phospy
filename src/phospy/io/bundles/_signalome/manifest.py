@@ -20,6 +20,7 @@ from phospy.io.bundles._shared.processing_state import (
 )
 from phospy.io.bundles._signalome.compatibility import (
     signalome_module_selection_diagnostics_to_payload,
+    signalome_network_correlation_diagnostics_to_payload,
     signalome_score_preconditioning_diagnostics_to_payload,
 )
 from phospy.io.bundles._signalome.constants import (
@@ -108,6 +109,9 @@ def build_manifest(
                 ),
                 "score_preconditioning_diagnostics": signalome_score_preconditioning_diagnostics_to_payload(
                     result.score_preconditioning_diagnostics
+                ),
+                "network_correlation_diagnostics": signalome_network_correlation_diagnostics_to_payload(
+                    result.kinase_network.correlation_diagnostics
                 ),
             },
             "tables": dict(signalome_tables),

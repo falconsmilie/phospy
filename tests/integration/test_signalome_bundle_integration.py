@@ -90,6 +90,7 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     }
     assert manifest["signalome_outputs"]["tables"] == {
         "expanded_signalome": "signalome/expanded_signalome.csv",
+        "kinase_network_candidate_correlations": "signalome/kinase_network_candidate_correlations.csv",
         "kinase_network_edges": "signalome/kinase_network_edges.csv",
         "kinase_network_nodes": "signalome/kinase_network_nodes.csv",
         "module_assignments": "signalome/module_assignments.csv",
@@ -110,6 +111,12 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert int(preconditioning_payload["input_row_count"]) >= 0
     assert int(preconditioning_payload["dropped_all_missing_row_count"]) >= 0
     assert int(preconditioning_payload["retained_row_count"]) >= 0
+    network_correlation_payload = signalome_metadata["network_correlation_diagnostics"]
+    assert int(network_correlation_payload["total_candidate_correlations"]) >= 0
+    assert int(network_correlation_payload["finite_correlations"]) >= 0
+    assert int(network_correlation_payload["undefined_correlations"]) >= 0
+    assert int(network_correlation_payload["edges_created"]) >= 0
+    assert int(network_correlation_payload["edges_skipped_non_finite_correlation"]) >= 0
     assert "provenance" in manifest
     provenance = manifest["provenance"]
     assert provenance["workflow_name"] == "signalome_workflow"
@@ -300,6 +307,14 @@ def _assert_signalome_result_equal(left, right) -> None:
         right.kinase_network.nodes,
         check_dtype=False,
         check_names=False,
+    )
+    _assert_optional_frame_equal(
+        left.kinase_network.candidate_correlations,
+        right.kinase_network.candidate_correlations,
+    )
+    assert (
+        left.kinase_network.correlation_diagnostics
+        == right.kinase_network.correlation_diagnostics
     )
     assert left.module_selection_diagnostics == right.module_selection_diagnostics
     assert (

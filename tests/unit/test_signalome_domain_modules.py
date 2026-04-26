@@ -10,7 +10,9 @@ from phospy.api.configs import (
 from phospy.errors import WorkflowStageError
 from phospy.signalomes.expanded import build_expanded_signalome_table
 from phospy.signalomes.modules import build_signalome_module_table
-from phospy.signalomes.network import build_kinase_network
+from phospy.signalomes.network import (
+    build_kinase_network_with_diagnostics,
+)
 
 
 def test_domain_modules_weighted_top_requires_weight_column() -> None:
@@ -31,7 +33,7 @@ def test_domain_modules_weighted_top_requires_weight_column() -> None:
         )
 
 
-def test_domain_network_rejects_infinite_scores() -> None:
+def test_domain_network_reports_non_finite_scores_without_edge_creation() -> None:
     downstream_scores = pd.DataFrame(
         {
             "K1": [1.0, float("inf")],
@@ -39,15 +41,19 @@ def test_domain_network_rejects_infinite_scores() -> None:
         },
         index=pd.Index(["S1", "S2"], name="site_id"),
     )
+    edges, _, candidates, diagnostics = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2"],
+        kinase_substrates={"K1": (), "K2": ()},
+        threshold=0.0,
+        network_policy=SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
+    )
 
-    with pytest.raises(WorkflowStageError, match="contains infinite values"):
-        build_kinase_network(
-            downstream_score_matrix=downstream_scores,
-            kinase_order=["K1", "K2"],
-            kinase_substrates={"K1": (), "K2": ()},
-            threshold=0.5,
-            network_policy=SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
-        )
+    assert edges.empty
+    assert candidates.shape[0] == 1
+    assert candidates.at[0, "correlation_status"] == "non_finite_values"
+    assert pd.isna(candidates.at[0, "correlation"])
+    assert diagnostics.non_finite_value_correlations == 1
 
 
 def test_domain_expanded_requires_network_edge_columns() -> None:

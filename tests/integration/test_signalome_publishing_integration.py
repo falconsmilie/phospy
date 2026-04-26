@@ -59,6 +59,10 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
         written["signalome.kinase_network.edges"]
         == output_root / "signalome" / "kinase_network_edges.csv"
     )
+    assert (
+        written["signalome.kinase_network.candidate_correlations"]
+        == output_root / "signalome" / "kinase_network_candidate_correlations.csv"
+    )
     assert written["signalome.manifest"] == output_root / "signalome" / "manifest.json"
     assert (
         written["signalome.expanded_signalome"]
@@ -71,6 +75,9 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
     assert (output_root / "signalome" / "signalome_modules.csv").exists()
     assert (output_root / "signalome" / "kinase_network_nodes.csv").exists()
     assert (output_root / "signalome" / "kinase_network_edges.csv").exists()
+    assert (
+        output_root / "signalome" / "kinase_network_candidate_correlations.csv"
+    ).exists()
     assert (output_root / "signalome" / "expanded_signalome.csv").exists()
 
     manifest = json.loads(
@@ -91,6 +98,11 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
     assert int(preconditioning["input_row_count"]) >= 0
     assert int(preconditioning["dropped_all_missing_row_count"]) >= 0
     assert int(preconditioning["retained_row_count"]) >= 0
+    network_correlation_diagnostics = manifest["network_correlation_diagnostics"]
+    assert int(network_correlation_diagnostics["total_candidate_correlations"]) >= 0
+    assert int(network_correlation_diagnostics["finite_correlations"]) >= 0
+    assert int(network_correlation_diagnostics["undefined_correlations"]) >= 0
+    assert int(network_correlation_diagnostics["edges_created"]) >= 0
     assert manifest["provenance"]["workflow_name"] == "signalome_workflow"
 
     dataset_manifest = json.loads(

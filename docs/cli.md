@@ -137,6 +137,7 @@ Signalome requires explicit, non-empty `protein_id` values in `site_metadata`.
   signalome_modules.<fmt>
   kinase_network_nodes.<fmt>   # optional
   kinase_network_edges.<fmt>
+  kinase_network_candidate_correlations.<fmt>   # optional traceability sidecar
   expanded_signalome.<fmt>     # optional by contract
   manifest.json
 ```

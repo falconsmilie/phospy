@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass
+from dataclasses import InitVar, dataclass, field
 from typing import Literal
 
 import pandas as pd
@@ -20,6 +20,20 @@ SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT = "explicit_module_cou
 SignalomeModuleSelectionStrategy = Literal[
     "correlation_thresholds",
     "explicit_module_count",
+]
+SIGNALOME_CORRELATION_STATUS_FINITE = "finite"
+SIGNALOME_CORRELATION_STATUS_CONSTANT_PROFILE = "constant_profile"
+SIGNALOME_CORRELATION_STATUS_INSUFFICIENT_OBSERVATIONS = "insufficient_observations"
+SIGNALOME_CORRELATION_STATUS_MISSING_VALUES = "missing_values"
+SIGNALOME_CORRELATION_STATUS_NON_FINITE_VALUES = "non_finite_values"
+SIGNALOME_CORRELATION_STATUS_UNDEFINED = "undefined"
+SignalomeCorrelationStatus = Literal[
+    "finite",
+    "constant_profile",
+    "insufficient_observations",
+    "missing_values",
+    "non_finite_values",
+    "undefined",
 ]
 
 
@@ -63,6 +77,21 @@ class SignalomeScorePreconditioningDiagnostics:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class SignalomeNetworkCorrelationDiagnostics:
+    """Structured diagnostics for kinase-network correlation eligibility."""
+
+    total_candidate_correlations: int
+    finite_correlations: int
+    undefined_correlations: int
+    constant_profile_correlations: int
+    insufficient_observation_correlations: int
+    missing_value_correlations: int
+    non_finite_value_correlations: int
+    edges_created: int
+    edges_skipped_non_finite_correlation: int
+
+
 def default_signalome_module_selection_diagnostics() -> (
     SignalomeModuleSelectionDiagnostics
 ):
@@ -89,6 +118,24 @@ def default_signalome_score_preconditioning_diagnostics() -> (
         dropped_all_missing_row_count=0,
         retained_row_count=0,
         policy=SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    )
+
+
+def default_signalome_network_correlation_diagnostics() -> (
+    SignalomeNetworkCorrelationDiagnostics
+):
+    """Return a stable placeholder network-correlation diagnostics payload."""
+
+    return SignalomeNetworkCorrelationDiagnostics(
+        total_candidate_correlations=0,
+        finite_correlations=0,
+        undefined_correlations=0,
+        constant_profile_correlations=0,
+        insufficient_observation_correlations=0,
+        missing_value_correlations=0,
+        non_finite_value_correlations=0,
+        edges_created=0,
+        edges_skipped_non_finite_correlation=0,
     )
 
 
@@ -146,6 +193,10 @@ class KinaseNetwork:
 
     edges: pd.DataFrame
     nodes: pd.DataFrame | None = None
+    candidate_correlations: pd.DataFrame | None = None
+    correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics = field(
+        default_factory=default_signalome_network_correlation_diagnostics
+    )
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
@@ -161,8 +212,22 @@ class KinaseNetwork:
             error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
+        candidate_correlations = own_optional_dataframe(
+            self.candidate_correlations,
+            field_name="signalome_result.kinase_network.candidate_correlations",
+            error_type=PhosPyValidationError,
+            assume_owned=_assume_owned,
+        )
+        if not isinstance(
+            self.correlation_diagnostics, SignalomeNetworkCorrelationDiagnostics
+        ):
+            raise PhosPyValidationError(
+                "signalome_result.kinase_network.correlation_diagnostics must be "
+                "SignalomeNetworkCorrelationDiagnostics"
+            )
         object.__setattr__(self, "edges", edges)
         object.__setattr__(self, "nodes", nodes)
+        object.__setattr__(self, "candidate_correlations", candidate_correlations)
 
     @classmethod
     def _from_owned(
@@ -170,16 +235,36 @@ class KinaseNetwork:
         *,
         edges: pd.DataFrame,
         nodes: pd.DataFrame | None = None,
+        candidate_correlations: pd.DataFrame | None = None,
+        correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics | None = None,
     ) -> KinaseNetwork:
-        return cls(edges=edges, nodes=nodes, _assume_owned=True)
+        return cls(
+            edges=edges,
+            nodes=nodes,
+            candidate_correlations=candidate_correlations,
+            correlation_diagnostics=(
+                default_signalome_network_correlation_diagnostics()
+                if correlation_diagnostics is None
+                else correlation_diagnostics
+            ),
+            _assume_owned=True,
+        )
 
 
 __all__ = [
     "KinaseNetwork",
+    "SIGNALOME_CORRELATION_STATUS_CONSTANT_PROFILE",
+    "SIGNALOME_CORRELATION_STATUS_FINITE",
+    "SIGNALOME_CORRELATION_STATUS_INSUFFICIENT_OBSERVATIONS",
+    "SIGNALOME_CORRELATION_STATUS_MISSING_VALUES",
+    "SIGNALOME_CORRELATION_STATUS_NON_FINITE_VALUES",
+    "SIGNALOME_CORRELATION_STATUS_UNDEFINED",
     "SignalomeAssignments",
     "SignalomeClusterCandidateScore",
+    "SignalomeCorrelationStatus",
     "SignalomeModuleSelectionDiagnostics",
     "SignalomeModuleSelectionStrategy",
+    "SignalomeNetworkCorrelationDiagnostics",
     "SignalomeScorePreconditioningDiagnostics",
     "SignalomeScorePreconditioningPolicy",
     "SignalomeModules",
@@ -188,5 +273,6 @@ __all__ = [
     "default_signalome_score_preconditioning_diagnostics",
     "SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS",
     "SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT",
+    "default_signalome_network_correlation_diagnostics",
     "default_signalome_module_selection_diagnostics",
 ]

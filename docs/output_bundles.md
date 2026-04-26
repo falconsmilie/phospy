@@ -68,6 +68,9 @@ Signalome manifest:
   - `expanded_signalome_present`
   - `module_selection_diagnostics` payload (strategy, selected count,
     threshold/candidate diagnostics, and degeneracy counters)
+  - `score_preconditioning_diagnostics` payload
+  - `network_correlation_diagnostics` payload (finite vs undefined candidate
+    counts, status-specific counts, and skipped-edge counts)
 
 Both manifests store dataset organism, full `intensity_scale_state` payload,
 and full `processing_state` payload.
@@ -135,6 +138,7 @@ signalome/module_assignments.csv
 signalome/signalome_modules.csv
 signalome/kinase_network_edges.csv
 signalome/kinase_network_nodes.csv   # optional
+signalome/kinase_network_candidate_correlations.csv   # optional
 signalome/expanded_signalome.csv     # optional
 ```
 
@@ -143,10 +147,16 @@ as `SignalomeWorkflowResult.expanded_signalome` (see `docs/api.md`): focal
 kinase, row kind, assignment policy, linked/regulatory module metadata, and
 site-level membership rows with stable `site_order`.
 
-Signalome manifests also persist `score_preconditioning_diagnostics` metadata
-(`policy`, `input_row_count`, `dropped_all_missing_row_count`,
-`retained_row_count`) so dropped all-missing downstream-score rows are explicit
-in published outputs and reloads.
+Signalome manifests also persist:
+
+- `score_preconditioning_diagnostics` metadata (`policy`, `input_row_count`,
+  `dropped_all_missing_row_count`, `retained_row_count`) so dropped
+  all-missing downstream-score rows are explicit in published outputs and
+  reloads.
+- `network_correlation_diagnostics` metadata and optional
+  `signalome/kinase_network_candidate_correlations.csv` so undefined
+  correlations remain distinguishable from true `0.0` correlations across
+  bundle round-trips.
 
 Optional means contract-optional, not always absent.
 In the default supported kinase lane, scoring populates `profile_scores` and
@@ -161,6 +171,7 @@ or reference input provenance (preset vs equivalent explicit bundle).
 - `activity/*` tables are present only when `kinase_result.activity_result` is present.
 - `prediction/substrate_list` is optional.
 - `signalome/kinase_network_nodes` is optional.
+- `signalome/kinase_network_candidate_correlations` is optional.
 - `signalome/expanded_signalome` is optional by contract for compatibility, but
   is populated in the supported signalome executor lane when the workflow
   completes successfully.

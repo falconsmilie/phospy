@@ -28,8 +28,10 @@ from phospy.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
     SignalomeClusterCandidateScore,
     SignalomeModuleSelectionDiagnostics,
+    SignalomeNetworkCorrelationDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
     default_signalome_module_selection_diagnostics,
+    default_signalome_network_correlation_diagnostics,
     default_signalome_score_preconditioning_diagnostics,
 )
 
@@ -338,6 +340,93 @@ def signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_
         input_row_count=input_row_count,
         dropped_all_missing_row_count=dropped_all_missing_row_count,
         retained_row_count=retained_row_count,
+    )
+
+
+def signalome_network_correlation_diagnostics_to_payload(
+    diagnostics: SignalomeNetworkCorrelationDiagnostics,
+) -> dict[str, object]:
+    return {
+        "total_candidate_correlations": int(diagnostics.total_candidate_correlations),
+        "finite_correlations": int(diagnostics.finite_correlations),
+        "undefined_correlations": int(diagnostics.undefined_correlations),
+        "constant_profile_correlations": int(diagnostics.constant_profile_correlations),
+        "insufficient_observation_correlations": int(
+            diagnostics.insufficient_observation_correlations
+        ),
+        "missing_value_correlations": int(diagnostics.missing_value_correlations),
+        "non_finite_value_correlations": int(diagnostics.non_finite_value_correlations),
+        "edges_created": int(diagnostics.edges_created),
+        "edges_skipped_non_finite_correlation": int(
+            diagnostics.edges_skipped_non_finite_correlation
+        ),
+    }
+
+
+def signalome_network_correlation_diagnostics_from_payload_with_compatibility_support(
+    payload: object,
+    *,
+    scope: str,
+) -> SignalomeNetworkCorrelationDiagnostics:
+    if payload is None:
+        return default_signalome_network_correlation_diagnostics()
+    diagnostics_payload = require_mapping(
+        payload,
+        field_name=f"{scope}.network_correlation_diagnostics",
+    )
+    return SignalomeNetworkCorrelationDiagnostics(
+        total_candidate_correlations=_require_int(
+            diagnostics_payload.get("total_candidate_correlations", 0),
+            field_name=(
+                f"{scope}.network_correlation_diagnostics.total_candidate_correlations"
+            ),
+        ),
+        finite_correlations=_require_int(
+            diagnostics_payload.get("finite_correlations", 0),
+            field_name=f"{scope}.network_correlation_diagnostics.finite_correlations",
+        ),
+        undefined_correlations=_require_int(
+            diagnostics_payload.get("undefined_correlations", 0),
+            field_name=(
+                f"{scope}.network_correlation_diagnostics.undefined_correlations"
+            ),
+        ),
+        constant_profile_correlations=_require_int(
+            diagnostics_payload.get("constant_profile_correlations", 0),
+            field_name=(
+                f"{scope}.network_correlation_diagnostics.constant_profile_correlations"
+            ),
+        ),
+        insufficient_observation_correlations=_require_int(
+            diagnostics_payload.get("insufficient_observation_correlations", 0),
+            field_name=(
+                f"{scope}.network_correlation_diagnostics."
+                "insufficient_observation_correlations"
+            ),
+        ),
+        missing_value_correlations=_require_int(
+            diagnostics_payload.get("missing_value_correlations", 0),
+            field_name=(
+                f"{scope}.network_correlation_diagnostics.missing_value_correlations"
+            ),
+        ),
+        non_finite_value_correlations=_require_int(
+            diagnostics_payload.get("non_finite_value_correlations", 0),
+            field_name=(
+                f"{scope}.network_correlation_diagnostics.non_finite_value_correlations"
+            ),
+        ),
+        edges_created=_require_int(
+            diagnostics_payload.get("edges_created", 0),
+            field_name=f"{scope}.network_correlation_diagnostics.edges_created",
+        ),
+        edges_skipped_non_finite_correlation=_require_int(
+            diagnostics_payload.get("edges_skipped_non_finite_correlation", 0),
+            field_name=(
+                f"{scope}.network_correlation_diagnostics."
+                "edges_skipped_non_finite_correlation"
+            ),
+        ),
     )
 
 

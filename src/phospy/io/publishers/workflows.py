@@ -214,6 +214,18 @@ def publish_signalome_workflow(
         write_table(result.kinase_network.nodes, kinase_network_nodes_path)
         written["signalome.kinase_network.nodes"] = kinase_network_nodes_path
 
+    if result.kinase_network.candidate_correlations is not None:
+        candidate_correlations_path = (
+            workflow_dir / f"kinase_network_candidate_correlations{suffix}"
+        )
+        write_table(
+            result.kinase_network.candidate_correlations,
+            candidate_correlations_path,
+        )
+        written["signalome.kinase_network.candidate_correlations"] = (
+            candidate_correlations_path
+        )
+
     if result.expanded_signalome is not None:
         expanded_signalome_path = workflow_dir / f"expanded_signalome{suffix}"
         write_table(result.expanded_signalome, expanded_signalome_path)
@@ -243,6 +255,35 @@ def publish_signalome_workflow(
                 ),
                 "retained_row_count": int(
                     result.score_preconditioning_diagnostics.retained_row_count
+                ),
+            },
+            "network_correlation_diagnostics": {
+                "total_candidate_correlations": int(
+                    result.kinase_network.correlation_diagnostics.total_candidate_correlations
+                ),
+                "finite_correlations": int(
+                    result.kinase_network.correlation_diagnostics.finite_correlations
+                ),
+                "undefined_correlations": int(
+                    result.kinase_network.correlation_diagnostics.undefined_correlations
+                ),
+                "constant_profile_correlations": int(
+                    result.kinase_network.correlation_diagnostics.constant_profile_correlations
+                ),
+                "insufficient_observation_correlations": int(
+                    result.kinase_network.correlation_diagnostics.insufficient_observation_correlations
+                ),
+                "missing_value_correlations": int(
+                    result.kinase_network.correlation_diagnostics.missing_value_correlations
+                ),
+                "non_finite_value_correlations": int(
+                    result.kinase_network.correlation_diagnostics.non_finite_value_correlations
+                ),
+                "edges_created": int(
+                    result.kinase_network.correlation_diagnostics.edges_created
+                ),
+                "edges_skipped_non_finite_correlation": int(
+                    result.kinase_network.correlation_diagnostics.edges_skipped_non_finite_correlation
                 ),
             },
             "output_format": output_format,

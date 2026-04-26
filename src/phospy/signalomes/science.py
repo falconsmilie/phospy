@@ -8,6 +8,8 @@ from phospy.signalomes.assignments import (
 )
 from phospy.signalomes.constants import (
     CORRELATION_COLUMN,
+    CORRELATION_REASON_COLUMN,
+    CORRELATION_STATUS_COLUMN,
     DEGREE_COLUMN,
     EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN,
     EXPANDED_SIGNALOME_KINASE_COLUMN,
@@ -39,13 +41,19 @@ from phospy.signalomes.constants import (
     TOP_KINASE_WEIGHTS_COLUMN,
     TOP_SCORE_COLUMN,
     UNSUPPORTED_KINASE,
+    VALID_OBSERVATIONS_COLUMN,
 )
 from phospy.signalomes.expanded import build_expanded_signalome_table
 from phospy.signalomes.modules import build_signalome_module_table
-from phospy.signalomes.network import build_kinase_network
+from phospy.signalomes.network import (
+    build_kinase_network,
+    build_kinase_network_with_diagnostics,
+)
 
 __all__ = [
     "CORRELATION_COLUMN",
+    "CORRELATION_REASON_COLUMN",
+    "CORRELATION_STATUS_COLUMN",
     "DEGREE_COLUMN",
     "EXPANDED_SIGNALOME_ASSIGNMENT_POLICY_COLUMN",
     "EXPANDED_SIGNALOME_KINASE_COLUMN",
@@ -77,8 +85,10 @@ __all__ = [
     "TOP_KINASE_WEIGHTS_COLUMN",
     "TOP_SCORE_COLUMN",
     "UNSUPPORTED_KINASE",
+    "VALID_OBSERVATIONS_COLUMN",
     "build_expanded_signalome_table",
     "build_kinase_network",
+    "build_kinase_network_with_diagnostics",
     "build_module_assignments",
     "build_signalome_module_table",
     "select_kinase_substrates",

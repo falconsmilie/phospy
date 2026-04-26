@@ -19,6 +19,7 @@ from phospy.signalomes.constants import (
 from phospy.signalomes.science import (
     build_expanded_signalome_table,
     build_kinase_network,
+    build_kinase_network_with_diagnostics,
     build_signalome_module_table,
 )
 
@@ -294,6 +295,199 @@ def test_build_kinase_network_rejects_unsupported_network_policy() -> None:
             threshold=0.5,
             network_policy="unsupported",  # type: ignore[arg-type]
         )
+
+
+def test_candidate_correlation_true_zero_is_finite_zero() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, -1.0, 1.0, -1.0],
+            "K2": [1.0, 1.0, -1.0, -1.0],
+        },
+        index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
+    )
+
+    _, _, candidates, _ = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2"],
+        kinase_substrates={"K1": (), "K2": ()},
+        threshold=0.0,
+        network_policy="signed",
+    )
+
+    assert candidates.shape[0] == 1
+    assert candidates.at[0, "correlation"] == 0.0
+    assert candidates.at[0, "correlation_status"] == "finite"
+
+
+def test_candidate_correlation_constant_profile_remains_nan_and_creates_no_edge() -> (
+    None
+):
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, 1.0, 1.0, 1.0],
+            "K2": [1.0, 2.0, 3.0, 4.0],
+        },
+        index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
+    )
+
+    edges, _, candidates, _ = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2"],
+        kinase_substrates={"K1": (), "K2": ()},
+        threshold=0.0,
+        network_policy="signed",
+    )
+
+    assert edges.empty
+    assert candidates.shape[0] == 1
+    assert pd.isna(candidates.at[0, "correlation"])
+    assert candidates.at[0, "correlation_status"] == "constant_profile"
+
+
+def test_candidate_correlation_insufficient_observations_remains_nan() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0],
+            "K2": [2.0],
+        },
+        index=pd.Index(["S1"], name="site_id"),
+    )
+
+    edges, _, candidates, _ = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2"],
+        kinase_substrates={"K1": (), "K2": ()},
+        threshold=0.0,
+        network_policy="signed",
+    )
+
+    assert edges.empty
+    assert candidates.shape[0] == 1
+    assert pd.isna(candidates.at[0, "correlation"])
+    assert candidates.at[0, "correlation_status"] == "insufficient_observations"
+
+
+def test_candidate_correlation_classifies_missing_and_non_finite_inputs() -> None:
+    missing_scores = pd.DataFrame(
+        {
+            "K1": [1.0, float("nan"), float("nan")],
+            "K2": [2.0, 3.0, float("nan")],
+        },
+        index=pd.Index(["S1", "S2", "S3"], name="site_id"),
+    )
+    non_finite_scores = pd.DataFrame(
+        {
+            "K1": [1.0, float("inf"), 3.0],
+            "K2": [1.0, 2.0, 3.0],
+        },
+        index=pd.Index(["S1", "S2", "S3"], name="site_id"),
+    )
+
+    _, _, missing_candidates, _ = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=missing_scores,
+        kinase_order=["K1", "K2"],
+        kinase_substrates={"K1": (), "K2": ()},
+        threshold=0.0,
+        network_policy="signed",
+    )
+    _, _, non_finite_candidates, _ = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=non_finite_scores,
+        kinase_order=["K1", "K2"],
+        kinase_substrates={"K1": (), "K2": ()},
+        threshold=0.0,
+        network_policy="signed",
+    )
+
+    assert missing_candidates.at[0, "correlation_status"] == "missing_values"
+    assert pd.isna(missing_candidates.at[0, "correlation"])
+    assert non_finite_candidates.at[0, "correlation_status"] == "non_finite_values"
+    assert pd.isna(non_finite_candidates.at[0, "correlation"])
+
+
+def test_network_edge_creation_uses_only_finite_candidate_correlations() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, -1.0, 1.0, -1.0],
+            "K2": [1.0, 1.0, -1.0, -1.0],
+            "K3": [1.0, -1.0, 1.0, -1.0],
+            "K4": [5.0, 5.0, 5.0, 5.0],
+            "K5": [1.0, float("nan"), float("nan"), float("nan")],
+        },
+        index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
+    )
+
+    edges, _, candidates, _ = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2", "K3", "K4", "K5"],
+        kinase_substrates={"K1": (), "K2": (), "K3": (), "K4": (), "K5": ()},
+        threshold=0.8,
+        network_policy="signed",
+    )
+
+    assert edges.to_dict("records") == [
+        {
+            "source_kinase": "K1",
+            "target_kinase": "K3",
+            "correlation": pytest.approx(1.0),
+        }
+    ]
+    assert "finite" in set(candidates.loc[:, "correlation_status"])
+    assert "constant_profile" in set(candidates.loc[:, "correlation_status"])
+    assert "missing_values" in set(candidates.loc[:, "correlation_status"])
+
+
+def test_network_correlation_diagnostics_count_statuses_and_skips() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [1.0, -1.0, 1.0, -1.0],
+            "K2": [1.0, 1.0, -1.0, -1.0],
+            "K3": [1.0, -1.0, 1.0, -1.0],
+            "K4": [5.0, 5.0, 5.0, 5.0],
+            "K5": [1.0, float("nan"), float("nan"), float("nan")],
+        },
+        index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
+    )
+
+    edges, _, _, diagnostics = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2", "K3", "K4", "K5"],
+        kinase_substrates={"K1": (), "K2": (), "K3": (), "K4": (), "K5": ()},
+        threshold=0.8,
+        network_policy="signed",
+    )
+
+    assert diagnostics.total_candidate_correlations == 10
+    assert diagnostics.finite_correlations == 3
+    assert diagnostics.undefined_correlations == 7
+    assert diagnostics.constant_profile_correlations == 3
+    assert diagnostics.insufficient_observation_correlations == 0
+    assert diagnostics.missing_value_correlations == 4
+    assert diagnostics.non_finite_value_correlations == 0
+    assert diagnostics.edges_skipped_non_finite_correlation == 7
+    assert diagnostics.edges_created == int(edges.shape[0]) == 1
+
+
+def test_network_regression_undefined_correlations_are_not_zero_imputed() -> None:
+    downstream_scores = pd.DataFrame(
+        {
+            "K1": [7.0, 7.0, 7.0, 7.0],
+            "K2": [1.0, 2.0, 3.0, 4.0],
+        },
+        index=pd.Index(["S1", "S2", "S3", "S4"], name="site_id"),
+    )
+
+    edges, _, candidates, _ = build_kinase_network_with_diagnostics(
+        downstream_score_matrix=downstream_scores,
+        kinase_order=["K1", "K2"],
+        kinase_substrates={"K1": (), "K2": ()},
+        threshold=0.0,
+        network_policy="signed",
+    )
+
+    assert edges.empty
+    assert pd.isna(candidates.at[0, "correlation"])
+    assert candidates.at[0, "correlation"] != 0.0
+    assert candidates.at[0, "correlation_status"] != "finite"
 
 
 def test_build_expanded_signalome_table_tracks_membership_and_site_order() -> None:

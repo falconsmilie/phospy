@@ -391,9 +391,26 @@ Common nested outputs:
 - `result.module_assignments.table`
 - `result.signalome_modules.table`
 - `result.kinase_network.edges`
+- `result.kinase_network.candidate_correlations`
+- `result.kinase_network.correlation_diagnostics`
 - `result.expanded_signalome`
 - `result.site_membership`
 - `result.protein_site_context`
+
+Signalome correlation semantics:
+
+- PhosPy preserves undefined kinase correlations as missing (`NaN`) values.
+- `0.0` means correlation was estimated and is near zero.
+- Missing correlation means estimation was not possible (for example constant
+  profiles, insufficient paired observations, missing values, or non-finite
+  inputs).
+- `result.kinase_network.candidate_correlations` includes:
+  `source_kinase`, `target_kinase`, `correlation`, `correlation_status`,
+  `valid_observations`, and `correlation_reason`.
+- By default, only rows with `correlation_status == "finite"` are eligible for
+  edge creation.
+- `result.kinase_network.correlation_diagnostics` reports finite/undefined
+  counts and how many candidates were skipped for non-finite correlation.
 
 Signalome context note:
 

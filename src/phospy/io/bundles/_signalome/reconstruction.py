@@ -28,6 +28,7 @@ from phospy.io.bundles._shared.tables import (
 from phospy.io.bundles._signalome.compatibility import (
     normalize_module_assignments_table,
     signalome_module_selection_diagnostics_from_payload_with_compatibility_support,
+    signalome_network_correlation_diagnostics_from_payload_with_compatibility_support,
     signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support,
 )
 from phospy.io.bundles._signalome.manifest import SignalomeManifestSections
@@ -256,6 +257,20 @@ def reconstruct_signalome_result(
         sections.signalome_metadata.get("score_preconditioning_diagnostics"),
         scope="bundle manifest.signalome_outputs.metadata",
     )
+    network_correlation_diagnostics = signalome_network_correlation_diagnostics_from_payload_with_compatibility_support(
+        sections.signalome_metadata.get("network_correlation_diagnostics"),
+        scope="bundle manifest.signalome_outputs.metadata",
+    )
+    candidate_correlations = (
+        read_optional_table(
+            bundle_root=bundle_root,
+            tables=sections.signalome_tables,
+            table_key="kinase_network_candidate_correlations",
+            field_name="bundle manifest.signalome_outputs.tables.kinase_network_candidate_correlations",
+        )
+        if "kinase_network_candidate_correlations" in sections.signalome_tables
+        else None
+    )
     return SignalomeWorkflowResult(
         dataset=dataset,
         kinase_result=kinase_result,
@@ -290,6 +305,8 @@ def reconstruct_signalome_result(
                 table_key="kinase_network_nodes",
                 field_name="bundle manifest.signalome_outputs.tables.kinase_network_nodes",
             ),
+            candidate_correlations=candidate_correlations,
+            correlation_diagnostics=network_correlation_diagnostics,
         ),
         module_selection_diagnostics=module_selection_diagnostics,
         score_preconditioning_diagnostics=score_preconditioning_diagnostics,

@@ -11,6 +11,8 @@ from phospy.io.bundles._signalome.compatibility import (
     normalize_module_assignments_table,
     signalome_module_selection_diagnostics_from_payload_with_compatibility_support,
     signalome_module_selection_diagnostics_to_payload,
+    signalome_network_correlation_diagnostics_from_payload_with_compatibility_support,
+    signalome_network_correlation_diagnostics_to_payload,
     signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support,
     signalome_score_preconditioning_diagnostics_to_payload,
 )
@@ -20,7 +22,9 @@ from phospy.signalomes.models import (
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     SignalomeModuleSelectionDiagnostics,
+    SignalomeNetworkCorrelationDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
+    default_signalome_network_correlation_diagnostics,
     default_signalome_score_preconditioning_diagnostics,
 )
 
@@ -209,3 +213,33 @@ def test_score_preconditioning_diagnostics_compatibility_payload_defaults() -> N
         scope="test",
     )
     assert restored == default_signalome_score_preconditioning_diagnostics()
+
+
+def test_network_correlation_diagnostics_payload_round_trip() -> None:
+    diagnostics = SignalomeNetworkCorrelationDiagnostics(
+        total_candidate_correlations=10,
+        finite_correlations=3,
+        undefined_correlations=7,
+        constant_profile_correlations=2,
+        insufficient_observation_correlations=1,
+        missing_value_correlations=3,
+        non_finite_value_correlations=1,
+        edges_created=2,
+        edges_skipped_non_finite_correlation=7,
+    )
+
+    payload = signalome_network_correlation_diagnostics_to_payload(diagnostics)
+    restored = signalome_network_correlation_diagnostics_from_payload_with_compatibility_support(
+        payload,
+        scope="test",
+    )
+
+    assert restored == diagnostics
+
+
+def test_network_correlation_diagnostics_compatibility_payload_defaults() -> None:
+    restored = signalome_network_correlation_diagnostics_from_payload_with_compatibility_support(
+        None,
+        scope="test",
+    )
+    assert restored == default_signalome_network_correlation_diagnostics()

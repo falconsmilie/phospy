@@ -1316,7 +1316,9 @@ def test_executor_orchestrates_signalome_domain_services(
             dtype=float,
         )
 
-    def _network(**_: object) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def _network(
+        **_: object,
+    ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, object]:
         call_order.append("network")
         return (
             pd.DataFrame(
@@ -1330,6 +1332,27 @@ def test_executor_orchestrates_signalome_domain_services(
                 {"degree": [1, 1], "n_substrates": [1, 1]},
                 index=pd.Index(kinases, name="kinase"),
             ).astype({"degree": "int64", "n_substrates": "int64"}),
+            pd.DataFrame(
+                {
+                    "source_kinase": ["K1"],
+                    "target_kinase": ["K2"],
+                    "correlation": [0.95],
+                    "correlation_status": ["finite"],
+                    "valid_observations": [2],
+                    "correlation_reason": [None],
+                }
+            ),
+            executor_module.SignalomeNetworkCorrelationDiagnostics(
+                total_candidate_correlations=1,
+                finite_correlations=1,
+                undefined_correlations=0,
+                constant_profile_correlations=0,
+                insufficient_observation_correlations=0,
+                missing_value_correlations=0,
+                non_finite_value_correlations=0,
+                edges_created=1,
+                edges_skipped_non_finite_correlation=0,
+            ),
         )
 
     def _expanded(**_: object) -> pd.DataFrame:
@@ -1357,7 +1380,11 @@ def test_executor_orchestrates_signalome_domain_services(
     monkeypatch.setattr(executor_module, "build_module_assignments", _assignments)
     monkeypatch.setattr(executor_module, "select_kinase_substrates", _substrates)
     monkeypatch.setattr(executor_module, "build_signalome_module_table", _modules)
-    monkeypatch.setattr(executor_module, "build_kinase_network", _network)
+    monkeypatch.setattr(
+        executor_module,
+        "build_kinase_network_with_diagnostics",
+        _network,
+    )
     monkeypatch.setattr(executor_module, "build_expanded_signalome_table", _expanded)
 
     result = SignalomeWorkflowExecutor().run(resolved)

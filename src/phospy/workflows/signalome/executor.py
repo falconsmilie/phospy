@@ -30,10 +30,11 @@ from phospy.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
     SignalomeModules,
+    SignalomeNetworkCorrelationDiagnostics,
 )
 from phospy.signalomes.science import (
     build_expanded_signalome_table,
-    build_kinase_network,
+    build_kinase_network_with_diagnostics,
     build_module_assignments,
     build_signalome_module_table,
     select_kinase_substrates,
@@ -86,6 +87,14 @@ class _SignalomeContextStage:
     protein_site_context: pd.DataFrame
 
 
+@dataclass(frozen=True, slots=True)
+class _NetworkStage:
+    edges: pd.DataFrame
+    nodes: pd.DataFrame
+    candidate_correlations: pd.DataFrame
+    correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics
+
+
 class SignalomeWorkflowExecutor:
     """Run signalome stage logic and assemble `SignalomeWorkflowResult`."""
 
@@ -118,7 +127,7 @@ class SignalomeWorkflowExecutor:
             module_assignments=module_assignments,
             execution_metadata=execution_metadata,
         )
-        network_edges, network_nodes = self._build_network(
+        network_stage = self._build_network(
             request=request,
             config=config,
             clustering_result=clustering_stage.clustering_result,
@@ -130,7 +139,7 @@ class SignalomeWorkflowExecutor:
             config=config,
             module_assignments=module_assignments,
             signalome_modules=signalome_module_stage.signalome_modules,
-            network_edges=network_edges,
+            network_edges=network_stage.edges,
             support_summary=signalome_module_stage.support_summary,
             module_count=signalome_module_stage.module_count,
             execution_metadata=execution_metadata,
@@ -149,8 +158,10 @@ class SignalomeWorkflowExecutor:
             clustering_result=clustering_stage.clustering_result,
             module_assignments=module_assignments,
             signalome_modules=signalome_module_stage.signalome_modules,
-            network_edges=network_edges,
-            network_nodes=network_nodes,
+            network_edges=network_stage.edges,
+            network_nodes=network_stage.nodes,
+            candidate_correlations=network_stage.candidate_correlations,
+            network_correlation_diagnostics=network_stage.correlation_diagnostics,
             expanded_signalome=expanded_signalome,
             site_membership=context_stage.site_membership,
             protein_site_context=context_stage.protein_site_context,
@@ -161,8 +172,10 @@ class SignalomeWorkflowExecutor:
             clustering_result=clustering_stage.clustering_result,
             module_assignments=module_assignments,
             signalome_modules=signalome_module_stage.signalome_modules,
-            network_edges=network_edges,
-            network_nodes=network_nodes,
+            network_edges=network_stage.edges,
+            network_nodes=network_stage.nodes,
+            candidate_correlations=network_stage.candidate_correlations,
+            network_correlation_diagnostics=network_stage.correlation_diagnostics,
             expanded_signalome=expanded_signalome,
             site_membership=context_stage.site_membership,
             protein_site_context=context_stage.protein_site_context,
@@ -178,6 +191,8 @@ class SignalomeWorkflowExecutor:
         signalome_modules: pd.DataFrame,
         network_edges: pd.DataFrame,
         network_nodes: pd.DataFrame,
+        candidate_correlations: pd.DataFrame,
+        network_correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics,
         expanded_signalome: pd.DataFrame,
         site_membership: pd.DataFrame,
         protein_site_context: pd.DataFrame,
@@ -193,6 +208,8 @@ class SignalomeWorkflowExecutor:
             kinase_network=KinaseNetwork._from_owned(
                 edges=network_edges,
                 nodes=network_nodes,
+                candidate_correlations=candidate_correlations,
+                correlation_diagnostics=network_correlation_diagnostics,
             ),
             module_selection_diagnostics=clustering_result.module_selection_diagnostics,
             score_preconditioning_diagnostics=request.score_preconditioning_diagnostics,
@@ -440,12 +457,17 @@ class SignalomeWorkflowExecutor:
         clustering_result: ClusterSitesResult,
         support_summary: _SupportSummary,
         execution_metadata: _ExecutionMetadata,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> _NetworkStage:
         score_variance_kinases = self._score_variance_kinases(
             request.downstream_score_matrix
         )
         try:
-            network_edges, network_nodes = build_kinase_network(
+            (
+                network_edges,
+                network_nodes,
+                candidate_correlations,
+                correlation_diagnostics,
+            ) = build_kinase_network_with_diagnostics(
                 downstream_score_matrix=request.downstream_score_matrix,
                 kinase_order=request.prediction_matrix.columns.astype(str).tolist(),
                 kinase_substrates=support_summary.kinase_substrates,
@@ -485,8 +507,29 @@ class SignalomeWorkflowExecutor:
                 selected_module_count=self._module_selection_details(clustering_result)[
                     "selected_module_count"
                 ],
+                total_candidate_correlations=(
+                    correlation_diagnostics.total_candidate_correlations
+                ),
+                undefined_correlations=correlation_diagnostics.undefined_correlations,
+                constant_profile_correlations=(
+                    correlation_diagnostics.constant_profile_correlations
+                ),
+                insufficient_observation_correlations=(
+                    correlation_diagnostics.insufficient_observation_correlations
+                ),
+                missing_value_correlations=(
+                    correlation_diagnostics.missing_value_correlations
+                ),
+                non_finite_value_correlations=(
+                    correlation_diagnostics.non_finite_value_correlations
+                ),
             )
-        return network_edges, network_nodes
+        return _NetworkStage(
+            edges=network_edges,
+            nodes=network_nodes,
+            candidate_correlations=candidate_correlations,
+            correlation_diagnostics=correlation_diagnostics,
+        )
 
     def _build_expanded_signalome(
         self,
@@ -606,6 +649,8 @@ def _build_signalome_run_provenance(
     signalome_modules: pd.DataFrame,
     network_edges: pd.DataFrame,
     network_nodes: pd.DataFrame,
+    candidate_correlations: pd.DataFrame,
+    network_correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics,
     expanded_signalome: pd.DataFrame,
     site_membership: pd.DataFrame,
     protein_site_context: pd.DataFrame,
@@ -630,6 +675,10 @@ def _build_signalome_run_provenance(
             ("outputs.signalome.signalome_modules", signalome_modules),
             ("outputs.signalome.kinase_network.edges", network_edges),
             ("outputs.signalome.kinase_network.nodes", network_nodes),
+            (
+                "outputs.signalome.kinase_network.candidate_correlations",
+                candidate_correlations,
+            ),
             ("outputs.signalome.expanded_signalome", expanded_signalome),
             ("outputs.signalome.site_membership", site_membership),
             ("outputs.signalome.protein_site_context", protein_site_context),
@@ -674,6 +723,7 @@ def _build_signalome_run_provenance(
             "score_preconditioning_diagnostics": asdict(
                 request.score_preconditioning_diagnostics
             ),
+            "network_correlation_diagnostics": asdict(network_correlation_diagnostics),
             "upstream_kinase_provenance": (
                 None
                 if upstream_provenance is None
