@@ -7,6 +7,7 @@ from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
     PreprocessingStage,
+    PreprocessingStageResult,
     PreprocessingState,
 )
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
@@ -18,6 +19,7 @@ __all__ = [
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",
     "PreprocessingPipeline",
     "PreprocessingPlan",
+    "PreprocessingStageResult",
     "PreprocessingStage",
     "PreprocessingState",
 ]

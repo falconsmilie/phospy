@@ -15,9 +15,11 @@ from phospy.api.configs import (
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     ComparisonBuildResult,
+    PreprocessingStageResult,
     PreprocessingState,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance.hashing import hash_table
 
 _COMPARISON_OUTPUT_PREFIX = "p_"
 _GROUP_STATS_COLUMNS = (
@@ -60,10 +62,26 @@ class ComparisonsStage:
 
     stage_key = DATASET_PREPROCESSING_STAGE_COMPARISONS
 
-    def run(self, state: PreprocessingState) -> PreprocessingState:
+    def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         policy = state.plan.comparison_building_policy
         if policy == DATASET_COMPARISON_BUILDING_POLICY_NONE:
-            return state
+            return PreprocessingStageResult(
+                state=state,
+                diagnostics={
+                    "dropped_row_ids": (),
+                    "dropped_row_count": 0,
+                    "imputed_cell_count": 0,
+                    "imputed_row_ids": (),
+                    "notes": "stage executed",
+                    "diagnostics": {
+                        "policy": policy,
+                        "sample_group_column": state.plan.comparison_sample_group_column,
+                        "resolved_comparison_pairs": [],
+                        "group_labels": [],
+                        "output_comparison_hash": None,
+                    },
+                },
+            )
         if policy != DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config contains an unsupported "
@@ -105,11 +123,31 @@ class ComparisonsStage:
             group_to_samples=group_to_samples,
             pairs=pairs,
         )
-        return replace(
+        next_state = replace(
             state,
             comparisons=build_result.comparisons,
             comparison_group_stats=build_result.comparison_group_stats,
             comparison_pair_stats=build_result.comparison_pair_stats,
+        )
+        return PreprocessingStageResult(
+            state=next_state,
+            diagnostics={
+                "dropped_row_ids": (),
+                "dropped_row_count": 0,
+                "imputed_cell_count": 0,
+                "imputed_row_ids": (),
+                "notes": "stage executed",
+                "diagnostics": {
+                    "policy": policy,
+                    "sample_group_column": state.plan.comparison_sample_group_column,
+                    "resolved_comparison_pairs": _resolve_comparison_pairs(next_state),
+                    "group_labels": _resolve_group_labels_from_stats(next_state),
+                    "output_comparison_hash": hash_table(
+                        build_result.comparisons,
+                        name="comparisons.output.table",
+                    ),
+                },
+            },
         )
 
 
@@ -357,6 +395,25 @@ def _build_comparison_build_result(
         comparison_group_stats=group_stats,
         comparison_pair_stats=pair_stats,
     )
+
+
+def _resolve_comparison_pairs(state: PreprocessingState) -> list[tuple[str, str]]:
+    pair_stats = state.comparison_pair_stats
+    if pair_stats is None or pair_stats.empty:
+        return []
+    pairs = pair_stats.loc[:, ["left_group", "right_group"]].drop_duplicates()
+    return [
+        (str(left), str(right))
+        for left, right in pairs.itertuples(index=False, name=None)
+    ]
+
+
+def _resolve_group_labels_from_stats(state: PreprocessingState) -> list[str]:
+    group_stats = state.comparison_group_stats
+    if group_stats is None or group_stats.empty:
+        return []
+    labels = group_stats.loc[:, "group"].astype(str).drop_duplicates().tolist()
+    return [str(label) for label in labels]
 
 
 __all__ = ["ComparisonsStage"]

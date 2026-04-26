@@ -26,7 +26,11 @@ from phospy.datasets.builders.executor import DatasetBuildExecutor
 from phospy.datasets.builders.interpreter import DatasetBuildRequestInterpreter
 from phospy.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.datasets.builders.transformation_resolver import ResolvedIntensityScale
-from phospy.datasets.preprocessing.models import PreprocessingPlan, PreprocessingState
+from phospy.datasets.preprocessing.models import (
+    PreprocessingPlan,
+    PreprocessingStageResult,
+    PreprocessingState,
+)
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
 from phospy.errors.input import PhosPyInputError
 from phospy.references.models import Organism
@@ -118,16 +122,16 @@ def test_preprocessing_pipeline_applies_plan_order() -> None:
     class StageA:
         stage_key = "stage_a"
 
-        def run(self, state: PreprocessingState) -> PreprocessingState:
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
             calls.append(self.stage_key)
-            return state
+            return PreprocessingStageResult(state=state)
 
     class StageB:
         stage_key = "stage_b"
 
-        def run(self, state: PreprocessingState) -> PreprocessingState:
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
             calls.append(self.stage_key)
-            return state
+            return PreprocessingStageResult(state=state)
 
     state = PreprocessingState(
         phospho=_phospho(),
@@ -157,15 +161,21 @@ def test_preprocessing_pipeline_passes_stage_state_forward() -> None:
     class AddOneStage:
         stage_key = "add_one"
 
-        def run(self, state: PreprocessingState) -> PreprocessingState:
-            return replace(state, phospho=state.phospho + 1.0)
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(
+                state=replace(state, phospho=state.phospho + 1.0)
+            )
 
     class InspectStage:
         stage_key = "inspect"
 
-        def run(self, state: PreprocessingState) -> PreprocessingState:
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
             observed_first_value.append(float(state.phospho.iloc[0, 0]))
-            return replace(state, site_metadata=state.site_metadata.assign(seen=True))
+            return PreprocessingStageResult(
+                state=replace(
+                    state, site_metadata=state.site_metadata.assign(seen=True)
+                )
+            )
 
     phospho = _phospho()
     sample_metadata = _sample_metadata(phospho.columns)

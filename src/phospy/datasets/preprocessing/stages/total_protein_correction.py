@@ -14,9 +14,11 @@ from phospy.api.configs import (
 )
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+    PreprocessingStageResult,
     PreprocessingState,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance.hashing import hash_table
 
 _GENE_SYMBOL_COLUMN = "gene_symbol"
 
@@ -26,10 +28,24 @@ class TotalProteinCorrectionStage:
 
     stage_key = DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION
 
-    def run(self, state: PreprocessingState) -> PreprocessingState:
+    def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         requested_policy = state.plan.total_protein_correction_policy
         if requested_policy == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE:
-            return state
+            return PreprocessingStageResult(
+                state=state,
+                diagnostics={
+                    "dropped_row_ids": (),
+                    "dropped_row_count": 0,
+                    "imputed_cell_count": 0,
+                    "imputed_row_ids": (),
+                    "notes": "stage executed",
+                    "diagnostics": {
+                        "policy": str(requested_policy),
+                        "requested_policy": str(requested_policy),
+                        "resolved_policy": str(requested_policy),
+                    },
+                },
+            )
         resolved_policy = resolve_dataset_total_protein_correction_policy(
             requested_policy
         )
@@ -148,7 +164,43 @@ class TotalProteinCorrectionStage:
             index=state.phospho.index,
             columns=state.phospho.columns,
         )
-        return replace(state, phospho=corrected)
+        next_state = replace(state, phospho=corrected)
+        return PreprocessingStageResult(
+            state=next_state,
+            diagnostics={
+                "dropped_row_ids": (),
+                "dropped_row_count": 0,
+                "imputed_cell_count": 0,
+                "imputed_row_ids": (),
+                "notes": "stage executed",
+                "diagnostics": {
+                    "policy": str(resolved_policy),
+                    "requested_policy": str(requested_policy),
+                    "resolved_policy": str(resolved_policy),
+                    "formula": "log2_phospho - log2_total",
+                    "requires_log_scale": True,
+                    "input_scale": "log2",
+                    "output_scale": "log2_ratio",
+                    "matched_rows": matched_rows,
+                    "total_table_hash": (
+                        None
+                        if state.total is None
+                        else hash_table(
+                            state.total,
+                            name="total_protein_correction.total",
+                        )
+                    ),
+                    "input_phospho_hash": hash_table(
+                        state.phospho,
+                        name="total_protein_correction.input.phospho",
+                    ),
+                    "output_phospho_hash": hash_table(
+                        corrected,
+                        name="total_protein_correction.output.phospho",
+                    ),
+                },
+            },
+        )
 
 
 def _normalize_identifier_series(series: pd.Series) -> pd.Series:

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+from dataclasses import replace
+
 import pandas as pd
 
 from phospy.api.configs import (
-    DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
-    DATASET_NORMALISATION_POLICY_NONE,
     resolve_dataset_total_protein_correction_policy,
 )
 from phospy.datasets.preprocessing.models import (
@@ -17,8 +18,10 @@ from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
+    PreprocessingReportRow,
     PreprocessingStage,
     PreprocessingStageExecution,
+    PreprocessingStageResult,
     PreprocessingState,
 )
 from phospy.datasets.preprocessing.stages.comparisons import ComparisonsStage
@@ -33,6 +36,17 @@ from phospy.datasets.preprocessing.stages.total_protein_correction import (
 )
 from phospy.errors.build import DatasetBuildError
 from phospy.provenance.hashing import hash_table
+
+_RESERVED_DIAGNOSTIC_KEYS = frozenset(
+    {
+        "dropped_row_ids",
+        "dropped_row_count",
+        "imputed_cell_count",
+        "imputed_row_ids",
+        "notes",
+        "diagnostics",
+    }
+)
 
 _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
     DATASET_PREPROCESSING_STAGE_NORMALISATION: (),
@@ -89,6 +103,7 @@ class PreprocessingPipeline:
     ) -> tuple[PreprocessingState, tuple[PreprocessingStageExecution, ...]]:
         current = state
         trace: list[PreprocessingStageExecution] = []
+        report_rows: list[PreprocessingReportRow] = list(current.report_rows)
         for stage_key in current.plan.stage_order:
             stage = self._stages_by_key.get(stage_key)
             if stage is None:
@@ -97,7 +112,14 @@ class PreprocessingPipeline:
                     f"{stage_key}"
                 )
             previous = current
-            current = stage.run(current)
+            stage_result = stage.run(current)
+            if not isinstance(stage_result, PreprocessingStageResult):
+                raise DatasetBuildError(
+                    "dataset preprocessing stage returned an invalid result payload: "
+                    f"{stage_key}"
+                )
+            current = stage_result.state
+            report_rows.extend(_normalize_report_rows(stage_result.report_rows))
             input_hash = hash_table(
                 previous.phospho,
                 name=f"{stage_key}.input.phospho",
@@ -106,13 +128,10 @@ class PreprocessingPipeline:
                 current.phospho,
                 name=f"{stage_key}.output.phospho",
             )
-            diagnostics = _resolve_stage_diagnostics(
-                stage_key=stage_key,
-                plan=previous.plan,
+            diagnostics = _normalize_stage_diagnostics(
+                raw=stage_result.diagnostics,
                 previous=previous,
                 current=current,
-                input_hash=input_hash,
-                output_hash=output_hash,
             )
             trace.append(
                 PreprocessingStageExecution(
@@ -143,6 +162,8 @@ class PreprocessingPipeline:
                     diagnostics=dict(diagnostics["diagnostics"]),
                 )
             )
+        if report_rows:
+            current = replace(current, report_rows=tuple(report_rows))
         return current, tuple(trace)
 
 
@@ -177,160 +198,72 @@ def _resolve_stage_operation(*, plan: PreprocessingPlan, stage: str) -> str:
     return "unsupported_stage"
 
 
-def _resolve_stage_diagnostics(
+def _normalize_stage_diagnostics(
     *,
-    stage_key: str,
-    plan: PreprocessingPlan,
+    raw: Mapping[str, object],
     previous: PreprocessingState,
     current: PreprocessingState,
-    input_hash: str,
-    output_hash: str,
 ) -> dict[str, object]:
-    dropped_row_ids = _resolve_dropped_row_ids(
+    default_dropped_row_ids = _resolve_dropped_row_ids(
         before=previous.phospho.index,
         after=current.phospho.index,
     )
-    details: dict[str, object] = {
+    dropped_row_ids = _coerce_string_tuple(
+        raw.get("dropped_row_ids", default_dropped_row_ids)
+    )
+    dropped_row_count = int(raw.get("dropped_row_count", len(dropped_row_ids)))
+
+    default_imputed_row_ids, default_imputed_cell_count = _resolve_imputation_summary(
+        before=previous.phospho,
+        after=current.phospho,
+    )
+    imputed_row_ids = _coerce_string_tuple(
+        raw.get("imputed_row_ids", default_imputed_row_ids)
+    )
+    imputed_cell_count = int(raw.get("imputed_cell_count", default_imputed_cell_count))
+
+    notes_raw = raw.get("notes", "stage executed")
+    notes = None if notes_raw is None else str(notes_raw)
+
+    nested_diagnostics = raw.get("diagnostics")
+    if isinstance(nested_diagnostics, Mapping):
+        diagnostics = {str(key): value for key, value in nested_diagnostics.items()}
+    else:
+        diagnostics = {
+            str(key): value
+            for key, value in raw.items()
+            if key not in _RESERVED_DIAGNOSTIC_KEYS
+        }
+
+    return {
         "dropped_row_ids": dropped_row_ids,
-        "dropped_row_count": int(len(dropped_row_ids)),
-        "imputed_cell_count": 0,
-        "imputed_row_ids": (),
-        "notes": "stage executed",
-        "diagnostics": {},
+        "dropped_row_count": dropped_row_count,
+        "imputed_cell_count": imputed_cell_count,
+        "imputed_row_ids": imputed_row_ids,
+        "notes": notes,
+        "diagnostics": diagnostics,
     }
 
-    if stage_key == DATASET_PREPROCESSING_STAGE_MISSING_DATA:
-        imputed_row_ids, imputed_cell_count = _resolve_imputation_summary(
-            before=previous.phospho,
-            after=current.phospho,
-        )
-        details["imputed_cell_count"] = int(imputed_cell_count)
-        details["imputed_row_ids"] = imputed_row_ids
-        details["diagnostics"] = {
-            "min_observed_values": plan.missing_data_min_observed_values,
-            "imputed_row_ids": list(imputed_row_ids),
-        }
-        return details
 
-    if stage_key == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
-        requested_policy = plan.total_protein_correction_policy
-        resolved_policy = resolve_dataset_total_protein_correction_policy(
-            requested_policy
-        )
-        details["diagnostics"] = {
-            "policy": str(resolved_policy),
-            "requested_policy": str(requested_policy),
-            "resolved_policy": str(resolved_policy),
-            "formula": "log2_phospho - log2_total",
-            "requires_log_scale": True,
-            "input_scale": "log2",
-            "output_scale": "log2_ratio",
-            "matched_rows": int(current.phospho.shape[0]),
-            "total_table_hash": (
-                None
-                if previous.total is None
-                else hash_table(
-                    previous.total,
-                    name="total_protein_correction.total",
-                )
-            ),
-            "input_phospho_hash": input_hash,
-            "output_phospho_hash": output_hash,
-        }
-        return details
+def _coerce_string_tuple(value: object) -> tuple[str, ...]:
+    if isinstance(value, tuple):
+        return tuple(str(item) for item in value)
+    if isinstance(value, list):
+        return tuple(str(item) for item in value)
+    return ()
 
-    if stage_key == DATASET_PREPROCESSING_STAGE_SITE_MATRIX:
-        site_matrix_diagnostics = current.phospho.attrs.get("site_matrix_provenance")
-        if isinstance(site_matrix_diagnostics, dict):
-            details["diagnostics"] = dict(site_matrix_diagnostics)
-            dropped_ids = site_matrix_diagnostics.get("dropped_row_ids")
-            if isinstance(dropped_ids, tuple):
-                details["dropped_row_ids"] = dropped_ids
-                details["dropped_row_count"] = int(len(dropped_ids))
-        if current.duplicate_site_resolution is not None:
-            details["diagnostics"] = {
-                **dict(details["diagnostics"]),
-                "duplicate_site_decisions": _records_from_frame(
-                    current.duplicate_site_resolution
-                ),
-            }
-        details["diagnostics"] = {
-            **dict(details["diagnostics"]),
-            "final_constructed_site_ids": [
-                str(site_id) for site_id in current.phospho.index.tolist()
-            ],
-        }
-        return details
 
-    if stage_key == DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM:
-        affected_matrices = ["phospho"]
-        diagnostics: dict[str, object] = {
-            "policy": plan.intensity_transform_policy,
-            "pseudocount": float(plan.intensity_transform_pseudocount),
-            "affected_matrices": affected_matrices,
-            "input_phospho_hash": input_hash,
-            "output_phospho_hash": output_hash,
-        }
-        if previous.total is not None and current.total is not None:
-            diagnostics["input_total_hash"] = hash_table(
-                previous.total,
-                name="intensity_transform.input.total",
+def _normalize_report_rows(
+    rows: Sequence[PreprocessingReportRow],
+) -> tuple[PreprocessingReportRow, ...]:
+    normalized: list[PreprocessingReportRow] = []
+    for row in rows:
+        if not isinstance(row, PreprocessingReportRow):
+            raise DatasetBuildError(
+                "dataset preprocessing stage returned an invalid report row payload"
             )
-            diagnostics["output_total_hash"] = hash_table(
-                current.total,
-                name="intensity_transform.output.total",
-            )
-            affected_matrices.append("total")
-        details["diagnostics"] = diagnostics
-        return details
-
-    if stage_key == DATASET_PREPROCESSING_STAGE_NORMALISATION:
-        diagnostics = {
-            "policy": plan.normalisation_policy,
-            "affected_columns": [
-                str(column) for column in current.phospho.columns.tolist()
-            ],
-            "input_phospho_hash": input_hash,
-            "output_phospho_hash": output_hash,
-        }
-        if plan.normalisation_policy != DATASET_NORMALISATION_POLICY_NONE:
-            diagnostics["note"] = (
-                "quantile normalisation used"
-                if plan.normalisation_policy == "quantile"
-                else "median centering used"
-            )
-        details["diagnostics"] = diagnostics
-        return details
-
-    if stage_key == DATASET_PREPROCESSING_STAGE_COMPARISONS:
-        details["diagnostics"] = {
-            "policy": plan.comparison_building_policy,
-            "sample_group_column": plan.comparison_sample_group_column,
-            "resolved_comparison_pairs": _resolve_comparison_pairs(current),
-            "group_labels": _resolve_group_labels(current),
-            "output_comparison_hash": (
-                None
-                if current.comparisons is None
-                else hash_table(
-                    current.comparisons,
-                    name="comparisons.output.table",
-                )
-            ),
-        }
-        return details
-
-    if (
-        stage_key == DATASET_PREPROCESSING_STAGE_MISSING_DATA
-        and plan.missing_data_policy == "forbid"
-    ):
-        details["notes"] = "stage executed (forbid policy passthrough)"
-    if (
-        stage_key == DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM
-        and plan.intensity_transform_policy
-        == DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
-    ):
-        details["notes"] = "stage executed (identity transform passthrough)"
-    return details
+        normalized.append(row)
+    return tuple(normalized)
 
 
 def _resolve_dropped_row_ids(*, before: pd.Index, after: pd.Index) -> tuple[str, ...]:
@@ -359,53 +292,6 @@ def _resolve_imputation_summary(
         if bool(flagged)
     )
     return row_ids, imputed_cell_count
-
-
-def _resolve_comparison_pairs(state: PreprocessingState) -> list[tuple[str, str]]:
-    pair_stats = state.comparison_pair_stats
-    if pair_stats is None or pair_stats.empty:
-        return []
-    pairs = pair_stats.loc[:, ["left_group", "right_group"]].drop_duplicates()
-    return [
-        (str(left), str(right))
-        for left, right in pairs.itertuples(index=False, name=None)
-    ]
-
-
-def _resolve_group_labels(state: PreprocessingState) -> list[str]:
-    group_stats = state.comparison_group_stats
-    if group_stats is None or group_stats.empty:
-        return []
-    labels = group_stats.loc[:, "group"].astype(str).drop_duplicates().tolist()
-    return [str(label) for label in labels]
-
-
-def _records_from_frame(frame: pd.DataFrame) -> list[dict[str, object]]:
-    if frame.empty:
-        return []
-    records: list[dict[str, object]] = []
-    for raw_record in frame.to_dict(orient="records"):
-        record: dict[str, object] = {}
-        for key, value in raw_record.items():
-            if isinstance(value, tuple):
-                record[str(key)] = [item for item in value]
-            elif _is_missing_scalar(value):
-                record[str(key)] = None
-            else:
-                record[str(key)] = value
-        records.append(record)
-    return records
-
-
-def _is_missing_scalar(value: object) -> bool:
-    if value is pd.NA:
-        return True
-    if isinstance(value, (list, tuple, dict)):
-        return False
-    try:
-        return bool(pd.isna(value))
-    except TypeError:
-        return False
 
 
 __all__ = ["PreprocessingPipeline"]

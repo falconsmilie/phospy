@@ -215,11 +215,11 @@ def test_quantile_normalisation_performance_contract() -> None:
         plan=PreprocessingPlan(normalisation_policy="quantile"),
     )
     stage = NormalisationStage()
-    normalized_state, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
+    normalized_result, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
         lambda: stage.run(state),
         warmup=True,
     )
-    normalized_phospho = normalized_state.phospho
+    normalized_phospho = normalized_result.state.phospho
 
     assert normalized_phospho.shape == phospho.shape
     assert int(normalized_phospho.isna().sum().sum()) == 0

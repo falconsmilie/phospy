@@ -20,6 +20,7 @@ from phospy.api.configs import (
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
     DuplicateSiteResolutionResult,
+    PreprocessingStageResult,
     PreprocessingState,
     append_row_audit_records,
 )
@@ -92,10 +93,20 @@ class SiteMatrixStage:
 
     stage_key = DATASET_PREPROCESSING_STAGE_SITE_MATRIX
 
-    def run(self, state: PreprocessingState) -> PreprocessingState:
+    def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         policy = state.plan.site_matrix_policy
         if policy == DATASET_SITE_MATRIX_POLICY_AS_INPUT:
-            return state
+            return PreprocessingStageResult(
+                state=state,
+                diagnostics={
+                    "dropped_row_ids": (),
+                    "dropped_row_count": 0,
+                    "imputed_cell_count": 0,
+                    "imputed_row_ids": (),
+                    "notes": "stage executed",
+                    "diagnostics": {},
+                },
+            )
         if policy != DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config contains an unsupported "
@@ -229,12 +240,31 @@ class SiteMatrixStage:
             site_matrix_provenance.copy()
         )
 
-        return replace(
+        next_state = replace(
             state_with_row_audit,
             phospho=final_phospho,
             site_metadata=final_site_metadata,
             duplicate_site_resolution=duplicate_site_result.duplicate_site_resolution,
             metadata_conflicts=duplicate_site_result.metadata_conflicts,
+        )
+        diagnostics = dict(site_matrix_provenance)
+        diagnostics["final_constructed_site_ids"] = [
+            str(site_id) for site_id in final_phospho.index.tolist()
+        ]
+        if duplicate_site_result.duplicate_site_resolution is not None:
+            diagnostics["duplicate_site_decisions"] = _records_from_frame(
+                duplicate_site_result.duplicate_site_resolution
+            )
+        return PreprocessingStageResult(
+            state=next_state,
+            diagnostics={
+                "dropped_row_ids": dropped_row_ids,
+                "dropped_row_count": int(len(dropped_row_ids)),
+                "imputed_cell_count": 0,
+                "imputed_row_ids": (),
+                "notes": "stage executed",
+                "diagnostics": diagnostics,
+            },
         )
 
     @staticmethod
@@ -586,6 +616,23 @@ def _is_missing_scalar(value: object) -> bool:
         return bool(pd.isna(value))
     except TypeError:
         return False
+
+
+def _records_from_frame(frame: pd.DataFrame) -> list[dict[str, object]]:
+    if frame.empty:
+        return []
+    records: list[dict[str, object]] = []
+    for raw_record in frame.to_dict(orient="records"):
+        record: dict[str, object] = {}
+        for key, value in raw_record.items():
+            if isinstance(value, tuple):
+                record[str(key)] = [item for item in value]
+            elif _is_missing_scalar(value):
+                record[str(key)] = None
+            else:
+                record[str(key)] = value
+        records.append(record)
+    return records
 
 
 def _apply_duplicate_site_policy(

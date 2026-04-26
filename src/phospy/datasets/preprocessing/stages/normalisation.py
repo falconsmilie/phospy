@@ -14,9 +14,11 @@ from phospy.api.configs import (
 )
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
+    PreprocessingStageResult,
     PreprocessingState,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance.hashing import hash_table
 
 
 class NormalisationStage:
@@ -24,24 +26,104 @@ class NormalisationStage:
 
     stage_key = DATASET_PREPROCESSING_STAGE_NORMALISATION
 
-    def run(self, state: PreprocessingState) -> PreprocessingState:
+    def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         policy = state.plan.normalisation_policy
         if policy == DATASET_NORMALISATION_POLICY_NONE:
-            return state
+            return PreprocessingStageResult(
+                state=state,
+                diagnostics={
+                    "dropped_row_ids": (),
+                    "dropped_row_count": 0,
+                    "imputed_cell_count": 0,
+                    "imputed_row_ids": (),
+                    "notes": "stage executed",
+                    "diagnostics": {
+                        "policy": policy,
+                        "affected_columns": [
+                            str(column) for column in state.phospho.columns.tolist()
+                        ],
+                        "input_phospho_hash": hash_table(
+                            state.phospho,
+                            name="normalisation.input.phospho",
+                        ),
+                        "output_phospho_hash": hash_table(
+                            state.phospho,
+                            name="normalisation.output.phospho",
+                        ),
+                    },
+                },
+            )
 
         _require_non_empty_matrix(state.phospho, policy_name=policy)
         _require_numeric_columns(state.phospho, policy_name=policy)
 
         if policy == DATASET_NORMALISATION_POLICY_MEDIAN_CENTER:
             normalised = _median_center(state.phospho)
-            return replace(state, phospho=normalised)
+            next_state = replace(state, phospho=normalised)
+            return PreprocessingStageResult(
+                state=next_state,
+                diagnostics={
+                    "dropped_row_ids": (),
+                    "dropped_row_count": 0,
+                    "imputed_cell_count": 0,
+                    "imputed_row_ids": (),
+                    "notes": "stage executed",
+                    "diagnostics": _build_diagnostics(
+                        policy=policy,
+                        before=state.phospho,
+                        after=normalised,
+                    ),
+                },
+            )
         if policy == DATASET_NORMALISATION_POLICY_QUANTILE:
             normalised = _quantile_normalise(state.phospho)
-            return replace(state, phospho=normalised)
+            next_state = replace(state, phospho=normalised)
+            return PreprocessingStageResult(
+                state=next_state,
+                diagnostics={
+                    "dropped_row_ids": (),
+                    "dropped_row_count": 0,
+                    "imputed_cell_count": 0,
+                    "imputed_row_ids": (),
+                    "notes": "stage executed",
+                    "diagnostics": _build_diagnostics(
+                        policy=policy,
+                        before=state.phospho,
+                        after=normalised,
+                    ),
+                },
+            )
         raise PhosPyInputError(
             "dataset build request preprocessing_config contains an unsupported "
             "normalisation.policy"
         )
+
+
+def _build_diagnostics(
+    *,
+    policy: str,
+    before: pd.DataFrame,
+    after: pd.DataFrame,
+) -> dict[str, object]:
+    diagnostics: dict[str, object] = {
+        "policy": policy,
+        "affected_columns": [str(column) for column in after.columns.tolist()],
+        "input_phospho_hash": hash_table(
+            before,
+            name="normalisation.input.phospho",
+        ),
+        "output_phospho_hash": hash_table(
+            after,
+            name="normalisation.output.phospho",
+        ),
+    }
+    if policy != DATASET_NORMALISATION_POLICY_NONE:
+        diagnostics["note"] = (
+            "quantile normalisation used"
+            if policy == DATASET_NORMALISATION_POLICY_QUANTILE
+            else "median centering used"
+        )
+    return diagnostics
 
 
 def _require_non_empty_matrix(matrix: pd.DataFrame, *, policy_name: str) -> None:

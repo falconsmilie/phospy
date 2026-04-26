@@ -12,6 +12,7 @@ from phospy.api.configs import (
 )
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    PreprocessingStageResult,
     PreprocessingState,
     append_row_audit_records,
 )
@@ -23,9 +24,22 @@ class MissingDataStage:
 
     stage_key = DATASET_PREPROCESSING_STAGE_MISSING_DATA
 
-    def run(self, state: PreprocessingState) -> PreprocessingState:
+    def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         if state.plan.missing_data_policy == DATASET_MISSING_DATA_POLICY_FORBID:
-            return state
+            return PreprocessingStageResult(
+                state=state,
+                diagnostics={
+                    "dropped_row_ids": (),
+                    "dropped_row_count": 0,
+                    "imputed_cell_count": 0,
+                    "imputed_row_ids": (),
+                    "notes": "stage executed",
+                    "diagnostics": {
+                        "min_observed_values": state.plan.missing_data_min_observed_values,
+                        "imputed_row_ids": [],
+                    },
+                },
+            )
 
         if (
             state.plan.missing_data_policy
@@ -87,6 +101,8 @@ class MissingDataStage:
 
         imputed_row_flags = imputed_mask.any(axis=1)
         imputed_rows = filtered_phospho.index[imputed_row_flags]
+        imputed_cell_count = int(imputed_mask.to_numpy().sum())
+        imputed_row_ids = tuple(str(row_id) for row_id in imputed_rows.tolist())
         for row_id in imputed_rows:
             source_row_id = str(row_id)
             row_imputed_mask = imputed_mask.loc[row_id]
@@ -115,10 +131,26 @@ class MissingDataStage:
                 }
             )
         next_state = append_row_audit_records(state, row_audit_records)
-        return replace(
-            next_state,
-            phospho=imputed,
-            site_metadata=filtered_site_metadata,
+        dropped_row_ids = tuple(
+            str(row_id) for row_id in dropped_observed_counts.index.tolist()
+        )
+        return PreprocessingStageResult(
+            state=replace(
+                next_state,
+                phospho=imputed,
+                site_metadata=filtered_site_metadata,
+            ),
+            diagnostics={
+                "dropped_row_ids": dropped_row_ids,
+                "dropped_row_count": int(len(dropped_row_ids)),
+                "imputed_cell_count": imputed_cell_count,
+                "imputed_row_ids": imputed_row_ids,
+                "notes": "stage executed",
+                "diagnostics": {
+                    "min_observed_values": state.plan.missing_data_min_observed_values,
+                    "imputed_row_ids": [row_id for row_id in imputed_row_ids],
+                },
+            },
         )
 
 

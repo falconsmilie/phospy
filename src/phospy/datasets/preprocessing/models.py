@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Protocol
 
@@ -143,6 +144,7 @@ class PreprocessingState:
     duplicate_site_resolution: pd.DataFrame | None = None
     metadata_conflicts: pd.DataFrame | None = None
     row_audit: pd.DataFrame | None = None
+    report_rows: tuple[PreprocessingReportRow, ...] = ()
 
 
 def empty_preprocessing_row_audit() -> pd.DataFrame:
@@ -204,6 +206,23 @@ class DuplicateSiteResolutionResult:
 
 
 @dataclass(frozen=True, slots=True)
+class PreprocessingReportRow:
+    """Structured stage-owned contribution to preprocessing report assembly."""
+
+    table: str
+    values: Mapping[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class PreprocessingStageResult:
+    """Structured output for a single preprocessing stage execution."""
+
+    state: PreprocessingState
+    diagnostics: Mapping[str, object] = field(default_factory=dict)
+    report_rows: Sequence[PreprocessingReportRow] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class PreprocessingStageExecution:
     """Executed preprocessing stage provenance trace."""
 
@@ -235,8 +254,8 @@ class PreprocessingStage(Protocol):
 
     stage_key: str
 
-    def run(self, state: PreprocessingState) -> PreprocessingState:
-        """Apply a preprocessing stage and return the next state."""
+    def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+        """Apply a preprocessing stage and return its structured result."""
 
 
 __all__ = [
@@ -252,6 +271,8 @@ __all__ = [
     "append_row_audit_records",
     "empty_preprocessing_row_audit",
     "PreprocessingPlan",
+    "PreprocessingReportRow",
+    "PreprocessingStageResult",
     "PreprocessingStageExecution",
     "PreprocessingStage",
     "PreprocessingState",

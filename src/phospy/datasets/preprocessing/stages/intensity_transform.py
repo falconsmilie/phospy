@@ -13,9 +13,11 @@ from phospy.api.configs import (
 )
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    PreprocessingStageResult,
     PreprocessingState,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.provenance.hashing import hash_table
 
 
 class IntensityTransformStage:
@@ -23,10 +25,43 @@ class IntensityTransformStage:
 
     stage_key = DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM
 
-    def run(self, state: PreprocessingState) -> PreprocessingState:
+    def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         policy = state.plan.intensity_transform_policy
         if policy == DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY:
-            return state
+            identity_diagnostics: dict[str, object] = {
+                "policy": policy,
+                "pseudocount": float(state.plan.intensity_transform_pseudocount),
+                "affected_matrices": ["phospho"],
+                "input_phospho_hash": hash_table(
+                    state.phospho,
+                    name="intensity_transform.input.phospho",
+                ),
+                "output_phospho_hash": hash_table(
+                    state.phospho,
+                    name="intensity_transform.output.phospho",
+                ),
+            }
+            if state.total is not None:
+                identity_diagnostics["affected_matrices"] = ["phospho", "total"]
+                identity_diagnostics["input_total_hash"] = hash_table(
+                    state.total,
+                    name="intensity_transform.input.total",
+                )
+                identity_diagnostics["output_total_hash"] = hash_table(
+                    state.total,
+                    name="intensity_transform.output.total",
+                )
+            return PreprocessingStageResult(
+                state=state,
+                diagnostics={
+                    "dropped_row_ids": (),
+                    "dropped_row_count": 0,
+                    "imputed_cell_count": 0,
+                    "imputed_row_ids": (),
+                    "notes": "stage executed",
+                    "diagnostics": identity_diagnostics,
+                },
+            )
         if policy != DATASET_INTENSITY_TRANSFORM_POLICY_LOG2:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config contains an unsupported "
@@ -56,6 +91,7 @@ class IntensityTransformStage:
             field_name="phospho",
         )
         transformed_total = state.total
+        affected_matrices = ["phospho"]
         if transformed_total is not None:
             _require_numeric_columns(
                 transformed_total,
@@ -67,10 +103,44 @@ class IntensityTransformStage:
                 pseudocount=pseudocount,
                 field_name="total",
             )
-        return replace(
+            affected_matrices.append("total")
+        next_state = replace(
             state,
             phospho=transformed_phospho,
             total=transformed_total,
+        )
+        diagnostics: dict[str, object] = {
+            "policy": policy,
+            "pseudocount": pseudocount,
+            "affected_matrices": affected_matrices,
+            "input_phospho_hash": hash_table(
+                state.phospho,
+                name="intensity_transform.input.phospho",
+            ),
+            "output_phospho_hash": hash_table(
+                transformed_phospho,
+                name="intensity_transform.output.phospho",
+            ),
+        }
+        if state.total is not None and transformed_total is not None:
+            diagnostics["input_total_hash"] = hash_table(
+                state.total,
+                name="intensity_transform.input.total",
+            )
+            diagnostics["output_total_hash"] = hash_table(
+                transformed_total,
+                name="intensity_transform.output.total",
+            )
+        return PreprocessingStageResult(
+            state=next_state,
+            diagnostics={
+                "dropped_row_ids": (),
+                "dropped_row_count": 0,
+                "imputed_cell_count": 0,
+                "imputed_row_ids": (),
+                "notes": "stage executed",
+                "diagnostics": diagnostics,
+            },
         )
 
 
