@@ -30,6 +30,8 @@ class TotalProteinCorrectionState:
 
     policy: str
     applied: bool
+    formula: str | None = None
+    requires_log_scale: bool = False
 
 
 @dataclass(frozen=True, slots=True)

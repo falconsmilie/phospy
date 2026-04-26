@@ -42,11 +42,17 @@ DATASET_NORMALISATION_POLICIES = frozenset(
     }
 )
 DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE = "none"
+DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL = "subtract_log_total"
 DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL = "ratio_to_total"
-DatasetTotalProteinCorrectionPolicy = Literal["none", "ratio_to_total"]
+DatasetTotalProteinCorrectionPolicy = Literal[
+    "none",
+    "subtract_log_total",
+    "ratio_to_total",
+]
 DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES = frozenset(
     {
         DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
+        DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
         DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL,
     }
 )
@@ -182,6 +188,16 @@ _INCOMPATIBLE_SITE_MATRIX_MISSING_DATA_POLICIES = frozenset(
 _SUPPORTED_SITE_MATRIX_MISSING_DATA_POLICY = (
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
 )
+
+
+def resolve_dataset_total_protein_correction_policy(
+    policy: DatasetTotalProteinCorrectionPolicy,
+) -> DatasetTotalProteinCorrectionPolicy:
+    """Resolve deprecated total-protein correction aliases to canonical policy."""
+
+    if policy == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL:
+        return DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
+    return policy
 
 
 def _require_int_at_least(
@@ -345,8 +361,11 @@ class DatasetTotalProteinCorrectionConfig:
     """Public total/protein correction policy options for dataset building.
 
     - `"none"`: do not apply total/protein correction.
-    - `"ratio_to_total"`: subtract matched total/protein abundance from phosphosite
-      abundance in the builder preprocessing lane.
+    - `"subtract_log_total"`: subtract matched log-scale total-protein abundance
+      from log-scale phosphosite abundance in the builder preprocessing lane:
+      `log2_phospho - log2_total`.
+    - `"ratio_to_total"`: deprecated alias that resolves to
+      `"subtract_log_total"`.
     """
 
     policy: DatasetTotalProteinCorrectionPolicy = (
@@ -390,7 +409,7 @@ class DatasetSiteMatrixConfig:
     - `"first"`: convenient input-order rule; keep the first encountered row and
       drop later duplicates.
     - `"max_mean_signal"` (default): keep the highest-mean signal row among
-      duplicates, which can favor higher-abundance / stronger-signal rows.
+      duplicates, which can favour higher-abundance / stronger-signal rows.
     - `"aggregate_mean"`: aggregate duplicate phospho values by column mean,
       preserving all rows numerically but potentially blurring distinct peptide
       contexts.
@@ -941,7 +960,9 @@ __all__ = [
     "DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL",
+    "resolve_dataset_total_protein_correction_policy",
     "DatasetComparisonBuildingConfig",
     "DatasetComparisonPair",
     "DatasetComparisonBuildingPolicy",

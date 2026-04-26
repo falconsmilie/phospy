@@ -9,6 +9,7 @@ import pytest
 
 from phospy.api.configs import (
     DatasetComparisonBuildingConfig,
+    DatasetIntensityTransformConfig,
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
@@ -45,7 +46,7 @@ def _site_metadata_from_site_ids(site_ids: pd.Index) -> pd.DataFrame:
     )
 
 
-def test_ratio_to_total_total_protein_correction_matches_rewrite_reference_fixture(
+def test_subtract_log_total_total_protein_correction_matches_rewrite_reference_fixture(
     request: pytest.FixtureRequest,
 ) -> None:
     phospho = pd.read_csv(
@@ -68,9 +69,13 @@ def test_ratio_to_total_total_protein_correction_matches_rewrite_reference_fixtu
         total=total,
         plan=PreprocessingPlan.from_config(
             DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
                 total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                    policy="ratio_to_total"
-                )
+                    policy="subtract_log_total"
+                ),
             )
         ),
     )
@@ -90,13 +95,16 @@ def test_ratio_to_total_total_protein_correction_matches_rewrite_reference_fixtu
         request.config,
         family="preprocessing_science",
         metrics=[
-            ("ratio_to_total output shape", format_shape(*preprocessed.phospho.shape)),
-            ("ratio_to_total duplicate site rows", duplicate_site_rows),
-            ("ratio_to_total max abs diff", max_abs_diff),
+            (
+                "subtract_log_total output shape",
+                format_shape(*preprocessed.phospho.shape),
+            ),
+            ("subtract_log_total duplicate site rows", duplicate_site_rows),
+            ("subtract_log_total max abs diff", max_abs_diff),
         ],
         notes=(
             "fixture lane: tests/fixtures/rewrite_parity/protein_correction/",
-            "policy lane: total_protein_correction.policy=ratio_to_total",
+            "policy lane: total_protein_correction.policy=subtract_log_total (after log2)",
         ),
     )
 

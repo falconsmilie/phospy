@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 import pytest
@@ -265,17 +266,24 @@ def test_dataset_preprocessor_regression_impute_row_median_policy() -> None:
     assert "imputed_columns" in imputed.iloc[0]["parameter_snapshot"]
 
 
-def test_preprocessing_plan_orders_site_matrix_after_total_correction() -> None:
+def test_preprocessing_plan_orders_intensity_transform_before_total_correction() -> (
+    None
+):
     plan = PreprocessingPlan.from_config(
         DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            ),
             total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                policy="ratio_to_total"
+                policy="subtract_log_total"
             ),
             site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata"),
         )
     )
     assert plan.stage_order == (
         "missing_data",
+        "intensity_transform",
         "total_protein_correction",
         "site_matrix",
     )
@@ -284,8 +292,12 @@ def test_preprocessing_plan_orders_site_matrix_after_total_correction() -> None:
 def test_preprocessing_plan_orders_comparisons_after_upstream_stages() -> None:
     plan = PreprocessingPlan.from_config(
         DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            ),
             total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                policy="ratio_to_total"
+                policy="subtract_log_total"
             ),
             site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata"),
             comparisons=DatasetComparisonBuildingConfig(policy="sample_metadata_pairs"),
@@ -293,13 +305,14 @@ def test_preprocessing_plan_orders_comparisons_after_upstream_stages() -> None:
     )
     assert plan.stage_order == (
         "missing_data",
+        "intensity_transform",
         "total_protein_correction",
         "site_matrix",
         "comparisons",
     )
 
 
-def test_dataset_preprocessor_applies_total_protein_correction_ratio_policy() -> None:
+def test_dataset_preprocessor_applies_subtract_log_total_policy() -> None:
     phospho = _phospho()
     site_metadata = _site_metadata()
     total = pd.DataFrame(
@@ -318,24 +331,65 @@ def test_dataset_preprocessor_applies_total_protein_correction_ratio_policy() ->
         total=total,
         plan=PreprocessingPlan.from_config(
             DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
                 total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                    policy="ratio_to_total"
-                )
+                    policy="subtract_log_total"
+                ),
             )
         ),
     )
 
-    expected = pd.DataFrame(
+    total_by_site = total.reindex(site_metadata.loc[:, "gene_symbol"].tolist())
+    total_by_site.index = phospho.index.copy()
+    expected = np.log2(phospho + 1.0) - np.log2(total_by_site + 1.0)
+    pdt.assert_frame_equal(preprocessed.phospho, expected)
+    assert preprocessed.site_metadata is site_metadata
+    assert preprocessed.total is not None
+    pdt.assert_frame_equal(preprocessed.total, np.log2(total + 1.0))
+
+
+def test_dataset_preprocessor_total_correction_uses_log_ratio_formula() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [15.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    total = pd.DataFrame(
+        {"sample_a": [3.0]},
+        index=pd.Index(["MAPK14"], name="protein_id"),
+    )
+    site_metadata = pd.DataFrame(
         {
-            "sample_a": [0.5, 0.0, 2.0],
-            "sample_b": [1.0, 0.0, 3.0],
-            "sample_c": [1.5, 1.0, 4.0],
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["SEQ_A"],
         },
         index=phospho.index.copy(),
     )
-    pdt.assert_frame_equal(preprocessed.phospho, expected)
-    assert preprocessed.site_metadata is site_metadata
-    assert preprocessed.total is total
+
+    preprocessed = DatasetPreprocessor().run(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        sample_metadata=None,
+        total=total,
+        plan=PreprocessingPlan.from_config(
+            DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+                total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                    policy="subtract_log_total"
+                ),
+            )
+        ),
+    )
+
+    observed = float(preprocessed.phospho.iloc[0, 0])
+    assert observed == pytest.approx(2.0)
+    assert observed != pytest.approx(np.log2(15.0 - 3.0 + 1.0))
 
 
 def test_dataset_preprocessor_builds_site_matrix_from_metadata_policy() -> None:
@@ -680,9 +734,13 @@ def test_dataset_preprocessor_rejects_correction_when_total_columns_mismatch() -
             total=total,
             plan=PreprocessingPlan.from_config(
                 DatasetPreprocessingConfig(
+                    intensity_transform=DatasetIntensityTransformConfig(
+                        policy="log2",
+                        pseudocount=1.0,
+                    ),
                     total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                        policy="ratio_to_total"
-                    )
+                        policy="subtract_log_total"
+                    ),
                 )
             ),
         )
@@ -704,15 +762,19 @@ def test_dataset_preprocessor_rejects_correction_when_proteins_are_unmatched() -
             total=total,
             plan=PreprocessingPlan.from_config(
                 DatasetPreprocessingConfig(
+                    intensity_transform=DatasetIntensityTransformConfig(
+                        policy="log2",
+                        pseudocount=1.0,
+                    ),
                     total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                        policy="ratio_to_total"
-                    )
+                        policy="subtract_log_total"
+                    ),
                 )
             ),
         )
 
 
-def test_dataset_preprocessor_total_protein_correction_matches_historical_baseline_fixture() -> (
+def test_dataset_preprocessor_subtract_log_total_matches_historical_baseline_fixture() -> (
     None
 ):
     phospho_fixture = pd.read_csv(
@@ -771,9 +833,13 @@ def test_dataset_preprocessor_total_protein_correction_matches_historical_baseli
         total=total,
         plan=PreprocessingPlan.from_config(
             DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
                 total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                    policy="ratio_to_total"
-                )
+                    policy="subtract_log_total"
+                ),
             )
         ),
     )

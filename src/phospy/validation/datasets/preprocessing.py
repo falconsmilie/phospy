@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from phospy.api.configs import (
+    DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
+    DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
+    DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -10,6 +13,7 @@ from phospy.api.configs import (
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
+    resolve_dataset_total_protein_correction_policy,
 )
 from phospy.errors.input import PhosPyInputError
 
@@ -30,6 +34,7 @@ class DatasetPreprocessingConfigValidator:
         self._validate_total_protein_correction(config.total_protein_correction)
         self._validate_site_matrix(config.site_matrix)
         self._validate_comparisons(config.comparisons)
+        self._validate_total_protein_correction_scale_contract(config)
         return config
 
     def _validate_intensity_transform(
@@ -76,4 +81,28 @@ class DatasetPreprocessingConfigValidator:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.comparisons must be a "
                 "DatasetComparisonBuildingConfig"
+            )
+
+    def _validate_total_protein_correction_scale_contract(
+        self,
+        config: DatasetPreprocessingConfig,
+    ) -> None:
+        requested_policy = config.total_protein_correction.policy
+        resolved_policy = resolve_dataset_total_protein_correction_policy(
+            requested_policy
+        )
+        if resolved_policy == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE:
+            return
+        if (
+            resolved_policy
+            == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
+            and config.intensity_transform.policy
+            != DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
+        ):
+            raise PhosPyInputError(
+                "dataset build request "
+                f"preprocessing_config.total_protein_correction.policy={requested_policy!r} "
+                "requires log2-scale phospho and total values. Configure "
+                "preprocessing_config.intensity_transform.policy='log2', or disable "
+                "total-protein correction."
             )

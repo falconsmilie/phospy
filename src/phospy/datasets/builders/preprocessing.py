@@ -9,6 +9,8 @@ from phospy.api.configs import (
     DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
     DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
+    DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
+    resolve_dataset_total_protein_correction_policy,
 )
 from phospy.datasets.builders.contracts import PreprocessedDatasetBuildTables
 from phospy.datasets.preprocessing.models import (
@@ -69,9 +71,9 @@ _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
 }
 _PROVENANCE_CANONICAL_STAGES = (
     DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
-    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
     DATASET_PREPROCESSING_STAGE_NORMALISATION,
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
 )
@@ -142,6 +144,12 @@ def build_dataset_processing_state(
         if plan.comparison_pairs is None
         else tuple((str(left), str(right)) for left, right in plan.comparison_pairs)
     )
+    resolved_total_policy = resolve_dataset_total_protein_correction_policy(
+        plan.total_protein_correction_policy
+    )
+    total_correction_applied = (
+        resolved_total_policy != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
+    )
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state,
         missing_data=MissingDataState(
@@ -155,11 +163,15 @@ def build_dataset_processing_state(
         ),
         normalisation=NormalisationState(policy=plan.normalisation_policy),
         total_protein_correction=TotalProteinCorrectionState(
-            policy=plan.total_protein_correction_policy,
-            applied=(
-                plan.total_protein_correction_policy
-                != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
+            policy=resolved_total_policy,
+            applied=total_correction_applied,
+            formula=(
+                "log2_phospho - log2_total"
+                if resolved_total_policy
+                == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
+                else None
             ),
+            requires_log_scale=bool(total_correction_applied),
         ),
         site_matrix=SiteMatrixState(
             policy=plan.site_matrix_policy,
@@ -282,7 +294,11 @@ def _resolve_stage_operation(*, plan: PreprocessingPlan, stage: str) -> str:
     if stage == DATASET_PREPROCESSING_STAGE_MISSING_DATA:
         return plan.missing_data_policy
     if stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
-        return plan.total_protein_correction_policy
+        return str(
+            resolve_dataset_total_protein_correction_policy(
+                plan.total_protein_correction_policy
+            )
+        )
     if stage == DATASET_PREPROCESSING_STAGE_SITE_MATRIX:
         return plan.site_matrix_policy
     if stage == DATASET_PREPROCESSING_STAGE_COMPARISONS:

@@ -127,7 +127,12 @@ Key public rules:
 - `normalisation.policy="median_center"` and `normalisation.policy="quantile"` are explicit opt-in methods
 - `missing_data.policy="forbid"` is the strict default
 - `missing_data.policy="impute_row_median"` requires `min_observed_values`
-- `total_protein_correction.policy="ratio_to_total"` requires a `total` table aligned to the phospho samples
+- `total_protein_correction.policy="subtract_log_total"` requires:
+  - `intensity_transform.policy="log2"`
+  - a `total` table aligned to phospho sample columns and site-to-protein mapping
+- `total_protein_correction.policy="ratio_to_total"` is a deprecated alias that resolves to `subtract_log_total`
+- total-protein correction formula in the supported lane:
+  `log2(phospho + pseudocount) - log2(total + pseudocount)`
 - `site_matrix.policy="build_from_metadata"` may reduce row count when rows cannot be supported in that lane
 - `site_matrix.minimum_observed_values` is internal-only compatibility state and must remain `None` in the public lane
 - the public builder lane still ends in a missing-value-free `AnalysisReadyPhosphoDataset`

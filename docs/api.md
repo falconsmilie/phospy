@@ -110,7 +110,8 @@ Public config dataclasses are strict constructors: invalid local policy or
 numeric state is rejected when the config object is created.
 
 Request/workflow validators still run and still own cross-object checks (for
-example, `ratio_to_total` requiring `total`, `sample_metadata_pairs` requiring
+example, `subtract_log_total` requiring `total` and
+`intensity_transform.policy="log2"`, `sample_metadata_pairs` requiring
 `sample_metadata`, reference compatibility, and workflow input object
 boundaries).
 
@@ -160,7 +161,17 @@ operation with additional float64 matrix-copy cost; see
 #### `DatasetTotalProteinCorrectionConfig`
 
 - `policy="none"`
-- `policy="ratio_to_total"`
+- `policy="subtract_log_total"` (recommended)
+- `policy="ratio_to_total"` (deprecated alias that resolves to `subtract_log_total`)
+
+Subtractive total-protein correction is log-scale correction:
+
+`corrected = log2(phospho + pseudocount) - log2(total + pseudocount)`
+
+In the public builder lane this requires:
+
+- `intensity_transform.policy="log2"`
+- a `total` table aligned to phospho sample columns and site-to-protein mapping
 
 #### `DatasetSiteMatrixConfig`
 

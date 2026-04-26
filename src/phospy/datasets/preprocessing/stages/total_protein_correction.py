@@ -7,8 +7,10 @@ from dataclasses import replace
 import pandas as pd
 
 from phospy.api.configs import (
+    DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
-    DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL,
+    DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
+    resolve_dataset_total_protein_correction_policy,
 )
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
@@ -20,24 +22,41 @@ _GENE_SYMBOL_COLUMN = "gene_symbol"
 
 
 class TotalProteinCorrectionStage:
-    """Apply historical-baseline phospho-to-total correction when requested."""
+    """Apply log-scale phospho-to-total subtraction when requested."""
 
     stage_key = DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION
 
     def run(self, state: PreprocessingState) -> PreprocessingState:
-        policy = state.plan.total_protein_correction_policy
-        if policy == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE:
+        requested_policy = state.plan.total_protein_correction_policy
+        if requested_policy == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE:
             return state
-        if policy != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL:
+        resolved_policy = resolve_dataset_total_protein_correction_policy(
+            requested_policy
+        )
+        if (
+            resolved_policy
+            != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
+        ):
             raise PhosPyInputError(
                 "dataset build request preprocessing_config contains an unsupported "
                 "total_protein_correction.policy"
+            )
+        if (
+            state.plan.intensity_transform_policy
+            != DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
+        ):
+            raise PhosPyInputError(
+                "dataset build request "
+                f"preprocessing_config.total_protein_correction.policy={requested_policy!r} "
+                "requires log2-scale phospho and total values. Configure "
+                "preprocessing_config.intensity_transform.policy='log2', or disable "
+                "total-protein correction."
             )
 
         if state.total is None:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.total_protein_correction."
-                "policy='ratio_to_total' requires total input data"
+                f"policy={requested_policy!r} requires total input data"
             )
         if _GENE_SYMBOL_COLUMN not in state.site_metadata.columns:
             raise PhosPyInputError(
@@ -122,6 +141,8 @@ class TotalProteinCorrectionStage:
             )
 
         matched_total = total_lookup.loc[phospho_gene_key.tolist()]
+        # Subtractive correction on log2-scale data yields a log2 ratio:
+        # corrected = log2_phospho - log2_total.
         corrected = pd.DataFrame(
             state.phospho.to_numpy(copy=False) - matched_total.to_numpy(copy=False),
             index=state.phospho.index,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pandas.testing as pdt
 import pytest
@@ -182,20 +183,31 @@ def test_dataset_builder_preserves_total_matrix_and_establishes_linear_state() -
     assert built.intensity_scale_state.label == "linear"
 
 
-def test_dataset_builder_applies_total_protein_correction_when_requested() -> None:
-    phospho = load_rat_l6_phospho().head(6).copy(deep=True)
-    site_metadata = site_metadata_for(phospho)
-    gene_symbols = site_metadata.loc[:, "gene_symbol"].astype(str)
-    unique_genes = pd.Index(
-        dict.fromkeys(gene_symbols.tolist()).keys(), name="protein_id"
+def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [15.0, 7.0, 3.0],
+            "sample_b": [31.0, 15.0, 7.0],
+        },
+        index=pd.Index(
+            ["MAPK14;Y182;", "AKT1;T308;", "GSK3B;S9;"],
+            name="site_id",
+        ),
     )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+            "site": ["Y182", "T308", "S9"],
+            "site_sequence": ["SEQ_A", "SEQ_B", "SEQ_C"],
+        },
+        index=phospho.index.copy(),
+    )
+    gene_symbols = site_metadata.loc[:, "gene_symbol"].astype(str)
+    unique_genes = pd.Index(["MAPK14", "AKT1", "GSK3B"], name="protein_id")
     total = pd.DataFrame(
         {
-            sample_name: [
-                float(gene_position + sample_position + 1)
-                for gene_position in range(len(unique_genes))
-            ]
-            for sample_position, sample_name in enumerate(phospho.columns.astype(str))
+            "sample_a": [3.0, 1.0, 1.0],
+            "sample_b": [7.0, 3.0, 1.0],
         },
         index=unique_genes,
     )
@@ -207,28 +219,74 @@ def test_dataset_builder_applies_total_protein_correction_when_requested() -> No
             total=total,
             organism=Organism.RAT,
             preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
                 total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                    policy="ratio_to_total"
-                )
+                    policy="subtract_log_total"
+                ),
             ),
         )
     )
 
     total_by_site = total.reindex(gene_symbols.tolist())
     total_by_site.index = phospho.index
-    expected = phospho - total_by_site
+    expected = np.log2(phospho + 1.0) - np.log2(total_by_site + 1.0)
     pdt.assert_frame_equal(built.phospho, expected)
-    pdt.assert_frame_equal(built.total, total)
-    assert built.intensity_scale_state == IntensityScaleState.raw(has_total_matrix=True)
-    assert built.processing_state.total_protein_correction.policy == "ratio_to_total"
+    assert built.total is not None
+    expected_total = np.log2(total + 1.0)
+    pdt.assert_frame_equal(built.total, expected_total)
+    assert built.intensity_scale_state.label == "log2"
+    assert built.intensity_scale_state.kind.value == "log2"
+    assert (
+        built.processing_state.total_protein_correction.policy == "subtract_log_total"
+    )
     assert built.processing_state.total_protein_correction.applied is True
+    assert (
+        built.processing_state.total_protein_correction.formula
+        == "log2_phospho - log2_total"
+    )
+    assert built.processing_state.total_protein_correction.requires_log_scale is True
+    assert built.preprocessing_report is not None
+    operations = built.preprocessing_report.operations
+    intensity_stage_order = int(
+        operations.loc[
+            operations.loc[:, "stage"] == "intensity_transform",
+            "step_order",
+        ].iloc[0]
+    )
+    total_stage_order = int(
+        operations.loc[
+            operations.loc[:, "stage"] == "total_protein_correction",
+            "step_order",
+        ].iloc[0]
+    )
+    assert intensity_stage_order < total_stage_order
+    assert built.provenance is not None
+    total_stage = next(
+        stage
+        for stage in built.provenance.preprocessing_stages
+        if stage.stage == "total_protein_correction"
+    )
+    diagnostics = total_stage.diagnostics or {}
+    assert diagnostics["policy"] == "subtract_log_total"
+    assert diagnostics["requested_policy"] == "subtract_log_total"
+    assert diagnostics["resolved_policy"] == "subtract_log_total"
+    assert diagnostics["formula"] == "log2_phospho - log2_total"
+    assert diagnostics["requires_log_scale"] is True
+    assert diagnostics["input_scale"] == "log2"
+    assert diagnostics["output_scale"] == "log2_ratio"
+    assert isinstance(diagnostics.get("total_table_hash"), str)
+    assert isinstance(diagnostics.get("input_phospho_hash"), str)
+    assert isinstance(diagnostics.get("output_phospho_hash"), str)
 
 
-def test_dataset_builder_requires_total_when_ratio_correction_is_requested() -> None:
+def test_dataset_builder_requires_total_when_subtract_log_total_is_requested() -> None:
     phospho = load_rat_l6_phospho().head(4).copy(deep=True)
     with pytest.raises(
         PhosPyInputError,
-        match="policy='ratio_to_total' requires total input data",
+        match="policy='subtract_log_total' requires total input data",
     ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(
@@ -236,12 +294,70 @@ def test_dataset_builder_requires_total_when_ratio_correction_is_requested() -> 
                 site_metadata=site_metadata_for(phospho),
                 organism=Organism.RAT,
                 preprocessing_config=DatasetPreprocessingConfig(
+                    intensity_transform=DatasetIntensityTransformConfig(
+                        policy="log2",
+                        pseudocount=1.0,
+                    ),
                     total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                        policy="ratio_to_total"
-                    )
+                        policy="subtract_log_total"
+                    ),
                 ),
             )
         )
+
+
+def test_dataset_builder_ratio_alias_resolves_to_subtract_log_total() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [15.0], "sample_b": [31.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["SEQ_A"],
+        },
+        index=phospho.index.copy(),
+    )
+    total = pd.DataFrame(
+        {"sample_a": [3.0], "sample_b": [7.0]},
+        index=pd.Index(["MAPK14"], name="protein_id"),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            total=total,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+                total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                    policy="ratio_to_total"
+                ),
+            ),
+        )
+    )
+
+    total_by_site = total.reindex(site_metadata.loc[:, "gene_symbol"].tolist())
+    total_by_site.index = phospho.index.copy()
+    expected = np.log2(phospho + 1.0) - np.log2(total_by_site + 1.0)
+    pdt.assert_frame_equal(built.phospho, expected)
+    assert (
+        built.processing_state.total_protein_correction.policy == "subtract_log_total"
+    )
+    assert built.provenance is not None
+    total_stage = next(
+        stage
+        for stage in built.provenance.preprocessing_stages
+        if stage.stage == "total_protein_correction"
+    )
+    diagnostics = total_stage.diagnostics or {}
+    assert diagnostics["requested_policy"] == "ratio_to_total"
+    assert diagnostics["resolved_policy"] == "subtract_log_total"
+    assert diagnostics["formula"] == "log2_phospho - log2_total"
 
 
 def test_dataset_builder_supports_documented_alias_and_index_derivation_conventions() -> (

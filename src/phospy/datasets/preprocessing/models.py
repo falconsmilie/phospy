@@ -85,17 +85,17 @@ class PreprocessingPlan:
     def from_config(cls, config: DatasetPreprocessingConfig) -> PreprocessingPlan:
         stage_order: list[str] = [DATASET_PREPROCESSING_STAGE_MISSING_DATA]
         if (
+            config.intensity_transform.policy
+            != DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
+        ):
+            stage_order.append(DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM)
+        if (
             config.total_protein_correction.policy
             != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
         ):
             stage_order.append(DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION)
         if config.site_matrix.policy != DATASET_SITE_MATRIX_POLICY_AS_INPUT:
             stage_order.append(DATASET_PREPROCESSING_STAGE_SITE_MATRIX)
-        if (
-            config.intensity_transform.policy
-            != DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY
-        ):
-            stage_order.append(DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM)
         if config.normalisation.policy != DATASET_NORMALISATION_POLICY_NONE:
             stage_order.append(DATASET_PREPROCESSING_STAGE_NORMALISATION)
         if config.comparisons.policy != DATASET_COMPARISON_BUILDING_POLICY_NONE:

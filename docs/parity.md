@@ -97,7 +97,8 @@ rewrite lanes (`PARITY_GATED_ACTIVE_SCIENCE`):
   `module_assignments`, `signalome_modules`, `kinase_network.nodes`,
   `kinase_network.edges`, `expanded_signalome`
 - preprocessing-science parity on supported builder lanes:
-  `total_protein_correction.policy="ratio_to_total"`,
+  `total_protein_correction.policy="subtract_log_total"` (with
+  `intensity_transform.policy="log2"`),
   `site_matrix.policy="build_from_metadata"`, and
   `comparisons.policy="sample_metadata_pairs"`
 
@@ -250,7 +251,7 @@ areas. `Status` and `Coverage tier` are intentionally separate columns so that
 | expanded signalome outputs | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | `expanded_signalome` is materialized in the supported workflow path and parity-tested. |
 | activity parity lock | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | Activity thresholded-substrate-mean science is rewrite-ported and guarded by parity CI gates. |
 | preprocessing transformation establishment | CONTRACT_CHANGED | CONTRACT_CHANGED_SUPPORTED_LANE | Contract changed (narrow builder establishment policy) | Supported builder lane establishes only `linear` pass-through transformation state. |
-| total/protein correction | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | `total_protein_correction.policy="ratio_to_total"` is parity-gated in rewrite-owned fixture tests, including strict phospho/total alignment behavior. |
+| total/protein correction | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | `total_protein_correction.policy="subtract_log_total"` is parity-gated in rewrite-owned fixture tests, with explicit log-scale formula `log2(phospho + pseudocount) - log2(total + pseudocount)` and strict phospho/total alignment behavior. |
 | site-matrix construction | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | Supported site-matrix construction (`build_from_metadata`) is parity-gated with rewrite-owned fixture expectations for row retention, site identity, and output matrix values. |
 | comparison-building | PORTED | PARITY_GATED_ACTIVE_SCIENCE | Legacy-equivalent in supported lane | Sample-metadata comparison construction is parity-gated for explicit and inferred pair policies, including pair identity/order and expected output values. |
 | site-to-protein resolution fallback behavior | CONTRACT_CHANGED | CONTRACT_CHANGED_SUPPORTED_LANE | Contract changed (no legacy site-id-prefix fallback) | Signalome requires explicit `site_metadata.protein_id`. |

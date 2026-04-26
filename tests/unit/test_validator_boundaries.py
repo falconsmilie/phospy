@@ -34,6 +34,9 @@ from phospy.errors import (
 )
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
+from phospy.validation.datasets.preprocessing import (
+    DatasetPreprocessingConfigValidator,
+)
 from phospy.workflows.kinase.public import KinaseWorkflow
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
@@ -251,7 +254,46 @@ def test_dataset_build_request_rejects_min_observed_values_for_forbid_policy() -
         )
 
 
-def test_dataset_build_request_allows_ratio_total_protein_correction_policy() -> None:
+def test_dataset_preprocessing_config_validator_allows_log2_subtract_log_total() -> (
+    None
+):
+    config = DatasetPreprocessingConfig(
+        intensity_transform=DatasetIntensityTransformConfig(
+            policy="log2",
+            pseudocount=1.0,
+        ),
+        total_protein_correction=DatasetTotalProteinCorrectionConfig(
+            policy="subtract_log_total"
+        ),
+    )
+    validated = DatasetPreprocessingConfigValidator().run(config)
+    assert validated is config
+
+
+def test_dataset_preprocessing_config_validator_rejects_subtract_log_total_without_log2() -> (
+    None
+):
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "total_protein_correction.policy='subtract_log_total' requires "
+            "log2-scale phospho and total values"
+        ),
+    ):
+        DatasetPreprocessingConfigValidator().run(
+            DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="identity",
+                    pseudocount=1.0,
+                ),
+                total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                    policy="subtract_log_total"
+                ),
+            )
+        )
+
+
+def test_dataset_build_request_allows_subtract_log_total_policy() -> None:
     request = DatasetBuildRequest(
         phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
         total=pd.DataFrame({"sample_a": [2.0]}, index=["MAPK14"]),
@@ -264,18 +306,20 @@ def test_dataset_build_request_allows_ratio_total_protein_correction_policy() ->
             index=["MAPK14;Y182;"],
         ),
         preprocessing_config=DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            ),
             total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                policy="ratio_to_total"
-            )
+                policy="subtract_log_total"
+            ),
         ),
     )
     validated = DatasetBuildRequestValidator().run(request)
     assert validated is request
 
 
-def test_dataset_build_request_requires_total_for_ratio_total_protein_correction() -> (
-    None
-):
+def test_dataset_build_request_requires_total_for_subtract_log_total() -> None:
     request = DatasetBuildRequest(
         phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
         site_metadata=pd.DataFrame(
@@ -287,14 +331,76 @@ def test_dataset_build_request_requires_total_for_ratio_total_protein_correction
             index=["MAPK14;Y182;"],
         ),
         preprocessing_config=DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            ),
             total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                policy="ratio_to_total"
-            )
+                policy="subtract_log_total"
+            ),
         ),
     )
     with pytest.raises(
         PhosPyInputError,
-        match="policy='ratio_to_total' requires total input data",
+        match="policy='subtract_log_total' requires total input data",
+    ):
+        DatasetBuildRequestValidator().run(request)
+
+
+def test_dataset_build_request_keeps_ratio_alias_but_requires_log2_scale() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        total=pd.DataFrame({"sample_a": [2.0]}, index=["MAPK14"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="log2",
+                pseudocount=1.0,
+            ),
+            total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                policy="ratio_to_total"
+            ),
+        ),
+    )
+    validated = DatasetBuildRequestValidator().run(request)
+    assert validated is request
+
+
+def test_dataset_build_request_rejects_ratio_alias_without_log2_scale() -> None:
+    request = DatasetBuildRequest(
+        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
+        total=pd.DataFrame({"sample_a": [2.0]}, index=["MAPK14"]),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14"],
+                "site": ["Y182"],
+                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
+            },
+            index=["MAPK14;Y182;"],
+        ),
+        preprocessing_config=DatasetPreprocessingConfig(
+            intensity_transform=DatasetIntensityTransformConfig(
+                policy="identity",
+                pseudocount=1.0,
+            ),
+            total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                policy="ratio_to_total"
+            ),
+        ),
+    )
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "total_protein_correction.policy='ratio_to_total' requires "
+            "log2-scale phospho and total values"
+        ),
     ):
         DatasetBuildRequestValidator().run(request)
 

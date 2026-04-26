@@ -7,6 +7,7 @@ import pandas as pd
 from phospy.api.configs import (
     DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
     DATASET_NORMALISATION_POLICY_NONE,
+    resolve_dataset_total_protein_correction_policy,
 )
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
@@ -66,9 +67,9 @@ class PreprocessingPipeline:
     ) -> None:
         stages = stage_registry or (
             MissingDataStage(),
+            IntensityTransformStage(),
             TotalProteinCorrectionStage(),
             SiteMatrixStage(),
-            IntensityTransformStage(),
             NormalisationStage(),
             ComparisonsStage(),
         )
@@ -164,7 +165,11 @@ def _resolve_stage_operation(*, plan: PreprocessingPlan, stage: str) -> str:
     if stage == DATASET_PREPROCESSING_STAGE_MISSING_DATA:
         return plan.missing_data_policy
     if stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
-        return plan.total_protein_correction_policy
+        return str(
+            resolve_dataset_total_protein_correction_policy(
+                plan.total_protein_correction_policy
+            )
+        )
     if stage == DATASET_PREPROCESSING_STAGE_SITE_MATRIX:
         return plan.site_matrix_policy
     if stage == DATASET_PREPROCESSING_STAGE_COMPARISONS:
@@ -208,8 +213,18 @@ def _resolve_stage_diagnostics(
         return details
 
     if stage_key == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
+        requested_policy = plan.total_protein_correction_policy
+        resolved_policy = resolve_dataset_total_protein_correction_policy(
+            requested_policy
+        )
         details["diagnostics"] = {
-            "policy": plan.total_protein_correction_policy,
+            "policy": str(resolved_policy),
+            "requested_policy": str(requested_policy),
+            "resolved_policy": str(resolved_policy),
+            "formula": "log2_phospho - log2_total",
+            "requires_log_scale": True,
+            "input_scale": "log2",
+            "output_scale": "log2_ratio",
             "matched_rows": int(current.phospho.shape[0]),
             "total_table_hash": (
                 None

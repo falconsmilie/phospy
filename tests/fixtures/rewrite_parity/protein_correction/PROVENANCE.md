@@ -1,7 +1,7 @@
 # Rewrite Parity Fixture Provenance (`protein_correction`)
 
 This directory contains promoted reference material for
-`total_protein_correction.policy="ratio_to_total"` parity checks in the
+`total_protein_correction.policy="subtract_log_total"` parity checks in the
 supported builder preprocessing lane.
 
 ## Source Material
@@ -11,7 +11,9 @@ is now committed directly in this folder.
 
 `reference_corrected_matrix.csv` captures the corrected phospho matrix slice
 (`phospho_corrected_1..6`) mapped to rewrite sample columns (`p_group1..6`)
-and canonical `site_id` formatting (`GENE;SITE;`).
+and canonical `site_id` formatting (`GENE;SITE;`), using:
+
+`log2(phospho + 1.0) - log2(total + 1.0)`
 
 ## Rewrite-Owned Parity Inputs
 
@@ -23,5 +25,6 @@ directory:
 - `reference_input_total.csv`
 
 These fixtures encode the supported
-`total_protein_correction.policy="ratio_to_total"` lane directly, so ordinary
-parity execution does not depend on archived trees.
+`intensity_transform.policy="log2"` +
+`total_protein_correction.policy="subtract_log_total"` lane directly, so
+ordinary parity execution does not depend on archived trees.
