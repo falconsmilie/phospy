@@ -179,6 +179,7 @@ class KinaseWorkflowExecutor:
             ),
             rank_weighted_fusion_scores=rank_weighted_fusion_scores,
             score_fusion_weights=score_fusion_weights,
+            motif_sequence_validation=motif_result.sequence_validation,
         )
         downstream_score_matrix, downstream_score_source = (
             select_downstream_score_matrix(
@@ -524,6 +525,11 @@ def _build_kinase_run_provenance(
                     config.profile_missing_value_strategy
                 ),
             },
+            "scoring_diagnostics": (
+                {}
+                if scoring_result.motif_sequence_validation is None
+                else scoring_result.motif_sequence_validation.summary()
+            ),
             "prediction_config": {
                 "top_k": int(config.prediction_top_k),
                 "deterministic_max_selected_kinases": int(

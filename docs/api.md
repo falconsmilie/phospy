@@ -227,6 +227,16 @@ Planned/future lanes (not currently supported in this public contract) include:
 - `include_diagnostic_scoring_tables` default `False`
 - `profile_missing_value_strategy`: `strict` or `median_skipna`
 
+Motif sequence-context validation is strict in the supported lane:
+
+- scoring expects a centered motif window of length `15` (flank size `7`, centre index `7`)
+- supported residue alphabet is the 20 canonical amino acids:
+  `A C D E F G H I K L M N P Q R S T V W Y`
+- sequences that are missing, short, off-centre, site-residue mismatched, or
+  contain unsupported residue characters are excluded from motif scoring
+- excluded sites are reported through
+  `result.scoring_result.motif_sequence_validation`
+
 Performance notes:
 
 - motif scoring scales with scored sites, eligible kinases, and motif window width,
@@ -338,6 +348,7 @@ Common nested outputs:
 
 - `result.scoring_result.profile_scores`
 - `result.scoring_result.rank_weighted_fusion_scores`
+- `result.scoring_result.motif_sequence_validation`
 - `result.prediction_result.pred_mat`
 - `result.activity_result.weighted_activity` when activity is enabled
 - `result.activity_result.thresholded_substrate_mean_activity` when activity is enabled
@@ -350,6 +361,14 @@ Method notes:
 - `rank_weighted_fusion_scores` combine profile-correlation scores and
   motif-frequency scores using rank-derived weights from profile substrate
   counts and motif library sizes.
+- `motif_sequence_validation.summary()` returns workflow diagnostics with:
+  `total_sequences`, `valid_sequences`, `invalid_sequences`,
+  `short_sequences`, `off_centre_sequences`, `site_residue_mismatches`,
+  `unsupported_residue_characters`, and
+  `sequences_excluded_from_motif_scoring`.
+- Excluded sequence rows keep traceability through
+  `motif_sequence_validation.rows`; excluded sites are not assigned ordinary
+  motif scores (`motif_scores` remains missing/`NaN` for those rows).
 
 ### `SignalomeWorkflowResult`
 

@@ -8,29 +8,15 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-AMINO_ACIDS: tuple[str, ...] = (
-    "A",
-    "R",
-    "N",
-    "D",
-    "C",
-    "E",
-    "Q",
-    "G",
-    "H",
-    "I",
-    "L",
-    "K",
-    "M",
-    "F",
-    "P",
-    "S",
-    "T",
-    "W",
-    "Y",
-    "V",
+from phospy.prediction.sequence_validation import (
+    SEQUENCE_VALIDATION_STATUS_VALID,
+    SUPPORTED_AMINO_ACIDS,
+    MotifSequenceValidator,
+    SequenceValidationInput,
+    SequenceValidationResult,
 )
 
+AMINO_ACIDS: tuple[str, ...] = SUPPORTED_AMINO_ACIDS
 DEFAULT_MOTIF_FLANK_SIZE = 7
 _ASCII_LOOKUP_SIZE = 256
 _INVALID_AMINO_ACID_INDEX = -1
@@ -50,6 +36,7 @@ class MotifScoringResult:
     motif_scores: pd.DataFrame
     motif_sizes: pd.Series
     sequence_windows: pd.Series
+    sequence_validation: SequenceValidationResult
 
 
 def build_motif_library(
@@ -145,23 +132,43 @@ def score_phosphosite_motifs(
         if kinase in motif_sizes.index
         and float(motif_sizes.loc[kinase]) >= float(min_motif_size)
     ]
+    expected_window_size = _resolve_expected_window_size(
+        motif_frequency_matrices=motif_frequency_matrices,
+        kinases=kinases,
+        flank_size=flank_size,
+    )
+    validation = _validate_sequence_windows(
+        windows,
+        expected_window_size=expected_window_size,
+    )
+
     motif_scores = pd.DataFrame(
         np.nan,
         index=windows.index.copy(),
         columns=kinases,
         dtype=float,
     )
-    if kinases:
+    if kinases and validation.valid_sequences > 0:
+        valid_site_ids = [
+            row.site_id
+            for row in validation.rows
+            if row.status == SEQUENCE_VALIDATION_STATUS_VALID
+        ]
+        valid_windows = windows.loc[valid_site_ids]
         first_matrix = motif_frequency_matrices[kinases[0]]
         encoded_windows = _encode_sequence_positions(
-            windows,
+            valid_windows,
             width=int(first_matrix.shape[1]),
+        )
+        _require_fully_supported_encoded_sequences(
+            encoded_windows,
+            context="motif scoring",
         )
         for kinase in kinases:
             frequency_values = _coerce_frequency_matrix(
                 motif_frequency_matrices[kinase]
             ).to_numpy(dtype=float, copy=False)
-            motif_scores.loc[:, kinase] = _score_encoded_sequences(
+            motif_scores.loc[valid_windows.index, kinase] = _score_encoded_sequences(
                 encoded_sequences=encoded_windows,
                 frequency_values=frequency_values,
             )
@@ -173,6 +180,7 @@ def score_phosphosite_motifs(
         motif_scores=motif_scores,
         motif_sizes=selected_sizes,
         sequence_windows=windows,
+        sequence_validation=validation,
     )
 
 
@@ -321,6 +329,51 @@ def _score_encoded_sequences(
     position_scores = frequency_values[safe_indices, position_indices]
     position_scores = np.where(valid_mask, position_scores, 0.0)
     return position_scores.sum(axis=1, dtype=float)
+
+
+def _resolve_expected_window_size(
+    *,
+    motif_frequency_matrices: Mapping[str, pd.DataFrame],
+    kinases: Sequence[str],
+    flank_size: int,
+) -> int:
+    if flank_size < 0:
+        raise ValueError("flank_size must be >= 0")
+    fallback = (2 * flank_size) + 1
+    if not kinases:
+        return fallback
+    widths = {
+        int(_coerce_frequency_matrix(motif_frequency_matrices[kinase]).shape[1])
+        for kinase in kinases
+    }
+    if len(widths) != 1:
+        raise ValueError("motif_frequency_matrices must share one sequence width")
+    width = next(iter(widths))
+    if width <= 0:
+        raise ValueError("motif_frequency_matrices sequence width must be > 0")
+    return width
+
+
+def _validate_sequence_windows(
+    windows: pd.Series,
+    *,
+    expected_window_size: int,
+) -> SequenceValidationResult:
+    validator = MotifSequenceValidator(expected_window_size=expected_window_size)
+    rows = [
+        SequenceValidationInput(site_id=str(site_id), site_sequence=sequence)
+        for site_id, sequence in windows.items()
+    ]
+    return validator.run(rows=rows)
+
+
+def _require_fully_supported_encoded_sequences(
+    encoded_sequences: np.ndarray,
+    *,
+    context: str,
+) -> None:
+    if (encoded_sequences < 0).any():
+        raise ValueError(f"{context} contains unsupported residues")
 
 
 __all__ = [

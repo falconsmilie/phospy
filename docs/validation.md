@@ -167,6 +167,17 @@ Reference rules are simple but strict:
 - config objects are the right public dataclass types
 - scoring support floor is respected (`min_substrates >= 2`)
 
+Motif scoring sequence-context validation is part of the kinase scoring-stage
+scientific contract:
+
+- expected motif window length is `15` residues (centre index `7`)
+- centre residue is validated against site identity when available
+- supported residue characters are the 20 canonical amino acids
+- missing, short, off-centre, site-residue-mismatched, and unsupported
+  sequences are excluded from motif scoring
+- sequence validation diagnostics are exposed on
+  `result.scoring_result.motif_sequence_validation`
+
 `KinaseScoringConfig`, `KinasePredictionConfig`, and `KinaseActivityConfig`
 validate local policy/range rules at object construction.
 
