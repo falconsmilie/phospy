@@ -11,20 +11,8 @@ from phospy.api.configs import (
 from phospy.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.datasets.models import DatasetPreprocessingReport
 from phospy.datasets.preprocessing.models import PreprocessingPlan
+from phospy.datasets.preprocessing.report_schema import ROW_AUDIT_COLUMNS
 from phospy.errors.validation import DatasetValidationError
-
-_ROW_AUDIT_COLUMNS = (
-    "stage",
-    "action",
-    "reason",
-    "source_row_id",
-    "site_id",
-    "retained",
-    "retained_row_id",
-    "source_rows",
-    "retained_row",
-    "parameter_snapshot",
-)
 
 
 def test_missing_data_stage_audits_rows_dropped_below_min_observed_values() -> None:
@@ -357,7 +345,7 @@ def test_empty_row_audit_has_stable_schema() -> None:
     )
 
     assert preprocessed.row_audit is not None
-    assert tuple(preprocessed.row_audit.columns) == _ROW_AUDIT_COLUMNS
+    assert tuple(preprocessed.row_audit.columns) == ROW_AUDIT_COLUMNS
     assert preprocessed.row_audit.empty
 
 

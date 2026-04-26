@@ -16,6 +16,7 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingState,
     append_row_audit_records,
 )
+from phospy.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
 from phospy.errors.input import PhosPyInputError
 
 
@@ -74,29 +75,29 @@ class MissingDataStage:
         row_medians = filtered_phospho.median(axis=1, skipna=True)
         imputed = filtered_phospho.T.fillna(row_medians).T
         imputed_mask = filtered_phospho.isna() & imputed.notna()
-        row_audit_records: list[dict[str, object]] = []
+        row_audit_records: list[PreprocessingRowAuditRow] = []
         for row_id, observed_value_count in dropped_observed_counts.items():
             source_row_id = str(row_id)
             row_audit_records.append(
-                {
-                    "stage": DATASET_PREPROCESSING_STAGE_MISSING_DATA,
-                    "action": "dropped",
-                    "reason": (
+                PreprocessingRowAuditRow(
+                    stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+                    action="dropped",
+                    reason=(
                         "dropped because observed value count is below "
                         "missing_data.min_observed_values"
                     ),
-                    "source_row_id": source_row_id,
-                    "site_id": source_row_id,
-                    "retained": False,
-                    "retained_row_id": pd.NA,
-                    "source_rows": (source_row_id,),
-                    "retained_row": pd.NA,
-                    "parameter_snapshot": {
+                    source_row_id=source_row_id,
+                    site_id=source_row_id,
+                    retained=False,
+                    retained_row_id=pd.NA,
+                    source_rows=(source_row_id,),
+                    retained_row=pd.NA,
+                    parameter_snapshot={
                         "missing_data_policy": DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
                         "missing_data_min_observed_values": int(min_observed_values),
                         "observed_values": int(observed_value_count),
                     },
-                }
+                )
             )
 
         imputed_row_flags = imputed_mask.any(axis=1)
@@ -111,24 +112,24 @@ class MissingDataStage:
                 for column_name in filtered_phospho.columns[row_imputed_mask].tolist()
             )
             row_audit_records.append(
-                {
-                    "stage": DATASET_PREPROCESSING_STAGE_MISSING_DATA,
-                    "action": "imputed",
-                    "reason": "missing values imputed with row median",
-                    "source_row_id": source_row_id,
-                    "site_id": source_row_id,
-                    "retained": True,
-                    "retained_row_id": source_row_id,
-                    "source_rows": (source_row_id,),
-                    "retained_row": source_row_id,
-                    "parameter_snapshot": {
+                PreprocessingRowAuditRow(
+                    stage=DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+                    action="imputed",
+                    reason="missing values imputed with row median",
+                    source_row_id=source_row_id,
+                    site_id=source_row_id,
+                    retained=True,
+                    retained_row_id=source_row_id,
+                    source_rows=(source_row_id,),
+                    retained_row=source_row_id,
+                    parameter_snapshot={
                         "missing_data_policy": DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
                         "missing_data_min_observed_values": int(min_observed_values),
                         "imputed_columns": imputed_columns,
                         "imputed_cell_count": int(row_imputed_mask.sum()),
                         "row_median": float(row_medians.loc[row_id]),
                     },
-                }
+                )
             )
         next_state = append_row_audit_records(state, row_audit_records)
         dropped_row_ids = tuple(

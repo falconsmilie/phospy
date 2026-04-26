@@ -29,6 +29,12 @@ from phospy.api.configs import (
     DatasetSiteMatrixPolicy,
     DatasetTotalProteinCorrectionPolicy,
 )
+from phospy.datasets.preprocessing.report_schema import (
+    ROW_AUDIT_COLUMNS,
+    PreprocessingRowAuditRow,
+    dataframe_from_row_audit_rows,
+    reorder_columns,
+)
 
 DATASET_PREPROCESSING_STAGE_MISSING_DATA = "missing_data"
 DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION = "total_protein_correction"
@@ -37,18 +43,6 @@ DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM = "intensity_transform"
 DATASET_PREPROCESSING_STAGE_NORMALISATION = "normalisation"
 DATASET_PREPROCESSING_STAGE_COMPARISONS = "comparisons"
 DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT = (DATASET_PREPROCESSING_STAGE_MISSING_DATA,)
-_PREPROCESSING_ROW_AUDIT_COLUMNS = (
-    "stage",
-    "action",
-    "reason",
-    "source_row_id",
-    "site_id",
-    "retained",
-    "retained_row_id",
-    "source_rows",
-    "retained_row",
-    "parameter_snapshot",
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,12 +144,12 @@ class PreprocessingState:
 def empty_preprocessing_row_audit() -> pd.DataFrame:
     """Return an empty stable-schema preprocessing row-audit table."""
 
-    return pd.DataFrame.from_records([], columns=_PREPROCESSING_ROW_AUDIT_COLUMNS)
+    return dataframe_from_row_audit_rows(())
 
 
 def append_row_audit_records(
     state: PreprocessingState,
-    records: list[dict[str, object]],
+    records: Sequence[PreprocessingRowAuditRow],
 ) -> PreprocessingState:
     """Append row-audit records without mutating existing state frames."""
 
@@ -165,22 +159,12 @@ def append_row_audit_records(
     existing = (
         empty_preprocessing_row_audit()
         if state.row_audit is None
-        else state.row_audit.reindex(
-            columns=list(_PREPROCESSING_ROW_AUDIT_COLUMNS)
+        else reorder_columns(
+            state.row_audit,
+            expected_columns=ROW_AUDIT_COLUMNS,
         ).copy(deep=True)
     )
-    normalized_records: list[dict[str, object]] = []
-    for record in records:
-        normalized_records.append(
-            {
-                column_name: record.get(column_name, pd.NA)
-                for column_name in _PREPROCESSING_ROW_AUDIT_COLUMNS
-            }
-        )
-    appended = pd.DataFrame.from_records(
-        normalized_records,
-        columns=_PREPROCESSING_ROW_AUDIT_COLUMNS,
-    )
+    appended = dataframe_from_row_audit_rows(records)
     combined = pd.concat([existing, appended], axis=0, ignore_index=True)
     return replace(state, row_audit=combined)
 

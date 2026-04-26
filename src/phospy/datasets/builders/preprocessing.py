@@ -26,6 +26,12 @@ from phospy.datasets.preprocessing.models import (
     empty_preprocessing_row_audit,
 )
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.datasets.preprocessing.report_schema import (
+    PreprocessingOperationRow,
+    PreprocessingRowCountRow,
+    dataframe_from_operation_rows,
+    dataframe_from_row_count_rows,
+)
 from phospy.datasets.processing_state import (
     ComparisonState,
     DatasetProcessingState,
@@ -36,16 +42,6 @@ from phospy.datasets.processing_state import (
 )
 from phospy.transformations.models import IntensityScaleState
 
-_ROW_COUNT_COLUMNS = ("stage", "input_rows", "output_rows", "dropped_rows")
-_OPERATION_COLUMNS = (
-    "step_order",
-    "stage",
-    "operation",
-    "parameters",
-    "input_rows",
-    "output_rows",
-    "notes",
-)
 _PREPROCESSING_INPUT_STAGE = "preprocessing_input"
 _PREPROCESSING_COMPLETE_STAGE = "preprocessing_complete"
 _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
@@ -204,15 +200,15 @@ def _build_preprocessing_provenance_tables(
     trace: tuple[PreprocessingStageExecution, ...],
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     trace_by_stage = {record.stage: record for record in trace}
-    row_counts_records: list[dict[str, int | str]] = [
-        {
-            "stage": _PREPROCESSING_INPUT_STAGE,
-            "input_rows": input_row_count,
-            "output_rows": input_row_count,
-            "dropped_rows": 0,
-        }
+    row_count_rows: list[PreprocessingRowCountRow] = [
+        PreprocessingRowCountRow(
+            stage=_PREPROCESSING_INPUT_STAGE,
+            input_rows=input_row_count,
+            output_rows=input_row_count,
+            dropped_rows=0,
+        )
     ]
-    operations_records: list[dict[str, object]] = []
+    operation_rows: list[PreprocessingOperationRow] = []
 
     row_cursor = input_row_count
     step_order = 1
@@ -233,47 +229,42 @@ def _build_preprocessing_provenance_tables(
             operation = record.operation
             parameters = dict(record.parameters)
         row_cursor = stage_output_rows
-        row_counts_records.append(
-            {
-                "stage": stage,
-                "input_rows": stage_input_rows,
-                "output_rows": stage_output_rows,
-                "dropped_rows": (
+        row_count_rows.append(
+            PreprocessingRowCountRow(
+                stage=stage,
+                input_rows=stage_input_rows,
+                output_rows=stage_output_rows,
+                dropped_rows=(
                     max(stage_input_rows - stage_output_rows, 0)
                     if record is None
                     else int(max(record.dropped_row_count, 0))
                 ),
-            }
+            )
         )
-        operations_records.append(
-            {
-                "step_order": step_order,
-                "stage": stage,
-                "operation": operation,
-                "parameters": parameters,
-                "input_rows": stage_input_rows,
-                "output_rows": stage_output_rows,
-                "notes": notes,
-            }
+        operation_rows.append(
+            PreprocessingOperationRow(
+                step_order=step_order,
+                stage=stage,
+                operation=operation,
+                parameters=parameters,
+                input_rows=stage_input_rows,
+                output_rows=stage_output_rows,
+                notes=notes,
+            )
         )
         step_order += 1
 
-    row_counts_records.append(
-        {
-            "stage": _PREPROCESSING_COMPLETE_STAGE,
-            "input_rows": output_row_count,
-            "output_rows": output_row_count,
-            "dropped_rows": 0,
-        }
+    row_count_rows.append(
+        PreprocessingRowCountRow(
+            stage=_PREPROCESSING_COMPLETE_STAGE,
+            input_rows=output_row_count,
+            output_rows=output_row_count,
+            dropped_rows=0,
+        )
     )
 
-    row_counts = pd.DataFrame.from_records(
-        row_counts_records, columns=_ROW_COUNT_COLUMNS
-    )
-    operations = pd.DataFrame.from_records(
-        operations_records,
-        columns=_OPERATION_COLUMNS,
-    )
+    row_counts = dataframe_from_row_count_rows(row_count_rows)
+    operations = dataframe_from_operation_rows(operation_rows)
     return row_counts, operations
 
 

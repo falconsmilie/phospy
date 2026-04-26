@@ -18,43 +18,14 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStageResult,
     PreprocessingState,
 )
+from phospy.datasets.preprocessing.report_schema import (
+    COMPARISON_GROUP_STATS_COLUMNS,
+    COMPARISON_PAIR_STATS_COLUMNS,
+)
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.hashing import hash_table
 
 _COMPARISON_OUTPUT_PREFIX = "p_"
-_GROUP_STATS_COLUMNS = (
-    "site_id",
-    "group",
-    "n",
-    "mean",
-    "sd",
-    "sem",
-    "median",
-    "min",
-    "max",
-    "sample_ids",
-)
-_PAIR_STATS_COLUMNS = (
-    "site_id",
-    "comparison",
-    "left_group",
-    "right_group",
-    "left_n",
-    "right_n",
-    "left_mean",
-    "right_mean",
-    "left_sd",
-    "right_sd",
-    "left_sem",
-    "right_sem",
-    "effect_size",
-    "left_median",
-    "right_median",
-    "left_min",
-    "right_min",
-    "left_max",
-    "right_max",
-)
 
 
 class ComparisonsStage:
@@ -299,12 +270,12 @@ def _build_group_statistics(
                     "max": maximum.to_numpy(),
                     "sample_ids": [tuple(sample_columns)] * len(site_ids),
                 },
-                columns=_GROUP_STATS_COLUMNS,
+                columns=COMPARISON_GROUP_STATS_COLUMNS,
             )
         )
     if not group_records:
         return (
-            pd.DataFrame.from_records([], columns=_GROUP_STATS_COLUMNS),
+            pd.DataFrame.from_records([], columns=COMPARISON_GROUP_STATS_COLUMNS),
             group_summaries,
         )
     group_stats = pd.concat(group_records, axis=0, ignore_index=True)
@@ -361,11 +332,11 @@ def _build_pair_statistics(
                     "left_max": left_summary.loc[:, "max"].to_numpy(),
                     "right_max": right_summary.loc[:, "max"].to_numpy(),
                 },
-                columns=_PAIR_STATS_COLUMNS,
+                columns=COMPARISON_PAIR_STATS_COLUMNS,
             )
         )
     if not pair_records:
-        return pd.DataFrame.from_records([], columns=_PAIR_STATS_COLUMNS)
+        return pd.DataFrame.from_records([], columns=COMPARISON_PAIR_STATS_COLUMNS)
     return pd.concat(pair_records, axis=0, ignore_index=True)
 
 

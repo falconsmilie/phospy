@@ -2,11 +2,37 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import InitVar, dataclass
 
 import pandas as pd
 
 from phospy._frame_ownership import own_dataframe, own_optional_dataframe
+from phospy.datasets.preprocessing.report_schema import (
+    COMPARISON_GROUP_STATS_COLUMNS,
+    COMPARISON_PAIR_STATS_COLUMNS,
+    DUPLICATE_SITE_RESOLUTION_COLUMNS,
+    METADATA_CONFLICT_COLUMNS,
+    OPERATIONS_COLUMNS,
+    ROW_AUDIT_COLUMNS,
+    ROW_COUNTS_COLUMNS,
+    ComparisonGroupStatsRow,
+    ComparisonPairStatsRow,
+    DuplicateSiteResolutionRow,
+    MetadataConflictRow,
+    PreprocessingOperationRow,
+    PreprocessingRowAuditRow,
+    PreprocessingRowCountRow,
+    dataframe_from_comparison_group_stats_rows,
+    dataframe_from_comparison_pair_stats_rows,
+    dataframe_from_duplicate_site_resolution_rows,
+    dataframe_from_metadata_conflict_rows,
+    dataframe_from_operation_rows,
+    dataframe_from_row_audit_rows,
+    dataframe_from_row_count_rows,
+    missing_columns,
+    reorder_columns,
+)
 from phospy.datasets.processing_state import DatasetProcessingState
 from phospy.errors.validation import DatasetValidationError
 from phospy.provenance.models import RunProvenance
@@ -31,80 +57,6 @@ from phospy.validation.common.missing_values import (
 from phospy.validation.transformations.state import IntensityScaleStateValidator
 
 _INTENSITY_SCALE_STATE_VALIDATOR = IntensityScaleStateValidator()
-_PREPROCESSING_REPORT_ROW_COUNT_COLUMNS = (
-    "stage",
-    "input_rows",
-    "output_rows",
-    "dropped_rows",
-)
-_PREPROCESSING_REPORT_OPERATION_COLUMNS = (
-    "step_order",
-    "stage",
-    "operation",
-    "parameters",
-    "input_rows",
-    "output_rows",
-    "notes",
-)
-_PREPROCESSING_REPORT_ROW_AUDIT_COLUMNS = (
-    "stage",
-    "action",
-    "reason",
-    "source_row_id",
-    "site_id",
-    "retained",
-    "retained_row_id",
-    "source_rows",
-    "retained_row",
-    "parameter_snapshot",
-)
-_PREPROCESSING_REPORT_DUPLICATE_SITE_RESOLUTION_COLUMNS = (
-    "site_id",
-    "source_row_id",
-    "retained",
-    "resolution_policy",
-    "retained_reason",
-    "dropped_reason",
-    "observed_values",
-    "mean_signal",
-    "n_source_rows",
-    "n_aggregated_rows",
-    "source_protein_id",
-    "source_gene_symbol",
-    "source_site",
-    "source_site_sequence",
-    "metadata_conflict_detected",
-)
-_PREPROCESSING_REPORT_METADATA_CONFLICT_COLUMNS = (
-    "site_id",
-    "field",
-    "values",
-    "n_distinct_values",
-    "source_row_ids",
-)
-_PREPROCESSING_REPORT_COMPARISON_GROUP_STATS_COLUMNS = (
-    "site_id",
-    "group",
-    "n",
-    "mean",
-    "sd",
-    "sem",
-)
-_PREPROCESSING_REPORT_COMPARISON_PAIR_STATS_COLUMNS = (
-    "site_id",
-    "comparison",
-    "left_group",
-    "right_group",
-    "left_n",
-    "right_n",
-    "left_mean",
-    "right_mean",
-    "left_sd",
-    "right_sd",
-    "left_sem",
-    "right_sem",
-    "effect_size",
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,33 +115,27 @@ class DatasetPreprocessingReport:
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
-        missing_row_columns = [
-            column
-            for column in _PREPROCESSING_REPORT_ROW_COUNT_COLUMNS
-            if column not in row_counts.columns
-        ]
+        missing_row_columns = missing_columns(
+            row_counts, expected_columns=ROW_COUNTS_COLUMNS
+        )
         if missing_row_columns:
             missing = ", ".join(missing_row_columns)
             raise DatasetValidationError(
                 "dataset.preprocessing_report.row_counts is missing required "
                 f"columns: {missing}"
             )
-        missing_operation_columns = [
-            column
-            for column in _PREPROCESSING_REPORT_OPERATION_COLUMNS
-            if column not in operations.columns
-        ]
+        missing_operation_columns = missing_columns(
+            operations, expected_columns=OPERATIONS_COLUMNS
+        )
         if missing_operation_columns:
             missing = ", ".join(missing_operation_columns)
             raise DatasetValidationError(
                 "dataset.preprocessing_report.operations is missing required "
                 f"columns: {missing}"
             )
-        missing_row_audit_columns = [
-            column
-            for column in _PREPROCESSING_REPORT_ROW_AUDIT_COLUMNS
-            if column not in row_audit.columns
-        ]
+        missing_row_audit_columns = missing_columns(
+            row_audit, expected_columns=ROW_AUDIT_COLUMNS
+        )
         if missing_row_audit_columns:
             missing = ", ".join(missing_row_audit_columns)
             raise DatasetValidationError(
@@ -197,11 +143,10 @@ class DatasetPreprocessingReport:
                 f"columns: {missing}"
             )
         if duplicate_site_resolution is not None:
-            missing_duplicate_columns = [
-                column
-                for column in _PREPROCESSING_REPORT_DUPLICATE_SITE_RESOLUTION_COLUMNS
-                if column not in duplicate_site_resolution.columns
-            ]
+            missing_duplicate_columns = missing_columns(
+                duplicate_site_resolution,
+                expected_columns=DUPLICATE_SITE_RESOLUTION_COLUMNS,
+            )
             if missing_duplicate_columns:
                 missing = ", ".join(missing_duplicate_columns)
                 raise DatasetValidationError(
@@ -209,11 +154,10 @@ class DatasetPreprocessingReport:
                     f"missing required columns: {missing}"
                 )
         if metadata_conflicts is not None:
-            missing_conflict_columns = [
-                column
-                for column in _PREPROCESSING_REPORT_METADATA_CONFLICT_COLUMNS
-                if column not in metadata_conflicts.columns
-            ]
+            missing_conflict_columns = missing_columns(
+                metadata_conflicts,
+                expected_columns=METADATA_CONFLICT_COLUMNS,
+            )
             if missing_conflict_columns:
                 missing = ", ".join(missing_conflict_columns)
                 raise DatasetValidationError(
@@ -221,11 +165,10 @@ class DatasetPreprocessingReport:
                     f"required columns: {missing}"
                 )
         if comparison_group_stats is not None:
-            missing_group_stats_columns = [
-                column
-                for column in _PREPROCESSING_REPORT_COMPARISON_GROUP_STATS_COLUMNS
-                if column not in comparison_group_stats.columns
-            ]
+            missing_group_stats_columns = missing_columns(
+                comparison_group_stats,
+                expected_columns=COMPARISON_GROUP_STATS_COLUMNS,
+            )
             if missing_group_stats_columns:
                 missing = ", ".join(missing_group_stats_columns)
                 raise DatasetValidationError(
@@ -233,17 +176,39 @@ class DatasetPreprocessingReport:
                     f"missing required columns: {missing}"
                 )
         if comparison_pair_stats is not None:
-            missing_pair_stats_columns = [
-                column
-                for column in _PREPROCESSING_REPORT_COMPARISON_PAIR_STATS_COLUMNS
-                if column not in comparison_pair_stats.columns
-            ]
+            missing_pair_stats_columns = missing_columns(
+                comparison_pair_stats,
+                expected_columns=COMPARISON_PAIR_STATS_COLUMNS,
+            )
             if missing_pair_stats_columns:
                 missing = ", ".join(missing_pair_stats_columns)
                 raise DatasetValidationError(
                     "dataset.preprocessing_report.comparison_pair_stats is "
                     f"missing required columns: {missing}"
                 )
+        row_counts = reorder_columns(row_counts, expected_columns=ROW_COUNTS_COLUMNS)
+        operations = reorder_columns(operations, expected_columns=OPERATIONS_COLUMNS)
+        row_audit = reorder_columns(row_audit, expected_columns=ROW_AUDIT_COLUMNS)
+        if duplicate_site_resolution is not None:
+            duplicate_site_resolution = reorder_columns(
+                duplicate_site_resolution,
+                expected_columns=DUPLICATE_SITE_RESOLUTION_COLUMNS,
+            )
+        if metadata_conflicts is not None:
+            metadata_conflicts = reorder_columns(
+                metadata_conflicts,
+                expected_columns=METADATA_CONFLICT_COLUMNS,
+            )
+        if comparison_group_stats is not None:
+            comparison_group_stats = reorder_columns(
+                comparison_group_stats,
+                expected_columns=COMPARISON_GROUP_STATS_COLUMNS,
+            )
+        if comparison_pair_stats is not None:
+            comparison_pair_stats = reorder_columns(
+                comparison_pair_stats,
+                expected_columns=COMPARISON_PAIR_STATS_COLUMNS,
+            )
         object.__setattr__(self, "row_counts", row_counts)
         object.__setattr__(self, "operations", operations)
         object.__setattr__(self, "row_audit", row_audit)
@@ -251,6 +216,36 @@ class DatasetPreprocessingReport:
         object.__setattr__(self, "metadata_conflicts", metadata_conflicts)
         object.__setattr__(self, "comparison_group_stats", comparison_group_stats)
         object.__setattr__(self, "comparison_pair_stats", comparison_pair_stats)
+
+    @classmethod
+    def from_rows(
+        cls,
+        *,
+        row_count_rows: Sequence[PreprocessingRowCountRow] = (),
+        operation_rows: Sequence[PreprocessingOperationRow] = (),
+        row_audit_rows: Sequence[PreprocessingRowAuditRow] = (),
+        duplicate_site_resolution_rows: Sequence[DuplicateSiteResolutionRow] = (),
+        metadata_conflict_rows: Sequence[MetadataConflictRow] = (),
+        comparison_group_stats_rows: Sequence[ComparisonGroupStatsRow] = (),
+        comparison_pair_stats_rows: Sequence[ComparisonPairStatsRow] = (),
+    ) -> DatasetPreprocessingReport:
+        return cls._from_owned(
+            row_counts=dataframe_from_row_count_rows(row_count_rows),
+            operations=dataframe_from_operation_rows(operation_rows),
+            row_audit=dataframe_from_row_audit_rows(row_audit_rows),
+            duplicate_site_resolution=dataframe_from_duplicate_site_resolution_rows(
+                duplicate_site_resolution_rows
+            ),
+            metadata_conflicts=dataframe_from_metadata_conflict_rows(
+                metadata_conflict_rows
+            ),
+            comparison_group_stats=dataframe_from_comparison_group_stats_rows(
+                comparison_group_stats_rows
+            ),
+            comparison_pair_stats=dataframe_from_comparison_pair_stats_rows(
+                comparison_pair_stats_rows
+            ),
+        )
 
     @classmethod
     def _from_owned(

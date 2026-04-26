@@ -24,6 +24,13 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingState,
     append_row_audit_records,
 )
+from phospy.datasets.preprocessing.report_schema import (
+    DUPLICATE_SITE_RESOLUTION_COLUMNS,
+    METADATA_CONFLICT_COLUMNS,
+    PreprocessingRowAuditRow,
+    dataframe_from_duplicate_site_resolution_rows,
+    dataframe_from_metadata_conflict_rows,
+)
 from phospy.errors.input import PhosPyInputError
 
 _GENE_SYMBOL_COLUMN = "gene_symbol"
@@ -57,30 +64,6 @@ _METADATA_CONFLICT_FIELDS = (
     "site_sequence",
     "residue",
     "position",
-)
-_DUPLICATE_SITE_RESOLUTION_COLUMNS = (
-    "site_id",
-    "source_row_id",
-    "retained",
-    "resolution_policy",
-    "retained_reason",
-    "dropped_reason",
-    "observed_values",
-    "mean_signal",
-    "n_source_rows",
-    "n_aggregated_rows",
-    "source_protein_id",
-    "source_gene_symbol",
-    "source_site",
-    "source_site_sequence",
-    "metadata_conflict_detected",
-)
-_METADATA_CONFLICT_COLUMNS = (
-    "site_id",
-    "field",
-    "values",
-    "n_distinct_values",
-    "source_row_ids",
 )
 
 
@@ -452,49 +435,49 @@ def _build_site_matrix_row_audit_records(
     site_matrix_missing_data_policy: str,
     site_matrix_duplicate_site_policy: str,
     required_observed_count: int,
-) -> list[dict[str, object]]:
-    records: list[dict[str, object]] = []
+) -> list[PreprocessingRowAuditRow]:
+    records: list[PreprocessingRowAuditRow] = []
     for source_row_id, site_id in dropped_missing_sequence_rows:
         records.append(
-            {
-                "stage": DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
-                "action": "dropped",
-                "reason": (
+            PreprocessingRowAuditRow(
+                stage=DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+                action="dropped",
+                reason=(
                     "dropped because site_metadata.site_sequence is missing or blank"
                 ),
-                "source_row_id": source_row_id,
-                "site_id": site_id,
-                "retained": False,
-                "retained_row_id": pd.NA,
-                "source_rows": (source_row_id,),
-                "retained_row": pd.NA,
-                "parameter_snapshot": {
+                source_row_id=source_row_id,
+                site_id=site_id,
+                retained=False,
+                retained_row_id=pd.NA,
+                source_rows=(source_row_id,),
+                retained_row=pd.NA,
+                parameter_snapshot={
                     "site_matrix_policy": site_matrix_policy,
                     "site_matrix_missing_data_policy": site_matrix_missing_data_policy,
                     "site_matrix_duplicate_site_policy": site_matrix_duplicate_site_policy,
                 },
-            }
+            )
         )
     for source_row_id, site_id, observed_value_count in dropped_incomplete_rows:
         records.append(
-            {
-                "stage": DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
-                "action": "dropped",
-                "reason": "dropped by site_matrix missing-data policy",
-                "source_row_id": source_row_id,
-                "site_id": site_id,
-                "retained": False,
-                "retained_row_id": pd.NA,
-                "source_rows": (source_row_id,),
-                "retained_row": pd.NA,
-                "parameter_snapshot": {
+            PreprocessingRowAuditRow(
+                stage=DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+                action="dropped",
+                reason="dropped by site_matrix missing-data policy",
+                source_row_id=source_row_id,
+                site_id=site_id,
+                retained=False,
+                retained_row_id=pd.NA,
+                source_rows=(source_row_id,),
+                retained_row=pd.NA,
+                parameter_snapshot={
                     "site_matrix_policy": site_matrix_policy,
                     "site_matrix_missing_data_policy": site_matrix_missing_data_policy,
                     "site_matrix_duplicate_site_policy": site_matrix_duplicate_site_policy,
                     "observed_values": int(observed_value_count),
                     "required_observed_count": int(required_observed_count),
                 },
-            }
+            )
         )
     records.extend(
         _build_duplicate_site_row_audit_records(
@@ -511,7 +494,7 @@ def _build_duplicate_site_row_audit_records(
     duplicate_site_resolution: pd.DataFrame,
     site_matrix_policy: str,
     site_matrix_duplicate_site_policy: str,
-) -> list[dict[str, object]]:
+) -> list[PreprocessingRowAuditRow]:
     if duplicate_site_resolution.empty:
         return []
 
@@ -531,7 +514,7 @@ def _build_duplicate_site_row_audit_records(
         DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
         DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
     }
-    records: list[dict[str, object]] = []
+    records: list[PreprocessingRowAuditRow] = []
     for row in duplicate_site_resolution.itertuples(index=False):
         site_id = str(row.site_id)
         source_row_id = str(row.source_row_id)
@@ -555,17 +538,17 @@ def _build_duplicate_site_row_audit_records(
                 fallback="duplicate-site resolution decision",
             )
         records.append(
-            {
-                "stage": DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
-                "action": action,
-                "reason": reason,
-                "source_row_id": source_row_id,
-                "site_id": site_id,
-                "retained": retained,
-                "retained_row_id": retained_row_id,
-                "source_rows": source_rows,
-                "retained_row": retained_row,
-                "parameter_snapshot": {
+            PreprocessingRowAuditRow(
+                stage=DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+                action=action,
+                reason=reason,
+                source_row_id=source_row_id,
+                site_id=site_id,
+                retained=retained,
+                retained_row_id=retained_row_id,
+                source_rows=source_rows,
+                retained_row=retained_row,
+                parameter_snapshot={
                     "site_matrix_policy": site_matrix_policy,
                     "duplicate_site_policy": site_matrix_duplicate_site_policy,
                     "site_matrix_duplicate_site_policy": (
@@ -577,7 +560,7 @@ def _build_duplicate_site_row_audit_records(
                         _optional_bool(row.metadata_conflict_detected)
                     ),
                 },
-            }
+            )
         )
     return records
 
@@ -842,11 +825,11 @@ def _apply_duplicate_site_policy(
 
 
 def _empty_duplicate_site_resolution() -> pd.DataFrame:
-    return pd.DataFrame.from_records([], columns=_DUPLICATE_SITE_RESOLUTION_COLUMNS)
+    return dataframe_from_duplicate_site_resolution_rows(())
 
 
 def _empty_metadata_conflicts() -> pd.DataFrame:
-    return pd.DataFrame.from_records([], columns=_METADATA_CONFLICT_COLUMNS)
+    return dataframe_from_metadata_conflict_rows(())
 
 
 def _build_duplicate_site_resolution(
@@ -909,7 +892,7 @@ def _build_duplicate_site_resolution(
     resolution.loc[:, "metadata_conflict_detected"] = (
         resolution.loc[:, "site_id"].astype(str).isin(conflict_site_ids)
     )
-    return resolution.loc[:, list(_DUPLICATE_SITE_RESOLUTION_COLUMNS)].reset_index(
+    return resolution.loc[:, list(DUPLICATE_SITE_RESOLUTION_COLUMNS)].reset_index(
         drop=True
     )
 
@@ -961,7 +944,7 @@ def _build_metadata_conflicts(
             )
     if not records:
         return _empty_metadata_conflicts()
-    return pd.DataFrame.from_records(records, columns=_METADATA_CONFLICT_COLUMNS)
+    return pd.DataFrame.from_records(records, columns=METADATA_CONFLICT_COLUMNS)
 
 
 def _normalize_metadata_value(value: object) -> str:
