@@ -96,6 +96,13 @@ Behavior:
   implementation,
 - approximation use is reported in `SignalomeModuleSelectionDiagnostics.reason`
   and recorded in run provenance (`workflow_parameters.scale_guard`).
+- `tests/performance/test_performance_contracts.py` keeps a lightweight contract
+  test that intentionally stubs `build_cluster_tree()` to isolate
+  module-selection correlation-path behavior,
+- `tests/performance/test_signalome_clustering_benchmark.py` adds real
+  agglomerative-tree coverage by running `build_cluster_tree()` directly on a
+  deterministic medium matrix (`500` sites x `8` kinase columns) and asserting
+  loose runtime/memory bounds plus tree-shape invariants.
 
 Example:
 
@@ -136,9 +143,23 @@ These are performance contracts and operational guidance, not scientific-validit
 
 Performance contracts are guarded by lightweight synthetic tests in `tests/performance/` and a dedicated CI job (`performance-contracts`).
 
+Run the same suite locally with:
+
+```bash
+pytest tests/performance -m performance -q
+```
+
 Policy:
 
 - normal unit tests remain non-timing-sensitive,
 - performance tests use fixed synthetic inputs and loose thresholds/ratios,
-- tests assert both behavior and bounded runtime/memory for hot paths,
+- tests assert both behaviour and bounded runtime/memory for hot paths,
 - benchmark scripts under `benchmarks/` remain manually runnable and emit `key=value` metrics for log parsing.
+
+Threshold guidance:
+
+- treat runtime ceilings as regression guards, not micro-benchmarks,
+- keep them loose (roughly `5x` to `10x` observed baseline on CI hardware),
+- if CI runner class changes, re-measure and adjust thresholds in
+  `tests/performance/` while preserving enough strictness to catch accidental
+  scaling blowups.
