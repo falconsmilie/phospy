@@ -103,6 +103,14 @@ This is not always a bug. Common reasons are:
 Check the input row count against `dataset.phospho.shape[0]` and review the
 preprocessing policy you selected.
 
+Use `dataset.preprocessing_report.row_audit` as the row-level source of truth:
+
+```python
+report = dataset.preprocessing_report
+dropped = report.row_audit[report.row_audit["action"] == "dropped"]
+print(dropped[["stage", "source_row_id", "site_id", "reason"]])
+```
+
 If site-matrix duplicate handling ran, inspect
 `dataset.preprocessing_report.duplicate_site_resolution` and
 `dataset.preprocessing_report.metadata_conflicts` to see which source rows were

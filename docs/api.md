@@ -177,6 +177,7 @@ Duplicate-site strategy trade-offs:
 
 When site-matrix duplicate handling runs, `dataset.preprocessing_report` includes:
 
+- `row_audit`: unified row-level preprocessing audit trail across stages (`missing_data`, `site_matrix`, and future row-excluding stages).
 - `duplicate_site_resolution`: one row per source duplicate row, including retained/dropped or aggregated contribution details.
 - `metadata_conflicts`: duplicate-site metadata disagreement records (for example conflicting `protein_id` or `site_sequence` values).
 
@@ -266,10 +267,18 @@ State model responsibilities:
 `preprocessing_report` and `provenance` serve different purposes:
 
 - `preprocessing_report` is human-facing and table-oriented (`row_counts`,
-  `operations`, duplicate-site and comparison sidecars).
+  `operations`, `row_audit`, duplicate-site and comparison sidecars).
 - `provenance` is machine-readable and contract-oriented (table fingerprints,
   environment versions, preprocessing execution hashes, workflow parameters,
   random-state metadata, and output fingerprints).
+
+Quick row-audit inspection example:
+
+```python
+report = dataset.preprocessing_report
+dropped = report.row_audit[report.row_audit["action"] == "dropped"]
+print(dropped[["stage", "source_row_id", "site_id", "reason"]])
+```
 
 ### `KinaseWorkflowResult`
 

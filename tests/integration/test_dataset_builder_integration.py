@@ -42,6 +42,7 @@ def test_dataset_builder_populates_preprocessing_report_for_successful_build() -
     assert report is not None
     assert report.row_counts.shape[0] >= 1
     assert report.operations.shape[0] >= 1
+    assert report.row_audit is not None
     assert {
         "stage",
         "input_rows",
@@ -57,6 +58,18 @@ def test_dataset_builder_populates_preprocessing_report_for_successful_build() -
         "output_rows",
         "notes",
     }.issubset(set(report.operations.columns))
+    assert {
+        "stage",
+        "action",
+        "reason",
+        "source_row_id",
+        "site_id",
+        "retained",
+        "retained_row_id",
+        "source_rows",
+        "retained_row",
+        "parameter_snapshot",
+    }.issubset(set(report.row_audit.columns))
     assert report.duplicate_site_resolution is not None
     assert report.metadata_conflicts is not None
     assert report.comparison_group_stats is not None
@@ -385,6 +398,7 @@ def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> 
     assert built.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(3.0)
     assert built.site_metadata.loc["MAPK14;Y182;", "source_uid"] == "UID_A"
     assert built.preprocessing_report is not None
+    assert built.preprocessing_report.row_audit is not None
     assert built.preprocessing_report.duplicate_site_resolution is not None
     assert built.preprocessing_report.metadata_conflicts is not None
     duplicate_rows = built.preprocessing_report.duplicate_site_resolution
@@ -395,6 +409,11 @@ def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> 
     conflicts = built.preprocessing_report.metadata_conflicts
     assert not conflicts.empty
     assert "site_sequence" in set(conflicts.loc[:, "field"])
+    aggregated = built.preprocessing_report.row_audit.loc[
+        (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
+        & (built.preprocessing_report.row_audit.loc[:, "action"] == "aggregated")
+    ]
+    assert set(aggregated.loc[:, "source_row_id"].astype(str)) == {"row_a", "row_b"}
 
 
 def test_dataset_builder_site_matrix_derivation_keeps_all_fully_resolvable_rows() -> (
@@ -429,10 +448,12 @@ def test_dataset_builder_site_matrix_derivation_keeps_all_fully_resolvable_rows(
     assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
     assert built.site_metadata.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
     assert built.site_metadata.loc[:, "site_sequence"].isna().sum() == 0
-    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
-    assert row_drop_stats is not None
-    assert row_drop_stats["dropped_missing_sequence"] == 0
-    assert row_drop_stats["retained_rows"] == 2
+    assert built.preprocessing_report is not None
+    dropped = built.preprocessing_report.row_audit.loc[
+        (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
+        & (built.preprocessing_report.row_audit.loc[:, "action"] == "dropped")
+    ]
+    assert dropped.empty
 
 
 def test_dataset_builder_site_matrix_derivation_excludes_only_unresolved_rows() -> None:
@@ -464,11 +485,13 @@ def test_dataset_builder_site_matrix_derivation_excludes_only_unresolved_rows() 
 
     assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
     assert built.site_metadata.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
-    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
-    assert row_drop_stats is not None
-    assert row_drop_stats["input_rows"] == 3
-    assert row_drop_stats["dropped_missing_sequence"] == 1
-    assert row_drop_stats["retained_rows"] == 2
+    assert built.preprocessing_report is not None
+    dropped = built.preprocessing_report.row_audit.loc[
+        (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
+        & (built.preprocessing_report.row_audit.loc[:, "action"] == "dropped")
+    ]
+    assert set(dropped.loc[:, "source_row_id"].astype(str)) == {"FAKE1;S1;"}
+    assert "missing or blank" in str(dropped.iloc[0]["reason"])
 
 
 def test_dataset_builder_site_matrix_derivation_uses_row_metadata_site_identity() -> (
@@ -503,11 +526,13 @@ def test_dataset_builder_site_matrix_derivation_uses_row_metadata_site_identity(
     assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
     assert built.site_metadata.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
     assert built.site_metadata.loc[:, "site_sequence"].isna().sum() == 0
-    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
-    assert row_drop_stats is not None
-    assert row_drop_stats["input_rows"] == 3
-    assert row_drop_stats["dropped_missing_sequence"] == 1
-    assert row_drop_stats["retained_rows"] == 2
+    assert built.preprocessing_report is not None
+    dropped = built.preprocessing_report.row_audit.loc[
+        (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
+        & (built.preprocessing_report.row_audit.loc[:, "action"] == "dropped")
+    ]
+    assert set(dropped.loc[:, "source_row_id"].astype(str)) == {"row_b"}
+    assert "missing or blank" in str(dropped.iloc[0]["reason"])
 
 
 def test_dataset_builder_site_matrix_excludes_unusable_supplied_sequence_rows() -> None:
@@ -539,11 +564,13 @@ def test_dataset_builder_site_matrix_excludes_unusable_supplied_sequence_rows() 
 
     assert built.phospho.index.tolist() == ["MAPK14;Y182;"]
     assert built.site_metadata.index.tolist() == ["MAPK14;Y182;"]
-    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
-    assert row_drop_stats is not None
-    assert row_drop_stats["input_rows"] == 2
-    assert row_drop_stats["dropped_missing_sequence"] == 1
-    assert row_drop_stats["retained_rows"] == 1
+    assert built.preprocessing_report is not None
+    dropped = built.preprocessing_report.row_audit.loc[
+        (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
+        & (built.preprocessing_report.row_audit.loc[:, "action"] == "dropped")
+    ]
+    assert set(dropped.loc[:, "source_row_id"].astype(str)) == {"FAKE1;S1;"}
+    assert "missing or blank" in str(dropped.iloc[0]["reason"])
 
 
 def test_dataset_builder_site_matrix_derivation_reports_no_rows_when_fully_unresolvable() -> (
@@ -714,6 +741,7 @@ def test_dataset_builder_builds_inferred_comparisons_from_sample_metadata() -> N
     )
     pdt.assert_frame_equal(built.comparisons, expected)
     assert built.preprocessing_report is not None
+    assert built.preprocessing_report.row_audit is not None
     assert built.preprocessing_report.comparison_group_stats is not None
     assert built.preprocessing_report.comparison_pair_stats is not None
     group_stats = built.preprocessing_report.comparison_group_stats
@@ -996,6 +1024,7 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
     )
 
     assert built.preprocessing_report is not None
+    assert built.preprocessing_report.row_audit is not None
     provenance = built.provenance
     assert provenance is not None
     assert provenance.environment.package_name == "phospy"

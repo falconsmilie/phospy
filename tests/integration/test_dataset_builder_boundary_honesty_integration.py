@@ -69,10 +69,13 @@ def test_builder_supports_all_publicly_advertised_site_matrix_missing_data_modes
 
     assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
     assert built.phospho.isna().to_numpy().sum() == 0
-    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
-    assert row_drop_stats is not None
-    assert row_drop_stats["missing_data_policy"] == missing_data_policy
-    assert row_drop_stats["retained_rows"] == 2
+    assert built.preprocessing_report is not None
+    assert built.preprocessing_report.row_audit is not None
+    dropped = built.preprocessing_report.row_audit.loc[
+        (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
+        & (built.preprocessing_report.row_audit.loc[:, "action"] == "dropped")
+    ]
+    assert dropped.empty
 
 
 @pytest.mark.parametrize(
@@ -155,8 +158,11 @@ def test_builder_site_sequence_mixed_support_keeps_resolvable_rows_and_excludes_
     assert built.site_metadata.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
     assert built.site_metadata.loc["GSK3B;S9;", "site_sequence"] == "SEQ_MANUAL"
     assert isinstance(built.site_metadata.loc["MAPK14;Y182;", "site_sequence"], str)
-    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
-    assert row_drop_stats is not None
-    assert row_drop_stats["input_rows"] == 4
-    assert row_drop_stats["dropped_missing_sequence"] == 2
-    assert row_drop_stats["retained_rows"] == 2
+    assert built.preprocessing_report is not None
+    assert built.preprocessing_report.row_audit is not None
+    dropped = built.preprocessing_report.row_audit.loc[
+        (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
+        & (built.preprocessing_report.row_audit.loc[:, "action"] == "dropped")
+    ]
+    assert set(dropped.loc[:, "source_row_id"].astype(str)) == {"row_c", "row_d"}
+    assert "missing or blank" in str(dropped.iloc[0]["reason"])

@@ -211,6 +211,8 @@ def test_dataset_preprocessor_regression_forbid_policy_is_passthrough() -> None:
     assert preprocessed.site_metadata is site_metadata
     assert preprocessed.sample_metadata is sample_metadata
     assert preprocessed.total is total
+    assert preprocessed.row_audit is not None
+    assert preprocessed.row_audit.empty
 
 
 def test_dataset_preprocessor_regression_impute_row_median_policy() -> None:
@@ -250,6 +252,17 @@ def test_dataset_preprocessor_regression_impute_row_median_policy() -> None:
     pdt.assert_frame_equal(preprocessed.site_metadata, expected_site_metadata)
     assert preprocessed.sample_metadata is sample_metadata
     assert preprocessed.total is total
+    dropped = preprocessed.row_audit.loc[
+        (preprocessed.row_audit.loc[:, "stage"] == "missing_data")
+        & (preprocessed.row_audit.loc[:, "action"] == "dropped")
+    ]
+    assert set(dropped.loc[:, "source_row_id"].astype(str)) == {"GSK3B;S9;"}
+    imputed = preprocessed.row_audit.loc[
+        (preprocessed.row_audit.loc[:, "stage"] == "missing_data")
+        & (preprocessed.row_audit.loc[:, "action"] == "imputed")
+    ]
+    assert set(imputed.loc[:, "source_row_id"].astype(str)) == {"MAPK14;Y182;"}
+    assert "imputed_columns" in imputed.iloc[0]["parameter_snapshot"]
 
 
 def test_preprocessing_plan_orders_site_matrix_after_total_correction() -> None:
@@ -415,10 +428,11 @@ def test_dataset_preprocessor_site_matrix_retain_missing_policy_keeps_partial_ro
 
     assert preprocessed.phospho.index.tolist() == ["AKT1;T308;", "MAPK14;Y182;"]
     assert pd.isna(preprocessed.phospho.loc["MAPK14;Y182;", "sample_b"])
-    stats = preprocessed.phospho.attrs.get("site_matrix_row_drop_stats")
-    assert stats is not None
-    assert stats["missing_data_policy"] == "retain_missing"
-    assert stats["required_observed_count"] == 0
+    dropped = preprocessed.row_audit.loc[
+        (preprocessed.row_audit.loc[:, "stage"] == "site_matrix")
+        & (preprocessed.row_audit.loc[:, "action"] == "dropped")
+    ]
+    assert dropped.empty
 
 
 def test_dataset_preprocessor_site_matrix_supports_min_observed_and_duplicate_aggregate_mean() -> (

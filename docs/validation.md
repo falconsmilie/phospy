@@ -132,6 +132,8 @@ Key public rules:
 - `site_matrix.minimum_observed_values` is internal-only compatibility state and must remain `None` in the public lane
 - the public builder lane still ends in a missing-value-free `AnalysisReadyPhosphoDataset`
 - `comparisons.policy="sample_metadata_pairs"` requires matching `sample_metadata` and a usable sample-group column
+- `dataset.preprocessing_report.row_counts` reports stage-level row counts, and `dataset.preprocessing_report.operations` reports stage-level policy/parameter summaries
+- `dataset.preprocessing_report.row_audit` reports row-level preprocessing actions (`dropped`, `imputed`, `retained`, `collapsed`, `aggregated`) with reasons and parameter snapshots
 - when comparison building runs, `dataset.comparisons` stays the compact workflow matrix and comparison provenance is exposed in `dataset.preprocessing_report.comparison_group_stats` and `dataset.preprocessing_report.comparison_pair_stats`
 
 Not yet supported in this public lane: `knn` imputation, `min_prob` imputation,

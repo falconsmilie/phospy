@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Protocol
 
 import pandas as pd
@@ -36,6 +36,18 @@ DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM = "intensity_transform"
 DATASET_PREPROCESSING_STAGE_NORMALISATION = "normalisation"
 DATASET_PREPROCESSING_STAGE_COMPARISONS = "comparisons"
 DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT = (DATASET_PREPROCESSING_STAGE_MISSING_DATA,)
+_PREPROCESSING_ROW_AUDIT_COLUMNS = (
+    "stage",
+    "action",
+    "reason",
+    "source_row_id",
+    "site_id",
+    "retained",
+    "retained_row_id",
+    "source_rows",
+    "retained_row",
+    "parameter_snapshot",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,6 +142,45 @@ class PreprocessingState:
     comparison_pair_stats: pd.DataFrame | None = None
     duplicate_site_resolution: pd.DataFrame | None = None
     metadata_conflicts: pd.DataFrame | None = None
+    row_audit: pd.DataFrame | None = None
+
+
+def empty_preprocessing_row_audit() -> pd.DataFrame:
+    """Return an empty stable-schema preprocessing row-audit table."""
+
+    return pd.DataFrame.from_records([], columns=_PREPROCESSING_ROW_AUDIT_COLUMNS)
+
+
+def append_row_audit_records(
+    state: PreprocessingState,
+    records: list[dict[str, object]],
+) -> PreprocessingState:
+    """Append row-audit records without mutating existing state frames."""
+
+    if not records:
+        return state
+
+    existing = (
+        empty_preprocessing_row_audit()
+        if state.row_audit is None
+        else state.row_audit.reindex(
+            columns=list(_PREPROCESSING_ROW_AUDIT_COLUMNS)
+        ).copy(deep=True)
+    )
+    normalized_records: list[dict[str, object]] = []
+    for record in records:
+        normalized_records.append(
+            {
+                column_name: record.get(column_name, pd.NA)
+                for column_name in _PREPROCESSING_ROW_AUDIT_COLUMNS
+            }
+        )
+    appended = pd.DataFrame.from_records(
+        normalized_records,
+        columns=_PREPROCESSING_ROW_AUDIT_COLUMNS,
+    )
+    combined = pd.concat([existing, appended], axis=0, ignore_index=True)
+    return replace(state, row_audit=combined)
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,6 +249,8 @@ __all__ = [
     "DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION",
     "ComparisonBuildResult",
     "DuplicateSiteResolutionResult",
+    "append_row_audit_records",
+    "empty_preprocessing_row_audit",
     "PreprocessingPlan",
     "PreprocessingStageExecution",
     "PreprocessingStage",

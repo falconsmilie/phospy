@@ -645,11 +645,13 @@ def test_builder_site_matrix_excludes_only_unresolved_rows_in_mixed_support_case
     )
 
     assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
-    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
-    assert row_drop_stats is not None
-    assert row_drop_stats["input_rows"] == 3
-    assert row_drop_stats["dropped_missing_sequence"] == 1
-    assert row_drop_stats["retained_rows"] == 2
+    assert built.preprocessing_report is not None
+    assert built.preprocessing_report.row_audit is not None
+    dropped = built.preprocessing_report.row_audit.loc[
+        (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
+        & (built.preprocessing_report.row_audit.loc[:, "action"] == "dropped")
+    ]
+    assert set(dropped.loc[:, "source_row_id"].astype(str)) == {"FAKE1;S1;"}
 
 
 def test_builder_site_matrix_reports_no_retained_rows_when_all_rows_lack_sequence_support() -> (

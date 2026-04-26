@@ -157,9 +157,13 @@ def test_site_matrix_build_contract_is_row_wise_for_mixed_sequence_support() -> 
     )
 
     assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
-    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
-    assert row_drop_stats is not None
-    assert row_drop_stats["dropped_missing_sequence"] == 1
+    assert built.preprocessing_report is not None
+    assert built.preprocessing_report.row_audit is not None
+    dropped = built.preprocessing_report.row_audit.loc[
+        (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
+        & (built.preprocessing_report.row_audit.loc[:, "action"] == "dropped")
+    ]
+    assert set(dropped.loc[:, "source_row_id"].astype(str)) == {"FAKE1;S1;"}
 
 
 def test_site_matrix_build_contract_retains_all_rows_when_fully_resolvable() -> None:
@@ -190,11 +194,13 @@ def test_site_matrix_build_contract_retains_all_rows_when_fully_resolvable() -> 
     )
 
     assert built.phospho.index.tolist() == ["GSK3B;S9;", "MAPK14;Y182;"]
-    row_drop_stats = built.phospho.attrs.get("site_matrix_row_drop_stats")
-    assert row_drop_stats is not None
-    assert row_drop_stats["input_rows"] == 2
-    assert row_drop_stats["dropped_missing_sequence"] == 0
-    assert row_drop_stats["retained_rows"] == 2
+    assert built.preprocessing_report is not None
+    assert built.preprocessing_report.row_audit is not None
+    dropped = built.preprocessing_report.row_audit.loc[
+        (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
+        & (built.preprocessing_report.row_audit.loc[:, "action"] == "dropped")
+    ]
+    assert dropped.empty
 
 
 def test_site_matrix_build_contract_reports_empty_when_fully_unresolvable() -> None:

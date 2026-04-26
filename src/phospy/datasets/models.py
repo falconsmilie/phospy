@@ -46,6 +46,18 @@ _PREPROCESSING_REPORT_OPERATION_COLUMNS = (
     "output_rows",
     "notes",
 )
+_PREPROCESSING_REPORT_ROW_AUDIT_COLUMNS = (
+    "stage",
+    "action",
+    "reason",
+    "source_row_id",
+    "site_id",
+    "retained",
+    "retained_row_id",
+    "source_rows",
+    "retained_row",
+    "parameter_snapshot",
+)
 _PREPROCESSING_REPORT_DUPLICATE_SITE_RESOLUTION_COLUMNS = (
     "site_id",
     "source_row_id",
@@ -101,6 +113,7 @@ class DatasetPreprocessingReport:
 
     row_counts: pd.DataFrame
     operations: pd.DataFrame
+    row_audit: pd.DataFrame
     duplicate_site_resolution: pd.DataFrame | None = None
     metadata_conflicts: pd.DataFrame | None = None
     comparison_group_stats: pd.DataFrame | None = None
@@ -117,6 +130,12 @@ class DatasetPreprocessingReport:
         operations = own_dataframe(
             self.operations,
             field_name="dataset.preprocessing_report.operations",
+            error_type=DatasetValidationError,
+            assume_owned=_assume_owned,
+        )
+        row_audit = own_dataframe(
+            self.row_audit,
+            field_name="dataset.preprocessing_report.row_audit",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
@@ -164,6 +183,17 @@ class DatasetPreprocessingReport:
             missing = ", ".join(missing_operation_columns)
             raise DatasetValidationError(
                 "dataset.preprocessing_report.operations is missing required "
+                f"columns: {missing}"
+            )
+        missing_row_audit_columns = [
+            column
+            for column in _PREPROCESSING_REPORT_ROW_AUDIT_COLUMNS
+            if column not in row_audit.columns
+        ]
+        if missing_row_audit_columns:
+            missing = ", ".join(missing_row_audit_columns)
+            raise DatasetValidationError(
+                "dataset.preprocessing_report.row_audit is missing required "
                 f"columns: {missing}"
             )
         if duplicate_site_resolution is not None:
@@ -216,6 +246,7 @@ class DatasetPreprocessingReport:
                 )
         object.__setattr__(self, "row_counts", row_counts)
         object.__setattr__(self, "operations", operations)
+        object.__setattr__(self, "row_audit", row_audit)
         object.__setattr__(self, "duplicate_site_resolution", duplicate_site_resolution)
         object.__setattr__(self, "metadata_conflicts", metadata_conflicts)
         object.__setattr__(self, "comparison_group_stats", comparison_group_stats)
@@ -227,6 +258,7 @@ class DatasetPreprocessingReport:
         *,
         row_counts: pd.DataFrame,
         operations: pd.DataFrame,
+        row_audit: pd.DataFrame,
         duplicate_site_resolution: pd.DataFrame | None = None,
         metadata_conflicts: pd.DataFrame | None = None,
         comparison_group_stats: pd.DataFrame | None = None,
@@ -235,6 +267,7 @@ class DatasetPreprocessingReport:
         return cls(
             row_counts=row_counts,
             operations=operations,
+            row_audit=row_audit,
             duplicate_site_resolution=duplicate_site_resolution,
             metadata_conflicts=metadata_conflicts,
             comparison_group_stats=comparison_group_stats,

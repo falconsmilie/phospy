@@ -59,6 +59,18 @@ _OPERATION_COLUMNS = (
     "output_rows",
     "notes",
 )
+_ROW_AUDIT_COLUMNS = (
+    "stage",
+    "action",
+    "reason",
+    "source_row_id",
+    "site_id",
+    "retained",
+    "retained_row_id",
+    "source_rows",
+    "retained_row",
+    "parameter_snapshot",
+)
 _DUPLICATE_SITE_RESOLUTION_COLUMNS = (
     "site_id",
     "source_row_id",
@@ -173,6 +185,7 @@ class DatasetBuildExecutor:
             report = _build_dataset_preprocessing_report(
                 row_counts=preprocessed.preprocessing_row_counts,
                 operations=preprocessed.preprocessing_operations,
+                row_audit=preprocessed.row_audit,
                 duplicate_site_resolution=preprocessed.duplicate_site_resolution,
                 metadata_conflicts=preprocessed.metadata_conflicts,
                 comparison_group_stats=preprocessed.comparison_group_stats,
@@ -217,6 +230,7 @@ def _build_dataset_preprocessing_report(
     *,
     row_counts: pd.DataFrame | None,
     operations: pd.DataFrame | None,
+    row_audit: pd.DataFrame | None,
     duplicate_site_resolution: pd.DataFrame | None,
     metadata_conflicts: pd.DataFrame | None,
     comparison_group_stats: pd.DataFrame | None,
@@ -233,6 +247,11 @@ def _build_dataset_preprocessing_report(
         pd.DataFrame.from_records([], columns=_OPERATION_COLUMNS)
         if operations is None
         else operations
+    )
+    base_row_audit = (
+        pd.DataFrame.from_records([], columns=_ROW_AUDIT_COLUMNS)
+        if row_audit is None
+        else row_audit
     )
     base_duplicate_site_resolution = (
         pd.DataFrame.from_records([], columns=_DUPLICATE_SITE_RESOLUTION_COLUMNS)
@@ -300,6 +319,7 @@ def _build_dataset_preprocessing_report(
     return DatasetPreprocessingReport._from_owned(
         row_counts=final_row_counts,
         operations=final_operations,
+        row_audit=base_row_audit,
         duplicate_site_resolution=base_duplicate_site_resolution,
         metadata_conflicts=base_metadata_conflicts,
         comparison_group_stats=base_comparison_group_stats,

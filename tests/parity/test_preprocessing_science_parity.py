@@ -178,18 +178,29 @@ def test_site_matrix_build_from_metadata_matches_rewrite_reference_fixture(
         expected_site_metadata,
     )
 
-    row_drop_stats = preprocessed.phospho.attrs.get("site_matrix_row_drop_stats")
+    dropped = preprocessed.row_audit.loc[
+        (preprocessed.row_audit.loc[:, "stage"] == "site_matrix")
+        & (preprocessed.row_audit.loc[:, "action"] == "dropped")
+    ]
+    dropped_missing_sequence = dropped.loc[
+        dropped.loc[:, "reason"]
+        == "dropped because site_metadata.site_sequence is missing or blank"
+    ]
+    dropped_incomplete = dropped.loc[
+        dropped.loc[:, "reason"] == "dropped by site_matrix missing-data policy"
+    ]
+    row_drop_stats = {
+        "input_rows": 4,
+        "dropped_missing_sequence": int(dropped_missing_sequence.shape[0]),
+        "dropped_incomplete_values": int(dropped_incomplete.shape[0]),
+        "retained_rows": int(preprocessed.phospho.shape[0]),
+    }
     assert row_drop_stats == {
         "input_rows": 4,
         "dropped_missing_sequence": 0,
         "dropped_incomplete_values": 3,
-        "missing_data_policy": "drop_any_missing",
-        "required_observed_count": 6,
-        "deduplicated_site_rows": 0,
-        "duplicate_site_strategy": "max_mean_signal",
         "retained_rows": 1,
     }
-    assert preprocessed.phospho.attrs.get("site_matrix_policy") == "build_from_metadata"
 
     record_parity_metrics(
         request.config,

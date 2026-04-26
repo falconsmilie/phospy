@@ -21,6 +21,7 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageExecution,
     PreprocessingState,
+    empty_preprocessing_row_audit,
 )
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
 from phospy.datasets.processing_state import (
@@ -107,6 +108,11 @@ class DatasetPreprocessor:
             output_row_count=int(len(preprocessed_state.phospho.index)),
             trace=trace,
         )
+        row_audit = (
+            empty_preprocessing_row_audit()
+            if preprocessed_state.row_audit is None
+            else preprocessed_state.row_audit
+        )
         return PreprocessedDatasetBuildTables(
             phospho=preprocessed_state.phospho,
             site_metadata=preprocessed_state.site_metadata,
@@ -117,6 +123,7 @@ class DatasetPreprocessor:
             comparison_pair_stats=preprocessed_state.comparison_pair_stats,
             preprocessing_row_counts=row_counts,
             preprocessing_operations=operations,
+            row_audit=row_audit,
             preprocessing_trace=trace,
             duplicate_site_resolution=preprocessed_state.duplicate_site_resolution,
             metadata_conflicts=preprocessed_state.metadata_conflicts,

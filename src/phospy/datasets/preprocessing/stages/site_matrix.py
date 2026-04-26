@@ -21,6 +21,7 @@ from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
     DuplicateSiteResolutionResult,
     PreprocessingState,
+    append_row_audit_records,
 )
 from phospy.errors.input import PhosPyInputError
 
@@ -117,7 +118,7 @@ class SiteMatrixStage:
             with_sequence_site_metadata,
             with_sequence_site_id,
             dropped_missing_sequence,
-            dropped_missing_sequence_row_ids,
+            dropped_missing_sequence_rows,
         ) = _select_rows_with_usable_sequence_support(
             phospho=state.phospho,
             site_metadata=state.site_metadata,
@@ -128,9 +129,10 @@ class SiteMatrixStage:
             policy_filtered_phospho,
             dropped_incomplete_values,
             required_observed_count,
-            dropped_incomplete_row_ids,
+            dropped_incomplete_rows,
         ) = _apply_missing_data_policy(
             phospho=with_sequence_phospho,
+            constructed_site_id=with_sequence_site_id,
             missing_data_policy=state.plan.site_matrix_missing_data_policy,
             minimum_observed_values=state.plan.site_matrix_minimum_observed_values,
         )
@@ -166,6 +168,12 @@ class SiteMatrixStage:
             .astype(str)
             .tolist()
         )
+        dropped_missing_sequence_row_ids = tuple(
+            row_id for row_id, _ in dropped_missing_sequence_rows
+        )
+        dropped_incomplete_row_ids = tuple(
+            row_id for row_id, _, _ in dropped_incomplete_rows
+        )
         dropped_row_ids = _unique_strings_preserve_order(
             (
                 *dropped_missing_sequence_row_ids,
@@ -173,6 +181,16 @@ class SiteMatrixStage:
                 *duplicate_dropped_row_ids,
             )
         )
+        row_audit_records = _build_site_matrix_row_audit_records(
+            dropped_missing_sequence_rows=dropped_missing_sequence_rows,
+            dropped_incomplete_rows=dropped_incomplete_rows,
+            duplicate_site_resolution=duplicate_site_result.duplicate_site_resolution,
+            site_matrix_policy=state.plan.site_matrix_policy,
+            site_matrix_missing_data_policy=state.plan.site_matrix_missing_data_policy,
+            site_matrix_duplicate_site_strategy=state.plan.site_matrix_duplicate_site_strategy,
+            required_observed_count=required_observed_count,
+        )
+        state_with_row_audit = append_row_audit_records(state, row_audit_records)
 
         row_drop_stats = {
             "input_rows": int(len(state.phospho.index)),
@@ -212,7 +230,7 @@ class SiteMatrixStage:
         )
 
         return replace(
-            state,
+            state_with_row_audit,
             phospho=final_phospho,
             site_metadata=final_site_metadata,
             duplicate_site_resolution=duplicate_site_result.duplicate_site_resolution,
@@ -267,7 +285,7 @@ def _select_rows_with_usable_sequence_support(
     phospho: pd.DataFrame,
     site_metadata: pd.DataFrame,
     constructed_site_id: pd.Series,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, int, tuple[str, ...]]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, int, tuple[tuple[str, str], ...]]:
     if _SITE_SEQUENCE_COLUMN in site_metadata.columns:
         site_sequence = _resolve_optional_string_column(
             site_metadata,
@@ -281,15 +299,23 @@ def _select_rows_with_usable_sequence_support(
             name=_SITE_SEQUENCE_COLUMN,
         )
     has_sequence = site_sequence.notna()
-    dropped_row_ids = tuple(
-        str(row_id) for row_id in phospho.index[~has_sequence].tolist()
+    dropped_rows = tuple(
+        (
+            str(row_id),
+            str(site_id),
+        )
+        for row_id, site_id in zip(
+            phospho.index[~has_sequence].tolist(),
+            constructed_site_id.loc[~has_sequence].astype(str).tolist(),
+            strict=True,
+        )
     )
     return (
         phospho.loc[has_sequence],
         site_metadata.loc[has_sequence],
         constructed_site_id.loc[has_sequence],
         int((~has_sequence).sum()),
-        dropped_row_ids,
+        dropped_rows,
     )
 
 
@@ -332,9 +358,11 @@ def _build_site_identifier(
 def _apply_missing_data_policy(
     *,
     phospho: pd.DataFrame,
+    constructed_site_id: pd.Series,
     missing_data_policy: str,
     minimum_observed_values: int | None,
-) -> tuple[pd.DataFrame, int, int, tuple[str, ...]]:
+) -> tuple[pd.DataFrame, int, int, tuple[tuple[str, str, int], ...]]:
+    observed_counts = phospho.notna().sum(axis=1)
     if missing_data_policy == DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING:
         retained_mask = phospho.notna().all(axis=1)
         required_observed_count = phospho.shape[1]
@@ -369,10 +397,192 @@ def _apply_missing_data_policy(
 
     filtered = phospho.loc[retained_mask]
     dropped_rows = int(len(phospho.index) - len(filtered.index))
-    dropped_row_ids = tuple(
-        str(row_id) for row_id in phospho.index[~retained_mask].tolist()
+    dropped_row_details = tuple(
+        (
+            str(row_id),
+            str(site_id),
+            int(observed_value_count),
+        )
+        for row_id, site_id, observed_value_count in zip(
+            phospho.index[~retained_mask].tolist(),
+            constructed_site_id.loc[~retained_mask].astype(str).tolist(),
+            observed_counts.loc[~retained_mask].tolist(),
+            strict=True,
+        )
     )
-    return filtered, dropped_rows, required_observed_count, dropped_row_ids
+    return filtered, dropped_rows, required_observed_count, dropped_row_details
+
+
+def _build_site_matrix_row_audit_records(
+    *,
+    dropped_missing_sequence_rows: tuple[tuple[str, str], ...],
+    dropped_incomplete_rows: tuple[tuple[str, str, int], ...],
+    duplicate_site_resolution: pd.DataFrame,
+    site_matrix_policy: str,
+    site_matrix_missing_data_policy: str,
+    site_matrix_duplicate_site_strategy: str,
+    required_observed_count: int,
+) -> list[dict[str, object]]:
+    records: list[dict[str, object]] = []
+    for source_row_id, site_id in dropped_missing_sequence_rows:
+        records.append(
+            {
+                "stage": DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+                "action": "dropped",
+                "reason": (
+                    "dropped because site_metadata.site_sequence is missing or blank"
+                ),
+                "source_row_id": source_row_id,
+                "site_id": site_id,
+                "retained": False,
+                "retained_row_id": pd.NA,
+                "source_rows": (source_row_id,),
+                "retained_row": pd.NA,
+                "parameter_snapshot": {
+                    "site_matrix_policy": site_matrix_policy,
+                    "site_matrix_missing_data_policy": site_matrix_missing_data_policy,
+                    "site_matrix_duplicate_site_strategy": site_matrix_duplicate_site_strategy,
+                },
+            }
+        )
+    for source_row_id, site_id, observed_value_count in dropped_incomplete_rows:
+        records.append(
+            {
+                "stage": DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+                "action": "dropped",
+                "reason": "dropped by site_matrix missing-data policy",
+                "source_row_id": source_row_id,
+                "site_id": site_id,
+                "retained": False,
+                "retained_row_id": pd.NA,
+                "source_rows": (source_row_id,),
+                "retained_row": pd.NA,
+                "parameter_snapshot": {
+                    "site_matrix_policy": site_matrix_policy,
+                    "site_matrix_missing_data_policy": site_matrix_missing_data_policy,
+                    "site_matrix_duplicate_site_strategy": site_matrix_duplicate_site_strategy,
+                    "observed_values": int(observed_value_count),
+                    "required_observed_count": int(required_observed_count),
+                },
+            }
+        )
+    records.extend(
+        _build_duplicate_site_row_audit_records(
+            duplicate_site_resolution=duplicate_site_resolution,
+            site_matrix_policy=site_matrix_policy,
+            duplicate_site_strategy=site_matrix_duplicate_site_strategy,
+        )
+    )
+    return records
+
+
+def _build_duplicate_site_row_audit_records(
+    *,
+    duplicate_site_resolution: pd.DataFrame,
+    site_matrix_policy: str,
+    duplicate_site_strategy: str,
+) -> list[dict[str, object]]:
+    if duplicate_site_resolution.empty:
+        return []
+
+    source_rows_by_site = (
+        duplicate_site_resolution.groupby("site_id", sort=False)["source_row_id"]
+        .apply(lambda values: tuple(str(value) for value in values.tolist()))
+        .to_dict()
+    )
+    retained_row_by_site = (
+        duplicate_site_resolution.loc[duplicate_site_resolution.loc[:, "retained"]]
+        .groupby("site_id", sort=False)["source_row_id"]
+        .first()
+        .astype(str)
+        .to_dict()
+    )
+    aggregated = duplicate_site_strategy in {
+        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN,
+        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN,
+    }
+    records: list[dict[str, object]] = []
+    for row in duplicate_site_resolution.itertuples(index=False):
+        site_id = str(row.site_id)
+        source_row_id = str(row.source_row_id)
+        source_rows = source_rows_by_site.get(site_id, (source_row_id,))
+        if aggregated:
+            action = "aggregated"
+            retained = True
+            retained_row_id: object = site_id
+            retained_row: object = site_id
+            reason = _optional_text(
+                row.retained_reason,
+                fallback="contributed to site-level aggregate from duplicate source rows",
+            )
+        else:
+            retained = bool(row.retained)
+            action = "retained" if retained else "collapsed"
+            retained_row_id = retained_row_by_site.get(site_id, pd.NA)
+            retained_row = retained_row_id if retained_row_id is not pd.NA else pd.NA
+            reason = _optional_text(
+                row.retained_reason if retained else row.dropped_reason,
+                fallback="duplicate-site resolution decision",
+            )
+        records.append(
+            {
+                "stage": DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+                "action": action,
+                "reason": reason,
+                "source_row_id": source_row_id,
+                "site_id": site_id,
+                "retained": retained,
+                "retained_row_id": retained_row_id,
+                "source_rows": source_rows,
+                "retained_row": retained_row,
+                "parameter_snapshot": {
+                    "site_matrix_policy": site_matrix_policy,
+                    "duplicate_site_strategy": duplicate_site_strategy,
+                    "observed_values": _optional_int(row.observed_values),
+                    "mean_signal": _optional_float(row.mean_signal),
+                    "metadata_conflict_detected": bool(
+                        _optional_bool(row.metadata_conflict_detected)
+                    ),
+                },
+            }
+        )
+    return records
+
+
+def _optional_text(value: object, *, fallback: str) -> str:
+    if _is_missing_scalar(value):
+        return fallback
+    text = str(value).strip()
+    return text if text else fallback
+
+
+def _optional_int(value: object) -> int | None:
+    if _is_missing_scalar(value):
+        return None
+    return int(value)
+
+
+def _optional_float(value: object) -> float | None:
+    if _is_missing_scalar(value):
+        return None
+    return float(value)
+
+
+def _optional_bool(value: object) -> bool | None:
+    if _is_missing_scalar(value):
+        return None
+    return bool(value)
+
+
+def _is_missing_scalar(value: object) -> bool:
+    if value is pd.NA:
+        return True
+    if isinstance(value, (list, tuple, dict)):
+        return False
+    try:
+        return bool(pd.isna(value))
+    except TypeError:
+        return False
 
 
 def _apply_duplicate_site_policy(
