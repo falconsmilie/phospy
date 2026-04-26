@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Literal
 
@@ -13,7 +14,31 @@ SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT = 0.5
 SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT = 0.1
 SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR = 1
 SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT = 10
-SIGNALOME_CLUSTERING_BACKEND_EXACT = "exact"
+SIGNALOME_CLUSTER_TREE_BACKEND_EXACT = "exact"
+SignalomeClusterTreeBackend = Literal["exact"]
+SIGNALOME_CLUSTER_TREE_BACKENDS = frozenset(
+    {
+        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+    }
+)
+SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL = "full"
+SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED = "sampled"
+SignalomeCandidateScoringBackend = Literal["full", "sampled"]
+SIGNALOME_CANDIDATE_SCORING_BACKENDS = frozenset(
+    {
+        SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+    }
+)
+SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_FLOOR = 1
+# This default matches the established full-correlation contract threshold.
+SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT = 2000
+SIGNALOME_MAX_FULL_CORRELATION_SITES_FLOOR = 1
+SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT = 2000
+
+# Deprecated compatibility aliases. Keep public names stable while steering new
+# callers to the split backends and explicit limits.
+SIGNALOME_CLUSTERING_BACKEND_EXACT = SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
 SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE = "approximate"
 SignalomeClusteringBackend = Literal["exact", "approximate"]
 SIGNALOME_CLUSTERING_BACKENDS = frozenset(
@@ -22,9 +47,12 @@ SIGNALOME_CLUSTERING_BACKENDS = frozenset(
         SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
     }
 )
-SIGNALOME_MAX_EXACT_CLUSTERING_SITES_FLOOR = 1
-# This default matches the established full-correlation contract threshold.
-SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT = 2000
+SIGNALOME_MAX_EXACT_CLUSTERING_SITES_FLOOR = (
+    SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_FLOOR
+)
+SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT = (
+    SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT
+)
 SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY = "cutoff_binary"
 SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP = "weighted_top"
 SignalomeAssignmentPolicy = Literal["cutoff_binary", "weighted_top"]
@@ -88,14 +116,26 @@ class SignalomeConfig:
     - `"error_on_drop"`: fail signalome interpretation when any all-missing
       rows would be dropped.
 
-    `clustering_backend` controls module-selection candidate-score evaluation:
+    `cluster_tree_backend` controls site-cluster tree construction:
 
-    - `"exact"`: use full site-by-site correlations for candidate scoring.
-    - `"approximate"`: use sampled within-cluster correlation estimates.
+    - `"exact"`: build the exact Ward/agglomerative cluster tree.
 
-    `max_exact_clustering_sites` hard-limits exact candidate-scoring execution.
-    When `clustering_backend="exact"` and interpreted site count exceeds this
-    limit, signalome execution fails before clustering starts.
+    `candidate_scoring_backend` controls module-selection candidate scoring:
+
+    - `"full"`: use full site-by-site correlations for candidate scoring.
+    - `"sampled"`: use sampled within-cluster correlation estimates.
+
+    `max_exact_cluster_tree_sites` hard-limits exact cluster-tree
+    construction. This guard applies regardless of candidate scoring mode.
+    `max_full_correlation_sites` hard-limits full candidate-correlation scoring.
+
+    Deprecated compatibility aliases remain accepted:
+
+    - `clustering_backend="exact"` maps to
+      `cluster_tree_backend="exact"` and `candidate_scoring_backend="full"`.
+    - `clustering_backend="approximate"` maps to
+      `cluster_tree_backend="exact"` and `candidate_scoring_backend="sampled"`.
+    - `max_exact_clustering_sites` maps to `max_exact_cluster_tree_sites`.
     """
 
     substrate_support_cutoff: float = 0.5
@@ -117,8 +157,16 @@ class SignalomeConfig:
         SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT
     )
     module_selection_max_clusters: int = SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT
-    clustering_backend: SignalomeClusteringBackend = SIGNALOME_CLUSTERING_BACKEND_EXACT
-    max_exact_clustering_sites: int = SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT
+    cluster_tree_backend: SignalomeClusterTreeBackend = (
+        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
+    )
+    candidate_scoring_backend: SignalomeCandidateScoringBackend = (
+        SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+    )
+    max_exact_cluster_tree_sites: int = SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT
+    max_full_correlation_sites: int = SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT
+    clustering_backend: SignalomeClusteringBackend | None = None
+    max_exact_clustering_sites: int | None = None
 
     def __post_init__(self) -> None:
         _require_real_between(
@@ -193,21 +241,146 @@ class SignalomeConfig:
             minimum=SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR,
             error_type=WorkflowValidationError,
         )
-        if self.clustering_backend not in SIGNALOME_CLUSTERING_BACKENDS:
-            allowed_backends = ", ".join(sorted(SIGNALOME_CLUSTERING_BACKENDS))
+        if self.cluster_tree_backend not in SIGNALOME_CLUSTER_TREE_BACKENDS:
+            allowed_backends = ", ".join(sorted(SIGNALOME_CLUSTER_TREE_BACKENDS))
             raise WorkflowValidationError(
-                "signalome workflow request config.clustering_backend "
+                "signalome workflow request config.cluster_tree_backend "
                 f"must be one of: {allowed_backends}"
             )
+        if self.candidate_scoring_backend not in SIGNALOME_CANDIDATE_SCORING_BACKENDS:
+            allowed_backends = ", ".join(sorted(SIGNALOME_CANDIDATE_SCORING_BACKENDS))
+            raise WorkflowValidationError(
+                "signalome workflow request config.candidate_scoring_backend "
+                f"must be one of: {allowed_backends}"
+            )
+        if self.clustering_backend is not None:
+            if self.clustering_backend not in SIGNALOME_CLUSTERING_BACKENDS:
+                allowed_backends = ", ".join(sorted(SIGNALOME_CLUSTERING_BACKENDS))
+                raise WorkflowValidationError(
+                    "signalome workflow request config.clustering_backend "
+                    f"must be one of: {allowed_backends}"
+                )
+            (
+                mapped_tree_backend,
+                mapped_candidate_backend,
+            ) = self._resolve_deprecated_clustering_backend(self.clustering_backend)
+            if (
+                self.cluster_tree_backend != mapped_tree_backend
+                or self.candidate_scoring_backend != mapped_candidate_backend
+            ) and (
+                self.cluster_tree_backend != SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
+                or self.candidate_scoring_backend
+                != SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+            ):
+                raise WorkflowValidationError(
+                    "signalome workflow request config.clustering_backend "
+                    "cannot be combined with explicit "
+                    "config.cluster_tree_backend/config.candidate_scoring_backend "
+                    "that resolve to a different backend pair"
+                )
+            warnings.warn(
+                "signalome workflow request config.clustering_backend is deprecated; "
+                "use config.cluster_tree_backend and "
+                "config.candidate_scoring_backend",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            object.__setattr__(self, "cluster_tree_backend", mapped_tree_backend)
+            object.__setattr__(
+                self,
+                "candidate_scoring_backend",
+                mapped_candidate_backend,
+            )
+        if self.max_exact_clustering_sites is not None:
+            _require_int_at_least(
+                self.max_exact_clustering_sites,
+                field_name=(
+                    "signalome workflow request config.max_exact_clustering_sites"
+                ),
+                minimum=SIGNALOME_MAX_EXACT_CLUSTERING_SITES_FLOOR,
+                error_type=WorkflowValidationError,
+            )
+            if (
+                self.max_exact_cluster_tree_sites
+                != int(self.max_exact_clustering_sites)
+                and self.max_exact_cluster_tree_sites
+                != SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT
+            ):
+                raise WorkflowValidationError(
+                    "signalome workflow request config.max_exact_clustering_sites "
+                    "cannot be combined with explicit "
+                    "config.max_exact_cluster_tree_sites when values differ"
+                )
+            warnings.warn(
+                "signalome workflow request config.max_exact_clustering_sites is "
+                "deprecated; use config.max_exact_cluster_tree_sites",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            object.__setattr__(
+                self,
+                "max_exact_cluster_tree_sites",
+                int(self.max_exact_clustering_sites),
+            )
         _require_int_at_least(
-            self.max_exact_clustering_sites,
-            field_name="signalome workflow request config.max_exact_clustering_sites",
-            minimum=SIGNALOME_MAX_EXACT_CLUSTERING_SITES_FLOOR,
+            self.max_exact_cluster_tree_sites,
+            field_name="signalome workflow request config.max_exact_cluster_tree_sites",
+            minimum=SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_FLOOR,
             error_type=WorkflowValidationError,
         )
+        _require_int_at_least(
+            self.max_full_correlation_sites,
+            field_name="signalome workflow request config.max_full_correlation_sites",
+            minimum=SIGNALOME_MAX_FULL_CORRELATION_SITES_FLOOR,
+            error_type=WorkflowValidationError,
+        )
+        object.__setattr__(
+            self,
+            "clustering_backend",
+            self._deprecated_clustering_backend_projection(),
+        )
+        object.__setattr__(
+            self,
+            "max_exact_clustering_sites",
+            int(self.max_exact_cluster_tree_sites),
+        )
+
+    @staticmethod
+    def _resolve_deprecated_clustering_backend(
+        clustering_backend: SignalomeClusteringBackend,
+    ) -> tuple[SignalomeClusterTreeBackend, SignalomeCandidateScoringBackend]:
+        if clustering_backend == SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE:
+            return (
+                SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+                SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+            )
+        return (
+            SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+            SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        )
+
+    def _deprecated_clustering_backend_projection(self) -> SignalomeClusteringBackend:
+        if (
+            self.cluster_tree_backend == SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
+            and self.candidate_scoring_backend
+            == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        ):
+            return SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE
+        return SIGNALOME_CLUSTERING_BACKEND_EXACT
 
 
 __all__ = [
+    "SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL",
+    "SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED",
+    "SIGNALOME_CANDIDATE_SCORING_BACKENDS",
+    "SIGNALOME_CLUSTER_TREE_BACKEND_EXACT",
+    "SIGNALOME_CLUSTER_TREE_BACKENDS",
+    "SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT",
+    "SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_FLOOR",
+    "SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT",
+    "SIGNALOME_MAX_FULL_CORRELATION_SITES_FLOOR",
+    "SignalomeCandidateScoringBackend",
+    "SignalomeClusterTreeBackend",
     "SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE",
     "SIGNALOME_CLUSTERING_BACKEND_EXACT",
     "SIGNALOME_CLUSTERING_BACKENDS",

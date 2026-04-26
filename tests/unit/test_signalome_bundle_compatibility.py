@@ -44,8 +44,10 @@ def test_signalome_snapshot_supports_compatibility_cutoff_payload() -> None:
     assert snapshot.signalome_config.score_preconditioning_policy == (
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
     )
-    assert snapshot.signalome_config.clustering_backend == "exact"
-    assert snapshot.signalome_config.max_exact_clustering_sites == 2000
+    assert snapshot.signalome_config.cluster_tree_backend == "exact"
+    assert snapshot.signalome_config.candidate_scoring_backend == "full"
+    assert snapshot.signalome_config.max_exact_cluster_tree_sites == 2000
+    assert snapshot.signalome_config.max_full_correlation_sites == 2000
 
 
 def test_signalome_snapshot_supports_assignment_policy_payload() -> None:
@@ -118,8 +120,12 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
             "score_preconditioning_policy": (
                 SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
             ),
-            "clustering_backend": "approximate",
-            "max_exact_clustering_sites": 2500,
+            "cluster_tree_backend": "exact",
+            "candidate_scoring_backend": "sampled",
+            "max_exact_cluster_tree_sites": 2500,
+            "max_full_correlation_sites": 1700,
+            "deprecated_clustering_backend_alias": "approximate",
+            "deprecated_max_exact_clustering_sites_alias": 2500,
             "module_count": 6,
             "module_selection_primary_correlation_threshold": 0.67,
             "module_selection_fallback_correlation_threshold": 0.23,
@@ -129,6 +135,23 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
 
     snapshot = SignalomeWorkflowConfigSnapshot.from_payload(payload)
     assert snapshot.to_payload() == payload
+
+
+def test_signalome_snapshot_legacy_backend_payload_maps_to_split_backends() -> None:
+    snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
+        {
+            "signalome_config": {
+                "substrate_support_cutoff": 0.42,
+                "network_correlation_threshold": 0.73,
+                "clustering_backend": "approximate",
+                "max_exact_clustering_sites": 2500,
+            }
+        }
+    )
+
+    assert snapshot.signalome_config.cluster_tree_backend == "exact"
+    assert snapshot.signalome_config.candidate_scoring_backend == "sampled"
+    assert snapshot.signalome_config.max_exact_cluster_tree_sites == 2500
 
 
 def test_module_assignment_compat_normalization_parses_serialized_fields() -> None:

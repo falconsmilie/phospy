@@ -143,8 +143,13 @@ class SignalomeWorkflowInterpreter:
             module_selection_max_clusters=int(
                 request.config.module_selection_max_clusters
             ),
-            clustering_backend=request.config.clustering_backend,
-            max_exact_clustering_sites=int(request.config.max_exact_clustering_sites),
+            cluster_tree_backend=request.config.cluster_tree_backend,
+            candidate_scoring_backend=request.config.candidate_scoring_backend,
+            max_exact_cluster_tree_sites=int(
+                request.config.max_exact_cluster_tree_sites
+            ),
+            max_full_correlation_sites=int(request.config.max_full_correlation_sites),
+            clustering_backend_alias=request.config.clustering_backend,
             requested_module_count=(
                 None
                 if request.config.module_count is None

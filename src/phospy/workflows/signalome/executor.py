@@ -6,10 +6,8 @@ from dataclasses import asdict, dataclass
 
 import pandas as pd
 
-from phospy.api.configs import SIGNALOME_CLUSTERING_BACKEND_EXACT
 from phospy.api.results import SignalomeWorkflowResult
 from phospy.errors.workflows import (
-    SignalomeScaleError,
     WorkflowBoundaryError,
     WorkflowStageError,
 )
@@ -22,7 +20,6 @@ from phospy.provenance.models import (
 )
 from phospy.provenance.serialization import to_payload as provenance_to_payload
 from phospy.signalomes.clustering import (
-    SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE,
     ClusterSitesResult,
     cluster_sites_with_diagnostics,
     derive_protein_modules,
@@ -71,10 +68,13 @@ class _ExecutionMetadata:
 @dataclass(frozen=True, slots=True)
 class _ScaleGuardDecision:
     site_count: int
-    clustering_backend: str
-    max_exact_clustering_sites: int
+    cluster_tree_backend: str
+    candidate_scoring_backend: str
+    max_exact_cluster_tree_sites: int
+    max_full_correlation_sites: int
+    exact_cluster_tree_built: bool
+    candidate_scoring_mode: str
     scale_guard_passed: bool
-    approximation_used: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,14 +123,15 @@ class SignalomeWorkflowExecutor:
     def run(self, request: ResolvedSignalomeWorkflowRequest) -> SignalomeWorkflowResult:
         config = request.execution_config
         execution_metadata = self._collect_execution_metadata(request)
-        scale_guard_decision = self._evaluate_scale_guard(
-            config=config,
-            site_count=execution_metadata.downstream_score_sites,
-        )
         clustering_stage = self._run_clustering_and_module_derivation(
             request=request,
             config=config,
             execution_metadata=execution_metadata,
+        )
+        scale_guard_decision = self._summarize_scale_guard(
+            config=config,
+            site_count=execution_metadata.downstream_score_sites,
+            clustering_result=clustering_stage.clustering_result,
         )
         module_assignments = self._build_module_assignments(
             request=request,
@@ -310,7 +311,10 @@ class SignalomeWorkflowExecutor:
                 primary_threshold=config.module_selection_primary_threshold,
                 fallback_threshold=config.module_selection_fallback_threshold,
                 max_clusters=config.module_selection_max_clusters,
-                scoring_mode=config.clustering_backend,
+                cluster_tree_backend=config.cluster_tree_backend,
+                candidate_scoring_backend=config.candidate_scoring_backend,
+                max_exact_cluster_tree_sites=config.max_exact_cluster_tree_sites,
+                max_full_correlation_sites=config.max_full_correlation_sites,
             )
             protein_modules = derive_protein_modules(
                 site_clusters=clustering_result.site_clusters,
@@ -333,45 +337,31 @@ class SignalomeWorkflowExecutor:
                 module_selection_primary_correlation_threshold=config.module_selection_primary_threshold,
                 module_selection_fallback_correlation_threshold=config.module_selection_fallback_threshold,
                 module_selection_max_clusters=config.module_selection_max_clusters,
-                clustering_backend=config.clustering_backend,
-                max_exact_clustering_sites=config.max_exact_clustering_sites,
+                cluster_tree_backend=config.cluster_tree_backend,
+                candidate_scoring_backend=config.candidate_scoring_backend,
+                max_exact_cluster_tree_sites=config.max_exact_cluster_tree_sites,
+                max_full_correlation_sites=config.max_full_correlation_sites,
                 downstream_score_sites=execution_metadata.downstream_score_sites,
                 downstream_score_kinases=execution_metadata.downstream_score_kinases,
                 stage_error=str(exc),
             )
 
     @staticmethod
-    def _evaluate_scale_guard(
+    def _summarize_scale_guard(
         *,
         config: ResolvedSignalomeExecutionConfig,
         site_count: int,
+        clustering_result: ClusterSitesResult,
     ) -> _ScaleGuardDecision:
-        resolved_site_count = int(site_count)
-        if (
-            config.clustering_backend == SIGNALOME_CLUSTERING_BACKEND_EXACT
-            and resolved_site_count > int(config.max_exact_clustering_sites)
-        ):
-            raise SignalomeScaleError(
-                "Signalome exact clustering received "
-                f"{resolved_site_count:,} sites, which exceeds the configured "
-                f"exact-mode limit of {int(config.max_exact_clustering_sites):,} "
-                "sites (clustering_backend='exact'). Use "
-                "clustering_backend='approximate', increase "
-                "max_exact_clustering_sites deliberately, or filter sites before "
-                "running the workflow. Approximate module-selection scoring or "
-                "site filtering may change module boundaries and downstream "
-                "biological interpretation; record this choice in workflow "
-                "provenance."
-            )
         return _ScaleGuardDecision(
-            site_count=resolved_site_count,
-            clustering_backend=str(config.clustering_backend),
-            max_exact_clustering_sites=int(config.max_exact_clustering_sites),
+            site_count=int(site_count),
+            cluster_tree_backend=str(config.cluster_tree_backend),
+            candidate_scoring_backend=str(config.candidate_scoring_backend),
+            max_exact_cluster_tree_sites=int(config.max_exact_cluster_tree_sites),
+            max_full_correlation_sites=int(config.max_full_correlation_sites),
+            exact_cluster_tree_built=bool(clustering_result.exact_cluster_tree_built),
+            candidate_scoring_mode=str(clustering_result.candidate_scoring_mode),
             scale_guard_passed=True,
-            approximation_used=(
-                str(config.clustering_backend)
-                == SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE
-            ),
         )
 
     def _build_module_assignments(
@@ -769,8 +759,18 @@ def _build_signalome_run_provenance(
                 "module_selection_max_clusters": int(
                     config.module_selection_max_clusters
                 ),
-                "clustering_backend": str(config.clustering_backend),
-                "max_exact_clustering_sites": int(config.max_exact_clustering_sites),
+                "cluster_tree_backend": str(config.cluster_tree_backend),
+                "candidate_scoring_backend": str(config.candidate_scoring_backend),
+                "max_exact_cluster_tree_sites": int(
+                    config.max_exact_cluster_tree_sites
+                ),
+                "max_full_correlation_sites": int(config.max_full_correlation_sites),
+                "deprecated_clustering_backend_alias": str(
+                    config.clustering_backend_alias
+                ),
+                "deprecated_max_exact_clustering_sites_alias": int(
+                    config.max_exact_cluster_tree_sites
+                ),
                 "module_count": (
                     None
                     if config.requested_module_count is None
@@ -779,12 +779,23 @@ def _build_signalome_run_provenance(
             },
             "scale_guard": {
                 "site_count": int(scale_guard_decision.site_count),
-                "clustering_backend": str(scale_guard_decision.clustering_backend),
-                "max_exact_clustering_sites": int(
-                    scale_guard_decision.max_exact_clustering_sites
+                "cluster_tree_backend": str(scale_guard_decision.cluster_tree_backend),
+                "candidate_scoring_backend": str(
+                    scale_guard_decision.candidate_scoring_backend
+                ),
+                "max_exact_cluster_tree_sites": int(
+                    scale_guard_decision.max_exact_cluster_tree_sites
+                ),
+                "max_full_correlation_sites": int(
+                    scale_guard_decision.max_full_correlation_sites
+                ),
+                "exact_cluster_tree_built": bool(
+                    scale_guard_decision.exact_cluster_tree_built
+                ),
+                "candidate_scoring_mode": str(
+                    scale_guard_decision.candidate_scoring_mode
                 ),
                 "scale_guard_passed": bool(scale_guard_decision.scale_guard_passed),
-                "approximation_used": bool(scale_guard_decision.approximation_used),
             },
             "module_selection_diagnostics": asdict(
                 clustering_result.module_selection_diagnostics

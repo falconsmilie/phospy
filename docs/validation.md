@@ -191,13 +191,22 @@ validate local policy/range rules at object construction.
 - `kinase_result.dataset.site_metadata.protein_id` exists and is non-empty for all interpreted sites
 
 `SignalomeConfig` validates local policy/range rules at object construction.
-This includes `clustering_backend` policy values and
-`max_exact_clustering_sites >= 1`.
+This includes:
 
-Signalome execution also enforces a runtime scale guard: when
-`clustering_backend="exact"` and interpreted site count exceeds
-`max_exact_clustering_sites`, execution fails early with `SignalomeScaleError`
-before expensive clustering starts.
+- `cluster_tree_backend` policy values
+- `candidate_scoring_backend` policy values
+- `max_exact_cluster_tree_sites >= 1`
+- `max_full_correlation_sites >= 1`
+
+Deprecated aliases (`clustering_backend`, `max_exact_clustering_sites`) remain
+accepted and are mapped to the split fields with deprecation warnings.
+
+Signalome execution enforces runtime scale guards at the expensive call sites:
+
+- exact cluster-tree construction is guarded by `max_exact_cluster_tree_sites`
+- full candidate-correlation scoring is guarded by `max_full_correlation_sites`
+
+If either guard is exceeded, execution fails with `SignalomeScaleError`.
 
 Signalome is intentionally strict about protein identity. A site ID such as
 `TSC2;S939;` is not a substitute for `protein_id`.
@@ -222,7 +231,7 @@ network/module preconditions.
 | dataset organism missing for `AUTO` | set `organism=Organism.RAT` for bundled first runs |
 | bundled human/mouse preset fails | use an explicit `ReferenceBundle` |
 | signalome fails on `protein_id` | add a non-empty `protein_id` column |
-| signalome exact mode fails with `SignalomeScaleError` | reduce interpreted sites, use `clustering_backend="approximate"`, or deliberately raise `max_exact_clustering_sites` |
+| signalome scale guard fails with `SignalomeScaleError` | reduce interpreted sites, use `candidate_scoring_backend="sampled"` for candidate scoring cost, and/or deliberately raise `max_exact_cluster_tree_sites` / `max_full_correlation_sites` |
 | rows dropped in site-matrix building | review sequence support and preprocessing policy |
 
 ## Validation ownership summary

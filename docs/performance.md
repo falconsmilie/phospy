@@ -80,22 +80,25 @@ Current module-selection scoring contract constants:
 ```python
 MAX_FULL_CORRELATION_SITE_COUNT = 2000
 MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER = 256
-SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT = 2000
+SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT = 2000
+SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT = 2000
 ```
 
 Behavior:
 
-- `SignalomeConfig.clustering_backend="exact"` uses full site-by-site
-  correlation scoring for module-count candidates,
-- exact mode is hard-guarded by
-  `SignalomeConfig.max_exact_clustering_sites` (default `2000`): runs above
-  this limit fail early with `SignalomeScaleError` before clustering starts,
-- `SignalomeConfig.clustering_backend="approximate"` uses sampled within-cluster
-  correlation estimates for module-count candidate scoring,
+- `SignalomeConfig.cluster_tree_backend="exact"` builds the exact cluster tree,
+- exact cluster-tree construction is hard-guarded by
+  `SignalomeConfig.max_exact_cluster_tree_sites` (default `2000`): runs above
+  this limit fail with `SignalomeScaleError`,
+- `SignalomeConfig.candidate_scoring_backend="full"` uses full site-by-site
+  candidate correlations and is hard-guarded by
+  `SignalomeConfig.max_full_correlation_sites`,
+- `SignalomeConfig.candidate_scoring_backend="sampled"` uses sampled
+  within-cluster correlation estimates for module-count candidate scoring,
 - sampled scoring is deterministic and order-invariant in the current
   implementation,
-- approximation use is reported in `SignalomeModuleSelectionDiagnostics.reason`
-  and recorded in run provenance (`workflow_parameters.scale_guard`).
+- candidate-scoring mode and exact-tree construction are recorded in
+  provenance (`workflow_parameters.scale_guard`),
 - `tests/performance/test_performance_contracts.py` keeps a lightweight contract
   test that intentionally stubs `build_cluster_tree()` to isolate
   module-selection correlation-path behavior,
@@ -131,8 +134,9 @@ site filtering explicitly and record that choice in provenance.
 
 | Area | Current recommended range | Behaviour above range |
 | --- | ---: | --- |
-| Signalome exact candidate scoring | up to configured `max_exact_clustering_sites` (default `2,000`) | workflow fails early with `SignalomeScaleError` |
-| Signalome approximate candidate scoring | low thousands of sites | runtime grows quickly because clustering is pairwise |
+| Signalome exact cluster-tree construction | up to configured `max_exact_cluster_tree_sites` (default `2,000`) | workflow fails with `SignalomeScaleError` |
+| Signalome full candidate scoring | up to configured `max_full_correlation_sites` (default `2,000`) | workflow fails with `SignalomeScaleError` |
+| Signalome sampled candidate scoring | low thousands of sites | runtime grows quickly because clustering is still pairwise |
 | Quantile normalisation | thousands to low tens of thousands of sites, tens of samples | dense copies and sorting may become memory-heavy |
 | Motif scoring | thousands of sites x hundreds of kinases | cost grows with scored sites, eligible kinases, and window width |
 | Kinase-substrate reference maps | large maps are acceptable | overlap filtering should prevent off-lane kinases dominating |

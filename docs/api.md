@@ -284,24 +284,34 @@ Fields:
 - `module_selection_primary_correlation_threshold`
 - `module_selection_fallback_correlation_threshold`
 - `module_selection_max_clusters`
-- `clustering_backend`: `exact`, `approximate`
-- `max_exact_clustering_sites` (default `2000`)
+- `cluster_tree_backend`: `exact`
+- `candidate_scoring_backend`: `full`, `sampled`
+- `max_exact_cluster_tree_sites` (default `2000`)
+- `max_full_correlation_sites` (default `2000`)
 
-Signalome now enforces a hard scale guard for exact mode. When
-`clustering_backend="exact"` and interpreted site count exceeds
-`max_exact_clustering_sites`, execution fails before clustering starts with a
-typed `SignalomeScaleError`.
+`clustering_backend` and `max_exact_clustering_sites` are deprecated aliases.
+They still load, but now map to the split contract:
 
-Approximate mode (`clustering_backend="approximate"`) uses sampled
-within-cluster correlation estimates for module-selection candidate scoring.
-This can change module boundaries and downstream biological interpretation
-compared with exact candidate scoring, so treat it as an explicit scientific
-choice.
+- `clustering_backend="exact"` -> `cluster_tree_backend="exact"` + `candidate_scoring_backend="full"`
+- `clustering_backend="approximate"` -> `cluster_tree_backend="exact"` + `candidate_scoring_backend="sampled"`
+
+Signalome stages are now explicit:
+
+- cluster-tree construction: controlled by `cluster_tree_backend`
+- candidate scoring for module-count selection: controlled by `candidate_scoring_backend`
+- kinase correlation calculation for network edges: controlled by `network_policy` + `network_correlation_threshold`
+- module assignment: controlled by `assignment_policy` + `substrate_support_cutoff`
+- network generation: built from downstream score correlations after module selection
+
+Important: `candidate_scoring_backend="sampled"` does not imply approximate
+cluster-tree construction. In current supported behavior, tree construction is
+still exact and is hard-guarded by `max_exact_cluster_tree_sites`.
 
 Successful runs record scale decisions in provenance under
 `result.provenance.workflow_parameters["scale_guard"]` (`site_count`,
-`clustering_backend`, `max_exact_clustering_sites`, `scale_guard_passed`,
-`approximation_used`).
+`cluster_tree_backend`, `candidate_scoring_backend`,
+`max_exact_cluster_tree_sites`, `max_full_correlation_sites`,
+`exact_cluster_tree_built`, `candidate_scoring_mode`, `scale_guard_passed`).
 
 See [Performance Contracts](performance.md#signalome-clustering-and-module-selection).
 

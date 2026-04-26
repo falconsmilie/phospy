@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 import pandas as pd
 import pytest
 
@@ -15,9 +17,13 @@ from phospy.api import (
 )
 from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+    SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
     SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
     SIGNALOME_CLUSTERING_BACKEND_EXACT,
-    SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT,
+    SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
+    SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
 )
@@ -165,8 +171,11 @@ def _execution_config(config: SignalomeConfig) -> ResolvedSignalomeExecutionConf
             config.module_selection_fallback_correlation_threshold
         ),
         module_selection_max_clusters=int(config.module_selection_max_clusters),
-        clustering_backend=config.clustering_backend,
-        max_exact_clustering_sites=int(config.max_exact_clustering_sites),
+        cluster_tree_backend=config.cluster_tree_backend,
+        candidate_scoring_backend=config.candidate_scoring_backend,
+        max_exact_cluster_tree_sites=int(config.max_exact_cluster_tree_sites),
+        max_full_correlation_sites=int(config.max_full_correlation_sites),
+        clustering_backend_alias=config.clustering_backend,
         requested_module_count=(
             None if config.module_count is None else int(config.module_count)
         ),
@@ -481,11 +490,20 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
         pytest.approx(0.1)
     )
     assert interpreted.execution_config.module_selection_max_clusters == 10
-    assert interpreted.execution_config.clustering_backend == (
-        SIGNALOME_CLUSTERING_BACKEND_EXACT
+    assert interpreted.execution_config.cluster_tree_backend == (
+        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
     )
-    assert interpreted.execution_config.max_exact_clustering_sites == (
-        SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT
+    assert interpreted.execution_config.candidate_scoring_backend == (
+        SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+    )
+    assert interpreted.execution_config.max_exact_cluster_tree_sites == (
+        SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT
+    )
+    assert interpreted.execution_config.max_full_correlation_sites == (
+        SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT
+    )
+    assert interpreted.execution_config.clustering_backend_alias == (
+        SIGNALOME_CLUSTERING_BACKEND_EXACT
     )
 
 
@@ -773,17 +791,20 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
     assert scale_guard == {
         "site_count": 2,
-        "clustering_backend": SIGNALOME_CLUSTERING_BACKEND_EXACT,
-        "max_exact_clustering_sites": SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT,
+        "cluster_tree_backend": SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+        "candidate_scoring_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        "max_exact_cluster_tree_sites": SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
+        "max_full_correlation_sites": SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
+        "exact_cluster_tree_built": True,
+        "candidate_scoring_mode": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
         "scale_guard_passed": True,
-        "approximation_used": False,
     }
 
 
-def test_scale_guard_fails_exact_mode_before_clustering_execution(
+def test_exact_cluster_tree_guard_fails_before_build_cluster_tree_call(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import phospy.workflows.signalome.executor as executor_module
+    import phospy.signalomes.clustering as clustering_module
 
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
@@ -813,22 +834,26 @@ def test_scale_guard_fails_exact_mode_before_clustering_execution(
         ),
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
-            clustering_backend=SIGNALOME_CLUSTERING_BACKEND_EXACT,
-            max_exact_clustering_sites=2,
+            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+            max_exact_cluster_tree_sites=2,
         ),
     )
     interpreted = SignalomeWorkflowInterpreter().run(request)
 
-    cluster_calls: list[str] = []
+    tree_calls: list[str] = []
 
-    def _cluster_should_not_run(**_: object) -> object:
-        cluster_calls.append("called")
-        raise AssertionError("clustering should not run when scale guard fails")
+    def _build_tree_should_not_run(scoring_values: object) -> object:
+        del scoring_values
+        tree_calls.append("called")
+        raise AssertionError(
+            "build_cluster_tree should not run when exact tree guard fails"
+        )
 
     monkeypatch.setattr(
-        executor_module,
-        "cluster_sites_with_diagnostics",
-        _cluster_should_not_run,
+        clustering_module,
+        "build_cluster_tree",
+        _build_tree_should_not_run,
     )
 
     with pytest.raises(SignalomeScaleError) as exc_info:
@@ -836,15 +861,17 @@ def test_scale_guard_fails_exact_mode_before_clustering_execution(
 
     message = str(exc_info.value).lower()
     assert "3 sites" in message
-    assert "limit of 2" in message
-    assert "clustering_backend='exact'" in message
-    assert "clustering_backend='approximate'" in message
-    assert "filter sites" in message
-    assert "module boundaries" in message
-    assert cluster_calls == []
+    assert "max_exact_cluster_tree_sites=2" in message
+    assert "cluster_tree_backend='exact'" in message
+    assert "exact cluster-tree construction" in message
+    assert tree_calls == []
 
 
-def test_scale_guard_allows_approximate_mode_above_exact_limit() -> None:
+def test_sampled_candidate_scoring_still_hits_exact_tree_guard_without_approx_tree(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.signalomes.clustering as clustering_module
+
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
     prediction_matrix = _matrix(
@@ -873,22 +900,138 @@ def test_scale_guard_allows_approximate_mode_above_exact_limit() -> None:
         ),
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
-            clustering_backend=SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
-            max_exact_clustering_sites=1,
+            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+            max_exact_cluster_tree_sites=1,
         ),
     )
     interpreted = SignalomeWorkflowInterpreter().run(request)
-    result = SignalomeWorkflowExecutor().run(interpreted)
 
-    assert result.provenance is not None
-    scale_guard = result.provenance.workflow_parameters["scale_guard"]
-    assert scale_guard == {
-        "site_count": 3,
-        "clustering_backend": SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
-        "max_exact_clustering_sites": 1,
-        "scale_guard_passed": True,
-        "approximation_used": True,
-    }
+    tree_calls: list[str] = []
+
+    def _build_tree_should_not_run(scoring_values: object) -> object:
+        del scoring_values
+        tree_calls.append("called")
+        raise AssertionError(
+            "build_cluster_tree should not run when exact tree guard fails"
+        )
+
+    monkeypatch.setattr(
+        clustering_module,
+        "build_cluster_tree",
+        _build_tree_should_not_run,
+    )
+
+    with pytest.raises(SignalomeScaleError) as exc_info:
+        SignalomeWorkflowExecutor().run(interpreted)
+
+    message = str(exc_info.value).lower()
+    assert "max_exact_cluster_tree_sites=1" in message
+    assert "candidate_scoring_backend='sampled'" in message
+    assert tree_calls == []
+
+
+def test_deprecated_approximate_alias_is_still_guarded_by_exact_tree_limit() -> None:
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.95, 0.1],
+            [0.1, 0.95],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    with warnings.catch_warnings(record=True) as deprecated_warnings:
+        warnings.simplefilter("always", DeprecationWarning)
+        request = SignalomeWorkflowRequest(
+            kinase_result=_kinase_result(
+                dataset=dataset,
+                prediction_matrix=prediction_matrix,
+                score_matrix=score_matrix,
+            ),
+            config=SignalomeConfig(
+                substrate_support_cutoff=0.5,
+                clustering_backend=SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
+                max_exact_clustering_sites=1,
+            ),
+        )
+        interpreted = SignalomeWorkflowInterpreter().run(request)
+        with pytest.raises(SignalomeScaleError) as exc_info:
+            SignalomeWorkflowExecutor().run(interpreted)
+
+    warning_messages = [
+        str(warning.message)
+        for warning in deprecated_warnings
+        if issubclass(warning.category, DeprecationWarning)
+    ]
+    assert any(
+        "config.clustering_backend is deprecated" in msg for msg in warning_messages
+    )
+    assert any(
+        "config.max_exact_clustering_sites is deprecated" in msg
+        for msg in warning_messages
+    )
+
+    message = str(exc_info.value).lower()
+    assert "max_exact_cluster_tree_sites=1" in message
+    assert "cluster_tree_backend='exact'" in message
+    assert "candidate_scoring_backend='sampled'" in message
+
+
+def test_full_candidate_scoring_guard_triggers_above_full_correlation_limit() -> None:
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.95, 0.1],
+            [0.1, 0.95],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(
+            substrate_support_cutoff=0.5,
+            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+            max_exact_cluster_tree_sites=10,
+            max_full_correlation_sites=2,
+        ),
+    )
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+
+    with pytest.raises(SignalomeScaleError) as exc_info:
+        SignalomeWorkflowExecutor().run(interpreted)
+
+    message = str(exc_info.value).lower()
+    assert "max_full_correlation_sites=2" in message
+    assert "candidate_scoring_backend='sampled'" in message
 
 
 def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_gene_symbol() -> (

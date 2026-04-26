@@ -8,11 +8,17 @@ from collections.abc import Mapping
 from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICIES,
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+    SIGNALOME_CANDIDATE_SCORING_BACKENDS,
+    SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+    SIGNALOME_CLUSTER_TREE_BACKENDS,
     SIGNALOME_CLUSTERING_BACKEND_EXACT,
     SIGNALOME_CLUSTERING_BACKENDS,
     SIGNALOME_KINASE_NETWORK_POLICIES,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
-    SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT,
+    SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
+    SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
     SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT,
     SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
     SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT,
@@ -111,27 +117,91 @@ def signalome_config_from_payload_with_compatibility_support(
         raise PhosPyInputError(
             f"{scope}.signalome_config.score_preconditioning_policy must be one of: {allowed}"
         )
-    clustering_backend_raw = payload.get("clustering_backend")
-    clustering_backend = (
-        SIGNALOME_CLUSTERING_BACKEND_EXACT
-        if clustering_backend_raw is None
+    cluster_tree_backend_raw = payload.get("cluster_tree_backend")
+    cluster_tree_backend = (
+        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
+        if cluster_tree_backend_raw is None
         else require_str(
+            cluster_tree_backend_raw,
+            field_name=f"{scope}.signalome_config.cluster_tree_backend",
+        )
+    )
+    if cluster_tree_backend not in SIGNALOME_CLUSTER_TREE_BACKENDS:
+        allowed = ", ".join(sorted(SIGNALOME_CLUSTER_TREE_BACKENDS))
+        raise PhosPyInputError(
+            f"{scope}.signalome_config.cluster_tree_backend must be one of: {allowed}"
+        )
+    candidate_scoring_backend_raw = payload.get("candidate_scoring_backend")
+    candidate_scoring_backend = (
+        SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+        if candidate_scoring_backend_raw is None
+        else require_str(
+            candidate_scoring_backend_raw,
+            field_name=f"{scope}.signalome_config.candidate_scoring_backend",
+        )
+    )
+    if candidate_scoring_backend not in SIGNALOME_CANDIDATE_SCORING_BACKENDS:
+        allowed = ", ".join(sorted(SIGNALOME_CANDIDATE_SCORING_BACKENDS))
+        raise PhosPyInputError(
+            f"{scope}.signalome_config.candidate_scoring_backend must be one of: "
+            f"{allowed}"
+        )
+
+    clustering_backend_raw = payload.get("clustering_backend")
+    if clustering_backend_raw is not None:
+        clustering_backend = require_str(
             clustering_backend_raw,
             field_name=f"{scope}.signalome_config.clustering_backend",
         )
-    )
-    if clustering_backend not in SIGNALOME_CLUSTERING_BACKENDS:
-        allowed = ", ".join(sorted(SIGNALOME_CLUSTERING_BACKENDS))
-        raise PhosPyInputError(
-            f"{scope}.signalome_config.clustering_backend must be one of: {allowed}"
+        if clustering_backend not in SIGNALOME_CLUSTERING_BACKENDS:
+            allowed = ", ".join(sorted(SIGNALOME_CLUSTERING_BACKENDS))
+            raise PhosPyInputError(
+                f"{scope}.signalome_config.clustering_backend must be one of: {allowed}"
+            )
+        mapped_candidate_scoring_backend = (
+            SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+            if clustering_backend == SIGNALOME_CLUSTERING_BACKEND_EXACT
+            else SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
         )
-    max_exact_clustering_sites_raw = payload.get("max_exact_clustering_sites")
-    max_exact_clustering_sites = (
-        SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT
-        if max_exact_clustering_sites_raw is None
+        if (
+            cluster_tree_backend_raw is not None
+            and cluster_tree_backend != SIGNALOME_CLUSTERING_BACKEND_EXACT
+        ):
+            raise PhosPyInputError(
+                f"{scope}.signalome_config.clustering_backend conflicts with "
+                "signalome_config.cluster_tree_backend"
+            )
+        if (
+            candidate_scoring_backend_raw is not None
+            and candidate_scoring_backend != mapped_candidate_scoring_backend
+        ):
+            raise PhosPyInputError(
+                f"{scope}.signalome_config.clustering_backend conflicts with "
+                "signalome_config.candidate_scoring_backend"
+            )
+        if cluster_tree_backend_raw is None:
+            cluster_tree_backend = SIGNALOME_CLUSTERING_BACKEND_EXACT
+        if candidate_scoring_backend_raw is None:
+            candidate_scoring_backend = mapped_candidate_scoring_backend
+
+    max_exact_cluster_tree_sites_raw = payload.get("max_exact_cluster_tree_sites")
+    if max_exact_cluster_tree_sites_raw is None:
+        max_exact_cluster_tree_sites_raw = payload.get("max_exact_clustering_sites")
+    max_exact_cluster_tree_sites = (
+        SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT
+        if max_exact_cluster_tree_sites_raw is None
         else _require_int(
-            max_exact_clustering_sites_raw,
-            field_name=f"{scope}.signalome_config.max_exact_clustering_sites",
+            max_exact_cluster_tree_sites_raw,
+            field_name=f"{scope}.signalome_config.max_exact_cluster_tree_sites",
+        )
+    )
+    max_full_correlation_sites_raw = payload.get("max_full_correlation_sites")
+    max_full_correlation_sites = (
+        SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT
+        if max_full_correlation_sites_raw is None
+        else _require_int(
+            max_full_correlation_sites_raw,
+            field_name=f"{scope}.signalome_config.max_full_correlation_sites",
         )
     )
     return SignalomeConfig(
@@ -146,8 +216,10 @@ def signalome_config_from_payload_with_compatibility_support(
         network_policy=network_policy,  # type: ignore[arg-type]
         assignment_policy=assignment_policy,  # type: ignore[arg-type]
         score_preconditioning_policy=score_preconditioning_policy,  # type: ignore[arg-type]
-        clustering_backend=clustering_backend,  # type: ignore[arg-type]
-        max_exact_clustering_sites=max_exact_clustering_sites,
+        cluster_tree_backend=cluster_tree_backend,  # type: ignore[arg-type]
+        candidate_scoring_backend=candidate_scoring_backend,  # type: ignore[arg-type]
+        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
+        max_full_correlation_sites=max_full_correlation_sites,
         module_count=module_count,
         module_selection_primary_correlation_threshold=require_float(
             payload.get("module_selection_primary_correlation_threshold")

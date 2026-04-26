@@ -123,15 +123,20 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert provenance["environment"]["package_name"] == "phospy"
     assert "signalome_config" in provenance["workflow_parameters"]
     signalome_config = provenance["workflow_parameters"]["signalome_config"]
-    assert signalome_config["clustering_backend"] == "exact"
-    assert signalome_config["max_exact_clustering_sites"] == 2000
+    assert signalome_config["cluster_tree_backend"] == "exact"
+    assert signalome_config["candidate_scoring_backend"] == "full"
+    assert signalome_config["max_exact_cluster_tree_sites"] == 2000
+    assert signalome_config["max_full_correlation_sites"] == 2000
     assert "scale_guard" in provenance["workflow_parameters"]
     scale_guard = provenance["workflow_parameters"]["scale_guard"]
     assert scale_guard["site_count"] >= 1
-    assert scale_guard["clustering_backend"] == "exact"
-    assert scale_guard["max_exact_clustering_sites"] == 2000
+    assert scale_guard["cluster_tree_backend"] == "exact"
+    assert scale_guard["candidate_scoring_backend"] == "full"
+    assert scale_guard["max_exact_cluster_tree_sites"] == 2000
+    assert scale_guard["max_full_correlation_sites"] == 2000
     assert scale_guard["scale_guard_passed"] is True
-    assert scale_guard["approximation_used"] is False
+    assert scale_guard["exact_cluster_tree_built"] is True
+    assert scale_guard["candidate_scoring_mode"] == "full"
     assert "module_selection_diagnostics" in provenance["workflow_parameters"]
     assert provenance["workflow_parameters"]["upstream_kinase_provenance"] is not None
     output_names = {entry["name"] for entry in provenance["output_tables"]}
@@ -156,8 +161,10 @@ def test_signalome_config_snapshot_accepts_compatibility_cutoff_payload() -> Non
         == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
     )
     assert snapshot.signalome_config.score_preconditioning_policy == "allow_and_report"
-    assert snapshot.signalome_config.clustering_backend == "exact"
-    assert snapshot.signalome_config.max_exact_clustering_sites == 2000
+    assert snapshot.signalome_config.cluster_tree_backend == "exact"
+    assert snapshot.signalome_config.candidate_scoring_backend == "full"
+    assert snapshot.signalome_config.max_exact_cluster_tree_sites == 2000
+    assert snapshot.signalome_config.max_full_correlation_sites == 2000
 
 
 def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(

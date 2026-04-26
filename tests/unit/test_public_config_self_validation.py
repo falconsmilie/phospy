@@ -382,6 +382,22 @@ def test_kinase_activity_config_self_validates(
             "module_selection_max_clusters",
         ),
         (
+            {"cluster_tree_backend": "invalid"},
+            "signalome workflow request config.cluster_tree_backend",
+        ),
+        (
+            {"candidate_scoring_backend": "invalid"},
+            "signalome workflow request config.candidate_scoring_backend",
+        ),
+        (
+            {"max_exact_cluster_tree_sites": 0},
+            "signalome workflow request config.max_exact_cluster_tree_sites",
+        ),
+        (
+            {"max_full_correlation_sites": 0},
+            "signalome workflow request config.max_full_correlation_sites",
+        ),
+        (
             {"clustering_backend": "invalid"},
             "signalome workflow request config.clustering_backend",
         ),
@@ -396,3 +412,26 @@ def test_signalome_config_self_validates(
 ) -> None:
     with pytest.raises(WorkflowValidationError, match=pattern):
         SignalomeConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_signalome_config_deprecated_clustering_backend_alias_maps_and_warns() -> None:
+    with pytest.warns(
+        DeprecationWarning,
+        match="config.clustering_backend is deprecated",
+    ):
+        config = SignalomeConfig(clustering_backend="approximate")
+
+    assert config.cluster_tree_backend == "exact"
+    assert config.candidate_scoring_backend == "sampled"
+
+
+def test_signalome_config_deprecated_max_exact_clustering_sites_maps_and_warns() -> (
+    None
+):
+    with pytest.warns(
+        DeprecationWarning,
+        match="config.max_exact_clustering_sites is deprecated",
+    ):
+        config = SignalomeConfig(max_exact_clustering_sites=1234)
+
+    assert config.max_exact_cluster_tree_sites == 1234

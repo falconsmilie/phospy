@@ -83,8 +83,10 @@ and full `processing_state` payload.
 - reference identity/fingerprints
 - workflow parameters and random-state policy
   - signalome runs include `workflow_parameters.scale_guard` with
-    `site_count`, `clustering_backend`, `max_exact_clustering_sites`,
-    `scale_guard_passed`, and `approximation_used`
+    `site_count`, `cluster_tree_backend`, `candidate_scoring_backend`,
+    `max_exact_cluster_tree_sites`, `max_full_correlation_sites`,
+    `exact_cluster_tree_built`, `candidate_scoring_mode`,
+    and `scale_guard_passed`
 
 Legacy bundles without top-level `provenance` remain loadable; loaders reconstruct
 results with `result.provenance=None` for those manifests.
@@ -226,13 +228,22 @@ Signalome config snapshot (all persisted fields):
   (`"cutoff_binary"`, `"weighted_top"`).
 - `signalome_config.score_preconditioning_policy`: downstream score
   preconditioning policy (`"allow_and_report"` or `"error_on_drop"`).
-- `signalome_config.clustering_backend`: module-selection scoring mode
-  (`"exact"` or `"approximate"`).
-- `signalome_config.max_exact_clustering_sites`: hard guard limit for exact mode.
+- `signalome_config.cluster_tree_backend`: cluster-tree construction backend
+  (currently `"exact"`).
+- `signalome_config.candidate_scoring_backend`: candidate-scoring backend
+  (`"full"` or `"sampled"`).
+- `signalome_config.max_exact_cluster_tree_sites`: hard guard limit for exact
+  cluster-tree construction.
+- `signalome_config.max_full_correlation_sites`: hard guard limit for full
+  candidate-correlation scoring.
 - `signalome_config.module_count`: explicit module count request when set.
 - `signalome_config.module_selection_primary_correlation_threshold`
 - `signalome_config.module_selection_fallback_correlation_threshold`
 - `signalome_config.module_selection_max_clusters`
+
+Deprecated aliases are also persisted as explicit compatibility metadata:
+`signalome_config.deprecated_clustering_backend_alias` and
+`signalome_config.deprecated_max_exact_clustering_sites_alias`.
 
 Deliberate omissions:
 

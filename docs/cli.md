@@ -102,6 +102,13 @@ Additional signalome options:
 - `--network-policy {positive_only,absolute_threshold,signed}`
 - `--assignment-policy {cutoff_binary,weighted_top}`
 - `--score-preconditioning-policy {allow_and_report,error_on_drop}`
+- `--cluster-tree-backend {exact}`
+- `--candidate-scoring-backend {full,sampled}`
+- `--max-exact-cluster-tree-sites`
+- `--max-full-correlation-sites`
+
+Deprecated CLI aliases remain accepted for compatibility:
+
 - `--clustering-backend {exact,approximate}`
 - `--max-exact-clustering-sites`
 
@@ -109,11 +116,12 @@ Signalome requires explicit, non-empty `protein_id` values in `site_metadata`.
 
 Scale guard note:
 
-- when `--clustering-backend exact`, the workflow fails before clustering if
-  interpreted site count exceeds `--max-exact-clustering-sites` (default
-  `2000`)
-- use `--clustering-backend approximate` only as an explicit scientific choice;
-  approximation can change module boundaries and biological interpretation
+- exact cluster-tree construction is always hard-guarded by
+  `--max-exact-cluster-tree-sites` (default `2000`)
+- full candidate scoring is hard-guarded by `--max-full-correlation-sites`
+  (default `2000`)
+- sampled candidate scoring can reduce candidate-scoring cost, but does not
+  change exact cluster-tree construction in the current implementation
 
 ## Output layout
 

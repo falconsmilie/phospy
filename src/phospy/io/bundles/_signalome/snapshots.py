@@ -53,8 +53,20 @@ class SignalomeWorkflowConfigSnapshot:
                 "score_preconditioning_policy": str(
                     self.signalome_config.score_preconditioning_policy
                 ),
-                "clustering_backend": str(self.signalome_config.clustering_backend),
-                "max_exact_clustering_sites": int(
+                "cluster_tree_backend": str(self.signalome_config.cluster_tree_backend),
+                "candidate_scoring_backend": str(
+                    self.signalome_config.candidate_scoring_backend
+                ),
+                "max_exact_cluster_tree_sites": int(
+                    self.signalome_config.max_exact_cluster_tree_sites
+                ),
+                "max_full_correlation_sites": int(
+                    self.signalome_config.max_full_correlation_sites
+                ),
+                "deprecated_clustering_backend_alias": str(
+                    self.signalome_config.clustering_backend
+                ),
+                "deprecated_max_exact_clustering_sites_alias": int(
                     self.signalome_config.max_exact_clustering_sites
                 ),
                 "module_count": (

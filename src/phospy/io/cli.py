@@ -19,12 +19,16 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+    SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+    SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
     SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
     SIGNALOME_CLUSTERING_BACKEND_EXACT,
     SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
     SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
-    SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT,
+    SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
+    SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     KinaseActivityConfig,
@@ -161,25 +165,58 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     signalome.add_argument(
+        "--cluster-tree-backend",
+        default=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+        choices=[SIGNALOME_CLUSTER_TREE_BACKEND_EXACT],
+        help=(
+            "Signalome cluster-tree construction backend. Currently only exact "
+            "tree construction is supported."
+        ),
+    )
+    signalome.add_argument(
+        "--candidate-scoring-backend",
+        default=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        choices=[
+            SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+            SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+        ],
+        help=(
+            "Signalome module-selection candidate scoring backend: full "
+            "correlations or sampled within-cluster estimates."
+        ),
+    )
+    signalome.add_argument(
+        "--max-exact-cluster-tree-sites",
+        type=int,
+        default=SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
+        help=(
+            "Hard execution guard for exact cluster-tree construction. Signalome "
+            "fails when interpreted site count exceeds this limit."
+        ),
+    )
+    signalome.add_argument(
+        "--max-full-correlation-sites",
+        type=int,
+        default=SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
+        help=(
+            "Hard execution guard for candidate_scoring_backend=full. Full "
+            "candidate scoring fails above this site count."
+        ),
+    )
+    signalome.add_argument(
         "--clustering-backend",
-        default=SIGNALOME_CLUSTERING_BACKEND_EXACT,
+        default=None,
         choices=[
             SIGNALOME_CLUSTERING_BACKEND_EXACT,
             SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
         ],
-        help=(
-            "Signalome module-selection scoring mode: exact full-correlation "
-            "candidate scoring or approximate sampled candidate scoring."
-        ),
+        help=argparse.SUPPRESS,
     )
     signalome.add_argument(
         "--max-exact-clustering-sites",
         type=int,
-        default=SIGNALOME_MAX_EXACT_CLUSTERING_SITES_DEFAULT,
-        help=(
-            "Hard execution guard for clustering_backend=exact. Exact mode fails "
-            "before clustering when interpreted site count exceeds this limit."
-        ),
+        default=None,
+        help=argparse.SUPPRESS,
     )
     return parser
 
@@ -343,18 +380,25 @@ def _run_kinase(args: argparse.Namespace) -> None:
 
 def _run_signalome(args: argparse.Namespace) -> None:
     kinase_result = _run_kinase_workflow_from_args(args)
+    config_kwargs: dict[str, object] = {
+        "substrate_support_cutoff": args.substrate_support_cutoff,
+        "network_correlation_threshold": args.network_correlation_threshold,
+        "network_policy": args.network_policy,
+        "assignment_policy": args.assignment_policy,
+        "score_preconditioning_policy": args.score_preconditioning_policy,
+        "cluster_tree_backend": args.cluster_tree_backend,
+        "candidate_scoring_backend": args.candidate_scoring_backend,
+        "max_exact_cluster_tree_sites": args.max_exact_cluster_tree_sites,
+        "max_full_correlation_sites": args.max_full_correlation_sites,
+    }
+    if args.clustering_backend is not None:
+        config_kwargs["clustering_backend"] = args.clustering_backend
+    if args.max_exact_clustering_sites is not None:
+        config_kwargs["max_exact_clustering_sites"] = args.max_exact_clustering_sites
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(
-                substrate_support_cutoff=args.substrate_support_cutoff,
-                network_correlation_threshold=args.network_correlation_threshold,
-                network_policy=args.network_policy,
-                assignment_policy=args.assignment_policy,
-                score_preconditioning_policy=args.score_preconditioning_policy,
-                clustering_backend=args.clustering_backend,
-                max_exact_clustering_sites=args.max_exact_clustering_sites,
-            ),
+            config=SignalomeConfig(**config_kwargs),
         )
     )
     written = publish_signalome_workflow(

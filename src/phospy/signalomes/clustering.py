@@ -10,6 +10,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
+from phospy.errors.workflows import SignalomeScaleError
 from phospy.signalomes.constants import (
     MODULE_ID_COLUMN,
     PROTEIN_COLUMN,
@@ -41,6 +42,12 @@ SIGNALOME_CLUSTERING_SCORING_MODE_AUTO = "auto"
 SIGNALOME_CLUSTERING_SCORING_MODE_EXACT = "exact"
 SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE = "approximate"
 SignalomeClusteringScoringMode = Literal["auto", "exact", "approximate"]
+SIGNALOME_CLUSTER_TREE_BACKEND_EXACT = "exact"
+SignalomeClusterTreeBackend = Literal["exact"]
+SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL = "full"
+SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED = "sampled"
+SignalomeCandidateScoringBackend = Literal["full", "sampled"]
+SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED = "not_evaluated"
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,12 +56,18 @@ class ClusterSitesResult:
 
     site_clusters: pd.Series
     module_selection_diagnostics: SignalomeModuleSelectionDiagnostics
+    cluster_tree_backend: str = SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
+    candidate_scoring_mode: str = SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    exact_cluster_tree_built: bool = False
 
 
 @dataclass(frozen=True, slots=True)
 class _ModuleSelectionComputation:
     diagnostics: SignalomeModuleSelectionDiagnostics
     candidate_labels: dict[int, np.ndarray]
+    cluster_tree_backend: str
+    candidate_scoring_mode: str
+    exact_cluster_tree_built: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +94,12 @@ def cluster_sites(
     scoring_mode: SignalomeClusteringScoringMode = (
         SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
     ),
+    cluster_tree_backend: SignalomeClusterTreeBackend = (
+        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
+    ),
+    candidate_scoring_backend: SignalomeCandidateScoringBackend | None = None,
+    max_exact_cluster_tree_sites: int | None = None,
+    max_full_correlation_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
 ) -> pd.Series:
     """Cluster phosphosites into site clusters."""
 
@@ -91,6 +110,10 @@ def cluster_sites(
         fallback_threshold=fallback_threshold,
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
+        cluster_tree_backend=cluster_tree_backend,
+        candidate_scoring_backend=candidate_scoring_backend,
+        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
+        max_full_correlation_sites=max_full_correlation_sites,
     ).site_clusters
 
 
@@ -104,6 +127,12 @@ def cluster_sites_with_diagnostics(
     scoring_mode: SignalomeClusteringScoringMode = (
         SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
     ),
+    cluster_tree_backend: SignalomeClusterTreeBackend = (
+        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
+    ),
+    candidate_scoring_backend: SignalomeCandidateScoringBackend | None = None,
+    max_exact_cluster_tree_sites: int | None = None,
+    max_full_correlation_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
 ) -> ClusterSitesResult:
     """Cluster phosphosites and capture module-selection diagnostics."""
 
@@ -115,6 +144,10 @@ def cluster_sites_with_diagnostics(
         fallback_threshold=fallback_threshold,
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
+        cluster_tree_backend=cluster_tree_backend,
+        candidate_scoring_backend=candidate_scoring_backend,
+        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
+        max_full_correlation_sites=max_full_correlation_sites,
     )
     diagnostics = selection.diagnostics
     n_sites = int(scoring_values.shape[0])
@@ -145,6 +178,9 @@ def cluster_sites_with_diagnostics(
             name=SITE_CLUSTER_COLUMN,
         ),
         module_selection_diagnostics=diagnostics,
+        cluster_tree_backend=selection.cluster_tree_backend,
+        candidate_scoring_mode=selection.candidate_scoring_mode,
+        exact_cluster_tree_built=selection.exact_cluster_tree_built,
     )
 
 
@@ -254,6 +290,12 @@ def _compute_module_selection(
     scoring_mode: SignalomeClusteringScoringMode = (
         SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
     ),
+    cluster_tree_backend: SignalomeClusterTreeBackend = (
+        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
+    ),
+    candidate_scoring_backend: SignalomeCandidateScoringBackend | None = None,
+    max_exact_cluster_tree_sites: int | None = None,
+    max_full_correlation_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
 ) -> _ModuleSelectionComputation:
     _validate_threshold(primary_threshold, field_name="primary_threshold")
     _validate_threshold(fallback_threshold, field_name="fallback_threshold")
@@ -265,6 +307,21 @@ def _compute_module_selection(
         SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE,
     }:
         raise ValueError("scoring_mode must be one of: auto, exact, approximate")
+    if cluster_tree_backend != SIGNALOME_CLUSTER_TREE_BACKEND_EXACT:
+        raise ValueError("cluster_tree_backend must be 'exact'")
+    if candidate_scoring_backend not in {
+        None,
+        SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+    }:
+        raise ValueError("candidate_scoring_backend must be one of: full, sampled")
+    if (
+        max_exact_cluster_tree_sites is not None
+        and int(max_exact_cluster_tree_sites) < 1
+    ):
+        raise ValueError("max_exact_cluster_tree_sites must be >= 1")
+    if max_full_correlation_sites < 1:
+        raise ValueError("max_full_correlation_sites must be >= 1")
 
     scoring_array = np.asarray(scoring_values, dtype=float)
     if scoring_array.ndim != 2:
@@ -282,17 +339,31 @@ def _compute_module_selection(
     )
     if early_selection is not None:
         return early_selection
+    resolved_candidate_scoring_backend = _resolve_candidate_scoring_backend(
+        scoring_mode=scoring_mode,
+        candidate_scoring_backend=candidate_scoring_backend,
+        n_sites=n_sites,
+        max_full_correlation_sites=max_full_correlation_sites,
+    )
 
     clustering_values = _prepare_scoring_values_for_clustering(scoring_array)
-    candidate_scores, candidate_labels, approximation_note = (
-        _compute_candidate_cluster_scores(
-            clustering_values=clustering_values,
-            correlation_values=scoring_array,
-            candidate_range=range(2, resolved_max_clusters + 1),
-            profile_degeneracy=profile_degeneracy,
-            n_sites=n_sites,
-            scoring_mode=scoring_mode,
-        )
+    (
+        candidate_scores,
+        candidate_labels,
+        approximation_note,
+        candidate_scoring_mode,
+        exact_cluster_tree_built,
+    ) = _compute_candidate_cluster_scores(
+        clustering_values=clustering_values,
+        correlation_values=scoring_array,
+        candidate_range=range(2, resolved_max_clusters + 1),
+        profile_degeneracy=profile_degeneracy,
+        n_sites=n_sites,
+        scoring_mode=scoring_mode,
+        cluster_tree_backend=cluster_tree_backend,
+        candidate_scoring_backend=resolved_candidate_scoring_backend,
+        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
+        max_full_correlation_sites=max_full_correlation_sites,
     )
 
     primary_selection = _select_threshold_candidate(
@@ -308,6 +379,9 @@ def _compute_module_selection(
         profile_degeneracy=profile_degeneracy,
         correlation_exclusion_note=correlation_exclusion_note,
         approximation_note=approximation_note,
+        candidate_scoring_mode=candidate_scoring_mode,
+        exact_cluster_tree_built=exact_cluster_tree_built,
+        cluster_tree_backend=cluster_tree_backend,
     )
     if primary_selection is not None:
         return primary_selection
@@ -325,6 +399,9 @@ def _compute_module_selection(
         profile_degeneracy=profile_degeneracy,
         correlation_exclusion_note=correlation_exclusion_note,
         approximation_note=approximation_note,
+        candidate_scoring_mode=candidate_scoring_mode,
+        exact_cluster_tree_built=exact_cluster_tree_built,
+        cluster_tree_backend=cluster_tree_backend,
     )
     if fallback_selection is not None:
         return fallback_selection
@@ -345,6 +422,9 @@ def _compute_module_selection(
         profile_degeneracy=profile_degeneracy,
         excluded_from_correlation_count=profile_degeneracy.excluded_count,
         candidate_labels=candidate_labels,
+        candidate_scoring_mode=candidate_scoring_mode,
+        exact_cluster_tree_built=exact_cluster_tree_built,
+        cluster_tree_backend=cluster_tree_backend,
     )
 
 
@@ -360,6 +440,9 @@ def _build_module_selection_result(
     profile_degeneracy: _ProfileDegeneracySummary,
     excluded_from_correlation_count: int,
     candidate_labels: dict[int, np.ndarray],
+    cluster_tree_backend: str = SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+    candidate_scoring_mode: str = SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
+    exact_cluster_tree_built: bool = False,
 ) -> _ModuleSelectionComputation:
     return _ModuleSelectionComputation(
         diagnostics=SignalomeModuleSelectionDiagnostics(
@@ -377,6 +460,9 @@ def _build_module_selection_result(
             excluded_from_correlation_count=int(excluded_from_correlation_count),
         ),
         candidate_labels=candidate_labels,
+        cluster_tree_backend=str(cluster_tree_backend),
+        candidate_scoring_mode=str(candidate_scoring_mode),
+        exact_cluster_tree_built=bool(exact_cluster_tree_built),
     )
 
 
@@ -473,24 +559,45 @@ def _compute_candidate_cluster_scores(
     profile_degeneracy: _ProfileDegeneracySummary,
     n_sites: int,
     scoring_mode: SignalomeClusteringScoringMode,
-) -> tuple[dict[int, SignalomeClusterCandidateScore], dict[int, np.ndarray], str]:
+    cluster_tree_backend: SignalomeClusterTreeBackend,
+    candidate_scoring_backend: SignalomeCandidateScoringBackend,
+    max_exact_cluster_tree_sites: int | None,
+    max_full_correlation_sites: int,
+) -> tuple[
+    dict[int, SignalomeClusterCandidateScore],
+    dict[int, np.ndarray],
+    str,
+    str,
+    bool,
+]:
     """Score candidate cluster counts using full or sampled correlation paths."""
 
     candidate_counts = [int(cluster_count) for cluster_count in candidate_range]
     if not candidate_counts:
         return {}, {}, ""
 
-    cluster_tree = build_cluster_tree(clustering_values)
+    cluster_tree = _build_exact_cluster_tree_with_guard(
+        clustering_values=clustering_values,
+        n_sites=n_sites,
+        cluster_tree_backend=cluster_tree_backend,
+        candidate_scoring_backend=candidate_scoring_backend,
+        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
+    )
     candidate_labels = build_cluster_labels_from_tree(
         cluster_tree=cluster_tree,
         cluster_counts=candidate_counts,
     )
+    exact_cluster_tree_built = n_sites > 1
 
-    use_full_correlations = scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_EXACT or (
-        scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
-        and n_sites <= MAX_FULL_CORRELATION_SITE_COUNT
-    )
-    if use_full_correlations:
+    if candidate_scoring_backend == SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL:
+        if n_sites > int(max_full_correlation_sites):
+            raise SignalomeScaleError(
+                "Signalome full candidate-correlation scoring received "
+                f"{n_sites:,} sites, which exceeds max_full_correlation_sites="
+                f"{int(max_full_correlation_sites):,}. "
+                "Use candidate_scoring_backend='sampled', reduce interpreted "
+                "sites, or increase max_full_correlation_sites deliberately."
+            )
         site_correlations = build_correlation_matrix_with_exclusions(
             correlation_values,
             excluded_mask=profile_degeneracy.excluded_mask,
@@ -508,7 +615,13 @@ def _compute_candidate_cluster_scores(
                 min_median_correlation=float(min(cluster_medians)),
                 mean_median_correlation=float(np.mean(cluster_medians)),
             )
-        return candidate_scores, candidate_labels, ""
+        return (
+            candidate_scores,
+            candidate_labels,
+            "",
+            SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+            exact_cluster_tree_built,
+        )
 
     candidate_scores = {}
     for cluster_count in candidate_counts:
@@ -531,7 +644,8 @@ def _compute_candidate_cluster_scores(
     if scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE:
         approximation_note = (
             " Used sampled within-cluster correlation estimates (seeded, "
-            "order-invariant sampling) because scoring_mode='approximate'."
+            "order-invariant sampling) because candidate scoring was set to "
+            "sampled."
         )
     else:
         approximation_note = (
@@ -539,7 +653,73 @@ def _compute_candidate_cluster_scores(
             "order-invariant sampling) to avoid materializing a full site-by-site "
             "correlation matrix."
         )
-    return candidate_scores, candidate_labels, approximation_note
+    return (
+        candidate_scores,
+        candidate_labels,
+        approximation_note,
+        SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+        exact_cluster_tree_built,
+    )
+
+
+def _resolve_candidate_scoring_backend(
+    *,
+    scoring_mode: SignalomeClusteringScoringMode,
+    candidate_scoring_backend: SignalomeCandidateScoringBackend | None,
+    n_sites: int,
+    max_full_correlation_sites: int,
+) -> SignalomeCandidateScoringBackend:
+    if candidate_scoring_backend is not None:
+        if (
+            scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_EXACT
+            and candidate_scoring_backend != SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+        ):
+            raise ValueError(
+                "scoring_mode='exact' cannot be combined with "
+                "candidate_scoring_backend='sampled'"
+            )
+        if (
+            scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE
+            and candidate_scoring_backend != SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        ):
+            raise ValueError(
+                "scoring_mode='approximate' cannot be combined with "
+                "candidate_scoring_backend='full'"
+            )
+        return candidate_scoring_backend
+
+    if scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_EXACT:
+        return SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+    if scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE:
+        return SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+    if n_sites <= int(max_full_correlation_sites):
+        return SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+    return SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+
+
+def _build_exact_cluster_tree_with_guard(
+    *,
+    clustering_values: np.ndarray,
+    n_sites: int,
+    cluster_tree_backend: SignalomeClusterTreeBackend,
+    candidate_scoring_backend: SignalomeCandidateScoringBackend,
+    max_exact_cluster_tree_sites: int | None,
+) -> _WardClusterTree:
+    if cluster_tree_backend != SIGNALOME_CLUSTER_TREE_BACKEND_EXACT:
+        raise ValueError("cluster_tree_backend must be 'exact'")
+    if max_exact_cluster_tree_sites is not None and n_sites > int(
+        max_exact_cluster_tree_sites
+    ):
+        raise SignalomeScaleError(
+            "Signalome exact cluster-tree construction received "
+            f"{n_sites:,} sites, which exceeds max_exact_cluster_tree_sites="
+            f"{int(max_exact_cluster_tree_sites):,} "
+            "(cluster_tree_backend='exact'). "
+            f"candidate_scoring_backend='{candidate_scoring_backend}' still "
+            "requires exact cluster-tree construction in the current "
+            "implementation."
+        )
+    return build_cluster_tree(clustering_values)
 
 
 def _select_best_candidate_count(
@@ -559,6 +739,9 @@ def _select_threshold_candidate(
     profile_degeneracy: _ProfileDegeneracySummary,
     correlation_exclusion_note: str,
     approximation_note: str,
+    cluster_tree_backend: str,
+    candidate_scoring_mode: str,
+    exact_cluster_tree_built: bool,
 ) -> _ModuleSelectionComputation | None:
     passing_candidates = filter_cluster_candidates(
         candidate_scores,
@@ -577,6 +760,9 @@ def _select_threshold_candidate(
         profile_degeneracy=profile_degeneracy,
         excluded_from_correlation_count=profile_degeneracy.excluded_count,
         candidate_labels=candidate_labels,
+        cluster_tree_backend=cluster_tree_backend,
+        candidate_scoring_mode=candidate_scoring_mode,
+        exact_cluster_tree_built=exact_cluster_tree_built,
     )
 
 
@@ -1052,9 +1238,15 @@ __all__ = [
     "MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER",
     "MAX_FULL_CORRELATION_SITE_COUNT",
     "NEAR_CONSTANT_PROFILE_VARIANCE_TOLERANCE",
+    "SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL",
+    "SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED",
+    "SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED",
+    "SIGNALOME_CLUSTER_TREE_BACKEND_EXACT",
     "SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE",
     "SIGNALOME_CLUSTERING_SCORING_MODE_AUTO",
     "SIGNALOME_CLUSTERING_SCORING_MODE_EXACT",
+    "SignalomeCandidateScoringBackend",
+    "SignalomeClusterTreeBackend",
     "SignalomeClusteringScoringMode",
     "build_correlation_exclusion_note",
     "build_correlation_matrix_with_exclusions",
