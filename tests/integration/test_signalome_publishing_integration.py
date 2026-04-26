@@ -38,11 +38,11 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
         == output_root / "kinase" / "scoring" / "profile_scores.csv"
     )
     assert (
-        written["kinase.scoring.combined_scores"]
-        == output_root / "kinase" / "scoring" / "combined_scores.csv"
+        written["kinase.scoring.rank_weighted_fusion_scores"]
+        == output_root / "kinase" / "scoring" / "rank_weighted_fusion_scores.csv"
     )
     assert "kinase.scoring.motif_scores" not in written
-    assert "kinase.scoring.weights" not in written
+    assert "kinase.scoring.score_fusion_weights" not in written
     assert (
         written["signalome.module_assignments"]
         == output_root / "signalome" / "module_assignments.csv"

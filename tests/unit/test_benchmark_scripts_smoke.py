@@ -25,6 +25,16 @@ DISALLOWED_SEAM_TOKENS = (
     "tests/test_parity-with_metrics.py",
     "tests/test_end_to_end_parity.py",
 )
+WRITE_CALL_TOKENS = (
+    ".to_csv(",
+    ".to_json(",
+    ".to_parquet(",
+    ".to_pickle(",
+    ".write_text(",
+    ".write_bytes(",
+    "open(",
+)
+REPORTS_DIRECTORY_TOKEN = "benchmarks/reports"
 
 
 def _read_source(path: Path) -> str:
@@ -50,6 +60,36 @@ def _iter_local_import_modules(tree: ast.Module) -> list[str]:
             if root in LOCAL_IMPORT_ROOTS:
                 modules.append(node.module)
     return sorted(set(modules))
+
+
+def _find_main_function(
+    tree: ast.Module,
+) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+    for node in tree.body:
+        if (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == "main"
+        ):
+            return node
+    return None
+
+
+def _script_has_key_value_print_in_main(script_path: Path) -> bool:
+    source = _read_source(script_path)
+    tree = _parse(script_path)
+    main_fn = _find_main_function(tree)
+    if main_fn is None:
+        return False
+    for node in ast.walk(main_fn):
+        if not isinstance(node, ast.Call):
+            continue
+        if not isinstance(node.func, ast.Name) or node.func.id != "print":
+            continue
+        for argument in node.args:
+            source_segment = ast.get_source_segment(source, argument)
+            if source_segment is not None and "=" in source_segment:
+                return True
+    return False
 
 
 def test_benchmark_script_inventory_is_non_empty() -> None:
@@ -91,4 +131,21 @@ def test_benchmark_scripts_do_not_reference_retired_seams(script_path: Path) -> 
     for token in DISALLOWED_SEAM_TOKENS:
         assert token not in source, (
             f"{script_path.name} references retired benchmark seam '{token}'"
+        )
+
+
+@pytest.mark.parametrize("script_path", BENCHMARK_SCRIPTS, ids=lambda path: path.name)
+def test_benchmark_scripts_emit_key_value_metric_from_main(script_path: Path) -> None:
+    assert _script_has_key_value_print_in_main(script_path), (
+        f"{script_path.name} must print at least one key=value metric from main()"
+    )
+
+
+@pytest.mark.parametrize("script_path", BENCHMARK_SCRIPTS, ids=lambda path: path.name)
+def test_benchmark_scripts_write_only_to_reports_directory(script_path: Path) -> None:
+    source = _read_source(script_path)
+    if any(token in source for token in WRITE_CALL_TOKENS):
+        assert REPORTS_DIRECTORY_TOKEN in source, (
+            f"{script_path.name} may only write report artefacts under "
+            f"'{REPORTS_DIRECTORY_TOKEN}/'"
         )

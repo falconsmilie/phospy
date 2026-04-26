@@ -22,7 +22,12 @@ from phospy.validation.common.dataframes import (
 
 @dataclass(frozen=True, slots=True)
 class KinaseSubstrateReference(TableSchema):
-    """Schema wrapper for ``references.kinase_substrate_map``."""
+    """Schema wrapper for ``references.kinase_substrate_map``.
+
+    Validation here is structural and content-based. It does not enforce
+    workflow-scale limits; performance behavior is owned by workflow overlap
+    filtering and scoring-lane selection.
+    """
 
     _field_name = "references.kinase_substrate_map"
     _error_type = ReferenceValidationError

@@ -8,22 +8,25 @@ import numpy as np
 import pandas as pd
 
 DOWNSTREAM_SCORE_SOURCE_PROFILE = "profile_scores"
-DOWNSTREAM_SCORE_SOURCE_COMBINED = "combined_scores"
+DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION = "rank_weighted_fusion_scores"
 
 
 def select_downstream_score_matrix(
     *,
     profile_scores: pd.DataFrame,
-    combined_scores: pd.DataFrame | None,
+    rank_weighted_fusion_scores: pd.DataFrame | None,
 ) -> tuple[pd.DataFrame, str]:
     """Resolve the authoritative downstream prediction score matrix."""
 
-    if combined_scores is not None:
-        return combined_scores, DOWNSTREAM_SCORE_SOURCE_COMBINED
+    if rank_weighted_fusion_scores is not None:
+        return (
+            rank_weighted_fusion_scores,
+            DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION,
+        )
     return profile_scores, DOWNSTREAM_SCORE_SOURCE_PROFILE
 
 
-def combine_profile_and_motif_scores(
+def fuse_profile_and_motif_scores_by_rank_weight(
     *,
     motif_scores: pd.DataFrame,
     profile_scores: pd.DataFrame,
@@ -32,7 +35,14 @@ def combine_profile_and_motif_scores(
     allow_profile_only_fallback: bool = True,
     emit_weights: bool = True,
 ) -> tuple[pd.DataFrame, pd.DataFrame | None]:
-    """Combine motif and profile scores using rank-derived kinase weights."""
+    """Fuse motif-frequency and profile-correlation scores by rank-derived weights.
+
+    Fuse motif-frequency scores and profile-correlation scores using rank-derived
+    weights from motif library size and quantified substrate count.
+
+    This is a deterministic score-fusion policy. It is not an enrichment
+    statistic, classifier probability, or calibrated kinase activity estimate.
+    """
 
     profile_kinases = set(profile_scores.columns)
     overlap = [kinase for kinase in motif_scores.columns if kinase in profile_kinases]
@@ -55,7 +65,7 @@ def combine_profile_and_motif_scores(
         profile_sizes.loc[overlap].rank(method="average") + 1.0
     )
     total_weight = motif_rank_weight + profile_rank_weight
-    combined_scores = (
+    rank_weighted_fusion_scores = (
         motif_scores.loc[:, overlap].multiply(motif_rank_weight, axis=1)
         + profile_scores.loc[:, overlap].multiply(profile_rank_weight, axis=1)
     ).divide(total_weight, axis=1)
@@ -65,7 +75,7 @@ def combine_profile_and_motif_scores(
     motif_missing_profile_present = (
         motif_scores.loc[:, overlap].isna() & profile_scores.loc[:, overlap].notna()
     )
-    combined_scores = combined_scores.where(
+    rank_weighted_fusion_scores = rank_weighted_fusion_scores.where(
         ~motif_missing_profile_present,
         profile_scores.loc[:, overlap],
     )
@@ -88,8 +98,8 @@ def combine_profile_and_motif_scores(
             kinase for kinase in profile_scores.columns if kinase not in set(overlap)
         ]
         if profile_only:
-            combined_scores = pd.concat(
-                [combined_scores, profile_scores.loc[:, profile_only]],
+            rank_weighted_fusion_scores = pd.concat(
+                [rank_weighted_fusion_scores, profile_scores.loc[:, profile_only]],
                 axis=1,
             )
             if weights is not None:
@@ -100,7 +110,7 @@ def combine_profile_and_motif_scores(
 
     if weights is not None:
         weights.index.name = "kinase"
-    return combined_scores, weights
+    return rank_weighted_fusion_scores, weights
 
 
 def _require_index_members(
@@ -129,8 +139,8 @@ def _profile_only_weights(kinases: Sequence[str]) -> pd.DataFrame:
 
 
 __all__ = [
-    "DOWNSTREAM_SCORE_SOURCE_COMBINED",
+    "DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION",
     "DOWNSTREAM_SCORE_SOURCE_PROFILE",
-    "combine_profile_and_motif_scores",
+    "fuse_profile_and_motif_scores_by_rank_weight",
     "select_downstream_score_matrix",
 ]

@@ -13,7 +13,7 @@ from phospy.api.configs import (
     DATASET_INTENSITY_TRANSFORM_POLICY_IDENTITY,
     DATASET_MISSING_DATA_POLICY_FORBID,
     DATASET_NORMALISATION_POLICY_NONE,
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
@@ -23,7 +23,7 @@ from phospy.api.configs import (
     DatasetMissingDataPolicy,
     DatasetNormalisationPolicy,
     DatasetPreprocessingConfig,
-    DatasetSiteMatrixDuplicateSiteStrategy,
+    DatasetSiteMatrixDuplicateSitePolicy,
     DatasetSiteMatrixMissingDataPolicy,
     DatasetSiteMatrixPolicy,
     DatasetTotalProteinCorrectionPolicy,
@@ -68,8 +68,8 @@ class PreprocessingPlan:
     comparison_building_policy: DatasetComparisonBuildingPolicy = (
         DATASET_COMPARISON_BUILDING_POLICY_NONE
     )
-    site_matrix_duplicate_site_strategy: DatasetSiteMatrixDuplicateSiteStrategy = (
-        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL
+    site_matrix_duplicate_site_policy: DatasetSiteMatrixDuplicateSitePolicy = (
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL
     )
     site_matrix_missing_data_policy: DatasetSiteMatrixMissingDataPolicy = (
         DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
@@ -110,7 +110,7 @@ class PreprocessingPlan:
             missing_data_min_observed_values=config.missing_data.min_observed_values,
             total_protein_correction_policy=config.total_protein_correction.policy,
             site_matrix_policy=config.site_matrix.policy,
-            site_matrix_duplicate_site_strategy=config.site_matrix.duplicate_site_strategy,
+            site_matrix_duplicate_site_policy=config.site_matrix.duplicate_site_policy,
             site_matrix_missing_data_policy=config.site_matrix.missing_data_policy,
             site_matrix_minimum_observed_values=config.site_matrix.minimum_observed_values,
             comparison_building_policy=config.comparisons.policy,

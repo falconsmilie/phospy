@@ -8,7 +8,7 @@ from phospy.prediction.candidates import build_candidate_substrate_list
 from phospy.prediction.motif_scoring import (
     score_phosphosite_motifs,
 )
-from phospy.prediction.scoring import combine_profile_and_motif_scores
+from phospy.prediction.scoring import fuse_profile_and_motif_scores_by_rank_weight
 from tests.support.parity_reporting import (
     format_percent,
     format_shape,
@@ -16,8 +16,6 @@ from tests.support.parity_reporting import (
 )
 from tests.support.rewrite_fixture_data import (
     load_fragile_support_candidate_substrates,
-    load_fragile_support_combined_scores,
-    load_fragile_support_combined_weights,
     load_fragile_support_motif_frequency_matrices,
     load_fragile_support_motif_scores,
     load_fragile_support_motif_scores_full,
@@ -25,6 +23,8 @@ from tests.support.rewrite_fixture_data import (
     load_fragile_support_motif_sizes,
     load_fragile_support_profile_scores,
     load_fragile_support_profile_sizes,
+    load_fragile_support_rank_weighted_fusion_scores,
+    load_fragile_support_score_fusion_weights,
 )
 
 pytestmark = pytest.mark.parity
@@ -127,39 +127,50 @@ def test_motif_scoring_matches_fragile_support_reference_points(
     )
 
 
-def test_combined_scoring_matches_fragile_support_reference_tables(
+def test_rank_weighted_fusion_scoring_matches_fragile_support_reference_tables(
     request: pytest.FixtureRequest,
 ) -> None:
-    combined_scores, combined_weights = combine_profile_and_motif_scores(
-        motif_scores=load_fragile_support_motif_scores(),
-        profile_scores=load_fragile_support_profile_scores(),
-        motif_sizes=load_fragile_support_motif_sizes(),
-        profile_sizes=load_fragile_support_profile_sizes(),
-        allow_profile_only_fallback=False,
+    rank_weighted_fusion_scores, score_fusion_weights = (
+        fuse_profile_and_motif_scores_by_rank_weight(
+            motif_scores=load_fragile_support_motif_scores(),
+            profile_scores=load_fragile_support_profile_scores(),
+            motif_sizes=load_fragile_support_motif_sizes(),
+            profile_sizes=load_fragile_support_profile_sizes(),
+            allow_profile_only_fallback=False,
+        )
     )
-    expected_scores = load_fragile_support_combined_scores()
-    expected_weights = load_fragile_support_combined_weights()
+    expected_scores = load_fragile_support_rank_weighted_fusion_scores()
+    expected_weights = load_fragile_support_score_fusion_weights()
 
     pdt.assert_frame_equal(
-        combined_scores.sort_index(axis=0).sort_index(axis=1),
+        rank_weighted_fusion_scores.sort_index(axis=0).sort_index(axis=1),
         expected_scores.sort_index(axis=0).sort_index(axis=1),
     )
     pdt.assert_frame_equal(
-        combined_weights.sort_index(),
+        score_fusion_weights.sort_index(),
         expected_weights.sort_index(),
     )
-    aligned_observed = combined_scores.sort_index().sort_index(axis=1)
+    aligned_observed = rank_weighted_fusion_scores.sort_index().sort_index(axis=1)
     aligned_expected = expected_scores.sort_index().sort_index(axis=1)
     absolute_delta = (aligned_observed - aligned_expected).abs()
     record_parity_metrics(
         request.config,
         family="prediction_science",
         metrics=[
-            ("combined score table shape", format_shape(*combined_scores.shape)),
-            ("combined score mean abs diff", float(absolute_delta.to_numpy().mean())),
-            ("combined score max abs diff", float(absolute_delta.to_numpy().max())),
             (
-                "combined score mean Spearman column correlation",
+                "rank-weighted fusion score table shape",
+                format_shape(*rank_weighted_fusion_scores.shape),
+            ),
+            (
+                "rank-weighted fusion score mean abs diff",
+                float(absolute_delta.to_numpy().mean()),
+            ),
+            (
+                "rank-weighted fusion score max abs diff",
+                float(absolute_delta.to_numpy().max()),
+            ),
+            (
+                "rank-weighted fusion score mean Spearman column correlation",
                 format_percent(
                     _mean_column_correlation(
                         aligned_observed,
@@ -176,7 +187,7 @@ def test_candidate_selection_matches_fragile_support_reference_table(
     request: pytest.FixtureRequest,
 ) -> None:
     observed = build_candidate_substrate_list(
-        scores=load_fragile_support_combined_scores(),
+        scores=load_fragile_support_rank_weighted_fusion_scores(),
         top=50,
         score_threshold=0.8,
         inclusion=20,

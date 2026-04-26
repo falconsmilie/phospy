@@ -78,6 +78,24 @@ jobs:
       - name: Run benchmark script smoke checks
         run: pytest tests/unit/test_benchmark_scripts_smoke.py
 
+  performance-contracts:
+    needs: repo-hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+      - name: Run performance contract tests
+        run: pytest tests/performance -m performance -q
+
   unit-tests:
     needs: repo-hygiene
     runs-on: ubuntu-latest

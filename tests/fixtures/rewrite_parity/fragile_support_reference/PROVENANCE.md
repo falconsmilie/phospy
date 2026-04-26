@@ -21,6 +21,6 @@ parity tests (motif scoring, profile/motif weighting, and candidate selection).
 - `motif_frequency_matrices/*.csv`
 - `profile_sizes.csv`
 - `motif_sizes.csv`
-- `combined_scores.csv`
-- `combined_weights.csv`
+- `rank_weighted_fusion_scores.csv`
+- `score_fusion_weights.csv`
 - `candidate_substrates.csv`

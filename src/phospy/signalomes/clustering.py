@@ -23,6 +23,16 @@ from phospy.signalomes.models import (
     SignalomeModuleSelectionStrategy,
 )
 
+# Performance contracts for module-count selection scoring:
+# - At or below `MAX_FULL_CORRELATION_SITE_COUNT`, candidate scoring computes a
+#   full site-by-site correlation matrix.
+# - Above this threshold, candidate scoring uses sampled within-cluster
+#   correlations with at most `MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER` sites
+#   per cluster.
+#
+# These thresholds only control how module-selection scores are computed. They do
+# not change the input scoring matrix, selected output table schema, or whether
+# approximation use is surfaced in diagnostics (`diagnostics.reason`).
 MAX_FULL_CORRELATION_SITE_COUNT = 2000
 MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER = 256
 NEAR_CONSTANT_PROFILE_VARIANCE_TOLERANCE = 1e-12
@@ -432,6 +442,8 @@ def _compute_candidate_cluster_scores(
     profile_degeneracy: _ProfileDegeneracySummary,
     n_sites: int,
 ) -> tuple[dict[int, SignalomeClusterCandidateScore], dict[int, np.ndarray], str]:
+    """Score candidate cluster counts using full or sampled correlation paths."""
+
     candidate_counts = [int(cluster_count) for cluster_count in candidate_range]
     if not candidate_counts:
         return {}, {}, ""

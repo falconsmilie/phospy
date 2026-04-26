@@ -79,6 +79,13 @@ def _median_center(matrix: pd.DataFrame) -> pd.DataFrame:
 
 
 def _quantile_normalise(matrix: pd.DataFrame) -> pd.DataFrame:
+    """Quantile-normalise sample columns with deterministic tie handling.
+
+    Performance note: this path is dense and sort-heavy. Runtime scales roughly
+    with O(n_sites * n_samples * log(n_sites)) and requires additional float64
+    matrix copies.
+    """
+
     as_float = matrix.astype("float64")
     sorted_values = np.sort(as_float.to_numpy(copy=True), axis=0)
     rank_means = pd.DataFrame(sorted_values).mean(axis=1, skipna=True).to_numpy()

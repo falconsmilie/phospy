@@ -83,10 +83,10 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert manifest["config_snapshot"] == "config/snapshot.json"
     assert manifest["upstream_kinase_outputs"]["activity"]["enabled"] is False
     assert manifest["upstream_kinase_outputs"]["scoring"]["tables"] == {
-        "combined_scores": "scoring/combined_scores.csv",
+        "rank_weighted_fusion_scores": "scoring/rank_weighted_fusion_scores.csv",
         "motif_scores": None,
         "profile_scores": "scoring/profile_scores.csv",
-        "weights": None,
+        "score_fusion_weights": None,
     }
     assert manifest["signalome_outputs"]["tables"] == {
         "expanded_signalome": "signalome/expanded_signalome.csv",
@@ -257,12 +257,12 @@ def _assert_signalome_result_equal(left, right) -> None:
         right.kinase_result.scoring_result.motif_scores,
     )
     _assert_optional_frame_equal(
-        left.kinase_result.scoring_result.combined_scores,
-        right.kinase_result.scoring_result.combined_scores,
+        left.kinase_result.scoring_result.rank_weighted_fusion_scores,
+        right.kinase_result.scoring_result.rank_weighted_fusion_scores,
     )
     _assert_optional_frame_equal(
-        left.kinase_result.scoring_result.weights,
-        right.kinase_result.scoring_result.weights,
+        left.kinase_result.scoring_result.score_fusion_weights,
+        right.kinase_result.scoring_result.score_fusion_weights,
     )
     pd.testing.assert_frame_equal(
         left.kinase_result.prediction_result.pred_mat,

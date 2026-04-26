@@ -188,8 +188,8 @@ def test_request_config_and_result_models_construct() -> None:
     )
     activity = KinaseActivityResult(
         weighted_activity=pd.DataFrame(),
-        ksea_scores=pd.DataFrame(),
-        ksea_counts=pd.Series(dtype="int64", name="n_substrates"),
+        thresholded_substrate_mean_activity=pd.DataFrame(),
+        thresholded_substrate_counts=pd.Series(dtype="int64", name="n_substrates"),
         target_counts=pd.Series(dtype="int64", name="n_targets"),
         target_table=pd.DataFrame(columns=["site_id", "kinase", "score"]),
     )
@@ -326,7 +326,7 @@ def test_workflow_run_contract_returns_nested_results() -> None:
     assert isinstance(result.scoring_result, KinaseScoringResult)
     assert isinstance(result.prediction_result, KinasePredictionResult)
     assert not hasattr(result, "profile_scores")
-    assert not hasattr(result, "combined_scores")
+    assert not hasattr(result, "rank_weighted_fusion_scores")
     assert not hasattr(result, "weights")
     assert not hasattr(result, "substrate_list")
 

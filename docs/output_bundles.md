@@ -98,13 +98,13 @@ references/kinase_substrate_map.csv
 references/site_sequences.csv
 scoring/profile_scores.csv
 scoring/motif_scores.csv             # optional
-scoring/combined_scores.csv          # optional
-scoring/weights.csv                  # optional
+scoring/rank_weighted_fusion_scores.csv          # optional
+scoring/score_fusion_weights.csv     # optional
 prediction/pred_mat.csv
 prediction/substrate_list.csv        # optional
 activity/weighted_activity.csv       # optional
-activity/ksea_scores.csv             # optional
-activity/ksea_counts.csv             # optional
+activity/thresholded_substrate_mean_activity.csv             # optional
+activity/thresholded_substrate_counts.csv             # optional
 activity/target_counts.csv           # optional
 activity/target_table.csv            # optional
 ```
@@ -122,13 +122,13 @@ references/kinase_substrate_map.csv
 references/site_sequences.csv
 scoring/profile_scores.csv
 scoring/motif_scores.csv             # optional
-scoring/combined_scores.csv          # optional
-scoring/weights.csv                  # optional
+scoring/rank_weighted_fusion_scores.csv          # optional
+scoring/score_fusion_weights.csv     # optional
 prediction/pred_mat.csv
 prediction/substrate_list.csv        # optional
 activity/weighted_activity.csv       # optional
-activity/ksea_scores.csv             # optional
-activity/ksea_counts.csv             # optional
+activity/thresholded_substrate_mean_activity.csv             # optional
+activity/thresholded_substrate_counts.csv             # optional
 activity/target_counts.csv           # optional
 activity/target_table.csv            # optional
 signalome/module_assignments.csv
@@ -150,7 +150,7 @@ in published outputs and reloads.
 
 Optional means contract-optional, not always absent.
 In the default supported kinase lane, scoring populates `profile_scores` and
-`combined_scores`; diagnostic `motif_scores` and `weights` are written only when
+`rank_weighted_fusion_scores`; diagnostic `motif_scores` and `score_fusion_weights` are written only when
 `scoring_config.include_diagnostic_scoring_tables=True`.
 Scoring semantics are upstream-stage stable: they are determined by dataset +
 resolved references + scoring config, and are not redefined by prediction mode
@@ -164,7 +164,7 @@ or reference input provenance (preset vs equivalent explicit bundle).
 - `signalome/expanded_signalome` is optional by contract for compatibility, but
   is populated in the supported signalome executor lane when the workflow
   completes successfully.
-- `scoring/motif_scores` and `scoring/weights` are optional diagnostic tables and
+- `scoring/motif_scores` and `scoring/score_fusion_weights` are optional diagnostic tables and
   are absent in the default scoring lane.
 
 ## Config Snapshot Coverage and Reload Semantics
@@ -182,7 +182,7 @@ Kinase config snapshot (all persisted fields):
 
 - `scoring_config.min_substrates`: substrate-support floor used in scoring.
 - `scoring_config.include_diagnostic_scoring_tables`: controls whether
-  diagnostic `motif_scores`/`weights` tables are expected to be produced.
+  diagnostic `motif_scores`/`score_fusion_weights` tables are expected to be produced.
 - `scoring_config.profile_missing_value_strategy`: profile median behavior
   (`"strict"` vs `"median_skipna"`), which can change downstream scores.
 - `prediction_config.top_k`: final rank cutoff in prediction output.

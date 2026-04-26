@@ -21,8 +21,8 @@ tests in `tests/parity/` via `tests/support/rewrite_fixture_data.py`.
 - `native_profile_scores.csv`
 - `predMat.csv`
 - `kinase_activity_matrix.csv`
-- `ksea_scores.csv`
-- `ksea_counts.csv`
+- `thresholded_substrate_mean_activity.csv`
+- `thresholded_substrate_counts.csv`
 - `kinase_target_counts.csv`
 - `kinase_target_table.csv`
 

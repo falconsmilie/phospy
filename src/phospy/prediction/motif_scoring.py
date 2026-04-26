@@ -126,7 +126,10 @@ def score_phosphosite_motifs(
     min_motif_size: int = 1,
     flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
 ) -> MotifScoringResult:
-    """Score phosphosite sequences against per-kinase motif frequency matrices."""
+    """Score phosphosite sequences against per-kinase motif frequency matrices.
+
+    Runtime scales with scored sites, eligible kinases, and motif window width.
+    """
 
     if min_motif_size < 1:
         raise ValueError("min_motif_size must be >= 1")

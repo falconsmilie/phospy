@@ -110,7 +110,7 @@ def _kinase_result() -> KinaseWorkflowResult:
         references=_references(),
         scoring_result=KinaseScoringResult(
             profile_scores=score_matrix,
-            combined_scores=score_matrix,
+            rank_weighted_fusion_scores=score_matrix,
         ),
         prediction_result=KinasePredictionResult(pred_mat=prediction_matrix),
         activity_result=None,
@@ -328,7 +328,7 @@ def test_dataset_build_request_allows_site_matrix_policy_overrides() -> None:
     ):
         DatasetSiteMatrixConfig(
             policy="build_from_metadata",
-            duplicate_site_strategy="aggregate_mean",
+            duplicate_site_policy="aggregate_mean",
             missing_data_policy="require_min_observed_values",
             minimum_observed_values=1,
         )
@@ -388,11 +388,11 @@ def test_dataset_build_request_rejects_site_matrix_duplicate_overrides_when_as_i
 ):
     with pytest.raises(
         PhosPyInputError,
-        match="duplicate_site_strategy is only valid when site_matrix.policy='build_from_metadata'",
+        match="duplicate_site_policy is only valid when site_matrix.policy='build_from_metadata'",
     ):
         DatasetSiteMatrixConfig(
             policy="as_input",
-            duplicate_site_strategy="first",
+            duplicate_site_policy="first",
         )
 
 
@@ -744,8 +744,10 @@ def test_signalome_validator_allows_prediction_matrix_missingness() -> None:
 
 def test_signalome_validator_allows_downstream_score_matrix_missingness() -> None:
     kinase_result = _kinase_result()
-    assert kinase_result.scoring_result.combined_scores is not None
-    combined_with_missing = kinase_result.scoring_result.combined_scores.copy(deep=True)
+    assert kinase_result.scoring_result.rank_weighted_fusion_scores is not None
+    combined_with_missing = (
+        kinase_result.scoring_result.rank_weighted_fusion_scores.copy(deep=True)
+    )
     combined_with_missing.iloc[0, 0] = float("nan")
 
     request = SignalomeWorkflowRequest(
@@ -754,7 +756,7 @@ def test_signalome_validator_allows_downstream_score_matrix_missingness() -> Non
             references=kinase_result.references,
             scoring_result=KinaseScoringResult(
                 profile_scores=kinase_result.scoring_result.profile_scores,
-                combined_scores=combined_with_missing,
+                rank_weighted_fusion_scores=combined_with_missing,
             ),
             prediction_result=kinase_result.prediction_result,
             activity_result=kinase_result.activity_result,
@@ -766,14 +768,18 @@ def test_signalome_validator_allows_downstream_score_matrix_missingness() -> Non
     assert validated is request
 
 
-def test_signalome_validator_prefers_combined_scores_when_available() -> None:
+def test_signalome_validator_prefers_rank_weighted_fusion_scores_when_available() -> (
+    None
+):
     kinase_result = _kinase_result()
-    assert kinase_result.scoring_result.combined_scores is not None
-    invalid_combined = kinase_result.scoring_result.combined_scores.copy(deep=True)
+    assert kinase_result.scoring_result.rank_weighted_fusion_scores is not None
+    invalid_combined = kinase_result.scoring_result.rank_weighted_fusion_scores.copy(
+        deep=True
+    )
     invalid_combined.iloc[0, 0] = float("inf")
     with pytest.raises(
         PhosPyValidationError,
-        match="scoring_result.combined_scores must contain finite numeric values",
+        match="scoring_result.rank_weighted_fusion_scores must contain finite numeric values",
     ):
         SignalomeWorkflowRequest(
             kinase_result=KinaseWorkflowResult(
@@ -781,7 +787,7 @@ def test_signalome_validator_prefers_combined_scores_when_available() -> None:
                 references=kinase_result.references,
                 scoring_result=KinaseScoringResult(
                     profile_scores=kinase_result.scoring_result.profile_scores,
-                    combined_scores=invalid_combined,
+                    rank_weighted_fusion_scores=invalid_combined,
                 ),
                 prediction_result=kinase_result.prediction_result,
                 activity_result=kinase_result.activity_result,

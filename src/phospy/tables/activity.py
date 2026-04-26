@@ -192,13 +192,13 @@ class ActivityCountSeries(SeriesSchema):
     """Schema wrapper for activity count series."""
 
     field_name: str = field(
-        default="activity_result.ksea_counts",
+        default="activity_result.thresholded_substrate_counts",
         repr=False,
         compare=False,
     )
     allow_empty: bool = field(default=True, repr=False, compare=False)
 
-    _field_name = "activity_result.ksea_counts"
+    _field_name = "activity_result.thresholded_substrate_counts"
     _error_type = PhosPyValidationError
 
     def __post_init__(self, _assume_owned: bool) -> None:

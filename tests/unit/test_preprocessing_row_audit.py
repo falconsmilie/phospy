@@ -194,7 +194,7 @@ def test_site_matrix_stage_audits_incomplete_value_drops() -> None:
     assert dropped.iloc[0]["reason"] == "dropped by site_matrix missing-data policy"
 
 
-def test_site_matrix_stage_audits_duplicate_resolution_first_strategy() -> None:
+def test_site_matrix_stage_audits_duplicate_resolution_first_policy() -> None:
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 3.0],
@@ -220,7 +220,7 @@ def test_site_matrix_stage_audits_duplicate_resolution_first_strategy() -> None:
             DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(
                     policy="build_from_metadata",
-                    duplicate_site_strategy="first",
+                    duplicate_site_policy="first",
                 )
             )
         ),
@@ -234,11 +234,15 @@ def test_site_matrix_stage_audits_duplicate_resolution_first_strategy() -> None:
     assert site_matrix_audit.loc["SRC_ROW_2", "action"] == "collapsed"
     assert site_matrix_audit.loc["SRC_ROW_2", "retained"] is False
     assert site_matrix_audit.loc["SRC_ROW_2", "retained_row_id"] == "SRC_ROW_1"
+    snapshot = site_matrix_audit.loc["SRC_ROW_2", "parameter_snapshot"]
+    assert isinstance(snapshot, dict)
+    assert snapshot["duplicate_site_policy"] == "first"
+    assert snapshot["site_matrix_duplicate_site_policy"] == "first"
+    assert "duplicate_site_strategy" not in snapshot
+    assert "site_matrix_duplicate_site_strategy" not in snapshot
 
 
-def test_site_matrix_stage_audits_duplicate_resolution_max_mean_signal_strategy() -> (
-    None
-):
+def test_site_matrix_stage_audits_duplicate_resolution_max_mean_signal_policy() -> None:
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 5.0],
@@ -264,7 +268,7 @@ def test_site_matrix_stage_audits_duplicate_resolution_max_mean_signal_strategy(
             DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(
                     policy="build_from_metadata",
-                    duplicate_site_strategy="max_mean_signal",
+                    duplicate_site_policy="max_mean_signal",
                 )
             )
         ),
@@ -281,11 +285,11 @@ def test_site_matrix_stage_audits_duplicate_resolution_max_mean_signal_strategy(
 
 
 @pytest.mark.parametrize(
-    "duplicate_strategy",
+    "duplicate_policy",
     ("aggregate_mean", "aggregate_median"),
 )
 def test_site_matrix_stage_audits_aggregate_duplicate_contributors(
-    duplicate_strategy: str,
+    duplicate_policy: str,
 ) -> None:
     phospho = pd.DataFrame(
         {
@@ -312,7 +316,7 @@ def test_site_matrix_stage_audits_aggregate_duplicate_contributors(
             DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(
                     policy="build_from_metadata",
-                    duplicate_site_strategy=duplicate_strategy,
+                    duplicate_site_policy=duplicate_policy,
                 )
             )
         ),

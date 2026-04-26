@@ -135,7 +135,7 @@ def _kinase_result(
         references=_bundle(site_ids=dataset.phospho.index.astype(str).tolist()),
         scoring_result=KinaseScoringResult(
             profile_scores=score_matrix,
-            combined_scores=(
+            rank_weighted_fusion_scores=(
                 score_matrix if combined_score_matrix is None else combined_score_matrix
             ),
         ),
@@ -391,7 +391,9 @@ def test_interpreter_does_not_fallback_to_site_id_prefix_when_protein_id_column_
     assert "resolved_protein_sites=0" in message
 
 
-def test_interpreter_prefers_combined_scores_for_downstream_signalome_matrix() -> None:
+def test_interpreter_prefers_rank_weighted_fusion_scores_for_downstream_signalome_matrix() -> (
+    None
+):
     dataset = _dataset(site_ids=["P1;S1;", "P2;S2;"])
     prediction_matrix = _matrix(
         values=[[0.9, 0.2], [0.1, 0.8]],
@@ -403,7 +405,7 @@ def test_interpreter_prefers_combined_scores_for_downstream_signalome_matrix() -
         site_ids=["P1;S1;", "P2;S2;"],
         kinases=["K1", "K2"],
     )
-    combined_scores = _matrix(
+    rank_weighted_fusion_scores = _matrix(
         values=[[0.7, 0.4], [0.3, 0.6]],
         site_ids=["P1;S1;", "P2;S2;"],
         kinases=["K1", "K2"],
@@ -413,7 +415,7 @@ def test_interpreter_prefers_combined_scores_for_downstream_signalome_matrix() -
             dataset=dataset,
             prediction_matrix=prediction_matrix,
             score_matrix=profile_scores,
-            combined_score_matrix=combined_scores,
+            combined_score_matrix=rank_weighted_fusion_scores,
         ),
         config=SignalomeConfig(substrate_support_cutoff=0.5),
     )
@@ -421,10 +423,10 @@ def test_interpreter_prefers_combined_scores_for_downstream_signalome_matrix() -
     interpreted = SignalomeWorkflowInterpreter().run(request)
     pd.testing.assert_frame_equal(
         interpreted.downstream_score_matrix,
-        combined_scores,
+        rank_weighted_fusion_scores,
         check_dtype=False,
     )
-    assert interpreted.downstream_score_source == "combined_scores"
+    assert interpreted.downstream_score_source == "rank_weighted_fusion_scores"
 
 
 def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
@@ -881,7 +883,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
             SignalomeConfig(substrate_support_cutoff=0.5)
         ),
         downstream_score_matrix=score_matrix_missing_kinase,
-        downstream_score_source="combined_scores",
+        downstream_score_source="rank_weighted_fusion_scores",
         prediction_matrix=prediction_matrix,
         site_to_protein=pd.Series(
             ["P1", "P2"],
@@ -1256,7 +1258,7 @@ def test_executor_orchestrates_signalome_domain_services(
             SignalomeConfig(substrate_support_cutoff=0.5)
         ),
         downstream_score_matrix=score_matrix,
-        downstream_score_source="combined_scores",
+        downstream_score_source="rank_weighted_fusion_scores",
         prediction_matrix=prediction_matrix,
         site_to_protein=pd.Series(
             ["P1", "P2"],

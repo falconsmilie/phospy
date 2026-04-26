@@ -96,19 +96,19 @@ def save_kinase_workflow_bundle(
             written=written,
             written_key="scoring.motif_scores",
         ),
-        "combined_scores": write_optional_bundle_table(
-            table=result.scoring_result.combined_scores,
+        "rank_weighted_fusion_scores": write_optional_bundle_table(
+            table=result.scoring_result.rank_weighted_fusion_scores,
             bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"combined_scores{suffix}",
+            relative_path=Path("scoring") / f"rank_weighted_fusion_scores{suffix}",
             written=written,
-            written_key="scoring.combined_scores",
+            written_key="scoring.rank_weighted_fusion_scores",
         ),
-        "weights": write_optional_bundle_table(
-            table=result.scoring_result.weights,
+        "score_fusion_weights": write_optional_bundle_table(
+            table=result.scoring_result.score_fusion_weights,
             bundle_root=bundle_root,
-            relative_path=Path("scoring") / f"weights{suffix}",
+            relative_path=Path("scoring") / f"score_fusion_weights{suffix}",
             written=written,
-            written_key="scoring.weights",
+            written_key="scoring.score_fusion_weights",
         ),
     }
 
@@ -141,27 +141,30 @@ def save_kinase_workflow_bundle(
             written=written,
             written_key="activity.weighted_activity",
         ),
-        "ksea_scores": write_optional_bundle_table(
+        "thresholded_substrate_mean_activity": write_optional_bundle_table(
             table=(
                 None
                 if result.activity_result is None
-                else result.activity_result.ksea_scores
+                else result.activity_result.thresholded_substrate_mean_activity
             ),
             bundle_root=bundle_root,
-            relative_path=Path("activity") / f"ksea_scores{suffix}",
+            relative_path=Path("activity")
+            / f"thresholded_substrate_mean_activity{suffix}",
             written=written,
-            written_key="activity.ksea_scores",
+            written_key="activity.thresholded_substrate_mean_activity",
         ),
-        "ksea_counts": write_optional_bundle_table(
+        "thresholded_substrate_counts": write_optional_bundle_table(
             table=(
                 None
                 if result.activity_result is None
-                else result.activity_result.ksea_counts.to_frame(name="n_substrates")
+                else result.activity_result.thresholded_substrate_counts.to_frame(
+                    name="n_substrates"
+                )
             ),
             bundle_root=bundle_root,
-            relative_path=Path("activity") / f"ksea_counts{suffix}",
+            relative_path=Path("activity") / f"thresholded_substrate_counts{suffix}",
             written=written,
-            written_key="activity.ksea_counts",
+            written_key="activity.thresholded_substrate_counts",
         ),
         "target_counts": write_optional_bundle_table(
             table=(

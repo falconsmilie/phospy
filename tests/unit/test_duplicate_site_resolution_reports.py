@@ -5,10 +5,10 @@ import pandas.testing as pdt
 import pytest
 
 from phospy.api.configs import (
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN,
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN,
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST,
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
 )
 from phospy.datasets.preprocessing.models import DuplicateSiteResolutionResult
 from phospy.datasets.preprocessing.stages.site_matrix import (
@@ -48,7 +48,7 @@ def test_apply_duplicate_site_policy_returns_structured_result() -> None:
         phospho=phospho,
         site_metadata=site_metadata,
         constructed_site_id=constructed_site_id,
-        duplicate_site_strategy=DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST,
+        duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
     )
     assert isinstance(result, DuplicateSiteResolutionResult)
 
@@ -59,7 +59,7 @@ def test_duplicate_site_policy_first_reports_retained_and_dropped_rows() -> None
         phospho=phospho,
         site_metadata=site_metadata,
         constructed_site_id=constructed_site_id,
-        duplicate_site_strategy=DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST,
+        duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
     )
 
     table = result.duplicate_site_resolution.sort_values("source_row_id")
@@ -68,7 +68,7 @@ def test_duplicate_site_policy_first_reports_retained_and_dropped_rows() -> None
         "site_id",
         "source_row_id",
         "retained",
-        "resolution_strategy",
+        "resolution_policy",
         "retained_reason",
         "dropped_reason",
         "observed_values",
@@ -87,7 +87,7 @@ def test_duplicate_site_policy_max_mean_signal_reports_mean_and_selection() -> N
         phospho=phospho,
         site_metadata=site_metadata,
         constructed_site_id=constructed_site_id,
-        duplicate_site_strategy=DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
+        duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     )
 
     table = result.duplicate_site_resolution.sort_values("source_row_id")
@@ -107,14 +107,14 @@ def test_duplicate_site_policy_aggregate_mean_reports_all_contributing_rows() ->
         phospho=phospho,
         site_metadata=site_metadata,
         constructed_site_id=constructed_site_id,
-        duplicate_site_strategy=DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN,
+        duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
     )
 
     table = result.duplicate_site_resolution.sort_values("source_row_id")
     assert table["source_row_id"].tolist() == ["row_a", "row_b"]
     assert table["retained"].tolist() == [True, True]
     assert table["n_aggregated_rows"].tolist() == [2, 2]
-    assert (table["resolution_strategy"] == "aggregate_mean").all()
+    assert (table["resolution_policy"] == "aggregate_mean").all()
 
 
 def test_duplicate_site_policy_aggregate_median_reports_all_contributing_rows() -> None:
@@ -123,14 +123,14 @@ def test_duplicate_site_policy_aggregate_median_reports_all_contributing_rows() 
         phospho=phospho,
         site_metadata=site_metadata,
         constructed_site_id=constructed_site_id,
-        duplicate_site_strategy=DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN,
+        duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
     )
 
     table = result.duplicate_site_resolution.sort_values("source_row_id")
     assert table["source_row_id"].tolist() == ["row_a", "row_b"]
     assert table["retained"].tolist() == [True, True]
     assert table["n_aggregated_rows"].tolist() == [2, 2]
-    assert (table["resolution_strategy"] == "aggregate_median").all()
+    assert (table["resolution_policy"] == "aggregate_median").all()
 
 
 def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
@@ -139,7 +139,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
         phospho=phospho,
         site_metadata=site_metadata,
         constructed_site_id=constructed_site_id,
-        duplicate_site_strategy=DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN,
+        duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
     )
 
     assert not result.metadata_conflicts.empty
@@ -158,10 +158,10 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
 
 
 @pytest.mark.parametrize(
-    ("strategy", "expected_phospho", "expected_site_metadata"),
+    ("policy", "expected_phospho", "expected_site_metadata"),
     [
         (
-            DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST,
+            DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
             pd.DataFrame(
                 {
                     "sample_a": [1.0, 5.0],
@@ -181,7 +181,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
             ),
         ),
         (
-            DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
+            DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
             pd.DataFrame(
                 {
                     "sample_a": [5.0, 3.0],
@@ -201,7 +201,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
             ),
         ),
         (
-            DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN,
+            DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
             pd.DataFrame(
                 {
                     "sample_a": [2.0, 5.0],
@@ -221,7 +221,7 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
             ),
         ),
         (
-            DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN,
+            DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
             pd.DataFrame(
                 {
                     "sample_a": [2.0, 5.0],
@@ -242,8 +242,8 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
         ),
     ],
 )
-def test_duplicate_site_policy_preserves_existing_outputs_for_current_strategies(
-    strategy: str,
+def test_duplicate_site_policy_preserves_existing_outputs_for_current_policies(
+    policy: str,
     expected_phospho: pd.DataFrame,
     expected_site_metadata: pd.DataFrame,
 ) -> None:
@@ -252,7 +252,7 @@ def test_duplicate_site_policy_preserves_existing_outputs_for_current_strategies
         phospho=phospho,
         site_metadata=site_metadata,
         constructed_site_id=constructed_site_id,
-        duplicate_site_strategy=strategy,
+        duplicate_site_policy=policy,
     )
 
     pdt.assert_frame_equal(result.phospho, expected_phospho)

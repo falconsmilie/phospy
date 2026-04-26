@@ -41,7 +41,12 @@ class ReferencePreset(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class ReferenceBundle:
-    """Resolved workflow reference resources."""
+    """Resolved workflow reference resources.
+
+    Large kinase-substrate maps are supported. Runtime in downstream workflows
+    is primarily controlled by dataset/reference overlap after interpreter and
+    scoring-lane filtering, not only by raw map row count.
+    """
 
     organism: Organism
     kinase_substrate_map: pd.DataFrame

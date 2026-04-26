@@ -30,7 +30,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_processing_state,
 )
 from tests.support.rewrite_fixture_data import (
-    load_adaptive_sampling_edge_combined_scores,
+    load_adaptive_sampling_edge_rank_weighted_fusion_scores,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -180,7 +180,7 @@ def test_adaptive_sampling_historical_baseline_is_archival_and_svm_mode_is_not_r
         )
     assert KinasePredictionConfig().mode == "deterministic_ranking"
 
-    promoted_trace_scores = load_adaptive_sampling_edge_combined_scores()
+    promoted_trace_scores = load_adaptive_sampling_edge_rank_weighted_fusion_scores()
     assert not promoted_trace_scores.empty
     assert list(promoted_trace_scores.index.astype(str))[:2] == ["SITE_A", "SITE_B"]
 
@@ -356,7 +356,7 @@ def test_activity_parity_lock_historical_baseline_uses_rewrite_owned_fixture_pat
     assert "from tests.support.rewrite_fixture_data import (" in source
     assert "load_activity_reference_predmat" in source
     assert "load_activity_reference_weighted_activity" in source
-    assert "load_activity_reference_ksea_scores" in source
+    assert "load_activity_reference_thresholded_substrate_mean_activity" in source
     assert "load_activity_reference_target_table" in source
     assert "legacy_archive" not in source
     assert "tests_legacy/fixtures" not in source

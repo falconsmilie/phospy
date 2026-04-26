@@ -62,7 +62,9 @@ def test_weighted_activity_ignores_missing_values_per_sample() -> None:
     ] == pytest.approx((20 * 0.9 + 6 * 0.8) / (0.9 + 0.8))
 
 
-def test_ksea_scoring_respects_threshold_and_min_substrates() -> None:
+def test_thresholded_substrate_mean_activity_respects_threshold_and_min_substrates() -> (
+    None
+):
     pred_mat = pd.DataFrame(
         {
             "MAP2K6": [0.9, 0.8, 0.2],
@@ -88,12 +90,18 @@ def test_ksea_scoring_respects_threshold_and_min_substrates() -> None:
         )
     )
 
-    assert result.ksea_counts.to_dict() == {"AKT1": 3, "MAP2K6": 2}
-    assert result.ksea_scores.at["MAP2K6", "sample_a"] == pytest.approx(1.5)
-    assert result.ksea_scores.at["AKT1", "sample_b"] == pytest.approx(4.0)
+    assert result.thresholded_substrate_counts.to_dict() == {"AKT1": 3, "MAP2K6": 2}
+    assert result.thresholded_substrate_mean_activity.at[
+        "MAP2K6", "sample_a"
+    ] == pytest.approx(1.5)
+    assert result.thresholded_substrate_mean_activity.at[
+        "AKT1", "sample_b"
+    ] == pytest.approx(4.0)
 
 
-def test_ksea_ignores_missing_values_per_sample() -> None:
+def test_thresholded_substrate_mean_activity_ignores_missing_values_per_sample() -> (
+    None
+):
     pred_mat = pd.DataFrame(
         {"PRKACA": [0.9, 0.8, 0.7]},
         index=["A;S1;", "B;S2;", "C;S3;"],
@@ -116,9 +124,13 @@ def test_ksea_ignores_missing_values_per_sample() -> None:
         )
     )
 
-    assert result.ksea_scores.at["PRKACA", "phospho_corrected_1"] == pytest.approx(5.5)
-    assert result.ksea_scores.at["PRKACA", "phospho_corrected_2"] == pytest.approx(13.0)
-    assert result.ksea_counts.to_dict() == {"PRKACA": 3}
+    assert result.thresholded_substrate_mean_activity.at[
+        "PRKACA", "phospho_corrected_1"
+    ] == pytest.approx(5.5)
+    assert result.thresholded_substrate_mean_activity.at[
+        "PRKACA", "phospho_corrected_2"
+    ] == pytest.approx(13.0)
+    assert result.thresholded_substrate_counts.to_dict() == {"PRKACA": 3}
 
 
 def test_top_n_substrate_selection_is_deterministic_for_ties() -> None:

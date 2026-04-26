@@ -22,9 +22,9 @@ excluded from gap classification.
 | Scientific behavior | Historical baseline | Rewrite status | Gap |
 | --- | --- | --- | --- |
 | Weighted kinase activity kernel | weighted mean over top-N predicted substrates, overlap-aware, sample-wise NaN handling | Matched in `_compute_weighted_kinase_activity` + `_nan_aware_weighted_average` | None |
-| KSEA-style score kernel | thresholded substrate selection + per-sample mean with NaN skip | Matched in `_compute_ksea_scores` + `_nan_aware_mean_array` | None |
-| Threshold semantics | strict `>` thresholding for KSEA/target outputs | Matched in `_prediction_mask`, `_prediction_mask_array`, `_build_kinase_target_table` | None |
-| Minimum substrate rules | candidate gating by `min_substrates` | Matched for both weighted and KSEA paths | None |
+| Thresholded substrate-mean activity kernel | thresholded substrate selection + per-sample mean with NaN skip | Matched in `_compute_thresholded_substrate_mean_activity` + `_nan_aware_mean_array` | None |
+| Threshold semantics | strict `>` thresholding for thresholded-mean/target outputs | Matched in `_prediction_mask`, `_prediction_mask_array`, `_build_kinase_target_table` | None |
+| Minimum substrate rules | candidate gating by `min_substrates` | Matched for both weighted and thresholded-mean paths | None |
 | pred_mat/phospho overlap policy | require overlap count/fraction floors | Matched in `KinaseActivityInputValidator` (same default floors) | None |
 | Missing-value handling per sample | weighted and mean kernels ignore NaN per sample | Matched; covered in unit and parity tests | None |
 | Top-N deterministic tie handling | deterministic ordering for tied prediction scores | Matched via stable argsort (`kind="stable"`) | None |
@@ -38,7 +38,12 @@ Rewrite keeps legacy science kernels but adds workflow-boundary diagnostics:
 - `seam=kinase.activity.input_overlap` for invalid overlap between prediction and
   phospho matrices.
 - `seam=kinase.activity.valid_candidates` when activity filters remove all
-  weighted/KSEA candidates.
+  weighted/thresholded-mean candidates.
+
+Historical donor terminology called this KSEA-style. In the rewrite public API
+this is named `thresholded_substrate_mean_activity` because it computes a
+thresholded substrate mean and does not implement full KSEA enrichment
+statistics.
 
 This is not a scientific divergence; it is explicit product-boundary behavior for
 the supported workflow contract.

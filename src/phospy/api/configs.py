@@ -59,25 +59,25 @@ DATASET_SITE_MATRIX_POLICIES = frozenset(
         DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
     }
 )
-DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL = "max_mean_signal"
-DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST = "first"
-DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN = "aggregate_mean"
-DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN = "aggregate_median"
-DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_ERROR = "error"
-DatasetSiteMatrixDuplicateSiteStrategy = Literal[
+DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL = "max_mean_signal"
+DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST = "first"
+DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN = "aggregate_mean"
+DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN = "aggregate_median"
+DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR = "error"
+DatasetSiteMatrixDuplicateSitePolicy = Literal[
     "max_mean_signal",
     "first",
     "aggregate_mean",
     "aggregate_median",
     "error",
 ]
-DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES = frozenset(
+DATASET_SITE_MATRIX_DUPLICATE_POLICIES = frozenset(
     {
-        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
-        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST,
-        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN,
-        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN,
-        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_ERROR,
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
     }
 )
 DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING = "drop_any_missing"
@@ -382,7 +382,7 @@ class DatasetSiteMatrixConfig:
     fixed to `missing_data_policy="drop_any_missing"`, so only complete phospho
     rows enter strict `AnalysisReadyPhosphoDataset` construction.
 
-    `duplicate_site_strategy` controls duplicate-site collapse for the retained
+    `duplicate_site_policy` controls duplicate-site collapse for the retained
     complete-case rows:
 
     - `"error"`: strict/scientifically cautious mode; fail when duplicate
@@ -405,8 +405,8 @@ class DatasetSiteMatrixConfig:
     """
 
     policy: DatasetSiteMatrixPolicy = DATASET_SITE_MATRIX_POLICY_AS_INPUT
-    duplicate_site_strategy: DatasetSiteMatrixDuplicateSiteStrategy = (
-        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL
+    duplicate_site_policy: DatasetSiteMatrixDuplicateSitePolicy = (
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL
     )
     missing_data_policy: DatasetSiteMatrixMissingDataPolicy = (
         DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
@@ -422,14 +422,14 @@ class DatasetSiteMatrixConfig:
                 f"must be one of: {supported}"
             )
 
-        duplicate_site_strategy = self.duplicate_site_strategy
-        if duplicate_site_strategy not in DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES:
+        duplicate_site_policy = self.duplicate_site_policy
+        if duplicate_site_policy not in DATASET_SITE_MATRIX_DUPLICATE_POLICIES:
             supported_duplicates = ", ".join(
-                sorted(DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES)
+                sorted(DATASET_SITE_MATRIX_DUPLICATE_POLICIES)
             )
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.site_matrix."
-                "duplicate_site_strategy must be one of: "
+                "duplicate_site_policy must be one of: "
                 f"{supported_duplicates}"
             )
 
@@ -462,12 +462,12 @@ class DatasetSiteMatrixConfig:
             )
 
         if policy == DATASET_SITE_MATRIX_POLICY_AS_INPUT and (
-            duplicate_site_strategy
-            != DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL
+            duplicate_site_policy
+            != DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL
         ):
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.site_matrix."
-                "duplicate_site_strategy is only valid when "
+                "duplicate_site_policy is only valid when "
                 "site_matrix.policy='build_from_metadata'"
             )
 
@@ -648,8 +648,9 @@ class KinaseScoringConfig:
     provenance (preset vs explicit bundle) do not redefine scoring behavior.
 
     `include_diagnostic_scoring_tables` controls publication of non-authoritative
-    diagnostic scoring outputs (`motif_scores`, `weights`). The authoritative
-    downstream lane (`combined_scores` with profile fallback) is always computed.
+    diagnostic scoring outputs (`motif_scores`, `score_fusion_weights`). The
+    authoritative downstream lane (`rank_weighted_fusion_scores` with profile
+    fallback) is always computed.
 
     `profile_missing_value_strategy` controls column-wise median behavior when a
     kinase profile is built from multiple quantified substrates:
@@ -928,15 +929,15 @@ __all__ = [
     "DATASET_NORMALISATION_POLICY_NONE",
     "DATASET_NORMALISATION_POLICY_QUANTILE",
     "DATASET_SITE_MATRIX_POLICIES",
-    "DATASET_SITE_MATRIX_DUPLICATE_STRATEGIES",
+    "DATASET_SITE_MATRIX_DUPLICATE_POLICIES",
     "DATASET_SITE_MATRIX_MISSING_DATA_POLICIES",
     "DATASET_SITE_MATRIX_POLICY_AS_INPUT",
     "DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA",
-    "DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL",
-    "DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST",
-    "DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN",
-    "DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN",
-    "DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_ERROR",
+    "DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL",
+    "DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST",
+    "DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN",
+    "DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN",
+    "DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR",
     "DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE",
@@ -983,7 +984,7 @@ __all__ = [
     "DatasetMissingDataPolicy",
     "DatasetPreprocessingConfig",
     "DatasetSiteMatrixConfig",
-    "DatasetSiteMatrixDuplicateSiteStrategy",
+    "DatasetSiteMatrixDuplicateSitePolicy",
     "DatasetSiteMatrixMissingDataPolicy",
     "DatasetSiteMatrixPolicy",
     "DatasetTotalProteinCorrectionConfig",

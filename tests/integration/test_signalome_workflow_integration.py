@@ -275,7 +275,7 @@ def test_signalome_threshold_knobs_do_not_cross_couple_unrelated_outputs() -> No
     )
 
 
-def test_signalome_network_uses_combined_downstream_scores_when_available(
+def test_signalome_network_uses_rank_weighted_fusion_downstream_scores_when_available(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     dataset = build_rat_l6_dataset(n_sites=260)
@@ -293,10 +293,10 @@ def test_signalome_network_uses_combined_downstream_scores_when_available(
         config=SignalomeConfig(substrate_support_cutoff=0.5),
     )
 
-    combined_lane = SignalomeWorkflow().run(request)
+    rank_weighted_fusion_lane = SignalomeWorkflow().run(request)
 
-    def _force_profile_lane(*, profile_scores, combined_scores):
-        _ = combined_scores
+    def _force_profile_lane(*, profile_scores, rank_weighted_fusion_scores):
+        _ = rank_weighted_fusion_scores
         return profile_scores, "profile_scores"
 
     monkeypatch.setattr(
@@ -306,20 +306,22 @@ def test_signalome_network_uses_combined_downstream_scores_when_available(
     )
     profile_lane = SignalomeWorkflow().run(request)
 
-    assert not combined_lane.kinase_network.edges.equals(
+    assert not rank_weighted_fusion_lane.kinase_network.edges.equals(
         profile_lane.kinase_network.edges
     )
-    assert not combined_lane.module_assignments.table.equals(
+    assert not rank_weighted_fusion_lane.module_assignments.table.equals(
         profile_lane.module_assignments.table
     )
     pdt.assert_series_equal(
-        combined_lane.module_assignments.table.loc[:, "top_kinase"],
+        rank_weighted_fusion_lane.module_assignments.table.loc[:, "top_kinase"],
         profile_lane.module_assignments.table.loc[:, "top_kinase"],
         check_dtype=False,
     )
 
 
-def test_signalome_workflow_accepts_sparse_missing_combined_score_rows() -> None:
+def test_signalome_workflow_accepts_sparse_missing_rank_weighted_fusion_score_rows() -> (
+    None
+):
     dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
@@ -330,18 +332,20 @@ def test_signalome_workflow_accepts_sparse_missing_combined_score_rows() -> None
             activity_config=None,
         )
     )
-    combined_scores = kinase_result.scoring_result.combined_scores
-    assert combined_scores is not None
-    sparse_combined_scores = combined_scores.copy(deep=True)
-    sparse_combined_scores.iloc[:5, :] = float("nan")
+    rank_weighted_fusion_scores = (
+        kinase_result.scoring_result.rank_weighted_fusion_scores
+    )
+    assert rank_weighted_fusion_scores is not None
+    sparse_rank_weighted_fusion_scores = rank_weighted_fusion_scores.copy(deep=True)
+    sparse_rank_weighted_fusion_scores.iloc[:5, :] = float("nan")
     sparse_kinase_result = KinaseWorkflowResult(
         dataset=kinase_result.dataset,
         references=kinase_result.references,
         scoring_result=KinaseScoringResult(
             profile_scores=kinase_result.scoring_result.profile_scores,
             motif_scores=kinase_result.scoring_result.motif_scores,
-            combined_scores=sparse_combined_scores,
-            weights=kinase_result.scoring_result.weights,
+            rank_weighted_fusion_scores=sparse_rank_weighted_fusion_scores,
+            score_fusion_weights=kinase_result.scoring_result.score_fusion_weights,
         ),
         prediction_result=kinase_result.prediction_result,
         activity_result=kinase_result.activity_result,
@@ -372,7 +376,7 @@ def test_signalome_workflow_accepts_sparse_missing_combined_score_rows() -> None
     assert result.score_preconditioning_diagnostics.policy == "allow_and_report"
 
 
-def test_signalome_workflow_rejects_sparse_missing_combined_rows_under_error_policy() -> (
+def test_signalome_workflow_rejects_sparse_missing_rank_weighted_fusion_rows_under_error_policy() -> (
     None
 ):
     dataset = build_rat_l6_dataset(n_sites=260)
@@ -385,18 +389,20 @@ def test_signalome_workflow_rejects_sparse_missing_combined_rows_under_error_pol
             activity_config=None,
         )
     )
-    combined_scores = kinase_result.scoring_result.combined_scores
-    assert combined_scores is not None
-    sparse_combined_scores = combined_scores.copy(deep=True)
-    sparse_combined_scores.iloc[:5, :] = float("nan")
+    rank_weighted_fusion_scores = (
+        kinase_result.scoring_result.rank_weighted_fusion_scores
+    )
+    assert rank_weighted_fusion_scores is not None
+    sparse_rank_weighted_fusion_scores = rank_weighted_fusion_scores.copy(deep=True)
+    sparse_rank_weighted_fusion_scores.iloc[:5, :] = float("nan")
     sparse_kinase_result = KinaseWorkflowResult(
         dataset=kinase_result.dataset,
         references=kinase_result.references,
         scoring_result=KinaseScoringResult(
             profile_scores=kinase_result.scoring_result.profile_scores,
             motif_scores=kinase_result.scoring_result.motif_scores,
-            combined_scores=sparse_combined_scores,
-            weights=kinase_result.scoring_result.weights,
+            rank_weighted_fusion_scores=sparse_rank_weighted_fusion_scores,
+            score_fusion_weights=kinase_result.scoring_result.score_fusion_weights,
         ),
         prediction_result=kinase_result.prediction_result,
         activity_result=kinase_result.activity_result,

@@ -49,8 +49,12 @@ RAT_L6_EXPECTED_PROFILE = REWRITE_PARITY_REFERENCE / "native_profile_scores.csv"
 ACTIVITY_REFERENCE_PROVENANCE = REWRITE_PARITY_REFERENCE / "PROVENANCE.md"
 ACTIVITY_REFERENCE_PREDMAT = REWRITE_PARITY_REFERENCE / "predMat.csv"
 ACTIVITY_REFERENCE_WEIGHTED = REWRITE_PARITY_REFERENCE / "kinase_activity_matrix.csv"
-ACTIVITY_REFERENCE_KSEA_SCORES = REWRITE_PARITY_REFERENCE / "ksea_scores.csv"
-ACTIVITY_REFERENCE_KSEA_COUNTS = REWRITE_PARITY_REFERENCE / "ksea_counts.csv"
+ACTIVITY_REFERENCE_THRESHOLDED_SUBSTRATE_MEAN_ACTIVITY = (
+    REWRITE_PARITY_REFERENCE / "thresholded_substrate_mean_activity.csv"
+)
+ACTIVITY_REFERENCE_THRESHOLDED_SUBSTRATE_COUNTS = (
+    REWRITE_PARITY_REFERENCE / "thresholded_substrate_counts.csv"
+)
 ACTIVITY_REFERENCE_TARGET_COUNTS = REWRITE_PARITY_REFERENCE / "kinase_target_counts.csv"
 ACTIVITY_REFERENCE_TARGET_TABLE = REWRITE_PARITY_REFERENCE / "kinase_target_table.csv"
 ACTIVITY_PARITY_FIXTURE_FILES: tuple[str, ...] = (
@@ -58,8 +62,8 @@ ACTIVITY_PARITY_FIXTURE_FILES: tuple[str, ...] = (
     "native_profile_scores.csv",
     "predMat.csv",
     "kinase_activity_matrix.csv",
-    "ksea_scores.csv",
-    "ksea_counts.csv",
+    "thresholded_substrate_mean_activity.csv",
+    "thresholded_substrate_counts.csv",
     "kinase_target_counts.csv",
     "kinase_target_table.csv",
 )
@@ -69,11 +73,11 @@ L6_PREDICTION_REFERENCE_PHOSPHO = (
 L6_PREDICTION_REFERENCE_PROFILE = (
     REWRITE_PARITY_L6_PREDICTION_REFERENCE / "native_profile_scores.csv"
 )
-L6_PREDICTION_REFERENCE_COMBINED = (
-    REWRITE_PARITY_L6_PREDICTION_REFERENCE / "native_combined_scores.csv"
+L6_PREDICTION_REFERENCE_RANK_WEIGHTED_FUSION_SCORES = (
+    REWRITE_PARITY_L6_PREDICTION_REFERENCE / "native_rank_weighted_fusion_scores.csv"
 )
-L6_PREDICTION_REFERENCE_WEIGHTS = (
-    REWRITE_PARITY_L6_PREDICTION_REFERENCE / "native_combined_weights.csv"
+L6_PREDICTION_REFERENCE_SCORE_FUSION_WEIGHTS = (
+    REWRITE_PARITY_L6_PREDICTION_REFERENCE / "native_score_fusion_weights.csv"
 )
 L6_PREDICTION_REFERENCE_CANDIDATES = (
     REWRITE_PARITY_L6_PREDICTION_REFERENCE / "native_candidate_substrates.csv"
@@ -82,8 +86,8 @@ L6_PREDICTION_REFERENCE_TOP30 = (
     REWRITE_PARITY_L6_PREDICTION_REFERENCE / "native_prediction_top30.csv"
 )
 L6_PREDICTION_REFERENCE_PREDMAT = REWRITE_PARITY_L6_PREDICTION_REFERENCE / "predMat.csv"
-ADAPTIVE_SAMPLING_REPLAY_COMBINED_SCORES = (
-    REWRITE_PARITY_ADAPTIVE_SAMPLING_REPLAY / "combined_scores.csv"
+ADAPTIVE_SAMPLING_REPLAY_RANK_WEIGHTED_FUSION_SCORES = (
+    REWRITE_PARITY_ADAPTIVE_SAMPLING_REPLAY / "rank_weighted_fusion_scores.csv"
 )
 REWRITE_PUBLIC_WORKFLOW_REFERENCE = (
     ROOT / "tests" / "fixtures" / "public_workflow_reference"
@@ -176,15 +180,21 @@ def load_activity_reference_weighted_activity() -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
-def load_activity_reference_ksea_scores() -> pd.DataFrame:
-    frame = pd.read_csv(ACTIVITY_REFERENCE_KSEA_SCORES, index_col=0)
+def load_activity_reference_thresholded_substrate_mean_activity() -> pd.DataFrame:
+    frame = pd.read_csv(
+        ACTIVITY_REFERENCE_THRESHOLDED_SUBSTRATE_MEAN_ACTIVITY,
+        index_col=0,
+    )
     frame.index = pd.Index(frame.index.astype(str), name="kinase")
     return frame.astype(float)
 
 
 @lru_cache(maxsize=1)
-def load_activity_reference_ksea_counts() -> pd.Series:
-    frame = pd.read_csv(ACTIVITY_REFERENCE_KSEA_COUNTS, index_col=0)
+def load_activity_reference_thresholded_substrate_counts() -> pd.Series:
+    frame = pd.read_csv(
+        ACTIVITY_REFERENCE_THRESHOLDED_SUBSTRATE_COUNTS,
+        index_col=0,
+    )
     counts = frame.iloc[:, 0].astype(int)
     counts.index = pd.Index(counts.index.astype(str), name="kinase")
     counts.name = "n_substrates"
@@ -224,13 +234,18 @@ def load_l6_prediction_reference_profile_scores() -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
-def load_l6_prediction_reference_combined_scores() -> pd.DataFrame:
-    return pd.read_csv(L6_PREDICTION_REFERENCE_COMBINED, index_col=0)
+def load_l6_prediction_reference_rank_weighted_fusion_scores() -> pd.DataFrame:
+    return pd.read_csv(
+        L6_PREDICTION_REFERENCE_RANK_WEIGHTED_FUSION_SCORES,
+        index_col=0,
+    )
 
 
 @lru_cache(maxsize=1)
-def load_l6_prediction_reference_weights() -> pd.DataFrame:
-    frame = pd.read_csv(L6_PREDICTION_REFERENCE_WEIGHTS).set_index("kinase")
+def load_l6_prediction_reference_score_fusion_weights() -> pd.DataFrame:
+    frame = pd.read_csv(L6_PREDICTION_REFERENCE_SCORE_FUSION_WEIGHTS).set_index(
+        "kinase"
+    )
     frame.index = frame.index.astype(str)
     frame.index.name = "kinase"
     return frame
@@ -317,17 +332,17 @@ def load_fragile_support_motif_sizes() -> pd.Series:
 
 
 @lru_cache(maxsize=1)
-def load_fragile_support_combined_scores() -> pd.DataFrame:
+def load_fragile_support_rank_weighted_fusion_scores() -> pd.DataFrame:
     return pd.read_csv(
-        REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "combined_scores.csv",
+        REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "rank_weighted_fusion_scores.csv",
         index_col=0,
     )
 
 
 @lru_cache(maxsize=1)
-def load_fragile_support_combined_weights() -> pd.DataFrame:
+def load_fragile_support_score_fusion_weights() -> pd.DataFrame:
     frame = pd.read_csv(
-        REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "combined_weights.csv",
+        REWRITE_PARITY_FRAGILE_SUPPORT_REFERENCE / "score_fusion_weights.csv",
         index_col=0,
     )
     frame.index = frame.index.astype(str)
@@ -343,16 +358,19 @@ def load_fragile_support_candidate_substrates() -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
-def load_adaptive_sampling_edge_combined_scores() -> pd.DataFrame:
+def load_adaptive_sampling_edge_rank_weighted_fusion_scores() -> pd.DataFrame:
     return pd.read_csv(
-        REWRITE_PARITY_ADAPTIVE_SAMPLING_EDGE / "combined_scores.csv",
+        REWRITE_PARITY_ADAPTIVE_SAMPLING_EDGE / "rank_weighted_fusion_scores.csv",
         index_col=0,
     )
 
 
 @lru_cache(maxsize=1)
-def load_adaptive_sampling_replay_combined_scores() -> pd.DataFrame:
-    return pd.read_csv(ADAPTIVE_SAMPLING_REPLAY_COMBINED_SCORES, index_col=0)
+def load_adaptive_sampling_replay_rank_weighted_fusion_scores() -> pd.DataFrame:
+    return pd.read_csv(
+        ADAPTIVE_SAMPLING_REPLAY_RANK_WEIGHTED_FUSION_SCORES,
+        index_col=0,
+    )
 
 
 @lru_cache(maxsize=1)

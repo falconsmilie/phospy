@@ -146,7 +146,7 @@ This result should hold scoring-stage outputs such as:
 
 - `profile_scores`
 - optional `motif_scores`
-- optional `combined_scores`
+- optional `rank_weighted_fusion_scores`
 - optional `weights`
 
 ### `KinasePredictionResult`
@@ -161,8 +161,8 @@ This result should hold prediction-stage outputs such as:
 This result should hold activity-stage outputs such as:
 
 - `weighted_activity`
-- `ksea_scores`
-- `ksea_counts`
+- `thresholded_substrate_mean_activity`
+- `thresholded_substrate_counts`
 - `target_counts`
 - `target_table`
 
@@ -184,7 +184,7 @@ Top-level convenience properties for prediction output should be avoided. Predic
 By contrast, stage-field mirrors such as top-level aliases for:
 
 - `profile_scores`
-- `combined_scores`
+- `rank_weighted_fusion_scores`
 - `weights`
 - `substrate_list`
 

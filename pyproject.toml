@@ -87,6 +87,7 @@ testpaths = ["tests/unit", "tests/integration", "tests/parity"]
 addopts = "-m \"not parity\""
 markers = [
   "integration: multi-component rewrite workflow tests",
+  "performance: lightweight performance contract tests for key scientific hot paths",
   "parity: compare Python outputs against R/PhosR reference fixtures",
   "activity_parity: hard regression gate for activity-stage parity fixtures and kernels",
   "parity_diagnostic: informational parity reporting tests (not threshold-bearing release gates)",

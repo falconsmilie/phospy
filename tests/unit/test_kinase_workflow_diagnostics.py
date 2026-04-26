@@ -199,14 +199,14 @@ def test_scoring_stage_is_reference_input_form_invariant_for_equivalent_content(
         from_bundle.scoring_result.profile_scores,
         check_dtype=False,
     )
-    assert from_preset.scoring_result.combined_scores is not None
-    assert from_bundle.scoring_result.combined_scores is not None
+    assert from_preset.scoring_result.rank_weighted_fusion_scores is not None
+    assert from_bundle.scoring_result.rank_weighted_fusion_scores is not None
     pd.testing.assert_frame_equal(
-        from_preset.scoring_result.combined_scores,
-        from_bundle.scoring_result.combined_scores,
+        from_preset.scoring_result.rank_weighted_fusion_scores,
+        from_bundle.scoring_result.rank_weighted_fusion_scores,
         check_dtype=False,
     )
-    assert from_preset.downstream_score_source == "combined_scores"
+    assert from_preset.downstream_score_source == "rank_weighted_fusion_scores"
     assert from_preset.downstream_score_source == from_bundle.downstream_score_source
 
 
@@ -494,13 +494,13 @@ def test_boundary_error_reports_no_activity_candidates_after_filtering() -> None
     message = str(exc_info.value)
     assert "seam=kinase.activity.valid_candidates" in message
     assert "weighted_activity_kinases=0" in message
-    assert "ksea_kinases=0" in message
+    assert "thresholded_mean_activity_kinases=0" in message
     assert "activity_config_threshold=0.95" in message
     assert "activity_config_min_substrates=3" in message
     assert "activity_config_top_n_substrates=2" in message
 
 
-def test_activity_stage_returns_weighted_ksea_and_target_outputs() -> None:
+def test_activity_stage_returns_weighted_thresholded_mean_and_target_outputs() -> None:
     dataset = _dataset(
         site_ids=["MAPK14;Y182;", "GSK3B;S9;", "AKT1;T308;"],
         sample_names=["sample_a", "sample_b"],
@@ -542,9 +542,11 @@ def test_activity_stage_returns_weighted_ksea_and_target_outputs() -> None:
     assert result.weighted_activity.at["AKT1", "sample_b"] == pytest.approx(
         (2.0 * 0.4 + 4.0 * 0.2) / (0.4 + 0.2)
     )
-    assert list(result.ksea_scores.index) == ["MAP2K6"]
-    assert result.ksea_scores.at["MAP2K6", "sample_a"] == pytest.approx(1.5)
-    assert result.ksea_counts.to_dict() == {"MAP2K6": 2}
+    assert list(result.thresholded_substrate_mean_activity.index) == ["MAP2K6"]
+    assert result.thresholded_substrate_mean_activity.at[
+        "MAP2K6", "sample_a"
+    ] == pytest.approx(1.5)
+    assert result.thresholded_substrate_counts.to_dict() == {"MAP2K6": 2}
     assert result.target_counts.to_dict() == {"MAP2K6": 2, "AKT1": 1}
     assert set(result.target_table.columns) == {"site_id", "kinase", "score"}
     assert int(result.target_table.shape[0]) == 3

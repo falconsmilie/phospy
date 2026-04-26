@@ -78,7 +78,7 @@ def test_dataset_builder_populates_preprocessing_report_for_successful_build() -
         "site_id",
         "source_row_id",
         "retained",
-        "resolution_strategy",
+        "resolution_policy",
         "retained_reason",
         "dropped_reason",
         "observed_values",
@@ -387,7 +387,7 @@ def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> 
             preprocessing_config=DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(
                     policy="build_from_metadata",
-                    duplicate_site_strategy="aggregate_mean",
+                    duplicate_site_policy="aggregate_mean",
                 )
             ),
         )
@@ -1056,6 +1056,6 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
     assert site_matrix_stage.operation == "build_from_metadata"
     diagnostics = site_matrix_stage.diagnostics or {}
     assert "row_c" in set(diagnostics["dropped_missing_sequence_row_ids"])
-    assert diagnostics["duplicate_site_strategy"] == "max_mean_signal"
+    assert diagnostics["duplicate_site_policy"] == "max_mean_signal"
     assert diagnostics["missing_data_policy"] == "drop_any_missing"
     assert "MAPK14;Y182;" in set(diagnostics["final_constructed_site_ids"])

@@ -44,7 +44,7 @@ def test_kinase_workflow_runs_without_dataset_site_sequence_column() -> None:
     )
     assert not result.scoring_result.profile_scores.empty
     assert result.scoring_result.motif_scores is None
-    assert result.scoring_result.weights is None
+    assert result.scoring_result.score_fusion_weights is None
     assert not result.prediction_result.pred_mat.empty
 
 
@@ -66,9 +66,9 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
     )
     assert result.scoring_result.profile_scores.shape[0] == dataset.phospho.shape[0]
     assert result.scoring_result.profile_scores.shape[1] > 0
-    assert result.scoring_result.combined_scores is not None
+    assert result.scoring_result.rank_weighted_fusion_scores is not None
     assert result.scoring_result.motif_scores is None
-    assert result.scoring_result.weights is None
+    assert result.scoring_result.score_fusion_weights is None
     sequence_sites = set(result.references.site_sequences.index.astype(str))
     assert set(result.scoring_result.profile_scores.index.astype(str)).issubset(
         sequence_sites
@@ -79,14 +79,14 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
     assert (finite_values >= 0.0).all()
     assert result.activity_result is not None
     assert not result.activity_result.weighted_activity.empty
-    assert not result.activity_result.ksea_scores.empty
-    assert not result.activity_result.ksea_counts.empty
+    assert not result.activity_result.thresholded_substrate_mean_activity.empty
+    assert not result.activity_result.thresholded_substrate_counts.empty
     assert not result.activity_result.target_counts.empty
     assert {"site_id", "kinase", "score"} <= set(
         result.activity_result.target_table.columns
     )
     assert not hasattr(result, "profile_scores")
-    assert not hasattr(result, "combined_scores")
+    assert not hasattr(result, "rank_weighted_fusion_scores")
     assert not hasattr(result, "weights")
     assert not hasattr(result, "substrate_list")
 
@@ -132,8 +132,8 @@ def test_prediction_changes_when_downstream_matrix_switches_profile_vs_combined(
 
     combined_lane = KinaseWorkflow().run(request)
 
-    def _force_profile_lane(*, profile_scores, combined_scores):
-        _ = combined_scores
+    def _force_profile_lane(*, profile_scores, rank_weighted_fusion_scores):
+        _ = rank_weighted_fusion_scores
         return profile_scores, "profile_scores"
 
     monkeypatch.setattr(
@@ -147,8 +147,10 @@ def test_prediction_changes_when_downstream_matrix_switches_profile_vs_combined(
     profile_pred = profile_lane.prediction_result.pred_mat
     assert not combined_pred.equals(profile_pred)
 
-    combined_scores = combined_lane.scoring_result.combined_scores
-    assert combined_scores is not None
+    rank_weighted_fusion_scores = (
+        combined_lane.scoring_result.rank_weighted_fusion_scores
+    )
+    assert rank_weighted_fusion_scores is not None
     profile_scores = combined_lane.scoring_result.profile_scores
     shared_kinases = pd.Index(combined_pred.columns).intersection(profile_pred.columns)
     assert not shared_kinases.empty
@@ -159,7 +161,7 @@ def test_prediction_changes_when_downstream_matrix_switches_profile_vs_combined(
             continue
         if profile_pred.loc[:, kinase].dropna().empty:
             continue
-        combined_top = combined_scores.loc[:, kinase].astype(float).idxmax()
+        combined_top = rank_weighted_fusion_scores.loc[:, kinase].astype(float).idxmax()
         profile_top = profile_scores.loc[:, kinase].astype(float).idxmax()
         if combined_top == profile_top:
             continue
@@ -199,20 +201,20 @@ def test_diagnostic_scoring_tables_are_opt_in_without_changing_supported_lane() 
     diagnostics_result = KinaseWorkflow().run(request_with_diagnostics)
 
     assert default_result.scoring_result.motif_scores is None
-    assert default_result.scoring_result.weights is None
+    assert default_result.scoring_result.score_fusion_weights is None
     assert diagnostics_result.scoring_result.motif_scores is not None
-    assert diagnostics_result.scoring_result.weights is not None
+    assert diagnostics_result.scoring_result.score_fusion_weights is not None
 
     pd.testing.assert_frame_equal(
         default_result.scoring_result.profile_scores,
         diagnostics_result.scoring_result.profile_scores,
         check_dtype=False,
     )
-    assert default_result.scoring_result.combined_scores is not None
-    assert diagnostics_result.scoring_result.combined_scores is not None
+    assert default_result.scoring_result.rank_weighted_fusion_scores is not None
+    assert diagnostics_result.scoring_result.rank_weighted_fusion_scores is not None
     pd.testing.assert_frame_equal(
-        default_result.scoring_result.combined_scores,
-        diagnostics_result.scoring_result.combined_scores,
+        default_result.scoring_result.rank_weighted_fusion_scores,
+        diagnostics_result.scoring_result.rank_weighted_fusion_scores,
         check_dtype=False,
     )
     pd.testing.assert_frame_equal(

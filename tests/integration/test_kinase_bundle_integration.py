@@ -80,10 +80,10 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
         "site_sequences": "references/site_sequences.csv",
     }
     assert manifest["outputs"]["scoring"]["tables"] == {
-        "combined_scores": "scoring/combined_scores.csv",
+        "rank_weighted_fusion_scores": "scoring/rank_weighted_fusion_scores.csv",
         "motif_scores": None,
         "profile_scores": "scoring/profile_scores.csv",
-        "weights": None,
+        "score_fusion_weights": None,
     }
     assert manifest["outputs"]["prediction"]["tables"] == {
         "pred_mat": "prediction/pred_mat.csv",
@@ -93,8 +93,8 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
         "enabled": True,
         "tables": {
             "weighted_activity": "activity/weighted_activity.csv",
-            "ksea_scores": "activity/ksea_scores.csv",
-            "ksea_counts": "activity/ksea_counts.csv",
+            "thresholded_substrate_mean_activity": "activity/thresholded_substrate_mean_activity.csv",
+            "thresholded_substrate_counts": "activity/thresholded_substrate_counts.csv",
             "target_counts": "activity/target_counts.csv",
             "target_table": "activity/target_table.csv",
         },
@@ -137,8 +137,8 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
         "enabled": False,
         "tables": {
             "weighted_activity": None,
-            "ksea_scores": None,
-            "ksea_counts": None,
+            "thresholded_substrate_mean_activity": None,
+            "thresholded_substrate_counts": None,
             "target_counts": None,
             "target_table": None,
         },
@@ -296,12 +296,12 @@ def _assert_kinase_result_equal(left, right) -> None:
         right.scoring_result.motif_scores,
     )
     _assert_optional_frame_equal(
-        left.scoring_result.combined_scores,
-        right.scoring_result.combined_scores,
+        left.scoring_result.rank_weighted_fusion_scores,
+        right.scoring_result.rank_weighted_fusion_scores,
     )
     _assert_optional_frame_equal(
-        left.scoring_result.weights,
-        right.scoring_result.weights,
+        left.scoring_result.score_fusion_weights,
+        right.scoring_result.score_fusion_weights,
     )
     pd.testing.assert_frame_equal(
         left.prediction_result.pred_mat,
@@ -326,15 +326,15 @@ def _assert_kinase_result_equal(left, right) -> None:
         check_index_type=False,
     )
     pd.testing.assert_frame_equal(
-        left.activity_result.ksea_scores,
-        right.activity_result.ksea_scores,
+        left.activity_result.thresholded_substrate_mean_activity,
+        right.activity_result.thresholded_substrate_mean_activity,
         check_dtype=False,
         check_names=False,
         check_index_type=False,
     )
     pd.testing.assert_series_equal(
-        left.activity_result.ksea_counts,
-        right.activity_result.ksea_counts,
+        left.activity_result.thresholded_substrate_counts,
+        right.activity_result.thresholded_substrate_counts,
         check_dtype=False,
         check_names=False,
         check_index_type=False,

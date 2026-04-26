@@ -14,12 +14,12 @@ from tests.support.rewrite_fixture_data import (
     ACTIVITY_PARITY_FIXTURE_FILES,
     ACTIVITY_REFERENCE_PROVENANCE,
     activity_parity_fixture_paths,
-    load_activity_reference_ksea_counts,
-    load_activity_reference_ksea_scores,
     load_activity_reference_predmat,
     load_activity_reference_provenance_text,
     load_activity_reference_target_counts,
     load_activity_reference_target_table,
+    load_activity_reference_thresholded_substrate_counts,
+    load_activity_reference_thresholded_substrate_mean_activity,
     load_activity_reference_weighted_activity,
     load_rat_l6_phospho,
 )
@@ -93,31 +93,53 @@ def test_weighted_activity_matches_rewrite_reference_fixture(
     )
 
 
-def test_ksea_outputs_match_rewrite_reference_fixture(
+def test_thresholded_substrate_outputs_match_rewrite_reference_fixture(
     request: pytest.FixtureRequest,
 ) -> None:
     result = _activity_result()
-    expected_scores = load_activity_reference_ksea_scores()
-    expected_counts = load_activity_reference_ksea_counts()
+    expected_scores = load_activity_reference_thresholded_substrate_mean_activity()
+    expected_counts = load_activity_reference_thresholded_substrate_counts()
 
     pdt.assert_frame_equal(
-        result.ksea_scores.sort_index(), expected_scores.sort_index()
+        result.thresholded_substrate_mean_activity.sort_index(),
+        expected_scores.sort_index(),
     )
     pdt.assert_series_equal(
-        result.ksea_counts.sort_index(), expected_counts.sort_index()
+        result.thresholded_substrate_counts.sort_index(),
+        expected_counts.sort_index(),
     )
-    score_delta = (result.ksea_scores.sort_index() - expected_scores.sort_index()).abs()
-    count_delta = (result.ksea_counts.sort_index() - expected_counts.sort_index()).abs()
+    score_delta = (
+        result.thresholded_substrate_mean_activity.sort_index()
+        - expected_scores.sort_index()
+    ).abs()
+    count_delta = (
+        result.thresholded_substrate_counts.sort_index() - expected_counts.sort_index()
+    ).abs()
     record_parity_metrics(
         request.config,
         family="activity_stage",
         metrics=[
-            ("ksea score shape", format_shape(*result.ksea_scores.shape)),
-            ("ksea count kinases", int(result.ksea_counts.shape[0])),
-            ("ksea total substrate count", int(result.ksea_counts.sum())),
-            ("ksea score mean abs diff", float(score_delta.to_numpy().mean())),
-            ("ksea score max abs diff", float(score_delta.to_numpy().max())),
-            ("ksea count max abs diff", float(count_delta.max())),
+            (
+                "thresholded mean activity shape",
+                format_shape(*result.thresholded_substrate_mean_activity.shape),
+            ),
+            (
+                "thresholded substrate count kinases",
+                int(result.thresholded_substrate_counts.shape[0]),
+            ),
+            (
+                "thresholded total substrate count",
+                int(result.thresholded_substrate_counts.sum()),
+            ),
+            (
+                "thresholded mean activity mean abs diff",
+                float(score_delta.to_numpy().mean()),
+            ),
+            (
+                "thresholded mean activity max abs diff",
+                float(score_delta.to_numpy().max()),
+            ),
+            ("thresholded substrate count max abs diff", float(count_delta.max())),
         ],
     )
 

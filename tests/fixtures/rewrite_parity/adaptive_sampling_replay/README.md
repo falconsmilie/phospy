@@ -7,7 +7,7 @@ Trace kinases: PRKAA1, MAPK1, MAPK9, IRAK1, TBK1, LCK
 Per-ensemble top-N export: 10
 
 Active files:
-- trace_candidates.csv: ranked combined-score candidates for the traced kinases
+- trace_candidates.csv: ranked score-fusion candidates for the traced kinases
 - trace_initial_negatives.csv: initial negative draw for each ensemble member
 - trace_iteration_samples.csv: resampled site identities for each iteration and class
 - trace_final_ensemble_predictions.csv: final per-ensemble prediction probabilities for all sites

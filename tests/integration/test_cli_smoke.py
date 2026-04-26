@@ -78,14 +78,18 @@ def test_cli_kinase_from_files_writes_supported_lane_outputs(
     assert exit_code == 0
     assert (outdir / "dataset" / "phospho.csv").exists()
     assert (outdir / "kinase" / "scoring" / "profile_scores.csv").exists()
-    assert (outdir / "kinase" / "scoring" / "combined_scores.csv").exists()
+    assert (outdir / "kinase" / "scoring" / "rank_weighted_fusion_scores.csv").exists()
     assert not (outdir / "kinase" / "scoring" / "motif_scores.csv").exists()
-    assert not (outdir / "kinase" / "scoring" / "weights.csv").exists()
+    assert not (outdir / "kinase" / "scoring" / "score_fusion_weights.csv").exists()
     assert (outdir / "kinase" / "prediction" / "pred_mat.csv").exists()
     assert (outdir / "kinase" / "references" / "kinase_substrate_map.csv").exists()
     assert (outdir / "kinase" / "activity" / "weighted_activity.csv").exists()
-    assert (outdir / "kinase" / "activity" / "ksea_scores.csv").exists()
-    assert (outdir / "kinase" / "activity" / "ksea_counts.csv").exists()
+    assert (
+        outdir / "kinase" / "activity" / "thresholded_substrate_mean_activity.csv"
+    ).exists()
+    assert (
+        outdir / "kinase" / "activity" / "thresholded_substrate_counts.csv"
+    ).exists()
     assert (outdir / "kinase" / "activity" / "target_counts.csv").exists()
     assert (outdir / "kinase" / "activity" / "target_table.csv").exists()
     assert (outdir / "kinase" / "manifest.json").exists()
@@ -130,9 +134,9 @@ def test_cli_signalome_from_files_writes_supported_lane_outputs(
     assert exit_code == 0
     assert (outdir / "dataset" / "phospho.csv").exists()
     assert (outdir / "kinase" / "scoring" / "profile_scores.csv").exists()
-    assert (outdir / "kinase" / "scoring" / "combined_scores.csv").exists()
+    assert (outdir / "kinase" / "scoring" / "rank_weighted_fusion_scores.csv").exists()
     assert not (outdir / "kinase" / "scoring" / "motif_scores.csv").exists()
-    assert not (outdir / "kinase" / "scoring" / "weights.csv").exists()
+    assert not (outdir / "kinase" / "scoring" / "score_fusion_weights.csv").exists()
     assert (outdir / "kinase" / "prediction" / "pred_mat.csv").exists()
     assert (outdir / "kinase" / "references" / "kinase_substrate_map.csv").exists()
     assert (outdir / "kinase" / "manifest.json").exists()

@@ -17,11 +17,11 @@ from phospy.api import (
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
     load_l6_prediction_reference_candidate_substrates,
-    load_l6_prediction_reference_combined_scores,
     load_l6_prediction_reference_predmat,
     load_l6_prediction_reference_profile_scores,
+    load_l6_prediction_reference_rank_weighted_fusion_scores,
+    load_l6_prediction_reference_score_fusion_weights,
     load_l6_prediction_reference_top30,
-    load_l6_prediction_reference_weights,
 )
 
 
@@ -503,14 +503,16 @@ def collect_l6_prediction_parity_metrics() -> L6PredictionParityMetrics:
 
     observed_profile = stable_result.scoring_result.profile_scores
     expected_profile = load_l6_prediction_reference_profile_scores()
-    observed_combined = stable_result.scoring_result.combined_scores
+    observed_combined = stable_result.scoring_result.rank_weighted_fusion_scores
     if observed_combined is None:
-        raise AssertionError("expected combined scores to be present for L6 parity")
-    expected_combined = load_l6_prediction_reference_combined_scores()
-    observed_weights = stable_result.scoring_result.weights
+        raise AssertionError(
+            "expected rank_weighted_fusion_scores to be present for L6 parity"
+        )
+    expected_combined = load_l6_prediction_reference_rank_weighted_fusion_scores()
+    observed_weights = stable_result.scoring_result.score_fusion_weights
     if observed_weights is None:
-        raise AssertionError("expected weight table to be present for L6 parity")
-    expected_weights = load_l6_prediction_reference_weights()
+        raise AssertionError("expected score_fusion_weights table for L6 parity")
+    expected_weights = load_l6_prediction_reference_score_fusion_weights()
     expected_candidates = load_l6_prediction_reference_candidate_substrates()
     expected_pred_mat = load_l6_prediction_reference_predmat()
     expected_topk_export_surface = RankedTopKExportSurface(

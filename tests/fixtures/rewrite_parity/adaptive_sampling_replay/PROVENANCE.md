@@ -9,7 +9,7 @@ active parity tests.
 
 ## Included Files
 
-- `combined_scores.csv`
+- `rank_weighted_fusion_scores.csv`
 - `trace_candidates.csv`
 - `trace_initial_negatives.csv`
 - `trace_iteration_samples.csv`

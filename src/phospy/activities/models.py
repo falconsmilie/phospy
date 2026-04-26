@@ -73,15 +73,17 @@ class KinaseActivityResult:
     Outputs are deliberately table-first and mirror the historical baseline stage:
 
     - ``weighted_activity``: weighted kinase activity matrix
-    - ``ksea_scores``: KSEA-style sample-by-kinase score matrix
-    - ``ksea_counts``: number of selected KSEA substrates per kinase
+    - ``thresholded_substrate_mean_activity``: sample-by-kinase mean phospho
+      signal over predicted substrates above threshold
+    - ``thresholded_substrate_counts``: number of selected thresholded predicted
+      substrates per kinase
     - ``target_counts``: thresholded predicted target counts per kinase
     - ``target_table``: thresholded kinase-target edge table
     """
 
     weighted_activity: pd.DataFrame
-    ksea_scores: pd.DataFrame
-    ksea_counts: pd.Series
+    thresholded_substrate_mean_activity: pd.DataFrame
+    thresholded_substrate_counts: pd.Series
     target_counts: pd.Series
     target_table: pd.DataFrame
     _assume_owned: InitVar[bool] = False
@@ -92,14 +94,14 @@ class KinaseActivityResult:
             field_name="activity_result.weighted_activity",
             _assume_owned=_assume_owned,
         ).frame
-        ksea_scores = ActivityMatrix(
-            frame=self.ksea_scores,
-            field_name="activity_result.ksea_scores",
+        thresholded_substrate_mean_activity = ActivityMatrix(
+            frame=self.thresholded_substrate_mean_activity,
+            field_name="activity_result.thresholded_substrate_mean_activity",
             _assume_owned=_assume_owned,
         ).frame
-        ksea_counts = ActivityCountSeries(
-            series=self.ksea_counts,
-            field_name="activity_result.ksea_counts",
+        thresholded_substrate_counts = ActivityCountSeries(
+            series=self.thresholded_substrate_counts,
+            field_name="activity_result.thresholded_substrate_counts",
             _assume_owned=_assume_owned,
         ).series
         target_counts = ActivityCountSeries(
@@ -112,8 +114,16 @@ class KinaseActivityResult:
             _assume_owned=_assume_owned,
         ).frame
         object.__setattr__(self, "weighted_activity", weighted_activity)
-        object.__setattr__(self, "ksea_scores", ksea_scores)
-        object.__setattr__(self, "ksea_counts", ksea_counts)
+        object.__setattr__(
+            self,
+            "thresholded_substrate_mean_activity",
+            thresholded_substrate_mean_activity,
+        )
+        object.__setattr__(
+            self,
+            "thresholded_substrate_counts",
+            thresholded_substrate_counts,
+        )
         object.__setattr__(self, "target_counts", target_counts)
         object.__setattr__(self, "target_table", target_table)
 
@@ -122,15 +132,15 @@ class KinaseActivityResult:
         cls,
         *,
         weighted_activity: pd.DataFrame,
-        ksea_scores: pd.DataFrame,
-        ksea_counts: pd.Series,
+        thresholded_substrate_mean_activity: pd.DataFrame,
+        thresholded_substrate_counts: pd.Series,
         target_counts: pd.Series,
         target_table: pd.DataFrame,
     ) -> KinaseActivityResult:
         return cls(
             weighted_activity=weighted_activity,
-            ksea_scores=ksea_scores,
-            ksea_counts=ksea_counts,
+            thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
+            thresholded_substrate_counts=thresholded_substrate_counts,
             target_counts=target_counts,
             target_table=target_table,
             _assume_owned=True,

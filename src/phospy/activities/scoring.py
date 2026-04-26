@@ -12,7 +12,7 @@ _SITE_ID_COLUMN = "site_id"
 
 
 def compute_activity_from_inputs(inputs: KinaseActivityInputs) -> KinaseActivityResult:
-    """Compute weighted activity, KSEA, and target summaries from trusted inputs."""
+    """Compute weighted activity, thresholded mean activity, and target summaries."""
 
     weighted_activity = _compute_weighted_kinase_activity(
         pred_mat=inputs.pred_mat,
@@ -20,7 +20,10 @@ def compute_activity_from_inputs(inputs: KinaseActivityInputs) -> KinaseActivity
         top_n_substrates=inputs.top_n_substrates,
         min_substrates=inputs.min_substrates,
     )
-    ksea_scores, ksea_counts = _compute_ksea_scores(
+    (
+        thresholded_substrate_mean_activity,
+        thresholded_substrate_counts,
+    ) = _compute_thresholded_substrate_mean_activity(
         pred_mat=inputs.pred_mat,
         phospho_matrix=inputs.phospho_matrix,
         threshold=inputs.threshold,
@@ -35,7 +38,7 @@ def compute_activity_from_inputs(inputs: KinaseActivityInputs) -> KinaseActivity
         threshold=inputs.threshold,
     )
 
-    if weighted_activity.empty and ksea_scores.empty:
+    if weighted_activity.empty and thresholded_substrate_mean_activity.empty:
         _raise_boundary_error(
             seam="kinase.activity.valid_candidates",
             next_action=(
@@ -48,7 +51,7 @@ def compute_activity_from_inputs(inputs: KinaseActivityInputs) -> KinaseActivity
             phospho_sites=inputs.overlap_summary.phospho_rows,
             candidate_kinases=int(inputs.pred_mat.shape[1]),
             weighted_activity_kinases=0,
-            ksea_kinases=0,
+            thresholded_mean_activity_kinases=0,
             activity_config_threshold=inputs.threshold,
             activity_config_min_substrates=inputs.min_substrates,
             activity_config_top_n_substrates=inputs.top_n_substrates,
@@ -56,8 +59,8 @@ def compute_activity_from_inputs(inputs: KinaseActivityInputs) -> KinaseActivity
 
     return KinaseActivityResult._from_owned(
         weighted_activity=weighted_activity,
-        ksea_scores=ksea_scores,
-        ksea_counts=ksea_counts,
+        thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
+        thresholded_substrate_counts=thresholded_substrate_counts,
         target_counts=target_counts,
         target_table=target_table,
     )
@@ -120,7 +123,7 @@ def _compute_weighted_kinase_activity(
     return result
 
 
-def _compute_ksea_scores(
+def _compute_thresholded_substrate_mean_activity(
     *,
     pred_mat: pd.DataFrame,
     phospho_matrix: pd.DataFrame,

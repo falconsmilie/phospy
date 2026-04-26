@@ -95,7 +95,7 @@ class SignalomeWorkflowValidator:
         downstream_score_matrix, downstream_score_source = (
             select_downstream_score_matrix(
                 profile_scores=scoring_result.profile_scores,
-                combined_scores=scoring_result.combined_scores,
+                rank_weighted_fusion_scores=scoring_result.rank_weighted_fusion_scores,
             )
         )
         score_field_name = (

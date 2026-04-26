@@ -46,7 +46,7 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
             "constructed": state.site_matrix.constructed,
             "missing_data_policy": state.site_matrix.missing_data_policy,
             "minimum_observed_values": state.site_matrix.minimum_observed_values,
-            "duplicate_site_strategy": state.site_matrix.duplicate_site_strategy,
+            "duplicate_site_policy": state.site_matrix.duplicate_site_policy,
         },
         "comparisons": {
             "policy": state.comparisons.policy,
@@ -155,11 +155,11 @@ def processing_state_from_payload(
                 ),
             ),
             minimum_observed_values=site_matrix_minimum_observed_values,
-            duplicate_site_strategy=require_str(
-                site_matrix_payload.get("duplicate_site_strategy"),
+            duplicate_site_policy=require_str(
+                site_matrix_payload.get("duplicate_site_policy"),
                 field_name=(
                     "dataset.metadata.processing_state."
-                    "site_matrix.duplicate_site_strategy"
+                    "site_matrix.duplicate_site_policy"
                 ),
             ),
         ),

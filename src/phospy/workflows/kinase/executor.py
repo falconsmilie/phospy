@@ -29,7 +29,7 @@ from phospy.prediction.motif_scoring import (
 )
 from phospy.prediction.policies import resolve_prediction_sampling_policy
 from phospy.prediction.scoring import (
-    combine_profile_and_motif_scores,
+    fuse_profile_and_motif_scores_by_rank_weight,
     select_downstream_score_matrix,
 )
 from phospy.provenance.environment import collect_environment_provenance
@@ -112,11 +112,11 @@ class KinaseWorkflowExecutor:
     ) -> _ScoringExecution:
         # Authoritative downstream route:
         # - profile correlations from quantified kinase substrates
-        # - profile+motif combined scores (with profile fallback)
+        # - rank-weighted fusion scores from profile+motif (with profile fallback)
         #
         # Optional diagnostic tables:
         # - motif_scores
-        # - weights
+        # - score_fusion_weights
         include_diagnostic_tables = config.include_diagnostic_scoring_tables
         scoring_min_substrates = int(config.scoring_min_substrates)
         scoring_phospho = request.dataset.phospho.loc[request.scoring_site_index, :]
@@ -138,6 +138,9 @@ class KinaseWorkflowExecutor:
             profile_matrix=profile_build.profile_matrix,
         )
         eligible_kinases = set(profile_scores.columns.astype(str))
+        # Performance contract: keep motif-library construction scoped to
+        # profile-eligible kinases so large off-lane reference maps do not
+        # dominate motif scoring cost.
         motif_kinase_substrate_map = request.kinase_substrate_map.loc[
             request.kinase_substrate_map.loc[:, "kinase"]
             .astype(str)
@@ -152,7 +155,10 @@ class KinaseWorkflowExecutor:
             sequence_series=sequence_series,
         )
         try:
-            combined_scores, weights = combine_profile_and_motif_scores(
+            (
+                rank_weighted_fusion_scores,
+                score_fusion_weights,
+            ) = fuse_profile_and_motif_scores_by_rank_weight(
                 motif_scores=motif_result.motif_scores,
                 profile_scores=profile_scores,
                 motif_sizes=motif_result.motif_sizes,
@@ -163,7 +169,7 @@ class KinaseWorkflowExecutor:
         except ValueError as exc:
             raise WorkflowStageError(
                 "kinase workflow internal invariant failed at seam="
-                "kinase.executor.combined_scoring; "
+                "kinase.executor.rank_weighted_fusion_scoring; "
                 f"{exc}"
             ) from exc
         scoring_result = KinaseScoringResult._from_owned(
@@ -171,13 +177,13 @@ class KinaseWorkflowExecutor:
             motif_scores=(
                 motif_result.motif_scores if include_diagnostic_tables else None
             ),
-            combined_scores=combined_scores,
-            weights=weights,
+            rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+            score_fusion_weights=score_fusion_weights,
         )
         downstream_score_matrix, downstream_score_source = (
             select_downstream_score_matrix(
                 profile_scores=profile_scores,
-                combined_scores=combined_scores,
+                rank_weighted_fusion_scores=rank_weighted_fusion_scores,
             )
         )
         return _ScoringExecution(
@@ -445,8 +451,14 @@ def _build_kinase_run_provenance(
         (
             ("outputs.scoring.profile_scores", scoring_result.profile_scores),
             ("outputs.scoring.motif_scores", scoring_result.motif_scores),
-            ("outputs.scoring.combined_scores", scoring_result.combined_scores),
-            ("outputs.scoring.weights", scoring_result.weights),
+            (
+                "outputs.scoring.rank_weighted_fusion_scores",
+                scoring_result.rank_weighted_fusion_scores,
+            ),
+            (
+                "outputs.scoring.score_fusion_weights",
+                scoring_result.score_fusion_weights,
+            ),
             ("outputs.prediction.pred_mat", prediction_result.pred_mat),
             ("outputs.prediction.substrate_list", prediction_result.substrate_list),
             (
@@ -454,15 +466,21 @@ def _build_kinase_run_provenance(
                 None if activity_result is None else activity_result.weighted_activity,
             ),
             (
-                "outputs.activity.ksea_scores",
-                None if activity_result is None else activity_result.ksea_scores,
-            ),
-            (
-                "outputs.activity.ksea_counts",
+                "outputs.activity.thresholded_substrate_mean_activity",
                 (
                     None
                     if activity_result is None
-                    else activity_result.ksea_counts.to_frame(name="n_substrates")
+                    else activity_result.thresholded_substrate_mean_activity
+                ),
+            ),
+            (
+                "outputs.activity.thresholded_substrate_counts",
+                (
+                    None
+                    if activity_result is None
+                    else activity_result.thresholded_substrate_counts.to_frame(
+                        name="n_substrates"
+                    )
                 ),
             ),
             (
@@ -510,6 +528,15 @@ def _build_kinase_run_provenance(
                     "threshold": float(config.activity.threshold),
                     "min_substrates": int(config.activity.min_substrates),
                     "top_n_substrates": int(config.activity.top_n_substrates),
+                    "activity_methods": {
+                        "weighted_activity": (
+                            "prediction-weighted mean over top-N predicted substrates"
+                        ),
+                        "thresholded_substrate_mean_activity": (
+                            "mean phospho signal over predicted substrates with "
+                            "pred_mat score > threshold; not full KSEA enrichment"
+                        ),
+                    },
                 }
             ),
         },

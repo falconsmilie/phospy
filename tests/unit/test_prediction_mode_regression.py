@@ -141,11 +141,11 @@ def test_supported_prediction_modes_preserve_scoring_stage_semantics(
             result.scoring_result.profile_scores,
             baseline.scoring_result.profile_scores,
         )
-        assert result.scoring_result.combined_scores is not None
-        assert baseline.scoring_result.combined_scores is not None
+        assert result.scoring_result.rank_weighted_fusion_scores is not None
+        assert baseline.scoring_result.rank_weighted_fusion_scores is not None
         pd.testing.assert_frame_equal(
-            result.scoring_result.combined_scores,
-            baseline.scoring_result.combined_scores,
+            result.scoring_result.rank_weighted_fusion_scores,
+            baseline.scoring_result.rank_weighted_fusion_scores,
         )
         if include_diagnostics:
             assert result.scoring_result.motif_scores is not None
@@ -154,15 +154,15 @@ def test_supported_prediction_modes_preserve_scoring_stage_semantics(
                 result.scoring_result.motif_scores,
                 baseline.scoring_result.motif_scores,
             )
-            assert result.scoring_result.weights is not None
-            assert baseline.scoring_result.weights is not None
+            assert result.scoring_result.score_fusion_weights is not None
+            assert baseline.scoring_result.score_fusion_weights is not None
             pd.testing.assert_frame_equal(
-                result.scoring_result.weights,
-                baseline.scoring_result.weights,
+                result.scoring_result.score_fusion_weights,
+                baseline.scoring_result.score_fusion_weights,
             )
         else:
             assert result.scoring_result.motif_scores is None
-            assert result.scoring_result.weights is None
+            assert result.scoring_result.score_fusion_weights is None
 
 
 def test_prediction_modes_keep_distinct_ensemble_size_semantics() -> None:

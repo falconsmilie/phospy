@@ -9,7 +9,7 @@ from phospy.api import KinasePredictionConfig
 from phospy.prediction.candidates import build_candidate_substrate_list
 from phospy.prediction.execution import run_adaptive_ensemble_prediction
 from tests.support.rewrite_fixture_data import (
-    load_adaptive_sampling_edge_combined_scores,
+    load_adaptive_sampling_edge_rank_weighted_fusion_scores,
     load_adaptive_sampling_edge_trace_candidates,
     load_adaptive_sampling_edge_trace_predictions,
     load_adaptive_sampling_edge_trace_top,
@@ -139,15 +139,17 @@ def collect_adaptive_policy_comparison_metrics() -> AdaptivePolicyComparisonMetr
 
 
 def _collect_lane_metrics(*, adaptive_policy: str) -> AdaptivePolicyLaneMetrics:
-    combined_scores = load_adaptive_sampling_edge_combined_scores()
+    rank_weighted_fusion_scores = (
+        load_adaptive_sampling_edge_rank_weighted_fusion_scores()
+    )
     candidate_substrates = build_candidate_substrate_list(
-        scores=combined_scores,
+        scores=rank_weighted_fusion_scores,
         top=ADAPTIVE_PARITY_TOP_K,
         score_threshold=ADAPTIVE_PARITY_SCORE_THRESHOLD,
         inclusion=ADAPTIVE_PARITY_INCLUSION,
     )
     observed = run_adaptive_ensemble_prediction(
-        prediction_score_matrix=combined_scores,
+        prediction_score_matrix=rank_weighted_fusion_scores,
         candidate_substrates=candidate_substrates,
         prediction_config=KinasePredictionConfig(
             top_k=ADAPTIVE_PARITY_TOP_K,

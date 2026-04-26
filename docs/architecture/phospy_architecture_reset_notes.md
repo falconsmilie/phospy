@@ -61,9 +61,9 @@
 
 ## Scientific Contract Snapshot (Current Lane)
 
-- Kinase scoring publishes authoritative `profile_scores` and `combined_scores`;
+- Kinase scoring publishes authoritative `profile_scores` and `rank_weighted_fusion_scores`;
   `motif_scores` and `weights` are optional diagnostic outputs.
-- Authoritative downstream matrix is `combined_scores` first with
+- Authoritative downstream matrix is `rank_weighted_fusion_scores` first with
   `profile_scores` fallback.
 - Prediction and signalome consume the same resolved downstream score lane.
 - `expanded_signalome` is an official supported signalome output and is

@@ -9,7 +9,7 @@ adaptive prediction parity tests.
 
 ## Included Files
 
-- `combined_scores.csv`
+- `rank_weighted_fusion_scores.csv`
 - `trace_candidates.csv`
 - `trace_final_ensemble_predictions.csv`
 - `trace_final_ensemble_top.csv`

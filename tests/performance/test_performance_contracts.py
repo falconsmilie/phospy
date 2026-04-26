@@ -1,0 +1,369 @@
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
+from phospy.api import (
+    DatasetBuildRequest,
+    KinasePredictionConfig,
+    KinaseScoringConfig,
+    KinaseWorkflowRequest,
+    Organism,
+    ReferenceBundle,
+)
+from phospy.datasets.preprocessing.models import PreprocessingPlan, PreprocessingState
+from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
+from phospy.prediction.motif_scoring import (
+    DEFAULT_MOTIF_FLANK_SIZE,
+    build_motif_library,
+    score_phosphosite_motifs,
+)
+from phospy.signalomes.clustering import (
+    MAX_FULL_CORRELATION_SITE_COUNT,
+    select_module_count_with_diagnostics,
+)
+from tests.support.performance_contracts import (
+    deterministic_kinase_substrate_map,
+    deterministic_matrix,
+    deterministic_site_ids,
+    deterministic_site_metadata,
+    deterministic_site_sequence_frame,
+    deterministic_site_sequence_series,
+    measure_runtime_and_peak_mib,
+    median_runtime_seconds,
+)
+
+pytestmark = pytest.mark.performance
+
+APPROXIMATION_REASON_TOKEN = "Used sampled within-cluster correlation estimates"
+
+SIGNALOME_BELOW_THRESHOLD_RUNTIME_SECONDS_MAX = 8.0
+SIGNALOME_ABOVE_THRESHOLD_RUNTIME_SECONDS_MAX = 8.0
+
+QUANTILE_RUNTIME_SECONDS_MAX = 5.0
+QUANTILE_PEAK_MIB_MAX = 256.0
+
+MOTIF_RUNTIME_SECONDS_MAX = 8.0
+MOTIF_PEAK_MIB_MAX = 300.0
+
+KINASE_FILTERED_REFERENCE_RUNTIME_SECONDS_MAX = 8.0
+KINASE_FILTERED_REFERENCE_PEAK_MIB_MAX = 300.0
+
+DIAGNOSTIC_RUNTIME_RATIO_MULTIPLIER = 5.0
+DIAGNOSTIC_RUNTIME_ABSOLUTE_SECONDS = 1.0
+
+
+def _patch_cluster_tree_build_for_contract_scoring(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.signalomes.clustering as clustering
+
+    def _stub_build_cluster_tree(scoring_values: np.ndarray) -> object:
+        n_sites = int(np.asarray(scoring_values, dtype=float).shape[0])
+        return clustering._WardClusterTree(n_sites=n_sites, merges=())
+
+    def _stub_build_cluster_labels_from_tree(
+        *,
+        cluster_tree: object,
+        cluster_counts: object,
+    ) -> dict[int, np.ndarray]:
+        n_sites = int(cluster_tree.n_sites)
+        labels_by_count: dict[int, np.ndarray] = {}
+        for requested_count in [int(value) for value in cluster_counts]:
+            resolved_count = max(1, min(int(requested_count), n_sites))
+            if resolved_count == 1:
+                labels = np.zeros(n_sites, dtype=int)
+            else:
+                labels = np.arange(n_sites, dtype=int) % resolved_count
+            labels_by_count[requested_count] = labels.astype(int, copy=False)
+        return labels_by_count
+
+    monkeypatch.setattr(clustering, "build_cluster_tree", _stub_build_cluster_tree)
+    monkeypatch.setattr(
+        clustering,
+        "build_cluster_labels_from_tree",
+        _stub_build_cluster_labels_from_tree,
+    )
+
+
+def _build_signalome_scoring_matrix(
+    *, n_sites: int, n_kinases: int, seed: int
+) -> pd.DataFrame:
+    matrix = deterministic_matrix(n_sites=n_sites, n_samples=n_kinases, seed=seed)
+    matrix.columns = pd.Index(
+        [f"KINASE_{index + 1:03d}" for index in range(matrix.shape[1])],
+        name="kinase",
+    )
+    return matrix
+
+
+def _build_kinase_workflow_inputs(
+    *,
+    n_sites: int,
+    n_samples: int,
+    eligible_kinases: int,
+    substrates_per_kinase: int,
+    offlane_kinases: int,
+    offlane_sites_per_kinase: int,
+) -> tuple[pd.Index, object, ReferenceBundle, set[str]]:
+    site_ids = deterministic_site_ids(n_sites)
+    phospho = deterministic_matrix(
+        n_sites=n_sites,
+        n_samples=n_samples,
+        seed=7227,
+        site_ids=site_ids,
+    )
+    site_metadata = deterministic_site_metadata(site_ids, include_protein_id=True)
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+
+    offlane_site_ids = deterministic_site_ids(
+        offlane_kinases * offlane_sites_per_kinase + 32,
+        start=750_000,
+        gene_prefix="OFFSITE",
+    )
+    kinase_substrate_map = deterministic_kinase_substrate_map(
+        dataset_site_ids=site_ids,
+        eligible_kinase_count=eligible_kinases,
+        substrates_per_kinase=substrates_per_kinase,
+        offlane_kinase_count=offlane_kinases,
+        offlane_sites_per_kinase=offlane_sites_per_kinase,
+        offlane_site_ids=offlane_site_ids,
+    )
+    reference_site_ids = site_ids.append(offlane_site_ids)
+    site_sequences = deterministic_site_sequence_frame(
+        reference_site_ids,
+        sequence_width=(2 * DEFAULT_MOTIF_FLANK_SIZE) + 1,
+    )
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=kinase_substrate_map,
+        site_sequences=site_sequences,
+    )
+    eligible_kinase_names = {
+        f"KINASE_{index + 1:03d}" for index in range(int(eligible_kinases))
+    }
+    return site_ids, dataset, references, eligible_kinase_names
+
+
+def test_signalome_full_vs_approximate_correlation_performance_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_cluster_tree_build_for_contract_scoring(monkeypatch)
+
+    below_threshold_matrix = _build_signalome_scoring_matrix(
+        n_sites=600,
+        n_kinases=40,
+        seed=1103,
+    )
+    below_diagnostics, below_runtime_seconds, _below_peak_mib = (
+        measure_runtime_and_peak_mib(
+            lambda: select_module_count_with_diagnostics(
+                scoring_values=below_threshold_matrix,
+                max_clusters=3,
+            ),
+            warmup=True,
+        )
+    )
+    assert APPROXIMATION_REASON_TOKEN not in below_diagnostics.reason
+    assert below_runtime_seconds < SIGNALOME_BELOW_THRESHOLD_RUNTIME_SECONDS_MAX
+
+    above_threshold_sites = MAX_FULL_CORRELATION_SITE_COUNT + 50
+    above_threshold_matrix = _build_signalome_scoring_matrix(
+        n_sites=above_threshold_sites,
+        n_kinases=12,
+        seed=1107,
+    )
+    above_diagnostics, above_runtime_seconds, above_peak_mib = (
+        measure_runtime_and_peak_mib(
+            lambda: select_module_count_with_diagnostics(
+                scoring_values=above_threshold_matrix,
+                max_clusters=3,
+            ),
+            warmup=True,
+        )
+    )
+    assert APPROXIMATION_REASON_TOKEN in above_diagnostics.reason
+    assert above_runtime_seconds < SIGNALOME_ABOVE_THRESHOLD_RUNTIME_SECONDS_MAX
+
+    full_matrix_mib = (above_threshold_sites * above_threshold_sites * 8) / (
+        1024 * 1024
+    )
+    assert above_peak_mib < full_matrix_mib * 0.75
+
+
+def test_quantile_normalisation_performance_contract() -> None:
+    phospho = deterministic_matrix(
+        n_sites=1_500,
+        n_samples=16,
+        seed=181,
+    )
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=deterministic_site_metadata(
+            phospho.index, include_protein_id=False
+        ),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(normalisation_policy="quantile"),
+    )
+    stage = NormalisationStage()
+    normalized_state, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
+        lambda: stage.run(state),
+        warmup=True,
+    )
+    normalized_phospho = normalized_state.phospho
+
+    assert normalized_phospho.shape == phospho.shape
+    assert int(normalized_phospho.isna().sum().sum()) == 0
+    assert runtime_seconds < QUANTILE_RUNTIME_SECONDS_MAX
+    assert peak_mib < QUANTILE_PEAK_MIB_MAX
+
+
+def test_motif_scoring_contract_scales_with_eligible_overlap() -> None:
+    dataset_sites = deterministic_site_ids(800)
+    offlane_sites = deterministic_site_ids(
+        300 * 8 + 64,
+        start=850_000,
+        gene_prefix="OFFSITE",
+    )
+    full_reference_map = deterministic_kinase_substrate_map(
+        dataset_site_ids=dataset_sites,
+        eligible_kinase_count=80,
+        substrates_per_kinase=8,
+        offlane_kinase_count=300,
+        offlane_sites_per_kinase=8,
+        offlane_site_ids=offlane_sites,
+    )
+    eligible_kinases = {f"KINASE_{index + 1:03d}" for index in range(80)}
+    filtered_map = full_reference_map.loc[
+        full_reference_map.loc[:, "kinase"].astype(str).isin(eligible_kinases)
+    ]
+    sequence_series = deterministic_site_sequence_series(
+        dataset_sites.append(offlane_sites),
+        window_width=(2 * DEFAULT_MOTIF_FLANK_SIZE) + 1,
+    )
+
+    def _run_motif_scoring():
+        motif_frequency_matrices, motif_sizes = build_motif_library(
+            kinase_substrate_map=filtered_map,
+            site_sequences=sequence_series,
+            flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        )
+        return score_phosphosite_motifs(
+            site_sequences=sequence_series.loc[dataset_sites],
+            motif_frequency_matrices=motif_frequency_matrices,
+            motif_sizes=motif_sizes,
+            site_index=dataset_sites,
+            min_motif_size=2,
+            flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        )
+
+    motif_result, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
+        _run_motif_scoring,
+        warmup=True,
+    )
+    scored_kinases = set(motif_result.motif_scores.columns.astype(str).tolist())
+
+    assert scored_kinases == eligible_kinases
+    assert not any(name.startswith("OFFLANE_") for name in scored_kinases)
+    assert runtime_seconds < MOTIF_RUNTIME_SECONDS_MAX
+    assert peak_mib < MOTIF_PEAK_MIB_MAX
+
+
+def test_large_reference_map_contract_keeps_filtered_scoring_bounded() -> None:
+    _site_ids, dataset, references, eligible_kinases = _build_kinase_workflow_inputs(
+        n_sites=250,
+        n_samples=8,
+        eligible_kinases=42,
+        substrates_per_kinase=6,
+        offlane_kinases=320,
+        offlane_sites_per_kinase=8,
+    )
+    request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=references,
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            include_diagnostic_scoring_tables=False,
+        ),
+        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=10),
+        activity_config=None,
+    )
+
+    workflow_result, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
+        lambda: KinaseWorkflow().run(request),
+        warmup=True,
+    )
+    rank_weighted_fusion_scores = (
+        workflow_result.scoring_result.rank_weighted_fusion_scores
+    )
+    assert rank_weighted_fusion_scores is not None
+
+    downstream_kinases = set(rank_weighted_fusion_scores.columns.astype(str).tolist())
+    assert downstream_kinases.issubset(eligible_kinases)
+    assert not any(name.startswith("OFFLANE_") for name in downstream_kinases)
+    assert runtime_seconds < KINASE_FILTERED_REFERENCE_RUNTIME_SECONDS_MAX
+    assert peak_mib < KINASE_FILTERED_REFERENCE_PEAK_MIB_MAX
+
+
+def test_diagnostic_scoring_tables_contract_has_bounded_runtime_overhead() -> None:
+    _site_ids, dataset, references, _eligible_kinases = _build_kinase_workflow_inputs(
+        n_sites=250,
+        n_samples=8,
+        eligible_kinases=42,
+        substrates_per_kinase=6,
+        offlane_kinases=320,
+        offlane_sites_per_kinase=8,
+    )
+    workflow = KinaseWorkflow()
+    default_request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=references,
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            include_diagnostic_scoring_tables=False,
+        ),
+        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=10),
+        activity_config=None,
+    )
+    diagnostic_request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=references,
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            include_diagnostic_scoring_tables=True,
+        ),
+        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=10),
+        activity_config=None,
+    )
+
+    default_runtime = median_runtime_seconds(
+        lambda: workflow.run(default_request),
+        repeats=3,
+        warmup=True,
+    )
+    diagnostic_runtime = median_runtime_seconds(
+        lambda: workflow.run(diagnostic_request),
+        repeats=3,
+        warmup=True,
+    )
+
+    assert diagnostic_runtime <= (
+        default_runtime * DIAGNOSTIC_RUNTIME_RATIO_MULTIPLIER
+        + DIAGNOSTIC_RUNTIME_ABSOLUTE_SECONDS
+    )
+
+    default_result = workflow.run(default_request)
+    diagnostic_result = workflow.run(diagnostic_request)
+    assert default_result.scoring_result.motif_scores is None
+    assert default_result.scoring_result.score_fusion_weights is None
+    assert diagnostic_result.scoring_result.motif_scores is not None
+    assert diagnostic_result.scoring_result.score_fusion_weights is not None

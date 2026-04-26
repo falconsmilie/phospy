@@ -84,15 +84,24 @@ def publish_kinase_workflow(
         write_table(result.scoring_result.motif_scores, motif_scores_path)
         written["kinase.scoring.motif_scores"] = motif_scores_path
 
-    if result.scoring_result.combined_scores is not None:
-        combined_scores_path = scoring_dir / f"combined_scores{suffix}"
-        write_table(result.scoring_result.combined_scores, combined_scores_path)
-        written["kinase.scoring.combined_scores"] = combined_scores_path
+    if result.scoring_result.rank_weighted_fusion_scores is not None:
+        rank_weighted_fusion_scores_path = (
+            scoring_dir / f"rank_weighted_fusion_scores{suffix}"
+        )
+        write_table(
+            result.scoring_result.rank_weighted_fusion_scores,
+            rank_weighted_fusion_scores_path,
+        )
+        written["kinase.scoring.rank_weighted_fusion_scores"] = (
+            rank_weighted_fusion_scores_path
+        )
 
-    if result.scoring_result.weights is not None:
-        weights_path = scoring_dir / f"weights{suffix}"
-        write_table(result.scoring_result.weights, weights_path)
-        written["kinase.scoring.weights"] = weights_path
+    if result.scoring_result.score_fusion_weights is not None:
+        score_fusion_weights_path = scoring_dir / f"score_fusion_weights{suffix}"
+        write_table(
+            result.scoring_result.score_fusion_weights, score_fusion_weights_path
+        )
+        written["kinase.scoring.score_fusion_weights"] = score_fusion_weights_path
 
     prediction_dir = workflow_dir / "prediction"
     pred_mat_path = prediction_dir / f"pred_mat{suffix}"
@@ -110,16 +119,29 @@ def publish_kinase_workflow(
         write_table(result.activity_result.weighted_activity, weighted_activity_path)
         written["kinase.activity.weighted_activity"] = weighted_activity_path
 
-        ksea_scores_path = activity_dir / f"ksea_scores{suffix}"
-        write_table(result.activity_result.ksea_scores, ksea_scores_path)
-        written["kinase.activity.ksea_scores"] = ksea_scores_path
-
-        ksea_counts_path = activity_dir / f"ksea_counts{suffix}"
-        write_table(
-            result.activity_result.ksea_counts.to_frame(name="n_substrates"),
-            ksea_counts_path,
+        thresholded_substrate_mean_activity_path = (
+            activity_dir / f"thresholded_substrate_mean_activity{suffix}"
         )
-        written["kinase.activity.ksea_counts"] = ksea_counts_path
+        write_table(
+            result.activity_result.thresholded_substrate_mean_activity,
+            thresholded_substrate_mean_activity_path,
+        )
+        written["kinase.activity.thresholded_substrate_mean_activity"] = (
+            thresholded_substrate_mean_activity_path
+        )
+
+        thresholded_substrate_counts_path = (
+            activity_dir / f"thresholded_substrate_counts{suffix}"
+        )
+        write_table(
+            result.activity_result.thresholded_substrate_counts.to_frame(
+                name="n_substrates"
+            ),
+            thresholded_substrate_counts_path,
+        )
+        written["kinase.activity.thresholded_substrate_counts"] = (
+            thresholded_substrate_counts_path
+        )
 
         target_counts_path = activity_dir / f"target_counts{suffix}"
         write_table(

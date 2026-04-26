@@ -106,8 +106,8 @@ def test_dataset_total_protein_correction_config_rejects_unknown_policy() -> Non
             "preprocessing_config.site_matrix.policy must be one of",
         ),
         (
-            {"policy": "build_from_metadata", "duplicate_site_strategy": "invalid"},
-            "site_matrix.duplicate_site_strategy must be one of",
+            {"policy": "build_from_metadata", "duplicate_site_policy": "invalid"},
+            "site_matrix.duplicate_site_policy must be one of",
         ),
         (
             {"policy": "build_from_metadata", "missing_data_policy": "retain_missing"},
@@ -125,8 +125,8 @@ def test_dataset_total_protein_correction_config_rejects_unknown_policy() -> Non
             "minimum_observed_values is not supported",
         ),
         (
-            {"policy": "as_input", "duplicate_site_strategy": "first"},
-            "duplicate_site_strategy is only valid when site_matrix.policy='build_from_metadata'",
+            {"policy": "as_input", "duplicate_site_policy": "first"},
+            "duplicate_site_policy is only valid when site_matrix.policy='build_from_metadata'",
         ),
     ],
 )

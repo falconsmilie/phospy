@@ -14,7 +14,7 @@ scoring/prediction lane.
 The active parity family uses explicit per-surface policies:
 
 - profile-scores parity
-- combined-scores/weights parity
+- rank-weighted-fusion/score-fusion-weights parity
 - candidate-set parity
 - prediction-matrix ranking parity
 - top-k ranked-export parity

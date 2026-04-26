@@ -62,7 +62,7 @@ _PREPROCESSING_REPORT_DUPLICATE_SITE_RESOLUTION_COLUMNS = (
     "site_id",
     "source_row_id",
     "retained",
-    "resolution_strategy",
+    "resolution_policy",
     "retained_reason",
     "dropped_reason",
     "observed_values",

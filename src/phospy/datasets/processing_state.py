@@ -40,7 +40,7 @@ class SiteMatrixState:
     constructed: bool
     missing_data_policy: str
     minimum_observed_values: int | None
-    duplicate_site_strategy: str
+    duplicate_site_policy: str
 
 
 @dataclass(frozen=True, slots=True)

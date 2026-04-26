@@ -111,8 +111,8 @@ def test_kinase_result_stays_nested_and_honest_for_supported_lane() -> None:
     assert isinstance(result.prediction_result, KinasePredictionResult)
     assert not result.scoring_result.profile_scores.empty
     assert result.scoring_result.motif_scores is None
-    assert result.scoring_result.combined_scores is not None
-    assert result.scoring_result.weights is None
+    assert result.scoring_result.rank_weighted_fusion_scores is not None
+    assert result.scoring_result.score_fusion_weights is None
     assert result.activity_result is None
     assert result.prediction_result.substrate_list is not None
     assert set(result.prediction_result.substrate_list.columns) == {
@@ -156,8 +156,11 @@ def test_signalome_result_keeps_nested_kinase_result_contract() -> None:
     assert not signalome_result.site_membership.empty
     assert not signalome_result.protein_site_context.empty
     assert signalome_result.kinase_result.scoring_result.motif_scores is None
-    assert signalome_result.kinase_result.scoring_result.combined_scores is not None
-    assert signalome_result.kinase_result.scoring_result.weights is None
+    assert (
+        signalome_result.kinase_result.scoring_result.rank_weighted_fusion_scores
+        is not None
+    )
+    assert signalome_result.kinase_result.scoring_result.score_fusion_weights is None
     assert not hasattr(signalome_result, "pred_mat")
     assert not hasattr(signalome_result, "profile_scores")
 
@@ -184,8 +187,12 @@ def test_kinase_result_exposes_supported_activity_stage_outputs_when_enabled() -
         "kinase",
         "score",
     }
-    assert result.activity_result.ksea_counts.name == "n_substrates"
+    assert result.activity_result.thresholded_substrate_counts.name == "n_substrates"
     assert result.activity_result.target_counts.name == "n_targets"
+    assert hasattr(result.activity_result, "thresholded_substrate_mean_activity")
+    assert hasattr(result.activity_result, "thresholded_substrate_counts")
+    assert not hasattr(result.activity_result, "ksea_scores")
+    assert not hasattr(result.activity_result, "ksea_counts")
 
 
 def test_kinase_result_can_include_opt_in_diagnostic_scoring_tables() -> None:
@@ -203,4 +210,39 @@ def test_kinase_result_can_include_opt_in_diagnostic_scoring_tables() -> None:
     )
 
     assert result.scoring_result.motif_scores is not None
-    assert result.scoring_result.weights is not None
+    assert result.scoring_result.score_fusion_weights is not None
+    assert hasattr(result.scoring_result, "rank_weighted_fusion_scores")
+    assert hasattr(result.scoring_result, "score_fusion_weights")
+    assert not hasattr(result.scoring_result, "combined_scores")
+    assert not hasattr(result.scoring_result, "weights")
+
+
+def test_kinase_provenance_uses_renamed_scoring_and_activity_output_tables() -> None:
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=_dataset(),
+            references=_references(),
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                include_diagnostic_scoring_tables=True,
+            ),
+            prediction_config=KinasePredictionConfig(top_k=1, ensemble_size=2),
+            activity_config=KinaseActivityConfig(
+                enabled=True,
+                threshold=0.0,
+                min_substrates=1,
+                top_n_substrates=2,
+            ),
+        )
+    )
+    assert result.provenance is not None
+
+    output_names = {table.name for table in result.provenance.output_tables}
+    assert "outputs.scoring.rank_weighted_fusion_scores" in output_names
+    assert "outputs.scoring.score_fusion_weights" in output_names
+    assert "outputs.activity.thresholded_substrate_mean_activity" in output_names
+    assert "outputs.activity.thresholded_substrate_counts" in output_names
+    assert "outputs.scoring.combined_scores" not in output_names
+    assert "outputs.scoring.weights" not in output_names
+    assert "outputs.activity.ksea_scores" not in output_names
+    assert "outputs.activity.ksea_counts" not in output_names

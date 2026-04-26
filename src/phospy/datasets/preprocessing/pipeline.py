@@ -44,7 +44,7 @@ _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
     ),
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX: (
         "site_matrix_policy",
-        "site_matrix_duplicate_site_strategy",
+        "site_matrix_duplicate_site_policy",
         "site_matrix_missing_data_policy",
         "site_matrix_minimum_observed_values",
     ),

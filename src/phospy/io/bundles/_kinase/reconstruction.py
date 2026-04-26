@@ -117,17 +117,19 @@ def reconstruct_kinase_result(
             table_key="motif_scores",
             field_name="bundle manifest.outputs.scoring.tables.motif_scores",
         ),
-        combined_scores=read_optional_table(
+        rank_weighted_fusion_scores=read_optional_table(
             bundle_root=bundle_root,
             tables=sections.scoring_tables,
-            table_key="combined_scores",
-            field_name="bundle manifest.outputs.scoring.tables.combined_scores",
+            table_key="rank_weighted_fusion_scores",
+            field_name=(
+                "bundle manifest.outputs.scoring.tables.rank_weighted_fusion_scores"
+            ),
         ),
-        weights=read_optional_table(
+        score_fusion_weights=read_optional_table(
             bundle_root=bundle_root,
             tables=sections.scoring_tables,
-            table_key="weights",
-            field_name="bundle manifest.outputs.scoring.tables.weights",
+            table_key="score_fusion_weights",
+            field_name="bundle manifest.outputs.scoring.tables.score_fusion_weights",
         ),
     )
 
@@ -152,17 +154,20 @@ def reconstruct_kinase_result(
         table_key="weighted_activity",
         field_name="bundle manifest.outputs.activity.tables.weighted_activity",
     )
-    ksea_scores = read_optional_table(
+    thresholded_substrate_mean_activity = read_optional_table(
         bundle_root=bundle_root,
         tables=sections.activity_tables,
-        table_key="ksea_scores",
-        field_name="bundle manifest.outputs.activity.tables.ksea_scores",
+        table_key="thresholded_substrate_mean_activity",
+        field_name=(
+            "bundle manifest.outputs.activity.tables."
+            "thresholded_substrate_mean_activity"
+        ),
     )
-    ksea_counts = read_optional_series(
+    thresholded_substrate_counts = read_optional_series(
         bundle_root=bundle_root,
         tables=sections.activity_tables,
-        table_key="ksea_counts",
-        field_name="bundle manifest.outputs.activity.tables.ksea_counts",
+        table_key="thresholded_substrate_counts",
+        field_name="bundle manifest.outputs.activity.tables.thresholded_substrate_counts",
         series_name="n_substrates",
     )
     target_counts = read_optional_series(
@@ -183,8 +188,8 @@ def reconstruct_kinase_result(
         activity_result = None
     else:
         if (
-            ksea_scores is None
-            or ksea_counts is None
+            thresholded_substrate_mean_activity is None
+            or thresholded_substrate_counts is None
             or target_counts is None
             or target_table is None
         ):
@@ -193,8 +198,8 @@ def reconstruct_kinase_result(
             )
         activity_result = KinaseActivityResult(
             weighted_activity=weighted_activity,
-            ksea_scores=ksea_scores,
-            ksea_counts=ksea_counts,
+            thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
+            thresholded_substrate_counts=thresholded_substrate_counts,
             target_counts=target_counts,
             target_table=target_table,
         )

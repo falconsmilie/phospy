@@ -125,6 +125,9 @@ boundaries).
 - `site_matrix: DatasetSiteMatrixConfig`
 - `comparisons: DatasetComparisonBuildingConfig`
 
+Performance contracts for preprocessing and scoring lanes are documented in
+[Performance Contracts](performance.md).
+
 All preprocessing methods are explicit opt-in choices. Defaults remain
 conservative (`intensity_transform="identity"`, `normalisation="none"`,
 `missing_data="forbid"`).
@@ -145,7 +148,9 @@ configured pseudocount).
 - `policy="quantile"` forces sample columns to share one empirical distribution
 
 Use quantile normalisation only when matched-distribution assumptions are
-scientifically appropriate for your experiment design.
+scientifically appropriate for your experiment design. It is a dense sort-heavy
+operation with additional float64 matrix-copy cost; see
+[Performance Contracts](performance.md#quantile-normalisation).
 
 #### `DatasetMissingDataConfig`
 
@@ -161,14 +166,18 @@ scientifically appropriate for your experiment design.
 
 - `policy="as_input"`
 - `policy="build_from_metadata"`
-- duplicate handling: `max_mean_signal`, `first`, `aggregate_mean`, `aggregate_median`, `error`
+- `duplicate_site_policy`: `max_mean_signal`, `first`, `aggregate_mean`, `aggregate_median`, `error`
 - public missing-data handling for this stage: `missing_data_policy="drop_any_missing"`
 
 This public builder lane is intentionally strict and still ends in a missing-value-free `AnalysisReadyPhosphoDataset`.
 `minimum_observed_values` is internal-only compatibility state and must stay
 `None` in the public config lane.
 
-Duplicate-site strategy trade-offs:
+Duplicate-site policy trade-offs:
+
+`duplicate_site_policy` controls a scientific row-resolution choice. Some
+policies drop peptide context; aggregate policies preserve all rows numerically
+but collapse distinct peptide/site contexts into one site-level row.
 
 - `error`: cautious mode; fail on duplicate constructed sites instead of silently choosing one row.
 - `first`: simple and convenient, but later duplicate rows are discarded by input order.
@@ -207,6 +216,15 @@ Planned/future lanes (not currently supported in this public contract) include:
 - `include_diagnostic_scoring_tables` default `False`
 - `profile_missing_value_strategy`: `strict` or `median_skipna`
 
+Performance notes:
+
+- motif scoring scales with scored sites, eligible kinases, and motif window width,
+- the scoring lane filters motif work to eligible profile-overlap kinases,
+- enabling diagnostic scoring tables retains `motif_scores` and
+  `score_fusion_weights`, which can increase runtime/memory.
+
+See [Performance Contracts](performance.md#kinase-scoring-and-motif-scoring).
+
 #### `KinasePredictionConfig`
 
 - `top_k` default `30`
@@ -238,6 +256,13 @@ Fields:
 - `module_selection_primary_correlation_threshold`
 - `module_selection_fallback_correlation_threshold`
 - `module_selection_max_clusters`
+
+Signalome module-selection scoring uses a full site-by-site correlation path up
+to `MAX_FULL_CORRELATION_SITE_COUNT` (`2000`), then switches to sampled
+within-cluster correlation estimates above that threshold. Approximation use is
+reported through `result.module_selection_diagnostics.reason`.
+
+See [Performance Contracts](performance.md#signalome-clustering-and-module-selection).
 
 ## Result models
 
@@ -294,9 +319,19 @@ Key fields:
 Common nested outputs:
 
 - `result.scoring_result.profile_scores`
-- `result.scoring_result.combined_scores`
+- `result.scoring_result.rank_weighted_fusion_scores`
 - `result.prediction_result.pred_mat`
 - `result.activity_result.weighted_activity` when activity is enabled
+- `result.activity_result.thresholded_substrate_mean_activity` when activity is enabled
+
+Method notes:
+
+- `thresholded_substrate_mean_activity` is a simple mean phospho signal over
+  predicted substrates whose prediction score is greater than
+  `activity_config.threshold`. It is not full KSEA enrichment.
+- `rank_weighted_fusion_scores` combine profile-correlation scores and
+  motif-frequency scores using rank-derived weights from profile substrate
+  counts and motif library sizes.
 
 ### `SignalomeWorkflowResult`
 
@@ -360,6 +395,10 @@ Fields:
 - `organism`
 - `kinase_substrate_map`
 - `site_sequences`
+
+Large reference maps are supported; workflow runtime depends more on
+dataset/reference overlap after filtering than on raw map size. See
+[Performance Contracts](performance.md#large-kinase-substrate-references).
 
 ## Public exceptions
 

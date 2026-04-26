@@ -71,11 +71,11 @@ def test_scoring_stage_is_prediction_mode_invariant_for_supported_lane() -> None
             result.scoring_result.profile_scores,
             baseline.scoring_result.profile_scores,
         )
-        assert result.scoring_result.combined_scores is not None
-        assert baseline.scoring_result.combined_scores is not None
+        assert result.scoring_result.rank_weighted_fusion_scores is not None
+        assert baseline.scoring_result.rank_weighted_fusion_scores is not None
         pd.testing.assert_frame_equal(
-            result.scoring_result.combined_scores,
-            baseline.scoring_result.combined_scores,
+            result.scoring_result.rank_weighted_fusion_scores,
+            baseline.scoring_result.rank_weighted_fusion_scores,
         )
         assert result.scoring_result.motif_scores is not None
         assert baseline.scoring_result.motif_scores is not None
@@ -83,11 +83,11 @@ def test_scoring_stage_is_prediction_mode_invariant_for_supported_lane() -> None
             result.scoring_result.motif_scores,
             baseline.scoring_result.motif_scores,
         )
-        assert result.scoring_result.weights is not None
-        assert baseline.scoring_result.weights is not None
+        assert result.scoring_result.score_fusion_weights is not None
+        assert baseline.scoring_result.score_fusion_weights is not None
         pd.testing.assert_frame_equal(
-            result.scoring_result.weights,
-            baseline.scoring_result.weights,
+            result.scoring_result.score_fusion_weights,
+            baseline.scoring_result.score_fusion_weights,
         )
 
 
@@ -112,11 +112,11 @@ def test_scoring_stage_is_reference_input_form_invariant_for_equivalent_content(
         from_bundle.scoring_result.profile_scores,
         check_dtype=False,
     )
-    assert from_preset.scoring_result.combined_scores is not None
-    assert from_bundle.scoring_result.combined_scores is not None
+    assert from_preset.scoring_result.rank_weighted_fusion_scores is not None
+    assert from_bundle.scoring_result.rank_weighted_fusion_scores is not None
     pd.testing.assert_frame_equal(
-        from_preset.scoring_result.combined_scores,
-        from_bundle.scoring_result.combined_scores,
+        from_preset.scoring_result.rank_weighted_fusion_scores,
+        from_bundle.scoring_result.rank_weighted_fusion_scores,
         check_dtype=False,
     )
     assert from_preset.scoring_result.motif_scores is not None
@@ -126,11 +126,11 @@ def test_scoring_stage_is_reference_input_form_invariant_for_equivalent_content(
         from_bundle.scoring_result.motif_scores,
         check_dtype=False,
     )
-    assert from_preset.scoring_result.weights is not None
-    assert from_bundle.scoring_result.weights is not None
+    assert from_preset.scoring_result.score_fusion_weights is not None
+    assert from_bundle.scoring_result.score_fusion_weights is not None
     pd.testing.assert_frame_equal(
-        from_preset.scoring_result.weights,
-        from_bundle.scoring_result.weights,
+        from_preset.scoring_result.score_fusion_weights,
+        from_bundle.scoring_result.score_fusion_weights,
         check_dtype=False,
     )
 
@@ -143,10 +143,10 @@ def test_supported_lane_is_reference_input_form_invariant_for_equivalent_content
     captured_sources: list[str] = []
     original_select_downstream = kinase_executor.select_downstream_score_matrix
 
-    def _capture_selected(*, profile_scores, combined_scores):
+    def _capture_selected(*, profile_scores, rank_weighted_fusion_scores):
         selected, source = original_select_downstream(
             profile_scores=profile_scores,
-            combined_scores=combined_scores,
+            rank_weighted_fusion_scores=rank_weighted_fusion_scores,
         )
         captured_sources.append(source)
         return selected, source
@@ -173,14 +173,17 @@ def test_supported_lane_is_reference_input_form_invariant_for_equivalent_content
         from_bundle.scoring_result.profile_scores,
         check_dtype=False,
     )
-    assert from_preset.scoring_result.combined_scores is not None
-    assert from_bundle.scoring_result.combined_scores is not None
+    assert from_preset.scoring_result.rank_weighted_fusion_scores is not None
+    assert from_bundle.scoring_result.rank_weighted_fusion_scores is not None
     pd.testing.assert_frame_equal(
-        from_preset.scoring_result.combined_scores,
-        from_bundle.scoring_result.combined_scores,
+        from_preset.scoring_result.rank_weighted_fusion_scores,
+        from_bundle.scoring_result.rank_weighted_fusion_scores,
         check_dtype=False,
     )
-    assert captured_sources == ["combined_scores", "combined_scores"]
+    assert captured_sources == [
+        "rank_weighted_fusion_scores",
+        "rank_weighted_fusion_scores",
+    ]
     pd.testing.assert_frame_equal(
         from_preset.prediction_result.pred_mat,
         from_bundle.prediction_result.pred_mat,
@@ -188,7 +191,7 @@ def test_supported_lane_is_reference_input_form_invariant_for_equivalent_content
     )
 
 
-def test_prediction_stage_consumes_authoritative_combined_scoring_outputs_across_modes_and_reference_forms(
+def test_prediction_stage_consumes_authoritative_rank_weighted_fusion_outputs_across_modes_and_reference_forms(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     dataset = build_rat_l6_dataset(n_sites=220)
@@ -201,10 +204,10 @@ def test_prediction_stage_consumes_authoritative_combined_scoring_outputs_across
     original_select_downstream = kinase_executor.select_downstream_score_matrix
     original_build_candidates = kinase_executor.build_candidate_substrate_list
 
-    def _capture_selected(*, profile_scores, combined_scores):
+    def _capture_selected(*, profile_scores, rank_weighted_fusion_scores):
         selected, source = original_select_downstream(
             profile_scores=profile_scores,
-            combined_scores=combined_scores,
+            rank_weighted_fusion_scores=rank_weighted_fusion_scores,
         )
         captured_selected_scores.append(selected.copy(deep=True))
         captured_sources.append(source)
@@ -245,22 +248,22 @@ def test_prediction_stage_consumes_authoritative_combined_scoring_outputs_across
             references=references,
             mode=mode,
         )
-        assert captured_sources[-1] == "combined_scores"
-        assert result.scoring_result.combined_scores is not None
+        assert captured_sources[-1] == "rank_weighted_fusion_scores"
+        assert result.scoring_result.rank_weighted_fusion_scores is not None
         pd.testing.assert_frame_equal(
             captured_selected_scores[-1],
-            result.scoring_result.combined_scores,
+            result.scoring_result.rank_weighted_fusion_scores,
             check_dtype=False,
         )
         pd.testing.assert_frame_equal(
             captured_prediction_inputs[-1],
-            result.scoring_result.combined_scores,
+            result.scoring_result.rank_weighted_fusion_scores,
             check_dtype=False,
         )
         assert captured_candidate_filters[-1] == (6, 0.0, 1)
 
     assert len(captured_sources) == len(runs)
-    assert set(captured_sources) == {"combined_scores"}
+    assert set(captured_sources) == {"rank_weighted_fusion_scores"}
     assert len(captured_candidate_filters) == len(runs)
     assert {
         (score_threshold, inclusion)
@@ -268,13 +271,13 @@ def test_prediction_stage_consumes_authoritative_combined_scoring_outputs_across
     } == {(0.0, 1)}
 
 
-def test_supported_lane_combined_scoring_always_enables_profile_only_fallback(
+def test_supported_lane_rank_weighted_fusion_scoring_always_enables_profile_only_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     dataset = build_rat_l6_dataset(n_sites=220)
     references = _resolved_bundle_for_dataset(dataset)
     captured_fallback_flags: list[bool] = []
-    original_combine = kinase_executor.combine_profile_and_motif_scores
+    original_combine = kinase_executor.fuse_profile_and_motif_scores_by_rank_weight
 
     def _capture_combine(**kwargs):
         captured_fallback_flags.append(bool(kwargs["allow_profile_only_fallback"]))
@@ -282,7 +285,7 @@ def test_supported_lane_combined_scoring_always_enables_profile_only_fallback(
 
     monkeypatch.setattr(
         kinase_executor,
-        "combine_profile_and_motif_scores",
+        "fuse_profile_and_motif_scores_by_rank_weight",
         _capture_combine,
     )
 

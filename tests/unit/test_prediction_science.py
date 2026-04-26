@@ -5,14 +5,14 @@ import pytest
 
 from phospy.prediction.candidates import build_candidate_substrate_list
 from phospy.prediction.scoring import (
-    DOWNSTREAM_SCORE_SOURCE_COMBINED,
     DOWNSTREAM_SCORE_SOURCE_PROFILE,
-    combine_profile_and_motif_scores,
+    DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION,
+    fuse_profile_and_motif_scores_by_rank_weight,
     select_downstream_score_matrix,
 )
 
 
-def test_combine_profile_and_motif_scores_falls_back_when_motif_column_is_all_nan() -> (
+def test_fuse_profile_and_motif_scores_by_rank_weight_falls_back_when_motif_column_is_all_nan() -> (
     None
 ):
     profile_scores = pd.DataFrame(
@@ -26,19 +26,21 @@ def test_combine_profile_and_motif_scores_falls_back_when_motif_column_is_all_na
     profile_sizes = pd.Series({"K1": 20.0, "K2": 25.0})
     motif_sizes = pd.Series({"K1": 12.0, "K2": 14.0})
 
-    combined, _weights = combine_profile_and_motif_scores(
-        motif_scores=motif_scores,
-        profile_scores=profile_scores,
-        motif_sizes=motif_sizes,
-        profile_sizes=profile_sizes,
+    rank_weighted_fusion_scores, _score_fusion_weights = (
+        fuse_profile_and_motif_scores_by_rank_weight(
+            motif_scores=motif_scores,
+            profile_scores=profile_scores,
+            motif_sizes=motif_sizes,
+            profile_sizes=profile_sizes,
+        )
     )
 
-    assert combined.loc[:, "K1"].tolist() == pytest.approx(
+    assert rank_weighted_fusion_scores.loc[:, "K1"].tolist() == pytest.approx(
         profile_scores.loc[:, "K1"].tolist()
     )
 
 
-def test_combine_profile_and_motif_scores_preserves_profile_cell_when_motif_is_missing() -> (
+def test_fuse_profile_and_motif_scores_by_rank_weight_preserves_profile_cell_when_motif_is_missing() -> (
     None
 ):
     profile_scores = pd.DataFrame({"K1": [0.8, 0.6]}, index=["S1", "S2"])
@@ -46,15 +48,19 @@ def test_combine_profile_and_motif_scores_preserves_profile_cell_when_motif_is_m
     profile_sizes = pd.Series({"K1": 10.0})
     motif_sizes = pd.Series({"K1": 10.0})
 
-    combined, _weights = combine_profile_and_motif_scores(
-        motif_scores=motif_scores,
-        profile_scores=profile_scores,
-        motif_sizes=motif_sizes,
-        profile_sizes=profile_sizes,
+    rank_weighted_fusion_scores, _score_fusion_weights = (
+        fuse_profile_and_motif_scores_by_rank_weight(
+            motif_scores=motif_scores,
+            profile_scores=profile_scores,
+            motif_sizes=motif_sizes,
+            profile_sizes=profile_sizes,
+        )
     )
 
-    assert combined.at["S1", "K1"] == pytest.approx(profile_scores.at["S1", "K1"])
-    assert combined.at["S2", "K1"] == pytest.approx(0.4)
+    assert rank_weighted_fusion_scores.at["S1", "K1"] == pytest.approx(
+        profile_scores.at["S1", "K1"]
+    )
+    assert rank_weighted_fusion_scores.at["S2", "K1"] == pytest.approx(0.4)
 
 
 def test_build_candidate_substrate_list_can_restrict_sites_per_kinase() -> None:
@@ -74,17 +80,17 @@ def test_build_candidate_substrate_list_can_restrict_sites_per_kinase() -> None:
     assert candidates == {"K1": ["S1", "S3"], "K2": ["S2"]}
 
 
-def test_select_downstream_score_matrix_prefers_combined_scores() -> None:
+def test_select_downstream_score_matrix_prefers_rank_weighted_fusion_scores() -> None:
     profile_scores = pd.DataFrame({"K1": [0.1, 0.2]}, index=["S1", "S2"])
-    combined_scores = pd.DataFrame({"K1": [0.7, 0.6]}, index=["S1", "S2"])
+    rank_weighted_fusion_scores = pd.DataFrame({"K1": [0.7, 0.6]}, index=["S1", "S2"])
 
     selected, source = select_downstream_score_matrix(
         profile_scores=profile_scores,
-        combined_scores=combined_scores,
+        rank_weighted_fusion_scores=rank_weighted_fusion_scores,
     )
 
-    assert selected is combined_scores
-    assert source == DOWNSTREAM_SCORE_SOURCE_COMBINED
+    assert selected is rank_weighted_fusion_scores
+    assert source == DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION
 
 
 def test_select_downstream_score_matrix_falls_back_to_profile_scores() -> None:
@@ -92,26 +98,28 @@ def test_select_downstream_score_matrix_falls_back_to_profile_scores() -> None:
 
     selected, source = select_downstream_score_matrix(
         profile_scores=profile_scores,
-        combined_scores=None,
+        rank_weighted_fusion_scores=None,
     )
 
     assert selected is profile_scores
     assert source == DOWNSTREAM_SCORE_SOURCE_PROFILE
 
 
-def test_combine_profile_and_motif_scores_can_skip_weight_table() -> None:
+def test_fuse_profile_and_motif_scores_by_rank_weight_can_skip_weight_table() -> None:
     profile_scores = pd.DataFrame({"K1": [0.2, 0.8]}, index=["S1", "S2"])
     motif_scores = pd.DataFrame({"K1": [0.7, 0.3]}, index=["S1", "S2"])
     profile_sizes = pd.Series({"K1": 4.0})
     motif_sizes = pd.Series({"K1": 4.0})
 
-    combined_scores, weights = combine_profile_and_motif_scores(
-        motif_scores=motif_scores,
-        profile_scores=profile_scores,
-        motif_sizes=motif_sizes,
-        profile_sizes=profile_sizes,
-        emit_weights=False,
+    rank_weighted_fusion_scores, score_fusion_weights = (
+        fuse_profile_and_motif_scores_by_rank_weight(
+            motif_scores=motif_scores,
+            profile_scores=profile_scores,
+            motif_sizes=motif_sizes,
+            profile_sizes=profile_sizes,
+            emit_weights=False,
+        )
     )
 
-    assert weights is None
-    assert list(combined_scores.columns) == ["K1"]
+    assert score_fusion_weights is None
+    assert list(rank_weighted_fusion_scores.columns) == ["K1"]

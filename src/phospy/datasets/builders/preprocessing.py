@@ -57,7 +57,7 @@ _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
     ),
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX: (
         "site_matrix_policy",
-        "site_matrix_duplicate_site_strategy",
+        "site_matrix_duplicate_site_policy",
         "site_matrix_missing_data_policy",
         "site_matrix_minimum_observed_values",
     ),
@@ -169,7 +169,7 @@ def build_dataset_processing_state(
             ),
             missing_data_policy=plan.site_matrix_missing_data_policy,
             minimum_observed_values=plan.site_matrix_minimum_observed_values,
-            duplicate_site_strategy=plan.site_matrix_duplicate_site_strategy,
+            duplicate_site_policy=plan.site_matrix_duplicate_site_policy,
         ),
         comparisons=ComparisonState(
             policy=plan.comparison_building_policy,

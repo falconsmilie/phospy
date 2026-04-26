@@ -104,18 +104,20 @@ def test_prediction_top_sites_align_with_reference_ranking_subset(
             activity_config=None,
         )
     )
-    combined_scores = result.scoring_result.combined_scores
-    assert combined_scores is not None
+    rank_weighted_fusion_scores = result.scoring_result.rank_weighted_fusion_scores
+    assert rank_weighted_fusion_scores is not None
     profile_scores = result.scoring_result.profile_scores
     pred_mat = result.prediction_result.pred_mat
 
     differing_kinases = 0
     for kinase in pred_mat.columns.astype(str):
         observed_top = pred_mat.loc[:, kinase].astype(float).dropna().idxmax()
-        combined_top = combined_scores.loc[:, kinase].astype(float).idxmax()
-        assert observed_top == combined_top
+        rank_weighted_fusion_top = (
+            rank_weighted_fusion_scores.loc[:, kinase].astype(float).idxmax()
+        )
+        assert observed_top == rank_weighted_fusion_top
         profile_top = profile_scores.loc[:, kinase].astype(float).idxmax()
-        if profile_top != combined_top:
+        if profile_top != rank_weighted_fusion_top:
             differing_kinases += 1
 
     assert differing_kinases > 0
@@ -126,15 +128,18 @@ def test_prediction_top_sites_align_with_reference_ranking_subset(
             ("prediction matrix shape", format_shape(*pred_mat.shape)),
             ("kinases predicted", int(pred_mat.shape[1])),
             (
-                "top-site combined-score alignment",
+                "top-site rank-weighted-fusion-score alignment",
                 f"{pred_mat.shape[1]}/{pred_mat.shape[1]}",
             ),
-            ("combined-vs-profile top-site divergences", differing_kinases),
+            (
+                "rank-weighted-fusion-vs-profile top-site divergences",
+                differing_kinases,
+            ),
         ],
     )
 
 
-def test_scoring_outputs_include_motif_and_combined_tables(
+def test_scoring_outputs_include_motif_and_rank_weighted_fusion_tables(
     request: pytest.FixtureRequest,
 ) -> None:
     dataset = build_rat_l6_dataset(n_sites=260)
@@ -152,11 +157,11 @@ def test_scoring_outputs_include_motif_and_combined_tables(
     )
 
     assert result.scoring_result.motif_scores is not None
-    assert result.scoring_result.combined_scores is not None
-    assert result.scoring_result.weights is not None
+    assert result.scoring_result.rank_weighted_fusion_scores is not None
+    assert result.scoring_result.score_fusion_weights is not None
     assert not result.scoring_result.motif_scores.empty
-    assert not result.scoring_result.combined_scores.empty
-    assert set(result.scoring_result.weights.columns) == {
+    assert not result.scoring_result.rank_weighted_fusion_scores.empty
+    assert set(result.scoring_result.score_fusion_weights.columns) == {
         "motif_weight",
         "profile_weight",
         "motif_rank_weight",
@@ -171,20 +176,22 @@ def test_scoring_outputs_include_motif_and_combined_tables(
                 format_bool(result.scoring_result.motif_scores is not None),
             ),
             (
-                "diagnostic combined table present",
-                format_bool(result.scoring_result.combined_scores is not None),
+                "diagnostic rank-weighted-fusion table present",
+                format_bool(
+                    result.scoring_result.rank_weighted_fusion_scores is not None
+                ),
             ),
             (
                 "diagnostic weight table present",
-                format_bool(result.scoring_result.weights is not None),
+                format_bool(result.scoring_result.score_fusion_weights is not None),
             ),
             (
                 "diagnostic motif score shape",
                 format_shape(*result.scoring_result.motif_scores.shape),
             ),
             (
-                "diagnostic combined score shape",
-                format_shape(*result.scoring_result.combined_scores.shape),
+                "diagnostic rank-weighted-fusion score shape",
+                format_shape(*result.scoring_result.rank_weighted_fusion_scores.shape),
             ),
         ],
     )
@@ -266,11 +273,17 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
 
     assert strict.scoring_result.profile_scores.loc[:, "K_MISSING"].isna().all()
     assert median_skipna.scoring_result.profile_scores.loc[:, "K_MISSING"].notna().any()
-    assert strict.scoring_result.combined_scores is not None
-    assert median_skipna.scoring_result.combined_scores is not None
-    assert strict.scoring_result.combined_scores.loc[:, "K_MISSING"].isna().all()
+    assert strict.scoring_result.rank_weighted_fusion_scores is not None
+    assert median_skipna.scoring_result.rank_weighted_fusion_scores is not None
     assert (
-        median_skipna.scoring_result.combined_scores.loc[:, "K_MISSING"].notna().any()
+        strict.scoring_result.rank_weighted_fusion_scores.loc[:, "K_MISSING"]
+        .isna()
+        .all()
+    )
+    assert (
+        median_skipna.scoring_result.rank_weighted_fusion_scores.loc[:, "K_MISSING"]
+        .notna()
+        .any()
     )
     assert "K_MISSING" not in strict.prediction_result.pred_mat.columns
     assert "K_MISSING" in median_skipna.prediction_result.pred_mat.columns

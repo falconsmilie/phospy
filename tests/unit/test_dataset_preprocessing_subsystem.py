@@ -82,7 +82,7 @@ def _comparison_sample_metadata(columns: pd.Index) -> pd.DataFrame:
 def _internal_site_matrix_config(
     *,
     policy: str = "build_from_metadata",
-    duplicate_site_strategy: str = "max_mean_signal",
+    duplicate_site_policy: str = "max_mean_signal",
     missing_data_policy: str = "drop_any_missing",
     minimum_observed_values: int | None = None,
 ) -> DatasetSiteMatrixConfig:
@@ -94,7 +94,7 @@ def _internal_site_matrix_config(
 
     config = object.__new__(DatasetSiteMatrixConfig)
     object.__setattr__(config, "policy", policy)
-    object.__setattr__(config, "duplicate_site_strategy", duplicate_site_strategy)
+    object.__setattr__(config, "duplicate_site_policy", duplicate_site_policy)
     object.__setattr__(config, "missing_data_policy", missing_data_policy)
     object.__setattr__(config, "minimum_observed_values", minimum_observed_values)
     return config
@@ -467,7 +467,7 @@ def test_dataset_preprocessor_site_matrix_supports_min_observed_and_duplicate_ag
                     policy="build_from_metadata",
                     missing_data_policy="require_min_observed_values",
                     minimum_observed_values=1,
-                    duplicate_site_strategy="aggregate_mean",
+                    duplicate_site_policy="aggregate_mean",
                 )
             )
         ),
@@ -480,7 +480,7 @@ def test_dataset_preprocessor_site_matrix_supports_min_observed_and_duplicate_ag
     assert preprocessed.site_metadata.loc["MAPK14;Y182;", "uid"] == "A"
 
 
-def test_dataset_preprocessor_site_matrix_duplicate_first_strategy_keeps_first_row() -> (
+def test_dataset_preprocessor_site_matrix_duplicate_first_policy_keeps_first_row() -> (
     None
 ):
     phospho = pd.DataFrame(
@@ -509,7 +509,7 @@ def test_dataset_preprocessor_site_matrix_duplicate_first_strategy_keeps_first_r
             DatasetPreprocessingConfig(
                 site_matrix=_internal_site_matrix_config(
                     policy="build_from_metadata",
-                    duplicate_site_strategy="first",
+                    duplicate_site_policy="first",
                     missing_data_policy="retain_missing",
                 )
             )
@@ -521,7 +521,7 @@ def test_dataset_preprocessor_site_matrix_duplicate_first_strategy_keeps_first_r
     assert preprocessed.site_metadata.loc["MAPK14;Y182;", "uid"] == "A"
 
 
-def test_dataset_preprocessor_site_matrix_duplicate_aggregate_median_strategy() -> None:
+def test_dataset_preprocessor_site_matrix_duplicate_aggregate_median_policy() -> None:
     phospho = pd.DataFrame(
         {
             "sample_a": [1.0, 30.0, 3.0],
@@ -548,7 +548,7 @@ def test_dataset_preprocessor_site_matrix_duplicate_aggregate_median_strategy() 
             DatasetPreprocessingConfig(
                 site_matrix=_internal_site_matrix_config(
                     policy="build_from_metadata",
-                    duplicate_site_strategy="aggregate_median",
+                    duplicate_site_policy="aggregate_median",
                     missing_data_policy="retain_missing",
                 )
             )
@@ -616,7 +616,7 @@ def test_dataset_preprocessor_rejects_site_matrix_duplicate_rows_in_error_mode()
 
     with pytest.raises(
         PhosPyInputError,
-        match="duplicate_site_strategy='error'",
+        match="duplicate_site_policy='error'",
     ):
         DatasetPreprocessor().run(
             phospho=phospho,
@@ -627,7 +627,7 @@ def test_dataset_preprocessor_rejects_site_matrix_duplicate_rows_in_error_mode()
                 DatasetPreprocessingConfig(
                     site_matrix=DatasetSiteMatrixConfig(
                         policy="build_from_metadata",
-                        duplicate_site_strategy="error",
+                        duplicate_site_policy="error",
                     )
                 )
             ),

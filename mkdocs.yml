@@ -17,6 +17,7 @@ nav:
   - Troubleshooting: getting-started/troubleshooting-first-run.md
   - CLI Guide: cli.md
   - API Guide: api.md
+  - Performance Contracts: performance.md
   - Validation Guide: validation.md
   - Output Bundles: output_bundles.md
   - Release Notes 1.5.0: release_notes/1.5.0.md

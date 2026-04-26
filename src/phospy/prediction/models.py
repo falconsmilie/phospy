@@ -15,15 +15,16 @@ from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
 class KinaseScoringResult:
     """Scoring-stage outputs.
 
-    `profile_scores` and `combined_scores` define the supported downstream lane.
-    `motif_scores` and `weights` are optional diagnostic tables controlled by
+    `profile_scores` and `rank_weighted_fusion_scores` define the supported
+    downstream lane. `motif_scores` and `score_fusion_weights` are optional
+    diagnostic tables controlled by
     `scoring_config.include_diagnostic_scoring_tables`.
     """
 
     profile_scores: pd.DataFrame
     motif_scores: pd.DataFrame | None = None
-    combined_scores: pd.DataFrame | None = None
-    weights: pd.DataFrame | None = None
+    rank_weighted_fusion_scores: pd.DataFrame | None = None
+    score_fusion_weights: pd.DataFrame | None = None
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
@@ -41,28 +42,30 @@ class KinaseScoringResult:
                 _assume_owned=_assume_owned,
             ).frame
         )
-        combined_scores = (
+        rank_weighted_fusion_scores = (
             None
-            if self.combined_scores is None
+            if self.rank_weighted_fusion_scores is None
             else KinaseScoreMatrix(
-                frame=self.combined_scores,
-                field_name="scoring_result.combined_scores",
+                frame=self.rank_weighted_fusion_scores,
+                field_name="scoring_result.rank_weighted_fusion_scores",
                 _assume_owned=_assume_owned,
             ).frame
         )
-        weights = (
+        score_fusion_weights = (
             None
-            if self.weights is None
+            if self.score_fusion_weights is None
             else KinaseScoreMatrix(
-                frame=self.weights,
-                field_name="scoring_result.weights",
+                frame=self.score_fusion_weights,
+                field_name="scoring_result.score_fusion_weights",
                 _assume_owned=_assume_owned,
             ).frame
         )
         object.__setattr__(self, "profile_scores", profile_scores)
         object.__setattr__(self, "motif_scores", motif_scores)
-        object.__setattr__(self, "combined_scores", combined_scores)
-        object.__setattr__(self, "weights", weights)
+        object.__setattr__(
+            self, "rank_weighted_fusion_scores", rank_weighted_fusion_scores
+        )
+        object.__setattr__(self, "score_fusion_weights", score_fusion_weights)
 
     @classmethod
     def _from_owned(
@@ -70,14 +73,14 @@ class KinaseScoringResult:
         *,
         profile_scores: pd.DataFrame,
         motif_scores: pd.DataFrame | None = None,
-        combined_scores: pd.DataFrame | None = None,
-        weights: pd.DataFrame | None = None,
+        rank_weighted_fusion_scores: pd.DataFrame | None = None,
+        score_fusion_weights: pd.DataFrame | None = None,
     ) -> KinaseScoringResult:
         return cls(
             profile_scores=profile_scores,
             motif_scores=motif_scores,
-            combined_scores=combined_scores,
-            weights=weights,
+            rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+            score_fusion_weights=score_fusion_weights,
             _assume_owned=True,
         )
 

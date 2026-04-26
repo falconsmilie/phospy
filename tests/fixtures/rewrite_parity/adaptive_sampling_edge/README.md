@@ -10,7 +10,7 @@ They complement the R-backed L6 parity traces by pinning edge-case replay behavi
 
 Active parity-gate files in this directory are:
 
-- `combined_scores.csv`
+- `rank_weighted_fusion_scores.csv`
 - `trace_candidates.csv`
 - `trace_final_ensemble_predictions.csv`
 - `trace_final_ensemble_top.csv`

@@ -21,7 +21,7 @@ from phospy.prediction.svm import (
     require_sklearn,
 )
 from tests.support.rewrite_fixture_data import (
-    load_adaptive_sampling_replay_combined_scores,
+    load_adaptive_sampling_replay_rank_weighted_fusion_scores,
     load_adaptive_sampling_replay_trace_candidates,
     load_adaptive_sampling_replay_trace_final_predictions,
     load_adaptive_sampling_replay_trace_final_top,
@@ -134,9 +134,11 @@ def _run_traced_lane(
     initial_overrides: pd.DataFrame | None = None,
     sample_overrides: pd.DataFrame | None = None,
 ) -> _TracedLaneResult:
-    combined_scores = load_adaptive_sampling_replay_combined_scores()
+    rank_weighted_fusion_scores = (
+        load_adaptive_sampling_replay_rank_weighted_fusion_scores()
+    )
     candidate_substrates = build_candidate_substrate_list(
-        scores=combined_scores,
+        scores=rank_weighted_fusion_scores,
         top=TRACE_TOP_K,
         score_threshold=TRACE_SCORE_THRESHOLD,
         inclusion=TRACE_INCLUSION,
@@ -148,8 +150,8 @@ def _run_traced_lane(
     )
     standard_scaler, svc = require_sklearn()
 
-    feature_values = combined_scores.to_numpy(dtype=float, copy=False)
-    feature_index = combined_scores.index
+    feature_values = rank_weighted_fusion_scores.to_numpy(dtype=float, copy=False)
+    feature_index = rank_weighted_fusion_scores.index
     all_positions = np.arange(feature_values.shape[0], dtype=int)
     site_position = {
         str(site_id): int(position) for position, site_id in enumerate(feature_index)
@@ -499,9 +501,11 @@ def _mean_top_n_overlap(
 
 
 def _collect_lane_metrics(*, adaptive_policy: str) -> AdaptiveTraceLaneMetrics:
-    combined_scores = load_adaptive_sampling_replay_combined_scores()
+    rank_weighted_fusion_scores = (
+        load_adaptive_sampling_replay_rank_weighted_fusion_scores()
+    )
     candidate_substrates = build_candidate_substrate_list(
-        scores=combined_scores,
+        scores=rank_weighted_fusion_scores,
         top=TRACE_TOP_K,
         score_threshold=TRACE_SCORE_THRESHOLD,
         inclusion=TRACE_INCLUSION,

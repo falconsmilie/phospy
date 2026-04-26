@@ -8,11 +8,11 @@ from dataclasses import replace
 import pandas as pd
 
 from phospy.api.configs import (
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN,
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN,
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_ERROR,
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST,
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
     DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
@@ -42,12 +42,12 @@ _INTERNAL_SITE_MATRIX_MISSING_DATA_POLICY_RETAIN_MISSING = "retain_missing"
 _INTERNAL_SITE_MATRIX_MISSING_DATA_POLICY_REQUIRE_MIN_OBSERVED_VALUES = (
     "require_min_observed_values"
 )
-_SUPPORTED_DUPLICATE_SITE_STRATEGIES = {
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL,
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST,
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN,
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN,
-    DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_ERROR,
+_SUPPORTED_DUPLICATE_SITE_POLICIES = {
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
+    DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR,
 }
 _METADATA_CONFLICT_FIELDS = (
     "protein_id",
@@ -61,7 +61,7 @@ _DUPLICATE_SITE_RESOLUTION_COLUMNS = (
     "site_id",
     "source_row_id",
     "retained",
-    "resolution_strategy",
+    "resolution_policy",
     "retained_reason",
     "dropped_reason",
     "observed_values",
@@ -147,7 +147,7 @@ class SiteMatrixStage:
             phospho=policy_filtered_phospho,
             site_metadata=policy_filtered_site_metadata,
             constructed_site_id=policy_filtered_site_id,
-            duplicate_site_strategy=state.plan.site_matrix_duplicate_site_strategy,
+            duplicate_site_policy=state.plan.site_matrix_duplicate_site_policy,
         )
 
         final_phospho = duplicate_site_result.phospho.sort_index(kind="stable")
@@ -187,7 +187,7 @@ class SiteMatrixStage:
             duplicate_site_resolution=duplicate_site_result.duplicate_site_resolution,
             site_matrix_policy=state.plan.site_matrix_policy,
             site_matrix_missing_data_policy=state.plan.site_matrix_missing_data_policy,
-            site_matrix_duplicate_site_strategy=state.plan.site_matrix_duplicate_site_strategy,
+            site_matrix_duplicate_site_policy=state.plan.site_matrix_duplicate_site_policy,
             required_observed_count=required_observed_count,
         )
         state_with_row_audit = append_row_audit_records(state, row_audit_records)
@@ -199,7 +199,7 @@ class SiteMatrixStage:
             "missing_data_policy": state.plan.site_matrix_missing_data_policy,
             "required_observed_count": required_observed_count,
             "deduplicated_site_rows": duplicate_site_result.dropped_row_count,
-            "duplicate_site_strategy": state.plan.site_matrix_duplicate_site_strategy,
+            "duplicate_site_policy": state.plan.site_matrix_duplicate_site_policy,
             "retained_rows": int(len(final_phospho.index)),
         }
         if final_phospho.empty:
@@ -217,7 +217,7 @@ class SiteMatrixStage:
             "dropped_missing_sequence_row_ids": dropped_missing_sequence_row_ids,
             "dropped_incomplete_row_ids": dropped_incomplete_row_ids,
             "dropped_row_ids": dropped_row_ids,
-            "duplicate_site_strategy": state.plan.site_matrix_duplicate_site_strategy,
+            "duplicate_site_policy": state.plan.site_matrix_duplicate_site_policy,
             "missing_data_policy": state.plan.site_matrix_missing_data_policy,
             "required_observed_count": required_observed_count,
             "final_constructed_site_ids": tuple(
@@ -420,7 +420,7 @@ def _build_site_matrix_row_audit_records(
     duplicate_site_resolution: pd.DataFrame,
     site_matrix_policy: str,
     site_matrix_missing_data_policy: str,
-    site_matrix_duplicate_site_strategy: str,
+    site_matrix_duplicate_site_policy: str,
     required_observed_count: int,
 ) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
@@ -441,7 +441,7 @@ def _build_site_matrix_row_audit_records(
                 "parameter_snapshot": {
                     "site_matrix_policy": site_matrix_policy,
                     "site_matrix_missing_data_policy": site_matrix_missing_data_policy,
-                    "site_matrix_duplicate_site_strategy": site_matrix_duplicate_site_strategy,
+                    "site_matrix_duplicate_site_policy": site_matrix_duplicate_site_policy,
                 },
             }
         )
@@ -460,7 +460,7 @@ def _build_site_matrix_row_audit_records(
                 "parameter_snapshot": {
                     "site_matrix_policy": site_matrix_policy,
                     "site_matrix_missing_data_policy": site_matrix_missing_data_policy,
-                    "site_matrix_duplicate_site_strategy": site_matrix_duplicate_site_strategy,
+                    "site_matrix_duplicate_site_policy": site_matrix_duplicate_site_policy,
                     "observed_values": int(observed_value_count),
                     "required_observed_count": int(required_observed_count),
                 },
@@ -470,7 +470,7 @@ def _build_site_matrix_row_audit_records(
         _build_duplicate_site_row_audit_records(
             duplicate_site_resolution=duplicate_site_resolution,
             site_matrix_policy=site_matrix_policy,
-            duplicate_site_strategy=site_matrix_duplicate_site_strategy,
+            site_matrix_duplicate_site_policy=site_matrix_duplicate_site_policy,
         )
     )
     return records
@@ -480,7 +480,7 @@ def _build_duplicate_site_row_audit_records(
     *,
     duplicate_site_resolution: pd.DataFrame,
     site_matrix_policy: str,
-    duplicate_site_strategy: str,
+    site_matrix_duplicate_site_policy: str,
 ) -> list[dict[str, object]]:
     if duplicate_site_resolution.empty:
         return []
@@ -497,9 +497,9 @@ def _build_duplicate_site_row_audit_records(
         .astype(str)
         .to_dict()
     )
-    aggregated = duplicate_site_strategy in {
-        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN,
-        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN,
+    aggregated = site_matrix_duplicate_site_policy in {
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
     }
     records: list[dict[str, object]] = []
     for row in duplicate_site_resolution.itertuples(index=False):
@@ -537,7 +537,10 @@ def _build_duplicate_site_row_audit_records(
                 "retained_row": retained_row,
                 "parameter_snapshot": {
                     "site_matrix_policy": site_matrix_policy,
-                    "duplicate_site_strategy": duplicate_site_strategy,
+                    "duplicate_site_policy": site_matrix_duplicate_site_policy,
+                    "site_matrix_duplicate_site_policy": (
+                        site_matrix_duplicate_site_policy
+                    ),
                     "observed_values": _optional_int(row.observed_values),
                     "mean_signal": _optional_float(row.mean_signal),
                     "metadata_conflict_detected": bool(
@@ -590,12 +593,12 @@ def _apply_duplicate_site_policy(
     phospho: pd.DataFrame,
     site_metadata: pd.DataFrame,
     constructed_site_id: pd.Series,
-    duplicate_site_strategy: str,
+    duplicate_site_policy: str,
 ) -> DuplicateSiteResolutionResult:
-    if duplicate_site_strategy not in _SUPPORTED_DUPLICATE_SITE_STRATEGIES:
+    if duplicate_site_policy not in _SUPPORTED_DUPLICATE_SITE_POLICIES:
         raise PhosPyInputError(
             "dataset build request preprocessing_config contains an unsupported "
-            "site_matrix.duplicate_site_strategy"
+            "site_matrix.duplicate_site_policy"
         )
 
     if phospho.empty:
@@ -652,7 +655,7 @@ def _apply_duplicate_site_policy(
     )
     conflict_site_ids = set(metadata_conflicts.loc[:, "site_id"].astype(str).tolist())
 
-    if duplicate_site_strategy == DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_ERROR:
+    if duplicate_site_policy == DATASET_SITE_MATRIX_DUPLICATE_POLICY_ERROR:
         duplicate_sites = (
             constructed_site_id.loc[duplicate_mask]
             .astype(str)
@@ -663,12 +666,12 @@ def _apply_duplicate_site_policy(
         raise PhosPyInputError(
             "dataset build request preprocessing site-matrix construction found "
             "duplicate constructed site identifiers and "
-            "site_matrix.duplicate_site_strategy='error': "
-            f"{preview}. Use a non-error duplicate strategy to emit duplicate-site "
+            "site_matrix.duplicate_site_policy='error': "
+            f"{preview}. Use a non-error duplicate policy to emit duplicate-site "
             "resolution and metadata-conflict diagnostics."
         )
 
-    if duplicate_site_strategy == DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_FIRST:
+    if duplicate_site_policy == DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST:
         selected_rows = (
             pd.DataFrame({_SITE_ID_COLUMN: constructed_site_id}, index=phospho.index)
             .drop_duplicates(_SITE_ID_COLUMN, keep="first")
@@ -686,7 +689,7 @@ def _apply_duplicate_site_policy(
             duplicate_work=duplicate_work,
             site_metadata=site_metadata,
             selected_rows=selected_rows,
-            duplicate_site_strategy=duplicate_site_strategy,
+            duplicate_site_policy=duplicate_site_policy,
             retained_reason="selected first row by input order",
             dropped_reason="dropped because another row was selected first by input order",
             conflict_site_ids=conflict_site_ids,
@@ -699,10 +702,7 @@ def _apply_duplicate_site_policy(
             metadata_conflicts=metadata_conflicts,
         )
 
-    if (
-        duplicate_site_strategy
-        == DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_MAX_MEAN_SIGNAL
-    ):
+    if duplicate_site_policy == DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL:
         value_columns = list(phospho.columns)
         dedupe_work = pd.DataFrame(
             {
@@ -735,7 +735,7 @@ def _apply_duplicate_site_policy(
             duplicate_work=duplicate_work,
             site_metadata=site_metadata,
             selected_rows=selected_rows,
-            duplicate_site_strategy=duplicate_site_strategy,
+            duplicate_site_policy=duplicate_site_policy,
             retained_reason=(
                 "selected row with highest mean signal under max_mean_signal criteria"
             ),
@@ -750,9 +750,9 @@ def _apply_duplicate_site_policy(
             metadata_conflicts=metadata_conflicts,
         )
 
-    if duplicate_site_strategy in {
-        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN,
-        DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEDIAN,
+    if duplicate_site_policy in {
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+        DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
     }:
         metadata_columns = list(site_metadata.columns)
         grouped_metadata = (
@@ -761,10 +761,7 @@ def _apply_duplicate_site_policy(
             .first()
         )
         grouped_values = phospho.groupby(constructed_site_id, sort=False)
-        if (
-            duplicate_site_strategy
-            == DATASET_SITE_MATRIX_DUPLICATE_STRATEGY_AGGREGATE_MEAN
-        ):
+        if duplicate_site_policy == DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN:
             grouped_phospho = grouped_values.mean()
         else:
             grouped_phospho = grouped_values.median()
@@ -778,7 +775,7 @@ def _apply_duplicate_site_policy(
             duplicate_work=duplicate_work,
             site_metadata=site_metadata,
             selected_rows=duplicate_work.index,
-            duplicate_site_strategy=duplicate_site_strategy,
+            duplicate_site_policy=duplicate_site_policy,
             retained_reason=(
                 "contributed to site-level aggregate from duplicate source rows"
             ),
@@ -794,7 +791,7 @@ def _apply_duplicate_site_policy(
             metadata_conflicts=metadata_conflicts,
         )
 
-    raise RuntimeError("site-matrix duplicate strategy dispatch fell through")
+    raise RuntimeError("site-matrix duplicate policy dispatch fell through")
 
 
 def _empty_duplicate_site_resolution() -> pd.DataFrame:
@@ -810,7 +807,7 @@ def _build_duplicate_site_resolution(
     duplicate_work: pd.DataFrame,
     site_metadata: pd.DataFrame,
     selected_rows: pd.Index,
-    duplicate_site_strategy: str,
+    duplicate_site_policy: str,
     retained_reason: str,
     dropped_reason: str | None,
     conflict_site_ids: set[str],
@@ -830,7 +827,7 @@ def _build_duplicate_site_resolution(
             "retained": duplicate_work.index.astype(str)
             .isin(selected_row_ids)
             .tolist(),
-            "resolution_strategy": duplicate_site_strategy,
+            "resolution_policy": duplicate_site_policy,
             "observed_values": duplicate_work.loc[:, "observed_values"].to_numpy(),
             "mean_signal": duplicate_work.loc[:, "mean_signal"].to_numpy(),
             "n_source_rows": duplicate_work.loc[:, "n_source_rows"].to_numpy(),
@@ -950,8 +947,8 @@ def _format_row_drop_diagnostics(row_drop_stats: dict[str, int | str]) -> str:
         f"{int(row_drop_stats.get('required_observed_count', 0))}, "
         "deduplicated_site_rows="
         f"{int(row_drop_stats.get('deduplicated_site_rows', 0))}, "
-        "duplicate_site_strategy="
-        f"{str(row_drop_stats.get('duplicate_site_strategy', 'max_mean_signal'))}, "
+        "duplicate_site_policy="
+        f"{str(row_drop_stats.get('duplicate_site_policy', 'max_mean_signal'))}, "
         f"other_dropped_rows={other_dropped_rows}, "
         f"retained_rows={retained_rows}"
     )

@@ -111,7 +111,7 @@ def _kinase_result(
         references=_bundle(site_ids=dataset.phospho.index.astype(str).tolist()),
         scoring_result=KinaseScoringResult(
             profile_scores=score_matrix,
-            combined_scores=score_matrix,
+            rank_weighted_fusion_scores=score_matrix,
         ),
         prediction_result=KinasePredictionResult(pred_mat=prediction_matrix),
         activity_result=None,
