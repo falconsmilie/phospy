@@ -25,7 +25,9 @@ from phospy.api.results import KinaseWorkflowResult
 from phospy.datasets.builders.validator import DatasetBuildRequestValidator
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import (
+    DatasetValidationError,
     PhosPyInputError,
+    PhosPyValidationError,
     ReferenceCompatibilityError,
     UnsupportedInputFormatError,
     WorkflowValidationError,
@@ -668,31 +670,19 @@ def test_signalome_validator_rejects_empty_site_metadata_protein_id_values() -> 
     kinase_result = _kinase_result()
     site_metadata = kinase_result.dataset.site_metadata.copy(deep=True)
     site_metadata.loc[:, "protein_id"] = [""]
-    dataset_with_empty_protein_id = AnalysisReadyPhosphoDataset(
-        phospho=kinase_result.dataset.phospho,
-        site_metadata=site_metadata,
-        sample_metadata=kinase_result.dataset.sample_metadata,
-        total=kinase_result.dataset.total,
-        organism=kinase_result.dataset.organism,
-        intensity_scale_state=kinase_result.dataset.intensity_scale_state,
-        processing_state=kinase_result.dataset.processing_state,
-    )
-    request = SignalomeWorkflowRequest(
-        kinase_result=KinaseWorkflowResult(
-            dataset=dataset_with_empty_protein_id,
-            references=kinase_result.references,
-            scoring_result=kinase_result.scoring_result,
-            prediction_result=kinase_result.prediction_result,
-            activity_result=kinase_result.activity_result,
-        ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
-    )
-
     with pytest.raises(
-        WorkflowValidationError,
+        DatasetValidationError,
         match="site_metadata.protein_id must contain non-empty string values",
     ):
-        SignalomeWorkflowValidator().run(request)
+        AnalysisReadyPhosphoDataset(
+            phospho=kinase_result.dataset.phospho,
+            site_metadata=site_metadata,
+            sample_metadata=kinase_result.dataset.sample_metadata,
+            total=kinase_result.dataset.total,
+            organism=kinase_result.dataset.organism,
+            intensity_scale_state=kinase_result.dataset.intensity_scale_state,
+            processing_state=kinase_result.dataset.processing_state,
+        )
 
 
 def test_signalome_validator_rejects_non_string_site_metadata_protein_id_values() -> (
@@ -702,31 +692,19 @@ def test_signalome_validator_rejects_non_string_site_metadata_protein_id_values(
     site_metadata = kinase_result.dataset.site_metadata.copy(deep=True)
     site_metadata = site_metadata.astype({"protein_id": object})
     site_metadata.loc[:, "protein_id"] = [123]  # type: ignore[list-item]
-    dataset_with_numeric_protein_id = AnalysisReadyPhosphoDataset(
-        phospho=kinase_result.dataset.phospho,
-        site_metadata=site_metadata,
-        sample_metadata=kinase_result.dataset.sample_metadata,
-        total=kinase_result.dataset.total,
-        organism=kinase_result.dataset.organism,
-        intensity_scale_state=kinase_result.dataset.intensity_scale_state,
-        processing_state=kinase_result.dataset.processing_state,
-    )
-    request = SignalomeWorkflowRequest(
-        kinase_result=KinaseWorkflowResult(
-            dataset=dataset_with_numeric_protein_id,
-            references=kinase_result.references,
-            scoring_result=kinase_result.scoring_result,
-            prediction_result=kinase_result.prediction_result,
-            activity_result=kinase_result.activity_result,
-        ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
-    )
-
     with pytest.raises(
-        WorkflowValidationError,
+        DatasetValidationError,
         match="site_metadata.protein_id must contain non-empty string values",
     ):
-        SignalomeWorkflowValidator().run(request)
+        AnalysisReadyPhosphoDataset(
+            phospho=kinase_result.dataset.phospho,
+            site_metadata=site_metadata,
+            sample_metadata=kinase_result.dataset.sample_metadata,
+            total=kinase_result.dataset.total,
+            organism=kinase_result.dataset.organism,
+            intensity_scale_state=kinase_result.dataset.intensity_scale_state,
+            processing_state=kinase_result.dataset.processing_state,
+        )
 
 
 def test_signalome_validator_does_not_cast_numeric_matrices(
@@ -793,23 +771,20 @@ def test_signalome_validator_prefers_combined_scores_when_available() -> None:
     assert kinase_result.scoring_result.combined_scores is not None
     invalid_combined = kinase_result.scoring_result.combined_scores.copy(deep=True)
     invalid_combined.iloc[0, 0] = float("inf")
-
-    request = SignalomeWorkflowRequest(
-        kinase_result=KinaseWorkflowResult(
-            dataset=kinase_result.dataset,
-            references=kinase_result.references,
-            scoring_result=KinaseScoringResult(
-                profile_scores=kinase_result.scoring_result.profile_scores,
-                combined_scores=invalid_combined,
-            ),
-            prediction_result=kinase_result.prediction_result,
-            activity_result=kinase_result.activity_result,
-        ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
-    )
-
     with pytest.raises(
-        WorkflowValidationError,
-        match="kinase_result.scoring_result.combined_scores",
+        PhosPyValidationError,
+        match="scoring_result.combined_scores must contain finite numeric values",
     ):
-        SignalomeWorkflowValidator().run(request)
+        SignalomeWorkflowRequest(
+            kinase_result=KinaseWorkflowResult(
+                dataset=kinase_result.dataset,
+                references=kinase_result.references,
+                scoring_result=KinaseScoringResult(
+                    profile_scores=kinase_result.scoring_result.profile_scores,
+                    combined_scores=invalid_combined,
+                ),
+                prediction_result=kinase_result.prediction_result,
+                activity_result=kinase_result.activity_result,
+            ),
+            config=SignalomeConfig(substrate_support_cutoff=0.5),
+        )

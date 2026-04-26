@@ -77,6 +77,31 @@ Main expectations:
 - processing state is explicit and coherent with intensity scale state
 - the supported builder lane hands workflows a missing-value-free dataset
 
+## Internal table schemas
+
+Public APIs still expose pandas `DataFrame` tables, but internal workflow
+boundaries now use lightweight schema wrappers in `phospy.tables`.
+
+These wrappers are intentionally small:
+
+- they validate one concrete scientific table shape
+- they preserve frame ownership rules
+- they expose the validated table through `.frame`
+- they raise the same domain error type used at that boundary
+
+Current internal wrappers cover core dataset/reference/prediction/activity and
+signalome sidecar tables, including:
+
+- `PhosphoIntensityMatrix`, `SiteMetadataTable`, `SampleMetadataTable`, `TotalProteinMatrix`
+- `KinaseSubstrateReference`, `SiteSequenceReference`
+- `KinaseScoreMatrix`, `KinasePredictionMatrix`
+- `ActivityMatrix`, `ActivityCountSeries`, `ActivityTargetTable`
+- `SignalomeSiteContext`, `SignalomeProteinSiteContext`
+
+When adding a new internal scientific `DataFrame` contract, prefer adding one
+small wrapper in `phospy.tables` instead of passing raw frames across executor
+seams.
+
 ## Preprocessing rules
 
 `DatasetPreprocessingConfig` groups six policy areas:

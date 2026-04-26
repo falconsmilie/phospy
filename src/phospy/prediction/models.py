@@ -6,8 +6,9 @@ from dataclasses import InitVar, dataclass
 
 import pandas as pd
 
-from phospy._frame_ownership import own_dataframe, own_optional_dataframe
+from phospy._frame_ownership import own_optional_dataframe
 from phospy.errors.validation import PhosPyValidationError
+from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,29 +27,37 @@ class KinaseScoringResult:
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
-        profile_scores = own_dataframe(
-            self.profile_scores,
+        profile_scores = KinaseScoreMatrix(
+            frame=self.profile_scores,
             field_name="scoring_result.profile_scores",
-            error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
+            _assume_owned=_assume_owned,
+        ).frame
+        motif_scores = (
+            None
+            if self.motif_scores is None
+            else KinaseScoreMatrix(
+                frame=self.motif_scores,
+                field_name="scoring_result.motif_scores",
+                _assume_owned=_assume_owned,
+            ).frame
         )
-        motif_scores = own_optional_dataframe(
-            self.motif_scores,
-            field_name="scoring_result.motif_scores",
-            error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
+        combined_scores = (
+            None
+            if self.combined_scores is None
+            else KinaseScoreMatrix(
+                frame=self.combined_scores,
+                field_name="scoring_result.combined_scores",
+                _assume_owned=_assume_owned,
+            ).frame
         )
-        combined_scores = own_optional_dataframe(
-            self.combined_scores,
-            field_name="scoring_result.combined_scores",
-            error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
-        )
-        weights = own_optional_dataframe(
-            self.weights,
-            field_name="scoring_result.weights",
-            error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
+        weights = (
+            None
+            if self.weights is None
+            else KinaseScoreMatrix(
+                frame=self.weights,
+                field_name="scoring_result.weights",
+                _assume_owned=_assume_owned,
+            ).frame
         )
         object.__setattr__(self, "profile_scores", profile_scores)
         object.__setattr__(self, "motif_scores", motif_scores)
@@ -82,12 +91,11 @@ class KinasePredictionResult:
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
-        pred_mat = own_dataframe(
-            self.pred_mat,
+        pred_mat = KinasePredictionMatrix(
+            frame=self.pred_mat,
             field_name="prediction_result.pred_mat",
-            error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
-        )
+            _assume_owned=_assume_owned,
+        ).frame
         substrate_list = own_optional_dataframe(
             self.substrate_list,
             field_name="prediction_result.substrate_list",

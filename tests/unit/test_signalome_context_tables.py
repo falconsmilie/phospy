@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 import pandas.testing as pdt
+import pytest
 
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import (
@@ -16,9 +17,14 @@ from phospy.api.results import (
     KinaseScoringResult,
     SignalomeWorkflowResult,
 )
+from phospy.errors.workflows import WorkflowStageError
 from phospy.signalomes.clustering import (
     cluster_sites_with_diagnostics,
     derive_protein_modules,
+)
+from phospy.signalomes.context import (
+    build_protein_site_context_table,
+    build_site_membership_table,
 )
 from phospy.signalomes.science import (
     build_module_assignments,
@@ -250,3 +256,36 @@ def test_context_tables_do_not_change_module_outputs() -> None:
         expected_modules,
         check_dtype=False,
     )
+
+
+def test_site_membership_builder_rejects_non_empty_missing_required_columns() -> None:
+    with pytest.raises(WorkflowStageError, match="missing columns"):
+        build_site_membership_table(
+            module_assignments=pd.DataFrame(
+                {"protein_id": ["P1"]},
+                index=pd.Index(["P1;S1;"], name="site_id"),
+            ),
+            site_clusters=pd.Series(
+                [1],
+                index=pd.Index(["P1;S1;"], name="site_id"),
+                dtype="int64",
+            ),
+            site_metadata=pd.DataFrame(
+                {"gene_symbol": ["P1"]},
+                index=pd.Index(["P1;S1;"], name="site_id"),
+            ),
+            prediction_matrix=pd.DataFrame(
+                {"K1": [0.9]},
+                index=pd.Index(["P1;S1;"], name="site_id"),
+            ),
+            kinase_substrates={"K1": ("P1;S1;",)},
+            substrate_support_cutoff=0.5,
+            assignment_policy="cutoff_binary",
+        )
+
+
+def test_protein_context_builder_rejects_non_empty_missing_required_columns() -> None:
+    with pytest.raises(WorkflowStageError, match="missing columns"):
+        build_protein_site_context_table(
+            site_membership=pd.DataFrame({"site_id": ["P1;S1;"]}),
+        )

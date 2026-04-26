@@ -7,6 +7,7 @@ from phospy import (
     AnalysisReadyPhosphoDataset,
     KinaseWorkflow,
 )
+from phospy.activities.models import KinaseActivityInputs, PredMatOverlapSummary
 from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -428,6 +429,32 @@ def test_boundary_error_reports_activity_overlap_edge_case() -> None:
     assert "min_fraction=0.5" in message
     assert "prediction_result.pred_mat" in message
     assert "dataset.phospho" in message
+
+
+def test_activity_inputs_reject_malformed_pred_mat_with_workflow_boundary_error() -> (
+    None
+):
+    with pytest.raises(
+        WorkflowBoundaryError, match="seam=kinase.activity.input_schema"
+    ):
+        KinaseActivityInputs(
+            pred_mat=pd.DataFrame(
+                {"MAP2K6": [1.5]},
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+            phospho_matrix=pd.DataFrame(
+                {"sample_a": [1.0]},
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ),
+            threshold=0.5,
+            min_substrates=1,
+            top_n_substrates=1,
+            overlap_summary=PredMatOverlapSummary(
+                overlap_count=1,
+                pred_mat_rows=1,
+                phospho_rows=1,
+            ),
+        )
 
 
 def test_boundary_error_reports_no_activity_candidates_after_filtering() -> None:

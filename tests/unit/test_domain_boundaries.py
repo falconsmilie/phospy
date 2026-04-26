@@ -10,11 +10,13 @@ from phospy.api.configs import (
     DatasetSiteMatrixConfig,
 )
 from phospy.api.requests import DatasetBuildRequest
+from phospy.api.results import KinasePredictionResult
 from phospy.datasets.builders.public import AnalysisReadyDatasetBuilder
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors import (
     DatasetValidationError,
     PhosPyInputError,
+    PhosPyValidationError,
     ReferenceCompatibilityError,
     ReferenceResolutionError,
     ReferenceValidationError,
@@ -95,6 +97,29 @@ def test_dataset_allows_missing_site_sequence_column() -> None:
         **_supported_dataset_state(has_total_matrix=False),
     )
     assert "site_sequence" not in dataset.site_metadata.columns
+
+
+def test_analysis_ready_dataset_still_exposes_pandas_frames_after_schema_wrappers() -> (
+    None
+):
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        **_supported_dataset_state(has_total_matrix=False),
+    )
+    assert isinstance(dataset.phospho, pd.DataFrame)
+    assert isinstance(dataset.site_metadata, pd.DataFrame)
+
+
+def test_kinase_prediction_result_rejects_malformed_pred_mat_immediately() -> None:
+    with pytest.raises(PhosPyValidationError, match="between 0.0 and 1.0"):
+        KinasePredictionResult(
+            pred_mat=pd.DataFrame(
+                {"MAP2K6": [1.5]},
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            )
+        )
 
 
 def test_dataset_exposes_optional_preprocessing_report_field() -> None:

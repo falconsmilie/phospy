@@ -11,11 +11,25 @@ from phospy.datasets.processing_state import DatasetProcessingState
 from phospy.errors.validation import DatasetValidationError
 from phospy.provenance.models import RunProvenance
 from phospy.references.models import Organism
+from phospy.tables.datasets import (
+    PhosphoIntensityMatrix,
+    SampleMetadataTable,
+    SiteMetadataTable,
+    TotalProteinMatrix,
+)
 from phospy.transformations.models import IntensityScaleState
-from phospy.validation.datasets.analysis_ready import AnalysisReadyDatasetValidator
+from phospy.validation.common.dataframes import (
+    require_dataframe,
+    require_exact_index_match,
+    require_numeric_dataframe,
+    require_unique_columns,
+)
+from phospy.validation.common.missing_values import (
+    MissingValuePolicy,
+    require_missing_value_policy,
+)
 from phospy.validation.transformations.state import IntensityScaleStateValidator
 
-_DATASET_VALIDATOR = AnalysisReadyDatasetValidator()
 _INTENSITY_SCALE_STATE_VALIDATOR = IntensityScaleStateValidator()
 _PREPROCESSING_REPORT_ROW_COUNT_COLUMNS = (
     "stage",
@@ -288,17 +302,71 @@ class AnalysisReadyPhosphoDataset:
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
-        _DATASET_VALIDATOR.run(
-            phospho=phospho,
-            site_metadata=site_metadata,
-            sample_metadata=sample_metadata,
-            total=total,
-            comparisons=comparisons,
-            organism=self.organism,
+        phospho_table = PhosphoIntensityMatrix(
+            frame=phospho,
+            _assume_owned=True,
         )
+        site_metadata_table = SiteMetadataTable(
+            frame=site_metadata,
+            expected_index=phospho_table.frame.index,
+            _assume_owned=True,
+        )
+        sample_metadata_table = (
+            None
+            if sample_metadata is None
+            else SampleMetadataTable(
+                frame=sample_metadata,
+                expected_index=phospho_table.frame.columns,
+                _assume_owned=True,
+            )
+        )
+        total_table = (
+            None
+            if total is None
+            else TotalProteinMatrix(
+                frame=total,
+                expected_sample_index=phospho_table.frame.columns,
+                _assume_owned=True,
+            )
+        )
+        if comparisons is not None:
+            comparisons_frame = require_dataframe(
+                comparisons,
+                field_name="dataset.comparisons",
+                allow_empty=False,
+                error_type=DatasetValidationError,
+            )
+            require_numeric_dataframe(
+                comparisons_frame,
+                field_name="dataset.comparisons",
+                error_type=DatasetValidationError,
+            )
+            require_missing_value_policy(
+                comparisons_frame,
+                field_name="dataset.comparisons",
+                policy=MissingValuePolicy.FORBID,
+                error_type=DatasetValidationError,
+            )
+            require_unique_columns(
+                comparisons_frame,
+                field_name="dataset.comparisons",
+                error_type=DatasetValidationError,
+            )
+            require_exact_index_match(
+                left=comparisons_frame.index,
+                right=phospho_table.frame.index,
+                left_name="dataset.comparisons.index",
+                right_name="dataset.phospho.index",
+                error_type=DatasetValidationError,
+            )
+            comparisons = comparisons_frame
+        if self.organism is not None and not isinstance(self.organism, Organism):
+            raise DatasetValidationError(
+                "dataset.organism must be an Organism enum value or None"
+            )
         intensity_scale_state = _INTENSITY_SCALE_STATE_VALIDATOR.run(
             intensity_scale_state=self.intensity_scale_state,
-            has_total_matrix=total is not None,
+            has_total_matrix=total_table is not None,
             require_established=True,
         )
         if not isinstance(self.processing_state, DatasetProcessingState):
@@ -329,10 +397,16 @@ class AnalysisReadyPhosphoDataset:
             raise DatasetValidationError(
                 "dataset.provenance must be RunProvenance or None"
             )
-        object.__setattr__(self, "phospho", phospho)
-        object.__setattr__(self, "site_metadata", site_metadata)
-        object.__setattr__(self, "sample_metadata", sample_metadata)
-        object.__setattr__(self, "total", total)
+        object.__setattr__(self, "phospho", phospho_table.frame)
+        object.__setattr__(self, "site_metadata", site_metadata_table.frame)
+        object.__setattr__(
+            self,
+            "sample_metadata",
+            None if sample_metadata_table is None else sample_metadata_table.frame,
+        )
+        object.__setattr__(
+            self, "total", None if total_table is None else total_table.frame
+        )
         object.__setattr__(self, "comparisons", comparisons)
         object.__setattr__(self, "intensity_scale_state", intensity_scale_state)
         object.__setattr__(self, "processing_state", self.processing_state)

@@ -11,6 +11,7 @@ from phospy._frame_ownership import own_dataframe
 from phospy.errors.validation import ReferenceValidationError
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import ReferenceProvenance
+from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
 
 
 class Organism(str, Enum):
@@ -49,6 +50,10 @@ class ReferenceBundle:
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
+        if not isinstance(self.organism, Organism):
+            raise ReferenceValidationError(
+                "references.organism must be an Organism enum value"
+            )
         kinase_substrate_map = own_dataframe(
             self.kinase_substrate_map,
             field_name="references.kinase_substrate_map",
@@ -61,14 +66,25 @@ class ReferenceBundle:
             error_type=ReferenceValidationError,
             assume_owned=_assume_owned,
         )
-
-        from phospy.validation.references.bundle import ReferenceBundleValidator
-
-        ReferenceBundleValidator().run(
-            organism=self.organism,
-            kinase_substrate_map=kinase_substrate_map,
-            site_sequences=site_sequences,
+        kinase_substrate_reference = KinaseSubstrateReference(
+            frame=kinase_substrate_map,
+            _assume_owned=True,
         )
+        site_sequence_reference = SiteSequenceReference(
+            frame=site_sequences,
+            _assume_owned=True,
+        )
+        substrate_sites = set(
+            kinase_substrate_reference.frame.loc[:, "substrate_site"].tolist()
+        )
+        known_sites = set(site_sequence_reference.frame.index.tolist())
+        missing_sequences = sorted(substrate_sites.difference(known_sites))
+        if missing_sequences:
+            missing_sample = ", ".join(missing_sequences[:10])
+            raise ReferenceValidationError(
+                "references.site_sequences is missing sequence entries for "
+                f"substrate sites in references.kinase_substrate_map: {missing_sample}"
+            )
         provenance = self.provenance
         if provenance is None:
             provenance = ReferenceProvenance(
@@ -77,11 +93,11 @@ class ReferenceBundle:
                 bundle_id=None,
                 table_fingerprints=(
                     fingerprint_table(
-                        kinase_substrate_map,
+                        kinase_substrate_reference.frame,
                         name="references.kinase_substrate_map",
                     ),
                     fingerprint_table(
-                        site_sequences,
+                        site_sequence_reference.frame,
                         name="references.site_sequences",
                     ),
                 ),
@@ -90,8 +106,16 @@ class ReferenceBundle:
             raise ReferenceValidationError(
                 "references.provenance must be ReferenceProvenance or None"
             )
-        object.__setattr__(self, "kinase_substrate_map", kinase_substrate_map)
-        object.__setattr__(self, "site_sequences", site_sequences)
+        object.__setattr__(
+            self,
+            "kinase_substrate_map",
+            kinase_substrate_reference.frame,
+        )
+        object.__setattr__(
+            self,
+            "site_sequences",
+            site_sequence_reference.frame,
+        )
         object.__setattr__(self, "provenance", provenance)
 
     @classmethod

@@ -174,8 +174,18 @@ def test_request_config_and_result_models_construct() -> None:
             top_n_substrates=5,
         ),
     )
-    scoring = KinaseScoringResult(profile_scores=pd.DataFrame({"profile_score": []}))
-    prediction = KinasePredictionResult(pred_mat=pd.DataFrame())
+    scoring = KinaseScoringResult(
+        profile_scores=pd.DataFrame(
+            {"MAP2K6": [0.75]},
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        )
+    )
+    prediction = KinasePredictionResult(
+        pred_mat=pd.DataFrame(
+            {"MAP2K6": [0.75]},
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        )
+    )
     activity = KinaseActivityResult(
         weighted_activity=pd.DataFrame(),
         ksea_scores=pd.DataFrame(),
@@ -337,8 +347,18 @@ def test_workflow_public_entrypoint_exercises_collaborators() -> None:
     expected = KinaseWorkflowResult(
         dataset=request.dataset,
         references=interpreted.references,
-        scoring_result=KinaseScoringResult(profile_scores=pd.DataFrame()),
-        prediction_result=KinasePredictionResult(pred_mat=pd.DataFrame()),
+        scoring_result=KinaseScoringResult(
+            profile_scores=pd.DataFrame(
+                {"MAP2K6": [0.75]},
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            )
+        ),
+        prediction_result=KinasePredictionResult(
+            pred_mat=pd.DataFrame(
+                {"MAP2K6": [0.75]},
+                index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            )
+        ),
         activity_result=None,
     )
 

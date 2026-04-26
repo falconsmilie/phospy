@@ -15,10 +15,12 @@ from phospy.api.configs import (
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.signalomes.models import (
     SignalomeScorePreconditioningDiagnostics,
     default_signalome_score_preconditioning_diagnostics,
 )
+from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +61,50 @@ class ResolvedSignalomeWorkflowRequest:
     score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics = field(
         default_factory=default_signalome_score_preconditioning_diagnostics
     )
+    _downstream_score_table: KinaseScoreMatrix = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    _prediction_table: KinasePredictionMatrix = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
+
+    def __post_init__(self) -> None:
+        downstream_score_table = KinaseScoreMatrix(
+            frame=self.downstream_score_matrix,
+            field_name="signalome_request.downstream_score_matrix",
+            _assume_owned=True,
+        )
+        prediction_table = KinasePredictionMatrix(
+            frame=self.prediction_matrix,
+            field_name="signalome_request.prediction_matrix",
+            _assume_owned=True,
+        )
+        if not isinstance(self.site_to_protein, pd.Series):
+            raise WorkflowBoundaryError(
+                "signalome workflow boundary validation failed at seam="
+                "signalome.contracts.site_to_protein_type; "
+                "site_to_protein must be a pandas Series; "
+                "next_action=ensure signalome interpreter resolves an explicit "
+                "site-to-protein mapping series"
+            )
+        object.__setattr__(
+            self, "downstream_score_matrix", downstream_score_table.frame
+        )
+        object.__setattr__(self, "prediction_matrix", prediction_table.frame)
+        object.__setattr__(self, "_downstream_score_table", downstream_score_table)
+        object.__setattr__(self, "_prediction_table", prediction_table)
+
+    @property
+    def downstream_score_table(self) -> KinaseScoreMatrix:
+        return self._downstream_score_table
+
+    @property
+    def prediction_table(self) -> KinasePredictionMatrix:
+        return self._prediction_table
 
 
 class SignalomeWorkflowValidatorContract(Protocol):

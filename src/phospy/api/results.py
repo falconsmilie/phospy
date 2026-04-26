@@ -22,6 +22,10 @@ from phospy.signalomes.models import (
     default_signalome_module_selection_diagnostics,
     default_signalome_score_preconditioning_diagnostics,
 )
+from phospy.tables.signalome import (
+    SignalomeProteinSiteContext,
+    SignalomeSiteContext,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +90,16 @@ class SignalomeWorkflowResult:
             error_type=WorkflowValidationError,
             assume_owned=_assume_owned,
         )
+        if site_membership is not None:
+            site_membership = SignalomeSiteContext(
+                frame=site_membership,
+                _assume_owned=True,
+            ).frame
+        if protein_site_context is not None:
+            protein_site_context = SignalomeProteinSiteContext(
+                frame=protein_site_context,
+                _assume_owned=True,
+            ).frame
         if self.provenance is not None and not isinstance(
             self.provenance, RunProvenance
         ):

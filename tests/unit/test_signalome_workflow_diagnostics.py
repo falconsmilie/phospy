@@ -18,12 +18,21 @@ from phospy.api.configs import (
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
 )
-from phospy.api.results import KinasePredictionResult, KinaseScoringResult
-from phospy.errors import WorkflowBoundaryError
+from phospy.api.results import (
+    KinasePredictionResult,
+    KinaseScoringResult,
+    SignalomeWorkflowResult,
+)
+from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.errors.workflows import WorkflowStageError
 from phospy.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
     SITE_CLUSTER_COLUMN,
+)
+from phospy.signalomes.models import (
+    KinaseNetwork,
+    SignalomeAssignments,
+    SignalomeModules,
 )
 from phospy.workflows.signalome.constants import (
     SIGNALOME_EXECUTOR_CONTEXT_TABLES_SEAM,
@@ -259,10 +268,19 @@ def test_boundary_error_reports_no_overlapping_kinase_set_counts() -> None:
 
 
 def test_boundary_error_reports_unusable_protein_mapping_counts() -> None:
-    dataset = _dataset(
+    base_dataset = _dataset(
         site_ids=["MAPK14;S1;", "GSK3B;S2;"],
         gene_symbols=["MAPK14", "GSK3B"],
-        protein_ids=["", ""],
+        protein_ids=["P28482", "Q9Y243"],
+    )
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=base_dataset.phospho,
+        site_metadata=base_dataset.site_metadata.drop(columns=["protein_id"]),
+        sample_metadata=base_dataset.sample_metadata,
+        total=base_dataset.total,
+        organism=base_dataset.organism,
+        intensity_scale_state=base_dataset.intensity_scale_state,
+        processing_state=base_dataset.processing_state,
     )
     prediction_matrix = _matrix(
         values=[[0.9], [0.8]],
@@ -1030,6 +1048,48 @@ def test_boundary_error_reports_context_table_protein_context_failure_seam(
     assert "substrate_support_cutoff=0.5" in message
     assert f"assignment_policy={SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY}" in message
     assert "stage_error=protein context seam regression test" in message
+
+
+def test_signalome_result_rejects_malformed_site_membership_immediately() -> None:
+    dataset = _dataset(site_ids=["P1;S1;"])
+    prediction_matrix = _matrix(
+        values=[[0.9]],
+        site_ids=["P1;S1;"],
+        kinases=["K1"],
+    )
+    score_matrix = _matrix(
+        values=[[0.8]],
+        site_ids=["P1;S1;"],
+        kinases=["K1"],
+    )
+    kinase_result = _kinase_result(
+        dataset=dataset,
+        prediction_matrix=prediction_matrix,
+        score_matrix=score_matrix,
+    )
+    with pytest.raises(WorkflowValidationError, match="missing required columns"):
+        SignalomeWorkflowResult(
+            dataset=dataset,
+            kinase_result=kinase_result,
+            module_assignments=SignalomeAssignments(
+                table=pd.DataFrame(
+                    {"protein_id": ["P1"], "module_id": [1]},
+                    index=pd.Index(["P1;S1;"], name="site_id"),
+                )
+            ),
+            signalome_modules=SignalomeModules(
+                table=pd.DataFrame(
+                    {"K1": [100.0]},
+                    index=pd.Index([1], name="module_id"),
+                )
+            ),
+            kinase_network=KinaseNetwork(
+                edges=pd.DataFrame(
+                    columns=["source_kinase", "target_kinase", "correlation"]
+                )
+            ),
+            site_membership=pd.DataFrame({"site_id": ["P1;S1;"]}),
+        )
 
 
 def test_support_cutoff_changes_substrate_support_without_changing_network_edges() -> (

@@ -23,6 +23,10 @@ By default, public boundary models defensively copy incoming pandas objects:
 - `KinaseNetwork`
 - `SignalomeWorkflowResult.expanded_signalome`
 
+Internal schema wrappers in `phospy.tables` follow the same ownership rule:
+constructor input is copied unless `_assume_owned=True`, and the validated
+table is exposed as `.frame` (or `.series` for series wrappers).
+
 This preserves mutation isolation for callers: mutating input frames after
 construction must not mutate already-constructed public objects.
 

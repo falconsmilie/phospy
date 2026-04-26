@@ -1,4 +1,4 @@
-"""Transformation-state payload serialization for bundle manifests."""
+"""Intensity-scale-state payload serialization for bundle manifests."""
 
 from __future__ import annotations
 
@@ -14,15 +14,15 @@ from phospy.transformations._authority import (
     _bundle_reconstruction_establishment_authority,
 )
 from phospy.transformations.models import (
-    MatrixTransformationState,
-    TransformationKind,
-    TransformationState,
-    establish_transformation_state,
+    IntensityScaleKind,
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+    establish_intensity_scale_state,
 )
 
 
-def transformation_state_to_payload(state: TransformationState) -> dict[str, object]:
-    """Serialize transformation state to manifest payload."""
+def intensity_scale_state_to_payload(state: IntensityScaleState) -> dict[str, object]:
+    """Serialize intensity scale state to manifest payload."""
 
     return {
         "phospho": _matrix_state_to_payload(state.phospho),
@@ -30,14 +30,14 @@ def transformation_state_to_payload(state: TransformationState) -> dict[str, obj
     }
 
 
-def transformation_state_from_payload(
+def intensity_scale_state_from_payload(
     payload: Mapping[str, object],
-) -> TransformationState:
-    """Deserialize transformation state from manifest payload."""
+) -> IntensityScaleState:
+    """Deserialize intensity scale state from manifest payload."""
 
     phospho_payload = require_mapping(
         payload.get("phospho"),
-        field_name="dataset.metadata.transformation_state.phospho",
+        field_name="dataset.metadata.intensity_scale_state.phospho",
     )
     total_raw = payload.get("total")
     if total_raw is None:
@@ -46,21 +46,21 @@ def transformation_state_from_payload(
         total_state = _matrix_state_from_payload(
             require_mapping(
                 total_raw,
-                field_name="dataset.metadata.transformation_state.total",
+                field_name="dataset.metadata.intensity_scale_state.total",
             )
         )
-    state = TransformationState(
+    state = IntensityScaleState(
         phospho=_matrix_state_from_payload(phospho_payload),
         total=total_state,
     )
-    return establish_transformation_state(
+    return establish_intensity_scale_state(
         state,
-        established_via="phospy.io.bundles._shared.transformation_state",
+        established_via="phospy.io.bundles._shared.intensity_scale_state",
         _authority=_bundle_reconstruction_establishment_authority(),
     )
 
 
-def _matrix_state_to_payload(state: MatrixTransformationState) -> dict[str, object]:
+def _matrix_state_to_payload(state: MatrixIntensityScaleState) -> dict[str, object]:
     return {
         "kind": state.kind.value,
         "transformed": state.transformed,
@@ -70,25 +70,25 @@ def _matrix_state_to_payload(state: MatrixTransformationState) -> dict[str, obje
 
 def _matrix_state_from_payload(
     payload: Mapping[str, object],
-) -> MatrixTransformationState:
+) -> MatrixIntensityScaleState:
     kind_token = require_str(
-        payload.get("kind"), field_name="matrix_transformation_state.kind"
+        payload.get("kind"), field_name="matrix_intensity_scale_state.kind"
     )
     try:
-        kind = TransformationKind(kind_token)
+        kind = IntensityScaleKind(kind_token)
     except ValueError as exc:
-        supported = ", ".join(member.value for member in TransformationKind)
+        supported = ", ".join(member.value for member in IntensityScaleKind)
         raise PhosPyInputError(
-            f"unsupported transformation kind '{kind_token}'; supported: {supported}"
+            f"unsupported intensity scale kind '{kind_token}'; supported: {supported}"
         ) from exc
-    return MatrixTransformationState(
+    return MatrixIntensityScaleState(
         kind=kind,
         transformed=require_bool(
             payload.get("transformed"),
-            field_name="matrix_transformation_state.transformed",
+            field_name="matrix_intensity_scale_state.transformed",
         ),
         established_by=require_str(
             payload.get("established_by"),
-            field_name="matrix_transformation_state.established_by",
+            field_name="matrix_intensity_scale_state.established_by",
         ),
     )

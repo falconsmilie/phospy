@@ -13,6 +13,7 @@ from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
     SignalomeAssignmentPolicy,
 )
+from phospy.errors.workflows import WorkflowStageError
 from phospy.signalomes.assignments import _normalize_top_kinase_weights
 from phospy.signalomes.constants import (
     MODULE_ID_COLUMN,
@@ -65,8 +66,14 @@ def build_site_membership_table(
     """Build site-level signalome membership context sidecar table."""
 
     required_columns = {PROTEIN_COLUMN, MODULE_ID_COLUMN}
-    if not required_columns.issubset(module_assignments.columns):
+    if module_assignments.empty:
         return empty_site_membership_table()
+    if not required_columns.issubset(module_assignments.columns):
+        missing = sorted(required_columns.difference(module_assignments.columns))
+        raise WorkflowStageError(
+            "site membership context build requires module assignments with "
+            f"columns {sorted(required_columns)}; missing columns: {missing}"
+        )
 
     site_index = pd.Index(module_assignments.index.astype(str), name=SITE_ID_COLUMN)
     assignments = module_assignments.copy(deep=False)
@@ -206,8 +213,14 @@ def build_protein_site_context_table(
         SITE_MEMBERSHIP_GENE_SYMBOL_COLUMN,
         TOP_KINASE_COLUMN,
     }
-    if not required_columns.issubset(site_membership.columns):
+    if site_membership.empty:
         return empty_protein_site_context_table()
+    if not required_columns.issubset(site_membership.columns):
+        missing = sorted(required_columns.difference(site_membership.columns))
+        raise WorkflowStageError(
+            "protein site-context build requires site-membership table columns "
+            f"{sorted(required_columns)}; missing columns: {missing}"
+        )
 
     membership = site_membership.copy(deep=False)
     protein_rows: list[dict[str, object]] = []

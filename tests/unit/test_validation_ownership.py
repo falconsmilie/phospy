@@ -21,6 +21,7 @@ from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.references.resolution import ReferenceResolver
 from phospy.validation.datasets.analysis_ready import AnalysisReadyDatasetValidator
 from phospy.validation.ownership import VALIDATION_RULE_OWNERS
+from phospy.validation.references.bundle import ReferenceBundleValidator
 from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
 from phospy.workflows.kinase.public import KinaseWorkflow
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
@@ -105,8 +106,12 @@ def test_reference_compatibility_validator_is_single_owner_for_compatibility_rul
 
 def test_reference_bundle_contract_validation_has_single_owner() -> None:
     bundle_source = inspect.getsource(ReferenceBundle.__post_init__)
+    validator_source = inspect.getsource(ReferenceBundleValidator.run)
     resolver_source = inspect.getsource(ReferenceResolver.run)
-    assert "ReferenceBundleValidator().run(" in bundle_source
+    assert "KinaseSubstrateReference(" in bundle_source
+    assert "SiteSequenceReference(" in bundle_source
+    assert "KinaseSubstrateReference(" in validator_source
+    assert "SiteSequenceReference(" in validator_source
     assert "ReferenceBundleValidator" not in resolver_source
 
 
@@ -120,7 +125,10 @@ def test_dataset_validation_composition_is_outside_validation_subdomains() -> No
         "intensity_scale_state"
         not in inspect.signature(AnalysisReadyDatasetValidator.run).parameters
     )
-    assert "_DATASET_VALIDATOR.run(" in dataset_post_init_source
+    assert "PhosphoIntensityMatrix(" in dataset_post_init_source
+    assert "SiteMetadataTable(" in dataset_post_init_source
+    assert "SampleMetadataTable(" in dataset_post_init_source
+    assert "TotalProteinMatrix(" in dataset_post_init_source
     assert "_INTENSITY_SCALE_STATE_VALIDATOR.run(" in dataset_post_init_source
 
 

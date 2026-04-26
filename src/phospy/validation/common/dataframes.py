@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 
 import pandas as pd
@@ -9,6 +10,9 @@ import pandas as pd
 from phospy.errors.validation import PhosPyValidationError
 
 ValidationErrorType = type[PhosPyValidationError]
+_SITE_IDENTITY_PATTERN = re.compile(
+    r"^\s*(?P<gene_symbol>[^;]+?)\s*;\s*(?P<site>[^;]+?)\s*;\s*$"
+)
 
 
 def require_dataframe(
@@ -185,6 +189,82 @@ def require_canonical_site_series(
         error_type=error_type,
     )
     return series
+
+
+def require_site_identity_coherence(
+    *,
+    site_index: pd.Index,
+    site_metadata: pd.DataFrame,
+    site_index_field_name: str,
+    site_metadata_field_name: str,
+    gene_symbol_column: str = "gene_symbol",
+    site_column: str = "site",
+    error_type: ValidationErrorType,
+    error_preview_limit: int = 5,
+) -> None:
+    """Require canonical site IDs to agree with metadata gene/site columns."""
+
+    unparseable_site_ids: list[str] = []
+    mismatched_rows: list[str] = []
+
+    for site_id in site_index:
+        parsed = _parse_site_identity(site_id)
+        if parsed is None:
+            unparseable_site_ids.append(str(site_id))
+            continue
+
+        expected_gene_symbol, expected_site = parsed
+        observed_gene_symbol = site_metadata.at[site_id, gene_symbol_column]
+        observed_site = site_metadata.at[site_id, site_column]
+        if (
+            observed_gene_symbol != expected_gene_symbol
+            or observed_site != expected_site
+        ):
+            mismatched_rows.append(
+                f"{site_id} expected(gene_symbol={expected_gene_symbol!r}, "
+                f"site={expected_site!r}) observed(gene_symbol={observed_gene_symbol!r}, "
+                f"site={observed_site!r})"
+            )
+
+    if not unparseable_site_ids and not mismatched_rows:
+        return
+
+    details: list[str] = []
+    if unparseable_site_ids:
+        preview = ", ".join(
+            repr(site_id) for site_id in unparseable_site_ids[:error_preview_limit]
+        )
+        suffix = "" if len(unparseable_site_ids) <= error_preview_limit else " ..."
+        details.append(
+            f"unparseable site IDs for '<gene_symbol>;<site>;': {preview}{suffix}"
+        )
+    if mismatched_rows:
+        preview = "; ".join(mismatched_rows[:error_preview_limit])
+        suffix = "" if len(mismatched_rows) <= error_preview_limit else " ..."
+        details.append(f"mismatched rows: {preview}{suffix}")
+
+    joined_details = "; ".join(details)
+    raise error_type(
+        "dataset site-identity coherence failed: "
+        f"{site_index_field_name} canonical site IDs must agree with "
+        f"{site_metadata_field_name}.{gene_symbol_column} and "
+        f"{site_metadata_field_name}.{site_column}; {joined_details}"
+    )
+
+
+def _parse_site_identity(site_id: object) -> tuple[str, str] | None:
+    if not isinstance(site_id, str):
+        return None
+
+    match = _SITE_IDENTITY_PATTERN.fullmatch(site_id)
+    if match is None:
+        return None
+
+    gene_symbol = match.group("gene_symbol").strip()
+    site = match.group("site").strip()
+    if gene_symbol == "" or site == "":
+        return None
+    return gene_symbol, site
 
 
 def _require_strict_site_identifiers(

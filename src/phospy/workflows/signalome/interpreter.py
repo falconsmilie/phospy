@@ -90,6 +90,23 @@ class SignalomeWorkflowInterpreter:
             aligned_downstream_score_matrix,
             policy=execution_config.score_preconditioning_policy,
         )
+        if preconditioned_downstream_score_matrix.empty:
+            self._raise_boundary_error(
+                seam=self._SCORE_PRECONDITIONING_SEAM,
+                next_action=(
+                    "ensure upstream downstream scores retain at least one "
+                    "interpretable site after score preconditioning"
+                ),
+                aligned_score_sites=int(aligned_downstream_score_matrix.shape[0]),
+                aligned_score_kinases=int(aligned_downstream_score_matrix.shape[1]),
+                dropped_all_missing_row_count=(
+                    score_preconditioning_diagnostics.dropped_all_missing_row_count
+                ),
+                retained_row_count=score_preconditioning_diagnostics.retained_row_count,
+                score_preconditioning_policy=(
+                    execution_config.score_preconditioning_policy
+                ),
+            )
         site_to_protein = self._resolve_site_to_protein(
             dataset=request.kinase_result.dataset,
             site_index=aligned_prediction_matrix.index,

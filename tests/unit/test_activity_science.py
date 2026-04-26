@@ -124,7 +124,7 @@ def test_ksea_ignores_missing_values_per_sample() -> None:
 def test_top_n_substrate_selection_is_deterministic_for_ties() -> None:
     pred_mat = pd.DataFrame(
         {"MAP2K6": [0.9, 0.9, 0.2]},
-        index=["SITE_1", "SITE_2", "SITE_3"],
+        index=["P1;S1;", "P2;S2;", "P3;S3;"],
     )
     phospho_matrix = pd.DataFrame(
         {"sample_a": [10.0, 1.0, 100.0]},

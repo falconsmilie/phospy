@@ -6,9 +6,14 @@ from dataclasses import InitVar, dataclass
 
 import pandas as pd
 
-from phospy._frame_ownership import own_dataframe, own_series
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.tables.activity import (
+    ActivityCountSeries,
+    ActivityMatrix,
+    ActivityTargetTable,
+)
+from phospy.tables.kinase import KinasePredictionMatrix
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,18 +37,33 @@ class KinaseActivityInputs:
     overlap_summary: PredMatOverlapSummary
 
     def __post_init__(self) -> None:
-        if not isinstance(self.pred_mat, pd.DataFrame):
+        try:
+            pred_mat = KinasePredictionMatrix(
+                frame=self.pred_mat,
+                field_name="prediction_result.pred_mat",
+                _assume_owned=True,
+            ).frame
+            phospho_matrix = ActivityMatrix(
+                frame=self.phospho_matrix,
+                field_name="dataset.phospho",
+                _assume_owned=True,
+            ).frame
+        except PhosPyValidationError as exc:
             raise WorkflowBoundaryError(
-                "activity input pred_mat must be a pandas DataFrame"
-            )
-        if not isinstance(self.phospho_matrix, pd.DataFrame):
-            raise WorkflowBoundaryError(
-                "activity input phospho_matrix must be a pandas DataFrame"
-            )
+                seam="kinase.activity.input_schema",
+                next_action=(
+                    "ensure prediction_result.pred_mat and dataset.phospho satisfy "
+                    "activity-stage input table schema requirements"
+                ),
+                details={"schema_error": str(exc)},
+                message_prefix="kinase workflow boundary validation failed",
+            ) from exc
         if not isinstance(self.overlap_summary, PredMatOverlapSummary):
             raise WorkflowBoundaryError(
                 "activity input overlap_summary must be PredMatOverlapSummary"
             )
+        object.__setattr__(self, "pred_mat", pred_mat)
+        object.__setattr__(self, "phospho_matrix", phospho_matrix)
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,36 +87,30 @@ class KinaseActivityResult:
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
-        weighted_activity = own_dataframe(
-            self.weighted_activity,
+        weighted_activity = ActivityMatrix(
+            frame=self.weighted_activity,
             field_name="activity_result.weighted_activity",
-            error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
-        )
-        ksea_scores = own_dataframe(
-            self.ksea_scores,
+            _assume_owned=_assume_owned,
+        ).frame
+        ksea_scores = ActivityMatrix(
+            frame=self.ksea_scores,
             field_name="activity_result.ksea_scores",
-            error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
-        )
-        ksea_counts = own_series(
-            self.ksea_counts,
+            _assume_owned=_assume_owned,
+        ).frame
+        ksea_counts = ActivityCountSeries(
+            series=self.ksea_counts,
             field_name="activity_result.ksea_counts",
-            error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
-        )
-        target_counts = own_series(
-            self.target_counts,
+            _assume_owned=_assume_owned,
+        ).series
+        target_counts = ActivityCountSeries(
+            series=self.target_counts,
             field_name="activity_result.target_counts",
-            error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
-        )
-        target_table = own_dataframe(
-            self.target_table,
-            field_name="activity_result.target_table",
-            error_type=PhosPyValidationError,
-            assume_owned=_assume_owned,
-        )
+            _assume_owned=_assume_owned,
+        ).series
+        target_table = ActivityTargetTable(
+            frame=self.target_table,
+            _assume_owned=_assume_owned,
+        ).frame
         object.__setattr__(self, "weighted_activity", weighted_activity)
         object.__setattr__(self, "ksea_scores", ksea_scores)
         object.__setattr__(self, "ksea_counts", ksea_counts)

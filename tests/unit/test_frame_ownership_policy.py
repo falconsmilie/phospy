@@ -136,7 +136,13 @@ def test_builder_dataframe_copy_churn_regression_budget() -> None:
 
 
 def test_internal_activity_inputs_alias_owned_frames() -> None:
-    pred_mat = _phospho()
+    pred_mat = pd.DataFrame(
+        {
+            "MAP2K6": [0.9, 0.8],
+            "AKT1": [0.2, 0.1],
+        },
+        index=["MAPK14;Y182;", "GSK3B;S9;"],
+    )
     phospho_matrix = _phospho()
     overlap_summary = PredMatOverlapSummary(
         overlap_count=2,
@@ -158,7 +164,13 @@ def test_internal_activity_inputs_alias_owned_frames() -> None:
 
 
 def test_prediction_result_boundary_copy_and_owned_transfer_modes() -> None:
-    pred_mat = _phospho()
+    pred_mat = pd.DataFrame(
+        {
+            "MAP2K6": [0.9, 0.8],
+            "AKT1": [0.2, 0.1],
+        },
+        index=["MAPK14;Y182;", "GSK3B;S9;"],
+    )
     substrate_list = pd.DataFrame(
         {
             "kinase": ["MAP2K6"],
@@ -184,5 +196,5 @@ def test_prediction_result_boundary_copy_and_owned_transfer_modes() -> None:
 
     pred_mat.iloc[0, 0] = 999.0
     substrate_list.iloc[0, 0] = "CHANGED"
-    assert float(copied_result.pred_mat.iloc[0, 0]) == 1.0
+    assert float(copied_result.pred_mat.iloc[0, 0]) == 0.9
     assert str(copied_result.substrate_list.iloc[0, 0]) == "MAP2K6"
