@@ -44,7 +44,11 @@ def test_scoring_outputs_match_selected_reference_profile_values(
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
             ),
-            prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=12),
+            prediction_config=KinasePredictionConfig(
+                top_k=5,
+                deterministic_max_selected_kinases=12,
+                adaptive_ensemble_runs=12,
+            ),
             activity_config=None,
         )
     )
@@ -100,7 +104,11 @@ def test_prediction_top_sites_align_with_reference_ranking_subset(
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=3, ensemble_size=200),
+            prediction_config=KinasePredictionConfig(
+                top_k=3,
+                deterministic_max_selected_kinases=200,
+                adaptive_ensemble_runs=200,
+            ),
             activity_config=None,
         )
     )
@@ -151,7 +159,11 @@ def test_scoring_outputs_include_motif_and_rank_weighted_fusion_tables(
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
             ),
-            prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=12),
+            prediction_config=KinasePredictionConfig(
+                top_k=5,
+                deterministic_max_selected_kinases=12,
+                adaptive_ensemble_runs=12,
+            ),
             activity_config=None,
         )
     )
@@ -254,7 +266,11 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
                 min_substrates=2,
                 profile_missing_value_strategy="strict",
             ),
-            prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+            ),
             activity_config=None,
         )
     )
@@ -266,7 +282,11 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
                 min_substrates=2,
                 profile_missing_value_strategy="median_skipna",
             ),
-            prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+            ),
             activity_config=None,
         )
     )

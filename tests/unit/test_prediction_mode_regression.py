@@ -96,7 +96,8 @@ def _run_workflow(
             scoring_config=scoring_config,
             prediction_config=KinasePredictionConfig(
                 top_k=2,
-                ensemble_size=2,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
                 mode=prediction_mode,
                 n_iterations=2,
                 random_state=7,
@@ -165,7 +166,7 @@ def test_supported_prediction_modes_preserve_scoring_stage_semantics(
             assert result.scoring_result.score_fusion_weights is None
 
 
-def test_prediction_modes_keep_distinct_ensemble_size_semantics() -> None:
+def test_prediction_modes_keep_distinct_mode_specific_size_semantics() -> None:
     workflow = KinaseWorkflow()
     dataset = _dataset()
     references = _references()
@@ -176,7 +177,8 @@ def test_prediction_modes_keep_distinct_ensemble_size_semantics() -> None:
             scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
-                ensemble_size=1,
+                deterministic_max_selected_kinases=1,
+                adaptive_ensemble_runs=99,
                 mode="deterministic_ranking",
             ),
             activity_config=None,
@@ -189,7 +191,8 @@ def test_prediction_modes_keep_distinct_ensemble_size_semantics() -> None:
             scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=2,
-                ensemble_size=1,
+                deterministic_max_selected_kinases=1,
+                adaptive_ensemble_runs=11,
                 mode="adaptive_ensemble",
                 n_iterations=2,
                 random_state=7,
@@ -197,6 +200,21 @@ def test_prediction_modes_keep_distinct_ensemble_size_semantics() -> None:
             activity_config=None,
         )
     )
+
+    assert deterministic.provenance is not None
+    assert adaptive.provenance is not None
+    deterministic_prediction_config = deterministic.provenance.workflow_parameters[
+        "prediction_config"
+    ]
+    adaptive_prediction_config = adaptive.provenance.workflow_parameters[
+        "prediction_config"
+    ]
+    assert "ensemble_size" not in deterministic_prediction_config
+    assert "ensemble_size" not in adaptive_prediction_config
+    assert deterministic_prediction_config["deterministic_max_selected_kinases"] == 1
+    assert deterministic_prediction_config["adaptive_ensemble_runs"] == 99
+    assert adaptive_prediction_config["deterministic_max_selected_kinases"] == 1
+    assert adaptive_prediction_config["adaptive_ensemble_runs"] == 11
 
     assert deterministic.prediction_result.pred_mat.shape[1] == 1
     assert adaptive.prediction_result.pred_mat.shape[1] >= 2

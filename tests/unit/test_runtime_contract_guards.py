@@ -91,7 +91,11 @@ def test_kinase_interpreter_rejects_invalid_overlap_summary_state() -> None:
         dataset=_dataset(),
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
+        prediction_config=KinasePredictionConfig(
+            top_k=2,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=2,
+        ),
         activity_config=None,
     )
     with pytest.raises(

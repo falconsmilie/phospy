@@ -234,7 +234,11 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
+        prediction_config=KinasePredictionConfig(
+            top_k=2,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=2,
+        ),
         activity_config=(
             KinaseActivityConfig(enabled=True, threshold=0.5, min_substrates=2)
             if activity

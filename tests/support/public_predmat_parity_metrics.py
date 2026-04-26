@@ -170,7 +170,8 @@ def _run_public_predmat_lane(
             scoring_config=KinaseScoringConfig(min_substrates=2),
             prediction_config=KinasePredictionConfig(
                 top_k=4,
-                ensemble_size=3,
+                deterministic_max_selected_kinases=3,
+                adaptive_ensemble_runs=3,
                 mode="adaptive_ensemble",
                 adaptive_policy=adaptive_policy,
                 n_iterations=2,

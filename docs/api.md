@@ -239,11 +239,18 @@ See [Performance Contracts](performance.md#kinase-scoring-and-motif-scoring).
 #### `KinasePredictionConfig`
 
 - `top_k` default `30`
-- `ensemble_size` default `10`
+- `deterministic_max_selected_kinases` default `10`
+- `adaptive_ensemble_runs` default `10`
 - `mode`: `deterministic_ranking` or `adaptive_ensemble`
 - `adaptive_policy`: `stable` or `r_parity`
 - `n_iterations` default `5`
 - `random_state` optional
+
+`deterministic_max_selected_kinases` controls how many kinases are selected in
+deterministic prediction.
+`adaptive_ensemble_runs` controls how many ensemble runs are executed in
+adaptive prediction.
+Legacy `ensemble_size` is accepted as a deprecated constructor alias.
 
 #### `KinaseActivityConfig`
 

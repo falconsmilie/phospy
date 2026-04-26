@@ -38,7 +38,11 @@ def test_kinase_workflow_runs_without_dataset_site_sequence_column() -> None:
             dataset=dataset_without_sequence,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=8),
+            prediction_config=KinasePredictionConfig(
+                top_k=6,
+                deterministic_max_selected_kinases=8,
+                adaptive_ensemble_runs=8,
+            ),
             activity_config=None,
         )
     )
@@ -55,7 +59,11 @@ def test_kinase_workflow_runs_dataset_to_kinase_path() -> None:
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=8),
+            prediction_config=KinasePredictionConfig(
+                top_k=6,
+                deterministic_max_selected_kinases=8,
+                adaptive_ensemble_runs=8,
+            ),
             activity_config=KinaseActivityConfig(
                 enabled=True,
                 threshold=0.6,
@@ -98,7 +106,11 @@ def test_kinase_workflow_activity_stage_is_optional() -> None:
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=6),
+            prediction_config=KinasePredictionConfig(
+                top_k=5,
+                deterministic_max_selected_kinases=6,
+                adaptive_ensemble_runs=6,
+            ),
             activity_config=None,
         )
     )
@@ -111,7 +123,11 @@ def test_kinase_workflow_default_scoring_floor_supports_realistic_input() -> Non
         KinaseWorkflowRequest(
             dataset=dataset,
             references=ReferencePreset.AUTO,
-            prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=6),
+            prediction_config=KinasePredictionConfig(
+                top_k=5,
+                deterministic_max_selected_kinases=6,
+                adaptive_ensemble_runs=6,
+            ),
             activity_config=None,
         )
     )
@@ -126,7 +142,11 @@ def test_prediction_changes_when_downstream_matrix_switches_profile_vs_combined(
         dataset=dataset,
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+        prediction_config=KinasePredictionConfig(
+            top_k=6,
+            deterministic_max_selected_kinases=12,
+            adaptive_ensemble_runs=12,
+        ),
         activity_config=None,
     )
 
@@ -183,7 +203,11 @@ def test_diagnostic_scoring_tables_are_opt_in_without_changing_supported_lane() 
         dataset=dataset,
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+        prediction_config=KinasePredictionConfig(
+            top_k=6,
+            deterministic_max_selected_kinases=12,
+            adaptive_ensemble_runs=12,
+        ),
         activity_config=None,
     )
     request_with_diagnostics = KinaseWorkflowRequest(
@@ -193,7 +217,11 @@ def test_diagnostic_scoring_tables_are_opt_in_without_changing_supported_lane() 
             min_substrates=2,
             include_diagnostic_scoring_tables=True,
         ),
-        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+        prediction_config=KinasePredictionConfig(
+            top_k=6,
+            deterministic_max_selected_kinases=12,
+            adaptive_ensemble_runs=12,
+        ),
         activity_config=None,
     )
 
@@ -248,7 +276,11 @@ def test_profile_missing_value_strategy_flows_from_request_to_science(
                 min_substrates=2,
                 profile_missing_value_strategy="median_skipna",
             ),
-            prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=8),
+            prediction_config=KinasePredictionConfig(
+                top_k=5,
+                deterministic_max_selected_kinases=8,
+                adaptive_ensemble_runs=8,
+            ),
             activity_config=None,
         )
     )
@@ -304,7 +336,11 @@ def test_motif_library_build_is_limited_to_profile_eligible_kinases(
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
             ),
-            prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=1),
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                deterministic_max_selected_kinases=1,
+                adaptive_ensemble_runs=1,
+            ),
             activity_config=None,
         )
     )

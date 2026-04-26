@@ -134,7 +134,8 @@ class ResolvedKinaseExecutionConfig:
     include_diagnostic_scoring_tables: bool
     profile_missing_value_strategy: KinaseProfileMissingValueStrategy
     prediction_top_k: int
-    prediction_ensemble_size: int
+    prediction_deterministic_max_selected_kinases: int
+    prediction_adaptive_ensemble_runs: int
     prediction_mode: KinasePredictionMode
     prediction_adaptive_policy: KinaseAdaptivePolicy
     prediction_n_iterations: int

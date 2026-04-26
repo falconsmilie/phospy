@@ -41,7 +41,8 @@ def _run_workflow(*, dataset, references, mode: str):
             ),
             prediction_config=KinasePredictionConfig(
                 top_k=6,
-                ensemble_size=8,
+                deterministic_max_selected_kinases=8,
+                adaptive_ensemble_runs=8,
                 mode=mode,
                 n_iterations=2,
                 random_state=19,

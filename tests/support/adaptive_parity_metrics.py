@@ -153,7 +153,8 @@ def _collect_lane_metrics(*, adaptive_policy: str) -> AdaptivePolicyLaneMetrics:
         candidate_substrates=candidate_substrates,
         prediction_config=KinasePredictionConfig(
             top_k=ADAPTIVE_PARITY_TOP_K,
-            ensemble_size=ADAPTIVE_PARITY_ENSEMBLE_SIZE,
+            deterministic_max_selected_kinases=ADAPTIVE_PARITY_ENSEMBLE_SIZE,
+            adaptive_ensemble_runs=ADAPTIVE_PARITY_ENSEMBLE_SIZE,
             mode="adaptive_ensemble",
             adaptive_policy=adaptive_policy,
             n_iterations=ADAPTIVE_PARITY_N_ITERATIONS,

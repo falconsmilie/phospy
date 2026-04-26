@@ -15,7 +15,8 @@ def test_kinase_snapshot_payload_round_trip_preserves_fields() -> None:
         },
         "prediction_config": {
             "top_k": 5,
-            "ensemble_size": 7,
+            "deterministic_max_selected_kinases": 7,
+            "adaptive_ensemble_runs": 7,
             "mode": "adaptive_ensemble",
             "adaptive_policy": "r_parity",
             "n_iterations": 3,
@@ -60,3 +61,20 @@ def test_kinase_snapshot_compatibility_payload_defaults_diagnostic_tables_to_tru
     assert snapshot.prediction_config.adaptive_policy == "stable"
     assert snapshot.prediction_config.n_iterations == 5
     assert snapshot.prediction_config.random_state is None
+
+
+def test_kinase_snapshot_rejects_legacy_and_explicit_prediction_size_conflicts() -> (
+    None
+):
+    with pytest.raises(PhosPyInputError, match="cannot be combined"):
+        KinaseWorkflowConfigSnapshot.from_payload(
+            {
+                "scoring_config": {"min_substrates": 2},
+                "prediction_config": {
+                    "top_k": 2,
+                    "ensemble_size": 2,
+                    "adaptive_ensemble_runs": 4,
+                },
+                "activity_config": None,
+            }
+        )

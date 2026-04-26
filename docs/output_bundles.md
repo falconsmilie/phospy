@@ -186,10 +186,12 @@ Kinase config snapshot (all persisted fields):
 - `scoring_config.profile_missing_value_strategy`: profile median behavior
   (`"strict"` vs `"median_skipna"`), which can change downstream scores.
 - `prediction_config.top_k`: final rank cutoff in prediction output.
-- `prediction_config.ensemble_size`: lane-dependent width parameter
-  (deterministic ranking breadth or adaptive ensemble executions).
+- `prediction_config.deterministic_max_selected_kinases`: deterministic lane
+  kinase-selection cap.
+- `prediction_config.adaptive_ensemble_runs`: adaptive lane ensemble execution
+  count.
 - `prediction_config.mode`: prediction lane (`"deterministic_ranking"` or
-  `"adaptive_ensemble"`), required to interpret `ensemble_size`.
+  `"adaptive_ensemble"`).
 - `prediction_config.adaptive_policy`: adaptive sampling policy selection.
 - `prediction_config.n_iterations`: adaptive sampling iteration budget.
 - `prediction_config.random_state`: optional deterministic seed for adaptive
@@ -228,8 +230,12 @@ Legacy reload compatibility (normalization on load):
 - Kinase legacy snapshots missing newly added fields are normalized to defaults:
   `include_diagnostic_scoring_tables=True`,
   `profile_missing_value_strategy="strict"`,
+  `deterministic_max_selected_kinases=10`,
+  `adaptive_ensemble_runs=10`,
   `mode="deterministic_ranking"`, `adaptive_policy="stable"`,
   `n_iterations=5`, and `random_state=None`.
+- Legacy `prediction_config.ensemble_size` is accepted and mapped to both
+  `deterministic_max_selected_kinases` and `adaptive_ensemble_runs`.
 - Signalome legacy `signalome_cutoff` is accepted and mapped to both
   `substrate_support_cutoff` and `network_correlation_threshold`.
   Missing `network_policy`, `assignment_policy`,

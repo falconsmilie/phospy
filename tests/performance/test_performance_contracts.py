@@ -294,7 +294,11 @@ def test_large_reference_map_contract_keeps_filtered_scoring_bounded() -> None:
             min_substrates=2,
             include_diagnostic_scoring_tables=False,
         ),
-        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=10),
+        prediction_config=KinasePredictionConfig(
+            top_k=6,
+            deterministic_max_selected_kinases=10,
+            adaptive_ensemble_runs=10,
+        ),
         activity_config=None,
     )
 
@@ -331,7 +335,11 @@ def test_diagnostic_scoring_tables_contract_has_bounded_runtime_overhead() -> No
             min_substrates=2,
             include_diagnostic_scoring_tables=False,
         ),
-        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=10),
+        prediction_config=KinasePredictionConfig(
+            top_k=6,
+            deterministic_max_selected_kinases=10,
+            adaptive_ensemble_runs=10,
+        ),
         activity_config=None,
     )
     diagnostic_request = KinaseWorkflowRequest(
@@ -341,7 +349,11 @@ def test_diagnostic_scoring_tables_contract_has_bounded_runtime_overhead() -> No
             min_substrates=2,
             include_diagnostic_scoring_tables=True,
         ),
-        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=10),
+        prediction_config=KinasePredictionConfig(
+            top_k=6,
+            deterministic_max_selected_kinases=10,
+            adaptive_ensemble_runs=10,
+        ),
         activity_config=None,
     )
 

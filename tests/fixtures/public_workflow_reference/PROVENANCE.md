@@ -34,7 +34,8 @@ path (`KinaseWorkflow().run(KinaseWorkflowRequest(...))`) with:
 - `scoring_config.min_substrates=2`
 - `prediction_config.mode="adaptive_ensemble"`
 - `prediction_config.top_k=4`
-- `prediction_config.ensemble_size=3`
+- `prediction_config.deterministic_max_selected_kinases=3`
+- `prediction_config.adaptive_ensemble_runs=3`
 - `prediction_config.n_iterations=2`
 - `prediction_config.random_state=17`
 - `adaptive_policy="stable"` and `adaptive_policy="r_parity"`
@@ -90,7 +91,7 @@ Generation settings are fixed in the script and parity tests:
 
 - `build_rat_l6_dataset(n_sites=260)`
 - `KinaseScoringConfig(min_substrates=2)`
-- `KinasePredictionConfig(top_k=6, ensemble_size=12)`
+- `KinasePredictionConfig(top_k=6, deterministic_max_selected_kinases=12, adaptive_ensemble_runs=12)`
 - `SignalomeConfig(substrate_support_cutoff=0.5)`
 
 Generation date for full-output fixture promotion: 2026-04-20.

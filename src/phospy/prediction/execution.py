@@ -76,7 +76,7 @@ def run_adaptive_ensemble_prediction(
             kinase=kinase
         )
         aggregated_scores = np.zeros(len(all_positions), dtype=float)
-        for _ in range(prediction_config.ensemble_size):
+        for _ in range(prediction_config.adaptive_ensemble_runs):
             sampled_negative_positions = negative_sampling_rng.choice(
                 negative_positions,
                 size=len(positive_positions),
@@ -100,7 +100,9 @@ def run_adaptive_ensemble_prediction(
             )
             aggregated_scores += ensemble_scores
 
-        mean_scores = aggregated_scores / float(prediction_config.ensemble_size)
+        mean_scores = aggregated_scores / float(
+            prediction_config.adaptive_ensemble_runs
+        )
         finite = np.isfinite(mean_scores)
         mean_scores[finite] = np.clip(mean_scores[finite], 0.0, 1.0)
         kinase_scores[str(kinase)] = mean_scores

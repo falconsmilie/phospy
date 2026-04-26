@@ -485,7 +485,8 @@ def _run_l6_workflow(adaptive_policy: str):
             ),
             prediction_config=KinasePredictionConfig(
                 top_k=30,
-                ensemble_size=10,
+                deterministic_max_selected_kinases=10,
+                adaptive_ensemble_runs=10,
                 mode="adaptive_ensemble",
                 adaptive_policy=adaptive_policy,
                 n_iterations=5,

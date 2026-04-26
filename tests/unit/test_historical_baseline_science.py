@@ -145,7 +145,8 @@ def test_adaptive_sampling_historical_baseline_is_archival_and_svm_mode_is_not_r
     prediction_fields = {field.name for field in fields(KinasePredictionConfig)}
     assert prediction_fields == {
         "top_k",
-        "ensemble_size",
+        "deterministic_max_selected_kinases",
+        "adaptive_ensemble_runs",
         "mode",
         "adaptive_policy",
         "n_iterations",
@@ -163,19 +164,22 @@ def test_adaptive_sampling_historical_baseline_is_archival_and_svm_mode_is_not_r
     with pytest.raises(TypeError, match="svm_mode"):
         KinasePredictionConfig(  # type: ignore[call-arg]
             top_k=3,
-            ensemble_size=2,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=2,
             svm_mode="r_parity",
         )
     with pytest.raises(TypeError, match="score_threshold"):
         KinasePredictionConfig(  # type: ignore[call-arg]
             top_k=3,
-            ensemble_size=2,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=2,
             score_threshold=0.8,
         )
     with pytest.raises(TypeError, match="allow_profile_only_fallback"):
         KinasePredictionConfig(  # type: ignore[call-arg]
             top_k=3,
-            ensemble_size=2,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=2,
             allow_profile_only_fallback=True,
         )
     assert KinasePredictionConfig().mode == "deterministic_ranking"
@@ -325,7 +329,11 @@ def test_expanded_signalome_historical_baseline_locks_supported_lane_to_material
             dataset=_dataset(),
             references=_references(),
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+            ),
             activity_config=None,
         )
     )

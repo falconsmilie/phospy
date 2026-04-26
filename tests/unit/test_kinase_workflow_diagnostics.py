@@ -88,7 +88,8 @@ def _resolved_request(
     references: ReferenceBundle,
     min_substrates: int = 2,
     top_k: int = 3,
-    ensemble_size: int = 2,
+    deterministic_max_selected_kinases: int = 2,
+    adaptive_ensemble_runs: int = 2,
     threshold: float = 0.7,
     activity_min_substrates: int = 2,
     activity_top_n_substrates: int = 3,
@@ -101,7 +102,10 @@ def _resolved_request(
         include_diagnostic_scoring_tables=False,
         profile_missing_value_strategy="strict",
         prediction_top_k=int(top_k),
-        prediction_ensemble_size=int(ensemble_size),
+        prediction_deterministic_max_selected_kinases=int(
+            deterministic_max_selected_kinases
+        ),
+        prediction_adaptive_ensemble_runs=int(adaptive_ensemble_runs),
         prediction_mode="deterministic_ranking",
         prediction_adaptive_policy="stable",
         prediction_n_iterations=5,
@@ -149,7 +153,10 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
     assert interpreted.execution_config.profile_missing_value_strategy == "strict"
     assert interpreted.execution_config.prediction_mode == "deterministic_ranking"
     assert interpreted.execution_config.prediction_top_k == 30
-    assert interpreted.execution_config.prediction_ensemble_size == 10
+    assert (
+        interpreted.execution_config.prediction_deterministic_max_selected_kinases == 10
+    )
+    assert interpreted.execution_config.prediction_adaptive_ensemble_runs == 10
     assert interpreted.execution_config.prediction_adaptive_policy == "stable"
     assert interpreted.execution_config.prediction_n_iterations == 5
     assert interpreted.execution_config.prediction_random_state is None
@@ -171,14 +178,22 @@ def test_scoring_stage_is_reference_input_form_invariant_for_equivalent_content(
         dataset=dataset,
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=8),
+        prediction_config=KinasePredictionConfig(
+            top_k=6,
+            deterministic_max_selected_kinases=8,
+            adaptive_ensemble_runs=8,
+        ),
         activity_config=None,
     )
     bundle_request = KinaseWorkflowRequest(
         dataset=dataset,
         references=explicit_bundle,
         scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=8),
+        prediction_config=KinasePredictionConfig(
+            top_k=6,
+            deterministic_max_selected_kinases=8,
+            adaptive_ensemble_runs=8,
+        ),
         activity_config=None,
     )
     interpreter = KinaseWorkflowInterpreter()
@@ -233,7 +248,11 @@ def test_workflow_limits_scoring_to_sites_with_reference_sequences() -> None:
             dataset=dataset,
             references=references,
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+            ),
             activity_config=None,
         )
     )
@@ -265,7 +284,11 @@ def test_boundary_error_reports_unusable_reference_coverage_counts() -> None:
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=2),
+        prediction_config=KinasePredictionConfig(
+            top_k=2,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=2,
+        ),
         activity_config=None,
     )
 
@@ -305,7 +328,11 @@ def test_boundary_error_reports_empty_eligible_kinase_set_counts() -> None:
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(top_k=3, ensemble_size=5),
+        prediction_config=KinasePredictionConfig(
+            top_k=3,
+            deterministic_max_selected_kinases=5,
+            adaptive_ensemble_runs=5,
+        ),
         activity_config=None,
     )
 
@@ -319,7 +346,8 @@ def test_boundary_error_reports_empty_eligible_kinase_set_counts() -> None:
     assert "eligible_kinases=0" in message
     assert "max_quantified_sites_per_kinase=1" in message
     assert "scoring_config_min_substrates=2" in message
-    assert "prediction_config_ensemble_size=5" in message
+    assert "prediction_config_deterministic_max_selected_kinases=5" in message
+    assert "prediction_config_adaptive_ensemble_runs=5" in message
 
 
 def test_default_scoring_floor_rejects_single_substrate_kinase_profiles() -> None:
@@ -367,7 +395,11 @@ def test_boundary_error_reports_prediction_ensemble_collapse_counts() -> None:
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(top_k=2, ensemble_size=3),
+        prediction_config=KinasePredictionConfig(
+            top_k=2,
+            deterministic_max_selected_kinases=3,
+            adaptive_ensemble_runs=3,
+        ),
         activity_config=None,
     )
 
@@ -378,7 +410,7 @@ def test_boundary_error_reports_prediction_ensemble_collapse_counts() -> None:
     assert "seam=kinase.executor.prediction_ensemble" in message
     assert "eligible_kinases=1" in message
     assert "ranked_kinases=0" in message
-    assert "prediction_config_ensemble_size=3" in message
+    assert "prediction_config_deterministic_max_selected_kinases=3" in message
     assert "prediction_config_top_k=2" in message
     assert "dataset_samples=1" in message
     assert "dataset.phospho" in message
@@ -403,7 +435,8 @@ def test_boundary_error_reports_activity_overlap_edge_case() -> None:
         references=references,
         min_substrates=2,
         top_k=3,
-        ensemble_size=2,
+        deterministic_max_selected_kinases=2,
+        adaptive_ensemble_runs=2,
         threshold=0.7,
     )
     prediction_result = KinasePredictionResult(

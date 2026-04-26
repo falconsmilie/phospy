@@ -100,7 +100,11 @@ def _run_once(
             min_substrates=2,
             include_diagnostic_scoring_tables=include_diagnostic_scoring_tables,
         ),
-        prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+        prediction_config=KinasePredictionConfig(
+            top_k=6,
+            deterministic_max_selected_kinases=12,
+            adaptive_ensemble_runs=12,
+        ),
         activity_config=None,
     )
 

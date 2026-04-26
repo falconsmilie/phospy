@@ -611,7 +611,8 @@ def test_kinase_request_rejects_unknown_prediction_mode() -> None:
     ):
         KinasePredictionConfig(
             top_k=5,
-            ensemble_size=5,
+            deterministic_max_selected_kinases=5,
+            adaptive_ensemble_runs=5,
             mode="unsupported",  # type: ignore[arg-type]
         )
 
@@ -623,7 +624,8 @@ def test_kinase_request_rejects_non_positive_adaptive_iterations() -> None:
     ):
         KinasePredictionConfig(
             top_k=5,
-            ensemble_size=5,
+            deterministic_max_selected_kinases=5,
+            adaptive_ensemble_runs=5,
             mode="adaptive_ensemble",
             n_iterations=0,
         )
@@ -634,7 +636,11 @@ def test_kinase_request_reference_compatibility_is_enforced_in_resolver() -> Non
         dataset=_dataset(),
         references=ReferencePreset.HUMAN,
         scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(top_k=5, ensemble_size=5),
+        prediction_config=KinasePredictionConfig(
+            top_k=5,
+            deterministic_max_selected_kinases=5,
+            adaptive_ensemble_runs=5,
+        ),
         activity_config=None,
     )
     validated = KinaseWorkflowValidator().run(request)

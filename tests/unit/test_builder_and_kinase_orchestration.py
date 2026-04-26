@@ -124,7 +124,12 @@ def _resolved_kinase_execution_config(
         ),
         profile_missing_value_strategy=request.scoring_config.profile_missing_value_strategy,
         prediction_top_k=int(request.prediction_config.top_k),
-        prediction_ensemble_size=int(request.prediction_config.ensemble_size),
+        prediction_deterministic_max_selected_kinases=int(
+            request.prediction_config.deterministic_max_selected_kinases
+        ),
+        prediction_adaptive_ensemble_runs=int(
+            request.prediction_config.adaptive_ensemble_runs
+        ),
         prediction_mode=request.prediction_config.mode,
         prediction_adaptive_policy=request.prediction_config.adaptive_policy,
         prediction_n_iterations=int(request.prediction_config.n_iterations),
@@ -166,7 +171,11 @@ def test_request_config_and_result_models_construct() -> None:
         dataset=dataset,
         references=ReferencePreset.AUTO,
         scoring_config=KinaseScoringConfig(min_substrates=2),
-        prediction_config=KinasePredictionConfig(top_k=10, ensemble_size=3),
+        prediction_config=KinasePredictionConfig(
+            top_k=10,
+            deterministic_max_selected_kinases=3,
+            adaptive_ensemble_runs=3,
+        ),
         activity_config=KinaseActivityConfig(
             enabled=True,
             threshold=0.5,

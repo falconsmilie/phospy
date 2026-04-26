@@ -70,7 +70,8 @@ Additional kinase options:
 - `--reference {auto,human,mouse,rat}`
 - `--scoring-min-substrates`
 - `--prediction-top-k`
-- `--prediction-ensemble-size`
+- `--prediction-deterministic-max-selected-kinases`
+- `--prediction-adaptive-ensemble-runs`
 - `--prediction-mode {deterministic_ranking,adaptive_ensemble}`
 - `--prediction-adaptive-policy {stable,r_parity}`
 - `--prediction-n-iterations`
@@ -85,6 +86,7 @@ Notes:
 - bundled runtime references are rat-only in this release
 - `--reference auto` is the recommended beginner lane when `--organism rat` is set
 - `--skip-activity` disables the activity stage completely
+- `--prediction-ensemble-size` is accepted as a legacy alias and maps to both mode-specific prediction-size options
 - `--prediction-mode adaptive_ensemble` works in the normal install; no extra dependency lane is required
 
 ## `signalome`

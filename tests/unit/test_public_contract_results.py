@@ -88,7 +88,11 @@ def _kinase_result() -> KinaseWorkflowResult:
             dataset=_dataset(),
             references=_references(),
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=1, ensemble_size=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=1,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+            ),
             activity_config=None,
         )
     )
@@ -171,7 +175,11 @@ def test_kinase_result_exposes_supported_activity_stage_outputs_when_enabled() -
             dataset=_dataset(),
             references=_references(),
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=1, ensemble_size=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=1,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+            ),
             activity_config=KinaseActivityConfig(
                 enabled=True,
                 threshold=0.0,
@@ -204,7 +212,11 @@ def test_kinase_result_can_include_opt_in_diagnostic_scoring_tables() -> None:
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
             ),
-            prediction_config=KinasePredictionConfig(top_k=1, ensemble_size=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=1,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+            ),
             activity_config=None,
         )
     )
@@ -226,7 +238,11 @@ def test_kinase_provenance_uses_renamed_scoring_and_activity_output_tables() -> 
                 min_substrates=2,
                 include_diagnostic_scoring_tables=True,
             ),
-            prediction_config=KinasePredictionConfig(top_k=1, ensemble_size=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=1,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+            ),
             activity_config=KinaseActivityConfig(
                 enabled=True,
                 threshold=0.0,

@@ -121,7 +121,8 @@ def test_run_adaptive_ensemble_prediction_averages_per_ensemble_scores(
         candidate_substrates={"K1": ["S1"]},
         prediction_config=KinasePredictionConfig(
             top_k=2,
-            ensemble_size=2,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=2,
             mode="adaptive_ensemble",
             n_iterations=2,
             random_state=5,
@@ -143,7 +144,8 @@ def test_run_adaptive_ensemble_prediction_requires_negative_pool() -> None:
             candidate_substrates={"K1": ["S1", "S2"]},
             prediction_config=KinasePredictionConfig(
                 top_k=2,
-                ensemble_size=1,
+                deterministic_max_selected_kinases=1,
+                adaptive_ensemble_runs=1,
                 mode="adaptive_ensemble",
                 n_iterations=1,
             ),

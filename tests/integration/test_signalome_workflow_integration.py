@@ -50,7 +50,11 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            prediction_config=KinasePredictionConfig(
+                top_k=6,
+                deterministic_max_selected_kinases=12,
+                adaptive_ensemble_runs=12,
+            ),
             activity_config=None,
         )
     )
@@ -163,7 +167,11 @@ def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id()
             dataset=dataset_without_protein,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            prediction_config=KinasePredictionConfig(
+                top_k=6,
+                deterministic_max_selected_kinases=12,
+                adaptive_ensemble_runs=12,
+            ),
             activity_config=None,
         )
     )
@@ -202,7 +210,11 @@ def test_signalome_workflow_uses_explicit_dataset_protein_identity_when_present(
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            prediction_config=KinasePredictionConfig(
+                top_k=6,
+                deterministic_max_selected_kinases=12,
+                adaptive_ensemble_runs=12,
+            ),
             activity_config=None,
         )
     )
@@ -225,7 +237,11 @@ def test_signalome_threshold_knobs_do_not_cross_couple_unrelated_outputs() -> No
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            prediction_config=KinasePredictionConfig(
+                top_k=6,
+                deterministic_max_selected_kinases=12,
+                adaptive_ensemble_runs=12,
+            ),
             activity_config=None,
         )
     )
@@ -284,7 +300,11 @@ def test_signalome_network_uses_rank_weighted_fusion_downstream_scores_when_avai
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            prediction_config=KinasePredictionConfig(
+                top_k=6,
+                deterministic_max_selected_kinases=12,
+                adaptive_ensemble_runs=12,
+            ),
             activity_config=None,
         )
     )
@@ -328,7 +348,11 @@ def test_signalome_workflow_accepts_sparse_missing_rank_weighted_fusion_score_ro
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            prediction_config=KinasePredictionConfig(
+                top_k=6,
+                deterministic_max_selected_kinases=12,
+                adaptive_ensemble_runs=12,
+            ),
             activity_config=None,
         )
     )
@@ -385,7 +409,11 @@ def test_signalome_workflow_rejects_sparse_missing_rank_weighted_fusion_rows_und
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            prediction_config=KinasePredictionConfig(
+                top_k=6,
+                deterministic_max_selected_kinases=12,
+                adaptive_ensemble_runs=12,
+            ),
             activity_config=None,
         )
     )

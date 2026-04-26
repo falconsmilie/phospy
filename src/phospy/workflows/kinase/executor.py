@@ -259,7 +259,9 @@ class KinaseWorkflowExecutor:
             prediction_score_matrix=downstream_score_matrix,
             candidate_substrates=candidate_substrates,
         )
-        selected_kinases = kinase_ranking.head(config.prediction_ensemble_size).index
+        selected_kinases = kinase_ranking.head(
+            config.prediction_deterministic_max_selected_kinases
+        ).index
         if selected_kinases.empty:
             candidate_shortfall = summarize_candidate_shortfall(
                 scores=downstream_score_matrix,
@@ -276,7 +278,9 @@ class KinaseWorkflowExecutor:
                 ),
                 eligible_kinases=len(scoring_execution.quantified_substrates),
                 ranked_kinases=int(kinase_ranking.size),
-                prediction_config_ensemble_size=config.prediction_ensemble_size,
+                prediction_config_deterministic_max_selected_kinases=(
+                    config.prediction_deterministic_max_selected_kinases
+                ),
                 prediction_config_top_k=config.prediction_top_k,
                 prediction_config_mode=config.prediction_mode,
                 dataset_samples=request.dataset.phospho.shape[1],
@@ -327,7 +331,9 @@ class KinaseWorkflowExecutor:
                 candidate_kinases=0,
                 prediction_config_mode=config.prediction_mode,
                 prediction_config_top_k=config.prediction_top_k,
-                prediction_config_ensemble_size=config.prediction_ensemble_size,
+                prediction_config_adaptive_ensemble_runs=(
+                    config.prediction_adaptive_ensemble_runs
+                ),
                 prediction_config_n_iterations=config.prediction_n_iterations,
                 dataset_samples=request.dataset.phospho.shape[1],
                 downstream_score_source=scoring_execution.downstream_score_source,
@@ -363,7 +369,9 @@ class KinaseWorkflowExecutor:
                 ranked_kinases=0,
                 prediction_config_mode=config.prediction_mode,
                 prediction_config_top_k=config.prediction_top_k,
-                prediction_config_ensemble_size=config.prediction_ensemble_size,
+                prediction_config_adaptive_ensemble_runs=(
+                    config.prediction_adaptive_ensemble_runs
+                ),
                 prediction_config_n_iterations=config.prediction_n_iterations,
             )
         pred_mat, substrate_list = build_prediction_outputs(
@@ -403,7 +411,10 @@ class KinaseWorkflowExecutor:
     ) -> KinasePredictionConfig:
         return KinasePredictionConfig(
             top_k=config.prediction_top_k,
-            ensemble_size=config.prediction_ensemble_size,
+            deterministic_max_selected_kinases=(
+                config.prediction_deterministic_max_selected_kinases
+            ),
+            adaptive_ensemble_runs=config.prediction_adaptive_ensemble_runs,
             mode=config.prediction_mode,
             adaptive_policy=config.prediction_adaptive_policy,
             n_iterations=config.prediction_n_iterations,
@@ -515,7 +526,10 @@ def _build_kinase_run_provenance(
             },
             "prediction_config": {
                 "top_k": int(config.prediction_top_k),
-                "ensemble_size": int(config.prediction_ensemble_size),
+                "deterministic_max_selected_kinases": int(
+                    config.prediction_deterministic_max_selected_kinases
+                ),
+                "adaptive_ensemble_runs": int(config.prediction_adaptive_ensemble_runs),
                 "mode": str(config.prediction_mode),
                 "adaptive_policy": str(config.prediction_adaptive_policy),
                 "n_iterations": int(config.prediction_n_iterations),

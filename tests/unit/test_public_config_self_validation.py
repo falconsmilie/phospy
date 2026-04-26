@@ -248,8 +248,12 @@ def test_kinase_scoring_config_self_validates(
             "prediction_config.top_k must be greater than or equal to 1",
         ),
         (
-            {"ensemble_size": 0},
-            "prediction_config.ensemble_size must be greater than or equal to 1",
+            {"deterministic_max_selected_kinases": 0},
+            "prediction_config.deterministic_max_selected_kinases must be greater than or equal to 1",
+        ),
+        (
+            {"adaptive_ensemble_runs": 0},
+            "prediction_config.adaptive_ensemble_runs must be greater than or equal to 1",
         ),
         (
             {"n_iterations": 0},
@@ -270,6 +274,32 @@ def test_kinase_prediction_config_self_validates(
 ) -> None:
     with pytest.raises(WorkflowValidationError, match=pattern):
         KinasePredictionConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_kinase_prediction_config_has_explicit_mode_specific_sizes() -> None:
+    config = KinasePredictionConfig()
+
+    assert config.deterministic_max_selected_kinases >= 1
+    assert config.adaptive_ensemble_runs >= 1
+
+
+def test_kinase_prediction_config_legacy_ensemble_size_maps_to_both_fields() -> None:
+    with pytest.warns(DeprecationWarning, match="prediction_config.ensemble_size"):
+        config = KinasePredictionConfig(ensemble_size=25)
+
+    assert config.deterministic_max_selected_kinases == 25
+    assert config.adaptive_ensemble_runs == 25
+
+
+def test_kinase_prediction_config_legacy_ensemble_size_rejects_conflicts() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="cannot be combined with",
+    ):
+        KinasePredictionConfig(
+            ensemble_size=25,
+            adaptive_ensemble_runs=50,
+        )
 
 
 @pytest.mark.parametrize(

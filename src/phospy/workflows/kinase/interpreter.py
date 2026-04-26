@@ -92,7 +92,12 @@ class KinaseWorkflowInterpreter:
             ),
             profile_missing_value_strategy=request.scoring_config.profile_missing_value_strategy,
             prediction_top_k=int(request.prediction_config.top_k),
-            prediction_ensemble_size=int(request.prediction_config.ensemble_size),
+            prediction_deterministic_max_selected_kinases=int(
+                request.prediction_config.deterministic_max_selected_kinases
+            ),
+            prediction_adaptive_ensemble_runs=int(
+                request.prediction_config.adaptive_ensemble_runs
+            ),
             prediction_mode=request.prediction_config.mode,
             prediction_adaptive_policy=request.prediction_config.adaptive_policy,
             prediction_n_iterations=int(request.prediction_config.n_iterations),
@@ -193,7 +198,12 @@ class KinaseWorkflowInterpreter:
                 "max_quantified_sites_per_kinase"
             ],
             scoring_config_min_substrates=request.scoring_config.min_substrates,
-            prediction_config_ensemble_size=request.prediction_config.ensemble_size,
+            prediction_config_deterministic_max_selected_kinases=(
+                request.prediction_config.deterministic_max_selected_kinases
+            ),
+            prediction_config_adaptive_ensemble_runs=(
+                request.prediction_config.adaptive_ensemble_runs
+            ),
             prediction_config_mode=request.prediction_config.mode,
         )
 

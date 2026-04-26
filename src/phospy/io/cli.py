@@ -13,6 +13,8 @@ from phospy.api.configs import (
     KINASE_ACTIVITY_DEFAULT_THRESHOLD,
     KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES,
     KINASE_ADAPTIVE_POLICY_STABLE,
+    KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS,
+    KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES,
     KINASE_PREDICTION_DEFAULT_ITERATIONS,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
@@ -232,13 +234,23 @@ def _add_kinase_runtime_arguments(parser: argparse.ArgumentParser) -> None:
         help="Top-k predicted substrate sites per kinase.",
     )
     parser.add_argument(
-        "--prediction-ensemble-size",
+        "--prediction-deterministic-max-selected-kinases",
         type=int,
-        default=10,
-        help=(
-            "Mode-dependent ensemble_size: deterministic lane uses it as selected "
-            "kinase cap; adaptive lane uses it as number of ensemble executions."
-        ),
+        default=KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES,
+        help=("Maximum number of kinases retained in deterministic prediction mode."),
+    )
+    parser.add_argument(
+        "--prediction-adaptive-ensemble-runs",
+        type=int,
+        default=KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS,
+        help="Number of ensemble runs in adaptive prediction mode.",
+    )
+    parser.add_argument(
+        "--prediction-ensemble-size",
+        dest="prediction_legacy_ensemble_size",
+        type=int,
+        default=None,
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--prediction-mode",
@@ -350,6 +362,24 @@ def _run_kinase_workflow_from_args(args: argparse.Namespace):
             top_n_substrates=args.activity_top_n_substrates,
         )
     )
+    deterministic_max_selected_kinases = (
+        args.prediction_deterministic_max_selected_kinases
+    )
+    adaptive_ensemble_runs = args.prediction_adaptive_ensemble_runs
+    if args.prediction_legacy_ensemble_size is not None:
+        if (
+            deterministic_max_selected_kinases
+            != KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES
+            or adaptive_ensemble_runs
+            != KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS
+        ):
+            raise PhosPyInputError(
+                "--prediction-ensemble-size cannot be combined with "
+                "--prediction-deterministic-max-selected-kinases or "
+                "--prediction-adaptive-ensemble-runs"
+            )
+        deterministic_max_selected_kinases = args.prediction_legacy_ensemble_size
+        adaptive_ensemble_runs = args.prediction_legacy_ensemble_size
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=reference,
@@ -358,7 +388,8 @@ def _run_kinase_workflow_from_args(args: argparse.Namespace):
         ),
         prediction_config=KinasePredictionConfig(
             top_k=args.prediction_top_k,
-            ensemble_size=args.prediction_ensemble_size,
+            deterministic_max_selected_kinases=deterministic_max_selected_kinases,
+            adaptive_ensemble_runs=adaptive_ensemble_runs,
             mode=args.prediction_mode,
             adaptive_policy=args.prediction_adaptive_policy,
             n_iterations=args.prediction_n_iterations,

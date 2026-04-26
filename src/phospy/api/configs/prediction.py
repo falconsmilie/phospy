@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import warnings
+from dataclasses import InitVar, dataclass
 from typing import Literal
 
 from phospy.api.configs.common import _require_int_at_least
@@ -30,6 +31,8 @@ KINASE_ADAPTIVE_POLICIES = frozenset(
     }
 )
 KINASE_PREDICTION_DEFAULT_ITERATIONS = 5
+KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES = 10
+KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS = 10
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,21 +46,23 @@ class KinasePredictionConfig:
     - `"adaptive_ensemble"`: real adaptive ensemble execution ported from donor
       science.
 
-    `ensemble_size` is mode-dependent by design and should be interpreted with
-    `mode`:
-
-    - deterministic lane: maximum number of selected kinase columns.
-    - adaptive lane: number of ensemble executions per kinase.
+    `deterministic_max_selected_kinases` controls deterministic lane breadth.
+    `adaptive_ensemble_runs` controls adaptive lane ensemble executions.
+    Legacy `ensemble_size` remains accepted as a deprecated input alias.
     """
 
     top_k: int = 30
-    ensemble_size: int = 10
+    deterministic_max_selected_kinases: int = (
+        KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES
+    )
+    adaptive_ensemble_runs: int = KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS
     mode: KinasePredictionMode = KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING
     adaptive_policy: KinaseAdaptivePolicy = KINASE_ADAPTIVE_POLICY_STABLE
     n_iterations: int = KINASE_PREDICTION_DEFAULT_ITERATIONS
     random_state: int | None = None
+    ensemble_size: InitVar[int | None] = None
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, ensemble_size: int | None) -> None:
         if self.mode not in KINASE_PREDICTION_MODES:
             allowed_modes = ", ".join(sorted(KINASE_PREDICTION_MODES))
             raise WorkflowValidationError(
@@ -81,9 +86,46 @@ class KinasePredictionConfig:
             minimum=1,
             error_type=WorkflowValidationError,
         )
+        if ensemble_size is not None:
+            _require_int_at_least(
+                ensemble_size,
+                field_name="prediction_config.ensemble_size",
+                minimum=1,
+                error_type=WorkflowValidationError,
+            )
+            if (
+                self.deterministic_max_selected_kinases
+                != KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES
+                or self.adaptive_ensemble_runs
+                != KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS
+            ):
+                raise WorkflowValidationError(
+                    "prediction_config.ensemble_size cannot be combined with "
+                    "prediction_config.deterministic_max_selected_kinases or "
+                    "prediction_config.adaptive_ensemble_runs"
+                )
+            warnings.warn(
+                "prediction_config.ensemble_size is deprecated; use "
+                "prediction_config.deterministic_max_selected_kinases and "
+                "prediction_config.adaptive_ensemble_runs",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            object.__setattr__(
+                self,
+                "deterministic_max_selected_kinases",
+                int(ensemble_size),
+            )
+            object.__setattr__(self, "adaptive_ensemble_runs", int(ensemble_size))
         _require_int_at_least(
-            self.ensemble_size,
-            field_name="prediction_config.ensemble_size",
+            self.deterministic_max_selected_kinases,
+            field_name="prediction_config.deterministic_max_selected_kinases",
+            minimum=1,
+            error_type=WorkflowValidationError,
+        )
+        _require_int_at_least(
+            self.adaptive_ensemble_runs,
+            field_name="prediction_config.adaptive_ensemble_runs",
             minimum=1,
             error_type=WorkflowValidationError,
         )
@@ -100,6 +142,8 @@ __all__ = [
     "KINASE_ADAPTIVE_POLICY_R_PARITY",
     "KINASE_ADAPTIVE_POLICY_STABLE",
     "KINASE_PREDICTION_DEFAULT_ITERATIONS",
+    "KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS",
+    "KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES",
     "KINASE_PREDICTION_MODES",
     "KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE",
     "KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING",

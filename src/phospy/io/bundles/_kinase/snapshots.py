@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 from phospy.api.configs import (
     KINASE_ADAPTIVE_POLICY_STABLE,
+    KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS,
+    KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES,
     KINASE_PREDICTION_DEFAULT_ITERATIONS,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
@@ -79,7 +81,10 @@ class KinaseWorkflowConfigSnapshot:
             },
             "prediction_config": {
                 "top_k": self.prediction_config.top_k,
-                "ensemble_size": self.prediction_config.ensemble_size,
+                "deterministic_max_selected_kinases": (
+                    self.prediction_config.deterministic_max_selected_kinases
+                ),
+                "adaptive_ensemble_runs": self.prediction_config.adaptive_ensemble_runs,
                 "mode": self.prediction_config.mode,
                 "adaptive_policy": self.prediction_config.adaptive_policy,
                 "n_iterations": self.prediction_config.n_iterations,
@@ -135,6 +140,40 @@ class KinaseWorkflowConfigSnapshot:
                     field_name=f"{scope}.activity_config.top_n_substrates",
                 ),
             )
+        legacy_ensemble_size = prediction_payload.get("ensemble_size")
+        deterministic_max_selected_kinases: int
+        adaptive_ensemble_runs: int
+        if legacy_ensemble_size is not None:
+            if (
+                prediction_payload.get("deterministic_max_selected_kinases") is not None
+                or prediction_payload.get("adaptive_ensemble_runs") is not None
+            ):
+                raise PhosPyInputError(
+                    f"{scope}.prediction_config.ensemble_size cannot be combined with "
+                    "deterministic_max_selected_kinases or adaptive_ensemble_runs"
+                )
+            deterministic_max_selected_kinases = require_int(
+                legacy_ensemble_size,
+                field_name=f"{scope}.prediction_config.ensemble_size",
+            )
+            adaptive_ensemble_runs = deterministic_max_selected_kinases
+        else:
+            deterministic_max_selected_kinases = require_int(
+                prediction_payload.get(
+                    "deterministic_max_selected_kinases",
+                    KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES,
+                ),
+                field_name=(
+                    f"{scope}.prediction_config.deterministic_max_selected_kinases"
+                ),
+            )
+            adaptive_ensemble_runs = require_int(
+                prediction_payload.get(
+                    "adaptive_ensemble_runs",
+                    KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS,
+                ),
+                field_name=f"{scope}.prediction_config.adaptive_ensemble_runs",
+            )
         return cls(
             scoring_config=KinaseScoringConfig(
                 min_substrates=require_int(
@@ -162,10 +201,8 @@ class KinaseWorkflowConfigSnapshot:
                     prediction_payload.get("top_k"),
                     field_name=f"{scope}.prediction_config.top_k",
                 ),
-                ensemble_size=require_int(
-                    prediction_payload.get("ensemble_size"),
-                    field_name=f"{scope}.prediction_config.ensemble_size",
-                ),
+                deterministic_max_selected_kinases=deterministic_max_selected_kinases,
+                adaptive_ensemble_runs=adaptive_ensemble_runs,
                 mode=require_str(
                     prediction_payload.get(
                         "mode",

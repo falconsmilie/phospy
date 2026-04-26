@@ -58,7 +58,11 @@ def main() -> None:
             dataset=dataset,
             references=ReferencePreset.AUTO,
             scoring_config=KinaseScoringConfig(min_substrates=2),
-            prediction_config=KinasePredictionConfig(top_k=6, ensemble_size=12),
+            prediction_config=KinasePredictionConfig(
+                top_k=6,
+                deterministic_max_selected_kinases=12,
+                adaptive_ensemble_runs=12,
+            ),
             activity_config=None,
         )
     )
