@@ -155,7 +155,8 @@ def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id()
         sample_metadata=base_dataset.sample_metadata,
         total=base_dataset.total,
         organism=base_dataset.organism,
-        transformation_state=base_dataset.transformation_state,
+        intensity_scale_state=base_dataset.intensity_scale_state,
+        processing_state=base_dataset.processing_state,
     )
     kinase_result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
@@ -193,7 +194,8 @@ def test_signalome_workflow_uses_explicit_dataset_protein_identity_when_present(
         sample_metadata=base_dataset.sample_metadata,
         total=base_dataset.total,
         organism=base_dataset.organism,
-        transformation_state=base_dataset.transformation_state,
+        intensity_scale_state=base_dataset.intensity_scale_state,
+        processing_state=base_dataset.processing_state,
     )
     kinase_result = KinaseWorkflow().run(
         KinaseWorkflowRequest(

@@ -47,8 +47,8 @@ VALIDATION_RULE_OWNERS: tuple[ValidationRuleOwner, ...] = (
         owner="AnalysisReadyDatasetValidator.run",
     ),
     ValidationRuleOwner(
-        rule="dataset/transformation-state coherence",
-        owner="TransformationStateValidator.run",
+        rule="dataset/intensity-scale-state coherence",
+        owner="IntensityScaleStateValidator.run",
     ),
     ValidationRuleOwner(
         rule="signalome result expanded_signalome field type/ownership",

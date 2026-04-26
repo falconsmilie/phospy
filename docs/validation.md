@@ -73,7 +73,8 @@ Main expectations:
 - `phospho` and `site_metadata` are DataFrames
 - site identity is coherent between row IDs and metadata
 - required metadata values are non-empty
-- transformation state is established and coherent
+- intensity scale state is established and coherent
+- processing state is explicit and coherent with intensity scale state
 - the supported builder lane hands workflows a missing-value-free dataset
 
 ## Preprocessing rules
@@ -180,7 +181,7 @@ network/module preconditions.
 | builder input source checks | `DatasetBuildRequestValidator` |
 | preprocessing config policy | `DatasetPreprocessingConfigValidator` |
 | analysis-ready dataset structure/content | `AnalysisReadyDatasetValidator` |
-| transformation-state coherence | `TransformationStateValidator` |
+| intensity-scale-state coherence | `IntensityScaleStateValidator` |
 | reference compatibility | `ReferenceCompatibilityValidator` |
 | reference bundle structure/content | `ReferenceBundleValidator` |
 | kinase workflow request/config validity | `KinaseWorkflowValidator` |

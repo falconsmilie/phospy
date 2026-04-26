@@ -35,7 +35,21 @@ from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.workflows.kinase.public import KinaseWorkflow
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
 from phospy.workflows.signalome.validator import SignalomeWorkflowValidator
-from tests.support.transformation_states import supported_linear_state
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
+
+
+def _dataset_state_kwargs(*, has_total_matrix: bool) -> dict[str, object]:
+    return {
+        "intensity_scale_state": supported_linear_intensity_scale_state(
+            has_total_matrix=has_total_matrix
+        ),
+        "processing_state": supported_linear_processing_state(
+            has_total_matrix=has_total_matrix
+        ),
+    }
 
 
 def test_kinase_scoring_default_sets_two_substrate_support_floor() -> None:
@@ -62,7 +76,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        **_dataset_state_kwargs(has_total_matrix=False),
     )
 
 
@@ -629,7 +643,8 @@ def test_signalome_validator_requires_explicit_site_metadata_protein_id_column()
         sample_metadata=kinase_result.dataset.sample_metadata,
         total=kinase_result.dataset.total,
         organism=kinase_result.dataset.organism,
-        transformation_state=kinase_result.dataset.transformation_state,
+        intensity_scale_state=kinase_result.dataset.intensity_scale_state,
+        processing_state=kinase_result.dataset.processing_state,
     )
     request = SignalomeWorkflowRequest(
         kinase_result=KinaseWorkflowResult(
@@ -659,7 +674,8 @@ def test_signalome_validator_rejects_empty_site_metadata_protein_id_values() -> 
         sample_metadata=kinase_result.dataset.sample_metadata,
         total=kinase_result.dataset.total,
         organism=kinase_result.dataset.organism,
-        transformation_state=kinase_result.dataset.transformation_state,
+        intensity_scale_state=kinase_result.dataset.intensity_scale_state,
+        processing_state=kinase_result.dataset.processing_state,
     )
     request = SignalomeWorkflowRequest(
         kinase_result=KinaseWorkflowResult(
@@ -692,7 +708,8 @@ def test_signalome_validator_rejects_non_string_site_metadata_protein_id_values(
         sample_metadata=kinase_result.dataset.sample_metadata,
         total=kinase_result.dataset.total,
         organism=kinase_result.dataset.organism,
-        transformation_state=kinase_result.dataset.transformation_state,
+        intensity_scale_state=kinase_result.dataset.intensity_scale_state,
+        processing_state=kinase_result.dataset.processing_state,
     )
     request = SignalomeWorkflowRequest(
         kinase_result=KinaseWorkflowResult(

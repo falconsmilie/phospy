@@ -252,9 +252,16 @@ Key fields include:
 - `total` (optional)
 - `comparisons` (optional)
 - `organism` (optional)
-- `transformation_state`
+- `intensity_scale_state`
+- `processing_state`
 - `preprocessing_report` (optional)
 - `provenance` (optional `RunProvenance`; machine-readable audit/replay metadata)
+
+State model responsibilities:
+
+- `intensity_scale_state` answers: "Are quantitative values linear or log2?"
+- `processing_state` answers: "What preprocessing policy state crossed the analysis-ready boundary?"
+- `preprocessing_report` answers: "What happened during preprocessing, including row-level operations and sidecars?"
 
 `preprocessing_report` and `provenance` serve different purposes:
 

@@ -7,15 +7,16 @@ from dataclasses import InitVar, dataclass
 import pandas as pd
 
 from phospy._frame_ownership import own_dataframe, own_optional_dataframe
+from phospy.datasets.processing_state import DatasetProcessingState
 from phospy.errors.validation import DatasetValidationError
 from phospy.provenance.models import RunProvenance
 from phospy.references.models import Organism
-from phospy.transformations.models import TransformationState
+from phospy.transformations.models import IntensityScaleState
 from phospy.validation.datasets.analysis_ready import AnalysisReadyDatasetValidator
-from phospy.validation.transformations.state import TransformationStateValidator
+from phospy.validation.transformations.state import IntensityScaleStateValidator
 
 _DATASET_VALIDATOR = AnalysisReadyDatasetValidator()
-_TRANSFORMATION_STATE_VALIDATOR = TransformationStateValidator()
+_INTENSITY_SCALE_STATE_VALIDATOR = IntensityScaleStateValidator()
 _PREPROCESSING_REPORT_ROW_COUNT_COLUMNS = (
     "stage",
     "input_rows",
@@ -246,7 +247,8 @@ class AnalysisReadyPhosphoDataset:
 
     phospho: pd.DataFrame
     site_metadata: pd.DataFrame
-    transformation_state: TransformationState
+    intensity_scale_state: IntensityScaleState
+    processing_state: DatasetProcessingState
     sample_metadata: pd.DataFrame | None = None
     total: pd.DataFrame | None = None
     comparisons: pd.DataFrame | None = None
@@ -294,11 +296,25 @@ class AnalysisReadyPhosphoDataset:
             comparisons=comparisons,
             organism=self.organism,
         )
-        transformation_state = _TRANSFORMATION_STATE_VALIDATOR.run(
-            transformation_state=self.transformation_state,
+        intensity_scale_state = _INTENSITY_SCALE_STATE_VALIDATOR.run(
+            intensity_scale_state=self.intensity_scale_state,
             has_total_matrix=total is not None,
             require_established=True,
         )
+        if not isinstance(self.processing_state, DatasetProcessingState):
+            raise DatasetValidationError(
+                "dataset.processing_state must be a DatasetProcessingState instance"
+            )
+        if self.processing_state.intensity_scale != intensity_scale_state:
+            raise DatasetValidationError(
+                "dataset.processing_state.intensity_scale must match "
+                "dataset.intensity_scale_state"
+            )
+        if not bool(self.processing_state.missing_data.complete_matrix):
+            raise DatasetValidationError(
+                "dataset.processing_state.missing_data.complete_matrix must be True "
+                "at AnalysisReadyPhosphoDataset boundary"
+            )
         if self.preprocessing_report is not None and not isinstance(
             self.preprocessing_report,
             DatasetPreprocessingReport,
@@ -318,7 +334,8 @@ class AnalysisReadyPhosphoDataset:
         object.__setattr__(self, "sample_metadata", sample_metadata)
         object.__setattr__(self, "total", total)
         object.__setattr__(self, "comparisons", comparisons)
-        object.__setattr__(self, "transformation_state", transformation_state)
+        object.__setattr__(self, "intensity_scale_state", intensity_scale_state)
+        object.__setattr__(self, "processing_state", self.processing_state)
 
     @classmethod
     def _from_owned(
@@ -326,7 +343,8 @@ class AnalysisReadyPhosphoDataset:
         *,
         phospho: pd.DataFrame,
         site_metadata: pd.DataFrame,
-        transformation_state: TransformationState,
+        intensity_scale_state: IntensityScaleState,
+        processing_state: DatasetProcessingState,
         sample_metadata: pd.DataFrame | None = None,
         total: pd.DataFrame | None = None,
         comparisons: pd.DataFrame | None = None,
@@ -337,7 +355,8 @@ class AnalysisReadyPhosphoDataset:
         return cls(
             phospho=phospho,
             site_metadata=site_metadata,
-            transformation_state=transformation_state,
+            intensity_scale_state=intensity_scale_state,
+            processing_state=processing_state,
             sample_metadata=sample_metadata,
             total=total,
             comparisons=comparisons,

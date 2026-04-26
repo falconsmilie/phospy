@@ -1,1 +1,1 @@
-"""Transformation-state validators."""
+"""Intensity-scale-state validators."""

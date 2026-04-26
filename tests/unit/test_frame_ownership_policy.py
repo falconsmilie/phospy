@@ -18,7 +18,10 @@ from phospy.api import (
 from phospy.api.results import KinasePredictionResult
 from phospy.datasets.builders.executor import DatasetBuildExecutor
 from phospy.datasets.builders.interpreter import DatasetBuildRequestInterpreter
-from tests.support.transformation_states import supported_linear_state
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
 
 
 def _phospho() -> pd.DataFrame:
@@ -75,7 +78,10 @@ def test_public_dataset_isolated_from_caller_mutation() -> None:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
     )
 
     phospho.iloc[0, 0] = 999.0

@@ -30,7 +30,7 @@ The previous ADRs define a clear architectural direction:
 - strict dataset boundary
 - explicit reference resolution
 - disciplined result models
-- typed transformation state
+- typed intensity-scale state and processing-state summaries
 - private validation domain
 - flexible builder path below the strict dataset boundary
 - explicit exception taxonomy
@@ -206,7 +206,7 @@ Reference resolution should remain separate from workflow execution and should n
 
 ## Transformations Package
 
-The `transformations/` package should own transformation-state types and transformer logic.
+The `transformations/` package should own intensity-scale-state types and transformer logic.
 
 A likely shape is:
 
@@ -218,7 +218,7 @@ transformations/
 
 ### Responsibilities
 
-- `TransformationState`
+- `IntensityScaleState`
 - transformer interfaces and implementations
 - transformation-specific internal helpers
 
@@ -511,7 +511,7 @@ This ADR complements the earlier architecture decisions.
 - ADR-003 defines the dataset and preprocessing boundary.
 - ADR-004 defines the reference resolution strategy and `ReferenceBundle` contract.
 - ADR-005 defines result-model design.
-- ADR-006 defines the transformation-state and transformer contract.
+- ADR-006 defines the intensity-scale and dataset-processing-state contract.
 - ADR-007 defines the validation-domain architecture.
 - ADR-008 defines the analysis-ready dataset builder architecture.
 - ADR-009 defines the exception and error taxonomy.
@@ -524,7 +524,7 @@ Together, these ADRs establish:
 - one strict dataset boundary
 - one flexible builder path below that boundary
 - one private validation domain
-- one stronger transformation-state contract
+- one stronger intensity-scale and processing-state contract
 - one explicit exception taxonomy
 - one domain-oriented physical code layout
 

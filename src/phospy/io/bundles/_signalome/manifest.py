@@ -7,13 +7,16 @@ from dataclasses import dataclass
 
 from phospy.api.results import SignalomeWorkflowResult
 from phospy.errors.input import PhosPyInputError
+from phospy.io.bundles._shared.intensity_scale_state import (
+    intensity_scale_state_to_payload,
+)
 from phospy.io.bundles._shared.primitives import (
     require_int,
     require_mapping,
     require_str,
 )
-from phospy.io.bundles._shared.transformation_state import (
-    transformation_state_to_payload,
+from phospy.io.bundles._shared.processing_state import (
+    processing_state_to_payload,
 )
 from phospy.io.bundles._signalome.compatibility import (
     signalome_module_selection_diagnostics_to_payload,
@@ -69,8 +72,11 @@ def build_manifest(
                     if result.dataset.organism is None
                     else result.dataset.organism.value
                 ),
-                "transformation_state": transformation_state_to_payload(
-                    result.dataset.transformation_state
+                "intensity_scale_state": intensity_scale_state_to_payload(
+                    result.dataset.intensity_scale_state
+                ),
+                "processing_state": processing_state_to_payload(
+                    result.dataset.processing_state
                 ),
             },
             "tables": dict(dataset_tables),

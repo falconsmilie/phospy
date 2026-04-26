@@ -16,7 +16,10 @@ from phospy.references.models import Organism, ReferencePreset
 from phospy.references.resolution import ReferenceResolver
 from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
-from tests.support.transformation_states import supported_linear_state
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
 
 
 class _BrokenSourceValidator:
@@ -37,7 +40,10 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             index=index,
         ),
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
     )
 
 

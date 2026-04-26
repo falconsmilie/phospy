@@ -4,6 +4,12 @@ from __future__ import annotations
 
 import pandas as pd
 
+from phospy.api.configs import (
+    DATASET_COMPARISON_BUILDING_POLICY_NONE,
+    DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN,
+    DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
+    DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
+)
 from phospy.datasets.builders.contracts import PreprocessedDatasetBuildTables
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
@@ -17,6 +23,15 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingState,
 )
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.datasets.processing_state import (
+    ComparisonState,
+    DatasetProcessingState,
+    MissingDataState,
+    NormalisationState,
+    SiteMatrixState,
+    TotalProteinCorrectionState,
+)
+from phospy.transformations.models import IntensityScaleState
 
 _ROW_COUNT_COLUMNS = ("stage", "input_rows", "output_rows", "dropped_rows")
 _OPERATION_COLUMNS = (
@@ -106,6 +121,60 @@ class DatasetPreprocessor:
             duplicate_site_resolution=preprocessed_state.duplicate_site_resolution,
             metadata_conflicts=preprocessed_state.metadata_conflicts,
         )
+
+
+def build_dataset_processing_state(
+    *,
+    plan: PreprocessingPlan,
+    intensity_scale_state: IntensityScaleState,
+) -> DatasetProcessingState:
+    """Build compact dataset processing state from the resolved preprocessing plan."""
+
+    comparison_pairs = (
+        None
+        if plan.comparison_pairs is None
+        else tuple((str(left), str(right)) for left, right in plan.comparison_pairs)
+    )
+    return DatasetProcessingState(
+        intensity_scale=intensity_scale_state,
+        missing_data=MissingDataState(
+            policy=plan.missing_data_policy,
+            min_observed_values=plan.missing_data_min_observed_values,
+            complete_matrix=True,
+            imputed=(
+                plan.missing_data_policy
+                == DATASET_MISSING_DATA_POLICY_IMPUTE_ROW_MEDIAN
+            ),
+        ),
+        normalisation=NormalisationState(policy=plan.normalisation_policy),
+        total_protein_correction=TotalProteinCorrectionState(
+            policy=plan.total_protein_correction_policy,
+            applied=(
+                plan.total_protein_correction_policy
+                != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
+            ),
+        ),
+        site_matrix=SiteMatrixState(
+            policy=plan.site_matrix_policy,
+            constructed=(
+                plan.site_matrix_policy
+                == DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA
+            ),
+            missing_data_policy=plan.site_matrix_missing_data_policy,
+            minimum_observed_values=plan.site_matrix_minimum_observed_values,
+            duplicate_site_strategy=plan.site_matrix_duplicate_site_strategy,
+        ),
+        comparisons=ComparisonState(
+            policy=plan.comparison_building_policy,
+            sample_group_column=plan.comparison_sample_group_column,
+            pairs=(
+                None
+                if plan.comparison_building_policy
+                == DATASET_COMPARISON_BUILDING_POLICY_NONE
+                else comparison_pairs
+            ),
+        ),
+    )
 
 
 def _build_preprocessing_provenance_tables(

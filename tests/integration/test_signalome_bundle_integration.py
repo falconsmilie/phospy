@@ -215,7 +215,8 @@ def _build_signalome_request_and_result():
 
 def _assert_signalome_result_equal(left, right) -> None:
     assert left.dataset.organism == right.dataset.organism
-    assert left.dataset.transformation_state == right.dataset.transformation_state
+    assert left.dataset.intensity_scale_state == right.dataset.intensity_scale_state
+    assert left.dataset.processing_state == right.dataset.processing_state
     assert (
         left.kinase_result.references.organism
         == right.kinase_result.references.organism

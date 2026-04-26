@@ -1,4 +1,4 @@
-"""Transformation domain models."""
+"""Transformation-domain intensity scale models."""
 
 from __future__ import annotations
 
@@ -12,51 +12,51 @@ from phospy.transformations._authority import (
     _resolve_establishment_authority_source,
 )
 
-IDENTITY_TRANSFORMATION_ESTABLISHER: Final[str] = (
+IDENTITY_INTENSITY_SCALE_ESTABLISHER: Final[str] = (
     "phospy.transformations.transformers.identity"
 )
-_ESTABLISHED_TRANSFORMATION_STATE_MARKER: Final[object] = object()
+_ESTABLISHED_INTENSITY_SCALE_STATE_MARKER: Final[object] = object()
 
 
-class TransformationKind(str, Enum):
-    """Supported transformation-state kinds."""
+class IntensityScaleKind(str, Enum):
+    """Supported quantitative-intensity scales."""
 
     LINEAR = "linear"
     LOG2 = "log2"
 
 
 @dataclass(frozen=True, slots=True)
-class MatrixTransformationState:
-    """Established transformation state for one quantitative matrix."""
+class MatrixIntensityScaleState:
+    """Established intensity scale for one quantitative matrix."""
 
-    kind: TransformationKind
+    kind: IntensityScaleKind
     transformed: bool
-    established_by: str = IDENTITY_TRANSFORMATION_ESTABLISHER
+    established_by: str = IDENTITY_INTENSITY_SCALE_ESTABLISHER
 
     def __post_init__(self) -> None:
-        if self.kind is TransformationKind.LINEAR and self.transformed:
+        if self.kind is IntensityScaleKind.LINEAR and self.transformed:
             raise InvalidTransformationStateError(
                 "linear matrix state cannot be marked as transformed"
             )
-        if self.kind is TransformationKind.LOG2 and not self.transformed:
+        if self.kind is IntensityScaleKind.LOG2 and not self.transformed:
             raise InvalidTransformationStateError(
                 "log2 matrix state must be marked as transformed"
             )
         if not self.established_by.strip():
             raise InvalidTransformationStateError(
-                "matrix transformation state requires a non-empty established_by value"
+                "matrix intensity scale state requires a non-empty established_by value"
             )
 
     @classmethod
     def linear(
         cls,
         *,
-        established_by: str = IDENTITY_TRANSFORMATION_ESTABLISHER,
-    ) -> MatrixTransformationState:
+        established_by: str = IDENTITY_INTENSITY_SCALE_ESTABLISHER,
+    ) -> MatrixIntensityScaleState:
         """Construct an established linear (untransformed) matrix state."""
 
         return cls(
-            kind=TransformationKind.LINEAR,
+            kind=IntensityScaleKind.LINEAR,
             transformed=False,
             established_by=established_by,
         )
@@ -66,24 +66,24 @@ class MatrixTransformationState:
         cls,
         *,
         established_by: str = "phospy.transformations.transformers.log2",
-    ) -> MatrixTransformationState:
+    ) -> MatrixIntensityScaleState:
         """Construct an established log2-transformed matrix state."""
 
         return cls(
-            kind=TransformationKind.LOG2,
+            kind=IntensityScaleKind.LOG2,
             transformed=True,
             established_by=established_by,
         )
 
 
 @dataclass(frozen=True, slots=True)
-class TransformationState:
-    """Validated transformation metadata for dataset inputs."""
+class IntensityScaleState:
+    """Validated intensity-scale metadata for dataset quantitative matrices."""
 
-    phospho: MatrixTransformationState = field(
-        default_factory=MatrixTransformationState.linear
+    phospho: MatrixIntensityScaleState = field(
+        default_factory=MatrixIntensityScaleState.linear
     )
-    total: MatrixTransformationState | None = None
+    total: MatrixIntensityScaleState | None = None
     _established_via: str | None = field(
         default=None,
         init=False,
@@ -104,26 +104,26 @@ class TransformationState:
     )
 
     def __post_init__(self) -> None:
-        if not isinstance(self.phospho, MatrixTransformationState):
+        if not isinstance(self.phospho, MatrixIntensityScaleState):
             raise InvalidTransformationStateError(
-                "transformation_state.phospho must be a MatrixTransformationState"
+                "intensity_scale_state.phospho must be a MatrixIntensityScaleState"
             )
         if self.total is not None and not isinstance(
-            self.total, MatrixTransformationState
+            self.total, MatrixIntensityScaleState
         ):
             raise InvalidTransformationStateError(
-                "transformation_state.total must be a MatrixTransformationState or None"
+                "intensity_scale_state.total must be a MatrixIntensityScaleState or None"
             )
 
     @property
-    def kind(self) -> TransformationKind:
-        """Primary transformation kind for phosphosite intensities."""
+    def kind(self) -> IntensityScaleKind:
+        """Primary intensity scale for phosphosite intensities."""
 
         return self.phospho.kind
 
     @property
     def label(self) -> str:
-        """Derived human-readable transformation label."""
+        """Derived human-readable intensity-scale label."""
 
         if self.total is None or self.total.kind is self.phospho.kind:
             return self.phospho.kind.value
@@ -142,30 +142,30 @@ class TransformationState:
         """Whether this state was established through a supported PhosPy path."""
 
         return (
-            self._establishment_marker is _ESTABLISHED_TRANSFORMATION_STATE_MARKER
+            self._establishment_marker is _ESTABLISHED_INTENSITY_SCALE_STATE_MARKER
             and self._established_via is not None
             and self._establishment_authority_source is not None
         )
 
     @classmethod
-    def raw(cls, *, has_total_matrix: bool = False) -> TransformationState:
+    def raw(cls, *, has_total_matrix: bool = False) -> IntensityScaleState:
         """Create a canonical declared linear state (not yet established)."""
 
         if has_total_matrix:
             return cls(
-                phospho=MatrixTransformationState.linear(),
-                total=MatrixTransformationState.linear(),
+                phospho=MatrixIntensityScaleState.linear(),
+                total=MatrixIntensityScaleState.linear(),
             )
-        return cls(phospho=MatrixTransformationState.linear(), total=None)
+        return cls(phospho=MatrixIntensityScaleState.linear(), total=None)
 
     @classmethod
     def established_raw(
         cls,
         *,
         has_total_matrix: bool = False,
-        established_via: str = IDENTITY_TRANSFORMATION_ESTABLISHER,
+        established_via: str = IDENTITY_INTENSITY_SCALE_ESTABLISHER,
         _authority: _EstablishmentAuthority | None = None,
-    ) -> TransformationState:
+    ) -> IntensityScaleState:
         """Create a canonical linear state through an approved internal authority."""
 
         return cls.raw(has_total_matrix=has_total_matrix)._with_establishment(
@@ -178,14 +178,14 @@ class TransformationState:
         *,
         established_via: str,
         authority: _EstablishmentAuthority | None,
-    ) -> TransformationState:
+    ) -> IntensityScaleState:
         source = established_via.strip()
         if not source:
             raise InvalidTransformationStateError(
-                "transformation state establishment source must be a non-empty string"
+                "intensity scale state establishment source must be a non-empty string"
             )
         authority_source = _resolve_establishment_authority_source(authority)
-        established = TransformationState(
+        established = IntensityScaleState(
             phospho=self.phospho,
             total=self.total,
         )
@@ -198,22 +198,22 @@ class TransformationState:
         object.__setattr__(
             established,
             "_establishment_marker",
-            _ESTABLISHED_TRANSFORMATION_STATE_MARKER,
+            _ESTABLISHED_INTENSITY_SCALE_STATE_MARKER,
         )
         return established
 
 
-def establish_transformation_state(
-    state: TransformationState,
+def establish_intensity_scale_state(
+    state: IntensityScaleState,
     *,
     established_via: str,
     _authority: _EstablishmentAuthority | None = None,
-) -> TransformationState:
+) -> IntensityScaleState:
     """Return state marked as established through approved internal authority."""
 
-    if not isinstance(state, TransformationState):
+    if not isinstance(state, IntensityScaleState):
         raise InvalidTransformationStateError(
-            "transformation state establishment requires a TransformationState value"
+            "intensity scale state establishment requires an IntensityScaleState value"
         )
     return state._with_establishment(
         established_via=established_via,

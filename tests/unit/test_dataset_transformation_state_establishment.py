@@ -4,29 +4,33 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
+from phospy.datasets.builders.preprocessing import build_dataset_processing_state
 from phospy.datasets.builders.transformation_resolver import (
-    DatasetTransformationResolver,
+    DatasetIntensityScaleResolver,
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.datasets.preprocessing.models import PreprocessingPlan
 from phospy.errors.transformations import (
     InvalidTransformationStateError,
     TransformationStateEstablishmentError,
     TransformerExecutionError,
 )
 from phospy.errors.validation import TransformationValidationError
-from phospy.io.bundles._shared.transformation_state import (
-    transformation_state_from_payload,
+from phospy.io.bundles._shared.intensity_scale_state import (
+    intensity_scale_state_from_payload,
 )
 from phospy.references.models import Organism
 from phospy.transformations.contracts import TransformationResult
 from phospy.transformations.models import (
-    MatrixTransformationState,
-    TransformationKind,
-    TransformationState,
-    establish_transformation_state,
+    IntensityScaleKind,
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+    establish_intensity_scale_state,
 )
 from phospy.transformations.transformers import IdentityTransformer
-from tests.support.transformation_states import supported_linear_state
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+)
 
 
 def _phospho() -> pd.DataFrame:
@@ -48,10 +52,17 @@ def _site_metadata() -> pd.DataFrame:
     )
 
 
+def _processing_state_for(intensity_scale_state: IntensityScaleState):
+    return build_dataset_processing_state(
+        plan=PreprocessingPlan.default(),
+        intensity_scale_state=intensity_scale_state,
+    )
+
+
 def test_resolver_fails_when_state_is_unknown_and_no_transformer_is_configured() -> (
     None
 ):
-    resolver = DatasetTransformationResolver()
+    resolver = DatasetIntensityScaleResolver()
 
     with pytest.raises(
         TransformationStateEstablishmentError, match="unable to establish"
@@ -72,12 +83,12 @@ def test_resolver_uses_configured_transformer_to_establish_state() -> None:
             return TransformationResult(
                 phospho=phospho,
                 total=total,
-                state=TransformationState(
-                    phospho=MatrixTransformationState.log2(
+                state=IntensityScaleState(
+                    phospho=MatrixIntensityScaleState.log2(
                         established_by="test.transformer"
                     ),
                     total=(
-                        MatrixTransformationState.log2(
+                        MatrixIntensityScaleState.log2(
                             established_by="test.transformer"
                         )
                         if total is not None
@@ -86,19 +97,19 @@ def test_resolver_uses_configured_transformer_to_establish_state() -> None:
                 ),
             )
 
-    resolver = DatasetTransformationResolver(transformer=DeclaredLog2Transformer())
+    resolver = DatasetIntensityScaleResolver(transformer=DeclaredLog2Transformer())
 
     resolved = resolver.run(
         phospho=_phospho(),
         total=_total(),
     )
 
-    assert resolved.transformation_state.phospho.kind.value == "log2"
-    assert resolved.transformation_state.total is not None
-    assert resolved.transformation_state.total.kind.value == "log2"
-    assert resolved.transformation_state.is_established
-    assert resolved.transformation_state.established_via is not None
-    assert "DeclaredLog2Transformer" in resolved.transformation_state.established_via
+    assert resolved.intensity_scale_state.phospho.kind.value == "log2"
+    assert resolved.intensity_scale_state.total is not None
+    assert resolved.intensity_scale_state.total.kind.value == "log2"
+    assert resolved.intensity_scale_state.is_established
+    assert resolved.intensity_scale_state.established_via is not None
+    assert "DeclaredLog2Transformer" in resolved.intensity_scale_state.established_via
 
 
 def test_resolver_rejects_invalid_transformer_state_contract() -> None:
@@ -111,12 +122,12 @@ def test_resolver_rejects_invalid_transformer_state_contract() -> None:
             return TransformationResult(
                 phospho=phospho,
                 total=total,
-                state=TransformationState(
-                    phospho=MatrixTransformationState.linear(
+                state=IntensityScaleState(
+                    phospho=MatrixIntensityScaleState.linear(
                         established_by="test.transformer"
                     ),
                     total=(
-                        MatrixTransformationState.log2(
+                        MatrixIntensityScaleState.log2(
                             established_by="test.transformer"
                         )
                         if total is not None
@@ -125,10 +136,10 @@ def test_resolver_rejects_invalid_transformer_state_contract() -> None:
                 ),
             )
 
-    resolver = DatasetTransformationResolver(transformer=MismatchedKindTransformer())
+    resolver = DatasetIntensityScaleResolver(transformer=MismatchedKindTransformer())
     with pytest.raises(
         TransformationStateEstablishmentError,
-        match="configured transformer produced an invalid transformation state",
+        match="configured transformer produced an invalid intensity scale state",
     ):
         resolver.run(
             phospho=_phospho(),
@@ -146,10 +157,10 @@ def test_resolver_rejects_transformer_that_changes_total_matrix_presence() -> No
             return TransformationResult(
                 phospho=phospho,
                 total=None,
-                state=TransformationState.raw(has_total_matrix=False),
+                state=IntensityScaleState.raw(has_total_matrix=False),
             )
 
-    resolver = DatasetTransformationResolver(transformer=DropsTotalTransformer())
+    resolver = DatasetIntensityScaleResolver(transformer=DropsTotalTransformer())
 
     with pytest.raises(
         TransformationStateEstablishmentError,
@@ -170,7 +181,7 @@ def test_resolver_translates_unexpected_transformer_errors() -> None:
         ) -> TransformationResult:
             raise RuntimeError("boom")
 
-    resolver = DatasetTransformationResolver(transformer=FailingTransformer())
+    resolver = DatasetIntensityScaleResolver(transformer=FailingTransformer())
 
     with pytest.raises(
         TransformerExecutionError, match="configured transformer failed"
@@ -181,7 +192,8 @@ def test_resolver_translates_unexpected_transformer_errors() -> None:
         )
 
 
-def test_dataset_boundary_rejects_declared_transformation_state_bypass() -> None:
+def test_dataset_boundary_rejects_declared_intensity_scale_state_bypass() -> None:
+    intensity_scale_state = IntensityScaleState.raw(has_total_matrix=False)
     with pytest.raises(
         TransformationValidationError,
         match="must be established through a supported PhosPy path",
@@ -190,26 +202,28 @@ def test_dataset_boundary_rejects_declared_transformation_state_bypass() -> None
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
-            transformation_state=TransformationState.raw(has_total_matrix=False),
+            intensity_scale_state=intensity_scale_state,
+            processing_state=_processing_state_for(intensity_scale_state),
         )
 
 
 def test_dataset_boundary_accepts_supported_established_state() -> None:
     supported_state = (
-        DatasetTransformationResolver(transformer=IdentityTransformer())
+        DatasetIntensityScaleResolver(transformer=IdentityTransformer())
         .run(
             phospho=_phospho(),
             total=None,
         )
-        .transformation_state
+        .intensity_scale_state
     )
     dataset = AnalysisReadyPhosphoDataset(
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
-        transformation_state=supported_state,
+        intensity_scale_state=supported_state,
+        processing_state=_processing_state_for(supported_state),
     )
-    assert dataset.transformation_state.is_established
+    assert dataset.intensity_scale_state.is_established
 
 
 def test_direct_mint_established_raw_is_rejected() -> None:
@@ -217,7 +231,7 @@ def test_direct_mint_established_raw_is_rejected() -> None:
         InvalidTransformationStateError,
         match="can be established only through supported PhosPy",
     ):
-        TransformationState.established_raw(has_total_matrix=False)
+        IntensityScaleState.established_raw(has_total_matrix=False)
 
 
 def test_direct_establishment_function_call_is_rejected() -> None:
@@ -225,8 +239,8 @@ def test_direct_establishment_function_call_is_rejected() -> None:
         InvalidTransformationStateError,
         match="can be established only through supported PhosPy",
     ):
-        establish_transformation_state(
-            TransformationState.raw(has_total_matrix=False),
+        establish_intensity_scale_state(
+            IntensityScaleState.raw(has_total_matrix=False),
             established_via="phospy.datasets.builders.transformation_resolver",
         )
 
@@ -236,16 +250,16 @@ def test_fake_authority_object_is_rejected_even_with_supported_source() -> None:
         InvalidTransformationStateError,
         match="can be established only through supported PhosPy",
     ):
-        establish_transformation_state(
-            TransformationState.raw(has_total_matrix=False),
+        establish_intensity_scale_state(
+            IntensityScaleState.raw(has_total_matrix=False),
             established_via="phospy.datasets.builders.transformation_resolver",
             _authority=object(),
         )
 
 
 def test_dataset_boundary_distinguishes_declared_from_supported_state() -> None:
-    declared = TransformationState.raw(has_total_matrix=False)
-    supported = supported_linear_state(has_total_matrix=False)
+    declared = IntensityScaleState.raw(has_total_matrix=False)
+    supported = supported_linear_intensity_scale_state(has_total_matrix=False)
     assert not declared.is_established
     assert supported.is_established
 
@@ -265,19 +279,19 @@ def test_identity_transformer_is_strict_passthrough_establisher() -> None:
 def test_resolver_can_establish_log2_state_for_identity_transformer_when_expected() -> (
     None
 ):
-    resolver = DatasetTransformationResolver(transformer=IdentityTransformer())
+    resolver = DatasetIntensityScaleResolver(transformer=IdentityTransformer())
     resolved = resolver.run(
         phospho=_phospho(),
         total=_total(),
-        expected_kind=TransformationKind.LOG2,
+        expected_scale_kind=IntensityScaleKind.LOG2,
     )
-    assert resolved.transformation_state.phospho.kind.value == "log2"
-    assert resolved.transformation_state.total is not None
-    assert resolved.transformation_state.total.kind.value == "log2"
+    assert resolved.intensity_scale_state.phospho.kind.value == "log2"
+    assert resolved.intensity_scale_state.total is not None
+    assert resolved.intensity_scale_state.total.kind.value == "log2"
 
 
 def test_bundle_reconstruction_lane_establishes_state() -> None:
-    state = transformation_state_from_payload(
+    state = intensity_scale_state_from_payload(
         {
             "phospho": {
                 "kind": "linear",
@@ -289,4 +303,4 @@ def test_bundle_reconstruction_lane_establishes_state() -> None:
     )
 
     assert state.is_established
-    assert state.established_via == "phospy.io.bundles._shared.transformation_state"
+    assert state.established_via == "phospy.io.bundles._shared.intensity_scale_state"

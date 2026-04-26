@@ -4,16 +4,16 @@ from phospy.errors.base import PhosPyError
 
 
 class PhosPyTransformationError(PhosPyError):
-    """Transformation state or transformer failure."""
+    """Intensity scale state or transformer failure."""
 
 
 class InvalidTransformationStateError(PhosPyTransformationError):
-    """Transformation state violates domain invariants."""
+    """Intensity scale state violates domain invariants."""
 
 
 class TransformerExecutionError(PhosPyTransformationError):
-    """A transformer failed while establishing transformation state."""
+    """A transformer failed while establishing intensity scale state."""
 
 
 class TransformationStateEstablishmentError(PhosPyTransformationError):
-    """Transformation state could not be established with supported evidence."""
+    """Intensity scale state could not be established with supported evidence."""

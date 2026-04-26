@@ -12,7 +12,7 @@ def test_dataset_boundary_constructor_has_no_canonicalization_or_default_repair(
     post_init_source = inspect.getsource(AnalysisReadyPhosphoDataset.__post_init__)
     from_owned_source = inspect.getsource(AnalysisReadyPhosphoDataset._from_owned)
     assert "canonicalize_site_" not in post_init_source
-    assert "TransformationState.raw" not in from_owned_source
+    assert "IntensityScaleState.raw" not in from_owned_source
 
 
 def test_reference_boundary_constructor_has_no_canonicalization_or_dedup_repair() -> (

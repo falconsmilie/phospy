@@ -38,7 +38,7 @@ class InterpretedDatasetBuildRequest:
 
 @dataclass(frozen=True, slots=True)
 class PreprocessedDatasetBuildTables:
-    """Tables after internal preprocessing and before state establishment."""
+    """Tables after internal preprocessing and before scale-state establishment."""
 
     phospho: pd.DataFrame
     site_metadata: pd.DataFrame
@@ -78,7 +78,7 @@ class DatasetBuildExecutorContract(Protocol):
 
 
 class DatasetPreprocessorContract(Protocol):
-    """Internal contract for dataset preprocessing before transformation setup."""
+    """Internal contract for dataset preprocessing before scale-state setup."""
 
     def run(
         self,

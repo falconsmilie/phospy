@@ -245,7 +245,8 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
 
 def _assert_kinase_result_equal(left, right) -> None:
     assert left.dataset.organism == right.dataset.organism
-    assert left.dataset.transformation_state == right.dataset.transformation_state
+    assert left.dataset.intensity_scale_state == right.dataset.intensity_scale_state
+    assert left.dataset.processing_state == right.dataset.processing_state
     assert left.references.organism == right.references.organism
 
     pd.testing.assert_frame_equal(

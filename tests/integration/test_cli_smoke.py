@@ -8,7 +8,7 @@ from phospy.cli import main as cli_main
 from phospy.datasets.builders.executor import DatasetBuildExecutor
 from phospy.datasets.builders.public import AnalysisReadyDatasetBuilder
 from phospy.datasets.builders.transformation_resolver import (
-    DatasetTransformationResolver,
+    DatasetIntensityScaleResolver,
 )
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
 
@@ -180,7 +180,7 @@ def test_cli_dataset_build_fails_clearly_when_state_cannot_be_established(
 ) -> None:
     failing_builder = AnalysisReadyDatasetBuilder(
         executor=DatasetBuildExecutor(
-            transformation_resolver=DatasetTransformationResolver(transformer=None),
+            intensity_scale_resolver=DatasetIntensityScaleResolver(transformer=None),
         )
     )
     monkeypatch.setattr(
@@ -212,7 +212,7 @@ def test_cli_dataset_build_fails_clearly_when_state_cannot_be_established(
 
     assert exit_code == 2
     assert "TransformationStateEstablishmentError" in captured.err
-    assert "no supported transformation establisher is configured" in captured.err
+    assert "no supported intensity-scale establisher is configured" in captured.err
 
 
 def test_cli_rejects_removed_user_declared_transformation_flag(

@@ -25,8 +25,11 @@ from phospy.workflows.kinase.contracts import (
 )
 from phospy.workflows.kinase.executor import KinaseWorkflowExecutor
 from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
-from tests.support.transformation_states import supported_linear_state
 
 
 def _dataset(
@@ -56,7 +59,10 @@ def _dataset(
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
     )
 
 

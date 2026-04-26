@@ -45,7 +45,10 @@ from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
 )
-from tests.support.transformation_states import supported_linear_state
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
 
 
 def _phospho() -> pd.DataFrame:
@@ -74,7 +77,10 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
     )
 
 
@@ -198,7 +204,7 @@ def test_builder_run_contract_builds_analysis_ready_dataset() -> None:
         )
     )
     assert isinstance(built, AnalysisReadyPhosphoDataset)
-    assert isinstance(built.transformation_state.label, str)
+    assert isinstance(built.intensity_scale_state.label, str)
 
 
 def test_builder_orchestration_uses_collaborators() -> None:

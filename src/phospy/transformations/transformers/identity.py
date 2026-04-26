@@ -8,7 +8,7 @@ from phospy.transformations._authority import (
     _identity_transformer_establishment_authority,
 )
 from phospy.transformations.contracts import TransformationResult
-from phospy.transformations.models import TransformationState
+from phospy.transformations.models import IntensityScaleState
 
 
 class IdentityTransformer:
@@ -26,7 +26,7 @@ class IdentityTransformer:
         return TransformationResult(
             phospho=phospho,
             total=total,
-            state=TransformationState.established_raw(
+            state=IntensityScaleState.established_raw(
                 has_total_matrix=total is not None,
                 _authority=_identity_transformer_establishment_authority(),
             ),

@@ -21,7 +21,7 @@ from phospy.api import (
 )
 from phospy.errors import DatasetValidationError, PhosPyInputError
 from phospy.references.resolution import ReferenceResolver
-from phospy.transformations.models import TransformationState
+from phospy.transformations.models import IntensityScaleState
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
 
 pytestmark = pytest.mark.integration
@@ -112,10 +112,23 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
     )
     pdt.assert_frame_equal(built.phospho, phospho)
     assert list(built.site_metadata.columns) == ["gene_symbol", "site", "site_sequence"]
-    assert built.transformation_state == TransformationState.raw(has_total_matrix=False)
+    assert built.intensity_scale_state == IntensityScaleState.raw(
+        has_total_matrix=False
+    )
+    assert built.processing_state.intensity_scale == built.intensity_scale_state
+    assert built.processing_state.missing_data.policy == "forbid"
+    assert built.processing_state.missing_data.imputed is False
+    assert built.processing_state.missing_data.complete_matrix is True
+    assert built.processing_state.normalisation.policy == "none"
+    assert built.processing_state.total_protein_correction.policy == "none"
+    assert built.processing_state.total_protein_correction.applied is False
+    assert built.processing_state.site_matrix.policy == "as_input"
+    assert built.processing_state.site_matrix.constructed is False
+    assert built.processing_state.comparisons.policy == "none"
+    assert built.processing_state.comparisons.pairs is None
 
 
-def test_dataset_builder_establishes_transformation_state_via_supported_path() -> None:
+def test_dataset_builder_establishes_intensity_scale_state_via_supported_path() -> None:
     phospho = load_rat_l6_phospho().head(8).copy(deep=True)
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
@@ -124,11 +137,11 @@ def test_dataset_builder_establishes_transformation_state_via_supported_path() -
             organism=Organism.RAT,
         )
     )
-    assert built.transformation_state.label == "linear"
-    assert built.transformation_state.is_established
-    assert built.transformation_state.established_via is not None
+    assert built.intensity_scale_state.label == "linear"
+    assert built.intensity_scale_state.is_established
+    assert built.intensity_scale_state.established_via is not None
     assert (
-        built.transformation_state.phospho.established_by
+        built.intensity_scale_state.phospho.established_by
         == "phospy.transformations.transformers.identity"
     )
 
@@ -152,8 +165,8 @@ def test_dataset_builder_preserves_total_matrix_and_establishes_linear_state() -
     )
     assert built.total is not None
     pdt.assert_frame_equal(built.total, total)
-    assert built.transformation_state == TransformationState.raw(has_total_matrix=True)
-    assert built.transformation_state.label == "linear"
+    assert built.intensity_scale_state == IntensityScaleState.raw(has_total_matrix=True)
+    assert built.intensity_scale_state.label == "linear"
 
 
 def test_dataset_builder_applies_total_protein_correction_when_requested() -> None:
@@ -193,7 +206,9 @@ def test_dataset_builder_applies_total_protein_correction_when_requested() -> No
     expected = phospho - total_by_site
     pdt.assert_frame_equal(built.phospho, expected)
     pdt.assert_frame_equal(built.total, total)
-    assert built.transformation_state == TransformationState.raw(has_total_matrix=True)
+    assert built.intensity_scale_state == IntensityScaleState.raw(has_total_matrix=True)
+    assert built.processing_state.total_protein_correction.policy == "ratio_to_total"
+    assert built.processing_state.total_protein_correction.applied is True
 
 
 def test_dataset_builder_requires_total_when_ratio_correction_is_requested() -> None:
@@ -292,6 +307,8 @@ def test_dataset_builder_supports_row_median_missing_data_preprocessing_policy()
     ]
     assert built.phospho.isna().to_numpy().sum() == 0
     assert built.phospho.loc[original_index[0], phospho.columns[0]] == expected_imputed
+    assert built.processing_state.missing_data.policy == "impute_row_median"
+    assert built.processing_state.missing_data.imputed is True
 
 
 def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> None:
@@ -327,6 +344,8 @@ def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> No
     assert built.phospho.iloc[0, 1] == pytest.approx(2.5)
     assert built.site_metadata.index.tolist() == ["MAPK14;Y182;"]
     assert built.site_metadata.loc["MAPK14;Y182;", "site_sequence"] == "SEQ_B"
+    assert built.processing_state.site_matrix.policy == "build_from_metadata"
+    assert built.processing_state.site_matrix.constructed is True
 
 
 def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> None:
@@ -729,6 +748,9 @@ def test_dataset_builder_builds_inferred_comparisons_from_sample_metadata() -> N
     )
     assert merged.shape[0] == built.comparisons.shape[0]
     assert (merged.loc[:, "effect_size"] == merged.loc[:, "expected_effect_size"]).all()
+    assert built.processing_state.comparisons.policy == "sample_metadata_pairs"
+    assert built.processing_state.comparisons.sample_group_column == "comparison_group"
+    assert built.processing_state.comparisons.pairs is None
 
 
 def test_dataset_builder_rejects_comparison_groups_missing_from_metadata() -> None:
@@ -837,7 +859,7 @@ def test_dataset_builder_log2_preprocessing_records_operation_and_state() -> Non
         )
     )
 
-    assert built.transformation_state.label == "log2"
+    assert built.intensity_scale_state.label == "log2"
     assert built.preprocessing_report is not None
     operations = built.preprocessing_report.operations
     log2_operation = operations.loc[
@@ -847,6 +869,7 @@ def test_dataset_builder_log2_preprocessing_records_operation_and_state() -> Non
     assert log2_operation.shape[0] == 1
     assert log2_operation.iloc[0]["operation"] == "log2"
     assert log2_operation.iloc[0]["parameters"] == {"pseudocount": 1.0}
+    assert built.processing_state.intensity_scale == built.intensity_scale_state
 
 
 def test_dataset_builder_median_center_preprocessing_records_operation() -> None:
@@ -885,6 +908,7 @@ def test_dataset_builder_median_center_preprocessing_records_operation() -> None
     assert normalisation_operation.shape[0] == 1
     assert normalisation_operation.iloc[0]["operation"] == "median_center"
     assert normalisation_operation.iloc[0]["parameters"] == {}
+    assert built.processing_state.normalisation.policy == "median_center"
 
 
 def test_dataset_builder_quantile_preprocessing_records_operation() -> None:
@@ -923,6 +947,7 @@ def test_dataset_builder_quantile_preprocessing_records_operation() -> None:
     assert normalisation_operation.shape[0] == 1
     assert normalisation_operation.iloc[0]["operation"] == "quantile"
     assert normalisation_operation.iloc[0]["parameters"] == {}
+    assert built.processing_state.normalisation.policy == "quantile"
 
 
 def test_reference_bundle_rat_tables_are_structurally_coherent() -> None:

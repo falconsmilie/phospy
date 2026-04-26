@@ -20,7 +20,13 @@ from phospy.api.configs import (
 )
 from phospy.api.datasets import (
     AnalysisReadyPhosphoDataset,
+    ComparisonState,
     DatasetPreprocessingReport,
+    DatasetProcessingState,
+    MissingDataState,
+    NormalisationState,
+    SiteMatrixState,
+    TotalProteinCorrectionState,
 )
 from phospy.api.enums import Organism, ReferencePreset
 from phospy.api.requests import (
@@ -60,11 +66,22 @@ from phospy.errors import (
     WorkflowValidationError,
 )
 from phospy.references.models import ReferenceBundle
+from phospy.transformations.models import (
+    IntensityScaleKind,
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+)
 
 __all__ = [
     "AnalysisReadyDatasetBuilder",
     "AnalysisReadyPhosphoDataset",
+    "ComparisonState",
     "DatasetPreprocessingReport",
+    "DatasetProcessingState",
+    "MissingDataState",
+    "NormalisationState",
+    "SiteMatrixState",
+    "TotalProteinCorrectionState",
     "DatasetComparisonBuildingConfig",
     "DatasetIntensityTransformConfig",
     "DatasetBuildRequest",
@@ -82,6 +99,9 @@ __all__ = [
     "KinaseWorkflowRequest",
     "KinaseWorkflowResult",
     "Organism",
+    "IntensityScaleKind",
+    "IntensityScaleState",
+    "MatrixIntensityScaleState",
     "ReferenceBundle",
     "ReferencePreset",
     "SignalomeConfig",

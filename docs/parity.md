@@ -121,7 +121,7 @@ These lanes are intentionally supported but not legacy-equivalent by contract:
   preserve profile evidence, and workflow candidate filtering uses
   `score_threshold=0.0` with `inclusion=1`
 - builder transformation establishment is intentionally narrow
-  (`transformation_state.label == "linear"` via identity establishment path)
+  (`intensity_scale_state.label == "linear"` via identity establishment path)
 - signalome requires explicit `site_metadata.protein_id` (no legacy
   site-id-prefix fallback)
 - signalome public entrypoint is contracted to

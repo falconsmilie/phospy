@@ -8,6 +8,7 @@ from pathlib import Path
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
+from phospy.io.bundles._shared.processing_state import processing_state_to_payload
 from phospy.io.readers.tables import table_suffix_for_format, write_table
 from phospy.provenance.serialization import to_payload as provenance_to_payload
 
@@ -47,7 +48,8 @@ def publish_dataset(
         manifest_path,
         {
             "organism": None if dataset.organism is None else dataset.organism.value,
-            "transformation_state": dataset.transformation_state.label,
+            "intensity_scale": dataset.intensity_scale_state.label,
+            "processing_state": processing_state_to_payload(dataset.processing_state),
             "output_format": output_format,
             "provenance": (
                 None

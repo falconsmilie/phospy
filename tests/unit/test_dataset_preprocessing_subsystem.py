@@ -24,12 +24,14 @@ from phospy.datasets.builders.contracts import (
 from phospy.datasets.builders.executor import DatasetBuildExecutor
 from phospy.datasets.builders.interpreter import DatasetBuildRequestInterpreter
 from phospy.datasets.builders.preprocessing import DatasetPreprocessor
-from phospy.datasets.builders.transformation_resolver import ResolvedTransformation
+from phospy.datasets.builders.transformation_resolver import ResolvedIntensityScale
 from phospy.datasets.preprocessing.models import PreprocessingPlan, PreprocessingState
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
 from phospy.errors.input import PhosPyInputError
 from phospy.references.models import Organism
-from tests.support.transformation_states import supported_linear_state
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -1167,21 +1169,23 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
             *,
             phospho: pd.DataFrame,
             total: pd.DataFrame | None,
-            expected_kind: object | None = None,
-        ) -> ResolvedTransformation:
+            expected_scale_kind: object | None = None,
+        ) -> ResolvedIntensityScale:
             calls.append("resolver")
             assert phospho is preprocessed_tables.phospho
             assert total is preprocessed_tables.total
-            assert expected_kind is not None
-            return ResolvedTransformation(
+            assert expected_scale_kind is not None
+            return ResolvedIntensityScale(
                 phospho=phospho,
                 total=total,
-                transformation_state=supported_linear_state(has_total_matrix=True),
+                intensity_scale_state=supported_linear_intensity_scale_state(
+                    has_total_matrix=True
+                ),
             )
 
     built = DatasetBuildExecutor(
         preprocessor=PreprocessorSpy(),
-        transformation_resolver=ResolverSpy(),
+        intensity_scale_resolver=ResolverSpy(),
     ).run(interpreted)
 
     pdt.assert_frame_equal(built.phospho, preprocessed_tables.phospho)

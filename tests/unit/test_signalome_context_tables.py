@@ -28,7 +28,10 @@ from phospy.signalomes.science import (
 from phospy.workflows.signalome.contracts import ResolvedSignalomeWorkflowRequest
 from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
 from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
-from tests.support.transformation_states import supported_linear_state
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -53,7 +56,10 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
     )
 
 

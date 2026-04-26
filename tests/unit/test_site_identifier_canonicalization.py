@@ -18,7 +18,10 @@ from phospy.errors import (
 )
 from phospy.references.models import ReferencePreset
 from phospy.references.resolution import ReferenceResolver
-from tests.support.transformation_states import supported_linear_state
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
 
 
 def test_builder_canonicalizes_site_ids_and_reorders_site_metadata() -> None:
@@ -123,7 +126,10 @@ def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
                 index=pd.Index([101, 202], name="site_id"),
             ),
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=supported_linear_processing_state(has_total_matrix=False),
         )
 
 
@@ -157,12 +163,15 @@ def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
                 ),
             ),
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=supported_linear_processing_state(has_total_matrix=False),
         )
 
 
-def test_dataset_boundary_requires_explicit_transformation_state() -> None:
-    with pytest.raises(TypeError, match="missing 1 required positional argument"):
+def test_dataset_boundary_requires_explicit_intensity_and_processing_state() -> None:
+    with pytest.raises(TypeError, match="missing .* required positional argument"):
         from phospy.datasets.models import AnalysisReadyPhosphoDataset
 
         AnalysisReadyPhosphoDataset(

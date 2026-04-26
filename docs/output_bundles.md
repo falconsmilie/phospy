@@ -69,7 +69,8 @@ Signalome manifest:
   - `module_selection_diagnostics` payload (strategy, selected count,
     threshold/candidate diagnostics, and degeneracy counters)
 
-Both manifests store dataset organism and full transformation-state payload.
+Both manifests store dataset organism, full `intensity_scale_state` payload,
+and full `processing_state` payload.
 
 `provenance` is machine-readable run metadata (`RunProvenance`) and includes:
 

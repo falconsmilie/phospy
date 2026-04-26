@@ -7,7 +7,7 @@ from typing import Protocol
 
 import pandas as pd
 
-from phospy.transformations.models import TransformationState
+from phospy.transformations.models import IntensityScaleState
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,11 +16,11 @@ class TransformationResult:
 
     phospho: pd.DataFrame
     total: pd.DataFrame | None
-    state: TransformationState
+    state: IntensityScaleState
 
 
 class Transformer(Protocol):
-    """Contract for components that establish dataset transformation state."""
+    """Contract for components that establish dataset intensity scale state."""
 
     def run(
         self,

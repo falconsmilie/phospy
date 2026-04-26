@@ -27,7 +27,8 @@ def test_kinase_workflow_runs_without_dataset_site_sequence_column() -> None:
     dataset_without_sequence = AnalysisReadyPhosphoDataset(
         phospho=dataset.phospho,
         site_metadata=dataset.site_metadata.drop(columns=["site_sequence"]),
-        transformation_state=dataset.transformation_state,
+        intensity_scale_state=dataset.intensity_scale_state,
+        processing_state=dataset.processing_state,
         sample_metadata=dataset.sample_metadata,
         total=dataset.total,
         organism=dataset.organism,

@@ -25,9 +25,12 @@ from phospy.errors import (
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
 from phospy.references.resolution import ReferenceResolver
 from phospy.transformations.models import (
-    MatrixTransformationState,
+    MatrixIntensityScaleState,
 )
-from tests.support.transformation_states import supported_linear_state
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
 
 
 def _phospho() -> pd.DataFrame:
@@ -72,13 +75,24 @@ def _valid_bundle(organism: Organism = Organism.RAT) -> ReferenceBundle:
     )
 
 
+def _supported_dataset_state(*, has_total_matrix: bool) -> dict[str, object]:
+    return {
+        "intensity_scale_state": supported_linear_intensity_scale_state(
+            has_total_matrix=has_total_matrix
+        ),
+        "processing_state": supported_linear_processing_state(
+            has_total_matrix=has_total_matrix
+        ),
+    }
+
+
 def test_dataset_allows_missing_site_sequence_column() -> None:
     bad_site_metadata = _site_metadata().drop(columns=["site_sequence"])
     dataset = AnalysisReadyPhosphoDataset(
         phospho=_phospho(),
         site_metadata=bad_site_metadata,
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        **_supported_dataset_state(has_total_matrix=False),
     )
     assert "site_sequence" not in dataset.site_metadata.columns
 
@@ -88,7 +102,7 @@ def test_dataset_exposes_optional_preprocessing_report_field() -> None:
         phospho=_phospho(),
         site_metadata=_site_metadata(),
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        **_supported_dataset_state(has_total_matrix=False),
     )
 
     assert hasattr(dataset, "preprocessing_report")
@@ -106,7 +120,7 @@ def test_dataset_rejects_blank_gene_symbol_values() -> None:
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
@@ -121,7 +135,7 @@ def test_dataset_rejects_blank_site_values() -> None:
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
@@ -138,7 +152,7 @@ def test_dataset_rejects_blank_site_sequence_values() -> None:
             phospho=_phospho(),
             site_metadata=bad_site_metadata,
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
@@ -148,7 +162,7 @@ def test_dataset_rejects_empty_phospho_matrix() -> None:
             phospho=pd.DataFrame(),
             site_metadata=pd.DataFrame(),
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
@@ -160,7 +174,7 @@ def test_dataset_rejects_nan_in_phospho_matrix() -> None:
             phospho=phospho,
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
@@ -174,7 +188,7 @@ def test_dataset_rejects_inf_in_phospho_matrix() -> None:
             phospho=phospho,
             site_metadata=_site_metadata(),
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
@@ -207,27 +221,28 @@ def test_builder_rejects_sparse_missingness_in_phospho_matrix() -> None:
         )
 
 
-def test_dataset_validates_transformation_state_for_total_matrix() -> None:
+def test_dataset_validates_intensity_scale_state_for_total_matrix() -> None:
     with pytest.raises(TransformationValidationError):
         AnalysisReadyPhosphoDataset(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_a": [2.0]}, index=["GENEA"]),
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
-def test_dataset_rejects_mixed_transformation_kind_between_phospho_and_total() -> None:
-    supported_state = supported_linear_state(has_total_matrix=True)
-    object.__setattr__(supported_state, "total", MatrixTransformationState.log2())
+def test_dataset_rejects_mixed_intensity_scale_kind_between_phospho_and_total() -> None:
+    supported_state = supported_linear_intensity_scale_state(has_total_matrix=True)
+    object.__setattr__(supported_state, "total", MatrixIntensityScaleState.log2())
     with pytest.raises(TransformationValidationError):
         AnalysisReadyPhosphoDataset(
             phospho=_phospho(),
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_a": [2.0]}, index=["GENEA"]),
             organism=Organism.RAT,
-            transformation_state=supported_state,
+            intensity_scale_state=supported_state,
+            processing_state=supported_linear_processing_state(has_total_matrix=True),
         )
 
 
@@ -240,7 +255,7 @@ def test_dataset_rejects_inf_in_total_matrix() -> None:
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_a": [float("-inf")]}, index=["MAPK14"]),
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=True),
+            **_supported_dataset_state(has_total_matrix=True),
         )
 
 
@@ -254,7 +269,7 @@ def test_dataset_rejects_total_matrix_sample_mismatch() -> None:
             site_metadata=_site_metadata(),
             total=pd.DataFrame({"sample_b": [2.0]}, index=["MAPK14"]),
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=True),
+            **_supported_dataset_state(has_total_matrix=True),
         )
 
 
@@ -267,7 +282,7 @@ def test_dataset_accepts_aligned_numeric_comparisons() -> None:
             index=["MAPK14;Y182;"],
         ),
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        **_supported_dataset_state(has_total_matrix=False),
     )
     assert dataset.comparisons is not None
     assert dataset.comparisons.loc["MAPK14;Y182;", "p_group1_group4"] == 3.0
@@ -286,7 +301,7 @@ def test_dataset_rejects_comparisons_index_mismatch() -> None:
                 index=["AKT1;T308;"],
             ),
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
@@ -662,7 +677,7 @@ def test_reference_resolver_accepts_explicit_bundle() -> None:
     assert resolved is bundle
 
 
-def test_builder_establishes_transformation_state_with_supported_path() -> None:
+def test_builder_establishes_intensity_scale_state_with_supported_path() -> None:
     built = AnalysisReadyDatasetBuilder().run(
         DatasetBuildRequest(
             phospho=_phospho(),
@@ -670,10 +685,10 @@ def test_builder_establishes_transformation_state_with_supported_path() -> None:
             organism=Organism.RAT,
         )
     )
-    assert built.transformation_state.label == "linear"
-    assert built.transformation_state.is_established
-    assert built.transformation_state.established_via is not None
+    assert built.intensity_scale_state.label == "linear"
+    assert built.intensity_scale_state.is_established
+    assert built.intensity_scale_state.established_via is not None
     assert (
-        built.transformation_state.phospho.established_by
+        built.intensity_scale_state.phospho.established_by
         == "phospy.transformations.transformers.identity"
     )

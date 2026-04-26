@@ -25,10 +25,13 @@ from phospy.signalomes.science import (
     build_module_assignments,
 )
 from phospy.workflows.kinase.science import build_kinase_profiles
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
 from tests.support.rewrite_fixture_data import (
     load_adaptive_sampling_edge_combined_scores,
 )
-from tests.support.transformation_states import supported_linear_state
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -55,7 +58,10 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
     )
 
 

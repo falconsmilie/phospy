@@ -39,8 +39,8 @@
 
 ### Dataset contract (supersedes reset-era draft wording)
 
-- Dataset model uses `transformation_state` (ADR-006), not reset-era
-  `intensity_scale` wording.
+- Dataset model uses explicit `intensity_scale_state` and `processing_state`
+  (ADR-006), not a broad `transformation_state` label.
 - Required site metadata columns are `gene_symbol` and `site`; `site_sequence`
   is optional at final dataset boundary and validated when present (ADR-003
   update note; `src/phospy/validation/datasets/analysis_ready.py`).
@@ -102,7 +102,8 @@ The following principles remain valid and are now enforced by ADRs/code:
 - Workflow staging: `docs/adr/adr_0002_internal_workflow_architecture.md`
 - Dataset boundary: `docs/adr/adr_0003-analysis_ready_dataset_and_preprocessing_boundary.md`
 - Result model rules: `docs/adr/adr_0005__result_model_design.md`
-- Transformation-state contract: `docs/adr/adr_0006_transformation_state_and_transformer_contract.md`
+- Intensity-scale and processing-state contract:
+  `docs/adr/adr_0006_transformation_state_and_transformer_contract.md`
 - Builder public contract: `docs/adr/adr_0011_builder_public_api_contract.md`
 - Fresh-start rewrite strategy: `docs/adr/adr_0012_rewrite_roadmap_and_fresh_start_plan.md`
 - Scientific parity policy: `docs/adr/adr_0013_scientific_parity_strategy_and_parity_testing_policy.md`

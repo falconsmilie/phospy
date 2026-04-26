@@ -40,7 +40,10 @@ from phospy.signalomes.models import (
     SignalomeAssignments,
     SignalomeModules,
 )
-from tests.support.transformation_states import supported_linear_state
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
 
 TOP_LEVEL_ERROR_FACADE = {
     "PhosPyError",
@@ -70,6 +73,17 @@ NON_FACADE_ERROR_TYPES = {
 }
 
 
+def _supported_dataset_state(*, has_total_matrix: bool) -> dict[str, object]:
+    return {
+        "intensity_scale_state": supported_linear_intensity_scale_state(
+            has_total_matrix=has_total_matrix
+        ),
+        "processing_state": supported_linear_processing_state(
+            has_total_matrix=has_total_matrix
+        ),
+    }
+
+
 def _dataset() -> AnalysisReadyPhosphoDataset:
     index = pd.Index(["MAPK14;Y182;"], name="site_id")
     return AnalysisReadyPhosphoDataset(
@@ -83,7 +97,7 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             index=index,
         ),
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        **_supported_dataset_state(has_total_matrix=False),
     )
 
 
@@ -269,7 +283,7 @@ def test_dataset_constructor_rejects_non_dataframe_with_dataset_validation_error
                 index=["MAPK14;Y182;"],
             ),
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
@@ -289,7 +303,7 @@ def test_dataset_constructor_rejects_blank_gene_symbol_values() -> None:
                 index=["MAPK14;Y182;"],
             ),
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
@@ -309,7 +323,7 @@ def test_dataset_constructor_rejects_blank_site_values() -> None:
                 index=["MAPK14;Y182;"],
             ),
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
@@ -319,7 +333,7 @@ def test_dataset_constructor_accepts_site_identity_coherence() -> None:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        **_supported_dataset_state(has_total_matrix=False),
     )
     assert list(dataset.phospho.index) == ["MAPK14;Y182;", "AKT1;T308;"]
 
@@ -335,7 +349,7 @@ def test_dataset_constructor_rejects_site_identity_gene_symbol_mismatch() -> Non
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
@@ -350,7 +364,7 @@ def test_dataset_constructor_rejects_site_identity_site_mismatch() -> None:
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
@@ -365,7 +379,7 @@ def test_dataset_constructor_rejects_when_one_row_has_site_identity_mismatch() -
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 
@@ -380,7 +394,7 @@ def test_dataset_constructor_allows_missing_site_sequence_column() -> None:
             index=["MAPK14;Y182;"],
         ),
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        **_supported_dataset_state(has_total_matrix=False),
     )
     assert "site_sequence" not in dataset.site_metadata.columns
 
@@ -401,7 +415,7 @@ def test_dataset_constructor_rejects_blank_site_sequence_values() -> None:
                 index=["MAPK14;Y182;"],
             ),
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            **_supported_dataset_state(has_total_matrix=False),
         )
 
 

@@ -12,13 +12,16 @@ from phospy.io.bundles._kinase.constants import (
     KINASE_BUNDLE_KIND,
     KINASE_BUNDLE_MANIFEST_VERSION,
 )
+from phospy.io.bundles._shared.intensity_scale_state import (
+    intensity_scale_state_to_payload,
+)
 from phospy.io.bundles._shared.primitives import (
     require_int,
     require_mapping,
     require_str,
 )
-from phospy.io.bundles._shared.transformation_state import (
-    transformation_state_to_payload,
+from phospy.io.bundles._shared.processing_state import (
+    processing_state_to_payload,
 )
 from phospy.provenance.serialization import to_payload as provenance_to_payload
 
@@ -62,8 +65,11 @@ def build_manifest(
                     if result.dataset.organism is None
                     else result.dataset.organism.value
                 ),
-                "transformation_state": transformation_state_to_payload(
-                    result.dataset.transformation_state
+                "intensity_scale_state": intensity_scale_state_to_payload(
+                    result.dataset.intensity_scale_state
+                ),
+                "processing_state": processing_state_to_payload(
+                    result.dataset.processing_state
                 ),
             },
             "tables": dict(dataset_tables),

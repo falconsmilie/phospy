@@ -9,18 +9,21 @@ from phospy.api.results import KinaseWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._kinase.manifest import KinaseManifestSections
+from phospy.io.bundles._shared.intensity_scale_state import (
+    intensity_scale_state_from_payload,
+)
 from phospy.io.bundles._shared.organisms import (
     parse_optional_organism,
     parse_required_organism,
 )
 from phospy.io.bundles._shared.primitives import require_mapping
+from phospy.io.bundles._shared.processing_state import (
+    processing_state_from_payload,
+)
 from phospy.io.bundles._shared.tables import (
     read_optional_series,
     read_optional_table,
     read_required_table,
-)
-from phospy.io.bundles._shared.transformation_state import (
-    transformation_state_from_payload,
 )
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.provenance.serialization import from_payload as provenance_from_payload
@@ -68,10 +71,16 @@ def reconstruct_kinase_result(
             sections.dataset_metadata.get("organism"),
             field_name="bundle manifest.dataset.metadata.organism",
         ),
-        transformation_state=transformation_state_from_payload(
+        intensity_scale_state=intensity_scale_state_from_payload(
             require_mapping(
-                sections.dataset_metadata.get("transformation_state"),
-                field_name="bundle manifest.dataset.metadata.transformation_state",
+                sections.dataset_metadata.get("intensity_scale_state"),
+                field_name="bundle manifest.dataset.metadata.intensity_scale_state",
+            )
+        ),
+        processing_state=processing_state_from_payload(
+            require_mapping(
+                sections.dataset_metadata.get("processing_state"),
+                field_name="bundle manifest.dataset.metadata.processing_state",
             )
         ),
     )

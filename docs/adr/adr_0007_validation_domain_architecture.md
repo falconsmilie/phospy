@@ -18,7 +18,7 @@ The decision is to establish validation as its own internal domain. Shared lower
 
 Accepted.
 
-This ADR defines the validation architecture that supports the public API, dataset boundary, reference handling, transformation-state contract, and workflow architecture established by earlier ADRs.
+This ADR defines the validation architecture that supports the public API, dataset boundary, reference handling, intensity-scale and processing-state contract, and workflow architecture established by earlier ADRs.
 
 ## Context and Problem Statement
 
@@ -26,7 +26,7 @@ Earlier ADRs have already made validation central to the architecture:
 
 - the dataset boundary depends on strong dataset invariants
 - reference handling depends on structural and compatibility validation
-- transformation state depends on a validated typed contract
+- intensity scale and processing state depend on validated typed contracts
 - workflows are built around validator, interpreter, and executor stages
 
 At the same time, the project direction is clear that validation should remain private. It should not become a standalone public API surface that users are expected to wire manually.
@@ -63,7 +63,8 @@ This validation domain will contain reusable lower-level validation components f
 - metadata column requirements
 - reference bundle validity
 - organism compatibility
-- transformation-state validity
+- intensity-scale validity
+- processing-state validity
 - general numeric and structural constraints
 
 Workflow-level validators will remain part of the workflow architecture, but they will act primarily as composers. They will call the shared validation-domain components and then apply workflow-specific rules. Their job is to validate successfully or fail clearly, not to reshape the request into a new form.
@@ -88,7 +89,8 @@ Examples include:
 - checking required metadata columns
 - checking non-empty structured resources
 - checking enum-like support constraints
-- checking transformation-state presence and type
+- checking intensity-scale-state presence and type
+- checking processing-state presence and type
 - checking organism compatibility rules
 
 These are not workflow-specific business rules. They are shared validation building blocks.
@@ -106,7 +108,7 @@ A workflow validator should:
 
 A workflow validator should not:
 
-- reimplement basic dataset, reference, or transformation checks already owned by the validation domain
+- reimplement basic dataset, reference, or intensity-scale checks already owned by the validation domain
 - become a dumping ground for low-level helper logic
 - expand into a second general-purpose validation framework
 - create dedicated validated DTOs as part of its normal job
@@ -124,7 +126,7 @@ class KinaseWorkflowValidator:
 
     def run(self, request: KinaseWorkflowRequest) -> KinaseWorkflowRequest:
         self._dataset_validator.run(request.dataset)
-        self._transform_validator.run(request.dataset.transformation_state)
+        self._transform_validator.run(request.dataset.intensity_scale_state)
         self._reference_validator.run(request.reference, request.dataset.organism)
         self._validate_workflow_specific_rules(request)
         return request
@@ -189,7 +191,8 @@ It should cover concerns such as:
 - required site metadata columns
 - optional sample metadata alignment
 - optional total matrix alignment
-- transformation-state presence and validity
+- intensity-scale-state presence and validity
+- processing-state presence and validity
 
 `AnalysisReadyPhosphoDataset` may still perform local invariant checks at construction time.
 
@@ -217,16 +220,16 @@ Workflow validators should compose these checks rather than duplicate them.
 
 ## Transformation Validation Direction
 
-Transformation-state validation should live in the validation domain.
+Intensity-scale-state validation should live in the validation domain.
 
 It should cover concerns such as:
 
-- presence of `TransformationState`
-- supported transformation kind
+- presence of `IntensityScaleState`
+- supported intensity scale kind
 - consistency with dataset expectations
-- rejection of unsupported or loosely declared transformation claims
+- rejection of unsupported or loosely declared intensity-scale claims
 
-This keeps transformation validation out of workflow executors and out of scattered dataset helpers.
+This keeps intensity-scale validation out of workflow executors and out of scattered dataset helpers.
 
 ## Builder and Preprocessing Interaction
 
@@ -367,7 +370,7 @@ This ADR complements the earlier architecture decisions.
 - ADR-003 defines the dataset and preprocessing boundary.
 - ADR-004 defines the reference resolution strategy and `ReferenceBundle` contract.
 - ADR-005 defines result-model design.
-- ADR-006 defines the transformation-state and transformer contract.
+- ADR-006 defines the intensity-scale and dataset-processing-state contract.
 - ADR-007 defines how validation is organised and composed across the package.
 
 Together, these ADRs establish:
@@ -377,7 +380,7 @@ Together, these ADRs establish:
 - one consistent internal workflow pattern
 - one explicit reference-resolution path
 - one disciplined result-model approach
-- one stronger transformation-state contract
+- one stronger intensity-scale and processing-state contract
 - one private validation domain with workflow-level composition
 
 ## References

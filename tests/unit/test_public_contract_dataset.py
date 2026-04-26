@@ -78,17 +78,17 @@ def test_builder_exposes_only_run_request_contract() -> None:
     assert hints["return"] is AnalysisReadyPhosphoDataset
 
 
-def test_dataset_build_request_excludes_user_declared_transformation_state() -> None:
+def test_dataset_build_request_excludes_user_declared_intensity_scale_state() -> None:
     request_fields = {field.name for field in fields(DatasetBuildRequest)}
-    assert "transformation_state" not in request_fields
+    assert "intensity_scale_state" not in request_fields
 
 
-def test_dataset_build_request_rejects_user_declared_transformation_state() -> None:
+def test_dataset_build_request_rejects_user_declared_intensity_scale_state() -> None:
     with pytest.raises(TypeError, match="unexpected keyword argument"):
         DatasetBuildRequest(
             phospho=object(),
             site_metadata=object(),
-            transformation_state=object(),  # type: ignore[call-arg]
+            intensity_scale_state=object(),  # type: ignore[call-arg]
         )
 
 

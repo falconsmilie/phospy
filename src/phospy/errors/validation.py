@@ -16,7 +16,7 @@ class ReferenceValidationError(PhosPyValidationError):
 
 
 class TransformationValidationError(PhosPyValidationError):
-    """Transformation-state validation failed."""
+    """Intensity-scale-state validation failed."""
 
 
 class WorkflowValidationError(PhosPyValidationError):

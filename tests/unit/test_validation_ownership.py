@@ -24,7 +24,10 @@ from phospy.validation.ownership import VALIDATION_RULE_OWNERS
 from phospy.validation.references.compatibility import ReferenceCompatibilityValidator
 from phospy.workflows.kinase.public import KinaseWorkflow
 from phospy.workflows.kinase.validator import KinaseWorkflowValidator
-from tests.support.transformation_states import supported_linear_state
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -40,7 +43,10 @@ def _dataset() -> AnalysisReadyPhosphoDataset:
             index=index,
         ),
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
     )
 
 
@@ -109,13 +115,13 @@ def test_dataset_validation_composition_is_outside_validation_subdomains() -> No
     dataset_post_init_source = inspect.getsource(
         AnalysisReadyPhosphoDataset.__post_init__
     )
-    assert "TransformationStateValidator" not in dataset_validator_source
+    assert "IntensityScaleStateValidator" not in dataset_validator_source
     assert (
-        "transformation_state"
+        "intensity_scale_state"
         not in inspect.signature(AnalysisReadyDatasetValidator.run).parameters
     )
     assert "_DATASET_VALIDATOR.run(" in dataset_post_init_source
-    assert "_TRANSFORMATION_STATE_VALIDATOR.run(" in dataset_post_init_source
+    assert "_INTENSITY_SCALE_STATE_VALIDATOR.run(" in dataset_post_init_source
 
 
 def test_major_validation_rules_have_documented_owners() -> None:
@@ -140,5 +146,5 @@ def test_major_validation_rules_have_documented_owners() -> None:
     )
     assert documented["reference bundle structural contract"]
     assert documented["analysis-ready dataset structural contract"]
-    assert documented["dataset/transformation-state coherence"]
+    assert documented["dataset/intensity-scale-state coherence"]
     assert documented["signalome result expanded_signalome field type/ownership"]

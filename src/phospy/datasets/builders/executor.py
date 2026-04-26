@@ -1,7 +1,7 @@
 """Internal executor for the dataset builder path.
 
 The public builder lane stays intentionally narrow: establish supported
-transformation state after applying explicit builder preprocessing policy.
+intensity scale state after applying explicit builder preprocessing policy.
 """
 
 from __future__ import annotations
@@ -16,9 +16,12 @@ from phospy.datasets.builders.contracts import (
     InterpretedDatasetBuildRequest,
     PreprocessedDatasetBuildTables,
 )
-from phospy.datasets.builders.preprocessing import DatasetPreprocessor
+from phospy.datasets.builders.preprocessing import (
+    DatasetPreprocessor,
+    build_dataset_processing_state,
+)
 from phospy.datasets.builders.transformation_resolver import (
-    DatasetTransformationResolver,
+    DatasetIntensityScaleResolver,
 )
 from phospy.datasets.models import (
     AnalysisReadyPhosphoDataset,
@@ -43,7 +46,7 @@ from phospy.provenance.models import (
     TableFingerprint,
 )
 from phospy.transformations.contracts import Transformer
-from phospy.transformations.models import TransformationKind
+from phospy.transformations.models import IntensityScaleKind
 from phospy.transformations.transformers import IdentityTransformer
 
 _ROW_COUNT_COLUMNS = ("stage", "input_rows", "output_rows", "dropped_rows")
@@ -128,12 +131,12 @@ class DatasetBuildExecutor:
         self,
         *,
         transformer: Transformer | None = None,
-        transformation_resolver: DatasetTransformationResolver | None = None,
+        intensity_scale_resolver: DatasetIntensityScaleResolver | None = None,
         preprocessor: DatasetPreprocessorContract | None = None,
     ) -> None:
-        self._transformation_resolver = (
-            transformation_resolver
-            or DatasetTransformationResolver(
+        self._intensity_scale_resolver = (
+            intensity_scale_resolver
+            or DatasetIntensityScaleResolver(
                 transformer=transformer or IdentityTransformer()
             )
         )
@@ -150,19 +153,23 @@ class DatasetBuildExecutor:
                 total=request.total,
                 plan=request.preprocessing_plan,
             )
-            resolved = self._transformation_resolver.run(
+            resolved = self._intensity_scale_resolver.run(
                 phospho=preprocessed.phospho,
                 total=preprocessed.total,
-                expected_kind=_resolve_expected_transformation_kind(
+                expected_scale_kind=_resolve_expected_intensity_scale_kind(
                     request.preprocessing_plan
                 ),
             )
-            if not resolved.transformation_state.is_established:
+            if not resolved.intensity_scale_state.is_established:
                 raise TransformationStateEstablishmentError(
-                    "transformation resolver returned a non-established "
-                    "transformation state; this violates the dataset boundary "
+                    "intensity-scale resolver returned a non-established "
+                    "intensity scale state; this violates the dataset boundary "
                     "contract"
                 )
+            processing_state = build_dataset_processing_state(
+                plan=request.preprocessing_plan,
+                intensity_scale_state=resolved.intensity_scale_state,
+            )
             report = _build_dataset_preprocessing_report(
                 row_counts=preprocessed.preprocessing_row_counts,
                 operations=preprocessed.preprocessing_operations,
@@ -171,7 +178,7 @@ class DatasetBuildExecutor:
                 comparison_group_stats=preprocessed.comparison_group_stats,
                 comparison_pair_stats=preprocessed.comparison_pair_stats,
                 final_dataset_rows=int(len(resolved.phospho.index)),
-                transformation_state_label=resolved.transformation_state.label,
+                intensity_scale_label=resolved.intensity_scale_state.label,
             )
             provenance = _build_dataset_run_provenance(
                 request=request,
@@ -179,7 +186,7 @@ class DatasetBuildExecutor:
                 resolved_phospho=resolved.phospho,
                 resolved_total=resolved.total,
                 preprocessing_trace=preprocessed.preprocessing_trace,
-                transformation_state_label=resolved.transformation_state.label,
+                intensity_scale_label=resolved.intensity_scale_state.label,
             )
             return AnalysisReadyPhosphoDataset._from_owned(
                 phospho=resolved.phospho,
@@ -188,7 +195,8 @@ class DatasetBuildExecutor:
                 total=resolved.total,
                 comparisons=preprocessed.comparisons,
                 organism=request.organism,
-                transformation_state=resolved.transformation_state,
+                intensity_scale_state=resolved.intensity_scale_state,
+                processing_state=processing_state,
                 preprocessing_report=report,
                 provenance=provenance,
             )
@@ -214,7 +222,7 @@ def _build_dataset_preprocessing_report(
     comparison_group_stats: pd.DataFrame | None,
     comparison_pair_stats: pd.DataFrame | None,
     final_dataset_rows: int,
-    transformation_state_label: str,
+    intensity_scale_label: str,
 ) -> DatasetPreprocessingReport:
     base_row_counts = (
         pd.DataFrame.from_records([], columns=_ROW_COUNT_COLUMNS)
@@ -277,9 +285,7 @@ def _build_dataset_preprocessing_report(
                         "step_order": final_step_order,
                         "stage": _FINAL_DATASET_STAGE,
                         "operation": "construct_analysis_ready_dataset",
-                        "parameters": {
-                            "transformation_state_label": transformation_state_label
-                        },
+                        "parameters": {"intensity_scale_label": intensity_scale_label},
                         "input_rows": final_dataset_rows,
                         "output_rows": final_dataset_rows,
                         "notes": "analysis-ready dataset boundary construction",
@@ -301,15 +307,15 @@ def _build_dataset_preprocessing_report(
     )
 
 
-def _resolve_expected_transformation_kind(
+def _resolve_expected_intensity_scale_kind(
     preprocessing_plan: PreprocessingPlan,
-) -> TransformationKind:
+) -> IntensityScaleKind:
     if (
         preprocessing_plan.intensity_transform_policy
         == DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
     ):
-        return TransformationKind.LOG2
-    return TransformationKind.LINEAR
+        return IntensityScaleKind.LOG2
+    return IntensityScaleKind.LINEAR
 
 
 def _build_dataset_run_provenance(
@@ -319,7 +325,7 @@ def _build_dataset_run_provenance(
     resolved_phospho: pd.DataFrame,
     resolved_total: pd.DataFrame | None,
     preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
-    transformation_state_label: str,
+    intensity_scale_label: str,
 ) -> RunProvenance:
     input_tables = _collect_fingerprints(
         (
@@ -346,7 +352,7 @@ def _build_dataset_run_provenance(
         workflow_name="dataset_builder",
         workflow_parameters={
             "preprocessing_plan": asdict(request.preprocessing_plan),
-            "transformation_state_label": transformation_state_label,
+            "intensity_scale_label": intensity_scale_label,
         },
         random_state=None,
         random_seed_policy=None,

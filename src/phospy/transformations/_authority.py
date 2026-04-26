@@ -1,7 +1,7 @@
-"""Internal authority capabilities for transformation-state establishment.
+"""Internal authority capabilities for intensity-scale-state establishment.
 
 This module is package-internal and defines the only approved lanes that can
-mint an established transformation state.
+mint an established intensity scale state.
 """
 
 from __future__ import annotations
@@ -25,12 +25,12 @@ _IDENTITY_TRANSFORMER_AUTHORITY = _EstablishmentAuthority(
     source="phospy.transformations.transformers.identity"
 )
 _BUNDLE_RECONSTRUCTION_AUTHORITY = _EstablishmentAuthority(
-    source="phospy.io.bundles._shared.transformation_state"
+    source="phospy.io.bundles._shared.intensity_scale_state"
 )
 
 
 def _dataset_resolver_establishment_authority() -> _EstablishmentAuthority:
-    """Return authority for the dataset transformation-resolver lane."""
+    """Return authority for the dataset intensity-scale resolver lane."""
 
     return _DATASET_RESOLVER_AUTHORITY
 
@@ -57,6 +57,6 @@ def _resolve_establishment_authority_source(authority: object | None) -> str:
     if authority is _BUNDLE_RECONSTRUCTION_AUTHORITY:
         return _BUNDLE_RECONSTRUCTION_AUTHORITY.source
     raise InvalidTransformationStateError(
-        "transformation state can be established only through supported PhosPy "
+        "intensity scale state can be established only through supported PhosPy "
         "builder/transformer or bundle reconstruction paths"
     )

@@ -6,7 +6,10 @@ import pytest
 from phospy import AnalysisReadyPhosphoDataset
 from phospy.api import Organism
 from phospy.errors import DatasetValidationError
-from tests.support.transformation_states import supported_linear_state
+from tests.support.intensity_scale_states import (
+    supported_linear_intensity_scale_state,
+    supported_linear_processing_state,
+)
 
 
 def _coherent_site_identity_inputs() -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -36,7 +39,10 @@ def test_dataset_boundary_accepts_coherent_site_identity_rows() -> None:
         phospho=phospho,
         site_metadata=site_metadata,
         organism=Organism.RAT,
-        transformation_state=supported_linear_state(has_total_matrix=False),
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
     )
 
     assert dataset.phospho.index.tolist() == ["MAPK14;Y182;", "AKT1;T308;"]
@@ -55,7 +61,10 @@ def test_dataset_boundary_rejects_site_identity_semantic_disagreement_with_detai
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=supported_linear_processing_state(has_total_matrix=False),
         )
 
     message = str(exc_info.value)
@@ -91,7 +100,10 @@ def test_dataset_boundary_rejects_unparseable_site_ids_even_when_metadata_is_pre
             phospho=phospho,
             site_metadata=site_metadata,
             organism=Organism.RAT,
-            transformation_state=supported_linear_state(has_total_matrix=False),
+            intensity_scale_state=supported_linear_intensity_scale_state(
+                has_total_matrix=False
+            ),
+            processing_state=supported_linear_processing_state(has_total_matrix=False),
         )
 
     message = str(exc_info.value)

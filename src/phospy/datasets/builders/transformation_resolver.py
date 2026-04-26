@@ -1,4 +1,4 @@
-"""Internal transformation-state establishment for dataset builder execution."""
+"""Internal intensity-scale-state establishment for dataset builder execution."""
 
 from __future__ import annotations
 
@@ -16,49 +16,49 @@ from phospy.transformations._authority import (
 )
 from phospy.transformations.contracts import Transformer
 from phospy.transformations.models import (
-    MatrixTransformationState,
-    TransformationKind,
-    TransformationState,
-    establish_transformation_state,
+    IntensityScaleKind,
+    IntensityScaleState,
+    MatrixIntensityScaleState,
+    establish_intensity_scale_state,
 )
 from phospy.transformations.transformers import IdentityTransformer
-from phospy.validation.transformations.state import TransformationStateValidator
+from phospy.validation.transformations.state import IntensityScaleStateValidator
 
 
 @dataclass(frozen=True, slots=True)
-class ResolvedTransformation:
-    """Quantitative matrices paired with an established transformation state."""
+class ResolvedIntensityScale:
+    """Quantitative matrices paired with an established intensity scale state."""
 
     phospho: pd.DataFrame
     total: pd.DataFrame | None
-    transformation_state: TransformationState
+    intensity_scale_state: IntensityScaleState
 
 
-class DatasetTransformationResolver:
-    """Resolve transformation state for a dataset build request.
+class DatasetIntensityScaleResolver:
+    """Resolve intensity scale state for a dataset build request.
 
     Supported establishment path:
     A configured transformer that establishes state from matrices.
 
     Public builder policy wires this resolver with identity pass-through
-    establishment by default, keeping transformation behaviour narrow and honest.
+    establishment by default, keeping transformation behavior narrow and honest.
     """
 
     def __init__(self, *, transformer: Transformer | None = None) -> None:
         self._transformer = transformer
-        self._state_validator = TransformationStateValidator()
+        self._state_validator = IntensityScaleStateValidator()
 
     def run(
         self,
         *,
         phospho: pd.DataFrame,
         total: pd.DataFrame | None,
-        expected_kind: TransformationKind | None = None,
-    ) -> ResolvedTransformation:
+        expected_scale_kind: IntensityScaleKind | None = None,
+    ) -> ResolvedIntensityScale:
         if self._transformer is None:
             raise TransformationStateEstablishmentError(
-                "unable to establish transformation state with confidence: "
-                "no supported transformation establisher is configured. "
+                "unable to establish intensity scale state with confidence: "
+                "no supported intensity-scale establisher is configured. "
                 "Configure AnalysisReadyDatasetBuilder("
                 "executor=DatasetBuildExecutor(transformer=...))."
             )
@@ -69,32 +69,35 @@ class DatasetTransformationResolver:
             raise
         except Exception as exc:
             raise TransformerExecutionError(
-                "configured transformer failed while establishing transformation "
+                "configured transformer failed while establishing intensity scale "
                 "state from dataset matrices"
             ) from exc
 
         if (total is None) is not (transformed.total is None):
             raise TransformationStateEstablishmentError(
                 "configured transformer changed total-matrix presence while "
-                "establishing transformation state; this is unsupported. "
+                "establishing intensity scale state; this is unsupported. "
                 "Use a transformer that preserves phospho/total matrix presence."
             )
 
         state = transformed.state
         if (
-            expected_kind is not None
-            and state.phospho.kind is not expected_kind
+            expected_scale_kind is not None
+            and state.phospho.kind is not expected_scale_kind
             and isinstance(self._transformer, IdentityTransformer)
         ):
-            state = _build_identity_state_for_kind(
-                expected_kind=expected_kind,
+            state = _build_identity_state_for_scale_kind(
+                expected_scale_kind=expected_scale_kind,
                 has_total_matrix=transformed.total is not None,
             )
-        if expected_kind is not None and state.phospho.kind is not expected_kind:
+        if (
+            expected_scale_kind is not None
+            and state.phospho.kind is not expected_scale_kind
+        ):
             raise TransformationStateEstablishmentError(
-                "configured transformer produced a transformation kind that is "
+                "configured transformer produced an intensity scale that is "
                 "incompatible with the configured preprocessing intensity "
-                f"transform policy; expected '{expected_kind.value}' but "
+                f"transform policy; expected '{expected_scale_kind.value}' but "
                 f"received '{state.phospho.kind.value}'"
             )
 
@@ -107,54 +110,54 @@ class DatasetTransformationResolver:
             f"{self._transformer.__class__.__module__}."
             f"{self._transformer.__class__.__qualname__}"
         )
-        established_state = establish_transformation_state(
+        established_state = establish_intensity_scale_state(
             state,
             established_via=transformer_source,
             _authority=_dataset_resolver_establishment_authority(),
         )
-        return ResolvedTransformation(
+        return ResolvedIntensityScale(
             phospho=transformed.phospho,
             total=transformed.total,
-            transformation_state=established_state,
+            intensity_scale_state=established_state,
         )
 
     def _validate_state(
         self,
-        state: TransformationState,
+        state: IntensityScaleState,
         *,
         has_total_matrix: bool,
         source: str,
     ) -> None:
         try:
             self._state_validator.run(
-                transformation_state=state,
+                intensity_scale_state=state,
                 has_total_matrix=has_total_matrix,
             )
         except Exception as exc:
             raise TransformationStateEstablishmentError(
-                f"{source} produced an invalid transformation state: {exc}"
+                f"{source} produced an invalid intensity scale state: {exc}"
             ) from exc
 
 
-def _build_identity_state_for_kind(
+def _build_identity_state_for_scale_kind(
     *,
-    expected_kind: TransformationKind,
+    expected_scale_kind: IntensityScaleKind,
     has_total_matrix: bool,
-) -> TransformationState:
-    if expected_kind is TransformationKind.LINEAR:
-        return TransformationState.raw(has_total_matrix=has_total_matrix)
-    if expected_kind is TransformationKind.LOG2:
-        phospho_state = MatrixTransformationState.log2(
+) -> IntensityScaleState:
+    if expected_scale_kind is IntensityScaleKind.LINEAR:
+        return IntensityScaleState.raw(has_total_matrix=has_total_matrix)
+    if expected_scale_kind is IntensityScaleKind.LOG2:
+        phospho_state = MatrixIntensityScaleState.log2(
             established_by="phospy.transformations.transformers.identity"
         )
         if has_total_matrix:
-            return TransformationState(
+            return IntensityScaleState(
                 phospho=phospho_state,
-                total=MatrixTransformationState.log2(
+                total=MatrixIntensityScaleState.log2(
                     established_by="phospy.transformations.transformers.identity"
                 ),
             )
-        return TransformationState(phospho=phospho_state, total=None)
+        return IntensityScaleState(phospho=phospho_state, total=None)
     raise TransformationStateEstablishmentError(
-        f"unsupported expected transformation kind for resolver: {expected_kind}"
+        f"unsupported expected intensity scale kind for resolver: {expected_scale_kind}"
     )
