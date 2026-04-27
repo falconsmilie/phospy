@@ -37,11 +37,7 @@ def reconstruct_kinase_result(
 ) -> KinaseWorkflowResult:
     """Rebuild a KinaseWorkflowResult from already-validated manifest sections."""
 
-    provenance = (
-        None
-        if sections.provenance_payload is None
-        else provenance_from_payload(sections.provenance_payload)
-    )
+    provenance = provenance_from_payload(sections.provenance_payload)
     processing_state_payload = require_mapping(
         sections.dataset_metadata.get("processing_state"),
         field_name="bundle manifest.dataset.metadata.processing_state",
@@ -185,11 +181,10 @@ def reconstruct_kinase_result(
         field_name="bundle manifest.outputs.activity.tables.target_table",
     )
 
-    if weighted_activity is None:
-        activity_result = None
-    else:
+    if sections.activity_enabled:
         if (
-            thresholded_substrate_mean_activity is None
+            weighted_activity is None
+            or thresholded_substrate_mean_activity is None
             or thresholded_substrate_counts is None
             or target_counts is None
             or target_table is None
@@ -204,6 +199,18 @@ def reconstruct_kinase_result(
             target_counts=target_counts,
             target_table=target_table,
         )
+    else:
+        if (
+            weighted_activity is not None
+            or thresholded_substrate_mean_activity is not None
+            or thresholded_substrate_counts is not None
+            or target_counts is not None
+            or target_table is not None
+        ):
+            raise PhosPyInputError(
+                "bundle manifest outputs.activity.enabled=false must not declare populated activity tables"
+            )
+        activity_result = None
 
     return KinaseWorkflowResult(
         dataset=dataset,

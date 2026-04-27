@@ -187,6 +187,7 @@ def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(
         kinase_network=result.kinase_network,
         module_selection_diagnostics=result.module_selection_diagnostics,
         expanded_signalome=None,
+        provenance=result.provenance,
     )
     bundle_root = tmp_path / "signalome_bundle_no_expanded"
 
@@ -205,7 +206,7 @@ def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(
     assert loaded.result.expanded_signalome is None
 
 
-def test_signalome_bundle_loads_legacy_manifest_without_provenance(
+def test_signalome_bundle_rejects_manifest_without_provenance(
     tmp_path: Path,
 ) -> None:
     request, result = _build_signalome_request_and_result()
@@ -224,8 +225,75 @@ def test_signalome_bundle_loads_legacy_manifest_without_provenance(
         encoding="utf-8",
     )
 
-    loaded = load_signalome_workflow_bundle(bundle_root)
-    assert loaded.result.provenance is None
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "bundle manifest is missing required field\\(s\\): provenance.*"
+            "Regenerate this bundle with the current PhosPy version"
+        ),
+    ):
+        load_signalome_workflow_bundle(bundle_root)
+
+
+def test_signalome_bundle_rejects_manifest_with_null_provenance(
+    tmp_path: Path,
+) -> None:
+    request, result = _build_signalome_request_and_result()
+    bundle_root = tmp_path / "signalome_bundle_null_provenance"
+
+    save_signalome_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["provenance"] = None
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "bundle manifest.provenance is required.*"
+            "Regenerate this bundle with the current PhosPy version"
+        ),
+    ):
+        load_signalome_workflow_bundle(bundle_root)
+
+
+def test_signalome_bundle_rejects_manifest_without_candidate_correlations_marker(
+    tmp_path: Path,
+) -> None:
+    request, result = _build_signalome_request_and_result()
+    bundle_root = tmp_path / "signalome_bundle_missing_candidate_correlations"
+
+    save_signalome_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["signalome_outputs"]["tables"].pop(
+        "kinase_network_candidate_correlations", None
+    )
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "bundle manifest.signalome_outputs.tables is missing required field\\(s\\): "
+            "kinase_network_candidate_correlations.*"
+            "Regenerate this bundle with the current PhosPy version"
+        ),
+    ):
+        load_signalome_workflow_bundle(bundle_root)
 
 
 def _build_signalome_request_and_result():

@@ -7,20 +7,10 @@ from collections.abc import Mapping
 
 from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICIES,
-    SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
     SIGNALOME_CANDIDATE_SCORING_BACKENDS,
-    SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
     SIGNALOME_CLUSTER_TREE_BACKENDS,
     SIGNALOME_KINASE_NETWORK_POLICIES,
-    SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
-    SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
-    SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
-    SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT,
-    SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
-    SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICIES,
-    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SignalomeConfig,
 )
 from phospy.errors.input import PhosPyInputError
@@ -64,94 +54,66 @@ def signalome_config_from_payload(
 ) -> SignalomeConfig:
     """Parse signalome config payload."""
 
+    config_field_name = f"{scope}.signalome_config"
     _reject_unsupported_fields(
         payload,
-        field_name=f"{scope}.signalome_config",
+        field_name=config_field_name,
         allowed_fields=_SIGNALOME_CONFIG_ALLOWED_FIELDS,
+    )
+    _require_fields(
+        payload,
+        field_name=config_field_name,
+        required_fields=_SIGNALOME_CONFIG_ALLOWED_FIELDS,
     )
     substrate_support_cutoff = payload.get("substrate_support_cutoff")
     network_correlation_threshold = payload.get("network_correlation_threshold")
-    if substrate_support_cutoff is None:
-        substrate_support_cutoff = 0.5
-    if network_correlation_threshold is None:
-        network_correlation_threshold = 0.5
-    module_selection_max_clusters_raw = payload.get("module_selection_max_clusters")
-    module_selection_max_clusters = (
-        SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT
-        if module_selection_max_clusters_raw is None
-        else _parse_optional_int(
-            module_selection_max_clusters_raw,
-            field_name=f"{scope}.signalome_config.module_selection_max_clusters",
-        )
+    module_selection_max_clusters = _require_int(
+        payload.get("module_selection_max_clusters"),
+        field_name=f"{scope}.signalome_config.module_selection_max_clusters",
     )
     module_count = _parse_optional_int(
         payload.get("module_count"),
         field_name=f"{scope}.signalome_config.module_count",
     )
-    assignment_policy_raw = payload.get("assignment_policy")
-    assignment_policy = (
-        SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
-        if assignment_policy_raw is None
-        else require_str(
-            assignment_policy_raw,
-            field_name=f"{scope}.signalome_config.assignment_policy",
-        )
+    assignment_policy = require_str(
+        payload.get("assignment_policy"),
+        field_name=f"{scope}.signalome_config.assignment_policy",
     )
     if assignment_policy not in SIGNALOME_ASSIGNMENT_POLICIES:
         allowed = ", ".join(sorted(SIGNALOME_ASSIGNMENT_POLICIES))
         raise PhosPyInputError(
             f"{scope}.signalome_config.assignment_policy must be one of: {allowed}"
         )
-    network_policy_raw = payload.get("network_policy")
-    network_policy = (
-        SIGNALOME_KINASE_NETWORK_POLICY_SIGNED
-        if network_policy_raw is None
-        else require_str(
-            network_policy_raw,
-            field_name=f"{scope}.signalome_config.network_policy",
-        )
+    network_policy = require_str(
+        payload.get("network_policy"),
+        field_name=f"{scope}.signalome_config.network_policy",
     )
     if network_policy not in SIGNALOME_KINASE_NETWORK_POLICIES:
         allowed = ", ".join(sorted(SIGNALOME_KINASE_NETWORK_POLICIES))
         raise PhosPyInputError(
             f"{scope}.signalome_config.network_policy must be one of: {allowed}"
         )
-    score_preconditioning_policy_raw = payload.get("score_preconditioning_policy")
-    score_preconditioning_policy = (
-        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
-        if score_preconditioning_policy_raw is None
-        else require_str(
-            score_preconditioning_policy_raw,
-            field_name=f"{scope}.signalome_config.score_preconditioning_policy",
-        )
+    score_preconditioning_policy = require_str(
+        payload.get("score_preconditioning_policy"),
+        field_name=f"{scope}.signalome_config.score_preconditioning_policy",
     )
     if score_preconditioning_policy not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES:
         allowed = ", ".join(sorted(SIGNALOME_SCORE_PRECONDITIONING_POLICIES))
         raise PhosPyInputError(
             f"{scope}.signalome_config.score_preconditioning_policy must be one of: {allowed}"
         )
-    cluster_tree_backend_raw = payload.get("cluster_tree_backend")
-    cluster_tree_backend = (
-        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
-        if cluster_tree_backend_raw is None
-        else require_str(
-            cluster_tree_backend_raw,
-            field_name=f"{scope}.signalome_config.cluster_tree_backend",
-        )
+    cluster_tree_backend = require_str(
+        payload.get("cluster_tree_backend"),
+        field_name=f"{scope}.signalome_config.cluster_tree_backend",
     )
     if cluster_tree_backend not in SIGNALOME_CLUSTER_TREE_BACKENDS:
         allowed = ", ".join(sorted(SIGNALOME_CLUSTER_TREE_BACKENDS))
         raise PhosPyInputError(
             f"{scope}.signalome_config.cluster_tree_backend must be one of: {allowed}"
         )
-    candidate_scoring_backend_raw = payload.get("candidate_scoring_backend")
-    candidate_scoring_backend = (
-        SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
-        if candidate_scoring_backend_raw is None
-        else require_str(
-            candidate_scoring_backend_raw,
-            field_name=f"{scope}.signalome_config.candidate_scoring_backend",
-        )
+    candidate_scoring_backend = require_str(
+        payload.get("candidate_scoring_backend"),
+        field_name=f"{scope}.signalome_config.candidate_scoring_backend",
     )
     if candidate_scoring_backend not in SIGNALOME_CANDIDATE_SCORING_BACKENDS:
         allowed = ", ".join(sorted(SIGNALOME_CANDIDATE_SCORING_BACKENDS))
@@ -160,23 +122,13 @@ def signalome_config_from_payload(
             f"{allowed}"
         )
 
-    max_exact_cluster_tree_sites_raw = payload.get("max_exact_cluster_tree_sites")
-    max_exact_cluster_tree_sites = (
-        SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT
-        if max_exact_cluster_tree_sites_raw is None
-        else _require_int(
-            max_exact_cluster_tree_sites_raw,
-            field_name=f"{scope}.signalome_config.max_exact_cluster_tree_sites",
-        )
+    max_exact_cluster_tree_sites = _require_int(
+        payload.get("max_exact_cluster_tree_sites"),
+        field_name=f"{scope}.signalome_config.max_exact_cluster_tree_sites",
     )
-    max_full_correlation_sites_raw = payload.get("max_full_correlation_sites")
-    max_full_correlation_sites = (
-        SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT
-        if max_full_correlation_sites_raw is None
-        else _require_int(
-            max_full_correlation_sites_raw,
-            field_name=f"{scope}.signalome_config.max_full_correlation_sites",
-        )
+    max_full_correlation_sites = _require_int(
+        payload.get("max_full_correlation_sites"),
+        field_name=f"{scope}.signalome_config.max_full_correlation_sites",
     )
     return SignalomeConfig(
         substrate_support_cutoff=require_float(
@@ -196,19 +148,14 @@ def signalome_config_from_payload(
         max_full_correlation_sites=max_full_correlation_sites,
         module_count=module_count,
         module_selection_primary_correlation_threshold=require_float(
-            payload.get("module_selection_primary_correlation_threshold")
-            if payload.get("module_selection_primary_correlation_threshold") is not None
-            else SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT,
+            payload.get("module_selection_primary_correlation_threshold"),
             field_name=(
                 f"{scope}.signalome_config."
                 "module_selection_primary_correlation_threshold"
             ),
         ),
         module_selection_fallback_correlation_threshold=require_float(
-            payload.get("module_selection_fallback_correlation_threshold")
-            if payload.get("module_selection_fallback_correlation_threshold")
-            is not None
-            else SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT,
+            payload.get("module_selection_fallback_correlation_threshold"),
             field_name=(
                 f"{scope}.signalome_config."
                 "module_selection_fallback_correlation_threshold"
@@ -260,6 +207,31 @@ def signalome_module_selection_diagnostics_from_payload(
         payload,
         field_name=f"{scope}.module_selection_diagnostics",
     )
+    diagnostics_field_name = f"{scope}.module_selection_diagnostics"
+    allowed_fields = frozenset(
+        {
+            "strategy",
+            "selected_module_count",
+            "requested_module_count",
+            "threshold_used",
+            "max_clusters_evaluated",
+            "candidate_scores",
+            "reason",
+            "zero_variance_profile_count",
+            "near_constant_profile_count",
+            "excluded_from_correlation_count",
+        }
+    )
+    _reject_unsupported_fields(
+        diagnostics_payload,
+        field_name=diagnostics_field_name,
+        allowed_fields=allowed_fields,
+    )
+    _require_fields(
+        diagnostics_payload,
+        field_name=diagnostics_field_name,
+        required_fields=allowed_fields,
+    )
     strategy = require_str(
         diagnostics_payload.get("strategy"),
         field_name=f"{scope}.module_selection_diagnostics.strategy",
@@ -268,9 +240,17 @@ def signalome_module_selection_diagnostics_from_payload(
         SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
         SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
     }:
-        strategy = SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS
+        allowed = ", ".join(
+            (
+                SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
+                SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
+            )
+        )
+        raise PhosPyInputError(
+            f"{scope}.module_selection_diagnostics.strategy must be one of: {allowed}"
+        )
     candidate_scores_payload = require_mapping(
-        diagnostics_payload.get("candidate_scores", {}),
+        diagnostics_payload.get("candidate_scores"),
         field_name=f"{scope}.module_selection_diagnostics.candidate_scores",
     )
     candidate_scores: dict[int, SignalomeClusterCandidateScore] = {}
@@ -329,19 +309,19 @@ def signalome_module_selection_diagnostics_from_payload(
             field_name=f"{scope}.module_selection_diagnostics.reason",
         ),
         zero_variance_profile_count=_require_int(
-            diagnostics_payload.get("zero_variance_profile_count", 0),
+            diagnostics_payload.get("zero_variance_profile_count"),
             field_name=(
                 f"{scope}.module_selection_diagnostics.zero_variance_profile_count"
             ),
         ),
         near_constant_profile_count=_require_int(
-            diagnostics_payload.get("near_constant_profile_count", 0),
+            diagnostics_payload.get("near_constant_profile_count"),
             field_name=(
                 f"{scope}.module_selection_diagnostics.near_constant_profile_count"
             ),
         ),
         excluded_from_correlation_count=_require_int(
-            diagnostics_payload.get("excluded_from_correlation_count", 0),
+            diagnostics_payload.get("excluded_from_correlation_count"),
             field_name=(
                 f"{scope}.module_selection_diagnostics.excluded_from_correlation_count"
             ),
@@ -369,10 +349,27 @@ def signalome_score_preconditioning_diagnostics_from_payload(
         payload,
         field_name=f"{scope}.score_preconditioning_diagnostics",
     )
+    diagnostics_field_name = f"{scope}.score_preconditioning_diagnostics"
+    allowed_fields = frozenset(
+        {
+            "policy",
+            "input_row_count",
+            "dropped_all_missing_row_count",
+            "retained_row_count",
+        }
+    )
+    _reject_unsupported_fields(
+        diagnostics_payload,
+        field_name=diagnostics_field_name,
+        allowed_fields=allowed_fields,
+    )
+    _require_fields(
+        diagnostics_payload,
+        field_name=diagnostics_field_name,
+        required_fields=allowed_fields,
+    )
     policy = require_str(
-        diagnostics_payload.get(
-            "policy", SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
-        ),
+        diagnostics_payload.get("policy"),
         field_name=f"{scope}.score_preconditioning_diagnostics.policy",
     )
     if policy not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES:
@@ -442,54 +439,78 @@ def signalome_network_correlation_diagnostics_from_payload(
         payload,
         field_name=f"{scope}.network_correlation_diagnostics",
     )
+    diagnostics_field_name = f"{scope}.network_correlation_diagnostics"
+    allowed_fields = frozenset(
+        {
+            "total_candidate_correlations",
+            "finite_correlations",
+            "undefined_correlations",
+            "constant_profile_correlations",
+            "insufficient_observation_correlations",
+            "missing_value_correlations",
+            "non_finite_value_correlations",
+            "edges_created",
+            "edges_skipped_non_finite_correlation",
+        }
+    )
+    _reject_unsupported_fields(
+        diagnostics_payload,
+        field_name=diagnostics_field_name,
+        allowed_fields=allowed_fields,
+    )
+    _require_fields(
+        diagnostics_payload,
+        field_name=diagnostics_field_name,
+        required_fields=allowed_fields,
+    )
     return SignalomeNetworkCorrelationDiagnostics(
         total_candidate_correlations=_require_int(
-            diagnostics_payload.get("total_candidate_correlations", 0),
+            diagnostics_payload.get("total_candidate_correlations"),
             field_name=(
                 f"{scope}.network_correlation_diagnostics.total_candidate_correlations"
             ),
         ),
         finite_correlations=_require_int(
-            diagnostics_payload.get("finite_correlations", 0),
+            diagnostics_payload.get("finite_correlations"),
             field_name=f"{scope}.network_correlation_diagnostics.finite_correlations",
         ),
         undefined_correlations=_require_int(
-            diagnostics_payload.get("undefined_correlations", 0),
+            diagnostics_payload.get("undefined_correlations"),
             field_name=(
                 f"{scope}.network_correlation_diagnostics.undefined_correlations"
             ),
         ),
         constant_profile_correlations=_require_int(
-            diagnostics_payload.get("constant_profile_correlations", 0),
+            diagnostics_payload.get("constant_profile_correlations"),
             field_name=(
                 f"{scope}.network_correlation_diagnostics.constant_profile_correlations"
             ),
         ),
         insufficient_observation_correlations=_require_int(
-            diagnostics_payload.get("insufficient_observation_correlations", 0),
+            diagnostics_payload.get("insufficient_observation_correlations"),
             field_name=(
                 f"{scope}.network_correlation_diagnostics."
                 "insufficient_observation_correlations"
             ),
         ),
         missing_value_correlations=_require_int(
-            diagnostics_payload.get("missing_value_correlations", 0),
+            diagnostics_payload.get("missing_value_correlations"),
             field_name=(
                 f"{scope}.network_correlation_diagnostics.missing_value_correlations"
             ),
         ),
         non_finite_value_correlations=_require_int(
-            diagnostics_payload.get("non_finite_value_correlations", 0),
+            diagnostics_payload.get("non_finite_value_correlations"),
             field_name=(
                 f"{scope}.network_correlation_diagnostics.non_finite_value_correlations"
             ),
         ),
         edges_created=_require_int(
-            diagnostics_payload.get("edges_created", 0),
+            diagnostics_payload.get("edges_created"),
             field_name=f"{scope}.network_correlation_diagnostics.edges_created",
         ),
         edges_skipped_non_finite_correlation=_require_int(
-            diagnostics_payload.get("edges_skipped_non_finite_correlation", 0),
+            diagnostics_payload.get("edges_skipped_non_finite_correlation"),
             field_name=(
                 f"{scope}.network_correlation_diagnostics."
                 "edges_skipped_non_finite_correlation"
@@ -616,3 +637,18 @@ def _reject_unsupported_fields(
     if unknown_fields:
         unknown = ", ".join(unknown_fields)
         raise PhosPyInputError(f"{field_name} contains unsupported field(s): {unknown}")
+
+
+def _require_fields(
+    payload: Mapping[str, object],
+    *,
+    field_name: str,
+    required_fields: frozenset[str],
+) -> None:
+    missing_fields = sorted(
+        str(key) for key in required_fields if str(key) not in payload
+    )
+    if not missing_fields:
+        return
+    missing = ", ".join(missing_fields)
+    raise PhosPyInputError(f"{field_name} is missing required field(s): {missing}")

@@ -29,23 +29,36 @@ from phospy.signalomes.models import (
 )
 
 
-def test_signalome_snapshot_supports_current_config_payload_defaults() -> None:
-    snapshot = SignalomeWorkflowConfigSnapshot.from_payload({"signalome_config": {}})
+def _full_signalome_snapshot_payload(
+    **overrides: object,
+) -> dict[str, dict[str, object]]:
+    signalome_config: dict[str, object] = {
+        "substrate_support_cutoff": 0.5,
+        "network_correlation_threshold": 0.6,
+        "network_policy": "signed",
+        "assignment_policy": SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+        "score_preconditioning_policy": (
+            SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+        ),
+        "cluster_tree_backend": "exact",
+        "candidate_scoring_backend": "full",
+        "max_exact_cluster_tree_sites": 2000,
+        "max_full_correlation_sites": 2000,
+        "module_count": None,
+        "module_selection_primary_correlation_threshold": 0.6,
+        "module_selection_fallback_correlation_threshold": 0.2,
+        "module_selection_max_clusters": 15,
+    }
+    signalome_config.update(overrides)
+    return {"signalome_config": signalome_config}
 
-    assert snapshot.signalome_config.substrate_support_cutoff == 0.5
-    assert snapshot.signalome_config.network_correlation_threshold == 0.5
-    assert snapshot.signalome_config.network_policy == "signed"
-    assert (
-        snapshot.signalome_config.assignment_policy
-        == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
-    )
-    assert snapshot.signalome_config.score_preconditioning_policy == (
-        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
-    )
-    assert snapshot.signalome_config.cluster_tree_backend == "exact"
-    assert snapshot.signalome_config.candidate_scoring_backend == "full"
-    assert snapshot.signalome_config.max_exact_cluster_tree_sites == 2000
-    assert snapshot.signalome_config.max_full_correlation_sites == 2000
+
+def test_signalome_snapshot_rejects_partial_payload_without_required_fields() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="config snapshot.signalome_config is missing required field\\(s\\):",
+    ):
+        SignalomeWorkflowConfigSnapshot.from_payload({"signalome_config": {}})
 
 
 def test_signalome_snapshot_rejects_removed_signalome_cutoff_alias() -> None:
@@ -60,13 +73,9 @@ def test_signalome_snapshot_rejects_removed_signalome_cutoff_alias() -> None:
 
 def test_signalome_snapshot_supports_assignment_policy_payload() -> None:
     snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
-        {
-            "signalome_config": {
-                "substrate_support_cutoff": 0.5,
-                "network_correlation_threshold": 0.6,
-                "assignment_policy": SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
-            }
-        }
+        _full_signalome_snapshot_payload(
+            assignment_policy=SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP
+        )
     )
 
     assert (
@@ -77,13 +86,7 @@ def test_signalome_snapshot_supports_assignment_policy_payload() -> None:
 
 def test_signalome_snapshot_supports_network_policy_payload() -> None:
     snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
-        {
-            "signalome_config": {
-                "substrate_support_cutoff": 0.5,
-                "network_correlation_threshold": 0.6,
-                "network_policy": "absolute_threshold",
-            }
-        }
+        _full_signalome_snapshot_payload(network_policy="absolute_threshold")
     )
 
     assert snapshot.signalome_config.network_policy == "absolute_threshold"
@@ -281,3 +284,46 @@ def test_network_correlation_diagnostics_requires_payload_mapping() -> None:
         match="test.network_correlation_diagnostics must be an object",
     ):
         signalome_network_correlation_diagnostics_from_payload(None, scope="test")
+
+
+def test_module_selection_diagnostics_rejects_partial_payload() -> None:
+    payload = {
+        "strategy": SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
+        "selected_module_count": 3,
+        "requested_module_count": None,
+        "threshold_used": 0.5,
+        "max_clusters_evaluated": 10,
+        "candidate_scores": {},
+        "reason": "selected primary threshold candidate",
+        "zero_variance_profile_count": 1,
+        "excluded_from_correlation_count": 3,
+    }
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "test.module_selection_diagnostics is missing required field\\(s\\): "
+            "near_constant_profile_count"
+        ),
+    ):
+        signalome_module_selection_diagnostics_from_payload(payload, scope="test")
+
+
+def test_network_correlation_diagnostics_rejects_partial_payload() -> None:
+    payload = {
+        "total_candidate_correlations": 10,
+        "finite_correlations": 3,
+        "undefined_correlations": 7,
+        "constant_profile_correlations": 2,
+        "insufficient_observation_correlations": 1,
+        "missing_value_correlations": 3,
+        "non_finite_value_correlations": 1,
+        "edges_created": 2,
+    }
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "test.network_correlation_diagnostics is missing required field\\(s\\): "
+            "edges_skipped_non_finite_correlation"
+        ),
+    ):
+        signalome_network_correlation_diagnostics_from_payload(payload, scope="test")

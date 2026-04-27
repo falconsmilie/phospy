@@ -7,12 +7,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from phospy.api.configs import (
-    KINASE_ADAPTIVE_POLICY_STABLE,
-    KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS,
-    KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES,
-    KINASE_PREDICTION_DEFAULT_ITERATIONS,
-    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
-    KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -49,6 +43,9 @@ _PREDICTION_CONFIG_ALLOWED_FIELDS = frozenset(
 )
 _ACTIVITY_CONFIG_ALLOWED_FIELDS = frozenset(
     {"enabled", "threshold", "min_substrates", "top_n_substrates"}
+)
+_CONFIG_SNAPSHOT_ALLOWED_FIELDS = frozenset(
+    {"scoring_config", "prediction_config", "activity_config"}
 )
 
 
@@ -122,6 +119,16 @@ class KinaseWorkflowConfigSnapshot:
         """Create a config snapshot from a decoded JSON payload."""
 
         scope = "config snapshot"
+        _reject_unsupported_fields(
+            payload,
+            field_name=scope,
+            allowed_fields=_CONFIG_SNAPSHOT_ALLOWED_FIELDS,
+        )
+        _require_fields(
+            payload,
+            field_name=scope,
+            required_fields=_CONFIG_SNAPSHOT_ALLOWED_FIELDS,
+        )
         scoring_payload = require_mapping(
             payload.get("scoring_config"),
             field_name=f"{scope}.scoring_config",
@@ -131,6 +138,11 @@ class KinaseWorkflowConfigSnapshot:
             field_name=f"{scope}.scoring_config",
             allowed_fields=_SCORING_CONFIG_ALLOWED_FIELDS,
         )
+        _require_fields(
+            scoring_payload,
+            field_name=f"{scope}.scoring_config",
+            required_fields=_SCORING_CONFIG_ALLOWED_FIELDS,
+        )
         prediction_payload = require_mapping(
             payload.get("prediction_config"),
             field_name=f"{scope}.prediction_config",
@@ -139,6 +151,11 @@ class KinaseWorkflowConfigSnapshot:
             prediction_payload,
             field_name=f"{scope}.prediction_config",
             allowed_fields=_PREDICTION_CONFIG_ALLOWED_FIELDS,
+        )
+        _require_fields(
+            prediction_payload,
+            field_name=f"{scope}.prediction_config",
+            required_fields=_PREDICTION_CONFIG_ALLOWED_FIELDS,
         )
         activity_raw = payload.get("activity_config")
         if activity_raw is None:
@@ -153,6 +170,11 @@ class KinaseWorkflowConfigSnapshot:
                 field_name=f"{scope}.activity_config",
                 allowed_fields=_ACTIVITY_CONFIG_ALLOWED_FIELDS,
             )
+            _require_fields(
+                activity_payload,
+                field_name=f"{scope}.activity_config",
+                required_fields=_ACTIVITY_CONFIG_ALLOWED_FIELDS,
+            )
             activity_config = KinaseActivityConfig(
                 enabled=require_bool(
                     activity_payload.get("enabled"),
@@ -163,34 +185,14 @@ class KinaseWorkflowConfigSnapshot:
                     field_name=f"{scope}.activity_config.threshold",
                 ),
                 min_substrates=require_int(
-                    activity_payload.get(
-                        "min_substrates",
-                        KinaseActivityConfig().min_substrates,
-                    ),
+                    activity_payload.get("min_substrates"),
                     field_name=f"{scope}.activity_config.min_substrates",
                 ),
                 top_n_substrates=require_int(
-                    activity_payload.get(
-                        "top_n_substrates",
-                        KinaseActivityConfig().top_n_substrates,
-                    ),
+                    activity_payload.get("top_n_substrates"),
                     field_name=f"{scope}.activity_config.top_n_substrates",
                 ),
             )
-        deterministic_max_selected_kinases = require_int(
-            prediction_payload.get(
-                "deterministic_max_selected_kinases",
-                KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES,
-            ),
-            field_name=f"{scope}.prediction_config.deterministic_max_selected_kinases",
-        )
-        adaptive_ensemble_runs = require_int(
-            prediction_payload.get(
-                "adaptive_ensemble_runs",
-                KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS,
-            ),
-            field_name=f"{scope}.prediction_config.adaptive_ensemble_runs",
-        )
         return cls(
             scoring_config=KinaseScoringConfig(
                 min_substrates=require_int(
@@ -198,16 +200,13 @@ class KinaseWorkflowConfigSnapshot:
                     field_name=f"{scope}.scoring_config.min_substrates",
                 ),
                 include_diagnostic_scoring_tables=require_bool(
-                    scoring_payload.get("include_diagnostic_scoring_tables", True),
+                    scoring_payload.get("include_diagnostic_scoring_tables"),
                     field_name=(
                         f"{scope}.scoring_config.include_diagnostic_scoring_tables"
                     ),
                 ),
                 profile_missing_value_strategy=require_str(
-                    scoring_payload.get(
-                        "profile_missing_value_strategy",
-                        KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT,
-                    ),
+                    scoring_payload.get("profile_missing_value_strategy"),
                     field_name=(
                         f"{scope}.scoring_config.profile_missing_value_strategy"
                     ),
@@ -218,27 +217,26 @@ class KinaseWorkflowConfigSnapshot:
                     prediction_payload.get("top_k"),
                     field_name=f"{scope}.prediction_config.top_k",
                 ),
-                deterministic_max_selected_kinases=deterministic_max_selected_kinases,
-                adaptive_ensemble_runs=adaptive_ensemble_runs,
-                mode=require_str(
-                    prediction_payload.get(
-                        "mode",
-                        KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+                deterministic_max_selected_kinases=require_int(
+                    prediction_payload.get("deterministic_max_selected_kinases"),
+                    field_name=(
+                        f"{scope}.prediction_config.deterministic_max_selected_kinases"
                     ),
+                ),
+                adaptive_ensemble_runs=require_int(
+                    prediction_payload.get("adaptive_ensemble_runs"),
+                    field_name=f"{scope}.prediction_config.adaptive_ensemble_runs",
+                ),
+                mode=require_str(
+                    prediction_payload.get("mode"),
                     field_name=f"{scope}.prediction_config.mode",
                 ),
                 adaptive_policy=require_str(
-                    prediction_payload.get(
-                        "adaptive_policy",
-                        KINASE_ADAPTIVE_POLICY_STABLE,
-                    ),
+                    prediction_payload.get("adaptive_policy"),
                     field_name=f"{scope}.prediction_config.adaptive_policy",
                 ),
                 n_iterations=require_int(
-                    prediction_payload.get(
-                        "n_iterations",
-                        KINASE_PREDICTION_DEFAULT_ITERATIONS,
-                    ),
+                    prediction_payload.get("n_iterations"),
                     field_name=f"{scope}.prediction_config.n_iterations",
                 ),
                 random_state=(
@@ -266,3 +264,18 @@ def _reject_unsupported_fields(
     if unknown_fields:
         unknown = ", ".join(unknown_fields)
         raise PhosPyInputError(f"{field_name} contains unsupported field(s): {unknown}")
+
+
+def _require_fields(
+    payload: Mapping[str, object],
+    *,
+    field_name: str,
+    required_fields: frozenset[str],
+) -> None:
+    missing_fields = sorted(
+        str(key) for key in required_fields if str(key) not in payload
+    )
+    if not missing_fields:
+        return
+    missing = ", ".join(missing_fields)
+    raise PhosPyInputError(f"{field_name} is missing required field(s): {missing}")

@@ -45,20 +45,21 @@ def test_kinase_snapshot_requires_scoring_config_object() -> None:
         )
 
 
-def test_kinase_snapshot_payload_defaults_diagnostic_tables_to_true() -> None:
-    snapshot = KinaseWorkflowConfigSnapshot.from_payload(
-        {
-            "scoring_config": {"min_substrates": 2},
-            "prediction_config": {"top_k": 2},
-            "activity_config": None,
-        }
-    )
-    assert snapshot.scoring_config.include_diagnostic_scoring_tables is True
-    assert snapshot.scoring_config.profile_missing_value_strategy == "strict"
-    assert snapshot.prediction_config.mode == "deterministic_ranking"
-    assert snapshot.prediction_config.adaptive_policy == "stable"
-    assert snapshot.prediction_config.n_iterations == 5
-    assert snapshot.prediction_config.random_state is None
+def test_kinase_snapshot_rejects_partial_payload_without_required_fields() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "config snapshot.scoring_config is missing required field\\(s\\): "
+            "include_diagnostic_scoring_tables, profile_missing_value_strategy"
+        ),
+    ):
+        KinaseWorkflowConfigSnapshot.from_payload(
+            {
+                "scoring_config": {"min_substrates": 2},
+                "prediction_config": {"top_k": 2},
+                "activity_config": None,
+            }
+        )
 
 
 def test_kinase_snapshot_rejects_removed_ensemble_size_alias() -> None:
@@ -68,9 +69,19 @@ def test_kinase_snapshot_rejects_removed_ensemble_size_alias() -> None:
     ):
         KinaseWorkflowConfigSnapshot.from_payload(
             {
-                "scoring_config": {"min_substrates": 2},
+                "scoring_config": {
+                    "min_substrates": 2,
+                    "include_diagnostic_scoring_tables": True,
+                    "profile_missing_value_strategy": "strict",
+                },
                 "prediction_config": {
                     "top_k": 2,
+                    "deterministic_max_selected_kinases": 5,
+                    "adaptive_ensemble_runs": 5,
+                    "mode": "deterministic_ranking",
+                    "adaptive_policy": "stable",
+                    "n_iterations": 5,
+                    "random_state": None,
                     "ensemble_size": 2,
                 },
                 "activity_config": None,

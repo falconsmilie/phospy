@@ -196,7 +196,7 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
     }
 
 
-def test_kinase_bundle_loads_legacy_manifest_without_provenance(
+def test_kinase_bundle_rejects_manifest_without_provenance(
     tmp_path: Path,
 ) -> None:
     request = _build_request(activity=False)
@@ -215,8 +215,72 @@ def test_kinase_bundle_loads_legacy_manifest_without_provenance(
         json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
     )
 
-    loaded = load_kinase_workflow_bundle(bundle_root)
-    assert loaded.result.provenance is None
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "bundle manifest is missing required field\\(s\\): provenance.*"
+            "Regenerate this bundle with the current PhosPy version"
+        ),
+    ):
+        load_kinase_workflow_bundle(bundle_root)
+
+
+def test_kinase_bundle_rejects_manifest_with_null_provenance(
+    tmp_path: Path,
+) -> None:
+    request = _build_request(activity=False)
+    result = KinaseWorkflow().run(request)
+    bundle_root = tmp_path / "kinase_bundle_null_provenance"
+
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["provenance"] = None
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "bundle manifest.provenance is required.*"
+            "Regenerate this bundle with the current PhosPy version"
+        ),
+    ):
+        load_kinase_workflow_bundle(bundle_root)
+
+
+def test_kinase_bundle_rejects_manifest_without_activity_enabled_marker(
+    tmp_path: Path,
+) -> None:
+    request = _build_request(activity=False)
+    result = KinaseWorkflow().run(request)
+    bundle_root = tmp_path / "kinase_bundle_missing_activity_enabled"
+
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["outputs"]["activity"].pop("enabled", None)
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "bundle manifest.outputs.activity is missing required field\\(s\\): "
+            "enabled.*Regenerate this bundle with the current PhosPy version"
+        ),
+    ):
+        load_kinase_workflow_bundle(bundle_root)
 
 
 def test_kinase_bundle_rejects_legacy_minimal_total_correction_state(

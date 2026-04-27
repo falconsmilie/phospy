@@ -74,6 +74,16 @@ Signalome manifest:
 
 Both manifests store dataset organism, full `intensity_scale_state` payload,
 and full `processing_state` payload.
+
+Bundle loading is strict for v1 manifests:
+
+- required manifest markers must be present (`bundle_type`,
+  `manifest_version`, `table_format`, required sections)
+- `provenance` must be an explicit object (not omitted and not `null`)
+- optional table slots must still be declared in manifest table maps as a path
+  or explicit `null`
+- unsupported or incomplete manifest shapes fail with an explicit
+  regenerate-bundle instruction
 Published dataset export manifests (`dataset/manifest.json`) also keep this pair
 explicit at top level:
 

@@ -49,18 +49,17 @@ def reconstruct_signalome_result(
 ) -> SignalomeWorkflowResult:
     """Rebuild a SignalomeWorkflowResult from validated manifest sections."""
 
-    signalome_provenance = (
-        None
-        if sections.provenance_payload is None
-        else provenance_from_payload(sections.provenance_payload)
+    signalome_provenance = provenance_from_payload(sections.provenance_payload)
+    upstream_raw = signalome_provenance.workflow_parameters.get(
+        "upstream_kinase_provenance"
     )
-    upstream_kinase_provenance = None
-    if signalome_provenance is not None:
-        upstream_raw = signalome_provenance.workflow_parameters.get(
-            "upstream_kinase_provenance"
+    if not isinstance(upstream_raw, Mapping):
+        raise PhosPyInputError(
+            "bundle manifest provenance.workflow_parameters.upstream_kinase_provenance "
+            "is required for signalome bundles; regenerate this bundle with the "
+            "current PhosPy version"
         )
-        if isinstance(upstream_raw, Mapping):
-            upstream_kinase_provenance = provenance_from_payload(upstream_raw)
+    upstream_kinase_provenance = provenance_from_payload(upstream_raw)
     processing_state_payload = require_mapping(
         sections.dataset_metadata.get("processing_state"),
         field_name="bundle manifest.dataset.metadata.processing_state",
@@ -220,11 +219,10 @@ def reconstruct_signalome_result(
         table_key="target_table",
         field_name="bundle manifest.upstream_kinase_outputs.activity.tables.target_table",
     )
-    if weighted_activity is None:
-        activity_result = None
-    else:
+    if sections.upstream_activity_enabled:
         if (
-            thresholded_substrate_mean_activity is None
+            weighted_activity is None
+            or thresholded_substrate_mean_activity is None
             or thresholded_substrate_counts is None
             or target_counts is None
             or target_table is None
@@ -239,6 +237,19 @@ def reconstruct_signalome_result(
             target_counts=target_counts,
             target_table=target_table,
         )
+    else:
+        if (
+            weighted_activity is not None
+            or thresholded_substrate_mean_activity is not None
+            or thresholded_substrate_counts is not None
+            or target_counts is not None
+            or target_table is not None
+        ):
+            raise PhosPyInputError(
+                "bundle manifest upstream_kinase_outputs.activity.enabled=false must "
+                "not declare populated activity tables"
+            )
+        activity_result = None
 
     kinase_result = KinaseWorkflowResult(
         dataset=dataset,
@@ -264,15 +275,11 @@ def reconstruct_signalome_result(
             scope="bundle manifest.signalome_outputs.metadata",
         )
     )
-    candidate_correlations = (
-        read_optional_table(
-            bundle_root=bundle_root,
-            tables=sections.signalome_tables,
-            table_key="kinase_network_candidate_correlations",
-            field_name="bundle manifest.signalome_outputs.tables.kinase_network_candidate_correlations",
-        )
-        if "kinase_network_candidate_correlations" in sections.signalome_tables
-        else None
+    candidate_correlations = read_optional_table(
+        bundle_root=bundle_root,
+        tables=sections.signalome_tables,
+        table_key="kinase_network_candidate_correlations",
+        field_name="bundle manifest.signalome_outputs.tables.kinase_network_candidate_correlations",
     )
     return SignalomeWorkflowResult(
         dataset=dataset,
