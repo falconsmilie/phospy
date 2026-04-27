@@ -166,6 +166,13 @@ def cluster_sites_with_diagnostics(
                         scoring_values
                     ),
                     cluster_count=module_count,
+                    cluster_tree_backend=cluster_tree_backend,
+                    candidate_scoring_backend=(
+                        SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+                        if candidate_scoring_backend is None
+                        else candidate_scoring_backend
+                    ),
+                    max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
                 )
                 + 1
             )
@@ -1028,7 +1035,18 @@ def build_cluster_labels_from_tree(
     }
 
 
-def fit_cluster_labels(scoring_values: np.ndarray, cluster_count: int) -> np.ndarray:
+def fit_cluster_labels(
+    scoring_values: np.ndarray,
+    cluster_count: int,
+    *,
+    cluster_tree_backend: SignalomeClusterTreeBackend = (
+        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
+    ),
+    candidate_scoring_backend: SignalomeCandidateScoringBackend = (
+        SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+    ),
+    max_exact_cluster_tree_sites: int | None = None,
+) -> np.ndarray:
     """Fit Ward clustering and return 0-indexed labels for one count."""
 
     values = np.asarray(scoring_values, dtype=float)
@@ -1036,7 +1054,13 @@ def fit_cluster_labels(scoring_values: np.ndarray, cluster_count: int) -> np.nda
     resolved_cluster_count = max(1, min(int(cluster_count), n_sites))
     if resolved_cluster_count == 1:
         return np.zeros(n_sites, dtype=int)
-    tree = build_cluster_tree(values)
+    tree = _build_exact_cluster_tree_with_guard(
+        clustering_values=values,
+        n_sites=n_sites,
+        cluster_tree_backend=cluster_tree_backend,
+        candidate_scoring_backend=candidate_scoring_backend,
+        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
+    )
     return build_cluster_labels_from_tree(
         cluster_tree=tree,
         cluster_counts=[resolved_cluster_count],

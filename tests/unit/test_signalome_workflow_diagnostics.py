@@ -834,6 +834,7 @@ def test_exact_cluster_tree_guard_fails_before_build_cluster_tree_call(
         ),
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
+            module_count=2,
             cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
             candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
             max_exact_cluster_tree_sites=2,
@@ -900,6 +901,7 @@ def test_sampled_candidate_scoring_still_hits_exact_tree_guard_without_approx_tr
         ),
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
+            module_count=2,
             cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
             candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
             max_exact_cluster_tree_sites=1,
@@ -931,7 +933,11 @@ def test_sampled_candidate_scoring_still_hits_exact_tree_guard_without_approx_tr
     assert tree_calls == []
 
 
-def test_deprecated_approximate_alias_is_still_guarded_by_exact_tree_limit() -> None:
+def test_deprecated_approximate_alias_is_still_guarded_by_exact_tree_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.signalomes.clustering as clustering_module
+
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
     prediction_matrix = _matrix(
@@ -952,6 +958,21 @@ def test_deprecated_approximate_alias_is_still_guarded_by_exact_tree_limit() -> 
         site_ids=site_ids,
         kinases=["K1", "K2"],
     )
+    tree_calls: list[str] = []
+
+    def _build_tree_should_not_run(scoring_values: object) -> object:
+        del scoring_values
+        tree_calls.append("called")
+        raise AssertionError(
+            "build_cluster_tree should not run when exact tree guard fails"
+        )
+
+    monkeypatch.setattr(
+        clustering_module,
+        "build_cluster_tree",
+        _build_tree_should_not_run,
+    )
+
     with warnings.catch_warnings(record=True) as deprecated_warnings:
         warnings.simplefilter("always", DeprecationWarning)
         request = SignalomeWorkflowRequest(
@@ -962,6 +983,7 @@ def test_deprecated_approximate_alias_is_still_guarded_by_exact_tree_limit() -> 
             ),
             config=SignalomeConfig(
                 substrate_support_cutoff=0.5,
+                module_count=2,
                 clustering_backend=SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
                 max_exact_clustering_sites=1,
             ),
@@ -987,6 +1009,7 @@ def test_deprecated_approximate_alias_is_still_guarded_by_exact_tree_limit() -> 
     assert "max_exact_cluster_tree_sites=1" in message
     assert "cluster_tree_backend='exact'" in message
     assert "candidate_scoring_backend='sampled'" in message
+    assert tree_calls == []
 
 
 def test_full_candidate_scoring_guard_triggers_above_full_correlation_limit() -> None:
