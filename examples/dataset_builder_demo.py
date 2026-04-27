@@ -61,8 +61,12 @@ def main() -> None:
         ),
     )
     print(
-        "Intensity scale:",
-        f"{dataset.intensity_scale_state.label} (builder-established pass-through lane)",
+        "Intensity state:",
+        (
+            f"scale={dataset.intensity_scale_state.label}, "
+            f"quantitative_meaning={dataset.intensity_scale_state.quantity.value} "
+            "(builder-established pass-through lane)"
+        ),
     )
     print(
         "Processing state:",

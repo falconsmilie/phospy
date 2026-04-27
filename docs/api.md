@@ -334,6 +334,10 @@ cluster-tree construction and final module assignment still require the exact
 tree and remain hard-guarded by `max_exact_cluster_tree_sites`.
 Exact tree construction is an internal, scale-limited implementation detail of
 the signalome workflow contract.
+Low-level clustering helpers in `phospy.signalomes.clustering` use the same
+guarded exact-tree path and resolve missing/`None`
+`max_exact_cluster_tree_sites` to the safe default (`2000`), rather than an
+unbounded tree build.
 
 Successful runs record scale decisions in provenance under
 `result.provenance.workflow_parameters["scale_guard"]` (`site_count`,

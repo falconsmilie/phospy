@@ -186,6 +186,7 @@ def test_signalome_full_vs_approximate_correlation_performance_contract(
             lambda: select_module_count_with_diagnostics(
                 scoring_values=above_threshold_matrix,
                 max_clusters=3,
+                max_exact_cluster_tree_sites=above_threshold_sites,
             ),
             warmup=True,
         )

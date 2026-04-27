@@ -100,6 +100,17 @@ def test_build_cluster_tree_not_exported_from_signalome_public_api() -> None:
     assert not hasattr(signalome_clustering, "build_cluster_tree")
 
 
+def test_public_signalome_clustering_exports_do_not_expose_exact_tree_builders() -> (
+    None
+):
+    public_tree_builders = {
+        name
+        for name in signalome_clustering.__all__
+        if "tree" in name and name.startswith("build")
+    }
+    assert public_tree_builders == {"build_cluster_labels_from_tree"}
+
+
 def test_public_signalome_docs_do_not_reference_raw_build_cluster_tree() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     docs_markdown_files = sorted((ROOT / "docs").rglob("*.md"))

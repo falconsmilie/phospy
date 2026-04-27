@@ -128,7 +128,7 @@ def cluster_sites(
         SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
     ),
     candidate_scoring_backend: SignalomeCandidateScoringBackend | None = None,
-    max_exact_cluster_tree_sites: int | None = None,
+    max_exact_cluster_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
     max_full_correlation_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
 ) -> pd.Series:
     """Cluster phosphosites into site clusters."""
@@ -161,7 +161,7 @@ def cluster_sites_with_diagnostics(
         SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
     ),
     candidate_scoring_backend: SignalomeCandidateScoringBackend | None = None,
-    max_exact_cluster_tree_sites: int | None = None,
+    max_exact_cluster_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
     max_full_correlation_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
 ) -> ClusterSitesResult:
     """Cluster phosphosites and capture module-selection diagnostics."""
@@ -234,6 +234,7 @@ def select_module_count(
     scoring_mode: SignalomeClusteringScoringMode = (
         SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
     ),
+    max_exact_cluster_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
 ) -> int:
     """Select a module count from a scoring matrix."""
 
@@ -244,6 +245,7 @@ def select_module_count(
         fallback_threshold=fallback_threshold,
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
+        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
     ).selected_module_count
 
 
@@ -257,6 +259,7 @@ def select_module_count_with_diagnostics(
     scoring_mode: SignalomeClusteringScoringMode = (
         SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
     ),
+    max_exact_cluster_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
 ) -> SignalomeModuleSelectionDiagnostics:
     """Select a module count and return diagnostics."""
 
@@ -272,6 +275,7 @@ def select_module_count_with_diagnostics(
         fallback_threshold=fallback_threshold,
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
+        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
     ).diagnostics
 
 
@@ -334,7 +338,7 @@ def _compute_module_selection(
         SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
     ),
     candidate_scoring_backend: SignalomeCandidateScoringBackend | None = None,
-    max_exact_cluster_tree_sites: int | None = None,
+    max_exact_cluster_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
     max_full_correlation_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
 ) -> _ModuleSelectionComputation:
     _validate_threshold(primary_threshold, field_name="primary_threshold")
@@ -355,13 +359,11 @@ def _compute_module_selection(
         SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
     }:
         raise ValueError("candidate_scoring_backend must be one of: full, sampled")
-    if (
-        max_exact_cluster_tree_sites is not None
-        and int(max_exact_cluster_tree_sites) < 1
-    ):
-        raise ValueError("max_exact_cluster_tree_sites must be >= 1")
     if max_full_correlation_sites < 1:
         raise ValueError("max_full_correlation_sites must be >= 1")
+    resolved_max_exact_cluster_tree_sites = _resolve_max_exact_cluster_tree_sites(
+        max_exact_cluster_tree_sites
+    )
 
     scoring_array = np.asarray(scoring_values, dtype=float)
     if scoring_array.ndim != 2:
@@ -396,7 +398,7 @@ def _compute_module_selection(
         scoring_mode=scoring_mode,
         cluster_tree_backend=cluster_tree_backend,
         candidate_scoring_backend=resolved_candidate_scoring_backend,
-        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
+        max_exact_cluster_tree_sites=resolved_max_exact_cluster_tree_sites,
         max_full_correlation_sites=max_full_correlation_sites,
     )
 
@@ -780,6 +782,21 @@ def _resolve_candidate_scoring_backend(
     return SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
 
 
+def _resolve_max_exact_cluster_tree_sites(
+    max_exact_cluster_tree_sites: int | None,
+) -> int:
+    """Resolve exact-tree guard limit; `None` maps to the safe default limit."""
+
+    resolved = (
+        MAX_FULL_CORRELATION_SITE_COUNT
+        if max_exact_cluster_tree_sites is None
+        else int(max_exact_cluster_tree_sites)
+    )
+    if resolved < 1:
+        raise ValueError("max_exact_cluster_tree_sites must be >= 1")
+    return resolved
+
+
 def _build_exact_cluster_tree_with_guard(
     *,
     clustering_values: np.ndarray,
@@ -790,13 +807,14 @@ def _build_exact_cluster_tree_with_guard(
 ) -> _WardClusterTree:
     if cluster_tree_backend != SIGNALOME_CLUSTER_TREE_BACKEND_EXACT:
         raise ValueError("cluster_tree_backend must be 'exact'")
-    if max_exact_cluster_tree_sites is not None and n_sites > int(
+    resolved_max_exact_cluster_tree_sites = _resolve_max_exact_cluster_tree_sites(
         max_exact_cluster_tree_sites
-    ):
+    )
+    if n_sites > int(resolved_max_exact_cluster_tree_sites):
         raise SignalomeScaleError(
             "Signalome exact cluster-tree construction received "
             f"{n_sites:,} sites, which exceeds max_exact_cluster_tree_sites="
-            f"{int(max_exact_cluster_tree_sites):,} "
+            f"{int(resolved_max_exact_cluster_tree_sites):,} "
             "(cluster_tree_backend='exact'). "
             f"candidate_scoring_backend='{candidate_scoring_backend}' still "
             "requires exact cluster-tree construction in the current "
@@ -1127,7 +1145,7 @@ def fit_cluster_labels(
     candidate_scoring_backend: SignalomeCandidateScoringBackend = (
         SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
     ),
-    max_exact_cluster_tree_sites: int | None = None,
+    max_exact_cluster_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
 ) -> np.ndarray:
     """Fit Ward clustering and return 0-indexed labels for one count."""
 
@@ -1136,12 +1154,15 @@ def fit_cluster_labels(
     resolved_cluster_count = max(1, min(int(cluster_count), n_sites))
     if resolved_cluster_count == 1:
         return np.zeros(n_sites, dtype=int)
+    resolved_max_exact_cluster_tree_sites = _resolve_max_exact_cluster_tree_sites(
+        max_exact_cluster_tree_sites
+    )
     tree = _build_exact_cluster_tree_with_guard(
         clustering_values=values,
         n_sites=n_sites,
         cluster_tree_backend=cluster_tree_backend,
         candidate_scoring_backend=candidate_scoring_backend,
-        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
+        max_exact_cluster_tree_sites=resolved_max_exact_cluster_tree_sites,
     )
     return build_cluster_labels_from_tree(
         cluster_tree=tree,

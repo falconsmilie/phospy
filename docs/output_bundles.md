@@ -74,6 +74,12 @@ Signalome manifest:
 
 Both manifests store dataset organism, full `intensity_scale_state` payload,
 and full `processing_state` payload.
+Published dataset export manifests (`dataset/manifest.json`) also keep this pair
+explicit at top level:
+
+- `intensity_scale` (numeric scale, for example `log2`)
+- `quantitative_meaning` (scientific meaning, for example
+  `phosphosite_log_abundance` or `phospho_total_log_ratio`)
 
 `intensity_scale_state` persists both:
 

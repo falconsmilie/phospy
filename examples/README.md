@@ -13,5 +13,6 @@ They intentionally keep the story small:
 - rat bundled-reference lane first
 - `phospy.api` for requests and enums
 - explicit `protein_id` for signalome
+- explicit reporting of both numeric scale and quantitative meaning (for example, `log2` with `phosphosite_log_abundance`)
 
 They are not meant to show every advanced option. For that, use the main docs.
