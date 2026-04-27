@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
+from typing import TypeAlias
 
 from phospy.errors.input import PhosPyInputError
+
+JsonPrimitive: TypeAlias = None | str | bool | int | float
+JsonValue: TypeAlias = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
 
 
 def require_mapping(value: object, *, field_name: str) -> Mapping[str, object]:
@@ -48,3 +53,54 @@ def require_float(value: object, *, field_name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise PhosPyInputError(f"{field_name} must be a float")
     return float(value)
+
+
+def validate_json_safe_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> dict[str, JsonValue]:
+    """Validate and normalize a mapping as stable JSON-safe metadata."""
+
+    payload = require_mapping(value, field_name=field_name)
+    return _validate_json_safe_value(payload, path=field_name)
+
+
+def _validate_json_safe_value(value: object, *, path: str) -> JsonValue:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise PhosPyInputError(f"{path} must contain only finite float values")
+        return value
+    if isinstance(value, list):
+        return [
+            _validate_json_safe_value(item, path=f"{path}[{index}]")
+            for index, item in enumerate(value)
+        ]
+    if isinstance(value, tuple):
+        return [
+            _validate_json_safe_value(item, path=f"{path}[{index}]")
+            for index, item in enumerate(value)
+        ]
+    if isinstance(value, Mapping):
+        normalized: dict[str, JsonValue] = {}
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise PhosPyInputError(
+                    f"{path} must contain only string keys; got key "
+                    f"{key!r} ({type(key).__name__})"
+                )
+            normalized[key] = _validate_json_safe_value(item, path=f"{path}.{key}")
+        return normalized
+    raise PhosPyInputError(
+        f"{path} contains unsupported value type "
+        f"{type(value).__module__}.{type(value).__name__}; expected JSON-safe "
+        "scalars, arrays, or objects"
+    )

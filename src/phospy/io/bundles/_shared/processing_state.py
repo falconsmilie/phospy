@@ -22,6 +22,7 @@ from phospy.io.bundles._shared.primitives import (
     require_int,
     require_mapping,
     require_str,
+    validate_json_safe_mapping,
 )
 from phospy.transformations.models import QuantitativeMeaning
 
@@ -29,6 +30,12 @@ from phospy.transformations.models import QuantitativeMeaning
 def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, object]:
     """Serialize dataset processing state to manifest payload."""
 
+    correction_diagnostics = _require_optional_json_safe_mapping(
+        state.total_protein_correction.diagnostics,
+        field_name=(
+            "dataset.metadata.processing_state.total_protein_correction.diagnostics"
+        ),
+    )
     return {
         "intensity_scale": intensity_scale_state_to_payload(state.intensity_scale),
         "missing_data": {
@@ -45,11 +52,7 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
             "requires_log_scale": state.total_protein_correction.requires_log_scale,
             "input_scale": state.total_protein_correction.input_scale,
             "output_scale": state.total_protein_correction.output_scale,
-            "diagnostics": (
-                None
-                if state.total_protein_correction.diagnostics is None
-                else dict(state.total_protein_correction.diagnostics)
-            ),
+            "diagnostics": correction_diagnostics,
         },
         "site_matrix": {
             "policy": state.site_matrix.policy,
@@ -184,7 +187,7 @@ def processing_state_from_payload(
                     "output_scale"
                 ),
             ),
-            diagnostics=_require_optional_mapping(
+            diagnostics=_require_optional_json_safe_mapping(
                 correction_payload.get("diagnostics"),
                 field_name=(
                     "dataset.metadata.processing_state.total_protein_correction."
@@ -255,15 +258,14 @@ def _require_optional_str(value: object, *, field_name: str) -> str | None:
     return require_str(value, field_name=field_name)
 
 
-def _require_optional_mapping(
+def _require_optional_json_safe_mapping(
     value: object,
     *,
     field_name: str,
 ) -> dict[str, object] | None:
     if value is None:
         return None
-    payload = require_mapping(value, field_name=field_name)
-    return {str(key): item for key, item in payload.items()}
+    return validate_json_safe_mapping(value, field_name=field_name)
 
 
 def _parse_optional_pairs(

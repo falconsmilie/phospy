@@ -93,7 +93,18 @@ For `processing_state.total_protein_correction`, persisted fields include:
 - `requires_log_scale`
 - `input_scale`
 - `output_scale`
-- `diagnostics` (runtime correction diagnostics when available)
+- `diagnostics` (runtime correction diagnostics when available, JSON-safe only)
+
+`processing_state.total_protein_correction.diagnostics` is validated recursively
+on bundle save/load and must use stable JSON-safe values:
+
+- `null`, string, bool, int, finite float
+- arrays (lists/tuples) of JSON-safe values
+- objects with string keys and JSON-safe values
+
+Unsupported values (for example custom objects, NumPy/pandas objects, sets,
+bytes, non-string keys, or non-finite floats) are rejected with an explicit
+bundle field-path error.
 
 `provenance` is machine-readable run metadata (`RunProvenance`) and includes:
 
