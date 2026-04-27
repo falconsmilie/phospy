@@ -7,6 +7,7 @@ import pytest
 
 from phospy import (
     AnalysisReadyPhosphoDataset,
+    SignalomeWorkflow,
 )
 from phospy.api import (
     KinaseWorkflowResult,
@@ -74,6 +75,8 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+
+_SIGNALOME_WORKFLOW_EXECUTION_PATHS = ("direct_components", "public_workflow")
 
 
 def _dataset(
@@ -216,6 +219,21 @@ def _interpreted_request_for_context_failure() -> ResolvedSignalomeWorkflowReque
         config=SignalomeConfig(substrate_support_cutoff=0.5),
     )
     return SignalomeWorkflowInterpreter().run(request)
+
+
+def _run_signalome_workflow_path(
+    *,
+    request: SignalomeWorkflowRequest,
+    execution_path: str,
+) -> SignalomeWorkflowResult:
+    if execution_path == "direct_components":
+        interpreted = SignalomeWorkflowInterpreter().run(request)
+        return SignalomeWorkflowExecutor().run(interpreted)
+    if execution_path == "public_workflow":
+        return SignalomeWorkflow().run(request)
+    raise ValueError(
+        "execution_path must be one of: direct_components, public_workflow"
+    )
 
 
 def test_boundary_error_reports_no_usable_site_alignment_counts() -> None:
@@ -926,8 +944,14 @@ def test_sampled_backend_records_zero_sampling_provenance_when_scoring_not_evalu
     }
 
 
-def test_explicit_module_count_cannot_bypass_exact_tree_guard(
+@pytest.mark.parametrize(
+    "execution_path",
+    _SIGNALOME_WORKFLOW_EXECUTION_PATHS,
+    ids=_SIGNALOME_WORKFLOW_EXECUTION_PATHS,
+)
+def test_explicit_module_count_over_exact_tree_limit_fails_early(
     monkeypatch: pytest.MonkeyPatch,
+    execution_path: str,
 ) -> None:
     import phospy.signalomes.clustering as clustering_module
 
@@ -965,7 +989,6 @@ def test_explicit_module_count_cannot_bypass_exact_tree_guard(
             max_exact_cluster_tree_sites=2,
         ),
     )
-    interpreted = SignalomeWorkflowInterpreter().run(request)
 
     tree_calls: list[str] = []
 
@@ -983,18 +1006,26 @@ def test_explicit_module_count_cannot_bypass_exact_tree_guard(
     )
 
     with pytest.raises(SignalomeScaleError) as exc_info:
-        SignalomeWorkflowExecutor().run(interpreted)
+        _run_signalome_workflow_path(
+            request=request,
+            execution_path=execution_path,
+        )
 
     message = str(exc_info.value).lower()
-    assert "3 sites" in message
+    assert "exact cluster-tree construction" in message
     assert "max_exact_cluster_tree_sites=2" in message
     assert "cluster_tree_backend='exact'" in message
-    assert "exact cluster-tree construction" in message
     assert tree_calls == []
 
 
-def test_sampled_candidate_scoring_cannot_bypass_exact_tree_guard(
+@pytest.mark.parametrize(
+    "execution_path",
+    _SIGNALOME_WORKFLOW_EXECUTION_PATHS,
+    ids=_SIGNALOME_WORKFLOW_EXECUTION_PATHS,
+)
+def test_sampled_candidate_scoring_over_exact_tree_limit_fails_early(
     monkeypatch: pytest.MonkeyPatch,
+    execution_path: str,
 ) -> None:
     import phospy.signalomes.clustering as clustering_module
 
@@ -1032,7 +1063,6 @@ def test_sampled_candidate_scoring_cannot_bypass_exact_tree_guard(
             max_exact_cluster_tree_sites=1,
         ),
     )
-    interpreted = SignalomeWorkflowInterpreter().run(request)
 
     tree_calls: list[str] = []
 
@@ -1050,16 +1080,28 @@ def test_sampled_candidate_scoring_cannot_bypass_exact_tree_guard(
     )
 
     with pytest.raises(SignalomeScaleError) as exc_info:
-        SignalomeWorkflowExecutor().run(interpreted)
+        _run_signalome_workflow_path(
+            request=request,
+            execution_path=execution_path,
+        )
 
     message = str(exc_info.value).lower()
+    assert "exact cluster-tree construction" in message
     assert "max_exact_cluster_tree_sites=1" in message
+    # Sampled scoring only changes candidate module-count evaluation.
+    # Exact cluster-tree construction is still required first.
     assert "candidate_scoring_backend='sampled'" in message
     assert tree_calls == []
 
 
-def test_deprecated_approximate_backend_cannot_bypass_exact_tree_guard(
+@pytest.mark.parametrize(
+    "execution_path",
+    _SIGNALOME_WORKFLOW_EXECUTION_PATHS,
+    ids=_SIGNALOME_WORKFLOW_EXECUTION_PATHS,
+)
+def test_deprecated_approximate_backend_still_enforces_exact_tree_limit(
     monkeypatch: pytest.MonkeyPatch,
+    execution_path: str,
 ) -> None:
     import phospy.signalomes.clustering as clustering_module
 
@@ -1113,9 +1155,11 @@ def test_deprecated_approximate_backend_cannot_bypass_exact_tree_guard(
                 max_exact_clustering_sites=1,
             ),
         )
-        interpreted = SignalomeWorkflowInterpreter().run(request)
         with pytest.raises(SignalomeScaleError) as exc_info:
-            SignalomeWorkflowExecutor().run(interpreted)
+            _run_signalome_workflow_path(
+                request=request,
+                execution_path=execution_path,
+            )
 
     warning_messages = [
         str(warning.message)
@@ -1137,72 +1181,17 @@ def test_deprecated_approximate_backend_cannot_bypass_exact_tree_guard(
     assert tree_calls == []
 
 
-def test_full_candidate_scoring_cannot_bypass_exact_tree_guard(
+@pytest.mark.parametrize(
+    "execution_path",
+    _SIGNALOME_WORKFLOW_EXECUTION_PATHS,
+    ids=_SIGNALOME_WORKFLOW_EXECUTION_PATHS,
+)
+def test_full_candidate_scoring_over_full_correlation_limit_fails_early(
     monkeypatch: pytest.MonkeyPatch,
+    execution_path: str,
 ) -> None:
     import phospy.signalomes.clustering as clustering_module
 
-    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
-    dataset = _dataset(site_ids=site_ids)
-    prediction_matrix = _matrix(
-        values=[
-            [0.95, 0.1],
-            [0.1, 0.95],
-            [0.8, 0.7],
-        ],
-        site_ids=site_ids,
-        kinases=["K1", "K2"],
-    )
-    score_matrix = _matrix(
-        values=[
-            [1.0, 0.0],
-            [0.0, 1.0],
-            [0.8, 0.7],
-        ],
-        site_ids=site_ids,
-        kinases=["K1", "K2"],
-    )
-    request = SignalomeWorkflowRequest(
-        kinase_result=_kinase_result(
-            dataset=dataset,
-            prediction_matrix=prediction_matrix,
-            score_matrix=score_matrix,
-        ),
-        config=SignalomeConfig(
-            substrate_support_cutoff=0.5,
-            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-            max_exact_cluster_tree_sites=1,
-            max_full_correlation_sites=10,
-        ),
-    )
-    interpreted = SignalomeWorkflowInterpreter().run(request)
-
-    tree_calls: list[str] = []
-
-    def _build_tree_should_not_run(scoring_values: object) -> object:
-        del scoring_values
-        tree_calls.append("called")
-        raise AssertionError(
-            "_build_cluster_tree should not run when exact tree guard fails"
-        )
-
-    monkeypatch.setattr(
-        clustering_module,
-        "_build_cluster_tree",
-        _build_tree_should_not_run,
-    )
-
-    with pytest.raises(SignalomeScaleError) as exc_info:
-        SignalomeWorkflowExecutor().run(interpreted)
-
-    message = str(exc_info.value).lower()
-    assert "max_exact_cluster_tree_sites=1" in message
-    assert "candidate_scoring_backend='full'" in message
-    assert tree_calls == []
-
-
-def test_full_candidate_scoring_guard_triggers_above_full_correlation_limit() -> None:
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
     prediction_matrix = _matrix(
@@ -1237,14 +1226,37 @@ def test_full_candidate_scoring_guard_triggers_above_full_correlation_limit() ->
             max_full_correlation_sites=2,
         ),
     )
-    interpreted = SignalomeWorkflowInterpreter().run(request)
+
+    full_correlation_calls: list[str] = []
+
+    def _full_correlation_should_not_run(
+        scoring_values: object,
+        *,
+        excluded_mask: object = None,
+    ) -> object:
+        del scoring_values, excluded_mask
+        full_correlation_calls.append("called")
+        raise AssertionError(
+            "full-correlation computation should not run when full-correlation guard fails"
+        )
+
+    monkeypatch.setattr(
+        clustering_module,
+        "build_correlation_matrix_with_exclusions",
+        _full_correlation_should_not_run,
+    )
 
     with pytest.raises(SignalomeScaleError) as exc_info:
-        SignalomeWorkflowExecutor().run(interpreted)
+        _run_signalome_workflow_path(
+            request=request,
+            execution_path=execution_path,
+        )
 
     message = str(exc_info.value).lower()
+    assert "full candidate-correlation scoring received" in message
     assert "max_full_correlation_sites=2" in message
-    assert "candidate_scoring_backend='sampled'" in message
+    assert "use candidate_scoring_backend='sampled'" in message
+    assert full_correlation_calls == []
 
 
 def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_gene_symbol() -> (
