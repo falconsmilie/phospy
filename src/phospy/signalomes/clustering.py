@@ -48,6 +48,7 @@ SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL = "full"
 SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED = "sampled"
 SignalomeCandidateScoringBackend = Literal["full", "sampled"]
 SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED = "not_evaluated"
+_CandidateScoringMode = SignalomeCandidateScoringBackend | Literal["not_evaluated"]
 SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD = (
     "deterministic_uniform_without_replacement"
 )
@@ -63,7 +64,9 @@ class ClusterSitesResult:
     site_clusters: pd.Series
     module_selection_diagnostics: SignalomeModuleSelectionDiagnostics
     cluster_tree_backend: str = SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
-    candidate_scoring_mode: str = SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    candidate_scoring_mode: _CandidateScoringMode = (
+        SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    )
     exact_cluster_tree_built: bool = False
     candidate_scoring_sampling: dict[str, object] | None = None
 
@@ -73,7 +76,17 @@ class _ModuleSelectionComputation:
     diagnostics: SignalomeModuleSelectionDiagnostics
     candidate_labels: dict[int, np.ndarray]
     cluster_tree_backend: str
-    candidate_scoring_mode: str
+    candidate_scoring_mode: _CandidateScoringMode
+    exact_cluster_tree_built: bool
+    candidate_scoring_sampling: dict[str, object] | None
+
+
+@dataclass(frozen=True, slots=True)
+class _CandidateClusterScoreResult:
+    candidate_scores: dict[int, SignalomeClusterCandidateScore]
+    candidate_labels: dict[int, np.ndarray]
+    approximation_note: str
+    candidate_scoring_mode: _CandidateScoringMode
     exact_cluster_tree_built: bool
     candidate_scoring_sampling: dict[str, object] | None
 
@@ -363,14 +376,7 @@ def _compute_module_selection(
     )
 
     clustering_values = _prepare_scoring_values_for_clustering(scoring_array)
-    (
-        candidate_scores,
-        candidate_labels,
-        approximation_note,
-        candidate_scoring_mode,
-        exact_cluster_tree_built,
-        candidate_scoring_sampling,
-    ) = _compute_candidate_cluster_scores(
+    candidate_score_result = _compute_candidate_cluster_scores(
         clustering_values=clustering_values,
         correlation_values=scoring_array,
         candidate_range=range(2, resolved_max_clusters + 1),
@@ -384,8 +390,8 @@ def _compute_module_selection(
     )
 
     primary_selection = _select_threshold_candidate(
-        candidate_scores=candidate_scores,
-        candidate_labels=candidate_labels,
+        candidate_scores=candidate_score_result.candidate_scores,
+        candidate_labels=candidate_score_result.candidate_labels,
         max_clusters=resolved_max_clusters,
         threshold=primary_threshold,
         requested_module_count=requested_module_count,
@@ -395,18 +401,18 @@ def _compute_module_selection(
         ),
         profile_degeneracy=profile_degeneracy,
         correlation_exclusion_note=correlation_exclusion_note,
-        approximation_note=approximation_note,
-        candidate_scoring_mode=candidate_scoring_mode,
-        exact_cluster_tree_built=exact_cluster_tree_built,
+        approximation_note=candidate_score_result.approximation_note,
+        candidate_scoring_mode=candidate_score_result.candidate_scoring_mode,
+        exact_cluster_tree_built=candidate_score_result.exact_cluster_tree_built,
         cluster_tree_backend=cluster_tree_backend,
-        candidate_scoring_sampling=candidate_scoring_sampling,
+        candidate_scoring_sampling=candidate_score_result.candidate_scoring_sampling,
     )
     if primary_selection is not None:
         return primary_selection
 
     fallback_selection = _select_threshold_candidate(
-        candidate_scores=candidate_scores,
-        candidate_labels=candidate_labels,
+        candidate_scores=candidate_score_result.candidate_scores,
+        candidate_labels=candidate_score_result.candidate_labels,
         max_clusters=resolved_max_clusters,
         threshold=fallback_threshold,
         requested_module_count=requested_module_count,
@@ -416,11 +422,11 @@ def _compute_module_selection(
         ),
         profile_degeneracy=profile_degeneracy,
         correlation_exclusion_note=correlation_exclusion_note,
-        approximation_note=approximation_note,
-        candidate_scoring_mode=candidate_scoring_mode,
-        exact_cluster_tree_built=exact_cluster_tree_built,
+        approximation_note=candidate_score_result.approximation_note,
+        candidate_scoring_mode=candidate_score_result.candidate_scoring_mode,
+        exact_cluster_tree_built=candidate_score_result.exact_cluster_tree_built,
         cluster_tree_backend=cluster_tree_backend,
-        candidate_scoring_sampling=candidate_scoring_sampling,
+        candidate_scoring_sampling=candidate_score_result.candidate_scoring_sampling,
     )
     if fallback_selection is not None:
         return fallback_selection
@@ -431,20 +437,20 @@ def _compute_module_selection(
         requested_module_count=requested_module_count,
         threshold_used=None,
         max_clusters_evaluated=resolved_max_clusters,
-        candidate_scores=candidate_scores,
+        candidate_scores=candidate_score_result.candidate_scores,
         reason=(
             "no candidate module count satisfied the configured correlation "
             "thresholds, so the workflow fell back to one module"
         )
         + correlation_exclusion_note
-        + approximation_note,
+        + candidate_score_result.approximation_note,
         profile_degeneracy=profile_degeneracy,
         excluded_from_correlation_count=profile_degeneracy.excluded_count,
-        candidate_labels=candidate_labels,
-        candidate_scoring_mode=candidate_scoring_mode,
-        exact_cluster_tree_built=exact_cluster_tree_built,
+        candidate_labels=candidate_score_result.candidate_labels,
+        candidate_scoring_mode=candidate_score_result.candidate_scoring_mode,
+        exact_cluster_tree_built=candidate_score_result.exact_cluster_tree_built,
         cluster_tree_backend=cluster_tree_backend,
-        candidate_scoring_sampling=candidate_scoring_sampling,
+        candidate_scoring_sampling=candidate_score_result.candidate_scoring_sampling,
     )
 
 
@@ -461,7 +467,9 @@ def _build_module_selection_result(
     excluded_from_correlation_count: int,
     candidate_labels: dict[int, np.ndarray],
     cluster_tree_backend: str = SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-    candidate_scoring_mode: str = SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
+    candidate_scoring_mode: _CandidateScoringMode = (
+        SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    ),
     exact_cluster_tree_built: bool = False,
     candidate_scoring_sampling: dict[str, object] | None = None,
 ) -> _ModuleSelectionComputation:
@@ -585,25 +593,18 @@ def _compute_candidate_cluster_scores(
     candidate_scoring_backend: SignalomeCandidateScoringBackend,
     max_exact_cluster_tree_sites: int | None,
     max_full_correlation_sites: int,
-) -> tuple[
-    dict[int, SignalomeClusterCandidateScore],
-    dict[int, np.ndarray],
-    str,
-    str,
-    bool,
-    dict[str, object] | None,
-]:
+) -> _CandidateClusterScoreResult:
     """Score candidate cluster counts using full or sampled correlation paths."""
 
     candidate_counts = [int(cluster_count) for cluster_count in candidate_range]
     if not candidate_counts:
-        return (
-            {},
-            {},
-            "",
-            SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
-            False,
-            None,
+        return _CandidateClusterScoreResult(
+            candidate_scores={},
+            candidate_labels={},
+            approximation_note="",
+            candidate_scoring_mode=SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
+            exact_cluster_tree_built=False,
+            candidate_scoring_sampling=None,
         )
 
     cluster_tree = _build_exact_cluster_tree_with_guard(
@@ -645,13 +646,13 @@ def _compute_candidate_cluster_scores(
                 min_median_correlation=float(min(cluster_medians)),
                 mean_median_correlation=float(np.mean(cluster_medians)),
             )
-        return (
-            candidate_scores,
-            candidate_labels,
-            "",
-            SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-            exact_cluster_tree_built,
-            None,
+        return _CandidateClusterScoreResult(
+            candidate_scores=candidate_scores,
+            candidate_labels=candidate_labels,
+            approximation_note="",
+            candidate_scoring_mode=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+            exact_cluster_tree_built=exact_cluster_tree_built,
+            candidate_scoring_sampling=None,
         )
 
     candidate_scores = {}
@@ -692,13 +693,13 @@ def _compute_candidate_cluster_scores(
             "order-invariant sampling) to avoid materializing a full site-by-site "
             "correlation matrix."
         )
-    return (
-        candidate_scores,
-        candidate_labels,
-        approximation_note,
-        SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-        exact_cluster_tree_built,
-        _build_candidate_scoring_sampling_provenance(
+    return _CandidateClusterScoreResult(
+        candidate_scores=candidate_scores,
+        candidate_labels=candidate_labels,
+        approximation_note=approximation_note,
+        candidate_scoring_mode=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+        exact_cluster_tree_built=exact_cluster_tree_built,
+        candidate_scoring_sampling=_build_candidate_scoring_sampling_provenance(
             max_sites_per_cluster=MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
             per_cluster_sample_counts=per_cluster_sample_counts,
             actual_sampled_pair_count=actual_sampled_pair_count,
@@ -784,7 +785,7 @@ def _select_threshold_candidate(
     correlation_exclusion_note: str,
     approximation_note: str,
     cluster_tree_backend: str,
-    candidate_scoring_mode: str,
+    candidate_scoring_mode: _CandidateScoringMode,
     exact_cluster_tree_built: bool,
     candidate_scoring_sampling: dict[str, object] | None,
 ) -> _ModuleSelectionComputation | None:

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
+import phospy.signalomes.clustering as clustering_module
 from phospy.signalomes.clustering import (
     cluster_sites_with_diagnostics,
     fit_cluster_labels,
@@ -85,3 +87,94 @@ def test_cluster_sites_matches_two_pass_partition_for_selected_module_count() ->
 
     assert clustered.module_selection_diagnostics == diagnostics
     assert np.array_equal(observed_partition, baseline_partition)
+
+
+def test_candidate_scoring_helper_returns_stable_shape_across_all_branches() -> None:
+    values = np.asarray(
+        [
+            [1.0, 0.0, 0.5],
+            [0.9, 0.1, 0.4],
+            [0.0, 1.0, 0.5],
+            [0.1, 0.9, 0.6],
+        ],
+        dtype=float,
+    )
+    profile_degeneracy = clustering_module.summarize_profile_degeneracy(values)
+    clustering_values = clustering_module._prepare_scoring_values_for_clustering(values)
+
+    common_kwargs = {
+        "clustering_values": clustering_values,
+        "correlation_values": values,
+        "profile_degeneracy": profile_degeneracy,
+        "n_sites": int(values.shape[0]),
+        "scoring_mode": clustering_module.SIGNALOME_CLUSTERING_SCORING_MODE_AUTO,
+        "cluster_tree_backend": clustering_module.SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+        "max_exact_cluster_tree_sites": None,
+        "max_full_correlation_sites": 10,
+    }
+
+    empty_result = clustering_module._compute_candidate_cluster_scores(
+        candidate_range=range(2, 2),
+        candidate_scoring_backend=clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        **common_kwargs,
+    )
+    full_result = clustering_module._compute_candidate_cluster_scores(
+        candidate_range=range(2, 3),
+        candidate_scoring_backend=clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        **common_kwargs,
+    )
+    sampled_result = clustering_module._compute_candidate_cluster_scores(
+        candidate_range=range(2, 3),
+        candidate_scoring_backend=clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+        **common_kwargs,
+    )
+
+    assert isinstance(empty_result, clustering_module._CandidateClusterScoreResult)
+    assert isinstance(full_result, clustering_module._CandidateClusterScoreResult)
+    assert isinstance(sampled_result, clustering_module._CandidateClusterScoreResult)
+
+    assert empty_result.candidate_scores == {}
+    assert empty_result.candidate_labels == {}
+    assert (
+        empty_result.candidate_scoring_mode
+        == clustering_module.SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    )
+    assert full_result.candidate_scoring_mode == "full"
+    assert sampled_result.candidate_scoring_mode == "sampled"
+    assert 2 in full_result.candidate_scores
+    assert 2 in sampled_result.candidate_scores
+
+
+def test_module_selection_survives_empty_candidate_range_branch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    values = np.asarray(
+        [
+            [1.0, 0.0, 0.5],
+            [0.9, 0.1, 0.4],
+            [0.0, 1.0, 0.5],
+            [0.1, 0.9, 0.6],
+        ],
+        dtype=float,
+    )
+
+    original_resolver = clustering_module._resolve_pre_scoring_module_selection
+
+    def _force_empty_candidate_range(**kwargs: object) -> tuple[None, int]:
+        _, resolved_max_clusters = original_resolver(**kwargs)
+        return None, min(1, int(resolved_max_clusters))
+
+    monkeypatch.setattr(
+        clustering_module,
+        "_resolve_pre_scoring_module_selection",
+        _force_empty_candidate_range,
+    )
+
+    diagnostics = select_module_count_with_diagnostics(scoring_values=values)
+
+    assert diagnostics.selected_module_count == 1
+    assert diagnostics.candidate_scores == {}
+    assert (
+        "no candidate module count satisfied the configured correlation thresholds"
+        in diagnostics.reason
+    )
