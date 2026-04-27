@@ -247,7 +247,7 @@ network/module preconditions.
 | dataset organism missing for `AUTO` | set `organism=Organism.RAT` for bundled first runs |
 | bundled human/mouse preset fails | use an explicit `ReferenceBundle` |
 | signalome fails on `protein_id` | add a non-empty `protein_id` column |
-| signalome scale guard fails with `SignalomeScaleError` | reduce interpreted sites, use `candidate_scoring_backend="sampled"` for candidate scoring cost, and/or deliberately raise `max_exact_cluster_tree_sites` / `max_full_correlation_sites` |
+| signalome scale guard fails with `SignalomeScaleError` | reduce interpreted sites, use `candidate_scoring_backend="sampled"` only for candidate module-count scoring cost (it does not bypass exact cluster-tree construction), and/or deliberately raise `max_exact_cluster_tree_sites` / `max_full_correlation_sites` |
 | rows dropped in site-matrix building | review sequence support and preprocessing policy |
 
 ## Validation ownership summary

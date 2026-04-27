@@ -96,11 +96,14 @@ Behavior:
 - `SignalomeConfig.candidate_scoring_backend="sampled"` uses sampled
   within-cluster correlation estimates for module-count candidate scoring,
 - sampled candidate scoring only changes candidate module-count evaluation; it
-  does not change exact cluster-tree construction,
+  does not change exact cluster-tree construction or final module assignment,
 - sampled scoring is deterministic and order-invariant in the current
   implementation,
 - candidate-scoring mode and exact-tree construction are recorded in
   provenance (`workflow_parameters.scale_guard`),
+- provenance also records whether candidate scoring was evaluated
+  (`candidate_scoring_evaluated`) and why it was skipped when not evaluated
+  (`candidate_scoring_skip_reason`, for example `explicit_module_count`),
 - sampled runs also record `candidate_scoring_sampling` provenance
   (`sampling_cap`, `sampling_method`, `deterministic_seed_policy`,
   `actual_sampled_pair_count`, and per-cluster sample-count summary),

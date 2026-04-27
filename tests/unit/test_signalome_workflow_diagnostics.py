@@ -41,8 +41,12 @@ from phospy.errors import (
 from phospy.errors.workflows import WorkflowStageError
 from phospy.signalomes.clustering import (
     MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
+    SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
+    SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
     SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
     SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY,
+    SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT,
+    SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
 )
 from phospy.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
@@ -820,7 +824,14 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         "max_full_correlation_sites": SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
         "exact_cluster_tree_built": True,
         "candidate_scoring_mode": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        "candidate_scoring_evaluated": True,
+        "candidate_scoring_skip_reason": None,
         "candidate_scoring_sampling": None,
+        "candidate_scoring_applies_to": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
+        "final_module_assignment_backend": (
+            SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
+        ),
+        "final_module_assignment_uses_candidate_scoring": False,
         "scale_guard_passed": True,
     }
 
@@ -868,6 +879,17 @@ def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
         scale_guard["candidate_scoring_backend"]
         == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
     )
+    assert scale_guard["candidate_scoring_evaluated"] is True
+    assert scale_guard["candidate_scoring_skip_reason"] is None
+    assert (
+        scale_guard["candidate_scoring_applies_to"]
+        == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
+    )
+    assert (
+        scale_guard["final_module_assignment_backend"]
+        == SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
+    )
+    assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
     sampled = scale_guard["candidate_scoring_sampling"]
     assert isinstance(sampled, dict)
     assert sampled["sampling_cap"] == MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER
@@ -930,6 +952,25 @@ def test_sampled_backend_records_zero_sampling_provenance_when_scoring_not_evalu
     sampled = result.provenance.workflow_parameters["scale_guard"][
         "candidate_scoring_sampling"
     ]
+    scale_guard = result.provenance.workflow_parameters["scale_guard"]
+    assert (
+        scale_guard["candidate_scoring_mode"]
+        == SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    )
+    assert scale_guard["candidate_scoring_evaluated"] is False
+    assert (
+        scale_guard["candidate_scoring_skip_reason"]
+        == SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
+    )
+    assert (
+        scale_guard["candidate_scoring_applies_to"]
+        == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
+    )
+    assert (
+        scale_guard["final_module_assignment_backend"]
+        == SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
+    )
+    assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
     assert sampled == {
         "sampling_cap": MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
         "sampling_method": SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
@@ -942,6 +983,67 @@ def test_sampled_backend_records_zero_sampling_provenance_when_scoring_not_evalu
             "total": 0,
         },
     }
+
+
+def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> None:
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.1, 0.9],
+            [0.8, 0.8],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(
+            substrate_support_cutoff=0.5,
+            module_count=2,
+            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        ),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    result = SignalomeWorkflowExecutor().run(interpreted)
+
+    assert result.provenance is not None
+    scale_guard = result.provenance.workflow_parameters["scale_guard"]
+    assert (
+        scale_guard["candidate_scoring_mode"]
+        == SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    )
+    assert scale_guard["candidate_scoring_evaluated"] is False
+    assert (
+        scale_guard["candidate_scoring_skip_reason"]
+        == SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
+    )
+    assert scale_guard["candidate_scoring_sampling"] is None
+    assert (
+        scale_guard["candidate_scoring_applies_to"]
+        == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
+    )
+    assert (
+        scale_guard["final_module_assignment_backend"]
+        == SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
+    )
+    assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
 
 
 @pytest.mark.parametrize(

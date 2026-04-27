@@ -137,7 +137,15 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert scale_guard["scale_guard_passed"] is True
     assert scale_guard["exact_cluster_tree_built"] is True
     assert scale_guard["candidate_scoring_mode"] == "full"
+    assert scale_guard["candidate_scoring_evaluated"] is True
+    assert scale_guard["candidate_scoring_skip_reason"] is None
     assert scale_guard["candidate_scoring_sampling"] is None
+    assert (
+        scale_guard["candidate_scoring_applies_to"]
+        == "candidate_module_count_evaluation_only"
+    )
+    assert scale_guard["final_module_assignment_backend"] == "exact_cluster_tree_cut"
+    assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
     assert "module_selection_diagnostics" in provenance["workflow_parameters"]
     assert provenance["workflow_parameters"]["upstream_kinase_provenance"] is not None
     output_names = {entry["name"] for entry in provenance["output_tables"]}

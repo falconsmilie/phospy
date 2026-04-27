@@ -89,6 +89,91 @@ def test_cluster_sites_matches_two_pass_partition_for_selected_module_count() ->
     assert np.array_equal(observed_partition, baseline_partition)
 
 
+def _candidate_scoring_test_matrix() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "K1": [1.0, 0.9, -1.0, -0.8],
+            "K2": [0.0, 0.1, 1.0, 0.8],
+            "K3": [0.5, 0.4, -0.5, -0.4],
+        },
+        index=["P1;S1;", "P2;S2;", "P3;S3;", "P4;S4;"],
+    )
+
+
+def test_sampled_candidate_scoring_auto_module_count_marks_evaluated() -> None:
+    clustered = cluster_sites_with_diagnostics(
+        scoring_matrix=_candidate_scoring_test_matrix(),
+        requested_module_count=None,
+        candidate_scoring_backend=(
+            clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        ),
+    )
+
+    assert (
+        clustered.candidate_scoring_mode
+        == clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+    )
+    assert clustered.candidate_scoring_evaluated is True
+    assert clustered.candidate_scoring_skip_reason is None
+    assert isinstance(clustered.candidate_scoring_sampling, dict)
+
+
+def test_sampled_candidate_scoring_explicit_module_count_marks_skip_reason() -> None:
+    clustered = cluster_sites_with_diagnostics(
+        scoring_matrix=_candidate_scoring_test_matrix(),
+        requested_module_count=2,
+        candidate_scoring_backend=(
+            clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        ),
+    )
+
+    assert (
+        clustered.candidate_scoring_mode
+        == clustering_module.SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    )
+    assert clustered.candidate_scoring_evaluated is False
+    assert (
+        clustered.candidate_scoring_skip_reason
+        == clustering_module.SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
+    )
+    assert clustered.candidate_scoring_sampling is None
+
+
+def test_full_candidate_scoring_auto_module_count_marks_evaluated() -> None:
+    clustered = cluster_sites_with_diagnostics(
+        scoring_matrix=_candidate_scoring_test_matrix(),
+        requested_module_count=None,
+        candidate_scoring_backend=clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+    )
+
+    assert (
+        clustered.candidate_scoring_mode
+        == clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+    )
+    assert clustered.candidate_scoring_evaluated is True
+    assert clustered.candidate_scoring_skip_reason is None
+    assert clustered.candidate_scoring_sampling is None
+
+
+def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> None:
+    clustered = cluster_sites_with_diagnostics(
+        scoring_matrix=_candidate_scoring_test_matrix(),
+        requested_module_count=2,
+        candidate_scoring_backend=clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+    )
+
+    assert (
+        clustered.candidate_scoring_mode
+        == clustering_module.SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    )
+    assert clustered.candidate_scoring_evaluated is False
+    assert (
+        clustered.candidate_scoring_skip_reason
+        == clustering_module.SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
+    )
+    assert clustered.candidate_scoring_sampling is None
+
+
 def test_candidate_scoring_helper_returns_stable_shape_across_all_branches() -> None:
     values = np.asarray(
         [
@@ -139,8 +224,14 @@ def test_candidate_scoring_helper_returns_stable_shape_across_all_branches() -> 
         empty_result.candidate_scoring_mode
         == clustering_module.SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
     )
+    assert empty_result.candidate_scoring_evaluated is False
+    assert empty_result.candidate_scoring_skip_reason is None
     assert full_result.candidate_scoring_mode == "full"
+    assert full_result.candidate_scoring_evaluated is True
+    assert full_result.candidate_scoring_skip_reason is None
     assert sampled_result.candidate_scoring_mode == "sampled"
+    assert sampled_result.candidate_scoring_evaluated is True
+    assert sampled_result.candidate_scoring_skip_reason is None
     assert 2 in full_result.candidate_scores
     assert 2 in sampled_result.candidate_scores
 

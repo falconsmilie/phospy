@@ -124,9 +124,12 @@ class SignalomeConfig:
 
     - `"full"`: use full site-by-site correlations for candidate scoring.
     - `"sampled"`: use sampled within-cluster correlation estimates.
+      This only affects candidate module-count evaluation. It does not make
+      signalome clustering approximate.
 
     `max_exact_cluster_tree_sites` hard-limits exact cluster-tree
     construction. This guard applies regardless of candidate scoring mode.
+    Final module assignment still depends on the exact cluster tree.
     `max_full_correlation_sites` hard-limits full candidate-correlation scoring.
 
     Deprecated compatibility aliases remain accepted:

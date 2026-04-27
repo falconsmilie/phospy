@@ -55,6 +55,9 @@ SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD = (
 SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY = (
     "order_invariant_seed_from_row_hashes_and_sample_size"
 )
+SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT = "explicit_module_count"
+SIGNALOME_CANDIDATE_SCORING_APPLIES_TO = "candidate_module_count_evaluation_only"
+SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE = "exact_cluster_tree_cut"
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +72,8 @@ class ClusterSitesResult:
     )
     exact_cluster_tree_built: bool = False
     candidate_scoring_sampling: dict[str, object] | None = None
+    candidate_scoring_evaluated: bool = False
+    candidate_scoring_skip_reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,6 +83,8 @@ class _ModuleSelectionComputation:
     cluster_tree_backend: str
     candidate_scoring_mode: _CandidateScoringMode
     exact_cluster_tree_built: bool
+    candidate_scoring_evaluated: bool
+    candidate_scoring_skip_reason: str | None
     candidate_scoring_sampling: dict[str, object] | None
 
 
@@ -88,6 +95,8 @@ class _CandidateClusterScoreResult:
     approximation_note: str
     candidate_scoring_mode: _CandidateScoringMode
     exact_cluster_tree_built: bool
+    candidate_scoring_evaluated: bool
+    candidate_scoring_skip_reason: str | None
     candidate_scoring_sampling: dict[str, object] | None
 
 
@@ -209,6 +218,8 @@ def cluster_sites_with_diagnostics(
         cluster_tree_backend=selection.cluster_tree_backend,
         candidate_scoring_mode=selection.candidate_scoring_mode,
         exact_cluster_tree_built=selection.exact_cluster_tree_built,
+        candidate_scoring_evaluated=selection.candidate_scoring_evaluated,
+        candidate_scoring_skip_reason=selection.candidate_scoring_skip_reason,
         candidate_scoring_sampling=selection.candidate_scoring_sampling,
     )
 
@@ -404,6 +415,8 @@ def _compute_module_selection(
         approximation_note=candidate_score_result.approximation_note,
         candidate_scoring_mode=candidate_score_result.candidate_scoring_mode,
         exact_cluster_tree_built=candidate_score_result.exact_cluster_tree_built,
+        candidate_scoring_evaluated=candidate_score_result.candidate_scoring_evaluated,
+        candidate_scoring_skip_reason=candidate_score_result.candidate_scoring_skip_reason,
         cluster_tree_backend=cluster_tree_backend,
         candidate_scoring_sampling=candidate_score_result.candidate_scoring_sampling,
     )
@@ -425,6 +438,8 @@ def _compute_module_selection(
         approximation_note=candidate_score_result.approximation_note,
         candidate_scoring_mode=candidate_score_result.candidate_scoring_mode,
         exact_cluster_tree_built=candidate_score_result.exact_cluster_tree_built,
+        candidate_scoring_evaluated=candidate_score_result.candidate_scoring_evaluated,
+        candidate_scoring_skip_reason=candidate_score_result.candidate_scoring_skip_reason,
         cluster_tree_backend=cluster_tree_backend,
         candidate_scoring_sampling=candidate_score_result.candidate_scoring_sampling,
     )
@@ -449,6 +464,8 @@ def _compute_module_selection(
         candidate_labels=candidate_score_result.candidate_labels,
         candidate_scoring_mode=candidate_score_result.candidate_scoring_mode,
         exact_cluster_tree_built=candidate_score_result.exact_cluster_tree_built,
+        candidate_scoring_evaluated=candidate_score_result.candidate_scoring_evaluated,
+        candidate_scoring_skip_reason=candidate_score_result.candidate_scoring_skip_reason,
         cluster_tree_backend=cluster_tree_backend,
         candidate_scoring_sampling=candidate_score_result.candidate_scoring_sampling,
     )
@@ -471,6 +488,8 @@ def _build_module_selection_result(
         SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
     ),
     exact_cluster_tree_built: bool = False,
+    candidate_scoring_evaluated: bool = False,
+    candidate_scoring_skip_reason: str | None = None,
     candidate_scoring_sampling: dict[str, object] | None = None,
 ) -> _ModuleSelectionComputation:
     return _ModuleSelectionComputation(
@@ -492,6 +511,12 @@ def _build_module_selection_result(
         cluster_tree_backend=str(cluster_tree_backend),
         candidate_scoring_mode=str(candidate_scoring_mode),
         exact_cluster_tree_built=bool(exact_cluster_tree_built),
+        candidate_scoring_evaluated=bool(candidate_scoring_evaluated),
+        candidate_scoring_skip_reason=(
+            None
+            if candidate_scoring_skip_reason is None
+            else str(candidate_scoring_skip_reason)
+        ),
         candidate_scoring_sampling=candidate_scoring_sampling,
     )
 
@@ -535,6 +560,10 @@ def _resolve_pre_scoring_module_selection(
                 profile_degeneracy=profile_degeneracy,
                 excluded_from_correlation_count=0,
                 candidate_labels={},
+                candidate_scoring_evaluated=False,
+                candidate_scoring_skip_reason=(
+                    SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
+                ),
             ),
             1,
         )
@@ -604,6 +633,8 @@ def _compute_candidate_cluster_scores(
             approximation_note="",
             candidate_scoring_mode=SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
             exact_cluster_tree_built=False,
+            candidate_scoring_evaluated=False,
+            candidate_scoring_skip_reason=None,
             candidate_scoring_sampling=None,
         )
 
@@ -652,6 +683,8 @@ def _compute_candidate_cluster_scores(
             approximation_note="",
             candidate_scoring_mode=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
             exact_cluster_tree_built=exact_cluster_tree_built,
+            candidate_scoring_evaluated=True,
+            candidate_scoring_skip_reason=None,
             candidate_scoring_sampling=None,
         )
 
@@ -685,13 +718,16 @@ def _compute_candidate_cluster_scores(
         approximation_note = (
             " Used sampled within-cluster correlation estimates (seeded, "
             "order-invariant sampling) because candidate scoring was set to "
-            "sampled."
+            "sampled. This sampling applies to candidate module-count evaluation "
+            "only; exact cluster-tree construction and final module assignment "
+            "remain exact."
         )
     else:
         approximation_note = (
             " Used sampled within-cluster correlation estimates (seeded, "
             "order-invariant sampling) to avoid materializing a full site-by-site "
-            "correlation matrix."
+            "correlation matrix during candidate module-count evaluation. Exact "
+            "cluster-tree construction and final module assignment remain exact."
         )
     return _CandidateClusterScoreResult(
         candidate_scores=candidate_scores,
@@ -699,6 +735,8 @@ def _compute_candidate_cluster_scores(
         approximation_note=approximation_note,
         candidate_scoring_mode=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
         exact_cluster_tree_built=exact_cluster_tree_built,
+        candidate_scoring_evaluated=True,
+        candidate_scoring_skip_reason=None,
         candidate_scoring_sampling=_build_candidate_scoring_sampling_provenance(
             max_sites_per_cluster=MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
             per_cluster_sample_counts=per_cluster_sample_counts,
@@ -787,6 +825,8 @@ def _select_threshold_candidate(
     cluster_tree_backend: str,
     candidate_scoring_mode: _CandidateScoringMode,
     exact_cluster_tree_built: bool,
+    candidate_scoring_evaluated: bool,
+    candidate_scoring_skip_reason: str | None,
     candidate_scoring_sampling: dict[str, object] | None,
 ) -> _ModuleSelectionComputation | None:
     passing_candidates = filter_cluster_candidates(
@@ -809,6 +849,8 @@ def _select_threshold_candidate(
         cluster_tree_backend=cluster_tree_backend,
         candidate_scoring_mode=candidate_scoring_mode,
         exact_cluster_tree_built=exact_cluster_tree_built,
+        candidate_scoring_evaluated=candidate_scoring_evaluated,
+        candidate_scoring_skip_reason=candidate_scoring_skip_reason,
         candidate_scoring_sampling=candidate_scoring_sampling,
     )
 
@@ -1363,11 +1405,14 @@ __all__ = [
     "NEAR_CONSTANT_PROFILE_VARIANCE_TOLERANCE",
     "SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL",
     "SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED",
+    "SIGNALOME_CANDIDATE_SCORING_APPLIES_TO",
     "SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED",
+    "SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT",
     "SIGNALOME_CLUSTER_TREE_BACKEND_EXACT",
     "SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE",
     "SIGNALOME_CLUSTERING_SCORING_MODE_AUTO",
     "SIGNALOME_CLUSTERING_SCORING_MODE_EXACT",
+    "SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE",
     "SignalomeCandidateScoringBackend",
     "SignalomeClusterTreeBackend",
     "SignalomeClusteringScoringMode",

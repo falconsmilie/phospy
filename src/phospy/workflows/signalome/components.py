@@ -18,9 +18,11 @@ from phospy.provenance.models import (
 from phospy.provenance.serialization import to_payload as provenance_to_payload
 from phospy.signalomes.clustering import (
     MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
+    SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
     SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
     SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
     SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY,
+    SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
     ClusterSitesResult,
     cluster_sites_with_diagnostics,
     derive_protein_modules,
@@ -70,6 +72,13 @@ class SignalomeScaleGuardDecision:
     candidate_scoring_mode: str
     candidate_scoring_sampling: dict[str, object] | None
     scale_guard_passed: bool
+    candidate_scoring_evaluated: bool = False
+    candidate_scoring_skip_reason: str | None = None
+    candidate_scoring_applies_to: str = SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
+    final_module_assignment_backend: str = (
+        SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
+    )
+    final_module_assignment_uses_candidate_scoring: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -216,7 +225,20 @@ class SignalomeClusteringRunner:
             max_full_correlation_sites=int(config.max_full_correlation_sites),
             exact_cluster_tree_built=bool(clustering_result.exact_cluster_tree_built),
             candidate_scoring_mode=str(clustering_result.candidate_scoring_mode),
+            candidate_scoring_evaluated=bool(
+                clustering_result.candidate_scoring_evaluated
+            ),
+            candidate_scoring_skip_reason=(
+                None
+                if clustering_result.candidate_scoring_skip_reason is None
+                else str(clustering_result.candidate_scoring_skip_reason)
+            ),
             candidate_scoring_sampling=candidate_scoring_sampling,
+            candidate_scoring_applies_to=SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
+            final_module_assignment_backend=(
+                SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
+            ),
+            final_module_assignment_uses_candidate_scoring=False,
             scale_guard_passed=True,
         )
 
@@ -666,10 +688,27 @@ class SignalomeProvenanceBuilder:
                     "candidate_scoring_mode": str(
                         scale_guard_decision.candidate_scoring_mode
                     ),
+                    "candidate_scoring_evaluated": bool(
+                        scale_guard_decision.candidate_scoring_evaluated
+                    ),
+                    "candidate_scoring_skip_reason": (
+                        None
+                        if scale_guard_decision.candidate_scoring_skip_reason is None
+                        else str(scale_guard_decision.candidate_scoring_skip_reason)
+                    ),
                     "candidate_scoring_sampling": (
                         None
                         if scale_guard_decision.candidate_scoring_sampling is None
                         else dict(scale_guard_decision.candidate_scoring_sampling)
+                    ),
+                    "candidate_scoring_applies_to": str(
+                        scale_guard_decision.candidate_scoring_applies_to
+                    ),
+                    "final_module_assignment_backend": str(
+                        scale_guard_decision.final_module_assignment_backend
+                    ),
+                    "final_module_assignment_uses_candidate_scoring": bool(
+                        scale_guard_decision.final_module_assignment_uses_candidate_scoring
                     ),
                     "scale_guard_passed": bool(scale_guard_decision.scale_guard_passed),
                 },

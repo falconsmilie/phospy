@@ -329,8 +329,9 @@ Signalome stages are now explicit:
 - network generation: built from downstream score correlations after module selection
 
 Important: `candidate_scoring_backend="sampled"` does not imply approximate
-cluster-tree construction. In current supported behavior, tree construction is
-still exact and is hard-guarded by `max_exact_cluster_tree_sites`.
+signalome clustering. It only changes candidate module-count evaluation. Exact
+cluster-tree construction and final module assignment still require the exact
+tree and remain hard-guarded by `max_exact_cluster_tree_sites`.
 Exact tree construction is an internal, scale-limited implementation detail of
 the signalome workflow contract.
 
@@ -339,7 +340,22 @@ Successful runs record scale decisions in provenance under
 `cluster_tree_backend`, `candidate_scoring_backend`,
 `max_exact_cluster_tree_sites`, `max_full_correlation_sites`,
 `exact_cluster_tree_built`, `candidate_scoring_mode`,
-`candidate_scoring_sampling`, `scale_guard_passed`).
+`candidate_scoring_evaluated`, `candidate_scoring_skip_reason`,
+`candidate_scoring_sampling`, `candidate_scoring_applies_to`,
+`final_module_assignment_backend`,
+`final_module_assignment_uses_candidate_scoring`, `scale_guard_passed`).
+
+`candidate_scoring_applies_to` is always
+`"candidate_module_count_evaluation_only"`, and
+`final_module_assignment_uses_candidate_scoring` is always `False`.
+When `module_count` is set explicitly, `candidate_scoring_evaluated` is `False`
+and `candidate_scoring_skip_reason` is `"explicit_module_count"`.
+These fields make stage ownership explicit:
+
+- exact cluster-tree construction: `cluster_tree_backend`,
+  `max_exact_cluster_tree_sites`, `exact_cluster_tree_built`
+- candidate module-count evaluation: `candidate_scoring_*`
+- final module assignment: `final_module_assignment_*`
 
 When `candidate_scoring_backend="sampled"`, `candidate_scoring_sampling`
 records reproducible sampling details for candidate module scoring:
