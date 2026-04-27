@@ -25,7 +25,7 @@ from phospy.io.bundles.kinase import (
     KinaseWorkflowConfigSnapshot,
     save_kinase_workflow_bundle,
 )
-from phospy.io.publishers.workflows import publish_dataset
+from phospy.io.publishers.workflows import publish_dataset, publish_kinase_workflow
 from phospy.provenance.serialization import to_payload as provenance_to_payload
 
 pytestmark = pytest.mark.integration
@@ -279,110 +279,141 @@ def test_exported_matrix_metadata_includes_quantitative_meaning_with_numeric_sca
             )
 
 
-def test_user_facing_outputs_do_not_expose_log2_without_meaning(
+def test_strict_quantitative_meaning_export_audit(
     tmp_path: Path,
 ) -> None:
-    uncorrected_dataset = _build_log2_dataset(corrected=False)
-    corrected_dataset = _build_log2_dataset(corrected=True)
-    uncorrected_manifest = _load_published_dataset_manifest(
-        uncorrected_dataset,
-        output_root=tmp_path / "published_uncorrected",
+    lanes = (
+        (
+            "uncorrected",
+            _build_log2_dataset(corrected=False),
+            "phosphosite_log_abundance",
+        ),
+        ("corrected", _build_log2_dataset(corrected=True), "phospho_total_log_ratio"),
     )
-    corrected_manifest = _load_published_dataset_manifest(
-        corrected_dataset,
-        output_root=tmp_path / "published_corrected",
-    )
-
-    kinase_request = _build_kinase_request(corrected_dataset)
-    kinase_result = KinaseWorkflow().run(kinase_request)
-    bundle_root = tmp_path / "bundle_audit"
-    save_kinase_workflow_bundle(
-        kinase_result,
-        bundle_root,
-        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(kinase_request),
-        output_format="csv",
-    )
-    kinase_manifest = json.loads((bundle_root / "manifest.json").read_text("utf-8"))
-
-    assert uncorrected_dataset.provenance is not None
-    assert corrected_dataset.provenance is not None
-    assert uncorrected_dataset.preprocessing_report is not None
-    assert corrected_dataset.preprocessing_report is not None
-
-    representative_payloads: dict[str, object] = {
-        "published_dataset_manifest_uncorrected": uncorrected_manifest,
-        "published_dataset_manifest_corrected": corrected_manifest,
-        "bundle_manifest_kinase": kinase_manifest,
-        "serialized_processing_state_uncorrected": processing_state_to_payload(
-            uncorrected_dataset.processing_state
-        ),
-        "serialized_processing_state_corrected": processing_state_to_payload(
-            corrected_dataset.processing_state
-        ),
-        "serialized_provenance_uncorrected": provenance_to_payload(
-            uncorrected_dataset.provenance
-        ),
-        "serialized_provenance_corrected": provenance_to_payload(
-            corrected_dataset.provenance
-        ),
-        "preprocessing_report_operations_uncorrected": (
-            uncorrected_dataset.preprocessing_report.operations.to_dict(
-                orient="records"
-            )
-        ),
-        "preprocessing_report_operations_corrected": (
-            corrected_dataset.preprocessing_report.operations.to_dict(orient="records")
-        ),
-    }
-
     issues: list[str] = []
-    for payload_name, payload in representative_payloads.items():
-        issues.extend(
-            _find_scale_without_quantitative_meaning_issues(payload, path=payload_name)
+
+    for label, dataset, expected_quantitative_meaning in lanes:
+        assert dataset.provenance is not None
+        assert dataset.preprocessing_report is not None
+        assert dataset.intensity_scale_state.label == "log2"
+        assert (
+            dataset.intensity_scale_state.quantity.value
+            == expected_quantitative_meaning
         )
 
-    assert issues == [], "scale-only reporting detected:\n" + "\n".join(issues)
+        request = _build_kinase_request(dataset)
+        result = KinaseWorkflow().run(request)
+        assert result.provenance is not None
+
+        published = publish_kinase_workflow(
+            result,
+            tmp_path / f"published_{label}",
+            output_format="csv",
+        )
+        published_dataset_manifest = json.loads(
+            published["dataset.manifest"].read_text(encoding="utf-8")
+        )
+        published_kinase_manifest = json.loads(
+            published["kinase.manifest"].read_text(encoding="utf-8")
+        )
+
+        bundle_root = tmp_path / f"bundle_{label}"
+        save_kinase_workflow_bundle(
+            result,
+            bundle_root,
+            config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+            output_format="csv",
+        )
+        bundle_manifest = json.loads(
+            (bundle_root / "manifest.json").read_text(encoding="utf-8")
+        )
+
+        representative_payloads: dict[str, object] = {
+            f"{label}.publish.dataset_manifest": published_dataset_manifest,
+            f"{label}.publish.kinase_manifest": published_kinase_manifest,
+            f"{label}.bundle.kinase_manifest": bundle_manifest,
+            f"{label}.serialized.processing_state": processing_state_to_payload(
+                dataset.processing_state
+            ),
+            f"{label}.serialized.dataset_provenance": provenance_to_payload(
+                dataset.provenance
+            ),
+            f"{label}.serialized.kinase_provenance": provenance_to_payload(
+                result.provenance
+            ),
+            f"{label}.report.preprocessing.operations": dataset.preprocessing_report.operations.to_dict(
+                orient="records"
+            ),
+            f"{label}.report.preprocessing.row_counts": dataset.preprocessing_report.row_counts.to_dict(
+                orient="records"
+            ),
+        }
+        for payload_name, payload in representative_payloads.items():
+            issues.extend(
+                _find_scale_without_quantitative_meaning_issues(
+                    payload,
+                    path=payload_name,
+                    inherited_quantitative_meaning=None,
+                    expected_quantitative_meaning=expected_quantitative_meaning,
+                )
+            )
+
+    assert issues == [], "quantitative-meaning export audit failed:\n" + "\n".join(
+        issues
+    )
+
+
+_SCALE_INDICATOR_KEYS = frozenset(
+    (
+        "intensity_scale",
+        "intensity_scale_label",
+        "scale",
+        "input_scale",
+        "output_scale",
+        "kind",
+    )
+)
+_LOG_SCALE_VALUES = frozenset(("log2", "log2_ratio"))
+_MEANING_KEYS = ("quantitative_meaning", "quantity")
 
 
 def _find_scale_without_quantitative_meaning_issues(
     value: object,
     *,
     path: str,
-    parent: Mapping[str, object] | None = None,
+    inherited_quantitative_meaning: str | None,
+    expected_quantitative_meaning: str,
 ) -> list[str]:
     issues: list[str] = []
     if isinstance(value, Mapping):
-        intensity_scale = value.get("intensity_scale")
-        if isinstance(intensity_scale, str) and intensity_scale.strip():
-            if not _is_non_empty_string(value.get("quantitative_meaning")):
+        resolved_quantitative_meaning = inherited_quantitative_meaning
+        for meaning_key in _MEANING_KEYS:
+            candidate = value.get(meaning_key)
+            if _is_non_empty_string(candidate):
+                resolved_quantitative_meaning = str(candidate).strip()
+                break
+
+        for key, raw in value.items():
+            if key not in _SCALE_INDICATOR_KEYS:
+                continue
+            if not _is_non_empty_string(raw):
+                continue
+            scale_value = str(raw).strip()
+            indicator_path = f"{path}.{key}"
+            if not _is_non_empty_string(resolved_quantitative_meaning):
                 issues.append(
-                    f"{path}: found intensity_scale='{intensity_scale}' without "
-                    "quantitative_meaning"
+                    f"{indicator_path}: scale metadata '{scale_value}' is missing "
+                    "quantitative_meaning/quantity"
                 )
-
-        intensity_scale_label = value.get("intensity_scale_label")
-        if isinstance(intensity_scale_label, str) and intensity_scale_label.strip():
-            if not _is_non_empty_string(value.get("quantitative_meaning")):
+                continue
+            if (
+                scale_value.lower() in _LOG_SCALE_VALUES
+                and resolved_quantitative_meaning != expected_quantitative_meaning
+            ):
                 issues.append(
-                    f"{path}: found intensity_scale_label='{intensity_scale_label}' "
-                    "without quantitative_meaning"
-                )
-
-        for scale_key in ("input_scale", "output_scale"):
-            scale_value = value.get(scale_key)
-            if isinstance(scale_value, str) and "log2" in scale_value.lower():
-                if not _is_non_empty_string(value.get("quantitative_meaning")):
-                    issues.append(
-                        f"{path}: found {scale_key}='{scale_value}' without "
-                        "quantitative_meaning"
-                    )
-
-        kind = value.get("kind")
-        if isinstance(kind, str) and kind.lower() == "log2":
-            parent_quantity = None if parent is None else parent.get("quantity")
-            if not _is_non_empty_string(parent_quantity):
-                issues.append(
-                    f"{path}: found kind='log2' without parent quantitative quantity"
+                    f"{indicator_path}: scale '{scale_value}' expects "
+                    f"quantitative_meaning='{expected_quantitative_meaning}' but found "
+                    f"'{resolved_quantitative_meaning}'"
                 )
 
         for key, child in value.items():
@@ -390,7 +421,8 @@ def _find_scale_without_quantitative_meaning_issues(
                 _find_scale_without_quantitative_meaning_issues(
                     child,
                     path=f"{path}.{key}",
-                    parent=value,
+                    inherited_quantitative_meaning=resolved_quantitative_meaning,
+                    expected_quantitative_meaning=expected_quantitative_meaning,
                 )
             )
         return issues
@@ -401,7 +433,8 @@ def _find_scale_without_quantitative_meaning_issues(
                 _find_scale_without_quantitative_meaning_issues(
                     child,
                     path=f"{path}[{index}]",
-                    parent=parent,
+                    inherited_quantitative_meaning=inherited_quantitative_meaning,
+                    expected_quantitative_meaning=expected_quantitative_meaning,
                 )
             )
     return issues
