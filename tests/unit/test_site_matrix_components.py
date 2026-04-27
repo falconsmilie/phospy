@@ -13,11 +13,19 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
     DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
 )
-from phospy.datasets.preprocessing.models import PreprocessingPlan, PreprocessingState
+from phospy.datasets.preprocessing.models import (
+    DuplicateSiteResolutionResult,
+    PreprocessingPlan,
+    PreprocessingState,
+)
 from phospy.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
 from phospy.datasets.preprocessing.stages.site_matrix_components import (
     DuplicateSiteResolver,
     MetadataConflictDetector,
+    MissingDataSiteFilter,
+    SequenceSupportFilter,
+    SiteMatrixAssembler,
+    SiteMatrixProvenanceBuilder,
     SiteMatrixRowAuditBuilder,
 )
 from phospy.errors.input import PhosPyInputError
@@ -47,6 +55,224 @@ def _duplicate_policy_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
         name="site_id",
     )
     return phospho, site_metadata, constructed_site_id
+
+
+def test_sequence_support_filter_preserves_supported_and_dropped_rows() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0, 3.0, 4.0],
+            "sample_b": [5.0, 6.0, 7.0, 8.0],
+        },
+        index=pd.Index(["row_a", "row_b", "row_c", "row_d"], name="source_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["A", "B", "C", "D"],
+            "site": ["S1", "S2", "S3", "S4"],
+            "site_sequence": ["SEQ_A", "   ", pd.NA, "SEQ_D"],
+        },
+        index=phospho.index.copy(),
+    )
+    constructed_site_id = pd.Series(
+        ["A;S1;", "B;S2;", "C;S3;", "D;S4;"],
+        index=phospho.index.copy(),
+        name="site_id",
+    )
+
+    result = SequenceSupportFilter().filter(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        constructed_site_id=constructed_site_id,
+    )
+
+    assert result.phospho.index.tolist() == ["row_a", "row_d"]
+    assert result.site_metadata.index.tolist() == ["row_a", "row_d"]
+    assert result.constructed_site_id.tolist() == ["A;S1;", "D;S4;"]
+    assert result.dropped_row_count == 2
+    assert result.dropped_rows == (("row_b", "B;S2;"), ("row_c", "C;S3;"))
+
+
+@pytest.mark.parametrize(
+    (
+        "policy",
+        "minimum_observed_values",
+        "expected_rows",
+        "expected_required",
+        "dropped",
+    ),
+    [
+        (
+            DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
+            None,
+            ["row_a"],
+            2,
+            (("row_b", "B;S2;", 1), ("row_c", "C;S3;", 0)),
+        ),
+        (
+            "retain_missing",
+            None,
+            ["row_a", "row_b", "row_c"],
+            0,
+            (),
+        ),
+        (
+            "require_min_observed_values",
+            1,
+            ["row_a", "row_b"],
+            1,
+            (("row_c", "C;S3;", 0),),
+        ),
+    ],
+)
+def test_missing_data_site_filter_preserves_policy_specific_row_selection(
+    policy: str,
+    minimum_observed_values: int | None,
+    expected_rows: list[str],
+    expected_required: int,
+    dropped: tuple[tuple[str, str, int], ...],
+) -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0, float("nan")],
+            "sample_b": [3.0, float("nan"), float("nan")],
+        },
+        index=pd.Index(["row_a", "row_b", "row_c"], name="source_row"),
+    )
+    constructed_site_id = pd.Series(
+        ["A;S1;", "B;S2;", "C;S3;"],
+        index=phospho.index.copy(),
+        name="site_id",
+    )
+
+    result = MissingDataSiteFilter().filter(
+        phospho=phospho,
+        constructed_site_id=constructed_site_id,
+        missing_data_policy=policy,
+        minimum_observed_values=minimum_observed_values,
+    )
+
+    assert result.phospho.index.tolist() == expected_rows
+    assert result.required_observed_count == expected_required
+    assert result.dropped_rows == dropped
+    assert result.dropped_row_count == len(dropped)
+
+
+def test_site_matrix_assembler_preserves_index_order_and_dropped_row_ids() -> None:
+    duplicate_site_result = DuplicateSiteResolutionResult(
+        phospho=pd.DataFrame(
+            {
+                "sample_a": [8.0, 2.0],
+                "sample_b": [8.5, 3.0],
+            },
+            index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK14", "AKT1"],
+                "site": ["Y182", "T308"],
+                "site_sequence": ["SEQ_B", "SEQ_A"],
+            },
+            index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+        ),
+        dropped_row_count=1,
+        duplicate_site_resolution=pd.DataFrame(
+            {
+                "site_id": ["MAPK14;Y182;", "MAPK14;Y182;"],
+                "source_row_id": ["row_a", "row_b"],
+                "retained": [True, False],
+            }
+        ),
+        metadata_conflicts=pd.DataFrame(),
+    )
+
+    result = SiteMatrixAssembler().assemble(
+        duplicate_site_result=duplicate_site_result,
+        output_index_name="input_row",
+        dropped_missing_sequence_rows=(("row_missing", "AKT1;S9;"),),
+        dropped_incomplete_rows=(("row_incomplete", "AKT1;T308;", 1),),
+    )
+
+    assert result.phospho.index.tolist() == ["AKT1;T308;", "MAPK14;Y182;"]
+    assert result.phospho.index.name == "input_row"
+    assert result.site_metadata.index.tolist() == ["AKT1;T308;", "MAPK14;Y182;"]
+    assert result.site_metadata.index.name == "input_row"
+    assert result.dropped_missing_sequence_row_ids == ("row_missing",)
+    assert result.dropped_incomplete_row_ids == ("row_incomplete",)
+    assert result.duplicate_dropped_row_ids == ("row_b",)
+    assert result.dropped_row_ids == ("row_missing", "row_incomplete", "row_b")
+
+
+def test_site_matrix_provenance_builder_preserves_fields_and_diagnostics() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [2.0, 8.0],
+            "sample_b": [3.0, 8.5],
+        },
+        index=pd.Index(["AKT1;T308;", "MAPK14;Y182;"], name="input_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["AKT1", "MAPK14"],
+            "site": ["T308", "Y182"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+    duplicate_resolution = pd.DataFrame(
+        {
+            "site_id": ["MAPK14;Y182;"],
+            "source_row_id": ["row_b"],
+            "retained": [False],
+            "source_rows": [("row_a", "row_b")],
+            "dropped_reason": [pd.NA],
+        }
+    )
+
+    result = SiteMatrixProvenanceBuilder().build(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        input_rows=4,
+        dropped_missing_sequence=1,
+        dropped_incomplete_values=1,
+        missing_data_policy=DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
+        required_observed_count=2,
+        deduplicated_site_rows=1,
+        duplicate_site_policy=DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
+        site_matrix_policy=DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
+        dropped_missing_sequence_row_ids=("row_missing",),
+        dropped_incomplete_row_ids=("row_incomplete",),
+        dropped_row_ids=("row_missing", "row_incomplete", "row_b"),
+        duplicate_site_resolution=duplicate_resolution,
+    )
+
+    assert result.row_drop_stats == {
+        "input_rows": 4,
+        "dropped_missing_sequence": 1,
+        "dropped_incomplete_values": 1,
+        "missing_data_policy": "drop_any_missing",
+        "required_observed_count": 2,
+        "deduplicated_site_rows": 1,
+        "duplicate_site_policy": "first",
+        "retained_rows": 2,
+    }
+    assert result.site_matrix_provenance == {
+        "dropped_missing_sequence_row_ids": ("row_missing",),
+        "dropped_incomplete_row_ids": ("row_incomplete",),
+        "dropped_row_ids": ("row_missing", "row_incomplete", "row_b"),
+        "duplicate_site_policy": "first",
+        "missing_data_policy": "drop_any_missing",
+        "required_observed_count": 2,
+        "final_constructed_site_ids": ("AKT1;T308;", "MAPK14;Y182;"),
+    }
+    assert result.diagnostics["final_constructed_site_ids"] == [
+        "AKT1;T308;",
+        "MAPK14;Y182;",
+    ]
+    duplicate_decisions = result.diagnostics["duplicate_site_decisions"]
+    assert duplicate_decisions[0]["source_rows"] == ["row_a", "row_b"]
+    assert duplicate_decisions[0]["dropped_reason"] is None
+    assert result.phospho.attrs["site_matrix_policy"] == "build_from_metadata"
+    assert result.site_metadata.attrs["site_matrix_policy"] == "build_from_metadata"
 
 
 @pytest.mark.parametrize(
