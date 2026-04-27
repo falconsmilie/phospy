@@ -40,6 +40,15 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
         "total_protein_correction": {
             "policy": state.total_protein_correction.policy,
             "applied": state.total_protein_correction.applied,
+            "formula": state.total_protein_correction.formula,
+            "requires_log_scale": state.total_protein_correction.requires_log_scale,
+            "input_scale": state.total_protein_correction.input_scale,
+            "output_scale": state.total_protein_correction.output_scale,
+            "diagnostics": (
+                None
+                if state.total_protein_correction.diagnostics is None
+                else dict(state.total_protein_correction.diagnostics)
+            ),
         },
         "site_matrix": {
             "policy": state.site_matrix.policy,
@@ -93,6 +102,21 @@ def processing_state_from_payload(
         site_matrix_payload.get("minimum_observed_values"),
         field_name="dataset.metadata.processing_state.site_matrix.minimum_observed_values",
     )
+    correction_applied = require_bool(
+        correction_payload.get("applied"),
+        field_name="dataset.metadata.processing_state.total_protein_correction.applied",
+    )
+    if "requires_log_scale" in correction_payload:
+        requires_log_scale = _require_optional_bool(
+            correction_payload.get("requires_log_scale"),
+            field_name=(
+                "dataset.metadata.processing_state.total_protein_correction."
+                "requires_log_scale"
+            ),
+        )
+    else:
+        # Legacy minimal payloads encoded only policy/applied.
+        requires_log_scale = False if not correction_applied else None
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state_from_payload(
             require_mapping(
@@ -130,10 +154,33 @@ def processing_state_from_payload(
                     "dataset.metadata.processing_state.total_protein_correction.policy"
                 ),
             ),
-            applied=require_bool(
-                correction_payload.get("applied"),
+            applied=correction_applied,
+            formula=_require_optional_str(
+                correction_payload.get("formula"),
                 field_name=(
-                    "dataset.metadata.processing_state.total_protein_correction.applied"
+                    "dataset.metadata.processing_state.total_protein_correction.formula"
+                ),
+            ),
+            requires_log_scale=requires_log_scale,
+            input_scale=_require_optional_str(
+                correction_payload.get("input_scale"),
+                field_name=(
+                    "dataset.metadata.processing_state.total_protein_correction."
+                    "input_scale"
+                ),
+            ),
+            output_scale=_require_optional_str(
+                correction_payload.get("output_scale"),
+                field_name=(
+                    "dataset.metadata.processing_state.total_protein_correction."
+                    "output_scale"
+                ),
+            ),
+            diagnostics=_require_optional_mapping(
+                correction_payload.get("diagnostics"),
+                field_name=(
+                    "dataset.metadata.processing_state.total_protein_correction."
+                    "diagnostics"
                 ),
             ),
         ),
@@ -186,6 +233,29 @@ def _require_optional_int(value: object, *, field_name: str) -> int | None:
     if value is None:
         return None
     return require_int(value, field_name=field_name)
+
+
+def _require_optional_bool(value: object, *, field_name: str) -> bool | None:
+    if value is None:
+        return None
+    return require_bool(value, field_name=field_name)
+
+
+def _require_optional_str(value: object, *, field_name: str) -> str | None:
+    if value is None:
+        return None
+    return require_str(value, field_name=field_name)
+
+
+def _require_optional_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> dict[str, object] | None:
+    if value is None:
+        return None
+    payload = require_mapping(value, field_name=field_name)
+    return {str(key): item for key, item in payload.items()}
 
 
 def _parse_optional_pairs(

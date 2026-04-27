@@ -113,6 +113,7 @@ class DatasetBuildExecutor:
             processing_state = build_dataset_processing_state(
                 plan=request.preprocessing_plan,
                 intensity_scale_state=resolved.intensity_scale_state,
+                preprocessing_trace=preprocessed.preprocessing_trace,
             )
             report = _build_dataset_preprocessing_report(
                 row_counts=preprocessed.preprocessing_row_counts,

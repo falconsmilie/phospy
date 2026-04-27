@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from phospy.transformations.models import IntensityScaleState
@@ -31,7 +32,10 @@ class TotalProteinCorrectionState:
     policy: str
     applied: bool
     formula: str | None = None
-    requires_log_scale: bool = False
+    requires_log_scale: bool | None = False
+    input_scale: str | None = None
+    output_scale: str | None = None
+    diagnostics: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True, slots=True)

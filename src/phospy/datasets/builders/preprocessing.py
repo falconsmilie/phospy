@@ -132,6 +132,7 @@ def build_dataset_processing_state(
     *,
     plan: PreprocessingPlan,
     intensity_scale_state: IntensityScaleState,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None = None,
 ) -> DatasetProcessingState:
     """Build compact dataset processing state from the resolved preprocessing plan."""
 
@@ -145,6 +146,28 @@ def build_dataset_processing_state(
     )
     total_correction_applied = (
         resolved_total_policy != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
+    )
+    correction_diagnostics = _resolve_total_correction_diagnostics(
+        preprocessing_trace=preprocessing_trace
+    )
+    default_formula = (
+        "log2_phospho - log2_total"
+        if resolved_total_policy
+        == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
+        else None
+    )
+    default_requires_log_scale: bool | None = bool(total_correction_applied)
+    default_input_scale = (
+        "log2"
+        if resolved_total_policy
+        == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
+        else None
+    )
+    default_output_scale = (
+        "log2_ratio"
+        if resolved_total_policy
+        == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
+        else None
     )
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state,
@@ -161,13 +184,27 @@ def build_dataset_processing_state(
         total_protein_correction=TotalProteinCorrectionState(
             policy=resolved_total_policy,
             applied=total_correction_applied,
-            formula=(
-                "log2_phospho - log2_total"
-                if resolved_total_policy
-                == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
-                else None
+            formula=_resolve_optional_string_diagnostic(
+                correction_diagnostics,
+                key="formula",
+                default=default_formula,
             ),
-            requires_log_scale=bool(total_correction_applied),
+            requires_log_scale=_resolve_optional_bool_diagnostic(
+                correction_diagnostics,
+                key="requires_log_scale",
+                default=default_requires_log_scale,
+            ),
+            input_scale=_resolve_optional_string_diagnostic(
+                correction_diagnostics,
+                key="input_scale",
+                default=default_input_scale,
+            ),
+            output_scale=_resolve_optional_string_diagnostic(
+                correction_diagnostics,
+                key="output_scale",
+                default=default_output_scale,
+            ),
+            diagnostics=correction_diagnostics,
         ),
         site_matrix=SiteMatrixState(
             policy=plan.site_matrix_policy,
@@ -190,6 +227,48 @@ def build_dataset_processing_state(
             ),
         ),
     )
+
+
+def _resolve_total_correction_diagnostics(
+    *,
+    preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
+) -> dict[str, object] | None:
+    if preprocessing_trace is None:
+        return None
+    for item in preprocessing_trace:
+        if item.stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
+            return dict(item.diagnostics)
+    return None
+
+
+def _resolve_optional_string_diagnostic(
+    diagnostics: dict[str, object] | None,
+    *,
+    key: str,
+    default: str | None,
+) -> str | None:
+    if diagnostics is None:
+        return default
+    value = diagnostics.get(key, default)
+    if value is None:
+        return None
+    return str(value)
+
+
+def _resolve_optional_bool_diagnostic(
+    diagnostics: dict[str, object] | None,
+    *,
+    key: str,
+    default: bool | None,
+) -> bool | None:
+    if diagnostics is None or key not in diagnostics:
+        return default
+    value = diagnostics.get(key)
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    return default
 
 
 def _build_preprocessing_provenance_tables(

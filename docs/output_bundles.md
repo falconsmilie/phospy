@@ -75,6 +75,16 @@ Signalome manifest:
 Both manifests store dataset organism, full `intensity_scale_state` payload,
 and full `processing_state` payload.
 
+For `processing_state.total_protein_correction`, persisted fields include:
+
+- `policy`
+- `applied`
+- `formula`
+- `requires_log_scale`
+- `input_scale`
+- `output_scale`
+- `diagnostics` (runtime correction diagnostics when available)
+
 `provenance` is machine-readable run metadata (`RunProvenance`) and includes:
 
 - environment versions (`phospy`, Python, dependency versions)
@@ -90,6 +100,11 @@ and full `processing_state` payload.
 
 Legacy bundles without top-level `provenance` remain loadable; loaders reconstruct
 results with `result.provenance=None` for those manifests.
+
+Legacy bundles that store only minimal
+`processing_state.total_protein_correction` payloads (`policy`, `applied`) also
+remain loadable. Missing expanded correction fields are restored as safe
+unknowns (`None`) rather than inferred.
 
 ## Bundle Contents (Default CSV Layout)
 

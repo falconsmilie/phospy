@@ -136,6 +136,11 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
     assert built.processing_state.normalisation.policy == "none"
     assert built.processing_state.total_protein_correction.policy == "none"
     assert built.processing_state.total_protein_correction.applied is False
+    assert built.processing_state.total_protein_correction.formula is None
+    assert built.processing_state.total_protein_correction.requires_log_scale is False
+    assert built.processing_state.total_protein_correction.input_scale is None
+    assert built.processing_state.total_protein_correction.output_scale is None
+    assert built.processing_state.total_protein_correction.diagnostics is None
     assert built.processing_state.site_matrix.policy == "as_input"
     assert built.processing_state.site_matrix.constructed is False
     assert built.processing_state.comparisons.policy == "none"
@@ -248,6 +253,14 @@ def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> No
         == "log2_phospho - log2_total"
     )
     assert built.processing_state.total_protein_correction.requires_log_scale is True
+    assert built.processing_state.total_protein_correction.input_scale == "log2"
+    assert built.processing_state.total_protein_correction.output_scale == "log2_ratio"
+    correction_diagnostics = (
+        built.processing_state.total_protein_correction.diagnostics or {}
+    )
+    assert correction_diagnostics.get("matched_rows") == 3
+    assert isinstance(correction_diagnostics.get("input_phospho_hash"), str)
+    assert isinstance(correction_diagnostics.get("output_phospho_hash"), str)
     assert built.preprocessing_report is not None
     operations = built.preprocessing_report.operations
     intensity_stage_order = int(

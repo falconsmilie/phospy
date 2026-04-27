@@ -12,6 +12,9 @@ from phospy import (
 )
 from phospy.api import (
     DatasetBuildRequest,
+    DatasetIntensityTransformConfig,
+    DatasetPreprocessingConfig,
+    DatasetTotalProteinCorrectionConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -51,6 +54,41 @@ def test_kinase_bundle_round_trip_preserves_outputs_and_config(
     assert loaded.config_snapshot == config_snapshot
     assert loaded.result.provenance == result.provenance
     _assert_kinase_result_equal(loaded.result, result)
+
+
+def test_kinase_bundle_round_trip_preserves_total_protein_correction_state(
+    tmp_path: Path,
+) -> None:
+    request = _build_request_with_subtract_log_total(activity=False)
+    result = KinaseWorkflow().run(request)
+    bundle_root = tmp_path / "kinase_bundle_total_correction"
+
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    loaded = load_kinase_workflow_bundle(bundle_root)
+
+    correction = loaded.result.dataset.processing_state.total_protein_correction
+    assert correction.policy == "subtract_log_total"
+    assert correction.applied is True
+    assert correction.formula == "log2_phospho - log2_total"
+    assert correction.requires_log_scale is True
+    assert correction.input_scale == "log2"
+    assert correction.output_scale == "log2_ratio"
+    assert correction.diagnostics is not None
+    assert correction.diagnostics.get("matched_rows") == len(
+        result.dataset.phospho.index
+    )
+    assert isinstance(correction.diagnostics.get("input_phospho_hash"), str)
+    assert isinstance(correction.diagnostics.get("output_phospho_hash"), str)
+    pd.testing.assert_frame_equal(
+        loaded.result.dataset.phospho,
+        result.dataset.phospho,
+        check_dtype=False,
+        check_names=False,
+    )
 
 
 def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
@@ -168,6 +206,48 @@ def test_kinase_bundle_loads_legacy_manifest_without_provenance(
     assert loaded.result.provenance is None
 
 
+def test_kinase_bundle_loads_legacy_minimal_total_correction_state(
+    tmp_path: Path,
+) -> None:
+    request = _build_request_with_subtract_log_total(activity=False)
+    result = KinaseWorkflow().run(request)
+    bundle_root = tmp_path / "kinase_bundle_total_correction_legacy"
+
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    correction_payload = manifest["dataset"]["metadata"]["processing_state"][
+        "total_protein_correction"
+    ]
+    manifest["dataset"]["metadata"]["processing_state"]["total_protein_correction"] = {
+        "policy": correction_payload["policy"],
+        "applied": correction_payload["applied"],
+    }
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
+    )
+
+    loaded = load_kinase_workflow_bundle(bundle_root)
+    correction = loaded.result.dataset.processing_state.total_protein_correction
+    assert correction.policy == "subtract_log_total"
+    assert correction.applied is True
+    assert correction.formula is None
+    assert correction.requires_log_scale is None
+    assert correction.input_scale is None
+    assert correction.output_scale is None
+    assert correction.diagnostics is None
+    pd.testing.assert_frame_equal(
+        loaded.result.dataset.phospho,
+        result.dataset.phospho,
+        check_dtype=False,
+        check_names=False,
+    )
+
+
 def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
     phospho = pd.DataFrame(
         {
@@ -208,6 +288,94 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
             sample_metadata=sample_metadata,
             total=total,
             organism=Organism.RAT,
+        )
+    )
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K6", "AKT1", "AKT1"],
+                "substrate_site": [
+                    "MAPK14;Y182;",
+                    "GSK3B;S9;",
+                    "GSK3B;S9;",
+                    "AKT1;T308;",
+                ],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {
+                "site_sequence": site_metadata.loc[:, "site_sequence"],
+            },
+            index=pd.Index(site_metadata.index.copy(), name="site_id"),
+        ),
+    )
+    return KinaseWorkflowRequest(
+        dataset=dataset,
+        references=references,
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(
+            top_k=2,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=2,
+        ),
+        activity_config=(
+            KinaseActivityConfig(enabled=True, threshold=0.5, min_substrates=2)
+            if activity
+            else None
+        ),
+    )
+
+
+def _build_request_with_subtract_log_total(*, activity: bool) -> KinaseWorkflowRequest:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [15.0, 7.0, 3.0],
+            "sample_b": [31.0, 15.0, 7.0],
+        },
+        index=["MAPK14;Y182;", "AKT1;T308;", "GSK3B;S9;"],
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1", "GSK3B"],
+            "site": ["Y182", "T308", "S9"],
+            "site_sequence": [
+                "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                "MDFGLCKEGIKDGATMKLCKRERANWQPWQ",
+                "RARTSSFAEPGGGGGGGGGPGGSASPARPAR",
+            ],
+        },
+        index=phospho.index.copy(),
+    )
+    sample_metadata = pd.DataFrame(
+        {
+            "group": ["treated", "control"],
+        },
+        index=phospho.columns.copy(),
+    )
+    total = pd.DataFrame(
+        {
+            "sample_a": [3.0, 1.0, 1.0],
+            "sample_b": [7.0, 3.0, 1.0],
+        },
+        index=["MAPK14", "AKT1", "GSK3B"],
+    )
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=sample_metadata,
+            total=total,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+                total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                    policy="subtract_log_total"
+                ),
+            ),
         )
     )
     references = ReferenceBundle(
