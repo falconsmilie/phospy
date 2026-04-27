@@ -108,6 +108,20 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
     dataset_manifest = json.loads(
         (output_root / "dataset" / "manifest.json").read_text(encoding="utf-8")
     )
+    assert (
+        dataset_manifest["intensity_scale"]
+        == result.dataset.intensity_scale_state.label
+    )
+    assert dataset_manifest["quantitative_meaning"] == (
+        result.dataset.intensity_scale_state.quantity.value
+    )
+    assert (
+        dataset_manifest["processing_state"]["intensity_scale"]["quantity"]
+        == result.dataset.intensity_scale_state.quantity.value
+    )
+    correction = dataset_manifest["processing_state"]["total_protein_correction"]
+    if correction["output_scale"] is not None:
+        assert correction["quantitative_meaning"] is not None
     assert dataset_manifest["provenance"]["workflow_name"] == "dataset_builder"
 
     kinase_manifest = json.loads(

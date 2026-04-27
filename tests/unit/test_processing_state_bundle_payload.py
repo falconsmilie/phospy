@@ -61,6 +61,7 @@ def _processing_state_with_diagnostics(diagnostics):
             requires_log_scale=True,
             input_scale="log2",
             output_scale="log2_ratio",
+            quantitative_meaning="phospho_total_log_ratio",
             diagnostics=diagnostics,
         ),
         site_matrix=SiteMatrixState(
@@ -107,6 +108,7 @@ def _processing_payload_with_diagnostics(diagnostics):
             "requires_log_scale": True,
             "input_scale": "log2",
             "output_scale": "log2_ratio",
+            "quantitative_meaning": "phospho_total_log_ratio",
             "diagnostics": diagnostics,
         },
         "site_matrix": {
@@ -135,6 +137,7 @@ def test_processing_state_payload_round_trip_preserves_total_correction_fields()
         "requires_log_scale": True,
         "input_scale": "log2",
         "output_scale": "log2_ratio",
+        "quantitative_meaning": "phospho_total_log_ratio",
         "output_quantity": "phospho_total_log_ratio",
         "matched_rows": 3,
         "hashes": {
@@ -146,6 +149,10 @@ def test_processing_state_payload_round_trip_preserves_total_correction_fields()
     state = _processing_state_with_diagnostics(diagnostics)
 
     payload = processing_state_to_payload(state)
+    assert (
+        payload["total_protein_correction"]["quantitative_meaning"]
+        == "phospho_total_log_ratio"
+    )
     restored = processing_state_from_payload(payload)
     correction = restored.total_protein_correction
 
@@ -155,8 +162,25 @@ def test_processing_state_payload_round_trip_preserves_total_correction_fields()
     assert correction.requires_log_scale is True
     assert correction.input_scale == "log2"
     assert correction.output_scale == "log2_ratio"
+    assert correction.quantitative_meaning == "phospho_total_log_ratio"
     assert restored.intensity_scale.quantity.value == "phospho_total_log_ratio"
     assert correction.diagnostics == diagnostics
+
+
+def test_processing_state_payload_loads_legacy_output_quantity_as_quantitative_meaning() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {"output_quantity": "phospho_total_log_ratio"}
+    )
+    payload["total_protein_correction"].pop("quantitative_meaning", None)
+
+    restored = processing_state_from_payload(payload)
+
+    assert (
+        restored.total_protein_correction.quantitative_meaning
+        == "phospho_total_log_ratio"
+    )
 
 
 def test_processing_state_payload_converts_tuple_diagnostics_to_json_arrays() -> None:

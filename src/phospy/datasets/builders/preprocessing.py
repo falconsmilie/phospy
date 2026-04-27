@@ -178,7 +178,7 @@ def build_dataset_processing_state(
         == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
         else None
     )
-    default_output_quantity = (
+    default_quantitative_meaning = (
         QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO.value
         if resolved_total_policy
         == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
@@ -186,8 +186,15 @@ def build_dataset_processing_state(
     )
     correction_diagnostics = _with_default_string_diagnostic(
         correction_diagnostics,
+        key="quantitative_meaning",
+        default=default_quantitative_meaning,
+    )
+    correction_diagnostics = _with_default_string_diagnostic(
+        correction_diagnostics,
         key="output_quantity",
-        default=default_output_quantity,
+        # Keep legacy key for backward compatibility while public payloads migrate
+        # to `quantitative_meaning`.
+        default=default_quantitative_meaning,
     )
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state,
@@ -223,6 +230,15 @@ def build_dataset_processing_state(
                 correction_diagnostics,
                 key="output_scale",
                 default=default_output_scale,
+            ),
+            quantitative_meaning=_resolve_optional_string_diagnostic(
+                correction_diagnostics,
+                key="quantitative_meaning",
+                default=_resolve_optional_string_diagnostic(
+                    correction_diagnostics,
+                    key="output_quantity",
+                    default=default_quantitative_meaning,
+                ),
             ),
             diagnostics=correction_diagnostics,
         ),
@@ -314,15 +330,21 @@ def _resolve_quantitative_meaning_state(
     total_correction_policy: str,
     correction_diagnostics: dict[str, object] | None,
 ) -> IntensityScaleState:
-    output_quantity = _resolve_optional_string_diagnostic(
+    quantitative_meaning = _resolve_optional_string_diagnostic(
         correction_diagnostics,
-        key="output_quantity",
+        key="quantitative_meaning",
         default=None,
     )
-    if output_quantity is not None:
+    if quantitative_meaning is None:
+        quantitative_meaning = _resolve_optional_string_diagnostic(
+            correction_diagnostics,
+            key="output_quantity",
+            default=None,
+        )
+    if quantitative_meaning is not None:
         try:
             return intensity_scale_state.with_quantitative_meaning(
-                QuantitativeMeaning(output_quantity)
+                QuantitativeMeaning(quantitative_meaning)
             )
         except ValueError:
             pass

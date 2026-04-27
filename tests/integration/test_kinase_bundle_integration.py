@@ -82,6 +82,7 @@ def test_kinase_bundle_round_trip_preserves_total_protein_correction_state(
     assert correction.requires_log_scale is True
     assert correction.input_scale == "log2"
     assert correction.output_scale == "log2_ratio"
+    assert correction.quantitative_meaning == "phospho_total_log_ratio"
     assert correction.diagnostics is not None
     assert correction.diagnostics.get("matched_rows") == len(
         result.dataset.phospho.index
@@ -248,6 +249,7 @@ def test_kinase_bundle_loads_legacy_minimal_total_correction_state(
     assert correction.requires_log_scale is None
     assert correction.input_scale is None
     assert correction.output_scale is None
+    assert correction.quantitative_meaning is None
     assert correction.diagnostics is None
     pd.testing.assert_frame_equal(
         loaded.result.dataset.phospho,

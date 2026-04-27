@@ -93,7 +93,13 @@ For `processing_state.total_protein_correction`, persisted fields include:
 - `requires_log_scale`
 - `input_scale`
 - `output_scale`
+- `quantitative_meaning`
 - `diagnostics` (runtime correction diagnostics when available, JSON-safe only)
+
+`input_scale`/`output_scale` describe numeric scale only.
+`quantitative_meaning` describes scientific interpretation.
+For example, `log2` phosphosite abundance and `log2` phospho/total ratio are
+different quantitative meanings.
 
 `processing_state.total_protein_correction.diagnostics` is validated recursively
 on bundle save/load and must use stable JSON-safe values:
@@ -131,6 +137,9 @@ Legacy bundles that store only minimal
 `processing_state.total_protein_correction` payloads (`policy`, `applied`) also
 remain loadable. Missing expanded correction fields are restored as safe
 unknowns (`None`) rather than inferred.
+
+Legacy correction diagnostics using `output_quantity` remain loadable; modern
+payloads persist `quantitative_meaning` explicitly.
 
 Legacy manifests without `intensity_scale_state.quantity` remain loadable.
 Loaders infer quantity only when provenance is unambiguous (for example,

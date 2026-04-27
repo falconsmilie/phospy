@@ -52,6 +52,9 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
             "requires_log_scale": state.total_protein_correction.requires_log_scale,
             "input_scale": state.total_protein_correction.input_scale,
             "output_scale": state.total_protein_correction.output_scale,
+            "quantitative_meaning": (
+                state.total_protein_correction.quantitative_meaning
+            ),
             "diagnostics": correction_diagnostics,
         },
         "site_matrix": {
@@ -130,11 +133,23 @@ def processing_state_from_payload(
         correction_payload=correction_payload,
         correction_applied=correction_applied,
     )
-    return DatasetProcessingState(
-        intensity_scale=intensity_scale_state_from_payload(
-            intensity_scale_payload,
-            fallback_quantity=inferred_quantity,
+    intensity_scale_state = intensity_scale_state_from_payload(
+        intensity_scale_payload,
+        fallback_quantity=inferred_quantity,
+    )
+    correction_diagnostics = _require_optional_json_safe_mapping(
+        correction_payload.get("diagnostics"),
+        field_name=(
+            "dataset.metadata.processing_state.total_protein_correction.diagnostics"
         ),
+    )
+    correction_quantitative_meaning = _resolve_total_correction_quantitative_meaning(
+        correction_payload=correction_payload,
+        correction_diagnostics=correction_diagnostics,
+        fallback=None,
+    )
+    return DatasetProcessingState(
+        intensity_scale=intensity_scale_state,
         missing_data=MissingDataState(
             policy=require_str(
                 missing_data_payload.get("policy"),
@@ -187,13 +202,8 @@ def processing_state_from_payload(
                     "output_scale"
                 ),
             ),
-            diagnostics=_require_optional_json_safe_mapping(
-                correction_payload.get("diagnostics"),
-                field_name=(
-                    "dataset.metadata.processing_state.total_protein_correction."
-                    "diagnostics"
-                ),
-            ),
+            quantitative_meaning=correction_quantitative_meaning,
+            diagnostics=correction_diagnostics,
         ),
         site_matrix=SiteMatrixState(
             policy=require_str(
@@ -298,6 +308,44 @@ def _parse_optional_pairs(
     return tuple(parsed)
 
 
+def _resolve_total_correction_quantitative_meaning(
+    *,
+    correction_payload: Mapping[str, object],
+    correction_diagnostics: Mapping[str, object] | None,
+    fallback: str | None,
+) -> str | None:
+    direct = _require_optional_str(
+        correction_payload.get("quantitative_meaning"),
+        field_name=(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "quantitative_meaning"
+        ),
+    )
+    if direct is not None:
+        return direct
+    if correction_diagnostics is None:
+        return fallback
+    from_diagnostics = _require_optional_str(
+        correction_diagnostics.get("quantitative_meaning"),
+        field_name=(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "diagnostics.quantitative_meaning"
+        ),
+    )
+    if from_diagnostics is not None:
+        return from_diagnostics
+    legacy_output_quantity = _require_optional_str(
+        correction_diagnostics.get("output_quantity"),
+        field_name=(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "diagnostics.output_quantity"
+        ),
+    )
+    if legacy_output_quantity is not None:
+        return legacy_output_quantity
+    return fallback
+
+
 def _infer_legacy_quantitative_meaning(
     *,
     intensity_scale_payload: Mapping[str, object],
@@ -306,6 +354,21 @@ def _infer_legacy_quantitative_meaning(
 ) -> QuantitativeMeaning:
     if "quantity" in intensity_scale_payload:
         return QuantitativeMeaning.UNKNOWN
+    correction_quantitative_meaning = _resolve_total_correction_quantitative_meaning(
+        correction_payload=correction_payload,
+        correction_diagnostics=_require_optional_json_safe_mapping(
+            correction_payload.get("diagnostics"),
+            field_name=(
+                "dataset.metadata.processing_state.total_protein_correction.diagnostics"
+            ),
+        ),
+        fallback=None,
+    )
+    if correction_quantitative_meaning is not None:
+        try:
+            return QuantitativeMeaning(correction_quantitative_meaning)
+        except ValueError:
+            return QuantitativeMeaning.UNKNOWN
     correction_policy = _require_optional_str(
         correction_payload.get("policy"),
         field_name="dataset.metadata.processing_state.total_protein_correction.policy",

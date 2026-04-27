@@ -181,6 +181,7 @@ class TotalProteinCorrectionStage:
                     "requires_log_scale": True,
                     "input_scale": "log2",
                     "output_scale": "log2_ratio",
+                    "quantitative_meaning": "phospho_total_log_ratio",
                     "output_quantity": "phospho_total_log_ratio",
                     "matched_rows": matched_rows,
                     "total_table_hash": (

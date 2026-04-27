@@ -365,6 +365,10 @@ State model responsibilities:
 - `processing_state` answers: "What preprocessing policy state crossed the analysis-ready boundary?"
 - `preprocessing_report` answers: "What happened during preprocessing, including row-level operations and sidecars?"
 
+`intensity_scale_state.label` (for example `log2`) is never a complete
+scientific interpretation on its own; always read it together with
+`intensity_scale_state.quantity`.
+
 Common combinations:
 
 - linear phosphosite abundance:

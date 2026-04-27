@@ -35,6 +35,7 @@ class TotalProteinCorrectionState:
     requires_log_scale: bool | None = False
     input_scale: str | None = None
     output_scale: str | None = None
+    quantitative_meaning: str | None = None
     diagnostics: Mapping[str, object] | None = None
 
 

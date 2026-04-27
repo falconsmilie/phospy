@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pandas.testing as pdt
@@ -21,6 +24,7 @@ from phospy.api import (
     ReferencePreset,
 )
 from phospy.errors import DatasetValidationError, PhosPyInputError
+from phospy.io.publishers.workflows import publish_dataset
 from phospy.references.resolution import ReferenceResolver
 from phospy.transformations.models import IntensityScaleState
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
@@ -140,6 +144,7 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
     assert built.processing_state.total_protein_correction.requires_log_scale is False
     assert built.processing_state.total_protein_correction.input_scale is None
     assert built.processing_state.total_protein_correction.output_scale is None
+    assert built.processing_state.total_protein_correction.quantitative_meaning is None
     assert built.processing_state.total_protein_correction.diagnostics is None
     assert built.processing_state.site_matrix.policy == "as_input"
     assert built.processing_state.site_matrix.constructed is False
@@ -257,11 +262,18 @@ def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> No
     assert built.processing_state.total_protein_correction.input_scale == "log2"
     assert built.processing_state.total_protein_correction.output_scale == "log2_ratio"
     assert (
+        built.processing_state.total_protein_correction.quantitative_meaning
+        == "phospho_total_log_ratio"
+    )
+    assert (
         built.processing_state.intensity_scale.quantity.value
         == "phospho_total_log_ratio"
     )
     correction_diagnostics = (
         built.processing_state.total_protein_correction.diagnostics or {}
+    )
+    assert correction_diagnostics.get("quantitative_meaning") == (
+        "phospho_total_log_ratio"
     )
     assert correction_diagnostics.get("output_quantity") == "phospho_total_log_ratio"
     assert correction_diagnostics.get("matched_rows") == 3
@@ -296,6 +308,7 @@ def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> No
     assert diagnostics["requires_log_scale"] is True
     assert diagnostics["input_scale"] == "log2"
     assert diagnostics["output_scale"] == "log2_ratio"
+    assert diagnostics["quantitative_meaning"] == "phospho_total_log_ratio"
     assert diagnostics["output_quantity"] == "phospho_total_log_ratio"
     assert isinstance(diagnostics.get("total_table_hash"), str)
     assert isinstance(diagnostics.get("input_phospho_hash"), str)
@@ -1111,6 +1124,124 @@ def test_dataset_builder_distinguishes_corrected_vs_uncorrected_log2_quantity() 
         uncorrected.intensity_scale_state.quantity
         != corrected.intensity_scale_state.quantity
     )
+    assert (
+        uncorrected.processing_state.total_protein_correction.quantitative_meaning
+        is (None)
+    )
+    assert corrected.processing_state.total_protein_correction.quantitative_meaning == (
+        "phospho_total_log_ratio"
+    )
+
+
+def test_dataset_builder_public_payloads_pair_scale_with_quantitative_meaning(
+    tmp_path: Path,
+) -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [15.0],
+            "sample_b": [31.0],
+        },
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["SEQ_A"],
+        },
+        index=phospho.index.copy(),
+    )
+    total = pd.DataFrame(
+        {
+            "sample_a": [3.0],
+            "sample_b": [7.0],
+        },
+        index=pd.Index(["MAPK14"], name="protein_id"),
+    )
+    datasets = (
+        (
+            "uncorrected",
+            AnalysisReadyDatasetBuilder().run(
+                DatasetBuildRequest(
+                    phospho=phospho,
+                    site_metadata=site_metadata,
+                    preprocessing_config=DatasetPreprocessingConfig(
+                        intensity_transform=DatasetIntensityTransformConfig(
+                            policy="log2",
+                            pseudocount=1.0,
+                        )
+                    ),
+                )
+            ),
+            "phosphosite_log_abundance",
+        ),
+        (
+            "corrected",
+            AnalysisReadyDatasetBuilder().run(
+                DatasetBuildRequest(
+                    phospho=phospho,
+                    site_metadata=site_metadata,
+                    total=total,
+                    preprocessing_config=DatasetPreprocessingConfig(
+                        intensity_transform=DatasetIntensityTransformConfig(
+                            policy="log2",
+                            pseudocount=1.0,
+                        ),
+                        total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                            policy="subtract_log_total"
+                        ),
+                    ),
+                )
+            ),
+            "phospho_total_log_ratio",
+        ),
+    )
+
+    for label, dataset, expected_quantitative_meaning in datasets:
+        assert dataset.intensity_scale_state.label == "log2"
+        assert (
+            dataset.intensity_scale_state.quantity.value
+            == expected_quantitative_meaning
+        )
+        written = publish_dataset(
+            dataset,
+            tmp_path / f"published_{label}",
+            output_format="csv",
+        )
+        manifest = json.loads(written["dataset.manifest"].read_text(encoding="utf-8"))
+        assert manifest["intensity_scale"] == "log2"
+        assert manifest["quantitative_meaning"] == expected_quantitative_meaning
+        processing_state_payload = manifest["processing_state"]
+        assert (
+            processing_state_payload["intensity_scale"]["quantity"]
+            == expected_quantitative_meaning
+        )
+        correction_payload = processing_state_payload["total_protein_correction"]
+        if correction_payload["output_scale"] is not None:
+            assert (
+                correction_payload["quantitative_meaning"]
+                == expected_quantitative_meaning
+            )
+        assert manifest["provenance"]["workflow_parameters"][
+            "intensity_scale_label"
+        ] == ("log2")
+        assert manifest["provenance"]["workflow_parameters"][
+            "quantitative_meaning"
+        ] == (expected_quantitative_meaning)
+        correction_stage = next(
+            (
+                stage
+                for stage in manifest["provenance"]["preprocessing_stages"]
+                if stage["stage"] == "total_protein_correction"
+            ),
+            None,
+        )
+        if correction_stage is not None:
+            diagnostics = correction_stage["diagnostics"] or {}
+            if "output_scale" in diagnostics:
+                assert diagnostics["quantitative_meaning"] == (
+                    expected_quantitative_meaning
+                )
 
 
 def test_dataset_builder_median_center_preprocessing_records_operation() -> None:
