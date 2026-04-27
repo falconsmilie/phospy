@@ -31,6 +31,10 @@ from phospy.api.configs import (
 )
 from phospy.datasets.preprocessing.report_schema import (
     ROW_AUDIT_COLUMNS,
+    ComparisonGroupStatsRow,
+    ComparisonPairStatsRow,
+    DuplicateSiteResolutionRow,
+    MetadataConflictRow,
     PreprocessingRowAuditRow,
     dataframe_from_row_audit_rows,
     reorder_columns,
@@ -43,6 +47,14 @@ DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM = "intensity_transform"
 DATASET_PREPROCESSING_STAGE_NORMALISATION = "normalisation"
 DATASET_PREPROCESSING_STAGE_COMPARISONS = "comparisons"
 DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT = (DATASET_PREPROCESSING_STAGE_MISSING_DATA,)
+
+StageOwnedPreprocessingReportValue = (
+    PreprocessingRowAuditRow
+    | DuplicateSiteResolutionRow
+    | MetadataConflictRow
+    | ComparisonGroupStatsRow
+    | ComparisonPairStatsRow
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,7 +206,7 @@ class PreprocessingReportRow:
     """Structured stage-owned contribution to preprocessing report assembly."""
 
     table: str
-    values: Mapping[str, object]
+    values: StageOwnedPreprocessingReportValue
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,4 +272,5 @@ __all__ = [
     "PreprocessingStageExecution",
     "PreprocessingStage",
     "PreprocessingState",
+    "StageOwnedPreprocessingReportValue",
 ]

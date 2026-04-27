@@ -16,6 +16,7 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingState,
     append_row_audit_records,
 )
+from phospy.datasets.preprocessing.report_rows import report_rows_from_row_audit_rows
 from phospy.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
 from phospy.errors.input import PhosPyInputError
 
@@ -141,6 +142,7 @@ class MissingDataStage:
                 phospho=imputed,
                 site_metadata=filtered_site_metadata,
             ),
+            report_rows=report_rows_from_row_audit_rows(row_audit_records),
             diagnostics={
                 "dropped_row_ids": dropped_row_ids,
                 "dropped_row_count": int(len(dropped_row_ids)),

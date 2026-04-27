@@ -18,6 +18,10 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStageResult,
     PreprocessingState,
 )
+from phospy.datasets.preprocessing.report_rows import (
+    report_rows_from_comparison_group_stats_dataframe,
+    report_rows_from_comparison_pair_stats_dataframe,
+)
 from phospy.datasets.preprocessing.report_schema import (
     COMPARISON_GROUP_STATS_COLUMNS,
     COMPARISON_PAIR_STATS_COLUMNS,
@@ -102,6 +106,14 @@ class ComparisonsStage:
         )
         return PreprocessingStageResult(
             state=next_state,
+            report_rows=(
+                report_rows_from_comparison_group_stats_dataframe(
+                    build_result.comparison_group_stats
+                )
+                + report_rows_from_comparison_pair_stats_dataframe(
+                    build_result.comparison_pair_stats
+                )
+            ),
             diagnostics={
                 "dropped_row_ids": (),
                 "dropped_row_count": 0,

@@ -24,6 +24,9 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStageResult,
     PreprocessingState,
 )
+from phospy.datasets.preprocessing.report_rows import (
+    validate_preprocessing_report_row,
+)
 from phospy.datasets.preprocessing.stages.comparisons import ComparisonsStage
 from phospy.datasets.preprocessing.stages.intensity_transform import (
     IntensityTransformStage,
@@ -258,11 +261,7 @@ def _normalize_report_rows(
 ) -> tuple[PreprocessingReportRow, ...]:
     normalized: list[PreprocessingReportRow] = []
     for row in rows:
-        if not isinstance(row, PreprocessingReportRow):
-            raise DatasetBuildError(
-                "dataset preprocessing stage returned an invalid report row payload"
-            )
-        normalized.append(row)
+        normalized.append(validate_preprocessing_report_row(row))
     return tuple(normalized)
 
 

@@ -24,6 +24,11 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingState,
     append_row_audit_records,
 )
+from phospy.datasets.preprocessing.report_rows import (
+    report_rows_from_duplicate_site_resolution_dataframe,
+    report_rows_from_metadata_conflicts_dataframe,
+    report_rows_from_row_audit_rows,
+)
 from phospy.datasets.preprocessing.report_schema import (
     DUPLICATE_SITE_RESOLUTION_COLUMNS,
     METADATA_CONFLICT_COLUMNS,
@@ -238,8 +243,18 @@ class SiteMatrixStage:
             diagnostics["duplicate_site_decisions"] = _records_from_frame(
                 duplicate_site_result.duplicate_site_resolution
             )
+        stage_report_rows = (
+            report_rows_from_row_audit_rows(row_audit_records)
+            + report_rows_from_duplicate_site_resolution_dataframe(
+                duplicate_site_result.duplicate_site_resolution
+            )
+            + report_rows_from_metadata_conflicts_dataframe(
+                duplicate_site_result.metadata_conflicts
+            )
+        )
         return PreprocessingStageResult(
             state=next_state,
+            report_rows=stage_report_rows,
             diagnostics={
                 "dropped_row_ids": dropped_row_ids,
                 "dropped_row_count": int(len(dropped_row_ids)),

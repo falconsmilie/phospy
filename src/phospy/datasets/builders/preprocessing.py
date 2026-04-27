@@ -23,9 +23,11 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageExecution,
     PreprocessingState,
-    empty_preprocessing_row_audit,
 )
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.datasets.preprocessing.report_rows import (
+    compose_stage_owned_report_tables,
+)
 from phospy.datasets.preprocessing.report_schema import (
     PreprocessingOperationRow,
     PreprocessingRowCountRow,
@@ -110,10 +112,8 @@ class DatasetPreprocessor:
             output_row_count=int(len(preprocessed_state.phospho.index)),
             trace=trace,
         )
-        row_audit = (
-            empty_preprocessing_row_audit()
-            if preprocessed_state.row_audit is None
-            else preprocessed_state.row_audit
+        report_tables = compose_stage_owned_report_tables(
+            preprocessed_state.report_rows
         )
         return PreprocessedDatasetBuildTables(
             phospho=preprocessed_state.phospho,
@@ -121,14 +121,14 @@ class DatasetPreprocessor:
             sample_metadata=preprocessed_state.sample_metadata,
             total=preprocessed_state.total,
             comparisons=preprocessed_state.comparisons,
-            comparison_group_stats=preprocessed_state.comparison_group_stats,
-            comparison_pair_stats=preprocessed_state.comparison_pair_stats,
+            comparison_group_stats=report_tables.comparison_group_stats,
+            comparison_pair_stats=report_tables.comparison_pair_stats,
             preprocessing_row_counts=row_counts,
             preprocessing_operations=operations,
-            row_audit=row_audit,
+            row_audit=report_tables.row_audit,
             preprocessing_trace=trace,
-            duplicate_site_resolution=preprocessed_state.duplicate_site_resolution,
-            metadata_conflicts=preprocessed_state.metadata_conflicts,
+            duplicate_site_resolution=report_tables.duplicate_site_resolution,
+            metadata_conflicts=report_tables.metadata_conflicts,
         )
 
 

@@ -55,7 +55,7 @@ def test_missing_data_stage_audits_rows_dropped_below_min_observed_values() -> N
     assert dropped.shape[0] == 1
     assert dropped.iloc[0]["source_row_id"] == "row_drop"
     assert dropped.iloc[0]["site_id"] == "row_drop"
-    assert dropped.iloc[0]["retained"] is False
+    assert bool(dropped.iloc[0]["retained"]) is False
     assert "below missing_data.min_observed_values" in str(dropped.iloc[0]["reason"])
 
 
@@ -218,9 +218,9 @@ def test_site_matrix_stage_audits_duplicate_resolution_first_policy() -> None:
         preprocessed.row_audit["stage"] == "site_matrix"
     ].set_index("source_row_id")
     assert site_matrix_audit.loc["SRC_ROW_1", "action"] == "retained"
-    assert site_matrix_audit.loc["SRC_ROW_1", "retained"] is True
+    assert bool(site_matrix_audit.loc["SRC_ROW_1", "retained"]) is True
     assert site_matrix_audit.loc["SRC_ROW_2", "action"] == "collapsed"
-    assert site_matrix_audit.loc["SRC_ROW_2", "retained"] is False
+    assert bool(site_matrix_audit.loc["SRC_ROW_2", "retained"]) is False
     assert site_matrix_audit.loc["SRC_ROW_2", "retained_row_id"] == "SRC_ROW_1"
     snapshot = site_matrix_audit.loc["SRC_ROW_2", "parameter_snapshot"]
     assert isinstance(snapshot, dict)
@@ -266,9 +266,9 @@ def test_site_matrix_stage_audits_duplicate_resolution_max_mean_signal_policy() 
         preprocessed.row_audit["stage"] == "site_matrix"
     ].set_index("source_row_id")
     assert site_matrix_audit.loc["SRC_ROW_2", "action"] == "retained"
-    assert site_matrix_audit.loc["SRC_ROW_2", "retained"] is True
+    assert bool(site_matrix_audit.loc["SRC_ROW_2", "retained"]) is True
     assert site_matrix_audit.loc["SRC_ROW_1", "action"] == "collapsed"
-    assert site_matrix_audit.loc["SRC_ROW_1", "retained"] is False
+    assert bool(site_matrix_audit.loc["SRC_ROW_1", "retained"]) is False
     assert site_matrix_audit.loc["SRC_ROW_1", "retained_row_id"] == "SRC_ROW_2"
 
 

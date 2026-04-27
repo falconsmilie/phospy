@@ -3,7 +3,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 import pandas as pd
+import pytest
 
+from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
+from phospy.datasets.builders.executor import DatasetBuildExecutor
+from phospy.datasets.builders.preprocessing import DatasetPreprocessor
 from phospy.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingReportRow,
@@ -11,6 +15,7 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingState,
 )
 from phospy.datasets.preprocessing.pipeline import PreprocessingPipeline
+from phospy.datasets.preprocessing.report_schema import PreprocessingRowAuditRow
 from phospy.datasets.preprocessing.stages.comparisons import ComparisonsStage
 from phospy.datasets.preprocessing.stages.intensity_transform import (
     IntensityTransformStage,
@@ -21,6 +26,7 @@ from phospy.datasets.preprocessing.stages.site_matrix import SiteMatrixStage
 from phospy.datasets.preprocessing.stages.total_protein_correction import (
     TotalProteinCorrectionStage,
 )
+from phospy.errors.build import DatasetBuildError
 
 
 def _phospho() -> pd.DataFrame:
@@ -86,6 +92,67 @@ def test_missing_data_stage_returns_stage_result() -> None:
     result = MissingDataStage().run(state)
 
     _assert_stage_result_contract(result)
+
+
+def test_missing_data_stage_emits_typed_row_audit_report_rows() -> None:
+    phospho = _phospho()
+    phospho.loc["row_b", "sample_b"] = float("nan")
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="impute_row_median",
+            missing_data_min_observed_values=1,
+            stage_order=("missing_data",),
+        ),
+    )
+
+    result = MissingDataStage().run(state)
+
+    assert result.report_rows
+    assert all(row.table == "row_audit" for row in result.report_rows)
+    assert all(
+        isinstance(row.values, PreprocessingRowAuditRow) for row in result.report_rows
+    )
+
+
+def test_missing_data_stage_report_rows_appear_in_final_report() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [4.0, 8.0],
+            "sample_b": [6.0, float("nan")],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+    built = DatasetBuildExecutor().run(
+        InterpretedDatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=None,
+            organism=None,
+            preprocessing_plan=PreprocessingPlan(
+                missing_data_policy="impute_row_median",
+                missing_data_min_observed_values=1,
+                stage_order=("missing_data",),
+            ),
+        )
+    )
+
+    assert built.preprocessing_report is not None
+    row_audit = built.preprocessing_report.row_audit
+    assert not row_audit.empty
+    assert "missing_data" in set(row_audit.loc[:, "stage"].astype(str))
 
 
 def test_intensity_transform_stage_returns_stage_result() -> None:
@@ -190,8 +257,19 @@ def test_pipeline_uses_stage_owned_diagnostics_and_report_rows() -> None:
                 diagnostics={"custom_metric": 123},
                 report_rows=(
                     PreprocessingReportRow(
-                        table="custom_table",
-                        values={"custom_metric": 123},
+                        table="row_audit",
+                        values=PreprocessingRowAuditRow(
+                            stage="fake_stage",
+                            action="retained",
+                            reason="test emission",
+                            source_row_id="row_a",
+                            site_id="row_a",
+                            retained=True,
+                            retained_row_id="row_a",
+                            source_rows=("row_a",),
+                            retained_row="row_a",
+                            parameter_snapshot={"source": "fake_stage"},
+                        ),
                     ),
                 ),
             )
@@ -213,7 +291,118 @@ def test_pipeline_uses_stage_owned_diagnostics_and_report_rows() -> None:
     assert trace[0].stage == "fake_stage"
     assert trace[0].diagnostics["custom_metric"] == 123
     assert len(final_state.report_rows) == 1
-    assert final_state.report_rows[0].table == "custom_table"
+    assert final_state.report_rows[0].table == "row_audit"
+    assert isinstance(final_state.report_rows[0].values, PreprocessingRowAuditRow)
+
+
+def test_pipeline_rejects_unsupported_stage_report_rows() -> None:
+    class FakeStage:
+        stage_key = "fake_stage"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(
+                state=state,
+                report_rows=(
+                    PreprocessingReportRow(
+                        table="custom_table",
+                        values=PreprocessingRowAuditRow(
+                            stage="fake_stage",
+                            action="retained",
+                            reason="test emission",
+                            source_row_id="row_a",
+                            site_id="row_a",
+                            retained=True,
+                            retained_row_id="row_a",
+                            source_rows=("row_a",),
+                            retained_row="row_a",
+                            parameter_snapshot={"source": "fake_stage"},
+                        ),
+                    ),
+                ),
+            )
+
+    phospho = _phospho()
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(stage_order=("fake_stage",)),
+    )
+
+    with pytest.raises(
+        DatasetBuildError,
+        match="unsupported table",
+    ):
+        PreprocessingPipeline(stage_registry=(FakeStage(),)).run_with_trace(state)
+
+
+def test_minimal_custom_stage_emits_supported_report_row_into_final_report() -> None:
+    class FakeStage:
+        stage_key = "fake_stage"
+
+        def run(self, state: PreprocessingState) -> PreprocessingStageResult:
+            return PreprocessingStageResult(
+                state=state,
+                report_rows=(
+                    PreprocessingReportRow(
+                        table="row_audit",
+                        values=PreprocessingRowAuditRow(
+                            stage="fake_stage",
+                            action="retained",
+                            reason="custom stage retained row",
+                            source_row_id="MAPK14;Y182;",
+                            site_id="MAPK14;Y182;",
+                            retained=True,
+                            retained_row_id="MAPK14;Y182;",
+                            source_rows=("MAPK14;Y182;",),
+                            retained_row="MAPK14;Y182;",
+                            parameter_snapshot={"policy": "test"},
+                        ),
+                    ),
+                ),
+                diagnostics={"notes": "stage executed"},
+            )
+
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [4.0, 8.0],
+            "sample_b": [6.0, 12.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+        },
+        index=phospho.index.copy(),
+    )
+    executor = DatasetBuildExecutor(
+        preprocessor=DatasetPreprocessor(
+            pipeline=PreprocessingPipeline(stage_registry=(FakeStage(),))
+        )
+    )
+    built = executor.run(
+        InterpretedDatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=None,
+            total=None,
+            organism=None,
+            preprocessing_plan=PreprocessingPlan(stage_order=("fake_stage",)),
+        )
+    )
+
+    assert built.preprocessing_report is not None
+    report = built.preprocessing_report
+    row_audit = report.row_audit
+    assert not row_audit.empty
+    assert set(row_audit.loc[:, "stage"].astype(str)) == {"fake_stage"}
+    assert row_audit.iloc[0]["source_row_id"] == "MAPK14;Y182;"
+    assert "final_dataset_construction" in set(report.row_counts.loc[:, "stage"])
+    assert "final_dataset_construction" in set(report.operations.loc[:, "stage"])
 
 
 def test_pipeline_trace_preserves_intensity_transform_diagnostics() -> None:
