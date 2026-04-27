@@ -275,7 +275,7 @@ def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> No
     assert correction_diagnostics.get("quantitative_meaning") == (
         "phospho_total_log_ratio"
     )
-    assert correction_diagnostics.get("output_quantity") == "phospho_total_log_ratio"
+    assert correction_diagnostics.get("diagnostics_schema_version") == 1
     assert correction_diagnostics.get("matched_rows") == 3
     assert isinstance(correction_diagnostics.get("input_phospho_hash"), str)
     assert isinstance(correction_diagnostics.get("output_phospho_hash"), str)
@@ -308,8 +308,8 @@ def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> No
     assert diagnostics["requires_log_scale"] is True
     assert diagnostics["input_scale"] == "log2"
     assert diagnostics["output_scale"] == "log2_ratio"
+    assert diagnostics["diagnostics_schema_version"] == 1
     assert diagnostics["quantitative_meaning"] == "phospho_total_log_ratio"
-    assert diagnostics["output_quantity"] == "phospho_total_log_ratio"
     assert isinstance(diagnostics.get("total_table_hash"), str)
     assert isinstance(diagnostics.get("input_phospho_hash"), str)
     assert isinstance(diagnostics.get("output_phospho_hash"), str)

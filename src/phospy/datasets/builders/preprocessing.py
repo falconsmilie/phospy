@@ -37,6 +37,7 @@ from phospy.datasets.preprocessing.report_schema import (
     dataframe_from_row_count_rows,
 )
 from phospy.datasets.processing_state import (
+    TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
     ComparisonState,
     DatasetProcessingState,
     MissingDataState,
@@ -192,12 +193,10 @@ def build_dataset_processing_state(
         key="quantitative_meaning",
         default=default_quantitative_meaning,
     )
-    correction_diagnostics = _with_default_string_diagnostic(
+    correction_diagnostics = _with_default_int_diagnostic(
         correction_diagnostics,
-        key="output_quantity",
-        # Keep legacy key for backward compatibility while public payloads migrate
-        # to `quantitative_meaning`.
-        default=default_quantitative_meaning,
+        key="diagnostics_schema_version",
+        default=TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
     )
     typed_correction_diagnostics = (
         None
@@ -247,11 +246,7 @@ def build_dataset_processing_state(
             quantitative_meaning=_resolve_optional_string_diagnostic(
                 correction_diagnostics,
                 key="quantitative_meaning",
-                default=_resolve_optional_string_diagnostic(
-                    correction_diagnostics,
-                    key="output_quantity",
-                    default=default_quantitative_meaning,
-                ),
+                default=default_quantitative_meaning,
             ),
             diagnostics=typed_correction_diagnostics,
         ),
@@ -337,6 +332,21 @@ def _with_default_string_diagnostic(
     return resolved
 
 
+def _with_default_int_diagnostic(
+    diagnostics: dict[str, object] | None,
+    *,
+    key: str,
+    default: int,
+) -> dict[str, object] | None:
+    if diagnostics is None:
+        return None
+    resolved = dict(diagnostics)
+    value = resolved.get(key)
+    if value is None:
+        resolved[key] = default
+    return resolved
+
+
 def _resolve_quantitative_meaning_state(
     *,
     intensity_scale_state: IntensityScaleState,
@@ -348,12 +358,6 @@ def _resolve_quantitative_meaning_state(
         key="quantitative_meaning",
         default=None,
     )
-    if quantitative_meaning is None:
-        quantitative_meaning = _resolve_optional_string_diagnostic(
-            correction_diagnostics,
-            key="output_quantity",
-            default=None,
-        )
     if quantitative_meaning is not None:
         try:
             return intensity_scale_state.with_quantitative_meaning(

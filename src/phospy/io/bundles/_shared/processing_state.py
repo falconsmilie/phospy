@@ -350,15 +350,6 @@ def _resolve_total_correction_quantitative_meaning(
     )
     if from_diagnostics is not None:
         return from_diagnostics
-    legacy_output_quantity = _require_optional_str(
-        correction_diagnostics.get("output_quantity"),
-        field_name=(
-            "dataset.metadata.processing_state.total_protein_correction."
-            "diagnostics.output_quantity"
-        ),
-    )
-    if legacy_output_quantity is not None:
-        return legacy_output_quantity
     return fallback
 
 

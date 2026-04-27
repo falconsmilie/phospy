@@ -22,6 +22,7 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
 )
+from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles.kinase import (
     KINASE_BUNDLE_MANIFEST_VERSION,
     KinaseWorkflowConfigSnapshot,
@@ -294,7 +295,7 @@ def test_kinase_bundle_loads_legacy_manifest_without_quantitative_meaning_field(
     )
 
 
-def test_kinase_bundle_resaves_legacy_total_correction_diagnostics_as_versioned(
+def test_kinase_bundle_rejects_unversioned_total_correction_diagnostics(
     tmp_path: Path,
 ) -> None:
     request = _build_request_with_subtract_log_total(activity=False)
@@ -313,24 +314,13 @@ def test_kinase_bundle_resaves_legacy_total_correction_diagnostics_as_versioned(
     ]
     diagnostics_payload = dict(correction_payload["diagnostics"])
     diagnostics_payload.pop("diagnostics_schema_version", None)
-    diagnostics_payload["legacy_hint"] = "keep-me"
     correction_payload["diagnostics"] = diagnostics_payload
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
     )
 
-    loaded = load_kinase_workflow_bundle(bundle_root)
-    save_kinase_workflow_bundle(
-        loaded.result,
-        bundle_root,
-        config_snapshot=loaded.config_snapshot,
-    )
-    rewritten = json.loads(manifest_path.read_text(encoding="utf-8"))
-    rewritten_diagnostics = rewritten["dataset"]["metadata"]["processing_state"][
-        "total_protein_correction"
-    ]["diagnostics"]
-    assert rewritten_diagnostics["diagnostics_schema_version"] == 1
-    assert rewritten_diagnostics["legacy_hint"] == "keep-me"
+    with pytest.raises(PhosPyInputError, match="unversioned.*Migrate diagnostics"):
+        load_kinase_workflow_bundle(bundle_root)
 
 
 def _build_request(*, activity: bool) -> KinaseWorkflowRequest:

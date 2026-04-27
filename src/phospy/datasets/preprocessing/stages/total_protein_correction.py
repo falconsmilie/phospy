@@ -17,6 +17,9 @@ from phospy.datasets.preprocessing.models import (
     PreprocessingStageResult,
     PreprocessingState,
 )
+from phospy.datasets.processing_state import (
+    TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
+)
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.hashing import hash_table
 
@@ -40,6 +43,9 @@ class TotalProteinCorrectionStage:
                     "imputed_row_ids": (),
                     "notes": "stage executed",
                     "diagnostics": {
+                        "diagnostics_schema_version": (
+                            TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1
+                        ),
                         "policy": str(requested_policy),
                         "requested_policy": str(requested_policy),
                         "resolved_policy": str(requested_policy),
@@ -174,6 +180,9 @@ class TotalProteinCorrectionStage:
                 "imputed_row_ids": (),
                 "notes": "stage executed",
                 "diagnostics": {
+                    "diagnostics_schema_version": (
+                        TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1
+                    ),
                     "policy": str(resolved_policy),
                     "requested_policy": str(requested_policy),
                     "resolved_policy": str(resolved_policy),
@@ -182,7 +191,6 @@ class TotalProteinCorrectionStage:
                     "input_scale": "log2",
                     "output_scale": "log2_ratio",
                     "quantitative_meaning": "phospho_total_log_ratio",
-                    "output_quantity": "phospho_total_log_ratio",
                     "matched_rows": matched_rows,
                     "total_table_hash": (
                         None

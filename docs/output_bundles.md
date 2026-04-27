@@ -114,21 +114,15 @@ versioned payload:
 - typed known fields when present:
   `policy`, `requested_policy`, `resolved_policy`, `formula`,
   `requires_log_scale`, `input_scale`, `output_scale`,
-  `quantitative_meaning`, `output_quantity`, `matched_rows`,
+  `quantitative_meaning`, `matched_rows`,
   `total_table_hash`, `input_phospho_hash`, `output_phospho_hash`
-- additional legacy/unknown keys are retained as validated extension fields in
-  the same payload (no silent data loss)
+- unknown top-level diagnostics fields are rejected at load/validation time
+- unversioned diagnostics payloads are rejected at load/validation time with a
+  migration error to schema v1
 
-Diagnostics values are validated recursively on bundle save/load and must use
-stable JSON-safe values:
-
-- `null`, string, bool, int, finite float
-- arrays (lists/tuples) of JSON-safe values
-- objects with string keys and JSON-safe values
-
-Unsupported values (for example custom objects, NumPy/pandas objects, sets,
-bytes, non-string keys, or non-finite floats) are rejected with an explicit
-bundle field-path error.
+Diagnostics values are validated on bundle save/load against the typed schema.
+Malformed values (for example wrong scalar types or negative `matched_rows`) and
+unknown top-level fields are rejected with explicit bundle field-path errors.
 
 `provenance` is machine-readable run metadata (`RunProvenance`) and includes:
 
@@ -168,14 +162,6 @@ Legacy bundles that store only minimal
 `processing_state.total_protein_correction` payloads (`policy`, `applied`) also
 remain loadable. Missing expanded correction fields are restored as safe
 unknowns (`None`) rather than inferred.
-
-Legacy correction diagnostics without `diagnostics_schema_version` remain
-loadable. Loaders normalize them to schema v1 in memory, and re-saved manifests
-emit the normalized versioned payload.
-
-Legacy correction diagnostics using `output_quantity` remain loadable; modern
-payloads persist typed versioned diagnostics and keep `quantitative_meaning`
-explicit.
 
 Legacy manifests without `intensity_scale_state.quantity` remain loadable.
 Loaders infer quantity only when provenance is unambiguous (for example,

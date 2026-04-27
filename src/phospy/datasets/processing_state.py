@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from typing import TypeAlias
@@ -25,7 +24,6 @@ _V1_KNOWN_DIAGNOSTICS_FIELDS = frozenset(
         "input_scale",
         "output_scale",
         "quantitative_meaning",
-        "output_quantity",
         "matched_rows",
         "total_table_hash",
         "input_phospho_hash",
@@ -70,12 +68,10 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
     input_scale: str | None = None
     output_scale: str | None = None
     quantitative_meaning: str | None = None
-    output_quantity: str | None = None
     matched_rows: int | None = None
     total_table_hash: str | None = None
     input_phospho_hash: str | None = None
     output_phospho_hash: str | None = None
-    extra: Mapping[str, JsonValue] = field(default_factory=dict)
     diagnostics_schema_version: int = (
         TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1
     )
@@ -88,9 +84,15 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
         *,
         field_name: str,
     ) -> TotalProteinCorrectionDiagnosticsV1:
-        if "diagnostics_schema_version" in payload:
-            return cls._from_versioned_payload(payload, field_name=field_name)
-        return cls._from_legacy_payload(payload, field_name=field_name)
+        if "diagnostics_schema_version" not in payload:
+            raise PhosPyInputError(
+                f"{field_name} is unversioned. "
+                "Migrate diagnostics to include "
+                f"{field_name}.diagnostics_schema_version="
+                f"{TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1} "
+                "(TotalProteinCorrectionDiagnosticsV1)."
+            )
+        return cls._from_versioned_payload(payload, field_name=field_name)
 
     @classmethod
     def _from_versioned_payload(
@@ -99,6 +101,7 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
         *,
         field_name: str,
     ) -> TotalProteinCorrectionDiagnosticsV1:
+        _require_string_keys(payload, field_name=field_name)
         version = _require_int(
             payload.get("diagnostics_schema_version"),
             field_name=f"{field_name}.diagnostics_schema_version",
@@ -108,11 +111,14 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 f"{field_name}.diagnostics_schema_version={version!r} is unsupported; "
                 f"expected {TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1}"
             )
-        extra = {
-            str(key): value
-            for key, value in payload.items()
-            if str(key) not in _V1_KNOWN_DIAGNOSTICS_FIELDS
-        }
+        unknown_fields = sorted(
+            key for key in payload if key not in _V1_KNOWN_DIAGNOSTICS_FIELDS
+        )
+        if unknown_fields:
+            raise PhosPyInputError(
+                f"{field_name} contains unsupported field(s): "
+                + ", ".join(unknown_fields)
+            )
         return cls(
             policy=_require_optional_str(
                 payload.get("policy"),
@@ -146,10 +152,6 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 payload.get("quantitative_meaning"),
                 field_name=f"{field_name}.quantitative_meaning",
             ),
-            output_quantity=_require_optional_str(
-                payload.get("output_quantity"),
-                field_name=f"{field_name}.output_quantity",
-            ),
             matched_rows=_require_optional_non_negative_int(
                 payload.get("matched_rows"),
                 field_name=f"{field_name}.matched_rows",
@@ -166,85 +168,7 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 payload.get("output_phospho_hash"),
                 field_name=f"{field_name}.output_phospho_hash",
             ),
-            extra=_validate_json_safe_mapping(
-                extra,
-                field_name=f"{field_name}.extra",
-            ),
             diagnostics_schema_version=version,
-        )
-
-    @classmethod
-    def _from_legacy_payload(
-        cls,
-        payload: Mapping[str, object],
-        *,
-        field_name: str,
-    ) -> TotalProteinCorrectionDiagnosticsV1:
-        normalized = _validate_json_safe_mapping(payload, field_name=field_name)
-        known = {
-            key: normalized.get(key)
-            for key in _V1_KNOWN_DIAGNOSTICS_FIELDS
-            if key in normalized
-        }
-        extra = {
-            key: value
-            for key, value in normalized.items()
-            if key not in _V1_KNOWN_DIAGNOSTICS_FIELDS
-        }
-        return cls(
-            policy=_require_optional_str(
-                known.get("policy"),
-                field_name=f"{field_name}.policy",
-            ),
-            requested_policy=_require_optional_str(
-                known.get("requested_policy"),
-                field_name=f"{field_name}.requested_policy",
-            ),
-            resolved_policy=_require_optional_str(
-                known.get("resolved_policy"),
-                field_name=f"{field_name}.resolved_policy",
-            ),
-            formula=_require_optional_str(
-                known.get("formula"),
-                field_name=f"{field_name}.formula",
-            ),
-            requires_log_scale=_require_optional_bool(
-                known.get("requires_log_scale"),
-                field_name=f"{field_name}.requires_log_scale",
-            ),
-            input_scale=_require_optional_str(
-                known.get("input_scale"),
-                field_name=f"{field_name}.input_scale",
-            ),
-            output_scale=_require_optional_str(
-                known.get("output_scale"),
-                field_name=f"{field_name}.output_scale",
-            ),
-            quantitative_meaning=_require_optional_str(
-                known.get("quantitative_meaning"),
-                field_name=f"{field_name}.quantitative_meaning",
-            ),
-            output_quantity=_require_optional_str(
-                known.get("output_quantity"),
-                field_name=f"{field_name}.output_quantity",
-            ),
-            matched_rows=_require_optional_non_negative_int(
-                known.get("matched_rows"),
-                field_name=f"{field_name}.matched_rows",
-            ),
-            total_table_hash=_require_optional_str(
-                known.get("total_table_hash"),
-                field_name=f"{field_name}.total_table_hash",
-            ),
-            input_phospho_hash=_require_optional_str(
-                known.get("input_phospho_hash"),
-                field_name=f"{field_name}.input_phospho_hash",
-            ),
-            output_phospho_hash=_require_optional_str(
-                known.get("output_phospho_hash"),
-                field_name=f"{field_name}.output_phospho_hash",
-            ),
-            extra=extra,
         )
 
     def __post_init__(self) -> None:
@@ -306,13 +230,6 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 "quantitative_meaning"
             ),
         )
-        output_quantity = _require_optional_str(
-            self.output_quantity,
-            field_name=(
-                "dataset processing state total_protein_correction.diagnostics."
-                "output_quantity"
-            ),
-        )
         matched_rows = _require_optional_non_negative_int(
             self.matched_rows,
             field_name=(
@@ -341,23 +258,6 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 "output_phospho_hash"
             ),
         )
-        normalized_extra = _validate_json_safe_mapping(
-            self.extra,
-            field_name=(
-                "dataset processing state total_protein_correction.diagnostics.extra"
-            ),
-        )
-        collisions = sorted(
-            set(normalized_extra).intersection(_V1_KNOWN_DIAGNOSTICS_FIELDS)
-        )
-        if collisions:
-            joined = ", ".join(collisions)
-            raise PhosPyInputError(
-                "dataset processing state total_protein_correction.diagnostics.extra "
-                f"contains reserved key(s): {joined}"
-            )
-        if quantitative_meaning is None and output_quantity is not None:
-            quantitative_meaning = output_quantity
 
         payload: dict[str, JsonValue] = {
             "diagnostics_schema_version": self.diagnostics_schema_version
@@ -372,12 +272,10 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
         _set_optional_payload_value(
             payload, "quantitative_meaning", quantitative_meaning
         )
-        _set_optional_payload_value(payload, "output_quantity", output_quantity)
         _set_optional_payload_value(payload, "matched_rows", matched_rows)
         _set_optional_payload_value(payload, "total_table_hash", total_table_hash)
         _set_optional_payload_value(payload, "input_phospho_hash", input_phospho_hash)
         _set_optional_payload_value(payload, "output_phospho_hash", output_phospho_hash)
-        payload.update(normalized_extra)
 
         object.__setattr__(self, "policy", policy)
         object.__setattr__(self, "requested_policy", requested_policy)
@@ -387,12 +285,10 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
         object.__setattr__(self, "input_scale", input_scale)
         object.__setattr__(self, "output_scale", output_scale)
         object.__setattr__(self, "quantitative_meaning", quantitative_meaning)
-        object.__setattr__(self, "output_quantity", output_quantity)
         object.__setattr__(self, "matched_rows", matched_rows)
         object.__setattr__(self, "total_table_hash", total_table_hash)
         object.__setattr__(self, "input_phospho_hash", input_phospho_hash)
         object.__setattr__(self, "output_phospho_hash", output_phospho_hash)
-        object.__setattr__(self, "extra", normalized_extra)
         object.__setattr__(self, "_payload", payload)
 
     def __getitem__(self, key: str) -> JsonValue:
@@ -488,6 +384,15 @@ def _require_mapping(value: object, *, field_name: str) -> Mapping[str, object]:
     return value
 
 
+def _require_string_keys(value: Mapping[object, object], *, field_name: str) -> None:
+    for key in value:
+        if not isinstance(key, str):
+            raise PhosPyInputError(
+                f"{field_name} must contain only string keys; got key "
+                f"{key!r} ({type(key).__name__})"
+            )
+
+
 def _require_optional_str(value: object, *, field_name: str) -> str | None:
     if value is None:
         return None
@@ -520,62 +425,6 @@ def _require_optional_non_negative_int(value: object, *, field_name: str) -> int
     if parsed < 0:
         raise PhosPyInputError(f"{field_name} must be >= 0")
     return parsed
-
-
-def _validate_json_safe_mapping(
-    value: Mapping[str, object] | Mapping[str, JsonValue],
-    *,
-    field_name: str,
-) -> dict[str, JsonValue]:
-    normalized: dict[str, JsonValue] = {}
-    for key, item in value.items():
-        if not isinstance(key, str):
-            raise PhosPyInputError(
-                f"{field_name} must contain only string keys; got key "
-                f"{key!r} ({type(key).__name__})"
-            )
-        normalized[key] = _validate_json_safe_value(item, path=f"{field_name}.{key}")
-    return normalized
-
-
-def _validate_json_safe_value(value: object, *, path: str) -> JsonValue:
-    if value is None:
-        return None
-    if isinstance(value, str):
-        return value
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, int):
-        return value
-    if isinstance(value, float):
-        if not math.isfinite(value):
-            raise PhosPyInputError(f"{path} must contain only finite float values")
-        return value
-    if isinstance(value, list):
-        return [
-            _validate_json_safe_value(item, path=f"{path}[{index}]")
-            for index, item in enumerate(value)
-        ]
-    if isinstance(value, tuple):
-        return [
-            _validate_json_safe_value(item, path=f"{path}[{index}]")
-            for index, item in enumerate(value)
-        ]
-    if isinstance(value, Mapping):
-        nested: dict[str, JsonValue] = {}
-        for key, item in value.items():
-            if not isinstance(key, str):
-                raise PhosPyInputError(
-                    f"{path} must contain only string keys; got key "
-                    f"{key!r} ({type(key).__name__})"
-                )
-            nested[key] = _validate_json_safe_value(item, path=f"{path}.{key}")
-        return nested
-    raise PhosPyInputError(
-        f"{path} contains unsupported value type "
-        f"{type(value).__module__}.{type(value).__name__}; expected JSON-safe "
-        "scalars, arrays, or objects"
-    )
 
 
 def _set_optional_payload_value(
