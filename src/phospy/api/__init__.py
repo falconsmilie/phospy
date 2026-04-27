@@ -26,6 +26,8 @@ from phospy.api.datasets import (
     MissingDataState,
     NormalisationState,
     SiteMatrixState,
+    TotalProteinCorrectionDiagnostics,
+    TotalProteinCorrectionDiagnosticsV1,
     TotalProteinCorrectionState,
 )
 from phospy.api.enums import Organism, ReferencePreset
@@ -83,6 +85,8 @@ __all__ = [
     "MissingDataState",
     "NormalisationState",
     "SiteMatrixState",
+    "TotalProteinCorrectionDiagnostics",
+    "TotalProteinCorrectionDiagnosticsV1",
     "TotalProteinCorrectionState",
     "DatasetComparisonBuildingConfig",
     "DatasetIntensityTransformConfig",

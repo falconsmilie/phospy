@@ -94,15 +94,27 @@ For `processing_state.total_protein_correction`, persisted fields include:
 - `input_scale`
 - `output_scale`
 - `quantitative_meaning`
-- `diagnostics` (runtime correction diagnostics when available, JSON-safe only)
+- `diagnostics` (runtime correction diagnostics, stored in a versioned schema)
 
 `input_scale`/`output_scale` describe numeric scale only.
 `quantitative_meaning` describes scientific interpretation.
 For example, `log2` phosphosite abundance and `log2` phospho/total ratio are
 different quantitative meanings.
 
-`processing_state.total_protein_correction.diagnostics` is validated recursively
-on bundle save/load and must use stable JSON-safe values:
+`processing_state.total_protein_correction.diagnostics` now persists as a typed
+versioned payload:
+
+- `diagnostics_schema_version` (currently `1`)
+- typed known fields when present:
+  `policy`, `requested_policy`, `resolved_policy`, `formula`,
+  `requires_log_scale`, `input_scale`, `output_scale`,
+  `quantitative_meaning`, `output_quantity`, `matched_rows`,
+  `total_table_hash`, `input_phospho_hash`, `output_phospho_hash`
+- additional legacy/unknown keys are retained as validated extension fields in
+  the same payload (no silent data loss)
+
+Diagnostics values are validated recursively on bundle save/load and must use
+stable JSON-safe values:
 
 - `null`, string, bool, int, finite float
 - arrays (lists/tuples) of JSON-safe values
@@ -147,8 +159,13 @@ Legacy bundles that store only minimal
 remain loadable. Missing expanded correction fields are restored as safe
 unknowns (`None`) rather than inferred.
 
+Legacy correction diagnostics without `diagnostics_schema_version` remain
+loadable. Loaders normalize them to schema v1 in memory, and re-saved manifests
+emit the normalized versioned payload.
+
 Legacy correction diagnostics using `output_quantity` remain loadable; modern
-payloads persist `quantitative_meaning` explicitly.
+payloads persist typed versioned diagnostics and keep `quantitative_meaning`
+explicit.
 
 Legacy manifests without `intensity_scale_state.quantity` remain loadable.
 Loaders infer quantity only when provenance is unambiguous (for example,

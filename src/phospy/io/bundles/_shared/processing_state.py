@@ -10,6 +10,7 @@ from phospy.datasets.processing_state import (
     MissingDataState,
     NormalisationState,
     SiteMatrixState,
+    TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
 )
 from phospy.errors.input import PhosPyInputError
@@ -22,7 +23,6 @@ from phospy.io.bundles._shared.primitives import (
     require_int,
     require_mapping,
     require_str,
-    validate_json_safe_mapping,
 )
 from phospy.transformations.models import QuantitativeMeaning
 
@@ -30,7 +30,7 @@ from phospy.transformations.models import QuantitativeMeaning
 def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, object]:
     """Serialize dataset processing state to manifest payload."""
 
-    correction_diagnostics = _require_optional_json_safe_mapping(
+    correction_diagnostics = _normalize_optional_total_correction_diagnostics(
         state.total_protein_correction.diagnostics,
         field_name=(
             "dataset.metadata.processing_state.total_protein_correction.diagnostics"
@@ -55,7 +55,11 @@ def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, obje
             "quantitative_meaning": (
                 state.total_protein_correction.quantitative_meaning
             ),
-            "diagnostics": correction_diagnostics,
+            "diagnostics": (
+                None
+                if correction_diagnostics is None
+                else correction_diagnostics.to_payload()
+            ),
         },
         "site_matrix": {
             "policy": state.site_matrix.policy,
@@ -137,7 +141,7 @@ def processing_state_from_payload(
         intensity_scale_payload,
         fallback_quantity=inferred_quantity,
     )
-    correction_diagnostics = _require_optional_json_safe_mapping(
+    correction_diagnostics = _parse_optional_total_correction_diagnostics(
         correction_payload.get("diagnostics"),
         field_name=(
             "dataset.metadata.processing_state.total_protein_correction.diagnostics"
@@ -268,14 +272,26 @@ def _require_optional_str(value: object, *, field_name: str) -> str | None:
     return require_str(value, field_name=field_name)
 
 
-def _require_optional_json_safe_mapping(
+def _parse_optional_total_correction_diagnostics(
     value: object,
     *,
     field_name: str,
-) -> dict[str, object] | None:
+) -> TotalProteinCorrectionDiagnostics | None:
     if value is None:
         return None
-    return validate_json_safe_mapping(value, field_name=field_name)
+    return TotalProteinCorrectionDiagnostics.from_payload(value, field_name=field_name)
+
+
+def _normalize_optional_total_correction_diagnostics(
+    value: object,
+    *,
+    field_name: str,
+) -> TotalProteinCorrectionDiagnostics | None:
+    if value is None:
+        return None
+    if isinstance(value, TotalProteinCorrectionDiagnostics):
+        return value
+    return TotalProteinCorrectionDiagnostics.from_payload(value, field_name=field_name)
 
 
 def _parse_optional_pairs(
@@ -311,7 +327,7 @@ def _parse_optional_pairs(
 def _resolve_total_correction_quantitative_meaning(
     *,
     correction_payload: Mapping[str, object],
-    correction_diagnostics: Mapping[str, object] | None,
+    correction_diagnostics: TotalProteinCorrectionDiagnostics | None,
     fallback: str | None,
 ) -> str | None:
     direct = _require_optional_str(
@@ -356,7 +372,7 @@ def _infer_legacy_quantitative_meaning(
         return QuantitativeMeaning.UNKNOWN
     correction_quantitative_meaning = _resolve_total_correction_quantitative_meaning(
         correction_payload=correction_payload,
-        correction_diagnostics=_require_optional_json_safe_mapping(
+        correction_diagnostics=_parse_optional_total_correction_diagnostics(
             correction_payload.get("diagnostics"),
             field_name=(
                 "dataset.metadata.processing_state.total_protein_correction.diagnostics"

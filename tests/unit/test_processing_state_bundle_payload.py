@@ -10,6 +10,7 @@ from phospy.datasets.processing_state import (
     MissingDataState,
     NormalisationState,
     SiteMatrixState,
+    TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
 )
 from phospy.errors.input import PhosPyInputError
@@ -149,6 +150,8 @@ def test_processing_state_payload_round_trip_preserves_total_correction_fields()
     state = _processing_state_with_diagnostics(diagnostics)
 
     payload = processing_state_to_payload(state)
+    diagnostics_payload = payload["total_protein_correction"]["diagnostics"]
+    assert diagnostics_payload["diagnostics_schema_version"] == 1
     assert (
         payload["total_protein_correction"]["quantitative_meaning"]
         == "phospho_total_log_ratio"
@@ -164,7 +167,32 @@ def test_processing_state_payload_round_trip_preserves_total_correction_fields()
     assert correction.output_scale == "log2_ratio"
     assert correction.quantitative_meaning == "phospho_total_log_ratio"
     assert restored.intensity_scale.quantity.value == "phospho_total_log_ratio"
-    assert correction.diagnostics == diagnostics
+    assert isinstance(correction.diagnostics, TotalProteinCorrectionDiagnostics)
+    assert correction.diagnostics is not None
+    assert correction.diagnostics.to_payload() == diagnostics_payload
+
+
+def test_processing_state_payload_loads_new_versioned_diagnostics() -> None:
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "requested_policy": "subtract_log_total",
+            "resolved_policy": "subtract_log_total",
+            "requires_log_scale": True,
+            "matched_rows": 2,
+            "legacy_debug_note": "preserve-me",
+        }
+    )
+
+    restored = processing_state_from_payload(payload)
+    correction = restored.total_protein_correction
+
+    assert correction.diagnostics is not None
+    diagnostics_payload = correction.diagnostics.to_payload()
+    assert diagnostics_payload["diagnostics_schema_version"] == 1
+    assert diagnostics_payload["matched_rows"] == 2
+    assert diagnostics_payload["legacy_debug_note"] == "preserve-me"
 
 
 def test_processing_state_payload_loads_legacy_output_quantity_as_quantitative_meaning() -> (
@@ -183,6 +211,26 @@ def test_processing_state_payload_loads_legacy_output_quantity_as_quantitative_m
     )
 
 
+def test_processing_state_payload_resaves_legacy_diagnostics_as_versioned_schema() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {
+            "output_quantity": "phospho_total_log_ratio",
+            "legacy_numeric_hint": 7,
+        }
+    )
+    loaded = processing_state_from_payload(payload)
+
+    rewritten_payload = processing_state_to_payload(loaded)
+    diagnostics = rewritten_payload["total_protein_correction"]["diagnostics"]
+
+    assert diagnostics["diagnostics_schema_version"] == 1
+    assert diagnostics["quantitative_meaning"] == "phospho_total_log_ratio"
+    assert diagnostics["output_quantity"] == "phospho_total_log_ratio"
+    assert diagnostics["legacy_numeric_hint"] == 7
+
+
 def test_processing_state_payload_converts_tuple_diagnostics_to_json_arrays() -> None:
     state = _processing_state_with_diagnostics(
         {
@@ -195,6 +243,7 @@ def test_processing_state_payload_converts_tuple_diagnostics_to_json_arrays() ->
     diagnostics = payload["total_protein_correction"]["diagnostics"]
 
     assert diagnostics == {
+        "diagnostics_schema_version": 1,
         "row_ids": ["row_a", "row_b"],
         "nested": {"tokens": ["a", 1, True]},
     }
@@ -234,9 +283,8 @@ def test_processing_state_payload_rejects_unsupported_diagnostics(
     diagnostics,
     message: str,
 ) -> None:
-    state = _processing_state_with_diagnostics(diagnostics)
-
     with pytest.raises(PhosPyInputError, match=message):
+        state = _processing_state_with_diagnostics(diagnostics)
         processing_state_to_payload(state)
 
 
@@ -251,4 +299,35 @@ def test_processing_state_from_payload_rejects_non_string_diagnostic_keys() -> N
     payload = _processing_payload_with_diagnostics({1: "value"})
 
     with pytest.raises(PhosPyInputError, match="must contain only string keys"):
+        processing_state_from_payload(payload)
+
+
+def test_processing_state_from_payload_rejects_unsupported_diagnostic_schema_version() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 99,
+            "matched_rows": 2,
+        }
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="diagnostics_schema_version=99.*unsupported",
+    ):
+        processing_state_from_payload(payload)
+
+
+def test_processing_state_from_payload_rejects_malformed_versioned_diagnostics() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "matched_rows": "three",
+        }
+    )
+
+    with pytest.raises(PhosPyInputError, match="matched_rows must be an int"):
         processing_state_from_payload(payload)

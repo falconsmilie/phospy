@@ -10,6 +10,8 @@ from phospy.datasets.processing_state import (
     MissingDataState,
     NormalisationState,
     SiteMatrixState,
+    TotalProteinCorrectionDiagnostics,
+    TotalProteinCorrectionDiagnosticsV1,
     TotalProteinCorrectionState,
 )
 
@@ -21,5 +23,7 @@ __all__ = [
     "MissingDataState",
     "NormalisationState",
     "SiteMatrixState",
+    "TotalProteinCorrectionDiagnostics",
+    "TotalProteinCorrectionDiagnosticsV1",
     "TotalProteinCorrectionState",
 ]

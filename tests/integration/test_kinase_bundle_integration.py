@@ -84,6 +84,7 @@ def test_kinase_bundle_round_trip_preserves_total_protein_correction_state(
     assert correction.output_scale == "log2_ratio"
     assert correction.quantitative_meaning == "phospho_total_log_ratio"
     assert correction.diagnostics is not None
+    assert correction.diagnostics.get("diagnostics_schema_version") == 1
     assert correction.diagnostics.get("matched_rows") == len(
         result.dataset.phospho.index
     )
@@ -143,6 +144,10 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
             "target_table": "activity/target_table.csv",
         },
     }
+    correction_diagnostics = manifest["dataset"]["metadata"]["processing_state"][
+        "total_protein_correction"
+    ]["diagnostics"]
+    assert correction_diagnostics is None
     assert "provenance" in manifest
     provenance = manifest["provenance"]
     assert provenance["environment"]["package_name"] == "phospy"
@@ -287,6 +292,45 @@ def test_kinase_bundle_loads_legacy_manifest_without_quantitative_meaning_field(
         loaded.result.dataset.intensity_scale_state.quantity.value
         == "phospho_total_log_ratio"
     )
+
+
+def test_kinase_bundle_resaves_legacy_total_correction_diagnostics_as_versioned(
+    tmp_path: Path,
+) -> None:
+    request = _build_request_with_subtract_log_total(activity=False)
+    result = KinaseWorkflow().run(request)
+    bundle_root = tmp_path / "kinase_bundle_total_correction_legacy_diagnostics"
+
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    correction_payload = manifest["dataset"]["metadata"]["processing_state"][
+        "total_protein_correction"
+    ]
+    diagnostics_payload = dict(correction_payload["diagnostics"])
+    diagnostics_payload.pop("diagnostics_schema_version", None)
+    diagnostics_payload["legacy_hint"] = "keep-me"
+    correction_payload["diagnostics"] = diagnostics_payload
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
+    )
+
+    loaded = load_kinase_workflow_bundle(bundle_root)
+    save_kinase_workflow_bundle(
+        loaded.result,
+        bundle_root,
+        config_snapshot=loaded.config_snapshot,
+    )
+    rewritten = json.loads(manifest_path.read_text(encoding="utf-8"))
+    rewritten_diagnostics = rewritten["dataset"]["metadata"]["processing_state"][
+        "total_protein_correction"
+    ]["diagnostics"]
+    assert rewritten_diagnostics["diagnostics_schema_version"] == 1
+    assert rewritten_diagnostics["legacy_hint"] == "keep-me"
 
 
 def _build_request(*, activity: bool) -> KinaseWorkflowRequest:

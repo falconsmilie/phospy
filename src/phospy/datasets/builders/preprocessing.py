@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import pandas as pd
 
 from phospy.api.configs import (
@@ -40,6 +42,7 @@ from phospy.datasets.processing_state import (
     MissingDataState,
     NormalisationState,
     SiteMatrixState,
+    TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
 )
 from phospy.transformations.models import (
@@ -196,6 +199,16 @@ def build_dataset_processing_state(
         # to `quantitative_meaning`.
         default=default_quantitative_meaning,
     )
+    typed_correction_diagnostics = (
+        None
+        if correction_diagnostics is None
+        else TotalProteinCorrectionDiagnostics.from_payload(
+            correction_diagnostics,
+            field_name=(
+                "dataset processing state total_protein_correction.diagnostics"
+            ),
+        )
+    )
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state,
         missing_data=MissingDataState(
@@ -240,7 +253,7 @@ def build_dataset_processing_state(
                     default=default_quantitative_meaning,
                 ),
             ),
-            diagnostics=correction_diagnostics,
+            diagnostics=typed_correction_diagnostics,
         ),
         site_matrix=SiteMatrixState(
             policy=plan.site_matrix_policy,
@@ -278,7 +291,7 @@ def _resolve_total_correction_diagnostics(
 
 
 def _resolve_optional_string_diagnostic(
-    diagnostics: dict[str, object] | None,
+    diagnostics: Mapping[str, object] | None,
     *,
     key: str,
     default: str | None,
@@ -292,7 +305,7 @@ def _resolve_optional_string_diagnostic(
 
 
 def _resolve_optional_bool_diagnostic(
-    diagnostics: dict[str, object] | None,
+    diagnostics: Mapping[str, object] | None,
     *,
     key: str,
     default: bool | None,
@@ -328,7 +341,7 @@ def _resolve_quantitative_meaning_state(
     *,
     intensity_scale_state: IntensityScaleState,
     total_correction_policy: str,
-    correction_diagnostics: dict[str, object] | None,
+    correction_diagnostics: Mapping[str, object] | None,
 ) -> IntensityScaleState:
     quantitative_meaning = _resolve_optional_string_diagnostic(
         correction_diagnostics,
