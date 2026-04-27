@@ -34,15 +34,13 @@ from phospy.signalomes.science import (
     build_signalome_module_table,
     select_kinase_substrates,
 )
-from phospy.workflows.signalome.components import (
-    SignalomeClusteringRunner,
-    SignalomeContextTableBuilder,
-    SignalomeModuleTableBuilder,
-    SignalomeNetworkBuilder,
-    SignalomeProvenanceBuilder,
-)
-from phospy.workflows.signalome.executor import SignalomeWorkflowExecutor
+from phospy.workflows.signalome.clustering_runner import SignalomeClusteringRunner
+from phospy.workflows.signalome.context_tables import SignalomeContextTableBuilder
 from phospy.workflows.signalome.interpreter import SignalomeWorkflowInterpreter
+from phospy.workflows.signalome.module_tables import SignalomeModuleTableBuilder
+from phospy.workflows.signalome.network_builder import SignalomeNetworkBuilder
+from phospy.workflows.signalome.provenance import SignalomeProvenanceBuilder
+from phospy.workflows.signalome.result_assembly import SignalomeResultAssembler
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -166,7 +164,7 @@ def _resolved_request():
     return SignalomeWorkflowInterpreter().run(request)
 
 
-def test_signalome_clustering_runner_delegates_and_preserves_diagnostics() -> None:
+def test_signalome_clustering_runner_returns_expected_diagnostics() -> None:
     resolved = _resolved_request()
     metadata = SignalomeClusteringRunner.collect_execution_metadata(resolved)
     observed_cluster_kwargs: dict[str, object] = {}
@@ -226,7 +224,7 @@ def test_signalome_clustering_runner_delegates_and_preserves_diagnostics() -> No
     assert observed_derive_kwargs["site_to_protein"] is resolved.site_to_protein
 
 
-def test_signalome_module_table_builder_matches_legacy_module_table_shape() -> None:
+def test_signalome_module_table_builder_preserves_module_summary_shape() -> None:
     resolved = _resolved_request()
     metadata = SignalomeClusteringRunner.collect_execution_metadata(resolved)
     clustering = SignalomeClusteringRunner().run(
@@ -263,7 +261,7 @@ def test_signalome_module_table_builder_matches_legacy_module_table_shape() -> N
     assert observed.signalome_modules.shape == expected_modules.shape
 
 
-def test_signalome_network_builder_matches_legacy_network_output_shape() -> None:
+def test_signalome_network_builder_preserves_edge_schema() -> None:
     resolved = _resolved_request()
     metadata = SignalomeClusteringRunner.collect_execution_metadata(resolved)
     clustering = SignalomeClusteringRunner().run(
@@ -302,7 +300,7 @@ def test_signalome_network_builder_matches_legacy_network_output_shape() -> None
     assert observed.edges.shape == expected_edges.shape
 
 
-def test_signalome_context_table_builder_preserves_multi_site_protein_flags() -> None:
+def test_signalome_context_table_builder_flags_multisite_proteins() -> None:
     resolved = _resolved_request()
     metadata = SignalomeClusteringRunner.collect_execution_metadata(resolved)
     clustering = SignalomeClusteringRunner().run(
@@ -345,7 +343,7 @@ def test_signalome_context_table_builder_preserves_multi_site_protein_flags() ->
     assert bool(context.loc["P1", "ambiguous_module_context"])
 
 
-def test_signalome_provenance_builder_preserves_expected_fields() -> None:
+def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None:
     resolved = _resolved_request()
     metadata = SignalomeClusteringRunner.collect_execution_metadata(resolved)
     clustering = SignalomeClusteringRunner().run(
@@ -408,15 +406,96 @@ def test_signalome_provenance_builder_preserves_expected_fields() -> None:
     assert "scale_guard" in provenance.workflow_parameters
     assert "module_selection_diagnostics" in provenance.workflow_parameters
     assert "network_correlation_diagnostics" in provenance.workflow_parameters
+    signalome_config = provenance.workflow_parameters["signalome_config"]
+    assert "cluster_tree_backend" in signalome_config
+    assert "candidate_scoring_backend" in signalome_config
+    assert "max_exact_cluster_tree_sites" in signalome_config
+    scale_guard = provenance.workflow_parameters["scale_guard"]
+    assert "cluster_tree_backend" in scale_guard
+    assert "candidate_scoring_backend" in scale_guard
+    assert "exact_cluster_tree_built" in scale_guard
+    assert "candidate_scoring_mode" in scale_guard
     output_names = {fingerprint.name for fingerprint in provenance.output_tables}
     assert "outputs.signalome.module_assignments" in output_names
     assert "outputs.signalome.signalome_modules" in output_names
     assert "outputs.signalome.site_membership" in output_names
 
 
-def test_signalome_workflow_executor_returns_expected_public_structure() -> None:
+def test_signalome_result_assembly_preserves_public_result_shape() -> None:
     resolved = _resolved_request()
-    result = SignalomeWorkflowExecutor().run(resolved)
+    metadata = SignalomeClusteringRunner.collect_execution_metadata(resolved)
+    clustering = SignalomeClusteringRunner().run(
+        request=resolved,
+        config=resolved.execution_config,
+        execution_metadata=metadata,
+    )
+    module_stage = SignalomeModuleTableBuilder().run(
+        request=resolved,
+        config=resolved.execution_config,
+        clustering_result=clustering.clustering_result,
+        protein_modules=clustering.protein_modules,
+        execution_metadata=metadata,
+    )
+    network_stage = SignalomeNetworkBuilder().run(
+        request=resolved,
+        config=resolved.execution_config,
+        clustering_result=clustering.clustering_result,
+        support_summary=module_stage.support_summary,
+        execution_metadata=metadata,
+    )
+    context_stage = SignalomeContextTableBuilder().run(
+        request=resolved,
+        config=resolved.execution_config,
+        clustering_result=clustering.clustering_result,
+        module_assignments=module_stage.module_assignments,
+        support_summary=module_stage.support_summary,
+        execution_metadata=metadata,
+    )
+    assembler = SignalomeResultAssembler()
+    expanded_signalome = assembler.build_expanded_signalome(
+        request=resolved,
+        config=resolved.execution_config,
+        module_assignments=module_stage.module_assignments,
+        signalome_modules=module_stage.signalome_modules,
+        network_edges=network_stage.edges,
+        support_summary=module_stage.support_summary,
+        module_count=module_stage.module_count,
+        execution_metadata=metadata,
+    )
+    scale_guard = SignalomeClusteringRunner.summarize_scale_guard(
+        config=resolved.execution_config,
+        site_count=metadata.downstream_score_sites,
+        clustering_result=clustering.clustering_result,
+    )
+    provenance = SignalomeProvenanceBuilder().build(
+        request=resolved,
+        config=resolved.execution_config,
+        clustering_result=clustering.clustering_result,
+        module_assignments=module_stage.module_assignments,
+        signalome_modules=module_stage.signalome_modules,
+        network_edges=network_stage.edges,
+        network_nodes=network_stage.nodes,
+        candidate_correlations=network_stage.candidate_correlations,
+        network_correlation_diagnostics=network_stage.correlation_diagnostics,
+        expanded_signalome=expanded_signalome,
+        site_membership=context_stage.site_membership,
+        protein_site_context=context_stage.protein_site_context,
+        scale_guard_decision=scale_guard,
+    )
+    result = assembler.assemble_result(
+        request=resolved,
+        clustering_result=clustering.clustering_result,
+        module_assignments=module_stage.module_assignments,
+        signalome_modules=module_stage.signalome_modules,
+        network_edges=network_stage.edges,
+        network_nodes=network_stage.nodes,
+        candidate_correlations=network_stage.candidate_correlations,
+        network_correlation_diagnostics=network_stage.correlation_diagnostics,
+        expanded_signalome=expanded_signalome,
+        site_membership=context_stage.site_membership,
+        protein_site_context=context_stage.protein_site_context,
+        provenance=provenance,
+    )
 
     assert isinstance(result, SignalomeWorkflowResult)
     assert not result.module_assignments.table.empty

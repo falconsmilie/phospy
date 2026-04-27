@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from phospy.api.results import SignalomeWorkflowResult
-from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
+from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.provenance.models import (
     PreprocessingStageProvenance,
     RunProvenance,
@@ -21,9 +21,6 @@ from phospy.signalomes.context import (
     build_site_membership_table,
 )
 from phospy.signalomes.models import (
-    KinaseNetwork,
-    SignalomeAssignments,
-    SignalomeModules,
     SignalomeNetworkCorrelationDiagnostics,
 )
 from phospy.signalomes.science import (
@@ -33,30 +30,26 @@ from phospy.signalomes.science import (
     build_signalome_module_table,
     select_kinase_substrates,
 )
-from phospy.workflows.signalome.components import (
-    SignalomeClusteringRunner,
-    SignalomeContextTableBuilder,
-    SignalomeExecutionMetadata,
-    SignalomeModuleTableBuilder,
-    SignalomeNetworkBuilder,
-    SignalomeProvenanceBuilder,
+from phospy.workflows.signalome.clustering_runner import SignalomeClusteringRunner
+from phospy.workflows.signalome.component_models import (
     SignalomeScaleGuardDecision,
-    SignalomeSupportSummary,
 )
 from phospy.workflows.signalome.constants import (
-    SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM,
     SIGNALOME_WORKFLOW_BOUNDARY_MESSAGE_PREFIX,
 )
+from phospy.workflows.signalome.context_tables import SignalomeContextTableBuilder
 from phospy.workflows.signalome.contracts import (
     ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
 )
+from phospy.workflows.signalome.module_tables import SignalomeModuleTableBuilder
+from phospy.workflows.signalome.network_builder import SignalomeNetworkBuilder
+from phospy.workflows.signalome.provenance import SignalomeProvenanceBuilder
+from phospy.workflows.signalome.result_assembly import SignalomeResultAssembler
 
 
 class SignalomeWorkflowExecutor:
     """Run signalome stage logic and assemble `SignalomeWorkflowResult`."""
-
-    _EXPANDED_SIGNALOME_SEAM = SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM
 
     def __init__(
         self,
@@ -66,6 +59,7 @@ class SignalomeWorkflowExecutor:
         network_builder: SignalomeNetworkBuilder | None = None,
         context_table_builder: SignalomeContextTableBuilder | None = None,
         provenance_builder: SignalomeProvenanceBuilder | None = None,
+        result_assembler: SignalomeResultAssembler | None = None,
     ) -> None:
         # Dependency wiring is intentionally done here so tests can monkeypatch
         # executor-module callables and still intercept default component behavior.
@@ -92,6 +86,9 @@ class SignalomeWorkflowExecutor:
             )
         )
         self._provenance_builder = provenance_builder or SignalomeProvenanceBuilder()
+        self._result_assembler = result_assembler or SignalomeResultAssembler(
+            build_expanded=build_expanded_signalome_table
+        )
 
     def run(self, request: ResolvedSignalomeWorkflowRequest) -> SignalomeWorkflowResult:
         config = request.execution_config
@@ -122,7 +119,7 @@ class SignalomeWorkflowExecutor:
             support_summary=module_stage.support_summary,
             execution_metadata=execution_metadata,
         )
-        expanded_signalome = self._build_expanded_signalome(
+        expanded_signalome = self._result_assembler.build_expanded_signalome(
             request=request,
             config=config,
             module_assignments=module_stage.module_assignments,
@@ -155,7 +152,7 @@ class SignalomeWorkflowExecutor:
             protein_site_context=context_stage.protein_site_context,
             scale_guard_decision=scale_guard_decision,
         )
-        return self._assemble_result(
+        return self._result_assembler.assemble_result(
             request=request,
             clustering_result=clustering_stage.clustering_result,
             module_assignments=module_stage.module_assignments,
@@ -169,93 +166,6 @@ class SignalomeWorkflowExecutor:
             protein_site_context=context_stage.protein_site_context,
             provenance=provenance,
         )
-
-    @staticmethod
-    def _assemble_result(
-        *,
-        request: ResolvedSignalomeWorkflowRequest,
-        clustering_result: ClusterSitesResult,
-        module_assignments: pd.DataFrame,
-        signalome_modules: pd.DataFrame,
-        network_edges: pd.DataFrame,
-        network_nodes: pd.DataFrame,
-        candidate_correlations: pd.DataFrame,
-        network_correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics,
-        expanded_signalome: pd.DataFrame,
-        site_membership: pd.DataFrame,
-        protein_site_context: pd.DataFrame,
-        provenance: RunProvenance,
-    ) -> SignalomeWorkflowResult:
-        return SignalomeWorkflowResult._from_owned(
-            dataset=request.dataset,
-            kinase_result=request.kinase_result,
-            module_assignments=SignalomeAssignments._from_owned(
-                table=module_assignments
-            ),
-            signalome_modules=SignalomeModules._from_owned(table=signalome_modules),
-            kinase_network=KinaseNetwork._from_owned(
-                edges=network_edges,
-                nodes=network_nodes,
-                candidate_correlations=candidate_correlations,
-                correlation_diagnostics=network_correlation_diagnostics,
-            ),
-            module_selection_diagnostics=clustering_result.module_selection_diagnostics,
-            score_preconditioning_diagnostics=request.score_preconditioning_diagnostics,
-            expanded_signalome=expanded_signalome,
-            site_membership=site_membership,
-            protein_site_context=protein_site_context,
-            provenance=provenance,
-        )
-
-    def _build_expanded_signalome(
-        self,
-        *,
-        request: ResolvedSignalomeWorkflowRequest,
-        config: ResolvedSignalomeExecutionConfig,
-        module_assignments: pd.DataFrame,
-        signalome_modules: pd.DataFrame,
-        network_edges: pd.DataFrame,
-        support_summary: SignalomeSupportSummary,
-        module_count: int,
-        execution_metadata: SignalomeExecutionMetadata,
-    ) -> pd.DataFrame:
-        try:
-            return build_expanded_signalome_table(
-                module_assignments=module_assignments,
-                signalome_modules=signalome_modules,
-                kinase_network_edges=network_edges,
-                kinase_substrates=support_summary.kinase_substrates,
-                assignment_policy=config.assignment_policy,
-            )
-        except WorkflowStageError as exc:
-            self._raise_boundary_error(
-                seam=self._EXPANDED_SIGNALOME_SEAM,
-                next_action=(
-                    "ensure module assignments, module signal, and network topology "
-                    "are mutually consistent for expanded signalome output"
-                ),
-                assignment_policy=config.assignment_policy,
-                module_count=module_count,
-                **self._support_details(support_summary.support_counts),
-                **self._prediction_shape_details(execution_metadata),
-                stage_error=str(exc),
-            )
-
-    @staticmethod
-    def _prediction_shape_details(
-        execution_metadata: SignalomeExecutionMetadata,
-    ) -> dict[str, int]:
-        return {
-            "prediction_sites": execution_metadata.prediction_sites,
-            "prediction_kinases": execution_metadata.prediction_kinases,
-        }
-
-    @staticmethod
-    def _support_details(support_counts: dict[str, int]) -> dict[str, int]:
-        return {
-            "supported_sites": int(support_counts["supported_sites"]),
-            "supported_kinases": int(support_counts["supported_kinases"]),
-        }
 
     @staticmethod
     def _raise_boundary_error(
