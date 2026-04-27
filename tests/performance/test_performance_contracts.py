@@ -80,7 +80,7 @@ def _patch_cluster_tree_build_for_contract_scoring(
             labels_by_count[requested_count] = labels.astype(int, copy=False)
         return labels_by_count
 
-    monkeypatch.setattr(clustering, "build_cluster_tree", _stub_build_cluster_tree)
+    monkeypatch.setattr(clustering, "_build_cluster_tree", _stub_build_cluster_tree)
     monkeypatch.setattr(
         clustering,
         "build_cluster_labels_from_tree",

@@ -39,7 +39,7 @@ def _build_scoring_matrix(*, n_sites: int, n_kinases: int, seed: int) -> pd.Data
 def _patch_cluster_tree_for_contract_measurement(
     clustering: object,
 ) -> tuple[object, object]:
-    original_tree_builder = clustering.build_cluster_tree
+    original_tree_builder = clustering._build_cluster_tree
     original_label_builder = clustering.build_cluster_labels_from_tree
 
     def _stub_build_cluster_tree(scoring_values: np.ndarray) -> object:
@@ -62,7 +62,7 @@ def _patch_cluster_tree_for_contract_measurement(
             labels_by_count[requested_count] = labels.astype(int, copy=False)
         return labels_by_count
 
-    clustering.build_cluster_tree = _stub_build_cluster_tree
+    clustering._build_cluster_tree = _stub_build_cluster_tree
     clustering.build_cluster_labels_from_tree = _stub_build_cluster_labels_from_tree
     return original_tree_builder, original_label_builder
 
@@ -72,7 +72,7 @@ def _restore_cluster_tree_builders(
     original_tree_builder: object,
     original_label_builder: object,
 ) -> None:
-    clustering.build_cluster_tree = original_tree_builder
+    clustering._build_cluster_tree = original_tree_builder
     clustering.build_cluster_labels_from_tree = original_label_builder
 
 

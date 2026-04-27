@@ -926,7 +926,7 @@ def test_sampled_backend_records_zero_sampling_provenance_when_scoring_not_evalu
     }
 
 
-def test_exact_cluster_tree_guard_fails_before_build_cluster_tree_call(
+def test_explicit_module_count_cannot_bypass_exact_tree_guard(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import phospy.signalomes.clustering as clustering_module
@@ -973,12 +973,12 @@ def test_exact_cluster_tree_guard_fails_before_build_cluster_tree_call(
         del scoring_values
         tree_calls.append("called")
         raise AssertionError(
-            "build_cluster_tree should not run when exact tree guard fails"
+            "_build_cluster_tree should not run when exact tree guard fails"
         )
 
     monkeypatch.setattr(
         clustering_module,
-        "build_cluster_tree",
+        "_build_cluster_tree",
         _build_tree_should_not_run,
     )
 
@@ -993,7 +993,7 @@ def test_exact_cluster_tree_guard_fails_before_build_cluster_tree_call(
     assert tree_calls == []
 
 
-def test_sampled_candidate_scoring_still_hits_exact_tree_guard_without_approx_tree(
+def test_sampled_candidate_scoring_cannot_bypass_exact_tree_guard(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import phospy.signalomes.clustering as clustering_module
@@ -1040,12 +1040,12 @@ def test_sampled_candidate_scoring_still_hits_exact_tree_guard_without_approx_tr
         del scoring_values
         tree_calls.append("called")
         raise AssertionError(
-            "build_cluster_tree should not run when exact tree guard fails"
+            "_build_cluster_tree should not run when exact tree guard fails"
         )
 
     monkeypatch.setattr(
         clustering_module,
-        "build_cluster_tree",
+        "_build_cluster_tree",
         _build_tree_should_not_run,
     )
 
@@ -1058,7 +1058,7 @@ def test_sampled_candidate_scoring_still_hits_exact_tree_guard_without_approx_tr
     assert tree_calls == []
 
 
-def test_deprecated_approximate_alias_is_still_guarded_by_exact_tree_limit(
+def test_deprecated_approximate_backend_cannot_bypass_exact_tree_guard(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import phospy.signalomes.clustering as clustering_module
@@ -1089,12 +1089,12 @@ def test_deprecated_approximate_alias_is_still_guarded_by_exact_tree_limit(
         del scoring_values
         tree_calls.append("called")
         raise AssertionError(
-            "build_cluster_tree should not run when exact tree guard fails"
+            "_build_cluster_tree should not run when exact tree guard fails"
         )
 
     monkeypatch.setattr(
         clustering_module,
-        "build_cluster_tree",
+        "_build_cluster_tree",
         _build_tree_should_not_run,
     )
 
@@ -1134,6 +1134,71 @@ def test_deprecated_approximate_alias_is_still_guarded_by_exact_tree_limit(
     assert "max_exact_cluster_tree_sites=1" in message
     assert "cluster_tree_backend='exact'" in message
     assert "candidate_scoring_backend='sampled'" in message
+    assert tree_calls == []
+
+
+def test_full_candidate_scoring_cannot_bypass_exact_tree_guard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import phospy.signalomes.clustering as clustering_module
+
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.95, 0.1],
+            [0.1, 0.95],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(
+            substrate_support_cutoff=0.5,
+            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+            max_exact_cluster_tree_sites=1,
+            max_full_correlation_sites=10,
+        ),
+    )
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+
+    tree_calls: list[str] = []
+
+    def _build_tree_should_not_run(scoring_values: object) -> object:
+        del scoring_values
+        tree_calls.append("called")
+        raise AssertionError(
+            "_build_cluster_tree should not run when exact tree guard fails"
+        )
+
+    monkeypatch.setattr(
+        clustering_module,
+        "_build_cluster_tree",
+        _build_tree_should_not_run,
+    )
+
+    with pytest.raises(SignalomeScaleError) as exc_info:
+        SignalomeWorkflowExecutor().run(interpreted)
+
+    message = str(exc_info.value).lower()
+    assert "max_exact_cluster_tree_sites=1" in message
+    assert "candidate_scoring_backend='full'" in message
     assert tree_calls == []
 
 

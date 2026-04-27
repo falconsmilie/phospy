@@ -95,6 +95,8 @@ Behavior:
   `SignalomeConfig.max_full_correlation_sites`,
 - `SignalomeConfig.candidate_scoring_backend="sampled"` uses sampled
   within-cluster correlation estimates for module-count candidate scoring,
+- sampled candidate scoring only changes candidate module-count evaluation; it
+  does not change exact cluster-tree construction,
 - sampled scoring is deterministic and order-invariant in the current
   implementation,
 - candidate-scoring mode and exact-tree construction are recorded in
@@ -103,11 +105,11 @@ Behavior:
   (`sampling_cap`, `sampling_method`, `deterministic_seed_policy`,
   `actual_sampled_pair_count`, and per-cluster sample-count summary),
 - `tests/performance/test_performance_contracts.py` keeps a lightweight contract
-  test that intentionally stubs `build_cluster_tree()` to isolate
+  test that intentionally stubs the internal exact cluster-tree builder to isolate
   module-selection correlation-path behavior,
 - `tests/performance/test_signalome_clustering_benchmark.py` adds real
-  agglomerative-tree coverage by running `build_cluster_tree()` directly on a
-  deterministic medium matrix (`500` sites x `8` kinase columns) and asserting
+  agglomerative-tree coverage for the internal exact tree-construction path on a
+  deterministic medium matrix (`500` sites x `8` kinase columns) and asserts
   loose runtime/memory bounds plus tree-shape invariants.
 
 Example:
@@ -127,7 +129,7 @@ Example: a `2000 x 2000` float64 correlation matrix is about `32 MiB` before pan
 
 Important limit notes:
 
-`build_cluster_tree()` remains pairwise/agglomerative and can become expensive as site count grows. Approximate correlation scoring avoids full correlation-matrix materialisation, but does not make clustering free.
+Exact cluster-tree construction remains pairwise/agglomerative and can become expensive as site count grows. Approximate candidate scoring avoids full correlation-matrix materialisation, but does not make tree construction free.
 
 Exact-mode guard failures are intentional scientific/runtime boundaries. Do not
 silently reinterpret them as automatic approximation; choose approximation or

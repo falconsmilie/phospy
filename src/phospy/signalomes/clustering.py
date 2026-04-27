@@ -764,7 +764,7 @@ def _build_exact_cluster_tree_with_guard(
             "requires exact cluster-tree construction in the current "
             "implementation."
         )
-    return build_cluster_tree(clustering_values)
+    return _build_cluster_tree(clustering_values)
 
 
 def _select_best_candidate_count(
@@ -919,7 +919,7 @@ def filter_cluster_candidates(
     }
 
 
-def build_cluster_tree(scoring_values: np.ndarray) -> _WardClusterTree:
+def _build_cluster_tree(scoring_values: np.ndarray) -> _WardClusterTree:
     """Build a Ward agglomerative merge tree."""
 
     values = np.asarray(scoring_values, dtype=float)
@@ -1374,7 +1374,6 @@ __all__ = [
     "build_correlation_exclusion_note",
     "build_correlation_matrix_with_exclusions",
     "build_cluster_labels_from_tree",
-    "build_cluster_tree",
     "cluster_median_correlation",
     "cluster_median_correlation_approximate",
     "cluster_sites",

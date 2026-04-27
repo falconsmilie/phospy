@@ -4,6 +4,8 @@ from pathlib import Path
 
 import phospy
 import phospy.api as public_api
+import phospy.signalomes as public_signalomes
+import phospy.signalomes.clustering as signalome_clustering
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -89,3 +91,20 @@ def test_public_docs_present_analysis_ready_builder_lane_as_missing_value_free()
         in validation_guide
     )
     assert "build an analysis-ready, missing-value-free dataset" in quickstart
+
+
+def test_build_cluster_tree_not_exported_from_signalome_public_api() -> None:
+    assert "build_cluster_tree" not in public_signalomes.__all__
+    assert not hasattr(public_signalomes, "build_cluster_tree")
+    assert "build_cluster_tree" not in signalome_clustering.__all__
+    assert not hasattr(signalome_clustering, "build_cluster_tree")
+
+
+def test_public_signalome_docs_do_not_reference_raw_build_cluster_tree() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    docs_markdown_files = sorted((ROOT / "docs").rglob("*.md"))
+    docs_text = "\n".join(
+        file_path.read_text(encoding="utf-8") for file_path in docs_markdown_files
+    )
+    assert "build_cluster_tree" not in readme
+    assert "build_cluster_tree" not in docs_text

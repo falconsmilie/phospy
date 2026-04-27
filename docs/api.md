@@ -331,6 +331,8 @@ Signalome stages are now explicit:
 Important: `candidate_scoring_backend="sampled"` does not imply approximate
 cluster-tree construction. In current supported behavior, tree construction is
 still exact and is hard-guarded by `max_exact_cluster_tree_sites`.
+Exact tree construction is an internal, scale-limited implementation detail of
+the signalome workflow contract.
 
 Successful runs record scale decisions in provenance under
 `result.provenance.workflow_parameters["scale_guard"]` (`site_count`,
