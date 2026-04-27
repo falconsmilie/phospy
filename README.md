@@ -130,7 +130,7 @@ of written file paths.
 
 ## Import Contract
 
-`phospy.api` is the canonical namespace where public API types are defined and organised in source.
+`phospy.api` is the primary namespace where public API types are defined and organised in source.
 
 Both namespaces are public, with different roles:
 

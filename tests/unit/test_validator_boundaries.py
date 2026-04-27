@@ -347,62 +347,12 @@ def test_dataset_build_request_requires_total_for_subtract_log_total() -> None:
         DatasetBuildRequestValidator().run(request)
 
 
-def test_dataset_build_request_keeps_ratio_alias_but_requires_log2_scale() -> None:
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
-        total=pd.DataFrame({"sample_a": [2.0]}, index=["MAPK14"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["MAPK14;Y182;"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            intensity_transform=DatasetIntensityTransformConfig(
-                policy="log2",
-                pseudocount=1.0,
-            ),
-            total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                policy="ratio_to_total"
-            ),
-        ),
-    )
-    validated = DatasetBuildRequestValidator().run(request)
-    assert validated is request
-
-
-def test_dataset_build_request_rejects_ratio_alias_without_log2_scale() -> None:
-    request = DatasetBuildRequest(
-        phospho=pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"]),
-        total=pd.DataFrame({"sample_a": [2.0]}, index=["MAPK14"]),
-        site_metadata=pd.DataFrame(
-            {
-                "gene_symbol": ["MAPK14"],
-                "site": ["Y182"],
-                "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-            },
-            index=["MAPK14;Y182;"],
-        ),
-        preprocessing_config=DatasetPreprocessingConfig(
-            intensity_transform=DatasetIntensityTransformConfig(
-                policy="identity",
-                pseudocount=1.0,
-            ),
-            total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                policy="ratio_to_total"
-            ),
-        ),
-    )
+def test_dataset_build_request_rejects_removed_ratio_to_total_alias() -> None:
     with pytest.raises(
         PhosPyInputError,
-        match=(
-            "total_protein_correction.policy='ratio_to_total' requires "
-            "log2-scale phospho and total values"
-        ),
+        match="preprocessing_config.total_protein_correction.policy must be one of",
     ):
-        DatasetBuildRequestValidator().run(request)
+        DatasetTotalProteinCorrectionConfig(policy="ratio_to_total")  # type: ignore[arg-type]
 
 
 def test_dataset_build_request_allows_site_matrix_build_from_metadata_policy() -> None:
@@ -749,20 +699,20 @@ def test_signalome_request_module_selection_max_clusters_policy_fails_at_boundar
 
 def test_signalome_request_clustering_backend_policy_fails_at_boundary() -> None:
     with pytest.raises(
-        WorkflowValidationError,
-        match="signalome workflow request config.clustering_backend",
+        TypeError,
+        match="unexpected keyword argument 'clustering_backend'",
     ):
-        SignalomeConfig(clustering_backend="unsupported")  # type: ignore[arg-type]
+        SignalomeConfig(clustering_backend="unsupported")  # type: ignore[call-arg]
 
 
 def test_signalome_request_max_exact_clustering_sites_policy_fails_at_boundary() -> (
     None
 ):
     with pytest.raises(
-        WorkflowValidationError,
-        match="max_exact_clustering_sites",
+        TypeError,
+        match="unexpected keyword argument 'max_exact_clustering_sites'",
     ):
-        SignalomeConfig(max_exact_clustering_sites=0)
+        SignalomeConfig(max_exact_clustering_sites=0)  # type: ignore[call-arg]
 
 
 def test_signalome_validator_requires_explicit_site_metadata_protein_id_column() -> (

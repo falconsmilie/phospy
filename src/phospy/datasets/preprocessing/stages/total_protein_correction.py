@@ -10,7 +10,6 @@ from phospy.api.configs import (
     DATASET_INTENSITY_TRANSFORM_POLICY_LOG2,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
-    resolve_dataset_total_protein_correction_policy,
 )
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
@@ -52,11 +51,8 @@ class TotalProteinCorrectionStage:
                     },
                 },
             )
-        resolved_policy = resolve_dataset_total_protein_correction_policy(
-            requested_policy
-        )
         if (
-            resolved_policy
+            requested_policy
             != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
         ):
             raise PhosPyInputError(
@@ -183,9 +179,9 @@ class TotalProteinCorrectionStage:
                     "diagnostics_schema_version": (
                         TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1
                     ),
-                    "policy": str(resolved_policy),
+                    "policy": str(requested_policy),
                     "requested_policy": str(requested_policy),
-                    "resolved_policy": str(resolved_policy),
+                    "resolved_policy": str(requested_policy),
                     "formula": "log2_phospho - log2_total",
                     "requires_log_scale": True,
                     "input_scale": "log2",

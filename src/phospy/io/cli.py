@@ -22,8 +22,6 @@ from phospy.api.configs import (
     SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
     SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
     SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-    SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
-    SIGNALOME_CLUSTERING_BACKEND_EXACT,
     SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
     SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
@@ -203,21 +201,6 @@ def build_parser() -> argparse.ArgumentParser:
             "candidate scoring fails above this site count."
         ),
     )
-    signalome.add_argument(
-        "--clustering-backend",
-        default=None,
-        choices=[
-            SIGNALOME_CLUSTERING_BACKEND_EXACT,
-            SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
-        ],
-        help=argparse.SUPPRESS,
-    )
-    signalome.add_argument(
-        "--max-exact-clustering-sites",
-        type=int,
-        default=None,
-        help=argparse.SUPPRESS,
-    )
     return parser
 
 
@@ -307,13 +290,6 @@ def _add_kinase_runtime_arguments(parser: argparse.ArgumentParser) -> None:
         help="Number of ensemble runs in adaptive prediction mode.",
     )
     parser.add_argument(
-        "--prediction-ensemble-size",
-        dest="prediction_legacy_ensemble_size",
-        type=int,
-        default=None,
-        help=argparse.SUPPRESS,
-    )
-    parser.add_argument(
         "--prediction-mode",
         default=KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
         choices=["deterministic_ranking", "adaptive_ensemble"],
@@ -391,10 +367,6 @@ def _run_signalome(args: argparse.Namespace) -> None:
         "max_exact_cluster_tree_sites": args.max_exact_cluster_tree_sites,
         "max_full_correlation_sites": args.max_full_correlation_sites,
     }
-    if args.clustering_backend is not None:
-        config_kwargs["clustering_backend"] = args.clustering_backend
-    if args.max_exact_clustering_sites is not None:
-        config_kwargs["max_exact_clustering_sites"] = args.max_exact_clustering_sites
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
@@ -436,20 +408,6 @@ def _run_kinase_workflow_from_args(args: argparse.Namespace):
         args.prediction_deterministic_max_selected_kinases
     )
     adaptive_ensemble_runs = args.prediction_adaptive_ensemble_runs
-    if args.prediction_legacy_ensemble_size is not None:
-        if (
-            deterministic_max_selected_kinases
-            != KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES
-            or adaptive_ensemble_runs
-            != KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS
-        ):
-            raise PhosPyInputError(
-                "--prediction-ensemble-size cannot be combined with "
-                "--prediction-deterministic-max-selected-kinases or "
-                "--prediction-adaptive-ensemble-runs"
-            )
-        deterministic_max_selected_kinases = args.prediction_legacy_ensemble_size
-        adaptive_ensemble_runs = args.prediction_legacy_ensemble_size
     request = KinaseWorkflowRequest(
         dataset=dataset,
         references=reference,

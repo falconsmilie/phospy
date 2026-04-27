@@ -118,7 +118,7 @@ versioned payload:
   `total_table_hash`, `input_phospho_hash`, `output_phospho_hash`
 - unknown top-level diagnostics fields are rejected at load/validation time
 - unversioned diagnostics payloads are rejected at load/validation time with a
-  migration error to schema v1
+  schema-version error
 
 Diagnostics values are validated on bundle save/load against the typed schema.
 Malformed values (for example wrong scalar types or negative `matched_rows`) and
@@ -154,19 +154,6 @@ unknown top-level fields are rejected with explicit bundle field-path errors.
   - explicit `module_count` runs record `candidate_scoring_evaluated=false`
     with `candidate_scoring_skip_reason="explicit_module_count"` and
     `candidate_scoring_sampling=null`
-
-Legacy bundles without top-level `provenance` remain loadable; loaders reconstruct
-results with `result.provenance=None` for those manifests.
-
-Legacy bundles that store only minimal
-`processing_state.total_protein_correction` payloads (`policy`, `applied`) also
-remain loadable. Missing expanded correction fields are restored as safe
-unknowns (`None`) rather than inferred.
-
-Legacy manifests without `intensity_scale_state.quantity` remain loadable.
-Loaders infer quantity only when provenance is unambiguous (for example,
-`policy="subtract_log_total"` with `applied=true` infers
-`phospho_total_log_ratio`); otherwise quantity falls back to `unknown`.
 
 ## Bundle Contents (Default CSV Layout)
 
@@ -254,7 +241,7 @@ or reference input provenance (preset vs equivalent explicit bundle).
 - `prediction/substrate_list` is optional.
 - `signalome/kinase_network_nodes` is optional.
 - `signalome/kinase_network_candidate_correlations` is optional.
-- `signalome/expanded_signalome` is optional by contract for compatibility, but
+- `signalome/expanded_signalome` is optional by contract, but
   is populated in the supported signalome executor lane when the workflow
   completes successfully.
 - `scoring/motif_scores` and `scoring/score_fusion_weights` are optional diagnostic tables and
@@ -318,10 +305,6 @@ Signalome config snapshot (all persisted fields):
 - `signalome_config.module_selection_fallback_correlation_threshold`
 - `signalome_config.module_selection_max_clusters`
 
-Deprecated aliases are also persisted as explicit compatibility metadata:
-`signalome_config.deprecated_clustering_backend_alias` and
-`signalome_config.deprecated_max_exact_clustering_sites_alias`.
-
 Deliberate omissions:
 
 - Signalome bundle snapshots do not include upstream kinase `scoring_config` or
@@ -330,26 +313,8 @@ Deliberate omissions:
 - Runtime-derived diagnostics (for example module-selection diagnostics) are
   stored under manifest metadata/output tables, not inside `config_snapshot`.
 
-Legacy reload compatibility (normalization on load):
-
-- Kinase legacy snapshots missing newly added fields are normalized to defaults:
-  `include_diagnostic_scoring_tables=True`,
-  `profile_missing_value_strategy="strict"`,
-  `deterministic_max_selected_kinases=10`,
-  `adaptive_ensemble_runs=10`,
-  `mode="deterministic_ranking"`, `adaptive_policy="stable"`,
-  `n_iterations=5`, and `random_state=None`.
-- Legacy `prediction_config.ensemble_size` is accepted and mapped to both
-  `deterministic_max_selected_kinases` and `adaptive_ensemble_runs`.
-- Signalome legacy `signalome_cutoff` is accepted and mapped to both
-  `substrate_support_cutoff` and `network_correlation_threshold`.
-  Missing `network_policy`, `assignment_policy`,
-  `score_preconditioning_policy`, and module-selection fields are normalized to
-  current default values.
-
 Manifest versioning starts at v1 so future format evolution is explicit.
-
-## Internal Ownership (Rewrite Boundary)
+## Internal Ownership
 
 Public entrypoints stay at:
 
@@ -363,11 +328,6 @@ Internal implementation is split by concern ownership under:
 - `phospy.io.bundles._signalome`: same concern split for signalome bundles
 - `phospy.io.bundles._shared`: low-level JSON/path/table/coercion helpers used by
   both bundle domains
-
-Compatibility behavior is isolated to signalome compatibility helpers:
-
-- legacy config snapshot cutoff field parsing
-- legacy module-assignment candidate/weight normalization
 
 ## Where Next
 

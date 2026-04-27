@@ -115,12 +115,6 @@ class SignalomeProvenanceBuilder:
                     "max_full_correlation_sites": int(
                         config.max_full_correlation_sites
                     ),
-                    "deprecated_clustering_backend_alias": str(
-                        config.clustering_backend_alias
-                    ),
-                    "deprecated_max_exact_clustering_sites_alias": int(
-                        config.max_exact_cluster_tree_sites
-                    ),
                     "module_count": (
                         None
                         if config.requested_module_count is None

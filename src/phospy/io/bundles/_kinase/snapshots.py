@@ -29,6 +29,28 @@ from phospy.io.bundles._shared.primitives import (
 if TYPE_CHECKING:
     from phospy.api.requests import KinaseWorkflowRequest
 
+_SCORING_CONFIG_ALLOWED_FIELDS = frozenset(
+    {
+        "min_substrates",
+        "include_diagnostic_scoring_tables",
+        "profile_missing_value_strategy",
+    }
+)
+_PREDICTION_CONFIG_ALLOWED_FIELDS = frozenset(
+    {
+        "top_k",
+        "deterministic_max_selected_kinases",
+        "adaptive_ensemble_runs",
+        "mode",
+        "adaptive_policy",
+        "n_iterations",
+        "random_state",
+    }
+)
+_ACTIVITY_CONFIG_ALLOWED_FIELDS = frozenset(
+    {"enabled", "threshold", "min_substrates", "top_n_substrates"}
+)
+
 
 @dataclass(frozen=True, slots=True)
 class KinaseWorkflowConfigSnapshot:
@@ -104,9 +126,19 @@ class KinaseWorkflowConfigSnapshot:
             payload.get("scoring_config"),
             field_name=f"{scope}.scoring_config",
         )
+        _reject_unsupported_fields(
+            scoring_payload,
+            field_name=f"{scope}.scoring_config",
+            allowed_fields=_SCORING_CONFIG_ALLOWED_FIELDS,
+        )
         prediction_payload = require_mapping(
             payload.get("prediction_config"),
             field_name=f"{scope}.prediction_config",
+        )
+        _reject_unsupported_fields(
+            prediction_payload,
+            field_name=f"{scope}.prediction_config",
+            allowed_fields=_PREDICTION_CONFIG_ALLOWED_FIELDS,
         )
         activity_raw = payload.get("activity_config")
         if activity_raw is None:
@@ -115,6 +147,11 @@ class KinaseWorkflowConfigSnapshot:
             activity_payload = require_mapping(
                 activity_raw,
                 field_name=f"{scope}.activity_config",
+            )
+            _reject_unsupported_fields(
+                activity_payload,
+                field_name=f"{scope}.activity_config",
+                allowed_fields=_ACTIVITY_CONFIG_ALLOWED_FIELDS,
             )
             activity_config = KinaseActivityConfig(
                 enabled=require_bool(
@@ -140,40 +177,20 @@ class KinaseWorkflowConfigSnapshot:
                     field_name=f"{scope}.activity_config.top_n_substrates",
                 ),
             )
-        legacy_ensemble_size = prediction_payload.get("ensemble_size")
-        deterministic_max_selected_kinases: int
-        adaptive_ensemble_runs: int
-        if legacy_ensemble_size is not None:
-            if (
-                prediction_payload.get("deterministic_max_selected_kinases") is not None
-                or prediction_payload.get("adaptive_ensemble_runs") is not None
-            ):
-                raise PhosPyInputError(
-                    f"{scope}.prediction_config.ensemble_size cannot be combined with "
-                    "deterministic_max_selected_kinases or adaptive_ensemble_runs"
-                )
-            deterministic_max_selected_kinases = require_int(
-                legacy_ensemble_size,
-                field_name=f"{scope}.prediction_config.ensemble_size",
-            )
-            adaptive_ensemble_runs = deterministic_max_selected_kinases
-        else:
-            deterministic_max_selected_kinases = require_int(
-                prediction_payload.get(
-                    "deterministic_max_selected_kinases",
-                    KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES,
-                ),
-                field_name=(
-                    f"{scope}.prediction_config.deterministic_max_selected_kinases"
-                ),
-            )
-            adaptive_ensemble_runs = require_int(
-                prediction_payload.get(
-                    "adaptive_ensemble_runs",
-                    KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS,
-                ),
-                field_name=f"{scope}.prediction_config.adaptive_ensemble_runs",
-            )
+        deterministic_max_selected_kinases = require_int(
+            prediction_payload.get(
+                "deterministic_max_selected_kinases",
+                KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES,
+            ),
+            field_name=f"{scope}.prediction_config.deterministic_max_selected_kinases",
+        )
+        adaptive_ensemble_runs = require_int(
+            prediction_payload.get(
+                "adaptive_ensemble_runs",
+                KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS,
+            ),
+            field_name=f"{scope}.prediction_config.adaptive_ensemble_runs",
+        )
         return cls(
             scoring_config=KinaseScoringConfig(
                 min_substrates=require_int(
@@ -235,3 +252,17 @@ class KinaseWorkflowConfigSnapshot:
             ),
             activity_config=activity_config,
         )
+
+
+def _reject_unsupported_fields(
+    payload: Mapping[str, object],
+    *,
+    field_name: str,
+    allowed_fields: frozenset[str],
+) -> None:
+    unknown_fields = sorted(
+        str(key) for key in payload.keys() if str(key) not in allowed_fields
+    )
+    if unknown_fields:
+        unknown = ", ".join(unknown_fields)
+        raise PhosPyInputError(f"{field_name} contains unsupported field(s): {unknown}")

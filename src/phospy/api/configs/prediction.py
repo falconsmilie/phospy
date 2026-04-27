@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import warnings
-from dataclasses import InitVar, dataclass
+from dataclasses import dataclass
 from typing import Literal
 
 from phospy.api.configs.common import _require_int_at_least
@@ -48,7 +47,6 @@ class KinasePredictionConfig:
 
     `deterministic_max_selected_kinases` controls deterministic lane breadth.
     `adaptive_ensemble_runs` controls adaptive lane ensemble executions.
-    Legacy `ensemble_size` remains accepted as a deprecated input alias.
     """
 
     top_k: int = 30
@@ -60,9 +58,8 @@ class KinasePredictionConfig:
     adaptive_policy: KinaseAdaptivePolicy = KINASE_ADAPTIVE_POLICY_STABLE
     n_iterations: int = KINASE_PREDICTION_DEFAULT_ITERATIONS
     random_state: int | None = None
-    ensemble_size: InitVar[int | None] = None
 
-    def __post_init__(self, ensemble_size: int | None) -> None:
+    def __post_init__(self) -> None:
         if self.mode not in KINASE_PREDICTION_MODES:
             allowed_modes = ", ".join(sorted(KINASE_PREDICTION_MODES))
             raise WorkflowValidationError(
@@ -86,37 +83,6 @@ class KinasePredictionConfig:
             minimum=1,
             error_type=WorkflowValidationError,
         )
-        if ensemble_size is not None:
-            _require_int_at_least(
-                ensemble_size,
-                field_name="prediction_config.ensemble_size",
-                minimum=1,
-                error_type=WorkflowValidationError,
-            )
-            if (
-                self.deterministic_max_selected_kinases
-                != KINASE_PREDICTION_DEFAULT_DETERMINISTIC_MAX_SELECTED_KINASES
-                or self.adaptive_ensemble_runs
-                != KINASE_PREDICTION_DEFAULT_ADAPTIVE_ENSEMBLE_RUNS
-            ):
-                raise WorkflowValidationError(
-                    "prediction_config.ensemble_size cannot be combined with "
-                    "prediction_config.deterministic_max_selected_kinases or "
-                    "prediction_config.adaptive_ensemble_runs"
-                )
-            warnings.warn(
-                "prediction_config.ensemble_size is deprecated; use "
-                "prediction_config.deterministic_max_selected_kinases and "
-                "prediction_config.adaptive_ensemble_runs",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            object.__setattr__(
-                self,
-                "deterministic_max_selected_kinases",
-                int(ensemble_size),
-            )
-            object.__setattr__(self, "adaptive_ensemble_runs", int(ensemble_size))
         _require_int_at_least(
             self.deterministic_max_selected_kinases,
             field_name="prediction_config.deterministic_max_selected_kinases",

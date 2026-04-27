@@ -39,19 +39,17 @@ def test_kinase_snapshot_requires_scoring_config_object() -> None:
         KinaseWorkflowConfigSnapshot.from_payload(
             {
                 "scoring_config": "invalid",
-                "prediction_config": {"top_k": 2, "ensemble_size": 2},
+                "prediction_config": {"top_k": 2},
                 "activity_config": None,
             }
         )
 
 
-def test_kinase_snapshot_compatibility_payload_defaults_diagnostic_tables_to_true() -> (
-    None
-):
+def test_kinase_snapshot_payload_defaults_diagnostic_tables_to_true() -> None:
     snapshot = KinaseWorkflowConfigSnapshot.from_payload(
         {
             "scoring_config": {"min_substrates": 2},
-            "prediction_config": {"top_k": 2, "ensemble_size": 2},
+            "prediction_config": {"top_k": 2},
             "activity_config": None,
         }
     )
@@ -63,17 +61,17 @@ def test_kinase_snapshot_compatibility_payload_defaults_diagnostic_tables_to_tru
     assert snapshot.prediction_config.random_state is None
 
 
-def test_kinase_snapshot_rejects_legacy_and_explicit_prediction_size_conflicts() -> (
-    None
-):
-    with pytest.raises(PhosPyInputError, match="cannot be combined"):
+def test_kinase_snapshot_rejects_removed_ensemble_size_alias() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="contains unsupported field\\(s\\): ensemble_size",
+    ):
         KinaseWorkflowConfigSnapshot.from_payload(
             {
                 "scoring_config": {"min_substrates": 2},
                 "prediction_config": {
                     "top_k": 2,
                     "ensemble_size": 2,
-                    "adaptive_ensemble_runs": 4,
                 },
                 "activity_config": None,
             }

@@ -1,19 +1,21 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from phospy.api import SignalomeConfig
 from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
 )
+from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._signalome.compatibility import (
     normalize_module_assignments_table,
-    signalome_module_selection_diagnostics_from_payload_with_compatibility_support,
+    signalome_module_selection_diagnostics_from_payload,
     signalome_module_selection_diagnostics_to_payload,
-    signalome_network_correlation_diagnostics_from_payload_with_compatibility_support,
+    signalome_network_correlation_diagnostics_from_payload,
     signalome_network_correlation_diagnostics_to_payload,
-    signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support,
+    signalome_score_preconditioning_diagnostics_from_payload,
     signalome_score_preconditioning_diagnostics_to_payload,
 )
 from phospy.io.bundles.signalome import SignalomeWorkflowConfigSnapshot
@@ -24,18 +26,14 @@ from phospy.signalomes.models import (
     SignalomeModuleSelectionDiagnostics,
     SignalomeNetworkCorrelationDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
-    default_signalome_network_correlation_diagnostics,
-    default_signalome_score_preconditioning_diagnostics,
 )
 
 
-def test_signalome_snapshot_supports_compatibility_cutoff_payload() -> None:
-    snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
-        {"signalome_config": {"signalome_cutoff": 0.6}}
-    )
+def test_signalome_snapshot_supports_current_config_payload_defaults() -> None:
+    snapshot = SignalomeWorkflowConfigSnapshot.from_payload({"signalome_config": {}})
 
-    assert snapshot.signalome_config.substrate_support_cutoff == 0.6
-    assert snapshot.signalome_config.network_correlation_threshold == 0.6
+    assert snapshot.signalome_config.substrate_support_cutoff == 0.5
+    assert snapshot.signalome_config.network_correlation_threshold == 0.5
     assert snapshot.signalome_config.network_policy == "signed"
     assert (
         snapshot.signalome_config.assignment_policy
@@ -48,6 +46,16 @@ def test_signalome_snapshot_supports_compatibility_cutoff_payload() -> None:
     assert snapshot.signalome_config.candidate_scoring_backend == "full"
     assert snapshot.signalome_config.max_exact_cluster_tree_sites == 2000
     assert snapshot.signalome_config.max_full_correlation_sites == 2000
+
+
+def test_signalome_snapshot_rejects_removed_signalome_cutoff_alias() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="contains unsupported field\\(s\\): signalome_cutoff",
+    ):
+        SignalomeWorkflowConfigSnapshot.from_payload(
+            {"signalome_config": {"signalome_cutoff": 0.6}}
+        )
 
 
 def test_signalome_snapshot_supports_assignment_policy_payload() -> None:
@@ -67,10 +75,8 @@ def test_signalome_snapshot_supports_assignment_policy_payload() -> None:
     )
 
 
-def test_signalome_snapshot_supports_network_policy_payload_and_compatibility_alias() -> (
-    None
-):
-    explicit = SignalomeWorkflowConfigSnapshot.from_payload(
+def test_signalome_snapshot_supports_network_policy_payload() -> None:
+    snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
         {
             "signalome_config": {
                 "substrate_support_cutoff": 0.5,
@@ -79,18 +85,8 @@ def test_signalome_snapshot_supports_network_policy_payload_and_compatibility_al
             }
         }
     )
-    compatibility_alias = SignalomeWorkflowConfigSnapshot.from_payload(
-        {
-            "signalome_config": {
-                "substrate_support_cutoff": 0.5,
-                "network_correlation_threshold": 0.6,
-                "kinase_network_policy": "positive_only",
-            }
-        }
-    )
 
-    assert explicit.signalome_config.network_policy == "absolute_threshold"
-    assert compatibility_alias.signalome_config.network_policy == "positive_only"
+    assert snapshot.signalome_config.network_policy == "absolute_threshold"
 
 
 def test_signalome_snapshot_round_trip_preserves_network_policy() -> None:
@@ -124,8 +120,6 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
             "candidate_scoring_backend": "sampled",
             "max_exact_cluster_tree_sites": 2500,
             "max_full_correlation_sites": 1700,
-            "deprecated_clustering_backend_alias": "approximate",
-            "deprecated_max_exact_clustering_sites_alias": 2500,
             "module_count": 6,
             "module_selection_primary_correlation_threshold": 0.67,
             "module_selection_fallback_correlation_threshold": 0.23,
@@ -137,24 +131,43 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
     assert snapshot.to_payload() == payload
 
 
-def test_signalome_snapshot_legacy_backend_payload_maps_to_split_backends() -> None:
-    snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
-        {
-            "signalome_config": {
-                "substrate_support_cutoff": 0.42,
-                "network_correlation_threshold": 0.73,
-                "clustering_backend": "approximate",
-                "max_exact_clustering_sites": 2500,
+def test_signalome_snapshot_rejects_removed_backend_alias_payload_fields() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "contains unsupported field\\(s\\): "
+            "clustering_backend, max_exact_clustering_sites"
+        ),
+    ):
+        SignalomeWorkflowConfigSnapshot.from_payload(
+            {
+                "signalome_config": {
+                    "substrate_support_cutoff": 0.42,
+                    "network_correlation_threshold": 0.73,
+                    "clustering_backend": "approximate",
+                    "max_exact_clustering_sites": 2500,
+                }
             }
-        }
-    )
-
-    assert snapshot.signalome_config.cluster_tree_backend == "exact"
-    assert snapshot.signalome_config.candidate_scoring_backend == "sampled"
-    assert snapshot.signalome_config.max_exact_cluster_tree_sites == 2500
+        )
 
 
-def test_module_assignment_compat_normalization_parses_serialized_fields() -> None:
+def test_signalome_snapshot_rejects_removed_network_policy_alias() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="contains unsupported field\\(s\\): kinase_network_policy",
+    ):
+        SignalomeWorkflowConfigSnapshot.from_payload(
+            {
+                "signalome_config": {
+                    "substrate_support_cutoff": 0.5,
+                    "network_correlation_threshold": 0.6,
+                    "kinase_network_policy": "positive_only",
+                }
+            }
+        )
+
+
+def test_module_assignment_normalization_parses_serialized_fields() -> None:
     table = pd.DataFrame(
         {
             "module_id": [1, 2],
@@ -190,11 +203,9 @@ def test_module_selection_diagnostics_payload_round_trip() -> None:
     )
 
     payload = signalome_module_selection_diagnostics_to_payload(diagnostics)
-    restored = (
-        signalome_module_selection_diagnostics_from_payload_with_compatibility_support(
-            payload,
-            scope="test",
-        )
+    restored = signalome_module_selection_diagnostics_from_payload(
+        payload,
+        scope="test",
     )
 
     assert restored == diagnostics
@@ -209,7 +220,7 @@ def test_score_preconditioning_diagnostics_payload_round_trip() -> None:
     )
 
     payload = signalome_score_preconditioning_diagnostics_to_payload(diagnostics)
-    restored = signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support(
+    restored = signalome_score_preconditioning_diagnostics_from_payload(
         payload,
         scope="test",
     )
@@ -226,7 +237,7 @@ def test_score_preconditioning_diagnostics_accepts_error_on_drop_policy() -> Non
     )
 
     payload = signalome_score_preconditioning_diagnostics_to_payload(diagnostics)
-    restored = signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support(
+    restored = signalome_score_preconditioning_diagnostics_from_payload(
         payload,
         scope="test",
     )
@@ -234,12 +245,12 @@ def test_score_preconditioning_diagnostics_accepts_error_on_drop_policy() -> Non
     assert restored == diagnostics
 
 
-def test_score_preconditioning_diagnostics_compatibility_payload_defaults() -> None:
-    restored = signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support(
-        None,
-        scope="test",
-    )
-    assert restored == default_signalome_score_preconditioning_diagnostics()
+def test_score_preconditioning_diagnostics_requires_payload_mapping() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="test.score_preconditioning_diagnostics must be an object",
+    ):
+        signalome_score_preconditioning_diagnostics_from_payload(None, scope="test")
 
 
 def test_network_correlation_diagnostics_payload_round_trip() -> None:
@@ -256,7 +267,7 @@ def test_network_correlation_diagnostics_payload_round_trip() -> None:
     )
 
     payload = signalome_network_correlation_diagnostics_to_payload(diagnostics)
-    restored = signalome_network_correlation_diagnostics_from_payload_with_compatibility_support(
+    restored = signalome_network_correlation_diagnostics_from_payload(
         payload,
         scope="test",
     )
@@ -264,9 +275,9 @@ def test_network_correlation_diagnostics_payload_round_trip() -> None:
     assert restored == diagnostics
 
 
-def test_network_correlation_diagnostics_compatibility_payload_defaults() -> None:
-    restored = signalome_network_correlation_diagnostics_from_payload_with_compatibility_support(
-        None,
-        scope="test",
-    )
-    assert restored == default_signalome_network_correlation_diagnostics()
+def test_network_correlation_diagnostics_requires_payload_mapping() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="test.network_correlation_diagnostics must be an object",
+    ):
+        signalome_network_correlation_diagnostics_from_payload(None, scope="test")

@@ -18,8 +18,8 @@ from phospy.api import (
     SignalomeConfig,
     SignalomeWorkflowRequest,
 )
-from phospy.api.configs import SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
 from phospy.api.results import SignalomeWorkflowResult
+from phospy.errors import PhosPyInputError
 from phospy.io.bundles.signalome import (
     SIGNALOME_BUNDLE_MANIFEST_VERSION,
     SignalomeWorkflowConfigSnapshot,
@@ -165,22 +165,14 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert loaded.result.expanded_signalome is not None
 
 
-def test_signalome_config_snapshot_accepts_compatibility_cutoff_payload() -> None:
-    snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
-        {"signalome_config": {"signalome_cutoff": 0.6}}
-    )
-    assert snapshot.signalome_config.substrate_support_cutoff == pytest.approx(0.6)
-    assert snapshot.signalome_config.network_correlation_threshold == pytest.approx(0.6)
-    assert snapshot.signalome_config.network_policy == "signed"
-    assert (
-        snapshot.signalome_config.assignment_policy
-        == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
-    )
-    assert snapshot.signalome_config.score_preconditioning_policy == "allow_and_report"
-    assert snapshot.signalome_config.cluster_tree_backend == "exact"
-    assert snapshot.signalome_config.candidate_scoring_backend == "full"
-    assert snapshot.signalome_config.max_exact_cluster_tree_sites == 2000
-    assert snapshot.signalome_config.max_full_correlation_sites == 2000
+def test_signalome_config_snapshot_rejects_removed_signalome_cutoff_alias() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="contains unsupported field\\(s\\): signalome_cutoff",
+    ):
+        SignalomeWorkflowConfigSnapshot.from_payload(
+            {"signalome_config": {"signalome_cutoff": 0.6}}
+        )
 
 
 def test_signalome_bundle_manifest_tracks_absent_expanded_output_when_none(

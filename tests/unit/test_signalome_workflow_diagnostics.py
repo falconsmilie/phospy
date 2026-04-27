@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import warnings
-
 import pandas as pd
 import pytest
 
@@ -21,8 +19,6 @@ from phospy.api.configs import (
     SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
     SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
     SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-    SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
-    SIGNALOME_CLUSTERING_BACKEND_EXACT,
     SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
     SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
@@ -188,7 +184,6 @@ def _execution_config(config: SignalomeConfig) -> ResolvedSignalomeExecutionConf
         candidate_scoring_backend=config.candidate_scoring_backend,
         max_exact_cluster_tree_sites=int(config.max_exact_cluster_tree_sites),
         max_full_correlation_sites=int(config.max_full_correlation_sites),
-        clustering_backend_alias=config.clustering_backend,
         requested_module_count=(
             None if config.module_count is None else int(config.module_count)
         ),
@@ -529,9 +524,6 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
     )
     assert interpreted.execution_config.max_full_correlation_sites == (
         SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT
-    )
-    assert interpreted.execution_config.clustering_backend_alias == (
-        SIGNALOME_CLUSTERING_BACKEND_EXACT
     )
 
 
@@ -1316,93 +1308,6 @@ def test_sampled_candidate_scoring_over_exact_tree_limit_fails_early(
     assert "max_exact_cluster_tree_sites=1" in message
     # Sampled scoring only changes candidate module-count evaluation.
     # Exact cluster-tree construction is still required first.
-    assert "candidate_scoring_backend='sampled'" in message
-    assert tree_calls == []
-
-
-@pytest.mark.parametrize(
-    "execution_path",
-    _SIGNALOME_WORKFLOW_EXECUTION_PATHS,
-    ids=_SIGNALOME_WORKFLOW_EXECUTION_PATHS,
-)
-def test_deprecated_approximate_backend_still_enforces_exact_tree_limit(
-    monkeypatch: pytest.MonkeyPatch,
-    execution_path: str,
-) -> None:
-    import phospy.signalomes.clustering as clustering_module
-
-    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
-    dataset = _dataset(site_ids=site_ids)
-    prediction_matrix = _matrix(
-        values=[
-            [0.95, 0.1],
-            [0.1, 0.95],
-            [0.8, 0.7],
-        ],
-        site_ids=site_ids,
-        kinases=["K1", "K2"],
-    )
-    score_matrix = _matrix(
-        values=[
-            [1.0, 0.0],
-            [0.0, 1.0],
-            [0.8, 0.7],
-        ],
-        site_ids=site_ids,
-        kinases=["K1", "K2"],
-    )
-    tree_calls: list[str] = []
-
-    def _build_tree_should_not_run(scoring_values: object) -> object:
-        del scoring_values
-        tree_calls.append("called")
-        raise AssertionError(
-            "_build_cluster_tree should not run when exact tree guard fails"
-        )
-
-    monkeypatch.setattr(
-        clustering_module,
-        "_build_cluster_tree",
-        _build_tree_should_not_run,
-    )
-
-    with warnings.catch_warnings(record=True) as deprecated_warnings:
-        warnings.simplefilter("always", DeprecationWarning)
-        request = SignalomeWorkflowRequest(
-            kinase_result=_kinase_result(
-                dataset=dataset,
-                prediction_matrix=prediction_matrix,
-                score_matrix=score_matrix,
-            ),
-            config=SignalomeConfig(
-                substrate_support_cutoff=0.5,
-                module_count=2,
-                clustering_backend=SIGNALOME_CLUSTERING_BACKEND_APPROXIMATE,
-                max_exact_clustering_sites=1,
-            ),
-        )
-        with pytest.raises(SignalomeScaleError) as exc_info:
-            _run_signalome_workflow_path(
-                request=request,
-                execution_path=execution_path,
-            )
-
-    warning_messages = [
-        str(warning.message)
-        for warning in deprecated_warnings
-        if issubclass(warning.category, DeprecationWarning)
-    ]
-    assert any(
-        "config.clustering_backend is deprecated" in msg for msg in warning_messages
-    )
-    assert any(
-        "config.max_exact_clustering_sites is deprecated" in msg
-        for msg in warning_messages
-    )
-
-    message = str(exc_info.value).lower()
-    assert "max_exact_cluster_tree_sites=1" in message
-    assert "cluster_tree_backend='exact'" in message
     assert "candidate_scoring_backend='sampled'" in message
     assert tree_calls == []
 

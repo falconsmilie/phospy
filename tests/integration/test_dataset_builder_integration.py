@@ -356,58 +356,12 @@ def test_dataset_builder_requires_total_when_subtract_log_total_is_requested() -
         )
 
 
-def test_dataset_builder_ratio_alias_resolves_to_subtract_log_total() -> None:
-    phospho = pd.DataFrame(
-        {"sample_a": [15.0], "sample_b": [31.0]},
-        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
-    )
-    site_metadata = pd.DataFrame(
-        {
-            "gene_symbol": ["MAPK14"],
-            "site": ["Y182"],
-            "site_sequence": ["SEQ_A"],
-        },
-        index=phospho.index.copy(),
-    )
-    total = pd.DataFrame(
-        {"sample_a": [3.0], "sample_b": [7.0]},
-        index=pd.Index(["MAPK14"], name="protein_id"),
-    )
-
-    built = AnalysisReadyDatasetBuilder().run(
-        DatasetBuildRequest(
-            phospho=phospho,
-            site_metadata=site_metadata,
-            total=total,
-            preprocessing_config=DatasetPreprocessingConfig(
-                intensity_transform=DatasetIntensityTransformConfig(
-                    policy="log2",
-                    pseudocount=1.0,
-                ),
-                total_protein_correction=DatasetTotalProteinCorrectionConfig(
-                    policy="ratio_to_total"
-                ),
-            ),
-        )
-    )
-
-    total_by_site = total.reindex(site_metadata.loc[:, "gene_symbol"].tolist())
-    total_by_site.index = phospho.index.copy()
-    expected = np.log2(phospho + 1.0) - np.log2(total_by_site + 1.0)
-    pdt.assert_frame_equal(built.phospho, expected)
-    assert (
-        built.processing_state.total_protein_correction.policy == "subtract_log_total"
-    )
-    assert built.provenance is not None
-    total_stage = next(
-        stage
-        for stage in built.provenance.preprocessing_stages
-        if stage.stage == "total_protein_correction"
-    )
-    diagnostics = total_stage.diagnostics or {}
-    assert diagnostics["requested_policy"] == "ratio_to_total"
-    assert diagnostics["resolved_policy"] == "subtract_log_total"
-    assert diagnostics["formula"] == "log2_phospho - log2_total"
+def test_dataset_builder_rejects_removed_ratio_to_total_alias() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="preprocessing_config.total_protein_correction.policy must be one of",
+    ):
+        DatasetTotalProteinCorrectionConfig(policy="ratio_to_total")  # type: ignore[arg-type]
 
 
 def test_dataset_builder_supports_documented_alias_and_index_derivation_conventions() -> (

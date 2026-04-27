@@ -12,7 +12,6 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
-    resolve_dataset_total_protein_correction_policy,
 )
 from phospy.datasets.builders.contracts import PreprocessedDatasetBuildTables
 from phospy.datasets.preprocessing.models import (
@@ -149,9 +148,7 @@ def build_dataset_processing_state(
         if plan.comparison_pairs is None
         else tuple((str(left), str(right)) for left, right in plan.comparison_pairs)
     )
-    resolved_total_policy = resolve_dataset_total_protein_correction_policy(
-        plan.total_protein_correction_policy
-    )
+    resolved_total_policy = plan.total_protein_correction_policy
     total_correction_applied = (
         resolved_total_policy != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
     )
@@ -471,11 +468,7 @@ def _resolve_stage_operation(*, plan: PreprocessingPlan, stage: str) -> str:
     if stage == DATASET_PREPROCESSING_STAGE_MISSING_DATA:
         return plan.missing_data_policy
     if stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
-        return str(
-            resolve_dataset_total_protein_correction_policy(
-                plan.total_protein_correction_policy
-            )
-        )
+        return str(plan.total_protein_correction_policy)
     if stage == DATASET_PREPROCESSING_STAGE_SITE_MATRIX:
         return plan.site_matrix_policy
     if stage == DATASET_PREPROCESSING_STAGE_COMPARISONS:

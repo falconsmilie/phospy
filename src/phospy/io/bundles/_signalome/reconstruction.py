@@ -27,9 +27,9 @@ from phospy.io.bundles._shared.tables import (
 )
 from phospy.io.bundles._signalome.compatibility import (
     normalize_module_assignments_table,
-    signalome_module_selection_diagnostics_from_payload_with_compatibility_support,
-    signalome_network_correlation_diagnostics_from_payload_with_compatibility_support,
-    signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support,
+    signalome_module_selection_diagnostics_from_payload,
+    signalome_network_correlation_diagnostics_from_payload,
+    signalome_score_preconditioning_diagnostics_from_payload,
 )
 from phospy.io.bundles._signalome.manifest import SignalomeManifestSections
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
@@ -248,19 +248,21 @@ def reconstruct_signalome_result(
         activity_result=activity_result,
         provenance=upstream_kinase_provenance,
     )
-    module_selection_diagnostics = (
-        signalome_module_selection_diagnostics_from_payload_with_compatibility_support(
-            sections.signalome_metadata.get("module_selection_diagnostics"),
+    module_selection_diagnostics = signalome_module_selection_diagnostics_from_payload(
+        sections.signalome_metadata.get("module_selection_diagnostics"),
+        scope="bundle manifest.signalome_outputs.metadata",
+    )
+    score_preconditioning_diagnostics = (
+        signalome_score_preconditioning_diagnostics_from_payload(
+            sections.signalome_metadata.get("score_preconditioning_diagnostics"),
             scope="bundle manifest.signalome_outputs.metadata",
         )
     )
-    score_preconditioning_diagnostics = signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support(
-        sections.signalome_metadata.get("score_preconditioning_diagnostics"),
-        scope="bundle manifest.signalome_outputs.metadata",
-    )
-    network_correlation_diagnostics = signalome_network_correlation_diagnostics_from_payload_with_compatibility_support(
-        sections.signalome_metadata.get("network_correlation_diagnostics"),
-        scope="bundle manifest.signalome_outputs.metadata",
+    network_correlation_diagnostics = (
+        signalome_network_correlation_diagnostics_from_payload(
+            sections.signalome_metadata.get("network_correlation_diagnostics"),
+            scope="bundle manifest.signalome_outputs.metadata",
+        )
     )
     candidate_correlations = (
         read_optional_table(

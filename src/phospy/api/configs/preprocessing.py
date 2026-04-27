@@ -42,17 +42,14 @@ DATASET_NORMALISATION_POLICIES = frozenset(
 )
 DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE = "none"
 DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL = "subtract_log_total"
-DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL = "ratio_to_total"
 DatasetTotalProteinCorrectionPolicy = Literal[
     "none",
     "subtract_log_total",
-    "ratio_to_total",
 ]
 DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES = frozenset(
     {
         DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
         DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
-        DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL,
     }
 )
 DATASET_SITE_MATRIX_POLICY_AS_INPUT = "as_input"
@@ -110,16 +107,6 @@ _INCOMPATIBLE_SITE_MATRIX_MISSING_DATA_POLICIES = frozenset(
 _SUPPORTED_SITE_MATRIX_MISSING_DATA_POLICY = (
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING
 )
-
-
-def resolve_dataset_total_protein_correction_policy(
-    policy: DatasetTotalProteinCorrectionPolicy,
-) -> DatasetTotalProteinCorrectionPolicy:
-    """Resolve deprecated total-protein correction aliases to canonical policy."""
-
-    if policy == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL:
-        return DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
-    return policy
 
 
 @dataclass(frozen=True, slots=True)
@@ -250,8 +237,6 @@ class DatasetTotalProteinCorrectionConfig:
     - `"subtract_log_total"`: subtract matched log-scale total-protein abundance
       from log-scale phosphosite abundance in the builder preprocessing lane:
       `log2_phospho - log2_total`.
-    - `"ratio_to_total"`: deprecated alias that resolves to
-      `"subtract_log_total"`.
     """
 
     policy: DatasetTotalProteinCorrectionPolicy = (
@@ -305,7 +290,7 @@ class DatasetSiteMatrixConfig:
     Duplicate-row resolution and metadata conflicts are reported through
     `dataset.preprocessing_report` when this stage executes.
 
-    `minimum_observed_values` remains internal-only compatibility state and must
+    `minimum_observed_values` remains internal-only state and must
     stay unset in the supported public builder lane.
     """
 
@@ -500,8 +485,6 @@ __all__ = [
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL",
-    "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_RATIO_TO_TOTAL",
-    "resolve_dataset_total_protein_correction_policy",
     "DatasetComparisonBuildingConfig",
     "DatasetComparisonPair",
     "DatasetComparisonBuildingPolicy",

@@ -149,7 +149,6 @@ class SignalomeWorkflowInterpreter:
                 request.config.max_exact_cluster_tree_sites
             ),
             max_full_correlation_sites=int(request.config.max_full_correlation_sites),
-            clustering_backend_alias=request.config.clustering_backend,
             requested_module_count=(
                 None
                 if request.config.module_count is None

@@ -68,7 +68,9 @@ def test_cli_kinase_from_files_writes_supported_lane_outputs(
             "auto",
             "--prediction-top-k",
             "6",
-            "--prediction-ensemble-size",
+            "--prediction-deterministic-max-selected-kinases",
+            "8",
+            "--prediction-adaptive-ensemble-runs",
             "8",
             "--outdir",
             str(outdir),
@@ -120,7 +122,9 @@ def test_cli_signalome_from_files_writes_supported_lane_outputs(
             "auto",
             "--prediction-top-k",
             "6",
-            "--prediction-ensemble-size",
+            "--prediction-deterministic-max-selected-kinases",
+            "12",
+            "--prediction-adaptive-ensemble-runs",
             "12",
             "--substrate-support-cutoff",
             "0.5",
@@ -149,7 +153,7 @@ def test_cli_signalome_from_files_writes_supported_lane_outputs(
     assert (outdir / "signalome" / "expanded_signalome.csv").exists()
 
 
-def test_cli_reports_rewrite_taxonomy_for_input_format_errors(
+def test_cli_reports_input_format_errors(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     phospho = load_rat_l6_phospho().head(8).copy(deep=True)
@@ -247,6 +251,76 @@ def test_cli_rejects_removed_user_declared_transformation_flag(
 
     assert exit_code == 2
     assert "unrecognized arguments: --transformation-state linear" in captured.err
+
+
+def test_cli_rejects_removed_prediction_ensemble_size_alias(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    phospho = load_rat_l6_phospho().head(8).copy(deep=True)
+    site_metadata = site_metadata_for(phospho)
+    phospho_path = tmp_path / "phospho.csv"
+    site_metadata_path = tmp_path / "site_metadata.csv"
+    phospho.to_csv(phospho_path)
+    site_metadata.to_csv(site_metadata_path)
+
+    exit_code = cli_main(
+        [
+            "kinase",
+            "--phospho",
+            str(phospho_path),
+            "--site-metadata",
+            str(site_metadata_path),
+            "--organism",
+            "rat",
+            "--reference",
+            "auto",
+            "--prediction-ensemble-size",
+            "8",
+            "--outdir",
+            str(tmp_path / "out"),
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "unrecognized arguments: --prediction-ensemble-size 8" in captured.err
+
+
+def test_cli_rejects_removed_signalome_alias_flags(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    phospho = load_rat_l6_phospho().head(8).copy(deep=True)
+    site_metadata = site_metadata_for(phospho)
+    site_metadata.loc[:, "protein_id"] = site_metadata.loc[:, "gene_symbol"].astype(str)
+    phospho_path = tmp_path / "phospho.csv"
+    site_metadata_path = tmp_path / "site_metadata.csv"
+    phospho.to_csv(phospho_path)
+    site_metadata.to_csv(site_metadata_path)
+
+    exit_code = cli_main(
+        [
+            "signalome",
+            "--phospho",
+            str(phospho_path),
+            "--site-metadata",
+            str(site_metadata_path),
+            "--organism",
+            "rat",
+            "--reference",
+            "auto",
+            "--clustering-backend",
+            "approximate",
+            "--max-exact-clustering-sites",
+            "1000",
+            "--outdir",
+            str(tmp_path / "out"),
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "--clustering-backend" in captured.err
+    assert "--max-exact-clustering-sites" in captured.err
 
 
 def test_cli_kinase_rejects_non_rat_bundled_resolution(

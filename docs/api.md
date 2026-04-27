@@ -9,7 +9,7 @@ Python API documented here and the file-first [`phospy` CLI](cli.md).
 
 ## Import contract
 
-`phospy.api` is the canonical namespace where public API types are defined and organised in source.
+`phospy.api` is the primary namespace where public API types are defined and organised in source.
 
 Use the package namespaces like this:
 
@@ -81,7 +81,7 @@ Builder notes:
 
 - supported inputs are pandas `DataFrame` values or file paths
 - supported site-metadata aliases are narrow: `gene_name` may stand in for `gene_symbol`, and `centralized_sequence` may stand in for `site_sequence`
-- unsupported legacy aliases such as `gene`, `residue`, `phosphosite`, `site_position`, `sequence`, and `protein` are rejected
+- unsupported historical aliases such as `gene`, `residue`, `phosphosite`, `site_position`, `sequence`, and `protein` are rejected
 - the supported public builder lane must end in a missing-value-free `AnalysisReadyPhosphoDataset`
 
 ### `KinaseWorkflowRequest`
@@ -162,7 +162,6 @@ operation with additional float64 matrix-copy cost; see
 
 - `policy="none"`
 - `policy="subtract_log_total"` (recommended)
-- `policy="ratio_to_total"` (deprecated alias that resolves to `subtract_log_total`)
 
 Subtractive total-protein correction is log-scale correction:
 
@@ -188,7 +187,7 @@ Important state semantics:
 - public missing-data handling for this stage: `missing_data_policy="drop_any_missing"`
 
 This public builder lane is intentionally strict and still ends in a missing-value-free `AnalysisReadyPhosphoDataset`.
-`minimum_observed_values` is internal-only compatibility state and must stay
+`minimum_observed_values` is internal-only state and must stay
 `None` in the public config lane.
 
 Duplicate-site policy trade-offs:
@@ -246,7 +245,7 @@ Motif sequence-context validation is strict in the supported lane:
   excluded from motif frequency/profile construction (never neutral/partial
   encoded)
 - explicit motif-sequence libraries support:
-  - bare sequence entries (legacy/less-informative), and
+  - bare sequence entries (less-informative), and
   - structured entries with metadata equivalent to
     `reference_id`, `site_id`, `kinase`, and `sequence`
 - bare explicit entries validate motif-window quality, supported residue alphabet,
@@ -285,7 +284,6 @@ See [Performance Contracts](performance.md#kinase-scoring-and-motif-scoring).
 deterministic prediction.
 `adaptive_ensemble_runs` controls how many ensemble runs are executed in
 adaptive prediction.
-Legacy `ensemble_size` is accepted as a deprecated constructor alias.
 
 #### `KinaseActivityConfig`
 
@@ -313,12 +311,6 @@ Fields:
 - `candidate_scoring_backend`: `full`, `sampled`
 - `max_exact_cluster_tree_sites` (default `2000`)
 - `max_full_correlation_sites` (default `2000`)
-
-`clustering_backend` and `max_exact_clustering_sites` are deprecated aliases.
-They still load, but now map to the split contract:
-
-- `clustering_backend="exact"` -> `cluster_tree_backend="exact"` + `candidate_scoring_backend="full"`
-- `clustering_backend="approximate"` -> `cluster_tree_backend="exact"` + `candidate_scoring_backend="sampled"`
 
 Signalome stages are now explicit:
 

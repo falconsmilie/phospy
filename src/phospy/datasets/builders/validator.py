@@ -5,7 +5,6 @@ from __future__ import annotations
 from phospy.api.configs import (
     DATASET_COMPARISON_BUILDING_POLICY_SAMPLE_METADATA_PAIRS,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
-    resolve_dataset_total_protein_correction_policy,
 )
 from phospy.api.requests import DatasetBuildRequest
 from phospy.errors.input import PhosPyInputError
@@ -43,9 +42,7 @@ class DatasetBuildRequestValidator:
         requested_total_policy = (
             request.preprocessing_config.total_protein_correction.policy
         )
-        resolved_total_policy = resolve_dataset_total_protein_correction_policy(
-            requested_total_policy
-        )
+        resolved_total_policy = requested_total_policy
         if (
             resolved_total_policy != DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
             and request.total is None

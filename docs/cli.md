@@ -86,7 +86,6 @@ Notes:
 - bundled runtime references are rat-only in this release
 - `--reference auto` is the recommended beginner lane when `--organism rat` is set
 - `--skip-activity` disables the activity stage completely
-- `--prediction-ensemble-size` is accepted as a legacy alias and maps to both mode-specific prediction-size options
 - `--prediction-mode adaptive_ensemble` works in the normal install; no extra dependency lane is required
 
 ## `signalome`
@@ -106,11 +105,6 @@ Additional signalome options:
 - `--candidate-scoring-backend {full,sampled}`
 - `--max-exact-cluster-tree-sites`
 - `--max-full-correlation-sites`
-
-Deprecated CLI aliases remain accepted for compatibility:
-
-- `--clustering-backend {exact,approximate}`
-- `--max-exact-clustering-sites`
 
 Signalome requires explicit, non-empty `protein_id` values in `site_metadata`.
 

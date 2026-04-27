@@ -7,9 +7,6 @@ from dataclasses import replace
 
 import pandas as pd
 
-from phospy.api.configs import (
-    resolve_dataset_total_protein_correction_policy,
-)
 from phospy.datasets.preprocessing.models import (
     DATASET_PREPROCESSING_STAGE_COMPARISONS,
     DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
@@ -189,11 +186,7 @@ def _resolve_stage_operation(*, plan: PreprocessingPlan, stage: str) -> str:
     if stage == DATASET_PREPROCESSING_STAGE_MISSING_DATA:
         return plan.missing_data_policy
     if stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
-        return str(
-            resolve_dataset_total_protein_correction_policy(
-                plan.total_protein_correction_policy
-            )
-        )
+        return str(plan.total_protein_correction_policy)
     if stage == DATASET_PREPROCESSING_STAGE_SITE_MATRIX:
         return plan.site_matrix_policy
     if stage == DATASET_PREPROCESSING_STAGE_COMPARISONS:

@@ -126,7 +126,7 @@ def test_site_matrix_config_docstring_foregrounds_strict_public_lane() -> None:
     docstring = DatasetSiteMatrixConfig.__doc__
     assert docstring is not None
     assert "missing-value-free `AnalysisReadyPhosphoDataset`" in docstring
-    assert "internal-only compatibility state" in docstring
+    assert "internal-only state" in docstring
 
 
 def test_site_matrix_build_contract_is_row_wise_for_mixed_sequence_support() -> None:

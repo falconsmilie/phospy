@@ -57,7 +57,7 @@ def test_readme_and_api_guide_document_import_contract() -> None:
     api_guide = (ROOT / "docs" / "api.md").read_text(encoding="utf-8")
 
     canonical_phrase = (
-        "`phospy.api` is the canonical namespace where public API types are defined"
+        "`phospy.api` is the primary namespace where public API types are defined"
     )
     convenience_phrase = "top-level `phospy` is a curated convenience surface"
 

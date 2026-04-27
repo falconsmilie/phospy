@@ -283,23 +283,9 @@ def test_kinase_prediction_config_has_explicit_mode_specific_sizes() -> None:
     assert config.adaptive_ensemble_runs >= 1
 
 
-def test_kinase_prediction_config_legacy_ensemble_size_maps_to_both_fields() -> None:
-    with pytest.warns(DeprecationWarning, match="prediction_config.ensemble_size"):
-        config = KinasePredictionConfig(ensemble_size=25)
-
-    assert config.deterministic_max_selected_kinases == 25
-    assert config.adaptive_ensemble_runs == 25
-
-
-def test_kinase_prediction_config_legacy_ensemble_size_rejects_conflicts() -> None:
-    with pytest.raises(
-        WorkflowValidationError,
-        match="cannot be combined with",
-    ):
-        KinasePredictionConfig(
-            ensemble_size=25,
-            adaptive_ensemble_runs=50,
-        )
+def test_kinase_prediction_config_rejects_removed_ensemble_size_alias() -> None:
+    with pytest.raises(TypeError, match="unexpected keyword argument 'ensemble_size'"):
+        KinasePredictionConfig(ensemble_size=25)  # type: ignore[call-arg]
 
 
 @pytest.mark.parametrize(
@@ -397,14 +383,6 @@ def test_kinase_activity_config_self_validates(
             {"max_full_correlation_sites": 0},
             "signalome workflow request config.max_full_correlation_sites",
         ),
-        (
-            {"clustering_backend": "invalid"},
-            "signalome workflow request config.clustering_backend",
-        ),
-        (
-            {"max_exact_clustering_sites": 0},
-            "signalome workflow request config.max_exact_clustering_sites",
-        ),
     ],
 )
 def test_signalome_config_self_validates(
@@ -414,24 +392,17 @@ def test_signalome_config_self_validates(
         SignalomeConfig(**kwargs)  # type: ignore[arg-type]
 
 
-def test_signalome_config_deprecated_clustering_backend_alias_maps_and_warns() -> None:
-    with pytest.warns(
-        DeprecationWarning,
-        match="config.clustering_backend is deprecated",
+def test_signalome_config_rejects_removed_clustering_backend_alias() -> None:
+    with pytest.raises(
+        TypeError,
+        match="unexpected keyword argument 'clustering_backend'",
     ):
-        config = SignalomeConfig(clustering_backend="approximate")
-
-    assert config.cluster_tree_backend == "exact"
-    assert config.candidate_scoring_backend == "sampled"
+        SignalomeConfig(clustering_backend="approximate")  # type: ignore[call-arg]
 
 
-def test_signalome_config_deprecated_max_exact_clustering_sites_maps_and_warns() -> (
-    None
-):
-    with pytest.warns(
-        DeprecationWarning,
-        match="config.max_exact_clustering_sites is deprecated",
+def test_signalome_config_rejects_removed_max_exact_clustering_sites_alias() -> None:
+    with pytest.raises(
+        TypeError,
+        match="unexpected keyword argument 'max_exact_clustering_sites'",
     ):
-        config = SignalomeConfig(max_exact_clustering_sites=1234)
-
-    assert config.max_exact_cluster_tree_sites == 1234
+        SignalomeConfig(max_exact_clustering_sites=1234)  # type: ignore[call-arg]

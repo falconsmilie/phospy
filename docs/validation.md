@@ -49,7 +49,7 @@ Supported aliases are intentionally narrow:
 - `site_sequence`: `site_sequence`, `centralized_sequence`
 - `protein_id`: `protein_id`
 
-Unsupported legacy aliases are rejected, including:
+Unsupported historical aliases are rejected, including:
 
 - `gene`
 - `residue`
@@ -130,11 +130,10 @@ Key public rules:
 - `total_protein_correction.policy="subtract_log_total"` requires:
   - `intensity_transform.policy="log2"`
   - a `total` table aligned to phospho sample columns and site-to-protein mapping
-- `total_protein_correction.policy="ratio_to_total"` is a deprecated alias that resolves to `subtract_log_total`
 - total-protein correction formula in the supported lane:
   `log2(phospho + pseudocount) - log2(total + pseudocount)`
 - `site_matrix.policy="build_from_metadata"` may reduce row count when rows cannot be supported in that lane
-- `site_matrix.minimum_observed_values` is internal-only compatibility state and must remain `None` in the public lane
+- `site_matrix.minimum_observed_values` is internal-only state and must remain `None` in the public lane
 - the public builder lane still ends in a missing-value-free `AnalysisReadyPhosphoDataset`
 - `comparisons.policy="sample_metadata_pairs"` requires matching `sample_metadata` and a usable sample-group column
 - `dataset.preprocessing_report.row_counts` reports stage-level row counts, and `dataset.preprocessing_report.operations` reports stage-level policy/parameter summaries
@@ -213,9 +212,6 @@ This includes:
 - `candidate_scoring_backend` policy values
 - `max_exact_cluster_tree_sites >= 1`
 - `max_full_correlation_sites >= 1`
-
-Deprecated aliases (`clustering_backend`, `max_exact_clustering_sites`) remain
-accepted and are mapped to the split fields with deprecation warnings.
 
 Signalome execution enforces runtime scale guards at the expensive call sites:
 

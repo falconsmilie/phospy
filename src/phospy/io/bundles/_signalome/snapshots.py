@@ -10,7 +10,7 @@ from phospy.api.configs import SignalomeConfig
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import require_mapping
 from phospy.io.bundles._signalome.compatibility import (
-    signalome_config_from_payload_with_compatibility_support,
+    signalome_config_from_payload,
 )
 
 if TYPE_CHECKING:
@@ -63,12 +63,6 @@ class SignalomeWorkflowConfigSnapshot:
                 "max_full_correlation_sites": int(
                     self.signalome_config.max_full_correlation_sites
                 ),
-                "deprecated_clustering_backend_alias": str(
-                    self.signalome_config.clustering_backend
-                ),
-                "deprecated_max_exact_clustering_sites_alias": int(
-                    self.signalome_config.max_exact_clustering_sites
-                ),
                 "module_count": (
                     None
                     if self.signalome_config.module_count is None
@@ -98,7 +92,7 @@ class SignalomeWorkflowConfigSnapshot:
             field_name=f"{scope}.signalome_config",
         )
         return cls(
-            signalome_config=signalome_config_from_payload_with_compatibility_support(
+            signalome_config=signalome_config_from_payload(
                 signalome_payload,
                 scope=scope,
             )

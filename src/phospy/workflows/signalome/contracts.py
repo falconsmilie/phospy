@@ -10,7 +10,6 @@ import pandas as pd
 from phospy.api.configs import (
     SignalomeAssignmentPolicy,
     SignalomeCandidateScoringBackend,
-    SignalomeClusteringBackend,
     SignalomeClusterTreeBackend,
     SignalomeKinaseNetworkPolicy,
     SignalomeScorePreconditioningPolicy,
@@ -42,7 +41,6 @@ class ResolvedSignalomeExecutionConfig:
     candidate_scoring_backend: SignalomeCandidateScoringBackend
     max_exact_cluster_tree_sites: int
     max_full_correlation_sites: int
-    clustering_backend_alias: SignalomeClusteringBackend
     requested_module_count: int | None
 
 

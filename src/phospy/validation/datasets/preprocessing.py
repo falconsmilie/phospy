@@ -13,7 +13,6 @@ from phospy.api.configs import (
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
-    resolve_dataset_total_protein_correction_policy,
 )
 from phospy.errors.input import PhosPyInputError
 
@@ -88,9 +87,7 @@ class DatasetPreprocessingConfigValidator:
         config: DatasetPreprocessingConfig,
     ) -> None:
         requested_policy = config.total_protein_correction.policy
-        resolved_policy = resolve_dataset_total_protein_correction_policy(
-            requested_policy
-        )
+        resolved_policy = requested_policy
         if resolved_policy == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE:
             return
         if (

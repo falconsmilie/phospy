@@ -1,4 +1,4 @@
-"""Isolated migration/compatibility helpers for signalome bundle loading."""
+"""Signalome bundle payload parsing and normalization helpers."""
 
 from __future__ import annotations
 
@@ -9,12 +9,9 @@ from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICIES,
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
     SIGNALOME_CANDIDATE_SCORING_BACKENDS,
     SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
     SIGNALOME_CLUSTER_TREE_BACKENDS,
-    SIGNALOME_CLUSTERING_BACKEND_EXACT,
-    SIGNALOME_CLUSTERING_BACKENDS,
     SIGNALOME_KINASE_NETWORK_POLICIES,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
     SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
@@ -39,25 +36,45 @@ from phospy.signalomes.models import (
     SignalomeModuleSelectionDiagnostics,
     SignalomeNetworkCorrelationDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
-    default_signalome_module_selection_diagnostics,
-    default_signalome_network_correlation_diagnostics,
-    default_signalome_score_preconditioning_diagnostics,
+)
+
+_SIGNALOME_CONFIG_ALLOWED_FIELDS = frozenset(
+    {
+        "substrate_support_cutoff",
+        "network_correlation_threshold",
+        "network_policy",
+        "assignment_policy",
+        "score_preconditioning_policy",
+        "cluster_tree_backend",
+        "candidate_scoring_backend",
+        "max_exact_cluster_tree_sites",
+        "max_full_correlation_sites",
+        "module_count",
+        "module_selection_primary_correlation_threshold",
+        "module_selection_fallback_correlation_threshold",
+        "module_selection_max_clusters",
+    }
 )
 
 
-def signalome_config_from_payload_with_compatibility_support(
+def signalome_config_from_payload(
     payload: Mapping[str, object],
     *,
     scope: str,
 ) -> SignalomeConfig:
-    """Parse signalome config payload with explicit compatibility cutoff fallback."""
+    """Parse signalome config payload."""
 
-    compatibility_cutoff = payload.get("signalome_cutoff")
+    _reject_unsupported_fields(
+        payload,
+        field_name=f"{scope}.signalome_config",
+        allowed_fields=_SIGNALOME_CONFIG_ALLOWED_FIELDS,
+    )
     substrate_support_cutoff = payload.get("substrate_support_cutoff")
     network_correlation_threshold = payload.get("network_correlation_threshold")
-    if substrate_support_cutoff is None and network_correlation_threshold is None:
-        substrate_support_cutoff = compatibility_cutoff
-        network_correlation_threshold = compatibility_cutoff
+    if substrate_support_cutoff is None:
+        substrate_support_cutoff = 0.5
+    if network_correlation_threshold is None:
+        network_correlation_threshold = 0.5
     module_selection_max_clusters_raw = payload.get("module_selection_max_clusters")
     module_selection_max_clusters = (
         SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT
@@ -86,16 +103,12 @@ def signalome_config_from_payload_with_compatibility_support(
             f"{scope}.signalome_config.assignment_policy must be one of: {allowed}"
         )
     network_policy_raw = payload.get("network_policy")
-    network_policy_field = "network_policy"
-    if network_policy_raw is None:
-        network_policy_raw = payload.get("kinase_network_policy")
-        network_policy_field = "kinase_network_policy"
     network_policy = (
         SIGNALOME_KINASE_NETWORK_POLICY_SIGNED
         if network_policy_raw is None
         else require_str(
             network_policy_raw,
-            field_name=f"{scope}.signalome_config.{network_policy_field}",
+            field_name=f"{scope}.signalome_config.network_policy",
         )
     )
     if network_policy not in SIGNALOME_KINASE_NETWORK_POLICIES:
@@ -147,46 +160,7 @@ def signalome_config_from_payload_with_compatibility_support(
             f"{allowed}"
         )
 
-    clustering_backend_raw = payload.get("clustering_backend")
-    if clustering_backend_raw is not None:
-        clustering_backend = require_str(
-            clustering_backend_raw,
-            field_name=f"{scope}.signalome_config.clustering_backend",
-        )
-        if clustering_backend not in SIGNALOME_CLUSTERING_BACKENDS:
-            allowed = ", ".join(sorted(SIGNALOME_CLUSTERING_BACKENDS))
-            raise PhosPyInputError(
-                f"{scope}.signalome_config.clustering_backend must be one of: {allowed}"
-            )
-        mapped_candidate_scoring_backend = (
-            SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
-            if clustering_backend == SIGNALOME_CLUSTERING_BACKEND_EXACT
-            else SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
-        )
-        if (
-            cluster_tree_backend_raw is not None
-            and cluster_tree_backend != SIGNALOME_CLUSTERING_BACKEND_EXACT
-        ):
-            raise PhosPyInputError(
-                f"{scope}.signalome_config.clustering_backend conflicts with "
-                "signalome_config.cluster_tree_backend"
-            )
-        if (
-            candidate_scoring_backend_raw is not None
-            and candidate_scoring_backend != mapped_candidate_scoring_backend
-        ):
-            raise PhosPyInputError(
-                f"{scope}.signalome_config.clustering_backend conflicts with "
-                "signalome_config.candidate_scoring_backend"
-            )
-        if cluster_tree_backend_raw is None:
-            cluster_tree_backend = SIGNALOME_CLUSTERING_BACKEND_EXACT
-        if candidate_scoring_backend_raw is None:
-            candidate_scoring_backend = mapped_candidate_scoring_backend
-
     max_exact_cluster_tree_sites_raw = payload.get("max_exact_cluster_tree_sites")
-    if max_exact_cluster_tree_sites_raw is None:
-        max_exact_cluster_tree_sites_raw = payload.get("max_exact_clustering_sites")
     max_exact_cluster_tree_sites = (
         SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT
         if max_exact_cluster_tree_sites_raw is None
@@ -277,13 +251,11 @@ def signalome_module_selection_diagnostics_to_payload(
     }
 
 
-def signalome_module_selection_diagnostics_from_payload_with_compatibility_support(
+def signalome_module_selection_diagnostics_from_payload(
     payload: object,
     *,
     scope: str,
 ) -> SignalomeModuleSelectionDiagnostics:
-    if payload is None:
-        return default_signalome_module_selection_diagnostics()
     diagnostics_payload = require_mapping(
         payload,
         field_name=f"{scope}.module_selection_diagnostics",
@@ -388,13 +360,11 @@ def signalome_score_preconditioning_diagnostics_to_payload(
     }
 
 
-def signalome_score_preconditioning_diagnostics_from_payload_with_compatibility_support(
+def signalome_score_preconditioning_diagnostics_from_payload(
     payload: object,
     *,
     scope: str,
 ) -> SignalomeScorePreconditioningDiagnostics:
-    if payload is None:
-        return default_signalome_score_preconditioning_diagnostics()
     diagnostics_payload = require_mapping(
         payload,
         field_name=f"{scope}.score_preconditioning_diagnostics",
@@ -463,13 +433,11 @@ def signalome_network_correlation_diagnostics_to_payload(
     }
 
 
-def signalome_network_correlation_diagnostics_from_payload_with_compatibility_support(
+def signalome_network_correlation_diagnostics_from_payload(
     payload: object,
     *,
     scope: str,
 ) -> SignalomeNetworkCorrelationDiagnostics:
-    if payload is None:
-        return default_signalome_network_correlation_diagnostics()
     diagnostics_payload = require_mapping(
         payload,
         field_name=f"{scope}.network_correlation_diagnostics",
@@ -531,7 +499,7 @@ def signalome_network_correlation_diagnostics_from_payload_with_compatibility_su
 
 
 def normalize_module_assignments_table(table):
-    """Normalize compatibility tuple/list/dict-serialized signalome assignment fields."""
+    """Normalize tuple/list/dict-serialized signalome assignment fields."""
 
     normalized = table.copy(deep=True)
     candidate_columns = [
@@ -634,3 +602,17 @@ def _require_int(value: object, *, field_name: str) -> int:
     if isinstance(value, float) and float(value).is_integer():
         return int(value)
     raise PhosPyInputError(f"{field_name} must be an int")
+
+
+def _reject_unsupported_fields(
+    payload: Mapping[str, object],
+    *,
+    field_name: str,
+    allowed_fields: frozenset[str],
+) -> None:
+    unknown_fields = sorted(
+        str(key) for key in payload.keys() if str(key) not in allowed_fields
+    )
+    if unknown_fields:
+        unknown = ", ".join(unknown_fields)
+        raise PhosPyInputError(f"{field_name} contains unsupported field(s): {unknown}")
