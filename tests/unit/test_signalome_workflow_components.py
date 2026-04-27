@@ -413,6 +413,7 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     scale_guard = provenance.workflow_parameters["scale_guard"]
     assert "cluster_tree_backend" in scale_guard
     assert "candidate_scoring_backend" in scale_guard
+    assert "candidate_scoring_requested_backend" in scale_guard
     assert "exact_cluster_tree_built" in scale_guard
     assert "candidate_scoring_mode" in scale_guard
     output_names = {fingerprint.name for fingerprint in provenance.output_tables}

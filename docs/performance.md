@@ -101,12 +101,16 @@ Behavior:
   implementation,
 - candidate-scoring mode and exact-tree construction are recorded in
   provenance (`workflow_parameters.scale_guard`),
+- provenance records requested backend separately as
+  `candidate_scoring_requested_backend`,
 - provenance also records whether candidate scoring was evaluated
   (`candidate_scoring_evaluated`) and why it was skipped when not evaluated
   (`candidate_scoring_skip_reason`, for example `explicit_module_count`),
 - sampled runs also record `candidate_scoring_sampling` provenance
   (`sampling_cap`, `sampling_method`, `deterministic_seed_policy`,
   `actual_sampled_pair_count`, and per-cluster sample-count summary),
+- explicit `module_count` runs skip candidate scoring entirely and record
+  `candidate_scoring_sampling=None`,
 - `tests/performance/test_performance_contracts.py` keeps a lightweight contract
   test that intentionally stubs the internal exact cluster-tree builder to isolate
   module-selection correlation-path behavior,

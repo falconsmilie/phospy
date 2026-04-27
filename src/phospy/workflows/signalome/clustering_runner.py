@@ -8,10 +8,6 @@ import pandas as pd
 
 from phospy.errors.workflows import WorkflowStageError
 from phospy.signalomes.clustering import (
-    MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-    SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
-    SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY,
     ClusterSitesResult,
     cluster_sites_with_diagnostics,
     derive_protein_modules,
@@ -116,30 +112,11 @@ class SignalomeClusteringRunner:
         site_count: int,
         clustering_result: ClusterSitesResult,
     ) -> SignalomeScaleGuardDecision:
-        candidate_scoring_sampling = clustering_result.candidate_scoring_sampling
-        if (
-            candidate_scoring_sampling is None
-            and str(config.candidate_scoring_backend)
-            == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
-        ):
-            candidate_scoring_sampling = {
-                "sampling_cap": int(MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER),
-                "sampling_method": SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
-                "deterministic_seed_policy": (
-                    SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY
-                ),
-                "actual_sampled_pair_count": 0,
-                "per_cluster_sample_count_summary": {
-                    "min": 0,
-                    "max": 0,
-                    "mean": 0.0,
-                    "total": 0,
-                },
-            }
         return SignalomeScaleGuardDecision(
             site_count=int(site_count),
             cluster_tree_backend=str(config.cluster_tree_backend),
             candidate_scoring_backend=str(config.candidate_scoring_backend),
+            candidate_scoring_requested_backend=str(config.candidate_scoring_backend),
             max_exact_cluster_tree_sites=int(config.max_exact_cluster_tree_sites),
             max_full_correlation_sites=int(config.max_full_correlation_sites),
             exact_cluster_tree_built=bool(clustering_result.exact_cluster_tree_built),
@@ -152,7 +129,7 @@ class SignalomeClusteringRunner:
                 if clustering_result.candidate_scoring_skip_reason is None
                 else str(clustering_result.candidate_scoring_skip_reason)
             ),
-            candidate_scoring_sampling=candidate_scoring_sampling,
+            candidate_scoring_sampling=clustering_result.candidate_scoring_sampling,
             scale_guard_passed=True,
         )
 

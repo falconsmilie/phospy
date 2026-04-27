@@ -135,6 +135,9 @@ class SignalomeProvenanceBuilder:
                     "candidate_scoring_backend": str(
                         scale_guard_decision.candidate_scoring_backend
                     ),
+                    "candidate_scoring_requested_backend": str(
+                        scale_guard_decision.candidate_scoring_requested_backend
+                    ),
                     "max_exact_cluster_tree_sites": int(
                         scale_guard_decision.max_exact_cluster_tree_sites
                     ),

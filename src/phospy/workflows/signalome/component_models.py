@@ -28,6 +28,7 @@ class SignalomeScaleGuardDecision:
     site_count: int
     cluster_tree_backend: str
     candidate_scoring_backend: str
+    candidate_scoring_requested_backend: str
     max_exact_cluster_tree_sites: int
     max_full_correlation_sites: int
     exact_cluster_tree_built: bool

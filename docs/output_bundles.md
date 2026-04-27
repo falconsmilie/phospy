@@ -139,6 +139,7 @@ bundle field-path error.
 - workflow parameters and random-state policy
   - signalome runs include `workflow_parameters.scale_guard` with
     `site_count`, `cluster_tree_backend`, `candidate_scoring_backend`,
+    `candidate_scoring_requested_backend`,
     `max_exact_cluster_tree_sites`, `max_full_correlation_sites`,
     `exact_cluster_tree_built`, `candidate_scoring_mode`,
     `candidate_scoring_evaluated`, `candidate_scoring_skip_reason`,
@@ -146,7 +147,9 @@ bundle field-path error.
     `final_module_assignment_backend`,
     `final_module_assignment_uses_candidate_scoring`, and
     `scale_guard_passed`
-  - for `candidate_scoring_backend="sampled"`,
+  - `candidate_scoring_requested_backend` records the configured backend, while
+    `candidate_scoring_mode` records what was actually evaluated
+  - when sampled candidate scoring actually runs,
     `workflow_parameters.scale_guard.candidate_scoring_sampling` records
     `sampling_cap`, `sampling_method`, `deterministic_seed_policy`,
     `actual_sampled_pair_count`, and
@@ -155,7 +158,8 @@ bundle field-path error.
     `candidate_module_count_evaluation_only`; sampled candidate scoring does
     not make cluster-tree construction or final module assignment approximate
   - explicit `module_count` runs record `candidate_scoring_evaluated=false`
-    with `candidate_scoring_skip_reason="explicit_module_count"`
+    with `candidate_scoring_skip_reason="explicit_module_count"` and
+    `candidate_scoring_sampling=null`
 
 Legacy bundles without top-level `provenance` remain loadable; loaders reconstruct
 results with `result.provenance=None` for those manifests.

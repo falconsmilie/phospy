@@ -132,6 +132,7 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert scale_guard["site_count"] >= 1
     assert scale_guard["cluster_tree_backend"] == "exact"
     assert scale_guard["candidate_scoring_backend"] == "full"
+    assert scale_guard["candidate_scoring_requested_backend"] == "full"
     assert scale_guard["max_exact_cluster_tree_sites"] == 2000
     assert scale_guard["max_full_correlation_sites"] == 2000
     assert scale_guard["scale_guard_passed"] is True

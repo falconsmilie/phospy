@@ -820,6 +820,9 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         "site_count": 2,
         "cluster_tree_backend": SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
         "candidate_scoring_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        "candidate_scoring_requested_backend": (
+            SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+        ),
         "max_exact_cluster_tree_sites": SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
         "max_full_correlation_sites": SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
         "exact_cluster_tree_built": True,
@@ -908,9 +911,7 @@ def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
     assert int(per_cluster_summary["total"]) >= int(per_cluster_summary["max"])
 
 
-def test_sampled_backend_records_zero_sampling_provenance_when_scoring_not_evaluated() -> (
-    None
-):
+def test_explicit_module_count_skips_sampled_candidate_scoring_in_provenance() -> None:
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
     prediction_matrix = _matrix(
@@ -949,39 +950,29 @@ def test_sampled_backend_records_zero_sampling_provenance_when_scoring_not_evalu
     result = SignalomeWorkflowExecutor().run(interpreted)
 
     assert result.provenance is not None
-    sampled = result.provenance.workflow_parameters["scale_guard"][
-        "candidate_scoring_sampling"
-    ]
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
-    assert (
-        scale_guard["candidate_scoring_mode"]
-        == SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
-    )
-    assert scale_guard["candidate_scoring_evaluated"] is False
-    assert (
-        scale_guard["candidate_scoring_skip_reason"]
-        == SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
-    )
-    assert (
-        scale_guard["candidate_scoring_applies_to"]
-        == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
-    )
-    assert (
-        scale_guard["final_module_assignment_backend"]
-        == SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
-    )
-    assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
-    assert sampled == {
-        "sampling_cap": MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
-        "sampling_method": SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
-        "deterministic_seed_policy": (SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY),
-        "actual_sampled_pair_count": 0,
-        "per_cluster_sample_count_summary": {
-            "min": 0,
-            "max": 0,
-            "mean": 0.0,
-            "total": 0,
-        },
+    assert scale_guard == {
+        "site_count": 3,
+        "cluster_tree_backend": SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+        "candidate_scoring_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+        "candidate_scoring_requested_backend": (
+            SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        ),
+        "max_exact_cluster_tree_sites": SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
+        "max_full_correlation_sites": SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
+        "exact_cluster_tree_built": False,
+        "candidate_scoring_mode": SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
+        "candidate_scoring_evaluated": False,
+        "candidate_scoring_skip_reason": (
+            SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
+        ),
+        "candidate_scoring_sampling": None,
+        "candidate_scoring_applies_to": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
+        "final_module_assignment_backend": (
+            SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
+        ),
+        "final_module_assignment_uses_candidate_scoring": False,
+        "scale_guard_passed": True,
     }
 
 
@@ -1025,25 +1016,27 @@ def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> Non
 
     assert result.provenance is not None
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
-    assert (
-        scale_guard["candidate_scoring_mode"]
-        == SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
-    )
-    assert scale_guard["candidate_scoring_evaluated"] is False
-    assert (
-        scale_guard["candidate_scoring_skip_reason"]
-        == SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
-    )
-    assert scale_guard["candidate_scoring_sampling"] is None
-    assert (
-        scale_guard["candidate_scoring_applies_to"]
-        == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
-    )
-    assert (
-        scale_guard["final_module_assignment_backend"]
-        == SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
-    )
-    assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
+    assert scale_guard == {
+        "site_count": 3,
+        "cluster_tree_backend": SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+        "candidate_scoring_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        "candidate_scoring_requested_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        "max_exact_cluster_tree_sites": SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
+        "max_full_correlation_sites": SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
+        "exact_cluster_tree_built": False,
+        "candidate_scoring_mode": SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
+        "candidate_scoring_evaluated": False,
+        "candidate_scoring_skip_reason": (
+            SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
+        ),
+        "candidate_scoring_sampling": None,
+        "candidate_scoring_applies_to": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
+        "final_module_assignment_backend": (
+            SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
+        ),
+        "final_module_assignment_uses_candidate_scoring": False,
+        "scale_guard_passed": True,
+    }
 
 
 @pytest.mark.parametrize(
