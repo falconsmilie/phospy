@@ -640,12 +640,30 @@ def _compute_candidate_cluster_scores(
             candidate_scoring_sampling=None,
         )
 
+    resolved_max_exact_cluster_tree_sites = _resolve_max_exact_cluster_tree_sites(
+        max_exact_cluster_tree_sites
+    )
+    if (
+        candidate_scoring_backend == SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+        and n_sites > int(max_full_correlation_sites)
+        and n_sites <= int(resolved_max_exact_cluster_tree_sites)
+    ):
+        raise SignalomeScaleError(
+            "Signalome full candidate-correlation scoring would evaluate "
+            f"{n_sites:,} sites, which exceeds configured "
+            f"max_full_correlation_sites={int(max_full_correlation_sites):,}. "
+            "Exact cluster-tree construction has not been attempted for this "
+            "request. Use candidate_scoring_backend='sampled' for candidate "
+            "module-count evaluation, reduce interpreted sites, or increase "
+            "max_full_correlation_sites deliberately."
+        )
+
     cluster_tree = _build_exact_cluster_tree_with_guard(
         clustering_values=clustering_values,
         n_sites=n_sites,
         cluster_tree_backend=cluster_tree_backend,
         candidate_scoring_backend=candidate_scoring_backend,
-        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
+        max_exact_cluster_tree_sites=resolved_max_exact_cluster_tree_sites,
     )
     candidate_labels = build_cluster_labels_from_tree(
         cluster_tree=cluster_tree,
@@ -654,14 +672,6 @@ def _compute_candidate_cluster_scores(
     exact_cluster_tree_built = n_sites > 1
 
     if candidate_scoring_backend == SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL:
-        if n_sites > int(max_full_correlation_sites):
-            raise SignalomeScaleError(
-                "Signalome full candidate-correlation scoring received "
-                f"{n_sites:,} sites, which exceeds max_full_correlation_sites="
-                f"{int(max_full_correlation_sites):,}. "
-                "Use candidate_scoring_backend='sampled', reduce interpreted "
-                "sites, or increase max_full_correlation_sites deliberately."
-            )
         site_correlations = build_correlation_matrix_with_exclusions(
             correlation_values,
             excluded_mask=profile_degeneracy.excluded_mask,

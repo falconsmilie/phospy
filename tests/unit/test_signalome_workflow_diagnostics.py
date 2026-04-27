@@ -1329,6 +1329,21 @@ def test_full_candidate_scoring_over_full_correlation_limit_fails_early(
         ),
     )
 
+    tree_calls: list[str] = []
+
+    def _build_tree_should_not_run(scoring_values: object) -> object:
+        del scoring_values
+        tree_calls.append("called")
+        raise AssertionError(
+            "_build_cluster_tree should not run when full-correlation guard fails"
+        )
+
+    monkeypatch.setattr(
+        clustering_module,
+        "_build_cluster_tree",
+        _build_tree_should_not_run,
+    )
+
     full_correlation_calls: list[str] = []
 
     def _full_correlation_should_not_run(
@@ -1355,10 +1370,12 @@ def test_full_candidate_scoring_over_full_correlation_limit_fails_early(
         )
 
     message = str(exc_info.value).lower()
-    assert "full candidate-correlation scoring received" in message
+    assert "full candidate-correlation scoring would evaluate" in message
     assert "max_full_correlation_sites=2" in message
     assert "use candidate_scoring_backend='sampled'" in message
+    assert "exact cluster-tree construction has not been attempted" in message
     assert full_correlation_calls == []
+    assert tree_calls == []
 
 
 def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_gene_symbol() -> (
