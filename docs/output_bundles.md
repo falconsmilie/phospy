@@ -75,6 +75,16 @@ Signalome manifest:
 Both manifests store dataset organism, full `intensity_scale_state` payload,
 and full `processing_state` payload.
 
+`intensity_scale_state` persists both:
+
+- numeric intensity scale (`linear`/`log2`)
+- quantitative meaning (`phosphosite_abundance`,
+  `phosphosite_log_abundance`, `phospho_total_log_ratio`, `unknown`)
+
+Example: after subtractive total-protein correction, bundles keep
+`intensity_scale_state.label == "log2"` and persist
+`intensity_scale_state.quantity == "phospho_total_log_ratio"`.
+
 For `processing_state.total_protein_correction`, persisted fields include:
 
 - `policy`
@@ -105,6 +115,11 @@ Legacy bundles that store only minimal
 `processing_state.total_protein_correction` payloads (`policy`, `applied`) also
 remain loadable. Missing expanded correction fields are restored as safe
 unknowns (`None`) rather than inferred.
+
+Legacy manifests without `intensity_scale_state.quantity` remain loadable.
+Loaders infer quantity only when provenance is unambiguous (for example,
+`policy="subtract_log_total"` with `applied=true` infers
+`phospho_total_log_ratio`); otherwise quantity falls back to `unknown`.
 
 ## Bundle Contents (Default CSV Layout)
 

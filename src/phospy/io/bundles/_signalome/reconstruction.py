@@ -61,6 +61,15 @@ def reconstruct_signalome_result(
         )
         if isinstance(upstream_raw, Mapping):
             upstream_kinase_provenance = provenance_from_payload(upstream_raw)
+    processing_state_payload = require_mapping(
+        sections.dataset_metadata.get("processing_state"),
+        field_name="bundle manifest.dataset.metadata.processing_state",
+    )
+    processing_state = processing_state_from_payload(processing_state_payload)
+    intensity_scale_payload = require_mapping(
+        sections.dataset_metadata.get("intensity_scale_state"),
+        field_name="bundle manifest.dataset.metadata.intensity_scale_state",
+    )
 
     dataset = AnalysisReadyPhosphoDataset(
         phospho=read_required_table(
@@ -92,17 +101,10 @@ def reconstruct_signalome_result(
             field_name="bundle manifest.dataset.metadata.organism",
         ),
         intensity_scale_state=intensity_scale_state_from_payload(
-            require_mapping(
-                sections.dataset_metadata.get("intensity_scale_state"),
-                field_name="bundle manifest.dataset.metadata.intensity_scale_state",
-            )
+            intensity_scale_payload,
+            fallback_quantity=processing_state.intensity_scale.quantity,
         ),
-        processing_state=processing_state_from_payload(
-            require_mapping(
-                sections.dataset_metadata.get("processing_state"),
-                field_name="bundle manifest.dataset.metadata.processing_state",
-            )
-        ),
+        processing_state=processing_state,
     )
 
     references = ReferenceBundle(

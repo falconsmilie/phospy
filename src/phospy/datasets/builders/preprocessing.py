@@ -40,7 +40,11 @@ from phospy.datasets.processing_state import (
     SiteMatrixState,
     TotalProteinCorrectionState,
 )
-from phospy.transformations.models import IntensityScaleState
+from phospy.transformations.models import (
+    IntensityScaleKind,
+    IntensityScaleState,
+    QuantitativeMeaning,
+)
 
 _PREPROCESSING_INPUT_STAGE = "preprocessing_input"
 _PREPROCESSING_COMPLETE_STAGE = "preprocessing_complete"
@@ -150,6 +154,11 @@ def build_dataset_processing_state(
     correction_diagnostics = _resolve_total_correction_diagnostics(
         preprocessing_trace=preprocessing_trace
     )
+    intensity_scale_state = _resolve_quantitative_meaning_state(
+        intensity_scale_state=intensity_scale_state,
+        total_correction_policy=resolved_total_policy,
+        correction_diagnostics=correction_diagnostics,
+    )
     default_formula = (
         "log2_phospho - log2_total"
         if resolved_total_policy
@@ -168,6 +177,17 @@ def build_dataset_processing_state(
         if resolved_total_policy
         == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
         else None
+    )
+    default_output_quantity = (
+        QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO.value
+        if resolved_total_policy
+        == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
+        else None
+    )
+    correction_diagnostics = _with_default_string_diagnostic(
+        correction_diagnostics,
+        key="output_quantity",
+        default=default_output_quantity,
     )
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state,
@@ -269,6 +289,59 @@ def _resolve_optional_bool_diagnostic(
     if isinstance(value, bool):
         return value
     return default
+
+
+def _with_default_string_diagnostic(
+    diagnostics: dict[str, object] | None,
+    *,
+    key: str,
+    default: str | None,
+) -> dict[str, object] | None:
+    if diagnostics is None:
+        if default is None:
+            return None
+        return {key: default}
+    resolved = dict(diagnostics)
+    value = resolved.get(key)
+    if value is None and default is not None:
+        resolved[key] = default
+    return resolved
+
+
+def _resolve_quantitative_meaning_state(
+    *,
+    intensity_scale_state: IntensityScaleState,
+    total_correction_policy: str,
+    correction_diagnostics: dict[str, object] | None,
+) -> IntensityScaleState:
+    output_quantity = _resolve_optional_string_diagnostic(
+        correction_diagnostics,
+        key="output_quantity",
+        default=None,
+    )
+    if output_quantity is not None:
+        try:
+            return intensity_scale_state.with_quantitative_meaning(
+                QuantitativeMeaning(output_quantity)
+            )
+        except ValueError:
+            pass
+    if (
+        total_correction_policy
+        == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
+    ):
+        return intensity_scale_state.with_quantitative_meaning(
+            QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO
+        )
+    if intensity_scale_state.kind is IntensityScaleKind.LINEAR:
+        return intensity_scale_state.with_quantitative_meaning(
+            QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE
+        )
+    if intensity_scale_state.kind is IntensityScaleKind.LOG2:
+        return intensity_scale_state.with_quantitative_meaning(
+            QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE
+        )
+    return intensity_scale_state.with_quantitative_meaning(QuantitativeMeaning.UNKNOWN)
 
 
 def _build_preprocessing_provenance_tables(

@@ -19,6 +19,9 @@ from phospy.errors.validation import TransformationValidationError
 from phospy.io.bundles._shared.intensity_scale_state import (
     intensity_scale_state_from_payload,
 )
+from phospy.io.bundles._shared.processing_state import (
+    processing_state_from_payload,
+)
 from phospy.references.models import Organism
 from phospy.transformations.contracts import TransformationResult
 from phospy.transformations.models import (
@@ -304,3 +307,87 @@ def test_bundle_reconstruction_lane_establishes_state() -> None:
 
     assert state.is_established
     assert state.established_via == "phospy.io.bundles._shared.intensity_scale_state"
+
+
+def test_processing_state_legacy_payload_infers_safe_quantitative_meaning() -> None:
+    payload = {
+        "intensity_scale": {
+            "phospho": {
+                "kind": "log2",
+                "transformed": True,
+                "established_by": "bundle.fixture",
+            },
+            "total": {
+                "kind": "log2",
+                "transformed": True,
+                "established_by": "bundle.fixture",
+            },
+        },
+        "missing_data": {
+            "policy": "forbid",
+            "min_observed_values": None,
+            "complete_matrix": True,
+            "imputed": False,
+        },
+        "normalisation": {"policy": "none"},
+        "total_protein_correction": {
+            "policy": "subtract_log_total",
+            "applied": True,
+        },
+        "site_matrix": {
+            "policy": "as_input",
+            "constructed": False,
+            "missing_data_policy": "drop_any_missing",
+            "minimum_observed_values": None,
+            "duplicate_site_policy": "max_mean_signal",
+        },
+        "comparisons": {
+            "policy": "none",
+            "sample_group_column": "comparison_group",
+            "pairs": None,
+        },
+    }
+
+    state = processing_state_from_payload(payload)
+
+    assert state.intensity_scale.quantity.value == "phospho_total_log_ratio"
+
+
+def test_processing_state_legacy_payload_uses_unknown_when_ambiguous() -> None:
+    payload = {
+        "intensity_scale": {
+            "phospho": {
+                "kind": "log2",
+                "transformed": True,
+                "established_by": "bundle.fixture",
+            },
+            "total": None,
+        },
+        "missing_data": {
+            "policy": "forbid",
+            "min_observed_values": None,
+            "complete_matrix": True,
+            "imputed": False,
+        },
+        "normalisation": {"policy": "none"},
+        "total_protein_correction": {
+            "policy": "custom_policy",
+            "applied": True,
+        },
+        "site_matrix": {
+            "policy": "as_input",
+            "constructed": False,
+            "missing_data_policy": "drop_any_missing",
+            "minimum_observed_values": None,
+            "duplicate_site_policy": "max_mean_signal",
+        },
+        "comparisons": {
+            "policy": "none",
+            "sample_group_column": "comparison_group",
+            "pairs": None,
+        },
+    }
+
+    state = processing_state_from_payload(payload)
+
+    assert state.intensity_scale.quantity.value == "unknown"

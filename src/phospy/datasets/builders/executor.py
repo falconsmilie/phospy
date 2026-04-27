@@ -115,6 +115,7 @@ class DatasetBuildExecutor:
                 intensity_scale_state=resolved.intensity_scale_state,
                 preprocessing_trace=preprocessed.preprocessing_trace,
             )
+            intensity_scale_state = processing_state.intensity_scale
             report = _build_dataset_preprocessing_report(
                 row_counts=preprocessed.preprocessing_row_counts,
                 operations=preprocessed.preprocessing_operations,
@@ -124,7 +125,8 @@ class DatasetBuildExecutor:
                 comparison_group_stats=preprocessed.comparison_group_stats,
                 comparison_pair_stats=preprocessed.comparison_pair_stats,
                 final_dataset_rows=int(len(resolved.phospho.index)),
-                intensity_scale_label=resolved.intensity_scale_state.label,
+                intensity_scale_label=intensity_scale_state.label,
+                quantitative_meaning=intensity_scale_state.quantity.value,
             )
             provenance = _build_dataset_run_provenance(
                 request=request,
@@ -132,7 +134,8 @@ class DatasetBuildExecutor:
                 resolved_phospho=resolved.phospho,
                 resolved_total=resolved.total,
                 preprocessing_trace=preprocessed.preprocessing_trace,
-                intensity_scale_label=resolved.intensity_scale_state.label,
+                intensity_scale_label=intensity_scale_state.label,
+                quantitative_meaning=intensity_scale_state.quantity.value,
             )
             return AnalysisReadyPhosphoDataset._from_owned(
                 phospho=resolved.phospho,
@@ -141,7 +144,7 @@ class DatasetBuildExecutor:
                 total=resolved.total,
                 comparisons=preprocessed.comparisons,
                 organism=request.organism,
-                intensity_scale_state=resolved.intensity_scale_state,
+                intensity_scale_state=intensity_scale_state,
                 processing_state=processing_state,
                 preprocessing_report=report,
                 provenance=provenance,
@@ -170,6 +173,7 @@ def _build_dataset_preprocessing_report(
     comparison_pair_stats: pd.DataFrame | None,
     final_dataset_rows: int,
     intensity_scale_label: str,
+    quantitative_meaning: str,
 ) -> DatasetPreprocessingReport:
     row_count_rows = list(row_count_rows_from_dataframe(row_counts))
     operation_rows = list(operation_rows_from_dataframe(operations))
@@ -202,7 +206,10 @@ def _build_dataset_preprocessing_report(
             step_order=final_step_order,
             stage=_FINAL_DATASET_STAGE,
             operation="construct_analysis_ready_dataset",
-            parameters={"intensity_scale_label": intensity_scale_label},
+            parameters={
+                "intensity_scale_label": intensity_scale_label,
+                "quantitative_meaning": quantitative_meaning,
+            },
             input_rows=final_dataset_rows,
             output_rows=final_dataset_rows,
             notes="analysis-ready dataset boundary construction",
@@ -238,6 +245,7 @@ def _build_dataset_run_provenance(
     resolved_total: pd.DataFrame | None,
     preprocessing_trace: tuple[PreprocessingStageExecution, ...] | None,
     intensity_scale_label: str,
+    quantitative_meaning: str,
 ) -> RunProvenance:
     input_tables = _collect_fingerprints(
         (
@@ -265,6 +273,7 @@ def _build_dataset_run_provenance(
         workflow_parameters={
             "preprocessing_plan": asdict(request.preprocessing_plan),
             "intensity_scale_label": intensity_scale_label,
+            "quantitative_meaning": quantitative_meaning,
         },
         random_state=None,
         random_seed_policy=None,

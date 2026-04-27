@@ -49,6 +49,7 @@ def publish_dataset(
         {
             "organism": None if dataset.organism is None else dataset.organism.value,
             "intensity_scale": dataset.intensity_scale_state.label,
+            "quantitative_meaning": dataset.intensity_scale_state.quantity.value,
             "processing_state": processing_state_to_payload(dataset.processing_state),
             "output_format": output_format,
             "provenance": (

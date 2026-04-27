@@ -244,6 +244,7 @@ def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> No
     pdt.assert_frame_equal(built.total, expected_total)
     assert built.intensity_scale_state.label == "log2"
     assert built.intensity_scale_state.kind.value == "log2"
+    assert built.intensity_scale_state.quantity.value == "phospho_total_log_ratio"
     assert (
         built.processing_state.total_protein_correction.policy == "subtract_log_total"
     )
@@ -255,9 +256,14 @@ def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> No
     assert built.processing_state.total_protein_correction.requires_log_scale is True
     assert built.processing_state.total_protein_correction.input_scale == "log2"
     assert built.processing_state.total_protein_correction.output_scale == "log2_ratio"
+    assert (
+        built.processing_state.intensity_scale.quantity.value
+        == "phospho_total_log_ratio"
+    )
     correction_diagnostics = (
         built.processing_state.total_protein_correction.diagnostics or {}
     )
+    assert correction_diagnostics.get("output_quantity") == "phospho_total_log_ratio"
     assert correction_diagnostics.get("matched_rows") == 3
     assert isinstance(correction_diagnostics.get("input_phospho_hash"), str)
     assert isinstance(correction_diagnostics.get("output_phospho_hash"), str)
@@ -290,9 +296,21 @@ def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> No
     assert diagnostics["requires_log_scale"] is True
     assert diagnostics["input_scale"] == "log2"
     assert diagnostics["output_scale"] == "log2_ratio"
+    assert diagnostics["output_quantity"] == "phospho_total_log_ratio"
     assert isinstance(diagnostics.get("total_table_hash"), str)
     assert isinstance(diagnostics.get("input_phospho_hash"), str)
     assert isinstance(diagnostics.get("output_phospho_hash"), str)
+    final_operation = operations.loc[
+        operations.loc[:, "stage"] == "final_dataset_construction"
+    ].iloc[0]
+    assert final_operation["parameters"]["quantitative_meaning"] == (
+        "phospho_total_log_ratio"
+    )
+    assert built.provenance is not None
+    assert (
+        built.provenance.workflow_parameters.get("quantitative_meaning")
+        == "phospho_total_log_ratio"
+    )
 
 
 def test_dataset_builder_requires_total_when_subtract_log_total_is_requested() -> None:
@@ -1017,6 +1035,7 @@ def test_dataset_builder_log2_preprocessing_records_operation_and_state() -> Non
     )
 
     assert built.intensity_scale_state.label == "log2"
+    assert built.intensity_scale_state.quantity.value == "phosphosite_log_abundance"
     assert built.preprocessing_report is not None
     operations = built.preprocessing_report.operations
     log2_operation = operations.loc[
@@ -1027,6 +1046,71 @@ def test_dataset_builder_log2_preprocessing_records_operation_and_state() -> Non
     assert log2_operation.iloc[0]["operation"] == "log2"
     assert log2_operation.iloc[0]["parameters"] == {"pseudocount": 1.0}
     assert built.processing_state.intensity_scale == built.intensity_scale_state
+
+
+def test_dataset_builder_distinguishes_corrected_vs_uncorrected_log2_quantity() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [15.0],
+            "sample_b": [31.0],
+        },
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["SEQ_A"],
+        },
+        index=phospho.index.copy(),
+    )
+    total = pd.DataFrame(
+        {
+            "sample_a": [3.0],
+            "sample_b": [7.0],
+        },
+        index=pd.Index(["MAPK14"], name="protein_id"),
+    )
+
+    uncorrected = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                )
+            ),
+        )
+    )
+    corrected = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            total=total,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+                total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                    policy="subtract_log_total"
+                ),
+            ),
+        )
+    )
+
+    assert uncorrected.intensity_scale_state.label == "log2"
+    assert corrected.intensity_scale_state.label == "log2"
+    assert (
+        uncorrected.intensity_scale_state.quantity.value == "phosphosite_log_abundance"
+    )
+    assert corrected.intensity_scale_state.quantity.value == "phospho_total_log_ratio"
+    assert (
+        uncorrected.intensity_scale_state.quantity
+        != corrected.intensity_scale_state.quantity
+    )
 
 
 def test_dataset_builder_median_center_preprocessing_records_operation() -> None:

@@ -23,6 +23,7 @@ from phospy.io.bundles._shared.primitives import (
     require_mapping,
     require_str,
 )
+from phospy.transformations.models import QuantitativeMeaning
 
 
 def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, object]:
@@ -94,6 +95,10 @@ def processing_state_from_payload(
         payload.get("comparisons"),
         field_name="dataset.metadata.processing_state.comparisons",
     )
+    intensity_scale_payload = require_mapping(
+        payload.get("intensity_scale"),
+        field_name="dataset.metadata.processing_state.intensity_scale",
+    )
     minimum_observed_values = _require_optional_int(
         missing_data_payload.get("min_observed_values"),
         field_name="dataset.metadata.processing_state.missing_data.min_observed_values",
@@ -117,12 +122,15 @@ def processing_state_from_payload(
     else:
         # Legacy minimal payloads encoded only policy/applied.
         requires_log_scale = False if not correction_applied else None
+    inferred_quantity = _infer_legacy_quantitative_meaning(
+        intensity_scale_payload=intensity_scale_payload,
+        correction_payload=correction_payload,
+        correction_applied=correction_applied,
+    )
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state_from_payload(
-            require_mapping(
-                payload.get("intensity_scale"),
-                field_name="dataset.metadata.processing_state.intensity_scale",
-            )
+            intensity_scale_payload,
+            fallback_quantity=inferred_quantity,
         ),
         missing_data=MissingDataState(
             policy=require_str(
@@ -286,3 +294,43 @@ def _parse_optional_pairs(
             )
         parsed.append((left, right))
     return tuple(parsed)
+
+
+def _infer_legacy_quantitative_meaning(
+    *,
+    intensity_scale_payload: Mapping[str, object],
+    correction_payload: Mapping[str, object],
+    correction_applied: bool,
+) -> QuantitativeMeaning:
+    if "quantity" in intensity_scale_payload:
+        return QuantitativeMeaning.UNKNOWN
+    correction_policy = _require_optional_str(
+        correction_payload.get("policy"),
+        field_name="dataset.metadata.processing_state.total_protein_correction.policy",
+    )
+    correction_output_scale = _require_optional_str(
+        correction_payload.get("output_scale"),
+        field_name=(
+            "dataset.metadata.processing_state.total_protein_correction.output_scale"
+        ),
+    )
+    if correction_applied and (
+        correction_policy == "subtract_log_total"
+        or correction_output_scale == "log2_ratio"
+    ):
+        return QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO
+    if correction_applied:
+        return QuantitativeMeaning.UNKNOWN
+    phospho_payload = require_mapping(
+        intensity_scale_payload.get("phospho"),
+        field_name="dataset.metadata.processing_state.intensity_scale.phospho",
+    )
+    kind = _require_optional_str(
+        phospho_payload.get("kind"),
+        field_name="dataset.metadata.processing_state.intensity_scale.phospho.kind",
+    )
+    if kind == "linear":
+        return QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE
+    if kind == "log2":
+        return QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE
+    return QuantitativeMeaning.UNKNOWN

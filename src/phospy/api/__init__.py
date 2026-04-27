@@ -71,6 +71,7 @@ from phospy.transformations.models import (
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
+    QuantitativeMeaning,
 )
 
 __all__ = [
@@ -103,6 +104,7 @@ __all__ = [
     "IntensityScaleKind",
     "IntensityScaleState",
     "MatrixIntensityScaleState",
+    "QuantitativeMeaning",
     "ReferenceBundle",
     "ReferencePreset",
     "SignalomeConfig",

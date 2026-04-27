@@ -25,6 +25,15 @@ class IntensityScaleKind(str, Enum):
     LOG2 = "log2"
 
 
+class QuantitativeMeaning(str, Enum):
+    """Scientific interpretation of phospho matrix values."""
+
+    PHOSPHOSITE_ABUNDANCE = "phosphosite_abundance"
+    PHOSPHOSITE_LOG_ABUNDANCE = "phosphosite_log_abundance"
+    PHOSPHO_TOTAL_LOG_RATIO = "phospho_total_log_ratio"
+    UNKNOWN = "unknown"
+
+
 @dataclass(frozen=True, slots=True)
 class MatrixIntensityScaleState:
     """Established intensity scale for one quantitative matrix."""
@@ -84,6 +93,7 @@ class IntensityScaleState:
         default_factory=MatrixIntensityScaleState.linear
     )
     total: MatrixIntensityScaleState | None = None
+    quantity: QuantitativeMeaning | None = None
     _established_via: str | None = field(
         default=None,
         init=False,
@@ -114,6 +124,15 @@ class IntensityScaleState:
             raise InvalidTransformationStateError(
                 "intensity_scale_state.total must be a MatrixIntensityScaleState or None"
             )
+        quantity = _normalize_quantitative_meaning(
+            self.quantity,
+            default_kind=self.phospho.kind,
+        )
+        _validate_quantitative_meaning_kind_coherence(
+            quantity=quantity,
+            kind=self.phospho.kind,
+        )
+        object.__setattr__(self, "quantity", quantity)
 
     @property
     def kind(self) -> IntensityScaleKind:
@@ -188,6 +207,7 @@ class IntensityScaleState:
         established = IntensityScaleState(
             phospho=self.phospho,
             total=self.total,
+            quantity=self.quantity,
         )
         object.__setattr__(established, "_established_via", source)
         object.__setattr__(
@@ -201,6 +221,38 @@ class IntensityScaleState:
             _ESTABLISHED_INTENSITY_SCALE_STATE_MARKER,
         )
         return established
+
+    def with_quantitative_meaning(
+        self,
+        quantity: QuantitativeMeaning,
+    ) -> IntensityScaleState:
+        """Clone this state with a different quantitative meaning."""
+
+        normalized_quantity = _normalize_quantitative_meaning(
+            quantity,
+            default_kind=self.phospho.kind,
+        )
+        if normalized_quantity is self.quantity:
+            return self
+        updated = IntensityScaleState(
+            phospho=self.phospho,
+            total=self.total,
+            quantity=normalized_quantity,
+        )
+        if not self.is_established:
+            return updated
+        object.__setattr__(updated, "_established_via", self._established_via)
+        object.__setattr__(
+            updated,
+            "_establishment_authority_source",
+            self._establishment_authority_source,
+        )
+        object.__setattr__(
+            updated,
+            "_establishment_marker",
+            _ESTABLISHED_INTENSITY_SCALE_STATE_MARKER,
+        )
+        return updated
 
 
 def establish_intensity_scale_state(
@@ -219,3 +271,54 @@ def establish_intensity_scale_state(
         established_via=established_via,
         authority=_authority,
     )
+
+
+def _normalize_quantitative_meaning(
+    quantity: QuantitativeMeaning | str | None,
+    *,
+    default_kind: IntensityScaleKind,
+) -> QuantitativeMeaning:
+    if quantity is None:
+        if default_kind is IntensityScaleKind.LINEAR:
+            return QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE
+        if default_kind is IntensityScaleKind.LOG2:
+            return QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE
+        return QuantitativeMeaning.UNKNOWN
+    if isinstance(quantity, QuantitativeMeaning):
+        return quantity
+    try:
+        return QuantitativeMeaning(str(quantity))
+    except ValueError as exc:
+        supported = ", ".join(member.value for member in QuantitativeMeaning)
+        raise InvalidTransformationStateError(
+            "unsupported intensity-scale quantitative meaning "
+            f"'{quantity}'; supported: {supported}"
+        ) from exc
+
+
+def _validate_quantitative_meaning_kind_coherence(
+    *,
+    quantity: QuantitativeMeaning,
+    kind: IntensityScaleKind,
+) -> None:
+    if quantity is QuantitativeMeaning.UNKNOWN:
+        return
+    if (
+        quantity is QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE
+        and kind is not IntensityScaleKind.LINEAR
+    ):
+        raise InvalidTransformationStateError(
+            "quantitative meaning 'phosphosite_abundance' requires linear "
+            "intensity scale"
+        )
+    if (
+        quantity
+        in {
+            QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
+            QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
+        }
+        and kind is not IntensityScaleKind.LOG2
+    ):
+        raise InvalidTransformationStateError(
+            f"quantitative meaning '{quantity.value}' requires log2 intensity scale"
+        )

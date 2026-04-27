@@ -17,6 +17,7 @@ from phospy.transformations.models import (
     IntensityScaleKind,
     IntensityScaleState,
     MatrixIntensityScaleState,
+    QuantitativeMeaning,
     establish_intensity_scale_state,
 )
 
@@ -27,13 +28,20 @@ def intensity_scale_state_to_payload(state: IntensityScaleState) -> dict[str, ob
     return {
         "phospho": _matrix_state_to_payload(state.phospho),
         "total": None if state.total is None else _matrix_state_to_payload(state.total),
+        "quantity": state.quantity.value,
     }
 
 
 def intensity_scale_state_from_payload(
     payload: Mapping[str, object],
+    *,
+    fallback_quantity: QuantitativeMeaning = QuantitativeMeaning.UNKNOWN,
 ) -> IntensityScaleState:
-    """Deserialize intensity scale state from manifest payload."""
+    """Deserialize intensity scale state from manifest payload.
+
+    `fallback_quantity` is used for legacy payloads that predate explicit
+    quantitative-meaning persistence.
+    """
 
     phospho_payload = require_mapping(
         payload.get("phospho"),
@@ -52,6 +60,10 @@ def intensity_scale_state_from_payload(
     state = IntensityScaleState(
         phospho=_matrix_state_from_payload(phospho_payload),
         total=total_state,
+        quantity=_quantitative_meaning_from_payload(
+            payload,
+            fallback=fallback_quantity,
+        ),
     )
     return establish_intensity_scale_state(
         state,
@@ -92,3 +104,25 @@ def _matrix_state_from_payload(
             field_name="matrix_intensity_scale_state.established_by",
         ),
     )
+
+
+def _quantitative_meaning_from_payload(
+    payload: Mapping[str, object],
+    *,
+    fallback: QuantitativeMeaning,
+) -> QuantitativeMeaning:
+    raw = payload.get("quantity")
+    if raw is None:
+        return fallback
+    token = require_str(
+        raw,
+        field_name="dataset.metadata.intensity_scale_state.quantity",
+    )
+    try:
+        return QuantitativeMeaning(token)
+    except ValueError as exc:
+        supported = ", ".join(member.value for member in QuantitativeMeaning)
+        raise PhosPyInputError(
+            "unsupported intensity scale quantitative meaning "
+            f"'{token}'; supported: {supported}"
+        ) from exc

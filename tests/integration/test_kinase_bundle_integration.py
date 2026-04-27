@@ -71,6 +71,11 @@ def test_kinase_bundle_round_trip_preserves_total_protein_correction_state(
     loaded = load_kinase_workflow_bundle(bundle_root)
 
     correction = loaded.result.dataset.processing_state.total_protein_correction
+    assert loaded.result.dataset.intensity_scale_state.label == "log2"
+    assert (
+        loaded.result.dataset.intensity_scale_state.quantity.value
+        == "phospho_total_log_ratio"
+    )
     assert correction.policy == "subtract_log_total"
     assert correction.applied is True
     assert correction.formula == "log2_phospho - log2_total"
@@ -233,6 +238,10 @@ def test_kinase_bundle_loads_legacy_minimal_total_correction_state(
 
     loaded = load_kinase_workflow_bundle(bundle_root)
     correction = loaded.result.dataset.processing_state.total_protein_correction
+    assert (
+        loaded.result.dataset.intensity_scale_state.quantity.value
+        == "phospho_total_log_ratio"
+    )
     assert correction.policy == "subtract_log_total"
     assert correction.applied is True
     assert correction.formula is None
@@ -245,6 +254,36 @@ def test_kinase_bundle_loads_legacy_minimal_total_correction_state(
         result.dataset.phospho,
         check_dtype=False,
         check_names=False,
+    )
+
+
+def test_kinase_bundle_loads_legacy_manifest_without_quantitative_meaning_field(
+    tmp_path: Path,
+) -> None:
+    request = _build_request_with_subtract_log_total(activity=False)
+    result = KinaseWorkflow().run(request)
+    bundle_root = tmp_path / "kinase_bundle_legacy_quantity"
+
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["dataset"]["metadata"]["intensity_scale_state"].pop("quantity", None)
+    manifest["dataset"]["metadata"]["processing_state"]["intensity_scale"].pop(
+        "quantity", None
+    )
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
+    )
+
+    loaded = load_kinase_workflow_bundle(bundle_root)
+    assert loaded.result.dataset.intensity_scale_state.label == "log2"
+    assert (
+        loaded.result.dataset.intensity_scale_state.quantity.value
+        == "phospho_total_log_ratio"
     )
 
 

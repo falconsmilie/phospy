@@ -173,6 +173,13 @@ In the public builder lane this requires:
 - `intensity_transform.policy="log2"`
 - a `total` table aligned to phospho sample columns and site-to-protein mapping
 
+Important state semantics:
+
+- numeric scale and scientific meaning are tracked separately at dataset
+  boundary
+- subtractive correction keeps numeric scale at `log2`, but changes quantitative
+  meaning to `phospho_total_log_ratio`
+
 #### `DatasetSiteMatrixConfig`
 
 - `policy="as_input"`
@@ -343,8 +350,19 @@ Key fields include:
 State model responsibilities:
 
 - `intensity_scale_state` answers: "Are quantitative values linear or log2?"
+- `intensity_scale_state.quantity` answers: "What do phospho matrix values
+  represent scientifically?"
 - `processing_state` answers: "What preprocessing policy state crossed the analysis-ready boundary?"
 - `preprocessing_report` answers: "What happened during preprocessing, including row-level operations and sidecars?"
+
+Common combinations:
+
+- linear phosphosite abundance:
+  `label="linear"`, `quantity="phosphosite_abundance"`
+- log2 phosphosite abundance:
+  `label="log2"`, `quantity="phosphosite_log_abundance"`
+- log2 phospho/total corrected ratio:
+  `label="log2"`, `quantity="phospho_total_log_ratio"`
 
 `preprocessing_report` and `provenance` serve different purposes:
 
