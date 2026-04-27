@@ -99,6 +99,9 @@ Behavior:
   implementation,
 - candidate-scoring mode and exact-tree construction are recorded in
   provenance (`workflow_parameters.scale_guard`),
+- sampled runs also record `candidate_scoring_sampling` provenance
+  (`sampling_cap`, `sampling_method`, `deterministic_seed_policy`,
+  `actual_sampled_pair_count`, and per-cluster sample-count summary),
 - `tests/performance/test_performance_contracts.py` keeps a lightweight contract
   test that intentionally stubs `build_cluster_tree()` to isolate
   module-selection correlation-path behavior,

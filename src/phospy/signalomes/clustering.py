@@ -48,6 +48,12 @@ SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL = "full"
 SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED = "sampled"
 SignalomeCandidateScoringBackend = Literal["full", "sampled"]
 SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED = "not_evaluated"
+SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD = (
+    "deterministic_uniform_without_replacement"
+)
+SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY = (
+    "order_invariant_seed_from_row_hashes_and_sample_size"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +65,7 @@ class ClusterSitesResult:
     cluster_tree_backend: str = SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
     candidate_scoring_mode: str = SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
     exact_cluster_tree_built: bool = False
+    candidate_scoring_sampling: dict[str, object] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +75,7 @@ class _ModuleSelectionComputation:
     cluster_tree_backend: str
     candidate_scoring_mode: str
     exact_cluster_tree_built: bool
+    candidate_scoring_sampling: dict[str, object] | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,6 +196,7 @@ def cluster_sites_with_diagnostics(
         cluster_tree_backend=selection.cluster_tree_backend,
         candidate_scoring_mode=selection.candidate_scoring_mode,
         exact_cluster_tree_built=selection.exact_cluster_tree_built,
+        candidate_scoring_sampling=selection.candidate_scoring_sampling,
     )
 
 
@@ -360,6 +369,7 @@ def _compute_module_selection(
         approximation_note,
         candidate_scoring_mode,
         exact_cluster_tree_built,
+        candidate_scoring_sampling,
     ) = _compute_candidate_cluster_scores(
         clustering_values=clustering_values,
         correlation_values=scoring_array,
@@ -389,6 +399,7 @@ def _compute_module_selection(
         candidate_scoring_mode=candidate_scoring_mode,
         exact_cluster_tree_built=exact_cluster_tree_built,
         cluster_tree_backend=cluster_tree_backend,
+        candidate_scoring_sampling=candidate_scoring_sampling,
     )
     if primary_selection is not None:
         return primary_selection
@@ -409,6 +420,7 @@ def _compute_module_selection(
         candidate_scoring_mode=candidate_scoring_mode,
         exact_cluster_tree_built=exact_cluster_tree_built,
         cluster_tree_backend=cluster_tree_backend,
+        candidate_scoring_sampling=candidate_scoring_sampling,
     )
     if fallback_selection is not None:
         return fallback_selection
@@ -432,6 +444,7 @@ def _compute_module_selection(
         candidate_scoring_mode=candidate_scoring_mode,
         exact_cluster_tree_built=exact_cluster_tree_built,
         cluster_tree_backend=cluster_tree_backend,
+        candidate_scoring_sampling=candidate_scoring_sampling,
     )
 
 
@@ -450,6 +463,7 @@ def _build_module_selection_result(
     cluster_tree_backend: str = SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
     candidate_scoring_mode: str = SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
     exact_cluster_tree_built: bool = False,
+    candidate_scoring_sampling: dict[str, object] | None = None,
 ) -> _ModuleSelectionComputation:
     return _ModuleSelectionComputation(
         diagnostics=SignalomeModuleSelectionDiagnostics(
@@ -470,6 +484,7 @@ def _build_module_selection_result(
         cluster_tree_backend=str(cluster_tree_backend),
         candidate_scoring_mode=str(candidate_scoring_mode),
         exact_cluster_tree_built=bool(exact_cluster_tree_built),
+        candidate_scoring_sampling=candidate_scoring_sampling,
     )
 
 
@@ -576,12 +591,20 @@ def _compute_candidate_cluster_scores(
     str,
     str,
     bool,
+    dict[str, object] | None,
 ]:
     """Score candidate cluster counts using full or sampled correlation paths."""
 
     candidate_counts = [int(cluster_count) for cluster_count in candidate_range]
     if not candidate_counts:
-        return {}, {}, ""
+        return (
+            {},
+            {},
+            "",
+            SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
+            False,
+            None,
+        )
 
     cluster_tree = _build_exact_cluster_tree_with_guard(
         clustering_values=clustering_values,
@@ -628,20 +651,29 @@ def _compute_candidate_cluster_scores(
             "",
             SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
             exact_cluster_tree_built,
+            None,
         )
 
     candidate_scores = {}
+    per_cluster_sample_counts: list[int] = []
+    actual_sampled_pair_count = 0
     for cluster_count in candidate_counts:
         labels = candidate_labels[cluster_count]
-        cluster_medians = [
-            cluster_median_correlation_approximate(
+        cluster_medians: list[float] = []
+        for label in np.unique(labels):
+            (
+                cluster_median,
+                sampled_site_count,
+                sampled_pair_count,
+            ) = _cluster_median_correlation_approximate_with_sampling_diagnostics(
                 scoring_values=correlation_values,
                 labels=labels,
                 label=int(label),
                 max_sites_per_cluster=MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
             )
-            for label in np.unique(labels)
-        ]
+            cluster_medians.append(cluster_median)
+            per_cluster_sample_counts.append(int(sampled_site_count))
+            actual_sampled_pair_count += int(sampled_pair_count)
         if not cluster_medians:
             continue
         candidate_scores[cluster_count] = SignalomeClusterCandidateScore(
@@ -666,6 +698,11 @@ def _compute_candidate_cluster_scores(
         approximation_note,
         SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
         exact_cluster_tree_built,
+        _build_candidate_scoring_sampling_provenance(
+            max_sites_per_cluster=MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
+            per_cluster_sample_counts=per_cluster_sample_counts,
+            actual_sampled_pair_count=actual_sampled_pair_count,
+        ),
     )
 
 
@@ -749,6 +786,7 @@ def _select_threshold_candidate(
     cluster_tree_backend: str,
     candidate_scoring_mode: str,
     exact_cluster_tree_built: bool,
+    candidate_scoring_sampling: dict[str, object] | None,
 ) -> _ModuleSelectionComputation | None:
     passing_candidates = filter_cluster_candidates(
         candidate_scores,
@@ -770,6 +808,7 @@ def _select_threshold_candidate(
         cluster_tree_backend=cluster_tree_backend,
         candidate_scoring_mode=candidate_scoring_mode,
         exact_cluster_tree_built=exact_cluster_tree_built,
+        candidate_scoring_sampling=candidate_scoring_sampling,
     )
 
 
@@ -1097,9 +1136,30 @@ def cluster_median_correlation_approximate(
 ) -> float:
     """Approximate cluster-local median correlation using deterministic sampling."""
 
+    correlation, _sampled_site_count, _sampled_pair_count = (
+        _cluster_median_correlation_approximate_with_sampling_diagnostics(
+            scoring_values=scoring_values,
+            labels=labels,
+            label=label,
+            max_sites_per_cluster=max_sites_per_cluster,
+        )
+    )
+    return float(correlation)
+
+
+def _cluster_median_correlation_approximate_with_sampling_diagnostics(
+    *,
+    scoring_values: np.ndarray,
+    labels: np.ndarray,
+    label: int,
+    max_sites_per_cluster: int,
+) -> tuple[float, int, int]:
+    """Return approximate median correlation plus sampled-size/pair diagnostics."""
+
     cluster_positions = np.flatnonzero(labels == label)
+    sampled_site_count = int(cluster_positions.size)
     if cluster_positions.size <= 1:
-        return 0.0
+        return 0.0, sampled_site_count, 0
 
     if cluster_positions.size > max_sites_per_cluster:
         cluster_positions = _sample_cluster_positions_for_approximation(
@@ -1107,11 +1167,12 @@ def cluster_median_correlation_approximate(
             cluster_positions=cluster_positions,
             sample_size=max_sites_per_cluster,
         )
+    sampled_site_count = int(cluster_positions.size)
 
     cluster_values = np.asarray(scoring_values, dtype=float)[cluster_positions]
     profile_degeneracy = summarize_profile_degeneracy(cluster_values)
     if cluster_values.shape[0] - profile_degeneracy.excluded_count <= 1:
-        return 0.0
+        return 0.0, sampled_site_count, 0
 
     cluster_correlations = build_correlation_matrix_with_exclusions(
         cluster_values,
@@ -1120,8 +1181,45 @@ def cluster_median_correlation_approximate(
     np.fill_diagonal(cluster_correlations, np.nan)
     values = cluster_correlations[~np.isnan(cluster_correlations)]
     if values.size == 0:
-        return 0.0
-    return float(np.median(values))
+        return 0.0, sampled_site_count, 0
+    return (
+        float(np.median(values)),
+        sampled_site_count,
+        int(values.size // 2),
+    )
+
+
+def _build_candidate_scoring_sampling_provenance(
+    *,
+    max_sites_per_cluster: int,
+    per_cluster_sample_counts: list[int],
+    actual_sampled_pair_count: int,
+) -> dict[str, object]:
+    """Build deterministic sampled candidate-scoring provenance metadata."""
+
+    if per_cluster_sample_counts:
+        sample_min = int(min(per_cluster_sample_counts))
+        sample_max = int(max(per_cluster_sample_counts))
+        sample_mean = float(np.mean(per_cluster_sample_counts))
+        sample_total = int(sum(per_cluster_sample_counts))
+    else:
+        sample_min = 0
+        sample_max = 0
+        sample_mean = 0.0
+        sample_total = 0
+
+    return {
+        "sampling_cap": int(max_sites_per_cluster),
+        "sampling_method": SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
+        "deterministic_seed_policy": (SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY),
+        "actual_sampled_pair_count": int(actual_sampled_pair_count),
+        "per_cluster_sample_count_summary": {
+            "min": sample_min,
+            "max": sample_max,
+            "mean": sample_mean,
+            "total": sample_total,
+        },
+    }
 
 
 def _sample_cluster_positions_for_approximation(

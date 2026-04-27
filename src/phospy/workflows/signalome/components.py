@@ -17,6 +17,10 @@ from phospy.provenance.models import (
 )
 from phospy.provenance.serialization import to_payload as provenance_to_payload
 from phospy.signalomes.clustering import (
+    MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
+    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+    SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
+    SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY,
     ClusterSitesResult,
     cluster_sites_with_diagnostics,
     derive_protein_modules,
@@ -64,6 +68,7 @@ class SignalomeScaleGuardDecision:
     max_full_correlation_sites: int
     exact_cluster_tree_built: bool
     candidate_scoring_mode: str
+    candidate_scoring_sampling: dict[str, object] | None
     scale_guard_passed: bool
 
 
@@ -183,6 +188,26 @@ class SignalomeClusteringRunner:
         site_count: int,
         clustering_result: ClusterSitesResult,
     ) -> SignalomeScaleGuardDecision:
+        candidate_scoring_sampling = clustering_result.candidate_scoring_sampling
+        if (
+            candidate_scoring_sampling is None
+            and str(config.candidate_scoring_backend)
+            == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        ):
+            candidate_scoring_sampling = {
+                "sampling_cap": int(MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER),
+                "sampling_method": SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
+                "deterministic_seed_policy": (
+                    SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY
+                ),
+                "actual_sampled_pair_count": 0,
+                "per_cluster_sample_count_summary": {
+                    "min": 0,
+                    "max": 0,
+                    "mean": 0.0,
+                    "total": 0,
+                },
+            }
         return SignalomeScaleGuardDecision(
             site_count=int(site_count),
             cluster_tree_backend=str(config.cluster_tree_backend),
@@ -191,6 +216,7 @@ class SignalomeClusteringRunner:
             max_full_correlation_sites=int(config.max_full_correlation_sites),
             exact_cluster_tree_built=bool(clustering_result.exact_cluster_tree_built),
             candidate_scoring_mode=str(clustering_result.candidate_scoring_mode),
+            candidate_scoring_sampling=candidate_scoring_sampling,
             scale_guard_passed=True,
         )
 
@@ -639,6 +665,11 @@ class SignalomeProvenanceBuilder:
                     ),
                     "candidate_scoring_mode": str(
                         scale_guard_decision.candidate_scoring_mode
+                    ),
+                    "candidate_scoring_sampling": (
+                        None
+                        if scale_guard_decision.candidate_scoring_sampling is None
+                        else dict(scale_guard_decision.candidate_scoring_sampling)
                     ),
                     "scale_guard_passed": bool(scale_guard_decision.scale_guard_passed),
                 },

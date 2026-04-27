@@ -106,7 +106,12 @@ For `processing_state.total_protein_correction`, persisted fields include:
     `site_count`, `cluster_tree_backend`, `candidate_scoring_backend`,
     `max_exact_cluster_tree_sites`, `max_full_correlation_sites`,
     `exact_cluster_tree_built`, `candidate_scoring_mode`,
-    and `scale_guard_passed`
+    `candidate_scoring_sampling`, and `scale_guard_passed`
+  - for `candidate_scoring_backend="sampled"`,
+    `workflow_parameters.scale_guard.candidate_scoring_sampling` records
+    `sampling_cap`, `sampling_method`, `deterministic_seed_policy`,
+    `actual_sampled_pair_count`, and
+    `per_cluster_sample_count_summary` (`min`, `max`, `mean`, `total`)
 
 Legacy bundles without top-level `provenance` remain loadable; loaders reconstruct
 results with `result.provenance=None` for those manifests.

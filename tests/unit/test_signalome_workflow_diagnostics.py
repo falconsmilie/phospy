@@ -38,6 +38,11 @@ from phospy.errors import (
     WorkflowValidationError,
 )
 from phospy.errors.workflows import WorkflowStageError
+from phospy.signalomes.clustering import (
+    MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
+    SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
+    SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY,
+)
 from phospy.signalomes.constants import (
     EXPANDED_SIGNALOME_ROW_KIND_SUMMARY,
     SITE_CLUSTER_COLUMN,
@@ -797,7 +802,127 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         "max_full_correlation_sites": SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
         "exact_cluster_tree_built": True,
         "candidate_scoring_mode": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        "candidate_scoring_sampling": None,
         "scale_guard_passed": True,
+    }
+
+
+def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.1, 0.9],
+            [0.8, 0.8],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(
+            substrate_support_cutoff=0.5,
+            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+        ),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    result = SignalomeWorkflowExecutor().run(interpreted)
+
+    assert result.provenance is not None
+    scale_guard = result.provenance.workflow_parameters["scale_guard"]
+    assert (
+        scale_guard["candidate_scoring_backend"]
+        == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+    )
+    sampled = scale_guard["candidate_scoring_sampling"]
+    assert isinstance(sampled, dict)
+    assert sampled["sampling_cap"] == MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER
+    assert sampled["sampling_method"] == SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD
+    assert (
+        sampled["deterministic_seed_policy"]
+        == SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY
+    )
+    assert int(sampled["actual_sampled_pair_count"]) >= 0
+    per_cluster_summary = sampled["per_cluster_sample_count_summary"]
+    assert isinstance(per_cluster_summary, dict)
+    assert {"min", "max", "mean", "total"} <= set(per_cluster_summary)
+    assert int(per_cluster_summary["min"]) >= 0
+    assert int(per_cluster_summary["max"]) >= int(per_cluster_summary["min"])
+    assert float(per_cluster_summary["mean"]) >= 0.0
+    assert int(per_cluster_summary["total"]) >= int(per_cluster_summary["max"])
+
+
+def test_sampled_backend_records_zero_sampling_provenance_when_scoring_not_evaluated() -> (
+    None
+):
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.1, 0.9],
+            [0.8, 0.8],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(
+            substrate_support_cutoff=0.5,
+            module_count=2,
+            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+        ),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    result = SignalomeWorkflowExecutor().run(interpreted)
+
+    assert result.provenance is not None
+    sampled = result.provenance.workflow_parameters["scale_guard"][
+        "candidate_scoring_sampling"
+    ]
+    assert sampled == {
+        "sampling_cap": MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
+        "sampling_method": SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
+        "deterministic_seed_policy": (SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY),
+        "actual_sampled_pair_count": 0,
+        "per_cluster_sample_count_summary": {
+            "min": 0,
+            "max": 0,
+            "mean": 0.0,
+            "total": 0,
+        },
     }
 
 
