@@ -145,14 +145,12 @@ def processing_state_from_payload(
     intensity_scale_state = intensity_scale_state_from_payload(intensity_scale_payload)
     correction_diagnostics = _parse_total_correction_diagnostics(
         correction_payload.get("diagnostics"),
-        correction_applied=correction_applied,
         field_name=(
             "dataset.metadata.processing_state.total_protein_correction.diagnostics"
         ),
     )
-    correction_quantitative_meaning = _resolve_total_correction_quantitative_meaning(
+    correction_quantitative_meaning = _require_total_correction_quantitative_meaning(
         correction_payload=correction_payload,
-        correction_applied=correction_applied,
         correction_diagnostics=correction_diagnostics,
     )
     return DatasetProcessingState(
@@ -288,16 +286,13 @@ def _require_payload_key(
 def _parse_total_correction_diagnostics(
     value: object,
     *,
-    correction_applied: bool,
     field_name: str,
-) -> TotalProteinCorrectionDiagnostics | None:
+) -> TotalProteinCorrectionDiagnostics:
     if value is None:
-        if correction_applied:
-            raise PhosPyInputError(
-                f"{field_name} must be an object with "
-                f"{field_name}.diagnostics_schema_version"
-            )
-        return None
+        raise PhosPyInputError(
+            f"{field_name} must be an object with "
+            f"{field_name}.diagnostics_schema_version"
+        )
     return TotalProteinCorrectionDiagnostics.from_payload(value, field_name=field_name)
 
 
@@ -343,43 +338,35 @@ def _parse_optional_pairs(
     return tuple(parsed)
 
 
-def _resolve_total_correction_quantitative_meaning(
+def _require_total_correction_quantitative_meaning(
     *,
     correction_payload: Mapping[str, object],
-    correction_applied: bool,
-    correction_diagnostics: TotalProteinCorrectionDiagnostics | None,
-) -> str | None:
-    direct = _require_optional_str(
+    correction_diagnostics: TotalProteinCorrectionDiagnostics,
+) -> str:
+    direct = require_str(
         correction_payload.get("quantitative_meaning"),
         field_name=(
             "dataset.metadata.processing_state.total_protein_correction."
             "quantitative_meaning"
         ),
     )
-    if correction_applied and direct is None:
+    if "quantitative_meaning" not in correction_diagnostics:
         raise PhosPyInputError(
             "dataset.metadata.processing_state.total_protein_correction."
-            "quantitative_meaning must be explicitly set for applied total-protein "
-            "correction state"
+            "diagnostics.quantitative_meaning is required"
         )
-    if correction_diagnostics is None:
-        return direct
-    from_diagnostics = _require_optional_str(
+    from_diagnostics = require_str(
         correction_diagnostics.get("quantitative_meaning"),
         field_name=(
             "dataset.metadata.processing_state.total_protein_correction."
             "diagnostics.quantitative_meaning"
         ),
     )
-    if (
-        direct is not None
-        and from_diagnostics is not None
-        and from_diagnostics != direct
-    ):
+    if from_diagnostics != direct:
         raise PhosPyInputError(
             "dataset.metadata.processing_state.total_protein_correction."
             "quantitative_meaning must match "
             "dataset.metadata.processing_state.total_protein_correction.diagnostics."
-            "quantitative_meaning when both are provided"
+            "quantitative_meaning"
         )
     return direct

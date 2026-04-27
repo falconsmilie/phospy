@@ -182,12 +182,7 @@ def build_dataset_processing_state(
         == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
         else None
     )
-    default_quantitative_meaning = (
-        QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO.value
-        if resolved_total_policy
-        == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
-        else None
-    )
+    default_quantitative_meaning = intensity_scale_state.quantity.value
     correction_diagnostics = _with_default_string_diagnostic(
         correction_diagnostics,
         key="quantitative_meaning",

@@ -86,11 +86,7 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
     ) -> TotalProteinCorrectionDiagnosticsV1:
         if "diagnostics_schema_version" not in payload:
             raise PhosPyInputError(
-                f"{field_name} is unversioned. "
-                "Migrate diagnostics to include "
-                f"{field_name}.diagnostics_schema_version="
-                f"{TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1} "
-                "(TotalProteinCorrectionDiagnosticsV1)."
+                f"{field_name}.diagnostics_schema_version is required"
             )
         return cls._from_versioned_payload(payload, field_name=field_name)
 
@@ -148,7 +144,7 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 payload.get("output_scale"),
                 field_name=f"{field_name}.output_scale",
             ),
-            quantitative_meaning=_require_optional_str(
+            quantitative_meaning=_require_required_str(
                 payload.get("quantitative_meaning"),
                 field_name=f"{field_name}.quantitative_meaning",
             ),
@@ -223,7 +219,7 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 "output_scale"
             ),
         )
-        quantitative_meaning = _require_optional_str(
+        quantitative_meaning = _require_required_str(
             self.quantitative_meaning,
             field_name=(
                 "dataset processing state total_protein_correction.diagnostics."
@@ -269,9 +265,7 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
         _set_optional_payload_value(payload, "requires_log_scale", requires_log_scale)
         _set_optional_payload_value(payload, "input_scale", input_scale)
         _set_optional_payload_value(payload, "output_scale", output_scale)
-        _set_optional_payload_value(
-            payload, "quantitative_meaning", quantitative_meaning
-        )
+        payload["quantitative_meaning"] = quantitative_meaning
         _set_optional_payload_value(payload, "matched_rows", matched_rows)
         _set_optional_payload_value(payload, "total_table_hash", total_table_hash)
         _set_optional_payload_value(payload, "input_phospho_hash", input_phospho_hash)
@@ -402,6 +396,15 @@ def _require_optional_str(value: object, *, field_name: str) -> str | None:
     if not normalized:
         raise PhosPyInputError(f"{field_name} must be a non-empty string")
     return normalized
+
+
+def _require_required_str(value: object, *, field_name: str) -> str:
+    if value is None:
+        raise PhosPyInputError(f"{field_name} is required")
+    parsed = _require_optional_str(value, field_name=field_name)
+    if parsed is None:  # pragma: no cover - defensive guard
+        raise PhosPyInputError(f"{field_name} is required")
+    return parsed
 
 
 def _require_optional_bool(value: object, *, field_name: str) -> bool | None:

@@ -144,8 +144,14 @@ def test_dataset_builder_builds_analysis_ready_dataset_from_fixture() -> None:
     assert built.processing_state.total_protein_correction.requires_log_scale is False
     assert built.processing_state.total_protein_correction.input_scale is None
     assert built.processing_state.total_protein_correction.output_scale is None
-    assert built.processing_state.total_protein_correction.quantitative_meaning is None
-    assert built.processing_state.total_protein_correction.diagnostics is None
+    assert (
+        built.processing_state.total_protein_correction.quantitative_meaning
+        == "phosphosite_abundance"
+    )
+    correction_diagnostics = built.processing_state.total_protein_correction.diagnostics
+    assert correction_diagnostics is not None
+    assert correction_diagnostics.get("diagnostics_schema_version") == 1
+    assert correction_diagnostics.get("quantitative_meaning") == "phosphosite_abundance"
     assert built.processing_state.site_matrix.policy == "as_input"
     assert built.processing_state.site_matrix.constructed is False
     assert built.processing_state.comparisons.policy == "none"
@@ -1126,7 +1132,7 @@ def test_dataset_builder_distinguishes_corrected_vs_uncorrected_log2_quantity() 
     )
     assert (
         uncorrected.processing_state.total_protein_correction.quantitative_meaning
-        is (None)
+        == "phosphosite_log_abundance"
     )
     assert corrected.processing_state.total_protein_correction.quantitative_meaning == (
         "phospho_total_log_ratio"
@@ -1217,11 +1223,15 @@ def test_dataset_builder_public_payloads_pair_scale_with_quantitative_meaning(
             == expected_quantitative_meaning
         )
         correction_payload = processing_state_payload["total_protein_correction"]
-        if correction_payload["output_scale"] is not None:
-            assert (
-                correction_payload["quantitative_meaning"]
-                == expected_quantitative_meaning
-            )
+        assert (
+            correction_payload["quantitative_meaning"] == expected_quantitative_meaning
+        )
+        correction_diagnostics = correction_payload["diagnostics"]
+        assert correction_diagnostics["diagnostics_schema_version"] == 1
+        assert (
+            correction_diagnostics["quantitative_meaning"]
+            == expected_quantitative_meaning
+        )
         assert manifest["provenance"]["workflow_parameters"][
             "intensity_scale_label"
         ] == ("log2")

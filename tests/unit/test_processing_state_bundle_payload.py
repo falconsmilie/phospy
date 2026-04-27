@@ -171,6 +171,7 @@ def test_processing_state_payload_loads_new_versioned_diagnostics() -> None:
             "policy": "subtract_log_total",
             "requested_policy": "subtract_log_total",
             "resolved_policy": "subtract_log_total",
+            "quantitative_meaning": "phospho_total_log_ratio",
             "requires_log_scale": True,
             "matched_rows": 2,
         }
@@ -185,9 +186,7 @@ def test_processing_state_payload_loads_new_versioned_diagnostics() -> None:
     assert diagnostics_payload["matched_rows"] == 2
 
 
-def test_processing_state_from_payload_rejects_unversioned_diagnostics_with_migration_error() -> (
-    None
-):
+def test_processing_state_from_payload_rejects_unversioned_diagnostics() -> None:
     payload = _processing_payload_with_diagnostics(
         {
             "policy": "subtract_log_total",
@@ -197,7 +196,10 @@ def test_processing_state_from_payload_rejects_unversioned_diagnostics_with_migr
 
     with pytest.raises(
         PhosPyInputError,
-        match="unversioned.*Migrate diagnostics",
+        match=(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "diagnostics.diagnostics_schema_version is required"
+        ),
     ):
         processing_state_from_payload(payload)
 
@@ -262,11 +264,33 @@ def test_processing_state_from_payload_rejects_malformed_versioned_diagnostics()
     payload = _processing_payload_with_diagnostics(
         {
             "diagnostics_schema_version": 1,
+            "quantitative_meaning": "phospho_total_log_ratio",
             "matched_rows": "three",
         }
     )
 
     with pytest.raises(PhosPyInputError, match="matched_rows must be an int"):
+        processing_state_from_payload(payload)
+
+
+def test_processing_state_from_payload_rejects_missing_total_correction_diagnostics_quantitative_meaning_key() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "matched_rows": 2,
+        }
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "diagnostics.quantitative_meaning is required"
+        ),
+    ):
         processing_state_from_payload(payload)
 
 

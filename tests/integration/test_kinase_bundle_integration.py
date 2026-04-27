@@ -148,7 +148,8 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
     correction_diagnostics = manifest["dataset"]["metadata"]["processing_state"][
         "total_protein_correction"
     ]["diagnostics"]
-    assert correction_diagnostics is None
+    assert correction_diagnostics["diagnostics_schema_version"] == 1
+    assert correction_diagnostics["quantitative_meaning"] == "phosphosite_abundance"
     assert "provenance" in manifest
     provenance = manifest["provenance"]
     assert provenance["environment"]["package_name"] == "phospy"
@@ -308,7 +309,13 @@ def test_kinase_bundle_rejects_unversioned_total_correction_diagnostics(
         json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
     )
 
-    with pytest.raises(PhosPyInputError, match="unversioned.*Migrate diagnostics"):
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "diagnostics.diagnostics_schema_version is required"
+        ),
+    ):
         load_kinase_workflow_bundle(bundle_root)
 
 
