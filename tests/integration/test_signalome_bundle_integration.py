@@ -27,6 +27,9 @@ from phospy.io.bundles.signalome import (
     save_signalome_workflow_bundle,
 )
 from phospy.provenance.serialization import to_payload as provenance_to_payload
+from phospy.signalomes.clustering import (
+    SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
+)
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
 
 pytestmark = pytest.mark.integration
@@ -145,7 +148,10 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
         scale_guard["candidate_scoring_applies_to"]
         == "candidate_module_count_evaluation_only"
     )
-    assert scale_guard["final_module_assignment_backend"] == "exact_cluster_tree_cut"
+    assert (
+        scale_guard["final_module_assignment_backend"]
+        == SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
+    )
     assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
     assert "module_selection_diagnostics" in provenance["workflow_parameters"]
     assert provenance["workflow_parameters"]["upstream_kinase_provenance"] is not None

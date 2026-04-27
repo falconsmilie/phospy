@@ -57,7 +57,8 @@ SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY = (
 )
 SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT = "explicit_module_count"
 SIGNALOME_CANDIDATE_SCORING_APPLIES_TO = "candidate_module_count_evaluation_only"
-SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE = "exact_cluster_tree_cut"
+SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE = "exact_cluster_tree"
+SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE = "single_module_assignment"
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +183,7 @@ def cluster_sites_with_diagnostics(
     diagnostics = selection.diagnostics
     n_sites = int(scoring_values.shape[0])
     module_count = max(1, min(int(diagnostics.selected_module_count), n_sites))
+    exact_cluster_tree_built = bool(selection.exact_cluster_tree_built)
 
     if module_count == 1:
         labels = np.ones(n_sites, dtype=int)
@@ -189,6 +191,7 @@ def cluster_sites_with_diagnostics(
         cached_labels = selection.candidate_labels.get(module_count)
         if cached_labels is not None:
             labels = cached_labels.astype(int, copy=False) + 1
+            exact_cluster_tree_built = True
         else:
             labels = (
                 fit_cluster_labels(
@@ -206,6 +209,7 @@ def cluster_sites_with_diagnostics(
                 )
                 + 1
             )
+            exact_cluster_tree_built = True
 
     return ClusterSitesResult(
         site_clusters=pd.Series(
@@ -217,7 +221,7 @@ def cluster_sites_with_diagnostics(
         module_selection_diagnostics=diagnostics,
         cluster_tree_backend=selection.cluster_tree_backend,
         candidate_scoring_mode=selection.candidate_scoring_mode,
-        exact_cluster_tree_built=selection.exact_cluster_tree_built,
+        exact_cluster_tree_built=exact_cluster_tree_built,
         candidate_scoring_evaluated=selection.candidate_scoring_evaluated,
         candidate_scoring_skip_reason=selection.candidate_scoring_skip_reason,
         candidate_scoring_sampling=selection.candidate_scoring_sampling,
@@ -1444,6 +1448,7 @@ __all__ = [
     "SIGNALOME_CLUSTERING_SCORING_MODE_AUTO",
     "SIGNALOME_CLUSTERING_SCORING_MODE_EXACT",
     "SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE",
+    "SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE",
     "SignalomeCandidateScoringBackend",
     "SignalomeClusterTreeBackend",
     "SignalomeClusteringScoringMode",

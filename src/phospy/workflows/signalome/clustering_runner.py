@@ -8,6 +8,8 @@ import pandas as pd
 
 from phospy.errors.workflows import WorkflowStageError
 from phospy.signalomes.clustering import (
+    SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
+    SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE,
     ClusterSitesResult,
     cluster_sites_with_diagnostics,
     derive_protein_modules,
@@ -112,6 +114,14 @@ class SignalomeClusteringRunner:
         site_count: int,
         clustering_result: ClusterSitesResult,
     ) -> SignalomeScaleGuardDecision:
+        selected_module_count = int(
+            clustering_result.module_selection_diagnostics.selected_module_count
+        )
+        final_module_assignment_backend = (
+            SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE
+            if selected_module_count <= 1
+            else SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
+        )
         return SignalomeScaleGuardDecision(
             site_count=int(site_count),
             cluster_tree_backend=str(config.cluster_tree_backend),
@@ -131,6 +141,7 @@ class SignalomeClusteringRunner:
             ),
             candidate_scoring_sampling=clustering_result.candidate_scoring_sampling,
             scale_guard_passed=True,
+            final_module_assignment_backend=final_module_assignment_backend,
         )
 
 
