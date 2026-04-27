@@ -12,13 +12,16 @@ from phospy.api import (
 )
 from phospy.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
+    ExplicitMotifSequence,
     build_motif_library,
     build_motif_library_from_sequences,
     get_motif_library_validation,
     score_phosphosite_motifs,
 )
 from phospy.prediction.sequence_validation import (
+    SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID,
     SEQUENCE_VALIDATION_STATUS_MISSING_SEQUENCE,
+    SEQUENCE_VALIDATION_STATUS_NON_PHOSPHO_CENTRE_RESIDUE,
     SEQUENCE_VALIDATION_STATUS_OFF_CENTRE_SEQUENCE,
     SEQUENCE_VALIDATION_STATUS_SHORT_SEQUENCE,
     SEQUENCE_VALIDATION_STATUS_SITE_RESIDUE_MISMATCH,
@@ -326,7 +329,8 @@ def test_motif_library_excludes_invalid_reference_windows_and_reports_diagnostic
     assert summary["excluded_missing_sequence"] == 1
     assert summary["excluded_short_window"] == 1
     assert summary["excluded_unsupported_residue"] == 1
-    assert summary["excluded_off_centre_residue"] == 1
+    assert summary["excluded_off_centre_residue"] == 0
+    assert summary["excluded_non_phospho_centre_residue"] == 1
     assert summary["excluded_site_residue_mismatch"] == 1
     assert summary["expected_window_size"] == 15
     assert "exactly 15 residues" in summary["accepted_window_length_policy"]
@@ -374,6 +378,137 @@ def test_invalid_reference_sequences_do_not_change_motif_profile() -> None:
 
     pd.testing.assert_series_equal(baseline_sizes, mixed_sizes)
     pd.testing.assert_frame_equal(baseline_matrices["K1"], mixed_matrices["K1"])
+
+
+def test_structured_explicit_sequences_support_site_aware_validation_and_exclusion() -> (
+    None
+):
+    motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
+        motif_sequences={
+            "K1": [
+                ExplicitMotifSequence(
+                    reference_id="REF_VALID",
+                    site_id="MAPK1;S202;",
+                    kinase="K1",
+                    sequence="AAAAAAASAAAAAAA",
+                ),
+                {
+                    "reference_id": "REF_SHORT",
+                    "site_id": "MAPK1;S203;",
+                    "kinase": "K1",
+                    "sequence": "ASAA",
+                },
+                {
+                    "reference_id": "REF_UNSUPPORTED",
+                    "site_id": "MAPK1;S204;",
+                    "kinase": "K1",
+                    "sequence": "AAAAAAAXAAAAAAA",
+                },
+                {
+                    "reference_id": "REF_NON_PHOSPHO",
+                    "site_id": None,
+                    "kinase": "K1",
+                    "sequence": "AAAAAAAAAAAAAAA",
+                },
+                {
+                    "reference_id": "REF_MISMATCH",
+                    "site_id": "MAPK1;S205;",
+                    "kinase": "K1",
+                    "sequence": "AAAAAAATAAAAAAA",
+                },
+            ]
+        },
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+
+    validation = get_motif_library_validation(motif_sizes)
+    assert validation is not None
+    summary = validation.summary()
+    assert summary["reference_sequences_provided"] == 5
+    assert summary["reference_sequences_accepted"] == 1
+    assert summary["reference_sequences_excluded"] == 4
+    assert summary["excluded_short_window"] == 1
+    assert summary["excluded_unsupported_residue"] == 1
+    assert summary["excluded_non_phospho_centre_residue"] == 1
+    assert summary["excluded_site_residue_mismatch"] == 1
+    assert summary["sequences_excluded_from_motif_profile_construction"] == 4
+
+    rows_by_reference = {row.reference_id: row for row in validation.rows}
+    assert rows_by_reference["REF_VALID"].status == "valid"
+    assert rows_by_reference["REF_VALID"].site_id == "MAPK1;S202;"
+    assert (
+        rows_by_reference["REF_NON_PHOSPHO"].status
+        == SEQUENCE_VALIDATION_STATUS_NON_PHOSPHO_CENTRE_RESIDUE
+    )
+    assert (
+        rows_by_reference["REF_MISMATCH"].status
+        == SEQUENCE_VALIDATION_STATUS_SITE_RESIDUE_MISMATCH
+    )
+    assert motif_sizes.loc["K1"] == 1.0
+    assert motif_frequency_matrices["K1"].loc["S", "p8"] == 1.0
+
+
+def test_structured_explicit_sequence_rejects_invalid_site_id_format() -> None:
+    _, motif_sizes = build_motif_library_from_sequences(
+        motif_sequences={
+            "K1": [
+                {
+                    "reference_id": "REF_BAD_SITE",
+                    "site_id": "S202",
+                    "kinase": "K1",
+                    "sequence": "AAAAAAASAAAAAAA",
+                }
+            ]
+        },
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+
+    validation = get_motif_library_validation(motif_sizes)
+    assert validation is not None
+    summary = validation.summary()
+    assert summary["reference_sequences_accepted"] == 0
+    assert summary["excluded_invalid_site_id"] == 1
+    assert "K1" not in motif_sizes.index
+    assert validation.rows[0].status == SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID
+
+
+def test_bare_explicit_sequences_remain_supported_without_site_mismatch_claims() -> (
+    None
+):
+    _, motif_sizes = build_motif_library_from_sequences(
+        motif_sequences={"K1": ["AAAAAAASAAAAAAA", "AAAAAAATAAAAAAA"]},
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+
+    validation = get_motif_library_validation(motif_sizes)
+    assert validation is not None
+    summary = validation.summary()
+    assert summary["reference_sequences_provided"] == 2
+    assert summary["reference_sequences_accepted"] == 2
+    assert summary["excluded_site_residue_mismatch"] == 0
+    assert summary["excluded_invalid_site_id"] == 0
+    for row in validation.rows:
+        assert row.status == "valid"
+        assert row.site_id is None
+        assert row.expected_centre_residue is None
+
+
+def test_bare_explicit_invalid_sequence_is_rejected_and_reported() -> None:
+    _, motif_sizes = build_motif_library_from_sequences(
+        motif_sequences={"K1": ["AAAAAAAXAAAAAAA"]},
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+
+    validation = get_motif_library_validation(motif_sizes)
+    assert validation is not None
+    summary = validation.summary()
+    assert summary["reference_sequences_accepted"] == 0
+    assert summary["reference_sequences_excluded"] == 1
+    assert summary["excluded_unsupported_residue"] == 1
+    assert (
+        validation.rows[0].status
+        == SEQUENCE_VALIDATION_STATUS_UNSUPPORTED_RESIDUE_CHARACTER
+    )
 
 
 def test_motif_library_validation_rows_preserve_reference_provenance() -> None:

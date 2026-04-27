@@ -245,6 +245,18 @@ Motif sequence-context validation is strict in the supported lane:
   same sequence rules before profile construction; invalid reference windows are
   excluded from motif frequency/profile construction (never neutral/partial
   encoded)
+- explicit motif-sequence libraries support:
+  - bare sequence entries (legacy/less-informative), and
+  - structured entries with metadata equivalent to
+    `reference_id`, `site_id`, `kinase`, and `sequence`
+- bare explicit entries validate motif-window quality, supported residue alphabet,
+  and phospho-compatible centre residue (`S/T/Y`), but cannot always prove that
+  the intended phosphosite identity matches the centre residue
+- structured explicit entries are preferred for reproducible motif-library
+  construction because supplied `site_id` can be format-validated and checked for
+  centre-residue agreement
+- site-residue mismatch checks require site-like metadata, such as `site_id` or a
+  reference identifier that encodes the phosphosite
 - excluded query sites are reported through
   `result.scoring_result.motif_sequence_validation`
 - excluded/accepted reference windows are reported through
@@ -433,10 +445,11 @@ Method notes:
   motif scores (`motif_scores` remains missing/`NaN` for those rows).
 - `motif_library_validation.summary()` reports motif-library build diagnostics,
   including provided/accepted/excluded reference counts, exclusion reasons
-  (`missing`, `short`, `unsupported`, `off_centre`, `site_residue_mismatch`),
+  (`missing`, `short`, `unsupported`, `off_centre`, `site_residue_mismatch`,
+  `invalid_site_id`, `non_phospho_centre_residue`),
   and accepted-window/unsupported-residue policies.
 - `motif_library_validation.rows` preserves per-reference provenance
-  (`reference_id`, `kinase`, `sequence`, `status`, `reason`,
+  (`reference_id`, `site_id`, `kinase`, `sequence`, `status`, `reason`,
   observed/expected centre residues).
 
 ### `SignalomeWorkflowResult`

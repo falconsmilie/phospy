@@ -10,7 +10,9 @@ import numpy as np
 import pandas as pd
 
 from phospy.prediction.sequence_validation import (
+    SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID,
     SEQUENCE_VALIDATION_STATUS_MISSING_SEQUENCE,
+    SEQUENCE_VALIDATION_STATUS_NON_PHOSPHO_CENTRE_RESIDUE,
     SEQUENCE_VALIDATION_STATUS_OFF_CENTRE_SEQUENCE,
     SEQUENCE_VALIDATION_STATUS_SHORT_SEQUENCE,
     SEQUENCE_VALIDATION_STATUS_SITE_RESIDUE_MISMATCH,
@@ -53,6 +55,7 @@ class MotifLibraryValidationRow:
     """Per-reference motif-library validation outcome."""
 
     reference_id: str
+    site_id: str | None
     kinase: str
     sequence: str | None
     status: SequenceValidationStatus
@@ -73,6 +76,8 @@ class MotifLibraryValidationResult:
     short_sequences: int
     off_centre_sequences: int
     site_residue_mismatches: int
+    invalid_site_ids: int
+    non_phospho_centre_residues: int
     unsupported_residue_characters: int
     sequences_excluded_from_motif_profile_construction: int
     expected_window_size: int
@@ -94,6 +99,8 @@ class MotifLibraryValidationResult:
             "excluded_unsupported_residue": self.unsupported_residue_characters,
             "excluded_off_centre_residue": self.off_centre_sequences,
             "excluded_site_residue_mismatch": self.site_residue_mismatches,
+            "excluded_invalid_site_id": self.invalid_site_ids,
+            "excluded_non_phospho_centre_residue": (self.non_phospho_centre_residues),
             "sequences_excluded_from_motif_profile_construction": (
                 self.sequences_excluded_from_motif_profile_construction
             ),
@@ -108,6 +115,7 @@ class MotifLibraryValidationResult:
 
         columns = [
             "reference_id",
+            "site_id",
             "kinase",
             "sequence",
             "status",
@@ -120,6 +128,7 @@ class MotifLibraryValidationResult:
             [
                 {
                     "reference_id": row.reference_id,
+                    "site_id": row.site_id,
                     "kinase": row.kinase,
                     "sequence": row.sequence,
                     "status": row.status,
@@ -137,8 +146,19 @@ class MotifLibraryValidationResult:
 @dataclass(frozen=True, slots=True)
 class _LibraryCandidate:
     reference_id: str
+    site_id: str | None
     kinase: str
     sequence_window: object
+
+
+@dataclass(frozen=True, slots=True)
+class ExplicitMotifSequence:
+    """Structured explicit motif-library sequence metadata."""
+
+    reference_id: str
+    site_id: str | None
+    kinase: str
+    sequence: object
 
 
 def build_motif_library(
@@ -162,6 +182,7 @@ def build_motif_library(
             candidates.append(
                 _LibraryCandidate(
                     reference_id=reference_id,
+                    site_id=reference_id,
                     kinase=str(kinase),
                     sequence_window=_extract_sequence_window(
                         sequence_lookup.get(reference_id, np.nan),
@@ -180,10 +201,18 @@ def build_motif_library(
 
 def build_motif_library_from_sequences(
     *,
-    motif_sequences: Mapping[str, Sequence[str]],
+    motif_sequences: Mapping[
+        str, Sequence[str | Mapping[str, object] | ExplicitMotifSequence]
+    ],
     flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
 ) -> tuple[dict[str, pd.DataFrame], pd.Series]:
-    """Build motif frequency matrices from explicit per-kinase sequences."""
+    """Build motif frequency matrices from explicit per-kinase sequences.
+
+    Each per-kinase entry can be either:
+    - a bare sequence string (legacy/less-informative mode), or
+    - structured metadata carrying `reference_id`, optional `site_id`,
+      optional `kinase`, and `sequence`.
+    """
 
     if flank_size < 0:
         raise ValueError("flank_size must be >= 0")
@@ -191,12 +220,21 @@ def build_motif_library_from_sequences(
     candidates: list[_LibraryCandidate] = []
     for kinase, sequences in motif_sequences.items():
         kinase_name = str(kinase)
-        for index, sequence in enumerate(sequences):
+        for index, entry in enumerate(sequences):
+            explicit_entry = _normalize_explicit_motif_sequence(
+                entry=entry,
+                default_kinase=kinase_name,
+                default_reference_id=f"{kinase_name}#{index}",
+            )
             candidates.append(
                 _LibraryCandidate(
-                    reference_id=f"{kinase_name}#{index}",
-                    kinase=kinase_name,
-                    sequence_window=_extract_sequence_window(sequence, flank_size),
+                    reference_id=explicit_entry.reference_id,
+                    site_id=explicit_entry.site_id,
+                    kinase=explicit_entry.kinase,
+                    sequence_window=_extract_sequence_window(
+                        explicit_entry.sequence,
+                        flank_size,
+                    ),
                 )
             )
     frequency_matrices, size_series, validation = _build_motif_library_from_candidates(
@@ -224,11 +262,16 @@ def _build_motif_library_from_candidates(
     flank_size: int,
 ) -> tuple[dict[str, pd.DataFrame], pd.Series, MotifLibraryValidationResult]:
     expected_window_size = (2 * flank_size) + 1
-    validator = MotifSequenceValidator(expected_window_size=expected_window_size)
+    validator = MotifSequenceValidator(
+        expected_window_size=expected_window_size,
+        require_phospho_centre_residue=True,
+        enforce_site_identity_format=True,
+    )
     validation_inputs = [
         SequenceValidationInput(
             site_id=candidate.reference_id,
             site_sequence=candidate.sequence_window,
+            site_identity=candidate.site_id,
         )
         for candidate in candidates
     ]
@@ -242,6 +285,7 @@ def _build_motif_library_from_candidates(
         validation_rows.append(
             MotifLibraryValidationRow(
                 reference_id=candidate.reference_id,
+                site_id=candidate.site_id,
                 kinase=candidate.kinase,
                 sequence=row.sequence,
                 status=row.status,
@@ -284,6 +328,10 @@ def _build_motif_library_from_candidates(
         site_residue_mismatches=status_counts[
             SEQUENCE_VALIDATION_STATUS_SITE_RESIDUE_MISMATCH
         ],
+        invalid_site_ids=status_counts[SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID],
+        non_phospho_centre_residues=status_counts[
+            SEQUENCE_VALIDATION_STATUS_NON_PHOSPHO_CENTRE_RESIDUE
+        ],
         unsupported_residue_characters=status_counts[
             SEQUENCE_VALIDATION_STATUS_UNSUPPORTED_RESIDUE_CHARACTER
         ],
@@ -304,6 +352,74 @@ def _build_motif_library_from_candidates(
         rows=tuple(validation_rows),
     )
     return frequency_matrices, size_series, validation
+
+
+def _normalize_explicit_motif_sequence(
+    *,
+    entry: str | Mapping[str, object] | ExplicitMotifSequence,
+    default_kinase: str,
+    default_reference_id: str,
+) -> ExplicitMotifSequence:
+    if isinstance(entry, ExplicitMotifSequence):
+        reference_id = _coerce_identifier(
+            entry.reference_id, fallback=default_reference_id
+        )
+        kinase = _coerce_identifier(entry.kinase, fallback=default_kinase)
+        if kinase != default_kinase:
+            raise ValueError(
+                "explicit motif sequence kinase metadata must match the parent "
+                f"mapping key '{default_kinase}'"
+            )
+        return ExplicitMotifSequence(
+            reference_id=reference_id,
+            site_id=_coerce_optional_identifier(entry.site_id),
+            kinase=kinase,
+            sequence=entry.sequence,
+        )
+    if isinstance(entry, Mapping):
+        reference_id = _coerce_identifier(
+            entry.get("reference_id"),
+            fallback=default_reference_id,
+        )
+        entry_kinase = _coerce_identifier(entry.get("kinase"), fallback=default_kinase)
+        if entry_kinase != default_kinase:
+            raise ValueError(
+                "explicit motif sequence kinase metadata must match the parent "
+                f"mapping key '{default_kinase}'"
+            )
+        return ExplicitMotifSequence(
+            reference_id=reference_id,
+            site_id=_coerce_optional_identifier(entry.get("site_id")),
+            kinase=entry_kinase,
+            sequence=entry.get("sequence"),
+        )
+    return ExplicitMotifSequence(
+        reference_id=default_reference_id,
+        site_id=None,
+        kinase=default_kinase,
+        sequence=entry,
+    )
+
+
+def _coerce_identifier(value: object, *, fallback: str) -> str:
+    identifier = _coerce_optional_identifier(value)
+    if identifier is None:
+        return str(fallback)
+    return identifier
+
+
+def _coerce_optional_identifier(value: object) -> str | None:
+    if value is None:
+        return None
+    try:
+        if bool(pd.isna(value)):
+            return None
+    except (TypeError, ValueError):
+        pass
+    text = str(value).strip()
+    if text == "":
+        return None
+    return text
 
 
 def score_phosphosite_motifs(
@@ -582,6 +698,7 @@ def _require_fully_supported_encoded_sequences(
 
 __all__ = [
     "DEFAULT_MOTIF_FLANK_SIZE",
+    "ExplicitMotifSequence",
     "MotifLibraryValidationResult",
     "MotifLibraryValidationRow",
     "MotifScoringResult",

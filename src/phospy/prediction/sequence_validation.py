@@ -34,12 +34,16 @@ SUPPORTED_AMINO_ACIDS: tuple[str, ...] = (
 )
 _SUPPORTED_AMINO_ACID_SET = frozenset(SUPPORTED_AMINO_ACIDS)
 _SITE_IDENTITY_PATTERN = re.compile(r"^\s*[^;]+?\s*;\s*(?P<site>[^;]+?)\s*;\s*$")
+PHOSPHO_COMPATIBLE_RESIDUES: tuple[str, ...] = ("S", "T", "Y")
+_PHOSPHO_COMPATIBLE_RESIDUE_SET = frozenset(PHOSPHO_COMPATIBLE_RESIDUES)
 
 SEQUENCE_VALIDATION_STATUS_VALID = "valid"
 SEQUENCE_VALIDATION_STATUS_MISSING_SEQUENCE = "missing_sequence"
 SEQUENCE_VALIDATION_STATUS_SHORT_SEQUENCE = "short_sequence"
 SEQUENCE_VALIDATION_STATUS_OFF_CENTRE_SEQUENCE = "off_centre_sequence"
 SEQUENCE_VALIDATION_STATUS_SITE_RESIDUE_MISMATCH = "site_residue_mismatch"
+SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID = "invalid_site_id"
+SEQUENCE_VALIDATION_STATUS_NON_PHOSPHO_CENTRE_RESIDUE = "non_phospho_centre_residue"
 SEQUENCE_VALIDATION_STATUS_UNSUPPORTED_RESIDUE_CHARACTER = (
     "unsupported_residue_character"
 )
@@ -50,6 +54,8 @@ SequenceValidationStatus = Literal[
     "short_sequence",
     "off_centre_sequence",
     "site_residue_mismatch",
+    "invalid_site_id",
+    "non_phospho_centre_residue",
     "unsupported_residue_character",
 ]
 
@@ -60,6 +66,7 @@ class SequenceValidationInput:
 
     site_id: str
     site_sequence: object
+    site_identity: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +92,8 @@ class SequenceValidationResult:
     short_sequences: int
     off_centre_sequences: int
     site_residue_mismatches: int
+    invalid_site_ids: int
+    non_phospho_centre_residues: int
     unsupported_residue_characters: int
     sequences_excluded_from_motif_scoring: int
     excluded_site_ids: tuple[str, ...]
@@ -100,6 +109,8 @@ class SequenceValidationResult:
             "short_sequences": self.short_sequences,
             "off_centre_sequences": self.off_centre_sequences,
             "site_residue_mismatches": self.site_residue_mismatches,
+            "invalid_site_ids": self.invalid_site_ids,
+            "non_phospho_centre_residues": self.non_phospho_centre_residues,
             "unsupported_residue_characters": self.unsupported_residue_characters,
             "sequences_excluded_from_motif_scoring": (
                 self.sequences_excluded_from_motif_scoring
@@ -115,12 +126,16 @@ class MotifSequenceValidator:
         *,
         expected_window_size: int,
         supported_amino_acids: Sequence[str] = SUPPORTED_AMINO_ACIDS,
+        require_phospho_centre_residue: bool = False,
+        enforce_site_identity_format: bool = False,
     ) -> None:
         if expected_window_size <= 0:
             raise ValueError("expected_window_size must be > 0")
         self.expected_window_size = int(expected_window_size)
         self.expected_centre_index = self.expected_window_size // 2
         self._supported_amino_acids = frozenset(supported_amino_acids)
+        self._require_phospho_centre_residue = bool(require_phospho_centre_residue)
+        self._enforce_site_identity_format = bool(enforce_site_identity_format)
 
     def run(
         self, *, rows: Sequence[SequenceValidationInput]
@@ -150,6 +165,10 @@ class MotifSequenceValidator:
             site_residue_mismatches=status_counts[
                 SEQUENCE_VALIDATION_STATUS_SITE_RESIDUE_MISMATCH
             ],
+            invalid_site_ids=status_counts[SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID],
+            non_phospho_centre_residues=status_counts[
+                SEQUENCE_VALIDATION_STATUS_NON_PHOSPHO_CENTRE_RESIDUE
+            ],
             unsupported_residue_characters=status_counts[
                 SEQUENCE_VALIDATION_STATUS_UNSUPPORTED_RESIDUE_CHARACTER
             ],
@@ -161,7 +180,31 @@ class MotifSequenceValidator:
     def _validate_row(self, row: SequenceValidationInput) -> SequenceValidationRow:
         site_id = str(row.site_id)
         sequence = _coerce_sequence(row.site_sequence)
-        expected_residue = _parse_expected_site_residue(site_id)
+        site_identity = _coerce_site_identity(row.site_identity)
+        site_identity_provided = row.site_identity is not None
+        expected_residue = _parse_expected_site_residue(
+            site_identity if site_identity is not None else site_id
+        )
+        if site_identity_provided and self._enforce_site_identity_format:
+            if site_identity is None or expected_residue is None:
+                return SequenceValidationRow(
+                    site_id=site_id,
+                    sequence=sequence,
+                    status=SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID,
+                    reason=(
+                        "site_id must follow the '<protein>;<residue><position>;' "
+                        "shape (for example 'MAPK1;S202;')"
+                    ),
+                    expected_centre_residue=None,
+                    observed_centre_residue=(
+                        None
+                        if sequence is None
+                        else sequence[self.expected_centre_index]
+                        if len(sequence) > self.expected_centre_index
+                        else None
+                    ),
+                    sequence_length=None if sequence is None else len(sequence),
+                )
         if sequence is None:
             return SequenceValidationRow(
                 site_id=site_id,
@@ -208,6 +251,22 @@ class MotifSequenceValidator:
             )
 
         observed_residue = sequence[self.expected_centre_index]
+        if (
+            self._require_phospho_centre_residue
+            and observed_residue not in _PHOSPHO_COMPATIBLE_RESIDUE_SET
+        ):
+            return SequenceValidationRow(
+                site_id=site_id,
+                sequence=sequence,
+                status=SEQUENCE_VALIDATION_STATUS_NON_PHOSPHO_CENTRE_RESIDUE,
+                reason=(
+                    f"centre residue '{observed_residue}' is not phospho-compatible; "
+                    f"expected one of {', '.join(PHOSPHO_COMPATIBLE_RESIDUES)}"
+                ),
+                expected_centre_residue=expected_residue,
+                observed_centre_residue=observed_residue,
+                sequence_length=sequence_length,
+            )
         if expected_residue is not None and observed_residue != expected_residue:
             if expected_residue in sequence:
                 status = SEQUENCE_VALIDATION_STATUS_OFF_CENTRE_SEQUENCE
@@ -253,6 +312,20 @@ def _coerce_sequence(value: object) -> str | None:
     return sequence
 
 
+def _coerce_site_identity(value: object) -> str | None:
+    if value is None:
+        return None
+    try:
+        if bool(pd.isna(value)):
+            return None
+    except (TypeError, ValueError):
+        pass
+    site_identity = str(value).strip()
+    if site_identity == "":
+        return None
+    return site_identity
+
+
 def _parse_expected_site_residue(site_id: str) -> str | None:
     match = _SITE_IDENTITY_PATTERN.fullmatch(site_id)
     if match is None:
@@ -268,7 +341,10 @@ def _parse_expected_site_residue(site_id: str) -> str | None:
 
 __all__ = [
     "MotifSequenceValidator",
+    "PHOSPHO_COMPATIBLE_RESIDUES",
+    "SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID",
     "SEQUENCE_VALIDATION_STATUS_MISSING_SEQUENCE",
+    "SEQUENCE_VALIDATION_STATUS_NON_PHOSPHO_CENTRE_RESIDUE",
     "SEQUENCE_VALIDATION_STATUS_OFF_CENTRE_SEQUENCE",
     "SEQUENCE_VALIDATION_STATUS_SHORT_SEQUENCE",
     "SEQUENCE_VALIDATION_STATUS_SITE_RESIDUE_MISMATCH",

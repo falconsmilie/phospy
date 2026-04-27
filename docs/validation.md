@@ -178,6 +178,17 @@ scientific contract:
 - reference/library windows are validated with the same rules before motif
   profile construction; invalid reference windows are excluded from motif model
   construction
+- explicit motif-sequence libraries accept both:
+  - bare sequence entries, and
+  - structured entries with metadata equivalent to
+    `reference_id`, `site_id`, `kinase`, and `sequence`
+- bare explicit entries can validate motif-window quality, alphabet support, and
+  phospho-compatible centre residue (`S/T/Y`), but cannot always assert intended
+  phosphosite identity
+- structured explicit entries are preferred because supplied `site_id` can be
+  validated and centre-residue matching can be checked deterministically
+- site-residue mismatch checks require site-like metadata (for example `site_id`
+  or a reference identifier that encodes the site)
 - query-side sequence validation diagnostics are exposed on
   `result.scoring_result.motif_sequence_validation`
 - reference-library validation diagnostics are exposed on
