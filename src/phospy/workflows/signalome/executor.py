@@ -2,29 +2,20 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-
 import pandas as pd
 
 from phospy.api.results import SignalomeWorkflowResult
-from phospy.errors.workflows import (
-    WorkflowBoundaryError,
-    WorkflowStageError,
-)
-from phospy.provenance.environment import collect_environment_provenance
-from phospy.provenance.hashing import fingerprint_optional_table
+from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
 from phospy.provenance.models import (
     PreprocessingStageProvenance,
     RunProvenance,
     TableFingerprint,
 )
-from phospy.provenance.serialization import to_payload as provenance_to_payload
 from phospy.signalomes.clustering import (
     ClusterSitesResult,
     cluster_sites_with_diagnostics,
     derive_protein_modules,
 )
-from phospy.signalomes.constants import MODULE_ID_COLUMN
 from phospy.signalomes.context import (
     build_protein_site_context_table,
     build_site_membership_table,
@@ -42,12 +33,18 @@ from phospy.signalomes.science import (
     build_signalome_module_table,
     select_kinase_substrates,
 )
+from phospy.workflows.signalome.components import (
+    SignalomeClusteringRunner,
+    SignalomeContextTableBuilder,
+    SignalomeExecutionMetadata,
+    SignalomeModuleTableBuilder,
+    SignalomeNetworkBuilder,
+    SignalomeProvenanceBuilder,
+    SignalomeScaleGuardDecision,
+    SignalomeSupportSummary,
+)
 from phospy.workflows.signalome.constants import (
-    SIGNALOME_EXECUTOR_CONTEXT_TABLES_SEAM,
     SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM,
-    SIGNALOME_EXECUTOR_KINASE_SUPPORT_SEAM,
-    SIGNALOME_EXECUTOR_MODULE_CONSTRUCTION_SEAM,
-    SIGNALOME_EXECUTOR_NETWORK_SEAM,
     SIGNALOME_WORKFLOW_BOUNDARY_MESSAGE_PREFIX,
 )
 from phospy.workflows.signalome.contracts import (
@@ -56,128 +53,99 @@ from phospy.workflows.signalome.contracts import (
 )
 
 
-@dataclass(frozen=True, slots=True)
-class _ExecutionMetadata:
-    prediction_sites: int
-    prediction_kinases: int
-    downstream_score_sites: int
-    downstream_score_kinases: int
-    downstream_score_source: str
-
-
-@dataclass(frozen=True, slots=True)
-class _ScaleGuardDecision:
-    site_count: int
-    cluster_tree_backend: str
-    candidate_scoring_backend: str
-    max_exact_cluster_tree_sites: int
-    max_full_correlation_sites: int
-    exact_cluster_tree_built: bool
-    candidate_scoring_mode: str
-    scale_guard_passed: bool
-
-
-@dataclass(frozen=True, slots=True)
-class _ClusteringStage:
-    clustering_result: ClusterSitesResult
-    protein_modules: pd.Series
-
-
-@dataclass(frozen=True, slots=True)
-class _SupportSummary:
-    kinase_substrates: dict[str, tuple[str, ...]]
-    support_counts: dict[str, int]
-
-
-@dataclass(frozen=True, slots=True)
-class _SignalomeModuleStage:
-    signalome_modules: pd.DataFrame
-    module_count: int
-    support_summary: _SupportSummary
-
-
-@dataclass(frozen=True, slots=True)
-class _SignalomeContextStage:
-    site_membership: pd.DataFrame
-    protein_site_context: pd.DataFrame
-
-
-@dataclass(frozen=True, slots=True)
-class _NetworkStage:
-    edges: pd.DataFrame
-    nodes: pd.DataFrame
-    candidate_correlations: pd.DataFrame
-    correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics
-
-
 class SignalomeWorkflowExecutor:
     """Run signalome stage logic and assemble `SignalomeWorkflowResult`."""
 
-    _MODULE_ID_COLUMN = MODULE_ID_COLUMN
-    _NETWORK_SEAM = SIGNALOME_EXECUTOR_NETWORK_SEAM
-    _KINASE_SUPPORT_SEAM = SIGNALOME_EXECUTOR_KINASE_SUPPORT_SEAM
-    _MODULE_CONSTRUCTION_SEAM = SIGNALOME_EXECUTOR_MODULE_CONSTRUCTION_SEAM
     _EXPANDED_SIGNALOME_SEAM = SIGNALOME_EXECUTOR_EXPANDED_SIGNALOME_SEAM
-    _CONTEXT_TABLES_SEAM = SIGNALOME_EXECUTOR_CONTEXT_TABLES_SEAM
+
+    def __init__(
+        self,
+        *,
+        clustering_runner: SignalomeClusteringRunner | None = None,
+        module_table_builder: SignalomeModuleTableBuilder | None = None,
+        network_builder: SignalomeNetworkBuilder | None = None,
+        context_table_builder: SignalomeContextTableBuilder | None = None,
+        provenance_builder: SignalomeProvenanceBuilder | None = None,
+    ) -> None:
+        # Dependency wiring is intentionally done here so tests can monkeypatch
+        # executor-module callables and still intercept default component behavior.
+        self._clustering_runner = clustering_runner or SignalomeClusteringRunner(
+            cluster_sites=cluster_sites_with_diagnostics,
+            derive_modules=derive_protein_modules,
+        )
+        self._module_table_builder = (
+            module_table_builder
+            or SignalomeModuleTableBuilder(
+                build_assignments=build_module_assignments,
+                select_substrates=select_kinase_substrates,
+                build_modules=build_signalome_module_table,
+            )
+        )
+        self._network_builder = network_builder or SignalomeNetworkBuilder(
+            build_network=build_kinase_network_with_diagnostics,
+        )
+        self._context_table_builder = (
+            context_table_builder
+            or SignalomeContextTableBuilder(
+                build_site_membership=build_site_membership_table,
+                build_protein_context=build_protein_site_context_table,
+            )
+        )
+        self._provenance_builder = provenance_builder or SignalomeProvenanceBuilder()
 
     def run(self, request: ResolvedSignalomeWorkflowRequest) -> SignalomeWorkflowResult:
         config = request.execution_config
-        execution_metadata = self._collect_execution_metadata(request)
-        clustering_stage = self._run_clustering_and_module_derivation(
+        execution_metadata = SignalomeClusteringRunner.collect_execution_metadata(
+            request
+        )
+        clustering_stage = self._clustering_runner.run(
             request=request,
             config=config,
             execution_metadata=execution_metadata,
         )
-        scale_guard_decision = self._summarize_scale_guard(
+        scale_guard_decision = SignalomeClusteringRunner.summarize_scale_guard(
             config=config,
             site_count=execution_metadata.downstream_score_sites,
             clustering_result=clustering_stage.clustering_result,
         )
-        module_assignments = self._build_module_assignments(
+        module_stage = self._module_table_builder.run(
             request=request,
             config=config,
             clustering_result=clustering_stage.clustering_result,
             protein_modules=clustering_stage.protein_modules,
             execution_metadata=execution_metadata,
         )
-        signalome_module_stage = self._build_signalome_modules(
+        network_stage = self._network_builder.run(
             request=request,
             config=config,
             clustering_result=clustering_stage.clustering_result,
-            module_assignments=module_assignments,
-            execution_metadata=execution_metadata,
-        )
-        network_stage = self._build_network(
-            request=request,
-            config=config,
-            clustering_result=clustering_stage.clustering_result,
-            support_summary=signalome_module_stage.support_summary,
+            support_summary=module_stage.support_summary,
             execution_metadata=execution_metadata,
         )
         expanded_signalome = self._build_expanded_signalome(
             request=request,
             config=config,
-            module_assignments=module_assignments,
-            signalome_modules=signalome_module_stage.signalome_modules,
+            module_assignments=module_stage.module_assignments,
+            signalome_modules=module_stage.signalome_modules,
             network_edges=network_stage.edges,
-            support_summary=signalome_module_stage.support_summary,
-            module_count=signalome_module_stage.module_count,
+            support_summary=module_stage.support_summary,
+            module_count=module_stage.module_count,
             execution_metadata=execution_metadata,
         )
-        context_stage = self._build_signalome_context_tables(
+        context_stage = self._context_table_builder.run(
             request=request,
             config=config,
             clustering_result=clustering_stage.clustering_result,
-            module_assignments=module_assignments,
-            support_summary=signalome_module_stage.support_summary,
+            module_assignments=module_stage.module_assignments,
+            support_summary=module_stage.support_summary,
             execution_metadata=execution_metadata,
         )
-        provenance = _build_signalome_run_provenance(
+        provenance = self._provenance_builder.build(
             request=request,
             config=config,
             clustering_result=clustering_stage.clustering_result,
-            module_assignments=module_assignments,
-            signalome_modules=signalome_module_stage.signalome_modules,
+            module_assignments=module_stage.module_assignments,
+            signalome_modules=module_stage.signalome_modules,
             network_edges=network_stage.edges,
             network_nodes=network_stage.nodes,
             candidate_correlations=network_stage.candidate_correlations,
@@ -187,12 +155,11 @@ class SignalomeWorkflowExecutor:
             protein_site_context=context_stage.protein_site_context,
             scale_guard_decision=scale_guard_decision,
         )
-
         return self._assemble_result(
             request=request,
             clustering_result=clustering_stage.clustering_result,
-            module_assignments=module_assignments,
-            signalome_modules=signalome_module_stage.signalome_modules,
+            module_assignments=module_stage.module_assignments,
+            signalome_modules=module_stage.signalome_modules,
             network_edges=network_stage.edges,
             network_nodes=network_stage.nodes,
             candidate_correlations=network_stage.candidate_correlations,
@@ -240,344 +207,6 @@ class SignalomeWorkflowExecutor:
             provenance=provenance,
         )
 
-    def _build_signalome_context_tables(
-        self,
-        *,
-        request: ResolvedSignalomeWorkflowRequest,
-        config: ResolvedSignalomeExecutionConfig,
-        clustering_result: ClusterSitesResult,
-        module_assignments: pd.DataFrame,
-        support_summary: _SupportSummary,
-        execution_metadata: _ExecutionMetadata,
-    ) -> _SignalomeContextStage:
-        try:
-            site_membership = build_site_membership_table(
-                module_assignments=module_assignments,
-                site_clusters=clustering_result.site_clusters,
-                site_metadata=request.dataset.site_metadata,
-                prediction_matrix=request.prediction_matrix,
-                kinase_substrates=support_summary.kinase_substrates,
-                substrate_support_cutoff=config.substrate_support_cutoff,
-                assignment_policy=config.assignment_policy,
-            )
-            protein_site_context = build_protein_site_context_table(
-                site_membership=site_membership
-            )
-            return _SignalomeContextStage(
-                site_membership=site_membership,
-                protein_site_context=protein_site_context,
-            )
-        except (WorkflowStageError, ValueError, TypeError, KeyError) as exc:
-            self._raise_boundary_error(
-                seam=self._CONTEXT_TABLES_SEAM,
-                next_action=(
-                    "ensure module assignments, site clusters, site metadata, "
-                    "prediction scores, and supported substrate mappings are "
-                    "mutually consistent before building signalome context tables"
-                ),
-                **self._prediction_shape_details(execution_metadata),
-                module_assignment_rows=int(module_assignments.shape[0]),
-                module_assignment_columns=int(module_assignments.shape[1]),
-                site_cluster_count=int(clustering_result.site_clusters.nunique()),
-                **self._support_details(support_summary.support_counts),
-                substrate_support_cutoff=config.substrate_support_cutoff,
-                assignment_policy=config.assignment_policy,
-                stage_error=str(exc),
-            )
-
-    @staticmethod
-    def _collect_execution_metadata(
-        request: ResolvedSignalomeWorkflowRequest,
-    ) -> _ExecutionMetadata:
-        return _ExecutionMetadata(
-            prediction_sites=int(request.prediction_matrix.shape[0]),
-            prediction_kinases=int(request.prediction_matrix.shape[1]),
-            downstream_score_sites=int(request.downstream_score_matrix.shape[0]),
-            downstream_score_kinases=int(request.downstream_score_matrix.shape[1]),
-            downstream_score_source=request.downstream_score_source,
-        )
-
-    def _run_clustering_and_module_derivation(
-        self,
-        *,
-        request: ResolvedSignalomeWorkflowRequest,
-        config: ResolvedSignalomeExecutionConfig,
-        execution_metadata: _ExecutionMetadata,
-    ) -> _ClusteringStage:
-        try:
-            clustering_result = cluster_sites_with_diagnostics(
-                scoring_matrix=request.downstream_score_matrix,
-                requested_module_count=config.requested_module_count,
-                primary_threshold=config.module_selection_primary_threshold,
-                fallback_threshold=config.module_selection_fallback_threshold,
-                max_clusters=config.module_selection_max_clusters,
-                cluster_tree_backend=config.cluster_tree_backend,
-                candidate_scoring_backend=config.candidate_scoring_backend,
-                max_exact_cluster_tree_sites=config.max_exact_cluster_tree_sites,
-                max_full_correlation_sites=config.max_full_correlation_sites,
-            )
-            protein_modules = derive_protein_modules(
-                site_clusters=clustering_result.site_clusters,
-                site_to_protein=request.site_to_protein,
-            )
-            return _ClusteringStage(
-                clustering_result=clustering_result,
-                protein_modules=protein_modules,
-            )
-        except (WorkflowStageError, ValueError) as exc:
-            self._raise_boundary_error(
-                seam=self._MODULE_CONSTRUCTION_SEAM,
-                next_action=(
-                    "ensure downstream signalome scores are compatible with module "
-                    "selection clustering and module-count policy settings"
-                ),
-                requested_module_count=self._requested_module_count_label(
-                    config.requested_module_count
-                ),
-                module_selection_primary_correlation_threshold=config.module_selection_primary_threshold,
-                module_selection_fallback_correlation_threshold=config.module_selection_fallback_threshold,
-                module_selection_max_clusters=config.module_selection_max_clusters,
-                cluster_tree_backend=config.cluster_tree_backend,
-                candidate_scoring_backend=config.candidate_scoring_backend,
-                max_exact_cluster_tree_sites=config.max_exact_cluster_tree_sites,
-                max_full_correlation_sites=config.max_full_correlation_sites,
-                downstream_score_sites=execution_metadata.downstream_score_sites,
-                downstream_score_kinases=execution_metadata.downstream_score_kinases,
-                stage_error=str(exc),
-            )
-
-    @staticmethod
-    def _summarize_scale_guard(
-        *,
-        config: ResolvedSignalomeExecutionConfig,
-        site_count: int,
-        clustering_result: ClusterSitesResult,
-    ) -> _ScaleGuardDecision:
-        return _ScaleGuardDecision(
-            site_count=int(site_count),
-            cluster_tree_backend=str(config.cluster_tree_backend),
-            candidate_scoring_backend=str(config.candidate_scoring_backend),
-            max_exact_cluster_tree_sites=int(config.max_exact_cluster_tree_sites),
-            max_full_correlation_sites=int(config.max_full_correlation_sites),
-            exact_cluster_tree_built=bool(clustering_result.exact_cluster_tree_built),
-            candidate_scoring_mode=str(clustering_result.candidate_scoring_mode),
-            scale_guard_passed=True,
-        )
-
-    def _build_module_assignments(
-        self,
-        *,
-        request: ResolvedSignalomeWorkflowRequest,
-        config: ResolvedSignalomeExecutionConfig,
-        clustering_result: ClusterSitesResult,
-        protein_modules: pd.Series,
-        execution_metadata: _ExecutionMetadata,
-    ) -> pd.DataFrame:
-        try:
-            return build_module_assignments(
-                prediction_matrix=request.prediction_matrix,
-                site_to_protein=request.site_to_protein,
-                protein_modules=protein_modules,
-            )
-        except WorkflowStageError as exc:
-            self._raise_boundary_error(
-                seam=self._MODULE_CONSTRUCTION_SEAM,
-                next_action=(
-                    "ensure interpreted prediction inputs provide unique site IDs and "
-                    "resolvable site-to-protein assignments"
-                ),
-                **self._prediction_shape_details(execution_metadata),
-                substrate_support_cutoff=config.substrate_support_cutoff,
-                network_correlation_threshold=config.network_correlation_threshold,
-                network_policy=config.network_policy,
-                **self._module_selection_details(clustering_result),
-                stage_error=str(exc),
-            )
-
-    def _build_signalome_modules(
-        self,
-        *,
-        request: ResolvedSignalomeWorkflowRequest,
-        config: ResolvedSignalomeExecutionConfig,
-        clustering_result: ClusterSitesResult,
-        module_assignments: pd.DataFrame,
-        execution_metadata: _ExecutionMetadata,
-    ) -> _SignalomeModuleStage:
-        support_summary = self._select_supported_substrates(
-            request=request,
-            config=config,
-            execution_metadata=execution_metadata,
-        )
-        support_counts = support_summary.support_counts
-        try:
-            signalome_modules = build_signalome_module_table(
-                module_assignments=module_assignments,
-                kinase_substrates=support_summary.kinase_substrates,
-                kinase_order=request.prediction_matrix.columns.astype(str).tolist(),
-                assignment_policy=config.assignment_policy,
-            )
-        except WorkflowStageError as exc:
-            self._raise_boundary_error(
-                seam=self._MODULE_CONSTRUCTION_SEAM,
-                next_action=(
-                    "ensure supported substrates map to interpreted proteins so module "
-                    "aggregation can be computed"
-                ),
-                **self._support_details(support_counts),
-                **self._prediction_shape_details(execution_metadata),
-                substrate_support_cutoff=config.substrate_support_cutoff,
-                network_correlation_threshold=config.network_correlation_threshold,
-                network_policy=config.network_policy,
-                stage_error=str(exc),
-            )
-        module_count = int(
-            module_assignments.loc[
-                module_assignments.loc[:, self._MODULE_ID_COLUMN].astype("int64") > 0,
-                self._MODULE_ID_COLUMN,
-            ].nunique(dropna=True)
-        )
-        module_rows_with_support = (
-            int((signalome_modules.sum(axis=1) > 0.0).sum())
-            if not signalome_modules.empty
-            else 0
-        )
-        if (
-            signalome_modules.empty
-            or module_rows_with_support == 0
-            or (module_count < 2 and support_counts["supported_kinases"] < 2)
-        ):
-            self._raise_boundary_error(
-                seam=self._MODULE_CONSTRUCTION_SEAM,
-                next_action=(
-                    "increase interpreted signal diversity and ensure at least two "
-                    "supported kinases contribute non-zero module signal"
-                ),
-                module_count=module_count,
-                module_rows_with_support=module_rows_with_support,
-                **self._support_details(support_counts),
-                **self._prediction_shape_details(execution_metadata),
-                substrate_support_cutoff=config.substrate_support_cutoff,
-                network_correlation_threshold=config.network_correlation_threshold,
-                selected_module_count=self._module_selection_details(clustering_result)[
-                    "selected_module_count"
-                ],
-            )
-        return _SignalomeModuleStage(
-            signalome_modules=signalome_modules,
-            module_count=module_count,
-            support_summary=support_summary,
-        )
-
-    def _select_supported_substrates(
-        self,
-        *,
-        request: ResolvedSignalomeWorkflowRequest,
-        config: ResolvedSignalomeExecutionConfig,
-        execution_metadata: _ExecutionMetadata,
-    ) -> _SupportSummary:
-        kinase_substrates = select_kinase_substrates(
-            prediction_matrix=request.prediction_matrix,
-            cutoff=config.substrate_support_cutoff,
-        )
-        support_counts = self._summarize_support(kinase_substrates)
-        if support_counts["supported_kinases"] == 0:
-            self._raise_boundary_error(
-                seam=self._KINASE_SUPPORT_SEAM,
-                next_action=(
-                    "lower substrate_support_cutoff or ensure prediction scores "
-                    "include kinase-site support above the configured threshold"
-                ),
-                **self._prediction_shape_details(execution_metadata),
-                **self._support_details(support_counts),
-                substrate_support_cutoff=config.substrate_support_cutoff,
-            )
-        return _SupportSummary(
-            kinase_substrates=kinase_substrates,
-            support_counts=support_counts,
-        )
-
-    def _build_network(
-        self,
-        *,
-        request: ResolvedSignalomeWorkflowRequest,
-        config: ResolvedSignalomeExecutionConfig,
-        clustering_result: ClusterSitesResult,
-        support_summary: _SupportSummary,
-        execution_metadata: _ExecutionMetadata,
-    ) -> _NetworkStage:
-        score_variance_kinases = self._score_variance_kinases(
-            request.downstream_score_matrix
-        )
-        try:
-            (
-                network_edges,
-                network_nodes,
-                candidate_correlations,
-                correlation_diagnostics,
-            ) = build_kinase_network_with_diagnostics(
-                downstream_score_matrix=request.downstream_score_matrix,
-                kinase_order=request.prediction_matrix.columns.astype(str).tolist(),
-                kinase_substrates=support_summary.kinase_substrates,
-                threshold=config.network_correlation_threshold,
-                network_policy=config.network_policy,
-            )
-        except WorkflowStageError as exc:
-            self._raise_boundary_error(
-                seam=self._NETWORK_SEAM,
-                next_action=(
-                    "ensure interpreted score and prediction matrices share the same "
-                    "kinase set and contain variable score signal"
-                ),
-                shared_kinases=execution_metadata.prediction_kinases,
-                **self._support_details(support_summary.support_counts),
-                downstream_score_sites=execution_metadata.downstream_score_sites,
-                downstream_score_source=execution_metadata.downstream_score_source,
-                score_variance_kinases=score_variance_kinases,
-                network_correlation_threshold=config.network_correlation_threshold,
-                network_policy=config.network_policy,
-                stage_error=str(exc),
-            )
-        if network_edges.empty:
-            self._raise_boundary_error(
-                seam=self._NETWORK_SEAM,
-                next_action=(
-                    "lower network_correlation_threshold or provide more variable "
-                    "score profiles so kinase correlations can be estimated"
-                ),
-                shared_kinases=execution_metadata.prediction_kinases,
-                **self._support_details(support_summary.support_counts),
-                downstream_score_sites=execution_metadata.downstream_score_sites,
-                downstream_score_source=execution_metadata.downstream_score_source,
-                score_variance_kinases=score_variance_kinases,
-                network_correlation_threshold=config.network_correlation_threshold,
-                network_policy=config.network_policy,
-                selected_module_count=self._module_selection_details(clustering_result)[
-                    "selected_module_count"
-                ],
-                total_candidate_correlations=(
-                    correlation_diagnostics.total_candidate_correlations
-                ),
-                undefined_correlations=correlation_diagnostics.undefined_correlations,
-                constant_profile_correlations=(
-                    correlation_diagnostics.constant_profile_correlations
-                ),
-                insufficient_observation_correlations=(
-                    correlation_diagnostics.insufficient_observation_correlations
-                ),
-                missing_value_correlations=(
-                    correlation_diagnostics.missing_value_correlations
-                ),
-                non_finite_value_correlations=(
-                    correlation_diagnostics.non_finite_value_correlations
-                ),
-            )
-        return _NetworkStage(
-            edges=network_edges,
-            nodes=network_nodes,
-            candidate_correlations=candidate_correlations,
-            correlation_diagnostics=correlation_diagnostics,
-        )
-
     def _build_expanded_signalome(
         self,
         *,
@@ -586,9 +215,9 @@ class SignalomeWorkflowExecutor:
         module_assignments: pd.DataFrame,
         signalome_modules: pd.DataFrame,
         network_edges: pd.DataFrame,
-        support_summary: _SupportSummary,
+        support_summary: SignalomeSupportSummary,
         module_count: int,
-        execution_metadata: _ExecutionMetadata,
+        execution_metadata: SignalomeExecutionMetadata,
     ) -> pd.DataFrame:
         try:
             return build_expanded_signalome_table(
@@ -613,32 +242,8 @@ class SignalomeWorkflowExecutor:
             )
 
     @staticmethod
-    def _summarize_support(
-        kinase_substrates: dict[str, tuple[str, ...]],
-    ) -> dict[str, int]:
-        supported_site_ids: set[str] = set()
-        supported_kinases = 0
-        for substrates in kinase_substrates.values():
-            resolved_sites = tuple(str(site_id) for site_id in substrates)
-            if not resolved_sites:
-                continue
-            supported_kinases += 1
-            supported_site_ids.update(resolved_sites)
-        return {
-            "supported_sites": int(len(supported_site_ids)),
-            "supported_kinases": int(supported_kinases),
-        }
-
-    @staticmethod
-    def _score_variance_kinases(downstream_score_matrix: pd.DataFrame) -> int:
-        if downstream_score_matrix.empty:
-            return 0
-        variances = downstream_score_matrix.astype(float).var(axis=0, ddof=0)
-        return int((variances > 0.0).sum())
-
-    @staticmethod
     def _prediction_shape_details(
-        execution_metadata: _ExecutionMetadata,
+        execution_metadata: SignalomeExecutionMetadata,
     ) -> dict[str, int]:
         return {
             "prediction_sites": execution_metadata.prediction_sites,
@@ -651,26 +256,6 @@ class SignalomeWorkflowExecutor:
             "supported_sites": int(support_counts["supported_sites"]),
             "supported_kinases": int(support_counts["supported_kinases"]),
         }
-
-    @staticmethod
-    def _module_selection_details(
-        clustering_result: ClusterSitesResult,
-    ) -> dict[str, int | str]:
-        diagnostics = clustering_result.module_selection_diagnostics
-        return {
-            "selected_module_count": int(diagnostics.selected_module_count),
-            "requested_module_count": SignalomeWorkflowExecutor._requested_module_count_label(
-                diagnostics.requested_module_count
-            ),
-        }
-
-    @staticmethod
-    def _requested_module_count_label(
-        requested_module_count: int | None,
-    ) -> int | str:
-        if requested_module_count is None:
-            return "auto"
-        return int(requested_module_count)
 
     @staticmethod
     def _raise_boundary_error(
@@ -701,137 +286,32 @@ def _build_signalome_run_provenance(
     expanded_signalome: pd.DataFrame,
     site_membership: pd.DataFrame,
     protein_site_context: pd.DataFrame,
-    scale_guard_decision: _ScaleGuardDecision,
+    scale_guard_decision: SignalomeScaleGuardDecision,
 ) -> RunProvenance:
-    input_tables = _collect_fingerprints(
-        (
-            ("dataset.phospho", request.dataset.phospho),
-            ("dataset.site_metadata", request.dataset.site_metadata),
-            ("dataset.sample_metadata", request.dataset.sample_metadata),
-            ("dataset.total", request.dataset.total),
-            ("dataset.comparisons", request.dataset.comparisons),
-            ("upstream.prediction.pred_mat", request.prediction_matrix),
-            (
-                "upstream.scoring.downstream_score_matrix",
-                request.downstream_score_matrix,
-            ),
-        )
-    )
-    output_tables = _collect_fingerprints(
-        (
-            ("outputs.signalome.module_assignments", module_assignments),
-            ("outputs.signalome.signalome_modules", signalome_modules),
-            ("outputs.signalome.kinase_network.edges", network_edges),
-            ("outputs.signalome.kinase_network.nodes", network_nodes),
-            (
-                "outputs.signalome.kinase_network.candidate_correlations",
-                candidate_correlations,
-            ),
-            ("outputs.signalome.expanded_signalome", expanded_signalome),
-            ("outputs.signalome.site_membership", site_membership),
-            ("outputs.signalome.protein_site_context", protein_site_context),
-        )
-    )
-    upstream_provenance = request.kinase_result.provenance
-    return RunProvenance(
-        environment=collect_environment_provenance(),
-        input_tables=input_tables,
-        preprocessing_stages=_dataset_preprocessing_stages(request),
-        reference=request.kinase_result.references.provenance,
-        workflow_name="signalome_workflow",
-        workflow_parameters={
-            "signalome_config": {
-                "substrate_support_cutoff": float(config.substrate_support_cutoff),
-                "network_correlation_threshold": float(
-                    config.network_correlation_threshold
-                ),
-                "network_policy": str(config.network_policy),
-                "assignment_policy": str(config.assignment_policy),
-                "score_preconditioning_policy": str(
-                    config.score_preconditioning_policy
-                ),
-                "module_selection_primary_correlation_threshold": float(
-                    config.module_selection_primary_threshold
-                ),
-                "module_selection_fallback_correlation_threshold": float(
-                    config.module_selection_fallback_threshold
-                ),
-                "module_selection_max_clusters": int(
-                    config.module_selection_max_clusters
-                ),
-                "cluster_tree_backend": str(config.cluster_tree_backend),
-                "candidate_scoring_backend": str(config.candidate_scoring_backend),
-                "max_exact_cluster_tree_sites": int(
-                    config.max_exact_cluster_tree_sites
-                ),
-                "max_full_correlation_sites": int(config.max_full_correlation_sites),
-                "deprecated_clustering_backend_alias": str(
-                    config.clustering_backend_alias
-                ),
-                "deprecated_max_exact_clustering_sites_alias": int(
-                    config.max_exact_cluster_tree_sites
-                ),
-                "module_count": (
-                    None
-                    if config.requested_module_count is None
-                    else int(config.requested_module_count)
-                ),
-            },
-            "scale_guard": {
-                "site_count": int(scale_guard_decision.site_count),
-                "cluster_tree_backend": str(scale_guard_decision.cluster_tree_backend),
-                "candidate_scoring_backend": str(
-                    scale_guard_decision.candidate_scoring_backend
-                ),
-                "max_exact_cluster_tree_sites": int(
-                    scale_guard_decision.max_exact_cluster_tree_sites
-                ),
-                "max_full_correlation_sites": int(
-                    scale_guard_decision.max_full_correlation_sites
-                ),
-                "exact_cluster_tree_built": bool(
-                    scale_guard_decision.exact_cluster_tree_built
-                ),
-                "candidate_scoring_mode": str(
-                    scale_guard_decision.candidate_scoring_mode
-                ),
-                "scale_guard_passed": bool(scale_guard_decision.scale_guard_passed),
-            },
-            "module_selection_diagnostics": asdict(
-                clustering_result.module_selection_diagnostics
-            ),
-            "score_preconditioning_diagnostics": asdict(
-                request.score_preconditioning_diagnostics
-            ),
-            "network_correlation_diagnostics": asdict(network_correlation_diagnostics),
-            "upstream_kinase_provenance": (
-                None
-                if upstream_provenance is None
-                else provenance_to_payload(upstream_provenance)
-            ),
-        },
-        random_state=None,
-        random_seed_policy=None,
-        output_tables=output_tables,
+    return SignalomeProvenanceBuilder().build(
+        request=request,
+        config=config,
+        clustering_result=clustering_result,
+        module_assignments=module_assignments,
+        signalome_modules=signalome_modules,
+        network_edges=network_edges,
+        network_nodes=network_nodes,
+        candidate_correlations=candidate_correlations,
+        network_correlation_diagnostics=network_correlation_diagnostics,
+        expanded_signalome=expanded_signalome,
+        site_membership=site_membership,
+        protein_site_context=protein_site_context,
+        scale_guard_decision=scale_guard_decision,
     )
 
 
 def _dataset_preprocessing_stages(
     request: ResolvedSignalomeWorkflowRequest,
 ) -> tuple[PreprocessingStageProvenance, ...]:
-    provenance = request.dataset.provenance
-    if provenance is None:
-        return ()
-    return tuple(provenance.preprocessing_stages)
+    return SignalomeProvenanceBuilder._dataset_preprocessing_stages(request)
 
 
 def _collect_fingerprints(
     entries: tuple[tuple[str, pd.DataFrame | None], ...],
 ) -> tuple[TableFingerprint, ...]:
-    fingerprints: list[TableFingerprint] = []
-    for name, table in entries:
-        fingerprint = fingerprint_optional_table(table, name=name)
-        if fingerprint is None:
-            continue
-        fingerprints.append(fingerprint)
-    return tuple(fingerprints)
+    return SignalomeProvenanceBuilder._collect_fingerprints(entries)
