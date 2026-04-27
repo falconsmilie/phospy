@@ -10,6 +10,7 @@ from phospy.datasets.builders.transformation_resolver import (
 )
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.datasets.preprocessing.models import PreprocessingPlan
+from phospy.errors.input import PhosPyInputError
 from phospy.errors.transformations import (
     InvalidTransformationStateError,
     TransformationStateEstablishmentError,
@@ -302,6 +303,7 @@ def test_bundle_reconstruction_lane_establishes_state() -> None:
                 "established_by": "bundle.fixture",
             },
             "total": None,
+            "quantity": "phosphosite_abundance",
         }
     )
 
@@ -309,7 +311,9 @@ def test_bundle_reconstruction_lane_establishes_state() -> None:
     assert state.established_via == "phospy.io.bundles._shared.intensity_scale_state"
 
 
-def test_processing_state_legacy_payload_infers_safe_quantitative_meaning() -> None:
+def test_processing_state_payload_rejects_minimal_total_correction_without_explicit_quantitative_meaning() -> (
+    None
+):
     payload = {
         "intensity_scale": {
             "phospho": {
@@ -322,6 +326,7 @@ def test_processing_state_legacy_payload_infers_safe_quantitative_meaning() -> N
                 "transformed": True,
                 "established_by": "bundle.fixture",
             },
+            "quantity": "phospho_total_log_ratio",
         },
         "missing_data": {
             "policy": "forbid",
@@ -333,6 +338,14 @@ def test_processing_state_legacy_payload_infers_safe_quantitative_meaning() -> N
         "total_protein_correction": {
             "policy": "subtract_log_total",
             "applied": True,
+            "requires_log_scale": True,
+            "diagnostics": {
+                "diagnostics_schema_version": 1,
+                "policy": "subtract_log_total",
+                "requested_policy": "subtract_log_total",
+                "resolved_policy": "subtract_log_total",
+                "quantitative_meaning": "phospho_total_log_ratio",
+            },
         },
         "site_matrix": {
             "policy": "as_input",
@@ -348,12 +361,19 @@ def test_processing_state_legacy_payload_infers_safe_quantitative_meaning() -> N
         },
     }
 
-    state = processing_state_from_payload(payload)
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "quantitative_meaning is required"
+        ),
+    ):
+        processing_state_from_payload(payload)
 
-    assert state.intensity_scale.quantity.value == "phospho_total_log_ratio"
 
-
-def test_processing_state_legacy_payload_uses_unknown_when_ambiguous() -> None:
+def test_processing_state_payload_rejects_applied_total_correction_without_versioned_diagnostics() -> (
+    None
+):
     payload = {
         "intensity_scale": {
             "phospho": {
@@ -361,7 +381,12 @@ def test_processing_state_legacy_payload_uses_unknown_when_ambiguous() -> None:
                 "transformed": True,
                 "established_by": "bundle.fixture",
             },
-            "total": None,
+            "total": {
+                "kind": "log2",
+                "transformed": True,
+                "established_by": "bundle.fixture",
+            },
+            "quantity": "phospho_total_log_ratio",
         },
         "missing_data": {
             "policy": "forbid",
@@ -371,8 +396,11 @@ def test_processing_state_legacy_payload_uses_unknown_when_ambiguous() -> None:
         },
         "normalisation": {"policy": "none"},
         "total_protein_correction": {
-            "policy": "custom_policy",
+            "policy": "subtract_log_total",
             "applied": True,
+            "requires_log_scale": True,
+            "quantitative_meaning": "phospho_total_log_ratio",
+            "diagnostics": None,
         },
         "site_matrix": {
             "policy": "as_input",
@@ -388,6 +416,11 @@ def test_processing_state_legacy_payload_uses_unknown_when_ambiguous() -> None:
         },
     }
 
-    state = processing_state_from_payload(payload)
-
-    assert state.intensity_scale.quantity.value == "unknown"
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "dataset.metadata.processing_state.total_protein_correction.diagnostics "
+            "must be an object with"
+        ),
+    ):
+        processing_state_from_payload(payload)

@@ -647,6 +647,13 @@ def _compute_candidate_cluster_scores(
     resolved_max_exact_cluster_tree_sites = _resolve_max_exact_cluster_tree_sites(
         max_exact_cluster_tree_sites
     )
+    # Guard ordering policy:
+    # - If full candidate-correlation scoring exceeds max_full_correlation_sites
+    #   while exact-tree construction is still permitted, fail here before any
+    #   exact-tree construction is attempted.
+    # - If both max_full_correlation_sites and max_exact_cluster_tree_sites are
+    #   exceeded, defer to the exact-tree guard below as the canonical first
+    #   failure for that configuration.
     if (
         candidate_scoring_backend == SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
         and n_sites > int(max_full_correlation_sites)

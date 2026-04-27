@@ -218,7 +218,7 @@ def test_kinase_bundle_loads_legacy_manifest_without_provenance(
     assert loaded.result.provenance is None
 
 
-def test_kinase_bundle_loads_legacy_minimal_total_correction_state(
+def test_kinase_bundle_rejects_legacy_minimal_total_correction_state(
     tmp_path: Path,
 ) -> None:
     request = _build_request_with_subtract_log_total(activity=False)
@@ -243,29 +243,17 @@ def test_kinase_bundle_loads_legacy_minimal_total_correction_state(
         json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
     )
 
-    loaded = load_kinase_workflow_bundle(bundle_root)
-    correction = loaded.result.dataset.processing_state.total_protein_correction
-    assert (
-        loaded.result.dataset.intensity_scale_state.quantity.value
-        == "phospho_total_log_ratio"
-    )
-    assert correction.policy == "subtract_log_total"
-    assert correction.applied is True
-    assert correction.formula is None
-    assert correction.requires_log_scale is None
-    assert correction.input_scale is None
-    assert correction.output_scale is None
-    assert correction.quantitative_meaning is None
-    assert correction.diagnostics is None
-    pd.testing.assert_frame_equal(
-        loaded.result.dataset.phospho,
-        result.dataset.phospho,
-        check_dtype=False,
-        check_names=False,
-    )
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "requires_log_scale is required"
+        ),
+    ):
+        load_kinase_workflow_bundle(bundle_root)
 
 
-def test_kinase_bundle_loads_legacy_manifest_without_quantitative_meaning_field(
+def test_kinase_bundle_rejects_total_correction_payload_without_quantitative_meaning(
     tmp_path: Path,
 ) -> None:
     request = _build_request_with_subtract_log_total(activity=False)
@@ -279,20 +267,21 @@ def test_kinase_bundle_loads_legacy_manifest_without_quantitative_meaning_field(
     )
     manifest_path = bundle_root / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["dataset"]["metadata"]["intensity_scale_state"].pop("quantity", None)
-    manifest["dataset"]["metadata"]["processing_state"]["intensity_scale"].pop(
-        "quantity", None
+    manifest["dataset"]["metadata"]["processing_state"]["total_protein_correction"].pop(
+        "quantitative_meaning", None
     )
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
     )
 
-    loaded = load_kinase_workflow_bundle(bundle_root)
-    assert loaded.result.dataset.intensity_scale_state.label == "log2"
-    assert (
-        loaded.result.dataset.intensity_scale_state.quantity.value
-        == "phospho_total_log_ratio"
-    )
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "quantitative_meaning is required"
+        ),
+    ):
+        load_kinase_workflow_bundle(bundle_root)
 
 
 def test_kinase_bundle_rejects_unversioned_total_correction_diagnostics(

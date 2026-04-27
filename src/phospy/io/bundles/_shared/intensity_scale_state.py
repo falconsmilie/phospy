@@ -34,14 +34,8 @@ def intensity_scale_state_to_payload(state: IntensityScaleState) -> dict[str, ob
 
 def intensity_scale_state_from_payload(
     payload: Mapping[str, object],
-    *,
-    fallback_quantity: QuantitativeMeaning = QuantitativeMeaning.UNKNOWN,
 ) -> IntensityScaleState:
-    """Deserialize intensity scale state from manifest payload.
-
-    `fallback_quantity` is used for legacy payloads that predate explicit
-    quantitative-meaning persistence.
-    """
+    """Deserialize intensity scale state from manifest payload."""
 
     phospho_payload = require_mapping(
         payload.get("phospho"),
@@ -60,10 +54,7 @@ def intensity_scale_state_from_payload(
     state = IntensityScaleState(
         phospho=_matrix_state_from_payload(phospho_payload),
         total=total_state,
-        quantity=_quantitative_meaning_from_payload(
-            payload,
-            fallback=fallback_quantity,
-        ),
+        quantity=_quantitative_meaning_from_payload(payload),
     )
     return establish_intensity_scale_state(
         state,
@@ -108,14 +99,9 @@ def _matrix_state_from_payload(
 
 def _quantitative_meaning_from_payload(
     payload: Mapping[str, object],
-    *,
-    fallback: QuantitativeMeaning,
 ) -> QuantitativeMeaning:
-    raw = payload.get("quantity")
-    if raw is None:
-        return fallback
     token = require_str(
-        raw,
+        payload.get("quantity"),
         field_name="dataset.metadata.intensity_scale_state.quantity",
     )
     try:

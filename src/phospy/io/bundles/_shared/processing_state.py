@@ -24,7 +24,6 @@ from phospy.io.bundles._shared.primitives import (
     require_mapping,
     require_str,
 )
-from phospy.transformations.models import QuantitativeMeaning
 
 
 def processing_state_to_payload(state: DatasetProcessingState) -> dict[str, object]:
@@ -121,36 +120,40 @@ def processing_state_from_payload(
         correction_payload.get("applied"),
         field_name="dataset.metadata.processing_state.total_protein_correction.applied",
     )
-    if "requires_log_scale" in correction_payload:
-        requires_log_scale = _require_optional_bool(
-            correction_payload.get("requires_log_scale"),
-            field_name=(
-                "dataset.metadata.processing_state.total_protein_correction."
-                "requires_log_scale"
-            ),
-        )
-    else:
-        # Legacy minimal payloads encoded only policy/applied.
-        requires_log_scale = False if not correction_applied else None
-    inferred_quantity = _infer_legacy_quantitative_meaning(
-        intensity_scale_payload=intensity_scale_payload,
-        correction_payload=correction_payload,
-        correction_applied=correction_applied,
+    _require_payload_key(
+        correction_payload,
+        key="requires_log_scale",
+        field_name="dataset.metadata.processing_state.total_protein_correction",
     )
-    intensity_scale_state = intensity_scale_state_from_payload(
-        intensity_scale_payload,
-        fallback_quantity=inferred_quantity,
+    _require_payload_key(
+        correction_payload,
+        key="quantitative_meaning",
+        field_name="dataset.metadata.processing_state.total_protein_correction",
     )
-    correction_diagnostics = _parse_optional_total_correction_diagnostics(
+    _require_payload_key(
+        correction_payload,
+        key="diagnostics",
+        field_name="dataset.metadata.processing_state.total_protein_correction",
+    )
+    requires_log_scale = _require_optional_bool(
+        correction_payload.get("requires_log_scale"),
+        field_name=(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "requires_log_scale"
+        ),
+    )
+    intensity_scale_state = intensity_scale_state_from_payload(intensity_scale_payload)
+    correction_diagnostics = _parse_total_correction_diagnostics(
         correction_payload.get("diagnostics"),
+        correction_applied=correction_applied,
         field_name=(
             "dataset.metadata.processing_state.total_protein_correction.diagnostics"
         ),
     )
     correction_quantitative_meaning = _resolve_total_correction_quantitative_meaning(
         correction_payload=correction_payload,
+        correction_applied=correction_applied,
         correction_diagnostics=correction_diagnostics,
-        fallback=None,
     )
     return DatasetProcessingState(
         intensity_scale=intensity_scale_state,
@@ -272,12 +275,28 @@ def _require_optional_str(value: object, *, field_name: str) -> str | None:
     return require_str(value, field_name=field_name)
 
 
-def _parse_optional_total_correction_diagnostics(
+def _require_payload_key(
+    payload: Mapping[str, object],
+    *,
+    key: str,
+    field_name: str,
+) -> None:
+    if key not in payload:
+        raise PhosPyInputError(f"{field_name}.{key} is required")
+
+
+def _parse_total_correction_diagnostics(
     value: object,
     *,
+    correction_applied: bool,
     field_name: str,
 ) -> TotalProteinCorrectionDiagnostics | None:
     if value is None:
+        if correction_applied:
+            raise PhosPyInputError(
+                f"{field_name} must be an object with "
+                f"{field_name}.diagnostics_schema_version"
+            )
         return None
     return TotalProteinCorrectionDiagnostics.from_payload(value, field_name=field_name)
 
@@ -327,8 +346,8 @@ def _parse_optional_pairs(
 def _resolve_total_correction_quantitative_meaning(
     *,
     correction_payload: Mapping[str, object],
+    correction_applied: bool,
     correction_diagnostics: TotalProteinCorrectionDiagnostics | None,
-    fallback: str | None,
 ) -> str | None:
     direct = _require_optional_str(
         correction_payload.get("quantitative_meaning"),
@@ -337,10 +356,14 @@ def _resolve_total_correction_quantitative_meaning(
             "quantitative_meaning"
         ),
     )
-    if direct is not None:
-        return direct
+    if correction_applied and direct is None:
+        raise PhosPyInputError(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "quantitative_meaning must be explicitly set for applied total-protein "
+            "correction state"
+        )
     if correction_diagnostics is None:
-        return fallback
+        return direct
     from_diagnostics = _require_optional_str(
         correction_diagnostics.get("quantitative_meaning"),
         field_name=(
@@ -348,61 +371,15 @@ def _resolve_total_correction_quantitative_meaning(
             "diagnostics.quantitative_meaning"
         ),
     )
-    if from_diagnostics is not None:
-        return from_diagnostics
-    return fallback
-
-
-def _infer_legacy_quantitative_meaning(
-    *,
-    intensity_scale_payload: Mapping[str, object],
-    correction_payload: Mapping[str, object],
-    correction_applied: bool,
-) -> QuantitativeMeaning:
-    if "quantity" in intensity_scale_payload:
-        return QuantitativeMeaning.UNKNOWN
-    correction_quantitative_meaning = _resolve_total_correction_quantitative_meaning(
-        correction_payload=correction_payload,
-        correction_diagnostics=_parse_optional_total_correction_diagnostics(
-            correction_payload.get("diagnostics"),
-            field_name=(
-                "dataset.metadata.processing_state.total_protein_correction.diagnostics"
-            ),
-        ),
-        fallback=None,
-    )
-    if correction_quantitative_meaning is not None:
-        try:
-            return QuantitativeMeaning(correction_quantitative_meaning)
-        except ValueError:
-            return QuantitativeMeaning.UNKNOWN
-    correction_policy = _require_optional_str(
-        correction_payload.get("policy"),
-        field_name="dataset.metadata.processing_state.total_protein_correction.policy",
-    )
-    correction_output_scale = _require_optional_str(
-        correction_payload.get("output_scale"),
-        field_name=(
-            "dataset.metadata.processing_state.total_protein_correction.output_scale"
-        ),
-    )
-    if correction_applied and (
-        correction_policy == "subtract_log_total"
-        or correction_output_scale == "log2_ratio"
+    if (
+        direct is not None
+        and from_diagnostics is not None
+        and from_diagnostics != direct
     ):
-        return QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO
-    if correction_applied:
-        return QuantitativeMeaning.UNKNOWN
-    phospho_payload = require_mapping(
-        intensity_scale_payload.get("phospho"),
-        field_name="dataset.metadata.processing_state.intensity_scale.phospho",
-    )
-    kind = _require_optional_str(
-        phospho_payload.get("kind"),
-        field_name="dataset.metadata.processing_state.intensity_scale.phospho.kind",
-    )
-    if kind == "linear":
-        return QuantitativeMeaning.PHOSPHOSITE_ABUNDANCE
-    if kind == "log2":
-        return QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE
-    return QuantitativeMeaning.UNKNOWN
+        raise PhosPyInputError(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "quantitative_meaning must match "
+            "dataset.metadata.processing_state.total_protein_correction.diagnostics."
+            "quantitative_meaning when both are provided"
+        )
+    return direct

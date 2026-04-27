@@ -268,3 +268,62 @@ def test_processing_state_from_payload_rejects_malformed_versioned_diagnostics()
 
     with pytest.raises(PhosPyInputError, match="matched_rows must be an int"):
         processing_state_from_payload(payload)
+
+
+def test_processing_state_from_payload_rejects_missing_total_correction_quantitative_meaning_key() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "matched_rows": 2,
+        }
+    )
+    payload["total_protein_correction"].pop("quantitative_meaning", None)
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "quantitative_meaning is required"
+        ),
+    ):
+        processing_state_from_payload(payload)
+
+
+def test_processing_state_from_payload_rejects_missing_total_correction_diagnostics_key() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(
+        {
+            "diagnostics_schema_version": 1,
+            "policy": "subtract_log_total",
+            "matched_rows": 2,
+        }
+    )
+    payload["total_protein_correction"].pop("diagnostics", None)
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "dataset.metadata.processing_state.total_protein_correction."
+            "diagnostics is required"
+        ),
+    ):
+        processing_state_from_payload(payload)
+
+
+def test_processing_state_from_payload_rejects_applied_total_correction_with_null_diagnostics() -> (
+    None
+):
+    payload = _processing_payload_with_diagnostics(None)
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "dataset.metadata.processing_state.total_protein_correction.diagnostics "
+            "must be an object with"
+        ),
+    ):
+        processing_state_from_payload(payload)

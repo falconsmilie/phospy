@@ -82,7 +82,6 @@ def reconstruct_kinase_result(
         ),
         intensity_scale_state=intensity_scale_state_from_payload(
             intensity_scale_payload,
-            fallback_quantity=processing_state.intensity_scale.quantity,
         ),
         processing_state=processing_state,
     )
