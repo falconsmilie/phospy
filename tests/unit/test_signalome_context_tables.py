@@ -187,7 +187,7 @@ def test_signalome_result_exposes_site_and_protein_context_tables() -> None:
     }.issubset(result.protein_site_context.columns)
 
 
-def test_site_membership_contains_all_interpreted_site_rows() -> None:
+def test_site_membership_contains_only_retained_interpreted_sites() -> None:
     result, interpreted = _run_signalome_executor()
     assert result.site_membership is not None
     site_membership = result.site_membership
@@ -196,11 +196,12 @@ def test_site_membership_contains_all_interpreted_site_rows() -> None:
     assert site_membership.shape[0] == len(expected_site_ids)
     assert set(site_membership.loc[:, "site_id"].astype(str)) == set(expected_site_ids)
 
-    dropped_site = site_membership.set_index("site_id").loc["P3;S4;"]
-    assert pd.isna(dropped_site["site_cluster"])
-    assert not bool(dropped_site["included_in_module_table"])
-    assert (
-        str(dropped_site["excluded_reason"]) == "dropped_all_missing_downstream_scores"
+    assert "P3;S4;" not in set(site_membership.loc[:, "site_id"].astype(str))
+    assert interpreted.prediction_matrix.index.equals(
+        interpreted.downstream_score_matrix.index
+    )
+    assert interpreted.site_to_protein.index.equals(
+        interpreted.downstream_score_matrix.index
     )
 
 

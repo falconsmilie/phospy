@@ -527,7 +527,7 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
     )
 
 
-def test_interpreter_preconditions_downstream_scores_without_dropping_prediction_rows() -> (
+def test_interpreter_filters_site_indexed_inputs_to_retained_scores_after_preconditioning() -> (
     None
 ):
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
@@ -560,11 +560,19 @@ def test_interpreter_preconditions_downstream_scores_without_dropping_prediction
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
-    assert interpreted.prediction_matrix.index.tolist() == site_ids
-    assert interpreted.downstream_score_matrix.index.tolist() == [
+    retained_sites = [
         "P2;S2;",
         "P3;S3;",
     ]
+    assert interpreted.downstream_score_matrix.index.tolist() == retained_sites
+    assert interpreted.prediction_matrix.index.tolist() == retained_sites
+    assert interpreted.site_to_protein.index.tolist() == retained_sites
+    assert interpreted.prediction_matrix.index.equals(
+        interpreted.downstream_score_matrix.index
+    )
+    assert interpreted.site_to_protein.index.equals(
+        interpreted.downstream_score_matrix.index
+    )
     assert pd.isna(interpreted.downstream_score_matrix.loc["P2;S2;", "K2"])
     assert interpreted.score_preconditioning_diagnostics.input_row_count == 3
     assert (
@@ -614,6 +622,57 @@ def test_interpreter_reports_zero_drop_preconditioning_diagnostics() -> None:
     assert interpreted.score_preconditioning_diagnostics.policy == (
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
     )
+
+
+def test_resolved_signalome_request_rejects_mismatched_site_indexes() -> None:
+    site_ids = ["P1;S1;", "P2;S2;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.2, 0.8],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 2.0],
+            [3.0, 4.0],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    downstream_score_matrix = score_matrix.loc[["P2;S2;"], :]
+    site_to_protein = pd.Series(
+        ["P2"],
+        index=pd.Index(["P2;S2;"], name="site_id"),
+        name="protein_id",
+        dtype=str,
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        ResolvedSignalomeWorkflowRequest(
+            dataset=dataset,
+            kinase_result=_kinase_result(
+                dataset=dataset,
+                prediction_matrix=prediction_matrix,
+                score_matrix=score_matrix,
+            ),
+            execution_config=_execution_config(
+                SignalomeConfig(substrate_support_cutoff=0.5)
+            ),
+            downstream_score_matrix=downstream_score_matrix,
+            downstream_score_source="rank_weighted_fusion_scores",
+            prediction_matrix=prediction_matrix,
+            site_to_protein=site_to_protein,
+        )
+
+    message = str(exc_info.value)
+    assert "seam=signalome.contracts.site_index_alignment" in message
+    assert "downstream_score_sites=1" in message
+    assert "prediction_sites=2" in message
+    assert "site_to_protein_sites=1" in message
 
 
 def test_interpreter_respects_explicit_allow_and_report_preconditioning_policy() -> (

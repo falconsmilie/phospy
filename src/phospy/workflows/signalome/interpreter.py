@@ -107,18 +107,21 @@ class SignalomeWorkflowInterpreter:
                     execution_config.score_preconditioning_policy
                 ),
             )
+        retained_site_index = preconditioned_downstream_score_matrix.index
+        retained_prediction_matrix = aligned_prediction_matrix.loc[retained_site_index]
         site_to_protein = self._resolve_site_to_protein(
             dataset=request.kinase_result.dataset,
             site_index=aligned_prediction_matrix.index,
         )
+        retained_site_to_protein = site_to_protein.loc[retained_site_index]
         return ResolvedSignalomeWorkflowRequest(
             dataset=request.kinase_result.dataset,
             kinase_result=request.kinase_result,
             execution_config=execution_config,
             downstream_score_matrix=preconditioned_downstream_score_matrix,
             downstream_score_source=downstream_score_source,
-            prediction_matrix=aligned_prediction_matrix,
-            site_to_protein=site_to_protein,
+            prediction_matrix=retained_prediction_matrix,
+            site_to_protein=retained_site_to_protein,
             score_preconditioning_diagnostics=score_preconditioning_diagnostics,
         )
 

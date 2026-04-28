@@ -97,6 +97,24 @@ class ResolvedSignalomeWorkflowRequest:
                 "next_action=ensure signalome interpreter resolves an explicit "
                 "site-to-protein mapping series"
             )
+        downstream_site_index = downstream_score_table.frame.index
+        prediction_site_index = prediction_table.frame.index
+        site_to_protein_index = self.site_to_protein.index
+        if not prediction_site_index.equals(
+            downstream_site_index
+        ) or not site_to_protein_index.equals(downstream_site_index):
+            raise WorkflowBoundaryError(
+                "signalome workflow boundary validation failed at seam="
+                "signalome.contracts.site_index_alignment; "
+                "downstream_score_matrix.index, prediction_matrix.index, and "
+                "site_to_protein.index must match exactly; "
+                f"downstream_score_sites={int(downstream_site_index.size)}; "
+                f"prediction_sites={int(prediction_site_index.size)}; "
+                f"site_to_protein_sites={int(site_to_protein_index.size)}; "
+                "next_action=ensure interpreter aligns prediction_matrix and "
+                "site_to_protein to retained downstream score sites after "
+                "score preconditioning"
+            )
         object.__setattr__(
             self, "downstream_score_matrix", downstream_score_table.frame
         )

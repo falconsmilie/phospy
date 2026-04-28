@@ -425,8 +425,8 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
         downstream_score_source="profile_scores",
         prediction_matrix=kinase_result.prediction_result.pred_mat,
         site_to_protein=pd.Series(
-            ["MAPK14"],
-            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+            ["MAPK14", "GSK3B"],
+            index=score_matrix.index.copy(),
             name="protein_id",
             dtype=str,
         ),
