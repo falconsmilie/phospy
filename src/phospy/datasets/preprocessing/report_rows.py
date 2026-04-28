@@ -93,18 +93,38 @@ def compose_stage_owned_report_tables(
     for raw_row in rows:
         row = validate_preprocessing_report_row(raw_row)
         if row.table == PREPROCESSING_REPORT_ROW_AUDIT_TABLE:
+            if not isinstance(row.values, PreprocessingRowAuditRow):
+                raise DatasetBuildError(
+                    "invalid row-audit preprocessing report row type"
+                )
             row_audit_rows.append(row.values)
             continue
         if row.table == PREPROCESSING_REPORT_DUPLICATE_SITE_RESOLUTION_TABLE:
+            if not isinstance(row.values, DuplicateSiteResolutionRow):
+                raise DatasetBuildError(
+                    "invalid duplicate-site-resolution preprocessing report row type"
+                )
             duplicate_site_resolution_rows.append(row.values)
             continue
         if row.table == PREPROCESSING_REPORT_METADATA_CONFLICTS_TABLE:
+            if not isinstance(row.values, MetadataConflictRow):
+                raise DatasetBuildError(
+                    "invalid metadata-conflict preprocessing report row type"
+                )
             metadata_conflict_rows.append(row.values)
             continue
         if row.table == PREPROCESSING_REPORT_COMPARISON_GROUP_STATS_TABLE:
+            if not isinstance(row.values, ComparisonGroupStatsRow):
+                raise DatasetBuildError(
+                    "invalid comparison-group-stats preprocessing report row type"
+                )
             comparison_group_stats_rows.append(row.values)
             continue
         if row.table == PREPROCESSING_REPORT_COMPARISON_PAIR_STATS_TABLE:
+            if not isinstance(row.values, ComparisonPairStatsRow):
+                raise DatasetBuildError(
+                    "invalid comparison-pair-stats preprocessing report row type"
+                )
             comparison_pair_stats_rows.append(row.values)
             continue
         raise DatasetBuildError(

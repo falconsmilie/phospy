@@ -115,6 +115,11 @@ class DatasetBuildExecutor:
                 preprocessing_trace=preprocessed.preprocessing_trace,
             )
             intensity_scale_state = processing_state.intensity_scale
+            quantitative_meaning = intensity_scale_state.quantity
+            if quantitative_meaning is None:
+                raise DatasetBuildError(
+                    "intensity-scale state is missing quantitative meaning"
+                )
             report = _build_dataset_preprocessing_report(
                 row_counts=preprocessed.preprocessing_row_counts,
                 operations=preprocessed.preprocessing_operations,
@@ -125,7 +130,7 @@ class DatasetBuildExecutor:
                 comparison_pair_stats=preprocessed.comparison_pair_stats,
                 final_dataset_rows=int(len(resolved.phospho.index)),
                 intensity_scale_label=intensity_scale_state.label,
-                quantitative_meaning=intensity_scale_state.quantity.value,
+                quantitative_meaning=quantitative_meaning.value,
             )
             provenance = _build_dataset_run_provenance(
                 request=request,
@@ -134,7 +139,7 @@ class DatasetBuildExecutor:
                 resolved_total=resolved.total,
                 preprocessing_trace=preprocessed.preprocessing_trace,
                 intensity_scale_label=intensity_scale_state.label,
-                quantitative_meaning=intensity_scale_state.quantity.value,
+                quantitative_meaning=quantitative_meaning.value,
             )
             return AnalysisReadyPhosphoDataset._from_owned(
                 phospho=resolved.phospho,

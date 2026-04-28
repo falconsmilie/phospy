@@ -138,8 +138,7 @@ class ResolvedSignalomeWorkflowRequest:
 class SignalomeWorkflowValidatorContract(Protocol):
     """Internal contract for signalome workflow request validation."""
 
-    def run(self, request: SignalomeWorkflowRequest) -> SignalomeWorkflowRequest:
-        """Validate the workflow request and return the same request."""
+    def run(self, request: SignalomeWorkflowRequest) -> SignalomeWorkflowRequest: ...
 
 
 class SignalomeWorkflowInterpreterContract(Protocol):
@@ -147,15 +146,15 @@ class SignalomeWorkflowInterpreterContract(Protocol):
 
     def run(
         self, request: SignalomeWorkflowRequest
-    ) -> ResolvedSignalomeWorkflowRequest:
-        """Resolve runtime defaults into execution-ready signalome inputs."""
+    ) -> ResolvedSignalomeWorkflowRequest: ...
 
 
 class SignalomeWorkflowExecutorContract(Protocol):
     """Internal contract for signalome workflow execution."""
 
-    def run(self, request: ResolvedSignalomeWorkflowRequest) -> SignalomeWorkflowResult:
-        """Execute signalome domain logic and assemble public results."""
+    def run(
+        self, request: ResolvedSignalomeWorkflowRequest
+    ) -> SignalomeWorkflowResult: ...
 
 
 __all__ = [

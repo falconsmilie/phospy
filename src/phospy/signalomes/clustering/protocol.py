@@ -13,14 +13,16 @@ from phospy.signalomes.clustering.models import (
 class SignalomeClusteringBackend(Protocol):
     """Contract implemented by numerical clustering backends."""
 
-    name: str
-    version: str
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def version(self) -> str: ...
 
     def run(
         self,
         request: SignalomeClusteringBackendRequest,
-    ) -> SignalomeClusteringBackendResult:
-        """Cluster sites and derive module assignments."""
+    ) -> SignalomeClusteringBackendResult: ...
 
 
 __all__ = ["SignalomeClusteringBackend"]

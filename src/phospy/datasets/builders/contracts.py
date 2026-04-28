@@ -58,15 +58,13 @@ class PreprocessedDatasetBuildTables:
 class DatasetBuildValidatorContract(Protocol):
     """Internal contract for dataset build request validation."""
 
-    def run(self, request: DatasetBuildRequest) -> DatasetBuildRequest:
-        """Validate builder request and return the same request when valid."""
+    def run(self, request: DatasetBuildRequest) -> DatasetBuildRequest: ...
 
 
 class DatasetBuildInterpreterContract(Protocol):
     """Internal contract for request interpretation into executable inputs."""
 
-    def run(self, request: DatasetBuildRequest) -> InterpretedDatasetBuildRequest:
-        """Resolve supported inputs into concrete DataFrame values."""
+    def run(self, request: DatasetBuildRequest) -> InterpretedDatasetBuildRequest: ...
 
 
 class DatasetBuildExecutorContract(Protocol):
@@ -74,8 +72,7 @@ class DatasetBuildExecutorContract(Protocol):
 
     def run(
         self, request: InterpretedDatasetBuildRequest
-    ) -> AnalysisReadyPhosphoDataset:
-        """Execute builder logic and return an analysis-ready dataset."""
+    ) -> AnalysisReadyPhosphoDataset: ...
 
 
 class DatasetPreprocessorContract(Protocol):
@@ -89,8 +86,7 @@ class DatasetPreprocessorContract(Protocol):
         sample_metadata: pd.DataFrame | None,
         total: pd.DataFrame | None,
         plan: PreprocessingPlan,
-    ) -> PreprocessedDatasetBuildTables:
-        """Apply internal preprocessing stages and return preprocessed tables."""
+    ) -> PreprocessedDatasetBuildTables: ...
 
 
 __all__ = [

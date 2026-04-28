@@ -8,6 +8,7 @@ import pandas as pd
 
 from phospy.api.results import SignalomeWorkflowResult
 from phospy.errors.workflows import WorkflowStageError
+from phospy.provenance.models import RunProvenance
 from phospy.signalomes.clustering import ClusterSitesResult
 from phospy.signalomes.models import (
     KinaseNetwork,
@@ -94,7 +95,7 @@ class SignalomeResultAssembler:
         expanded_signalome: pd.DataFrame,
         site_membership: pd.DataFrame,
         protein_site_context: pd.DataFrame,
-        provenance,
+        provenance: RunProvenance | None,
     ) -> SignalomeWorkflowResult:
         return SignalomeWorkflowResult._from_owned(
             dataset=request.dataset,

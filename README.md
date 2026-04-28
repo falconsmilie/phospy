@@ -33,6 +33,7 @@ For local development from a clone:
 ```bash
 pip install -e ".[dev]"
 pip install -e ".[dev,parquet]"  # optional parquet support
+pyright
 ```
 
 ## First Run

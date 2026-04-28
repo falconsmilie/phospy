@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 import pandas as pd
 
@@ -586,14 +587,15 @@ class DuplicateSiteResolver:
                 .groupby(_SITE_ID_COLUMN, sort=False)[metadata_columns]
                 .first()
             )
+            grouped_metadata = cast(pd.DataFrame, grouped_metadata)
             grouped_values = phospho.groupby(constructed_site_id, sort=False)
             if (
                 duplicate_site_policy
                 == DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN
             ):
-                grouped_phospho = grouped_values.mean()
+                grouped_phospho = cast(pd.DataFrame, grouped_values.mean())
             else:
-                grouped_phospho = grouped_values.median()
+                grouped_phospho = cast(pd.DataFrame, grouped_values.median())
             grouped_phospho.index = pd.Index(
                 grouped_phospho.index.astype(str), name=_SITE_ID_COLUMN
             )
@@ -783,9 +785,9 @@ class SiteMatrixRowAuditBuilder:
             DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
         }
         records: list[PreprocessingRowAuditRow] = []
-        for row in duplicate_site_resolution.itertuples(index=False):
-            site_id = str(row.site_id)
-            source_row_id = str(row.source_row_id)
+        for row in duplicate_site_resolution.to_dict(orient="records"):
+            site_id = str(row.get("site_id", ""))
+            source_row_id = str(row.get("source_row_id", ""))
             source_rows = source_rows_by_site.get(site_id, (source_row_id,))
             if aggregated:
                 action = "aggregated"
@@ -793,20 +795,22 @@ class SiteMatrixRowAuditBuilder:
                 retained_row_id: object = site_id
                 retained_row: object = site_id
                 reason = _optional_text(
-                    row.retained_reason,
+                    row.get("retained_reason"),
                     fallback=(
                         "contributed to site-level aggregate from duplicate source rows"
                     ),
                 )
             else:
-                retained = bool(row.retained)
+                retained = bool(row.get("retained"))
                 action = "retained" if retained else "collapsed"
                 retained_row_id = retained_row_by_site.get(site_id, pd.NA)
                 retained_row = (
                     retained_row_id if retained_row_id is not pd.NA else pd.NA
                 )
                 reason = _optional_text(
-                    row.retained_reason if retained else row.dropped_reason,
+                    row.get("retained_reason")
+                    if retained
+                    else row.get("dropped_reason"),
                     fallback="duplicate-site resolution decision",
                 )
             records.append(
@@ -826,10 +830,10 @@ class SiteMatrixRowAuditBuilder:
                         "site_matrix_duplicate_site_policy": (
                             site_matrix_duplicate_site_policy
                         ),
-                        "observed_values": _optional_int(row.observed_values),
-                        "mean_signal": _optional_float(row.mean_signal),
+                        "observed_values": _optional_int(row.get("observed_values")),
+                        "mean_signal": _optional_float(row.get("mean_signal")),
                         "metadata_conflict_detected": bool(
-                            _optional_bool(row.metadata_conflict_detected)
+                            _optional_bool(row.get("metadata_conflict_detected"))
                         ),
                     },
                 )
@@ -865,8 +869,11 @@ def _resolve_optional_string_column(
 
 
 def _normalize_metadata_value(value: object) -> str:
-    if pd.isna(value):
-        return "<NA>"
+    try:
+        if bool(pd.isna(value)):
+            return "<NA>"
+    except TypeError:
+        pass
     if isinstance(value, str):
         trimmed = value.strip()
         return trimmed if trimmed else "<EMPTY>"
@@ -880,19 +887,33 @@ def _optional_text(value: object, *, fallback: str) -> str:
     return text if text else fallback
 
 
-def _optional_int(value: object) -> int | None:
+def _optional_int(value: object | None) -> int | None:
     if _is_missing_scalar(value):
         return None
-    return int(value)
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        if value.is_integer():
+            return int(value)
+        return int(value)
+    if isinstance(value, str):
+        return int(value.strip())
+    raise TypeError(f"cannot coerce value of type {type(value).__name__} to int")
 
 
-def _optional_float(value: object) -> float | None:
+def _optional_float(value: object | None) -> float | None:
     if _is_missing_scalar(value):
         return None
-    return float(value)
+    if isinstance(value, (int, float, bool)):
+        return float(value)
+    if isinstance(value, str):
+        return float(value.strip())
+    raise TypeError(f"cannot coerce value of type {type(value).__name__} to float")
 
 
-def _optional_bool(value: object) -> bool | None:
+def _optional_bool(value: object | None) -> bool | None:
     if _is_missing_scalar(value):
         return None
     return bool(value)

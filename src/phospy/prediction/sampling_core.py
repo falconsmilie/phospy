@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Protocol, cast
+
 import numpy as np
 
 from phospy.prediction.policies import PredictionSamplingPolicy
@@ -14,6 +16,14 @@ from phospy.prediction.svm import (
     make_svm,
     require_sklearn,
 )
+
+
+class _SamplingModel(Protocol):
+    classes_: np.ndarray
+
+    def fit(self, x: np.ndarray, y: np.ndarray) -> None: ...
+
+    def predict_proba(self, x: np.ndarray) -> np.ndarray: ...
 
 
 def _positive_probability_vector(
@@ -29,7 +39,7 @@ def _positive_probability_vector(
 
 def _compute_class_weights(
     *,
-    model: object,
+    model: _SamplingModel,
     prob_mat: np.ndarray,
     base_y: np.ndarray,
     sampling_policy: PredictionSamplingPolicy,
@@ -48,7 +58,7 @@ def _compute_class_weights(
 
 def _resample_training_rows(
     *,
-    model: object,
+    model: _SamplingModel,
     base_x: np.ndarray,
     base_y: np.ndarray,
     weights_by_class: dict[int, np.ndarray | None],
@@ -64,11 +74,14 @@ def _resample_training_rows(
         if class_x.shape[0] == 0:
             continue
         sample_prob = weights_by_class.get(int(class_label))
-        sampled_idx = resampling_rng.choice(
-            class_x.shape[0],
-            size=class_x.shape[0],
-            replace=True,
-            p=sample_prob,
+        sampled_idx = cast(
+            np.ndarray,
+            resampling_rng.choice(
+                class_x.shape[0],
+                size=class_x.shape[0],
+                replace=True,
+                p=sample_prob,
+            ),
         )
         resampled_x.append(class_x[sampled_idx])
         resampled_y.append(np.repeat(class_label, class_x.shape[0]))
@@ -84,7 +97,7 @@ def _run_sampling_iterations(
     n_iterations: int,
     resampling_rng: np.random.Generator,
     sampling_policy: PredictionSamplingPolicy,
-) -> object:
+) -> _SamplingModel:
     if n_iterations < 1:
         raise ValueError("n_iterations must be at least 1")
 
@@ -92,17 +105,20 @@ def _run_sampling_iterations(
     use_r_parity_scaler = sampling_policy.adaptive_policy == "r_parity"
     current_x = base_x
     current_y = base_y
-    model: object | None = None
+    model: _SamplingModel | None = None
 
     for _ in range(n_iterations):
-        model = make_svm(
-            StandardScaler=StandardScaler,
-            SVC=SVC,
-            kernel=kernel,
-            use_r_parity_scaler=use_r_parity_scaler,
+        model = cast(
+            _SamplingModel,
+            make_svm(
+                StandardScaler=StandardScaler,
+                SVC=SVC,
+                kernel=kernel,
+                use_r_parity_scaler=use_r_parity_scaler,
+            ),
         )
-        model.fit(current_x, current_y)  # type: ignore[attr-defined]
-        prob_mat = model.predict_proba(base_x)  # type: ignore[attr-defined]
+        model.fit(current_x, current_y)
+        prob_mat = np.asarray(model.predict_proba(base_x), dtype=float)
         weights_by_class = _compute_class_weights(
             model=model,
             prob_mat=prob_mat,
@@ -145,8 +161,8 @@ def run_adaptive_sampling_ensemble(
         resampling_rng=resampling_rng,
         sampling_policy=sampling_policy,
     )
-    pred = np.asarray(model.predict_proba(test_x), dtype=float)  # type: ignore[attr-defined]
-    model_classes = np.asarray(model.classes_, dtype=int)  # type: ignore[attr-defined]
+    pred = np.asarray(model.predict_proba(test_x), dtype=float)
+    model_classes = np.asarray(model.classes_, dtype=int)
     positive_probabilities = _positive_probability_vector(
         prob_mat=pred,
         classes=model_classes,

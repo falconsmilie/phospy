@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, fields
-from typing import TypeVar
+from typing import ClassVar, Protocol, TypeVar, cast
 
 import pandas as pd
 
@@ -17,8 +17,17 @@ PREPROCESSING_REPORT_COMPARISON_GROUP_STATS_TABLE = "comparison_group_stats"
 PREPROCESSING_REPORT_COMPARISON_PAIR_STATS_TABLE = "comparison_pair_stats"
 
 
-def _columns_for_dataclass(row_type: type[object]) -> tuple[str, ...]:
-    return tuple(field.name for field in fields(row_type))
+class _DataclassInstance(Protocol):
+    __dataclass_fields__: ClassVar[dict[str, object]]
+
+
+def _columns_for_dataclass(row_type: type[_DataclassInstance]) -> tuple[str, ...]:
+    return tuple(
+        field.name
+        for field in fields(
+            cast(type[object], row_type)  # pyright: ignore[reportArgumentType] - validated by dataclass decorators on row types
+        )
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,7 +176,7 @@ PREPROCESSING_REPORT_TABLE_COLUMNS = {
     PREPROCESSING_REPORT_COMPARISON_PAIR_STATS_TABLE: COMPARISON_PAIR_STATS_COLUMNS,
 }
 
-_ReportRowT = TypeVar("_ReportRowT")
+_ReportRowT = TypeVar("_ReportRowT", bound=_DataclassInstance)
 
 
 def missing_columns(
@@ -191,7 +200,12 @@ def dataframe_from_rows(
     *,
     row_type: type[_ReportRowT],
 ) -> pd.DataFrame:
-    columns = tuple(field.name for field in fields(row_type))
+    columns = tuple(
+        field.name
+        for field in fields(
+            cast(type[object], row_type)  # pyright: ignore[reportArgumentType] - row_type is constrained to dataclass-backed report rows
+        )
+    )
     if not rows:
         return pd.DataFrame.from_records([], columns=columns)
     records: list[dict[str, object]] = []
@@ -200,7 +214,11 @@ def dataframe_from_rows(
             raise TypeError(
                 f"expected rows of type {row_type.__name__}; got {type(row).__name__}"
             )
-        records.append(asdict(row))
+        records.append(
+            asdict(
+                cast(_DataclassInstance, row)  # pyright: ignore[reportArgumentType] - runtime isinstance(row, row_type) guarantees dataclass instance
+            )
+        )
     return pd.DataFrame.from_records(records, columns=columns)
 
 
@@ -211,7 +229,12 @@ def rows_from_dataframe(
 ) -> tuple[_ReportRowT, ...]:
     if frame is None:
         return ()
-    columns = tuple(field.name for field in fields(row_type))
+    columns = tuple(
+        field.name
+        for field in fields(
+            cast(type[object], row_type)  # pyright: ignore[reportArgumentType] - row_type is constrained to dataclass-backed report rows
+        )
+    )
     missing = missing_columns(frame, expected_columns=columns)
     if missing:
         joined = ", ".join(missing)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import NoReturn
+
 import pandas as pd
 
 from phospy.errors.workflows import WorkflowBoundaryError
@@ -17,7 +19,7 @@ def raise_boundary_error(
     seam: str,
     next_action: str,
     **details: object,
-) -> None:
+) -> NoReturn:
     raise WorkflowBoundaryError(
         seam=seam,
         next_action=next_action,

@@ -10,6 +10,7 @@ import pandas as pd
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
 from phospy.provenance.models import (
+    EnvironmentProvenance,
     PreprocessingStageProvenance,
     RunProvenance,
     TableFingerprint,
@@ -30,7 +31,9 @@ class SignalomeProvenanceBuilder:
     def __init__(
         self,
         *,
-        collect_environment: Callable[[], object] = collect_environment_provenance,
+        collect_environment: Callable[
+            [], EnvironmentProvenance
+        ] = collect_environment_provenance,
     ) -> None:
         self._collect_environment = collect_environment
 

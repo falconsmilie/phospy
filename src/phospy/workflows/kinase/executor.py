@@ -223,7 +223,7 @@ class KinaseWorkflowExecutor:
             site_sequences=sequence_series.loc[scoring_phospho.index],
             motif_frequency_matrices=motif_frequency_matrices,
             motif_sizes=motif_sizes,
-            site_index=scoring_phospho.index,
+            site_index=tuple(str(site_id) for site_id in scoring_phospho.index),
             min_motif_size=scoring_min_substrates,
             flank_size=DEFAULT_MOTIF_FLANK_SIZE,
             sequence_semantics=SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
@@ -522,10 +522,10 @@ def _build_kinase_run_provenance(
             ),
         )
     )
-    scoring_diagnostics = (
+    scoring_diagnostics: dict[str, object] = (
         {}
         if scoring_result.motif_sequence_validation is None
-        else scoring_result.motif_sequence_validation.summary()
+        else dict(scoring_result.motif_sequence_validation.summary())
     )
     if scoring_result.motif_library_validation is not None:
         scoring_diagnostics["motif_library_validation"] = (

@@ -314,6 +314,10 @@ def _resolve_identity_mapping(
             used_total_rows_counter.get(total_row_id, 0) + 1
         )
     used_total_rows = tuple(sorted(used_total_rows_counter))
+    if state.total is None:
+        raise PhosPyInputError(
+            "total matrix is required for total protein correction identity resolution"
+        )
     all_total_rows = tuple(
         str(label) for label in state.total.index.astype(str).tolist()
     )
@@ -525,9 +529,16 @@ def _require_non_empty_keys(series: pd.Series, *, field_name: str) -> None:
     normalized = series.astype("string").str.strip()
     invalid_mask = normalized.isna() | (normalized == "")
     if bool(invalid_mask.any()):
-        preview = ", ".join(
-            str(item) for item in series.index[invalid_mask].tolist()[:5]
-        )
+        invalid_index = [
+            str(index_value)
+            for index_value, is_invalid in zip(
+                series.index.tolist(),
+                invalid_mask.tolist(),
+                strict=True,
+            )
+            if bool(is_invalid)
+        ]
+        preview = ", ".join(invalid_index[:5])
         raise PhosPyInputError(
             f"{field_name} contains null/empty identifiers at rows: {preview}"
         )

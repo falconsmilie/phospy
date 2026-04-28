@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
 from scipy.cluster.hierarchy import cut_tree, linkage
@@ -151,14 +152,30 @@ class ScipyHierarchicalClusteringBackend:
         self,
         request: SignalomeClusteringBackendRequest,
     ) -> SignalomeClusteringBackendResult:
+        if request.cluster_tree_backend != _exact.SIGNALOME_CLUSTER_TREE_BACKEND_EXACT:
+            raise ValueError("cluster_tree_backend must be 'exact'")
+        if request.candidate_scoring_backend not in {
+            None,
+            _exact.SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+            _exact.SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+        }:
+            raise ValueError("candidate_scoring_backend must be one of: full, sampled")
+        cluster_tree_backend = cast(
+            _exact.SignalomeClusterTreeBackend,
+            request.cluster_tree_backend,
+        )
+        candidate_scoring_backend = cast(
+            _exact.SignalomeCandidateScoringBackend | None,
+            request.candidate_scoring_backend,
+        )
         clustering_result = _exact.cluster_sites_with_diagnostics(
             scoring_matrix=request.scoring_matrix,
             requested_module_count=request.requested_module_count,
             primary_threshold=request.primary_threshold,
             fallback_threshold=request.fallback_threshold,
             max_clusters=request.max_clusters,
-            cluster_tree_backend=request.cluster_tree_backend,
-            candidate_scoring_backend=request.candidate_scoring_backend,
+            cluster_tree_backend=cluster_tree_backend,
+            candidate_scoring_backend=candidate_scoring_backend,
             max_exact_cluster_tree_sites=request.max_exact_cluster_tree_sites,
             max_full_correlation_sites=request.max_full_correlation_sites,
             cluster_tree_operations=_SCIPY_CLUSTER_TREE_OPERATIONS,

@@ -53,7 +53,9 @@ def fuse_profile_and_motif_scores_by_rank_weight(
                 "no overlapping kinases between motif_scores and profile_scores"
             )
         weights = (
-            _profile_only_weights(profile_scores.columns) if emit_weights else None
+            _profile_only_weights(tuple(str(k) for k in profile_scores.columns))
+            if emit_weights
+            else None
         )
         return profile_scores.copy(), weights
 

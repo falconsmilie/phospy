@@ -686,7 +686,7 @@ def _require_mapping(value: object, *, field_name: str) -> Mapping[str, object]:
     return value
 
 
-def _require_string_keys(value: Mapping[object, object], *, field_name: str) -> None:
+def _require_string_keys(value: Mapping[str, object], *, field_name: str) -> None:
     for key in value:
         if not isinstance(key, str):
             raise PhosPyInputError(

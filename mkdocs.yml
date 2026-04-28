@@ -23,6 +23,7 @@ nav:
   - Release Notes 1.5.0: release_notes/1.5.0.md
   - Maintainer Docs:
       - Overview: contributor/index.md
+      - Type Checking (Pyright): contributor/type-checking.md
       - Architecture: architecture/index.md
       - ADR Index: adr/index.md
       - Parity to PhosR: parity.md

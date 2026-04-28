@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import NoReturn, TypedDict, cast
+
 import pandas as pd
 
 from phospy.api.requests import KinaseWorkflowRequest
@@ -16,6 +18,16 @@ from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
 )
+
+
+class _OverlapSummary(TypedDict):
+    dataset_sites: int
+    reference_sites: int
+    overlap_sites: int
+    reference_kinases: int
+    kinases_with_overlap: int
+    max_quantified_sites_per_kinase: int
+    per_kinase_quantified: pd.Series
 
 
 class KinaseWorkflowInterpreter:
@@ -115,7 +127,7 @@ class KinaseWorkflowInterpreter:
         *,
         dataset: pd.DataFrame,
         kinase_substrate_map: pd.DataFrame,
-    ) -> dict[str, int | pd.Series]:
+    ) -> _OverlapSummary:
         dataset_sites = set(dataset.index.tolist())
         reference_sites = set(
             kinase_substrate_map.loc[:, cls._SUBSTRATE_COLUMN].tolist()
@@ -124,12 +136,18 @@ class KinaseWorkflowInterpreter:
         overlapping_map = kinase_substrate_map[
             kinase_substrate_map.loc[:, cls._SUBSTRATE_COLUMN].isin(overlapping_sites)
         ]
-        per_kinase_quantified = (
+        per_kinase_quantified = cast(
+            pd.Series,
             overlapping_map.groupby(cls._KINASE_COLUMN, sort=False)[
                 cls._SUBSTRATE_COLUMN
             ]
             .nunique()
-            .astype("int64")
+            .astype("int64"),
+        )
+        max_quantified_sites_per_kinase = (
+            0
+            if per_kinase_quantified.empty
+            else int(per_kinase_quantified.to_numpy(dtype="int64", copy=False).max())
         )
         return {
             "dataset_sites": len(dataset_sites),
@@ -139,16 +157,14 @@ class KinaseWorkflowInterpreter:
                 kinase_substrate_map.loc[:, cls._KINASE_COLUMN].nunique()
             ),
             "kinases_with_overlap": int(per_kinase_quantified.size),
-            "max_quantified_sites_per_kinase": int(
-                per_kinase_quantified.max() if not per_kinase_quantified.empty else 0
-            ),
+            "max_quantified_sites_per_kinase": max_quantified_sites_per_kinase,
             "per_kinase_quantified": per_kinase_quantified,
         }
 
     def _validate_reference_coverage(
         self,
         *,
-        overlap_counts: dict[str, int | pd.Series],
+        overlap_counts: _OverlapSummary,
         request: KinaseWorkflowRequest,
     ) -> None:
         overlap_sites = int(overlap_counts["overlap_sites"])
@@ -169,7 +185,7 @@ class KinaseWorkflowInterpreter:
     def _validate_eligible_kinases(
         self,
         *,
-        overlap_counts: dict[str, int | pd.Series],
+        overlap_counts: _OverlapSummary,
         request: KinaseWorkflowRequest,
     ) -> None:
         per_kinase_quantified = overlap_counts["per_kinase_quantified"]
@@ -179,9 +195,8 @@ class KinaseWorkflowInterpreter:
                 "overlap_counts['per_kinase_quantified'] to be a pandas Series, "
                 f"got {type(per_kinase_quantified).__name__}"
             )
-        eligible_kinases = per_kinase_quantified[
-            per_kinase_quantified >= request.scoring_config.min_substrates
-        ]
+        eligible_mask = per_kinase_quantified >= request.scoring_config.min_substrates
+        eligible_kinases = cast(pd.Series, per_kinase_quantified[eligible_mask])
         if not eligible_kinases.empty:
             return
         self._raise_boundary_error(
@@ -245,7 +260,7 @@ class KinaseWorkflowInterpreter:
         seam: str,
         next_action: str,
         **details: object,
-    ) -> None:
+    ) -> NoReturn:
         raise WorkflowBoundaryError(
             seam=seam,
             next_action=next_action,

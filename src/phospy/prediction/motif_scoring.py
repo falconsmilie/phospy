@@ -303,7 +303,7 @@ def _build_motif_library_from_candidates(
         if row.sequence is None:
             continue
         accepted_window = _extract_sequence_window(row.sequence, flank_size)
-        if accepted_window is None or pd.isna(accepted_window):
+        if _is_missing_scalar(accepted_window):
             excluded_reference_ids.append(candidate.reference_id)
             continue
         accepted_windows_by_kinase.setdefault(candidate.kinase, []).append(
@@ -623,8 +623,17 @@ def _normalize_sequence_value(value: object) -> object:
     return sequence
 
 
+def _is_missing_scalar(value: object) -> bool:
+    if value is None:
+        return True
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return False
+
+
 def _extract_sequence_window(value: object, flank_size: int | None) -> object:
-    if value is None or pd.isna(value):
+    if _is_missing_scalar(value):
         return np.nan
     sequence = str(value).upper()
     if sequence == "":
@@ -653,7 +662,7 @@ def _encode_sequence_positions(
     if width == 0:
         return encoded
     for row_index, sequence in enumerate(sequences):
-        if sequence is None or pd.isna(sequence):
+        if _is_missing_scalar(sequence):
             continue
         text = str(sequence)[:width]
         if text == "":
@@ -763,7 +772,7 @@ def _materialize_scoring_windows(
             windows.loc[row.site_id] = row.sequence
             continue
         extracted = _extract_sequence_window(row.sequence, flank_size)
-        if extracted is None or pd.isna(extracted):
+        if _is_missing_scalar(extracted):
             windows.loc[row.site_id] = row.sequence
             continue
         if len(str(extracted)) != expected_window_size:

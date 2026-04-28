@@ -6,6 +6,7 @@ import hashlib
 
 import numpy as np
 
+from phospy.api.configs import KinaseAdaptivePolicy
 from phospy.prediction.policies import (
     PredictionSamplingPolicy,
     resolve_prediction_sampling_policy,
@@ -86,7 +87,7 @@ def transform_resampling_probabilities(
     values: np.ndarray,
     *,
     sampling_policy: PredictionSamplingPolicy | None = None,
-    adaptive_policy: str | None = None,
+    adaptive_policy: KinaseAdaptivePolicy | None = None,
 ) -> np.ndarray:
     """Adjust class resampling weights before normalization."""
 

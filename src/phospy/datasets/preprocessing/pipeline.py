@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
+from typing import TypedDict
 
 import pandas as pd
 
@@ -130,6 +131,15 @@ _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
         "comparison_pairs",
     ),
 }
+
+
+class _NormalizedStageDiagnostics(TypedDict):
+    dropped_row_ids: tuple[str, ...]
+    dropped_row_count: int
+    imputed_cell_count: int
+    imputed_row_ids: tuple[str, ...]
+    notes: str | None
+    diagnostics: dict[str, object]
 
 
 class PreprocessingPipeline:
@@ -294,7 +304,7 @@ def _normalize_stage_diagnostics(
     raw: Mapping[str, object],
     previous: PreprocessingState,
     current: PreprocessingState,
-) -> dict[str, object]:
+) -> _NormalizedStageDiagnostics:
     default_dropped_row_ids = _resolve_dropped_row_ids(
         before=previous.phospho.index,
         after=current.phospho.index,
@@ -302,7 +312,10 @@ def _normalize_stage_diagnostics(
     dropped_row_ids = _coerce_string_tuple(
         raw.get("dropped_row_ids", default_dropped_row_ids)
     )
-    dropped_row_count = int(raw.get("dropped_row_count", len(dropped_row_ids)))
+    dropped_row_count = _coerce_int(
+        raw.get("dropped_row_count"),
+        default=len(dropped_row_ids),
+    )
 
     default_imputed_row_ids, default_imputed_cell_count = _resolve_imputation_summary(
         before=previous.phospho,
@@ -311,7 +324,10 @@ def _normalize_stage_diagnostics(
     imputed_row_ids = _coerce_string_tuple(
         raw.get("imputed_row_ids", default_imputed_row_ids)
     )
-    imputed_cell_count = int(raw.get("imputed_cell_count", default_imputed_cell_count))
+    imputed_cell_count = _coerce_int(
+        raw.get("imputed_cell_count"),
+        default=default_imputed_cell_count,
+    )
 
     notes_raw = raw.get("notes", "stage executed")
     notes = None if notes_raw is None else str(notes_raw)
@@ -342,6 +358,20 @@ def _coerce_string_tuple(value: object) -> tuple[str, ...]:
     if isinstance(value, list):
         return tuple(str(item) for item in value)
     return ()
+
+
+def _coerce_int(value: object, *, default: int) -> int:
+    if value is None:
+        return int(default)
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        return int(value.strip())
+    return int(default)
 
 
 def _normalize_report_rows(

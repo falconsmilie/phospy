@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from phospy.signalomes.models import SignalomeModuleSelectionDiagnostics
+from phospy.signalomes.models import (
+    SignalomeClusterCandidateScore,
+    SignalomeModuleSelectionDiagnostics,
+    SignalomeModuleSelectionStrategy,
+)
 
 
 def approximation_used_from_candidate_mode(
@@ -19,12 +23,12 @@ def approximation_used_from_candidate_mode(
 
 def build_module_selection_diagnostics(
     *,
-    strategy: str,
+    strategy: SignalomeModuleSelectionStrategy,
     selected_module_count: int,
     requested_module_count: int | None,
     threshold_used: float | None,
     max_clusters_evaluated: int,
-    candidate_scores: dict[int, object],
+    candidate_scores: dict[int, SignalomeClusterCandidateScore],
     reason: str,
     zero_variance_profile_count: int,
     near_constant_profile_count: int,
@@ -33,14 +37,14 @@ def build_module_selection_diagnostics(
     """Build a normalized module-selection diagnostics payload."""
 
     return SignalomeModuleSelectionDiagnostics(
-        strategy=str(strategy),
+        strategy=strategy,
         selected_module_count=int(selected_module_count),
         requested_module_count=(
             None if requested_module_count is None else int(requested_module_count)
         ),
         threshold_used=(None if threshold_used is None else float(threshold_used)),
         max_clusters_evaluated=int(max_clusters_evaluated),
-        candidate_scores=dict(candidate_scores),
+        candidate_scores=candidate_scores.copy(),
         reason=str(reason),
         zero_variance_profile_count=int(zero_variance_profile_count),
         near_constant_profile_count=int(near_constant_profile_count),

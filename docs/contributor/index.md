@@ -8,3 +8,4 @@ Start with:
 - [ADR Index](../adr/index.md)
 - [Fixtures](../fixtures.md)
 - [Parity to PhosR](../parity.md)
+- [Type Checking (Pyright)](type-checking.md)

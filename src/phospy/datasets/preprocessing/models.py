@@ -301,8 +301,7 @@ class PreprocessingStage(Protocol):
 
     stage_key: str
 
-    def run(self, state: PreprocessingState) -> PreprocessingStageResult:
-        """Apply a preprocessing stage and return its structured result."""
+    def run(self, state: PreprocessingState) -> PreprocessingStageResult: ...
 
 
 __all__ = [
@@ -380,12 +379,23 @@ def _resolve_total_correction_identity_policy(
             .str.strip(),
         }
     )
+
+    def _is_missing_mapping_value(value: object) -> bool:
+        try:
+            return bool(pd.isna(value))
+        except TypeError:
+            return False
+
     mapping_rows = tuple(
         (
-            "" if pd.isna(row.phosphosite_id) else str(row.phosphosite_id),
-            "" if pd.isna(row.total_protein_id) else str(row.total_protein_id),
+            ""
+            if _is_missing_mapping_value(record.get("phosphosite_id"))
+            else str(record.get("phosphosite_id")),
+            ""
+            if _is_missing_mapping_value(record.get("total_protein_id"))
+            else str(record.get("total_protein_id")),
         )
-        for row in normalized_table.itertuples(index=False)
+        for record in normalized_table.to_dict(orient="records")
     )
     fingerprint_table = (
         normalized_table.fillna("<MISSING>")

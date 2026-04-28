@@ -164,7 +164,11 @@ class SiteMatrixStage:
 
         assembled = self._site_matrix_assembler.assemble(
             duplicate_site_result=duplicate_site_result,
-            output_index_name=state.phospho.index.name,
+            output_index_name=(
+                None
+                if state.phospho.index.name is None
+                else str(state.phospho.index.name)
+            ),
             dropped_missing_sequence_rows=sequence_filter_result.dropped_rows,
             dropped_incomplete_rows=missing_data_result.dropped_rows,
         )

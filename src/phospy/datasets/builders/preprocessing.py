@@ -45,6 +45,7 @@ from phospy.datasets.processing_state import (
     TotalProteinCorrectionDiagnostics,
     TotalProteinCorrectionState,
 )
+from phospy.errors.build import DatasetBuildError
 from phospy.transformations.models import (
     IntensityScaleKind,
     IntensityScaleState,
@@ -176,7 +177,10 @@ def build_dataset_processing_state(
         == DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL
         else None
     )
-    default_quantitative_meaning = intensity_scale_state.quantity.value
+    quantitative_meaning = intensity_scale_state.quantity
+    if quantitative_meaning is None:
+        raise DatasetBuildError("intensity-scale state is missing quantitative meaning")
+    default_quantitative_meaning = quantitative_meaning.value
     correction_diagnostics = _with_default_string_diagnostic(
         correction_diagnostics,
         key="quantitative_meaning",

@@ -5,7 +5,7 @@ from __future__ import annotations
 import heapq
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Literal, Protocol, cast
 
 import numpy as np
 import pandas as pd
@@ -584,7 +584,7 @@ def _build_module_selection_result(
         ),
         candidate_labels=candidate_labels,
         cluster_tree_backend=str(cluster_tree_backend),
-        candidate_scoring_mode=str(candidate_scoring_mode),
+        candidate_scoring_mode=candidate_scoring_mode,
         exact_cluster_tree_built=bool(exact_cluster_tree_built),
         candidate_scoring_evaluated=bool(candidate_scoring_evaluated),
         candidate_scoring_skip_reason=(
@@ -1512,14 +1512,30 @@ class ExactPythonClusteringBackend:
         self,
         request: SignalomeClusteringBackendRequest,
     ) -> SignalomeClusteringBackendResult:
+        if request.cluster_tree_backend != SIGNALOME_CLUSTER_TREE_BACKEND_EXACT:
+            raise ValueError("cluster_tree_backend must be 'exact'")
+        if request.candidate_scoring_backend not in {
+            None,
+            SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+            SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+        }:
+            raise ValueError("candidate_scoring_backend must be one of: full, sampled")
+        cluster_tree_backend = cast(
+            SignalomeClusterTreeBackend,
+            request.cluster_tree_backend,
+        )
+        candidate_scoring_backend = cast(
+            SignalomeCandidateScoringBackend | None,
+            request.candidate_scoring_backend,
+        )
         clustering_result = cluster_sites_with_diagnostics(
             scoring_matrix=request.scoring_matrix,
             requested_module_count=request.requested_module_count,
             primary_threshold=request.primary_threshold,
             fallback_threshold=request.fallback_threshold,
             max_clusters=request.max_clusters,
-            cluster_tree_backend=request.cluster_tree_backend,
-            candidate_scoring_backend=request.candidate_scoring_backend,
+            cluster_tree_backend=cluster_tree_backend,
+            candidate_scoring_backend=candidate_scoring_backend,
             max_exact_cluster_tree_sites=request.max_exact_cluster_tree_sites,
             max_full_correlation_sites=request.max_full_correlation_sites,
         )

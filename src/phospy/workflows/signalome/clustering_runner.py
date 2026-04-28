@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import cast
 
 import pandas as pd
 
@@ -14,6 +15,12 @@ from phospy.signalomes.clustering import (
     cluster_sites_with_diagnostics,
     derive_protein_modules,
     run_signalome_clustering_backend,
+)
+from phospy.signalomes.clustering.exact_python import (
+    SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+    SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
+    _CandidateScoringMode,
 )
 from phospy.signalomes.clustering.models import SignalomeClusteringBackendResult
 from phospy.workflows.signalome.component_helpers import (
@@ -94,11 +101,23 @@ class SignalomeClusteringRunner:
                     max_full_correlation_sites=config.max_full_correlation_sites,
                     backend_name=config.clustering_backend,
                 )
+                if backend_result.candidate_scoring_mode not in {
+                    SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+                    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+                    SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
+                }:
+                    raise ValueError(
+                        "backend returned unsupported candidate_scoring_mode: "
+                        f"{backend_result.candidate_scoring_mode!r}"
+                    )
                 clustering_result = ClusterSitesResult(
                     site_clusters=backend_result.site_clusters,
                     module_selection_diagnostics=backend_result.module_selection_diagnostics,
                     cluster_tree_backend=backend_result.cluster_tree_backend,
-                    candidate_scoring_mode=backend_result.candidate_scoring_mode,
+                    candidate_scoring_mode=cast(
+                        _CandidateScoringMode,
+                        backend_result.candidate_scoring_mode,
+                    ),
                     exact_cluster_tree_built=backend_result.exact_cluster_tree_built,
                     candidate_scoring_sampling=backend_result.candidate_scoring_sampling,
                     candidate_scoring_evaluated=backend_result.candidate_scoring_evaluated,

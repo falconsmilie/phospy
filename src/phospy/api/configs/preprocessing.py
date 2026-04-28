@@ -611,7 +611,7 @@ class DatasetComparisonBuildingConfig:
                     "dataset build request preprocessing_config.comparisons.pairs "
                     "cannot contain self-comparison pairs"
                 )
-            canonical_pair = tuple(sorted((left, right)))
+            canonical_pair = (left, right) if left <= right else (right, left)
             if canonical_pair in seen_pairs:
                 raise PhosPyInputError(
                     "dataset build request preprocessing_config.comparisons.pairs "

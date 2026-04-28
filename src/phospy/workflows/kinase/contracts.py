@@ -146,8 +146,7 @@ class ResolvedKinaseExecutionConfig:
 class KinaseWorkflowValidatorContract(Protocol):
     """Internal contract for kinase workflow request validation."""
 
-    def run(self, request: KinaseWorkflowRequest) -> KinaseWorkflowRequest:
-        """Validate the workflow request and return the same request."""
+    def run(self, request: KinaseWorkflowRequest) -> KinaseWorkflowRequest: ...
 
 
 class KinaseWorkflowInterpreterContract(Protocol):
@@ -155,15 +154,13 @@ class KinaseWorkflowInterpreterContract(Protocol):
 
     _reference_resolver: ReferenceResolverContract
 
-    def run(self, request: KinaseWorkflowRequest) -> ResolvedKinaseWorkflowRequest:
-        """Resolve references and runtime defaults for execution."""
+    def run(self, request: KinaseWorkflowRequest) -> ResolvedKinaseWorkflowRequest: ...
 
 
 class KinaseWorkflowExecutorContract(Protocol):
     """Internal contract for kinase workflow execution."""
 
-    def run(self, request: ResolvedKinaseWorkflowRequest) -> KinaseWorkflowResult:
-        """Execute workflow domain logic and assemble public results."""
+    def run(self, request: ResolvedKinaseWorkflowRequest) -> KinaseWorkflowResult: ...
 
 
 __all__ = [
