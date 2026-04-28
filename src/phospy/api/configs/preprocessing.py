@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
+
+import pandas as pd
 
 from phospy.errors.input import PhosPyInputError
 
@@ -50,6 +52,31 @@ DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES = frozenset(
     {
         DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
         DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL,
+    }
+)
+DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT = "direct"
+DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE = "mapping_table"
+DatasetTotalProteinCorrectionIdentityMode = Literal["direct", "mapping_table"]
+DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODES = frozenset(
+    {
+        DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
+        DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
+    }
+)
+DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR = "error"
+DatasetTotalProteinCorrectionDuplicatePolicy = Literal["error"]
+DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICIES = frozenset(
+    {DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR}
+)
+DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR = "error"
+DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED = (
+    "allow_uncorrected"
+)
+DatasetTotalProteinCorrectionUnmatchedPolicy = Literal["error", "allow_uncorrected"]
+DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICIES = frozenset(
+    {
+        DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
+        DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
     }
 )
 DATASET_SITE_MATRIX_POLICY_AS_INPUT = "as_input"
@@ -230,6 +257,135 @@ class DatasetNormalisationConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class DatasetTotalProteinCorrectionIdentityConfig:
+    """Identity-mapping policy for total/protein correction matching.
+
+    Supported modes:
+
+    - `"direct"`: map `site_metadata[phosphosite_key]` directly to a key in the
+      total-protein table (currently resolved from `total.index`).
+    - `"mapping_table"`: map phosphosite keys to total-protein keys through an
+      explicit two-column mapping table.
+    """
+
+    mode: DatasetTotalProteinCorrectionIdentityMode = (
+        DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT
+    )
+    phosphosite_key: str = "gene_symbol"
+    total_protein_key: str = "__index__"
+    mapping_table: pd.DataFrame | None = None
+    mapping_phosphosite_key: str | None = None
+    mapping_total_protein_key: str | None = None
+    duplicate_policy: DatasetTotalProteinCorrectionDuplicatePolicy = (
+        DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR
+    )
+    unmatched_policy: DatasetTotalProteinCorrectionUnmatchedPolicy = (
+        DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR
+    )
+
+    def __post_init__(self) -> None:
+        mode = self.mode
+        if mode not in DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODES:
+            supported = ", ".join(
+                sorted(DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODES)
+            )
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                f"identity.mode must be one of: {supported}"
+            )
+
+        phosphosite_key = self.phosphosite_key
+        if not isinstance(phosphosite_key, str) or not phosphosite_key.strip():
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                "identity.phosphosite_key must be a non-empty string"
+            )
+        total_protein_key = self.total_protein_key
+        if not isinstance(total_protein_key, str) or not total_protein_key.strip():
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                "identity.total_protein_key must be a non-empty string"
+            )
+
+        duplicate_policy = self.duplicate_policy
+        if duplicate_policy not in DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICIES:
+            supported = ", ".join(
+                sorted(DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICIES)
+            )
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                f"identity.duplicate_policy must be one of: {supported}"
+            )
+        unmatched_policy = self.unmatched_policy
+        if unmatched_policy not in DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICIES:
+            supported = ", ".join(
+                sorted(DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICIES)
+            )
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                f"identity.unmatched_policy must be one of: {supported}"
+            )
+
+        mapping_table = self.mapping_table
+        mapping_phosphosite_key = self.mapping_phosphosite_key
+        mapping_total_protein_key = self.mapping_total_protein_key
+
+        if mode == DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT:
+            if mapping_table is not None:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.total_protein_correction."
+                    "identity.mapping_table must be None when identity.mode='direct'"
+                )
+            if mapping_phosphosite_key is not None:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.total_protein_correction."
+                    "identity.mapping_phosphosite_key must be None when "
+                    "identity.mode='direct'"
+                )
+            if mapping_total_protein_key is not None:
+                raise PhosPyInputError(
+                    "dataset build request preprocessing_config.total_protein_correction."
+                    "identity.mapping_total_protein_key must be None when "
+                    "identity.mode='direct'"
+                )
+            return
+
+        if mode != DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                "identity contains an unsupported mode"
+            )
+        if mapping_table is None:
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                "identity.mapping_table is required when identity.mode='mapping_table'"
+            )
+        if not isinstance(mapping_table, pd.DataFrame):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                "identity.mapping_table must be a pandas DataFrame"
+            )
+        if (
+            not isinstance(mapping_phosphosite_key, str)
+            or not mapping_phosphosite_key.strip()
+        ):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                "identity.mapping_phosphosite_key must be a non-empty string when "
+                "identity.mode='mapping_table'"
+            )
+        if (
+            not isinstance(mapping_total_protein_key, str)
+            or not mapping_total_protein_key.strip()
+        ):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                "identity.mapping_total_protein_key must be a non-empty string when "
+                "identity.mode='mapping_table'"
+            )
+
+
+@dataclass(frozen=True, slots=True)
 class DatasetTotalProteinCorrectionConfig:
     """Public total/protein correction policy options for dataset building.
 
@@ -242,6 +398,9 @@ class DatasetTotalProteinCorrectionConfig:
     policy: DatasetTotalProteinCorrectionPolicy = (
         DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
     )
+    identity: DatasetTotalProteinCorrectionIdentityConfig = field(
+        default_factory=DatasetTotalProteinCorrectionIdentityConfig
+    )
 
     def __post_init__(self) -> None:
         policy = self.policy
@@ -250,6 +409,11 @@ class DatasetTotalProteinCorrectionConfig:
             raise PhosPyInputError(
                 "dataset build request preprocessing_config.total_protein_correction."
                 f"policy must be one of: {supported}"
+            )
+        if not isinstance(self.identity, DatasetTotalProteinCorrectionIdentityConfig):
+            raise PhosPyInputError(
+                "dataset build request preprocessing_config.total_protein_correction."
+                "identity must be a DatasetTotalProteinCorrectionIdentityConfig"
             )
 
 
@@ -485,6 +649,14 @@ __all__ = [
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICIES",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE",
     "DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_SUBTRACT_LOG_TOTAL",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODES",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICIES",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICIES",
     "DatasetComparisonBuildingConfig",
     "DatasetComparisonPair",
     "DatasetComparisonBuildingPolicy",
@@ -498,6 +670,10 @@ __all__ = [
     "DatasetSiteMatrixDuplicateSitePolicy",
     "DatasetSiteMatrixMissingDataPolicy",
     "DatasetSiteMatrixPolicy",
+    "DatasetTotalProteinCorrectionIdentityConfig",
+    "DatasetTotalProteinCorrectionIdentityMode",
+    "DatasetTotalProteinCorrectionDuplicatePolicy",
     "DatasetTotalProteinCorrectionConfig",
     "DatasetTotalProteinCorrectionPolicy",
+    "DatasetTotalProteinCorrectionUnmatchedPolicy",
 ]

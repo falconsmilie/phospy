@@ -162,6 +162,7 @@ operation with additional float64 matrix-copy cost; see
 
 - `policy="none"`
 - `policy="subtract_log_total"` (recommended)
+- `identity: DatasetTotalProteinCorrectionIdentityConfig`
 
 Subtractive total-protein correction is log-scale correction:
 
@@ -170,7 +171,49 @@ Subtractive total-protein correction is log-scale correction:
 In the public builder lane this requires:
 
 - `intensity_transform.policy="log2"`
-- a `total` table aligned to phospho sample columns and site-to-protein mapping
+- a `total` table aligned to phospho sample columns
+- an explicit identity mapping policy for phosphosite-to-total matching
+
+`DatasetTotalProteinCorrectionIdentityConfig` makes identity mapping explicit:
+
+- `mode="direct"`:
+  - map `site_metadata[phosphosite_key]` directly to total identity
+  - total identity is resolved from `total.index` (use `total_protein_key="__index__"` for index-based matching)
+- `mode="mapping_table"`:
+  - provide `mapping_table` plus `mapping_phosphosite_key` and `mapping_total_protein_key`
+  - use when phosphosite and total identifiers are in different namespaces
+
+Supported strictness controls:
+
+- `duplicate_policy="error"` (default)
+- `unmatched_policy="error"` (default) or `unmatched_policy="allow_uncorrected"`
+
+Recommended identity preference order:
+
+1. explicit `mapping_table` mode
+2. direct accession/protein-group identifiers
+3. direct gene-symbol matching only when scientifically appropriate
+
+Gene-symbol matching is a convenience identity policy, not a universal
+biological identity guarantee. Isoform-specific, protein-group, or shared-peptide
+datasets should prefer accession/protein-group IDs or explicit mapping tables.
+
+By default PhosPy fails loudly on ambiguous identity states:
+
+- duplicate total identity keys
+- duplicate or ambiguous mapping-table rows
+- null/empty identity keys
+- unknown mapping-table references
+- unmatched phosphosite rows (unless `unmatched_policy="allow_uncorrected"`)
+
+When correction runs, diagnostics/provenance records include:
+
+- identity mode and keys
+- duplicate/unmatched policies
+- mapping-table fingerprint (mapping-table mode)
+- corrected/uncorrected/unmatched counts
+- unused total-protein rows
+- whether gene-symbol matching was used and warning text when applicable
 
 Important state semantics:
 

@@ -6,8 +6,6 @@ intensity scale state after applying explicit builder preprocessing policy.
 
 from __future__ import annotations
 
-from dataclasses import asdict
-
 import pandas as pd
 
 from phospy.api.configs import DATASET_INTENSITY_TRANSFORM_POLICY_LOG2
@@ -30,6 +28,7 @@ from phospy.datasets.models import (
 from phospy.datasets.preprocessing.models import (
     PreprocessingPlan,
     PreprocessingStageExecution,
+    TotalProteinCorrectionIdentityPolicy,
 )
 from phospy.datasets.preprocessing.report_schema import (
     PreprocessingOperationRow,
@@ -271,7 +270,9 @@ def _build_dataset_run_provenance(
         reference=None,
         workflow_name="dataset_builder",
         workflow_parameters={
-            "preprocessing_plan": asdict(request.preprocessing_plan),
+            "preprocessing_plan": _preprocessing_plan_to_payload(
+                request.preprocessing_plan
+            ),
             "intensity_scale_label": intensity_scale_label,
             "quantitative_meaning": quantitative_meaning,
         },
@@ -316,3 +317,48 @@ def _stage_trace_to_provenance(
         )
         for item in trace
     )
+
+
+def _preprocessing_plan_to_payload(plan: PreprocessingPlan) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "intensity_transform_policy": plan.intensity_transform_policy,
+        "intensity_transform_pseudocount": float(plan.intensity_transform_pseudocount),
+        "normalisation_policy": plan.normalisation_policy,
+        "missing_data_policy": plan.missing_data_policy,
+        "missing_data_min_observed_values": plan.missing_data_min_observed_values,
+        "total_protein_correction_policy": plan.total_protein_correction_policy,
+        "total_protein_correction_identity_policy": (
+            _total_correction_identity_policy_to_payload(
+                plan.total_protein_correction_identity_policy
+            )
+        ),
+        "site_matrix_policy": plan.site_matrix_policy,
+        "comparison_building_policy": plan.comparison_building_policy,
+        "site_matrix_duplicate_site_policy": plan.site_matrix_duplicate_site_policy,
+        "site_matrix_missing_data_policy": plan.site_matrix_missing_data_policy,
+        "site_matrix_minimum_observed_values": plan.site_matrix_minimum_observed_values,
+        "comparison_sample_group_column": plan.comparison_sample_group_column,
+        "comparison_pairs": (
+            None if plan.comparison_pairs is None else list(plan.comparison_pairs)
+        ),
+        "stage_order": list(plan.stage_order),
+    }
+    return payload
+
+
+def _total_correction_identity_policy_to_payload(
+    policy: TotalProteinCorrectionIdentityPolicy,
+) -> dict[str, object]:
+    return {
+        "mode": policy.mode,
+        "phosphosite_key": policy.phosphosite_key,
+        "total_protein_key": policy.total_protein_key,
+        "mapping_phosphosite_key": policy.mapping_phosphosite_key,
+        "mapping_total_protein_key": policy.mapping_total_protein_key,
+        "mapping_table_fingerprint": policy.mapping_table_fingerprint,
+        "mapping_table_row_count": (
+            None if policy.mapping_table is None else int(len(policy.mapping_table))
+        ),
+        "duplicate_policy": policy.duplicate_policy,
+        "unmatched_policy": policy.unmatched_policy,
+    }

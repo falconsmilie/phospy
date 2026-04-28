@@ -17,7 +17,11 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     DATASET_SITE_MATRIX_MISSING_DATA_POLICY_DROP_ANY_MISSING,
     DATASET_SITE_MATRIX_POLICY_AS_INPUT,
+    DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,
+    DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
+    DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE,
     DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE,
+    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
     DatasetComparisonBuildingPolicy,
     DatasetComparisonPair,
     DatasetIntensityTransformPolicy,
@@ -27,7 +31,11 @@ from phospy.api.configs import (
     DatasetSiteMatrixDuplicateSitePolicy,
     DatasetSiteMatrixMissingDataPolicy,
     DatasetSiteMatrixPolicy,
+    DatasetTotalProteinCorrectionDuplicatePolicy,
+    DatasetTotalProteinCorrectionIdentityConfig,
+    DatasetTotalProteinCorrectionIdentityMode,
     DatasetTotalProteinCorrectionPolicy,
+    DatasetTotalProteinCorrectionUnmatchedPolicy,
 )
 from phospy.datasets.preprocessing.report_schema import (
     ROW_AUDIT_COLUMNS,
@@ -39,6 +47,8 @@ from phospy.datasets.preprocessing.report_schema import (
     dataframe_from_row_audit_rows,
     reorder_columns,
 )
+from phospy.errors.input import PhosPyInputError
+from phospy.provenance.hashing import hash_table
 
 DATASET_PREPROCESSING_STAGE_MISSING_DATA = "missing_data"
 DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION = "total_protein_correction"
@@ -58,6 +68,21 @@ StageOwnedPreprocessingReportValue = (
 
 
 @dataclass(frozen=True, slots=True)
+class TotalProteinCorrectionIdentityPolicy:
+    """Resolved identity policy consumed by total/protein correction stages."""
+
+    mode: DatasetTotalProteinCorrectionIdentityMode
+    phosphosite_key: str
+    total_protein_key: str
+    duplicate_policy: DatasetTotalProteinCorrectionDuplicatePolicy
+    unmatched_policy: DatasetTotalProteinCorrectionUnmatchedPolicy
+    mapping_table: tuple[tuple[str, str], ...] | None = None
+    mapping_phosphosite_key: str | None = None
+    mapping_total_protein_key: str | None = None
+    mapping_table_fingerprint: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class PreprocessingPlan:
     """Execution-ready internal preprocessing plan derived from public config."""
 
@@ -70,6 +95,19 @@ class PreprocessingPlan:
     missing_data_min_observed_values: int | None = None
     total_protein_correction_policy: DatasetTotalProteinCorrectionPolicy = (
         DATASET_TOTAL_PROTEIN_CORRECTION_POLICY_NONE
+    )
+    total_protein_correction_identity_policy: TotalProteinCorrectionIdentityPolicy = (
+        TotalProteinCorrectionIdentityPolicy(
+            mode=DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT,
+            phosphosite_key="gene_symbol",
+            total_protein_key="__index__",
+            duplicate_policy=DATASET_TOTAL_PROTEIN_CORRECTION_DUPLICATE_POLICY_ERROR,
+            unmatched_policy=DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ERROR,
+            mapping_table=None,
+            mapping_phosphosite_key=None,
+            mapping_total_protein_key=None,
+            mapping_table_fingerprint=None,
+        )
     )
     site_matrix_policy: DatasetSiteMatrixPolicy = DATASET_SITE_MATRIX_POLICY_AS_INPUT
     comparison_building_policy: DatasetComparisonBuildingPolicy = (
@@ -116,6 +154,9 @@ class PreprocessingPlan:
             missing_data_policy=config.missing_data.policy,
             missing_data_min_observed_values=config.missing_data.min_observed_values,
             total_protein_correction_policy=config.total_protein_correction.policy,
+            total_protein_correction_identity_policy=_resolve_total_correction_identity_policy(
+                config.total_protein_correction.identity
+            ),
             site_matrix_policy=config.site_matrix.policy,
             site_matrix_duplicate_site_policy=config.site_matrix.duplicate_site_policy,
             site_matrix_missing_data_policy=config.site_matrix.missing_data_policy,
@@ -273,4 +314,85 @@ __all__ = [
     "PreprocessingStage",
     "PreprocessingState",
     "StageOwnedPreprocessingReportValue",
+    "TotalProteinCorrectionIdentityPolicy",
 ]
+
+
+def _resolve_total_correction_identity_policy(
+    config: DatasetTotalProteinCorrectionIdentityConfig,
+) -> TotalProteinCorrectionIdentityPolicy:
+    if config.mode == DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_DIRECT:
+        return TotalProteinCorrectionIdentityPolicy(
+            mode=config.mode,
+            phosphosite_key=str(config.phosphosite_key).strip(),
+            total_protein_key=str(config.total_protein_key).strip(),
+            duplicate_policy=config.duplicate_policy,
+            unmatched_policy=config.unmatched_policy,
+            mapping_table=None,
+            mapping_phosphosite_key=None,
+            mapping_total_protein_key=None,
+            mapping_table_fingerprint=None,
+        )
+
+    if config.mode != DATASET_TOTAL_PROTEIN_CORRECTION_IDENTITY_MODE_MAPPING_TABLE:
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.total_protein_correction."
+            "identity contains an unsupported mode"
+        )
+    mapping_table = config.mapping_table
+    if mapping_table is None:
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.total_protein_correction."
+            "identity.mapping_table is required when identity.mode='mapping_table'"
+        )
+
+    mapping_phosphosite_key = str(config.mapping_phosphosite_key).strip()
+    mapping_total_protein_key = str(config.mapping_total_protein_key).strip()
+    if mapping_phosphosite_key not in mapping_table.columns:
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.total_protein_correction."
+            "identity.mapping_table is missing column "
+            f"{mapping_phosphosite_key!r}"
+        )
+    if mapping_total_protein_key not in mapping_table.columns:
+        raise PhosPyInputError(
+            "dataset build request preprocessing_config.total_protein_correction."
+            "identity.mapping_table is missing column "
+            f"{mapping_total_protein_key!r}"
+        )
+    normalized_table = pd.DataFrame(
+        {
+            "phosphosite_id": mapping_table.loc[:, mapping_phosphosite_key]
+            .astype("string")
+            .str.strip(),
+            "total_protein_id": mapping_table.loc[:, mapping_total_protein_key]
+            .astype("string")
+            .str.strip(),
+        }
+    )
+    mapping_rows = tuple(
+        (
+            "" if pd.isna(row.phosphosite_id) else str(row.phosphosite_id),
+            "" if pd.isna(row.total_protein_id) else str(row.total_protein_id),
+        )
+        for row in normalized_table.itertuples(index=False)
+    )
+    fingerprint_table = (
+        normalized_table.fillna("<MISSING>")
+        .sort_values(by=["phosphosite_id", "total_protein_id"], kind="mergesort")
+        .reset_index(drop=True)
+    )
+    return TotalProteinCorrectionIdentityPolicy(
+        mode=config.mode,
+        phosphosite_key=str(config.phosphosite_key).strip(),
+        total_protein_key=str(config.total_protein_key).strip(),
+        duplicate_policy=config.duplicate_policy,
+        unmatched_policy=config.unmatched_policy,
+        mapping_table=mapping_rows,
+        mapping_phosphosite_key=mapping_phosphosite_key,
+        mapping_total_protein_key=mapping_total_protein_key,
+        mapping_table_fingerprint=hash_table(
+            fingerprint_table,
+            name="total_protein_correction.identity.mapping_table",
+        ),
+    )

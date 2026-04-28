@@ -125,6 +125,15 @@ versioned payload:
   `policy`, `requested_policy`, `resolved_policy`, `formula`,
   `requires_log_scale`, `input_scale`, `output_scale`,
   `quantitative_meaning`, `matched_rows`,
+  `identity_mode`, `phosphosite_key`, `total_protein_key`,
+  `mapping_phosphosite_key`, `mapping_total_protein_key`,
+  `mapping_table_fingerprint`, `duplicate_policy`, `unmatched_policy`,
+  `phosphosite_row_count`, `total_protein_row_count`,
+  `corrected_row_count`, `uncorrected_row_count`,
+  `unused_total_protein_row_count`,
+  `total_rows_used_by_multiple_phosphosites`,
+  `unmatched_phosphosite_row_ids`, `unused_total_protein_row_ids`,
+  `gene_symbol_matching_used`, `gene_symbol_identity_warning`,
   `total_table_hash`, `input_phospho_hash`, `output_phospho_hash`
 - unknown top-level diagnostics fields are rejected at load/validation time
 - unversioned diagnostics payloads are rejected at load/validation time with a

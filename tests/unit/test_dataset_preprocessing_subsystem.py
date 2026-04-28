@@ -763,7 +763,7 @@ def test_dataset_preprocessor_rejects_correction_when_proteins_are_unmatched() -
 
     with pytest.raises(
         PhosPyInputError,
-        match="requires complete phospho/total matching but would drop",
+        match="requires complete phosphosite-to-total mapping under the configured identity policy",
     ):
         DatasetPreprocessor().run(
             phospho=phospho,

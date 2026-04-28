@@ -73,13 +73,16 @@ format: check-tools
 pre-commit: check-tools
 	$(PRE_COMMIT) run --all-files
 
-test: test-unit test-parity
+test: test-unit test-parity test-performance
 
 test-unit: check-tools
 	$(PYTEST) -m "not parity"
 
 test-parity: check-tools
 	$(PYTEST) tests/parity -m parity -s
+
+test-performance: check-tools
+	$(PYTEST) tests/performance
 
 dataset-builder-demo: check-tools
 	PYTHONPATH=src $(PYTHON) -c "from examples.dataset_builder_demo import main; main()"

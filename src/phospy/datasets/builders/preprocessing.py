@@ -59,9 +59,6 @@ _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
         "missing_data_policy",
         "missing_data_min_observed_values",
     ),
-    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION: (
-        "total_protein_correction_policy",
-    ),
     DATASET_PREPROCESSING_STAGE_SITE_MATRIX: (
         "site_matrix_policy",
         "site_matrix_duplicate_site_policy",
@@ -454,6 +451,22 @@ def _build_preprocessing_provenance_tables(
 def _resolve_stage_parameters(
     *, plan: PreprocessingPlan, stage: str
 ) -> dict[str, object]:
+    if stage == DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION:
+        identity = plan.total_protein_correction_identity_policy
+        return {
+            "total_protein_correction_policy": plan.total_protein_correction_policy,
+            "identity_mode": identity.mode,
+            "phosphosite_key": identity.phosphosite_key,
+            "total_protein_key": identity.total_protein_key,
+            "mapping_phosphosite_key": identity.mapping_phosphosite_key,
+            "mapping_total_protein_key": identity.mapping_total_protein_key,
+            "mapping_table_fingerprint": identity.mapping_table_fingerprint,
+            "mapping_table_row_count": (
+                None if identity.mapping_table is None else len(identity.mapping_table)
+            ),
+            "duplicate_policy": identity.duplicate_policy,
+            "unmatched_policy": identity.unmatched_policy,
+        }
     if stage == DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM:
         return {"pseudocount": float(plan.intensity_transform_pseudocount)}
     parameter_names = _STAGE_LABEL_TO_PARAMETERS.get(stage, ())
