@@ -159,6 +159,26 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
         == SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
     )
     assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
+    score_semantics = provenance["workflow_parameters"]["signalome_score_semantics"]
+    assert score_semantics["downstream_score_source"] in {
+        "rank_weighted_fusion_scores",
+        "profile_scores",
+    }
+    assert score_semantics["candidate_scoring_mode"] == "full"
+    assert (
+        score_semantics["candidate_scoring_scope"]
+        == "candidate_module_count_evaluation_only"
+    )
+    assert score_semantics["network_policy"] == signalome_config["network_policy"]
+    assert score_semantics["clustering_backend"] == scale_guard["clustering_backend"]
+    assert "probabilities" in score_semantics["scientific_interpretation_limits"]
+    assert "causal" in score_semantics["scientific_interpretation_limits"]
+    thresholds = score_semantics["thresholds_and_limits"]
+    assert thresholds["network_correlation_threshold"] == pytest.approx(
+        signalome_config["network_correlation_threshold"]
+    )
+    assert thresholds["max_exact_cluster_tree_sites"] == 2000
+    assert thresholds["max_full_correlation_sites"] == 2000
     assert "module_selection_diagnostics" in provenance["workflow_parameters"]
     assert provenance["workflow_parameters"]["upstream_kinase_provenance"] is not None
     output_names = {entry["name"] for entry in provenance["output_tables"]}

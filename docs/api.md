@@ -358,6 +358,24 @@ These fields make stage ownership explicit:
 - candidate module-count evaluation: `candidate_scoring_*`
 - final module assignment: `final_module_assignment_*`
 
+Scientific score semantics are recorded separately under
+`result.provenance.workflow_parameters["signalome_score_semantics"]`. This
+payload captures:
+
+- upstream downstream score source (`rank_weighted_fusion_scores` when present,
+  otherwise `profile_scores`)
+- meaning of the selected downstream score source
+- module-selection score meaning (within-cluster correlation summaries over
+  downstream score profiles)
+- candidate scoring mode and scope
+- network-correlation meaning and negative-correlation handling by
+  `network_policy`
+- missing/constant profile handling
+- thresholds and limits used for interpretation
+- clustering backend name
+- scientific interpretation limits (derived summary semantics; not
+  probabilities/calibrated confidence/causal proof)
+
 When sampled candidate scoring actually runs,
 `candidate_scoring_sampling` records reproducible sampling details for
 candidate module scoring:
@@ -516,6 +534,13 @@ Signalome correlation semantics:
   edge creation.
 - `result.kinase_network.correlation_diagnostics` reports finite/undefined
   counts and how many candidates were skipped for non-finite correlation.
+- Signalome module/network scores are derived summary statistics over upstream
+  downstream score profiles; they are not probabilities, calibrated confidence
+  values, or direct evidence of causal regulation.
+- Use `result.provenance.workflow_parameters["signalome_score_semantics"]` for
+  the run-specific interpretation payload (score source, score meaning,
+  candidate-scoring scope, missing/constant handling, threshold/limit context,
+  and interpretation limits).
 
 Signalome context note:
 

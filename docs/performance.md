@@ -105,6 +105,9 @@ Behavior:
   and provenance fields,
 - candidate-scoring mode and exact-tree construction are recorded in
   provenance (`workflow_parameters.scale_guard`),
+- scientific score semantics are recorded separately in provenance
+  (`workflow_parameters.signalome_score_semantics`) so runtime/backend
+  diagnostics remain distinct from interpretation meaning,
 - provenance records requested backend separately as
   `candidate_scoring_requested_backend`,
 - provenance also records whether candidate scoring was evaluated

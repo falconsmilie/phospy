@@ -104,6 +104,22 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
     assert int(network_correlation_diagnostics["undefined_correlations"]) >= 0
     assert int(network_correlation_diagnostics["edges_created"]) >= 0
     assert manifest["provenance"]["workflow_name"] == "signalome_workflow"
+    score_semantics = manifest["provenance"]["workflow_parameters"][
+        "signalome_score_semantics"
+    ]
+    assert score_semantics["downstream_score_source"] in {
+        "rank_weighted_fusion_scores",
+        "profile_scores",
+    }
+    assert score_semantics["candidate_scoring_scope"] == (
+        "candidate_module_count_evaluation_only"
+    )
+    assert "probabilities" in score_semantics["scientific_interpretation_limits"]
+    assert "causal" in score_semantics["scientific_interpretation_limits"]
+    thresholds = score_semantics["thresholds_and_limits"]
+    assert int(thresholds["max_exact_cluster_tree_sites"]) >= 1
+    assert int(thresholds["max_full_correlation_sites"]) >= 1
+    assert float(thresholds["network_correlation_threshold"]) >= 0.0
 
     dataset_manifest = json.loads(
         (output_root / "dataset" / "manifest.json").read_text(encoding="utf-8")

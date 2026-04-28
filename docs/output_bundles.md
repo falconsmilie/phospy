@@ -164,6 +164,12 @@ unknown top-level fields are rejected with explicit bundle field-path errors.
   - explicit `module_count` runs record `candidate_scoring_evaluated=false`
     with `candidate_scoring_skip_reason="explicit_module_count"` and
     `candidate_scoring_sampling=null`
+  - signalome runs also include
+    `workflow_parameters.signalome_score_semantics` with explicit scientific
+    meaning fields (downstream score source/meaning, module-selection score
+    meaning, candidate-scoring mode/scope, network policy and
+    negative-correlation handling, missing/constant profile handling,
+    thresholds/limits, clustering backend, and scientific interpretation limits)
 
 ## Bundle Contents (Default CSV Layout)
 

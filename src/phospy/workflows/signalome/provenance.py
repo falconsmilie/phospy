@@ -190,6 +190,13 @@ class SignalomeProvenanceBuilder:
                 "network_correlation_diagnostics": asdict(
                     network_correlation_diagnostics
                 ),
+                "signalome_score_semantics": _build_signalome_score_semantics(
+                    request=request,
+                    config=config,
+                    clustering_result=clustering_result,
+                    network_correlation_diagnostics=network_correlation_diagnostics,
+                    scale_guard_decision=scale_guard_decision,
+                ),
                 "upstream_kinase_provenance": (
                     None
                     if upstream_provenance is None
@@ -221,6 +228,143 @@ class SignalomeProvenanceBuilder:
                 continue
             fingerprints.append(fingerprint)
         return tuple(fingerprints)
+
+
+def _build_signalome_score_semantics(
+    *,
+    request: ResolvedSignalomeWorkflowRequest,
+    config: ResolvedSignalomeExecutionConfig,
+    clustering_result: ClusterSitesResult,
+    network_correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics,
+    scale_guard_decision: SignalomeScaleGuardDecision,
+) -> dict[str, object]:
+    downstream_score_source = str(request.downstream_score_source)
+    module_selection_diagnostics = clustering_result.module_selection_diagnostics
+    preconditioning = request.score_preconditioning_diagnostics
+    return {
+        "downstream_score_source": downstream_score_source,
+        "downstream_score_meaning": _downstream_score_meaning(
+            downstream_score_source=downstream_score_source
+        ),
+        "module_selection_score_meaning": (
+            "module-count selection uses within-cluster correlation summaries over "
+            "downstream score profiles across candidate module counts"
+        ),
+        "candidate_scoring_mode": str(scale_guard_decision.candidate_scoring_mode),
+        "candidate_scoring_scope": str(
+            scale_guard_decision.candidate_scoring_applies_to
+        ),
+        "network_correlation_meaning": (
+            "network candidate and edge scores are pairwise correlations between "
+            "downstream kinase score profiles, computed on finite paired observations"
+        ),
+        "network_policy": str(config.network_policy),
+        "negative_correlation_handling": _negative_correlation_handling(
+            network_policy=str(config.network_policy),
+            network_correlation_threshold=float(config.network_correlation_threshold),
+        ),
+        "missing_profile_handling": {
+            "all_missing_rows_before_execution": {
+                "policy": str(preconditioning.policy),
+                "dropped_row_count": int(preconditioning.dropped_all_missing_row_count),
+                "retained_row_count": int(preconditioning.retained_row_count),
+            },
+            "correlation_calculation": (
+                "partially missing rows are retained for pairwise-complete "
+                "correlation; pairs with missing/non-finite issues are labeled via "
+                "correlation_status and excluded from finite-edge creation"
+            ),
+            "network_missing_value_correlations": int(
+                network_correlation_diagnostics.missing_value_correlations
+            ),
+            "network_non_finite_value_correlations": int(
+                network_correlation_diagnostics.non_finite_value_correlations
+            ),
+            "network_insufficient_observation_correlations": int(
+                network_correlation_diagnostics.insufficient_observation_correlations
+            ),
+        },
+        "constant_profile_handling": {
+            "module_selection_zero_variance_profile_count": int(
+                module_selection_diagnostics.zero_variance_profile_count
+            ),
+            "module_selection_near_constant_profile_count": int(
+                module_selection_diagnostics.near_constant_profile_count
+            ),
+            "module_selection_excluded_from_correlation_count": int(
+                module_selection_diagnostics.excluded_from_correlation_count
+            ),
+            "network_constant_profile_correlations": int(
+                network_correlation_diagnostics.constant_profile_correlations
+            ),
+            "meaning": (
+                "constant/near-constant profiles have weak or undefined "
+                "correlation signal and are tracked explicitly in diagnostics"
+            ),
+        },
+        "thresholds_and_limits": {
+            "substrate_support_cutoff": float(config.substrate_support_cutoff),
+            "module_selection_primary_correlation_threshold": float(
+                config.module_selection_primary_threshold
+            ),
+            "module_selection_fallback_correlation_threshold": float(
+                config.module_selection_fallback_threshold
+            ),
+            "module_selection_max_clusters": int(config.module_selection_max_clusters),
+            "network_correlation_threshold": float(
+                config.network_correlation_threshold
+            ),
+            "max_exact_cluster_tree_sites": int(config.max_exact_cluster_tree_sites),
+            "max_full_correlation_sites": int(config.max_full_correlation_sites),
+        },
+        "clustering_backend": str(scale_guard_decision.clustering_backend),
+        "scientific_interpretation_limits": (
+            "signalome module assignments, module scores, and kinase-network "
+            "correlations are derived summary statistics for this dataset and "
+            "configuration; they are not probabilities, calibrated confidence "
+            "values, or direct evidence of causal biological regulation"
+        ),
+    }
+
+
+def _downstream_score_meaning(*, downstream_score_source: str) -> str:
+    if downstream_score_source == "rank_weighted_fusion_scores":
+        return (
+            "rank-weighted fusion of upstream downstream-score lanes; larger values "
+            "indicate stronger relative downstream support within the run"
+        )
+    if downstream_score_source == "profile_scores":
+        return (
+            "upstream downstream profile-score lane; larger values indicate stronger "
+            "relative downstream support within the run"
+        )
+    return (
+        "upstream downstream score lane used for signalome construction; values are "
+        "relative support scores within the run"
+    )
+
+
+def _negative_correlation_handling(
+    *,
+    network_policy: str,
+    network_correlation_threshold: float,
+) -> str:
+    if network_policy == "positive_only":
+        return (
+            "negative correlations are never included as edges; only correlations "
+            f">= {network_correlation_threshold} are retained"
+        )
+    if network_policy == "absolute_threshold":
+        return (
+            "negative correlations can pass eligibility via absolute magnitude; "
+            "edge correlation values are stored as unsigned absolute magnitudes"
+        )
+    if network_policy == "signed":
+        return (
+            "negative correlations can pass eligibility when absolute magnitude "
+            "meets threshold; edge correlation values retain sign"
+        )
+    return "negative-correlation handling depends on configured network_policy"
 
 
 __all__ = ["SignalomeProvenanceBuilder"]

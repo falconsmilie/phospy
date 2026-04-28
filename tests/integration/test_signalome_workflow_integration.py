@@ -214,6 +214,14 @@ def test_signalome_workflow_runs_with_scipy_clustering_backend() -> None:
     backend_diagnostics = scale_guard["backend_diagnostics"]
     assert isinstance(backend_diagnostics, dict)
     assert backend_diagnostics["uses_scipy"] is True
+    score_semantics = result.provenance.workflow_parameters["signalome_score_semantics"]
+    assert score_semantics["clustering_backend"] == (
+        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    )
+    assert score_semantics["candidate_scoring_scope"] == (
+        "candidate_module_count_evaluation_only"
+    )
+    assert score_semantics["network_policy"] == signalome_config["network_policy"]
 
 
 def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id() -> (

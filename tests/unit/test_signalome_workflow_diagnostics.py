@@ -936,6 +936,34 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         "final_module_assignment_uses_candidate_scoring": False,
         "scale_guard_passed": True,
     }
+    score_semantics = result.provenance.workflow_parameters["signalome_score_semantics"]
+    assert score_semantics["downstream_score_source"] == "rank_weighted_fusion_scores"
+    assert score_semantics["candidate_scoring_mode"] == "full"
+    assert (
+        score_semantics["candidate_scoring_scope"]
+        == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
+    )
+    assert score_semantics["network_policy"] == "signed"
+    assert score_semantics["clustering_backend"] == "exact_python"
+    assert "probabilities" in score_semantics["scientific_interpretation_limits"]
+    assert "causal" in score_semantics["scientific_interpretation_limits"]
+    missing_profile = score_semantics["missing_profile_handling"]
+    assert missing_profile["all_missing_rows_before_execution"]["policy"] == (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+    )
+    assert (
+        missing_profile["all_missing_rows_before_execution"]["dropped_row_count"] == 1
+    )
+    thresholds = score_semantics["thresholds_and_limits"]
+    assert thresholds["max_exact_cluster_tree_sites"] == 2000
+    assert thresholds["max_full_correlation_sites"] == 2000
+    assert thresholds["network_correlation_threshold"] == pytest.approx(0.5)
+    assert thresholds[
+        "module_selection_primary_correlation_threshold"
+    ] == pytest.approx(0.5)
+    assert thresholds[
+        "module_selection_fallback_correlation_threshold"
+    ] == pytest.approx(0.1)
 
 
 def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
@@ -1008,6 +1036,12 @@ def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
     assert int(per_cluster_summary["max"]) >= int(per_cluster_summary["min"])
     assert float(per_cluster_summary["mean"]) >= 0.0
     assert int(per_cluster_summary["total"]) >= int(per_cluster_summary["max"])
+    score_semantics = result.provenance.workflow_parameters["signalome_score_semantics"]
+    assert score_semantics["candidate_scoring_mode"] == "sampled"
+    assert (
+        score_semantics["candidate_scoring_scope"]
+        == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
+    )
 
 
 def test_explicit_module_count_skips_sampled_candidate_scoring_in_provenance() -> None:
