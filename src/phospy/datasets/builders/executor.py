@@ -42,12 +42,9 @@ from phospy.datasets.preprocessing.report_schema import (
     row_count_rows_from_dataframe,
 )
 from phospy.errors.build import DatasetBuildError
-from phospy.errors.input import PhosPyInputError
 from phospy.errors.transformations import (
-    PhosPyTransformationError,
     TransformationStateEstablishmentError,
 )
-from phospy.errors.validation import PhosPyValidationError
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
 from phospy.provenance.models import (
@@ -88,82 +85,70 @@ class DatasetBuildExecutor:
     def run(
         self, request: InterpretedDatasetBuildRequest
     ) -> AnalysisReadyPhosphoDataset:
-        try:
-            preprocessed = self._preprocessor.run(
-                phospho=request.phospho,
-                site_metadata=request.site_metadata,
-                sample_metadata=request.sample_metadata,
-                total=request.total,
-                plan=request.preprocessing_plan,
+        preprocessed = self._preprocessor.run(
+            phospho=request.phospho,
+            site_metadata=request.site_metadata,
+            sample_metadata=request.sample_metadata,
+            total=request.total,
+            plan=request.preprocessing_plan,
+        )
+        resolved = self._intensity_scale_resolver.run(
+            phospho=preprocessed.phospho,
+            total=preprocessed.total,
+            expected_scale_kind=_resolve_expected_intensity_scale_kind(
+                request.preprocessing_plan
+            ),
+        )
+        if not resolved.intensity_scale_state.is_established:
+            raise TransformationStateEstablishmentError(
+                "intensity-scale resolver returned a non-established "
+                "intensity scale state; this violates the dataset boundary "
+                "contract"
             )
-            resolved = self._intensity_scale_resolver.run(
-                phospho=preprocessed.phospho,
-                total=preprocessed.total,
-                expected_scale_kind=_resolve_expected_intensity_scale_kind(
-                    request.preprocessing_plan
-                ),
-            )
-            if not resolved.intensity_scale_state.is_established:
-                raise TransformationStateEstablishmentError(
-                    "intensity-scale resolver returned a non-established "
-                    "intensity scale state; this violates the dataset boundary "
-                    "contract"
-                )
-            processing_state = build_dataset_processing_state(
-                plan=request.preprocessing_plan,
-                intensity_scale_state=resolved.intensity_scale_state,
-                preprocessing_trace=preprocessed.preprocessing_trace,
-            )
-            intensity_scale_state = processing_state.intensity_scale
-            quantitative_meaning = intensity_scale_state.quantity
-            if quantitative_meaning is None:
-                raise DatasetBuildError(
-                    "intensity-scale state is missing quantitative meaning"
-                )
-            report = _build_dataset_preprocessing_report(
-                row_counts=preprocessed.preprocessing_row_counts,
-                operations=preprocessed.preprocessing_operations,
-                row_audit=preprocessed.row_audit,
-                duplicate_site_resolution=preprocessed.duplicate_site_resolution,
-                metadata_conflicts=preprocessed.metadata_conflicts,
-                comparison_group_stats=preprocessed.comparison_group_stats,
-                comparison_pair_stats=preprocessed.comparison_pair_stats,
-                final_dataset_rows=int(len(resolved.phospho.index)),
-                intensity_scale_label=intensity_scale_state.label,
-                quantitative_meaning=quantitative_meaning.value,
-            )
-            provenance = _build_dataset_run_provenance(
-                request=request,
-                preprocessed=preprocessed,
-                resolved_phospho=resolved.phospho,
-                resolved_total=resolved.total,
-                preprocessing_trace=preprocessed.preprocessing_trace,
-                intensity_scale_label=intensity_scale_state.label,
-                quantitative_meaning=quantitative_meaning.value,
-            )
-            return AnalysisReadyPhosphoDataset._from_owned(
-                phospho=resolved.phospho,
-                site_metadata=preprocessed.site_metadata,
-                sample_metadata=preprocessed.sample_metadata,
-                total=resolved.total,
-                comparisons=preprocessed.comparisons,
-                organism=request.organism,
-                intensity_scale_state=intensity_scale_state,
-                processing_state=processing_state,
-                preprocessing_report=report,
-                provenance=provenance,
-            )
-        except (
-            PhosPyInputError,
-            PhosPyTransformationError,
-            PhosPyValidationError,
-            DatasetBuildError,
-        ):
-            raise
-        except Exception as exc:  # pragma: no cover - defensive boundary translation
+        processing_state = build_dataset_processing_state(
+            plan=request.preprocessing_plan,
+            intensity_scale_state=resolved.intensity_scale_state,
+            preprocessing_trace=preprocessed.preprocessing_trace,
+        )
+        intensity_scale_state = processing_state.intensity_scale
+        quantitative_meaning = intensity_scale_state.quantity
+        if quantitative_meaning is None:
             raise DatasetBuildError(
-                "failed to construct AnalysisReadyPhosphoDataset from interpreted input"
-            ) from exc
+                "intensity-scale state is missing quantitative meaning"
+            )
+        report = _build_dataset_preprocessing_report(
+            row_counts=preprocessed.preprocessing_row_counts,
+            operations=preprocessed.preprocessing_operations,
+            row_audit=preprocessed.row_audit,
+            duplicate_site_resolution=preprocessed.duplicate_site_resolution,
+            metadata_conflicts=preprocessed.metadata_conflicts,
+            comparison_group_stats=preprocessed.comparison_group_stats,
+            comparison_pair_stats=preprocessed.comparison_pair_stats,
+            final_dataset_rows=int(len(resolved.phospho.index)),
+            intensity_scale_label=intensity_scale_state.label,
+            quantitative_meaning=quantitative_meaning.value,
+        )
+        provenance = _build_dataset_run_provenance(
+            request=request,
+            preprocessed=preprocessed,
+            resolved_phospho=resolved.phospho,
+            resolved_total=resolved.total,
+            preprocessing_trace=preprocessed.preprocessing_trace,
+            intensity_scale_label=intensity_scale_state.label,
+            quantitative_meaning=quantitative_meaning.value,
+        )
+        return AnalysisReadyPhosphoDataset._from_owned(
+            phospho=resolved.phospho,
+            site_metadata=preprocessed.site_metadata,
+            sample_metadata=preprocessed.sample_metadata,
+            total=resolved.total,
+            comparisons=preprocessed.comparisons,
+            organism=request.organism,
+            intensity_scale_state=intensity_scale_state,
+            processing_state=processing_state,
+            preprocessing_report=report,
+            provenance=provenance,
+        )
 
 
 def _build_dataset_preprocessing_report(

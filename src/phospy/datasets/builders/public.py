@@ -12,10 +12,6 @@ from phospy.datasets.builders.executor import DatasetBuildExecutor
 from phospy.datasets.builders.interpreter import DatasetBuildRequestInterpreter
 from phospy.datasets.builders.validator import DatasetBuildRequestValidator
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
-from phospy.errors.build import DatasetBuildError
-from phospy.errors.input import PhosPyInputError
-from phospy.errors.transformations import PhosPyTransformationError
-from phospy.errors.validation import PhosPyValidationError
 
 
 class AnalysisReadyDatasetBuilder:
@@ -34,19 +30,6 @@ class AnalysisReadyDatasetBuilder:
 
     def run(self, request: DatasetBuildRequest) -> AnalysisReadyPhosphoDataset:
         """Validate, interpret, and execute the dataset build request."""
-
-        try:
-            validated = self._validator.run(request)
-            interpreted = self._interpreter.run(validated)
-            return self._executor.run(interpreted)
-        except (
-            DatasetBuildError,
-            PhosPyInputError,
-            PhosPyTransformationError,
-            PhosPyValidationError,
-        ):
-            raise
-        except Exception as exc:  # pragma: no cover - defensive boundary translation
-            raise DatasetBuildError(
-                "failed to construct AnalysisReadyPhosphoDataset from build request"
-            ) from exc
+        validated = self._validator.run(request)
+        interpreted = self._interpreter.run(validated)
+        return self._executor.run(interpreted)

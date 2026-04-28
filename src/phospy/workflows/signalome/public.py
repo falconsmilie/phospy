@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import SignalomeWorkflowResult
-from phospy.errors.validation import WorkflowValidationError
-from phospy.errors.workflows import PhosPyWorkflowError, WorkflowStageError
 from phospy.workflows.signalome.contracts import (
     SignalomeWorkflowExecutorContract,
     SignalomeWorkflowInterpreterContract,
@@ -32,12 +30,6 @@ class SignalomeWorkflow:
 
     def run(self, request: SignalomeWorkflowRequest) -> SignalomeWorkflowResult:
         """Validate, interpret, and execute the signalome workflow."""
-
-        try:
-            validated = self._validator.run(request)
-            interpreted = self._interpreter.run(validated)
-            return self._executor.run(interpreted)
-        except (PhosPyWorkflowError, WorkflowValidationError, WorkflowStageError):
-            raise
-        except Exception as exc:  # pragma: no cover - defensive boundary translation
-            raise PhosPyWorkflowError("signalome workflow execution failed") from exc
+        validated = self._validator.run(request)
+        interpreted = self._interpreter.run(validated)
+        return self._executor.run(interpreted)

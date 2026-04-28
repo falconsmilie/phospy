@@ -176,7 +176,28 @@ def test_resolver_rejects_transformer_that_changes_total_matrix_presence() -> No
         )
 
 
-def test_resolver_translates_unexpected_transformer_errors() -> None:
+def test_resolver_translates_expected_transformer_contract_errors_with_cause() -> None:
+    class FailingTransformer:
+        def run(
+            self,
+            phospho: pd.DataFrame,
+            total: pd.DataFrame | None = None,
+        ) -> TransformationResult:
+            raise ValueError("unsupported matrix shape")
+
+    resolver = DatasetIntensityScaleResolver(transformer=FailingTransformer())
+
+    with pytest.raises(
+        TransformerExecutionError, match="configured transformer failed"
+    ) as exc_info:
+        resolver.run(
+            phospho=_phospho(),
+            total=None,
+        )
+    assert isinstance(exc_info.value.__cause__, ValueError)
+
+
+def test_resolver_does_not_translate_unexpected_transformer_errors() -> None:
     class FailingTransformer:
         def run(
             self,
@@ -187,9 +208,7 @@ def test_resolver_translates_unexpected_transformer_errors() -> None:
 
     resolver = DatasetIntensityScaleResolver(transformer=FailingTransformer())
 
-    with pytest.raises(
-        TransformerExecutionError, match="configured transformer failed"
-    ):
+    with pytest.raises(RuntimeError, match="boom"):
         resolver.run(
             phospho=_phospho(),
             total=None,

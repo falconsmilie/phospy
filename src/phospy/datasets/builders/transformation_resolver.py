@@ -11,6 +11,7 @@ from phospy.errors.transformations import (
     TransformationStateEstablishmentError,
     TransformerExecutionError,
 )
+from phospy.errors.validation import TransformationValidationError
 from phospy.transformations._authority import (
     _dataset_resolver_establishment_authority,
 )
@@ -67,7 +68,7 @@ class DatasetIntensityScaleResolver:
             transformed = self._transformer.run(phospho=phospho, total=total)
         except PhosPyTransformationError:
             raise
-        except Exception as exc:
+        except (TypeError, ValueError) as exc:
             raise TransformerExecutionError(
                 "configured transformer failed while establishing intensity scale "
                 "state from dataset matrices"
@@ -133,7 +134,7 @@ class DatasetIntensityScaleResolver:
                 intensity_scale_state=state,
                 has_total_matrix=has_total_matrix,
             )
-        except Exception as exc:
+        except TransformationValidationError as exc:
             raise TransformationStateEstablishmentError(
                 f"{source} produced an invalid intensity scale state: {exc}"
             ) from exc
