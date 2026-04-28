@@ -236,6 +236,20 @@ def save_signalome_workflow_bundle(
             written=written,
             written_key="signalome.expanded_signalome",
         ),
+        "site_membership": write_optional_bundle_table(
+            table=result.site_membership,
+            bundle_root=bundle_root,
+            relative_path=Path("signalome") / f"site_membership{suffix}",
+            written=written,
+            written_key="signalome.site_membership",
+        ),
+        "protein_site_context": write_optional_bundle_table(
+            table=result.protein_site_context,
+            bundle_root=bundle_root,
+            relative_path=Path("signalome") / f"protein_site_context{suffix}",
+            written=written,
+            written_key="signalome.protein_site_context",
+        ),
     }
 
     config_path = bundle_root / Path(CONFIG_SNAPSHOT_RELATIVE_PATH)

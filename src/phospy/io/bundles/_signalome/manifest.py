@@ -111,6 +111,8 @@ _SIGNALOME_TABLE_KEYS = frozenset(
         "kinase_network_nodes",
         "kinase_network_candidate_correlations",
         "expanded_signalome",
+        "site_membership",
+        "protein_site_context",
     }
 )
 

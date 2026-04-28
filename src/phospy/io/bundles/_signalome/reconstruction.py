@@ -35,6 +35,7 @@ from phospy.io.bundles._signalome.manifest import SignalomeManifestSections
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.provenance.serialization import from_payload as provenance_from_payload
 from phospy.references.models import ReferenceBundle
+from phospy.signalomes.context import SITE_MEMBERSHIP_EXCLUDED_REASON_COLUMN
 from phospy.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
@@ -281,6 +282,29 @@ def reconstruct_signalome_result(
         table_key="kinase_network_candidate_correlations",
         field_name="bundle manifest.signalome_outputs.tables.kinase_network_candidate_correlations",
     )
+    site_membership = read_optional_table(
+        bundle_root=bundle_root,
+        tables=sections.signalome_tables,
+        table_key="site_membership",
+        field_name="bundle manifest.signalome_outputs.tables.site_membership",
+    )
+    if (
+        site_membership is not None
+        and SITE_MEMBERSHIP_EXCLUDED_REASON_COLUMN in site_membership.columns
+    ):
+        site_membership = site_membership.copy(deep=True)
+        site_membership.loc[:, SITE_MEMBERSHIP_EXCLUDED_REASON_COLUMN] = (
+            site_membership.loc[:, SITE_MEMBERSHIP_EXCLUDED_REASON_COLUMN]
+            .fillna("")
+            .astype(str)
+        )
+    protein_site_context = read_optional_table(
+        bundle_root=bundle_root,
+        tables=sections.signalome_tables,
+        table_key="protein_site_context",
+        field_name="bundle manifest.signalome_outputs.tables.protein_site_context",
+    )
+
     return SignalomeWorkflowResult(
         dataset=dataset,
         kinase_result=kinase_result,
@@ -326,5 +350,7 @@ def reconstruct_signalome_result(
             table_key="expanded_signalome",
             field_name="bundle manifest.signalome_outputs.tables.expanded_signalome",
         ),
+        site_membership=site_membership,
+        protein_site_context=protein_site_context,
         provenance=signalome_provenance,
     )

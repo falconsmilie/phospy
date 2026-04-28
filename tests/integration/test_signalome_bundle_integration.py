@@ -19,7 +19,7 @@ from phospy.api import (
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import SignalomeWorkflowResult
-from phospy.errors import PhosPyInputError
+from phospy.errors import PhosPyInputError, WorkflowValidationError
 from phospy.io.bundles.signalome import (
     SIGNALOME_BUNDLE_MANIFEST_VERSION,
     SignalomeWorkflowConfigSnapshot,
@@ -97,6 +97,8 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
         "kinase_network_edges": "signalome/kinase_network_edges.csv",
         "kinase_network_nodes": "signalome/kinase_network_nodes.csv",
         "module_assignments": "signalome/module_assignments.csv",
+        "protein_site_context": "signalome/protein_site_context.csv",
+        "site_membership": "signalome/site_membership.csv",
         "signalome_modules": "signalome/signalome_modules.csv",
     }
     signalome_metadata = manifest["signalome_outputs"]["metadata"]
@@ -160,9 +162,13 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert "outputs.signalome.signalome_modules" in output_names
     assert "outputs.signalome.kinase_network.edges" in output_names
     assert "outputs.signalome.expanded_signalome" in output_names
+    assert "outputs.signalome.site_membership" in output_names
+    assert "outputs.signalome.protein_site_context" in output_names
 
     loaded = load_signalome_workflow_bundle(bundle_root)
     assert loaded.result.expanded_signalome is not None
+    assert loaded.result.site_membership is not None
+    assert loaded.result.protein_site_context is not None
 
 
 def test_signalome_config_snapshot_rejects_removed_signalome_cutoff_alias() -> None:
@@ -296,6 +302,173 @@ def test_signalome_bundle_rejects_manifest_without_candidate_correlations_marker
         load_signalome_workflow_bundle(bundle_root)
 
 
+@pytest.mark.parametrize(
+    ("site_membership_present", "protein_site_context_present"),
+    (
+        (True, False),
+        (False, True),
+        (False, False),
+    ),
+)
+def test_signalome_bundle_round_trip_handles_optional_sidecar_presence(
+    tmp_path: Path,
+    site_membership_present: bool,
+    protein_site_context_present: bool,
+) -> None:
+    request, result = _build_signalome_request_and_result()
+    assert result.site_membership is not None
+    assert result.protein_site_context is not None
+    variant = _with_sidecars(
+        result,
+        site_membership=(
+            result.site_membership.copy(deep=True) if site_membership_present else None
+        ),
+        protein_site_context=(
+            result.protein_site_context.copy(deep=True)
+            if protein_site_context_present
+            else None
+        ),
+    )
+    bundle_root = tmp_path / (
+        "signalome_bundle_sidecars_"
+        f"site_{int(site_membership_present)}_protein_{int(protein_site_context_present)}"
+    )
+
+    save_signalome_workflow_bundle(
+        variant,
+        bundle_root,
+        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
+    )
+    loaded = load_signalome_workflow_bundle(bundle_root)
+
+    _assert_optional_frame_equal(
+        loaded.result.site_membership,
+        variant.site_membership,
+    )
+    _assert_optional_frame_equal(
+        loaded.result.protein_site_context,
+        variant.protein_site_context,
+    )
+
+
+def test_signalome_bundle_rejects_manifest_without_site_membership_marker(
+    tmp_path: Path,
+) -> None:
+    request, result = _build_signalome_request_and_result()
+    bundle_root = tmp_path / "signalome_bundle_missing_site_membership"
+
+    save_signalome_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["signalome_outputs"]["tables"].pop("site_membership", None)
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match=(
+            "bundle manifest.signalome_outputs.tables is missing required field\\(s\\): "
+            "site_membership.*Regenerate this bundle with the current PhosPy version"
+        ),
+    ):
+        load_signalome_workflow_bundle(bundle_root)
+
+
+def test_signalome_bundle_rejects_malformed_site_membership_manifest_entry(
+    tmp_path: Path,
+) -> None:
+    request, result = _build_signalome_request_and_result()
+    bundle_root = tmp_path / "signalome_bundle_malformed_site_membership_entry"
+
+    save_signalome_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest_path = bundle_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["signalome_outputs"]["tables"]["site_membership"] = {
+        "path": "signalome/site_membership.csv"
+    }
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="bundle manifest.signalome_outputs.tables.site_membership must be a string",
+    ):
+        load_signalome_workflow_bundle(bundle_root)
+
+
+def test_signalome_bundle_rejects_missing_declared_site_membership_payload(
+    tmp_path: Path,
+) -> None:
+    request, result = _build_signalome_request_and_result()
+    bundle_root = tmp_path / "signalome_bundle_missing_site_membership_payload"
+
+    save_signalome_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
+    site_membership_path = Path(
+        manifest["signalome_outputs"]["tables"]["site_membership"]
+    )
+    (bundle_root / site_membership_path).unlink()
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="input file does not exist: .*site_membership\\.csv",
+    ):
+        load_signalome_workflow_bundle(bundle_root)
+
+
+@pytest.mark.parametrize(
+    ("table_key", "invalid_table", "pattern"),
+    (
+        (
+            "site_membership",
+            pd.DataFrame({"invalid": [1]}),
+            "signalome_result.site_membership.*missing required columns",
+        ),
+        (
+            "protein_site_context",
+            pd.DataFrame({"invalid": [1]}),
+            "signalome_result.protein_site_context.*missing required columns",
+        ),
+    ),
+)
+def test_signalome_bundle_rejects_invalid_sidecar_table_schema(
+    tmp_path: Path,
+    table_key: str,
+    invalid_table: pd.DataFrame,
+    pattern: str,
+) -> None:
+    request, result = _build_signalome_request_and_result()
+    bundle_root = tmp_path / f"signalome_bundle_invalid_{table_key}_schema"
+
+    save_signalome_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
+    table_path = Path(manifest["signalome_outputs"]["tables"][table_key])
+    invalid_table.to_csv(bundle_root / table_path)
+
+    with pytest.raises(WorkflowValidationError, match=pattern):
+        load_signalome_workflow_bundle(bundle_root)
+
+
 def _build_signalome_request_and_result():
     dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = KinaseWorkflow().run(
@@ -419,6 +592,35 @@ def _assert_signalome_result_equal(left, right) -> None:
     _assert_optional_frame_equal(
         left.expanded_signalome,
         right.expanded_signalome,
+    )
+    _assert_optional_frame_equal(
+        left.site_membership,
+        right.site_membership,
+    )
+    _assert_optional_frame_equal(
+        left.protein_site_context,
+        right.protein_site_context,
+    )
+
+
+def _with_sidecars(
+    result: SignalomeWorkflowResult,
+    *,
+    site_membership: pd.DataFrame | None,
+    protein_site_context: pd.DataFrame | None,
+) -> SignalomeWorkflowResult:
+    return SignalomeWorkflowResult._from_owned(
+        dataset=result.dataset,
+        kinase_result=result.kinase_result,
+        module_assignments=result.module_assignments,
+        signalome_modules=result.signalome_modules,
+        kinase_network=result.kinase_network,
+        module_selection_diagnostics=result.module_selection_diagnostics,
+        score_preconditioning_diagnostics=result.score_preconditioning_diagnostics,
+        expanded_signalome=result.expanded_signalome,
+        site_membership=site_membership,
+        protein_site_context=protein_site_context,
+        provenance=result.provenance,
     )
 
 
