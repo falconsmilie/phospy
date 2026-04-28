@@ -87,6 +87,8 @@ SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT = 2000
 Behavior:
 
 - `SignalomeConfig.cluster_tree_backend="exact"` builds the exact cluster tree,
+- `SignalomeConfig.clustering_backend` selects the numerical implementation
+  (`"exact_python"` or `"scipy_hierarchical"`) for that exact tree,
 - exact cluster-tree construction is hard-guarded by
   `SignalomeConfig.max_exact_cluster_tree_sites` (default `2000`): runs above
   this limit fail with `SignalomeScaleError`,
@@ -99,6 +101,8 @@ Behavior:
   does not change exact cluster-tree construction or final module assignment,
 - sampled scoring is deterministic and order-invariant in the current
   implementation,
+- both clustering backends use the same module-selection semantics, scale guards,
+  and provenance fields,
 - candidate-scoring mode and exact-tree construction are recorded in
   provenance (`workflow_parameters.scale_guard`),
 - provenance records requested backend separately as
@@ -141,6 +145,50 @@ Exact cluster-tree construction remains pairwise/agglomerative and can become ex
 Exact-mode guard failures are intentional scientific/runtime boundaries. Do not
 silently reinterpret them as automatic approximation; choose approximation or
 site filtering explicitly and record that choice in provenance.
+
+Practical memory guidance for larger runs:
+
+- candidate-scoring memory can be kept bounded with
+  `candidate_scoring_backend="sampled"` when site count is above
+  `max_full_correlation_sites`,
+- exact-tree construction itself is still the dominant cost at higher site
+  counts; plan for substantial transient memory and runtime growth as site count
+  approaches the configured exact-tree guard,
+- for multi-thousand-site runs, use a machine with headroom for dense score
+  matrices, temporary clustering intermediates, and workflow tables in addition
+  to raw matrix size.
+
+### Choosing a clustering backend
+
+`SignalomeConfig.clustering_backend` controls implementation details, not
+scientific output schema:
+
+| Backend | Practical guidance | Notes |
+| --- | --- | --- |
+| `exact_python` | Good default when SciPy is unavailable or when keeping dependencies minimal matters more than runtime. | Pure Python/Numpy implementation of the exact Ward tree path. |
+| `scipy_hierarchical` | Prefer for medium-to-larger exact-tree runs when SciPy is available. | Uses SciPy hierarchical routines for the same exact-tree semantics; often faster in practice on larger fixtures. |
+
+Both backends respect the same `max_exact_cluster_tree_sites` and
+`max_full_correlation_sites` guards. Exceeding those guards raises
+`SignalomeScaleError`; there is no silent backend fallback.
+
+### Benchmark reporting
+
+Signalome benchmark scripts remain manually runnable and emit parse-friendly
+metrics:
+
+- `benchmarks/measure_signalome_clustering_contracts.py` prints stable JSONL
+  records (plus `key=value` header lines) for fixed fixture names:
+  - `signalome_small_deterministic_v1`
+  - `signalome_medium_realistic_v1`
+  - `signalome_near_exact_tree_limit_v1`
+  - `signalome_full_correlation_guard_v1`
+  - `signalome_sampled_candidate_scoring_v1`
+- each clustering record includes fixture name, backend name, site/kinase counts,
+  selected module count (when available), candidate-scoring mode, sampled/skipped
+  flags, exact-tree construction flag, runtime, and peak memory,
+- `benchmarks/measure_signalome_prediction_hot_paths.py` uses the same JSONL
+  style for hot-path timing/memory comparisons.
 
 ## Recommended ranges
 

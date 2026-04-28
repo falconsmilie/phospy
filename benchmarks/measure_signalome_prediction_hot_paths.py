@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import sys
 import time
+import tracemalloc
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
@@ -24,13 +25,30 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 
-def _time_call(repeats: int, func, *args, **kwargs) -> float:
-    durations: list[float] = []
-    for _ in range(repeats):
-        start = time.perf_counter()
+def _median_runtime_and_peak_mib(
+    repeats: int,
+    func,
+    *args,
+    warmup: bool = True,
+    **kwargs,
+) -> tuple[float, float]:
+    if repeats < 1:
+        raise ValueError("repeats must be >= 1")
+    if warmup:
         func(*args, **kwargs)
-        durations.append(time.perf_counter() - start)
-    return sum(durations) / len(durations)
+    durations: list[float] = []
+    peaks: list[float] = []
+    for _ in range(repeats):
+        tracemalloc.start()
+        started = time.perf_counter()
+        func(*args, **kwargs)
+        durations.append(time.perf_counter() - started)
+        _current_bytes, peak_bytes = tracemalloc.get_traced_memory()
+        peaks.append(float(peak_bytes) / (1024.0 * 1024.0))
+        tracemalloc.stop()
+    return float(np.median(np.asarray(durations, dtype=float))), float(
+        np.median(np.asarray(peaks, dtype=float))
+    )
 
 
 def _historical_baseline_build_signalome_module_table(
@@ -517,21 +535,24 @@ def main() -> None:
     )
 
     repeats = 4
-    signalome_baseline_seconds = _time_call(
+    fixture_name = "signalome_prediction_hot_paths_v1"
+    signalome_baseline_seconds, signalome_baseline_peak = _median_runtime_and_peak_mib(
         repeats,
         _historical_baseline_build_signalome_module_table,
         module_assignments=module_assignments,
         kinase_substrates=kinase_substrates,
         kinase_order=kinase_order,
     )
-    signalome_optimized_seconds = _time_call(
-        repeats,
-        build_signalome_module_table,
-        module_assignments=module_assignments,
-        kinase_substrates=kinase_substrates,
-        kinase_order=kinase_order,
+    signalome_optimized_seconds, signalome_optimized_peak = (
+        _median_runtime_and_peak_mib(
+            repeats,
+            build_signalome_module_table,
+            module_assignments=module_assignments,
+            kinase_substrates=kinase_substrates,
+            kinase_order=kinase_order,
+        )
     )
-    expanded_baseline_seconds = _time_call(
+    expanded_baseline_seconds, expanded_baseline_peak = _median_runtime_and_peak_mib(
         repeats,
         _historical_baseline_build_expanded_signalome_table,
         module_assignments=module_assignments,
@@ -539,7 +560,7 @@ def main() -> None:
         kinase_network_edges=kinase_network_edges,
         kinase_substrates=kinase_substrates,
     )
-    expanded_optimized_seconds = _time_call(
+    expanded_optimized_seconds, expanded_optimized_peak = _median_runtime_and_peak_mib(
         repeats,
         build_expanded_signalome_table,
         module_assignments=module_assignments,
@@ -547,42 +568,88 @@ def main() -> None:
         kinase_network_edges=kinase_network_edges,
         kinase_substrates=kinase_substrates,
     )
-    prediction_baseline_seconds = _time_call(
-        repeats,
-        _historical_baseline_build_prediction_outputs,
-        prediction_score_matrix=prediction_score_matrix,
-        selected_kinases=selected_kinases,
-        candidate_substrates=candidate_substrates,
-        top_k=top_k,
+    prediction_baseline_seconds, prediction_baseline_peak = (
+        _median_runtime_and_peak_mib(
+            repeats,
+            _historical_baseline_build_prediction_outputs,
+            prediction_score_matrix=prediction_score_matrix,
+            selected_kinases=selected_kinases,
+            candidate_substrates=candidate_substrates,
+            top_k=top_k,
+        )
     )
-    prediction_optimized_seconds = _time_call(
-        repeats,
-        build_prediction_outputs,
-        prediction_score_matrix=prediction_score_matrix,
-        selected_kinases=selected_kinases,
-        candidate_substrates=candidate_substrates,
-        top_k=top_k,
+    prediction_optimized_seconds, prediction_optimized_peak = (
+        _median_runtime_and_peak_mib(
+            repeats,
+            build_prediction_outputs,
+            prediction_score_matrix=prediction_score_matrix,
+            selected_kinases=selected_kinases,
+            candidate_substrates=candidate_substrates,
+            top_k=top_k,
+        )
     )
 
-    print(f"repeats={repeats}")
-    print(f"signalome_baseline_mean_seconds={signalome_baseline_seconds:.6f}")
-    print(f"signalome_optimized_mean_seconds={signalome_optimized_seconds:.6f}")
-    print(
-        "signalome_speedup="
-        f"{(signalome_baseline_seconds / signalome_optimized_seconds):.3f}x"
-    )
-    print(f"expanded_baseline_mean_seconds={expanded_baseline_seconds:.6f}")
-    print(f"expanded_optimized_mean_seconds={expanded_optimized_seconds:.6f}")
-    print(
-        "expanded_speedup="
-        f"{(expanded_baseline_seconds / expanded_optimized_seconds):.3f}x"
-    )
-    print(f"prediction_baseline_mean_seconds={prediction_baseline_seconds:.6f}")
-    print(f"prediction_optimized_mean_seconds={prediction_optimized_seconds:.6f}")
-    print(
-        "prediction_speedup="
-        f"{(prediction_baseline_seconds / prediction_optimized_seconds):.3f}x"
-    )
+    records = [
+        {
+            "suite": "signalome_prediction_hot_paths_v2",
+            "fixture_name": fixture_name,
+            "path_name": "build_signalome_module_table",
+            "site_count": int(module_assignments.shape[0]),
+            "kinase_count": int(len(kinase_order)),
+            "repeats": int(repeats),
+            "baseline_runtime_seconds": float(signalome_baseline_seconds),
+            "optimized_runtime_seconds": float(signalome_optimized_seconds),
+            "baseline_peak_mib": float(signalome_baseline_peak),
+            "optimized_peak_mib": float(signalome_optimized_peak),
+            "speedup_ratio": float(
+                signalome_baseline_seconds / signalome_optimized_seconds
+            ),
+        },
+        {
+            "suite": "signalome_prediction_hot_paths_v2",
+            "fixture_name": fixture_name,
+            "path_name": "build_expanded_signalome_table",
+            "site_count": int(module_assignments.shape[0]),
+            "kinase_count": int(len(kinase_order)),
+            "network_edge_count": int(kinase_network_edges.shape[0]),
+            "repeats": int(repeats),
+            "baseline_runtime_seconds": float(expanded_baseline_seconds),
+            "optimized_runtime_seconds": float(expanded_optimized_seconds),
+            "baseline_peak_mib": float(expanded_baseline_peak),
+            "optimized_peak_mib": float(expanded_optimized_peak),
+            "speedup_ratio": float(
+                expanded_baseline_seconds / expanded_optimized_seconds
+            ),
+        },
+        {
+            "suite": "signalome_prediction_hot_paths_v2",
+            "fixture_name": fixture_name,
+            "path_name": "build_prediction_outputs",
+            "site_count": int(prediction_score_matrix.shape[0]),
+            "kinase_count": int(selected_kinases.size),
+            "top_k": int(top_k),
+            "repeats": int(repeats),
+            "baseline_runtime_seconds": float(prediction_baseline_seconds),
+            "optimized_runtime_seconds": float(prediction_optimized_seconds),
+            "baseline_peak_mib": float(prediction_baseline_peak),
+            "optimized_peak_mib": float(prediction_optimized_peak),
+            "speedup_ratio": float(
+                prediction_baseline_seconds / prediction_optimized_seconds
+            ),
+        },
+    ]
+
+    print("report_format=jsonl")
+    print("benchmark_suite=signalome_prediction_hot_paths_v2")
+    for record in records:
+        print(
+            json.dumps(
+                record,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=True,
+            )
+        )
 
 
 if __name__ == "__main__":
