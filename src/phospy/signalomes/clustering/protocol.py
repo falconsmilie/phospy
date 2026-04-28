@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from phospy.signalomes.clustering.contracts import (
     ClusterTreeEngine,
-    SignalomeClusteringBackend,
+    SignalomeClusteringEngine,
 )
 
-__all__ = ["ClusterTreeEngine", "SignalomeClusteringBackend"]
+__all__ = ["ClusterTreeEngine", "SignalomeClusteringEngine"]

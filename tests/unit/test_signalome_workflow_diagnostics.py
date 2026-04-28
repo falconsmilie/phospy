@@ -16,15 +16,15 @@ from phospy.api import (
 )
 from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-    SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
-    SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
-    SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
-    SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+    SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
+    SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+    SIGNALOME_TREE_ENGINE_EXACT,
 )
 from phospy.api.results import (
     KinasePredictionResult,
@@ -182,10 +182,10 @@ def _execution_config(config: SignalomeConfig) -> ResolvedSignalomeExecutionConf
             config.module_selection_fallback_correlation_threshold
         ),
         module_selection_max_clusters=int(config.module_selection_max_clusters),
-        cluster_tree_backend=config.cluster_tree_backend,
-        candidate_scoring_backend=config.candidate_scoring_backend,
-        max_exact_cluster_tree_sites=int(config.max_exact_cluster_tree_sites),
-        max_full_correlation_sites=int(config.max_full_correlation_sites),
+        tree_engine=config.tree_engine,
+        candidate_scoring_policy=config.candidate_scoring_policy,
+        max_exact_tree_sites=int(config.max_exact_tree_sites),
+        max_full_candidate_scoring_sites=int(config.max_full_candidate_scoring_sites),
         requested_module_count=(
             None if config.module_count is None else int(config.module_count)
         ),
@@ -515,24 +515,22 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
         pytest.approx(0.1)
     )
     assert interpreted.execution_config.module_selection_max_clusters == 10
-    assert interpreted.execution_config.cluster_tree_backend == (
-        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
+    assert interpreted.execution_config.tree_engine == (SIGNALOME_TREE_ENGINE_EXACT)
+    assert interpreted.execution_config.candidate_scoring_policy == (
+        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
     )
-    assert interpreted.execution_config.candidate_scoring_backend == (
-        SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+    assert interpreted.execution_config.max_exact_tree_sites == (
+        SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT
     )
-    assert interpreted.execution_config.max_exact_cluster_tree_sites == (
-        SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT
+    assert interpreted.execution_config.max_full_candidate_scoring_sites == (
+        SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
     )
-    assert interpreted.execution_config.max_full_correlation_sites == (
-        SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT
-    )
-    assert interpreted.execution_config.clustering_backend == (
-        SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
+    assert interpreted.execution_config.clustering_engine == (
+        SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
     )
 
 
-def test_interpreter_propagates_configured_clustering_backend() -> None:
+def test_interpreter_propagates_configured_clustering_engine() -> None:
     dataset = _dataset(site_ids=["P1;S1;", "P2;S2;"])
     prediction_matrix = _matrix(
         values=[[0.9, 0.2], [0.1, 0.8]],
@@ -552,13 +550,13 @@ def test_interpreter_propagates_configured_clustering_backend() -> None:
         ),
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
-            clustering_backend=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+            clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
         ),
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
-    assert interpreted.execution_config.clustering_backend == (
-        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    assert interpreted.execution_config.clustering_engine == (
+        SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
 
 
@@ -906,8 +904,8 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     assert scale_guard == {
         "site_count": 2,
         "selected_module_count": 1,
-        "clustering_backend": "exact_python",
-        "clustering_backend_version": "1",
+        "clustering_engine": "exact_python",
+        "clustering_engine_version": "1",
         "backend_diagnostics": {
             "backend_name": "exact_python",
             "tree_engine": "exact_python_tree",
@@ -919,15 +917,13 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
             "input_site_count": 2,
             "exact_tree_path_used": True,
         },
-        "cluster_tree_backend": SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-        "candidate_scoring_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-        "candidate_scoring_requested_backend": (
-            SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
-        ),
-        "max_exact_cluster_tree_sites": SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
-        "max_full_correlation_sites": SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
+        "tree_engine": SIGNALOME_TREE_ENGINE_EXACT,
+        "candidate_scoring_policy": SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+        "candidate_scoring_requested_policy": (SIGNALOME_CANDIDATE_SCORING_POLICY_FULL),
+        "max_exact_tree_sites": SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
+        "max_full_candidate_scoring_sites": SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
         "exact_cluster_tree_built": True,
-        "candidate_scoring_mode": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        "candidate_scoring_mode": SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
         "candidate_scoring_evaluated": True,
         "candidate_scoring_skip_reason": None,
         "candidate_scoring_sampling": None,
@@ -946,7 +942,7 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
     )
     assert score_semantics["network_policy"] == "signed"
-    assert score_semantics["clustering_backend"] == "exact_python"
+    assert score_semantics["clustering_engine"] == "exact_python"
     assert "probabilities" in score_semantics["scientific_interpretation_limits"]
     assert "causal" in score_semantics["scientific_interpretation_limits"]
     missing_profile = score_semantics["missing_profile_handling"]
@@ -957,8 +953,8 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         missing_profile["all_missing_rows_before_execution"]["dropped_row_count"] == 1
     )
     thresholds = score_semantics["thresholds_and_limits"]
-    assert thresholds["max_exact_cluster_tree_sites"] == 2000
-    assert thresholds["max_full_correlation_sites"] == 2000
+    assert thresholds["max_exact_tree_sites"] == 2000
+    assert thresholds["max_full_candidate_scoring_sites"] == 2000
     assert thresholds["network_correlation_threshold"] == pytest.approx(0.5)
     assert thresholds[
         "module_selection_primary_correlation_threshold"
@@ -997,8 +993,8 @@ def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
         ),
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
-            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+            tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
         ),
     )
 
@@ -1008,8 +1004,8 @@ def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
     assert result.provenance is not None
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
     assert (
-        scale_guard["candidate_scoring_backend"]
-        == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        scale_guard["candidate_scoring_policy"]
+        == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
     )
     assert scale_guard["candidate_scoring_evaluated"] is True
     assert scale_guard["candidate_scoring_skip_reason"] is None
@@ -1076,8 +1072,8 @@ def test_explicit_module_count_skips_sampled_candidate_scoring_in_provenance() -
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
             module_count=2,
-            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+            tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
         ),
     )
 
@@ -1089,8 +1085,8 @@ def test_explicit_module_count_skips_sampled_candidate_scoring_in_provenance() -
     assert scale_guard == {
         "site_count": 3,
         "selected_module_count": 2,
-        "clustering_backend": "exact_python",
-        "clustering_backend_version": "1",
+        "clustering_engine": "exact_python",
+        "clustering_engine_version": "1",
         "backend_diagnostics": {
             "backend_name": "exact_python",
             "tree_engine": "exact_python_tree",
@@ -1102,13 +1098,13 @@ def test_explicit_module_count_skips_sampled_candidate_scoring_in_provenance() -
             "input_site_count": 3,
             "exact_tree_path_used": True,
         },
-        "cluster_tree_backend": SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-        "candidate_scoring_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-        "candidate_scoring_requested_backend": (
-            SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        "tree_engine": SIGNALOME_TREE_ENGINE_EXACT,
+        "candidate_scoring_policy": SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+        "candidate_scoring_requested_policy": (
+            SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
         ),
-        "max_exact_cluster_tree_sites": SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
-        "max_full_correlation_sites": SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
+        "max_exact_tree_sites": SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
+        "max_full_candidate_scoring_sites": SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
         "exact_cluster_tree_built": True,
         "candidate_scoring_mode": SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
         "candidate_scoring_evaluated": False,
@@ -1155,8 +1151,8 @@ def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> Non
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
             module_count=2,
-            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+            tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
         ),
     )
 
@@ -1168,8 +1164,8 @@ def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> Non
     assert scale_guard == {
         "site_count": 3,
         "selected_module_count": 2,
-        "clustering_backend": "exact_python",
-        "clustering_backend_version": "1",
+        "clustering_engine": "exact_python",
+        "clustering_engine_version": "1",
         "backend_diagnostics": {
             "backend_name": "exact_python",
             "tree_engine": "exact_python_tree",
@@ -1181,11 +1177,11 @@ def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> Non
             "input_site_count": 3,
             "exact_tree_path_used": True,
         },
-        "cluster_tree_backend": SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-        "candidate_scoring_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-        "candidate_scoring_requested_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-        "max_exact_cluster_tree_sites": SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
-        "max_full_correlation_sites": SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
+        "tree_engine": SIGNALOME_TREE_ENGINE_EXACT,
+        "candidate_scoring_policy": SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+        "candidate_scoring_requested_policy": SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+        "max_exact_tree_sites": SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
+        "max_full_candidate_scoring_sites": SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
         "exact_cluster_tree_built": True,
         "candidate_scoring_mode": SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
         "candidate_scoring_evaluated": False,
@@ -1232,8 +1228,8 @@ def test_explicit_single_module_reports_trivial_final_assignment_backend() -> No
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
             module_count=1,
-            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+            tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
         ),
     )
 
@@ -1296,8 +1292,8 @@ def test_explicit_multi_module_invokes_exact_tree_builder_for_final_assignment(
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
             module_count=2,
-            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+            tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
         ),
     )
 
@@ -1340,16 +1336,16 @@ def test_explicit_multi_module_invokes_exact_tree_builder_for_final_assignment(
     ids=_SIGNALOME_WORKFLOW_EXECUTION_PATHS,
 )
 @pytest.mark.parametrize(
-    "clustering_backend",
+    "clustering_engine",
     (
-        SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
-        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+        SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+        SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
     ),
 )
 def test_explicit_module_count_above_available_sites_fails_before_clustering_starts(
     monkeypatch: pytest.MonkeyPatch,
     execution_path: str,
-    clustering_backend: str,
+    clustering_engine: str,
 ) -> None:
     from phospy.signalomes.clustering import exact_python as clustering_module
 
@@ -1382,7 +1378,7 @@ def test_explicit_module_count_above_available_sites_fails_before_clustering_sta
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
             module_count=4,
-            clustering_backend=clustering_backend,  # type: ignore[arg-type]
+            clustering_engine=clustering_engine,  # type: ignore[arg-type]
         ),
     )
 
@@ -1458,9 +1454,9 @@ def test_explicit_module_count_over_exact_tree_limit_fails_early(
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
             module_count=2,
-            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-            max_exact_cluster_tree_sites=2,
+            tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+            max_exact_tree_sites=2,
         ),
     )
 
@@ -1487,8 +1483,8 @@ def test_explicit_module_count_over_exact_tree_limit_fails_early(
 
     message = str(exc_info.value).lower()
     assert "exact cluster-tree construction" in message
-    assert "max_exact_cluster_tree_sites=2" in message
-    assert "cluster_tree_backend='exact'" in message
+    assert "max_exact_tree_sites=2" in message
+    assert "tree_engine='exact'" in message
     assert tree_calls == []
 
 
@@ -1532,9 +1528,9 @@ def test_sampled_candidate_scoring_over_exact_tree_limit_fails_early(
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
             module_count=2,
-            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-            max_exact_cluster_tree_sites=1,
+            tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+            max_exact_tree_sites=1,
         ),
     )
 
@@ -1561,10 +1557,10 @@ def test_sampled_candidate_scoring_over_exact_tree_limit_fails_early(
 
     message = str(exc_info.value).lower()
     assert "exact cluster-tree construction" in message
-    assert "max_exact_cluster_tree_sites=1" in message
+    assert "max_exact_tree_sites=1" in message
     # Sampled scoring only changes candidate module-count evaluation.
     # Exact cluster-tree construction is still required first.
-    assert "candidate_scoring_backend='sampled'" in message
+    assert "candidate_scoring_policy='sampled'" in message
     assert tree_calls == []
 
 
@@ -1607,10 +1603,10 @@ def test_full_candidate_scoring_over_full_correlation_limit_fails_early(
         ),
         config=SignalomeConfig(
             substrate_support_cutoff=0.5,
-            cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-            max_exact_cluster_tree_sites=10,
-            max_full_correlation_sites=2,
+            tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+            max_exact_tree_sites=10,
+            max_full_candidate_scoring_sites=2,
         ),
     )
 
@@ -1656,8 +1652,8 @@ def test_full_candidate_scoring_over_full_correlation_limit_fails_early(
 
     message = str(exc_info.value).lower()
     assert "full candidate-correlation scoring would evaluate" in message
-    assert "max_full_correlation_sites=2" in message
-    assert "use candidate_scoring_backend='sampled'" in message
+    assert "max_full_candidate_scoring_sites=2" in message
+    assert "use candidate_scoring_policy='sampled'" in message
     assert "exact cluster-tree construction has not been attempted" in message
     assert full_correlation_calls == []
     assert tree_calls == []

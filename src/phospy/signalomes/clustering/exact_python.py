@@ -9,33 +9,33 @@ from phospy.signalomes.clustering.backends.exact_python import (
     ExactWardClusterTree,
 )
 from phospy.signalomes.clustering.models import (
-    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
-    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION,
-    SignalomeClusteringBackendRequest,
-    SignalomeClusteringBackendResult,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION,
+    SignalomeClusteringEngineRequest,
+    SignalomeClusteringEngineResult,
 )
 from phospy.signalomes.clustering.orchestration import (
     MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER,
     MAX_FULL_CORRELATION_SITE_COUNT,
     NEAR_CONSTANT_PROFILE_VARIANCE_TOLERANCE,
     SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
     SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY,
     SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT,
-    SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
     SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE,
     SIGNALOME_CLUSTERING_SCORING_MODE_AUTO,
     SIGNALOME_CLUSTERING_SCORING_MODE_EXACT,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE,
+    SIGNALOME_TREE_ENGINE_EXACT,
     ClusterSitesResult,
     ClusterTreeOperations,
-    SignalomeCandidateScoringBackend,
+    SignalomeCandidateScoringPolicy,
     SignalomeClusteringScoringMode,
-    SignalomeClusterTreeBackend,
+    SignalomeTreeEngine,
     _build_cluster_tree,
     _CandidateClusterScoreResult,
     _CandidateScoringMode,
@@ -67,17 +67,17 @@ _WardClusterTree = ExactWardClusterTree
 class ExactPythonClusteringBackend:
     """Top-level exact-Python clustering backend (shared orchestration + engine)."""
 
-    name: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
-    version: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION
+    name: str = SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
+    version: str = SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION
 
     def run(
         self,
-        request: SignalomeClusteringBackendRequest,
-    ) -> SignalomeClusteringBackendResult:
+        request: SignalomeClusteringEngineRequest,
+    ) -> SignalomeClusteringEngineResult:
         return run_clustering_with_tree_engine(
             request=request,
             tree_engine=ExactPythonTreeEngine(),
-            backend_name=self.name,
+            clustering_engine=self.name,
             backend_version=self.version,
             backend_diagnostics={
                 "uses_scipy": False,
@@ -95,20 +95,20 @@ __all__ = [
     "MAX_FULL_CORRELATION_SITE_COUNT",
     "NEAR_CONSTANT_PROFILE_VARIANCE_TOLERANCE",
     "SIGNALOME_CANDIDATE_SCORING_APPLIES_TO",
-    "SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL",
-    "SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED",
+    "SIGNALOME_CANDIDATE_SCORING_POLICY_FULL",
+    "SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED",
     "SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED",
     "SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD",
     "SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY",
     "SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT",
-    "SIGNALOME_CLUSTER_TREE_BACKEND_EXACT",
+    "SIGNALOME_TREE_ENGINE_EXACT",
     "SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE",
     "SIGNALOME_CLUSTERING_SCORING_MODE_AUTO",
     "SIGNALOME_CLUSTERING_SCORING_MODE_EXACT",
     "SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE",
     "SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE",
-    "SignalomeCandidateScoringBackend",
-    "SignalomeClusterTreeBackend",
+    "SignalomeCandidateScoringPolicy",
+    "SignalomeTreeEngine",
     "SignalomeClusteringScoringMode",
     "_CandidateClusterScoreResult",
     "_CandidateScoringMode",

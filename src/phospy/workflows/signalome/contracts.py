@@ -9,17 +9,17 @@ import pandas as pd
 
 from phospy.api.configs import (
     SignalomeAssignmentPolicy,
-    SignalomeCandidateScoringBackend,
-    SignalomeClusterTreeBackend,
+    SignalomeCandidateScoringPolicy,
     SignalomeKinaseNetworkPolicy,
     SignalomeScorePreconditioningPolicy,
+    SignalomeTreeEngine,
 )
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.signalomes.clustering.models import (
-    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
 )
 from phospy.signalomes.models import (
     SignalomeScorePreconditioningDiagnostics,
@@ -40,24 +40,12 @@ class ResolvedSignalomeExecutionConfig:
     module_selection_primary_threshold: float
     module_selection_fallback_threshold: float
     module_selection_max_clusters: int
-    cluster_tree_backend: SignalomeClusterTreeBackend
-    candidate_scoring_backend: SignalomeCandidateScoringBackend
-    max_exact_cluster_tree_sites: int
-    max_full_correlation_sites: int
+    tree_engine: SignalomeTreeEngine
+    candidate_scoring_policy: SignalomeCandidateScoringPolicy
+    max_exact_tree_sites: int
+    max_full_candidate_scoring_sites: int
     requested_module_count: int | None
-    clustering_backend: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
-
-    @property
-    def tree_engine(self) -> SignalomeClusterTreeBackend:
-        return self.cluster_tree_backend
-
-    @property
-    def candidate_scoring_policy(self) -> SignalomeCandidateScoringBackend:
-        return self.candidate_scoring_backend
-
-    @property
-    def clustering_engine(self) -> str:
-        return self.clustering_backend
+    clustering_engine: str = SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
 
 
 @dataclass(frozen=True, slots=True)

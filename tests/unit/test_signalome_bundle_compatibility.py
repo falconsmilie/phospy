@@ -40,10 +40,10 @@ def _full_signalome_snapshot_payload(
         "score_preconditioning_policy": (
             SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
         ),
-        "cluster_tree_backend": "exact",
-        "candidate_scoring_backend": "full",
-        "max_exact_cluster_tree_sites": 2000,
-        "max_full_correlation_sites": 2000,
+        "tree_engine": "exact",
+        "candidate_scoring_policy": "full",
+        "max_exact_tree_sites": 2000,
+        "max_full_candidate_scoring_sites": 2000,
         "module_count": None,
         "module_selection_primary_correlation_threshold": 0.6,
         "module_selection_fallback_correlation_threshold": 0.2,
@@ -119,15 +119,15 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
             "score_preconditioning_policy": (
                 SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
             ),
-            "cluster_tree_backend": "exact",
-            "candidate_scoring_backend": "sampled",
-            "max_exact_cluster_tree_sites": 2500,
-            "max_full_correlation_sites": 1700,
+            "tree_engine": "exact",
+            "candidate_scoring_policy": "sampled",
+            "max_exact_tree_sites": 2500,
+            "max_full_candidate_scoring_sites": 1700,
             "module_count": 6,
             "module_selection_primary_correlation_threshold": 0.67,
             "module_selection_fallback_correlation_threshold": 0.23,
             "module_selection_max_clusters": 15,
-            "clustering_backend": "exact_python",
+            "clustering_engine": "exact_python",
         }
     }
 
@@ -151,42 +151,50 @@ def test_signalome_snapshot_rejects_removed_max_exact_clustering_sites_alias() -
         )
 
 
-def test_signalome_snapshot_rejects_unknown_clustering_backend_value() -> None:
+def test_signalome_snapshot_rejects_unknown_clustering_engine_value() -> None:
     with pytest.raises(
         PhosPyInputError,
-        match="config snapshot.signalome_config.clustering_backend must be one of:",
+        match="config snapshot.signalome_config.clustering_engine must be one of:",
     ):
         SignalomeWorkflowConfigSnapshot.from_payload(
-            _full_signalome_snapshot_payload(clustering_backend="approximate")
+            _full_signalome_snapshot_payload(clustering_engine="approximate")
         )
 
 
-def test_signalome_snapshot_accepts_engine_policy_alias_fields() -> None:
+def test_signalome_snapshot_accepts_engine_policy_fields() -> None:
     snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
         _full_signalome_snapshot_payload(
-            cluster_tree_backend=None,
-            candidate_scoring_backend=None,
-            clustering_backend=None,
             tree_engine="exact",
             candidate_scoring_policy="sampled",
             clustering_engine="scipy_hierarchical",
         )
     )
 
-    assert snapshot.signalome_config.cluster_tree_backend == "exact"
-    assert snapshot.signalome_config.candidate_scoring_backend == "sampled"
-    assert snapshot.signalome_config.clustering_backend == "scipy_hierarchical"
+    assert snapshot.signalome_config.tree_engine == "exact"
+    assert snapshot.signalome_config.candidate_scoring_policy == "sampled"
+    assert snapshot.signalome_config.clustering_engine == "scipy_hierarchical"
 
 
-def test_signalome_snapshot_rejects_conflicting_alias_and_legacy_fields() -> None:
+@pytest.mark.parametrize(
+    "removed_name",
+    [
+        "cluster_tree_backend",
+        "candidate_scoring_backend",
+        "clustering_backend",
+        "max_exact_cluster_tree_sites",
+        "max_full_correlation_sites",
+    ],
+)
+def test_signalome_snapshot_rejects_removed_backend_style_fields(
+    removed_name: str,
+) -> None:
     with pytest.raises(
         PhosPyInputError,
-        match="conflicts with",
+        match=f"contains unsupported field\\(s\\): {removed_name}",
     ):
         SignalomeWorkflowConfigSnapshot.from_payload(
             _full_signalome_snapshot_payload(
-                candidate_scoring_backend="full",
-                candidate_scoring_policy="sampled",
+                **{removed_name: "full"},
             )
         )
 

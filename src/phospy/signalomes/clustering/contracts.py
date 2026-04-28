@@ -8,12 +8,12 @@ from typing import Protocol
 import numpy as np
 
 from phospy.signalomes.clustering.models import (
-    SignalomeClusteringBackendRequest,
-    SignalomeClusteringBackendResult,
+    SignalomeClusteringEngineRequest,
+    SignalomeClusteringEngineResult,
 )
 
 
-class SignalomeClusteringBackend(Protocol):
+class SignalomeClusteringEngine(Protocol):
     """Contract implemented by top-level clustering backends."""
 
     @property
@@ -24,8 +24,8 @@ class SignalomeClusteringBackend(Protocol):
 
     def run(
         self,
-        request: SignalomeClusteringBackendRequest,
-    ) -> SignalomeClusteringBackendResult: ...
+        request: SignalomeClusteringEngineRequest,
+    ) -> SignalomeClusteringEngineResult: ...
 
 
 class ClusterTreeEngine(Protocol):
@@ -47,4 +47,4 @@ class ClusterTreeEngine(Protocol):
     ) -> dict[int, np.ndarray]: ...
 
 
-__all__ = ["ClusterTreeEngine", "SignalomeClusteringBackend"]
+__all__ = ["ClusterTreeEngine", "SignalomeClusteringEngine"]

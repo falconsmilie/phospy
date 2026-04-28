@@ -710,12 +710,12 @@ def test_signalome_request_module_selection_max_clusters_policy_fails_at_boundar
         SignalomeConfig(module_selection_max_clusters=0)
 
 
-def test_signalome_request_clustering_backend_policy_fails_at_boundary() -> None:
+def test_signalome_request_clustering_engine_policy_fails_at_boundary() -> None:
     with pytest.raises(
         WorkflowValidationError,
-        match="signalome workflow request config.clustering_backend",
+        match="signalome workflow request config.clustering_engine",
     ):
-        SignalomeConfig(clustering_backend="unsupported")
+        SignalomeConfig(clustering_engine="unsupported")
 
 
 def test_signalome_request_max_exact_clustering_sites_policy_fails_at_boundary() -> (

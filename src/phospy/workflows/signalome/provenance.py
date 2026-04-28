@@ -110,15 +110,13 @@ class SignalomeProvenanceBuilder:
                     "module_selection_max_clusters": int(
                         config.module_selection_max_clusters
                     ),
-                    "cluster_tree_backend": str(config.cluster_tree_backend),
-                    "candidate_scoring_backend": str(config.candidate_scoring_backend),
-                    "max_exact_cluster_tree_sites": int(
-                        config.max_exact_cluster_tree_sites
+                    "tree_engine": str(config.tree_engine),
+                    "candidate_scoring_policy": str(config.candidate_scoring_policy),
+                    "max_exact_tree_sites": int(config.max_exact_tree_sites),
+                    "max_full_candidate_scoring_sites": int(
+                        config.max_full_candidate_scoring_sites
                     ),
-                    "max_full_correlation_sites": int(
-                        config.max_full_correlation_sites
-                    ),
-                    "clustering_backend": str(config.clustering_backend),
+                    "clustering_engine": str(config.clustering_engine),
                     "module_count": (
                         None
                         if config.requested_module_count is None
@@ -130,29 +128,27 @@ class SignalomeProvenanceBuilder:
                     "selected_module_count": int(
                         scale_guard_decision.selected_module_count
                     ),
-                    "clustering_backend": str(scale_guard_decision.clustering_backend),
-                    "clustering_backend_version": str(
-                        scale_guard_decision.clustering_backend_version
+                    "clustering_engine": str(scale_guard_decision.clustering_engine),
+                    "clustering_engine_version": str(
+                        scale_guard_decision.clustering_engine_version
                     ),
                     "backend_diagnostics": (
                         None
                         if scale_guard_decision.backend_diagnostics is None
                         else dict(scale_guard_decision.backend_diagnostics)
                     ),
-                    "cluster_tree_backend": str(
-                        scale_guard_decision.cluster_tree_backend
+                    "tree_engine": str(scale_guard_decision.tree_engine),
+                    "candidate_scoring_policy": str(
+                        scale_guard_decision.candidate_scoring_policy
                     ),
-                    "candidate_scoring_backend": str(
-                        scale_guard_decision.candidate_scoring_backend
+                    "candidate_scoring_requested_policy": str(
+                        scale_guard_decision.candidate_scoring_requested_policy
                     ),
-                    "candidate_scoring_requested_backend": str(
-                        scale_guard_decision.candidate_scoring_requested_backend
+                    "max_exact_tree_sites": int(
+                        scale_guard_decision.max_exact_tree_sites
                     ),
-                    "max_exact_cluster_tree_sites": int(
-                        scale_guard_decision.max_exact_cluster_tree_sites
-                    ),
-                    "max_full_correlation_sites": int(
-                        scale_guard_decision.max_full_correlation_sites
+                    "max_full_candidate_scoring_sites": int(
+                        scale_guard_decision.max_full_candidate_scoring_sites
                     ),
                     "exact_cluster_tree_built": bool(
                         scale_guard_decision.exact_cluster_tree_built
@@ -317,10 +313,12 @@ def _build_signalome_score_semantics(
             "network_correlation_threshold": float(
                 config.network_correlation_threshold
             ),
-            "max_exact_cluster_tree_sites": int(config.max_exact_cluster_tree_sites),
-            "max_full_correlation_sites": int(config.max_full_correlation_sites),
+            "max_exact_tree_sites": int(config.max_exact_tree_sites),
+            "max_full_candidate_scoring_sites": int(
+                config.max_full_candidate_scoring_sites
+            ),
         },
-        "clustering_backend": str(scale_guard_decision.clustering_backend),
+        "clustering_engine": str(scale_guard_decision.clustering_engine),
         "scientific_interpretation_limits": (
             "signalome module assignments, module scores, and kinase-network "
             "correlations are derived summary statistics for this dataset and "

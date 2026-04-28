@@ -80,22 +80,22 @@ Current module-selection scoring contract constants:
 ```python
 MAX_FULL_CORRELATION_SITE_COUNT = 2000
 MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER = 256
-SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT = 2000
-SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT = 2000
+SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT = 2000
+SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT = 2000
 ```
 
 Behavior:
 
-- `SignalomeConfig.cluster_tree_backend="exact"` builds the exact cluster tree,
-- `SignalomeConfig.clustering_backend` selects the numerical implementation
+- `SignalomeConfig.tree_engine="exact"` builds the exact cluster tree,
+- `SignalomeConfig.clustering_engine` selects the numerical implementation
   (`"exact_python"` or `"scipy_hierarchical"`) for that exact tree,
 - exact cluster-tree construction is hard-guarded by
-  `SignalomeConfig.max_exact_cluster_tree_sites` (default `2000`): runs above
+  `SignalomeConfig.max_exact_tree_sites` (default `2000`): runs above
   this limit fail with `SignalomeScaleError`,
-- `SignalomeConfig.candidate_scoring_backend="full"` uses full site-by-site
+- `SignalomeConfig.candidate_scoring_policy="full"` uses full site-by-site
   candidate correlations and is hard-guarded by
-  `SignalomeConfig.max_full_correlation_sites`,
-- `SignalomeConfig.candidate_scoring_backend="sampled"` uses sampled
+  `SignalomeConfig.max_full_candidate_scoring_sites`,
+- `SignalomeConfig.candidate_scoring_policy="sampled"` uses sampled
   within-cluster correlation estimates for module-count candidate scoring,
 - sampled candidate scoring only changes candidate module-count evaluation; it
   does not change exact cluster-tree construction or final module assignment,
@@ -109,7 +109,7 @@ Behavior:
   (`workflow_parameters.signalome_score_semantics`) so runtime/backend
   diagnostics remain distinct from interpretation meaning,
 - provenance records requested backend separately as
-  `candidate_scoring_requested_backend`,
+  `candidate_scoring_requested_policy`,
 - provenance also records whether candidate scoring was evaluated
   (`candidate_scoring_evaluated`) and why it was skipped when not evaluated
   (`candidate_scoring_skip_reason`, for example `explicit_module_count`),
@@ -152,8 +152,8 @@ site filtering explicitly and record that choice in provenance.
 Practical memory guidance for larger runs:
 
 - candidate-scoring memory can be kept bounded with
-  `candidate_scoring_backend="sampled"` when site count is above
-  `max_full_correlation_sites`,
+  `candidate_scoring_policy="sampled"` when site count is above
+  `max_full_candidate_scoring_sites`,
 - exact-tree construction itself is still the dominant cost at higher site
   counts; plan for substantial transient memory and runtime growth as site count
   approaches the configured exact-tree guard,
@@ -163,7 +163,7 @@ Practical memory guidance for larger runs:
 
 ### Choosing a clustering backend
 
-`SignalomeConfig.clustering_backend` controls implementation details, not
+`SignalomeConfig.clustering_engine` controls implementation details, not
 scientific output schema:
 
 | Backend | Practical guidance | Notes |
@@ -171,8 +171,8 @@ scientific output schema:
 | `exact_python` | Good default when SciPy is unavailable or when keeping dependencies minimal matters more than runtime. | Pure Python/Numpy implementation of the exact Ward tree path. |
 | `scipy_hierarchical` | Prefer for medium-to-larger exact-tree runs when SciPy is available. | Uses SciPy hierarchical routines for the same exact-tree semantics; often faster in practice on larger fixtures. |
 
-Both backends respect the same `max_exact_cluster_tree_sites` and
-`max_full_correlation_sites` guards. Exceeding those guards raises
+Both backends respect the same `max_exact_tree_sites` and
+`max_full_candidate_scoring_sites` guards. Exceeding those guards raises
 `SignalomeScaleError`; there is no silent backend fallback.
 
 ### Benchmark reporting
@@ -197,8 +197,8 @@ metrics:
 
 | Area | Current recommended range | Behaviour above range |
 | --- | ---: | --- |
-| Signalome exact cluster-tree construction | up to configured `max_exact_cluster_tree_sites` (default `2,000`) | workflow fails with `SignalomeScaleError` |
-| Signalome full candidate scoring | up to configured `max_full_correlation_sites` (default `2,000`) | workflow fails with `SignalomeScaleError` |
+| Signalome exact cluster-tree construction | up to configured `max_exact_tree_sites` (default `2,000`) | workflow fails with `SignalomeScaleError` |
+| Signalome full candidate scoring | up to configured `max_full_candidate_scoring_sites` (default `2,000`) | workflow fails with `SignalomeScaleError` |
 | Signalome sampled candidate scoring | low thousands of sites | runtime grows quickly because clustering is still pairwise |
 | Quantile normalisation | thousands to low tens of thousands of sites, tens of samples | dense copies and sorting may become memory-heavy |
 | Motif scoring | thousands of sites x hundreds of kinases | cost grows with scored sites, eligible kinases, and window width |

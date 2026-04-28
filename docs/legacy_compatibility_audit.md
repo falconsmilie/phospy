@@ -13,7 +13,7 @@ Scope: repository search for legacy/rewrite/migration/compatibility/deprecated/a
 ## Remove (implemented)
 
 - `SignalomeConfig` deprecated alias fields:
-  - removed `clustering_backend`
+  - removed `clustering_engine`
   - removed `max_exact_clustering_sites`
 - Signalome deprecated alias exports:
   - removed clustering-backend alias constants/types from `phospy.api.configs`.
@@ -28,7 +28,7 @@ Scope: repository search for legacy/rewrite/migration/compatibility/deprecated/a
 - Signalome bundle prerelease/internal payload fallbacks:
   - removed `signalome_cutoff`
   - removed `kinase_network_policy`
-  - removed `clustering_backend`
+  - removed `clustering_engine`
   - removed `max_exact_clustering_sites`
   - removed deprecated alias fields from emitted snapshot/provenance payloads.
 - Old compatibility tests that enforced removed behavior:

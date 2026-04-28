@@ -53,15 +53,13 @@ class SignalomeWorkflowConfigSnapshot:
                 "score_preconditioning_policy": str(
                     self.signalome_config.score_preconditioning_policy
                 ),
-                "cluster_tree_backend": str(self.signalome_config.cluster_tree_backend),
-                "candidate_scoring_backend": str(
-                    self.signalome_config.candidate_scoring_backend
+                "tree_engine": str(self.signalome_config.tree_engine),
+                "candidate_scoring_policy": str(
+                    self.signalome_config.candidate_scoring_policy
                 ),
-                "max_exact_cluster_tree_sites": int(
-                    self.signalome_config.max_exact_cluster_tree_sites
-                ),
-                "max_full_correlation_sites": int(
-                    self.signalome_config.max_full_correlation_sites
+                "max_exact_tree_sites": int(self.signalome_config.max_exact_tree_sites),
+                "max_full_candidate_scoring_sites": int(
+                    self.signalome_config.max_full_candidate_scoring_sites
                 ),
                 "module_count": (
                     None
@@ -77,7 +75,7 @@ class SignalomeWorkflowConfigSnapshot:
                 "module_selection_max_clusters": int(
                     self.signalome_config.module_selection_max_clusters
                 ),
-                "clustering_backend": str(self.signalome_config.clustering_backend),
+                "clustering_engine": str(self.signalome_config.clustering_engine),
             }
         }
 

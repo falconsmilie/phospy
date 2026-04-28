@@ -26,10 +26,10 @@ from phospy.signalomes.clustering.diagnostics import (
     build_module_selection_diagnostics,
 )
 from phospy.signalomes.clustering.models import (
-    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
-    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION,
-    SignalomeClusteringBackendRequest,
-    SignalomeClusteringBackendResult,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION,
+    SignalomeClusteringEngineRequest,
+    SignalomeClusteringEngineResult,
 )
 from phospy.signalomes.clustering.validation import (
     validate_cluster_count_for_site_count,
@@ -66,13 +66,13 @@ SIGNALOME_CLUSTERING_SCORING_MODE_AUTO = "auto"
 SIGNALOME_CLUSTERING_SCORING_MODE_EXACT = "exact"
 SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE = "approximate"
 SignalomeClusteringScoringMode = Literal["auto", "exact", "approximate"]
-SIGNALOME_CLUSTER_TREE_BACKEND_EXACT = "exact"
-SignalomeClusterTreeBackend = Literal["exact"]
-SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL = "full"
-SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED = "sampled"
-SignalomeCandidateScoringBackend = Literal["full", "sampled"]
+SIGNALOME_TREE_ENGINE_EXACT = "exact"
+SignalomeTreeEngine = Literal["exact"]
+SIGNALOME_CANDIDATE_SCORING_POLICY_FULL = "full"
+SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED = "sampled"
+SignalomeCandidateScoringPolicy = Literal["full", "sampled"]
 SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED = "not_evaluated"
-_CandidateScoringMode = SignalomeCandidateScoringBackend | Literal["not_evaluated"]
+_CandidateScoringMode = SignalomeCandidateScoringPolicy | Literal["not_evaluated"]
 SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD = (
     "deterministic_uniform_without_replacement"
 )
@@ -91,7 +91,7 @@ class ClusterSitesResult:
 
     site_clusters: pd.Series
     module_selection_diagnostics: SignalomeModuleSelectionDiagnostics
-    cluster_tree_backend: str = SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
+    tree_engine: str = SIGNALOME_TREE_ENGINE_EXACT
     candidate_scoring_mode: _CandidateScoringMode = (
         SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
     )
@@ -99,8 +99,8 @@ class ClusterSitesResult:
     candidate_scoring_sampling: dict[str, object] | None = None
     candidate_scoring_evaluated: bool = False
     candidate_scoring_skip_reason: str | None = None
-    backend_name: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
-    backend_version: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION
+    backend_name: str = SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
+    backend_version: str = SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION
     approximation_used: bool = False
     backend_diagnostics: dict[str, object] | None = None
 
@@ -109,7 +109,7 @@ class ClusterSitesResult:
 class _ModuleSelectionComputation:
     diagnostics: SignalomeModuleSelectionDiagnostics
     candidate_labels: dict[int, np.ndarray]
-    cluster_tree_backend: str
+    tree_engine: str
     candidate_scoring_mode: _CandidateScoringMode
     exact_cluster_tree_built: bool
     candidate_scoring_evaluated: bool
@@ -205,12 +205,10 @@ def cluster_sites(
     scoring_mode: SignalomeClusteringScoringMode = (
         SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
     ),
-    cluster_tree_backend: SignalomeClusterTreeBackend = (
-        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
-    ),
-    candidate_scoring_backend: SignalomeCandidateScoringBackend | None = None,
-    max_exact_cluster_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
-    max_full_correlation_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
+    tree_engine: SignalomeTreeEngine = (SIGNALOME_TREE_ENGINE_EXACT),
+    candidate_scoring_policy: SignalomeCandidateScoringPolicy | None = None,
+    max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
+    max_full_candidate_scoring_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
     cluster_tree_operations: ClusterTreeOperations | None = None,
 ) -> pd.Series:
     """Cluster phosphosites into site clusters."""
@@ -222,10 +220,10 @@ def cluster_sites(
         fallback_threshold=fallback_threshold,
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
-        cluster_tree_backend=cluster_tree_backend,
-        candidate_scoring_backend=candidate_scoring_backend,
-        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
-        max_full_correlation_sites=max_full_correlation_sites,
+        tree_engine=tree_engine,
+        candidate_scoring_policy=candidate_scoring_policy,
+        max_exact_tree_sites=max_exact_tree_sites,
+        max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
         cluster_tree_operations=cluster_tree_operations,
     ).site_clusters
 
@@ -240,12 +238,10 @@ def cluster_sites_with_diagnostics(
     scoring_mode: SignalomeClusteringScoringMode = (
         SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
     ),
-    cluster_tree_backend: SignalomeClusterTreeBackend = (
-        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
-    ),
-    candidate_scoring_backend: SignalomeCandidateScoringBackend | None = None,
-    max_exact_cluster_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
-    max_full_correlation_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
+    tree_engine: SignalomeTreeEngine = (SIGNALOME_TREE_ENGINE_EXACT),
+    candidate_scoring_policy: SignalomeCandidateScoringPolicy | None = None,
+    max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
+    max_full_candidate_scoring_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
     cluster_tree_operations: ClusterTreeOperations | None = None,
 ) -> ClusterSitesResult:
     """Cluster phosphosites and capture module-selection diagnostics.
@@ -262,10 +258,10 @@ def cluster_sites_with_diagnostics(
         fallback_threshold=fallback_threshold,
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
-        cluster_tree_backend=cluster_tree_backend,
-        candidate_scoring_backend=candidate_scoring_backend,
-        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
-        max_full_correlation_sites=max_full_correlation_sites,
+        tree_engine=tree_engine,
+        candidate_scoring_policy=candidate_scoring_policy,
+        max_exact_tree_sites=max_exact_tree_sites,
+        max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
         cluster_tree_operations=cluster_tree_operations,
     )
     diagnostics = selection.diagnostics
@@ -291,13 +287,13 @@ def cluster_sites_with_diagnostics(
                         scoring_values
                     ),
                     cluster_count=module_count,
-                    cluster_tree_backend=cluster_tree_backend,
-                    candidate_scoring_backend=(
-                        SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
-                        if candidate_scoring_backend is None
-                        else candidate_scoring_backend
+                    tree_engine=tree_engine,
+                    candidate_scoring_policy=(
+                        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
+                        if candidate_scoring_policy is None
+                        else candidate_scoring_policy
                     ),
-                    max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
+                    max_exact_tree_sites=max_exact_tree_sites,
                     cluster_tree_operations=cluster_tree_operations,
                 )
                 + 1
@@ -312,7 +308,7 @@ def cluster_sites_with_diagnostics(
             name=SITE_CLUSTER_COLUMN,
         ),
         module_selection_diagnostics=diagnostics,
-        cluster_tree_backend=selection.cluster_tree_backend,
+        tree_engine=selection.tree_engine,
         candidate_scoring_mode=selection.candidate_scoring_mode,
         exact_cluster_tree_built=exact_cluster_tree_built,
         candidate_scoring_evaluated=selection.candidate_scoring_evaluated,
@@ -335,7 +331,7 @@ def select_module_count(
     scoring_mode: SignalomeClusteringScoringMode = (
         SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
     ),
-    max_exact_cluster_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
+    max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
 ) -> int:
     """Select a module count from a scoring matrix."""
 
@@ -346,7 +342,7 @@ def select_module_count(
         fallback_threshold=fallback_threshold,
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
-        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
+        max_exact_tree_sites=max_exact_tree_sites,
     ).selected_module_count
 
 
@@ -360,7 +356,7 @@ def select_module_count_with_diagnostics(
     scoring_mode: SignalomeClusteringScoringMode = (
         SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
     ),
-    max_exact_cluster_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
+    max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
 ) -> SignalomeModuleSelectionDiagnostics:
     """Select a module count and return diagnostics."""
 
@@ -376,7 +372,7 @@ def select_module_count_with_diagnostics(
         fallback_threshold=fallback_threshold,
         max_clusters=max_clusters,
         scoring_mode=scoring_mode,
-        max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
+        max_exact_tree_sites=max_exact_tree_sites,
     ).diagnostics
 
 
@@ -435,12 +431,10 @@ def _compute_module_selection(
     scoring_mode: SignalomeClusteringScoringMode = (
         SIGNALOME_CLUSTERING_SCORING_MODE_AUTO
     ),
-    cluster_tree_backend: SignalomeClusterTreeBackend = (
-        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
-    ),
-    candidate_scoring_backend: SignalomeCandidateScoringBackend | None = None,
-    max_exact_cluster_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
-    max_full_correlation_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
+    tree_engine: SignalomeTreeEngine = (SIGNALOME_TREE_ENGINE_EXACT),
+    candidate_scoring_policy: SignalomeCandidateScoringPolicy | None = None,
+    max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
+    max_full_candidate_scoring_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
     cluster_tree_operations: ClusterTreeOperations | None = None,
 ) -> _ModuleSelectionComputation:
     _validate_threshold(primary_threshold, field_name="primary_threshold")
@@ -453,19 +447,17 @@ def _compute_module_selection(
         SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE,
     }:
         raise ValueError("scoring_mode must be one of: auto, exact, approximate")
-    if cluster_tree_backend != SIGNALOME_CLUSTER_TREE_BACKEND_EXACT:
-        raise ValueError("cluster_tree_backend must be 'exact'")
-    if candidate_scoring_backend not in {
+    if tree_engine != SIGNALOME_TREE_ENGINE_EXACT:
+        raise ValueError("tree_engine must be 'exact'")
+    if candidate_scoring_policy not in {
         None,
-        SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-        SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+        SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     }:
-        raise ValueError("candidate_scoring_backend must be one of: full, sampled")
-    if max_full_correlation_sites < 1:
-        raise ValueError("max_full_correlation_sites must be >= 1")
-    resolved_max_exact_cluster_tree_sites = _resolve_max_exact_cluster_tree_sites(
-        max_exact_cluster_tree_sites
-    )
+        raise ValueError("candidate_scoring_policy must be one of: full, sampled")
+    if max_full_candidate_scoring_sites < 1:
+        raise ValueError("max_full_candidate_scoring_sites must be >= 1")
+    resolved_max_exact_tree_sites = _resolve_max_exact_tree_sites(max_exact_tree_sites)
 
     scoring_array = np.asarray(scoring_values, dtype=float)
     if scoring_array.ndim != 2:
@@ -488,11 +480,11 @@ def _compute_module_selection(
     )
     if early_selection is not None:
         return early_selection
-    resolved_candidate_scoring_backend = _resolve_candidate_scoring_backend(
+    resolved_candidate_scoring_policy = _resolve_candidate_scoring_policy(
         scoring_mode=scoring_mode,
-        candidate_scoring_backend=candidate_scoring_backend,
+        candidate_scoring_policy=candidate_scoring_policy,
         n_sites=n_sites,
-        max_full_correlation_sites=max_full_correlation_sites,
+        max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
     )
 
     clustering_values = _prepare_scoring_values_for_clustering(scoring_array)
@@ -503,10 +495,10 @@ def _compute_module_selection(
         profile_degeneracy=profile_degeneracy,
         n_sites=n_sites,
         scoring_mode=scoring_mode,
-        cluster_tree_backend=cluster_tree_backend,
-        candidate_scoring_backend=resolved_candidate_scoring_backend,
-        max_exact_cluster_tree_sites=resolved_max_exact_cluster_tree_sites,
-        max_full_correlation_sites=max_full_correlation_sites,
+        tree_engine=tree_engine,
+        candidate_scoring_policy=resolved_candidate_scoring_policy,
+        max_exact_tree_sites=resolved_max_exact_tree_sites,
+        max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
         cluster_tree_operations=cluster_tree_operations,
     )
 
@@ -527,7 +519,7 @@ def _compute_module_selection(
         exact_cluster_tree_built=candidate_score_result.exact_cluster_tree_built,
         candidate_scoring_evaluated=candidate_score_result.candidate_scoring_evaluated,
         candidate_scoring_skip_reason=candidate_score_result.candidate_scoring_skip_reason,
-        cluster_tree_backend=cluster_tree_backend,
+        tree_engine=tree_engine,
         candidate_scoring_sampling=candidate_score_result.candidate_scoring_sampling,
     )
     if primary_selection is not None:
@@ -550,7 +542,7 @@ def _compute_module_selection(
         exact_cluster_tree_built=candidate_score_result.exact_cluster_tree_built,
         candidate_scoring_evaluated=candidate_score_result.candidate_scoring_evaluated,
         candidate_scoring_skip_reason=candidate_score_result.candidate_scoring_skip_reason,
-        cluster_tree_backend=cluster_tree_backend,
+        tree_engine=tree_engine,
         candidate_scoring_sampling=candidate_score_result.candidate_scoring_sampling,
     )
     if fallback_selection is not None:
@@ -576,7 +568,7 @@ def _compute_module_selection(
         exact_cluster_tree_built=candidate_score_result.exact_cluster_tree_built,
         candidate_scoring_evaluated=candidate_score_result.candidate_scoring_evaluated,
         candidate_scoring_skip_reason=candidate_score_result.candidate_scoring_skip_reason,
-        cluster_tree_backend=cluster_tree_backend,
+        tree_engine=tree_engine,
         candidate_scoring_sampling=candidate_score_result.candidate_scoring_sampling,
     )
 
@@ -593,7 +585,7 @@ def _build_module_selection_result(
     profile_degeneracy: _ProfileDegeneracySummary,
     excluded_from_correlation_count: int,
     candidate_labels: dict[int, np.ndarray],
-    cluster_tree_backend: str = SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+    tree_engine: str = SIGNALOME_TREE_ENGINE_EXACT,
     candidate_scoring_mode: _CandidateScoringMode = (
         SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
     ),
@@ -616,7 +608,7 @@ def _build_module_selection_result(
             excluded_from_correlation_count=excluded_from_correlation_count,
         ),
         candidate_labels=candidate_labels,
-        cluster_tree_backend=str(cluster_tree_backend),
+        tree_engine=str(tree_engine),
         candidate_scoring_mode=candidate_scoring_mode,
         exact_cluster_tree_built=bool(exact_cluster_tree_built),
         candidate_scoring_evaluated=bool(candidate_scoring_evaluated),
@@ -726,10 +718,10 @@ def _compute_candidate_cluster_scores(
     profile_degeneracy: _ProfileDegeneracySummary,
     n_sites: int,
     scoring_mode: SignalomeClusteringScoringMode,
-    cluster_tree_backend: SignalomeClusterTreeBackend,
-    candidate_scoring_backend: SignalomeCandidateScoringBackend,
-    max_exact_cluster_tree_sites: int | None,
-    max_full_correlation_sites: int,
+    tree_engine: SignalomeTreeEngine,
+    candidate_scoring_policy: SignalomeCandidateScoringPolicy,
+    max_exact_tree_sites: int | None,
+    max_full_candidate_scoring_sites: int,
     cluster_tree_operations: ClusterTreeOperations | None = None,
 ) -> _CandidateClusterScoreResult:
     """Score candidate cluster counts using full or sampled correlation paths."""
@@ -747,37 +739,35 @@ def _compute_candidate_cluster_scores(
             candidate_scoring_sampling=None,
         )
 
-    resolved_max_exact_cluster_tree_sites = _resolve_max_exact_cluster_tree_sites(
-        max_exact_cluster_tree_sites
-    )
+    resolved_max_exact_tree_sites = _resolve_max_exact_tree_sites(max_exact_tree_sites)
     # Guard ordering policy:
-    # - If full candidate-correlation scoring exceeds max_full_correlation_sites
+    # - If full candidate-correlation scoring exceeds max_full_candidate_scoring_sites
     #   while exact-tree construction is still permitted, fail here before any
     #   exact-tree construction is attempted.
-    # - If both max_full_correlation_sites and max_exact_cluster_tree_sites are
+    # - If both max_full_candidate_scoring_sites and max_exact_tree_sites are
     #   exceeded, defer to the exact-tree guard below as the canonical first
     #   failure for that configuration.
     if (
-        candidate_scoring_backend == SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
-        and n_sites > int(max_full_correlation_sites)
-        and n_sites <= int(resolved_max_exact_cluster_tree_sites)
+        candidate_scoring_policy == SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
+        and n_sites > int(max_full_candidate_scoring_sites)
+        and n_sites <= int(resolved_max_exact_tree_sites)
     ):
         raise SignalomeScaleError(
             "Signalome full candidate-correlation scoring would evaluate "
             f"{n_sites:,} sites, which exceeds configured "
-            f"max_full_correlation_sites={int(max_full_correlation_sites):,}. "
+            f"max_full_candidate_scoring_sites={int(max_full_candidate_scoring_sites):,}. "
             "Exact cluster-tree construction has not been attempted for this "
-            "request. Use candidate_scoring_backend='sampled' for candidate "
+            "request. Use candidate_scoring_policy='sampled' for candidate "
             "module-count evaluation, reduce interpreted sites, or increase "
-            "max_full_correlation_sites deliberately."
+            "max_full_candidate_scoring_sites deliberately."
         )
 
     cluster_tree = _build_exact_cluster_tree_with_guard(
         clustering_values=clustering_values,
         n_sites=n_sites,
-        cluster_tree_backend=cluster_tree_backend,
-        candidate_scoring_backend=candidate_scoring_backend,
-        max_exact_cluster_tree_sites=resolved_max_exact_cluster_tree_sites,
+        tree_engine=tree_engine,
+        candidate_scoring_policy=candidate_scoring_policy,
+        max_exact_tree_sites=resolved_max_exact_tree_sites,
         cluster_tree_operations=cluster_tree_operations,
     )
     tree_operations = _resolve_cluster_tree_operations(cluster_tree_operations)
@@ -787,7 +777,7 @@ def _compute_candidate_cluster_scores(
     )
     exact_cluster_tree_built = n_sites > 1
 
-    if candidate_scoring_backend == SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL:
+    if candidate_scoring_policy == SIGNALOME_CANDIDATE_SCORING_POLICY_FULL:
         site_correlations = build_correlation_matrix_with_exclusions(
             correlation_values,
             excluded_mask=profile_degeneracy.excluded_mask,
@@ -809,7 +799,7 @@ def _compute_candidate_cluster_scores(
             candidate_scores=candidate_scores,
             candidate_labels=candidate_labels,
             approximation_note="",
-            candidate_scoring_mode=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+            candidate_scoring_mode=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
             exact_cluster_tree_built=exact_cluster_tree_built,
             candidate_scoring_evaluated=True,
             candidate_scoring_skip_reason=None,
@@ -861,7 +851,7 @@ def _compute_candidate_cluster_scores(
         candidate_scores=candidate_scores,
         candidate_labels=candidate_labels,
         approximation_note=approximation_note,
-        candidate_scoring_mode=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+        candidate_scoring_mode=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
         exact_cluster_tree_built=exact_cluster_tree_built,
         candidate_scoring_evaluated=True,
         candidate_scoring_skip_reason=None,
@@ -873,53 +863,53 @@ def _compute_candidate_cluster_scores(
     )
 
 
-def _resolve_candidate_scoring_backend(
+def _resolve_candidate_scoring_policy(
     *,
     scoring_mode: SignalomeClusteringScoringMode,
-    candidate_scoring_backend: SignalomeCandidateScoringBackend | None,
+    candidate_scoring_policy: SignalomeCandidateScoringPolicy | None,
     n_sites: int,
-    max_full_correlation_sites: int,
-) -> SignalomeCandidateScoringBackend:
-    if candidate_scoring_backend is not None:
+    max_full_candidate_scoring_sites: int,
+) -> SignalomeCandidateScoringPolicy:
+    if candidate_scoring_policy is not None:
         if (
             scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_EXACT
-            and candidate_scoring_backend != SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+            and candidate_scoring_policy != SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
         ):
             raise ValueError(
                 "scoring_mode='exact' cannot be combined with "
-                "candidate_scoring_backend='sampled'"
+                "candidate_scoring_policy='sampled'"
             )
         if (
             scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE
-            and candidate_scoring_backend != SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+            and candidate_scoring_policy != SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
         ):
             raise ValueError(
                 "scoring_mode='approximate' cannot be combined with "
-                "candidate_scoring_backend='full'"
+                "candidate_scoring_policy='full'"
             )
-        return candidate_scoring_backend
+        return candidate_scoring_policy
 
     if scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_EXACT:
-        return SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+        return SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
     if scoring_mode == SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE:
-        return SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
-    if n_sites <= int(max_full_correlation_sites):
-        return SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
-    return SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        return SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
+    if n_sites <= int(max_full_candidate_scoring_sites):
+        return SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
+    return SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
 
 
-def _resolve_max_exact_cluster_tree_sites(
-    max_exact_cluster_tree_sites: int | None,
+def _resolve_max_exact_tree_sites(
+    max_exact_tree_sites: int | None,
 ) -> int:
     """Resolve exact-tree guard limit; `None` maps to the safe default limit."""
 
     resolved = (
         MAX_FULL_CORRELATION_SITE_COUNT
-        if max_exact_cluster_tree_sites is None
-        else int(max_exact_cluster_tree_sites)
+        if max_exact_tree_sites is None
+        else int(max_exact_tree_sites)
     )
     if resolved < 1:
-        raise ValueError("max_exact_cluster_tree_sites must be >= 1")
+        raise ValueError("max_exact_tree_sites must be >= 1")
     return resolved
 
 
@@ -927,23 +917,21 @@ def _build_exact_cluster_tree_with_guard(
     *,
     clustering_values: np.ndarray,
     n_sites: int,
-    cluster_tree_backend: SignalomeClusterTreeBackend,
-    candidate_scoring_backend: SignalomeCandidateScoringBackend,
-    max_exact_cluster_tree_sites: int | None,
+    tree_engine: SignalomeTreeEngine,
+    candidate_scoring_policy: SignalomeCandidateScoringPolicy,
+    max_exact_tree_sites: int | None,
     cluster_tree_operations: ClusterTreeOperations | None = None,
 ) -> object:
-    if cluster_tree_backend != SIGNALOME_CLUSTER_TREE_BACKEND_EXACT:
-        raise ValueError("cluster_tree_backend must be 'exact'")
-    resolved_max_exact_cluster_tree_sites = _resolve_max_exact_cluster_tree_sites(
-        max_exact_cluster_tree_sites
-    )
-    if n_sites > int(resolved_max_exact_cluster_tree_sites):
+    if tree_engine != SIGNALOME_TREE_ENGINE_EXACT:
+        raise ValueError("tree_engine must be 'exact'")
+    resolved_max_exact_tree_sites = _resolve_max_exact_tree_sites(max_exact_tree_sites)
+    if n_sites > int(resolved_max_exact_tree_sites):
         raise SignalomeScaleError(
             "Signalome exact cluster-tree construction received "
-            f"{n_sites:,} sites, which exceeds max_exact_cluster_tree_sites="
-            f"{int(resolved_max_exact_cluster_tree_sites):,} "
-            "(cluster_tree_backend='exact'). "
-            f"candidate_scoring_backend='{candidate_scoring_backend}' still "
+            f"{n_sites:,} sites, which exceeds max_exact_tree_sites="
+            f"{int(resolved_max_exact_tree_sites):,} "
+            "(tree_engine='exact'). "
+            f"candidate_scoring_policy='{candidate_scoring_policy}' still "
             "requires exact cluster-tree construction in the current "
             "implementation."
         )
@@ -968,7 +956,7 @@ def _select_threshold_candidate(
     profile_degeneracy: _ProfileDegeneracySummary,
     correlation_exclusion_note: str,
     approximation_note: str,
-    cluster_tree_backend: str,
+    tree_engine: str,
     candidate_scoring_mode: _CandidateScoringMode,
     exact_cluster_tree_built: bool,
     candidate_scoring_evaluated: bool,
@@ -992,7 +980,7 @@ def _select_threshold_candidate(
         profile_degeneracy=profile_degeneracy,
         excluded_from_correlation_count=profile_degeneracy.excluded_count,
         candidate_labels=candidate_labels,
-        cluster_tree_backend=cluster_tree_backend,
+        tree_engine=tree_engine,
         candidate_scoring_mode=candidate_scoring_mode,
         exact_cluster_tree_built=exact_cluster_tree_built,
         candidate_scoring_evaluated=candidate_scoring_evaluated,
@@ -1130,13 +1118,11 @@ def fit_cluster_labels(
     scoring_values: np.ndarray,
     cluster_count: int,
     *,
-    cluster_tree_backend: SignalomeClusterTreeBackend = (
-        SIGNALOME_CLUSTER_TREE_BACKEND_EXACT
+    tree_engine: SignalomeTreeEngine = (SIGNALOME_TREE_ENGINE_EXACT),
+    candidate_scoring_policy: SignalomeCandidateScoringPolicy = (
+        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
     ),
-    candidate_scoring_backend: SignalomeCandidateScoringBackend = (
-        SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
-    ),
-    max_exact_cluster_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
+    max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
     cluster_tree_operations: ClusterTreeOperations | None = None,
 ) -> np.ndarray:
     """Fit Ward clustering and return 0-indexed labels for one count."""
@@ -1150,15 +1136,13 @@ def fit_cluster_labels(
     )
     if resolved_cluster_count == 1:
         return np.zeros(n_sites, dtype=int)
-    resolved_max_exact_cluster_tree_sites = _resolve_max_exact_cluster_tree_sites(
-        max_exact_cluster_tree_sites
-    )
+    resolved_max_exact_tree_sites = _resolve_max_exact_tree_sites(max_exact_tree_sites)
     tree = _build_exact_cluster_tree_with_guard(
         clustering_values=values,
         n_sites=n_sites,
-        cluster_tree_backend=cluster_tree_backend,
-        candidate_scoring_backend=candidate_scoring_backend,
-        max_exact_cluster_tree_sites=resolved_max_exact_cluster_tree_sites,
+        tree_engine=tree_engine,
+        candidate_scoring_policy=candidate_scoring_policy,
+        max_exact_tree_sites=resolved_max_exact_tree_sites,
         cluster_tree_operations=cluster_tree_operations,
     )
     tree_operations = _resolve_cluster_tree_operations(cluster_tree_operations)
@@ -1358,12 +1342,12 @@ def _validate_threshold(value: float, *, field_name: str) -> None:
 
 def run_clustering_with_tree_engine(
     *,
-    request: SignalomeClusteringBackendRequest,
+    request: SignalomeClusteringEngineRequest,
     tree_engine: ClusterTreeEngine,
-    backend_name: str,
+    clustering_engine: str,
     backend_version: str,
     backend_diagnostics: dict[str, object],
-) -> SignalomeClusteringBackendResult:
+) -> SignalomeClusteringEngineResult:
     """Run shared orchestration with an injected tree engine implementation."""
 
     requested_tree_engine = request.tree_engine
@@ -1371,7 +1355,7 @@ def run_clustering_with_tree_engine(
         resolved_requested_tree_engine = str(requested_tree_engine)
         if resolved_requested_tree_engine not in {
             str(tree_engine.name),
-            SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+            SIGNALOME_TREE_ENGINE_EXACT,
             "exact_python",
             "scipy_hierarchical",
         }:
@@ -1379,17 +1363,10 @@ def run_clustering_with_tree_engine(
                 f"unsupported tree_engine request {resolved_requested_tree_engine!r}"
             )
 
-    requested_policy = request.candidate_scoring_policy
-    requested_backend = request.candidate_scoring_backend
-    if requested_policy is not None and requested_backend is not None:
-        if str(requested_policy) != str(requested_backend):
-            raise ValueError(
-                "candidate_scoring_backend and candidate_scoring_policy must match"
-            )
-    candidate_scoring_backend = (
-        str(requested_backend)
-        if requested_backend is not None
-        else (None if requested_policy is None else str(requested_policy))
+    candidate_scoring_policy = (
+        None
+        if request.candidate_scoring_policy is None
+        else str(request.candidate_scoring_policy)
     )
 
     clustering_result = cluster_sites_with_diagnostics(
@@ -1398,10 +1375,10 @@ def run_clustering_with_tree_engine(
         primary_threshold=request.primary_threshold,
         fallback_threshold=request.fallback_threshold,
         max_clusters=request.max_clusters,
-        cluster_tree_backend=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-        candidate_scoring_backend=candidate_scoring_backend,  # type: ignore[arg-type]
-        max_exact_cluster_tree_sites=request.max_exact_cluster_tree_sites,
-        max_full_correlation_sites=request.max_full_correlation_sites,
+        tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
+        candidate_scoring_policy=candidate_scoring_policy,  # type: ignore[arg-type]
+        max_exact_tree_sites=request.max_exact_tree_sites,
+        max_full_candidate_scoring_sites=request.max_full_candidate_scoring_sites,
         cluster_tree_operations=_ClusterTreeOperationsAdapter(engine=tree_engine),
     )
     protein_modules = derive_protein_modules(
@@ -1412,7 +1389,7 @@ def run_clustering_with_tree_engine(
         clustering_result.module_selection_diagnostics.selected_module_count
     )
     resolved_backend_diagnostics = {
-        "backend_name": str(backend_name),
+        "backend_name": str(clustering_engine),
         "tree_engine": str(tree_engine.name),
         "tree_engine_version": str(tree_engine.version),
         **backend_diagnostics,
@@ -1420,16 +1397,16 @@ def run_clustering_with_tree_engine(
         "input_site_count": int(request.scoring_matrix.shape[0]),
         "exact_tree_path_used": bool(clustering_result.exact_cluster_tree_built),
     }
-    return SignalomeClusteringBackendResult(
+    return SignalomeClusteringEngineResult(
         site_clusters=clustering_result.site_clusters,
         protein_modules=protein_modules,
         selected_module_count=selected_module_count,
         module_selection_diagnostics=clustering_result.module_selection_diagnostics,
-        backend_name=str(backend_name),
+        backend_name=str(clustering_engine),
         backend_version=str(backend_version),
         approximation_used=bool(clustering_result.approximation_used),
         exact_cluster_tree_built=bool(clustering_result.exact_cluster_tree_built),
-        cluster_tree_backend=str(clustering_result.cluster_tree_backend),
+        tree_engine=str(clustering_result.tree_engine),
         candidate_scoring_mode=str(clustering_result.candidate_scoring_mode),
         candidate_scoring_evaluated=bool(clustering_result.candidate_scoring_evaluated),
         candidate_scoring_skip_reason=(
@@ -1444,12 +1421,14 @@ def run_clustering_with_tree_engine(
             "fallback_threshold": float(request.fallback_threshold),
         },
         limit_metadata={
-            "max_exact_cluster_tree_sites": (
+            "max_exact_tree_sites": (
                 None
-                if request.max_exact_cluster_tree_sites is None
-                else int(request.max_exact_cluster_tree_sites)
+                if request.max_exact_tree_sites is None
+                else int(request.max_exact_tree_sites)
             ),
-            "max_full_correlation_sites": int(request.max_full_correlation_sites),
+            "max_full_candidate_scoring_sites": int(
+                request.max_full_candidate_scoring_sites
+            ),
             "max_clusters": int(request.max_clusters),
         },
     )
@@ -1461,19 +1440,19 @@ __all__ = [
     "MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER",
     "MAX_FULL_CORRELATION_SITE_COUNT",
     "NEAR_CONSTANT_PROFILE_VARIANCE_TOLERANCE",
-    "SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL",
-    "SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED",
+    "SIGNALOME_CANDIDATE_SCORING_POLICY_FULL",
+    "SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED",
     "SIGNALOME_CANDIDATE_SCORING_APPLIES_TO",
     "SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED",
     "SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT",
-    "SIGNALOME_CLUSTER_TREE_BACKEND_EXACT",
+    "SIGNALOME_TREE_ENGINE_EXACT",
     "SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE",
     "SIGNALOME_CLUSTERING_SCORING_MODE_AUTO",
     "SIGNALOME_CLUSTERING_SCORING_MODE_EXACT",
     "SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE",
     "SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE",
-    "SignalomeCandidateScoringBackend",
-    "SignalomeClusterTreeBackend",
+    "SignalomeCandidateScoringPolicy",
+    "SignalomeTreeEngine",
     "SignalomeClusteringScoringMode",
     "_CandidateClusterScoreResult",
     "_CandidateScoringMode",

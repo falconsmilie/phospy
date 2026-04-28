@@ -132,18 +132,18 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert provenance["environment"]["package_name"] == "phospy"
     assert "signalome_config" in provenance["workflow_parameters"]
     signalome_config = provenance["workflow_parameters"]["signalome_config"]
-    assert signalome_config["cluster_tree_backend"] == "exact"
-    assert signalome_config["candidate_scoring_backend"] == "full"
-    assert signalome_config["max_exact_cluster_tree_sites"] == 2000
-    assert signalome_config["max_full_correlation_sites"] == 2000
+    assert signalome_config["tree_engine"] == "exact"
+    assert signalome_config["candidate_scoring_policy"] == "full"
+    assert signalome_config["max_exact_tree_sites"] == 2000
+    assert signalome_config["max_full_candidate_scoring_sites"] == 2000
     assert "scale_guard" in provenance["workflow_parameters"]
     scale_guard = provenance["workflow_parameters"]["scale_guard"]
     assert scale_guard["site_count"] >= 1
-    assert scale_guard["cluster_tree_backend"] == "exact"
-    assert scale_guard["candidate_scoring_backend"] == "full"
-    assert scale_guard["candidate_scoring_requested_backend"] == "full"
-    assert scale_guard["max_exact_cluster_tree_sites"] == 2000
-    assert scale_guard["max_full_correlation_sites"] == 2000
+    assert scale_guard["tree_engine"] == "exact"
+    assert scale_guard["candidate_scoring_policy"] == "full"
+    assert scale_guard["candidate_scoring_requested_policy"] == "full"
+    assert scale_guard["max_exact_tree_sites"] == 2000
+    assert scale_guard["max_full_candidate_scoring_sites"] == 2000
     assert scale_guard["scale_guard_passed"] is True
     assert scale_guard["exact_cluster_tree_built"] is True
     assert scale_guard["candidate_scoring_mode"] == "full"
@@ -170,15 +170,15 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
         == "candidate_module_count_evaluation_only"
     )
     assert score_semantics["network_policy"] == signalome_config["network_policy"]
-    assert score_semantics["clustering_backend"] == scale_guard["clustering_backend"]
+    assert score_semantics["clustering_engine"] == scale_guard["clustering_engine"]
     assert "probabilities" in score_semantics["scientific_interpretation_limits"]
     assert "causal" in score_semantics["scientific_interpretation_limits"]
     thresholds = score_semantics["thresholds_and_limits"]
     assert thresholds["network_correlation_threshold"] == pytest.approx(
         signalome_config["network_correlation_threshold"]
     )
-    assert thresholds["max_exact_cluster_tree_sites"] == 2000
-    assert thresholds["max_full_correlation_sites"] == 2000
+    assert thresholds["max_exact_tree_sites"] == 2000
+    assert thresholds["max_full_candidate_scoring_sites"] == 2000
     assert "module_selection_diagnostics" in provenance["workflow_parameters"]
     assert provenance["workflow_parameters"]["upstream_kinase_provenance"] is not None
     output_names = {entry["name"] for entry in provenance["output_tables"]}

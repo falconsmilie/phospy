@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 
 from phospy.api.configs import (
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
-    SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -379,24 +379,24 @@ def test_kinase_activity_config_self_validates(
             "module_selection_max_clusters",
         ),
         (
-            {"cluster_tree_backend": "invalid"},
-            "signalome workflow request config.cluster_tree_backend",
+            {"tree_engine": "invalid"},
+            "signalome workflow request config.tree_engine",
         ),
         (
-            {"candidate_scoring_backend": "invalid"},
-            "signalome workflow request config.candidate_scoring_backend",
+            {"candidate_scoring_policy": "invalid"},
+            "signalome workflow request config.candidate_scoring_policy",
         ),
         (
-            {"max_exact_cluster_tree_sites": 0},
-            "signalome workflow request config.max_exact_cluster_tree_sites",
+            {"max_exact_tree_sites": 0},
+            "signalome workflow request config.max_exact_tree_sites",
         ),
         (
-            {"max_full_correlation_sites": 0},
-            "signalome workflow request config.max_full_correlation_sites",
+            {"max_full_candidate_scoring_sites": 0},
+            "signalome workflow request config.max_full_candidate_scoring_sites",
         ),
         (
-            {"clustering_backend": "invalid"},
-            "signalome workflow request config.clustering_backend",
+            {"clustering_engine": "invalid"},
+            "signalome workflow request config.clustering_engine",
         ),
     ],
 )
@@ -407,15 +407,13 @@ def test_signalome_config_self_validates(
         SignalomeConfig(**kwargs)  # type: ignore[arg-type]
 
 
-def test_signalome_config_accepts_supported_clustering_backend_names() -> None:
-    exact = SignalomeConfig(
-        clustering_backend=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
-    )
+def test_signalome_config_accepts_supported_clustering_engine_names() -> None:
+    exact = SignalomeConfig(clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON)
     scipy = SignalomeConfig(
-        clustering_backend=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
-    assert exact.clustering_backend == SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
-    assert scipy.clustering_backend == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    assert exact.clustering_engine == SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
+    assert scipy.clustering_engine == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
 
 
 def test_signalome_config_rejects_removed_max_exact_clustering_sites_alias() -> None:
@@ -426,30 +424,32 @@ def test_signalome_config_rejects_removed_max_exact_clustering_sites_alias() -> 
         SignalomeConfig(max_exact_clustering_sites=1234)  # type: ignore[call-arg]
 
 
-def test_signalome_config_accepts_engine_policy_alias_names() -> None:
+def test_signalome_config_accepts_engine_and_policy_names() -> None:
     config = SignalomeConfig(
         tree_engine="exact",
-        candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-        clustering_engine=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+        candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
     )
-    assert config.cluster_tree_backend == "exact"
     assert config.tree_engine == "exact"
-    assert (
-        config.candidate_scoring_backend == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
-    )
-    assert (
-        config.candidate_scoring_policy == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
-    )
-    assert config.clustering_backend == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
-    assert config.clustering_engine == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    assert config.candidate_scoring_policy == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
+    assert config.clustering_engine == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
 
 
-def test_signalome_config_rejects_conflicting_alias_and_legacy_values() -> None:
+@pytest.mark.parametrize(
+    "removed_name",
+    [
+        "cluster_tree_backend",
+        "candidate_scoring_backend",
+        "clustering_backend",
+        "max_exact_cluster_tree_sites",
+        "max_full_correlation_sites",
+    ],
+)
+def test_signalome_config_rejects_removed_backend_style_names(
+    removed_name: str,
+) -> None:
     with pytest.raises(
-        WorkflowValidationError,
-        match="conflicts with",
+        TypeError,
+        match=f"unexpected keyword argument '{removed_name}'",
     ):
-        SignalomeConfig(
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-            candidate_scoring_policy="full",
-        )
+        SignalomeConfig(**{removed_name: "full"})  # type: ignore[arg-type]

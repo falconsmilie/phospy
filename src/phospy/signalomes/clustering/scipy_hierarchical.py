@@ -11,10 +11,10 @@ from phospy.signalomes.clustering.backends.scipy_hierarchical import (
     engine_diagnostics as scipy_tree_engine_diagnostics,
 )
 from phospy.signalomes.clustering.models import (
-    SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
-    SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL_VERSION,
-    SignalomeClusteringBackendRequest,
-    SignalomeClusteringBackendResult,
+    SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+    SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL_VERSION,
+    SignalomeClusteringEngineRequest,
+    SignalomeClusteringEngineResult,
 )
 from phospy.signalomes.clustering.orchestration import run_clustering_with_tree_engine
 
@@ -23,17 +23,17 @@ from phospy.signalomes.clustering.orchestration import run_clustering_with_tree_
 class ScipyHierarchicalClusteringBackend:
     """SciPy-backed hierarchical clustering backend."""
 
-    name: str = SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
-    version: str = SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL_VERSION
+    name: str = SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
+    version: str = SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL_VERSION
 
     def run(
         self,
-        request: SignalomeClusteringBackendRequest,
-    ) -> SignalomeClusteringBackendResult:
+        request: SignalomeClusteringEngineRequest,
+    ) -> SignalomeClusteringEngineResult:
         return run_clustering_with_tree_engine(
             request=request,
             tree_engine=ScipyHierarchicalTreeEngine(),
-            backend_name=self.name,
+            clustering_engine=self.name,
             backend_version=self.version,
             backend_diagnostics=scipy_tree_engine_diagnostics(),
         )

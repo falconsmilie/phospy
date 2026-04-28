@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 
 from phospy.signalomes.clustering import (
-    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     cluster_sites_with_diagnostics,
     derive_protein_modules,
-    run_signalome_clustering_backend,
+    run_signalome_clustering_engine,
 )
 from phospy.signalomes.clustering import exact_python as legacy_exact
 
@@ -75,12 +75,12 @@ def test_backend_protocol_matches_legacy_clustering_and_module_derivation() -> N
         site_to_protein=site_to_protein,
     )
 
-    backend = run_signalome_clustering_backend(
+    backend = run_signalome_clustering_engine(
         scoring_matrix=scoring_matrix,
         site_to_protein=site_to_protein,
         requested_module_count=None,
         max_clusters=4,
-        backend_name=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     )
 
     pd.testing.assert_series_equal(backend.site_clusters, legacy.site_clusters)

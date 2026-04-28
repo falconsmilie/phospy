@@ -6,13 +6,13 @@ import pytest
 
 from phospy.errors import SignalomeModuleCountValidationError
 from phospy.signalomes.clustering import (
-    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
-    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION,
-    SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
-    SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL_VERSION,
-    available_clustering_backends,
-    resolve_clustering_backend,
-    run_signalome_clustering_backend,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION,
+    SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+    SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL_VERSION,
+    available_clustering_engines,
+    resolve_clustering_engine,
+    run_signalome_clustering_engine,
 )
 from phospy.signalomes.clustering import exact_python as exact_clustering
 from phospy.signalomes.clustering import scipy_hierarchical as scipy_clustering
@@ -54,52 +54,52 @@ def _required_backend_diagnostic_keys() -> set[str]:
 
 
 def test_backend_registry_exposes_exact_and_scipy_backends() -> None:
-    names = set(available_clustering_backends())
-    assert SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON in names
-    assert SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL in names
+    names = set(available_clustering_engines())
+    assert SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON in names
+    assert SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL in names
 
-    exact = resolve_clustering_backend(SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON)
-    assert exact.name == SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
-    assert exact.version == SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION
+    exact = resolve_clustering_engine(SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON)
+    assert exact.name == SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
+    assert exact.version == SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION
 
-    scipy_backend = resolve_clustering_backend(
-        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    scipy_backend = resolve_clustering_engine(
+        SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
-    assert scipy_backend.name == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    assert scipy_backend.name == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     assert (
-        scipy_backend.version == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL_VERSION
+        scipy_backend.version == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL_VERSION
     )
 
 
 def test_backend_selection_rejects_unsupported_backend_name() -> None:
     with pytest.raises(ValueError, match="unsupported signalome clustering backend"):
-        resolve_clustering_backend("not_a_backend")
+        resolve_clustering_engine("not_a_backend")
 
 
 def test_exact_backend_result_surfaces_limit_threshold_and_backend_diagnostics() -> (
     None
 ):
-    result = run_signalome_clustering_backend(
+    result = run_signalome_clustering_engine(
         scoring_matrix=_small_scoring_matrix(),
         site_to_protein=_small_site_to_protein(),
         requested_module_count=None,
         primary_threshold=0.5,
         fallback_threshold=0.1,
         max_clusters=5,
-        max_exact_cluster_tree_sites=100,
-        max_full_correlation_sites=50,
-        backend_name=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        max_exact_tree_sites=100,
+        max_full_candidate_scoring_sites=50,
+        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     )
 
-    assert result.backend_name == SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
-    assert result.backend_version == SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION
+    assert result.backend_name == SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
+    assert result.backend_version == SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION
     assert result.threshold_metadata == {
         "primary_threshold": 0.5,
         "fallback_threshold": 0.1,
     }
     assert result.limit_metadata == {
-        "max_exact_cluster_tree_sites": 100,
-        "max_full_correlation_sites": 50,
+        "max_exact_tree_sites": 100,
+        "max_full_candidate_scoring_sites": 50,
         "max_clusters": 5,
     }
     assert result.backend_diagnostics is not None
@@ -111,23 +111,23 @@ def test_exact_backend_result_surfaces_limit_threshold_and_backend_diagnostics()
 def test_scipy_backend_matches_exact_backend_for_small_deterministic_fixture() -> None:
     scoring_matrix = _small_scoring_matrix()
     site_to_protein = _small_site_to_protein()
-    exact = run_signalome_clustering_backend(
+    exact = run_signalome_clustering_engine(
         scoring_matrix=scoring_matrix,
         site_to_protein=site_to_protein,
         requested_module_count=None,
         primary_threshold=0.5,
         fallback_threshold=0.1,
         max_clusters=5,
-        backend_name=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     )
-    scipy_backend = run_signalome_clustering_backend(
+    scipy_backend = run_signalome_clustering_engine(
         scoring_matrix=scoring_matrix,
         site_to_protein=site_to_protein,
         requested_module_count=None,
         primary_threshold=0.5,
         fallback_threshold=0.1,
         max_clusters=5,
-        backend_name=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
     )
 
     pdt.assert_series_equal(scipy_backend.site_clusters, exact.site_clusters)
@@ -139,15 +139,15 @@ def test_scipy_backend_matches_exact_backend_for_small_deterministic_fixture() -
     assert scipy_backend.backend_diagnostics is not None
     assert scipy_backend.backend_diagnostics["uses_scipy"] is True
     assert scipy_backend.backend_diagnostics["backend_name"] == (
-        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+        SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
 
 
 @pytest.mark.parametrize(
     "backend_name",
     [
-        SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
-        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+        SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+        SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
     ],
 )
 def test_backend_is_stable_across_repeated_runs(backend_name: str) -> None:
@@ -158,10 +158,10 @@ def test_backend_is_stable_across_repeated_runs(backend_name: str) -> None:
         "primary_threshold": 0.5,
         "fallback_threshold": 0.1,
         "max_clusters": 5,
-        "backend_name": backend_name,
+        "clustering_engine": backend_name,
     }
-    run_one = run_signalome_clustering_backend(**kwargs)
-    run_two = run_signalome_clustering_backend(**kwargs)
+    run_one = run_signalome_clustering_engine(**kwargs)
+    run_two = run_signalome_clustering_engine(**kwargs)
 
     pdt.assert_series_equal(run_one.site_clusters, run_two.site_clusters)
     pdt.assert_series_equal(run_one.protein_modules, run_two.protein_modules)
@@ -179,17 +179,17 @@ def test_exact_backend_result_is_not_contaminated_by_prior_scipy_run() -> None:
         "fallback_threshold": 0.1,
         "max_clusters": 5,
     }
-    baseline_exact = run_signalome_clustering_backend(
+    baseline_exact = run_signalome_clustering_engine(
         **kwargs,
-        backend_name=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     )
-    run_signalome_clustering_backend(
+    run_signalome_clustering_engine(
         **kwargs,
-        backend_name=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
     )
-    post_scipy_exact = run_signalome_clustering_backend(
+    post_scipy_exact = run_signalome_clustering_engine(
         **kwargs,
-        backend_name=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     )
 
     pdt.assert_series_equal(
@@ -227,14 +227,14 @@ def test_scipy_backend_run_does_not_call_exact_orchestration(
         _should_not_run,
     )
 
-    run_signalome_clustering_backend(
+    run_signalome_clustering_engine(
         scoring_matrix=_small_scoring_matrix(),
         site_to_protein=_small_site_to_protein(),
         requested_module_count=None,
         primary_threshold=0.5,
         fallback_threshold=0.1,
         max_clusters=5,
-        backend_name=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
     )
 
     assert observed_exact_orchestration_calls == []
@@ -244,22 +244,22 @@ def test_scipy_backend_run_does_not_call_exact_orchestration(
 @pytest.mark.parametrize(
     "backend_name",
     [
-        SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
-        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+        SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+        SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
     ],
 )
 def test_backend_rejects_requested_module_count_above_available_sites(
     backend_name: str,
 ) -> None:
     with pytest.raises(SignalomeModuleCountValidationError) as exc_info:
-        run_signalome_clustering_backend(
+        run_signalome_clustering_engine(
             scoring_matrix=_small_scoring_matrix(),
             site_to_protein=_small_site_to_protein(),
             requested_module_count=10,
             primary_threshold=0.5,
             fallback_threshold=0.1,
             max_clusters=5,
-            backend_name=backend_name,
+            clustering_engine=backend_name,
         )
 
     message = str(exc_info.value)
@@ -271,10 +271,10 @@ def test_backend_rejects_requested_module_count_above_available_sites(
 @pytest.mark.parametrize(
     ("requested_module_count", "backend_name"),
     [
-        (0, SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON),
-        (0, SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL),
-        (-1, SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON),
-        (-1, SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL),
+        (0, SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON),
+        (0, SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL),
+        (-1, SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON),
+        (-1, SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL),
     ],
 )
 def test_backend_rejects_non_positive_requested_module_count(
@@ -282,12 +282,12 @@ def test_backend_rejects_non_positive_requested_module_count(
     backend_name: str,
 ) -> None:
     with pytest.raises(SignalomeModuleCountValidationError):
-        run_signalome_clustering_backend(
+        run_signalome_clustering_engine(
             scoring_matrix=_small_scoring_matrix(),
             site_to_protein=_small_site_to_protein(),
             requested_module_count=requested_module_count,
             primary_threshold=0.5,
             fallback_threshold=0.1,
             max_clusters=5,
-            backend_name=backend_name,
+            clustering_engine=backend_name,
         )

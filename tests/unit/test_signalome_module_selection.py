@@ -233,14 +233,14 @@ def test_sampled_candidate_scoring_auto_module_count_marks_evaluated() -> None:
     clustered = cluster_sites_with_diagnostics(
         scoring_matrix=_candidate_scoring_test_matrix(),
         requested_module_count=None,
-        candidate_scoring_backend=(
-            clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        candidate_scoring_policy=(
+            clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
         ),
     )
 
     assert (
         clustered.candidate_scoring_mode
-        == clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        == clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
     )
     assert clustered.candidate_scoring_evaluated is True
     assert clustered.candidate_scoring_skip_reason is None
@@ -251,8 +251,8 @@ def test_sampled_candidate_scoring_explicit_module_count_marks_skip_reason() -> 
     clustered = cluster_sites_with_diagnostics(
         scoring_matrix=_candidate_scoring_test_matrix(),
         requested_module_count=2,
-        candidate_scoring_backend=(
-            clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        candidate_scoring_policy=(
+            clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
         ),
     )
 
@@ -272,12 +272,12 @@ def test_full_candidate_scoring_auto_module_count_marks_evaluated() -> None:
     clustered = cluster_sites_with_diagnostics(
         scoring_matrix=_candidate_scoring_test_matrix(),
         requested_module_count=None,
-        candidate_scoring_backend=clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        candidate_scoring_policy=clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     )
 
     assert (
         clustered.candidate_scoring_mode
-        == clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+        == clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
     )
     assert clustered.candidate_scoring_evaluated is True
     assert clustered.candidate_scoring_skip_reason is None
@@ -288,7 +288,7 @@ def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> Non
     clustered = cluster_sites_with_diagnostics(
         scoring_matrix=_candidate_scoring_test_matrix(),
         requested_module_count=2,
-        candidate_scoring_backend=clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        candidate_scoring_policy=clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     )
 
     assert (
@@ -322,24 +322,24 @@ def test_candidate_scoring_helper_returns_stable_shape_across_all_branches() -> 
         "profile_degeneracy": profile_degeneracy,
         "n_sites": int(values.shape[0]),
         "scoring_mode": clustering_module.SIGNALOME_CLUSTERING_SCORING_MODE_AUTO,
-        "cluster_tree_backend": clustering_module.SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-        "max_exact_cluster_tree_sites": None,
-        "max_full_correlation_sites": 10,
+        "tree_engine": clustering_module.SIGNALOME_TREE_ENGINE_EXACT,
+        "max_exact_tree_sites": None,
+        "max_full_candidate_scoring_sites": 10,
     }
 
     empty_result = clustering_module._compute_candidate_cluster_scores(
         candidate_range=range(2, 2),
-        candidate_scoring_backend=clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        candidate_scoring_policy=clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
         **common_kwargs,
     )
     full_result = clustering_module._compute_candidate_cluster_scores(
         candidate_range=range(2, 3),
-        candidate_scoring_backend=clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        candidate_scoring_policy=clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
         **common_kwargs,
     )
     sampled_result = clustering_module._compute_candidate_cluster_scores(
         candidate_range=range(2, 3),
-        candidate_scoring_backend=clustering_module.SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+        candidate_scoring_policy=clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
         **common_kwargs,
     )
 

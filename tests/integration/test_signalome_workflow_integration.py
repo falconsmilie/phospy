@@ -25,7 +25,7 @@ from phospy.api import (
     SignalomeConfig,
     SignalomeWorkflowRequest,
 )
-from phospy.api.configs import SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+from phospy.api.configs import SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
 from phospy.api.results import KinaseScoringResult
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.signalomes.constants import (
@@ -173,7 +173,7 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
     ).any()
 
 
-def test_signalome_workflow_runs_with_scipy_clustering_backend() -> None:
+def test_signalome_workflow_runs_with_scipy_clustering_engine() -> None:
     dataset = build_rat_l6_dataset(n_sites=260)
     kinase_result = KinaseWorkflow().run(
         KinaseWorkflowRequest(
@@ -193,7 +193,7 @@ def test_signalome_workflow_runs_with_scipy_clustering_backend() -> None:
             kinase_result=kinase_result,
             config=SignalomeConfig(
                 substrate_support_cutoff=0.5,
-                clustering_backend=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+                clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
             ),
         )
     )
@@ -203,20 +203,20 @@ def test_signalome_workflow_runs_with_scipy_clustering_backend() -> None:
     assert result.provenance is not None
     signalome_config = result.provenance.workflow_parameters["signalome_config"]
     assert (
-        signalome_config["clustering_backend"]
-        == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+        signalome_config["clustering_engine"]
+        == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
     assert (
-        scale_guard["clustering_backend"]
-        == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+        scale_guard["clustering_engine"]
+        == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
     backend_diagnostics = scale_guard["backend_diagnostics"]
     assert isinstance(backend_diagnostics, dict)
     assert backend_diagnostics["uses_scipy"] is True
     score_semantics = result.provenance.workflow_parameters["signalome_score_semantics"]
-    assert score_semantics["clustering_backend"] == (
-        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    assert score_semantics["clustering_engine"] == (
+        SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
     assert score_semantics["candidate_scoring_scope"] == (
         "candidate_module_count_evaluation_only"

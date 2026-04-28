@@ -162,7 +162,7 @@ def test_signalome_workflow_propagates_resource_limit_guard_failures() -> None:
     class ResourceLimitExecutor:
         def run(self, resolved: object) -> object:
             raise SignalomeScaleError(
-                "signalome scale guard blocked execution: site count exceeds max_full_correlation_sites"
+                "signalome scale guard blocked execution: site count exceeds max_full_candidate_scoring_sites"
             )
 
     workflow = SignalomeWorkflow(

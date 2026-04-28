@@ -185,7 +185,7 @@ def test_signalome_clustering_runner_returns_expected_diagnostics() -> None:
             candidate_scores={},
             reason="component test",
         ),
-        cluster_tree_backend="exact",
+        tree_engine="exact",
         candidate_scoring_mode="full",
         exact_cluster_tree_built=True,
     )
@@ -216,8 +216,8 @@ def test_signalome_clustering_runner_returns_expected_diagnostics() -> None:
         expected_cluster_result.module_selection_diagnostics
     )
     assert observed_cluster_kwargs["requested_module_count"] == 2
-    assert observed_cluster_kwargs["cluster_tree_backend"] == "exact"
-    assert observed_cluster_kwargs["candidate_scoring_backend"] == "full"
+    assert observed_cluster_kwargs["tree_engine"] == "exact"
+    assert observed_cluster_kwargs["candidate_scoring_policy"] == "full"
     assert (
         observed_derive_kwargs["site_clusters"] is expected_cluster_result.site_clusters
     )
@@ -407,14 +407,14 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert "module_selection_diagnostics" in provenance.workflow_parameters
     assert "network_correlation_diagnostics" in provenance.workflow_parameters
     signalome_config = provenance.workflow_parameters["signalome_config"]
-    assert "cluster_tree_backend" in signalome_config
-    assert "candidate_scoring_backend" in signalome_config
-    assert "max_exact_cluster_tree_sites" in signalome_config
+    assert "tree_engine" in signalome_config
+    assert "candidate_scoring_policy" in signalome_config
+    assert "max_exact_tree_sites" in signalome_config
     assert signalome_config["module_count"] == 2
     scale_guard = provenance.workflow_parameters["scale_guard"]
-    assert "cluster_tree_backend" in scale_guard
-    assert "candidate_scoring_backend" in scale_guard
-    assert "candidate_scoring_requested_backend" in scale_guard
+    assert "tree_engine" in scale_guard
+    assert "candidate_scoring_policy" in scale_guard
+    assert "candidate_scoring_requested_policy" in scale_guard
     assert "exact_cluster_tree_built" in scale_guard
     assert "candidate_scoring_mode" in scale_guard
     output_names = {fingerprint.name for fingerprint in provenance.output_tables}

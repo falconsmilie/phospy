@@ -213,15 +213,15 @@ validate local policy/range rules at object construction.
 `SignalomeConfig` validates local policy/range rules at object construction.
 This includes:
 
-- `cluster_tree_backend` policy values
-- `candidate_scoring_backend` policy values
-- `max_exact_cluster_tree_sites >= 1`
-- `max_full_correlation_sites >= 1`
+- `tree_engine` policy values
+- `candidate_scoring_policy` policy values
+- `max_exact_tree_sites >= 1`
+- `max_full_candidate_scoring_sites >= 1`
 
 Signalome execution enforces runtime scale guards at the expensive call sites:
 
-- exact cluster-tree construction is guarded by `max_exact_cluster_tree_sites`
-- full candidate-correlation scoring is guarded by `max_full_correlation_sites`
+- exact cluster-tree construction is guarded by `max_exact_tree_sites`
+- full candidate-correlation scoring is guarded by `max_full_candidate_scoring_sites`
 
 If either guard is exceeded, execution fails with `SignalomeScaleError`.
 
@@ -248,7 +248,7 @@ network/module preconditions.
 | dataset organism missing for `AUTO` | set `organism=Organism.RAT` for bundled first runs |
 | bundled human/mouse preset fails | use an explicit `ReferenceBundle` |
 | signalome fails on `protein_id` | add a non-empty `protein_id` column |
-| signalome scale guard fails with `SignalomeScaleError` | reduce interpreted sites, use `candidate_scoring_backend="sampled"` only for candidate module-count scoring cost (it does not bypass exact cluster-tree construction), and/or deliberately raise `max_exact_cluster_tree_sites` / `max_full_correlation_sites` |
+| signalome scale guard fails with `SignalomeScaleError` | reduce interpreted sites, use `candidate_scoring_policy="sampled"` only for candidate module-count scoring cost (it does not bypass exact cluster-tree construction), and/or deliberately raise `max_exact_tree_sites` / `max_full_candidate_scoring_sites` |
 | rows dropped in site-matrix building | review sequence support and preprocessing policy |
 
 ## Validation ownership summary

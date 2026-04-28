@@ -356,35 +356,35 @@ Fields:
 - `module_selection_primary_correlation_threshold`
 - `module_selection_fallback_correlation_threshold`
 - `module_selection_max_clusters`
-- `cluster_tree_backend`: `exact`
-- `candidate_scoring_backend`: `full`, `sampled`
-- `max_exact_cluster_tree_sites` (default `2000`)
-- `max_full_correlation_sites` (default `2000`)
+- `tree_engine`: `exact`
+- `candidate_scoring_policy`: `full`, `sampled`
+- `max_exact_tree_sites` (default `2000`)
+- `max_full_candidate_scoring_sites` (default `2000`)
 
 Signalome stages are now explicit:
 
-- cluster-tree construction: controlled by `cluster_tree_backend`
-- candidate scoring for module-count selection: controlled by `candidate_scoring_backend`
+- cluster-tree construction: controlled by `tree_engine`
+- candidate scoring for module-count selection: controlled by `candidate_scoring_policy`
 - kinase correlation calculation for network edges: controlled by `network_policy` + `network_correlation_threshold`
 - module assignment: controlled by `assignment_policy` + `substrate_support_cutoff`
 - network generation: built from downstream score correlations after module selection
 
-Important: `candidate_scoring_backend="sampled"` does not imply approximate
+Important: `candidate_scoring_policy="sampled"` does not imply approximate
 signalome clustering. It only changes candidate module-count evaluation. Exact
 cluster-tree construction and final module assignment still require the exact
-tree and remain hard-guarded by `max_exact_cluster_tree_sites`.
+tree and remain hard-guarded by `max_exact_tree_sites`.
 Exact tree construction is an internal, scale-limited implementation detail of
 the signalome workflow contract.
 Low-level clustering helpers in `phospy.signalomes.clustering` use the same
 guarded exact-tree path and resolve missing/`None`
-`max_exact_cluster_tree_sites` to the safe default (`2000`), rather than an
+`max_exact_tree_sites` to the safe default (`2000`), rather than an
 unbounded tree build.
 
 Successful runs record scale decisions in provenance under
 `result.provenance.workflow_parameters["scale_guard"]` (`site_count`,
-`cluster_tree_backend`, `candidate_scoring_backend`,
-`candidate_scoring_requested_backend`,
-`max_exact_cluster_tree_sites`, `max_full_correlation_sites`,
+`tree_engine`, `candidate_scoring_policy`,
+`candidate_scoring_requested_policy`,
+`max_exact_tree_sites`, `max_full_candidate_scoring_sites`,
 `exact_cluster_tree_built`, `candidate_scoring_mode`,
 `candidate_scoring_evaluated`, `candidate_scoring_skip_reason`,
 `candidate_scoring_sampling`, `candidate_scoring_applies_to`,
@@ -394,7 +394,7 @@ Successful runs record scale decisions in provenance under
 `candidate_scoring_applies_to` is always
 `"candidate_module_count_evaluation_only"`, and
 `final_module_assignment_uses_candidate_scoring` is always `False`.
-`candidate_scoring_requested_backend` records the backend requested in config.
+`candidate_scoring_requested_policy` records the backend requested in config.
 `candidate_scoring_mode` records what was actually evaluated (`"full"`,
 `"sampled"`, or `"not_evaluated"`).
 When `module_count` is set explicitly, `candidate_scoring_evaluated` is `False`,
@@ -402,8 +402,8 @@ When `module_count` is set explicitly, `candidate_scoring_evaluated` is `False`,
 `candidate_scoring_sampling` is `None`.
 These fields make stage ownership explicit:
 
-- exact cluster-tree construction: `cluster_tree_backend`,
-  `max_exact_cluster_tree_sites`, `exact_cluster_tree_built`
+- exact cluster-tree construction: `tree_engine`,
+  `max_exact_tree_sites`, `exact_cluster_tree_built`
 - candidate module-count evaluation: `candidate_scoring_*`
 - final module assignment: `final_module_assignment_*`
 

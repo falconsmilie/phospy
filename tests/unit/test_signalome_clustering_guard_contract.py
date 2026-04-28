@@ -7,8 +7,8 @@ import pytest
 import phospy.signalomes.clustering as clustering_module
 from phospy.errors.workflows import SignalomeScaleError
 from phospy.signalomes.clustering import (
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     cluster_sites,
     cluster_sites_with_diagnostics,
     fit_cluster_labels,
@@ -82,8 +82,8 @@ def _assert_exact_tree_guard_message(
     message_lower = message.lower()
     assert "exact cluster-tree construction" in message_lower
     assert f"{expected_site_count:,} sites" in message_lower
-    assert f"max_exact_cluster_tree_sites={resolved_limit_token}" in message_lower
-    assert "cluster_tree_backend='exact'" in message_lower
+    assert f"max_exact_tree_sites={resolved_limit_token}" in message_lower
+    assert "tree_engine='exact'" in message_lower
 
 
 def test_cluster_sites_missing_exact_guard_arg_fails_over_limit(
@@ -115,8 +115,8 @@ def test_cluster_sites_with_diagnostics_explicit_none_guard_fails_over_limit(
         cluster_sites_with_diagnostics(
             scoring_matrix=_over_limit_scoring_matrix(),
             requested_module_count=2,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-            max_exact_cluster_tree_sites=None,
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+            max_exact_tree_sites=None,
         )
 
     message = str(exc_info.value).lower()
@@ -124,7 +124,7 @@ def test_cluster_sites_with_diagnostics_explicit_none_guard_fails_over_limit(
         message,
         expected_site_count=site_count,
     )
-    assert "candidate_scoring_backend='sampled'" in message
+    assert "candidate_scoring_policy='sampled'" in message
     assert tree_calls == []
 
 
@@ -138,8 +138,8 @@ def test_full_candidate_scoring_cannot_bypass_exact_tree_guard(
         cluster_sites_with_diagnostics(
             scoring_matrix=_over_limit_scoring_matrix(),
             requested_module_count=None,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-            max_exact_cluster_tree_sites=None,
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+            max_exact_tree_sites=None,
         )
 
     message = str(exc_info.value).lower()
@@ -147,7 +147,7 @@ def test_full_candidate_scoring_cannot_bypass_exact_tree_guard(
         message,
         expected_site_count=site_count,
     )
-    assert "candidate_scoring_backend='full'" in message
+    assert "candidate_scoring_policy='full'" in message
     assert tree_calls == []
 
 
@@ -174,17 +174,17 @@ def test_full_candidate_scoring_over_full_limit_fails_before_tree_construction(
         cluster_sites_with_diagnostics(
             scoring_matrix=_small_scoring_matrix(),
             requested_module_count=None,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-            max_exact_cluster_tree_sites=10,
-            max_full_correlation_sites=2,
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+            max_exact_tree_sites=10,
+            max_full_candidate_scoring_sites=2,
         )
 
     message = str(exc_info.value).lower()
     assert "full candidate-correlation scoring would evaluate" in message
     assert f"{site_count:,} sites" in message
-    assert "max_full_correlation_sites=2" in message
+    assert "max_full_candidate_scoring_sites=2" in message
     assert "exact cluster-tree construction has not been attempted" in message
-    assert "use candidate_scoring_backend='sampled'" in message
+    assert "use candidate_scoring_policy='sampled'" in message
     assert "candidate module-count evaluation" in message
     assert tree_calls == []
 
@@ -213,9 +213,9 @@ def test_both_limits_exceeded_uses_exact_tree_guard_first_without_building_tree(
         cluster_sites_with_diagnostics(
             scoring_matrix=scoring_matrix,
             requested_module_count=None,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-            max_exact_cluster_tree_sites=2,
-            max_full_correlation_sites=2,
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+            max_exact_tree_sites=2,
+            max_full_candidate_scoring_sites=2,
         )
 
     message = str(exc_info.value).lower()
@@ -224,7 +224,7 @@ def test_both_limits_exceeded_uses_exact_tree_guard_first_without_building_tree(
         expected_site_count=site_count,
         expected_limit=2,
     )
-    assert "candidate_scoring_backend='full'" in message
+    assert "candidate_scoring_policy='full'" in message
     assert "full candidate-correlation scoring would evaluate" not in message
     assert tree_calls == []
 
@@ -233,13 +233,13 @@ def test_sampled_candidate_scoring_over_full_limit_does_not_use_full_guard() -> 
     clustered = cluster_sites_with_diagnostics(
         scoring_matrix=_small_scoring_matrix(),
         requested_module_count=None,
-        candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-        max_exact_cluster_tree_sites=10,
-        max_full_correlation_sites=2,
+        candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+        max_exact_tree_sites=10,
+        max_full_candidate_scoring_sites=2,
     )
 
     assert (
-        clustered.candidate_scoring_mode == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        clustered.candidate_scoring_mode == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
     )
 
 
@@ -271,7 +271,7 @@ def test_fit_cluster_labels_explicit_none_guard_fails_over_limit(
         fit_cluster_labels(
             _over_limit_scoring_values(),
             cluster_count=2,
-            max_exact_cluster_tree_sites=None,
+            max_exact_tree_sites=None,
         )
 
     _assert_exact_tree_guard_message(

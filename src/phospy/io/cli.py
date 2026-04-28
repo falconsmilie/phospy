@@ -19,16 +19,16 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-    SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
     SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
-    SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
-    SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
+    SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
+    SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+    SIGNALOME_TREE_ENGINE_EXACT,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -163,41 +163,41 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     signalome.add_argument(
-        "--cluster-tree-backend",
-        default=SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
-        choices=[SIGNALOME_CLUSTER_TREE_BACKEND_EXACT],
+        "--tree-engine",
+        default=SIGNALOME_TREE_ENGINE_EXACT,
+        choices=[SIGNALOME_TREE_ENGINE_EXACT],
         help=(
-            "Signalome cluster-tree construction backend. Currently only exact "
+            "Signalome tree-construction engine. Currently only exact "
             "tree construction is supported."
         ),
     )
     signalome.add_argument(
-        "--candidate-scoring-backend",
-        default=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+        "--candidate-scoring-policy",
+        default=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
         choices=[
-            SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-            SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+            SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+            SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
         ],
         help=(
-            "Signalome module-selection candidate scoring backend: full "
+            "Signalome module-selection candidate scoring policy: full "
             "correlations or sampled within-cluster estimates."
         ),
     )
     signalome.add_argument(
-        "--max-exact-cluster-tree-sites",
+        "--max-exact-tree-sites",
         type=int,
-        default=SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
+        default=SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
         help=(
-            "Hard execution guard for exact cluster-tree construction. Signalome "
+            "Hard execution guard for exact tree construction. Signalome "
             "fails when interpreted site count exceeds this limit."
         ),
     )
     signalome.add_argument(
-        "--max-full-correlation-sites",
+        "--max-full-candidate-scoring-sites",
         type=int,
-        default=SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
+        default=SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
         help=(
-            "Hard execution guard for candidate_scoring_backend=full. Full "
+            "Hard execution guard for candidate_scoring_policy=full. Full "
             "candidate scoring fails above this site count."
         ),
     )
@@ -362,10 +362,10 @@ def _run_signalome(args: argparse.Namespace) -> None:
         "network_policy": args.network_policy,
         "assignment_policy": args.assignment_policy,
         "score_preconditioning_policy": args.score_preconditioning_policy,
-        "cluster_tree_backend": args.cluster_tree_backend,
-        "candidate_scoring_backend": args.candidate_scoring_backend,
-        "max_exact_cluster_tree_sites": args.max_exact_cluster_tree_sites,
-        "max_full_correlation_sites": args.max_full_correlation_sites,
+        "tree_engine": args.tree_engine,
+        "candidate_scoring_policy": args.candidate_scoring_policy,
+        "max_exact_tree_sites": args.max_exact_tree_sites,
+        "max_full_candidate_scoring_sites": args.max_full_candidate_scoring_sites,
     }
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(

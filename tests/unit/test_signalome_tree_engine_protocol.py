@@ -9,7 +9,7 @@ from phospy.signalomes.clustering.backends.scipy_hierarchical import (
 )
 from phospy.signalomes.clustering.contracts import ClusterTreeEngine
 from phospy.signalomes.clustering.models import (
-    SignalomeClusteringBackendRequest,
+    SignalomeClusteringEngineRequest,
 )
 from phospy.signalomes.clustering.orchestration import run_clustering_with_tree_engine
 
@@ -73,23 +73,23 @@ def test_exact_and_scipy_tree_engines_produce_equivalent_partitions() -> None:
 
 
 def test_shared_orchestration_runs_with_either_tree_engine() -> None:
-    request = SignalomeClusteringBackendRequest(
+    request = SignalomeClusteringEngineRequest(
         scoring_matrix=_scoring_matrix(),
         site_to_protein=_site_to_protein(),
         requested_module_count=None,
         primary_threshold=0.5,
         fallback_threshold=0.1,
         max_clusters=4,
-        cluster_tree_backend="exact",
-        candidate_scoring_backend="full",
-        max_exact_cluster_tree_sites=10,
-        max_full_correlation_sites=10,
+        tree_engine="exact",
+        candidate_scoring_policy="full",
+        max_exact_tree_sites=10,
+        max_full_candidate_scoring_sites=10,
     )
 
     exact_result = run_clustering_with_tree_engine(
         request=request,
         tree_engine=ExactPythonTreeEngine(),
-        backend_name="exact_python",
+        clustering_engine="exact_python",
         backend_version="1",
         backend_diagnostics={
             "uses_scipy": False,
@@ -100,7 +100,7 @@ def test_shared_orchestration_runs_with_either_tree_engine() -> None:
     scipy_result = run_clustering_with_tree_engine(
         request=request,
         tree_engine=ScipyHierarchicalTreeEngine(),
-        backend_name="scipy_hierarchical",
+        clustering_engine="scipy_hierarchical",
         backend_version="1",
         backend_diagnostics={
             "uses_scipy": True,

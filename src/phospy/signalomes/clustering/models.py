@@ -1,4 +1,4 @@
-"""Internal signalome clustering backend models."""
+"""Internal signalome clustering engine models."""
 
 from __future__ import annotations
 
@@ -8,15 +8,15 @@ import pandas as pd
 
 from phospy.signalomes.models import SignalomeModuleSelectionDiagnostics
 
-SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON = "exact_python"
-SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION = "1"
-SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL = "scipy_hierarchical"
-SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL_VERSION = "1"
+SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON = "exact_python"
+SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION = "1"
+SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL = "scipy_hierarchical"
+SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL_VERSION = "1"
 
 
 @dataclass(frozen=True, slots=True)
-class SignalomeClusteringBackendRequest:
-    """Execution request for a clustering backend."""
+class SignalomeClusteringEngineRequest:
+    """Execution request for a clustering engine."""
 
     scoring_matrix: pd.DataFrame
     site_to_protein: pd.Series
@@ -24,18 +24,15 @@ class SignalomeClusteringBackendRequest:
     primary_threshold: float
     fallback_threshold: float
     max_clusters: int
-    cluster_tree_backend: str
-    candidate_scoring_backend: str | None
-    max_exact_cluster_tree_sites: int | None
-    max_full_correlation_sites: int
-    tree_engine: str | None = None
-    candidate_scoring_policy: str | None = None
-    clustering_engine: str | None = None
+    tree_engine: str
+    candidate_scoring_policy: str | None
+    max_exact_tree_sites: int | None
+    max_full_candidate_scoring_sites: int
 
 
 @dataclass(frozen=True, slots=True)
-class SignalomeClusteringBackendResult:
-    """Typed clustering backend output with diagnostics/provenance metadata."""
+class SignalomeClusteringEngineResult:
+    """Typed clustering engine output with diagnostics/provenance metadata."""
 
     site_clusters: pd.Series
     protein_modules: pd.Series
@@ -45,7 +42,7 @@ class SignalomeClusteringBackendResult:
     backend_version: str
     approximation_used: bool
     exact_cluster_tree_built: bool
-    cluster_tree_backend: str
+    tree_engine: str
     candidate_scoring_mode: str
     candidate_scoring_evaluated: bool
     candidate_scoring_skip_reason: str | None
@@ -56,10 +53,10 @@ class SignalomeClusteringBackendResult:
 
 
 __all__ = [
-    "SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON",
-    "SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION",
-    "SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL",
-    "SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL_VERSION",
-    "SignalomeClusteringBackendRequest",
-    "SignalomeClusteringBackendResult",
+    "SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON",
+    "SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION",
+    "SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL",
+    "SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL_VERSION",
+    "SignalomeClusteringEngineRequest",
+    "SignalomeClusteringEngineResult",
 ]

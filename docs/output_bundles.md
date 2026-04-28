@@ -151,16 +151,16 @@ unknown top-level fields are rejected with explicit bundle field-path errors.
 - reference identity/fingerprints
 - workflow parameters and random-state policy
   - signalome runs include `workflow_parameters.scale_guard` with
-    `site_count`, `cluster_tree_backend`, `candidate_scoring_backend`,
-    `candidate_scoring_requested_backend`,
-    `max_exact_cluster_tree_sites`, `max_full_correlation_sites`,
+    `site_count`, `tree_engine`, `candidate_scoring_policy`,
+    `candidate_scoring_requested_policy`,
+    `max_exact_tree_sites`, `max_full_candidate_scoring_sites`,
     `exact_cluster_tree_built`, `candidate_scoring_mode`,
     `candidate_scoring_evaluated`, `candidate_scoring_skip_reason`,
     `candidate_scoring_sampling`, `candidate_scoring_applies_to`,
     `final_module_assignment_backend`,
     `final_module_assignment_uses_candidate_scoring`, and
     `scale_guard_passed`
-  - `candidate_scoring_requested_backend` records the configured backend, while
+  - `candidate_scoring_requested_policy` records the configured backend, while
     `candidate_scoring_mode` records what was actually evaluated
   - when sampled candidate scoring actually runs,
     `workflow_parameters.scale_guard.candidate_scoring_sampling` records
@@ -317,13 +317,13 @@ Signalome config snapshot (all persisted fields):
   (`"cutoff_binary"`, `"weighted_top"`).
 - `signalome_config.score_preconditioning_policy`: downstream score
   preconditioning policy (`"allow_and_report"` or `"error_on_drop"`).
-- `signalome_config.cluster_tree_backend`: cluster-tree construction backend
+- `signalome_config.tree_engine`: cluster-tree construction backend
   (currently `"exact"`).
-- `signalome_config.candidate_scoring_backend`: candidate-scoring backend
+- `signalome_config.candidate_scoring_policy`: candidate-scoring backend
   (`"full"` or `"sampled"`).
-- `signalome_config.max_exact_cluster_tree_sites`: hard guard limit for exact
+- `signalome_config.max_exact_tree_sites`: hard guard limit for exact
   cluster-tree construction.
-- `signalome_config.max_full_correlation_sites`: hard guard limit for full
+- `signalome_config.max_full_candidate_scoring_sites`: hard guard limit for full
   candidate-correlation scoring.
 - `signalome_config.module_count`: explicit module count request when set.
 - `signalome_config.module_selection_primary_correlation_threshold`

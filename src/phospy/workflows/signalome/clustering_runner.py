@@ -17,15 +17,15 @@ from phospy.signalomes.clustering import (
     ClusterSitesResult,
     cluster_sites_with_diagnostics,
     derive_protein_modules,
-    run_signalome_clustering_backend,
+    run_signalome_clustering_engine,
 )
 from phospy.signalomes.clustering.exact_python import (
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     _CandidateScoringMode,
 )
-from phospy.signalomes.clustering.models import SignalomeClusteringBackendResult
+from phospy.signalomes.clustering.models import SignalomeClusteringEngineResult
 from phospy.signalomes.clustering.validation import validate_requested_module_count
 from phospy.workflows.signalome.component_helpers import (
     raise_boundary_error,
@@ -56,8 +56,8 @@ class SignalomeClusteringRunner:
         ),
         derive_modules: Callable[..., pd.Series] = derive_protein_modules,
         run_backend_clustering: Callable[
-            ..., SignalomeClusteringBackendResult
-        ] = run_signalome_clustering_backend,
+            ..., SignalomeClusteringEngineResult
+        ] = run_signalome_clustering_engine,
     ) -> None:
         self._cluster_sites = cluster_sites
         self._derive_modules = derive_modules
@@ -107,10 +107,10 @@ class SignalomeClusteringRunner:
                     primary_threshold=config.module_selection_primary_threshold,
                     fallback_threshold=config.module_selection_fallback_threshold,
                     max_clusters=config.module_selection_max_clusters,
-                    cluster_tree_backend=config.cluster_tree_backend,
-                    candidate_scoring_backend=config.candidate_scoring_backend,
-                    max_exact_cluster_tree_sites=config.max_exact_cluster_tree_sites,
-                    max_full_correlation_sites=config.max_full_correlation_sites,
+                    tree_engine=config.tree_engine,
+                    candidate_scoring_policy=config.candidate_scoring_policy,
+                    max_exact_tree_sites=config.max_exact_tree_sites,
+                    max_full_candidate_scoring_sites=config.max_full_candidate_scoring_sites,
                 )
                 protein_modules = self._derive_modules(
                     site_clusters=clustering_result.site_clusters,
@@ -124,18 +124,15 @@ class SignalomeClusteringRunner:
                     primary_threshold=config.module_selection_primary_threshold,
                     fallback_threshold=config.module_selection_fallback_threshold,
                     max_clusters=config.module_selection_max_clusters,
-                    cluster_tree_backend=config.cluster_tree_backend,
-                    candidate_scoring_backend=config.candidate_scoring_backend,
-                    max_exact_cluster_tree_sites=config.max_exact_cluster_tree_sites,
-                    max_full_correlation_sites=config.max_full_correlation_sites,
-                    backend_name=config.clustering_backend,
                     tree_engine=config.tree_engine,
                     candidate_scoring_policy=config.candidate_scoring_policy,
+                    max_exact_tree_sites=config.max_exact_tree_sites,
+                    max_full_candidate_scoring_sites=config.max_full_candidate_scoring_sites,
                     clustering_engine=config.clustering_engine,
                 )
                 if backend_result.candidate_scoring_mode not in {
-                    SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-                    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+                    SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+                    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
                     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
                 }:
                     raise ValueError(
@@ -145,7 +142,7 @@ class SignalomeClusteringRunner:
                 clustering_result = ClusterSitesResult(
                     site_clusters=backend_result.site_clusters,
                     module_selection_diagnostics=backend_result.module_selection_diagnostics,
-                    cluster_tree_backend=backend_result.cluster_tree_backend,
+                    tree_engine=backend_result.tree_engine,
                     candidate_scoring_mode=cast(
                         _CandidateScoringMode,
                         backend_result.candidate_scoring_mode,
@@ -177,10 +174,10 @@ class SignalomeClusteringRunner:
                 module_selection_primary_correlation_threshold=config.module_selection_primary_threshold,
                 module_selection_fallback_correlation_threshold=config.module_selection_fallback_threshold,
                 module_selection_max_clusters=config.module_selection_max_clusters,
-                cluster_tree_backend=config.cluster_tree_backend,
-                candidate_scoring_backend=config.candidate_scoring_backend,
-                max_exact_cluster_tree_sites=config.max_exact_cluster_tree_sites,
-                max_full_correlation_sites=config.max_full_correlation_sites,
+                tree_engine=config.tree_engine,
+                candidate_scoring_policy=config.candidate_scoring_policy,
+                max_exact_tree_sites=config.max_exact_tree_sites,
+                max_full_candidate_scoring_sites=config.max_full_candidate_scoring_sites,
                 downstream_score_sites=execution_metadata.downstream_score_sites,
                 downstream_score_kinases=execution_metadata.downstream_score_kinases,
                 stage_error=str(exc),
@@ -216,14 +213,16 @@ class SignalomeClusteringRunner:
         return SignalomeScaleGuardDecision(
             site_count=int(site_count),
             selected_module_count=selected_module_count,
-            clustering_backend=str(clustering_result.backend_name),
-            clustering_backend_version=str(clustering_result.backend_version),
+            clustering_engine=str(clustering_result.backend_name),
+            clustering_engine_version=str(clustering_result.backend_version),
             backend_diagnostics=clustering_result.backend_diagnostics,
-            cluster_tree_backend=str(config.cluster_tree_backend),
-            candidate_scoring_backend=str(config.candidate_scoring_backend),
-            candidate_scoring_requested_backend=str(config.candidate_scoring_backend),
-            max_exact_cluster_tree_sites=int(config.max_exact_cluster_tree_sites),
-            max_full_correlation_sites=int(config.max_full_correlation_sites),
+            tree_engine=str(config.tree_engine),
+            candidate_scoring_policy=str(config.candidate_scoring_policy),
+            candidate_scoring_requested_policy=str(config.candidate_scoring_policy),
+            max_exact_tree_sites=int(config.max_exact_tree_sites),
+            max_full_candidate_scoring_sites=int(
+                config.max_full_candidate_scoring_sites
+            ),
             exact_cluster_tree_built=bool(clustering_result.exact_cluster_tree_built),
             candidate_scoring_mode=str(clustering_result.candidate_scoring_mode),
             candidate_scoring_evaluated=bool(

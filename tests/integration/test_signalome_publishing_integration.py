@@ -117,8 +117,8 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
     assert "probabilities" in score_semantics["scientific_interpretation_limits"]
     assert "causal" in score_semantics["scientific_interpretation_limits"]
     thresholds = score_semantics["thresholds_and_limits"]
-    assert int(thresholds["max_exact_cluster_tree_sites"]) >= 1
-    assert int(thresholds["max_full_correlation_sites"]) >= 1
+    assert int(thresholds["max_exact_tree_sites"]) >= 1
+    assert int(thresholds["max_full_candidate_scoring_sites"]) >= 1
     assert float(thresholds["network_correlation_threshold"]) >= 0.0
 
     dataset_manifest = json.loads(

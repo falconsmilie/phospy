@@ -27,14 +27,14 @@ class SignalomeExecutionMetadata:
 class SignalomeScaleGuardDecision:
     site_count: int
     selected_module_count: int
-    clustering_backend: str
-    clustering_backend_version: str
+    clustering_engine: str
+    clustering_engine_version: str
     backend_diagnostics: dict[str, object] | None
-    cluster_tree_backend: str
-    candidate_scoring_backend: str
-    candidate_scoring_requested_backend: str
-    max_exact_cluster_tree_sites: int
-    max_full_correlation_sites: int
+    tree_engine: str
+    candidate_scoring_policy: str
+    candidate_scoring_requested_policy: str
+    max_exact_tree_sites: int
+    max_full_candidate_scoring_sites: int
     exact_cluster_tree_built: bool
     candidate_scoring_mode: str
     candidate_scoring_sampling: dict[str, object] | None
