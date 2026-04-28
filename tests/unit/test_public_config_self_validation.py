@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from phospy.api.configs import (
+    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
     SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
     SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
     DatasetComparisonBuildingConfig,
@@ -354,7 +355,15 @@ def test_kinase_activity_config_self_validates(
             "signalome workflow request config.module_count",
         ),
         (
+            {"module_count": -1},
+            "signalome workflow request config.module_count",
+        ),
+        (
             {"module_count": True},
+            "signalome workflow request config.module_count must be an int",
+        ),
+        (
+            {"module_count": 2.5},
             "signalome workflow request config.module_count must be an int",
         ),
         (
@@ -415,3 +424,32 @@ def test_signalome_config_rejects_removed_max_exact_clustering_sites_alias() -> 
         match="unexpected keyword argument 'max_exact_clustering_sites'",
     ):
         SignalomeConfig(max_exact_clustering_sites=1234)  # type: ignore[call-arg]
+
+
+def test_signalome_config_accepts_engine_policy_alias_names() -> None:
+    config = SignalomeConfig(
+        tree_engine="exact",
+        candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+        clustering_engine=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+    )
+    assert config.cluster_tree_backend == "exact"
+    assert config.tree_engine == "exact"
+    assert (
+        config.candidate_scoring_backend == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+    )
+    assert (
+        config.candidate_scoring_policy == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+    )
+    assert config.clustering_backend == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    assert config.clustering_engine == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+
+
+def test_signalome_config_rejects_conflicting_alias_and_legacy_values() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="conflicts with",
+    ):
+        SignalomeConfig(
+            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+            candidate_scoring_policy="full",
+        )

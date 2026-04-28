@@ -161,6 +161,46 @@ def test_signalome_snapshot_rejects_unknown_clustering_backend_value() -> None:
         )
 
 
+def test_signalome_snapshot_accepts_engine_policy_alias_fields() -> None:
+    snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
+        _full_signalome_snapshot_payload(
+            cluster_tree_backend=None,
+            candidate_scoring_backend=None,
+            clustering_backend=None,
+            tree_engine="exact",
+            candidate_scoring_policy="sampled",
+            clustering_engine="scipy_hierarchical",
+        )
+    )
+
+    assert snapshot.signalome_config.cluster_tree_backend == "exact"
+    assert snapshot.signalome_config.candidate_scoring_backend == "sampled"
+    assert snapshot.signalome_config.clustering_backend == "scipy_hierarchical"
+
+
+def test_signalome_snapshot_rejects_conflicting_alias_and_legacy_fields() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="conflicts with",
+    ):
+        SignalomeWorkflowConfigSnapshot.from_payload(
+            _full_signalome_snapshot_payload(
+                candidate_scoring_backend="full",
+                candidate_scoring_policy="sampled",
+            )
+        )
+
+
+def test_signalome_snapshot_rejects_float_module_count_payload() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="config snapshot.signalome_config.module_count must be an int",
+    ):
+        SignalomeWorkflowConfigSnapshot.from_payload(
+            _full_signalome_snapshot_payload(module_count=6.0)
+        )
+
+
 def test_signalome_snapshot_rejects_removed_network_policy_alias() -> None:
     with pytest.raises(
         PhosPyInputError,

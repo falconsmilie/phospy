@@ -675,6 +675,19 @@ def test_signalome_request_module_count_policy_fails_at_validator_boundary() -> 
         match="signalome workflow request config.module_count",
     ):
         SignalomeConfig(module_count=0)
+    with pytest.raises(
+        WorkflowValidationError,
+        match="signalome workflow request config.module_count",
+    ):
+        SignalomeConfig(module_count=-1)
+
+
+def test_signalome_request_module_count_type_fails_at_validator_boundary() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match="signalome workflow request config.module_count must be an int",
+    ):
+        SignalomeConfig(module_count=1.5)
 
 
 def test_signalome_request_module_selection_threshold_policy_fails_at_boundary() -> (

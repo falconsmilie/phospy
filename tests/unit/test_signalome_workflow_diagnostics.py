@@ -1257,7 +1257,9 @@ def test_explicit_multi_module_invokes_exact_tree_builder_for_final_assignment(
     monkeypatch: pytest.MonkeyPatch,
     execution_path: str,
 ) -> None:
-    from phospy.signalomes.clustering import exact_python as clustering_module
+    from phospy.signalomes.clustering.backends import (
+        exact_python as exact_tree_backend_module,
+    )
 
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
@@ -1294,15 +1296,15 @@ def test_explicit_multi_module_invokes_exact_tree_builder_for_final_assignment(
     )
 
     tree_calls: list[str] = []
-    original_build_cluster_tree = clustering_module._build_cluster_tree
+    original_build_cluster_tree = exact_tree_backend_module.build_cluster_tree
 
     def _build_tree_with_call_spy(scoring_values: object) -> object:
         tree_calls.append("called")
         return original_build_cluster_tree(scoring_values)
 
     monkeypatch.setattr(
-        clustering_module,
-        "_build_cluster_tree",
+        exact_tree_backend_module,
+        "build_cluster_tree",
         _build_tree_with_call_spy,
     )
 
@@ -1324,6 +1326,90 @@ def test_explicit_multi_module_invokes_exact_tree_builder_for_final_assignment(
         scale_guard["final_module_assignment_backend"]
         == SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
     )
+
+
+@pytest.mark.parametrize(
+    "execution_path",
+    _SIGNALOME_WORKFLOW_EXECUTION_PATHS,
+    ids=_SIGNALOME_WORKFLOW_EXECUTION_PATHS,
+)
+@pytest.mark.parametrize(
+    "clustering_backend",
+    (
+        SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+    ),
+)
+def test_explicit_module_count_above_available_sites_fails_before_clustering_starts(
+    monkeypatch: pytest.MonkeyPatch,
+    execution_path: str,
+    clustering_backend: str,
+) -> None:
+    from phospy.signalomes.clustering import exact_python as clustering_module
+
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.95, 0.1],
+            [0.1, 0.95],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.8, 0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(
+            substrate_support_cutoff=0.5,
+            module_count=4,
+            clustering_backend=clustering_backend,  # type: ignore[arg-type]
+        ),
+    )
+
+    tree_calls: list[str] = []
+
+    def _build_tree_should_not_run(scoring_values: object) -> object:
+        del scoring_values
+        tree_calls.append("called")
+        raise AssertionError(
+            "_build_cluster_tree should not run for invalid module-count requests"
+        )
+
+    monkeypatch.setattr(
+        clustering_module,
+        "_build_cluster_tree",
+        _build_tree_should_not_run,
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        _run_signalome_workflow_path(
+            request=request,
+            execution_path=execution_path,
+        )
+
+    message = str(exc_info.value)
+    assert f"seam={SIGNALOME_EXECUTOR_MODULE_CONSTRUCTION_SEAM}" in message
+    assert "requested_module_count=4" in message
+    assert "available_clustering_site_count=3" in message
+    assert (
+        "affected_configuration_field=signalome workflow request config.module_count"
+        in message
+    )
+    assert tree_calls == []
 
 
 @pytest.mark.parametrize(

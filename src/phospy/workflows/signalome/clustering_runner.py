@@ -7,7 +7,10 @@ from typing import cast
 
 import pandas as pd
 
-from phospy.errors.workflows import WorkflowStageError
+from phospy.errors.workflows import (
+    SignalomeModuleCountValidationError,
+    WorkflowStageError,
+)
 from phospy.signalomes.clustering import (
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE,
@@ -23,6 +26,7 @@ from phospy.signalomes.clustering.exact_python import (
     _CandidateScoringMode,
 )
 from phospy.signalomes.clustering.models import SignalomeClusteringBackendResult
+from phospy.signalomes.clustering.validation import validate_requested_module_count
 from phospy.workflows.signalome.component_helpers import (
     raise_boundary_error,
     requested_module_count_label,
@@ -71,10 +75,35 @@ class SignalomeClusteringRunner:
         execution_metadata: SignalomeExecutionMetadata,
     ) -> SignalomeClusteringRunResult:
         try:
+            validated_requested_module_count = validate_requested_module_count(
+                requested_module_count=config.requested_module_count,
+                available_clustering_site_count=int(
+                    request.downstream_score_matrix.shape[0]
+                ),
+                field_name="signalome workflow request config.module_count",
+            )
+        except SignalomeModuleCountValidationError as exc:
+            raise_boundary_error(
+                seam=SIGNALOME_EXECUTOR_MODULE_CONSTRUCTION_SEAM,
+                next_action=(
+                    "choose config.module_count between 1 and the number of "
+                    "available clustering sites, or omit config.module_count for "
+                    "automatic module-count selection"
+                ),
+                requested_module_count=requested_module_count_label(
+                    config.requested_module_count
+                ),
+                available_clustering_site_count=int(
+                    request.downstream_score_matrix.shape[0]
+                ),
+                affected_configuration_field="signalome workflow request config.module_count",
+                validation_error=str(exc),
+            )
+        try:
             if self._use_legacy_injected_cluster_functions:
                 clustering_result = self._cluster_sites(
                     scoring_matrix=request.downstream_score_matrix,
-                    requested_module_count=config.requested_module_count,
+                    requested_module_count=validated_requested_module_count,
                     primary_threshold=config.module_selection_primary_threshold,
                     fallback_threshold=config.module_selection_fallback_threshold,
                     max_clusters=config.module_selection_max_clusters,
@@ -91,7 +120,7 @@ class SignalomeClusteringRunner:
                 backend_result = self._run_backend_clustering(
                     scoring_matrix=request.downstream_score_matrix,
                     site_to_protein=request.site_to_protein,
-                    requested_module_count=config.requested_module_count,
+                    requested_module_count=validated_requested_module_count,
                     primary_threshold=config.module_selection_primary_threshold,
                     fallback_threshold=config.module_selection_fallback_threshold,
                     max_clusters=config.module_selection_max_clusters,
@@ -100,6 +129,9 @@ class SignalomeClusteringRunner:
                     max_exact_cluster_tree_sites=config.max_exact_cluster_tree_sites,
                     max_full_correlation_sites=config.max_full_correlation_sites,
                     backend_name=config.clustering_backend,
+                    tree_engine=config.tree_engine,
+                    candidate_scoring_policy=config.candidate_scoring_policy,
+                    clustering_engine=config.clustering_engine,
                 )
                 if backend_result.candidate_scoring_mode not in {
                     SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,

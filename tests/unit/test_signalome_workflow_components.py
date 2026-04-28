@@ -410,6 +410,7 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert "cluster_tree_backend" in signalome_config
     assert "candidate_scoring_backend" in signalome_config
     assert "max_exact_cluster_tree_sites" in signalome_config
+    assert signalome_config["module_count"] == 2
     scale_guard = provenance.workflow_parameters["scale_guard"]
     assert "cluster_tree_backend" in scale_guard
     assert "candidate_scoring_backend" in scale_guard

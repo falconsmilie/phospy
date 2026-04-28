@@ -5,15 +5,17 @@ import pandas as pd
 import pytest
 
 import phospy.signalomes.clustering as clustering_module
+from phospy.errors import SignalomeModuleCountValidationError
 from phospy.signalomes.clustering import (
     cluster_sites_with_diagnostics,
     fit_cluster_labels,
     select_module_count_with_diagnostics,
 )
 from phospy.signalomes.clustering import exact_python as exact_clustering
+from phospy.signalomes.clustering import orchestration as clustering_orchestration
 
 
-def test_module_count_selection_clamps_explicit_request_to_site_count() -> None:
+def test_module_count_selection_accepts_explicit_request_equal_to_site_count() -> None:
     scoring_values = np.asarray(
         [
             [1.0, 2.0, 3.0],
@@ -25,14 +27,142 @@ def test_module_count_selection_clamps_explicit_request_to_site_count() -> None:
 
     diagnostics = select_module_count_with_diagnostics(
         scoring_values=scoring_values,
-        requested_module_count=5,
+        requested_module_count=3,
     )
 
     assert diagnostics.strategy == "explicit_module_count"
     assert diagnostics.selected_module_count == 3
-    assert diagnostics.requested_module_count == 5
+    assert diagnostics.requested_module_count == 3
     assert diagnostics.reason == "module_count was provided explicitly by the caller"
     assert diagnostics.candidate_scores == {}
+
+
+def test_module_count_selection_accepts_explicit_request_less_than_site_count() -> None:
+    scoring_values = np.asarray(
+        [
+            [1.0, 2.0, 3.0],
+            [1.1, 2.1, 3.1],
+            [0.9, 1.9, 2.9],
+        ],
+        dtype=float,
+    )
+
+    diagnostics = select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+        requested_module_count=2,
+    )
+
+    assert diagnostics.strategy == "explicit_module_count"
+    assert diagnostics.selected_module_count == 2
+    assert diagnostics.requested_module_count == 2
+
+
+def test_module_count_selection_accepts_explicit_request_of_one() -> None:
+    scoring_values = np.asarray(
+        [
+            [1.0, 2.0, 3.0],
+            [1.1, 2.1, 3.1],
+            [0.9, 1.9, 2.9],
+        ],
+        dtype=float,
+    )
+
+    diagnostics = select_module_count_with_diagnostics(
+        scoring_values=scoring_values,
+        requested_module_count=1,
+    )
+
+    assert diagnostics.strategy == "explicit_module_count"
+    assert diagnostics.selected_module_count == 1
+    assert diagnostics.requested_module_count == 1
+
+
+def test_module_count_selection_rejects_explicit_request_above_site_count() -> None:
+    scoring_values = np.asarray(
+        [
+            [1.0, 2.0, 3.0],
+            [1.1, 2.1, 3.1],
+            [0.9, 1.9, 2.9],
+        ],
+        dtype=float,
+    )
+
+    with pytest.raises(SignalomeModuleCountValidationError) as exc_info:
+        select_module_count_with_diagnostics(
+            scoring_values=scoring_values,
+            requested_module_count=5,
+        )
+
+    message = str(exc_info.value)
+    assert "field=signalome workflow request config.module_count" in message
+    assert "requested_module_count=5" in message
+    assert "available_clustering_site_count=3" in message
+    assert (
+        "choose a module count between 1 and the number of available clustering sites"
+        in message
+    )
+
+
+@pytest.mark.parametrize("requested_module_count", [0, -1])
+def test_module_count_selection_rejects_non_positive_explicit_request(
+    requested_module_count: int,
+) -> None:
+    scoring_values = np.asarray(
+        [
+            [1.0, 2.0, 3.0],
+            [1.1, 2.1, 3.1],
+            [0.9, 1.9, 2.9],
+        ],
+        dtype=float,
+    )
+
+    with pytest.raises(SignalomeModuleCountValidationError) as exc_info:
+        select_module_count_with_diagnostics(
+            scoring_values=scoring_values,
+            requested_module_count=requested_module_count,
+        )
+
+    message = str(exc_info.value)
+    assert "field=signalome workflow request config.module_count" in message
+    assert f"requested_module_count={requested_module_count}" in message
+    assert "available_clustering_site_count=3" in message
+    assert (
+        "choose a module count between 1 and the number of available clustering sites"
+        in message
+    )
+
+
+def test_invalid_explicit_module_count_fails_before_candidate_scoring(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scoring_values = np.asarray(
+        [
+            [1.0, 2.0, 3.0],
+            [1.1, 2.1, 3.1],
+            [0.9, 1.9, 2.9],
+        ],
+        dtype=float,
+    )
+    candidate_scoring_calls: list[str] = []
+
+    def _candidate_scoring_should_not_run(**kwargs: object) -> object:
+        del kwargs
+        candidate_scoring_calls.append("called")
+        raise AssertionError("candidate scoring should not run for invalid requests")
+
+    monkeypatch.setattr(
+        exact_clustering,
+        "_compute_candidate_cluster_scores",
+        _candidate_scoring_should_not_run,
+    )
+
+    with pytest.raises(SignalomeModuleCountValidationError):
+        select_module_count_with_diagnostics(
+            scoring_values=scoring_values,
+            requested_module_count=5,
+        )
+
+    assert candidate_scoring_calls == []
 
 
 def test_module_count_automatic_selection_surfaces_stable_diagnostics() -> None:
@@ -70,9 +200,7 @@ def test_cluster_sites_matches_two_pass_partition_for_selected_module_count() ->
     )
     scoring_values = scoring_matrix.to_numpy(dtype=float)
     diagnostics = select_module_count_with_diagnostics(scoring_values=scoring_values)
-    module_count = max(
-        1, min(diagnostics.selected_module_count, scoring_values.shape[0])
-    )
+    module_count = int(diagnostics.selected_module_count)
     if module_count == 1:
         baseline_labels = np.ones(scoring_values.shape[0], dtype=int)
     else:
@@ -250,14 +378,14 @@ def test_module_selection_survives_empty_candidate_range_branch(
         dtype=float,
     )
 
-    original_resolver = exact_clustering._resolve_pre_scoring_module_selection
+    original_resolver = clustering_orchestration._resolve_pre_scoring_module_selection
 
     def _force_empty_candidate_range(**kwargs: object) -> tuple[None, int]:
         _, resolved_max_clusters = original_resolver(**kwargs)
         return None, min(1, int(resolved_max_clusters))
 
     monkeypatch.setattr(
-        exact_clustering,
+        clustering_orchestration,
         "_resolve_pre_scoring_module_selection",
         _force_empty_candidate_range,
     )

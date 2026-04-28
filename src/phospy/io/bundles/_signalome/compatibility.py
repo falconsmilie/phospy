@@ -46,13 +46,24 @@ _SIGNALOME_CONFIG_ALLOWED_FIELDS = frozenset(
         "module_selection_fallback_correlation_threshold",
         "module_selection_max_clusters",
         "clustering_backend",
+        "tree_engine",
+        "candidate_scoring_policy",
+        "clustering_engine",
     }
 )
 _SIGNALOME_CONFIG_REQUIRED_FIELDS = frozenset(
     {
         field
         for field in _SIGNALOME_CONFIG_ALLOWED_FIELDS
-        if field != "clustering_backend"
+        if field
+        not in {
+            "cluster_tree_backend",
+            "candidate_scoring_backend",
+            "clustering_backend",
+            "tree_engine",
+            "candidate_scoring_policy",
+            "clustering_engine",
+        }
     }
 )
 
@@ -112,33 +123,46 @@ def signalome_config_from_payload(
         raise PhosPyInputError(
             f"{scope}.signalome_config.score_preconditioning_policy must be one of: {allowed}"
         )
-    cluster_tree_backend = require_str(
-        payload.get("cluster_tree_backend"),
-        field_name=f"{scope}.signalome_config.cluster_tree_backend",
+    cluster_tree_backend = _resolve_optional_alias_string(
+        payload=payload,
+        canonical_key="cluster_tree_backend",
+        alias_key="tree_engine",
+        scope=scope,
     )
+    if cluster_tree_backend is None:
+        raise PhosPyInputError(
+            f"{scope}.signalome_config must provide cluster_tree_backend or tree_engine"
+        )
     if cluster_tree_backend not in SIGNALOME_CLUSTER_TREE_BACKENDS:
         allowed = ", ".join(sorted(SIGNALOME_CLUSTER_TREE_BACKENDS))
         raise PhosPyInputError(
             f"{scope}.signalome_config.cluster_tree_backend must be one of: {allowed}"
         )
-    candidate_scoring_backend = require_str(
-        payload.get("candidate_scoring_backend"),
-        field_name=f"{scope}.signalome_config.candidate_scoring_backend",
+    candidate_scoring_backend = _resolve_optional_alias_string(
+        payload=payload,
+        canonical_key="candidate_scoring_backend",
+        alias_key="candidate_scoring_policy",
+        scope=scope,
     )
+    if candidate_scoring_backend is None:
+        raise PhosPyInputError(
+            f"{scope}.signalome_config must provide candidate_scoring_backend or "
+            "candidate_scoring_policy"
+        )
     if candidate_scoring_backend not in SIGNALOME_CANDIDATE_SCORING_BACKENDS:
         allowed = ", ".join(sorted(SIGNALOME_CANDIDATE_SCORING_BACKENDS))
         raise PhosPyInputError(
             f"{scope}.signalome_config.candidate_scoring_backend must be one of: "
             f"{allowed}"
         )
-    clustering_backend = payload.get("clustering_backend")
+    clustering_backend = _resolve_optional_alias_string(
+        payload=payload,
+        canonical_key="clustering_backend",
+        alias_key="clustering_engine",
+        scope=scope,
+    )
     if clustering_backend is None:
         clustering_backend = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
-    else:
-        clustering_backend = require_str(
-            clustering_backend,
-            field_name=f"{scope}.signalome_config.clustering_backend",
-        )
     if clustering_backend not in SIGNALOME_CLUSTERING_BACKENDS:
         allowed = ", ".join(sorted(SIGNALOME_CLUSTERING_BACKENDS))
         raise PhosPyInputError(
@@ -634,9 +658,42 @@ def _parse_optional_int(value: object, *, field_name: str) -> int | None:
         raise PhosPyInputError(f"{field_name} must be an int")
     if isinstance(value, int):
         return int(value)
-    if isinstance(value, float) and float(value).is_integer():
-        return int(value)
     raise PhosPyInputError(f"{field_name} must be an int")
+
+
+def _resolve_optional_alias_string(
+    *,
+    payload: Mapping[str, object],
+    canonical_key: str,
+    alias_key: str,
+    scope: str,
+) -> str | None:
+    canonical_value = payload.get(canonical_key)
+    alias_value = payload.get(alias_key)
+    if canonical_value is None and alias_value is None:
+        return None
+    canonical = (
+        None
+        if canonical_value is None
+        else require_str(
+            canonical_value,
+            field_name=f"{scope}.signalome_config.{canonical_key}",
+        )
+    )
+    alias = (
+        None
+        if alias_value is None
+        else require_str(
+            alias_value,
+            field_name=f"{scope}.signalome_config.{alias_key}",
+        )
+    )
+    if canonical is not None and alias is not None and canonical != alias:
+        raise PhosPyInputError(
+            f"{scope}.signalome_config.{canonical_key} conflicts with "
+            f"{scope}.signalome_config.{alias_key}; provide matching values."
+        )
+    return canonical if canonical is not None else alias
 
 
 def _require_int(value: object, *, field_name: str) -> int:

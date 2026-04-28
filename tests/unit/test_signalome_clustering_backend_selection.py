@@ -4,6 +4,7 @@ import pandas as pd
 import pandas.testing as pdt
 import pytest
 
+from phospy.errors import SignalomeModuleCountValidationError
 from phospy.signalomes.clustering import (
     SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
     SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION,
@@ -207,34 +208,23 @@ def test_exact_backend_result_is_not_contaminated_by_prior_scipy_run() -> None:
     )
 
 
-def test_scipy_backend_run_does_not_mutate_exact_cluster_tree_functions(
+def test_scipy_backend_run_does_not_call_exact_orchestration(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    observed_function_state: list[tuple[bool, bool]] = []
-    original_cluster_sites_with_diagnostics = (
-        exact_clustering.cluster_sites_with_diagnostics
-    )
-    original_build_cluster_tree = exact_clustering._build_cluster_tree
-    original_build_cluster_labels_from_tree = (
-        exact_clustering.build_cluster_labels_from_tree
-    )
+    observed_exact_orchestration_calls: list[str] = []
 
-    def _cluster_with_invariant_check(*args: object, **kwargs: object):
-        observed_function_state.append(
-            (
-                exact_clustering._build_cluster_tree is original_build_cluster_tree,
-                (
-                    exact_clustering.build_cluster_labels_from_tree
-                    is original_build_cluster_labels_from_tree
-                ),
-            )
+    def _should_not_run(*args: object, **kwargs: object) -> object:
+        del args
+        del kwargs
+        observed_exact_orchestration_calls.append("called")
+        raise AssertionError(
+            "scipy backend should use shared orchestration directly, not exact module"
         )
-        return original_cluster_sites_with_diagnostics(*args, **kwargs)
 
     monkeypatch.setattr(
         exact_clustering,
         "cluster_sites_with_diagnostics",
-        _cluster_with_invariant_check,
+        _should_not_run,
     )
 
     run_signalome_clustering_backend(
@@ -247,5 +237,57 @@ def test_scipy_backend_run_does_not_mutate_exact_cluster_tree_functions(
         backend_name=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
     )
 
-    assert observed_function_state == [(True, True)]
+    assert observed_exact_orchestration_calls == []
     assert not hasattr(scipy_clustering, "_patched_exact_tree_functions")
+
+
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+    ],
+)
+def test_backend_rejects_requested_module_count_above_available_sites(
+    backend_name: str,
+) -> None:
+    with pytest.raises(SignalomeModuleCountValidationError) as exc_info:
+        run_signalome_clustering_backend(
+            scoring_matrix=_small_scoring_matrix(),
+            site_to_protein=_small_site_to_protein(),
+            requested_module_count=10,
+            primary_threshold=0.5,
+            fallback_threshold=0.1,
+            max_clusters=5,
+            backend_name=backend_name,
+        )
+
+    message = str(exc_info.value)
+    assert "field=signalome workflow request config.module_count" in message
+    assert "requested_module_count=10" in message
+    assert "available_clustering_site_count=4" in message
+
+
+@pytest.mark.parametrize(
+    ("requested_module_count", "backend_name"),
+    [
+        (0, SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON),
+        (0, SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL),
+        (-1, SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON),
+        (-1, SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL),
+    ],
+)
+def test_backend_rejects_non_positive_requested_module_count(
+    requested_module_count: int,
+    backend_name: str,
+) -> None:
+    with pytest.raises(SignalomeModuleCountValidationError):
+        run_signalome_clustering_backend(
+            scoring_matrix=_small_scoring_matrix(),
+            site_to_protein=_small_site_to_protein(),
+            requested_module_count=requested_module_count,
+            primary_threshold=0.5,
+            fallback_threshold=0.1,
+            max_clusters=5,
+            backend_name=backend_name,
+        )
