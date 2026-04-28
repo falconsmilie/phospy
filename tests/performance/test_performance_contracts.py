@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import time
+
 import numpy as np
 import pandas as pd
 import pytest
 
-from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
+from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow, SignalomeWorkflow
 from phospy.api import (
     DatasetBuildRequest,
     KinasePredictionConfig,
@@ -12,9 +14,13 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
+    SignalomeConfig,
+    SignalomeWorkflowRequest,
 )
+from phospy.api.results import KinaseScoringResult, KinaseWorkflowResult
 from phospy.datasets.preprocessing.models import PreprocessingPlan, PreprocessingState
 from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
+from phospy.errors.workflows import SignalomeScaleError
 from phospy.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
     build_motif_library,
@@ -22,7 +28,17 @@ from phospy.prediction.motif_scoring import (
 )
 from phospy.signalomes.clustering import (
     MAX_FULL_CORRELATION_SITE_COUNT,
+    SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+    SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+    SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
+    SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT,
+    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+    run_signalome_clustering_backend,
     select_module_count_with_diagnostics,
+)
+from phospy.signalomes.models import (
+    SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
 )
 from tests.support.performance_contracts import (
     deterministic_kinase_substrate_map,
@@ -53,6 +69,17 @@ KINASE_FILTERED_REFERENCE_PEAK_MIB_MAX = 300.0
 
 DIAGNOSTIC_RUNTIME_RATIO_MULTIPLIER = 5.0
 DIAGNOSTIC_RUNTIME_ABSOLUTE_SECONDS = 1.0
+
+SIGNALOME_BACKEND_SMALL_RUNTIME_SECONDS_MAX = 10.0
+SIGNALOME_BACKEND_MEDIUM_RUNTIME_SECONDS_MAX = 18.0
+SIGNALOME_BACKEND_SMALL_PEAK_MIB_MAX = 256.0
+SIGNALOME_BACKEND_MEDIUM_PEAK_MIB_MAX = 512.0
+SIGNALOME_NEAR_THRESHOLD_RUNTIME_SECONDS_MAX = 12.0
+SIGNALOME_FULL_GUARD_RUNTIME_SECONDS_MAX = 3.0
+SIGNALOME_WORKFLOW_RUNTIME_SECONDS_MAX = 20.0
+SIGNALOME_WORKFLOW_PEAK_MIB_MAX = 700.0
+SIGNALOME_WORKFLOW_PRECONDITIONED_RUNTIME_SECONDS_MAX = 20.0
+SIGNALOME_WORKFLOW_PRECONDITIONED_PEAK_MIB_MAX = 700.0
 
 
 def _patch_cluster_tree_build_for_contract_scoring(
@@ -97,6 +124,121 @@ def _build_signalome_scoring_matrix(
         name="kinase",
     )
     return matrix
+
+
+def _build_signalome_realistic_scoring_matrix(
+    *,
+    n_sites: int,
+    n_kinases: int,
+    seed: int,
+) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+    n_modules = max(4, min(20, n_sites // 12))
+    module_profiles = rng.normal(
+        loc=10.0,
+        scale=1.7,
+        size=(n_modules, int(n_kinases)),
+    )
+    module_assignments = (np.arange(int(n_sites), dtype=int) * 5) % int(n_modules)
+    noise = rng.normal(loc=0.0, scale=0.28, size=(int(n_sites), int(n_kinases)))
+    values = np.round(module_profiles[module_assignments] + noise, decimals=6)
+    site_ids = deterministic_site_ids(int(n_sites), start=30_000, gene_prefix="SIGSITE")
+    return pd.DataFrame(
+        values,
+        index=site_ids,
+        columns=pd.Index(
+            [f"KINASE_{index + 1:03d}" for index in range(int(n_kinases))],
+            name="kinase",
+        ),
+        dtype=float,
+    )
+
+
+def _build_signalome_site_to_protein(
+    site_ids: pd.Index,
+    *,
+    sites_per_protein: int,
+) -> pd.Series:
+    if sites_per_protein < 1:
+        raise ValueError("sites_per_protein must be >= 1")
+    proteins = [
+        f"PROT_{(index // int(sites_per_protein)) + 1:05d}"
+        for index in range(int(site_ids.size))
+    ]
+    return pd.Series(
+        proteins,
+        index=pd.Index(site_ids.astype(str), name="site_id"),
+        name="protein_id",
+        dtype=str,
+    )
+
+
+def _collect_backend_contract_snapshot(
+    *,
+    backend_result: object,
+    scoring_matrix: pd.DataFrame,
+    runtime_seconds: float,
+    peak_mib: float,
+) -> dict[str, object]:
+    diagnostics = backend_result.module_selection_diagnostics
+    return {
+        "backend_name": str(backend_result.backend_name),
+        "site_count": int(scoring_matrix.shape[0]),
+        "kinase_count": int(scoring_matrix.shape[1]),
+        "selected_module_count": int(diagnostics.selected_module_count),
+        "exact_tree_backend": str(backend_result.cluster_tree_backend),
+        "candidate_scoring_mode": str(backend_result.candidate_scoring_mode),
+        "sampled_candidate_scoring_activated": bool(
+            backend_result.candidate_scoring_evaluated
+            and backend_result.candidate_scoring_mode
+            == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+        ),
+        "candidate_scoring_skipped": bool(
+            not backend_result.candidate_scoring_evaluated
+        ),
+        "exact_tree_construction_occurred": bool(
+            backend_result.exact_cluster_tree_built
+        ),
+        "runtime_seconds": float(runtime_seconds),
+        "peak_mib": float(peak_mib),
+    }
+
+
+def _cluster_partitions_match(left: pd.Series, right: pd.Series) -> bool:
+    if not left.index.equals(right.index):
+        return False
+    left_values = left.to_numpy(dtype=int, copy=False)
+    right_values = right.to_numpy(dtype=int, copy=False)
+    left_equal = left_values[:, None] == left_values[None, :]
+    right_equal = right_values[:, None] == right_values[None, :]
+    return bool(np.array_equal(left_equal, right_equal))
+
+
+def _run_signalome_backend_contract(
+    *,
+    scoring_matrix: pd.DataFrame,
+    site_to_protein: pd.Series,
+    backend_name: str,
+    max_clusters: int = 8,
+    candidate_scoring_backend: str | None = None,
+    max_exact_cluster_tree_sites: int | None = None,
+    max_full_correlation_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
+) -> tuple[object, float, float]:
+    return measure_runtime_and_peak_mib(
+        lambda: run_signalome_clustering_backend(
+            scoring_matrix=scoring_matrix,
+            site_to_protein=site_to_protein,
+            requested_module_count=None,
+            primary_threshold=0.45,
+            fallback_threshold=0.15,
+            max_clusters=max_clusters,
+            candidate_scoring_backend=candidate_scoring_backend,
+            max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
+            max_full_correlation_sites=max_full_correlation_sites,
+            backend_name=backend_name,
+        ),
+        warmup=True,
+    )
 
 
 def _build_kinase_workflow_inputs(
@@ -153,6 +295,42 @@ def _build_kinase_workflow_inputs(
     return site_ids, dataset, references, eligible_kinase_names
 
 
+def _build_kinase_result_for_signalome_performance(
+    *,
+    n_sites: int,
+    n_samples: int,
+    eligible_kinases: int,
+    substrates_per_kinase: int,
+    offlane_kinases: int,
+    offlane_sites_per_kinase: int,
+) -> tuple[KinaseWorkflowResult, set[str]]:
+    _site_ids, dataset, references, eligible_kinase_names = (
+        _build_kinase_workflow_inputs(
+            n_sites=n_sites,
+            n_samples=n_samples,
+            eligible_kinases=eligible_kinases,
+            substrates_per_kinase=substrates_per_kinase,
+            offlane_kinases=offlane_kinases,
+            offlane_sites_per_kinase=offlane_sites_per_kinase,
+        )
+    )
+    request = KinaseWorkflowRequest(
+        dataset=dataset,
+        references=references,
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            include_diagnostic_scoring_tables=False,
+        ),
+        prediction_config=KinasePredictionConfig(
+            top_k=6,
+            deterministic_max_selected_kinases=10,
+            adaptive_ensemble_runs=10,
+        ),
+        activity_config=None,
+    )
+    return KinaseWorkflow().run(request), eligible_kinase_names
+
+
 def test_signalome_full_vs_approximate_correlation_performance_contract(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -198,6 +376,443 @@ def test_signalome_full_vs_approximate_correlation_performance_contract(
         1024 * 1024
     )
     assert above_peak_mib < full_matrix_mib * 0.75
+
+
+def test_signalome_backend_contracts_compare_exact_and_scipy_equivalent_small_fixture() -> (
+    None
+):
+    scoring_matrix = _build_signalome_realistic_scoring_matrix(
+        n_sites=48,
+        n_kinases=14,
+        seed=2301,
+    )
+    site_to_protein = _build_signalome_site_to_protein(
+        scoring_matrix.index,
+        sites_per_protein=2,
+    )
+
+    exact_result, exact_runtime, exact_peak_mib = _run_signalome_backend_contract(
+        scoring_matrix=scoring_matrix,
+        site_to_protein=site_to_protein,
+        backend_name=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        max_clusters=8,
+        max_exact_cluster_tree_sites=96,
+        max_full_correlation_sites=96,
+    )
+    scipy_result, scipy_runtime, scipy_peak_mib = _run_signalome_backend_contract(
+        scoring_matrix=scoring_matrix,
+        site_to_protein=site_to_protein,
+        backend_name=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+        max_clusters=8,
+        max_exact_cluster_tree_sites=96,
+        max_full_correlation_sites=96,
+    )
+
+    assert _cluster_partitions_match(
+        exact_result.site_clusters,
+        scipy_result.site_clusters,
+    )
+    assert _cluster_partitions_match(
+        exact_result.protein_modules,
+        scipy_result.protein_modules,
+    )
+    assert (
+        exact_result.module_selection_diagnostics.selected_module_count
+        == scipy_result.module_selection_diagnostics.selected_module_count
+    )
+    assert exact_result.candidate_scoring_mode == scipy_result.candidate_scoring_mode
+
+    exact_snapshot = _collect_backend_contract_snapshot(
+        backend_result=exact_result,
+        scoring_matrix=scoring_matrix,
+        runtime_seconds=exact_runtime,
+        peak_mib=exact_peak_mib,
+    )
+    scipy_snapshot = _collect_backend_contract_snapshot(
+        backend_result=scipy_result,
+        scoring_matrix=scoring_matrix,
+        runtime_seconds=scipy_runtime,
+        peak_mib=scipy_peak_mib,
+    )
+
+    assert exact_snapshot["backend_name"] == SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
+    assert (
+        scipy_snapshot["backend_name"]
+        == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    )
+    assert exact_snapshot["site_count"] == int(scoring_matrix.shape[0])
+    assert scipy_snapshot["site_count"] == int(scoring_matrix.shape[0])
+    assert exact_snapshot["kinase_count"] == int(scoring_matrix.shape[1])
+    assert scipy_snapshot["kinase_count"] == int(scoring_matrix.shape[1])
+    assert exact_snapshot["selected_module_count"] >= 1
+    assert scipy_snapshot["selected_module_count"] >= 1
+    assert exact_snapshot["exact_tree_backend"] == "exact"
+    assert scipy_snapshot["exact_tree_backend"] == "exact"
+    assert (
+        exact_snapshot["candidate_scoring_mode"]
+        == SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+    )
+    assert (
+        scipy_snapshot["candidate_scoring_mode"]
+        == SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL
+    )
+    assert exact_snapshot["sampled_candidate_scoring_activated"] is False
+    assert scipy_snapshot["sampled_candidate_scoring_activated"] is False
+    assert exact_snapshot["candidate_scoring_skipped"] is False
+    assert scipy_snapshot["candidate_scoring_skipped"] is False
+    assert exact_snapshot["exact_tree_construction_occurred"] is True
+    assert scipy_snapshot["exact_tree_construction_occurred"] is True
+    assert (
+        exact_snapshot["runtime_seconds"] < SIGNALOME_BACKEND_SMALL_RUNTIME_SECONDS_MAX
+    )
+    assert (
+        scipy_snapshot["runtime_seconds"] < SIGNALOME_BACKEND_SMALL_RUNTIME_SECONDS_MAX
+    )
+    assert exact_snapshot["peak_mib"] < SIGNALOME_BACKEND_SMALL_PEAK_MIB_MAX
+    assert scipy_snapshot["peak_mib"] < SIGNALOME_BACKEND_SMALL_PEAK_MIB_MAX
+
+
+def test_signalome_backend_contracts_medium_fixture_activates_sampled_candidate_scoring() -> (
+    None
+):
+    scoring_matrix = _build_signalome_realistic_scoring_matrix(
+        n_sites=420,
+        n_kinases=24,
+        seed=2302,
+    )
+    site_to_protein = _build_signalome_site_to_protein(
+        scoring_matrix.index,
+        sites_per_protein=3,
+    )
+
+    exact_result, exact_runtime, exact_peak_mib = _run_signalome_backend_contract(
+        scoring_matrix=scoring_matrix,
+        site_to_protein=site_to_protein,
+        backend_name=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        max_clusters=10,
+        max_exact_cluster_tree_sites=500,
+        max_full_correlation_sites=180,
+    )
+    scipy_result, scipy_runtime, scipy_peak_mib = _run_signalome_backend_contract(
+        scoring_matrix=scoring_matrix,
+        site_to_protein=site_to_protein,
+        backend_name=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+        max_clusters=10,
+        max_exact_cluster_tree_sites=500,
+        max_full_correlation_sites=180,
+    )
+
+    assert (
+        exact_result.candidate_scoring_mode
+        == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+    )
+    assert (
+        scipy_result.candidate_scoring_mode
+        == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+    )
+    assert exact_result.candidate_scoring_evaluated is True
+    assert scipy_result.candidate_scoring_evaluated is True
+    assert exact_result.candidate_scoring_skip_reason is None
+    assert scipy_result.candidate_scoring_skip_reason is None
+    assert exact_result.candidate_scoring_sampling is not None
+    assert scipy_result.candidate_scoring_sampling is not None
+    assert (
+        APPROXIMATION_REASON_TOKEN in exact_result.module_selection_diagnostics.reason
+    )
+    assert (
+        APPROXIMATION_REASON_TOKEN in scipy_result.module_selection_diagnostics.reason
+    )
+    assert (
+        exact_result.module_selection_diagnostics.selected_module_count
+        == scipy_result.module_selection_diagnostics.selected_module_count
+    )
+    assert exact_result.exact_cluster_tree_built is True
+    assert scipy_result.exact_cluster_tree_built is True
+
+    exact_snapshot = _collect_backend_contract_snapshot(
+        backend_result=exact_result,
+        scoring_matrix=scoring_matrix,
+        runtime_seconds=exact_runtime,
+        peak_mib=exact_peak_mib,
+    )
+    scipy_snapshot = _collect_backend_contract_snapshot(
+        backend_result=scipy_result,
+        scoring_matrix=scoring_matrix,
+        runtime_seconds=scipy_runtime,
+        peak_mib=scipy_peak_mib,
+    )
+    assert exact_snapshot["sampled_candidate_scoring_activated"] is True
+    assert scipy_snapshot["sampled_candidate_scoring_activated"] is True
+    assert (
+        exact_snapshot["runtime_seconds"] < SIGNALOME_BACKEND_MEDIUM_RUNTIME_SECONDS_MAX
+    )
+    assert (
+        scipy_snapshot["runtime_seconds"] < SIGNALOME_BACKEND_MEDIUM_RUNTIME_SECONDS_MAX
+    )
+    assert exact_snapshot["peak_mib"] < SIGNALOME_BACKEND_MEDIUM_PEAK_MIB_MAX
+    assert scipy_snapshot["peak_mib"] < SIGNALOME_BACKEND_MEDIUM_PEAK_MIB_MAX
+
+
+def test_signalome_exact_tree_guard_contract_near_threshold_fixture() -> None:
+    near_limit = 72
+    passing_matrix = _build_signalome_realistic_scoring_matrix(
+        n_sites=near_limit,
+        n_kinases=12,
+        seed=2303,
+    )
+    site_to_protein = _build_signalome_site_to_protein(
+        passing_matrix.index,
+        sites_per_protein=2,
+    )
+    passing_result, passing_runtime, _passing_peak = _run_signalome_backend_contract(
+        scoring_matrix=passing_matrix,
+        site_to_protein=site_to_protein,
+        backend_name=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        max_clusters=7,
+        max_exact_cluster_tree_sites=near_limit,
+        max_full_correlation_sites=near_limit,
+    )
+    assert passing_result.exact_cluster_tree_built is True
+    assert passing_result.module_selection_diagnostics.selected_module_count >= 1
+    assert passing_runtime < SIGNALOME_NEAR_THRESHOLD_RUNTIME_SECONDS_MAX
+
+    failing_matrix = _build_signalome_realistic_scoring_matrix(
+        n_sites=near_limit + 1,
+        n_kinases=12,
+        seed=2304,
+    )
+    failing_site_to_protein = _build_signalome_site_to_protein(
+        failing_matrix.index,
+        sites_per_protein=2,
+    )
+    started = time.perf_counter()
+    with pytest.raises(SignalomeScaleError) as exc_info:
+        run_signalome_clustering_backend(
+            scoring_matrix=failing_matrix,
+            site_to_protein=failing_site_to_protein,
+            requested_module_count=None,
+            max_clusters=7,
+            max_exact_cluster_tree_sites=near_limit,
+            max_full_correlation_sites=near_limit + 20,
+            backend_name=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        )
+    guard_runtime_seconds = time.perf_counter() - started
+    message = str(exc_info.value).lower()
+    assert "exact cluster-tree construction received" in message
+    assert f"max_exact_cluster_tree_sites={near_limit}" in message
+    assert "cluster_tree_backend='exact'" in message
+    assert guard_runtime_seconds < SIGNALOME_FULL_GUARD_RUNTIME_SECONDS_MAX
+
+
+def test_signalome_full_correlation_guard_contract_fixture() -> None:
+    scoring_matrix = _build_signalome_realistic_scoring_matrix(
+        n_sites=90,
+        n_kinases=10,
+        seed=2305,
+    )
+    site_to_protein = _build_signalome_site_to_protein(
+        scoring_matrix.index,
+        sites_per_protein=2,
+    )
+    started = time.perf_counter()
+    with pytest.raises(SignalomeScaleError) as exc_info:
+        run_signalome_clustering_backend(
+            scoring_matrix=scoring_matrix,
+            site_to_protein=site_to_protein,
+            requested_module_count=None,
+            max_clusters=6,
+            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
+            max_exact_cluster_tree_sites=120,
+            max_full_correlation_sites=80,
+            backend_name=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        )
+    guard_runtime_seconds = time.perf_counter() - started
+    message = str(exc_info.value).lower()
+    assert "full candidate-correlation scoring would evaluate" in message
+    assert "exact cluster-tree construction has not been attempted" in message
+    assert "use candidate_scoring_backend='sampled'" in message
+    assert guard_runtime_seconds < SIGNALOME_FULL_GUARD_RUNTIME_SECONDS_MAX
+
+
+def test_signalome_candidate_scoring_skip_contract_for_explicit_module_count() -> None:
+    scoring_matrix = _build_signalome_realistic_scoring_matrix(
+        n_sites=44,
+        n_kinases=12,
+        seed=2306,
+    )
+    site_to_protein = _build_signalome_site_to_protein(
+        scoring_matrix.index,
+        sites_per_protein=2,
+    )
+    backend_result, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
+        lambda: run_signalome_clustering_backend(
+            scoring_matrix=scoring_matrix,
+            site_to_protein=site_to_protein,
+            requested_module_count=4,
+            max_clusters=8,
+            backend_name=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        ),
+        warmup=True,
+    )
+    diagnostics = backend_result.module_selection_diagnostics
+    snapshot = _collect_backend_contract_snapshot(
+        backend_result=backend_result,
+        scoring_matrix=scoring_matrix,
+        runtime_seconds=runtime_seconds,
+        peak_mib=peak_mib,
+    )
+
+    assert (
+        diagnostics.strategy
+        == SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT
+    )
+    assert (
+        backend_result.candidate_scoring_mode
+        == SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    )
+    assert backend_result.candidate_scoring_evaluated is False
+    assert (
+        backend_result.candidate_scoring_skip_reason
+        == SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
+    )
+    assert snapshot["candidate_scoring_skipped"] is True
+    assert snapshot["runtime_seconds"] < SIGNALOME_BACKEND_SMALL_RUNTIME_SECONDS_MAX
+    assert snapshot["peak_mib"] < SIGNALOME_BACKEND_SMALL_PEAK_MIB_MAX
+
+
+def test_signalome_workflow_performance_contract_reports_scale_guard_diagnostics() -> (
+    None
+):
+    kinase_result, eligible_kinases = _build_kinase_result_for_signalome_performance(
+        n_sites=220,
+        n_samples=8,
+        eligible_kinases=42,
+        substrates_per_kinase=6,
+        offlane_kinases=240,
+        offlane_sites_per_kinase=8,
+    )
+    result, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
+        lambda: SignalomeWorkflow().run(
+            SignalomeWorkflowRequest(
+                kinase_result=kinase_result,
+                config=SignalomeConfig(
+                    substrate_support_cutoff=0.5,
+                    module_selection_max_clusters=8,
+                    candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+                    max_exact_cluster_tree_sites=360,
+                    max_full_correlation_sites=140,
+                    clustering_backend=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+                ),
+            )
+        ),
+        warmup=True,
+    )
+    modules = result.signalome_modules.table
+    assert not modules.empty
+    assert set(modules.columns.astype(str).tolist()).issubset(eligible_kinases)
+    assert result.provenance is not None
+    workflow_parameters = result.provenance.workflow_parameters
+    scale_guard = workflow_parameters["scale_guard"]
+    backend_diagnostics = scale_guard["backend_diagnostics"]
+    assert isinstance(backend_diagnostics, dict)
+    assert (
+        scale_guard["clustering_backend"]
+        == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    )
+    assert (
+        backend_diagnostics["backend_name"]
+        == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    )
+    assert scale_guard["site_count"] == int(result.module_assignments.table.shape[0])
+    assert scale_guard["selected_module_count"] == int(
+        result.module_selection_diagnostics.selected_module_count
+    )
+    assert scale_guard["cluster_tree_backend"] == "exact"
+    assert (
+        scale_guard["candidate_scoring_mode"]
+        == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
+    )
+    assert scale_guard["candidate_scoring_evaluated"] is True
+    assert scale_guard["candidate_scoring_skip_reason"] is None
+    assert scale_guard["exact_cluster_tree_built"] is True
+    assert isinstance(scale_guard["candidate_scoring_sampling"], dict)
+    assert workflow_parameters["score_preconditioning_diagnostics"][
+        "retained_row_count"
+    ] == int(result.module_assignments.table.shape[0])
+    assert runtime_seconds < SIGNALOME_WORKFLOW_RUNTIME_SECONDS_MAX
+    assert peak_mib < SIGNALOME_WORKFLOW_PEAK_MIB_MAX
+
+
+def test_signalome_workflow_performance_contract_covers_all_missing_row_preconditioning() -> (
+    None
+):
+    kinase_result, _eligible_kinases = _build_kinase_result_for_signalome_performance(
+        n_sites=220,
+        n_samples=8,
+        eligible_kinases=42,
+        substrates_per_kinase=6,
+        offlane_kinases=240,
+        offlane_sites_per_kinase=8,
+    )
+    rank_weighted_fusion_scores = (
+        kinase_result.scoring_result.rank_weighted_fusion_scores
+    )
+    assert rank_weighted_fusion_scores is not None
+    dropped_rows = 7
+    sparse_scores = rank_weighted_fusion_scores.copy(deep=True)
+    sparse_scores.iloc[:dropped_rows, :] = float("nan")
+    sparse_kinase_result = KinaseWorkflowResult(
+        dataset=kinase_result.dataset,
+        references=kinase_result.references,
+        scoring_result=KinaseScoringResult(
+            profile_scores=kinase_result.scoring_result.profile_scores,
+            motif_scores=kinase_result.scoring_result.motif_scores,
+            rank_weighted_fusion_scores=sparse_scores,
+            score_fusion_weights=kinase_result.scoring_result.score_fusion_weights,
+        ),
+        prediction_result=kinase_result.prediction_result,
+        activity_result=kinase_result.activity_result,
+        provenance=kinase_result.provenance,
+    )
+    result, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
+        lambda: SignalomeWorkflow().run(
+            SignalomeWorkflowRequest(
+                kinase_result=sparse_kinase_result,
+                config=SignalomeConfig(
+                    substrate_support_cutoff=0.5,
+                    module_selection_max_clusters=8,
+                    candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
+                    max_exact_cluster_tree_sites=360,
+                    max_full_correlation_sites=140,
+                    clustering_backend=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+                ),
+            )
+        ),
+        warmup=True,
+    )
+    assert result.score_preconditioning_diagnostics.input_row_count == int(
+        kinase_result.prediction_result.pred_mat.shape[0]
+    )
+    assert (
+        result.score_preconditioning_diagnostics.dropped_all_missing_row_count
+        == dropped_rows
+    )
+    assert result.score_preconditioning_diagnostics.retained_row_count == (
+        int(kinase_result.prediction_result.pred_mat.shape[0]) - dropped_rows
+    )
+    assert result.module_assignments.table.shape[0] == (
+        int(kinase_result.prediction_result.pred_mat.shape[0]) - dropped_rows
+    )
+    assert result.provenance is not None
+    preconditioning = result.provenance.workflow_parameters[
+        "score_preconditioning_diagnostics"
+    ]
+    assert preconditioning["dropped_all_missing_row_count"] == dropped_rows
+    assert preconditioning["retained_row_count"] == int(
+        result.module_assignments.table.shape[0]
+    )
+    assert runtime_seconds < SIGNALOME_WORKFLOW_PRECONDITIONED_RUNTIME_SECONDS_MAX
+    assert peak_mib < SIGNALOME_WORKFLOW_PRECONDITIONED_PEAK_MIB_MAX
 
 
 def test_quantile_normalisation_performance_contract() -> None:
