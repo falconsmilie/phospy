@@ -436,7 +436,26 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
         kinase_result=kinase_result,
         module_assignments=SignalomeAssignments(
             table=pd.DataFrame(
-                {"protein_id": ["MAPK14"], "module_id": [1]},
+                {
+                    "protein_id": ["MAPK14"],
+                    "module_id": [1],
+                    "top_kinase": ["MAP2K6"],
+                    "top_score": [0.9],
+                    "top_kinase_candidates": [("MAP2K6",)],
+                    "top_kinase_weights": [(("MAP2K6", 1.0),)],
+                    "top_kinase_tie_count": [1],
+                    "top_kinase_is_ambiguous": [False],
+                    "top_kinase_selection_policy": [
+                        "max_score_then_lexicographic_tiebreak"
+                    ],
+                    "module_top_kinase": ["MAP2K6"],
+                    "module_top_kinase_candidates": [("MAP2K6",)],
+                    "module_top_kinase_tie_count": [1],
+                    "module_top_kinase_is_ambiguous": [False],
+                    "module_top_kinase_selection_policy": [
+                        "max_score_then_lexicographic_tiebreak"
+                    ],
+                },
                 index=pd.Index(["MAPK14;Y182;"], name="site_id"),
             )
         ),

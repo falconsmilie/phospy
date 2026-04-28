@@ -164,6 +164,43 @@ def _kinase_result() -> KinaseWorkflowResult:
     )
 
 
+def _valid_signalome_assignments_table() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "protein_id": ["MAPK14"],
+            "module_id": [1],
+            "top_kinase": ["MAP2K6"],
+            "top_score": [0.8],
+            "top_kinase_candidates": [("MAP2K6",)],
+            "top_kinase_weights": [(("MAP2K6", 1.0),)],
+            "top_kinase_tie_count": [1],
+            "top_kinase_is_ambiguous": [False],
+            "top_kinase_selection_policy": ["max_score_then_lexicographic_tiebreak"],
+            "module_top_kinase": ["MAP2K6"],
+            "module_top_kinase_candidates": [("MAP2K6",)],
+            "module_top_kinase_tie_count": [1],
+            "module_top_kinase_is_ambiguous": [False],
+            "module_top_kinase_selection_policy": [
+                "max_score_then_lexicographic_tiebreak"
+            ],
+        },
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+
+
+def _valid_signalome_modules_table() -> pd.DataFrame:
+    return pd.DataFrame(
+        {"MAP2K6": [100.0]},
+        index=pd.Index([1], name="module_id"),
+    )
+
+
+def _valid_kinase_network_edges_table() -> pd.DataFrame:
+    return pd.DataFrame(
+        {"source_kinase": ["MAP2K6"], "target_kinase": ["MAP2K6"], "correlation": [1.0]}
+    )
+
+
 def test_top_level_exception_exports_match_curated_facade() -> None:
     assert TOP_LEVEL_ERROR_FACADE.issubset(set(public_errors.__all__))
     assert TOP_LEVEL_ERROR_FACADE.issubset(set(public_api.__all__))
@@ -472,16 +509,10 @@ def test_signalome_result_validates_expanded_signalome_field_type() -> None:
             dataset=kinase_result.dataset,
             kinase_result=kinase_result,
             module_assignments=SignalomeAssignments(
-                table=pd.DataFrame({"site_id": ["MAPK14;Y182;"], "module": [1]})
+                table=_valid_signalome_assignments_table()
             ),
-            signalome_modules=SignalomeModules(
-                table=pd.DataFrame({"module": [1], "size": [1]})
-            ),
-            kinase_network=KinaseNetwork(
-                edges=pd.DataFrame(
-                    {"source": ["MAP2K6"], "target": ["MAP2K6"], "weight": [1.0]}
-                )
-            ),
+            signalome_modules=SignalomeModules(table=_valid_signalome_modules_table()),
+            kinase_network=KinaseNetwork(edges=_valid_kinase_network_edges_table()),
             expanded_signalome=[],
         )
 
@@ -496,16 +527,10 @@ def test_signalome_result_validates_site_membership_field_type() -> None:
             dataset=kinase_result.dataset,
             kinase_result=kinase_result,
             module_assignments=SignalomeAssignments(
-                table=pd.DataFrame({"site_id": ["MAPK14;Y182;"], "module": [1]})
+                table=_valid_signalome_assignments_table()
             ),
-            signalome_modules=SignalomeModules(
-                table=pd.DataFrame({"module": [1], "size": [1]})
-            ),
-            kinase_network=KinaseNetwork(
-                edges=pd.DataFrame(
-                    {"source": ["MAP2K6"], "target": ["MAP2K6"], "weight": [1.0]}
-                )
-            ),
+            signalome_modules=SignalomeModules(table=_valid_signalome_modules_table()),
+            kinase_network=KinaseNetwork(edges=_valid_kinase_network_edges_table()),
             site_membership=[],
         )
 
@@ -520,16 +545,10 @@ def test_signalome_result_validates_protein_site_context_field_type() -> None:
             dataset=kinase_result.dataset,
             kinase_result=kinase_result,
             module_assignments=SignalomeAssignments(
-                table=pd.DataFrame({"site_id": ["MAPK14;Y182;"], "module": [1]})
+                table=_valid_signalome_assignments_table()
             ),
-            signalome_modules=SignalomeModules(
-                table=pd.DataFrame({"module": [1], "size": [1]})
-            ),
-            kinase_network=KinaseNetwork(
-                edges=pd.DataFrame(
-                    {"source": ["MAP2K6"], "target": ["MAP2K6"], "weight": [1.0]}
-                )
-            ),
+            signalome_modules=SignalomeModules(table=_valid_signalome_modules_table()),
+            kinase_network=KinaseNetwork(edges=_valid_kinase_network_edges_table()),
             protein_site_context=[],
         )
 

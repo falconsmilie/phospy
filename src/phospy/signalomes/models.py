@@ -147,15 +147,18 @@ class SignalomeAssignments:
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
+        from phospy.tables.signalome import SignalomeAssignmentsTable
+
+        table = own_dataframe(
+            self.table,
+            field_name="signalome_result.module_assignments.table",
+            error_type=PhosPyValidationError,
+            assume_owned=_assume_owned,
+        )
         object.__setattr__(
             self,
             "table",
-            own_dataframe(
-                self.table,
-                field_name="signalome_result.module_assignments.table",
-                error_type=PhosPyValidationError,
-                assume_owned=_assume_owned,
-            ),
+            SignalomeAssignmentsTable(frame=table, _assume_owned=True).frame,
         )
 
     @classmethod
@@ -171,15 +174,18 @@ class SignalomeModules:
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
+        from phospy.tables.signalome import SignalomeModulesTable
+
+        table = own_dataframe(
+            self.table,
+            field_name="signalome_result.signalome_modules.table",
+            error_type=PhosPyValidationError,
+            assume_owned=_assume_owned,
+        )
         object.__setattr__(
             self,
             "table",
-            own_dataframe(
-                self.table,
-                field_name="signalome_result.signalome_modules.table",
-                error_type=PhosPyValidationError,
-                assume_owned=_assume_owned,
-            ),
+            SignalomeModulesTable(frame=table, _assume_owned=True).frame,
         )
 
     @classmethod
@@ -200,6 +206,12 @@ class KinaseNetwork:
     _assume_owned: InitVar[bool] = False
 
     def __post_init__(self, _assume_owned: bool) -> None:
+        from phospy.tables.signalome import (
+            KinaseNetworkCandidateCorrelationsTable,
+            KinaseNetworkEdgesTable,
+            KinaseNetworkNodesTable,
+        )
+
         edges = own_dataframe(
             self.edges,
             field_name="signalome_result.kinase_network.edges",
@@ -225,6 +237,14 @@ class KinaseNetwork:
                 "signalome_result.kinase_network.correlation_diagnostics must be "
                 "SignalomeNetworkCorrelationDiagnostics"
             )
+        edges = KinaseNetworkEdgesTable(frame=edges, _assume_owned=True).frame
+        if nodes is not None:
+            nodes = KinaseNetworkNodesTable(frame=nodes, _assume_owned=True).frame
+        if candidate_correlations is not None:
+            candidate_correlations = KinaseNetworkCandidateCorrelationsTable(
+                frame=candidate_correlations,
+                _assume_owned=True,
+            ).frame
         object.__setattr__(self, "edges", edges)
         object.__setattr__(self, "nodes", nodes)
         object.__setattr__(self, "candidate_correlations", candidate_correlations)

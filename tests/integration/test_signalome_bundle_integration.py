@@ -19,7 +19,11 @@ from phospy.api import (
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import SignalomeWorkflowResult
-from phospy.errors import PhosPyInputError, WorkflowValidationError
+from phospy.errors import (
+    PhosPyInputError,
+    PhosPyValidationError,
+    WorkflowValidationError,
+)
 from phospy.io.bundles.signalome import (
     SIGNALOME_BUNDLE_MANIFEST_VERSION,
     SignalomeWorkflowConfigSnapshot,
@@ -466,6 +470,66 @@ def test_signalome_bundle_rejects_invalid_sidecar_table_schema(
     invalid_table.to_csv(bundle_root / table_path)
 
     with pytest.raises(WorkflowValidationError, match=pattern):
+        load_signalome_workflow_bundle(bundle_root)
+
+
+@pytest.mark.parametrize(
+    ("table_key", "invalid_table", "pattern"),
+    (
+        (
+            "module_assignments",
+            pd.DataFrame({"invalid": [1]}),
+            "signalome_result.module_assignments.table.*missing required columns",
+        ),
+        (
+            "signalome_modules",
+            pd.DataFrame(
+                {"K1": [60.0], "K2": [20.0]}, index=pd.Index([1], name="module_id")
+            ),
+            "signalome_result.signalome_modules.table row totals must be approximately 0.0 or 100.0",
+        ),
+        (
+            "kinase_network_edges",
+            pd.DataFrame(
+                {"source": ["K1"], "target_kinase": ["K2"], "correlation": [0.8]}
+            ),
+            "signalome_result.kinase_network.edges.*missing required columns",
+        ),
+        (
+            "kinase_network_candidate_correlations",
+            pd.DataFrame(
+                {
+                    "source_kinase": ["K1"],
+                    "target_kinase": ["K2"],
+                    "correlation": [0.8],
+                    "correlation_status": ["invalid_status"],
+                    "valid_observations": [4],
+                    "correlation_reason": [None],
+                }
+            ),
+            "signalome_result.kinase_network.candidate_correlations.correlation_status contains unsupported values",
+        ),
+    ),
+)
+def test_signalome_bundle_rejects_invalid_public_output_table_schema(
+    tmp_path: Path,
+    table_key: str,
+    invalid_table: pd.DataFrame,
+    pattern: str,
+) -> None:
+    request, result = _build_signalome_request_and_result()
+    bundle_root = tmp_path / f"signalome_bundle_invalid_{table_key}_schema"
+
+    save_signalome_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=SignalomeWorkflowConfigSnapshot.from_request(request),
+    )
+    manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
+    table_path = Path(manifest["signalome_outputs"]["tables"][table_key])
+    invalid_table.to_csv(bundle_root / table_path)
+
+    with pytest.raises(PhosPyValidationError, match=pattern):
         load_signalome_workflow_bundle(bundle_root)
 
 

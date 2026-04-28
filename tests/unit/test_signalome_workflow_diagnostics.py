@@ -1785,7 +1785,26 @@ def test_signalome_result_rejects_malformed_site_membership_immediately() -> Non
             kinase_result=kinase_result,
             module_assignments=SignalomeAssignments(
                 table=pd.DataFrame(
-                    {"protein_id": ["P1"], "module_id": [1]},
+                    {
+                        "protein_id": ["P1"],
+                        "module_id": [1],
+                        "top_kinase": ["K1"],
+                        "top_score": [0.9],
+                        "top_kinase_candidates": [("K1",)],
+                        "top_kinase_weights": [(("K1", 1.0),)],
+                        "top_kinase_tie_count": [1],
+                        "top_kinase_is_ambiguous": [False],
+                        "top_kinase_selection_policy": [
+                            "max_score_then_lexicographic_tiebreak"
+                        ],
+                        "module_top_kinase": ["K1"],
+                        "module_top_kinase_candidates": [("K1",)],
+                        "module_top_kinase_tie_count": [1],
+                        "module_top_kinase_is_ambiguous": [False],
+                        "module_top_kinase_selection_policy": [
+                            "max_score_then_lexicographic_tiebreak"
+                        ],
+                    },
                     index=pd.Index(["P1;S1;"], name="site_id"),
                 )
             ),
@@ -2010,6 +2029,24 @@ def test_executor_orchestrates_signalome_domain_services(
             {
                 "protein_id": ["P1", "P2"],
                 "module_id": [1, 2],
+                "top_kinase": ["K1", "K2"],
+                "top_score": [0.9, 0.9],
+                "top_kinase_candidates": [("K1",), ("K2",)],
+                "top_kinase_weights": [(("K1", 1.0),), (("K2", 1.0),)],
+                "top_kinase_tie_count": [1, 1],
+                "top_kinase_is_ambiguous": [False, False],
+                "top_kinase_selection_policy": [
+                    "max_score_then_lexicographic_tiebreak",
+                    "max_score_then_lexicographic_tiebreak",
+                ],
+                "module_top_kinase": ["K1", "K2"],
+                "module_top_kinase_candidates": [("K1",), ("K2",)],
+                "module_top_kinase_tie_count": [1, 1],
+                "module_top_kinase_is_ambiguous": [False, False],
+                "module_top_kinase_selection_policy": [
+                    "max_score_then_lexicographic_tiebreak",
+                    "max_score_then_lexicographic_tiebreak",
+                ],
             },
             index=pd.Index(site_ids, name="site_id"),
         )

@@ -15,6 +15,11 @@ from phospy.tables.datasets import (
 from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
 from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
 from phospy.tables.signalome import (
+    KinaseNetworkCandidateCorrelationsTable,
+    KinaseNetworkEdgesTable,
+    KinaseNetworkNodesTable,
+    SignalomeAssignmentsTable,
+    SignalomeModulesTable,
     SignalomeProteinSiteContext,
     SignalomeSiteContext,
 )
@@ -24,10 +29,15 @@ __all__ = [
     "ActivityMatrix",
     "ActivityTargetTable",
     "KinasePredictionMatrix",
+    "KinaseNetworkCandidateCorrelationsTable",
+    "KinaseNetworkEdgesTable",
+    "KinaseNetworkNodesTable",
     "KinaseScoreMatrix",
     "KinaseSubstrateReference",
     "PhosphoIntensityMatrix",
     "SampleMetadataTable",
+    "SignalomeAssignmentsTable",
+    "SignalomeModulesTable",
     "SignalomeProteinSiteContext",
     "SignalomeSiteContext",
     "SiteMetadataTable",
