@@ -4,9 +4,9 @@ This section is the beginner lane.
 
 Read these pages in order:
 
-1. [Quickstart: first workflow](quickstart-first-workflow.md)
-2. [Troubleshooting: first run](troubleshooting-first-run.md)
-3. [What Is PhosPy?](what-is-phospy.md) if you want a short orientation page
+1. [What Is PhosPy?](what-is-phospy.md)
+2. [Quickstart: first workflow](quickstart-first-workflow.md)
+3. [Troubleshooting: first run](troubleshooting-first-run.md)
 
 After that, pick the interface you prefer:
 

@@ -54,7 +54,11 @@ Supported read and write formats:
 ## `dataset-build`
 
 ```bash
-phospy dataset-build   --phospho ./input/phospho.csv   --site-metadata ./input/site_metadata.csv   --organism rat   --outdir ./out
+phospy dataset-build \
+  --phospho ./input/phospho.csv \
+  --site-metadata ./input/site_metadata.csv \
+  --organism rat \
+  --outdir ./out
 ```
 
 This writes a `dataset/` directory and a short summary of written paths.
@@ -62,7 +66,12 @@ This writes a `dataset/` directory and a short summary of written paths.
 ## `kinase`
 
 ```bash
-phospy kinase   --phospho ./input/phospho.csv   --site-metadata ./input/site_metadata.csv   --organism rat   --reference auto   --outdir ./out
+phospy kinase \
+  --phospho ./input/phospho.csv \
+  --site-metadata ./input/site_metadata.csv \
+  --organism rat \
+  --reference auto \
+  --outdir ./out
 ```
 
 Additional kinase options:
@@ -91,7 +100,12 @@ Notes:
 ## `signalome`
 
 ```bash
-phospy signalome   --phospho ./input/phospho.csv   --site-metadata ./input/site_metadata.csv   --organism rat   --reference auto   --outdir ./out
+phospy signalome \
+  --phospho ./input/phospho.csv \
+  --site-metadata ./input/site_metadata.csv \
+  --organism rat \
+  --reference auto \
+  --outdir ./out
 ```
 
 Additional signalome options:
@@ -101,18 +115,18 @@ Additional signalome options:
 - `--network-policy {positive_only,absolute_threshold,signed}`
 - `--assignment-policy {cutoff_binary,weighted_top}`
 - `--score-preconditioning-policy {allow_and_report,error_on_drop}`
-- `--cluster-tree-backend {exact}`
-- `--candidate-scoring-backend {full,sampled}`
-- `--max-exact-cluster-tree-sites`
-- `--max-full-correlation-sites`
+- `--tree-engine {exact}`
+- `--candidate-scoring-policy {full,sampled}`
+- `--max-exact-tree-sites`
+- `--max-full-candidate-scoring-sites`
 
 Signalome requires explicit, non-empty `protein_id` values in `site_metadata`.
 
 Scale guard note:
 
 - exact cluster-tree construction is always hard-guarded by
-  `--max-exact-cluster-tree-sites` (default `2000`)
-- full candidate scoring is hard-guarded by `--max-full-correlation-sites`
+  `--max-exact-tree-sites` (default `2000`)
+- full candidate scoring is hard-guarded by `--max-full-candidate-scoring-sites`
   (default `2000`)
 - sampled candidate scoring can reduce candidate-scoring cost, but does not
   change exact cluster-tree construction in the current implementation
@@ -163,7 +177,8 @@ Use the Python API when you need:
 - DataFrame inputs
 - `DatasetPreprocessingConfig`
 - explicit `ReferenceBundle` injection
-- advanced scoring or signalome config beyond the CLI surface
+- advanced scoring or signalome config beyond the CLI surface (for example,
+  setting `SignalomeConfig.clustering_engine`)
 
 ## Where next
 

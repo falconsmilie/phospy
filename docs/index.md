@@ -30,10 +30,12 @@ For most first runs, use the rat bundled-reference lane:
 | --- | --- |
 | My first successful run | [Quickstart](getting-started/quickstart-first-workflow.md) |
 | My run failed | [Troubleshooting](getting-started/troubleshooting-first-run.md) |
+| Core project terms and boundaries | [Concepts](concepts/index.md) |
 | File-based command line usage | [CLI Guide](cli.md) |
 | Python classes, requests, configs, and results | [API Guide](api.md) |
 | Exact validation rules | [Validation Guide](validation.md) |
 | Saved output layout | [Output Bundles](output_bundles.md) |
+| Maintainer and governance docs | [Contributor Docs](contributor/index.md) |
 | Release framing | [Release Notes 1.5.0](release_notes/1.5.0.md) |
 
 ## A good first outcome

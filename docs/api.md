@@ -360,6 +360,7 @@ Fields:
 - `candidate_scoring_policy`: `full`, `sampled`
 - `max_exact_tree_sites` (default `2000`)
 - `max_full_candidate_scoring_sites` (default `2000`)
+- `clustering_engine`: `exact_python`, `scipy_hierarchical`
 
 Signalome stages are now explicit:
 

@@ -1,4 +1,4 @@
-# PhosR Parity
+﻿# PhosR Parity
 
 PhosPy’s PhosR parity scope is intentionally narrow and fixture-backed. It does
 not claim whole-package equivalence with PhosR.
@@ -20,7 +20,7 @@ equivalence.
 
 Audit boundaries, explicit exclusions, and area-level evidence are tracked in:
 
-- `docs/architecture/science_gap_audit.md`
+- [Scientific coverage audit](architecture/science_gap_audit.md)
 
 ## Coverage Tier Vocabulary
 
@@ -366,3 +366,4 @@ pytest tests/parity/test_signalome_workflow_parity.py -vv
   [Roadmap](roadmap.md)
 - Contract behaviour context:
   [API Guide](api.md), [Validation Guide](validation.md)
+

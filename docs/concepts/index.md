@@ -9,10 +9,9 @@ into strict API and validation details.
   shape.
 - [What is PhosPy?](../getting-started/what-is-phospy.md): product intent and
   supported scope.
-- [Choose your path](../learning-paths/choose-your-path.md): where to go next by
-  role.
 
 ## Continue With
 
-- [Workflow guides](../workflow-guides/index.md) for execution flow.
+- [Quickstart](../getting-started/quickstart-first-workflow.md) for the first successful run.
+- [CLI Guide](../cli.md) for file-first runs.
 - [API Guide](../api.md) for full public contract details.

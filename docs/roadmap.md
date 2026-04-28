@@ -40,7 +40,7 @@ The remaining roadmap focuses on sustaining parity governance quality rather
 than reopening repaired ranking-surface work.
 
 1. Keep governance truth sources synchronized in the same change window:
-   `docs/architecture/legacy_science_gap_audit.md`, `docs/parity.md`, and
+   `docs/architecture/science_gap_audit.md`, `docs/parity.md`, and
    release notes/changelog entries.
 2. Keep ranking surface contracts explicit in parity metrics helpers so
    closure-grade ranking assertions remain source-consistent and

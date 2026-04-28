@@ -136,7 +136,12 @@ Interpretation tip:
 ## 5. CLI version of the same lane
 
 ```bash
-phospy kinase   --phospho ./input/phospho.csv   --site-metadata ./input/site_metadata.csv   --organism rat   --reference auto   --outdir ./out
+phospy kinase \
+  --phospho ./input/phospho.csv \
+  --site-metadata ./input/site_metadata.csv \
+  --organism rat \
+  --reference auto \
+  --outdir ./out
 ```
 
 The command prints a short summary of the files it wrote under `./out`.

@@ -1,6 +1,6 @@
 # Type Checking (Pyright)
 
-Pyright is the required static type-checking gate for PhosPy’s core scientific and
+Pyright is the required static type-checking gate for PhosPy's core scientific and
 public API modules.
 
 The intent is scientific and API reliability: type boundaries prevent invalid

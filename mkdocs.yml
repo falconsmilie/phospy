@@ -13,19 +13,28 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Quickstart: getting-started/quickstart-first-workflow.md
-  - Troubleshooting: getting-started/troubleshooting-first-run.md
+  - Getting Started:
+      - Overview: getting-started/index.md
+      - What Is PhosPy?: getting-started/what-is-phospy.md
+      - Quickstart: getting-started/quickstart-first-workflow.md
+      - Troubleshooting: getting-started/troubleshooting-first-run.md
+  - Concepts:
+      - Overview: concepts/index.md
+      - Core Concepts: concepts/core-concepts.md
   - CLI Guide: cli.md
   - API Guide: api.md
   - Performance Contracts: performance.md
   - Validation Guide: validation.md
   - Output Bundles: output_bundles.md
+  - Frame Ownership: frame_ownership.md
   - Release Notes 1.5.0: release_notes/1.5.0.md
   - Maintainer Docs:
       - Overview: contributor/index.md
       - Dependency Environments: contributor/dependency-environments.md
       - Type Checking (Pyright): contributor/type-checking.md
       - Architecture: architecture/index.md
+      - Scientific Coverage Audit: architecture/science_gap_audit.md
       - ADR Index: adr/index.md
       - Parity to PhosR: parity.md
       - Fixtures: fixtures.md
+      - Roadmap: roadmap.md
