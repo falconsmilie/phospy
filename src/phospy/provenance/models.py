@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1 = 1
+PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2 = 2
+
 
 @dataclass(frozen=True, slots=True)
 class TableFingerprint:
@@ -42,6 +45,12 @@ class PreprocessingStageProvenance:
     output_hash: str
     dropped_row_ids: tuple[str, ...]
     dropped_row_count: int
+    schema_version: int = PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1
+    consumed_input_tables: tuple[TableFingerprint, ...] = ()
+    produced_output_tables: tuple[TableFingerprint, ...] = ()
+    backend: str | None = None
+    random_seed: int | None = None
+    is_deterministic: bool = True
     imputed_cell_count: int = 0
     imputed_row_ids: tuple[str, ...] = ()
     notes: str | None = None

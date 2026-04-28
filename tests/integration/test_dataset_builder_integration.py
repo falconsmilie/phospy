@@ -1352,6 +1352,15 @@ def test_dataset_builder_emits_machine_readable_run_provenance() -> None:
         if stage.stage == "missing_data"
     )
     assert missing_stage.operation == "impute_row_median"
+    assert missing_stage.schema_version >= 2
+    consumed_names = {item.name for item in missing_stage.consumed_input_tables}
+    produced_names = {item.name for item in missing_stage.produced_output_tables}
+    assert "dataset.phospho" in consumed_names
+    assert "dataset.site_metadata" in consumed_names
+    assert "dataset.phospho" in produced_names
+    assert missing_stage.backend in {"pandas", "numpy", None}
+    assert missing_stage.is_deterministic is True
+    assert missing_stage.random_seed is None
     assert set(missing_stage.dropped_row_ids) == {"row_d"}
     assert missing_stage.imputed_cell_count == 1
     assert set(missing_stage.imputed_row_ids) == {"row_b"}

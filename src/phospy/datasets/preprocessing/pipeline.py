@@ -35,7 +35,11 @@ from phospy.datasets.preprocessing.stages.total_protein_correction import (
     TotalProteinCorrectionStage,
 )
 from phospy.errors.build import DatasetBuildError
-from phospy.provenance.hashing import hash_table
+from phospy.provenance.hashing import fingerprint_optional_table, hash_table
+from phospy.provenance.models import (
+    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2,
+    TableFingerprint,
+)
 
 _RESERVED_DIAGNOSTIC_KEYS = frozenset(
     {
@@ -47,6 +51,66 @@ _RESERVED_DIAGNOSTIC_KEYS = frozenset(
         "diagnostics",
     }
 )
+
+_DEFAULT_STAGE_CONSUMED_TABLES = ("dataset.phospho",)
+_DEFAULT_STAGE_PRODUCED_TABLES = ("dataset.phospho",)
+_STAGE_CONSUMED_TABLES: dict[str, tuple[str, ...]] = {
+    DATASET_PREPROCESSING_STAGE_MISSING_DATA: (
+        "dataset.phospho",
+        "dataset.site_metadata",
+    ),
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM: (
+        "dataset.phospho",
+        "dataset.total",
+    ),
+    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION: (
+        "dataset.phospho",
+        "dataset.total",
+        "dataset.site_metadata",
+    ),
+    DATASET_PREPROCESSING_STAGE_SITE_MATRIX: (
+        "dataset.phospho",
+        "dataset.site_metadata",
+    ),
+    DATASET_PREPROCESSING_STAGE_NORMALISATION: ("dataset.phospho",),
+    DATASET_PREPROCESSING_STAGE_COMPARISONS: (
+        "dataset.phospho",
+        "dataset.sample_metadata",
+    ),
+}
+_STAGE_PRODUCED_TABLES: dict[str, tuple[str, ...]] = {
+    DATASET_PREPROCESSING_STAGE_MISSING_DATA: (
+        "dataset.phospho",
+        "dataset.site_metadata",
+        "report.row_audit",
+    ),
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM: (
+        "dataset.phospho",
+        "dataset.total",
+    ),
+    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION: ("dataset.phospho",),
+    DATASET_PREPROCESSING_STAGE_SITE_MATRIX: (
+        "dataset.phospho",
+        "dataset.site_metadata",
+        "report.duplicate_site_resolution",
+        "report.metadata_conflicts",
+        "report.row_audit",
+    ),
+    DATASET_PREPROCESSING_STAGE_NORMALISATION: ("dataset.phospho",),
+    DATASET_PREPROCESSING_STAGE_COMPARISONS: (
+        "dataset.comparisons",
+        "report.comparison_group_stats",
+        "report.comparison_pair_stats",
+    ),
+}
+_STAGE_BACKENDS: dict[str, str] = {
+    DATASET_PREPROCESSING_STAGE_MISSING_DATA: "pandas",
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM: "numpy",
+    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION: "pandas",
+    DATASET_PREPROCESSING_STAGE_SITE_MATRIX: "pandas",
+    DATASET_PREPROCESSING_STAGE_NORMALISATION: "numpy",
+    DATASET_PREPROCESSING_STAGE_COMPARISONS: "pandas",
+}
 
 _STAGE_LABEL_TO_PARAMETERS: dict[str, tuple[str, ...]] = {
     DATASET_PREPROCESSING_STAGE_NORMALISATION: (),
@@ -130,6 +194,18 @@ class PreprocessingPipeline:
                 previous=previous,
                 current=current,
             )
+            consumed_input_tables = _collect_stage_table_fingerprints(
+                state=previous,
+                table_names=_STAGE_CONSUMED_TABLES.get(
+                    stage_key, _DEFAULT_STAGE_CONSUMED_TABLES
+                ),
+            )
+            produced_output_tables = _collect_stage_table_fingerprints(
+                state=current,
+                table_names=_STAGE_PRODUCED_TABLES.get(
+                    stage_key, _DEFAULT_STAGE_PRODUCED_TABLES
+                ),
+            )
             trace.append(
                 PreprocessingStageExecution(
                     stage=stage_key,
@@ -153,6 +229,12 @@ class PreprocessingPipeline:
                     output_hash=output_hash,
                     dropped_row_ids=tuple(diagnostics["dropped_row_ids"]),
                     dropped_row_count=int(diagnostics["dropped_row_count"]),
+                    schema_version=PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2,
+                    consumed_input_tables=consumed_input_tables,
+                    produced_output_tables=produced_output_tables,
+                    backend=_STAGE_BACKENDS.get(stage_key),
+                    random_seed=None,
+                    is_deterministic=True,
                     imputed_cell_count=int(diagnostics["imputed_cell_count"]),
                     imputed_row_ids=tuple(diagnostics["imputed_row_ids"]),
                     notes=diagnostics["notes"],
@@ -297,6 +379,49 @@ def _resolve_imputation_summary(
         if bool(flagged)
     )
     return row_ids, imputed_cell_count
+
+
+def _collect_stage_table_fingerprints(
+    *,
+    state: PreprocessingState,
+    table_names: tuple[str, ...],
+) -> tuple[TableFingerprint, ...]:
+    fingerprints: list[TableFingerprint] = []
+    for table_name in table_names:
+        table = _resolve_state_table(state=state, table_name=table_name)
+        fingerprint = fingerprint_optional_table(table, name=table_name)
+        if fingerprint is None:
+            continue
+        fingerprints.append(fingerprint)
+    return tuple(fingerprints)
+
+
+def _resolve_state_table(
+    *,
+    state: PreprocessingState,
+    table_name: str,
+) -> pd.DataFrame | None:
+    if table_name == "dataset.phospho":
+        return state.phospho
+    if table_name == "dataset.site_metadata":
+        return state.site_metadata
+    if table_name == "dataset.sample_metadata":
+        return state.sample_metadata
+    if table_name == "dataset.total":
+        return state.total
+    if table_name == "dataset.comparisons":
+        return state.comparisons
+    if table_name == "report.comparison_group_stats":
+        return state.comparison_group_stats
+    if table_name == "report.comparison_pair_stats":
+        return state.comparison_pair_stats
+    if table_name == "report.duplicate_site_resolution":
+        return state.duplicate_site_resolution
+    if table_name == "report.metadata_conflicts":
+        return state.metadata_conflicts
+    if table_name == "report.row_audit":
+        return state.row_audit
+    return None
 
 
 __all__ = ["PreprocessingPipeline"]

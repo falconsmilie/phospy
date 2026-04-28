@@ -57,6 +57,45 @@ def test_kinase_bundle_round_trip_preserves_outputs_and_config(
     _assert_kinase_result_equal(loaded.result, result)
 
 
+def test_kinase_bundle_round_trip_preserves_stage_table_fingerprints(
+    tmp_path: Path,
+) -> None:
+    request = _build_request(activity=False)
+    result = KinaseWorkflow().run(request)
+    bundle_root = tmp_path / "kinase_bundle_stage_provenance"
+
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    loaded = load_kinase_workflow_bundle(bundle_root)
+
+    assert result.provenance is not None
+    assert loaded.result.provenance is not None
+    original_stage = next(
+        stage
+        for stage in result.provenance.preprocessing_stages
+        if stage.stage == "missing_data"
+    )
+    restored_stage = next(
+        stage
+        for stage in loaded.result.provenance.preprocessing_stages
+        if stage.stage == "missing_data"
+    )
+    assert original_stage.schema_version >= 2
+    assert original_stage.consumed_input_tables
+    assert original_stage.produced_output_tables
+    assert restored_stage.schema_version == original_stage.schema_version
+    assert restored_stage.consumed_input_tables == original_stage.consumed_input_tables
+    assert (
+        restored_stage.produced_output_tables == original_stage.produced_output_tables
+    )
+    assert restored_stage.backend == original_stage.backend
+    assert restored_stage.random_seed == original_stage.random_seed
+    assert restored_stage.is_deterministic == original_stage.is_deterministic
+
+
 def test_kinase_bundle_round_trip_preserves_total_protein_correction_state(
     tmp_path: Path,
 ) -> None:

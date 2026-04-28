@@ -49,6 +49,10 @@ from phospy.datasets.preprocessing.report_schema import (
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.hashing import hash_table
+from phospy.provenance.models import (
+    PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2,
+    TableFingerprint,
+)
 
 DATASET_PREPROCESSING_STAGE_MISSING_DATA = "missing_data"
 DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION = "total_protein_correction"
@@ -272,6 +276,12 @@ class PreprocessingStageExecution:
     output_hash: str
     dropped_row_ids: tuple[str, ...] = ()
     dropped_row_count: int = 0
+    schema_version: int = PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2
+    consumed_input_tables: tuple[TableFingerprint, ...] = ()
+    produced_output_tables: tuple[TableFingerprint, ...] = ()
+    backend: str | None = None
+    random_seed: int | None = None
+    is_deterministic: bool = True
     imputed_cell_count: int = 0
     imputed_row_ids: tuple[str, ...] = ()
     notes: str | None = None

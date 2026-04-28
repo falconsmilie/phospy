@@ -220,6 +220,16 @@ def _stage_to_payload(stage: PreprocessingStageProvenance) -> dict[str, object]:
         "output_shape": [int(stage.output_shape[0]), int(stage.output_shape[1])],
         "input_hash": stage.input_hash,
         "output_hash": stage.output_hash,
+        "schema_version": int(stage.schema_version),
+        "consumed_input_tables": [
+            _table_fingerprint_to_payload(item) for item in stage.consumed_input_tables
+        ],
+        "produced_output_tables": [
+            _table_fingerprint_to_payload(item) for item in stage.produced_output_tables
+        ],
+        "backend": stage.backend,
+        "random_seed": stage.random_seed,
+        "is_deterministic": bool(stage.is_deterministic),
         "dropped_row_ids": list(stage.dropped_row_ids),
         "dropped_row_count": int(stage.dropped_row_count),
         "imputed_cell_count": int(stage.imputed_cell_count),
@@ -270,6 +280,14 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
             ).items()
         }
     )
+    consumed_input_tables = _optional_table_fingerprints(
+        payload.get("consumed_input_tables"),
+        field_name="preprocessing_stage.consumed_input_tables",
+    )
+    produced_output_tables = _optional_table_fingerprints(
+        payload.get("produced_output_tables"),
+        field_name="preprocessing_stage.produced_output_tables",
+    )
     return PreprocessingStageProvenance(
         stage=_require_str(
             payload.get("stage"), field_name="preprocessing_stage.stage"
@@ -293,6 +311,24 @@ def _stage_from_payload(payload: Mapping[str, object]) -> PreprocessingStageProv
         dropped_row_count=_require_int(
             payload.get("dropped_row_count"),
             field_name="preprocessing_stage.dropped_row_count",
+        ),
+        schema_version=_require_int(
+            payload.get("schema_version", 1),
+            field_name="preprocessing_stage.schema_version",
+        ),
+        consumed_input_tables=consumed_input_tables,
+        produced_output_tables=produced_output_tables,
+        backend=_optional_str(
+            payload.get("backend"),
+            field_name="preprocessing_stage.backend",
+        ),
+        random_seed=_optional_int(
+            payload.get("random_seed"),
+            field_name="preprocessing_stage.random_seed",
+        ),
+        is_deterministic=_require_bool(
+            payload.get("is_deterministic", True),
+            field_name="preprocessing_stage.is_deterministic",
         ),
         imputed_cell_count=_require_int(
             payload.get("imputed_cell_count", 0),
@@ -395,6 +431,28 @@ def _optional_int(value: object, *, field_name: str) -> int | None:
     if value is None:
         return None
     return _require_int(value, field_name=field_name)
+
+
+def _require_bool(value: object, *, field_name: str) -> bool:
+    if not isinstance(value, bool):
+        raise PhosPyInputError(f"{field_name} must be a bool")
+    return bool(value)
+
+
+def _optional_table_fingerprints(
+    value: object,
+    *,
+    field_name: str,
+) -> tuple[TableFingerprint, ...]:
+    if value is None:
+        return ()
+    payload = _require_sequence(value, field_name=field_name)
+    return tuple(
+        _table_fingerprint_from_payload(
+            _require_mapping(item, field_name=f"{field_name}[{position}]")
+        )
+        for position, item in enumerate(payload)
+    )
 
 
 def _require_shape(value: object, *, field_name: str) -> tuple[int, int]:
