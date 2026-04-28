@@ -5,6 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 from phospy.signalomes.clustering import exact_python as _exact
+from phospy.signalomes.clustering import selection as _selection
+from phospy.signalomes.clustering.backend_dispatch import (
+    available_clustering_backends,
+    resolve_clustering_backend,
+    run_clustering_backend,
+)
 from phospy.signalomes.clustering.models import (
     SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
     SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION,
@@ -14,11 +20,6 @@ from phospy.signalomes.clustering.models import (
     SignalomeClusteringBackendResult,
 )
 from phospy.signalomes.clustering.protocol import SignalomeClusteringBackend
-from phospy.signalomes.clustering.selection import (
-    available_clustering_backends,
-    resolve_clustering_backend,
-    run_clustering_backend,
-)
 
 for _name in dir(_exact):
     if _name.startswith("__"):
@@ -42,6 +43,8 @@ def _sync_exact_monkeypatch_hooks() -> None:
     for symbol in _PATCHABLE_EXACT_SYMBOLS:
         if symbol in globals():
             setattr(_exact, symbol, globals()[symbol])
+            if hasattr(_selection, symbol):
+                setattr(_selection, symbol, globals()[symbol])
 
 
 def run_signalome_clustering_backend(
@@ -90,12 +93,12 @@ def cluster_sites_with_diagnostics(*args: Any, **kwargs: Any) -> Any:
 
 def select_module_count(*args: Any, **kwargs: Any) -> Any:
     _sync_exact_monkeypatch_hooks()
-    return _exact.select_module_count(*args, **kwargs)
+    return _selection.select_module_count(*args, **kwargs)
 
 
 def select_module_count_with_diagnostics(*args: Any, **kwargs: Any) -> Any:
     _sync_exact_monkeypatch_hooks()
-    return _exact.select_module_count_with_diagnostics(*args, **kwargs)
+    return _selection.select_module_count_with_diagnostics(*args, **kwargs)
 
 
 def fit_cluster_labels(*args: Any, **kwargs: Any) -> Any:

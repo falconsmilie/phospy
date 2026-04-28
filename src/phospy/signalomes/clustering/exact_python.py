@@ -13,6 +13,8 @@ import pandas as pd
 from phospy.errors.workflows import SignalomeScaleError
 from phospy.signalomes.clustering.diagnostics import (
     approximation_used_from_candidate_mode,
+    build_candidate_scoring_sampling_provenance,
+    build_module_selection_diagnostics,
 )
 from phospy.signalomes.clustering.models import (
     SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
@@ -516,19 +518,17 @@ def _build_module_selection_result(
     candidate_scoring_sampling: dict[str, object] | None = None,
 ) -> _ModuleSelectionComputation:
     return _ModuleSelectionComputation(
-        diagnostics=SignalomeModuleSelectionDiagnostics(
+        diagnostics=build_module_selection_diagnostics(
             strategy=strategy,
-            selected_module_count=int(selected_module_count),
-            requested_module_count=(
-                None if requested_module_count is None else int(requested_module_count)
-            ),
+            selected_module_count=selected_module_count,
+            requested_module_count=requested_module_count,
             threshold_used=threshold_used,
-            max_clusters_evaluated=int(max_clusters_evaluated),
-            candidate_scores=dict(candidate_scores),
-            reason=str(reason),
-            zero_variance_profile_count=int(profile_degeneracy.zero_variance_count),
-            near_constant_profile_count=int(profile_degeneracy.near_constant_count),
-            excluded_from_correlation_count=int(excluded_from_correlation_count),
+            max_clusters_evaluated=max_clusters_evaluated,
+            candidate_scores=candidate_scores,
+            reason=reason,
+            zero_variance_profile_count=profile_degeneracy.zero_variance_count,
+            near_constant_profile_count=profile_degeneracy.near_constant_count,
+            excluded_from_correlation_count=excluded_from_correlation_count,
         ),
         candidate_labels=candidate_labels,
         cluster_tree_backend=str(cluster_tree_backend),
@@ -1299,29 +1299,13 @@ def _build_candidate_scoring_sampling_provenance(
 ) -> dict[str, object]:
     """Build deterministic sampled candidate-scoring provenance metadata."""
 
-    if per_cluster_sample_counts:
-        sample_min = int(min(per_cluster_sample_counts))
-        sample_max = int(max(per_cluster_sample_counts))
-        sample_mean = float(np.mean(per_cluster_sample_counts))
-        sample_total = int(sum(per_cluster_sample_counts))
-    else:
-        sample_min = 0
-        sample_max = 0
-        sample_mean = 0.0
-        sample_total = 0
-
-    return {
-        "sampling_cap": int(max_sites_per_cluster),
-        "sampling_method": SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
-        "deterministic_seed_policy": (SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY),
-        "actual_sampled_pair_count": int(actual_sampled_pair_count),
-        "per_cluster_sample_count_summary": {
-            "min": sample_min,
-            "max": sample_max,
-            "mean": sample_mean,
-            "total": sample_total,
-        },
-    }
+    return build_candidate_scoring_sampling_provenance(
+        max_sites_per_cluster=max_sites_per_cluster,
+        per_cluster_sample_counts=per_cluster_sample_counts,
+        actual_sampled_pair_count=actual_sampled_pair_count,
+        sampling_method=SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
+        deterministic_seed_policy=SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY,
+    )
 
 
 def _sample_cluster_positions_for_approximation(
