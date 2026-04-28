@@ -12,6 +12,8 @@ from phospy.api import (
 )
 from phospy.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
+    SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
+    SEQUENCE_SEMANTICS_CENTRED_WINDOW,
     ExplicitMotifSequence,
     build_motif_library,
     build_motif_library_from_sequences,
@@ -58,6 +60,25 @@ def test_valid_centred_site_sequence_passes_validation() -> None:
     assert result.invalid_sequences == 0
 
 
+def test_valid_centred_t_and_y_site_sequences_pass_validation() -> None:
+    result = _validator().run(
+        rows=[
+            SequenceValidationInput(
+                site_id="MAPK1;T205;",
+                site_sequence="AAAAAAATAAAAAAA",
+            ),
+            SequenceValidationInput(
+                site_id="MAPK1;Y207;",
+                site_sequence="AAAAAAAYAAAAAAA",
+            ),
+        ]
+    )
+
+    assert result.total_sequences == 2
+    assert result.valid_sequences == 2
+    assert result.invalid_sequences == 0
+
+
 def test_missing_sequence_is_reported_and_excluded() -> None:
     result = _validator().run(
         rows=[
@@ -84,6 +105,20 @@ def test_short_sequence_is_reported_and_excluded() -> None:
 
     assert result.short_sequences == 1
     assert result.rows[0].status == SEQUENCE_VALIDATION_STATUS_SHORT_SEQUENCE
+
+
+def test_even_length_sequence_is_reported_as_off_centre_and_excluded() -> None:
+    result = _validator().run(
+        rows=[
+            SequenceValidationInput(
+                site_id="MAPK1;S202;",
+                site_sequence="AAAAAAASAAAAAAAA",
+            )
+        ]
+    )
+
+    assert result.off_centre_sequences == 1
+    assert result.rows[0].status == SEQUENCE_VALIDATION_STATUS_OFF_CENTRE_SEQUENCE
 
 
 def test_off_centre_sequence_is_reported_and_excluded() -> None:
@@ -169,6 +204,155 @@ def test_motif_scoring_excludes_invalid_sequences_and_reports_diagnostics() -> N
     assert result.sequence_validation.sequences_excluded_from_motif_scoring == 1
     assert pd.isna(result.motif_scores.loc["MAPK1;S210;", "K1"])
     assert result.motif_scores.loc[["MAPK1;S202;", "MAPK1;T205;"], "K1"].notna().all()
+
+
+def test_motif_scoring_requires_exact_centred_windows_by_default() -> None:
+    motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
+        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+    result = score_phosphosite_motifs(
+        site_sequences={"MAPK1;S202;": "AAAAAAASAAAAAAASAAAAAAASAAAAAAA"},
+        motif_frequency_matrices=motif_frequency_matrices,
+        motif_sizes=motif_sizes,
+        site_index=pd.Index(["MAPK1;S202;"], name="site_id"),
+        min_motif_size=1,
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        sequence_semantics=SEQUENCE_SEMANTICS_CENTRED_WINDOW,
+    )
+
+    row = result.sequence_validation.rows[0]
+    assert row.status == SEQUENCE_VALIDATION_STATUS_OFF_CENTRE_SEQUENCE
+    assert "do not supply full-protein-like sequences" in str(row.reason)
+    assert pd.isna(result.motif_scores.loc["MAPK1;S202;", "K1"])
+
+
+def test_motif_scoring_can_explicitly_extract_window_from_centred_long_sequence() -> (
+    None
+):
+    motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
+        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+    result = score_phosphosite_motifs(
+        site_sequences={"MAPK1;S202;": "GGGGGGGAAAAAAASAAAAAAAGGGGGGG"},
+        motif_frequency_matrices=motif_frequency_matrices,
+        motif_sizes=motif_sizes,
+        site_index=pd.Index(["MAPK1;S202;"], name="site_id"),
+        min_motif_size=1,
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        sequence_semantics=SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
+    )
+
+    assert result.sequence_validation.valid_sequences == 1
+    assert result.sequence_windows.loc["MAPK1;S202;"] == "AAAAAAASAAAAAAA"
+    assert "MAPK1;S202;" not in result.sequence_validation.excluded_site_ids
+
+
+def test_centre_extraction_mode_ignores_unsupported_tail_characters_outside_window() -> (
+    None
+):
+    motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
+        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+    result = score_phosphosite_motifs(
+        site_sequences={"MAPK1;S202;": "__AAAAAAASAAAAAAA__"},
+        motif_frequency_matrices=motif_frequency_matrices,
+        motif_sizes=motif_sizes,
+        site_index=pd.Index(["MAPK1;S202;"], name="site_id"),
+        min_motif_size=1,
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        sequence_semantics=SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
+    )
+
+    assert result.sequence_validation.valid_sequences == 1
+    assert result.sequence_windows.loc["MAPK1;S202;"] == "AAAAAAASAAAAAAA"
+    assert "MAPK1;S202;" not in result.sequence_validation.excluded_site_ids
+
+
+def test_motif_scoring_rejects_long_off_centre_sequence_even_with_centre_extraction_mode() -> (
+    None
+):
+    motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
+        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+    result = score_phosphosite_motifs(
+        site_sequences={"MAPK1;S202;": "SAAAAAAAAAAAAAATGGGGGGGGGGGGGGG"},
+        motif_frequency_matrices=motif_frequency_matrices,
+        motif_sizes=motif_sizes,
+        site_index=pd.Index(["MAPK1;S202;"], name="site_id"),
+        min_motif_size=1,
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        sequence_semantics=SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
+    )
+
+    row = result.sequence_validation.rows[0]
+    assert row.status == SEQUENCE_VALIDATION_STATUS_OFF_CENTRE_SEQUENCE
+    assert pd.isna(result.motif_scores.loc["MAPK1;S202;", "K1"])
+
+
+def test_motif_scoring_rejects_non_site_identifier_without_explicit_position_support() -> (
+    None
+):
+    motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
+        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+    result = score_phosphosite_motifs(
+        site_sequences={"SITE_1": "GGGGGGGAAAAAAASAAAAAAAGGGGGGG"},
+        motif_frequency_matrices=motif_frequency_matrices,
+        motif_sizes=motif_sizes,
+        site_index=pd.Index(["SITE_1"], name="site_id"),
+        min_motif_size=1,
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        sequence_semantics=SEQUENCE_SEMANTICS_CENTRED_WINDOW,
+    )
+
+    row = result.sequence_validation.rows[0]
+    assert row.status == SEQUENCE_VALIDATION_STATUS_INVALID_SITE_ID
+    assert pd.isna(result.motif_scores.loc["SITE_1", "K1"])
+
+
+def test_motif_scoring_reports_missing_sequence_when_required_for_scoring() -> None:
+    motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
+        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+    result = score_phosphosite_motifs(
+        site_sequences={"MAPK1;S202;": None},
+        motif_frequency_matrices=motif_frequency_matrices,
+        motif_sizes=motif_sizes,
+        site_index=pd.Index(["MAPK1;S202;"], name="site_id"),
+        min_motif_size=1,
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        sequence_semantics=SEQUENCE_SEMANTICS_CENTRED_WINDOW,
+    )
+
+    row = result.sequence_validation.rows[0]
+    assert row.status == SEQUENCE_VALIDATION_STATUS_MISSING_SEQUENCE
+    assert pd.isna(result.motif_scores.loc["MAPK1;S202;", "K1"])
+
+
+def test_motif_scoring_rejects_non_phospho_centre_residue() -> None:
+    motif_frequency_matrices, motif_sizes = build_motif_library_from_sequences(
+        motif_sequences={"K1": ["AAAAAAASAAAAAAA"]},
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+    )
+    result = score_phosphosite_motifs(
+        site_sequences={"MAPK1;S202;": "AAAAAAAQAAAAAAA"},
+        motif_frequency_matrices=motif_frequency_matrices,
+        motif_sizes=motif_sizes,
+        site_index=pd.Index(["MAPK1;S202;"], name="site_id"),
+        min_motif_size=1,
+        flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+        sequence_semantics=SEQUENCE_SEMANTICS_CENTRED_WINDOW,
+    )
+
+    row = result.sequence_validation.rows[0]
+    assert row.status == SEQUENCE_VALIDATION_STATUS_NON_PHOSPHO_CENTRE_RESIDUE
+    assert pd.isna(result.motif_scores.loc["MAPK1;S202;", "K1"])
 
 
 def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
@@ -333,7 +517,7 @@ def test_motif_library_excludes_invalid_reference_windows_and_reports_diagnostic
     assert summary["excluded_non_phospho_centre_residue"] == 1
     assert summary["excluded_site_residue_mismatch"] == 1
     assert summary["expected_window_size"] == 15
-    assert "exactly 15 residues" in summary["accepted_window_length_policy"]
+    assert "minimum length 15" in summary["accepted_window_length_policy"]
     assert "supported residues" in summary["unsupported_residue_policy"]
     assert motif_sizes.loc["K1"] == 1.0
     assert motif_frequency_matrices["K1"].loc["S", "p8"] == 1.0

@@ -169,11 +169,16 @@ Reference rules are simple but strict:
 Motif scoring sequence-context validation is part of the kinase scoring-stage
 scientific contract:
 
-- expected motif window length is `15` residues (centre index `7`)
+- default expected motif window length is `15` residues (centre index `7`)
+- default scoring expects centred windows and does not midpoint-crop longer input
+  sequences
+- longer centred sequences are accepted only in explicit centred-sequence
+  extraction mode
 - centre residue is validated against site identity when available
 - supported residue characters are the 20 canonical amino acids
-- query/target windows that are missing, short, off-centre,
-  site-residue-mismatched, or unsupported are excluded from motif scoring
+- query/target windows that are missing, short, non-centred,
+  site-residue-mismatched, non-phospho-centre (`S/T/Y`), or unsupported are
+  excluded from motif scoring
 - reference/library windows are validated with the same rules before motif
   profile construction; invalid reference windows are excluded from motif model
   construction

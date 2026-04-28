@@ -23,6 +23,7 @@ from phospy.prediction.execution import run_adaptive_ensemble_prediction
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
 from phospy.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
+    SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
     MotifScoringResult,
     build_motif_library,
     get_motif_library_validation,
@@ -225,6 +226,7 @@ class KinaseWorkflowExecutor:
             site_index=scoring_phospho.index,
             min_motif_size=scoring_min_substrates,
             flank_size=DEFAULT_MOTIF_FLANK_SIZE,
+            sequence_semantics=SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
             library_validation=motif_library_validation,
         )
 

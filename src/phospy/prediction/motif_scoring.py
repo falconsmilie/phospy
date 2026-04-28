@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -27,6 +28,9 @@ from phospy.prediction.sequence_validation import (
 
 AMINO_ACIDS: tuple[str, ...] = SUPPORTED_AMINO_ACIDS
 DEFAULT_MOTIF_FLANK_SIZE = 7
+SEQUENCE_SEMANTICS_CENTRED_WINDOW = "centred_window"
+SEQUENCE_SEMANTICS_CENTRED_SEQUENCE = "centred_sequence"
+SequenceSemantics = Literal["centred_window", "centred_sequence"]
 _MOTIF_LIBRARY_VALIDATION_ATTR = "motif_library_validation"
 _ASCII_LOOKUP_SIZE = 256
 _INVALID_AMINO_ACID_INDEX = -1
@@ -148,7 +152,7 @@ class _LibraryCandidate:
     reference_id: str
     site_id: str | None
     kinase: str
-    sequence_window: object
+    sequence_input: object
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,9 +188,8 @@ def build_motif_library(
                     reference_id=reference_id,
                     site_id=reference_id,
                     kinase=str(kinase),
-                    sequence_window=_extract_sequence_window(
-                        sequence_lookup.get(reference_id, np.nan),
-                        flank_size,
+                    sequence_input=_normalize_sequence_value(
+                        sequence_lookup.get(reference_id, np.nan)
                     ),
                 )
             )
@@ -231,10 +234,7 @@ def build_motif_library_from_sequences(
                     reference_id=explicit_entry.reference_id,
                     site_id=explicit_entry.site_id,
                     kinase=explicit_entry.kinase,
-                    sequence_window=_extract_sequence_window(
-                        explicit_entry.sequence,
-                        flank_size,
-                    ),
+                    sequence_input=_normalize_sequence_value(explicit_entry.sequence),
                 )
             )
     frequency_matrices, size_series, validation = _build_motif_library_from_candidates(
@@ -266,11 +266,13 @@ def _build_motif_library_from_candidates(
         expected_window_size=expected_window_size,
         require_phospho_centre_residue=True,
         enforce_site_identity_format=True,
+        window_length_policy="centred_superset",
+        residue_validation_scope="centre_window",
     )
     validation_inputs = [
         SequenceValidationInput(
             site_id=candidate.reference_id,
-            site_sequence=candidate.sequence_window,
+            site_sequence=candidate.sequence_input,
             site_identity=candidate.site_id,
         )
         for candidate in candidates
@@ -300,7 +302,13 @@ def _build_motif_library_from_candidates(
             continue
         if row.sequence is None:
             continue
-        accepted_windows_by_kinase.setdefault(candidate.kinase, []).append(row.sequence)
+        accepted_window = _extract_sequence_window(row.sequence, flank_size)
+        if accepted_window is None or pd.isna(accepted_window):
+            excluded_reference_ids.append(candidate.reference_id)
+            continue
+        accepted_windows_by_kinase.setdefault(candidate.kinase, []).append(
+            str(accepted_window)
+        )
 
     frequency_matrices: dict[str, pd.DataFrame] = {}
     motif_sizes: dict[str, float] = {}
@@ -341,8 +349,9 @@ def _build_motif_library_from_candidates(
         expected_window_size=expected_window_size,
         supported_amino_acids=tuple(AMINO_ACIDS),
         accepted_window_length_policy=(
-            f"windows must be exactly {expected_window_size} residues "
-            "(2 * flank_size + 1) after centre-window extraction"
+            f"input sequences must be centred and odd-length with minimum length "
+            f"{expected_window_size}; scoring windows are centre-extracted to exactly "
+            f"{expected_window_size} residues (2 * flank_size + 1)"
         ),
         unsupported_residue_policy=(
             "exclude any window containing non-canonical amino acids; "
@@ -430,9 +439,15 @@ def score_phosphosite_motifs(
     site_index: Sequence[str] | None = None,
     min_motif_size: int = 1,
     flank_size: int = DEFAULT_MOTIF_FLANK_SIZE,
+    sequence_semantics: SequenceSemantics = SEQUENCE_SEMANTICS_CENTRED_WINDOW,
     library_validation: MotifLibraryValidationResult | None = None,
 ) -> MotifScoringResult:
     """Score phosphosite sequences against per-kinase motif frequency matrices.
+
+    `sequence_semantics="centred_window"` (default) requires each sequence to be a
+    centred phosphosite window matching the motif width exactly.
+    `sequence_semantics="centred_sequence"` accepts centred odd-length sequences
+    with length >= motif width and centre-extracts the scoring window.
 
     Runtime scales with scored sites, eligible kinases, and motif window width.
     """
@@ -440,10 +455,9 @@ def score_phosphosite_motifs(
     if min_motif_size < 1:
         raise ValueError("min_motif_size must be >= 1")
 
-    windows = _coerce_sequence_series(
+    raw_sequences = _coerce_sequence_series(
         site_sequences,
         site_index=site_index,
-        flank_size=flank_size,
     )
     kinases = [
         kinase
@@ -457,13 +471,21 @@ def score_phosphosite_motifs(
         flank_size=flank_size,
     )
     validation = _validate_sequence_windows(
-        windows,
+        raw_sequences,
         expected_window_size=expected_window_size,
+        sequence_semantics=sequence_semantics,
+    )
+    windows = _materialize_scoring_windows(
+        raw_sequences=raw_sequences,
+        validation=validation,
+        expected_window_size=expected_window_size,
+        flank_size=flank_size,
+        sequence_semantics=sequence_semantics,
     )
 
     motif_scores = pd.DataFrame(
         np.nan,
-        index=windows.index.copy(),
+        index=raw_sequences.index.copy(),
         columns=kinases,
         dtype=float,
     )
@@ -560,7 +582,6 @@ def _coerce_sequence_series(
     seqs: Mapping[str, str] | Sequence[str] | pd.Series,
     *,
     site_index: Sequence[str] | None = None,
-    flank_size: int | None = DEFAULT_MOTIF_FLANK_SIZE,
 ) -> pd.Series:
     if isinstance(seqs, pd.Series):
         series = seqs.copy()
@@ -583,7 +604,23 @@ def _coerce_sequence_series(
             )
         series = series.loc[list(site_index)]
 
-    return series.map(lambda value: _extract_sequence_window(value, flank_size))
+    return series.map(_normalize_sequence_value)
+
+
+def _normalize_sequence_value(value: object) -> object:
+    if value is None:
+        return np.nan
+    try:
+        if bool(pd.isna(value)):
+            return np.nan
+    except (TypeError, ValueError):
+        pass
+    if not isinstance(value, str):
+        return value
+    sequence = value.strip().upper()
+    if sequence == "":
+        return np.nan
+    return sequence
 
 
 def _extract_sequence_window(value: object, flank_size: int | None) -> object:
@@ -678,13 +715,74 @@ def _validate_sequence_windows(
     windows: pd.Series,
     *,
     expected_window_size: int,
+    sequence_semantics: SequenceSemantics,
 ) -> SequenceValidationResult:
-    validator = MotifSequenceValidator(expected_window_size=expected_window_size)
+    _require_supported_sequence_semantics(sequence_semantics)
+    validator = MotifSequenceValidator(
+        expected_window_size=expected_window_size,
+        require_phospho_centre_residue=True,
+        enforce_site_identity_format=True,
+        window_length_policy=(
+            "exact"
+            if sequence_semantics == SEQUENCE_SEMANTICS_CENTRED_WINDOW
+            else "centred_superset"
+        ),
+        residue_validation_scope=(
+            "full_sequence"
+            if sequence_semantics == SEQUENCE_SEMANTICS_CENTRED_WINDOW
+            else "centre_window"
+        ),
+    )
     rows = [
-        SequenceValidationInput(site_id=str(site_id), site_sequence=sequence)
+        SequenceValidationInput(
+            site_id=str(site_id),
+            site_sequence=sequence,
+            site_identity=str(site_id),
+        )
         for site_id, sequence in windows.items()
     ]
     return validator.run(rows=rows)
+
+
+def _materialize_scoring_windows(
+    *,
+    raw_sequences: pd.Series,
+    validation: SequenceValidationResult,
+    expected_window_size: int,
+    flank_size: int,
+    sequence_semantics: SequenceSemantics,
+) -> pd.Series:
+    windows = pd.Series(np.nan, index=raw_sequences.index.copy(), dtype=object)
+    for row in validation.rows:
+        if row.sequence is None:
+            continue
+        if row.status != SEQUENCE_VALIDATION_STATUS_VALID:
+            windows.loc[row.site_id] = row.sequence
+            continue
+        if sequence_semantics == SEQUENCE_SEMANTICS_CENTRED_WINDOW:
+            windows.loc[row.site_id] = row.sequence
+            continue
+        extracted = _extract_sequence_window(row.sequence, flank_size)
+        if extracted is None or pd.isna(extracted):
+            windows.loc[row.site_id] = row.sequence
+            continue
+        if len(str(extracted)) != expected_window_size:
+            windows.loc[row.site_id] = row.sequence
+            continue
+        windows.loc[row.site_id] = str(extracted)
+    return windows
+
+
+def _require_supported_sequence_semantics(
+    sequence_semantics: SequenceSemantics,
+) -> None:
+    if sequence_semantics not in {
+        SEQUENCE_SEMANTICS_CENTRED_WINDOW,
+        SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
+    }:
+        raise ValueError(
+            "sequence_semantics must be 'centred_window' or 'centred_sequence'"
+        )
 
 
 def _require_fully_supported_encoded_sequences(
@@ -702,6 +800,8 @@ __all__ = [
     "MotifLibraryValidationResult",
     "MotifLibraryValidationRow",
     "MotifScoringResult",
+    "SEQUENCE_SEMANTICS_CENTRED_SEQUENCE",
+    "SEQUENCE_SEMANTICS_CENTRED_WINDOW",
     "build_motif_library",
     "build_motif_library_from_sequences",
     "get_motif_library_validation",

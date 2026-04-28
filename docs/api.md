@@ -235,11 +235,17 @@ Planned/future lanes (not currently supported in this public contract) include:
 
 Motif sequence-context validation is strict in the supported lane:
 
-- scoring expects a centered motif window of length `15` (flank size `7`, centre index `7`)
+- default scoring semantics expect a centred phosphosite window of length `15`
+  (flank size `7`, centre index `7`)
+- default scoring does not midpoint-crop longer sequences
+- longer centred sequences are only accepted when the caller explicitly opts into
+  centred-sequence extraction semantics (`sequence_semantics="centred_sequence"`)
 - supported residue alphabet is the 20 canonical amino acids:
   `A C D E F G H I K L M N P Q R S T V W Y`
-- query/target sequences that are missing, short, off-centre, site-residue mismatched, or
-  contain unsupported residue characters are excluded from motif scoring
+- scored sequence identifiers must be site-shaped (`<protein>;<residue><position>;`)
+  so centre residue compatibility can be validated
+- query/target sequences that are missing, short, non-centred, site-residue mismatched,
+  non-phospho-centre (`S/T/Y`), or unsupported are excluded from motif scoring
 - reference/library sequences used to build motif profiles are validated with the
   same sequence rules before profile construction; invalid reference windows are
   excluded from motif frequency/profile construction (never neutral/partial

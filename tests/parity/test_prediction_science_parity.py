@@ -7,6 +7,7 @@ import pytest
 
 from phospy.prediction.candidates import build_candidate_substrate_list
 from phospy.prediction.motif_scoring import (
+    SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
     score_phosphosite_motifs,
 )
 from phospy.prediction.scoring import fuse_profile_and_motif_scores_by_rank_weight
@@ -88,6 +89,7 @@ def test_motif_scoring_matches_fragile_support_reference_points(
         motif_sizes=expected_sizes,
         site_index=expected_full.index,
         min_motif_size=1,
+        sequence_semantics=SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
     )
     observed_full = observed_result.motif_scores
     valid_site_ids = [

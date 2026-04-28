@@ -58,6 +58,8 @@ SequenceValidationStatus = Literal[
     "non_phospho_centre_residue",
     "unsupported_residue_character",
 ]
+WindowLengthPolicy = Literal["exact", "centred_superset"]
+ResidueValidationScope = Literal["full_sequence", "centre_window"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,6 +130,8 @@ class MotifSequenceValidator:
         supported_amino_acids: Sequence[str] = SUPPORTED_AMINO_ACIDS,
         require_phospho_centre_residue: bool = False,
         enforce_site_identity_format: bool = False,
+        window_length_policy: WindowLengthPolicy = "exact",
+        residue_validation_scope: ResidueValidationScope = "full_sequence",
     ) -> None:
         if expected_window_size <= 0:
             raise ValueError("expected_window_size must be > 0")
@@ -136,6 +140,16 @@ class MotifSequenceValidator:
         self._supported_amino_acids = frozenset(supported_amino_acids)
         self._require_phospho_centre_residue = bool(require_phospho_centre_residue)
         self._enforce_site_identity_format = bool(enforce_site_identity_format)
+        if window_length_policy not in {"exact", "centred_superset"}:
+            raise ValueError(
+                "window_length_policy must be 'exact' or 'centred_superset'"
+            )
+        self._window_length_policy = window_length_policy
+        if residue_validation_scope not in {"full_sequence", "centre_window"}:
+            raise ValueError(
+                "residue_validation_scope must be 'full_sequence' or 'centre_window'"
+            )
+        self._residue_validation_scope = residue_validation_scope
 
     def run(
         self, *, rows: Sequence[SequenceValidationInput]
@@ -187,6 +201,7 @@ class MotifSequenceValidator:
         )
         if site_identity_provided and self._enforce_site_identity_format:
             if site_identity is None or expected_residue is None:
+                observed_residue = self._resolve_observed_centre_residue(sequence)
                 return SequenceValidationRow(
                     site_id=site_id,
                     sequence=sequence,
@@ -196,13 +211,7 @@ class MotifSequenceValidator:
                         "shape (for example 'MAPK1;S202;')"
                     ),
                     expected_centre_residue=None,
-                    observed_centre_residue=(
-                        None
-                        if sequence is None
-                        else sequence[self.expected_centre_index]
-                        if len(sequence) > self.expected_centre_index
-                        else None
-                    ),
+                    observed_centre_residue=observed_residue,
                     sequence_length=None if sequence is None else len(sequence),
                 )
         if sequence is None:
@@ -230,11 +239,46 @@ class MotifSequenceValidator:
                 observed_centre_residue=None,
                 sequence_length=sequence_length,
             )
+        if self._window_length_policy == "exact":
+            if sequence_length != self.expected_window_size:
+                return SequenceValidationRow(
+                    site_id=site_id,
+                    sequence=sequence,
+                    status=SEQUENCE_VALIDATION_STATUS_OFF_CENTRE_SEQUENCE,
+                    reason=(
+                        f"sequence length {sequence_length} does not match required "
+                        f"centred window length {self.expected_window_size}; "
+                        "provide a centred phosphosite window "
+                        "(do not supply full-protein-like sequences here)"
+                    ),
+                    expected_centre_residue=expected_residue,
+                    observed_centre_residue=None,
+                    sequence_length=sequence_length,
+                )
+        elif sequence_length % 2 == 0:
+            return SequenceValidationRow(
+                site_id=site_id,
+                sequence=sequence,
+                status=SEQUENCE_VALIDATION_STATUS_OFF_CENTRE_SEQUENCE,
+                reason=(
+                    f"sequence length {sequence_length} is even; centred sequences "
+                    "must have odd length so one residue is unambiguously centred"
+                ),
+                expected_centre_residue=expected_residue,
+                observed_centre_residue=None,
+                sequence_length=sequence_length,
+            )
+        centre_index = self._resolve_centre_index(sequence_length)
 
+        residue_scan_sequence = self._resolve_residue_scan_sequence(
+            sequence=sequence,
+            sequence_length=sequence_length,
+            centre_index=centre_index,
+        )
         unsupported_characters = sorted(
             {
                 character
-                for character in sequence
+                for character in residue_scan_sequence
                 if character not in self._supported_amino_acids
             }
         )
@@ -246,11 +290,11 @@ class MotifSequenceValidator:
                 status=SEQUENCE_VALIDATION_STATUS_UNSUPPORTED_RESIDUE_CHARACTER,
                 reason=f"unsupported residue character(s): {joined}",
                 expected_centre_residue=expected_residue,
-                observed_centre_residue=sequence[self.expected_centre_index],
+                observed_centre_residue=sequence[centre_index],
                 sequence_length=sequence_length,
             )
 
-        observed_residue = sequence[self.expected_centre_index]
+        observed_residue = sequence[centre_index]
         if (
             self._require_phospho_centre_residue
             and observed_residue not in _PHOSPHO_COMPATIBLE_RESIDUE_SET
@@ -278,7 +322,7 @@ class MotifSequenceValidator:
                 status=status,
                 reason=(
                     f"expected centre residue '{expected_residue}' at index "
-                    f"{self.expected_centre_index}; observed '{observed_residue}'"
+                    f"{centre_index}; observed '{observed_residue}'"
                 ),
                 expected_centre_residue=expected_residue,
                 observed_centre_residue=observed_residue,
@@ -294,6 +338,37 @@ class MotifSequenceValidator:
             observed_centre_residue=observed_residue,
             sequence_length=sequence_length,
         )
+
+    def _resolve_centre_index(self, sequence_length: int) -> int:
+        if self._window_length_policy == "centred_superset" and sequence_length > 0:
+            return sequence_length // 2
+        return self.expected_centre_index
+
+    def _resolve_observed_centre_residue(self, sequence: str | None) -> str | None:
+        if sequence is None:
+            return None
+        centre_index = self._resolve_centre_index(len(sequence))
+        if centre_index >= len(sequence):
+            return None
+        return sequence[centre_index]
+
+    def _resolve_residue_scan_sequence(
+        self,
+        *,
+        sequence: str,
+        sequence_length: int,
+        centre_index: int,
+    ) -> str:
+        if self._residue_validation_scope != "centre_window":
+            return sequence
+        if sequence_length <= self.expected_window_size:
+            return sequence
+        flank = self.expected_window_size // 2
+        start = centre_index - flank
+        stop = centre_index + flank + 1
+        if start < 0 or stop > sequence_length:
+            return sequence
+        return sequence[start:stop]
 
 
 def _coerce_sequence(value: object) -> str | None:
@@ -355,4 +430,6 @@ __all__ = [
     "SequenceValidationResult",
     "SequenceValidationRow",
     "SequenceValidationStatus",
+    "ResidueValidationScope",
+    "WindowLengthPolicy",
 ]
