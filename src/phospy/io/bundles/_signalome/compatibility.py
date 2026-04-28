@@ -9,6 +9,8 @@ from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICIES,
     SIGNALOME_CANDIDATE_SCORING_BACKENDS,
     SIGNALOME_CLUSTER_TREE_BACKENDS,
+    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_BACKENDS,
     SIGNALOME_KINASE_NETWORK_POLICIES,
     SIGNALOME_SCORE_PRECONDITIONING_POLICIES,
     SignalomeConfig,
@@ -43,6 +45,14 @@ _SIGNALOME_CONFIG_ALLOWED_FIELDS = frozenset(
         "module_selection_primary_correlation_threshold",
         "module_selection_fallback_correlation_threshold",
         "module_selection_max_clusters",
+        "clustering_backend",
+    }
+)
+_SIGNALOME_CONFIG_REQUIRED_FIELDS = frozenset(
+    {
+        field
+        for field in _SIGNALOME_CONFIG_ALLOWED_FIELDS
+        if field != "clustering_backend"
     }
 )
 
@@ -63,7 +73,7 @@ def signalome_config_from_payload(
     _require_fields(
         payload,
         field_name=config_field_name,
-        required_fields=_SIGNALOME_CONFIG_ALLOWED_FIELDS,
+        required_fields=_SIGNALOME_CONFIG_REQUIRED_FIELDS,
     )
     substrate_support_cutoff = payload.get("substrate_support_cutoff")
     network_correlation_threshold = payload.get("network_correlation_threshold")
@@ -121,6 +131,19 @@ def signalome_config_from_payload(
             f"{scope}.signalome_config.candidate_scoring_backend must be one of: "
             f"{allowed}"
         )
+    clustering_backend = payload.get("clustering_backend")
+    if clustering_backend is None:
+        clustering_backend = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
+    else:
+        clustering_backend = require_str(
+            clustering_backend,
+            field_name=f"{scope}.signalome_config.clustering_backend",
+        )
+    if clustering_backend not in SIGNALOME_CLUSTERING_BACKENDS:
+        allowed = ", ".join(sorted(SIGNALOME_CLUSTERING_BACKENDS))
+        raise PhosPyInputError(
+            f"{scope}.signalome_config.clustering_backend must be one of: {allowed}"
+        )
 
     max_exact_cluster_tree_sites = _require_int(
         payload.get("max_exact_cluster_tree_sites"),
@@ -162,6 +185,7 @@ def signalome_config_from_payload(
             ),
         ),
         module_selection_max_clusters=module_selection_max_clusters,
+        clustering_backend=clustering_backend,  # type: ignore[arg-type]
     )
 
 

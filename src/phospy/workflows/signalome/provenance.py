@@ -124,9 +124,17 @@ class SignalomeProvenanceBuilder:
                 },
                 "scale_guard": {
                     "site_count": int(scale_guard_decision.site_count),
+                    "selected_module_count": int(
+                        scale_guard_decision.selected_module_count
+                    ),
                     "clustering_backend": str(scale_guard_decision.clustering_backend),
                     "clustering_backend_version": str(
                         scale_guard_decision.clustering_backend_version
+                    ),
+                    "backend_diagnostics": (
+                        None
+                        if scale_guard_decision.backend_diagnostics is None
+                        else dict(scale_guard_decision.backend_diagnostics)
                     ),
                     "cluster_tree_backend": str(
                         scale_guard_decision.cluster_tree_backend

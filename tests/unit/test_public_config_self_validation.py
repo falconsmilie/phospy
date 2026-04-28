@@ -3,6 +3,8 @@ from __future__ import annotations
 import pytest
 
 from phospy.api.configs import (
+    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -383,6 +385,10 @@ def test_kinase_activity_config_self_validates(
             {"max_full_correlation_sites": 0},
             "signalome workflow request config.max_full_correlation_sites",
         ),
+        (
+            {"clustering_backend": "invalid"},
+            "signalome workflow request config.clustering_backend",
+        ),
     ],
 )
 def test_signalome_config_self_validates(
@@ -392,12 +398,15 @@ def test_signalome_config_self_validates(
         SignalomeConfig(**kwargs)  # type: ignore[arg-type]
 
 
-def test_signalome_config_rejects_removed_clustering_backend_alias() -> None:
-    with pytest.raises(
-        TypeError,
-        match="unexpected keyword argument 'clustering_backend'",
-    ):
-        SignalomeConfig(clustering_backend="approximate")  # type: ignore[call-arg]
+def test_signalome_config_accepts_supported_clustering_backend_names() -> None:
+    exact = SignalomeConfig(
+        clustering_backend=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
+    )
+    scipy = SignalomeConfig(
+        clustering_backend=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    )
+    assert exact.clustering_backend == SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
+    assert scipy.clustering_backend == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
 
 
 def test_signalome_config_rejects_removed_max_exact_clustering_sites_alias() -> None:

@@ -34,6 +34,15 @@ SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_FLOOR = 1
 SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT = 2000
 SIGNALOME_MAX_FULL_CORRELATION_SITES_FLOOR = 1
 SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT = 2000
+SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON = "exact_python"
+SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL = "scipy_hierarchical"
+SignalomeClusteringBackend = Literal["exact_python", "scipy_hierarchical"]
+SIGNALOME_CLUSTERING_BACKENDS = frozenset(
+    {
+        SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+    }
+)
 SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY = "cutoff_binary"
 SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP = "weighted_top"
 SignalomeAssignmentPolicy = Literal["cutoff_binary", "weighted_top"]
@@ -113,6 +122,12 @@ class SignalomeConfig:
     Final module assignment still depends on the exact cluster tree.
     `max_full_correlation_sites` hard-limits full candidate-correlation scoring.
 
+    `clustering_backend` controls which internal numerical backend performs
+    low-level clustering mechanics:
+
+    - `"exact_python"`: current exact Python implementation.
+    - `"scipy_hierarchical"`: SciPy-backed hierarchical clustering backend.
+
     """
 
     substrate_support_cutoff: float = 0.5
@@ -142,6 +157,9 @@ class SignalomeConfig:
     )
     max_exact_cluster_tree_sites: int = SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT
     max_full_correlation_sites: int = SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT
+    clustering_backend: SignalomeClusteringBackend = (
+        SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
+    )
 
     def __post_init__(self) -> None:
         _require_real_between(
@@ -240,12 +258,21 @@ class SignalomeConfig:
             minimum=SIGNALOME_MAX_FULL_CORRELATION_SITES_FLOOR,
             error_type=WorkflowValidationError,
         )
+        if self.clustering_backend not in SIGNALOME_CLUSTERING_BACKENDS:
+            allowed_backends = ", ".join(sorted(SIGNALOME_CLUSTERING_BACKENDS))
+            raise WorkflowValidationError(
+                "signalome workflow request config.clustering_backend "
+                f"must be one of: {allowed_backends}"
+            )
 
 
 __all__ = [
     "SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL",
     "SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED",
     "SIGNALOME_CANDIDATE_SCORING_BACKENDS",
+    "SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON",
+    "SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL",
+    "SIGNALOME_CLUSTERING_BACKENDS",
     "SIGNALOME_CLUSTER_TREE_BACKEND_EXACT",
     "SIGNALOME_CLUSTER_TREE_BACKENDS",
     "SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT",
@@ -270,6 +297,7 @@ __all__ = [
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP",
     "SignalomeAssignmentPolicy",
+    "SignalomeClusteringBackend",
     "SignalomeConfig",
     "SignalomeKinaseNetworkPolicy",
     "SignalomeScorePreconditioningPolicy",

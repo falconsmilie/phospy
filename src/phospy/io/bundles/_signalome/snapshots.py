@@ -77,6 +77,7 @@ class SignalomeWorkflowConfigSnapshot:
                 "module_selection_max_clusters": int(
                     self.signalome_config.module_selection_max_clusters
                 ),
+                "clustering_backend": str(self.signalome_config.clustering_backend),
             }
         }
 

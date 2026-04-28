@@ -19,6 +19,8 @@ from phospy.api.configs import (
     SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
     SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
     SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
+    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
     SIGNALOME_MAX_EXACT_CLUSTER_TREE_SITES_DEFAULT,
     SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
@@ -525,6 +527,39 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
     assert interpreted.execution_config.max_full_correlation_sites == (
         SIGNALOME_MAX_FULL_CORRELATION_SITES_DEFAULT
     )
+    assert interpreted.execution_config.clustering_backend == (
+        SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
+    )
+
+
+def test_interpreter_propagates_configured_clustering_backend() -> None:
+    dataset = _dataset(site_ids=["P1;S1;", "P2;S2;"])
+    prediction_matrix = _matrix(
+        values=[[0.9, 0.2], [0.1, 0.8]],
+        site_ids=["P1;S1;", "P2;S2;"],
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[[0.7, 0.4], [0.3, 0.6]],
+        site_ids=["P1;S1;", "P2;S2;"],
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(
+            substrate_support_cutoff=0.5,
+            clustering_backend=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+        ),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    assert interpreted.execution_config.clustering_backend == (
+        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    )
 
 
 def test_interpreter_filters_site_indexed_inputs_to_retained_scores_after_preconditioning() -> (
@@ -870,8 +905,18 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
     assert scale_guard == {
         "site_count": 2,
+        "selected_module_count": 1,
         "clustering_backend": "exact_python",
         "clustering_backend_version": "1",
+        "backend_diagnostics": {
+            "backend_name": "exact_python",
+            "uses_scipy": False,
+            "linkage_method": "ward",
+            "distance_metric": "euclidean",
+            "selected_module_count": 1,
+            "input_site_count": 2,
+            "exact_tree_path_used": True,
+        },
         "cluster_tree_backend": SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
         "candidate_scoring_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
         "candidate_scoring_requested_backend": (
@@ -1007,8 +1052,18 @@ def test_explicit_module_count_skips_sampled_candidate_scoring_in_provenance() -
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
     assert scale_guard == {
         "site_count": 3,
+        "selected_module_count": 2,
         "clustering_backend": "exact_python",
         "clustering_backend_version": "1",
+        "backend_diagnostics": {
+            "backend_name": "exact_python",
+            "uses_scipy": False,
+            "linkage_method": "ward",
+            "distance_metric": "euclidean",
+            "selected_module_count": 2,
+            "input_site_count": 3,
+            "exact_tree_path_used": True,
+        },
         "cluster_tree_backend": SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
         "candidate_scoring_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
         "candidate_scoring_requested_backend": (
@@ -1074,8 +1129,18 @@ def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> Non
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
     assert scale_guard == {
         "site_count": 3,
+        "selected_module_count": 2,
         "clustering_backend": "exact_python",
         "clustering_backend_version": "1",
+        "backend_diagnostics": {
+            "backend_name": "exact_python",
+            "uses_scipy": False,
+            "linkage_method": "ward",
+            "distance_metric": "euclidean",
+            "selected_module_count": 2,
+            "input_site_count": 3,
+            "exact_tree_path_used": True,
+        },
         "cluster_tree_backend": SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
         "candidate_scoring_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
         "candidate_scoring_requested_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,

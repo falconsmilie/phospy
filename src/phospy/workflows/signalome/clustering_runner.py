@@ -106,6 +106,7 @@ class SignalomeClusteringRunner:
                     backend_name=backend_result.backend_name,
                     backend_version=backend_result.backend_version,
                     approximation_used=backend_result.approximation_used,
+                    backend_diagnostics=backend_result.backend_diagnostics,
                 )
                 protein_modules = backend_result.protein_modules
             return SignalomeClusteringRunResult(
@@ -163,8 +164,10 @@ class SignalomeClusteringRunner:
         )
         return SignalomeScaleGuardDecision(
             site_count=int(site_count),
+            selected_module_count=selected_module_count,
             clustering_backend=str(clustering_result.backend_name),
             clustering_backend_version=str(clustering_result.backend_version),
+            backend_diagnostics=clustering_result.backend_diagnostics,
             cluster_tree_backend=str(config.cluster_tree_backend),
             candidate_scoring_backend=str(config.candidate_scoring_backend),
             candidate_scoring_requested_backend=str(config.candidate_scoring_backend),

@@ -127,6 +127,7 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
             "module_selection_primary_correlation_threshold": 0.67,
             "module_selection_fallback_correlation_threshold": 0.23,
             "module_selection_max_clusters": 15,
+            "clustering_backend": "exact_python",
         }
     }
 
@@ -134,23 +135,29 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
     assert snapshot.to_payload() == payload
 
 
-def test_signalome_snapshot_rejects_removed_backend_alias_payload_fields() -> None:
+def test_signalome_snapshot_rejects_removed_max_exact_clustering_sites_alias() -> None:
     with pytest.raises(
         PhosPyInputError,
-        match=(
-            "contains unsupported field\\(s\\): "
-            "clustering_backend, max_exact_clustering_sites"
-        ),
+        match="contains unsupported field\\(s\\): max_exact_clustering_sites",
     ):
         SignalomeWorkflowConfigSnapshot.from_payload(
             {
                 "signalome_config": {
                     "substrate_support_cutoff": 0.42,
                     "network_correlation_threshold": 0.73,
-                    "clustering_backend": "approximate",
                     "max_exact_clustering_sites": 2500,
                 }
             }
+        )
+
+
+def test_signalome_snapshot_rejects_unknown_clustering_backend_value() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="config snapshot.signalome_config.clustering_backend must be one of:",
+    ):
+        SignalomeWorkflowConfigSnapshot.from_payload(
+            _full_signalome_snapshot_payload(clustering_backend="approximate")
         )
 
 

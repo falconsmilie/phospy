@@ -5,13 +5,20 @@ from __future__ import annotations
 from phospy.signalomes.clustering.exact_python import ExactPythonClusteringBackend
 from phospy.signalomes.clustering.models import (
     SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
     SignalomeClusteringBackendRequest,
     SignalomeClusteringBackendResult,
 )
 from phospy.signalomes.clustering.protocol import SignalomeClusteringBackend
+from phospy.signalomes.clustering.scipy_hierarchical import (
+    ScipyHierarchicalClusteringBackend,
+)
 
 _BACKENDS: dict[str, SignalomeClusteringBackend] = {
     SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON: ExactPythonClusteringBackend(),
+    SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL: (
+        ScipyHierarchicalClusteringBackend()
+    ),
 }
 
 

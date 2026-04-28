@@ -699,10 +699,10 @@ def test_signalome_request_module_selection_max_clusters_policy_fails_at_boundar
 
 def test_signalome_request_clustering_backend_policy_fails_at_boundary() -> None:
     with pytest.raises(
-        TypeError,
-        match="unexpected keyword argument 'clustering_backend'",
+        WorkflowValidationError,
+        match="signalome workflow request config.clustering_backend",
     ):
-        SignalomeConfig(clustering_backend="unsupported")  # type: ignore[call-arg]
+        SignalomeConfig(clustering_backend="unsupported")
 
 
 def test_signalome_request_max_exact_clustering_sites_policy_fails_at_boundary() -> (

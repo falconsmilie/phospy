@@ -10,6 +10,8 @@ from phospy.signalomes.models import SignalomeModuleSelectionDiagnostics
 
 SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON = "exact_python"
 SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION = "1"
+SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL = "scipy_hierarchical"
+SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL_VERSION = "1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +47,7 @@ class SignalomeClusteringBackendResult:
     candidate_scoring_evaluated: bool
     candidate_scoring_skip_reason: str | None
     candidate_scoring_sampling: dict[str, object] | None
+    backend_diagnostics: dict[str, object] | None
     threshold_metadata: dict[str, float | None]
     limit_metadata: dict[str, int | None]
 
@@ -52,6 +55,8 @@ class SignalomeClusteringBackendResult:
 __all__ = [
     "SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON",
     "SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION",
+    "SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL",
+    "SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL_VERSION",
     "SignalomeClusteringBackendRequest",
     "SignalomeClusteringBackendResult",
 ]

@@ -8,6 +8,8 @@ from phospy.signalomes.clustering import exact_python as _exact
 from phospy.signalomes.clustering.models import (
     SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
     SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION,
+    SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+    SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL_VERSION,
     SignalomeClusteringBackendRequest,
     SignalomeClusteringBackendResult,
 )
@@ -104,6 +106,8 @@ def fit_cluster_labels(*args: Any, **kwargs: Any) -> Any:
 __all__ = list(_exact.__all__) + [
     "SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON",
     "SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION",
+    "SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL",
+    "SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL_VERSION",
     "SignalomeClusteringBackend",
     "SignalomeClusteringBackendRequest",
     "SignalomeClusteringBackendResult",

@@ -35,7 +35,6 @@ _BANNED_WORDING_PATTERNS = (
 )
 
 _REMOVED_ALIAS_TOKENS = (
-    "clustering_backend",
     "max_exact_clustering_sites",
     "prediction-ensemble-size",
     "ensemble_size",

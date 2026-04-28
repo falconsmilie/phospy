@@ -87,6 +87,7 @@ class ClusterSitesResult:
     backend_name: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
     backend_version: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION
     approximation_used: bool = False
+    backend_diagnostics: dict[str, object] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -1482,12 +1483,22 @@ class ExactPythonClusteringBackend:
             site_clusters=clustering_result.site_clusters,
             site_to_protein=request.site_to_protein,
         )
+        selected_module_count = int(
+            clustering_result.module_selection_diagnostics.selected_module_count
+        )
+        backend_diagnostics: dict[str, object] = {
+            "backend_name": self.name,
+            "uses_scipy": False,
+            "linkage_method": "ward",
+            "distance_metric": "euclidean",
+            "selected_module_count": selected_module_count,
+            "input_site_count": int(request.scoring_matrix.shape[0]),
+            "exact_tree_path_used": bool(clustering_result.exact_cluster_tree_built),
+        }
         return SignalomeClusteringBackendResult(
             site_clusters=clustering_result.site_clusters,
             protein_modules=protein_modules,
-            selected_module_count=int(
-                clustering_result.module_selection_diagnostics.selected_module_count
-            ),
+            selected_module_count=selected_module_count,
             module_selection_diagnostics=clustering_result.module_selection_diagnostics,
             backend_name=self.name,
             backend_version=self.version,
@@ -1504,6 +1515,7 @@ class ExactPythonClusteringBackend:
                 else str(clustering_result.candidate_scoring_skip_reason)
             ),
             candidate_scoring_sampling=clustering_result.candidate_scoring_sampling,
+            backend_diagnostics=backend_diagnostics,
             threshold_metadata={
                 "primary_threshold": float(request.primary_threshold),
                 "fallback_threshold": float(request.fallback_threshold),

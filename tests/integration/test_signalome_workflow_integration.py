@@ -25,6 +25,7 @@ from phospy.api import (
     SignalomeConfig,
     SignalomeWorkflowRequest,
 )
+from phospy.api.configs import SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
 from phospy.api.results import KinaseScoringResult
 from phospy.errors import WorkflowBoundaryError, WorkflowValidationError
 from phospy.signalomes.constants import (
@@ -170,6 +171,49 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
         expanded.loc[:, EXPANDED_SIGNALOME_ROW_KIND_COLUMN]
         == EXPANDED_SIGNALOME_ROW_KIND_SITE
     ).any()
+
+
+def test_signalome_workflow_runs_with_scipy_clustering_backend() -> None:
+    dataset = build_rat_l6_dataset(n_sites=260)
+    kinase_result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=6,
+                deterministic_max_selected_kinases=12,
+                adaptive_ensemble_runs=12,
+            ),
+            activity_config=None,
+        )
+    )
+    result = SignalomeWorkflow().run(
+        SignalomeWorkflowRequest(
+            kinase_result=kinase_result,
+            config=SignalomeConfig(
+                substrate_support_cutoff=0.5,
+                clustering_backend=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+            ),
+        )
+    )
+
+    assert not result.module_assignments.table.empty
+    assert not result.signalome_modules.table.empty
+    assert result.provenance is not None
+    signalome_config = result.provenance.workflow_parameters["signalome_config"]
+    assert (
+        signalome_config["clustering_backend"]
+        == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    )
+    scale_guard = result.provenance.workflow_parameters["scale_guard"]
+    assert (
+        scale_guard["clustering_backend"]
+        == SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL
+    )
+    backend_diagnostics = scale_guard["backend_diagnostics"]
+    assert isinstance(backend_diagnostics, dict)
+    assert backend_diagnostics["uses_scipy"] is True
 
 
 def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id() -> (
