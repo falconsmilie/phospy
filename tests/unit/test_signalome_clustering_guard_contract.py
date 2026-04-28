@@ -14,6 +14,7 @@ from phospy.signalomes.clustering import (
     fit_cluster_labels,
     select_module_count_with_diagnostics,
 )
+from phospy.signalomes.clustering import exact_python as exact_clustering
 
 
 def _over_limit_scoring_values() -> np.ndarray:
@@ -59,7 +60,7 @@ def _patch_tree_builder(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         )
 
     monkeypatch.setattr(
-        clustering_module,
+        exact_clustering,
         "_build_cluster_tree",
         _build_tree_should_not_run,
     )
@@ -164,7 +165,7 @@ def test_full_candidate_scoring_over_full_limit_fails_before_tree_construction(
         )
 
     monkeypatch.setattr(
-        clustering_module,
+        exact_clustering,
         "_build_cluster_tree",
         _build_tree_should_not_run,
     )
@@ -201,7 +202,7 @@ def test_both_limits_exceeded_uses_exact_tree_guard_first_without_building_tree(
         )
 
     monkeypatch.setattr(
-        clustering_module,
+        exact_clustering,
         "_build_cluster_tree",
         _build_tree_should_not_run,
     )

@@ -31,22 +31,6 @@ SIGNALOME_CLUSTER_TREE_BACKEND_EXACT = _exact.SIGNALOME_CLUSTER_TREE_BACKEND_EXA
 MAX_FULL_CORRELATION_SITE_COUNT = _exact.MAX_FULL_CORRELATION_SITE_COUNT
 
 
-_PATCHABLE_EXACT_SYMBOLS = (
-    "_build_cluster_tree",
-    "build_cluster_labels_from_tree",
-    "_resolve_pre_scoring_module_selection",
-    "build_correlation_matrix_with_exclusions",
-)
-
-
-def _sync_exact_monkeypatch_hooks() -> None:
-    for symbol in _PATCHABLE_EXACT_SYMBOLS:
-        if symbol in globals():
-            setattr(_exact, symbol, globals()[symbol])
-            if hasattr(_selection, symbol):
-                setattr(_selection, symbol, globals()[symbol])
-
-
 def run_signalome_clustering_backend(
     *,
     scoring_matrix: Any,
@@ -63,7 +47,6 @@ def run_signalome_clustering_backend(
 ) -> SignalomeClusteringBackendResult:
     """Run the internal backend protocol and return typed backend output."""
 
-    _sync_exact_monkeypatch_hooks()
     return run_clustering_backend(
         request=SignalomeClusteringBackendRequest(
             scoring_matrix=scoring_matrix,
@@ -82,27 +65,22 @@ def run_signalome_clustering_backend(
 
 
 def cluster_sites(*args: Any, **kwargs: Any) -> Any:
-    _sync_exact_monkeypatch_hooks()
     return _exact.cluster_sites(*args, **kwargs)
 
 
 def cluster_sites_with_diagnostics(*args: Any, **kwargs: Any) -> Any:
-    _sync_exact_monkeypatch_hooks()
     return _exact.cluster_sites_with_diagnostics(*args, **kwargs)
 
 
 def select_module_count(*args: Any, **kwargs: Any) -> Any:
-    _sync_exact_monkeypatch_hooks()
     return _selection.select_module_count(*args, **kwargs)
 
 
 def select_module_count_with_diagnostics(*args: Any, **kwargs: Any) -> Any:
-    _sync_exact_monkeypatch_hooks()
     return _selection.select_module_count_with_diagnostics(*args, **kwargs)
 
 
 def fit_cluster_labels(*args: Any, **kwargs: Any) -> Any:
-    _sync_exact_monkeypatch_hooks()
     return _exact.fit_cluster_labels(*args, **kwargs)
 
 

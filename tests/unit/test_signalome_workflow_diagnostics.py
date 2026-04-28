@@ -1257,7 +1257,7 @@ def test_explicit_multi_module_invokes_exact_tree_builder_for_final_assignment(
     monkeypatch: pytest.MonkeyPatch,
     execution_path: str,
 ) -> None:
-    import phospy.signalomes.clustering as clustering_module
+    from phospy.signalomes.clustering import exact_python as clustering_module
 
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
@@ -1335,7 +1335,7 @@ def test_explicit_module_count_over_exact_tree_limit_fails_early(
     monkeypatch: pytest.MonkeyPatch,
     execution_path: str,
 ) -> None:
-    import phospy.signalomes.clustering as clustering_module
+    from phospy.signalomes.clustering import exact_python as clustering_module
 
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
@@ -1409,7 +1409,7 @@ def test_sampled_candidate_scoring_over_exact_tree_limit_fails_early(
     monkeypatch: pytest.MonkeyPatch,
     execution_path: str,
 ) -> None:
-    import phospy.signalomes.clustering as clustering_module
+    from phospy.signalomes.clustering import exact_python as clustering_module
 
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
@@ -1485,7 +1485,7 @@ def test_full_candidate_scoring_over_full_correlation_limit_fails_early(
     monkeypatch: pytest.MonkeyPatch,
     execution_path: str,
 ) -> None:
-    import phospy.signalomes.clustering as clustering_module
+    from phospy.signalomes.clustering import exact_python as clustering_module
 
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)

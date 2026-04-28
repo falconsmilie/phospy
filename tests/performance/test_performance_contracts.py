@@ -85,11 +85,11 @@ SIGNALOME_WORKFLOW_PRECONDITIONED_PEAK_MIB_MAX = 700.0
 def _patch_cluster_tree_build_for_contract_scoring(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import phospy.signalomes.clustering as clustering
+    from phospy.signalomes.clustering import exact_python as exact_clustering
 
     def _stub_build_cluster_tree(scoring_values: np.ndarray) -> object:
         n_sites = int(np.asarray(scoring_values, dtype=float).shape[0])
-        return clustering._WardClusterTree(n_sites=n_sites, merges=())
+        return exact_clustering._WardClusterTree(n_sites=n_sites, merges=())
 
     def _stub_build_cluster_labels_from_tree(
         *,
@@ -107,9 +107,13 @@ def _patch_cluster_tree_build_for_contract_scoring(
             labels_by_count[requested_count] = labels.astype(int, copy=False)
         return labels_by_count
 
-    monkeypatch.setattr(clustering, "_build_cluster_tree", _stub_build_cluster_tree)
     monkeypatch.setattr(
-        clustering,
+        exact_clustering,
+        "_build_cluster_tree",
+        _stub_build_cluster_tree,
+    )
+    monkeypatch.setattr(
+        exact_clustering,
         "build_cluster_labels_from_tree",
         _stub_build_cluster_labels_from_tree,
     )

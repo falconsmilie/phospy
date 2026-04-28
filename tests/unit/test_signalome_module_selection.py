@@ -10,6 +10,7 @@ from phospy.signalomes.clustering import (
     fit_cluster_labels,
     select_module_count_with_diagnostics,
 )
+from phospy.signalomes.clustering import exact_python as exact_clustering
 
 
 def test_module_count_selection_clamps_explicit_request_to_site_count() -> None:
@@ -249,14 +250,14 @@ def test_module_selection_survives_empty_candidate_range_branch(
         dtype=float,
     )
 
-    original_resolver = clustering_module._resolve_pre_scoring_module_selection
+    original_resolver = exact_clustering._resolve_pre_scoring_module_selection
 
     def _force_empty_candidate_range(**kwargs: object) -> tuple[None, int]:
         _, resolved_max_clusters = original_resolver(**kwargs)
         return None, min(1, int(resolved_max_clusters))
 
     monkeypatch.setattr(
-        clustering_module,
+        exact_clustering,
         "_resolve_pre_scoring_module_selection",
         _force_empty_candidate_range,
     )

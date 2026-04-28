@@ -13,6 +13,8 @@ from phospy.signalomes.clustering import (
     resolve_clustering_backend,
     run_signalome_clustering_backend,
 )
+from phospy.signalomes.clustering import exact_python as exact_clustering
+from phospy.signalomes.clustering import scipy_hierarchical as scipy_clustering
 
 
 def _small_scoring_matrix() -> pd.DataFrame:
@@ -140,7 +142,14 @@ def test_scipy_backend_matches_exact_backend_for_small_deterministic_fixture() -
     )
 
 
-def test_scipy_backend_is_stable_across_repeated_runs() -> None:
+@pytest.mark.parametrize(
+    "backend_name",
+    [
+        SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+    ],
+)
+def test_backend_is_stable_across_repeated_runs(backend_name: str) -> None:
     kwargs = {
         "scoring_matrix": _small_scoring_matrix(),
         "site_to_protein": _small_site_to_protein(),
@@ -148,7 +157,7 @@ def test_scipy_backend_is_stable_across_repeated_runs() -> None:
         "primary_threshold": 0.5,
         "fallback_threshold": 0.1,
         "max_clusters": 5,
-        "backend_name": SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+        "backend_name": backend_name,
     }
     run_one = run_signalome_clustering_backend(**kwargs)
     run_two = run_signalome_clustering_backend(**kwargs)
@@ -158,3 +167,85 @@ def test_scipy_backend_is_stable_across_repeated_runs() -> None:
     assert run_one.module_selection_diagnostics == run_two.module_selection_diagnostics
     assert run_one.selected_module_count == run_two.selected_module_count
     assert run_one.backend_diagnostics == run_two.backend_diagnostics
+
+
+def test_exact_backend_result_is_not_contaminated_by_prior_scipy_run() -> None:
+    kwargs = {
+        "scoring_matrix": _small_scoring_matrix(),
+        "site_to_protein": _small_site_to_protein(),
+        "requested_module_count": None,
+        "primary_threshold": 0.5,
+        "fallback_threshold": 0.1,
+        "max_clusters": 5,
+    }
+    baseline_exact = run_signalome_clustering_backend(
+        **kwargs,
+        backend_name=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+    )
+    run_signalome_clustering_backend(
+        **kwargs,
+        backend_name=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+    )
+    post_scipy_exact = run_signalome_clustering_backend(
+        **kwargs,
+        backend_name=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+    )
+
+    pdt.assert_series_equal(
+        post_scipy_exact.site_clusters, baseline_exact.site_clusters
+    )
+    pdt.assert_series_equal(
+        post_scipy_exact.protein_modules,
+        baseline_exact.protein_modules,
+    )
+    assert (
+        post_scipy_exact.module_selection_diagnostics
+        == baseline_exact.module_selection_diagnostics
+    )
+    assert (
+        post_scipy_exact.selected_module_count == baseline_exact.selected_module_count
+    )
+
+
+def test_scipy_backend_run_does_not_mutate_exact_cluster_tree_functions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed_function_state: list[tuple[bool, bool]] = []
+    original_cluster_sites_with_diagnostics = (
+        exact_clustering.cluster_sites_with_diagnostics
+    )
+    original_build_cluster_tree = exact_clustering._build_cluster_tree
+    original_build_cluster_labels_from_tree = (
+        exact_clustering.build_cluster_labels_from_tree
+    )
+
+    def _cluster_with_invariant_check(*args: object, **kwargs: object):
+        observed_function_state.append(
+            (
+                exact_clustering._build_cluster_tree is original_build_cluster_tree,
+                (
+                    exact_clustering.build_cluster_labels_from_tree
+                    is original_build_cluster_labels_from_tree
+                ),
+            )
+        )
+        return original_cluster_sites_with_diagnostics(*args, **kwargs)
+
+    monkeypatch.setattr(
+        exact_clustering,
+        "cluster_sites_with_diagnostics",
+        _cluster_with_invariant_check,
+    )
+
+    run_signalome_clustering_backend(
+        scoring_matrix=_small_scoring_matrix(),
+        site_to_protein=_small_site_to_protein(),
+        requested_module_count=None,
+        primary_threshold=0.5,
+        fallback_threshold=0.1,
+        max_clusters=5,
+        backend_name=SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+    )
+
+    assert observed_function_state == [(True, True)]
+    assert not hasattr(scipy_clustering, "_patched_exact_tree_functions")

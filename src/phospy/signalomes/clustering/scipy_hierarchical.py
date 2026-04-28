@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from contextlib import contextmanager
 from dataclasses import dataclass
 
 import numpy as np
@@ -117,17 +116,28 @@ def _build_scipy_cluster_labels_from_tree(
     }
 
 
-@contextmanager
-def _patched_exact_tree_functions():
-    original_build_cluster_tree = _exact._build_cluster_tree
-    original_build_cluster_labels = _exact.build_cluster_labels_from_tree
-    _exact._build_cluster_tree = _build_scipy_cluster_tree
-    _exact.build_cluster_labels_from_tree = _build_scipy_cluster_labels_from_tree
-    try:
-        yield
-    finally:
-        _exact._build_cluster_tree = original_build_cluster_tree
-        _exact.build_cluster_labels_from_tree = original_build_cluster_labels
+@dataclass(frozen=True, slots=True)
+class _ScipyClusterTreeOperations:
+    def build_cluster_tree(self, scoring_values: np.ndarray) -> _ScipyWardClusterTree:
+        return _build_scipy_cluster_tree(scoring_values)
+
+    def build_cluster_labels_from_tree(
+        self,
+        *,
+        cluster_tree: object,
+        cluster_counts: Iterable[int],
+    ) -> dict[int, np.ndarray]:
+        if not isinstance(cluster_tree, _ScipyWardClusterTree):
+            raise TypeError(
+                "scipy cluster-tree operations expected a _ScipyWardClusterTree instance"
+            )
+        return _build_scipy_cluster_labels_from_tree(
+            cluster_tree=cluster_tree,
+            cluster_counts=cluster_counts,
+        )
+
+
+_SCIPY_CLUSTER_TREE_OPERATIONS = _ScipyClusterTreeOperations()
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,22 +151,22 @@ class ScipyHierarchicalClusteringBackend:
         self,
         request: SignalomeClusteringBackendRequest,
     ) -> SignalomeClusteringBackendResult:
-        with _patched_exact_tree_functions():
-            clustering_result = _exact.cluster_sites_with_diagnostics(
-                scoring_matrix=request.scoring_matrix,
-                requested_module_count=request.requested_module_count,
-                primary_threshold=request.primary_threshold,
-                fallback_threshold=request.fallback_threshold,
-                max_clusters=request.max_clusters,
-                cluster_tree_backend=request.cluster_tree_backend,
-                candidate_scoring_backend=request.candidate_scoring_backend,
-                max_exact_cluster_tree_sites=request.max_exact_cluster_tree_sites,
-                max_full_correlation_sites=request.max_full_correlation_sites,
-            )
-            protein_modules = _exact.derive_protein_modules(
-                site_clusters=clustering_result.site_clusters,
-                site_to_protein=request.site_to_protein,
-            )
+        clustering_result = _exact.cluster_sites_with_diagnostics(
+            scoring_matrix=request.scoring_matrix,
+            requested_module_count=request.requested_module_count,
+            primary_threshold=request.primary_threshold,
+            fallback_threshold=request.fallback_threshold,
+            max_clusters=request.max_clusters,
+            cluster_tree_backend=request.cluster_tree_backend,
+            candidate_scoring_backend=request.candidate_scoring_backend,
+            max_exact_cluster_tree_sites=request.max_exact_cluster_tree_sites,
+            max_full_correlation_sites=request.max_full_correlation_sites,
+            cluster_tree_operations=_SCIPY_CLUSTER_TREE_OPERATIONS,
+        )
+        protein_modules = _exact.derive_protein_modules(
+            site_clusters=clustering_result.site_clusters,
+            site_to_protein=request.site_to_protein,
+        )
 
         selected_module_count = int(
             clustering_result.module_selection_diagnostics.selected_module_count
