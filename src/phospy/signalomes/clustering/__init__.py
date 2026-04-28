@@ -58,8 +58,19 @@ def run_signalome_clustering_backend(
     max_exact_cluster_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
     max_full_correlation_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
     backend_name: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+    tree_engine: str | None = None,
+    candidate_scoring_policy: str | None = None,
+    clustering_engine: str | None = None,
 ) -> SignalomeClusteringBackendResult:
     """Run configured signalome clustering backend."""
+
+    resolved_backend_name = backend_name
+    if clustering_engine is not None:
+        if resolved_backend_name != str(clustering_engine):
+            raise ValueError(
+                "backend_name and clustering_engine must match when both are set"
+            )
+        resolved_backend_name = str(clustering_engine)
 
     return run_clustering_backend(
         request=SignalomeClusteringBackendRequest(
@@ -73,8 +84,11 @@ def run_signalome_clustering_backend(
             candidate_scoring_backend=candidate_scoring_backend,
             max_exact_cluster_tree_sites=max_exact_cluster_tree_sites,
             max_full_correlation_sites=max_full_correlation_sites,
+            tree_engine=tree_engine,
+            candidate_scoring_policy=candidate_scoring_policy,
+            clustering_engine=clustering_engine,
         ),
-        backend_name=backend_name,
+        backend_name=resolved_backend_name,
     )
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from phospy.signalomes.clustering.exact_python import (
+from phospy.signalomes.clustering.orchestration import (
     ClusterTreeOperations,
     SignalomeCandidateScoringBackend,
     SignalomeClusteringScoringMode,
@@ -17,13 +17,6 @@ from phospy.signalomes.models import (
     SignalomeClusterCandidateScore,
     SignalomeModuleSelectionDiagnostics,
 )
-
-
-def _exact_module():
-    # Local import avoids import cycles: exact backend uses this module too.
-    from phospy.signalomes.clustering import exact_python as _exact
-
-    return _exact
 
 
 def select_module_count(
@@ -61,8 +54,9 @@ def select_module_count_with_diagnostics(
 ) -> SignalomeModuleSelectionDiagnostics:
     """Select a module count and return diagnostics."""
 
-    exact = _exact_module()
-    return exact.select_module_count_with_diagnostics(
+    from phospy.signalomes.clustering import orchestration
+
+    return orchestration.select_module_count_with_diagnostics(
         scoring_values=scoring_values,
         requested_module_count=requested_module_count,
         primary_threshold=primary_threshold,
@@ -89,7 +83,9 @@ def _compute_module_selection(
 ):
     """Compatibility forwarding hook for internal selection computation."""
 
-    return _exact_module()._compute_module_selection(
+    from phospy.signalomes.clustering import orchestration
+
+    return orchestration._compute_module_selection(
         scoring_values=scoring_values,
         requested_module_count=requested_module_count,
         primary_threshold=primary_threshold,
@@ -114,7 +110,9 @@ def _resolve_pre_scoring_module_selection(
 ):
     """Compatibility forwarding hook for internal pre-scoring resolution."""
 
-    return _exact_module()._resolve_pre_scoring_module_selection(
+    from phospy.signalomes.clustering import orchestration
+
+    return orchestration._resolve_pre_scoring_module_selection(
         requested_module_count=requested_module_count,
         n_sites=n_sites,
         max_clusters=max_clusters,
@@ -139,7 +137,9 @@ def _compute_candidate_cluster_scores(
 ):
     """Compatibility forwarding hook for candidate score computation."""
 
-    return _exact_module()._compute_candidate_cluster_scores(
+    from phospy.signalomes.clustering import orchestration
+
+    return orchestration._compute_candidate_cluster_scores(
         clustering_values=clustering_values,
         correlation_values=correlation_values,
         candidate_range=candidate_range,
@@ -163,7 +163,9 @@ def _resolve_candidate_scoring_backend(
 ):
     """Compatibility forwarding hook for candidate scoring backend resolution."""
 
-    return _exact_module()._resolve_candidate_scoring_backend(
+    from phospy.signalomes.clustering import orchestration
+
+    return orchestration._resolve_candidate_scoring_backend(
         scoring_mode=scoring_mode,
         candidate_scoring_backend=candidate_scoring_backend,
         n_sites=n_sites,
@@ -172,7 +174,9 @@ def _resolve_candidate_scoring_backend(
 
 
 def _select_best_candidate_count(candidate_scores: dict[int, float]) -> int:
-    return _exact_module()._select_best_candidate_count(candidate_scores)
+    from phospy.signalomes.clustering import orchestration
+
+    return orchestration._select_best_candidate_count(candidate_scores)
 
 
 def _select_threshold_candidate(
@@ -193,7 +197,9 @@ def _select_threshold_candidate(
     candidate_scoring_skip_reason: str | None,
     candidate_scoring_sampling: dict[str, object] | None,
 ):
-    return _exact_module()._select_threshold_candidate(
+    from phospy.signalomes.clustering import orchestration
+
+    return orchestration._select_threshold_candidate(
         candidate_scores=candidate_scores,
         candidate_labels=candidate_labels,
         max_clusters=max_clusters,
@@ -217,7 +223,9 @@ def filter_cluster_candidates(
     *,
     threshold: float,
 ) -> dict[int, float]:
-    return _exact_module().filter_cluster_candidates(
+    from phospy.signalomes.clustering import orchestration
+
+    return orchestration.filter_cluster_candidates(
         candidate_scores=candidate_scores,
         threshold=threshold,
     )

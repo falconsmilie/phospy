@@ -28,6 +28,9 @@ class SignalomeClusteringBackendRequest:
     candidate_scoring_backend: str | None
     max_exact_cluster_tree_sites: int | None
     max_full_correlation_sites: int
+    tree_engine: str | None = None
+    candidate_scoring_policy: str | None = None
+    clustering_engine: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

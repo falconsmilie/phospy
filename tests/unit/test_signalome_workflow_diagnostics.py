@@ -910,6 +910,8 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         "clustering_backend_version": "1",
         "backend_diagnostics": {
             "backend_name": "exact_python",
+            "tree_engine": "exact_python_tree",
+            "tree_engine_version": "1",
             "uses_scipy": False,
             "linkage_method": "ward",
             "distance_metric": "euclidean",
@@ -1091,6 +1093,8 @@ def test_explicit_module_count_skips_sampled_candidate_scoring_in_provenance() -
         "clustering_backend_version": "1",
         "backend_diagnostics": {
             "backend_name": "exact_python",
+            "tree_engine": "exact_python_tree",
+            "tree_engine_version": "1",
             "uses_scipy": False,
             "linkage_method": "ward",
             "distance_metric": "euclidean",
@@ -1168,6 +1172,8 @@ def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> Non
         "clustering_backend_version": "1",
         "backend_diagnostics": {
             "backend_name": "exact_python",
+            "tree_engine": "exact_python_tree",
+            "tree_engine_version": "1",
             "uses_scipy": False,
             "linkage_method": "ward",
             "distance_metric": "euclidean",

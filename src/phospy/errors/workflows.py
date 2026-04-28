@@ -68,3 +68,7 @@ class WorkflowStageError(PhosPyWorkflowError):
 
 class SignalomeScaleError(WorkflowValidationError):
     """Signalome scale guard blocked an unsafe expensive execution path."""
+
+
+class SignalomeModuleCountValidationError(WorkflowValidationError):
+    """Signalome module-count request violates clustering-site constraints."""

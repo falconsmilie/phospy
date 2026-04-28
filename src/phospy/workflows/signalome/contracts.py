@@ -47,6 +47,18 @@ class ResolvedSignalomeExecutionConfig:
     requested_module_count: int | None
     clustering_backend: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
 
+    @property
+    def tree_engine(self) -> SignalomeClusterTreeBackend:
+        return self.cluster_tree_backend
+
+    @property
+    def candidate_scoring_policy(self) -> SignalomeCandidateScoringBackend:
+        return self.candidate_scoring_backend
+
+    @property
+    def clustering_engine(self) -> str:
+        return self.clustering_backend
+
 
 @dataclass(frozen=True, slots=True)
 class ResolvedSignalomeWorkflowRequest:
