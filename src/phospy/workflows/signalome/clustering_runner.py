@@ -13,7 +13,9 @@ from phospy.signalomes.clustering import (
     ClusterSitesResult,
     cluster_sites_with_diagnostics,
     derive_protein_modules,
+    run_signalome_clustering_backend,
 )
+from phospy.signalomes.clustering.models import SignalomeClusteringBackendResult
 from phospy.workflows.signalome.component_helpers import (
     raise_boundary_error,
     requested_module_count_label,
@@ -42,9 +44,17 @@ class SignalomeClusteringRunner:
             cluster_sites_with_diagnostics
         ),
         derive_modules: Callable[..., pd.Series] = derive_protein_modules,
+        run_backend_clustering: Callable[
+            ..., SignalomeClusteringBackendResult
+        ] = run_signalome_clustering_backend,
     ) -> None:
         self._cluster_sites = cluster_sites
         self._derive_modules = derive_modules
+        self._run_backend_clustering = run_backend_clustering
+        self._use_legacy_injected_cluster_functions = (
+            cluster_sites is not cluster_sites_with_diagnostics
+            or derive_modules is not derive_protein_modules
+        )
 
     def run(
         self,
@@ -54,21 +64,50 @@ class SignalomeClusteringRunner:
         execution_metadata: SignalomeExecutionMetadata,
     ) -> SignalomeClusteringRunResult:
         try:
-            clustering_result = self._cluster_sites(
-                scoring_matrix=request.downstream_score_matrix,
-                requested_module_count=config.requested_module_count,
-                primary_threshold=config.module_selection_primary_threshold,
-                fallback_threshold=config.module_selection_fallback_threshold,
-                max_clusters=config.module_selection_max_clusters,
-                cluster_tree_backend=config.cluster_tree_backend,
-                candidate_scoring_backend=config.candidate_scoring_backend,
-                max_exact_cluster_tree_sites=config.max_exact_cluster_tree_sites,
-                max_full_correlation_sites=config.max_full_correlation_sites,
-            )
-            protein_modules = self._derive_modules(
-                site_clusters=clustering_result.site_clusters,
-                site_to_protein=request.site_to_protein,
-            )
+            if self._use_legacy_injected_cluster_functions:
+                clustering_result = self._cluster_sites(
+                    scoring_matrix=request.downstream_score_matrix,
+                    requested_module_count=config.requested_module_count,
+                    primary_threshold=config.module_selection_primary_threshold,
+                    fallback_threshold=config.module_selection_fallback_threshold,
+                    max_clusters=config.module_selection_max_clusters,
+                    cluster_tree_backend=config.cluster_tree_backend,
+                    candidate_scoring_backend=config.candidate_scoring_backend,
+                    max_exact_cluster_tree_sites=config.max_exact_cluster_tree_sites,
+                    max_full_correlation_sites=config.max_full_correlation_sites,
+                )
+                protein_modules = self._derive_modules(
+                    site_clusters=clustering_result.site_clusters,
+                    site_to_protein=request.site_to_protein,
+                )
+            else:
+                backend_result = self._run_backend_clustering(
+                    scoring_matrix=request.downstream_score_matrix,
+                    site_to_protein=request.site_to_protein,
+                    requested_module_count=config.requested_module_count,
+                    primary_threshold=config.module_selection_primary_threshold,
+                    fallback_threshold=config.module_selection_fallback_threshold,
+                    max_clusters=config.module_selection_max_clusters,
+                    cluster_tree_backend=config.cluster_tree_backend,
+                    candidate_scoring_backend=config.candidate_scoring_backend,
+                    max_exact_cluster_tree_sites=config.max_exact_cluster_tree_sites,
+                    max_full_correlation_sites=config.max_full_correlation_sites,
+                    backend_name=config.clustering_backend,
+                )
+                clustering_result = ClusterSitesResult(
+                    site_clusters=backend_result.site_clusters,
+                    module_selection_diagnostics=backend_result.module_selection_diagnostics,
+                    cluster_tree_backend=backend_result.cluster_tree_backend,
+                    candidate_scoring_mode=backend_result.candidate_scoring_mode,
+                    exact_cluster_tree_built=backend_result.exact_cluster_tree_built,
+                    candidate_scoring_sampling=backend_result.candidate_scoring_sampling,
+                    candidate_scoring_evaluated=backend_result.candidate_scoring_evaluated,
+                    candidate_scoring_skip_reason=backend_result.candidate_scoring_skip_reason,
+                    backend_name=backend_result.backend_name,
+                    backend_version=backend_result.backend_version,
+                    approximation_used=backend_result.approximation_used,
+                )
+                protein_modules = backend_result.protein_modules
             return SignalomeClusteringRunResult(
                 clustering_result=clustering_result,
                 protein_modules=protein_modules,
@@ -124,6 +163,8 @@ class SignalomeClusteringRunner:
         )
         return SignalomeScaleGuardDecision(
             site_count=int(site_count),
+            clustering_backend=str(clustering_result.backend_name),
+            clustering_backend_version=str(clustering_result.backend_version),
             cluster_tree_backend=str(config.cluster_tree_backend),
             candidate_scoring_backend=str(config.candidate_scoring_backend),
             candidate_scoring_requested_backend=str(config.candidate_scoring_backend),

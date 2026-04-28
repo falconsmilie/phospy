@@ -18,6 +18,9 @@ from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.signalomes.clustering.models import (
+    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+)
 from phospy.signalomes.models import (
     SignalomeScorePreconditioningDiagnostics,
     default_signalome_score_preconditioning_diagnostics,
@@ -42,6 +45,7 @@ class ResolvedSignalomeExecutionConfig:
     max_exact_cluster_tree_sites: int
     max_full_correlation_sites: int
     requested_module_count: int | None
+    clustering_backend: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
 
 
 @dataclass(frozen=True, slots=True)

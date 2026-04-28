@@ -11,6 +11,15 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.workflows import SignalomeScaleError
+from phospy.signalomes.clustering.diagnostics import (
+    approximation_used_from_candidate_mode,
+)
+from phospy.signalomes.clustering.models import (
+    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION,
+    SignalomeClusteringBackendRequest,
+    SignalomeClusteringBackendResult,
+)
 from phospy.signalomes.constants import (
     MODULE_ID_COLUMN,
     PROTEIN_COLUMN,
@@ -75,6 +84,9 @@ class ClusterSitesResult:
     candidate_scoring_sampling: dict[str, object] | None = None
     candidate_scoring_evaluated: bool = False
     candidate_scoring_skip_reason: str | None = None
+    backend_name: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
+    backend_version: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION
+    approximation_used: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,6 +237,10 @@ def cluster_sites_with_diagnostics(
         candidate_scoring_evaluated=selection.candidate_scoring_evaluated,
         candidate_scoring_skip_reason=selection.candidate_scoring_skip_reason,
         candidate_scoring_sampling=selection.candidate_scoring_sampling,
+        approximation_used=approximation_used_from_candidate_mode(
+            candidate_scoring_mode=str(selection.candidate_scoring_mode),
+            candidate_scoring_evaluated=bool(selection.candidate_scoring_evaluated),
+        ),
     )
 
 
@@ -1440,8 +1456,73 @@ def _labels_from_members(
     return labels
 
 
+@dataclass(frozen=True, slots=True)
+class ExactPythonClusteringBackend:
+    """Current exact Python backend implementation."""
+
+    name: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON
+    version: str = SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON_VERSION
+
+    def run(
+        self,
+        request: SignalomeClusteringBackendRequest,
+    ) -> SignalomeClusteringBackendResult:
+        clustering_result = cluster_sites_with_diagnostics(
+            scoring_matrix=request.scoring_matrix,
+            requested_module_count=request.requested_module_count,
+            primary_threshold=request.primary_threshold,
+            fallback_threshold=request.fallback_threshold,
+            max_clusters=request.max_clusters,
+            cluster_tree_backend=request.cluster_tree_backend,
+            candidate_scoring_backend=request.candidate_scoring_backend,
+            max_exact_cluster_tree_sites=request.max_exact_cluster_tree_sites,
+            max_full_correlation_sites=request.max_full_correlation_sites,
+        )
+        protein_modules = derive_protein_modules(
+            site_clusters=clustering_result.site_clusters,
+            site_to_protein=request.site_to_protein,
+        )
+        return SignalomeClusteringBackendResult(
+            site_clusters=clustering_result.site_clusters,
+            protein_modules=protein_modules,
+            selected_module_count=int(
+                clustering_result.module_selection_diagnostics.selected_module_count
+            ),
+            module_selection_diagnostics=clustering_result.module_selection_diagnostics,
+            backend_name=self.name,
+            backend_version=self.version,
+            approximation_used=bool(clustering_result.approximation_used),
+            exact_cluster_tree_built=bool(clustering_result.exact_cluster_tree_built),
+            cluster_tree_backend=str(clustering_result.cluster_tree_backend),
+            candidate_scoring_mode=str(clustering_result.candidate_scoring_mode),
+            candidate_scoring_evaluated=bool(
+                clustering_result.candidate_scoring_evaluated
+            ),
+            candidate_scoring_skip_reason=(
+                None
+                if clustering_result.candidate_scoring_skip_reason is None
+                else str(clustering_result.candidate_scoring_skip_reason)
+            ),
+            candidate_scoring_sampling=clustering_result.candidate_scoring_sampling,
+            threshold_metadata={
+                "primary_threshold": float(request.primary_threshold),
+                "fallback_threshold": float(request.fallback_threshold),
+            },
+            limit_metadata={
+                "max_exact_cluster_tree_sites": (
+                    None
+                    if request.max_exact_cluster_tree_sites is None
+                    else int(request.max_exact_cluster_tree_sites)
+                ),
+                "max_full_correlation_sites": int(request.max_full_correlation_sites),
+                "max_clusters": int(request.max_clusters),
+            },
+        )
+
+
 __all__ = [
     "ClusterSitesResult",
+    "ExactPythonClusteringBackend",
     "MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER",
     "MAX_FULL_CORRELATION_SITE_COUNT",
     "NEAR_CONSTANT_PROFILE_VARIANCE_TOLERANCE",

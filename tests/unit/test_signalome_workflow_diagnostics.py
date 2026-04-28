@@ -870,6 +870,8 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
     assert scale_guard == {
         "site_count": 2,
+        "clustering_backend": "exact_python",
+        "clustering_backend_version": "1",
         "cluster_tree_backend": SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
         "candidate_scoring_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
         "candidate_scoring_requested_backend": (
@@ -1005,6 +1007,8 @@ def test_explicit_module_count_skips_sampled_candidate_scoring_in_provenance() -
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
     assert scale_guard == {
         "site_count": 3,
+        "clustering_backend": "exact_python",
+        "clustering_backend_version": "1",
         "cluster_tree_backend": SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
         "candidate_scoring_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
         "candidate_scoring_requested_backend": (
@@ -1070,6 +1074,8 @@ def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> Non
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
     assert scale_guard == {
         "site_count": 3,
+        "clustering_backend": "exact_python",
+        "clustering_backend_version": "1",
         "cluster_tree_backend": SIGNALOME_CLUSTER_TREE_BACKEND_EXACT,
         "candidate_scoring_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
         "candidate_scoring_requested_backend": SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,

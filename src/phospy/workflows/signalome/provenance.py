@@ -115,6 +115,7 @@ class SignalomeProvenanceBuilder:
                     "max_full_correlation_sites": int(
                         config.max_full_correlation_sites
                     ),
+                    "clustering_backend": str(config.clustering_backend),
                     "module_count": (
                         None
                         if config.requested_module_count is None
@@ -123,6 +124,10 @@ class SignalomeProvenanceBuilder:
                 },
                 "scale_guard": {
                     "site_count": int(scale_guard_decision.site_count),
+                    "clustering_backend": str(scale_guard_decision.clustering_backend),
+                    "clustering_backend_version": str(
+                        scale_guard_decision.clustering_backend_version
+                    ),
                     "cluster_tree_backend": str(
                         scale_guard_decision.cluster_tree_backend
                     ),

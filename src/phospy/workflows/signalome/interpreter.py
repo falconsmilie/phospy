@@ -14,6 +14,9 @@ from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.prediction.scoring import select_downstream_score_matrix
+from phospy.signalomes.clustering.models import (
+    SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
+)
 from phospy.signalomes.constants import KINASE_COLUMN, PROTEIN_COLUMN, SITE_ID_COLUMN
 from phospy.signalomes.models import (
     SignalomeScorePreconditioningDiagnostics,
@@ -157,6 +160,7 @@ class SignalomeWorkflowInterpreter:
                 if request.config.module_count is None
                 else int(request.config.module_count)
             ),
+            clustering_backend=SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
         )
 
     @staticmethod

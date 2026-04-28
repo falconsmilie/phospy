@@ -26,6 +26,8 @@ class SignalomeExecutionMetadata:
 @dataclass(frozen=True, slots=True)
 class SignalomeScaleGuardDecision:
     site_count: int
+    clustering_backend: str
+    clustering_backend_version: str
     cluster_tree_backend: str
     candidate_scoring_backend: str
     candidate_scoring_requested_backend: str
