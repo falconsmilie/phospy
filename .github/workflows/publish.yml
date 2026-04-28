@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+env:
+  PIP_CONSTRAINT: constraints/ci.txt
+  PIP_BUILD_CONSTRAINT: constraints/ci.txt
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,6 +25,9 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
+          cache-dependency-path: |
+            pyproject.toml
+            constraints/ci.txt
       - name: Build distributions
         run: |
           python -m pip install --upgrade pip

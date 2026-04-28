@@ -1,0 +1,26 @@
+# Reproducible CI/release dependency set for scientific verification.
+# Updated: 2026-04-28
+#
+# Use with:
+#   python -m pip install -c constraints/ci.txt -e ".[test]"
+#   python -m pip install -c constraints/ci.txt -e ".[dev,test]"
+#
+# Policy:
+# - pyproject.toml keeps minimum supported versions for install flexibility.
+# - this file pins the known-tested stack used by CI and release verification.
+
+numpy==2.2.6
+pandas==2.2.3
+scipy==1.15.2
+scikit-learn==1.6.1
+tomli==2.2.1 ; python_version < "3.11"
+
+pytest==8.3.5
+pre-commit==4.1.0
+pyright==1.1.409
+ruff==0.15.7
+
+build==1.2.2.post1
+twine==6.1.0
+setuptools==77.0.3
+wheel==0.45.1

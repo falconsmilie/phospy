@@ -36,6 +36,13 @@ pip install -e ".[dev,parquet]"  # optional parquet support
 pyright
 ```
 
+For reproducible scientific/regression runs aligned to CI:
+
+```bash
+pip install -c constraints/ci.txt -e ".[dev,test]"
+pytest tests/parity -m parity -s
+```
+
 ## First Run
 
 The recommended beginner lane is deliberately small:
