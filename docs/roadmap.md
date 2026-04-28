@@ -34,34 +34,6 @@ Supported today in `src/phospy/`:
 - Signalome supports `assignment_policy="weighted_top"` and network-policy
   variants (`positive_only`, `absolute_threshold`, `signed`)
 
-## Science-Parity Ticket Status (2026-04-22)
-
-Audit reference:
-[Legacy Science Gap Audit](architecture/legacy_science_gap_audit.md)
-
-- `SCI-GAP-01`: profile missing-value strategy (`strict` + `median_skipna`) -
-  completed
-- `SCI-GAP-12`: core kinase downstream scoring/prediction parity restoration -
-  completed with repaired like-for-like ranking comparison surfaces and active
-  ranking closure gates in parity CI
-- `SCI-GAP-05`: adaptive ensemble prediction lane - completed
-- `SCI-GAP-06`: signalome clustering + module-count diagnostics - completed
-- `SCI-GAP-08`: weighted-top assignment policy + fractional module shares -
-  completed
-- `SCI-GAP-09`: signalome network policy expansion (`positive_only`,
-  `absolute_threshold`, `signed`) - completed
-- `SCI-GAP-10`: `expanded_signalome` output population - completed
-- `SCI-GAP-11`: activity thresholded-substrate-mean parity lock - completed (regression lock remains
-  active)
-- `SCI-GAP-07`: deterministic tie-metadata hardening for current lexicographic
-  assignment policy - completed
-
-Tracked `SCI-GAP-*` tickets above are closed in the supported rewrite lane as
-of 2026-04-20. Ticket closure labels alone still do not imply full
-legacy-science parity outside the audited inventory and explicit coverage tiers.
-See the full legacy-science inventory in:
-`docs/architecture/legacy_science_gap_audit.md` and `docs/parity.md`.
-
 ## Remaining Roadmap (Real Next Steps)
 
 The remaining roadmap focuses on sustaining parity governance quality rather
@@ -80,9 +52,3 @@ than reopening repaired ranking-surface work.
 
 - broad parity claims across all legacy lanes
 - public expansion of unsupported legacy-facing APIs
-
-## Where Next
-
-- Scientific confidence tiers and gates: [Parity to PhosR](parity.md)
-- Detailed evidence inventory: [Legacy science gap audit](architecture/legacy_science_gap_audit.md)
-- Current public contract: [API Guide](api.md)
