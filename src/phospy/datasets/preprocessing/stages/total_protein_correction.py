@@ -383,7 +383,7 @@ def _resolve_mapping_table_mode_mapping(
         phosphosite_key_to_rows[resolved_key].append(str(row_id))
     mapping_table = pd.DataFrame(
         mapping_rows,
-        columns=["mapping_phosphosite_key", "mapping_total_protein_key"],
+        columns=pd.Index(["mapping_phosphosite_key", "mapping_total_protein_key"]),
     )
     mapping_table.loc[:, "mapping_phosphosite_key"] = (
         mapping_table.loc[:, "mapping_phosphosite_key"].astype("string").str.strip()

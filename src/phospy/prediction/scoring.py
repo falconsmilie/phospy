@@ -90,7 +90,7 @@ def fuse_profile_and_motif_scores_by_rank_weight(
                 "motif_rank_weight": motif_rank_weight,
                 "profile_rank_weight": profile_rank_weight,
             },
-            index=overlap,
+            index=pd.Index(overlap),
         )
     else:
         weights = None
@@ -134,7 +134,7 @@ def _profile_only_weights(kinases: Sequence[str]) -> pd.DataFrame:
             "motif_rank_weight": 0.0,
             "profile_rank_weight": 1.0,
         },
-        index=list(kinases),
+        index=pd.Index(kinases),
     )
     weights.index.name = "kinase"
     return weights

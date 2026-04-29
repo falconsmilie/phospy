@@ -282,7 +282,7 @@ def _build_group_statistics(
                     "max": maximum.to_numpy(),
                     "sample_ids": [tuple(sample_columns)] * len(site_ids),
                 },
-                columns=COMPARISON_GROUP_STATS_COLUMNS,
+                columns=pd.Index(COMPARISON_GROUP_STATS_COLUMNS),
             )
         )
     if not group_records:
@@ -344,7 +344,7 @@ def _build_pair_statistics(
                     "left_max": left_summary.loc[:, "max"].to_numpy(),
                     "right_max": right_summary.loc[:, "max"].to_numpy(),
                 },
-                columns=COMPARISON_PAIR_STATS_COLUMNS,
+                columns=pd.Index(COMPARISON_PAIR_STATS_COLUMNS),
             )
         )
     if not pair_records:

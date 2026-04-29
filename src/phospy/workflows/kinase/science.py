@@ -307,7 +307,7 @@ def build_prediction_outputs(
 
     substrate_list = pd.DataFrame(
         substrate_rows,
-        columns=["kinase", "substrate_site", "score", "rank"],
+        columns=pd.Index(["kinase", "substrate_site", "score", "rank"]),
     )
     return pred_mat, substrate_list
 

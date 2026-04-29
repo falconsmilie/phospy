@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import NoReturn
+from typing import NoReturn, cast
 
 import pandas as pd
 
@@ -46,8 +46,11 @@ def summarize_support(kinase_substrates: dict[str, tuple[str, ...]]) -> dict[str
 def score_variance_kinases(downstream_score_matrix: pd.DataFrame) -> int:
     if downstream_score_matrix.empty:
         return 0
-    variances = downstream_score_matrix.astype(float).var(axis=0, ddof=0)
-    return int((variances > 0.0).sum())
+    variances = cast(
+        pd.Series,
+        downstream_score_matrix.astype(float).var(axis=0, ddof=0),
+    )
+    return int(variances.gt(0.0).sum())
 
 
 def prediction_shape_details(

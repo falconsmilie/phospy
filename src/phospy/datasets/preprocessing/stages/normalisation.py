@@ -170,7 +170,7 @@ def _quantile_normalise(matrix: pd.DataFrame) -> pd.DataFrame:
 
     as_float = matrix.astype("float64")
     sorted_values = np.sort(as_float.to_numpy(copy=True), axis=0)
-    rank_means = pd.DataFrame(sorted_values).mean(axis=1, skipna=True).to_numpy()
+    rank_means = np.nanmean(sorted_values, axis=1)
 
     normalised_columns: dict[object, pd.Series] = {}
     for column in as_float.columns:

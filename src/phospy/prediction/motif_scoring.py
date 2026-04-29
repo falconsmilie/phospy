@@ -143,7 +143,7 @@ class MotifLibraryValidationResult:
                 }
                 for row in self.rows
             ],
-            columns=columns,
+            columns=pd.Index(columns),
         )
 
 
@@ -486,7 +486,7 @@ def score_phosphosite_motifs(
     motif_scores = pd.DataFrame(
         np.nan,
         index=raw_sequences.index.copy(),
-        columns=kinases,
+        columns=pd.Index(kinases),
         dtype=float,
     )
     if kinases and validation.valid_sequences > 0:
@@ -565,8 +565,8 @@ def _build_frequency_matrix_from_windows(
     frequency_values /= float(len(windows))
     return pd.DataFrame(
         frequency_values,
-        index=list(AMINO_ACIDS),
-        columns=[f"p{i}" for i in range(1, width + 1)],
+        index=pd.Index(AMINO_ACIDS),
+        columns=pd.Index([f"p{i}" for i in range(1, width + 1)]),
         dtype=float,
     )
 
