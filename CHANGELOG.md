@@ -2,17 +2,51 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased]
+## [1.5.1] - 2026-04-29
+
+### Added
+
+- typed run provenance with deterministic table fingerprints, persisted stage-table fingerprints, and bundle
+  round-trip support.
+- preprocessing provenance surfaces for duplicate/conflict reporting, comparison sidecar stats, row-audit
+  filtering, and site/protein context tables.
+- opt-in preprocessing lanes for log2, median centering, and quantile processing with explicit provenance
+  reporting.
+- lightweight internal table-schema wrappers and enforced public output schemas for signalome assignments,
+  modules, and network tables.
+- a pluggable signalome clustering backend protocol with `exact_python` and `scipy_hierarchical` engines,
+  backend-aware reporting, and parity/contract coverage.
+- strict motif sequence validation, explicit total-protein identity mapping validation, and quantitative-meaning
+  export audits across user-facing payloads.
+- performance-contract docs, benchmark scripts, and CI regression coverage for preprocessing and signalome
+  clustering.
+- pinned CI constraints and a Pyright gate for core scientific/API modules.
 
 ### Changed
 
+- Split public API config models into focused modules and replaced overloaded clustering/backend configuration
+  terminology with explicit engine/policy naming.
+- Replaced `TransformationState` with explicit intensity-scale and processing-state models throughout preprocessing and
+  bundle serialization.
+- Refactored signalome workflow and clustering internals into focused components with centralised dispatch/diagnostics
+  helpers and stricter guard ordering.
+- Tightened API/workflow boundary behaviour to fail fast on invalid states (including invalid `module_count`) instead of
+  silently repairing or clamping inputs.
 - Consolidated user-facing docs into a flatter `docs/` layout and refreshed examples against the current public API.
+
+### Fixed
+
+- total-protein correction scale semantics and enforced strict versioned diagnostics state during bundle load/save
+  paths.
+- signalome backend/tree guard contracts, including explicit module-count provenance and failure ordering.
+- score-preconditioning site-index retention and preserved undefined signalome correlation states in outputs.
 
 ## [1.5.0] - 2026-04-22
 
 ### Release Overview
 
-- Clarified the supported product shape: build an analysis-ready dataset, run kinase scoring/prediction, and optionally run signalome analysis.
+- Clarified the supported product shape: build an analysis-ready dataset, run kinase scoring/prediction, and optionally
+  run signalome analysis.
 - Kept the public API centred on `run(request)` workflow entrypoints.
 - Made `phospy.api` the main import surface for requests, configs, results, enums, references, and public exceptions.
 
@@ -28,8 +62,10 @@ All notable changes to this project are documented here.
 ### Documentation
 
 - Release notes: `docs/release-notes-1.5.0.md`.
-- Main user docs: `docs/quickstart.md`, `docs/api.md`, `docs/cli.md`, `docs/validation.md`, and `docs/output_bundles.md`.
-- Scientific and maintainer docs: `docs/scientific-coverage.md`, `docs/parity.md`, `docs/performance.md`, and `docs/maintenance.md`.
+- Main user docs: `docs/quickstart.md`, `docs/api.md`, `docs/cli.md`, `docs/validation.md`, and
+  `docs/output_bundles.md`.
+- Scientific and maintainer docs: `docs/scientific-coverage.md`, `docs/parity.md`, `docs/performance.md`, and
+  `docs/maintenance.md`.
 
 ## [1.4.0] - 2026-04-15
 
@@ -41,13 +77,16 @@ All notable changes to this project are documented here.
 
 ### Changed
 
-- Reorganised public workflows, dataset construction, validation, preprocessing, reference handling, and result models into clearer package areas.
+- Reorganised public workflows, dataset construction, validation, preprocessing, reference handling, and result models
+  into clearer package areas.
 - Made scientific preprocessing policies explicit and configurable.
-- Improved prediction and signalome hot paths through dataframe-copy reduction and vectorised processing where appropriate.
+- Improved prediction and signalome hot paths through dataframe-copy reduction and vectorised processing where
+  appropriate.
 
 ### Fixed
 
-- Tightened comparison validation, activity scoring validation, prediction-matrix validation, and output publisher recovery-path validation.
+- Tightened comparison validation, activity scoring validation, prediction-matrix validation, and output publisher
+  recovery-path validation.
 
 ## [1.2.3] - 2026-04-09
 
