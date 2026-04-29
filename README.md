@@ -157,12 +157,10 @@ exceptions.
 
 ## Documentation
 
-Read these in order if you are new:
-
-1. [Quickstart](docs/quickstart.md)
-2. [API Guide](docs/api.md)
-3. [CLI Guide](docs/cli.md)
-4. [Validation Guide](docs/validation.md)
+1. [Quickstart](https://phospy.com/docs/quickstart/)
+2. [API Guide](https://phospy.com/docs/api/)
+3. [CLI Guide](https://phospy.com/docs/cli/)
+4. [Validation Guide](https://phospy.com/docs/validation/)
 
 ## Citation
 
