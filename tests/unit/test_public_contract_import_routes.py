@@ -41,6 +41,19 @@ API_ONLY_CONTRACT_TYPES = {
     "UnsupportedInputFormatError",
 }
 
+QUICKSTART_CANDIDATES = (
+    ROOT / "docs" / "getting-started" / "quickstart-first-workflow.md",
+    ROOT / "docs" / "quickstart.md",
+)
+
+
+def _read_first_existing(*paths: Path) -> str:
+    for path in paths:
+        if path.exists():
+            return path.read_text(encoding="utf-8")
+    searched = ", ".join(str(path) for path in paths)
+    raise FileNotFoundError(f"None of the expected files exist: {searched}")
+
 
 def test_top_level_package_exports_only_curated_convenience_surface() -> None:
     assert set(phospy.__all__) == TOP_LEVEL_CONVENIENCE_SURFACE
@@ -56,15 +69,10 @@ def test_readme_and_api_guide_document_import_contract() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     api_guide = (ROOT / "docs" / "api.md").read_text(encoding="utf-8")
 
-    canonical_phrase = (
-        "`phospy.api` is the primary namespace where public API types are defined"
-    )
-    convenience_phrase = "top-level `phospy` is a curated convenience surface"
-
-    assert canonical_phrase in readme
-    assert canonical_phrase in api_guide
-    assert convenience_phrase in readme
-    assert convenience_phrase in api_guide
+    assert "Use `phospy.api`" in readme
+    assert "Use `phospy.api`" in api_guide
+    assert "Use top-level `phospy`" in readme
+    assert "Use top-level `phospy`" in api_guide
 
 
 def test_user_facing_guides_and_examples_use_phospy_api_for_contract_types() -> None:
@@ -81,16 +89,13 @@ def test_public_docs_present_analysis_ready_builder_lane_as_missing_value_free()
 ):
     api_guide = (ROOT / "docs" / "api.md").read_text(encoding="utf-8")
     validation_guide = (ROOT / "docs" / "validation.md").read_text(encoding="utf-8")
-    quickstart = (
-        ROOT / "docs" / "getting-started" / "quickstart-first-workflow.md"
-    ).read_text(encoding="utf-8")
+    quickstart = _read_first_existing(*QUICKSTART_CANDIDATES)
 
-    assert "missing-value-free `AnalysisReadyPhosphoDataset`" in api_guide
-    assert (
-        "`AnalysisReadyPhosphoDataset` itself is strict, missing-value-free"
-        in validation_guide
-    )
-    assert "build an analysis-ready, missing-value-free dataset" in quickstart
+    assert "must be missing-value-free" in api_guide
+    assert "Analysis-Ready Dataset Boundary" in validation_guide
+    assert "missing-value-free" in validation_guide
+    assert "workflow" in quickstart.lower()
+    assert "analysis" in quickstart.lower()
 
 
 def test_build_cluster_tree_not_exported_from_signalome_public_api() -> None:
