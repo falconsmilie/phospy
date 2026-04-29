@@ -79,7 +79,7 @@ contract model.
 
 ## Model Direction
 
-### Intensity scale model
+### Intensity Scale Model
 
 `IntensityScaleState` is intentionally narrow and includes:
 
@@ -87,7 +87,7 @@ contract model.
 - optional total matrix scale (`linear` or `log2`)
 - establishment metadata
 
-### Processing-state model
+### Processing-State Model
 
 `DatasetProcessingState` is a compact dataclass summary containing:
 
@@ -164,17 +164,17 @@ boundary.
 
 ## Rejected Alternatives
 
-### Alternative 1: Keep `TransformationState` as the public dataset state name
+### Alternative 1: Keep `TransformationState` as the Public Dataset State Name
 
 Rejected because it conflates narrow scale metadata with broader preprocessing
 state.
 
-### Alternative 2: Keep only `IntensityScaleState`, leave preprocessing state implicit
+### Alternative 2: Keep Only `IntensityScaleState`, Leave Preprocessing State Implicit
 
 Rejected because policy-level analysis-ready state would remain fragmented and
 harder to reason about.
 
-### Alternative 3: Merge preprocessing report into dataset state object
+### Alternative 3: Merge Preprocessing Report Into Dataset State Object
 
 Rejected because report payloads are operational/diagnostic and should remain
 separate from compact contract state.

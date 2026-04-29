@@ -1,57 +1,37 @@
 # CLI Guide
 
-The `phospy` CLI is the file-first public lane.
+The `phospy` CLI is the file-based lane for supported public workflows. Use the
+Python API when you need DataFrame inputs, custom `ReferenceBundle` objects, or
+advanced preprocessing configuration.
 
-It supports three commands:
+## Commands
 
-- `dataset-build`
-- `kinase`
-- `signalome`
+```bash
+phospy dataset-build --phospho phospho.csv --site-metadata site_metadata.csv --outdir out
+phospy kinase --phospho phospho.csv --site-metadata site_metadata.csv --organism rat --reference auto --outdir out
+phospy signalome --phospho phospho.csv --site-metadata site_metadata.csv --organism rat --reference auto --outdir out
+```
 
-Use the CLI when you want reproducible file-based runs. Use the Python API when
-you need DataFrames, explicit `ReferenceBundle` injection, or full config
-control.
+Supported input formats are `.csv`, `.tsv`, `.txt` as tab-separated text, and
+`.parquet`. Supported output formats are `csv`, `tsv`, and `parquet`.
 
-## Before you run a command
+## Shared Dataset Arguments
 
-Check these first:
+| Option | Required | Meaning |
+| --- | --- | --- |
+| `--phospho` | yes | phosphosite intensity table |
+| `--site-metadata` | yes | site metadata table |
+| `--sample-metadata` | no | optional sample metadata table |
+| `--total` | no | optional total-protein table |
+| `--organism` | no | `human`, `mouse`, or `rat` |
+| `--outdir` | no | output root; default `phospy-output` |
+| `--output-format` | no | `csv`, `tsv`, or `parquet`; default `csv` |
 
-- your files are `.csv`, `.tsv`, `.txt`, or `.parquet`
-- `site_metadata.index` matches `phospho.index`
-- `--organism rat` is set for bundled first runs
-- `protein_id` is present if you plan to run `phospy signalome`
-
-## Command summary
-
-| Command | What it does |
-| --- | --- |
-| `phospy dataset-build` | Builds and writes an analysis-ready dataset |
-| `phospy kinase` | Builds a dataset, runs kinase workflow, writes outputs |
-| `phospy signalome` | Builds a dataset, runs kinase, then signalome, and writes outputs |
-
-## Common arguments
-
-Dataset input arguments:
-
-- `--phospho`
-- `--site-metadata`
-- `--sample-metadata` (optional)
-- `--total` (optional)
-- `--organism {human,mouse,rat}`
-
-Output arguments:
-
-- `--outdir`
-- `--output-format {csv,tsv,parquet}`
-
-Supported read and write formats:
-
-- `.csv`
-- `.tsv`
-- `.txt` (tab-separated)
-- `.parquet` with `pip install "phospy[parquet]"`
+CSV/TSV/TXT inputs are read with the first column as the row index.
 
 ## `dataset-build`
+
+Builds and writes an analysis-ready dataset.
 
 ```bash
 phospy dataset-build \
@@ -61,9 +41,12 @@ phospy dataset-build \
   --outdir ./out
 ```
 
-This writes a `dataset/` directory and a short summary of written paths.
+Written files include `dataset/phospho.*`, `dataset/site_metadata.*`, optional
+metadata tables, and `dataset/manifest.json`.
 
 ## `kinase`
+
+Builds the dataset, resolves references, then runs kinase scoring and prediction.
 
 ```bash
 phospy kinase \
@@ -71,33 +54,37 @@ phospy kinase \
   --site-metadata ./input/site_metadata.csv \
   --organism rat \
   --reference auto \
+  --skip-activity \
   --outdir ./out
 ```
 
-Additional kinase options:
+Kinase-specific options:
 
-- `--reference {auto,human,mouse,rat}`
-- `--scoring-min-substrates`
-- `--prediction-top-k`
-- `--prediction-deterministic-max-selected-kinases`
-- `--prediction-adaptive-ensemble-runs`
-- `--prediction-mode {deterministic_ranking,adaptive_ensemble}`
-- `--prediction-adaptive-policy {stable,r_parity}`
-- `--prediction-n-iterations`
-- `--prediction-random-state`
-- `--skip-activity`
-- `--activity-threshold`
-- `--activity-min-substrates`
-- `--activity-top-n-substrates`
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `--reference` | `auto` | `auto`, `human`, `mouse`, or `rat` |
+| `--scoring-min-substrates` | `2` | minimum quantified substrates per kinase |
+| `--prediction-top-k` | `30` | top predicted substrate sites per kinase |
+| `--prediction-deterministic-max-selected-kinases` | `10` | retained kinases in deterministic mode |
+| `--prediction-adaptive-ensemble-runs` | `10` | ensemble runs in adaptive mode |
+| `--prediction-mode` | `deterministic_ranking` | `deterministic_ranking` or `adaptive_ensemble` |
+| `--prediction-adaptive-policy` | `stable` | `stable` or `r_parity` |
+| `--prediction-n-iterations` | `5` | adaptive sampling iterations |
+| `--prediction-random-state` | none | optional random state |
+| `--skip-activity` | false | disable activity outputs |
+| `--activity-threshold` | `0.6` | prediction-score threshold for activity |
+| `--activity-min-substrates` | `3` | minimum selected substrates per kinase |
+| `--activity-top-n-substrates` | `20` | top predicted substrates for weighted activity |
 
-Notes:
-
-- bundled runtime references are rat-only in this release
-- `--reference auto` is the recommended beginner lane when `--organism rat` is set
-- `--skip-activity` disables the activity stage completely
-- `--prediction-mode adaptive_ensemble` works in the normal install; no extra dependency lane is required
+`ReferencePreset.AUTO` works with bundled rat references when the dataset
+organism is rat. Human and mouse reference presets are enum values, but bundled
+runtime data is not shipped for them in `1.5.0`; use the Python API with an
+explicit `ReferenceBundle` for those organisms.
 
 ## `signalome`
+
+Builds the dataset, runs kinase, then runs signalome. It requires non-empty
+`site_metadata.protein_id` values for all interpreted sites.
 
 ```bash
 phospy signalome \
@@ -105,84 +92,53 @@ phospy signalome \
   --site-metadata ./input/site_metadata.csv \
   --organism rat \
   --reference auto \
+  --skip-activity \
   --outdir ./out
 ```
 
-Additional signalome options:
+Signalome-specific options:
 
-- `--substrate-support-cutoff`
-- `--network-correlation-threshold`
-- `--network-policy {positive_only,absolute_threshold,signed}`
-- `--assignment-policy {cutoff_binary,weighted_top}`
-- `--score-preconditioning-policy {allow_and_report,error_on_drop}`
-- `--tree-engine {exact}`
-- `--candidate-scoring-policy {full,sampled}`
-- `--max-exact-tree-sites`
-- `--max-full-candidate-scoring-sites`
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `--substrate-support-cutoff` | `0.5` | prediction support cutoff |
+| `--network-correlation-threshold` | `0.5` | edge threshold used by the network policy |
+| `--network-policy` | `signed` | `positive_only`, `absolute_threshold`, or `signed` |
+| `--assignment-policy` | `cutoff_binary` | `cutoff_binary` or `weighted_top` |
+| `--score-preconditioning-policy` | `allow_and_report` | allow/report or reject all-missing score rows |
+| `--tree-engine` | `exact` | exact tree construction; only supported value |
+| `--candidate-scoring-policy` | `full` | `full` or `sampled` |
+| `--max-exact-tree-sites` | `2000` | hard guard for exact tree construction |
+| `--max-full-candidate-scoring-sites` | `2000` | hard guard for full candidate scoring |
 
-Signalome requires explicit, non-empty `protein_id` values in `site_metadata`.
+The CLI does not expose every Python config field. Use the API for explicit
+`module_count`, comparison building, total-protein correction, custom references,
+or full signalome config control.
 
-Scale guard note:
+## Output Layout
 
-- exact cluster-tree construction is always hard-guarded by
-  `--max-exact-tree-sites` (default `2000`)
-- full candidate scoring is hard-guarded by `--max-full-candidate-scoring-sites`
-  (default `2000`)
-- sampled candidate scoring can reduce candidate-scoring cost, but does not
-  change exact cluster-tree construction in the current implementation
-
-## Output layout
-
-`dataset-build` writes:
+A kinase run writes:
 
 ```text
-<outdir>/dataset/
-  phospho.<fmt>
-  site_metadata.<fmt>
-  sample_metadata.<fmt>   # optional
-  total.<fmt>             # optional
-  manifest.json
+out/
+  dataset/
+  kinase/
+    scoring/
+    prediction/
+    activity/        # only when activity is enabled
+    references/
+    manifest.json
 ```
 
-`kinase` also writes:
+A signalome run also writes:
 
 ```text
-<outdir>/kinase/
-  scoring/
-  prediction/
-  activity/               # optional
-  references/
-  manifest.json
+out/
+  signalome/
+    module_assignments.*
+    signalome_modules.*
+    kinase_network_edges.*
+    kinase_network_nodes.*                  # when present
+    kinase_network_candidate_correlations.* # when present
+    expanded_signalome.*                    # when present
+    manifest.json
 ```
-
-`signalome` also writes:
-
-```text
-<outdir>/signalome/
-  module_assignments.<fmt>
-  signalome_modules.<fmt>
-  kinase_network_nodes.<fmt>   # optional
-  kinase_network_edges.<fmt>
-  kinase_network_candidate_correlations.<fmt>   # optional traceability sidecar
-  expanded_signalome.<fmt>     # optional by contract
-  manifest.json
-```
-
-`<fmt>` is `csv`, `tsv`, or `parquet`.
-
-## When the CLI is not enough
-
-Use the Python API when you need:
-
-- DataFrame inputs
-- `DatasetPreprocessingConfig`
-- explicit `ReferenceBundle` injection
-- advanced scoring or signalome config beyond the CLI surface (for example,
-  setting `SignalomeConfig.clustering_engine`)
-
-## Where next
-
-- [Quickstart](getting-started/quickstart-first-workflow.md)
-- [Troubleshooting](getting-started/troubleshooting-first-run.md)
-- [API Guide](api.md)
-- [Output Bundles](output_bundles.md)

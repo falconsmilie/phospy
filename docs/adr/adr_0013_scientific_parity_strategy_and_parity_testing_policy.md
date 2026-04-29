@@ -123,7 +123,7 @@ However, the existing application must not be treated as the unquestioned author
 
 A healthy parity policy should distinguish several levels.
 
-### Level 1: Public contract tests
+### Level 1: Public Contract Tests
 
 These are not parity tests. They confirm that the new public API behaves as designed.
 
@@ -134,7 +134,7 @@ Examples include:
 - result models have the intended shape
 - exceptions and validation behaviour follow the new contract
 
-### Level 2: Scientific parity tests
+### Level 2: Scientific Parity Tests
 
 These are the core parity tests.
 
@@ -147,7 +147,7 @@ Examples include:
 - expected activity outputs
 - expected signalome outputs
 
-### Level 3: Internal-stage checks where justified
+### Level 3: Internal-Stage Checks Where Justified
 
 These are allowed only where a stage output is both stable and scientifically meaningful.
 
@@ -252,7 +252,7 @@ The reference source for a parity fixture should always be explicit.
 
 A parity fixture should not be treated as self-explanatory. Its origin matters.
 
-## Separation from Ordinary Tests
+## Separation From Ordinary Tests
 
 Parity tests should be separate from ordinary unit and contract tests.
 
@@ -303,7 +303,7 @@ The architecture remains ADR-led. Parity provides scientific confidence within t
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - The rewrite gains a disciplined way to confirm scientific fidelity.
 - Parity stays focused on what matters rather than preserving legacy structure.
@@ -311,32 +311,32 @@ The architecture remains ADR-led. Parity provides scientific confidence within t
 - Reference outputs become more explicit and reviewable.
 - Numerical comparisons gain a deliberate policy rather than ad hoc assertion style.
 
-### Negative consequences
+### Negative Consequences
 
 - Parity fixtures and expected outputs must be curated carefully.
 - The team will need to review parity failures thoughtfully rather than treating them as purely mechanical.
 - Some scientifically meaningful outputs may still be hard to compare exactly.
 
-### Neutral consequences
+### Neutral Consequences
 
 - The old application may still contribute selected reference outputs without being treated as the architecture baseline.
 - Not every stage or dataset behaviour will necessarily receive parity coverage.
 
 ## Rejected Alternatives
 
-### Alternative 1: Treat the existing application as the authoritative parity baseline for everything
+### Alternative 1: Treat the Existing Application as the Authoritative Parity Baseline for Everything
 
 This option was rejected because it would turn parity into a hidden migration strategy and would weaken the fresh-start rewrite stance.
 
-### Alternative 2: Avoid parity entirely and rely only on new contract tests
+### Alternative 2: Avoid Parity Entirely and Rely Only on New Contract Tests
 
 This option was rejected because contract tests alone are not enough to establish confidence in scientific fidelity for a PhosR port.
 
-### Alternative 3: Require parity for every intermediate internal detail
+### Alternative 3: Require Parity for Every Intermediate Internal Detail
 
 This option was rejected because it would over-constrain the rewrite and drag legacy implementation detail into the new architecture.
 
-### Alternative 4: Use vague visual or informal comparison of outputs only
+### Alternative 4: Use Vague Visual or Informal Comparison of Outputs Only
 
 This option was rejected because parity needs explicit and testable comparison rules.
 

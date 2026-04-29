@@ -95,7 +95,7 @@ The proposed public `ReferenceBundle` contains:
 
 These are the only required public fields in the initial contract. Additional internal reference structures may exist, but they should be derived behind the contract rather than required as separate first-class public inputs.
 
-### Field meanings
+### Field Meanings
 
 #### `organism`
 
@@ -124,20 +124,20 @@ Additional internal reference structures may exist behind this contract, but the
 
 Reference resolution should follow a simple ordered strategy.
 
-### Rule 1: Explicit `ReferenceBundle` wins
+### Rule 1: Explicit `ReferenceBundle` Wins
 
 If the user supplies a `ReferenceBundle`, that bundle is used directly, subject to validation.
 
 The workflow must not silently override it with bundled defaults.
 
-### Rule 2: Explicit preset resolves to bundled references when available
+### Rule 2: Explicit Preset Resolves to Bundled References When Available
 
 If the user supplies a specific preset such as `HUMAN`, `MOUSE`, or `RAT`, the
 interpreter resolves that preset to a bundled `ReferenceBundle` only when that
 organism has packaged bundled support in the current release. Otherwise it fails
 explicitly.
 
-### Rule 3: `AUTO` resolves from dataset organism
+### Rule 3: `AUTO` Resolves From Dataset Organism
 
 If the user supplies `ReferencePreset.AUTO`, resolution should use the dataset organism.
 
@@ -149,7 +149,7 @@ The proposed rule is:
 
 `AUTO` should not infer organism from fragile heuristics or partially trusted metadata.
 
-### Rule 4: Unsupported organism fails explicitly
+### Rule 4: Unsupported Organism Fails Explicitly
 
 If organism is missing, unsupported, or incompatible with the requested preset, PhosPy should fail with a clear validation error.
 
@@ -157,7 +157,7 @@ If organism is missing, unsupported, or incompatible with the requested preset, 
 
 The following compatibility rules are proposed.
 
-### Explicit bundle with organism
+### Explicit Bundle With Organism
 
 If a user-supplied `ReferenceBundle` organism and the dataset organism are both present, the two must be checked for compatibility.
 
@@ -167,7 +167,7 @@ This is a scientific safety rule, not just a software preference. A dataset-orga
 
 If cross-species support is needed in the future, it should be handled through an explicit adaptation or reference-building step rather than a permissive mismatch override inside the workflow.
 
-### Explicit preset
+### Explicit Preset
 
 If a user requests a specific preset and the dataset organism is present but does not match, the request must fail clearly.
 
@@ -179,15 +179,15 @@ If `AUTO` is used, the dataset organism becomes the source of truth for bundled 
 
 ## Responsibility Boundaries
 
-### Dataset responsibility
+### Dataset Responsibility
 
 The dataset may declare `organism`, but it does not resolve references.
 
-### Workflow request responsibility
+### Workflow Request Responsibility
 
 The public request declares either a preset or an explicit bundle, but it does not perform resolution.
 
-### Validator responsibility
+### Validator Responsibility
 
 The validation domain is responsible for reusable checks such as:
 
@@ -197,13 +197,13 @@ The validation domain is responsible for reusable checks such as:
 
 Workflow-level validators are responsible for composing those checks with workflow-specific requirements.
 
-### Interpreter responsibility
+### Interpreter Responsibility
 
 The interpreter is responsible for turning the request reference input into a concrete `ReferenceBundle`.
 
 This is the stage that should call the provider path and resolve `AUTO`.
 
-### Executor responsibility
+### Executor Responsibility
 
 The executor consumes a fully resolved `ReferenceBundle` and should not perform reference discovery or fallback resolution.
 
@@ -238,7 +238,7 @@ Errors should explain what was requested, what was found, and why resolution cou
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - Reference resolution becomes predictable and easy to document.
 - The kinase workflow remains simple at the public boundary.
@@ -246,32 +246,32 @@ Errors should explain what was requested, what was found, and why resolution cou
 - Custom references remain possible without expanding the public workflow surface.
 - Reference logic is kept out of the executor.
 
-### Negative consequences
+### Negative Consequences
 
 - Users must supply organism information when relying on `AUTO`.
 - Unsupported organism scenarios fail earlier and more explicitly.
 - Reference resolution logic must be built and maintained centrally rather than ad hoc.
 
-### Neutral consequences
+### Neutral Consequences
 
 - Internal reference representations may still be richer than the public `ReferenceBundle` contract.
 - Additional bundled reference sets may be introduced later without changing the workflow contract, as long as they fit the same resolution rules.
 
 ## Rejected Alternatives
 
-### Alternative 1: Resolve references directly inside the workflow executor
+### Alternative 1: Resolve References Directly Inside the Workflow Executor
 
 This option was rejected because it mixes interpretation with execution and makes the executor responsible for decisions that should be settled earlier.
 
-### Alternative 2: Allow raw reference fragments as first-class workflow inputs
+### Alternative 2: Allow Raw Reference Fragments as First-Class Workflow Inputs
 
 This option was rejected because it weakens the public contract and shifts assembly burden onto users and workflow logic.
 
-### Alternative 3: Make `AUTO` infer organism from heuristics
+### Alternative 3: Make `AUTO` Infer Organism From Heuristics
 
 This option was rejected because implicit inference would be brittle, hard to explain, and likely to create silent scientific mistakes.
 
-### Alternative 4: Expose the reference provider as a broad public plugin system immediately
+### Alternative 4: Expose the Reference Provider as a Broad Public Plugin System Immediately
 
 This option was rejected because it would introduce extension-oriented complexity before the core workflow contract is fully stabilised.
 

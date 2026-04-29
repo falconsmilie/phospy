@@ -103,7 +103,7 @@ The exact names may vary slightly, but this is the intended shape.
 
 ## Public API Package
 
-The `api/` package should define the canonical public API ownership surface.
+The `api/` package should define the stable public API ownership surface.
 
 It should contain the public models and entry points that are defined and
 organised as package-owned API contracts.
@@ -355,7 +355,7 @@ Internal implementation packages may be richer, but their structure should not l
 
 In practice:
 
-- `api/` stays small and curated as the canonical API-definition namespace
+- `api/` stays small and curated as the stable API-definition namespace
 - top-level `phospy` stays a small convenience entrypoint
 - internal packages stay domain-oriented
 - callers should not need to understand the internal package layout to use the package correctly
@@ -366,13 +366,13 @@ Granularity should favour clarity and ease of composition.
 
 The codebase should avoid both extremes:
 
-### Too coarse
+### Too Coarse
 
 - giant modules that mix many responsibilities
 - workflow files that absorb half the package
 - helper dumps with unclear ownership
 
-### Too fragmented
+### Too Fragmented
 
 - one-file-per-tiny-concept when the split adds no clarity
 - deep nesting that forces constant cross-import churn
@@ -417,7 +417,7 @@ This helps prevent cycles and keeps orchestration above domain logic rather than
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - The code layout starts to match the architecture rather than fight it.
 - Responsibilities become easier to locate and maintain.
@@ -425,32 +425,32 @@ This helps prevent cycles and keeps orchestration above domain logic rather than
 - New work has obvious homes instead of creating structural drift.
 - The rewrite gains a stable physical structure to target.
 
-### Negative consequences
+### Negative Consequences
 
 - Existing code may need meaningful movement across modules and packages.
 - Some current implementation seams may disappear entirely.
 - The project must stay disciplined so the layout does not re-accumulate helper-heavy clutter.
 
-### Neutral consequences
+### Neutral Consequences
 
 - Exact filenames and some subpackage details may still evolve.
 - Internal modules may still use additional DTOs or helper components where justified, as long as they respect the broader layout rules.
 
 ## Rejected Alternatives
 
-### Alternative 1: Keep the current structure and gradually tidy it up opportunistically
+### Alternative 1: Keep the Current Structure and Gradually Tidy It up Opportunistically
 
 This option was rejected because a drifting structure tends to preserve past mistakes and makes the rewrite less coherent.
 
-### Alternative 2: Organise everything around technical layers only
+### Alternative 2: Organise Everything Around Technical Layers Only
 
 This option was rejected because the package is shaped around domain workflows and scientific boundaries, not around abstract technical layering alone.
 
-### Alternative 3: Collapse everything into a few large modules for speed
+### Alternative 3: Collapse Everything Into a Few Large Modules for Speed
 
 This option was rejected because it would undermine the clear domain boundaries established by the earlier ADRs.
 
-### Alternative 4: Over-fragment the code into many tiny packages immediately
+### Alternative 4: Over-Fragment the Code Into Many Tiny Packages Immediately
 
 This option was rejected because it would create navigation overhead and complexity without necessarily improving ownership.
 

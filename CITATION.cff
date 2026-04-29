@@ -16,7 +16,7 @@ keywords:
   - bioinformatics
   - kinase activity
   - signalome
-abstract: "Python native implementation of selected PhosR-style workflows for phosphoproteomics."
+abstract: "Python implementation of selected PhosR-style workflows for phosphoproteomics."
 preferred-citation:
   type: software
   title: "PhosPy"

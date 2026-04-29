@@ -205,15 +205,15 @@ This prevents the runtime package from silently accumulating unnecessary scienti
 
 ## Update Policy
 
-### Bundled runtime reference data
+### Bundled Runtime Reference Data
 
 Update when supported runtime reference behaviour changes intentionally.
 
-### Test fixture data
+### Test Fixture Data
 
 Update when test scenarios change or when fixture quality needs improvement.
 
-### Parity reference outputs
+### Parity Reference Outputs
 
 Update only with deliberate review, because changing these artefacts changes what the project considers scientifically equivalent or acceptable.
 
@@ -221,19 +221,19 @@ Parity outputs must not drift casually.
 
 Realism is the higher priority for parity assets. Large parity fixtures should not be minimised so aggressively that they stop representing meaningful real scientific scenarios.
 
-## Source-of-Truth Policy
+## Source-Of-Truth Policy
 
 The source of truth depends on the category.
 
-### For runtime reference behaviour
+### For Runtime Reference Behaviour
 
 The source of truth is the bundled runtime reference data shipped by the package for supported built-in reference resolution.
 
-### For ordinary behavioural tests
+### For Ordinary Behavioural Tests
 
 The source of truth is the explicitly defined fixture or scenario in that test.
 
-### For scientific parity
+### For Scientific Parity
 
 The source of truth is the parity reference output, whose primary source should be PhosR where available and appropriate.
 
@@ -288,7 +288,7 @@ The governing rule is practicality and clarity, not forced uniformity.
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - Runtime data and test data become easier to reason about.
 - The package avoids mixing reference resources with parity artefacts.
@@ -296,32 +296,32 @@ The governing rule is practicality and clarity, not forced uniformity.
 - Shipping policy becomes clearer and tighter.
 - Data changes become easier to classify during review.
 
-### Negative consequences
+### Negative Consequences
 
 - The project must stay disciplined about where new data artefacts are placed.
 - Some existing fixtures or resources may need to be moved to fit the policy.
 - Parity artefacts require deliberate maintenance rather than casual accumulation.
 
-### Neutral consequences
+### Neutral Consequences
 
 - Some test fixtures may still resemble runtime reference data structurally, even though they serve a different purpose.
 - Internal helper utilities may still load data across categories when tests intentionally require it, as long as the category boundary remains clear.
 
 ## Rejected Alternatives
 
-### Alternative 1: Keep all scientific data files together regardless of purpose
+### Alternative 1: Keep All Scientific Data Files Together Regardless of Purpose
 
 This option was rejected because it weakens the distinction between runtime reference data, ordinary fixtures, and parity expectations.
 
-### Alternative 2: Treat old-application outputs as the default authority for parity fixtures
+### Alternative 2: Treat Old-Application Outputs as the Default Authority for Parity Fixtures
 
 This option was rejected because the project is a PhosR port and the primary parity target should remain PhosR outputs.
 
-### Alternative 3: Ship parity outputs with the runtime package by default
+### Alternative 3: Ship Parity Outputs With the Runtime Package by Default
 
 This option was rejected because parity outputs are test assets, not runtime reference resources.
 
-### Alternative 4: Create heavy repository-level metadata/versioning rules for parity fixtures immediately
+### Alternative 4: Create Heavy Repository-Level Metadata/Versioning Rules for Parity Fixtures Immediately
 
 This option was rejected because the current direction is to keep the system simple and rely on keeping parity fixtures up to date rather than adding extra management machinery too early.
 

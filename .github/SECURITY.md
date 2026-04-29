@@ -1,45 +1,31 @@
 # Security Policy
 
-## Supported versions
+## Supported Versions
 
-Security fixes are expected only for the latest released version of PhosPy.
+Security reports should target the current public release line shown in
+`pyproject.toml` and `CHANGELOG.md`.
 
-| Version | Supported |
-| --- | --- |
-| Latest release | Yes |
-| Older releases | No |
+## Reporting a Vulnerability
 
-## Reporting a vulnerability
+Please do not open a public issue for a private security concern. Use GitHub's
+private vulnerability reporting flow when available, or contact the maintainer
+through the repository owner profile.
 
-Please report suspected security issues privately.
+Helpful reports include:
 
-Do not open a public GitHub issue for a real or suspected vulnerability.
+- affected version or commit
+- smallest reproduction you can share safely
+- expected and actual behaviour
+- impact and any known workaround
 
-Contact:
-
-shane @ rededitor dot net
-
-Please include:
-
-- a clear description of the issue
-- steps to reproduce it
-- the affected version
-- the likely impact
-- any proof of concept or sample input that helps confirm the report
-
-## Good fits for this channel
-
-Examples include:
+## Good Fits for This Channel
 
 - unsafe file handling
-- unintended code execution paths
-- packaging or distribution issues with real security impact
+- unexpected path traversal
+- dependency vulnerability with a concrete impact on PhosPy
+- a way for crafted input to execute code or expose private data
 
-## Not a security report
+## Not a Security Report
 
-Please use the normal issue tracker for:
-
-- scientific correctness or parity regressions without security impact
-- documentation bugs
-- feature requests
-- installation or usage questions
+Please use normal issues for scientific accuracy questions, documentation gaps,
+performance concerns, validation behaviour, or feature requests.

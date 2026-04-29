@@ -43,18 +43,18 @@ The decision is driven by the following considerations:
 
 PhosPy will expose a deliberately small public API centred on one dataset model and two primary workflows.
 
-### Public namespace ownership and import guidance
+### Public Namespace Ownership and Import Guidance
 
 The public API has two intentional layers with different roles:
 
-- `phospy.api` is the canonical namespace where public API types are defined and organised in source.
+- `phospy.api` is the stable namespace where public API types are defined and organised in source.
 - top-level `phospy` is a minimal convenience namespace for the four main product entrypoints only:
   `AnalysisReadyDatasetBuilder`, `AnalysisReadyPhosphoDataset`, `KinaseWorkflow`, `SignalomeWorkflow`.
 
 All request/config/result/reference/enum/error contract types should be imported
 from `phospy.api`.
 
-### Public API scope
+### Public API Scope
 
 The intended public surface is:
 
@@ -76,7 +76,7 @@ The intended public surface is:
 
 No additional public workflows, compatibility facades, or result-wrapper layers are part of the intended contract by default.
 
-### Dataset contract
+### Dataset Contract
 
 `AnalysisReadyPhosphoDataset` is the only public dataset model.
 
@@ -105,7 +105,7 @@ assume it is present unless that specific workflow lane requires it.
 
 This decision removes the need for repeated public column-name arguments across workflows.
 
-### Kinase workflow contract
+### Kinase Workflow Contract
 
 `KinaseWorkflow` is the primary public entry point for PhosR-style kinase analysis.
 
@@ -135,7 +135,7 @@ The result contains:
 
 Nested stage results are exposed directly. The top-level result object should not mirror nested fields through duplicated convenience accessors unless a shortcut is clearly essential.
 
-### Signalome workflow contract
+### Signalome Workflow Contract
 
 `SignalomeWorkflow` is the primary public entry point for PhosR-style signalome analysis.
 
@@ -189,7 +189,7 @@ Fourth, it encourages honest result modelling. Users should see the real nested 
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - The public API becomes easier to learn and document.
 - The package aligns more clearly with its identity as a PhosR port.
@@ -197,33 +197,33 @@ Fourth, it encourages honest result modelling. Users should see the real nested 
 - Request and result models become stable anchors for validation and testing.
 - The workflow-oriented user experience becomes clearer.
 
-### Negative consequences
+### Negative Consequences
 
 - Existing internal abstractions that were previously reflected in public shapes will be removed or hidden.
 - Some convenience access patterns may be lost in favour of a smaller and more honest public model.
 - Implementation work is required to make current code conform to the new contract.
 - A strict public API boundary may require some users to adapt if they have been relying on unofficial or incidental access paths.
 
-### Neutral consequences
+### Neutral Consequences
 
 - Internal service boundaries, validators, interpreters, executors, and providers remain implementation details unless intentionally promoted later.
 - Supporting utilities may still exist internally, but they are not part of the product contract by default.
 
 ## Rejected Alternatives
 
-### Alternative 1: Preserve the current public surface and refactor around it
+### Alternative 1: Preserve the Current Public Surface and Refactor Around It
 
 This option was rejected because the current shape contains signs of architectural drift, including duplicated result accessors, wrapper-heavy orchestration, and compatibility-driven complexity. Preserving that surface would lock the rewrite into historical design compromises.
 
-### Alternative 2: Expose multiple public workflows for different internal stages
+### Alternative 2: Expose Multiple Public Workflows for Different Internal Stages
 
 This option was rejected because it overfits the public API to internal implementation details. The intended product is better represented by one dataset model and two main workflows.
 
-### Alternative 3: Expose a broad utility-style API with many helper entry points
+### Alternative 3: Expose a Broad Utility-Style API With Many Helper Entry Points
 
 This option was rejected because it weakens the PhosR workflow model, increases documentation burden, and encourages fragmented usage patterns.
 
-### Alternative 4: Build a highly abstract plugin-style public API from the start
+### Alternative 4: Build a Highly Abstract Plugin-Style Public API From the Start
 
 This option was rejected because it would prioritise extensibility over clarity and would likely recreate the same problems of over-smart architecture that the current effort is trying to remove.
 

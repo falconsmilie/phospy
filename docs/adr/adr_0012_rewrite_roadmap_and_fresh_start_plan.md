@@ -162,7 +162,7 @@ The implementation sequence should reinforce this structure from the start.
 
 The rewrite should proceed in architecture-aligned stages.
 
-### Stage 1: Establish the package skeleton
+### Stage 1: Establish the Package Skeleton
 
 Build the new package structure first.
 
@@ -182,7 +182,7 @@ This includes the main domains defined by the ADR set, such as:
 
 The purpose of this stage is to make the physical structure match the intended architecture before deeper logic is introduced.
 
-### Stage 2: Stabilise the public contract
+### Stage 2: Stabilise the Public Contract
 
 Build the public surface next:
 
@@ -195,7 +195,7 @@ Build the public surface next:
 
 The purpose of this stage is to lock the external product story before deeper internals are added.
 
-### Stage 3: Reintroduce builder and dataset flow
+### Stage 3: Reintroduce Builder and Dataset Flow
 
 Implement the path from messy inputs to analysis-ready dataset:
 
@@ -208,7 +208,7 @@ Implement the path from messy inputs to analysis-ready dataset:
 
 This stage should deliver a working dataset boundary before the full workflows are completed.
 
-### Stage 4: Reintroduce kinase workflow
+### Stage 4: Reintroduce Kinase Workflow
 
 Implement the end-to-end kinase path:
 
@@ -222,7 +222,7 @@ Implement the end-to-end kinase path:
 
 Scientific logic from the existing application may be reused here where correct, but only within the new architecture.
 
-### Stage 5: Reintroduce signalome workflow
+### Stage 5: Reintroduce Signalome Workflow
 
 Implement the downstream signalome path:
 
@@ -234,7 +234,7 @@ Implement the downstream signalome path:
 
 This stage should assume the upstream kinase result contract already exists.
 
-### Stage 6: Harden and simplify
+### Stage 6: Harden and Simplify
 
 After the main paths work, tighten the implementation:
 
@@ -301,7 +301,7 @@ The documentation should present PhosPy as the new design, not as a migration st
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - The rewrite stays aligned with the architecture instead of being pulled backward by the old structure.
 - Scientific logic can still be reused where valuable.
@@ -309,32 +309,32 @@ The documentation should present PhosPy as the new design, not as a migration st
 - Implementation effort is focused on the target design rather than compatibility glue.
 - The resulting package is more likely to be coherent and maintainable.
 
-### Negative consequences
+### Negative Consequences
 
 - More code may be rewritten or re-homed than in a migration-style approach.
 - Some useful old abstractions may be discarded even if they previously worked.
 - The team must stay disciplined and avoid slipping into legacy-led decisions.
 
-### Neutral consequences
+### Neutral Consequences
 
 - Old code may still remain useful as reference material during implementation.
 - Some names or isolated implementation ideas may survive if they fit the new architecture cleanly.
 
 ## Rejected Alternatives
 
-### Alternative 1: Incremental migration from the current application structure
+### Alternative 1: Incremental Migration From the Current Application Structure
 
 This option was rejected because it would preserve too much of the existing architecture by inertia and weaken the value of the ADR-driven redesign.
 
-### Alternative 2: Hybrid rewrite that preserves old internals while changing only the public API
+### Alternative 2: Hybrid Rewrite That Preserves Old Internals While Changing Only the Public API
 
 This option was rejected because the current internal structure is part of the problem, not a neutral substrate.
 
-### Alternative 3: Big-bang logic copy without architectural staging
+### Alternative 3: Big-Bang Logic Copy Without Architectural Staging
 
 This option was rejected because it would risk reproducing old structure accidentally and make implementation harder to reason about.
 
-### Alternative 4: Preserve old tests and structures as the main rewrite guide
+### Alternative 4: Preserve Old Tests and Structures as the Main Rewrite Guide
 
 This option was rejected because tests and code from the current application should inform behaviour, not dictate architecture.
 

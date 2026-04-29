@@ -1,551 +1,277 @@
 # API Guide
 
-This guide describes the supported public Python API.
+This guide covers the supported public Python API. PhosPy does not expose HTTP
+endpoints.
 
-If you are new to PhosPy, start with the [Quickstart](getting-started/quickstart-first-workflow.md) first.
+## Import Contract
 
-PhosPy does not expose HTTP endpoints. Its supported public interfaces are the
-Python API documented here and the file-first [`phospy` CLI](cli.md).
-
-## Import contract
-
-`phospy.api` is the primary namespace where public API types are defined and organised in source.
-
-Use the package namespaces like this:
-
-- top-level `phospy` is a curated convenience surface for only:
-  `AnalysisReadyDatasetBuilder`, `AnalysisReadyPhosphoDataset`,
-  `KinaseWorkflow`, `SignalomeWorkflow`
-- use `phospy.api` for requests, configs, results, enums, references, and
-  public exceptions
-
-Examples:
+Use top-level `phospy` for the main entrypoints:
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
+from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
+from phospy import KinaseWorkflow, SignalomeWorkflow
 ```
+
+Use `phospy.api` for requests, configs, results, enums, references, and public
+exceptions:
 
 ```python
-from phospy.api import (
-    DatasetBuildRequest,
-    DatasetPreprocessingConfig,
-    KinaseWorkflowRequest,
-    SignalomeWorkflowRequest,
-)
+from phospy.api import DatasetBuildRequest, KinaseWorkflowRequest
+from phospy.api import Organism, ReferencePreset, ReferenceBundle
 ```
-
-## Public workflow shape
-
-PhosPy has one dataset boundary and two workflow entrypoints:
-
-1. `DatasetBuildRequest -> AnalysisReadyDatasetBuilder.run(...) -> AnalysisReadyPhosphoDataset`
-2. `KinaseWorkflowRequest -> KinaseWorkflow.run(...) -> KinaseWorkflowResult`
-3. `SignalomeWorkflowRequest -> SignalomeWorkflow.run(...) -> SignalomeWorkflowResult`
 
 All public executors use `run(request)`.
 
-## Beginner lane
+## Public Workflow Shape
 
-The easiest supported lane is:
+1. `DatasetBuildRequest` -> `AnalysisReadyDatasetBuilder.run(...)` -> `AnalysisReadyPhosphoDataset`
+2. `KinaseWorkflowRequest` -> `KinaseWorkflow.run(...)` -> `KinaseWorkflowResult`
+3. `SignalomeWorkflowRequest` -> `SignalomeWorkflow.run(...)` -> `SignalomeWorkflowResult`
 
-1. build a dataset with `organism=Organism.RAT`
-2. run kinase with `references=ReferencePreset.AUTO`
-3. run signalome only when `site_metadata.protein_id` is present
+The beginner lane is rat-first because bundled runtime references in `1.5.0` are
+rat-only. Human and mouse workflows need an explicit `ReferenceBundle`.
 
-Bundled runtime references are rat-only in this release. Human and mouse work
-need an explicit `ReferenceBundle`.
-
-## Main public entrypoints
-
-| Type | Purpose |
-| --- | --- |
-| `AnalysisReadyDatasetBuilder` | Builds a validated workflow-ready dataset |
-| `AnalysisReadyPhosphoDataset` | Strict workflow input model |
-| `KinaseWorkflow` | Runs kinase scoring, prediction, and optional activity |
-| `SignalomeWorkflow` | Runs signalome analysis from a kinase result |
-
-## Request models
+## Request Models
 
 ### `DatasetBuildRequest`
 
-Fields:
+| Field | Meaning |
+| --- | --- |
+| `phospho` | pandas `DataFrame` or supported file path for the site-by-sample intensity matrix |
+| `site_metadata` | pandas `DataFrame` or path aligned to `phospho.index` |
+| `sample_metadata` | optional pandas `DataFrame` or path aligned to sample columns |
+| `total` | optional total-protein matrix used by total-protein correction |
+| `organism` | optional `Organism` enum value |
+| `preprocessing_config` | `DatasetPreprocessingConfig` |
 
-- `phospho`: DataFrame or supported file path
-- `site_metadata`: DataFrame or supported file path
-- `sample_metadata`: optional DataFrame or path
-- `total`: optional DataFrame or path
-- `organism`: optional `Organism`
-- `preprocessing_config`: `DatasetPreprocessingConfig`
+Supported file suffixes are `.csv`, `.tsv`, `.txt` as tab-separated text, and
+`.parquet`. CSV/TSV/TXT inputs are read with the first column as the row index.
 
-Builder notes:
+Supported site-metadata aliases are deliberately narrow:
 
-- supported inputs are pandas `DataFrame` values or file paths
-- supported site-metadata aliases are narrow: `gene_name` may stand in for `gene_symbol`, and `centralized_sequence` may stand in for `site_sequence`
-- unsupported historical aliases such as `gene`, `residue`, `phosphosite`, `site_position`, `sequence`, and `protein` are rejected
-- the supported public builder lane must end in a missing-value-free `AnalysisReadyPhosphoDataset`
+- `gene_name` may stand in for `gene_symbol`
+- `centralized_sequence` may stand in for `site_sequence`
+
+The builder may derive `gene_symbol` and `site` from index values formatted like
+`MAPK14;Y182;`. It does not derive `protein_id`.
 
 ### `KinaseWorkflowRequest`
 
-Fields:
-
-- `dataset`: `AnalysisReadyPhosphoDataset`
-- `references`: `ReferencePreset` or `ReferenceBundle`
-- `scoring_config`: `KinaseScoringConfig`
-- `prediction_config`: `KinasePredictionConfig`
-- `activity_config`: `KinaseActivityConfig | None`
+| Field | Meaning |
+| --- | --- |
+| `dataset` | an `AnalysisReadyPhosphoDataset` |
+| `references` | `ReferencePreset` or `ReferenceBundle`; default is `ReferencePreset.AUTO` |
+| `scoring_config` | `KinaseScoringConfig` |
+| `prediction_config` | `KinasePredictionConfig` |
+| `activity_config` | `KinaseActivityConfig` or `None`; `None` disables activity output |
 
 ### `SignalomeWorkflowRequest`
 
-Fields:
+| Field | Meaning |
+| --- | --- |
+| `kinase_result` | a `KinaseWorkflowResult` |
+| `config` | `SignalomeConfig` |
 
-- `kinase_result`: `KinaseWorkflowResult`
-- `config`: `SignalomeConfig`
+Signalome requires explicit, non-empty `dataset.site_metadata.protein_id` for all
+interpreted sites.
 
-Signalome requires explicit, non-empty `dataset.site_metadata.protein_id` for
-all interpreted sites.
+## Dataset Preprocessing Configs
 
-## Config models
+`DatasetPreprocessingConfig` groups six areas.
 
-Public config dataclasses are strict constructors: invalid local policy or
-numeric state is rejected when the config object is created.
+| Field | Config class | Default |
+| --- | --- | --- |
+| `intensity_transform` | `DatasetIntensityTransformConfig` | `policy="identity"` |
+| `normalisation` | `DatasetNormalisationConfig` | `policy="none"` |
+| `missing_data` | `DatasetMissingDataConfig` | `policy="forbid"` |
+| `total_protein_correction` | `DatasetTotalProteinCorrectionConfig` | `policy="none"` |
+| `site_matrix` | `DatasetSiteMatrixConfig` | `policy="as_input"` |
+| `comparisons` | `DatasetComparisonBuildingConfig` | `policy="none"` |
 
-Request/workflow validators still run and still own cross-object checks (for
-example, `subtract_log_total` requiring `total` and
-`intensity_transform.policy="log2"`, `sample_metadata_pairs` requiring
-`sample_metadata`, reference compatibility, and workflow input object
-boundaries).
+### Intensity Transform
 
-### Dataset preprocessing
+`DatasetIntensityTransformConfig` supports:
 
-`DatasetPreprocessingConfig` groups six builder-owned areas:
+- `policy="identity"`
+- `policy="log2"`, applying `log2(value + pseudocount)`
+- `pseudocount`, which must be non-negative
 
-- `intensity_transform: DatasetIntensityTransformConfig`
-- `normalisation: DatasetNormalisationConfig`
-- `missing_data: DatasetMissingDataConfig`
-- `total_protein_correction: DatasetTotalProteinCorrectionConfig`
-- `site_matrix: DatasetSiteMatrixConfig`
-- `comparisons: DatasetComparisonBuildingConfig`
+Use `log2` only when values are valid for the chosen pseudocount.
 
-Performance contracts for preprocessing and scoring lanes are documented in
-[Performance Contracts](performance.md).
+### Normalisation
 
-All preprocessing methods are explicit opt-in choices. Defaults remain
-conservative (`intensity_transform="identity"`, `normalisation="none"`,
-`missing_data="forbid"`).
-
-#### `DatasetIntensityTransformConfig`
-
-- `policy="identity"` (default)
-- `policy="log2"` applies `log2(value + pseudocount)` to quantitative intensities
-- `pseudocount` must be non-negative
-
-Use `log2` when intensities are positive (or become positive after adding the
-configured pseudocount).
-
-#### `DatasetNormalisationConfig`
-
-- `policy="none"` (default)
-- `policy="median_center"` subtracts each sample column median
-- `policy="quantile"` forces sample columns to share one empirical distribution
-
-Use quantile normalisation only when matched-distribution assumptions are
-scientifically appropriate for your experiment design. It is a dense sort-heavy
-operation with additional float64 matrix-copy cost; see
-[Performance Contracts](performance.md#quantile-normalisation).
-
-#### `DatasetMissingDataConfig`
-
-- `policy="forbid"` keeps the strict default lane
-- `policy="impute_row_median"` drops rows below `min_observed_values`, then imputes remaining missing values with the row median
-
-#### `DatasetTotalProteinCorrectionConfig`
+`DatasetNormalisationConfig` supports:
 
 - `policy="none"`
-- `policy="subtract_log_total"` (recommended)
-- `identity: DatasetTotalProteinCorrectionIdentityConfig`
+- `policy="median_center"`
+- `policy="quantile"`
 
-Subtractive total-protein correction is log-scale correction:
+Quantile normalisation is dense and sort-heavy. Use it only when matched sample
+distributions are scientifically appropriate.
 
-`corrected = log2(phospho + pseudocount) - log2(total + pseudocount)`
+### Missing Data
 
-In the public builder lane this requires:
+`DatasetMissingDataConfig` supports:
 
-- `intensity_transform.policy="log2"`
-- a `total` table aligned to phospho sample columns
-- an explicit identity mapping policy for phosphosite-to-total matching
+- `policy="forbid"`
+- `policy="impute_row_median"`
+- `min_observed_values`, used with row-median imputation
 
-`DatasetTotalProteinCorrectionIdentityConfig` makes identity mapping explicit:
+The dataset that leaves the builder must be missing-value-free.
 
-- `mode="direct"`:
-  - map `site_metadata[phosphosite_key]` directly to total identity
-  - total identity is resolved from `total.index` (use `total_protein_key="__index__"` for index-based matching)
-- `mode="mapping_table"`:
-  - provide `mapping_table` plus `mapping_phosphosite_key` and `mapping_total_protein_key`
-  - use when phosphosite and total identifiers are in different namespaces
+### Total-Protein Correction
 
-Supported strictness controls:
+`DatasetTotalProteinCorrectionConfig` supports:
 
-- `duplicate_policy="error"` (default)
-- `unmatched_policy="error"` (default) or `unmatched_policy="allow_uncorrected"`
+- `policy="none"`
+- `policy="subtract_log_total"`
+- `identity=DatasetTotalProteinCorrectionIdentityConfig(...)`
 
-Recommended identity preference order:
+`subtract_log_total` requires `intensity_transform.policy="log2"`, a `total`
+table aligned to phospho sample columns, and an explicit identity mapping.
 
-1. explicit `mapping_table` mode
-2. direct accession/protein-group identifiers
-3. direct gene-symbol matching only when scientifically appropriate
+Identity mapping supports:
 
-Gene-symbol matching is a convenience identity policy, not a universal
-biological identity guarantee. Isoform-specific, protein-group, or shared-peptide
-datasets should prefer accession/protein-group IDs or explicit mapping tables.
+- `mode="direct"`: match `site_metadata[phosphosite_key]` directly to total IDs;
+  use `total_protein_key="__index__"` for total index matching
+- `mode="mapping_table"`: provide `mapping_table`, `mapping_phosphosite_key`,
+  and `mapping_total_protein_key`
 
-By default PhosPy fails loudly on ambiguous identity states:
+Strictness controls are:
 
-- duplicate total identity keys
-- duplicate or ambiguous mapping-table rows
-- null/empty identity keys
-- unknown mapping-table references
-- unmatched phosphosite rows (unless `unmatched_policy="allow_uncorrected"`)
+- `duplicate_policy="error"`
+- `unmatched_policy="error"` or `"allow_uncorrected"`
 
-When correction runs, diagnostics/provenance records include:
+Gene-symbol matching is convenient, but it is not a universal biological identity
+guarantee. Prefer accessions, protein-group IDs, or an explicit mapping table
+when that better matches the experiment.
 
-- identity mode and keys
-- duplicate/unmatched policies
-- mapping-table fingerprint (mapping-table mode)
-- corrected/uncorrected/unmatched counts
-- unused total-protein rows
-- whether gene-symbol matching was used and warning text when applicable
+### Site Matrix Construction
 
-Important state semantics:
-
-- numeric scale and scientific meaning are tracked separately at dataset
-  boundary
-- subtractive correction keeps numeric scale at `log2`, but changes quantitative
-  meaning to `phospho_total_log_ratio`
-
-#### `DatasetSiteMatrixConfig`
+`DatasetSiteMatrixConfig` supports:
 
 - `policy="as_input"`
 - `policy="build_from_metadata"`
-- `duplicate_site_policy`: `max_mean_signal`, `first`, `aggregate_mean`, `aggregate_median`, `error`
-- public missing-data handling for this stage: `missing_data_policy="drop_any_missing"`
+- `duplicate_site_policy`: `"max_mean_signal"`, `"first"`, `"aggregate_mean"`,
+  `"aggregate_median"`, or `"error"`
+- `missing_data_policy="drop_any_missing"`
 
-This public builder lane is intentionally strict and still ends in a missing-value-free `AnalysisReadyPhosphoDataset`.
-`minimum_observed_values` is internal-only state and must stay
-`None` in the public config lane.
+Duplicate-site handling is a scientific choice. `error` is cautious. `first` is
+simple but input-order dependent. `max_mean_signal` favours the strongest row.
+Aggregate policies collapse rows numerically and can blur peptide context.
 
-Duplicate-site policy trade-offs:
+### Comparison Building
 
-`duplicate_site_policy` controls a scientific row-resolution choice. Some
-policies drop peptide context; aggregate policies preserve all rows numerically
-but collapse distinct peptide/site contexts into one site-level row.
-
-- `error`: cautious mode; fail on duplicate constructed sites instead of silently choosing one row.
-- `first`: simple and convenient, but later duplicate rows are discarded by input order.
-- `max_mean_signal`: keeps the strongest observed row, but can bias toward high-abundance / strong-signal rows.
-- `aggregate_mean` / `aggregate_median`: preserve duplicate rows numerically via aggregation, but can blur distinct phosphosite or peptide contexts.
-
-When site-matrix duplicate handling runs, `dataset.preprocessing_report` includes:
-
-- `row_audit`: unified row-level preprocessing audit trail across stages (`missing_data`, `site_matrix`, and future row-excluding stages).
-- `duplicate_site_resolution`: one row per source duplicate row, including retained/dropped or aggregated contribution details.
-- `metadata_conflicts`: duplicate-site metadata disagreement records (for example conflicting `protein_id` or `site_sequence` values).
-
-#### `DatasetComparisonBuildingConfig`
+`DatasetComparisonBuildingConfig` supports:
 
 - `policy="none"`
 - `policy="sample_metadata_pairs"`
-- `sample_group_column` defaults to `comparison_group`
-- `pairs` may be provided explicitly, otherwise observed group pairs are inferred
+- `sample_group_column`, defaulting to `comparison_group`
+- optional explicit `pairs`
 
-When comparison building runs:
+When `sample_metadata_pairs` is used, `sample_metadata` is required.
 
-- `dataset.comparisons` remains the compact site-by-comparison effect-size matrix used by workflows.
-- `dataset.preprocessing_report.comparison_group_stats` provides replicate-group summary context (for example `n`, `mean`, `sd`, `sem`) for each site and group.
-- `dataset.preprocessing_report.comparison_pair_stats` provides pairwise evidence (left/right group summaries plus `effect_size`) for each site/comparison row.
+## Kinase Configs
 
-These sidecar tables improve transparency and auditability. They are not a replacement for full differential phosphoproteomics modelling.
+### `KinaseScoringConfig`
 
-Planned/future lanes (not currently supported in this public contract) include:
-`knn` imputation, `min_prob` imputation, and `combat` batch correction.
+| Field | Meaning |
+| --- | --- |
+| `min_substrates` | minimum quantified substrates per kinase; must be at least `2` |
+| `include_diagnostic_scoring_tables` | include extra scoring diagnostics when `True` |
+| `profile_missing_value_strategy` | `"strict"` or `"median_skipna"` |
 
-### Kinase configs
+### `KinasePredictionConfig`
 
-#### `KinaseScoringConfig`
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `top_k` | `30` | top predicted substrate sites per kinase |
+| `deterministic_max_selected_kinases` | `10` | retained kinases in deterministic mode |
+| `adaptive_ensemble_runs` | `10` | ensemble runs in adaptive mode |
+| `mode` | `"deterministic_ranking"` | `"deterministic_ranking"` or `"adaptive_ensemble"` |
+| `adaptive_policy` | `"stable"` | `"stable"` or `"r_parity"` |
+| `n_iterations` | `5` | adaptive sampling iterations |
+| `random_state` | `None` | optional random state |
 
-- `min_substrates` default `2`
-- `include_diagnostic_scoring_tables` default `False`
-- `profile_missing_value_strategy`: `strict` or `median_skipna`
+### `KinaseActivityConfig`
 
-Motif sequence-context validation is strict in the supported lane:
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `True` | set `False` to disable activity after construction |
+| `threshold` | `0.6` | prediction-score threshold for selected substrates |
+| `min_substrates` | `3` | minimum selected substrates per kinase |
+| `top_n_substrates` | `20` | top predicted substrates used in weighted activity |
 
-- default scoring semantics expect a centred phosphosite window of length `15`
-  (flank size `7`, centre index `7`)
-- default scoring does not midpoint-crop longer sequences
-- longer centred sequences are only accepted when the caller explicitly opts into
-  centred-sequence extraction semantics (`sequence_semantics="centred_sequence"`)
-- supported residue alphabet is the 20 canonical amino acids:
-  `A C D E F G H I K L M N P Q R S T V W Y`
-- scored sequence identifiers must be site-shaped (`<protein>;<residue><position>;`)
-  so centre residue compatibility can be validated
-- query/target sequences that are missing, short, non-centred, site-residue mismatched,
-  non-phospho-centre (`S/T/Y`), or unsupported are excluded from motif scoring
-- reference/library sequences used to build motif profiles are validated with the
-  same sequence rules before profile construction; invalid reference windows are
-  excluded from motif frequency/profile construction (never neutral/partial
-  encoded)
-- explicit motif-sequence libraries support:
-  - bare sequence entries (less-informative), and
-  - structured entries with metadata equivalent to
-    `reference_id`, `site_id`, `kinase`, and `sequence`
-- bare explicit entries validate motif-window quality, supported residue alphabet,
-  and phospho-compatible centre residue (`S/T/Y`), but cannot always prove that
-  the intended phosphosite identity matches the centre residue
-- structured explicit entries are preferred for reproducible motif-library
-  construction because supplied `site_id` can be format-validated and checked for
-  centre-residue agreement
-- site-residue mismatch checks require site-like metadata, such as `site_id` or a
-  reference identifier that encodes the phosphosite
-- excluded query sites are reported through
-  `result.scoring_result.motif_sequence_validation`
-- excluded/accepted reference windows are reported through
-  `result.scoring_result.motif_library_validation`
+`thresholded_substrate_mean_activity` is a simple mean phospho signal over
+predicted substrates above the configured threshold. It is not full KSEA-style
+enrichment.
 
-Performance notes:
+## Signalome Config
 
-- motif scoring scales with scored sites, eligible kinases, and motif window width,
-- the scoring lane filters motif work to eligible profile-overlap kinases,
-- enabling diagnostic scoring tables retains `motif_scores` and
-  `score_fusion_weights`, which can increase runtime/memory.
+`SignalomeConfig` supports these fields:
 
-See [Performance Contracts](performance.md#kinase-scoring-and-motif-scoring).
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `substrate_support_cutoff` | `0.5` | prediction support cutoff for kinase-supported substrates |
+| `network_correlation_threshold` | `0.5` | threshold used by the network policy |
+| `network_policy` | `"signed"` | `"positive_only"`, `"absolute_threshold"`, or `"signed"` |
+| `assignment_policy` | `"cutoff_binary"` | `"cutoff_binary"` or `"weighted_top"` |
+| `score_preconditioning_policy` | `"allow_and_report"` | allow or reject all-missing downstream score rows |
+| `module_count` | `None` | explicit module count; omit for automatic selection |
+| `module_selection_primary_correlation_threshold` | `0.5` | first threshold for automatic module selection |
+| `module_selection_fallback_correlation_threshold` | `0.1` | fallback threshold for automatic module selection |
+| `module_selection_max_clusters` | `10` | largest candidate module count considered |
+| `tree_engine` | `"exact"` | exact tree construction; this is the only public value |
+| `candidate_scoring_policy` | `"full"` | `"full"` or `"sampled"` candidate module-count scoring |
+| `max_exact_tree_sites` | `2000` | hard guard for exact tree construction |
+| `max_full_candidate_scoring_sites` | `2000` | hard guard for full candidate scoring |
+| `clustering_engine` | `"exact_python"` | `"exact_python"` or `"scipy_hierarchical"` |
 
-#### `KinasePredictionConfig`
+`candidate_scoring_policy="sampled"` reduces candidate module-count scoring
+cost. It does not remove the exact tree-construction guard.
 
-- `top_k` default `30`
-- `deterministic_max_selected_kinases` default `10`
-- `adaptive_ensemble_runs` default `10`
-- `mode`: `deterministic_ranking` or `adaptive_ensemble`
-- `adaptive_policy`: `stable` or `r_parity`
-- `n_iterations` default `5`
-- `random_state` optional
+Signalome module/network scores are derived summaries over upstream kinase score
+profiles. They are not probabilities, calibrated confidence values, or direct
+proof of causal regulation.
 
-`deterministic_max_selected_kinases` controls how many kinases are selected in
-deterministic prediction.
-`adaptive_ensemble_runs` controls how many ensemble runs are executed in
-adaptive prediction.
-
-#### `KinaseActivityConfig`
-
-- `enabled` default `True`
-- `threshold` default `0.6`
-- `min_substrates` default `3`
-- `top_n_substrates` default `20`
-
-Set `activity_config=None` to skip the activity stage.
-
-### `SignalomeConfig`
-
-Fields:
-
-- `substrate_support_cutoff`
-- `network_correlation_threshold`
-- `network_policy`: `positive_only`, `absolute_threshold`, `signed`
-- `assignment_policy`: `cutoff_binary`, `weighted_top`
-- `score_preconditioning_policy`: `allow_and_report`, `error_on_drop`
-- `module_count`
-- `module_selection_primary_correlation_threshold`
-- `module_selection_fallback_correlation_threshold`
-- `module_selection_max_clusters`
-- `tree_engine`: `exact`
-- `candidate_scoring_policy`: `full`, `sampled`
-- `max_exact_tree_sites` (default `2000`)
-- `max_full_candidate_scoring_sites` (default `2000`)
-- `clustering_engine`: `exact_python`, `scipy_hierarchical`
-
-Signalome stages are now explicit:
-
-- cluster-tree construction: controlled by `tree_engine`
-- candidate scoring for module-count selection: controlled by `candidate_scoring_policy`
-- kinase correlation calculation for network edges: controlled by `network_policy` + `network_correlation_threshold`
-- module assignment: controlled by `assignment_policy` + `substrate_support_cutoff`
-- network generation: built from downstream score correlations after module selection
-
-Important: `candidate_scoring_policy="sampled"` does not imply approximate
-signalome clustering. It only changes candidate module-count evaluation. Exact
-cluster-tree construction and final module assignment still require the exact
-tree and remain hard-guarded by `max_exact_tree_sites`.
-Exact tree construction is an internal, scale-limited implementation detail of
-the signalome workflow contract.
-Low-level clustering helpers in `phospy.signalomes.clustering` use the same
-guarded exact-tree path and resolve missing/`None`
-`max_exact_tree_sites` to the safe default (`2000`), rather than an
-unbounded tree build.
-
-Successful runs record scale decisions in provenance under
-`result.provenance.workflow_parameters["scale_guard"]` (`site_count`,
-`tree_engine`, `candidate_scoring_policy`,
-`candidate_scoring_requested_policy`,
-`max_exact_tree_sites`, `max_full_candidate_scoring_sites`,
-`exact_cluster_tree_built`, `candidate_scoring_mode`,
-`candidate_scoring_evaluated`, `candidate_scoring_skip_reason`,
-`candidate_scoring_sampling`, `candidate_scoring_applies_to`,
-`final_module_assignment_backend`,
-`final_module_assignment_uses_candidate_scoring`, `scale_guard_passed`).
-
-`candidate_scoring_applies_to` is always
-`"candidate_module_count_evaluation_only"`, and
-`final_module_assignment_uses_candidate_scoring` is always `False`.
-`candidate_scoring_requested_policy` records the backend requested in config.
-`candidate_scoring_mode` records what was actually evaluated (`"full"`,
-`"sampled"`, or `"not_evaluated"`).
-When `module_count` is set explicitly, `candidate_scoring_evaluated` is `False`,
-`candidate_scoring_skip_reason` is `"explicit_module_count"`, and
-`candidate_scoring_sampling` is `None`.
-These fields make stage ownership explicit:
-
-- exact cluster-tree construction: `tree_engine`,
-  `max_exact_tree_sites`, `exact_cluster_tree_built`
-- candidate module-count evaluation: `candidate_scoring_*`
-- final module assignment: `final_module_assignment_*`
-
-Scientific score semantics are recorded separately under
-`result.provenance.workflow_parameters["signalome_score_semantics"]`. This
-payload captures:
-
-- upstream downstream score source (`rank_weighted_fusion_scores` when present,
-  otherwise `profile_scores`)
-- meaning of the selected downstream score source
-- module-selection score meaning (within-cluster correlation summaries over
-  downstream score profiles)
-- candidate scoring mode and scope
-- network-correlation meaning and negative-correlation handling by
-  `network_policy`
-- missing/constant profile handling
-- thresholds and limits used for interpretation
-- clustering backend name
-- scientific interpretation limits (derived summary semantics; not
-  probabilities/calibrated confidence/causal proof)
-
-When sampled candidate scoring actually runs,
-`candidate_scoring_sampling` records reproducible sampling details for
-candidate module scoring:
-
-- `sampling_cap`
-- `sampling_method`
-- `deterministic_seed_policy`
-- `actual_sampled_pair_count`
-- `per_cluster_sample_count_summary` (`min`, `max`, `mean`, `total`)
-
-When candidate scoring is skipped (for example explicit `module_count`),
-sampled and full-correlation candidate-scoring diagnostics are not emitted.
-
-See [Performance Contracts](performance.md#signalome-clustering-and-module-selection).
-
-## Result models
+## Result Models
 
 ### `AnalysisReadyPhosphoDataset`
 
-This is the strict workflow-facing dataset boundary.
-
-Key fields include:
+Important fields:
 
 - `phospho`
 - `site_metadata`
-- `sample_metadata` (optional)
-- `total` (optional)
-- `comparisons` (optional)
-- `organism` (optional)
+- `sample_metadata`
+- `total`
+- `comparisons`
+- `organism`
 - `intensity_scale_state`
 - `processing_state`
-- `preprocessing_report` (optional)
-- `provenance` (optional `RunProvenance`; machine-readable audit/replay metadata)
+- `preprocessing_report`
+- `provenance`
 
-State model responsibilities:
-
-- `intensity_scale_state` answers: "Are quantitative values linear or log2?"
-- `intensity_scale_state.quantity` answers: "What do phospho matrix values
-  represent scientifically?"
-- `processing_state` answers: "What preprocessing policy state crossed the analysis-ready boundary?"
-- `preprocessing_report` answers: "What happened during preprocessing, including row-level operations and sidecars?"
-
-`intensity_scale_state.label` (for example `log2`) is never a complete
-scientific interpretation on its own; always read it together with
-`intensity_scale_state.quantity`.
-
-Common combinations:
-
-- linear phosphosite abundance:
-  `label="linear"`, `quantity="phosphosite_abundance"`
-- log2 phosphosite abundance:
-  `label="log2"`, `quantity="phosphosite_log_abundance"`
-- log2 phospho/total corrected ratio:
-  `label="log2"`, `quantity="phospho_total_log_ratio"`
-
-`preprocessing_report` and `provenance` serve different purposes:
-
-- `preprocessing_report` is human-facing and table-oriented (`row_counts`,
-  `operations`, `row_audit`, duplicate-site and comparison sidecars).
-- `provenance` is machine-readable and contract-oriented (table fingerprints,
-  environment versions, preprocessing execution hashes, workflow parameters,
-  random-state metadata, and output fingerprints).
-
-Quick row-audit inspection example:
-
-```python
-report = dataset.preprocessing_report
-dropped = report.row_audit[report.row_audit["action"] == "dropped"]
-print(dropped[["stage", "source_row_id", "site_id", "reason"]])
-```
+Read `intensity_scale_state.label` together with
+`intensity_scale_state.quantity`. For example, `log2` describes numeric scale;
+`phospho_total_log_ratio` describes what the values mean scientifically.
 
 ### `KinaseWorkflowResult`
 
-Key fields:
+Important fields:
 
 - `dataset`
 - `references`
 - `scoring_result`
 - `prediction_result`
-- `activity_result` (optional)
-- `provenance` (optional `RunProvenance`)
+- `activity_result`
+- `provenance`
 
-Common nested outputs:
-
-- `result.scoring_result.profile_scores`
-- `result.scoring_result.rank_weighted_fusion_scores`
-- `result.scoring_result.motif_sequence_validation`
-- `result.scoring_result.motif_library_validation`
-- `result.prediction_result.pred_mat`
-- `result.activity_result.weighted_activity` when activity is enabled
-- `result.activity_result.thresholded_substrate_mean_activity` when activity is enabled
-
-Method notes:
-
-- `thresholded_substrate_mean_activity` is a simple mean phospho signal over
-  predicted substrates whose prediction score is greater than
-  `activity_config.threshold`. It is not full KSEA enrichment.
-- `rank_weighted_fusion_scores` combine profile-correlation scores and
-  motif-frequency scores using rank-derived weights from profile substrate
-  counts and motif library sizes.
-- `motif_sequence_validation.summary()` returns workflow diagnostics with:
-  `total_sequences`, `valid_sequences`, `invalid_sequences`,
-  `short_sequences`, `off_centre_sequences`, `site_residue_mismatches`,
-  `unsupported_residue_characters`, and
-  `sequences_excluded_from_motif_scoring`.
-- Excluded sequence rows keep traceability through
-  `motif_sequence_validation.rows`; excluded sites are not assigned ordinary
-  motif scores (`motif_scores` remains missing/`NaN` for those rows).
-- `motif_library_validation.summary()` reports motif-library build diagnostics,
-  including provided/accepted/excluded reference counts, exclusion reasons
-  (`missing`, `short`, `unsupported`, `off_centre`, `site_residue_mismatch`,
-  `invalid_site_id`, `non_phospho_centre_residue`),
-  and accepted-window/unsupported-residue policies.
-- `motif_library_validation.rows` preserves per-reference provenance
-  (`reference_id`, `site_id`, `kinase`, `sequence`, `status`, `reason`,
-  observed/expected centre residues).
+Common tables include `profile_scores`, `rank_weighted_fusion_scores`,
+`pred_mat`, and activity tables when activity is enabled.
 
 ### `SignalomeWorkflowResult`
 
-Key fields:
+Important fields:
 
 - `dataset`
 - `kinase_result`
@@ -554,136 +280,72 @@ Key fields:
 - `kinase_network`
 - `module_selection_diagnostics`
 - `score_preconditioning_diagnostics`
-- `expanded_signalome` (optional by contract, populated in the supported lane)
-- `site_membership` (optional; site-level signalome membership provenance)
-- `protein_site_context` (optional; protein-level multi-site context summary)
-- `provenance` (optional `RunProvenance`)
+- `expanded_signalome`
+- `site_membership`
+- `protein_site_context`
+- `provenance`
 
-Common nested outputs:
+Undefined kinase correlations are preserved as missing values. A correlation of
+`0.0` means a correlation was estimated and is near zero.
 
-- `result.module_assignments.table`
-- `result.signalome_modules.table`
-- `result.kinase_network.edges`
-- `result.kinase_network.candidate_correlations`
-- `result.kinase_network.correlation_diagnostics`
-- `result.expanded_signalome`
-- `result.site_membership`
-- `result.protein_site_context`
+## References
 
-Signalome correlation semantics:
+`Organism` values are `"human"`, `"mouse"`, and `"rat"`.
 
-- PhosPy preserves undefined kinase correlations as missing (`NaN`) values.
-- `0.0` means correlation was estimated and is near zero.
-- Missing correlation means estimation was not possible (for example constant
-  profiles, insufficient paired observations, missing values, or non-finite
-  inputs).
-- `result.kinase_network.candidate_correlations` includes:
-  `source_kinase`, `target_kinase`, `correlation`, `correlation_status`,
-  `valid_observations`, and `correlation_reason`.
-- By default, only rows with `correlation_status == "finite"` are eligible for
-  edge creation.
-- `result.kinase_network.correlation_diagnostics` reports finite/undefined
-  counts and how many candidates were skipped for non-finite correlation.
-- Signalome module/network scores are derived summary statistics over upstream
-  downstream score profiles; they are not probabilities, calibrated confidence
-  values, or direct evidence of causal regulation.
-- Use `result.provenance.workflow_parameters["signalome_score_semantics"]` for
-  the run-specific interpretation payload (score source, score meaning,
-  candidate-scoring scope, missing/constant handling, threshold/limit context,
-  and interpretation limits).
+`ReferencePreset` values are `"auto"`, `"human"`, `"mouse"`, and `"rat"`.
+Enum presence does not mean bundled runtime data exists for every organism in
+this release.
 
-Signalome context note:
-
-- `result.signalome_modules.table` remains the compact protein/module summary table.
-- `result.site_membership` shows site-level membership context, including excluded rows and reasons.
-- `result.protein_site_context` highlights multi-site proteins and flags potentially ambiguous biological interpretation when site clusters or module context disagree.
-
-## Enums and references
-
-### `Organism`
-
-Public organism enum values:
-
-- `human`
-- `mouse`
-- `rat`
-
-### `ReferencePreset`
-
-Public preset enum values:
-
-- `auto`
-- `human`
-- `mouse`
-- `rat`
-
-Important: enum presence does not guarantee bundled runtime data for every
-organism in this release.
-
-### `ReferenceBundle`
-
-Use `ReferenceBundle` when you want to provide your own references.
-
-Fields:
+Use `ReferenceBundle` for custom references. It requires:
 
 - `organism`
-- `kinase_substrate_map`
-- `site_sequences`
+- `kinase_substrate_map` with `kinase` and `substrate_site`
+- `site_sequences` indexed by site ID with `site_sequence`
 
-Large reference maps are supported; workflow runtime depends more on
-dataset/reference overlap after filtering than on raw map size. See
-[Performance Contracts](performance.md#large-kinase-substrate-references).
+## Public Exceptions
 
-## Public exceptions
+All user-facing exception types are available from `phospy.api`. Common ones are:
 
-All user-facing exception types are available from `phospy.api`.
-
-Common ones to catch:
-
-- `PhosPyValidationError`
+- `PhosPyInputError`
 - `UnsupportedInputFormatError`
-- `ReferenceCompatibilityError`
+- `PhosPyValidationError`
 - `ReferenceResolutionError`
-- `UnsupportedOrganismError`
+- `ReferenceCompatibilityError`
 - `WorkflowValidationError`
 - `WorkflowBoundaryError`
 - `SignalomeScaleError`
 
-## Small working example
+## Small Working Example
 
 ```python
 import pandas as pd
 
 from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
-from phospy.api import DatasetBuildRequest, KinaseWorkflowRequest, Organism, ReferencePreset
+from phospy.api import DatasetBuildRequest, KinaseWorkflowRequest
+from phospy.api import Organism, ReferencePreset
 
-phospho = pd.DataFrame({"sample_a": [1.0]}, index=["MAPK14;Y182;"])
+phospho = pd.DataFrame(
+    {"sample_a": [1.00, 0.70], "sample_b": [1.10, 0.80], "sample_c": [0.95, 0.75]},
+    index=["TSC2;S939;", "GSK3B;S9;"],
+)
 site_metadata = pd.DataFrame(
     {
-        "gene_symbol": ["MAPK14"],
-        "site": ["Y182"],
-        "site_sequence": ["LDFGLARHTDDEMTGYVATRWYRAPEIMLNW"],
-        "protein_id": ["MAPK14"],
+        "gene_symbol": ["TSC2", "GSK3B"],
+        "site": ["S939", "S9"],
+        "site_sequence": [
+            "FDDTPEKDSFRARSTSLNERPKSLRIARAPK",
+            "_______MSGRPRTTSFAESCKPVQQPSAFG",
+        ],
+        "protein_id": ["TSC2", "GSK3B"],
     },
-    index=phospho.index,
+    index=phospho.index.copy(),
 )
 
 dataset = AnalysisReadyDatasetBuilder().run(
-    DatasetBuildRequest(
-        phospho=phospho,
-        site_metadata=site_metadata,
-        organism=Organism.RAT,
-    )
+    DatasetBuildRequest(phospho=phospho, site_metadata=site_metadata, organism=Organism.RAT)
 )
-
 result = KinaseWorkflow().run(
-    KinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO)
+    KinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO, activity_config=None)
 )
+print(result.prediction_result.pred_mat)
 ```
-
-## Where next
-
-- [Quickstart](getting-started/quickstart-first-workflow.md)
-- [Validation Guide](validation.md)
-- [CLI Guide](cli.md)
-- [Output Bundles](output_bundles.md)

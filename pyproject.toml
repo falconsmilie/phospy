@@ -58,7 +58,7 @@ Documentation = "https://github.com/falconsmilie/phospy/blob/main/docs/index.md"
 Issues = "https://github.com/falconsmilie/phospy/issues"
 Changelog = "https://github.com/falconsmilie/phospy/blob/main/CHANGELOG.md"
 Citation = "https://github.com/falconsmilie/phospy/blob/main/CITATION.cff"
-"Release Notes" = "https://github.com/falconsmilie/phospy/blob/main/docs/release_notes/1.5.0.md"
+"Release Notes" = "https://github.com/falconsmilie/phospy/blob/main/docs/release-notes-1.5.0.md"
 
 [project.optional-dependencies]
 parquet = [

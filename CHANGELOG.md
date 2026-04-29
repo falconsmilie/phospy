@@ -6,193 +6,78 @@ All notable changes to this project are documented here.
 
 ### Changed
 
-- No unreleased entries yet.
+- Consolidated user-facing docs into a flatter `docs/` layout and refreshed examples against the current public API.
 
 ## [1.5.0] - 2026-04-22
 
 ### Release Overview
 
-- PhosPy `1.5.0` presents the rewrite as a deliberate shipped product with one
-  analysis-ready dataset boundary and one supported workflow chain:
-  `build -> kinase -> optional signalome`.
-- Release framing in `1.5.0` is based on the supported package contract as
-  shipped, not on continuity messaging for older package shapes.
+- Clarified the supported product shape: build an analysis-ready dataset, run kinase scoring/prediction, and optionally run signalome analysis.
+- Kept the public API centred on `run(request)` workflow entrypoints.
+- Made `phospy.api` the main import surface for requests, configs, results, enums, references, and public exceptions.
 
-### Supported Product Shape
+### Scientific Scope
 
-- Supported workflow story:
-  `DatasetBuildRequest -> AnalysisReadyDatasetBuilder.run(...) -> AnalysisReadyPhosphoDataset -> KinaseWorkflow.run(...) -> SignalomeWorkflow.run(...)` (optional signalome step).
-- `phospy` remains a small convenience surface for the main dataset and
-  workflow entrypoints.
-- `phospy.api` is the authoritative namespace for requests, configs, results,
-  references/enums, and public exceptions.
-
-### Scientific Scope and Bundled References
-
-- Scientific claims in this release are seam-level and fixture-backed, not
-  blanket legacy-equivalence claims.
-- The core L6 kinase scoring and prediction lane is parity-gated for ranking
-  behaviour on explicit like-for-like comparison surfaces.
-- Contract-changed supported lanes are described as contract-changed rather
-  than presented as broad legacy-equivalent parity.
-- Bundled runtime references are rat-only in `1.5.0`.
-- `ReferencePreset.AUTO` requires `dataset.organism` and resolves bundled data
-  for the rat lane.
-- Human and mouse execution require caller-supplied `ReferenceBundle`.
-
-### User-Facing Highlights
-
-- Clearer public API boundaries between the top-level `phospy` convenience
-  surface and the `phospy.api` authority surface.
-- Narrowed prediction-related default exports so stable imports are easier to
-  identify and advanced helpers move behind concrete-module imports.
-- Repaired and governance-locked L6 ranking parity gates on explicit
-  like-for-like surfaces.
-- Release messaging, parity documentation, validation documentation, and public
-  contract documentation now use aligned scope language.
+- Bundled runtime references are rat-only in this release.
+- `ReferencePreset.AUTO` resolves bundled data for rat datasets.
+- Human and mouse workflows require a caller-supplied `ReferenceBundle`.
+- Kinase scoring and prediction keep fixture-backed parity checks on explicit comparison surfaces.
+- Activity output is documented as thresholded substrate-mean activity and weighted activity, not full KSEA enrichment.
+- Signalome requires explicit `site_metadata.protein_id` for every interpreted site.
 
 ### Documentation
 
-- Dedicated release notes: `docs/release_notes/1.5.0.md`.
-- Main contract and evidence docs: `docs/api.md`, `docs/validation.md`,
-  `docs/contracts/index.md`, `docs/reference/index.md`, `docs/parity.md`.
+- Release notes: `docs/release-notes-1.5.0.md`.
+- Main user docs: `docs/quickstart.md`, `docs/api.md`, `docs/cli.md`, `docs/validation.md`, and `docs/output_bundles.md`.
+- Scientific and maintainer docs: `docs/scientific-coverage.md`, `docs/parity.md`, `docs/performance.md`, and `docs/maintenance.md`.
 
 ## [1.4.0] - 2026-04-15
 
 ### Added
 
-- Added `ReferenceBundle` and `ReferenceProvider` contracts for bundled reference handling.
-- Added an `AnalysisReadyPhosphoDataset` boundary plus a supported adapter path for analysis-ready inputs.
-- Added a first bundled reference provider for the rat L6 native lane.
-- Added a shared `KinaseWorkflow` common-path API.
-- Added a package skeleton and root migration map to support the package reshaping work.
-- Added regression tests for thin API orchestration and domain delegation.
+- Added `ReferenceBundle` contracts for bundled and caller-supplied reference handling.
+- Added the strict `AnalysisReadyPhosphoDataset` boundary.
+- Added a shared `KinaseWorkflow` path and broader workflow validation coverage.
 
 ### Changed
 
-- Reworked public workflows into an `api` package and separated simple and advanced workflow lanes.
-- Split request validation into a dedicated `requests` package and reorganised the broader `validation` package.
-- Centralised preprocessing under a dedicated package and moved dataset models, prediction execution, kinase activity
-  analysis, signalome analysis, and reference handling into focused subpackages.
-- Split workflows into focused public modules and narrowed package-level exports to supported seams, reducing broad root
-  and package re-exports.
-- Flattened request plumbing, simplified trusted orchestration inputs, and renamed trusted input bundles for clearer
-  orchestration boundaries.
-- Unified dataset file loading behind a single validated loader path and collapsed duplicate loader normalisation and
-  helper paths.
-- Replaced predictor introspection with an explicit execution contract and consolidated kinase workflow execution behind
-  a shared internal path.
+- Reorganised public workflows, dataset construction, validation, preprocessing, reference handling, and result models into clearer package areas.
 - Made scientific preprocessing policies explicit and configurable.
-- Reduced frozen-style and false-immutability construction in favour of plainer model construction.
-- Optimised prediction hot paths, precomputed per-site positions during prediction execution, reduced redundant
-  dataframe copying, and vectorised signalome network and expansion-path processing.
-- Reviewed and refreshed the documentation to match the refactored package surface.
+- Improved prediction and signalome hot paths through dataframe-copy reduction and vectorised processing where appropriate.
 
 ### Fixed
 
-- Rejected self-comparisons and reverse-duplicate comparison definitions earlier in validation.
-- Tightened low-level activity scoring validation and routed public activity scoring helpers through request validation.
-- Tightened `predMat` validation and overlap defaults.
-- Hardened output publisher recovery-path validation.
-- Removed misleading compatibility and encoding helpers that no longer matched the supported execution path.
-
-### Documentation
-
-- Added ADRs for the domain refactor and the high-level adapter workflow for kinase inference.
-- Finalised architecture documentation and clarified retained root exports.
-- Audited remaining imports and removed obsolete compatibility layers from the documented package surface.
-
-### Testing
-
-- Added regression coverage for thin API orchestration and domain delegation.
-- Validation-oriented changes were accompanied by broader request, scoring, comparison, and recovery-path hardening
-  across the refactor.
+- Tightened comparison validation, activity scoring validation, prediction-matrix validation, and output publisher recovery-path validation.
 
 ## [1.2.3] - 2026-04-09
 
 ### Added
 
-- a first-class public workflow for **PredMat generation**, giving users one supported path from phosphosite inputs and
-  sequence data to scoring outputs, prediction outputs, and PredMat results.
-- a dedicated public workflow for **Signalome construction** from scoring and prediction outputs.
-- a stable **Signalome result contract** with structured access to signalome outputs and downstream export-friendly
-  data.
-- **signalome map-ready output generation** for downstream visualisation workflows.
-- **kinase-network output generation** derived from signalome results.
-- a user-facing **Signalome workflow guide and example** covering the supported path from scoring and prediction to
-  signalomes, map data, and network outputs.
-- a central **parity contract matrix** in `docs/parity.md` covering fixture families, protected seams, protected metric
-  classes, and supported modes.
-- a reproducible benchmark harness for comparing `svm_mode="default"` and `svm_mode="r_parity"`.
-- an ADR recording the public support decision for `r_parity` and clarifying the intended role of both public presets.
-- parity-sensitive release review guidance so mode changes are reviewed against explicit benchmark and regression
-  expectations.
+- Added public workflow coverage for prediction matrix generation and signalome construction.
+- Added structured signalome result outputs for downstream analysis.
+- Added parity documentation and benchmark tooling for supported comparison surfaces.
 
 ### Changed
 
-- Refactored the `validation/` package to group validators by **validation type** rather than by validated process or
-  workflow.
-- Reorganised validation into clearer type-based modules, improving discoverability and reducing process-shaped
-  validator sprawl.
-- Promoted reusable validation rules into more obvious public validation functions and reduced private helper clutter
-  across the package.
-- Clarified the public prediction mode story across the documentation:
-    - `default` remains the recommended standard mode.
-    - `r_parity` remains a supported parity-oriented preset.
-- Made release thresholds for `default` and `r_parity` explicit in the parity documentation instead of leaving them
-  mainly embedded in test assertions.
-- Centralised parity threshold constants in regression tests to make the release bar easier to audit.
-- Hardened documented workflow smoke coverage so the public PredMat and Signalome examples run in both supported
-  prediction modes where relevant.
-- Improved consistency between documentation, benchmark workflow, release guidance, and protected parity test contracts.
+- Reorganised validation by validation type.
+- Clarified prediction mode behaviour and release thresholds.
+- Added smoke coverage for documented public workflow examples.
 
 ### Fixed
 
-- Restored the mode-comparison benchmark harness to the repository so documented benchmark commands point to a real
-  in-repo tool.
-- Fixed benchmark output path handling so generated reports can be written outside the repository root.
-- Fixed README workflow examples and mode guidance so the documented public paths align with the current API and release
-  expectations.
-- Fixed documentation gaps around PredMat and Signalome usage by adding clearer recommended workflow paths.
-- Reduced duplication and ambiguity in validation logic by consolidating rules under the new validation module
-  structure.
-
-### Testing
-
-- Full regression suite passes: `384 passed`.
-- Benchmark threshold checks pass for both `default` and `r_parity`.
-- Public workflow smoke tests pass for documented PredMat and Signalome flows.
-- Validation tests were updated and continue to pass against the reorganised validation package.
-- End-to-end coverage now includes the supported public PredMat and Signalome workflows.
-
-### Notes
-
-- Benchmark harness code is versioned in the repository.
-- Generated benchmark reports remain local review artifacts and are not committed by default.
-- This release significantly improves the package’s public workflow surface, downstream analysis support, validation
-  maintainability, and parity release confidence without changing the recommended default prediction mode.
+- Repaired benchmark output path handling.
+- Updated README and workflow examples to match the supported API at the time.
 
 ## [1.2.1] - 2026-04-04
 
-Current package metadata version reflected in this repository snapshot.
-
 ### Documentation
 
-- simplified the README and docs pages so the main workflows are easier to find
-- aligned API docs with the current public classes, methods, CLI options, and output files
-- clarified where `predMat` validation happens in `PhosRPipeline`
-- tightened validation and parity docs to focus on user-facing behaviour
+- Simplified README and docs pages so the main workflows were easier to find.
+- Aligned API docs with current public classes, methods, CLI options, and output files.
 
 ## [1.0.0] - 2026-03-26
 
-First supported PhosPy release.
-
 ### Scope
 
-PhosPy 1.0.0 covers:
-
-- core preprocessing from total and phospho inputs to corrected phosphosite matrices
-- downstream kinase analysis from `predMat`
-- a native `KinaseWorkflow` with seam-level validation against committed references
-- a small supported root-level public API
-- CLI support for the core preprocessing plus `predMat` path
+- First supported PhosPy release.
+- Covered core preprocessing, kinase analysis, a small public API, and CLI support for the initial workflow lane.

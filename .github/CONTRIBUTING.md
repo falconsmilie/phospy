@@ -2,7 +2,7 @@
 
 Thanks for helping improve PhosPy.
 
-## Before you open a pull request
+## Before You Open a Pull Request
 
 Please make sure your change is:
 
@@ -11,24 +11,24 @@ Please make sure your change is:
 - small enough to review without detective work
 - honest about the supported public lane
 
-## Documentation expectations
+## Documentation Expectations
 
 When editing docs or examples:
 
-- prefer one clear beginner path over several overlapping overview pages
+- keep the beginner path small and runnable
 - avoid repeating the same rule in many places
-- keep examples runnable
+- keep `docs/` flat except for `docs/adr/`
 - use `phospy.api` for request, config, result, enum, reference, and error imports
 - keep beginner docs focused on the rat bundled-reference lane unless the page is explicitly advanced
 
-## Local setup
+## Local Setup
 
 ```bash
 pip install -e ".[dev]"
 pip install -e ".[dev,parquet]"  # optional parquet support
 ```
 
-## Tests to run
+## Tests to Run
 
 For most changes:
 
@@ -45,15 +45,11 @@ pytest tests/integration/test_public_examples_smoke.py
 pytest tests/integration/test_cli_smoke.py
 ```
 
-Run parity tests when your change touches scientific logic or fixture-backed behaviour.
+Run parity tests when scientific logic or fixture-backed behaviour changes:
 
-## Pull request tips
-
-A good pull request usually includes:
-
-- a short problem statement
-- the public effect of the change
-- any contract or example updates needed to keep docs aligned
+```bash
+pytest tests/parity -m parity -s
+```
 
 ## Style
 

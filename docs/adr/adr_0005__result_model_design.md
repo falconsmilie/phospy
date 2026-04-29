@@ -56,7 +56,7 @@ Export logic, plotting logic, compatibility adapters, and large ownership-manage
 
 ## Result Model Principles
 
-### Principle 1: Results are data containers first
+### Principle 1: Results Are Data Containers First
 
 A result object should primarily answer the question:
 
@@ -64,17 +64,17 @@ A result object should primarily answer the question:
 
 It should not try to become a general-purpose service object.
 
-### Principle 2: Nested structure should be visible
+### Principle 2: Nested Structure Should Be Visible
 
 If a workflow has meaningful internal stages, the result should expose those stages honestly.
 
 For example, a kinase workflow result should expose distinct scoring, prediction, and activity results rather than flattening all of them into one large surface.
 
-### Principle 3: Duplication is discouraged
+### Principle 3: Duplication Is Discouraged
 
 If a value already exists in a nested stage result, the top-level workflow result should not expose another convenience property for the same value unless the shortcut is demonstrably central to the user experience.
 
-### Principle 4: Results should not own unrelated behaviour
+### Principle 4: Results Should Not Own Unrelated Behaviour
 
 Result objects should not become the place where the package accumulates:
 
@@ -87,13 +87,13 @@ Result objects should not become the place where the package accumulates:
 
 Those behaviours belong in separate services or adapters.
 
-### Principle 5: Mutability must be explicit and minimal
+### Principle 5: Mutability Must Be Explicit and Minimal
 
 Result models should not grow broad families of near-duplicate accessors purely to manage copy semantics. The design should prefer clear and limited access patterns over large `to_*` / `to_owned_*` / `to_mutable_*_unsafe` surfaces.
 
 ## Public Workflow Results
 
-### Kinase workflow result
+### Kinase Workflow Result
 
 The proposed public `KinaseWorkflowResult` should contain:
 
@@ -115,7 +115,7 @@ Examples of intended usage:
 
 The top-level result should not mirror these through repeated aliases.
 
-### Signalome workflow result
+### Signalome Workflow Result
 
 The proposed public `SignalomeWorkflowResult` should contain:
 
@@ -238,7 +238,7 @@ The public result story must remain smaller than the internal implementation.
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - Result objects stay smaller and easier to understand.
 - The workflow structure remains visible and honest.
@@ -246,32 +246,32 @@ The public result story must remain smaller than the internal implementation.
 - Export and plotting concerns stay decoupled from scientific data modelling.
 - Maintenance burden is reduced because there are fewer mirrored fields and fewer façade layers.
 
-### Negative consequences
+### Negative Consequences
 
 - Some users may need to navigate nested result objects rather than relying on top-level shortcuts.
 - Convenience APIs will be more constrained than in a wrapper-heavy design.
 - Separate adapter or exporter components may need to be introduced where presentation or serialisation support is required.
 
-### Neutral consequences
+### Neutral Consequences
 
 - Internal pipelines may still use richer temporary result DTOs where helpful.
 - High-value shortcuts may still exist in carefully chosen cases.
 
 ## Rejected Alternatives
 
-### Alternative 1: Flatten all stage outputs onto the top-level workflow result
+### Alternative 1: Flatten All Stage Outputs Onto the Top-Level Workflow Result
 
 This option was rejected because it obscures the workflow structure, creates duplicate access paths, and encourages result-surface bloat.
 
-### Alternative 2: Let result objects accumulate export and plotting behaviour
+### Alternative 2: Let Result Objects Accumulate Export and Plotting Behaviour
 
 This option was rejected because it mixes scientific data modelling with presentation and transport concerns.
 
-### Alternative 3: Preserve historical result aliases and compatibility wrappers
+### Alternative 3: Preserve Historical Result Aliases and Compatibility Wrappers
 
 This option was rejected because the project is not constrained by a backwards-compatibility goal and should not preserve architectural drift by default.
 
-### Alternative 4: Introduce broad ownership and mutability APIs on all result types
+### Alternative 4: Introduce Broad Ownership and Mutability APIs on All Result Types
 
 This option was rejected because it inflates the public surface and shifts result-model design toward defensive utility patterns rather than honest workflow modelling.
 

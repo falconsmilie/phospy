@@ -118,7 +118,7 @@ The builder should not present a long scalar-heavy call signature.
 
 The builder public contract should support two broad input forms:
 
-### File-path input
+### File-Path Input
 
 Users may provide file paths for supported ingestion routes.
 
@@ -126,7 +126,7 @@ This keeps the builder practical for common real-world use.
 
 Initial support should stay simple and focus on straightforward tabular formats rather than broad reader coverage from the start.
 
-### `DataFrame` input
+### `DataFrame` Input
 
 Users may provide already-loaded pandas `DataFrame` objects.
 
@@ -223,14 +223,14 @@ The builder contract should be part of the public API.
 
 A healthy direction is:
 
-- builder defined in the canonical `phospy.api` ownership namespace and
+- builder defined in the stable `phospy.api` ownership namespace and
   re-exported from top-level `phospy` as the primary user-facing import route
 - internal builder collaborators remain internal
 - public docs present builder usage as the standard route for messy inputs
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - Users get a clear and practical route from raw input to `AnalysisReadyPhosphoDataset`.
 - The builder public surface stays smaller than the internal builder architecture.
@@ -238,32 +238,32 @@ A healthy direction is:
 - Failure behaviour becomes easier to explain and document.
 - The overall product story becomes more coherent.
 
-### Negative consequences
+### Negative Consequences
 
 - The public builder contract must be designed carefully so it remains stable.
 - Some user requests will still fail if they fall outside supported input conventions.
 - Internal builder flexibility must be hidden without becoming confusing to maintainers.
 
-### Neutral consequences
+### Neutral Consequences
 
 - Direct dataset construction remains available for already-prepared callers.
 - Internal builder collaborators may evolve as long as the public builder story remains consistent.
 
 ## Rejected Alternatives
 
-### Alternative 1: Expose many separate public ingestion helpers
+### Alternative 1: Expose Many Separate Public Ingestion Helpers
 
 This option was rejected because it fragments the public story and makes the package harder to understand.
 
-### Alternative 2: Force all users to build `AnalysisReadyPhosphoDataset` manually
+### Alternative 2: Force All Users to Build `AnalysisReadyPhosphoDataset` Manually
 
 This option was rejected because it is unrealistic for messy industry input formats.
 
-### Alternative 3: Make the public builder highly magical and aggressively auto-detect everything
+### Alternative 3: Make the Public Builder Highly Magical and Aggressively Auto-Detect Everything
 
 This option was rejected because it increases the risk of accepting bad data under incorrect assumptions.
 
-### Alternative 4: Return multiple public result shapes from the builder
+### Alternative 4: Return Multiple Public Result Shapes From the Builder
 
 This option was rejected because it weakens the strict dataset boundary and complicates the product story.
 

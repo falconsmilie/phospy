@@ -1,48 +1,41 @@
 # PhosPy Documentation
 
-Welcome. The docs are intentionally split into two lanes:
+Welcome. PhosPy helps you turn phosphosite intensity tables into kinase scoring,
+kinase prediction, and optional signalome analysis in Python.
 
-- **new users and scientists**: start with the quickstart and troubleshooting
-- **advanced users and maintainers**: use the API, validation, and architecture pages when needed
+The docs are intentionally flat. The only subdirectory is `adr/`, which stores
+maintainer decision records.
 
-## Start here
+## Start Here
 
-1. [Quickstart: first workflow](getting-started/quickstart-first-workflow.md)
-2. [Troubleshooting: first run](getting-started/troubleshooting-first-run.md)
-3. [CLI Guide](cli.md) or [API Guide](api.md)
+1. [Quickstart](quickstart.md): copy/paste a complete first workflow.
+2. [API Guide](api.md): see the public Python classes and config options.
+3. [CLI Guide](cli.md): run the file-based lane from a terminal.
+4. [Validation Guide](validation.md): fix common input and boundary errors.
 
-## What PhosPy does
+## What PhosPy Does
 
-PhosPy supports one clear workflow:
+PhosPy supports one clear workflow shape:
 
-1. build an analysis-ready dataset
-2. run kinase scoring and prediction
-3. optionally run signalome analysis
+1. build an `AnalysisReadyPhosphoDataset`
+2. run `KinaseWorkflow`
+3. optionally run `SignalomeWorkflow`
 
-For most first runs, use the rat bundled-reference lane:
+The package does not provide HTTP endpoints. Use the Python API for DataFrame
+work and explicit references. Use the CLI for simple file-based runs.
 
-- `organism=Organism.RAT`
-- `references=ReferencePreset.AUTO`
+## Page Map
 
-## When to use which page
-
-| Need | Best page |
+| Need | Page |
 | --- | --- |
-| My first successful run | [Quickstart](getting-started/quickstart-first-workflow.md) |
-| My run failed | [Troubleshooting](getting-started/troubleshooting-first-run.md) |
-| Core project terms and boundaries | [Concepts](concepts/index.md) |
-| File-based command line usage | [CLI Guide](cli.md) |
-| Python classes, requests, configs, and results | [API Guide](api.md) |
-| Exact validation rules | [Validation Guide](validation.md) |
-| Saved output layout | [Output Bundles](output_bundles.md) |
-| Maintainer and governance docs | [Contributor Docs](contributor/index.md) |
-| Release framing | [Release Notes 1.5.0](release_notes/1.5.0.md) |
+| First successful run | [Quickstart](quickstart.md) |
+| Public Python classes and parameters | [API Guide](api.md) |
+| Terminal commands | [CLI Guide](cli.md) |
+| Input rules and common errors | [Validation Guide](validation.md) |
+| Written output files and reloadable bundles | [Output Bundles](output_bundles.md) |
+| Runtime limits and larger datasets | [Performance Contracts](performance.md) |
+| Scientific coverage and PhosR comparison | [Scientific Coverage](scientific-coverage.md) and [Parity](parity.md) |
+| Development, CI, fixtures, and release notes | [Maintenance](maintenance.md) |
 
-## A good first outcome
-
-After the quickstart, you should be able to:
-
-- prepare a valid `phospho` table and matching `site_metadata`
-- build `AnalysisReadyPhosphoDataset`
-- run kinase in the supported bundled rat lane
-- understand when signalome needs `protein_id`
+A good first outcome is modest: build a two-site rat dataset, run kinase with
+`ReferencePreset.AUTO`, and add signalome once `protein_id` is present.

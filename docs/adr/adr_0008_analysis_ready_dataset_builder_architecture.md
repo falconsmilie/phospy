@@ -246,7 +246,7 @@ The builder public surface should therefore remain smaller than the total number
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - Users get a realistic path from awkward real-world inputs to analysis-ready datasets.
 - Workflow contracts stay strict and simple.
@@ -254,32 +254,32 @@ The builder public surface should therefore remain smaller than the total number
 - Column-name and metadata variation stop leaking upward into workflows.
 - The dataset boundary remains honest while still being practical.
 
-### Negative consequences
+### Negative Consequences
 
 - The builder layer becomes an important internal coordination point that must be maintained carefully.
 - The package must support a meaningful amount of input normalisation logic.
 - Some ingestion edge cases may still require explicit user guidance or failure rather than silent adaptation.
 
-### Neutral consequences
+### Neutral Consequences
 
 - Direct dataset construction remains available for already-prepared data.
 - Internal ingestion services may evolve without changing the workflow contract, provided they still converge on the same dataset boundary.
 
 ## Rejected Alternatives
 
-### Alternative 1: Require users to construct `AnalysisReadyPhosphoDataset` manually from all raw inputs
+### Alternative 1: Require Users to Construct `AnalysisReadyPhosphoDataset` Manually From All Raw Inputs
 
 This option was rejected because it puts too much ingestion burden on users and is unrealistic for typical phosphoproteomics inputs.
 
-### Alternative 2: Let workflows accept raw inputs directly and perform ingestion internally
+### Alternative 2: Let Workflows Accept Raw Inputs Directly and Perform Ingestion Internally
 
 This option was rejected because it weakens workflow contracts and reintroduces ingestion complexity into the workflow layer.
 
-### Alternative 3: Support multiple semi-ready dataset forms as public outputs
+### Alternative 3: Support Multiple Semi-Ready Dataset Forms as Public Outputs
 
 This option was rejected because it would weaken the meaning of the analysis-ready boundary and increase the public API burden.
 
-### Alternative 4: Expose extensive builder configuration for every ingestion detail
+### Alternative 4: Expose Extensive Builder Configuration for Every Ingestion Detail
 
 This option was rejected because it would turn the public builder into a low-level configuration framework rather than a practical user entry point.
 

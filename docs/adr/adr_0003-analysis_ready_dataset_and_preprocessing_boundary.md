@@ -65,7 +65,7 @@ The proposed public dataset model contains:
 - optional `organism`
 - `intensity_scale`
 
-### Field meanings
+### Field Meanings
 
 #### `phospho`
 
@@ -95,13 +95,13 @@ A simple declared label is not sufficient as the long-term design. The dataset b
 
 The dataset is expected to enforce the following invariants at construction time.
 
-### Core matrix invariants
+### Core Matrix Invariants
 
 - `phospho` must be a non-empty numeric `DataFrame`
 - `phospho.index` must be unique
 - `phospho.columns` must be unique
 
-### Site metadata invariants
+### Site Metadata Invariants
 
 - `site_metadata` must be a non-empty `DataFrame`
 - `site_metadata.index` must exactly match `phospho.index`
@@ -110,14 +110,14 @@ The dataset is expected to enforce the following invariants at construction time
   - `site`
 - `site_sequence` is optional and must contain non-empty strings when present
 
-### Sample metadata invariants
+### Sample Metadata Invariants
 
 If `sample_metadata` is provided:
 
 - it must be a `DataFrame`
 - its index must exactly match `phospho.columns`
 
-### Total matrix invariants
+### Total Matrix Invariants
 
 If `total` is provided:
 
@@ -125,7 +125,7 @@ If `total` is provided:
 - `total.columns` must exactly match `phospho.columns`
 - `total.index` must be unique
 
-### Transformation-state invariant
+### Transformation-State Invariant
 
 - transformation state must be established by a supported transformer path
 - the dataset must expose a validated transformation state rather than relying on an informal free-text label alone
@@ -247,7 +247,7 @@ This keeps the public analysis flow coherent:
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - Workflows have a clean and stable input contract.
 - Preprocessing concerns stop leaking into workflow APIs.
@@ -255,28 +255,28 @@ This keeps the public analysis flow coherent:
 - Validation becomes easier to reason about and easier to test.
 - The package better reflects the conceptual transition from preprocessing to analysis.
 
-### Negative consequences
+### Negative Consequences
 
 - Raw input flexibility is pushed earlier in the stack and no longer tolerated at workflow boundaries.
 - Preprocessing must take responsibility for more of the public data-shaping story.
 - Some current internal code that relies on semi-prepared data may need to be rewritten.
 
-### Neutral consequences
+### Neutral Consequences
 
 - Different preprocessing implementations may still exist internally as long as they converge on the same dataset model.
 - Additional metadata fields may still be carried through the dataset without becoming required public contract fields.
 
 ## Rejected Alternatives
 
-### Alternative 1: Allow workflows to accept raw matrices and metadata directly
+### Alternative 1: Allow Workflows to Accept Raw Matrices and Metadata Directly
 
 This option was rejected because it weakens the public contract, encourages duplicated validation logic, and makes workflows responsible for input shaping that belongs earlier.
 
-### Alternative 2: Support multiple public dataset shapes
+### Alternative 2: Support Multiple Public Dataset Shapes
 
 This option was rejected because it would make the workflow boundary ambiguous and increase the documentation and validation burden.
 
-### Alternative 3: Treat analysis readiness as a soft convention rather than a strict model
+### Alternative 3: Treat Analysis Readiness as a Soft Convention Rather Than a Strict Model
 
 This option was rejected because the package needs a reliable and testable boundary, not an informal expectation.
 
@@ -292,7 +292,7 @@ The following decisions are now resolved for this ADR.
 
 The remaining design recommendation is about provenance.
 
-### Recommendation on provenance
+### Recommendation on Provenance
 
 Preprocessing provenance should remain outside the core public dataset contract.
 

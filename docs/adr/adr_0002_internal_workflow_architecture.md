@@ -60,7 +60,7 @@ Each public workflow in PhosPy will be implemented through three internal stages
 
 The public workflow class is a thin coordinator that passes a request through these stages and returns a result.
 
-### Workflow pattern
+### Workflow Pattern
 
 The intended shape is:
 
@@ -179,7 +179,7 @@ The executor should be the stage where domain services are coordinated, not the 
 
 Interfaces are allowed and encouraged only at real extension seams.
 
-### Interfaces that are appropriate
+### Interfaces That Are Appropriate
 
 Good candidates for injected interfaces include:
 
@@ -193,7 +193,7 @@ Good candidates for injected interfaces include:
 
 These are real seams where alternative implementations are plausible and useful.
 
-### Interfaces that are discouraged
+### Interfaces That Are Discouraged
 
 Interfaces should not be introduced for:
 
@@ -206,7 +206,7 @@ Interfaces should not be introduced for:
 
 The existence of a class does not automatically justify an interface.
 
-### Runtime validation of collaborators
+### Runtime Validation of Collaborators
 
 Runtime collaborator validation must not be implemented through loose `hasattr(...)` checks on method names.
 
@@ -242,7 +242,7 @@ Internal DTOs define workflow stage boundaries. These include:
 
 Internal DTOs are encouraged where they make stage boundaries clearer and reduce reliance on loosely coupled scalars. Validation itself should not manufacture dedicated DTOs as its normal job.
 
-### DTO usage rules
+### DTO Usage Rules
 
 The following rules apply:
 
@@ -256,7 +256,7 @@ The following rules apply:
 
 Result objects should be primarily data containers.
 
-### What result objects should do
+### What Result Objects Should Do
 
 Result objects should:
 
@@ -264,7 +264,7 @@ Result objects should:
 - expose nested stage results directly where relevant
 - provide a very small number of high-value convenience properties only when clearly justified
 
-### What result objects should not do
+### What Result Objects Should Not Do
 
 Result objects should not:
 
@@ -275,7 +275,7 @@ Result objects should not:
 - accumulate compatibility aliases by default
 - hide expensive copy operations behind innocent-looking properties
 
-### Key rule
+### Key Rule
 
 Top-level workflow result objects must not mirror nested stage outputs through duplicated convenience accessors unless the shortcut is clearly essential to the product experience.
 
@@ -315,7 +315,7 @@ The following patterns are considered architectural anti-patterns for PhosPy unl
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - Every workflow follows the same internal logic and is easier to understand.
 - Validation concerns become explicit and testable.
@@ -324,39 +324,39 @@ The following patterns are considered architectural anti-patterns for PhosPy unl
 - Extension remains possible at real seams without turning the package into a framework.
 - Result models stay smaller, clearer, and more honest.
 
-### Negative consequences
+### Negative Consequences
 
 - Some current internal classes and helper layers will need to be removed or rewritten.
 - Existing code that combines multiple concerns in one class will need to be split.
 - The architecture imposes discipline that may make quick convenience shortcuts less acceptable.
 - Some current abstractions will be judged unnecessary and deleted.
 
-### Neutral consequences
+### Neutral Consequences
 
 - Domain services may still be rich internally, but they no longer define the public story.
 - Internal helper modules may continue to exist, but they should not shape workflow contracts.
 
 ## Rejected Alternatives
 
-### Alternative 1: Single large workflow service per domain
+### Alternative 1: Single Large Workflow Service per Domain
 
 This option was rejected because it encourages classes that mix validation, interpretation, execution, and result shaping in one place. That shape tends to become hard to test and hard to reason about over time.
 
-### Alternative 2: Highly abstract composition graph
+### Alternative 2: Highly Abstract Composition Graph
 
 This option was rejected because it introduces infrastructure-oriented complexity that is not justified by the size or product goal of the package.
 
-### Alternative 3: Thin wrappers around many small helpers with no strict stage boundaries
+### Alternative 3: Thin Wrappers Around Many Small Helpers With No Strict Stage Boundaries
 
 This option was rejected because it tends to create pass-through layers, duplicated plumbing, and unclear ownership of decisions.
 
-### Alternative 4: Expose internal service boundaries as public API
+### Alternative 4: Expose Internal Service Boundaries as Public API
 
 This option was rejected because the product contract should be workflow-oriented and PhosR-aligned, not shaped by internal implementation pieces.
 
 ## Implementation Guidance
 
-### Workflow classes
+### Workflow Classes
 
 Each public workflow class should remain a simple coordinator. If the public workflow class grows beyond simple stage orchestration, its responsibilities should be reviewed.
 
@@ -374,7 +374,7 @@ Interpretation is a distinct stage and must not be hidden inside validation or e
 
 Executors should coordinate domain services and assemble results. They should not compensate for weak earlier stages.
 
-### Config movement
+### Config Movement
 
 Configuration should flow through the system as typed objects. Repeatedly unpacking config into long scalar argument lists is discouraged and should be treated as a maintainability smell.
 

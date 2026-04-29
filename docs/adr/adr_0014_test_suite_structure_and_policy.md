@@ -163,19 +163,19 @@ Parity fixtures do not need extra repository-level versioning or annotation mach
 
 The suite should follow these separation rules.
 
-### Unit tests must not
+### Unit Tests Must Not
 
 - depend on large scientific reference fixture sets unless the component itself is inherently fixture-driven
 - attempt to prove full workflow parity
 - encode broad end-to-end behaviour that belongs in integration tests
 
-### Integration tests must not
+### Integration Tests Must Not
 
 - silently take on the entire parity burden
 - act as a substitute for focused unit tests
 - rely on unclear comparison rules for scientific outputs
 
-### Parity tests must not
+### Parity Tests Must Not
 
 - become a hidden migration test suite for legacy structure
 - assert internal class or module relationships
@@ -183,15 +183,15 @@ The suite should follow these separation rules.
 
 ## Comparison Policy by Test Category
 
-### Unit tests
+### Unit Tests
 
 Prefer exact, narrow assertions wherever possible.
 
-### Integration tests
+### Integration Tests
 
 Prefer exact behavioural assertions for contract and orchestration expectations, with focused tolerance-aware checks only where numerically necessary.
 
-### Parity tests
+### Parity Tests
 
 Use explicit comparison rules per fixture or output family, including documented tolerances where exact comparison is not appropriate.
 
@@ -201,15 +201,15 @@ This keeps scientific comparison policy visible rather than hidden inside generi
 
 Fixture management should align with the three-part structure.
 
-### Unit fixtures
+### Unit Fixtures
 
 Should stay small, local, and easy to understand.
 
-### Integration fixtures
+### Integration Fixtures
 
 May be broader, but should still be targeted toward architectural flows rather than giant scientific archives.
 
-### Parity fixtures
+### Parity Fixtures
 
 Should be curated carefully and include:
 
@@ -264,15 +264,15 @@ The exact CI policy may be defined elsewhere, but the suite structure should sup
 
 Test failures should be easy to classify.
 
-### Unit failure
+### Unit Failure
 
 Usually means a local rule or component behaviour is wrong.
 
-### Integration failure
+### Integration Failure
 
 Usually means the new architecture is not composing correctly.
 
-### Parity failure
+### Parity Failure
 
 Usually means either:
 
@@ -307,7 +307,7 @@ This does not mean every area must have equal test volume. It means no core publ
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - The test suite becomes easier to navigate and maintain.
 - Failures become easier to interpret.
@@ -315,32 +315,32 @@ This does not mean every area must have equal test volume. It means no core publ
 - Contributors have clearer guidance for where tests belong.
 - The suite reinforces the fresh-start architecture rather than legacy structure.
 
-### Negative consequences
+### Negative Consequences
 
 - Contributors will need to think more deliberately about test placement.
 - Some existing or future tests may need to be moved to preserve the intended separation.
 - Parity fixtures will require more discipline than casual test data.
 
-### Neutral consequences
+### Neutral Consequences
 
 - Additional sub-structure may still exist under each major test directory.
 - Some tests may still require judgement calls when they sit near the boundary between categories.
 
 ## Rejected Alternatives
 
-### Alternative 1: Keep all tests in one undifferentiated directory
+### Alternative 1: Keep All Tests in One Undifferentiated Directory
 
 This option was rejected because it weakens the distinction between contract, integration, and parity concerns.
 
-### Alternative 2: Treat parity as a subtype of integration testing only
+### Alternative 2: Treat Parity as a Subtype of Integration Testing Only
 
 This option was rejected because parity answers a distinct scientific-confidence question and needs a clearer identity.
 
-### Alternative 3: Add many more top-level test categories immediately
+### Alternative 3: Add Many More Top-Level Test Categories Immediately
 
 This option was rejected because it would overcomplicate the suite before the rewrite has stabilised.
 
-### Alternative 4: Use only unit and parity tests
+### Alternative 4: Use Only Unit and Parity Tests
 
 This option was rejected because integration tests play an important role in validating the architecture as assembled.
 

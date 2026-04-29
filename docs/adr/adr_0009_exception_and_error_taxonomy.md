@@ -240,27 +240,27 @@ These message-formatting rules should remain documented as part of this ADR.
 
 ## Boundary-Aware Failure Direction
 
-### Dataset boundary
+### Dataset Boundary
 
 Failures at the strict dataset boundary should normally be validation failures unless they originate from broader builder orchestration.
 
-### Input boundary
+### Input Boundary
 
 Failures while reading or initially interpreting supported file-path or raw input payloads should normally be input failures.
 
-### Builder boundary
+### Builder Boundary
 
 Failures while turning successfully ingested user input into a strict dataset should normally be build failures, with nested validation or transformation causes where relevant.
 
-### Reference boundary
+### Reference Boundary
 
 Failures while resolving presets or validating bundle compatibility should normally be reference failures.
 
-### Transformation boundary
+### Transformation Boundary
 
 Failures while establishing supported transformation state should normally be transformation failures.
 
-### Workflow boundary
+### Workflow Boundary
 
 Failures after a request has passed validation and interpretation should normally be workflow failures, unless a more specific domain exception remains the truer description.
 
@@ -314,7 +314,7 @@ The exact module layout may vary, but the taxonomy should remain recognisable an
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - Failure behaviour becomes more consistent across the package.
 - Public and internal boundaries gain clearer error semantics.
@@ -322,32 +322,32 @@ The exact module layout may vary, but the taxonomy should remain recognisable an
 - Builders, validators, and workflows can fail in domain-appropriate ways without improvising.
 - User-facing error messages improve.
 
-### Negative consequences
+### Negative Consequences
 
 - Some current code will need explicit failure translation rather than relying on whatever low-level exception occurs.
 - The project must stay disciplined so the taxonomy does not grow into an unnecessary hierarchy.
 - Developers will need to decide deliberately which boundary a failure belongs to.
 
-### Neutral consequences
+### Neutral Consequences
 
 - Narrower subtypes may still be introduced later if a real need appears.
 - Some internal low-level exceptions may still surface as causes during debugging, but they should not define the intended failure contract.
 
 ## Rejected Alternatives
 
-### Alternative 1: Let each module raise whatever native exception is convenient
+### Alternative 1: Let Each Module Raise Whatever Native Exception Is Convenient
 
 This option was rejected because it produces inconsistent behaviour and poor public failure semantics.
 
-### Alternative 2: Use one generic package exception for all failures
+### Alternative 2: Use One Generic Package Exception for All Failures
 
 This option was rejected because it collapses too many different failure meanings into one coarse type and weakens caller handling.
 
-### Alternative 3: Create a deep and highly granular exception hierarchy immediately
+### Alternative 3: Create a Deep and Highly Granular Exception Hierarchy Immediately
 
 This option was rejected because it would over-design the taxonomy before real usage pressure justifies it.
 
-### Alternative 4: Keep exceptions completely internal and undocumented
+### Alternative 4: Keep Exceptions Completely Internal and Undocumented
 
 This option was rejected because failure behaviour is part of the practical public contract, even if it is not the main product entry point.
 

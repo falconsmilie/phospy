@@ -277,7 +277,7 @@ The exact package layout may vary, but validation should be recognisable as its 
 
 ## Consequences
 
-### Positive consequences
+### Positive Consequences
 
 - Shared validation rules are centralised and reusable.
 - Workflow validators stay smaller and more readable.
@@ -285,32 +285,32 @@ The exact package layout may vary, but validation should be recognisable as its 
 - Builder and workflow boundaries both benefit from the same lower-level rules.
 - Error quality improves because validation becomes intentional rather than accidental.
 
-### Negative consequences
+### Negative Consequences
 
 - The architecture introduces another explicit internal domain that must be maintained.
 - Some current validation logic will need to be extracted and reorganised.
 - The project must stay disciplined to avoid both over-fragmentation and validator bloat.
 
-### Neutral consequences
+### Neutral Consequences
 
 - Some model-level invariant checks may still remain on public models where appropriate.
 - Builders, datasets, and workflows may all depend on the same validation domain without making it public.
 
 ## Rejected Alternatives
 
-### Alternative 1: Keep validation embedded inside each workflow and builder
+### Alternative 1: Keep Validation Embedded Inside Each Workflow and Builder
 
 This option was rejected because it duplicates rules, encourages drift, and makes workflows harder to maintain.
 
-### Alternative 2: Put all validation directly on public models only
+### Alternative 2: Put All Validation Directly on Public Models Only
 
 This option was rejected because many reusable validation concerns cross model boundaries and should not be trapped inside one class.
 
-### Alternative 3: Expose validators as a public API surface
+### Alternative 3: Expose Validators as a Public API Surface
 
 This option was rejected because the package is intended to present a clean workflow-oriented product surface, not a toolbox of standalone validators.
 
-### Alternative 4: Create one monolithic validator for the whole package
+### Alternative 4: Create One Monolithic Validator for the Whole Package
 
 This option was rejected because it would centralise validation in the wrong way and would become a maintenance bottleneck.
 

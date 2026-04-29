@@ -27,3 +27,5 @@ tmp_trace_*/
 tmp_edge_trace/
 # Local benchmark reports
 benchmarks/reports/
+
+docs/stylesheets/
