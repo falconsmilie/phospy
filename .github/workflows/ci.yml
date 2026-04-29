@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 env:
-  PIP_CONSTRAINT: constraints/ci.txt
-  PIP_BUILD_CONSTRAINT: constraints/ci.txt
+  PIP_CONSTRAINT: ${{ github.workspace }}/constraints/ci.txt
+  PIP_BUILD_CONSTRAINT: ${{ github.workspace }}/constraints/ci.txt
 
 jobs:
   repo-hygiene:
@@ -86,7 +86,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
       - name: Run Pyright
-        run: pyright
+        run: |
+          PYTHON_BIN="$(python -c 'import sys; print(sys.executable)')"
+          pyright --pythonpath "$PYTHON_BIN"
 
   benchmark-smoke:
     needs: repo-hygiene

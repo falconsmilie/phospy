@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 import pandas as pd
@@ -176,7 +176,7 @@ class _ExactWardClusterTreeOperations:
         from phospy.signalomes.clustering import exact_python as exact_clustering
 
         return exact_clustering.build_cluster_labels_from_tree(
-            cluster_tree=cluster_tree,
+            cluster_tree=cast(ExactWardClusterTree, cluster_tree),
             cluster_counts=cluster_counts,
         )
 

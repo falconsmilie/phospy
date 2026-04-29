@@ -54,11 +54,11 @@ dependencies = [
 [project.urls]
 Homepage = "https://phospy.com"
 Repository = "https://github.com/falconsmilie/phospy"
-Documentation = "https://github.com/falconsmilie/phospy/blob/main/docs/index.md"
+Documentation = "https://phospy.com/docs/"
 Issues = "https://github.com/falconsmilie/phospy/issues"
 Changelog = "https://github.com/falconsmilie/phospy/blob/main/CHANGELOG.md"
 Citation = "https://github.com/falconsmilie/phospy/blob/main/CITATION.cff"
-"Release Notes" = "https://github.com/falconsmilie/phospy/blob/main/docs/release-notes-1.5.0.md"
+"Release Notes" = "https://phospy.com/docs/release-notes-1.5.0/"
 
 [project.optional-dependencies]
 parquet = [
