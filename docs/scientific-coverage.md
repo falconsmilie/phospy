@@ -74,6 +74,21 @@ Each record carries:
   Negative correlations are treated as lower support, not explicit inhibitory
   evidence.
 
+### `kinase_profile_scoring_v1`
+
+- What it does:
+  records kinase profile-construction and scoring behavior, including
+  self-inclusion vs leave-one-out semantics.
+- Assumptions:
+  profile rows can include the same substrate site later scored unless a
+  leave-one-out policy is explicitly enabled.
+- Parameters:
+  profile missing-value strategy, self-inclusion behavior, leave-one-out flag,
+  and scoring substrate floors.
+- Output meaning:
+  explicit provenance of the profile-scoring policy context used for
+  downstream support scores.
+
 ### `motif_profile_rank_fusion_v1`
 
 - What it does:
@@ -101,6 +116,20 @@ Each record carries:
 - Output does not mean:
   full KSEA-style enrichment statistics.
 
+### `candidate_substrate_selection_v1`
+
+- What it does:
+  records candidate substrate filtering for kinase prediction.
+- Assumptions:
+  top-k ranking, score-threshold filtering, and inclusion floor jointly define
+  usable candidate support.
+- Parameters:
+  `top_k`, threshold rule, threshold value, inclusion floor, and site
+  restriction behavior.
+- Output meaning:
+  explicit provenance of the candidate-selection rule that gates kinase ranking
+  and prediction outputs.
+
 ### `signalome_module_candidate_score_v1`
 
 - What it does:
@@ -116,6 +145,34 @@ Each record carries:
 - Output does not mean:
   biological certainty or causal regulation evidence.
 
+### `signalome_missing_value_clustering_v1`
+
+- What it does:
+  records missing-value handling for clustering distance/tree inputs.
+- Assumptions:
+  non-finite values are normalized to missing; missing values are imputed for
+  clustering internals.
+- Parameters:
+  missing-value policy name, applicability scope, and whether imputed values
+  appear in output tables.
+- Output meaning:
+  explicit provenance for clustering-matrix preparation rules.
+
+### `signalome_score_preconditioning_v1`
+
+- What it does:
+  records row-retention policy for downstream score preconditioning before
+  signalome execution.
+- Assumptions:
+  all-missing rows are unsupported and can be dropped or treated as boundary
+  errors depending on policy.
+- Parameters:
+  preconditioning policy, row-retention rule, and input/dropped/retained row
+  counts.
+- Output meaning:
+  explicit provenance for score-row retention behavior that can change site
+  coverage and assignments.
+
 ### `protein_module_from_site_membership_v1`
 
 - What it does:
@@ -128,6 +185,19 @@ Each record carries:
   integer protein module IDs for grouping.
 - Output does not mean:
   direct mechanistic proof of shared regulation.
+
+### `preprocessing_stage_order_v1`
+
+- What it does:
+  records explicit preprocessing stage order used to construct analysis-ready
+  dataset inputs.
+- Assumptions:
+  stage order is scientifically meaningful and can change transformed values,
+  row retention, and derived comparison outputs.
+- Parameters:
+  configured stage order, default order, and supported stage order metadata.
+- Output meaning:
+  explicit provenance for preprocessing execution order.
 
 ## Where Details Live
 

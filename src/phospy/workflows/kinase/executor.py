@@ -11,6 +11,7 @@ from phospy.activities.scoring import compute_activity_from_inputs
 from phospy.api.configs import (
     KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+    KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
     KinasePredictionConfig,
 )
 from phospy.api.results import KinaseWorkflowResult
@@ -43,6 +44,8 @@ from phospy.provenance.models import (
 )
 from phospy.scientific_policies import (
     PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
+    CandidateSubstrateSelectionPolicy,
+    KinaseProfileScoringPolicy,
     build_motif_profile_rank_fusion_policy,
     build_simplified_weighted_substrate_activity_policy,
 )
@@ -65,6 +68,10 @@ class _ScoringExecution:
     downstream_score_matrix: pd.DataFrame
     downstream_score_source: str
     quantified_substrates: dict[str, list[str]]
+
+
+_CANDIDATE_SCORE_THRESHOLD = 0.0
+_CANDIDATE_MIN_INCLUSION = 1
 
 
 class KinaseWorkflowExecutor:
@@ -271,8 +278,8 @@ class KinaseWorkflowExecutor:
         candidate_substrates = build_candidate_substrate_list(
             scores=downstream_score_matrix,
             top=config.prediction_top_k,
-            score_threshold=0.0,
-            inclusion=1,
+            score_threshold=_CANDIDATE_SCORE_THRESHOLD,
+            inclusion=_CANDIDATE_MIN_INCLUSION,
         )
         kinase_ranking = rank_kinases_for_prediction(
             prediction_score_matrix=downstream_score_matrix,
@@ -285,8 +292,8 @@ class KinaseWorkflowExecutor:
             candidate_shortfall = summarize_candidate_shortfall(
                 scores=downstream_score_matrix,
                 top=config.prediction_top_k,
-                score_threshold=0.0,
-                inclusion=1,
+                score_threshold=_CANDIDATE_SCORE_THRESHOLD,
+                inclusion=_CANDIDATE_MIN_INCLUSION,
             )
             self._raise_boundary_error(
                 seam="kinase.executor.prediction_ensemble",
@@ -329,15 +336,15 @@ class KinaseWorkflowExecutor:
         candidate_substrates = build_candidate_substrate_list(
             scores=downstream_score_matrix,
             top=config.prediction_top_k,
-            score_threshold=0.0,
-            inclusion=1,
+            score_threshold=_CANDIDATE_SCORE_THRESHOLD,
+            inclusion=_CANDIDATE_MIN_INCLUSION,
         )
         if not candidate_substrates:
             candidate_shortfall = summarize_candidate_shortfall(
                 scores=downstream_score_matrix,
                 top=config.prediction_top_k,
-                score_threshold=0.0,
-                inclusion=1,
+                score_threshold=_CANDIDATE_SCORE_THRESHOLD,
+                inclusion=_CANDIDATE_MIN_INCLUSION,
             )
             self._raise_boundary_error(
                 seam="kinase.executor.prediction_adaptive_candidates",
@@ -538,10 +545,20 @@ def _build_kinase_run_provenance(
         )
     scientific_policies = [
         PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
+        KinaseProfileScoringPolicy(
+            profile_missing_value_strategy=str(config.profile_missing_value_strategy),
+            min_substrates_floor=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
+            requested_min_substrates=int(config.scoring_min_substrates),
+        ).record,
         build_motif_profile_rank_fusion_policy(
             allow_profile_only_fallback=True,
             emit_weights=bool(config.include_diagnostic_scoring_tables),
         ),
+        CandidateSubstrateSelectionPolicy(
+            top_k=int(config.prediction_top_k),
+            score_threshold=_CANDIDATE_SCORE_THRESHOLD,
+            inclusion=_CANDIDATE_MIN_INCLUSION,
+        ).record,
     ]
     if config.activity is not None:
         scientific_policies.append(

@@ -14,8 +14,13 @@ class ScientificPolicyId(str, Enum):
     """Stable identifiers for scientific scoring and derivation behavior."""
 
     PROFILE_CORRELATION_SHIFTED_UNIT = "profile_correlation_shifted_unit_v1"
+    KINASE_PROFILE_SCORING = "kinase_profile_scoring_v1"
     MOTIF_PROFILE_RANK_FUSION = "motif_profile_rank_fusion_v1"
+    CANDIDATE_SUBSTRATE_SELECTION = "candidate_substrate_selection_v1"
     SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY = "simplified_weighted_substrate_activity_v1"
+    SIGNALOME_MISSING_VALUE_CLUSTERING = "signalome_missing_value_clustering_v1"
+    SIGNALOME_SCORE_PRECONDITIONING = "signalome_score_preconditioning_v1"
+    PREPROCESSING_STAGE_ORDER = "preprocessing_stage_order_v1"
     SIGNALOME_MODULE_CANDIDATE_SCORE = "signalome_module_candidate_score_v1"
     PROTEIN_MODULE_FROM_SITE_MEMBERSHIP = "protein_module_from_site_membership_v1"
 
@@ -81,6 +86,109 @@ class ScientificPolicyRecord:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class KinaseProfileScoringPolicy:
+    """Executable metadata policy for kinase profile scoring behavior."""
+
+    profile_missing_value_strategy: str
+    min_substrates_floor: int
+    requested_min_substrates: int
+    self_inclusion_behavior: str = "self_inclusion"
+    leave_one_out_enabled: bool = False
+
+    @property
+    def record(self) -> ScientificPolicyRecord:
+        return build_kinase_profile_scoring_policy(
+            profile_missing_value_strategy=self.profile_missing_value_strategy,
+            min_substrates_floor=self.min_substrates_floor,
+            requested_min_substrates=self.requested_min_substrates,
+            self_inclusion_behavior=self.self_inclusion_behavior,
+            leave_one_out_enabled=self.leave_one_out_enabled,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class CandidateSubstrateSelectionPolicy:
+    """Executable metadata policy for candidate substrate selection behavior."""
+
+    top_k: int
+    score_threshold: float
+    inclusion: int
+    threshold_operator: str = "score > threshold"
+    ranking_rule: str = "top_n_scores_per_kinase_then_threshold"
+    site_restriction: str = "none"
+
+    @property
+    def record(self) -> ScientificPolicyRecord:
+        return build_candidate_substrate_selection_policy(
+            top_k=self.top_k,
+            score_threshold=self.score_threshold,
+            inclusion=self.inclusion,
+            threshold_operator=self.threshold_operator,
+            ranking_rule=self.ranking_rule,
+            site_restriction=self.site_restriction,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeMissingValueClusteringPolicy:
+    """Executable metadata policy for clustering missing-value behavior."""
+
+    missing_value_policy: str
+    applies_to: str
+    imputed_values_exposed_in_output_tables: bool
+
+    @property
+    def record(self) -> ScientificPolicyRecord:
+        return build_signalome_missing_value_clustering_policy(
+            missing_value_policy=self.missing_value_policy,
+            applies_to=self.applies_to,
+            imputed_values_exposed_in_output_tables=(
+                self.imputed_values_exposed_in_output_tables
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ScorePreconditioningPolicy:
+    """Executable metadata policy for score preconditioning behavior."""
+
+    policy: str
+    input_row_count: int
+    dropped_all_missing_row_count: int
+    retained_row_count: int
+    row_retention_rule: str = "drop_rows_with_all_scores_missing"
+    retained_partial_missing_rows: bool = True
+
+    @property
+    def record(self) -> ScientificPolicyRecord:
+        return build_score_preconditioning_policy(
+            policy=self.policy,
+            input_row_count=self.input_row_count,
+            dropped_all_missing_row_count=self.dropped_all_missing_row_count,
+            retained_row_count=self.retained_row_count,
+            row_retention_rule=self.row_retention_rule,
+            retained_partial_missing_rows=self.retained_partial_missing_rows,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class PreprocessingStageOrderPolicy:
+    """Executable metadata policy for preprocessing stage-order behavior."""
+
+    configured_stage_order: tuple[str, ...]
+    default_stage_order: tuple[str, ...]
+    supported_stage_order: tuple[str, ...]
+
+    @property
+    def record(self) -> ScientificPolicyRecord:
+        return build_preprocessing_stage_order_policy(
+            configured_stage_order=self.configured_stage_order,
+            default_stage_order=self.default_stage_order,
+            supported_stage_order=self.supported_stage_order,
+        )
+
+
 PROFILE_CORRELATION_SHIFTED_UNIT_POLICY = ScientificPolicyRecord(
     id=ScientificPolicyId.PROFILE_CORRELATION_SHIFTED_UNIT,
     name="Profile Correlation Shifted Unit Support",
@@ -138,6 +246,83 @@ def build_motif_profile_rank_fusion_policy(
     )
 
 
+def build_kinase_profile_scoring_policy(
+    *,
+    profile_missing_value_strategy: str,
+    min_substrates_floor: int,
+    requested_min_substrates: int,
+    self_inclusion_behavior: str = "self_inclusion",
+    leave_one_out_enabled: bool = False,
+) -> ScientificPolicyRecord:
+    return ScientificPolicyRecord(
+        id=ScientificPolicyId.KINASE_PROFILE_SCORING,
+        name="Kinase Profile Scoring Policy",
+        version="1",
+        description=(
+            "Builds kinase reference profiles from quantified substrates and scores "
+            "sites against those profiles with shifted Pearson correlation support."
+        ),
+        parameters={
+            "profile_missing_value_strategy": str(profile_missing_value_strategy),
+            "self_inclusion_behavior": str(self_inclusion_behavior),
+            "leave_one_out_enabled": bool(leave_one_out_enabled),
+            "min_substrates_floor": int(min_substrates_floor),
+            "requested_min_substrates": int(requested_min_substrates),
+        },
+        assumptions=(
+            "Profiles can include the same substrate site that is later scored when "
+            "that site is present in the kinase profile definition.",
+            "Leave-one-out profile recomputation is not applied in this policy.",
+            "Profile missing-value strategy affects profile medians and can change "
+            "site-level downstream support.",
+        ),
+        output_scale=(
+            "Relative downstream support score in [0, 1] after shifted-correlation "
+            "transformation."
+        ),
+        quantitative_meaning="relative_support_score",
+    )
+
+
+def build_candidate_substrate_selection_policy(
+    *,
+    top_k: int,
+    score_threshold: float,
+    inclusion: int,
+    threshold_operator: str = "score > threshold",
+    ranking_rule: str = "top_n_scores_per_kinase_then_threshold",
+    site_restriction: str = "none",
+) -> ScientificPolicyRecord:
+    return ScientificPolicyRecord(
+        id=ScientificPolicyId.CANDIDATE_SUBSTRATE_SELECTION,
+        name="Candidate Substrate Selection Policy",
+        version="1",
+        description=(
+            "Selects per-kinase candidate substrate sites from downstream support "
+            "scores using top-k ranking, threshold filtering, and minimum inclusion."
+        ),
+        parameters={
+            "top_k": int(top_k),
+            "score_threshold": float(score_threshold),
+            "inclusion": int(inclusion),
+            "threshold_operator": str(threshold_operator),
+            "ranking_rule": str(ranking_rule),
+            "site_restriction": str(site_restriction),
+        },
+        assumptions=(
+            "Only finite scores are eligible for candidate selection.",
+            "Threshold and inclusion rules jointly determine which kinases are "
+            "considered to have usable candidate substrate support.",
+            "Changing selection thresholds changes downstream kinase ranking and "
+            "prediction outputs.",
+        ),
+        output_scale=(
+            "Per-kinase candidate substrate sets for downstream ranking/prediction."
+        ),
+        quantitative_meaning="candidate_support_set",
+    )
+
+
 def build_simplified_weighted_substrate_activity_policy(
     *,
     threshold: float,
@@ -174,6 +359,113 @@ def build_simplified_weighted_substrate_activity_policy(
             "thresholded mean)."
         ),
         quantitative_meaning="relative_activity_support",
+    )
+
+
+def build_signalome_missing_value_clustering_policy(
+    *,
+    missing_value_policy: str,
+    applies_to: str,
+    imputed_values_exposed_in_output_tables: bool,
+) -> ScientificPolicyRecord:
+    return ScientificPolicyRecord(
+        id=ScientificPolicyId.SIGNALOME_MISSING_VALUE_CLUSTERING,
+        name="Signalome Missing-Value Clustering Policy",
+        version="1",
+        description=(
+            "Normalizes non-finite clustering inputs to missing values and imputes "
+            "missing clustering cells for distance/tree construction."
+        ),
+        parameters={
+            "missing_value_policy": str(missing_value_policy),
+            "applies_to": str(applies_to),
+            "imputed_values_exposed_in_output_tables": bool(
+                imputed_values_exposed_in_output_tables
+            ),
+            "partial_missingness_handling": "column_median_imputation",
+            "fully_missing_column_handling": "impute_zero",
+        },
+        assumptions=(
+            "Imputation is used for clustering internals and may influence module "
+            "selection and assignment outcomes.",
+            "Output signalome tables do not expose the imputed clustering matrix.",
+        ),
+        output_scale=(
+            "Prepared clustering values used for distance calculations and tree "
+            "construction."
+        ),
+        quantitative_meaning="clustering_preconditioned_support_matrix",
+    )
+
+
+def build_score_preconditioning_policy(
+    *,
+    policy: str,
+    input_row_count: int,
+    dropped_all_missing_row_count: int,
+    retained_row_count: int,
+    row_retention_rule: str = "drop_rows_with_all_scores_missing",
+    retained_partial_missing_rows: bool = True,
+) -> ScientificPolicyRecord:
+    return ScientificPolicyRecord(
+        id=ScientificPolicyId.SIGNALOME_SCORE_PRECONDITIONING,
+        name="Signalome Score Preconditioning Policy",
+        version="1",
+        description=(
+            "Preconditions aligned downstream score rows before signalome "
+            "construction by handling unsupported all-missing rows explicitly."
+        ),
+        parameters={
+            "policy": str(policy),
+            "row_retention_rule": str(row_retention_rule),
+            "retained_partial_missing_rows": bool(retained_partial_missing_rows),
+            "input_row_count": int(input_row_count),
+            "dropped_all_missing_row_count": int(dropped_all_missing_row_count),
+            "retained_row_count": int(retained_row_count),
+        },
+        assumptions=(
+            "All-missing score rows are scientifically unsupported for score-driven "
+            "signalome construction.",
+            "Preconditioning policy determines whether row dropping is allowed or "
+            "treated as a boundary error.",
+            "Row retention changes site coverage and therefore can change final "
+            "signalome assignments and module summaries.",
+        ),
+        output_scale="Retained downstream score matrix rows for signalome execution.",
+        quantitative_meaning="retained_signalome_score_rows",
+    )
+
+
+def build_preprocessing_stage_order_policy(
+    *,
+    configured_stage_order: tuple[str, ...],
+    default_stage_order: tuple[str, ...],
+    supported_stage_order: tuple[str, ...],
+) -> ScientificPolicyRecord:
+    return ScientificPolicyRecord(
+        id=ScientificPolicyId.PREPROCESSING_STAGE_ORDER,
+        name="Preprocessing Stage Order Policy",
+        version="1",
+        description=(
+            "Defines the explicit stage execution order used to transform dataset "
+            "inputs into analysis-ready workflow matrices."
+        ),
+        parameters={
+            "configured_stage_order": " -> ".join(configured_stage_order),
+            "configured_stage_count": int(len(configured_stage_order)),
+            "default_stage_order": " -> ".join(default_stage_order),
+            "default_stage_count": int(len(default_stage_order)),
+            "supported_stage_order": " -> ".join(supported_stage_order),
+            "supported_stage_count": int(len(supported_stage_order)),
+        },
+        assumptions=(
+            "Stage order can change output row retention, transformed values, and "
+            "derived comparison tables.",
+            "Configured order must be interpreted as part of the scientific method "
+            "for reproducibility.",
+        ),
+        output_scale="Ordered preprocessing execution plan for dataset construction.",
+        quantitative_meaning="preprocessing_execution_order",
     )
 
 
@@ -262,11 +554,21 @@ def shift_correlation_to_unit_support(correlation: np.ndarray) -> np.ndarray:
 
 
 __all__ = [
+    "CandidateSubstrateSelectionPolicy",
+    "KinaseProfileScoringPolicy",
+    "PreprocessingStageOrderPolicy",
     "PROFILE_CORRELATION_SHIFTED_UNIT_POLICY",
     "PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY",
+    "ScorePreconditioningPolicy",
+    "SignalomeMissingValueClusteringPolicy",
     "ScientificPolicyId",
     "ScientificPolicyRecord",
+    "build_candidate_substrate_selection_policy",
+    "build_kinase_profile_scoring_policy",
     "build_motif_profile_rank_fusion_policy",
+    "build_preprocessing_stage_order_policy",
+    "build_score_preconditioning_policy",
+    "build_signalome_missing_value_clustering_policy",
     "build_signalome_module_candidate_score_policy",
     "build_simplified_weighted_substrate_activity_policy",
     "shift_correlation_to_unit_support",

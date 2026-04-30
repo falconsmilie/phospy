@@ -26,6 +26,13 @@ from phospy.datasets.models import (
     DatasetPreprocessingReport,
 )
 from phospy.datasets.preprocessing.models import (
+    DATASET_PREPROCESSING_STAGE_COMPARISONS,
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    DATASET_PREPROCESSING_STAGE_NORMALISATION,
+    DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT,
+    DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
     PreprocessingPlan,
     PreprocessingStageExecution,
     TotalProteinCorrectionIdentityPolicy,
@@ -52,11 +59,20 @@ from phospy.provenance.models import (
     RunProvenance,
     TableFingerprint,
 )
+from phospy.scientific_policies import PreprocessingStageOrderPolicy
 from phospy.transformations.contracts import Transformer
 from phospy.transformations.models import IntensityScaleKind
 from phospy.transformations.transformers import IdentityTransformer
 
 _FINAL_DATASET_STAGE = "final_dataset_construction"
+_SUPPORTED_PREPROCESSING_STAGE_ORDER = (
+    DATASET_PREPROCESSING_STAGE_MISSING_DATA,
+    DATASET_PREPROCESSING_STAGE_INTENSITY_TRANSFORM,
+    DATASET_PREPROCESSING_STAGE_TOTAL_PROTEIN_CORRECTION,
+    DATASET_PREPROCESSING_STAGE_SITE_MATRIX,
+    DATASET_PREPROCESSING_STAGE_NORMALISATION,
+    DATASET_PREPROCESSING_STAGE_COMPARISONS,
+)
 
 
 class DatasetBuildExecutor:
@@ -269,6 +285,17 @@ def _build_dataset_run_provenance(
         random_state=None,
         random_seed_policy=None,
         output_tables=output_tables,
+        scientific_policies=(
+            PreprocessingStageOrderPolicy(
+                configured_stage_order=tuple(
+                    str(stage) for stage in request.preprocessing_plan.stage_order
+                ),
+                default_stage_order=tuple(
+                    str(stage) for stage in DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT
+                ),
+                supported_stage_order=_SUPPORTED_PREPROCESSING_STAGE_ORDER,
+            ).record,
+        ),
     )
 
 

@@ -247,8 +247,18 @@ def test_kinase_provenance_records_active_scientific_policies() -> None:
 
     policy_ids = {policy.id for policy in result.provenance.scientific_policies}
     assert ScientificPolicyId.PROFILE_CORRELATION_SHIFTED_UNIT in policy_ids
+    assert ScientificPolicyId.KINASE_PROFILE_SCORING in policy_ids
     assert ScientificPolicyId.MOTIF_PROFILE_RANK_FUSION in policy_ids
+    assert ScientificPolicyId.CANDIDATE_SUBSTRATE_SELECTION in policy_ids
     assert ScientificPolicyId.SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY not in policy_ids
+    candidate_policy = next(
+        policy
+        for policy in result.provenance.scientific_policies
+        if policy.id == ScientificPolicyId.CANDIDATE_SUBSTRATE_SELECTION
+    )
+    assert candidate_policy.parameters["top_k"] == 2
+    assert candidate_policy.parameters["score_threshold"] == pytest.approx(0.0)
+    assert candidate_policy.parameters["inclusion"] == 1
 
     payload = to_payload(result.provenance)
     restored = from_payload(payload)

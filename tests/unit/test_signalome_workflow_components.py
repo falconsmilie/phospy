@@ -449,6 +449,8 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert "outputs.signalome.site_membership" in output_names
     policy_ids = {policy.id for policy in provenance.scientific_policies}
     assert ScientificPolicyId.SIGNALOME_MODULE_CANDIDATE_SCORE in policy_ids
+    assert ScientificPolicyId.SIGNALOME_MISSING_VALUE_CLUSTERING in policy_ids
+    assert ScientificPolicyId.SIGNALOME_SCORE_PRECONDITIONING in policy_ids
     assert ScientificPolicyId.PROTEIN_MODULE_FROM_SITE_MEMBERSHIP in policy_ids
 
 

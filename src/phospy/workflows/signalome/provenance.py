@@ -18,6 +18,8 @@ from phospy.provenance.models import (
 from phospy.provenance.serialization import to_payload as provenance_to_payload
 from phospy.scientific_policies import (
     PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
+    ScorePreconditioningPolicy,
+    SignalomeMissingValueClusteringPolicy,
     build_signalome_module_candidate_score_policy,
 )
 from phospy.signalomes.clustering import ClusterSitesResult
@@ -96,6 +98,11 @@ class SignalomeProvenanceBuilder:
             )
         )
         upstream_provenance = request.kinase_result.provenance
+        clustering_missing_value_diagnostics = (
+            summarize_clustering_missing_value_diagnostics(
+                request.downstream_score_matrix.to_numpy(dtype=float, copy=False)
+            )
+        )
         scientific_policies = (
             build_signalome_module_candidate_score_policy(
                 requested_policy=str(
@@ -127,12 +134,26 @@ class SignalomeProvenanceBuilder:
                     scale_guard_decision.tree_generation_is_approximate
                 ),
             ),
+            SignalomeMissingValueClusteringPolicy(
+                missing_value_policy=str(clustering_missing_value_diagnostics.policy),
+                applies_to=str(SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO),
+                imputed_values_exposed_in_output_tables=bool(
+                    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES
+                ),
+            ).record,
+            ScorePreconditioningPolicy(
+                policy=str(request.score_preconditioning_diagnostics.policy),
+                input_row_count=int(
+                    request.score_preconditioning_diagnostics.input_row_count
+                ),
+                dropped_all_missing_row_count=int(
+                    request.score_preconditioning_diagnostics.dropped_all_missing_row_count
+                ),
+                retained_row_count=int(
+                    request.score_preconditioning_diagnostics.retained_row_count
+                ),
+            ).record,
             PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
-        )
-        clustering_missing_value_diagnostics = (
-            summarize_clustering_missing_value_diagnostics(
-                request.downstream_score_matrix.to_numpy(dtype=float, copy=False)
-            )
         )
         return RunProvenance(
             environment=self._collect_environment(),

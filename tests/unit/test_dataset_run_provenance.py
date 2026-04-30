@@ -8,6 +8,7 @@ import pytest
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
     DatasetBuildRequest,
+    DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
     Organism,
@@ -15,6 +16,7 @@ from phospy.api import (
 from phospy.provenance import environment as provenance_environment
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.serialization import from_payload, to_payload
+from phospy.scientific_policies import ScientificPolicyId
 
 
 def test_collect_environment_provenance_reports_expected_keys() -> None:
@@ -104,6 +106,60 @@ def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
     assert "GSK3B;S9;" in set(missing_stage.dropped_row_ids)
     assert missing_stage.imputed_cell_count >= 1
     assert "AKT1;T308;" in set(missing_stage.imputed_row_ids)
+    policy_ids = {policy.id for policy in provenance.scientific_policies}
+    assert ScientificPolicyId.PREPROCESSING_STAGE_ORDER in policy_ids
+
+
+def test_dataset_stage_order_policy_changes_with_preprocessing_plan() -> None:
+    phospho = pd.DataFrame(
+        {"sample_a": [1.0], "sample_b": [2.0]},
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14"],
+            "site": ["Y182"],
+            "site_sequence": ["SEQ_A"],
+        },
+        index=phospho.index.copy(),
+    )
+    default_result = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+        )
+    )
+    transformed_result = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                )
+            ),
+        )
+    )
+
+    assert default_result.provenance is not None
+    assert transformed_result.provenance is not None
+    default_policy = next(
+        policy
+        for policy in default_result.provenance.scientific_policies
+        if policy.id == ScientificPolicyId.PREPROCESSING_STAGE_ORDER
+    )
+    transformed_policy = next(
+        policy
+        for policy in transformed_result.provenance.scientific_policies
+        if policy.id == ScientificPolicyId.PREPROCESSING_STAGE_ORDER
+    )
+    assert default_policy.parameters["configured_stage_order"] == "missing_data"
+    assert transformed_policy.parameters["configured_stage_order"] == (
+        "missing_data -> intensity_transform"
+    )
 
 
 def test_run_provenance_serialization_round_trip_preserves_payload() -> None:
