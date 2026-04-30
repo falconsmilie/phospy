@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -1150,6 +1151,202 @@ def test_interpreter_allows_error_on_drop_policy_when_no_rows_require_drop() -> 
     assert interpreted.score_preconditioning_diagnostics.policy == (
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
     )
+
+
+def test_interpreter_allows_removed_site_with_missing_protein_id_in_permissive_mode() -> (
+    None
+):
+    site_ids = ["P1;S1;", "P2;S2;"]
+    dataset = _dataset(site_ids=site_ids)
+    dataset.site_metadata.loc["P1;S1;", "protein_id"] = np.nan
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.2, 0.8],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [float("nan"), float("nan")],
+            [2.0, 3.0],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(
+        SignalomeWorkflowRequest(
+            kinase_result=_kinase_result(
+                dataset=dataset,
+                prediction_matrix=prediction_matrix,
+                score_matrix=score_matrix,
+            ),
+            config=build_signalome_config(
+                substrate_support_cutoff=0.5,
+                score_preconditioning_policy=(
+                    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+                ),
+            ),
+        )
+    )
+
+    assert interpreted.downstream_score_matrix.index.tolist() == ["P2;S2;"]
+    assert interpreted.prediction_matrix.index.tolist() == ["P2;S2;"]
+    assert interpreted.site_to_protein.index.tolist() == ["P2;S2;"]
+    assert interpreted.site_to_protein.loc["P2;S2;"] == "P2"
+    assert (
+        interpreted.alignment_diagnostics.dataset_sites.dropped_reasons[
+            "removed_by_score_preconditioning"
+        ]
+        == 1
+    )
+    assert interpreted.alignment_diagnostics.protein_identifiers.provided_count == 2
+    assert interpreted.alignment_diagnostics.protein_identifiers.retained_count == 1
+    assert interpreted.alignment_diagnostics.protein_identifiers.dropped_count == 1
+    assert interpreted.alignment_diagnostics.protein_identifiers.dropped_reasons == {
+        "removed_by_score_preconditioning": 1,
+        "missing_protein_identifier": 0,
+        "removed_by_validation_policy": 0,
+    }
+
+
+def test_interpreter_fails_for_retained_site_with_missing_protein_id() -> None:
+    site_ids = ["P1;S1;"]
+    dataset = _dataset(site_ids=site_ids)
+    dataset.site_metadata.loc["P1;S1;", "protein_id"] = np.nan
+    prediction_matrix = _matrix(
+        values=[[0.9, 0.1]],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[[1.0, 2.0]],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        SignalomeWorkflowInterpreter().run(
+            SignalomeWorkflowRequest(
+                kinase_result=_kinase_result(
+                    dataset=dataset,
+                    prediction_matrix=prediction_matrix,
+                    score_matrix=score_matrix,
+                ),
+                config=build_signalome_config(substrate_support_cutoff=0.5),
+            )
+        )
+
+    error = exc_info.value
+    message = str(error)
+    assert error.seam == SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM
+    assert error.details["retained_with_missing_protein_id"] == 1
+    assert error.details["retained_and_valid"] == 0
+    assert error.details["removed_by_score_preconditioning"] == 0
+    assert error.details["missing_protein_id_sites"] == ["P1;S1;"]
+    assert "P1;S1;" in message
+    assert "retained signalome sites after score preconditioning" in message
+
+
+def test_interpreter_strict_mode_fails_on_score_preconditioning_before_protein_mapping() -> (
+    None
+):
+    site_ids = ["P1;S1;", "P2;S2;"]
+    dataset = _dataset(site_ids=site_ids)
+    dataset.site_metadata.loc["P1;S1;", "protein_id"] = np.nan
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.2, 0.8],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [float("nan"), float("nan")],
+            [2.0, 3.0],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        SignalomeWorkflowInterpreter().run(
+            SignalomeWorkflowRequest(
+                kinase_result=_kinase_result(
+                    dataset=dataset,
+                    prediction_matrix=prediction_matrix,
+                    score_matrix=score_matrix,
+                ),
+                config=build_signalome_config(
+                    substrate_support_cutoff=0.5,
+                    score_preconditioning_policy=(
+                        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+                    ),
+                ),
+            )
+        )
+
+    error = exc_info.value
+    assert error.seam == SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM
+    assert error.details["dropped_all_missing_row_count"] == 1
+
+
+def test_interpreter_mixed_removed_and_retained_missing_protein_sites_reports_retained_only() -> (
+    None
+):
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    dataset.site_metadata.loc["P1;S1;", "protein_id"] = np.nan
+    dataset.site_metadata.loc["P3;S3;", "protein_id"] = np.nan
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.2, 0.8],
+            [0.8, 0.2],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [float("nan"), float("nan")],
+            [2.0, 3.0],
+            [1.0, 2.0],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2"],
+    )
+
+    with pytest.raises(WorkflowBoundaryError) as exc_info:
+        SignalomeWorkflowInterpreter().run(
+            SignalomeWorkflowRequest(
+                kinase_result=_kinase_result(
+                    dataset=dataset,
+                    prediction_matrix=prediction_matrix,
+                    score_matrix=score_matrix,
+                ),
+                config=build_signalome_config(
+                    substrate_support_cutoff=0.5,
+                    score_preconditioning_policy=(
+                        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+                    ),
+                ),
+            )
+        )
+
+    error = exc_info.value
+    message = str(error)
+    assert error.seam == SIGNALOME_INTERPRETER_PROTEIN_MAPPING_SEAM
+    assert error.details["missing_protein_id_sites"] == ["P3;S3;"]
+    assert error.details["retained_with_missing_protein_id"] == 1
+    assert error.details["retained_and_valid"] == 1
+    assert error.details["removed_by_score_preconditioning"] == 1
+    assert "P3;S3;" in message
+    assert "P1;S1;" not in message
 
 
 def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> None:

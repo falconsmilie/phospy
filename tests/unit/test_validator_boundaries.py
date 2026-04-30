@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -861,6 +862,18 @@ def test_signalome_validator_allows_downstream_score_matrix_missingness() -> Non
             prediction_result=kinase_result.prediction_result,
             activity_result=kinase_result.activity_result,
         ),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
+    )
+
+    validated = SignalomeWorkflowValidator().run(request)
+    assert validated is request
+
+
+def test_signalome_validator_allows_missing_site_metadata_protein_values() -> None:
+    kinase_result = _kinase_result()
+    kinase_result.dataset.site_metadata.loc[:, "protein_id"] = np.nan
+    request = SignalomeWorkflowRequest(
+        kinase_result=kinase_result,
         config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 

@@ -122,9 +122,11 @@ class SignalomeWorkflowInterpreter:
         retained_prediction_matrix = aligned_prediction_matrix.loc[retained_site_index]
         site_to_protein = self._resolve_site_to_protein(
             dataset=request.kinase_result.dataset,
-            site_index=aligned_prediction_matrix.index,
+            site_index=retained_site_index,
+            removed_by_score_preconditioning_count=int(
+                aligned_site_index.size - retained_site_index.size
+            ),
         )
-        retained_site_to_protein = site_to_protein.loc[retained_site_index]
         alignment_diagnostics = self._build_alignment_diagnostics(
             dataset_sites=dataset_site_index,
             prediction_sites=resolved_prediction_matrix.index,
@@ -144,7 +146,7 @@ class SignalomeWorkflowInterpreter:
             downstream_score_matrix=preconditioned_downstream_score_matrix,
             downstream_score_source=downstream_score_source,
             prediction_matrix=retained_prediction_matrix,
-            site_to_protein=retained_site_to_protein,
+            site_to_protein=site_to_protein,
             score_preconditioning_diagnostics=score_preconditioning_diagnostics,
             alignment_diagnostics=alignment_diagnostics,
         )
@@ -269,6 +271,7 @@ class SignalomeWorkflowInterpreter:
         *,
         dataset: AnalysisReadyPhosphoDataset,
         site_index: pd.Index,
+        removed_by_score_preconditioning_count: int,
     ) -> pd.Series:
         metadata = dataset.site_metadata
         if self._PROTEIN_COLUMN not in metadata.columns:
@@ -276,12 +279,18 @@ class SignalomeWorkflowInterpreter:
                 seam=self._PROTEIN_MAPPING_SEAM,
                 next_action=(
                     "populate dataset.site_metadata.protein_id with explicit protein "
-                    "identifiers for all interpreted sites"
+                    "identifiers for retained signalome sites after score "
+                    "preconditioning"
                 ),
                 protein_resolution_source=SIGNALOME_PROTEIN_RESOLUTION_SOURCE_SITE_METADATA,
                 interpreted_sites=int(site_index.size),
                 resolved_protein_sites=0,
                 unresolved_protein_sites=int(site_index.size),
+                removed_by_score_preconditioning=(
+                    int(removed_by_score_preconditioning_count)
+                ),
+                retained_with_missing_protein_id=int(site_index.size),
+                retained_and_valid=0,
             )
         resolved = (
             metadata.reindex(site_index)
@@ -294,16 +303,24 @@ class SignalomeWorkflowInterpreter:
         unresolved_mask = resolved.astype(str).str.strip() == ""
         if unresolved_mask.any():
             resolved_sites = int((~unresolved_mask).sum())
+            unresolved_sites = resolved.loc[unresolved_mask].index.astype(str).tolist()
             self._raise_boundary_error(
                 seam=self._PROTEIN_MAPPING_SEAM,
                 next_action=(
                     "populate dataset.site_metadata.protein_id with explicit protein "
-                    "identifiers for all interpreted sites"
+                    "identifiers for retained signalome sites after score "
+                    "preconditioning"
                 ),
                 protein_resolution_source=resolution_source,
                 interpreted_sites=int(site_index.size),
                 resolved_protein_sites=resolved_sites,
                 unresolved_protein_sites=int(unresolved_mask.sum()),
+                retained_with_missing_protein_id=int(unresolved_mask.sum()),
+                retained_and_valid=resolved_sites,
+                removed_by_score_preconditioning=(
+                    int(removed_by_score_preconditioning_count)
+                ),
+                missing_protein_id_sites=unresolved_sites,
             )
         resolved.index = site_index.copy()
         resolved.name = self._PROTEIN_COLUMN
