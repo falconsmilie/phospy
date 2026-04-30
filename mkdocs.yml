@@ -63,6 +63,7 @@ nav:
       - Performance Contracts: performance.md
       - Scientific Coverage: scientific-coverage.md
       - Parity to PhosR: parity.md
+      - Contributing: contributing.md
   - Project:
       - Maintenance: maintenance.md
       - Release Notes 1.5.0: release-notes-1.5.0.md

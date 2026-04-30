@@ -1,10 +1,9 @@
 # PhosPy Documentation
 
-Welcome. PhosPy helps you turn phosphosite intensity tables into kinase scoring,
-kinase prediction, and optional signalome analysis in Python.
+## Welcome
 
-The docs are intentionally flat. The only subdirectory is `adr/`, which stores
-maintainer decision records.
+PhosPy helps you turn phosphosite intensity tables into kinase scoring,
+kinase prediction, and optional signalome analysis in Python.
 
 ## Start Here
 

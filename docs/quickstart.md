@@ -35,7 +35,11 @@ A site ID should look like `TSC2;S939;`.
 ```python title="Analysis Ready Dataset, Kinase Workflow, and Signalome Workflow"
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow, SignalomeWorkflow
+from phospy import (
+    AnalysisReadyDatasetBuilder,
+    KinaseWorkflow,
+    SignalomeWorkflow
+)
 from phospy.api import (
     DatasetBuildRequest,
     KinaseWorkflowRequest,
@@ -85,9 +89,18 @@ signalome_result = SignalomeWorkflow().run(
     SignalomeWorkflowRequest(kinase_result=kinase_result)
 )
 
-print("dataset shape", dataset.phospho.shape)
-print("prediction shape", kinase_result.prediction_result.pred_mat.shape)
-print("signalome modules", signalome_result.signalome_modules.table.shape)
+print(
+    "dataset shape",
+    dataset.phospho.shape
+)
+print(
+    "prediction shape",
+    kinase_result.prediction_result.pred_mat.shape
+)
+print(
+    "signalome modules",
+    signalome_result.signalome_modules.table.shape
+)
 ```
 
 Why `activity_config=None`? The example has only two sites. The activity stage is
@@ -114,11 +127,11 @@ Supported table formats are `.csv`, `.tsv`, `.txt` as tab-separated text, and
 
 ## 5. If It Fails
 
-| Symptom | Most likely fix |
-| --- | --- |
-| `ReferencePreset.AUTO` cannot resolve references | Use `organism=Organism.RAT` with bundled references, or pass an explicit `ReferenceBundle`. |
-| Signalome fails on `protein_id` | Add a non-empty `protein_id` for every interpreted site. Gene symbols are not used as a protein-identity substitute. |
-| Missing-value error | Start with a complete matrix, or configure row-median imputation deliberately. |
-| Site metadata does not align | Make `site_metadata.index` exactly match `phospho.index`. |
-| File input fails | Check that the first CSV/TSV column is the row index and that the suffix is supported. |
-| The tiny example fails after enabling activity | Use more sites or lower the activity thresholds deliberately. |
+| Symptom                                          | Most likely fix                                                                                                      |
+|--------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| `ReferencePreset.AUTO` cannot resolve references | Use `organism=Organism.RAT` with bundled references, or pass an explicit `ReferenceBundle`.                          |
+| Signalome fails on `protein_id`                  | Add a non-empty `protein_id` for every interpreted site. Gene symbols are not used as a protein-identity substitute. |
+| Missing-value error                              | Start with a complete matrix, or configure row-median imputation deliberately.                                       |
+| Site metadata does not align                     | Make `site_metadata.index` exactly match `phospho.index`.                                                            |
+| File input fails                                 | Check that the first CSV/TSV column is the row index and that the suffix is supported.                               |
+| The tiny example fails after enabling activity   | Use more sites or lower the activity thresholds deliberately.                                                        |

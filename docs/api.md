@@ -8,16 +8,25 @@ endpoints.
 Use top-level `phospy` for the main entrypoints:
 
 ```python
-from phospy import AnalysisReadyDatasetBuilder, AnalysisReadyPhosphoDataset
-from phospy import KinaseWorkflow, SignalomeWorkflow
+from phospy import (
+    AnalysisReadyDatasetBuilder,
+    AnalysisReadyPhosphoDataset,
+    KinaseWorkflow,
+    SignalomeWorkflow,
+)
 ```
 
 Use `phospy.api` for requests, configs, results, enums, references, and public
 exceptions:
 
 ```python
-from phospy.api import DatasetBuildRequest, KinaseWorkflowRequest
-from phospy.api import Organism, ReferencePreset, ReferenceBundle
+from phospy.api import (
+    DatasetBuildRequest,
+    KinaseWorkflowRequest,
+    Organism,
+    ReferenceBundle,
+    ReferencePreset,
+)
 ```
 
 All public executors use `run(request)`.
@@ -25,7 +34,9 @@ All public executors use `run(request)`.
 ## Public Workflow Shape
 
 1. `DatasetBuildRequest` -> `AnalysisReadyDatasetBuilder.run(...)` -> `AnalysisReadyPhosphoDataset`
+
 2. `KinaseWorkflowRequest` -> `KinaseWorkflow.run(...)` -> `KinaseWorkflowResult`
+
 3. `SignalomeWorkflowRequest` -> `SignalomeWorkflow.run(...)` -> `SignalomeWorkflowResult`
 
 The beginner lane is rat-first because bundled runtime references in `1.5.0` are
@@ -320,13 +331,27 @@ All user-facing exception types are available from `phospy.api`. Common ones are
 ```python
 import pandas as pd
 
-from phospy import AnalysisReadyDatasetBuilder, KinaseWorkflow
-from phospy.api import DatasetBuildRequest, KinaseWorkflowRequest
-from phospy.api import Organism, ReferencePreset
+from phospy import (
+  AnalysisReadyDatasetBuilder,
+  KinaseWorkflow
+)
+from phospy.api import (
+  DatasetBuildRequest, 
+  KinaseWorkflowRequest,
+  Organism,
+  ReferencePreset
+)
 
 phospho = pd.DataFrame(
-    {"sample_a": [1.00, 0.70], "sample_b": [1.10, 0.80], "sample_c": [0.95, 0.75]},
-    index=["TSC2;S939;", "GSK3B;S9;"],
+    {
+      "sample_a": [1.00, 0.70], 
+      "sample_b": [1.10, 0.80], 
+      "sample_c": [0.95, 0.75]
+    },
+    index=[
+      "TSC2;S939;", 
+      "GSK3B;S9;"
+    ],
 )
 site_metadata = pd.DataFrame(
     {
@@ -342,10 +367,18 @@ site_metadata = pd.DataFrame(
 )
 
 dataset = AnalysisReadyDatasetBuilder().run(
-    DatasetBuildRequest(phospho=phospho, site_metadata=site_metadata, organism=Organism.RAT)
+    DatasetBuildRequest(
+      phospho=phospho, 
+      site_metadata=site_metadata, 
+      organism=Organism.RAT
+    )
 )
 result = KinaseWorkflow().run(
-    KinaseWorkflowRequest(dataset=dataset, references=ReferencePreset.AUTO, activity_config=None)
+    KinaseWorkflowRequest(
+      dataset=dataset, 
+      references=ReferencePreset.AUTO, 
+      activity_config=None
+    )
 )
 print(result.prediction_result.pred_mat)
 ```

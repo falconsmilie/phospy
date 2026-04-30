@@ -1,7 +1,6 @@
 # Maintenance
 
-This page collects the maintainer material that used to be spread across several
-small pages.
+This page describes the maintainer material.
 
 ## Development Setup
 
