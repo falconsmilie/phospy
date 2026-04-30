@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import cast
 
@@ -568,21 +568,36 @@ def run_clustering_with_tree_engine(
 
 # Compatibility wrappers retained for legacy imports/monkeypatch hooks.
 def _build_module_selection_result(**kwargs: object) -> _ModuleSelectionComputation:
-    return _build_module_selection_result_impl(**kwargs)
+    impl = cast(
+        Callable[..., _ModuleSelectionComputation], _build_module_selection_result_impl
+    )
+    return impl(**kwargs)
 
 
 def _resolve_pre_scoring_module_selection(**kwargs: object):
-    return _resolve_pre_scoring_module_selection_impl(**kwargs)
+    impl = cast(
+        Callable[..., tuple[_ModuleSelectionComputation | None, int]],
+        _resolve_pre_scoring_module_selection_impl,
+    )
+    return impl(**kwargs)
 
 
 def _compute_candidate_cluster_scores(**kwargs: object) -> _CandidateClusterScoreResult:
-    return _compute_candidate_cluster_scores_impl(**kwargs)
+    impl = cast(
+        Callable[..., _CandidateClusterScoreResult],
+        _compute_candidate_cluster_scores_impl,
+    )
+    return impl(**kwargs)
 
 
 def _resolve_candidate_scoring_policy(
     **kwargs: object,
 ) -> SignalomeCandidateScoringPolicy:
-    return _resolve_candidate_scoring_policy_impl(**kwargs)
+    impl = cast(
+        Callable[..., SignalomeCandidateScoringPolicy],
+        _resolve_candidate_scoring_policy_impl,
+    )
+    return impl(**kwargs)
 
 
 def _resolve_max_exact_tree_sites(max_exact_tree_sites: int | None) -> int:
@@ -590,7 +605,8 @@ def _resolve_max_exact_tree_sites(max_exact_tree_sites: int | None) -> int:
 
 
 def _build_exact_cluster_tree_with_guard(**kwargs: object) -> object:
-    return _build_exact_cluster_tree_with_guard_impl(**kwargs)
+    impl = cast(Callable[..., object], _build_exact_cluster_tree_with_guard_impl)
+    return impl(**kwargs)
 
 
 def _resolve_cluster_tree_operations(
@@ -604,7 +620,11 @@ def _select_best_candidate_count(candidate_scores: dict[int, float]) -> int:
 
 
 def _select_threshold_candidate(**kwargs: object):
-    return _select_threshold_candidate_impl(**kwargs)
+    impl = cast(
+        Callable[..., _ModuleSelectionComputation | None],
+        _select_threshold_candidate_impl,
+    )
+    return impl(**kwargs)
 
 
 def summarize_profile_degeneracy(
@@ -645,8 +665,11 @@ def build_cluster_labels_from_tree(
     cluster_tree,
     cluster_counts: Iterable[int],
 ) -> dict[int, np.ndarray]:
-    return _build_cluster_labels_from_tree_impl(
-        cluster_tree=cast(object, cluster_tree),
+    impl = cast(
+        Callable[..., dict[int, np.ndarray]], _build_cluster_labels_from_tree_impl
+    )
+    return impl(
+        cluster_tree=cluster_tree,
         cluster_counts=cluster_counts,
     )
 

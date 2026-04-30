@@ -41,9 +41,26 @@ pytest tests/performance -m performance
 ## Type Checking
 
 Pyright is the configured type checker. The checked scope is listed in
-`pyproject.toml` under `[tool.pyright]`. Some modules are marked strict as the
-first stronger gate. Avoid broad ignores; prefer narrower types at public and
-workflow boundaries.
+`pyproject.toml` under `[tool.pyright]` and includes:
+
+- `src/phospy/api`
+- `src/phospy/datasets`
+- `src/phospy/io` (including publishing/export paths)
+- `src/phospy/prediction`
+- `src/phospy/provenance`
+- `src/phospy/references`
+- `src/phospy/signalomes/clustering`
+- `src/phospy/tables`
+- `src/phospy/validation`
+- `src/phospy/workflows`
+
+Strict checking is enabled for selected stable scientific/core modules listed
+under `[tool.pyright].strict` (for example provenance/reference model modules),
+and can be expanded incrementally.
+
+Avoid suppressions by default. Use them only when Pyright cannot model correct
+runtime behaviour. Every suppression must be narrow, error-code-specific,
+commented, and justified by tests where practical.
 
 ## Fixture Policy
 

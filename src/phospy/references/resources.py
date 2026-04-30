@@ -201,12 +201,12 @@ def _read_csv_resource(
     filename: str,
 ) -> pd.DataFrame:
     package_root = resources.files("phospy")
-    resource = package_root.joinpath(
-        "data",
-        "reference_bundles",
-        organism.value,
-        reference_name,
-        filename,
+    resource = (
+        package_root.joinpath("data")
+        .joinpath("reference_bundles")
+        .joinpath(organism.value)
+        .joinpath(reference_name)
+        .joinpath(filename)
     )
     if not resource.is_file():
         raise ReferenceResolutionError(
@@ -224,12 +224,12 @@ def _read_optional_csv_resource(
     filename: str,
 ) -> pd.DataFrame | None:
     package_root = resources.files("phospy")
-    resource = package_root.joinpath(
-        "data",
-        "reference_bundles",
-        organism.value,
-        reference_name,
-        filename,
+    resource = (
+        package_root.joinpath("data")
+        .joinpath("reference_bundles")
+        .joinpath(organism.value)
+        .joinpath(reference_name)
+        .joinpath(filename)
     )
     if not resource.is_file():
         return None

@@ -25,10 +25,15 @@ from phospy.transformations.models import (
 def intensity_scale_state_to_payload(state: IntensityScaleState) -> dict[str, object]:
     """Serialize intensity scale state to manifest payload."""
 
+    quantity = state.quantity
+    if quantity is None:
+        raise PhosPyInputError(
+            "intensity_scale_state.quantity must be established before serialization"
+        )
     return {
         "phospho": _matrix_state_to_payload(state.phospho),
         "total": None if state.total is None else _matrix_state_to_payload(state.total),
-        "quantity": state.quantity.value,
+        "quantity": quantity.value,
     }
 
 

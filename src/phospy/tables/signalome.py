@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -55,7 +56,11 @@ from phospy.signalomes.context import (
     SITE_MEMBERSHIP_TOP_KINASE_SCORE_COLUMN,
     SITE_MEMBERSHIP_TOP_KINASE_WEIGHT_COLUMN,
 )
-from phospy.tables.base import TableSchema, require_canonical_label_index
+from phospy.tables.base import (
+    TableSchema,
+    ValidationErrorType,
+    require_canonical_label_index,
+)
 from phospy.validation.common.dataframes import (
     require_canonical_site_index,
     require_canonical_site_series,
@@ -734,9 +739,9 @@ def _require_string_column(
     *,
     field_name: str,
     column_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
 ) -> None:
-    values = frame.loc[:, column_name]
+    values = _column_series(frame, column_name)
     if values.isna().any():
         raise error_type(f"{field_name}.{column_name} must not contain missing values")
     if not all(isinstance(value, str) for value in values.tolist()):
@@ -748,9 +753,9 @@ def _require_boolean_column(
     *,
     field_name: str,
     column_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
 ) -> None:
-    values = frame.loc[:, column_name]
+    values = _column_series(frame, column_name)
     if values.isna().any():
         raise error_type(f"{field_name}.{column_name} must not contain missing values")
     invalid = [
@@ -765,13 +770,13 @@ def _require_integer_compatible_column(
     *,
     field_name: str,
     column_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
     allow_missing: bool,
 ) -> None:
-    numeric = pd.to_numeric(frame.loc[:, column_name], errors="coerce")
+    numeric = _numeric_series(frame, column_name)
     if not allow_missing and numeric.isna().any():
         raise error_type(f"{field_name}.{column_name} must not contain missing values")
-    finite_values = numeric.dropna().to_numpy(dtype=float, copy=False)
+    finite_values = numeric.dropna().to_numpy(dtype="float64", copy=False)
     if not np.isfinite(finite_values).all():
         raise error_type(
             f"{field_name}.{column_name} must contain finite integer-compatible values"
@@ -787,13 +792,13 @@ def _require_numeric_column(
     *,
     field_name: str,
     column_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
     allow_missing: bool,
 ) -> None:
-    numeric = pd.to_numeric(frame.loc[:, column_name], errors="coerce")
+    numeric = _numeric_series(frame, column_name)
     if not allow_missing and numeric.isna().any():
         raise error_type(f"{field_name}.{column_name} must not contain missing values")
-    finite_values = numeric.dropna().to_numpy(dtype=float, copy=False)
+    finite_values = numeric.dropna().to_numpy(dtype="float64", copy=False)
     if not np.isfinite(finite_values).all():
         raise error_type(
             f"{field_name}.{column_name} must contain finite numeric values"
@@ -805,7 +810,7 @@ def _require_json_string_column(
     *,
     field_name: str,
     column_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
 ) -> None:
     for value in frame.loc[:, column_name].tolist():
         if not isinstance(value, str):
@@ -825,7 +830,7 @@ def _require_non_negative_integer_column(
     *,
     field_name: str,
     column_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
 ) -> None:
     _require_integer_compatible_column(
         frame,
@@ -834,8 +839,8 @@ def _require_non_negative_integer_column(
         error_type=error_type,
         allow_missing=False,
     )
-    numeric = pd.to_numeric(frame.loc[:, column_name], errors="coerce")
-    values = numeric.to_numpy(dtype=float, copy=False)
+    numeric = _numeric_series(frame, column_name)
+    values = numeric.to_numpy(dtype="float64", copy=False)
     if (values < 0.0).any():
         raise error_type(
             f"{field_name}.{column_name} must contain non-negative integer values"
@@ -846,12 +851,15 @@ def _require_integer_compatible_index(
     index: pd.Index,
     *,
     field_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
 ) -> None:
-    numeric = pd.to_numeric(index.to_series(index=index), errors="coerce")
+    numeric = cast(
+        pd.Series,
+        pd.to_numeric(index.to_series(index=index), errors="coerce"),
+    )
     if numeric.isna().any():
         raise error_type(f"{field_name} must contain integer-compatible labels")
-    values = numeric.to_numpy(dtype=float, copy=False)
+    values = numeric.to_numpy(dtype="float64", copy=False)
     if not np.isfinite(values).all():
         raise error_type(f"{field_name} must contain finite integer-compatible labels")
     if not np.isclose(values, np.round(values)).all():
@@ -862,10 +870,13 @@ def _require_non_negative_integer_index(
     index: pd.Index,
     *,
     field_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
 ) -> None:
-    numeric = pd.to_numeric(index.to_series(index=index), errors="coerce")
-    values = numeric.to_numpy(dtype=float, copy=False)
+    numeric = cast(
+        pd.Series,
+        pd.to_numeric(index.to_series(index=index), errors="coerce"),
+    )
+    values = numeric.to_numpy(dtype="float64", copy=False)
     if (values < 0.0).any():
         raise error_type(f"{field_name} must contain non-negative integer labels")
 
@@ -874,23 +885,24 @@ def _require_assignment_top_score_column(
     frame: pd.DataFrame,
     *,
     field_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
 ) -> None:
-    numeric = pd.to_numeric(frame.loc[:, TOP_SCORE_COLUMN], errors="coerce")
-    raw_scores = frame.loc[:, TOP_SCORE_COLUMN]
+    numeric = _numeric_series(frame, TOP_SCORE_COLUMN)
+    raw_scores = _column_series(frame, TOP_SCORE_COLUMN)
     missing_mask = raw_scores.isna()
     if (~missing_mask).any():
-        finite_values = numeric.loc[~missing_mask].to_numpy(dtype=float, copy=False)
+        finite_values = cast(pd.Series, numeric.loc[~missing_mask]).to_numpy(
+            dtype="float64",
+            copy=False,
+        )
         if not np.isfinite(finite_values).all():
             raise error_type(
                 f"{field_name}.{TOP_SCORE_COLUMN} must contain finite numeric values"
             )
     if not missing_mask.any():
         return
-    top_kinases = frame.loc[:, TOP_KINASE_COLUMN].astype(str)
-    tie_counts = pd.to_numeric(
-        frame.loc[:, TOP_KINASE_TIE_COUNT_COLUMN], errors="coerce"
-    ).fillna(-1.0)
+    top_kinases = _column_series(frame, TOP_KINASE_COLUMN).astype(str)
+    tie_counts = _numeric_series(frame, TOP_KINASE_TIE_COUNT_COLUMN).fillna(-1.0)
     allowed_missing_mask = top_kinases.eq(UNSUPPORTED_KINASE) & tie_counts.eq(0.0)
     invalid_missing = missing_mask & ~allowed_missing_mask
     if bool(invalid_missing.any()):
@@ -906,7 +918,7 @@ def _require_kinase_candidates_sequence_column(
     *,
     field_name: str,
     column_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
 ) -> None:
     for row_label, value in frame.loc[:, column_name].items():
         if not isinstance(value, (tuple, list)):
@@ -926,7 +938,7 @@ def _require_kinase_weights_sequence_column(
     *,
     field_name: str,
     column_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
 ) -> None:
     for row_label, value in frame.loc[:, column_name].items():
         if not isinstance(value, (tuple, list)):
@@ -965,15 +977,15 @@ def _require_numeric_bounds(
     *,
     field_name: str,
     column_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
     minimum: float,
     maximum: float,
     allow_missing: bool,
 ) -> None:
-    numeric = pd.to_numeric(frame.loc[:, column_name], errors="coerce")
+    numeric = _numeric_series(frame, column_name)
     if not allow_missing and numeric.isna().any():
         raise error_type(f"{field_name}.{column_name} must not contain missing values")
-    values = numeric.dropna().to_numpy(dtype=float, copy=False)
+    values = numeric.dropna().to_numpy(dtype="float64", copy=False)
     if ((values < float(minimum)) | (values > float(maximum))).any():
         raise error_type(
             f"{field_name}.{column_name} must be between {minimum:.1f} and {maximum:.1f}"
@@ -984,9 +996,9 @@ def _require_correlation_reason_column(
     frame: pd.DataFrame,
     *,
     field_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
 ) -> None:
-    values = frame.loc[:, CORRELATION_REASON_COLUMN]
+    values = _column_series(frame, CORRELATION_REASON_COLUMN)
     for value in values.tolist():
         if pd.isna(value):
             continue
@@ -1000,18 +1012,18 @@ def _require_candidate_correlation_value_semantics(
     frame: pd.DataFrame,
     *,
     field_name: str,
-    error_type: type[WorkflowValidationError],
+    error_type: ValidationErrorType,
 ) -> None:
-    statuses = frame.loc[:, CORRELATION_STATUS_COLUMN].astype(str)
-    numeric = pd.to_numeric(frame.loc[:, CORRELATION_COLUMN], errors="coerce")
+    statuses = _column_series(frame, CORRELATION_STATUS_COLUMN).astype(str)
+    numeric = _numeric_series(frame, CORRELATION_COLUMN)
     finite_mask = statuses.eq("finite")
-    finite_values = numeric.loc[finite_mask]
+    finite_values = cast(pd.Series, numeric.loc[finite_mask])
     if finite_values.isna().any():
         raise error_type(
             f"{field_name}.{CORRELATION_COLUMN} must be present when "
             f"{CORRELATION_STATUS_COLUMN}='finite'"
         )
-    finite_array = finite_values.to_numpy(dtype=float, copy=False)
+    finite_array = finite_values.to_numpy(dtype="float64", copy=False)
     if not np.isfinite(finite_array).all():
         raise error_type(
             f"{field_name}.{CORRELATION_COLUMN} must be finite when "
@@ -1022,8 +1034,18 @@ def _require_candidate_correlation_value_semantics(
             f"{field_name}.{CORRELATION_COLUMN} must be between -1.0 and 1.0"
         )
     undefined_mask = ~finite_mask
-    if numeric.loc[undefined_mask].notna().any():
+    if cast(pd.Series, numeric.loc[undefined_mask]).notna().any():
         raise error_type(
             f"{field_name}.{CORRELATION_COLUMN} must be missing when "
             f"{CORRELATION_STATUS_COLUMN} is not 'finite'"
         )
+
+
+def _column_series(frame: pd.DataFrame, column_name: str) -> pd.Series:
+    return cast(pd.Series, frame.loc[:, column_name])
+
+
+def _numeric_series(frame: pd.DataFrame, column_name: str) -> pd.Series:
+    return cast(
+        pd.Series, pd.to_numeric(_column_series(frame, column_name), errors="coerce")
+    )

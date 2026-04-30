@@ -4,11 +4,17 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from phospy.api.configs import (
+    KINASE_ADAPTIVE_POLICIES,
+    KINASE_PREDICTION_MODES,
+    KINASE_PROFILE_MISSING_VALUE_STRATEGIES,
     KinaseActivityConfig,
+    KinaseAdaptivePolicy,
     KinasePredictionConfig,
+    KinasePredictionMode,
+    KinaseProfileMissingValueStrategy,
     KinaseScoringConfig,
 )
 from phospy.errors.input import PhosPyInputError
@@ -205,11 +211,18 @@ class KinaseWorkflowConfigSnapshot:
                         f"{scope}.scoring_config.include_diagnostic_scoring_tables"
                     ),
                 ),
-                profile_missing_value_strategy=require_str(
-                    scoring_payload.get("profile_missing_value_strategy"),
-                    field_name=(
-                        f"{scope}.scoring_config.profile_missing_value_strategy"
-                    ),
+                profile_missing_value_strategy=(
+                    _parse_profile_missing_value_strategy(
+                        require_str(
+                            scoring_payload.get("profile_missing_value_strategy"),
+                            field_name=(
+                                f"{scope}.scoring_config.profile_missing_value_strategy"
+                            ),
+                        ),
+                        field_name=(
+                            f"{scope}.scoring_config.profile_missing_value_strategy"
+                        ),
+                    )
                 ),
             ),
             prediction_config=KinasePredictionConfig(
@@ -227,12 +240,18 @@ class KinaseWorkflowConfigSnapshot:
                     prediction_payload.get("adaptive_ensemble_runs"),
                     field_name=f"{scope}.prediction_config.adaptive_ensemble_runs",
                 ),
-                mode=require_str(
-                    prediction_payload.get("mode"),
+                mode=_parse_prediction_mode(
+                    require_str(
+                        prediction_payload.get("mode"),
+                        field_name=f"{scope}.prediction_config.mode",
+                    ),
                     field_name=f"{scope}.prediction_config.mode",
                 ),
-                adaptive_policy=require_str(
-                    prediction_payload.get("adaptive_policy"),
+                adaptive_policy=_parse_adaptive_policy(
+                    require_str(
+                        prediction_payload.get("adaptive_policy"),
+                        field_name=f"{scope}.prediction_config.adaptive_policy",
+                    ),
                     field_name=f"{scope}.prediction_config.adaptive_policy",
                 ),
                 n_iterations=require_int(
@@ -279,3 +298,26 @@ def _require_fields(
         return
     missing = ", ".join(missing_fields)
     raise PhosPyInputError(f"{field_name} is missing required field(s): {missing}")
+
+
+def _parse_profile_missing_value_strategy(
+    value: str, *, field_name: str
+) -> KinaseProfileMissingValueStrategy:
+    if value not in KINASE_PROFILE_MISSING_VALUE_STRATEGIES:
+        allowed = ", ".join(sorted(KINASE_PROFILE_MISSING_VALUE_STRATEGIES))
+        raise PhosPyInputError(f"{field_name} must be one of: {allowed}")
+    return cast(KinaseProfileMissingValueStrategy, value)
+
+
+def _parse_prediction_mode(value: str, *, field_name: str) -> KinasePredictionMode:
+    if value not in KINASE_PREDICTION_MODES:
+        allowed = ", ".join(sorted(KINASE_PREDICTION_MODES))
+        raise PhosPyInputError(f"{field_name} must be one of: {allowed}")
+    return cast(KinasePredictionMode, value)
+
+
+def _parse_adaptive_policy(value: str, *, field_name: str) -> KinaseAdaptivePolicy:
+    if value not in KINASE_ADAPTIVE_POLICIES:
+        allowed = ", ".join(sorted(KINASE_ADAPTIVE_POLICIES))
+        raise PhosPyInputError(f"{field_name} must be one of: {allowed}")
+    return cast(KinaseAdaptivePolicy, value)

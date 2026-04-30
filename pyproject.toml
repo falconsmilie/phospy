@@ -124,12 +124,18 @@ typeCheckingMode = "standard"
 include = [
   "src/phospy/api",
   "src/phospy/datasets",
+  "src/phospy/io",
   "src/phospy/prediction",
+  "src/phospy/provenance",
+  "src/phospy/references",
   "src/phospy/signalomes/clustering",
+  "src/phospy/tables",
+  "src/phospy/validation",
   "src/phospy/workflows",
 ]
 strict = [
   "src/phospy/prediction/policies.py",
+  "src/phospy/provenance/models.py",
   "src/phospy/signalomes/clustering/backend_dispatch.py",
   "src/phospy/signalomes/clustering/diagnostics.py",
   "src/phospy/signalomes/clustering/protocol.py",

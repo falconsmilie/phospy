@@ -61,3 +61,35 @@ ruff format
 ```
 
 For a more detailed implementation guide please review the [Internal Workflow Architecture](../adr/adr_0002_internal_workflow_architecture/#decision)
+
+## Type Checking
+
+Run Pyright locally with the same scope used in CI:
+
+```bash
+pyright
+```
+
+The checked scope is explicitly configured in `pyproject.toml` under
+`[tool.pyright].include` and covers:
+
+- `src/phospy/api`
+- `src/phospy/datasets`
+- `src/phospy/io` (including result publishing/export paths)
+- `src/phospy/prediction`
+- `src/phospy/provenance`
+- `src/phospy/references`
+- `src/phospy/signalomes/clustering`
+- `src/phospy/tables`
+- `src/phospy/validation`
+- `src/phospy/workflows`
+
+Expectations for typing changes:
+
+- prefer precise public/model/protocol boundary types over `Any`
+- keep suppressions narrow and local
+- avoid broad ignores and config-wide suppression
+
+Suppression policy:
+
+> Avoid suppressions by default. Use them only when Pyright cannot model correct runtime behaviour. Every suppression must be narrow, error-code-specific, commented, and justified by tests where practical.

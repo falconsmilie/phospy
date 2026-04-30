@@ -61,7 +61,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = parser.parse_args(list(argv) if argv is not None else None)
     except SystemExit as exc:
-        return int(exc.code)
+        return _exit_code_from_system_exit(exc)
     try:
         if args.command == "dataset-build":
             _run_dataset_build(args)
@@ -356,21 +356,22 @@ def _run_kinase(args: argparse.Namespace) -> None:
 
 def _run_signalome(args: argparse.Namespace) -> None:
     kinase_result = _run_kinase_workflow_from_args(args)
-    config_kwargs: dict[str, object] = {
-        "substrate_support_cutoff": args.substrate_support_cutoff,
-        "network_correlation_threshold": args.network_correlation_threshold,
-        "network_policy": args.network_policy,
-        "assignment_policy": args.assignment_policy,
-        "score_preconditioning_policy": args.score_preconditioning_policy,
-        "tree_engine": args.tree_engine,
-        "candidate_scoring_policy": args.candidate_scoring_policy,
-        "max_exact_tree_sites": args.max_exact_tree_sites,
-        "max_full_candidate_scoring_sites": args.max_full_candidate_scoring_sites,
-    }
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(**config_kwargs),
+            config=SignalomeConfig(
+                substrate_support_cutoff=args.substrate_support_cutoff,
+                network_correlation_threshold=args.network_correlation_threshold,
+                network_policy=args.network_policy,
+                assignment_policy=args.assignment_policy,
+                score_preconditioning_policy=args.score_preconditioning_policy,
+                tree_engine=args.tree_engine,
+                candidate_scoring_policy=args.candidate_scoring_policy,
+                max_exact_tree_sites=args.max_exact_tree_sites,
+                max_full_candidate_scoring_sites=(
+                    args.max_full_candidate_scoring_sites
+                ),
+            ),
         )
     )
     written = publish_signalome_workflow(
@@ -426,6 +427,15 @@ def _run_kinase_workflow_from_args(args: argparse.Namespace):
         activity_config=activity_config,
     )
     return KinaseWorkflow().run(request)
+
+
+def _exit_code_from_system_exit(exc: SystemExit) -> int:
+    code = exc.code
+    if code is None:
+        return CLI_EXIT_SUCCESS
+    if isinstance(code, int):
+        return code
+    return CLI_EXIT_USER_ERROR
 
 
 def _build_dataset_from_args(args: argparse.Namespace):

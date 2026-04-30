@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import InitVar, dataclass, field
-from typing import ClassVar
+from typing import ClassVar, cast
 
 import numpy as np
 import pandas as pd
@@ -147,8 +147,11 @@ class ActivityTargetTable(TableSchema):
             column_name="score",
             error_type=self._error_type,
         )
-        score_values = pd.to_numeric(frame.loc[:, "score"], errors="coerce").to_numpy(
-            dtype=float,
+        score_values = cast(
+            pd.Series,
+            pd.to_numeric(_column_series(frame, "score"), errors="coerce"),
+        ).to_numpy(
+            dtype="float64",
             copy=False,
         )
         invalid_mask = (score_values < 0.0) | (score_values > 1.0)
@@ -221,12 +224,12 @@ class ActivityCountSeries(SeriesSchema):
             field_name=f"{self.field_name}.index",
             error_type=self._error_type,
         )
-        coerced = pd.to_numeric(series, errors="coerce")
+        coerced = cast(pd.Series, pd.to_numeric(series, errors="coerce"))
         if coerced.isna().any():
             raise self._error_type(
                 f"{self.field_name} must contain integer-compatible counts"
             )
-        values = coerced.to_numpy(dtype=float, copy=False)
+        values = coerced.to_numpy(dtype="float64", copy=False)
         if not np.isfinite(values).all():
             raise self._error_type(f"{self.field_name} must contain finite counts")
         if (values < 0.0).any():
@@ -252,10 +255,16 @@ def _require_numeric_column(
     column_name: str,
     error_type: type[PhosPyValidationError],
 ) -> None:
-    values = pd.to_numeric(frame.loc[:, column_name], errors="coerce")
+    values = cast(
+        pd.Series, pd.to_numeric(_column_series(frame, column_name), errors="coerce")
+    )
     if values.isna().any():
         raise error_type(f"{field_name}.{column_name} must contain numeric values")
-    if not np.isfinite(values.to_numpy(dtype=float, copy=False)).all():
+    if not np.isfinite(values.to_numpy(dtype="float64", copy=False)).all():
         raise error_type(
             f"{field_name}.{column_name} must contain finite numeric values"
         )
+
+
+def _column_series(frame: pd.DataFrame, column_name: str) -> pd.Series:
+    return cast(pd.Series, frame.loc[:, column_name])

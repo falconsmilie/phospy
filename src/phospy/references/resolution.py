@@ -21,6 +21,7 @@ class ReferenceProvider(Protocol):
 
     def run(self, organism: Organism) -> ReferenceBundle:
         """Return a concrete `ReferenceBundle` for the requested organism."""
+        ...
 
 
 class ReferenceResolverContract(Protocol):
@@ -33,6 +34,7 @@ class ReferenceResolverContract(Protocol):
         dataset_organism: Organism | None,
     ) -> ReferenceBundle:
         """Resolve workflow reference input into a validated bundle."""
+        ...
 
 
 class BundledReferenceProvider:

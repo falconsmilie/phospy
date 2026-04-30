@@ -63,7 +63,10 @@ def validate_json_safe_mapping(
     """Validate and normalize a mapping as stable JSON-safe metadata."""
 
     payload = require_mapping(value, field_name=field_name)
-    return _validate_json_safe_value(payload, path=field_name)
+    validated = _validate_json_safe_value(payload, path=field_name)
+    if not isinstance(validated, dict):
+        raise PhosPyInputError(f"{field_name} must be a JSON object")
+    return validated
 
 
 def _validate_json_safe_value(value: object, *, path: str) -> JsonValue:

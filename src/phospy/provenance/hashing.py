@@ -88,7 +88,7 @@ def _update(hasher: hashlib._Hash, payload: Any) -> None:  # type: ignore[attr-d
 
 
 def _normalize_value(value: object) -> object:
-    if value is None or pd.isna(value):
+    if value is None or _is_missing_scalar(value):
         return {"kind": "missing", "value": _MISSING_SENTINEL}
     if isinstance(value, bool):
         return {"kind": "bool", "value": bool(value)}
@@ -125,6 +125,11 @@ def _normalize_value(value: object) -> object:
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         return {"kind": "sequence", "value": [_normalize_value(item) for item in value]}
     return {"kind": "repr", "value": repr(value)}
+
+
+def _is_missing_scalar(value: object) -> bool:
+    missing = pd.isna(value)
+    return isinstance(missing, (bool, np.bool_)) and bool(missing)
 
 
 __all__ = [

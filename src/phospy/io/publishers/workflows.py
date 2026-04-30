@@ -21,6 +21,11 @@ def publish_dataset(
 ) -> dict[str, Path]:
     """Publish an analysis-ready dataset into an output directory."""
 
+    quantitative_meaning = dataset.intensity_scale_state.quantity
+    if quantitative_meaning is None:
+        raise PhosPyInputError(
+            "dataset.intensity_scale_state.quantity must be established before publishing"
+        )
     suffix = table_suffix_for_format(output_format)
     dataset_dir = Path(output_root) / "dataset"
     written: dict[str, Path] = {}
@@ -49,7 +54,7 @@ def publish_dataset(
         {
             "organism": None if dataset.organism is None else dataset.organism.value,
             "intensity_scale": dataset.intensity_scale_state.label,
-            "quantitative_meaning": dataset.intensity_scale_state.quantity.value,
+            "quantitative_meaning": quantitative_meaning.value,
             "processing_state": processing_state_to_payload(dataset.processing_state),
             "output_format": output_format,
             "provenance": (
