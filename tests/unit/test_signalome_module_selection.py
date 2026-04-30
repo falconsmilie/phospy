@@ -11,12 +11,17 @@ from phospy.scientific_policies import (
     build_signalome_module_candidate_score_policy,
 )
 from phospy.signalomes.clustering import (
+    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS,
     cluster_sites_with_diagnostics,
     fit_cluster_labels,
     select_module_count_with_diagnostics,
 )
 from phospy.signalomes.clustering import exact_python as exact_clustering
 from phospy.signalomes.clustering import orchestration as clustering_orchestration
+from phospy.signalomes.clustering.tree_building import (
+    prepare_scoring_values_for_clustering,
+    summarize_clustering_missing_value_diagnostics,
+)
 
 
 def test_module_count_selection_accepts_explicit_request_equal_to_site_count() -> None:
@@ -367,6 +372,125 @@ def test_candidate_scoring_helper_returns_stable_shape_across_all_branches() -> 
     assert sampled_result.candidate_scoring_skip_reason is None
     assert 2 in full_result.candidate_scores
     assert 2 in sampled_result.candidate_scores
+
+
+def test_prepare_scoring_values_imputes_partial_missing_with_column_median() -> None:
+    values = np.asarray(
+        [
+            [1.0, np.nan, 3.0],
+            [2.0, 2.0, np.nan],
+            [3.0, 4.0, 9.0],
+        ],
+        dtype=float,
+    )
+
+    prepared = prepare_scoring_values_for_clustering(values)
+
+    assert np.array_equal(np.isfinite(prepared), np.ones_like(prepared, dtype=bool))
+    np.testing.assert_allclose(
+        prepared,
+        np.asarray(
+            [
+                [1.0, 3.0, 3.0],
+                [2.0, 2.0, 6.0],
+                [3.0, 4.0, 9.0],
+            ],
+            dtype=float,
+        ),
+    )
+
+
+def test_prepare_scoring_values_imputes_non_finite_and_fully_missing_columns() -> None:
+    values = np.asarray(
+        [
+            [1.0, np.nan, np.inf],
+            [2.0, np.nan, -np.inf],
+            [3.0, np.nan, np.nan],
+        ],
+        dtype=float,
+    )
+
+    prepared = prepare_scoring_values_for_clustering(values)
+    diagnostics = summarize_clustering_missing_value_diagnostics(values)
+
+    assert np.array_equal(np.isfinite(prepared), np.ones_like(prepared, dtype=bool))
+    np.testing.assert_allclose(
+        prepared,
+        np.asarray(
+            [
+                [1.0, 0.0, 0.0],
+                [2.0, 0.0, 0.0],
+                [3.0, 0.0, 0.0],
+            ],
+            dtype=float,
+        ),
+    )
+    assert diagnostics.policy == (
+        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS
+    )
+    assert diagnostics.non_finite_input_value_count == 6
+    assert diagnostics.missing_after_non_finite_normalization_count == 6
+    assert diagnostics.imputed_value_count == 6
+    assert diagnostics.fully_missing_column_count == 2
+
+
+def test_cluster_sites_uses_imputed_values_for_final_tree_input(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scoring_matrix = pd.DataFrame(
+        {
+            "K1": [1.0, 2.0, 3.0],
+            "K2": [np.nan, 2.0, 4.0],
+            "K3": [np.nan, np.nan, np.nan],
+        },
+        index=["P1;S1;", "P2;S2;", "P3;S3;"],
+    )
+    captured: dict[str, np.ndarray] = {}
+
+    def _capture_fit_cluster_labels(
+        scoring_values: np.ndarray,
+        cluster_count: int,
+        *,
+        tree_engine: str = "exact",
+        candidate_scoring_policy: str = "full",
+        max_exact_tree_sites: int | None = 2000,
+        cluster_tree_operations: object | None = None,
+    ) -> np.ndarray:
+        del cluster_count
+        del tree_engine
+        del candidate_scoring_policy
+        del max_exact_tree_sites
+        del cluster_tree_operations
+        captured["scoring_values"] = np.asarray(scoring_values, dtype=float).copy()
+        return np.zeros(scoring_values.shape[0], dtype=int)
+
+    monkeypatch.setattr(
+        clustering_orchestration,
+        "_fit_cluster_labels_impl",
+        _capture_fit_cluster_labels,
+    )
+
+    cluster_sites_with_diagnostics(
+        scoring_matrix=scoring_matrix,
+        requested_module_count=2,
+    )
+
+    prepared_values = captured.get("scoring_values")
+    assert prepared_values is not None
+    assert np.array_equal(
+        np.isfinite(prepared_values), np.ones_like(prepared_values, dtype=bool)
+    )
+    np.testing.assert_allclose(
+        prepared_values,
+        np.asarray(
+            [
+                [1.0, 3.0, 0.0],
+                [2.0, 2.0, 0.0],
+                [3.0, 4.0, 0.0],
+            ],
+            dtype=float,
+        ),
+    )
 
 
 def test_module_selection_survives_empty_candidate_range_branch(

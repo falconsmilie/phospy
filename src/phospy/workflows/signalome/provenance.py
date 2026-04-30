@@ -21,6 +21,14 @@ from phospy.scientific_policies import (
     build_signalome_module_candidate_score_policy,
 )
 from phospy.signalomes.clustering import ClusterSitesResult
+from phospy.signalomes.clustering.policies import (
+    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO,
+    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES,
+)
+from phospy.signalomes.clustering.tree_building import (
+    SignalomeClusteringMissingValueDiagnostics,
+    summarize_clustering_missing_value_diagnostics,
+)
 from phospy.signalomes.models import SignalomeNetworkCorrelationDiagnostics
 from phospy.workflows.signalome.component_models import SignalomeScaleGuardDecision
 from phospy.workflows.signalome.contracts import (
@@ -121,6 +129,11 @@ class SignalomeProvenanceBuilder:
             ),
             PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
         )
+        clustering_missing_value_diagnostics = (
+            summarize_clustering_missing_value_diagnostics(
+                request.downstream_score_matrix.to_numpy(dtype=float, copy=False)
+            )
+        )
         return RunProvenance(
             environment=self._collect_environment(),
             input_tables=input_tables,
@@ -148,6 +161,9 @@ class SignalomeProvenanceBuilder:
                         "tree_engine": str(config.tree_engine),
                         "candidate_scoring_policy": str(
                             config.candidate_scoring_policy
+                        ),
+                        "missing_value_policy": str(
+                            clustering_missing_value_diagnostics.policy
                         ),
                         "clustering_engine": str(config.clustering_engine),
                         "module_count": (
@@ -297,6 +313,9 @@ class SignalomeProvenanceBuilder:
                     clustering_result=clustering_result,
                     network_correlation_diagnostics=network_correlation_diagnostics,
                     scale_guard_decision=scale_guard_decision,
+                    clustering_missing_value_diagnostics=(
+                        clustering_missing_value_diagnostics
+                    ),
                 ),
                 "upstream_kinase_provenance": (
                     None
@@ -339,6 +358,7 @@ def _build_signalome_score_semantics(
     clustering_result: ClusterSitesResult,
     network_correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics,
     scale_guard_decision: SignalomeScaleGuardDecision,
+    clustering_missing_value_diagnostics: SignalomeClusteringMissingValueDiagnostics,
 ) -> dict[str, object]:
     downstream_score_source = str(request.downstream_score_source)
     module_selection_diagnostics = clustering_result.module_selection_diagnostics
@@ -409,6 +429,34 @@ def _build_signalome_score_semantics(
                 "policy": str(preconditioning.policy),
                 "dropped_row_count": int(preconditioning.dropped_all_missing_row_count),
                 "retained_row_count": int(preconditioning.retained_row_count),
+            },
+            "clustering_distance_input": {
+                "policy": str(clustering_missing_value_diagnostics.policy),
+                "applies_to": SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO,
+                "non_finite_handling": (
+                    "non-finite values are treated as missing before imputation"
+                ),
+                "partial_missingness_handling": (
+                    "missing entries are imputed with the median of the same column"
+                ),
+                "fully_missing_column_handling": (
+                    "columns with all values missing are imputed with 0.0"
+                ),
+                "non_finite_input_value_count": int(
+                    clustering_missing_value_diagnostics.non_finite_input_value_count
+                ),
+                "missing_after_non_finite_normalization_count": int(
+                    clustering_missing_value_diagnostics.missing_after_non_finite_normalization_count
+                ),
+                "imputed_value_count": int(
+                    clustering_missing_value_diagnostics.imputed_value_count
+                ),
+                "fully_missing_column_count": int(
+                    clustering_missing_value_diagnostics.fully_missing_column_count
+                ),
+                "output_tables_include_imputed_values": bool(
+                    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES
+                ),
             },
             "correlation_calculation": (
                 "partially missing rows are retained for pairwise-complete "

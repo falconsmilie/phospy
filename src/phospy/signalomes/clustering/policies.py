@@ -26,6 +26,24 @@ SignalomeClusteringScoringMode = Literal["auto", "exact", "approximate"]
 SIGNALOME_TREE_ENGINE_EXACT = "exact"
 SignalomeTreeEngine = Literal["exact"]
 
+SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS = "column_median_imputation_with_zero_for_all_missing_columns"
+SignalomeClusteringMissingValuePolicy = Literal[
+    "column_median_imputation_with_zero_for_all_missing_columns"
+]
+# Signalome clustering-matrix preparation policy:
+# - non-finite values are normalised to missing before imputation
+# - partially missing columns are imputed with the column median
+# - fully missing columns are imputed with 0.0
+# - imputation is used for clustering distance/tree construction inputs only
+#   (output tables remain the original workflow outputs and do not expose
+#   imputed clustering values)
+SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO = (
+    "clustering_distance_and_tree_construction_only"
+)
+SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES = (
+    False
+)
+
 SIGNALOME_CANDIDATE_SCORING_POLICY_FULL = "full"
 SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED = "sampled"
 SignalomeCandidateScoringPolicy = Literal["full", "sampled"]
@@ -57,6 +75,9 @@ __all__ = [
     "SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD",
     "SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY",
     "SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT",
+    "SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO",
+    "SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS",
+    "SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES",
     "SIGNALOME_CLUSTERING_SCORING_MODE_APPROXIMATE",
     "SIGNALOME_CLUSTERING_SCORING_MODE_AUTO",
     "SIGNALOME_CLUSTERING_SCORING_MODE_EXACT",
@@ -64,6 +85,7 @@ __all__ = [
     "SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE",
     "SIGNALOME_TREE_ENGINE_EXACT",
     "SignalomeCandidateScoringPolicy",
+    "SignalomeClusteringMissingValuePolicy",
     "SignalomeClusteringScoringMode",
     "SignalomeTreeEngine",
     "_CandidateScoringMode",

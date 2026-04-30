@@ -21,8 +21,10 @@ from phospy.signalomes.clustering.contracts import ClusterTreeEngine
 from phospy.signalomes.clustering.policies import (
     MAX_FULL_CORRELATION_SITE_COUNT,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS,
     SIGNALOME_TREE_ENGINE_EXACT,
     SignalomeCandidateScoringPolicy,
+    SignalomeClusteringMissingValuePolicy,
     SignalomeTreeEngine,
 )
 from phospy.signalomes.clustering.scale_guards import (
@@ -76,6 +78,15 @@ class _ExactWardClusterTreeOperations:
             cluster_tree=cast(ExactWardClusterTree, cluster_tree),
             cluster_counts=cluster_counts,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeClusteringMissingValueDiagnostics:
+    policy: SignalomeClusteringMissingValuePolicy
+    non_finite_input_value_count: int
+    missing_after_non_finite_normalization_count: int
+    imputed_value_count: int
+    fully_missing_column_count: int
 
 
 ClusterTreeOperations = _ClusterTreeOperationsAdapter
@@ -169,26 +180,98 @@ def fit_cluster_labels(
     )[resolved_cluster_count].astype(int, copy=False)
 
 
-def prepare_scoring_values_for_clustering(scoring_values: np.ndarray) -> np.ndarray:
+def summarize_clustering_missing_value_diagnostics(
+    scoring_values: np.ndarray,
+    *,
+    missing_value_policy: SignalomeClusteringMissingValuePolicy = (
+        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS
+    ),
+) -> SignalomeClusteringMissingValueDiagnostics:
+    _validate_signalome_clustering_missing_value_policy(missing_value_policy)
+    values = np.asarray(scoring_values, dtype=float)
+    if values.ndim != 2:
+        raise ValueError("scoring_values must be a 2D array")
+    if values.size == 0:
+        return SignalomeClusteringMissingValueDiagnostics(
+            policy=missing_value_policy,
+            non_finite_input_value_count=0,
+            missing_after_non_finite_normalization_count=0,
+            imputed_value_count=0,
+            fully_missing_column_count=0,
+        )
+    non_finite_mask = ~np.isfinite(values)
+    normalized_values = values.copy()
+    normalized_values[non_finite_mask] = np.nan
+    missing_mask = np.isnan(normalized_values)
+    fully_missing_columns = np.all(missing_mask, axis=0)
+    missing_count = int(np.count_nonzero(missing_mask))
+    return SignalomeClusteringMissingValueDiagnostics(
+        policy=missing_value_policy,
+        non_finite_input_value_count=int(np.count_nonzero(non_finite_mask)),
+        missing_after_non_finite_normalization_count=missing_count,
+        imputed_value_count=missing_count,
+        fully_missing_column_count=int(np.count_nonzero(fully_missing_columns)),
+    )
+
+
+def prepare_scoring_values_for_clustering(
+    scoring_values: np.ndarray,
+    *,
+    missing_value_policy: SignalomeClusteringMissingValuePolicy = (
+        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS
+    ),
+) -> np.ndarray:
+    _validate_signalome_clustering_missing_value_policy(missing_value_policy)
     values = np.asarray(scoring_values, dtype=float).copy()
+    if values.ndim != 2:
+        raise ValueError("scoring_values must be a 2D array")
     if values.size == 0:
         return values
     values[~np.isfinite(values)] = np.nan
-    column_medians = np.nanmedian(values, axis=0)
-    column_medians = np.where(np.isfinite(column_medians), column_medians, 0.0)
+    column_medians = _column_medians_with_zero_for_all_missing_columns(values)
     row_positions, column_positions = np.where(np.isnan(values))
     if row_positions.size > 0:
         values[row_positions, column_positions] = column_medians[column_positions]
     return values
 
 
+def _validate_signalome_clustering_missing_value_policy(
+    missing_value_policy: SignalomeClusteringMissingValuePolicy,
+) -> None:
+    if (
+        missing_value_policy
+        != SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS
+    ):
+        raise ValueError(
+            "unsupported signalome clustering missing-value policy: "
+            f"{missing_value_policy!r}"
+        )
+
+
+def _column_medians_with_zero_for_all_missing_columns(
+    values: np.ndarray,
+) -> np.ndarray:
+    n_columns = int(values.shape[1])
+    column_medians = np.zeros(n_columns, dtype=float)
+    for column_index in range(n_columns):
+        column_values = values[:, column_index]
+        finite_values = column_values[np.isfinite(column_values)]
+        if finite_values.size == 0:
+            column_medians[column_index] = 0.0
+            continue
+        column_medians[column_index] = float(np.median(finite_values))
+    return column_medians
+
+
 __all__ = [
     "ClusterTreeOperations",
     "ClusterTreeOperationsAdapter",
+    "SignalomeClusteringMissingValueDiagnostics",
     "build_cluster_labels_from_tree",
     "build_cluster_tree",
     "build_exact_cluster_tree_with_guard",
     "fit_cluster_labels",
     "prepare_scoring_values_for_clustering",
     "resolve_cluster_tree_operations",
+    "summarize_clustering_missing_value_diagnostics",
 ]

@@ -418,6 +418,9 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert "performance" in signalome_config
     assert signalome_config["clustering"]["tree_engine"] == "exact"
     assert signalome_config["clustering"]["candidate_scoring_policy"] == "full"
+    assert signalome_config["clustering"]["missing_value_policy"] == (
+        "column_median_imputation_with_zero_for_all_missing_columns"
+    )
     assert signalome_config["performance"]["max_exact_tree_sites"] == 2000
     assert signalome_config["clustering"]["module_count"] == 2
     scale_guard = provenance.workflow_parameters["scale_guard"]

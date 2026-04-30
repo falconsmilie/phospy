@@ -45,6 +45,9 @@ from phospy.signalomes.clustering import (
     SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD,
     SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY,
     SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT,
+    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO,
+    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS,
+    SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE,
 )
@@ -606,6 +609,10 @@ def test_executor_provenance_records_explicit_exact_python_backend() -> None:
     result = SignalomeWorkflowExecutor().run(interpreted)
 
     assert result.provenance is not None
+    signalome_config = result.provenance.workflow_parameters["signalome_config"]
+    assert signalome_config["clustering"]["missing_value_policy"] == (
+        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS
+    )
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
     assert scale_guard["clustering_engine"] == SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
     assert scale_guard["backend_diagnostics"]["backend_name"] == (
@@ -1494,6 +1501,32 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     )
     assert (
         missing_profile["all_missing_rows_before_execution"]["dropped_row_count"] == 1
+    )
+    clustering_distance_input = missing_profile["clustering_distance_input"]
+    assert clustering_distance_input["policy"] == (
+        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_COLUMN_MEDIAN_IMPUTATION_WITH_ZERO_FOR_ALL_MISSING_COLUMNS
+    )
+    assert clustering_distance_input["applies_to"] == (
+        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO
+    )
+    assert clustering_distance_input["non_finite_handling"] == (
+        "non-finite values are treated as missing before imputation"
+    )
+    assert clustering_distance_input["partial_missingness_handling"] == (
+        "missing entries are imputed with the median of the same column"
+    )
+    assert clustering_distance_input["fully_missing_column_handling"] == (
+        "columns with all values missing are imputed with 0.0"
+    )
+    assert int(clustering_distance_input["non_finite_input_value_count"]) >= 0
+    assert (
+        int(clustering_distance_input["missing_after_non_finite_normalization_count"])
+        >= 0
+    )
+    assert int(clustering_distance_input["imputed_value_count"]) >= 0
+    assert int(clustering_distance_input["fully_missing_column_count"]) >= 0
+    assert clustering_distance_input["output_tables_include_imputed_values"] == (
+        SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES
     )
     thresholds = score_semantics["thresholds_and_limits"]
     assert thresholds["max_exact_tree_sites"] == 2000
