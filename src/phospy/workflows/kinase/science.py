@@ -317,6 +317,29 @@ def _require_numeric_matrix(
     *,
     field_name: str,
 ) -> pd.DataFrame:
+    boolean_columns = [
+        str(column)
+        for column in value.columns
+        if pd.api.types.is_bool_dtype(value[column])
+    ]
+    if boolean_columns:
+        raise WorkflowStageError(
+            "kinase workflow internal invariant failed at "
+            "seam=kinase.science.input_non_boolean_values; "
+            f"{field_name} contains boolean columns: {', '.join(boolean_columns)}"
+        )
+    non_numeric_columns = [
+        str(column)
+        for column in value.columns
+        if not pd.api.types.is_numeric_dtype(value[column])
+    ]
+    if non_numeric_columns:
+        raise WorkflowStageError(
+            "kinase workflow internal invariant failed at "
+            "seam=kinase.science.input_numeric_values; "
+            f"{field_name} contains non-numeric columns: "
+            f"{', '.join(non_numeric_columns)}"
+        )
     numeric = value.astype(float)
     if np.isinf(numeric.to_numpy(dtype=float, copy=False)).any():
         raise WorkflowStageError(

@@ -590,12 +590,15 @@ def _require_numeric_matrix(frame: pd.DataFrame, *, field_name: str) -> None:
     non_numeric_columns = [
         str(column)
         for column in frame.columns
-        if not pd.api.types.is_numeric_dtype(frame[column])
+        if (
+            not pd.api.types.is_numeric_dtype(frame[column])
+            or pd.api.types.is_bool_dtype(frame[column])
+        )
     ]
     if non_numeric_columns:
         raise PhosPyInputError(
             "dataset build request preprocessing total/protein correction requires "
-            f"numeric {field_name} columns; non-numeric columns: "
+            f"numeric non-boolean {field_name} columns; invalid columns: "
             + ", ".join(non_numeric_columns)
         )
 

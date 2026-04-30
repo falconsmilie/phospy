@@ -37,7 +37,19 @@ def require_numeric_dataframe(
     field_name: str,
     error_type: ValidationErrorType,
 ) -> pd.DataFrame:
-    """Require all columns in a DataFrame to be numeric."""
+    """Require all columns in a DataFrame to be numeric and non-boolean."""
+
+    boolean_columns = [
+        str(column)
+        for column in value.columns
+        if pd.api.types.is_bool_dtype(value[column])
+    ]
+    if boolean_columns:
+        joined_columns = ", ".join(boolean_columns)
+        raise error_type(
+            f"{field_name} must contain only scientific numeric columns; "
+            f"boolean columns are invalid: {joined_columns}"
+        )
 
     non_numeric_columns = [
         str(column)

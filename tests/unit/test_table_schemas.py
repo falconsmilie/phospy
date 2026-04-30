@@ -92,6 +92,73 @@ def test_dataset_schema_non_numeric_phospho_column_fails() -> None:
         PhosphoIntensityMatrix(frame=bad)
 
 
+def test_dataset_schema_all_boolean_phospho_matrix_fails() -> None:
+    bad = pd.DataFrame(
+        {
+            "sample_a": [True, False],
+            "sample_b": [False, True],
+        },
+        index=_phospho_frame().index.copy(),
+    )
+    with pytest.raises(DatasetValidationError) as exc_info:
+        PhosphoIntensityMatrix(frame=bad)
+    message = str(exc_info.value)
+    assert "boolean columns are invalid" in message
+    assert "sample_a" in message
+    assert "sample_b" in message
+
+
+def test_dataset_schema_mixed_float_and_boolean_columns_fail() -> None:
+    index = _phospho_frame().index.copy()
+    bad = pd.DataFrame(
+        {
+            "sample_a": [1.0, 2.0],
+            "sample_b": pd.Series([True, False], index=index, dtype="bool"),
+        },
+        index=index,
+    )
+    with pytest.raises(DatasetValidationError) as exc_info:
+        PhosphoIntensityMatrix(frame=bad)
+    message = str(exc_info.value)
+    assert "boolean columns are invalid" in message
+    assert "sample_b" in message
+
+
+def test_dataset_schema_nullable_boolean_phospho_column_fails() -> None:
+    index = _phospho_frame().index.copy()
+    bad = pd.DataFrame(
+        {
+            "sample_a": pd.Series([True, pd.NA], index=index, dtype="boolean"),
+            "sample_b": [1.5, 2.5],
+        },
+        index=index,
+    )
+    with pytest.raises(DatasetValidationError) as exc_info:
+        PhosphoIntensityMatrix(frame=bad)
+    message = str(exc_info.value)
+    assert "boolean columns are invalid" in message
+    assert "sample_a" in message
+
+
+def test_dataset_schema_valid_integer_phospho_matrix_passes() -> None:
+    frame = pd.DataFrame(
+        {
+            "sample_a": [1, 2],
+            "sample_b": [3, 4],
+        },
+        index=_phospho_frame().index.copy(),
+    )
+    wrapper = PhosphoIntensityMatrix(frame=frame)
+    assert wrapper.frame.shape == (2, 2)
+
+
+def test_dataset_schema_numeric_looking_string_column_fails() -> None:
+    bad = _phospho_frame().astype(object)
+    bad.loc[:, "sample_a"] = ["1.0", "2.0"]
+    with pytest.raises(DatasetValidationError, match="non-numeric columns: sample_a"):
+        PhosphoIntensityMatrix(frame=bad)
+
+
 def test_dataset_schema_missing_phospho_value_fails() -> None:
     bad = _phospho_frame().copy(deep=True)
     bad.loc["MAPK14;Y182;", "sample_a"] = float("nan")
@@ -265,6 +332,21 @@ def test_prediction_schema_out_of_range_score_fails() -> None:
     )
     with pytest.raises(PhosPyValidationError, match="between 0.0 and 1.0"):
         KinasePredictionMatrix(frame=pred_mat)
+
+
+def test_prediction_schema_boolean_kinase_score_column_fails() -> None:
+    pred_mat = pd.DataFrame(
+        {
+            "MAP2K6": [0.9, 0.8],
+            "AKT1": [True, False],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    with pytest.raises(PhosPyValidationError) as exc_info:
+        KinasePredictionMatrix(frame=pred_mat)
+    message = str(exc_info.value)
+    assert "boolean columns are invalid" in message
+    assert "AKT1" in message
 
 
 def test_activity_schema_non_numeric_matrix_fails() -> None:

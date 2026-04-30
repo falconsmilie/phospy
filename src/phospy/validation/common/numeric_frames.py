@@ -31,6 +31,28 @@ def require_numeric_matrix(
         allow_empty=allow_empty,
         error_type=error_type,
     )
+    boolean_columns = [
+        str(column)
+        for column in frame.columns
+        if pd.api.types.is_bool_dtype(frame[column])
+    ]
+    if boolean_columns:
+        joined_columns = ", ".join(boolean_columns)
+        raise error_type(
+            f"{field_name} must contain scientific numeric values; "
+            f"boolean columns are invalid: {joined_columns}"
+        )
+    non_numeric_columns = [
+        str(column)
+        for column in frame.columns
+        if not pd.api.types.is_numeric_dtype(frame[column])
+    ]
+    if non_numeric_columns:
+        joined_columns = ", ".join(non_numeric_columns)
+        raise error_type(
+            f"{field_name} must contain numeric values; non-numeric columns: "
+            f"{joined_columns}"
+        )
     try:
         numeric_frame = frame.astype(float)
     except (TypeError, ValueError) as exc:
