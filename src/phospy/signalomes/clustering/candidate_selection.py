@@ -7,6 +7,9 @@ from dataclasses import dataclass
 import numpy as np
 
 from phospy.signalomes.clustering.candidate_scoring import _ProfileDegeneracySummary
+from phospy.signalomes.clustering.diagnostic_schemas import (
+    SignalomeCandidateScoringSamplingDiagnostics,
+)
 from phospy.signalomes.clustering.diagnostics import build_module_selection_diagnostics
 from phospy.signalomes.clustering.policies import (
     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
@@ -32,7 +35,7 @@ class _ModuleSelectionComputation:
     exact_cluster_tree_built: bool
     candidate_scoring_evaluated: bool
     candidate_scoring_skip_reason: str | None
-    candidate_scoring_sampling: dict[str, object] | None
+    candidate_scoring_sampling: SignalomeCandidateScoringSamplingDiagnostics | None
 
 
 def build_module_selection_result(
@@ -54,7 +57,9 @@ def build_module_selection_result(
     exact_cluster_tree_built: bool = False,
     candidate_scoring_evaluated: bool = False,
     candidate_scoring_skip_reason: str | None = None,
-    candidate_scoring_sampling: dict[str, object] | None = None,
+    candidate_scoring_sampling: SignalomeCandidateScoringSamplingDiagnostics | None = (
+        None
+    ),
 ) -> _ModuleSelectionComputation:
     return _ModuleSelectionComputation(
         diagnostics=build_module_selection_diagnostics(
@@ -206,7 +211,7 @@ def select_threshold_candidate(
     exact_cluster_tree_built: bool,
     candidate_scoring_evaluated: bool,
     candidate_scoring_skip_reason: str | None,
-    candidate_scoring_sampling: dict[str, object] | None,
+    candidate_scoring_sampling: SignalomeCandidateScoringSamplingDiagnostics | None,
 ) -> _ModuleSelectionComputation | None:
     passing_candidates = filter_cluster_candidates(
         candidate_scores,

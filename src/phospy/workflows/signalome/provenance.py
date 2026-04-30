@@ -23,6 +23,10 @@ from phospy.scientific_policies import (
     build_signalome_module_candidate_score_policy,
 )
 from phospy.signalomes.clustering import ClusterSitesResult
+from phospy.signalomes.clustering.diagnostic_schemas import (
+    backend_diagnostics_to_payload,
+    candidate_scoring_sampling_diagnostics_to_payload,
+)
 from phospy.signalomes.clustering.policies import (
     SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_APPLIES_TO,
     SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES,
@@ -233,7 +237,9 @@ class SignalomeProvenanceBuilder:
                     "backend_diagnostics": (
                         None
                         if scale_guard_decision.backend_diagnostics is None
-                        else dict(scale_guard_decision.backend_diagnostics)
+                        else backend_diagnostics_to_payload(
+                            scale_guard_decision.backend_diagnostics
+                        )
                     ),
                     "tree_engine": str(scale_guard_decision.tree_engine),
                     "tree_generation_backend": str(
@@ -305,7 +311,9 @@ class SignalomeProvenanceBuilder:
                     "candidate_scoring_sampling": (
                         None
                         if scale_guard_decision.candidate_scoring_sampling is None
-                        else dict(scale_guard_decision.candidate_scoring_sampling)
+                        else candidate_scoring_sampling_diagnostics_to_payload(
+                            scale_guard_decision.candidate_scoring_sampling
+                        )
                     ),
                     "candidate_scoring_applies_to": str(
                         scale_guard_decision.candidate_scoring_applies_to

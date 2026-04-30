@@ -6,6 +6,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from phospy.signalomes.clustering.diagnostic_schemas import (
+    SignalomeCandidateScoringSamplingDiagnostics,
+)
 from phospy.signalomes.clustering.diagnostics import (
     build_candidate_scoring_sampling_provenance,
 )
@@ -53,7 +56,7 @@ class _CandidateClusterScoreResult:
     exact_cluster_tree_built: bool
     candidate_scoring_evaluated: bool
     candidate_scoring_skip_reason: str | None
-    candidate_scoring_sampling: dict[str, object] | None
+    candidate_scoring_sampling: SignalomeCandidateScoringSamplingDiagnostics | None
 
 
 def summarize_profile_degeneracy(
@@ -236,7 +239,7 @@ def _build_candidate_scoring_sampling_provenance(
     max_sites_per_cluster: int,
     per_cluster_sample_counts: list[int],
     actual_sampled_pair_count: int,
-) -> dict[str, object]:
+) -> SignalomeCandidateScoringSamplingDiagnostics:
     """Build deterministic sampled candidate-scoring provenance metadata."""
 
     return build_candidate_scoring_sampling_provenance(

@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd  # pyright: ignore[reportMissingTypeStubs]
 
+from phospy.signalomes.clustering.diagnostic_schemas import (
+    SignalomeCandidateScoringSamplingDiagnostics,
+    candidate_scoring_sampling_diagnostics_to_payload,
+    validate_candidate_scoring_sampling_diagnostics,
+)
 from phospy.signalomes.models import (
     SignalomeClusterCandidateScore,
     SignalomeModuleSelectionDiagnostics,
@@ -59,7 +65,7 @@ def build_candidate_scoring_sampling_provenance(
     actual_sampled_pair_count: int,
     sampling_method: str,
     deterministic_seed_policy: str,
-) -> dict[str, object]:
+) -> SignalomeCandidateScoringSamplingDiagnostics:
     """Build deterministic sampled candidate-scoring provenance metadata."""
 
     if per_cluster_sample_counts:
@@ -73,7 +79,7 @@ def build_candidate_scoring_sampling_provenance(
         sample_mean = 0.0
         sample_total = 0
 
-    return {
+    payload = {
         "sampling_cap": int(max_sites_per_cluster),
         "sampling_method": str(sampling_method),
         "deterministic_seed_policy": str(deterministic_seed_policy),
@@ -85,10 +91,54 @@ def build_candidate_scoring_sampling_provenance(
             "total": sample_total,
         },
     }
+    return validate_candidate_scoring_sampling_diagnostics(
+        payload,
+        field_name="candidate_scoring_sampling",
+    )
+
+
+def candidate_scoring_sampling_provenance_to_dataframe(
+    payload: SignalomeCandidateScoringSamplingDiagnostics,
+) -> pd.DataFrame:
+    """Convert sampled candidate-scoring diagnostics to a stable one-row DataFrame."""
+
+    normalized = validate_candidate_scoring_sampling_diagnostics(
+        payload,
+        field_name="candidate_scoring_sampling",
+    )
+    summary = normalized["per_cluster_sample_count_summary"]
+    return pd.DataFrame(
+        [
+            {
+                "sampling_cap": int(normalized["sampling_cap"]),
+                "sampling_method": str(normalized["sampling_method"]),
+                "deterministic_seed_policy": str(
+                    normalized["deterministic_seed_policy"]
+                ),
+                "actual_sampled_pair_count": int(
+                    normalized["actual_sampled_pair_count"]
+                ),
+                "per_cluster_sample_count_min": int(summary["min"]),
+                "per_cluster_sample_count_max": int(summary["max"]),
+                "per_cluster_sample_count_mean": float(summary["mean"]),
+                "per_cluster_sample_count_total": int(summary["total"]),
+            }
+        ]
+    )
+
+
+def candidate_scoring_sampling_provenance_to_payload(
+    payload: SignalomeCandidateScoringSamplingDiagnostics,
+) -> dict[str, object]:
+    """Serialize sampled candidate-scoring diagnostics to a stable payload."""
+
+    return candidate_scoring_sampling_diagnostics_to_payload(payload)
 
 
 __all__ = [
     "approximation_used_from_candidate_mode",
     "build_candidate_scoring_sampling_provenance",
     "build_module_selection_diagnostics",
+    "candidate_scoring_sampling_provenance_to_dataframe",
+    "candidate_scoring_sampling_provenance_to_payload",
 ]

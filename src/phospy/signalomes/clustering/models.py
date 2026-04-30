@@ -6,6 +6,16 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from phospy.signalomes.clustering.diagnostic_schemas import (
+    SignalomeBackendDiagnostics,
+    SignalomeCandidateScoringSamplingDiagnostics,
+    SignalomeClusteringLimitMetadata,
+    SignalomeClusteringThresholdMetadata,
+    validate_backend_diagnostics,
+    validate_candidate_scoring_sampling_diagnostics,
+    validate_limit_metadata,
+    validate_threshold_metadata,
+)
 from phospy.signalomes.models import SignalomeModuleSelectionDiagnostics
 
 SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON = "exact_python"
@@ -46,10 +56,30 @@ class SignalomeClusteringEngineResult:
     candidate_scoring_mode: str
     candidate_scoring_evaluated: bool
     candidate_scoring_skip_reason: str | None
-    candidate_scoring_sampling: dict[str, object] | None
-    backend_diagnostics: dict[str, object] | None
-    threshold_metadata: dict[str, float | None]
-    limit_metadata: dict[str, int | None]
+    candidate_scoring_sampling: SignalomeCandidateScoringSamplingDiagnostics | None
+    backend_diagnostics: SignalomeBackendDiagnostics | None
+    threshold_metadata: SignalomeClusteringThresholdMetadata
+    limit_metadata: SignalomeClusteringLimitMetadata
+
+    def __post_init__(self) -> None:
+        if self.candidate_scoring_sampling is not None:
+            validate_candidate_scoring_sampling_diagnostics(
+                self.candidate_scoring_sampling,
+                field_name="clustering_engine_result.candidate_scoring_sampling",
+            )
+        if self.backend_diagnostics is not None:
+            validate_backend_diagnostics(
+                self.backend_diagnostics,
+                field_name="clustering_engine_result.backend_diagnostics",
+            )
+        validate_threshold_metadata(
+            self.threshold_metadata,
+            field_name="clustering_engine_result.threshold_metadata",
+        )
+        validate_limit_metadata(
+            self.limit_metadata,
+            field_name="clustering_engine_result.limit_metadata",
+        )
 
 
 __all__ = [

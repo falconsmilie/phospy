@@ -16,6 +16,8 @@ from phospy.signalomes.clustering import (
 )
 from phospy.signalomes.clustering import exact_python as exact_clustering
 from phospy.signalomes.clustering import scipy_hierarchical as scipy_clustering
+from phospy.signalomes.clustering.models import SignalomeClusteringEngineResult
+from phospy.signalomes.models import SignalomeModuleSelectionDiagnostics
 
 
 def _small_scoring_matrix() -> pd.DataFrame:
@@ -312,4 +314,83 @@ def test_backend_rejects_non_positive_requested_module_count(
             fallback_threshold=0.1,
             max_clusters=5,
             clustering_engine=backend_name,
+        )
+
+
+def test_engine_result_rejects_invalid_candidate_sampling_schema_early() -> None:
+    with pytest.raises(
+        ValueError,
+        match="clustering_engine_result.candidate_scoring_sampling schema mismatch",
+    ):
+        SignalomeClusteringEngineResult(
+            site_clusters=pd.Series([1], index=["P1;S1;"], dtype=int, name="site_id"),
+            protein_modules=pd.Series([1], index=["P1"], dtype=int, name="module_id"),
+            selected_module_count=1,
+            module_selection_diagnostics=SignalomeModuleSelectionDiagnostics(
+                strategy="correlation_thresholds",
+                selected_module_count=1,
+                requested_module_count=None,
+                threshold_used=None,
+                max_clusters_evaluated=1,
+                candidate_scores={},
+                reason="test",
+            ),
+            backend_name="exact_python",
+            backend_version="1",
+            approximation_used=False,
+            exact_cluster_tree_built=False,
+            tree_engine="exact",
+            candidate_scoring_mode="not_evaluated",
+            candidate_scoring_evaluated=False,
+            candidate_scoring_skip_reason=None,
+            candidate_scoring_sampling={
+                "sampling_cap": 1,
+            },  # type: ignore[arg-type]
+            backend_diagnostics=None,
+            threshold_metadata={
+                "primary_threshold": 0.5,
+                "fallback_threshold": 0.1,
+            },
+            limit_metadata={
+                "max_exact_tree_sites": 10,
+                "max_full_candidate_scoring_sites": 10,
+                "max_clusters": 5,
+            },
+        )
+
+
+def test_engine_result_rejects_invalid_threshold_metadata_early() -> None:
+    with pytest.raises(
+        ValueError,
+        match="clustering_engine_result.threshold_metadata schema mismatch",
+    ):
+        SignalomeClusteringEngineResult(
+            site_clusters=pd.Series([1], index=["P1;S1;"], dtype=int, name="site_id"),
+            protein_modules=pd.Series([1], index=["P1"], dtype=int, name="module_id"),
+            selected_module_count=1,
+            module_selection_diagnostics=SignalomeModuleSelectionDiagnostics(
+                strategy="correlation_thresholds",
+                selected_module_count=1,
+                requested_module_count=None,
+                threshold_used=None,
+                max_clusters_evaluated=1,
+                candidate_scores={},
+                reason="test",
+            ),
+            backend_name="exact_python",
+            backend_version="1",
+            approximation_used=False,
+            exact_cluster_tree_built=False,
+            tree_engine="exact",
+            candidate_scoring_mode="not_evaluated",
+            candidate_scoring_evaluated=False,
+            candidate_scoring_skip_reason=None,
+            candidate_scoring_sampling=None,
+            backend_diagnostics=None,
+            threshold_metadata={"primary_threshold": 0.5},  # type: ignore[arg-type]
+            limit_metadata={
+                "max_exact_tree_sites": 10,
+                "max_full_candidate_scoring_sites": 10,
+                "max_clusters": 5,
+            },
         )

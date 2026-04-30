@@ -5,6 +5,9 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from phospy.signalomes.clustering.diagnostic_schemas import (
+    SignalomeCandidateScoringSamplingDiagnostics,
+)
 from phospy.signalomes.clustering.orchestration import (
     ClusterTreeOperations,
     SignalomeCandidateScoringPolicy,
@@ -195,7 +198,7 @@ def _select_threshold_candidate(
     exact_cluster_tree_built: bool,
     candidate_scoring_evaluated: bool,
     candidate_scoring_skip_reason: str | None,
-    candidate_scoring_sampling: dict[str, object] | None,
+    candidate_scoring_sampling: SignalomeCandidateScoringSamplingDiagnostics | None,
 ):
     from phospy.signalomes.clustering import orchestration
 

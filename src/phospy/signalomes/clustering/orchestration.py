@@ -53,6 +53,16 @@ from phospy.signalomes.clustering.candidate_selection import (
     select_threshold_candidate as _select_threshold_candidate_impl,
 )
 from phospy.signalomes.clustering.contracts import ClusterTreeEngine
+from phospy.signalomes.clustering.diagnostic_schemas import (
+    SignalomeBackendDiagnostics,
+    SignalomeCandidateScoringSamplingDiagnostics,
+    SignalomeClusteringLimitMetadata,
+    SignalomeClusteringThresholdMetadata,
+    SignalomeTreeEngineDiagnostics,
+    build_backend_diagnostics,
+    validate_backend_diagnostics,
+    validate_candidate_scoring_sampling_diagnostics,
+)
 from phospy.signalomes.clustering.diagnostics import (
     approximation_used_from_candidate_mode,
 )
@@ -137,13 +147,27 @@ class ClusterSitesResult:
         SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
     )
     exact_cluster_tree_built: bool = False
-    candidate_scoring_sampling: dict[str, object] | None = None
+    candidate_scoring_sampling: SignalomeCandidateScoringSamplingDiagnostics | None = (
+        None
+    )
     candidate_scoring_evaluated: bool = False
     candidate_scoring_skip_reason: str | None = None
     backend_name: str = SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
     backend_version: str = SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION
     approximation_used: bool = False
-    backend_diagnostics: dict[str, object] | None = None
+    backend_diagnostics: SignalomeBackendDiagnostics | None = None
+
+    def __post_init__(self) -> None:
+        if self.candidate_scoring_sampling is not None:
+            validate_candidate_scoring_sampling_diagnostics(
+                self.candidate_scoring_sampling,
+                field_name="cluster_sites_result.candidate_scoring_sampling",
+            )
+        if self.backend_diagnostics is not None:
+            validate_backend_diagnostics(
+                self.backend_diagnostics,
+                field_name="cluster_sites_result.backend_diagnostics",
+            )
 
 
 def cluster_sites(
@@ -478,7 +502,7 @@ def run_clustering_with_tree_engine(
     tree_engine: ClusterTreeEngine,
     clustering_engine: str,
     backend_version: str,
-    backend_diagnostics: dict[str, object],
+    backend_diagnostics: SignalomeTreeEngineDiagnostics,
 ) -> SignalomeClusteringEngineResult:
     """Run shared orchestration with an injected tree engine implementation."""
 
@@ -520,18 +544,29 @@ def run_clustering_with_tree_engine(
     selected_module_count = int(
         clustering_result.module_selection_diagnostics.selected_module_count
     )
-    resolved_backend_diagnostics = {
-        "backend_name": str(clustering_engine),
-        "tree_engine": str(tree_engine.name),
-        "tree_engine_version": str(tree_engine.version),
-        **backend_diagnostics,
-        "selected_module_count": selected_module_count,
-        "input_site_count": int(request.scoring_matrix.shape[0]),
-        "exact_tree_path_used": bool(clustering_result.exact_cluster_tree_built),
-        "tree_generation_mode": "full_exact_tree_construction",
-        "tree_generation_is_approximate": False,
-        "tree_generation_scope": "module_count_selection_and_final_assignment",
-        "candidate_scoring_scope": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
+    resolved_backend_diagnostics = build_backend_diagnostics(
+        backend_name=str(clustering_engine),
+        tree_engine=str(tree_engine.name),
+        tree_engine_version=str(tree_engine.version),
+        tree_engine_diagnostics=backend_diagnostics,
+        selected_module_count=selected_module_count,
+        input_site_count=int(request.scoring_matrix.shape[0]),
+        exact_tree_path_used=bool(clustering_result.exact_cluster_tree_built),
+    )
+    threshold_metadata: SignalomeClusteringThresholdMetadata = {
+        "primary_threshold": float(request.primary_threshold),
+        "fallback_threshold": float(request.fallback_threshold),
+    }
+    limit_metadata: SignalomeClusteringLimitMetadata = {
+        "max_exact_tree_sites": (
+            None
+            if request.max_exact_tree_sites is None
+            else int(request.max_exact_tree_sites)
+        ),
+        "max_full_candidate_scoring_sites": int(
+            request.max_full_candidate_scoring_sites
+        ),
+        "max_clusters": int(request.max_clusters),
     }
     return SignalomeClusteringEngineResult(
         site_clusters=clustering_result.site_clusters,
@@ -552,21 +587,8 @@ def run_clustering_with_tree_engine(
         ),
         candidate_scoring_sampling=clustering_result.candidate_scoring_sampling,
         backend_diagnostics=resolved_backend_diagnostics,
-        threshold_metadata={
-            "primary_threshold": float(request.primary_threshold),
-            "fallback_threshold": float(request.fallback_threshold),
-        },
-        limit_metadata={
-            "max_exact_tree_sites": (
-                None
-                if request.max_exact_tree_sites is None
-                else int(request.max_exact_tree_sites)
-            ),
-            "max_full_candidate_scoring_sites": int(
-                request.max_full_candidate_scoring_sites
-            ),
-            "max_clusters": int(request.max_clusters),
-        },
+        threshold_metadata=threshold_metadata,
+        limit_metadata=limit_metadata,
     )
 
 

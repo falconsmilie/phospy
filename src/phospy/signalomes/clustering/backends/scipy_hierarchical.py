@@ -9,6 +9,10 @@ import numpy as np
 from scipy.cluster.hierarchy import cut_tree, linkage
 from scipy.spatial.distance import pdist
 
+from phospy.signalomes.clustering.diagnostic_schemas import (
+    SignalomeTreeEngineDiagnostics,
+    build_tree_engine_diagnostics,
+)
 from phospy.signalomes.clustering.validation import (
     validate_cluster_count_for_site_count,
 )
@@ -92,12 +96,12 @@ def build_cluster_labels_from_tree(
     return {count: labels_by_count[int(count)].copy() for count in requested_counts}
 
 
-def engine_diagnostics() -> dict[str, object]:
-    return {
-        "uses_scipy": True,
-        "linkage_method": _SCIPY_LINKAGE_METHOD,
-        "distance_metric": _SCIPY_DISTANCE_METRIC,
-    }
+def engine_diagnostics() -> SignalomeTreeEngineDiagnostics:
+    return build_tree_engine_diagnostics(
+        uses_scipy=True,
+        linkage_method=_SCIPY_LINKAGE_METHOD,
+        distance_metric=_SCIPY_DISTANCE_METRIC,
+    )
 
 
 @dataclass(frozen=True, slots=True)

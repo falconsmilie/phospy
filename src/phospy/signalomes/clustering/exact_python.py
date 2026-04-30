@@ -8,6 +8,9 @@ from phospy.signalomes.clustering.backends.exact_python import (
     ExactPythonTreeEngine,
     ExactWardClusterTree,
 )
+from phospy.signalomes.clustering.diagnostic_schemas import (
+    build_tree_engine_diagnostics,
+)
 from phospy.signalomes.clustering.models import (
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON_VERSION,
@@ -83,11 +86,11 @@ class ExactPythonClusteringBackend:
             tree_engine=ExactPythonTreeEngine(),
             clustering_engine=self.name,
             backend_version=self.version,
-            backend_diagnostics={
-                "uses_scipy": False,
-                "linkage_method": "ward",
-                "distance_metric": "euclidean",
-            },
+            backend_diagnostics=build_tree_engine_diagnostics(
+                uses_scipy=False,
+                linkage_method="ward",
+                distance_metric="euclidean",
+            ),
         )
 
 

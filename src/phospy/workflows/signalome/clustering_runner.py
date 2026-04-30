@@ -19,6 +19,10 @@ from phospy.signalomes.clustering import (
     derive_protein_modules,
     run_signalome_clustering_engine,
 )
+from phospy.signalomes.clustering.diagnostic_schemas import (
+    SignalomeBackendDiagnostics,
+    SignalomeCandidateScoringSamplingDiagnostics,
+)
 from phospy.signalomes.clustering.exact_python import (
     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
@@ -207,37 +211,26 @@ class SignalomeClusteringRunner:
         downstream_score_kinases: int,
         clustering_result: ClusterSitesResult,
     ) -> SignalomeScaleGuardDecision:
-        def _sampled_sites_total(payload: dict[str, object] | None) -> int | None:
+        def _sampled_sites_total(
+            payload: SignalomeCandidateScoringSamplingDiagnostics | None,
+        ) -> int | None:
             if payload is None:
                 return None
-            summary = payload.get("per_cluster_sample_count_summary")
-            if isinstance(summary, dict):
-                total = summary.get("total")
-                if isinstance(total, int):
-                    return int(total)
-                if isinstance(total, float) and float(total).is_integer():
-                    return int(total)
-            return None
+            return int(payload["per_cluster_sample_count_summary"]["total"])
 
-        def _sampled_pairs_total(payload: dict[str, object] | None) -> int | None:
+        def _sampled_pairs_total(
+            payload: SignalomeCandidateScoringSamplingDiagnostics | None,
+        ) -> int | None:
             if payload is None:
                 return None
-            sampled_pairs = payload.get("actual_sampled_pair_count")
-            if isinstance(sampled_pairs, int):
-                return int(sampled_pairs)
-            if isinstance(sampled_pairs, float) and float(sampled_pairs).is_integer():
-                return int(sampled_pairs)
-            return None
+            return int(payload["actual_sampled_pair_count"])
 
         def _tree_generation_backend_name(
-            payload: dict[str, object] | None,
+            payload: SignalomeBackendDiagnostics | None,
         ) -> str:
             if payload is None:
                 return "unknown_tree_backend"
-            backend_name = payload.get("tree_engine")
-            if isinstance(backend_name, str) and backend_name.strip():
-                return backend_name.strip()
-            return "unknown_tree_backend"
+            return str(payload["tree_engine"])
 
         input_protein_count = int(
             pd.Index(site_to_protein.astype(str)).nunique(dropna=True)

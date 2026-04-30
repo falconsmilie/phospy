@@ -11,6 +11,12 @@ from phospy.signalomes.clustering import (
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
     ClusterSitesResult,
 )
+from phospy.signalomes.clustering.diagnostic_schemas import (
+    SignalomeBackendDiagnostics,
+    SignalomeCandidateScoringSamplingDiagnostics,
+    validate_backend_diagnostics,
+    validate_candidate_scoring_sampling_diagnostics,
+)
 from phospy.signalomes.models import SignalomeNetworkCorrelationDiagnostics
 
 
@@ -33,7 +39,7 @@ class SignalomeScaleGuardDecision:
     candidate_module_count_upper_bound: int
     clustering_engine: str
     clustering_engine_version: str
-    backend_diagnostics: dict[str, object] | None
+    backend_diagnostics: SignalomeBackendDiagnostics | None
     tree_engine: str
     tree_generation_backend: str
     tree_generation_mode: str
@@ -51,7 +57,7 @@ class SignalomeScaleGuardDecision:
     max_full_candidate_scoring_sites: int
     exact_cluster_tree_built: bool
     candidate_scoring_mode: str
-    candidate_scoring_sampling: dict[str, object] | None
+    candidate_scoring_sampling: SignalomeCandidateScoringSamplingDiagnostics | None
     scale_guard_passed: bool
     candidate_scoring_evaluated: bool = False
     candidate_scoring_skip_reason: str | None = None
@@ -60,6 +66,18 @@ class SignalomeScaleGuardDecision:
         SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
     )
     final_module_assignment_uses_candidate_scoring: bool = False
+
+    def __post_init__(self) -> None:
+        if self.backend_diagnostics is not None:
+            validate_backend_diagnostics(
+                self.backend_diagnostics,
+                field_name="scale_guard.backend_diagnostics",
+            )
+        if self.candidate_scoring_sampling is not None:
+            validate_candidate_scoring_sampling_diagnostics(
+                self.candidate_scoring_sampling,
+                field_name="scale_guard.candidate_scoring_sampling",
+            )
 
 
 @dataclass(frozen=True, slots=True)
