@@ -27,6 +27,7 @@ from phospy.io.bundles._shared.tables import (
 )
 from phospy.io.bundles._signalome.compatibility import (
     normalize_module_assignments_table,
+    signalome_alignment_diagnostics_from_payload,
     signalome_module_selection_diagnostics_from_payload,
     signalome_network_correlation_diagnostics_from_payload,
     signalome_score_preconditioning_diagnostics_from_payload,
@@ -38,8 +39,10 @@ from phospy.references.models import ReferenceBundle
 from phospy.signalomes.context import SITE_MEMBERSHIP_EXCLUDED_REASON_COLUMN
 from phospy.signalomes.models import (
     KinaseNetwork,
+    SignalomeAlignmentDiagnostics,
     SignalomeAssignments,
     SignalomeModules,
+    default_signalome_alignment_diagnostics,
 )
 
 
@@ -270,6 +273,15 @@ def reconstruct_signalome_result(
             scope="bundle manifest.signalome_outputs.metadata",
         )
     )
+    alignment_payload = sections.signalome_metadata.get("alignment_diagnostics")
+    alignment_diagnostics: SignalomeAlignmentDiagnostics
+    if alignment_payload is None:
+        alignment_diagnostics = default_signalome_alignment_diagnostics()
+    else:
+        alignment_diagnostics = signalome_alignment_diagnostics_from_payload(
+            alignment_payload,
+            scope="bundle manifest.signalome_outputs.metadata",
+        )
     network_correlation_diagnostics = (
         signalome_network_correlation_diagnostics_from_payload(
             sections.signalome_metadata.get("network_correlation_diagnostics"),
@@ -344,6 +356,7 @@ def reconstruct_signalome_result(
         ),
         module_selection_diagnostics=module_selection_diagnostics,
         score_preconditioning_diagnostics=score_preconditioning_diagnostics,
+        alignment_diagnostics=alignment_diagnostics,
         expanded_signalome=read_optional_table(
             bundle_root=bundle_root,
             tables=sections.signalome_tables,

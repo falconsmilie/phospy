@@ -24,6 +24,8 @@ from phospy.io.bundles._shared.primitives import (
 from phospy.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
     SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
+    SignalomeAlignmentDiagnostics,
+    SignalomeAlignmentInputDiagnostics,
     SignalomeClusterCandidateScore,
     SignalomeModuleSelectionDiagnostics,
     SignalomeNetworkCorrelationDiagnostics,
@@ -540,6 +542,160 @@ def signalome_network_correlation_diagnostics_from_payload(
                 "edges_skipped_non_finite_correlation"
             ),
         ),
+    )
+
+
+def signalome_alignment_diagnostics_to_payload(
+    diagnostics: SignalomeAlignmentDiagnostics,
+) -> dict[str, object]:
+    return {
+        "dataset_sites": _alignment_input_to_payload(diagnostics.dataset_sites),
+        "prediction_score_sites": _alignment_input_to_payload(
+            diagnostics.prediction_score_sites
+        ),
+        "downstream_score_sites": _alignment_input_to_payload(
+            diagnostics.downstream_score_sites
+        ),
+        "kinases": _alignment_input_to_payload(diagnostics.kinases),
+        "protein_identifiers": _alignment_input_to_payload(
+            diagnostics.protein_identifiers
+        ),
+    }
+
+
+def signalome_alignment_diagnostics_from_payload(
+    payload: object,
+    *,
+    scope: str,
+) -> SignalomeAlignmentDiagnostics:
+    diagnostics_payload = require_mapping(
+        payload,
+        field_name=f"{scope}.alignment_diagnostics",
+    )
+    diagnostics_field_name = f"{scope}.alignment_diagnostics"
+    allowed_fields = frozenset(
+        {
+            "dataset_sites",
+            "prediction_score_sites",
+            "downstream_score_sites",
+            "kinases",
+            "protein_identifiers",
+        }
+    )
+    _reject_unsupported_fields(
+        diagnostics_payload,
+        field_name=diagnostics_field_name,
+        allowed_fields=allowed_fields,
+    )
+    _require_fields(
+        diagnostics_payload,
+        field_name=diagnostics_field_name,
+        required_fields=allowed_fields,
+    )
+    return SignalomeAlignmentDiagnostics(
+        dataset_sites=_alignment_input_from_payload(
+            diagnostics_payload.get("dataset_sites"),
+            field_name=f"{scope}.alignment_diagnostics.dataset_sites",
+        ),
+        prediction_score_sites=_alignment_input_from_payload(
+            diagnostics_payload.get("prediction_score_sites"),
+            field_name=f"{scope}.alignment_diagnostics.prediction_score_sites",
+        ),
+        downstream_score_sites=_alignment_input_from_payload(
+            diagnostics_payload.get("downstream_score_sites"),
+            field_name=f"{scope}.alignment_diagnostics.downstream_score_sites",
+        ),
+        kinases=_alignment_input_from_payload(
+            diagnostics_payload.get("kinases"),
+            field_name=f"{scope}.alignment_diagnostics.kinases",
+        ),
+        protein_identifiers=_alignment_input_from_payload(
+            diagnostics_payload.get("protein_identifiers"),
+            field_name=f"{scope}.alignment_diagnostics.protein_identifiers",
+        ),
+    )
+
+
+def _alignment_input_to_payload(
+    diagnostics: SignalomeAlignmentInputDiagnostics,
+) -> dict[str, object]:
+    return {
+        "provided_count": int(diagnostics.provided_count),
+        "retained_count": int(diagnostics.retained_count),
+        "dropped_count": int(diagnostics.dropped_count),
+        "dropped_reasons": {
+            str(reason): int(count)
+            for reason, count in diagnostics.dropped_reasons.items()
+        },
+    }
+
+
+def _alignment_input_from_payload(
+    payload: object,
+    *,
+    field_name: str,
+) -> SignalomeAlignmentInputDiagnostics:
+    input_payload = require_mapping(payload, field_name=field_name)
+    allowed_fields = frozenset(
+        {
+            "provided_count",
+            "retained_count",
+            "dropped_count",
+            "dropped_reasons",
+        }
+    )
+    _reject_unsupported_fields(
+        input_payload,
+        field_name=field_name,
+        allowed_fields=allowed_fields,
+    )
+    _require_fields(
+        input_payload,
+        field_name=field_name,
+        required_fields=allowed_fields,
+    )
+    provided_count = _require_int(
+        input_payload.get("provided_count"),
+        field_name=f"{field_name}.provided_count",
+    )
+    retained_count = _require_int(
+        input_payload.get("retained_count"),
+        field_name=f"{field_name}.retained_count",
+    )
+    dropped_count = _require_int(
+        input_payload.get("dropped_count"),
+        field_name=f"{field_name}.dropped_count",
+    )
+    if provided_count < 0 or retained_count < 0 or dropped_count < 0:
+        raise PhosPyInputError(f"{field_name} counts must be non-negative integers")
+    if provided_count != retained_count + dropped_count:
+        raise PhosPyInputError(
+            f"{field_name} must satisfy provided_count = retained_count + dropped_count"
+        )
+    dropped_reasons_payload = require_mapping(
+        input_payload.get("dropped_reasons"),
+        field_name=f"{field_name}.dropped_reasons",
+    )
+    dropped_reasons = {
+        str(reason): _require_int(
+            count,
+            field_name=f"{field_name}.dropped_reasons.{reason}",
+        )
+        for reason, count in dropped_reasons_payload.items()
+    }
+    negative_reasons = sorted(
+        reason for reason, count in dropped_reasons.items() if count < 0
+    )
+    if negative_reasons:
+        joined = ", ".join(negative_reasons)
+        raise PhosPyInputError(
+            f"{field_name}.dropped_reasons contains negative count(s): {joined}"
+        )
+    return SignalomeAlignmentInputDiagnostics(
+        provided_count=provided_count,
+        retained_count=retained_count,
+        dropped_count=dropped_count,
+        dropped_reasons=dropped_reasons,
     )
 
 

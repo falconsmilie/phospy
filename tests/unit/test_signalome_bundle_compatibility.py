@@ -11,6 +11,8 @@ from phospy.api.configs import (
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._signalome.compatibility import (
     normalize_module_assignments_table,
+    signalome_alignment_diagnostics_from_payload,
+    signalome_alignment_diagnostics_to_payload,
     signalome_module_selection_diagnostics_from_payload,
     signalome_module_selection_diagnostics_to_payload,
     signalome_network_correlation_diagnostics_from_payload,
@@ -23,6 +25,8 @@ from phospy.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+    SignalomeAlignmentDiagnostics,
+    SignalomeAlignmentInputDiagnostics,
     SignalomeModuleSelectionDiagnostics,
     SignalomeNetworkCorrelationDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
@@ -339,6 +343,75 @@ def test_network_correlation_diagnostics_requires_payload_mapping() -> None:
         match="test.network_correlation_diagnostics must be an object",
     ):
         signalome_network_correlation_diagnostics_from_payload(None, scope="test")
+
+
+def test_alignment_diagnostics_payload_round_trip() -> None:
+    diagnostics = SignalomeAlignmentDiagnostics(
+        dataset_sites=SignalomeAlignmentInputDiagnostics(
+            provided_count=10,
+            retained_count=8,
+            dropped_count=2,
+            dropped_reasons={
+                "missing_from_prediction_scores": 1,
+                "missing_from_downstream_scores": 1,
+                "removed_by_score_preconditioning": 0,
+                "removed_by_validation_policy": 0,
+            },
+        ),
+        prediction_score_sites=SignalomeAlignmentInputDiagnostics(
+            provided_count=11,
+            retained_count=8,
+            dropped_count=3,
+            dropped_reasons={
+                "missing_from_dataset": 2,
+                "missing_from_downstream_scores": 1,
+                "removed_by_score_preconditioning": 0,
+                "removed_by_validation_policy": 0,
+            },
+        ),
+        downstream_score_sites=SignalomeAlignmentInputDiagnostics(
+            provided_count=9,
+            retained_count=8,
+            dropped_count=1,
+            dropped_reasons={
+                "missing_from_dataset": 0,
+                "missing_from_prediction_scores": 0,
+                "removed_by_score_preconditioning": 1,
+                "removed_by_validation_policy": 0,
+            },
+        ),
+        kinases=SignalomeAlignmentInputDiagnostics(
+            provided_count=6,
+            retained_count=4,
+            dropped_count=2,
+            dropped_reasons={
+                "missing_from_prediction_scores": 1,
+                "missing_from_downstream_scores": 1,
+                "missing_kinase_support": 0,
+            },
+        ),
+        protein_identifiers=SignalomeAlignmentInputDiagnostics(
+            provided_count=8,
+            retained_count=8,
+            dropped_count=0,
+            dropped_reasons={
+                "removed_by_score_preconditioning": 0,
+                "missing_protein_identifier": 0,
+                "removed_by_validation_policy": 0,
+            },
+        ),
+    )
+    payload = signalome_alignment_diagnostics_to_payload(diagnostics)
+    restored = signalome_alignment_diagnostics_from_payload(payload, scope="test")
+    assert restored == diagnostics
+
+
+def test_alignment_diagnostics_requires_payload_mapping() -> None:
+    with pytest.raises(
+        PhosPyInputError,
+        match="test.alignment_diagnostics must be an object",
+    ):
+        signalome_alignment_diagnostics_from_payload(None, scope="test")
 
 
 def test_module_selection_diagnostics_rejects_partial_payload() -> None:

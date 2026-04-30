@@ -258,6 +258,78 @@ def publish_signalome_workflow(
                     result.score_preconditioning_diagnostics.retained_row_count
                 ),
             },
+            "alignment_diagnostics": {
+                "dataset_sites": {
+                    "provided_count": int(
+                        result.alignment_diagnostics.dataset_sites.provided_count
+                    ),
+                    "retained_count": int(
+                        result.alignment_diagnostics.dataset_sites.retained_count
+                    ),
+                    "dropped_count": int(
+                        result.alignment_diagnostics.dataset_sites.dropped_count
+                    ),
+                    "dropped_reasons": dict(
+                        result.alignment_diagnostics.dataset_sites.dropped_reasons
+                    ),
+                },
+                "prediction_score_sites": {
+                    "provided_count": int(
+                        result.alignment_diagnostics.prediction_score_sites.provided_count
+                    ),
+                    "retained_count": int(
+                        result.alignment_diagnostics.prediction_score_sites.retained_count
+                    ),
+                    "dropped_count": int(
+                        result.alignment_diagnostics.prediction_score_sites.dropped_count
+                    ),
+                    "dropped_reasons": dict(
+                        result.alignment_diagnostics.prediction_score_sites.dropped_reasons
+                    ),
+                },
+                "downstream_score_sites": {
+                    "provided_count": int(
+                        result.alignment_diagnostics.downstream_score_sites.provided_count
+                    ),
+                    "retained_count": int(
+                        result.alignment_diagnostics.downstream_score_sites.retained_count
+                    ),
+                    "dropped_count": int(
+                        result.alignment_diagnostics.downstream_score_sites.dropped_count
+                    ),
+                    "dropped_reasons": dict(
+                        result.alignment_diagnostics.downstream_score_sites.dropped_reasons
+                    ),
+                },
+                "kinases": {
+                    "provided_count": int(
+                        result.alignment_diagnostics.kinases.provided_count
+                    ),
+                    "retained_count": int(
+                        result.alignment_diagnostics.kinases.retained_count
+                    ),
+                    "dropped_count": int(
+                        result.alignment_diagnostics.kinases.dropped_count
+                    ),
+                    "dropped_reasons": dict(
+                        result.alignment_diagnostics.kinases.dropped_reasons
+                    ),
+                },
+                "protein_identifiers": {
+                    "provided_count": int(
+                        result.alignment_diagnostics.protein_identifiers.provided_count
+                    ),
+                    "retained_count": int(
+                        result.alignment_diagnostics.protein_identifiers.retained_count
+                    ),
+                    "dropped_count": int(
+                        result.alignment_diagnostics.protein_identifiers.dropped_count
+                    ),
+                    "dropped_reasons": dict(
+                        result.alignment_diagnostics.protein_identifiers.dropped_reasons
+                    ),
+                },
+            },
             "network_correlation_diagnostics": {
                 "total_candidate_correlations": int(
                     result.kinase_network.correlation_diagnostics.total_candidate_correlations

@@ -657,6 +657,245 @@ def test_interpreter_reports_zero_drop_preconditioning_diagnostics() -> None:
     )
 
 
+def test_interpreter_reports_alignment_diagnostics_for_perfect_overlap() -> None:
+    site_ids = ["P1;S1;", "P2;S2;"]
+    kinases = ["K1", "K2"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.2, 0.8],
+        ],
+        site_ids=site_ids,
+        kinases=kinases,
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 2.0],
+            [3.0, 4.0],
+        ],
+        site_ids=site_ids,
+        kinases=kinases,
+    )
+    interpreted = SignalomeWorkflowInterpreter().run(
+        SignalomeWorkflowRequest(
+            kinase_result=_kinase_result(
+                dataset=dataset,
+                prediction_matrix=prediction_matrix,
+                score_matrix=score_matrix,
+            ),
+            config=SignalomeConfig(substrate_support_cutoff=0.5),
+        )
+    )
+    diagnostics = interpreted.alignment_diagnostics
+    assert diagnostics.dataset_sites.provided_count == 2
+    assert diagnostics.dataset_sites.retained_count == 2
+    assert diagnostics.dataset_sites.dropped_count == 0
+    assert diagnostics.prediction_score_sites.provided_count == 2
+    assert diagnostics.prediction_score_sites.retained_count == 2
+    assert diagnostics.prediction_score_sites.dropped_count == 0
+    assert diagnostics.downstream_score_sites.provided_count == 2
+    assert diagnostics.downstream_score_sites.retained_count == 2
+    assert diagnostics.downstream_score_sites.dropped_count == 0
+    assert diagnostics.kinases.provided_count == 2
+    assert diagnostics.kinases.retained_count == 2
+    assert diagnostics.kinases.dropped_count == 0
+    assert diagnostics.protein_identifiers.provided_count == 2
+    assert diagnostics.protein_identifiers.retained_count == 2
+    assert diagnostics.protein_identifiers.dropped_count == 0
+
+
+def test_interpreter_reports_alignment_diagnostics_for_partial_site_overlap() -> None:
+    dataset = _dataset(site_ids=["P1;S1;", "P2;S2;", "P3;S3;"])
+    prediction_matrix = _matrix(
+        values=[
+            [0.9],
+            [0.8],
+            [0.7],
+        ],
+        site_ids=["P1;S1;", "P2;S2;", "P4;S4;"],
+        kinases=["K1"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0],
+            [2.0],
+            [3.0],
+        ],
+        site_ids=["P1;S1;", "P3;S3;", "P5;S5;"],
+        kinases=["K1"],
+    )
+    interpreted = SignalomeWorkflowInterpreter().run(
+        SignalomeWorkflowRequest(
+            kinase_result=_kinase_result(
+                dataset=dataset,
+                prediction_matrix=prediction_matrix,
+                score_matrix=score_matrix,
+            ),
+            config=SignalomeConfig(substrate_support_cutoff=0.5),
+        )
+    )
+    diagnostics = interpreted.alignment_diagnostics
+    assert diagnostics.dataset_sites.provided_count == 3
+    assert diagnostics.dataset_sites.retained_count == 1
+    assert diagnostics.dataset_sites.dropped_count == 2
+    assert (
+        diagnostics.dataset_sites.dropped_reasons["missing_from_prediction_scores"] == 1
+    )
+    assert (
+        diagnostics.dataset_sites.dropped_reasons["missing_from_downstream_scores"] == 1
+    )
+    assert diagnostics.prediction_score_sites.provided_count == 3
+    assert diagnostics.prediction_score_sites.retained_count == 1
+    assert diagnostics.prediction_score_sites.dropped_count == 2
+    assert (
+        diagnostics.prediction_score_sites.dropped_reasons["missing_from_dataset"] == 1
+    )
+    assert (
+        diagnostics.prediction_score_sites.dropped_reasons[
+            "missing_from_downstream_scores"
+        ]
+        == 1
+    )
+    assert diagnostics.downstream_score_sites.provided_count == 3
+    assert diagnostics.downstream_score_sites.retained_count == 1
+    assert diagnostics.downstream_score_sites.dropped_count == 2
+    assert (
+        diagnostics.downstream_score_sites.dropped_reasons["missing_from_dataset"] == 1
+    )
+    assert (
+        diagnostics.downstream_score_sites.dropped_reasons[
+            "missing_from_prediction_scores"
+        ]
+        == 1
+    )
+
+
+def test_interpreter_reports_alignment_diagnostics_for_partial_kinase_overlap() -> None:
+    site_ids = ["P1;S1;", "P2;S2;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1, 0.2],
+            [0.3, 0.8, 0.4],
+        ],
+        site_ids=site_ids,
+        kinases=["K1", "K2", "K3"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0, 2.0, 3.0],
+            [2.0, 3.0, 4.0],
+        ],
+        site_ids=site_ids,
+        kinases=["K2", "K3", "K4"],
+    )
+    interpreted = SignalomeWorkflowInterpreter().run(
+        SignalomeWorkflowRequest(
+            kinase_result=_kinase_result(
+                dataset=dataset,
+                prediction_matrix=prediction_matrix,
+                score_matrix=score_matrix,
+            ),
+            config=SignalomeConfig(substrate_support_cutoff=0.5),
+        )
+    )
+    diagnostics = interpreted.alignment_diagnostics
+    assert diagnostics.kinases.provided_count == 4
+    assert diagnostics.kinases.retained_count == 2
+    assert diagnostics.kinases.dropped_count == 2
+    assert diagnostics.kinases.dropped_reasons["missing_from_prediction_scores"] == 1
+    assert diagnostics.kinases.dropped_reasons["missing_from_downstream_scores"] == 1
+
+
+def test_interpreter_alignment_diagnostics_reports_missing_downstream_scores() -> None:
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9],
+            [0.8],
+            [0.7],
+        ],
+        site_ids=site_ids,
+        kinases=["K1"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0],
+            [2.0],
+        ],
+        site_ids=["P1;S1;", "P2;S2;"],
+        kinases=["K1"],
+    )
+    interpreted = SignalomeWorkflowInterpreter().run(
+        SignalomeWorkflowRequest(
+            kinase_result=_kinase_result(
+                dataset=dataset,
+                prediction_matrix=prediction_matrix,
+                score_matrix=score_matrix,
+            ),
+            config=SignalomeConfig(substrate_support_cutoff=0.5),
+        )
+    )
+    assert (
+        interpreted.alignment_diagnostics.dataset_sites.dropped_reasons[
+            "missing_from_downstream_scores"
+        ]
+        == 1
+    )
+    assert (
+        interpreted.alignment_diagnostics.prediction_score_sites.dropped_reasons[
+            "missing_from_downstream_scores"
+        ]
+        == 1
+    )
+
+
+def test_interpreter_alignment_diagnostics_reports_missing_prediction_scores() -> None:
+    site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[
+            [0.9],
+            [0.8],
+        ],
+        site_ids=["P1;S1;", "P2;S2;"],
+        kinases=["K1"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [1.0],
+            [2.0],
+            [3.0],
+        ],
+        site_ids=site_ids,
+        kinases=["K1"],
+    )
+    interpreted = SignalomeWorkflowInterpreter().run(
+        SignalomeWorkflowRequest(
+            kinase_result=_kinase_result(
+                dataset=dataset,
+                prediction_matrix=prediction_matrix,
+                score_matrix=score_matrix,
+            ),
+            config=SignalomeConfig(substrate_support_cutoff=0.5),
+        )
+    )
+    assert (
+        interpreted.alignment_diagnostics.dataset_sites.dropped_reasons[
+            "missing_from_prediction_scores"
+        ]
+        == 1
+    )
+    assert (
+        interpreted.alignment_diagnostics.downstream_score_sites.dropped_reasons[
+            "missing_from_prediction_scores"
+        ]
+        == 1
+    )
+
+
 def test_resolved_signalome_request_rejects_mismatched_site_indexes() -> None:
     site_ids = ["P1;S1;", "P2;S2;"]
     dataset = _dataset(site_ids=site_ids)

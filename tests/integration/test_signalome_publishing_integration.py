@@ -98,6 +98,11 @@ def test_publish_signalome_workflow_writes_supported_lane_output_layout(
     assert int(preconditioning["input_row_count"]) >= 0
     assert int(preconditioning["dropped_all_missing_row_count"]) >= 0
     assert int(preconditioning["retained_row_count"]) >= 0
+    alignment = manifest["alignment_diagnostics"]
+    assert int(alignment["dataset_sites"]["provided_count"]) >= 0
+    assert int(alignment["dataset_sites"]["retained_count"]) >= 0
+    assert int(alignment["dataset_sites"]["dropped_count"]) >= 0
+    assert isinstance(alignment["dataset_sites"]["dropped_reasons"], dict)
     network_correlation_diagnostics = manifest["network_correlation_diagnostics"]
     assert int(network_correlation_diagnostics["total_candidate_correlations"]) >= 0
     assert int(network_correlation_diagnostics["finite_correlations"]) >= 0

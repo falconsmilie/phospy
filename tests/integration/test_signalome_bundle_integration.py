@@ -120,6 +120,11 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert int(preconditioning_payload["input_row_count"]) >= 0
     assert int(preconditioning_payload["dropped_all_missing_row_count"]) >= 0
     assert int(preconditioning_payload["retained_row_count"]) >= 0
+    alignment_payload = signalome_metadata["alignment_diagnostics"]
+    assert int(alignment_payload["dataset_sites"]["provided_count"]) >= 0
+    assert int(alignment_payload["dataset_sites"]["retained_count"]) >= 0
+    assert int(alignment_payload["dataset_sites"]["dropped_count"]) >= 0
+    assert isinstance(alignment_payload["dataset_sites"]["dropped_reasons"], dict)
     network_correlation_payload = signalome_metadata["network_correlation_diagnostics"]
     assert int(network_correlation_payload["total_candidate_correlations"]) >= 0
     assert int(network_correlation_payload["finite_correlations"]) >= 0
@@ -673,6 +678,7 @@ def _assert_signalome_result_equal(left, right) -> None:
         left.score_preconditioning_diagnostics
         == right.score_preconditioning_diagnostics
     )
+    assert left.alignment_diagnostics == right.alignment_diagnostics
     _assert_optional_frame_equal(
         left.expanded_signalome,
         right.expanded_signalome,
@@ -701,6 +707,7 @@ def _with_sidecars(
         kinase_network=result.kinase_network,
         module_selection_diagnostics=result.module_selection_diagnostics,
         score_preconditioning_diagnostics=result.score_preconditioning_diagnostics,
+        alignment_diagnostics=result.alignment_diagnostics,
         expanded_signalome=result.expanded_signalome,
         site_membership=site_membership,
         protein_site_context=protein_site_context,

@@ -78,6 +78,27 @@ class SignalomeScorePreconditioningDiagnostics:
 
 
 @dataclass(frozen=True, slots=True)
+class SignalomeAlignmentInputDiagnostics:
+    """Structured provided/retained/dropped counts for one aligned input lane."""
+
+    provided_count: int
+    retained_count: int
+    dropped_count: int
+    dropped_reasons: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeAlignmentDiagnostics:
+    """Structured alignment diagnostics across signalome scientific inputs."""
+
+    dataset_sites: SignalomeAlignmentInputDiagnostics
+    prediction_score_sites: SignalomeAlignmentInputDiagnostics
+    downstream_score_sites: SignalomeAlignmentInputDiagnostics
+    kinases: SignalomeAlignmentInputDiagnostics
+    protein_identifiers: SignalomeAlignmentInputDiagnostics
+
+
+@dataclass(frozen=True, slots=True)
 class SignalomeNetworkCorrelationDiagnostics:
     """Structured diagnostics for kinase-network correlation eligibility."""
 
@@ -118,6 +139,26 @@ def default_signalome_score_preconditioning_diagnostics() -> (
         dropped_all_missing_row_count=0,
         retained_row_count=0,
         policy=SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    )
+
+
+def default_signalome_alignment_diagnostics() -> SignalomeAlignmentDiagnostics:
+    """Return stable placeholder alignment diagnostics payload."""
+
+    def _empty() -> SignalomeAlignmentInputDiagnostics:
+        return SignalomeAlignmentInputDiagnostics(
+            provided_count=0,
+            retained_count=0,
+            dropped_count=0,
+            dropped_reasons={},
+        )
+
+    return SignalomeAlignmentDiagnostics(
+        dataset_sites=_empty(),
+        prediction_score_sites=_empty(),
+        downstream_score_sites=_empty(),
+        kinases=_empty(),
+        protein_identifiers=_empty(),
     )
 
 
@@ -273,6 +314,8 @@ class KinaseNetwork:
 
 __all__ = [
     "KinaseNetwork",
+    "SignalomeAlignmentDiagnostics",
+    "SignalomeAlignmentInputDiagnostics",
     "SIGNALOME_CORRELATION_STATUS_CONSTANT_PROFILE",
     "SIGNALOME_CORRELATION_STATUS_FINITE",
     "SIGNALOME_CORRELATION_STATUS_INSUFFICIENT_OBSERVATIONS",
@@ -290,6 +333,7 @@ __all__ = [
     "SignalomeModules",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP",
+    "default_signalome_alignment_diagnostics",
     "default_signalome_score_preconditioning_diagnostics",
     "SIGNALOME_MODULE_SELECTION_STRATEGY_CORRELATION_THRESHOLDS",
     "SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT",

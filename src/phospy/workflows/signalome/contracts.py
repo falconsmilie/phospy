@@ -22,7 +22,9 @@ from phospy.signalomes.clustering.models import (
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
 )
 from phospy.signalomes.models import (
+    SignalomeAlignmentDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
+    default_signalome_alignment_diagnostics,
     default_signalome_score_preconditioning_diagnostics,
 )
 from phospy.tables.kinase import KinasePredictionMatrix, KinaseScoreMatrix
@@ -59,6 +61,9 @@ class ResolvedSignalomeWorkflowRequest:
     all-missing score rows. ``score_preconditioning_diagnostics`` surfaces the
     aligned input row count, dropped all-missing row count, retained row count,
     and active `SignalomeConfig.score_preconditioning_policy`.
+    ``alignment_diagnostics`` reports provided/retained/dropped counts (and
+    exclusion reasons) for scientific input alignment across sites, kinases,
+    and protein identifiers.
     """
 
     dataset: AnalysisReadyPhosphoDataset
@@ -70,6 +75,9 @@ class ResolvedSignalomeWorkflowRequest:
     site_to_protein: pd.Series
     score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics = field(
         default_factory=default_signalome_score_preconditioning_diagnostics
+    )
+    alignment_diagnostics: SignalomeAlignmentDiagnostics = field(
+        default_factory=default_signalome_alignment_diagnostics
     )
     _downstream_score_table: KinaseScoreMatrix = field(
         init=False,

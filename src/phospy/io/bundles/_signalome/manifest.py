@@ -20,6 +20,7 @@ from phospy.io.bundles._shared.processing_state import (
     processing_state_to_payload,
 )
 from phospy.io.bundles._signalome.compatibility import (
+    signalome_alignment_diagnostics_to_payload,
     signalome_module_selection_diagnostics_to_payload,
     signalome_network_correlation_diagnostics_to_payload,
     signalome_score_preconditioning_diagnostics_to_payload,
@@ -94,7 +95,17 @@ _ACTIVITY_TABLE_KEYS = frozenset(
     }
 )
 _SIGNALOME_OUTPUTS_ALLOWED_FIELDS = frozenset({"metadata", "tables"})
-_SIGNALOME_METADATA_KEYS = frozenset(
+_SIGNALOME_METADATA_ALLOWED_KEYS = frozenset(
+    {
+        "kinase_network_nodes_present",
+        "expanded_signalome_present",
+        "module_selection_diagnostics",
+        "score_preconditioning_diagnostics",
+        "network_correlation_diagnostics",
+        "alignment_diagnostics",
+    }
+)
+_SIGNALOME_METADATA_REQUIRED_KEYS = frozenset(
     {
         "kinase_network_nodes_present",
         "expanded_signalome_present",
@@ -183,6 +194,9 @@ def build_manifest(
                 ),
                 "score_preconditioning_diagnostics": signalome_score_preconditioning_diagnostics_to_payload(
                     result.score_preconditioning_diagnostics
+                ),
+                "alignment_diagnostics": signalome_alignment_diagnostics_to_payload(
+                    result.alignment_diagnostics
                 ),
                 "network_correlation_diagnostics": signalome_network_correlation_diagnostics_to_payload(
                     result.kinase_network.correlation_diagnostics
@@ -429,12 +443,12 @@ def parse_manifest(payload: Mapping[str, object]) -> SignalomeManifestSections:
     _reject_unsupported_fields(
         signalome_metadata,
         field_name="bundle manifest.signalome_outputs.metadata",
-        allowed_fields=_SIGNALOME_METADATA_KEYS,
+        allowed_fields=_SIGNALOME_METADATA_ALLOWED_KEYS,
     )
     _require_fields(
         signalome_metadata,
         field_name="bundle manifest.signalome_outputs.metadata",
-        required_fields=_SIGNALOME_METADATA_KEYS,
+        required_fields=_SIGNALOME_METADATA_REQUIRED_KEYS,
         unsupported_shape=True,
     )
     require_bool(

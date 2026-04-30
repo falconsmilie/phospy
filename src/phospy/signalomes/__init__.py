@@ -7,6 +7,8 @@ from phospy.signalomes.assignments import (
 from phospy.signalomes.expanded import build_expanded_signalome_table
 from phospy.signalomes.models import (
     KinaseNetwork,
+    SignalomeAlignmentDiagnostics,
+    SignalomeAlignmentInputDiagnostics,
     SignalomeAssignments,
     SignalomeClusterCandidateScore,
     SignalomeModules,
@@ -22,6 +24,8 @@ from phospy.signalomes.network import (
 
 __all__ = [
     "KinaseNetwork",
+    "SignalomeAlignmentDiagnostics",
+    "SignalomeAlignmentInputDiagnostics",
     "SignalomeAssignments",
     "SignalomeClusterCandidateScore",
     "SignalomeModuleSelectionDiagnostics",

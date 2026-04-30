@@ -405,6 +405,7 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert "signalome_config" in provenance.workflow_parameters
     assert "scale_guard" in provenance.workflow_parameters
     assert "module_selection_diagnostics" in provenance.workflow_parameters
+    assert "alignment_diagnostics" in provenance.workflow_parameters
     assert "network_correlation_diagnostics" in provenance.workflow_parameters
     signalome_config = provenance.workflow_parameters["signalome_config"]
     assert "tree_engine" in signalome_config

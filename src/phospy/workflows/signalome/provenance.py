@@ -186,6 +186,7 @@ class SignalomeProvenanceBuilder:
                 "score_preconditioning_diagnostics": asdict(
                     request.score_preconditioning_diagnostics
                 ),
+                "alignment_diagnostics": asdict(request.alignment_diagnostics),
                 "network_correlation_diagnostics": asdict(
                     network_correlation_diagnostics
                 ),

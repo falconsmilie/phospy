@@ -15,10 +15,12 @@ from phospy.provenance.models import RunProvenance
 from phospy.references.models import ReferenceBundle
 from phospy.signalomes.models import (
     KinaseNetwork,
+    SignalomeAlignmentDiagnostics,
     SignalomeAssignments,
     SignalomeModules,
     SignalomeModuleSelectionDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
+    default_signalome_alignment_diagnostics,
     default_signalome_module_selection_diagnostics,
     default_signalome_score_preconditioning_diagnostics,
 )
@@ -64,6 +66,9 @@ class SignalomeWorkflowResult:
     )
     score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics = field(
         default_factory=default_signalome_score_preconditioning_diagnostics
+    )
+    alignment_diagnostics: SignalomeAlignmentDiagnostics = field(
+        default_factory=default_signalome_alignment_diagnostics
     )
     expanded_signalome: pd.DataFrame | None = None
     site_membership: pd.DataFrame | None = None
@@ -122,6 +127,7 @@ class SignalomeWorkflowResult:
         module_selection_diagnostics: SignalomeModuleSelectionDiagnostics | None = None,
         score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics
         | None = None,
+        alignment_diagnostics: SignalomeAlignmentDiagnostics | None = None,
         expanded_signalome: pd.DataFrame | None = None,
         site_membership: pd.DataFrame | None = None,
         protein_site_context: pd.DataFrame | None = None,
@@ -142,6 +148,11 @@ class SignalomeWorkflowResult:
                 default_signalome_score_preconditioning_diagnostics()
                 if score_preconditioning_diagnostics is None
                 else score_preconditioning_diagnostics
+            ),
+            alignment_diagnostics=(
+                default_signalome_alignment_diagnostics()
+                if alignment_diagnostics is None
+                else alignment_diagnostics
             ),
             expanded_signalome=expanded_signalome,
             site_membership=site_membership,
