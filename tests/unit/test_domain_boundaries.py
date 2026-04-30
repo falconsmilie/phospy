@@ -236,7 +236,10 @@ def test_builder_rejects_sparse_missingness_in_phospho_matrix() -> None:
         },
         index=phospho.index,
     )
-    with pytest.raises(DatasetValidationError, match="must not contain missing values"):
+    with pytest.raises(
+        PhosPyInputError,
+        match="dataset preprocessing stage 'missing_data' rejected missing values",
+    ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(
                 phospho=phospho,

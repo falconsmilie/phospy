@@ -27,6 +27,7 @@ from phospy.datasets.preprocessing.stages.total_protein_correction import (
     TotalProteinCorrectionStage,
 )
 from phospy.errors.build import DatasetBuildError
+from phospy.errors.input import PhosPyInputError
 
 
 def _phospho() -> pd.DataFrame:
@@ -116,6 +117,75 @@ def test_missing_data_stage_emits_typed_row_audit_report_rows() -> None:
     assert all(
         isinstance(row.values, PreprocessingRowAuditRow) for row in result.report_rows
     )
+
+
+def test_missing_data_stage_forbid_policy_accepts_complete_matrix() -> None:
+    phospho = _phospho()
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="forbid",
+            stage_order=("missing_data",),
+        ),
+    )
+
+    result = MissingDataStage().run(state)
+
+    assert result.state is state
+    assert result.diagnostics["dropped_row_count"] == 0
+    assert result.diagnostics["imputed_cell_count"] == 0
+
+
+def test_missing_data_stage_forbid_policy_rejects_single_missing_value() -> None:
+    phospho = _phospho()
+    phospho.loc["row_a", "sample_a"] = float("nan")
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="forbid",
+            stage_order=("missing_data",),
+        ),
+    )
+
+    with pytest.raises(PhosPyInputError) as exc_info:
+        MissingDataStage().run(state)
+
+    message = str(exc_info.value)
+    assert "stage 'missing_data'" in message
+    assert "missing_data.policy='forbid'" in message
+    assert "found 1 missing values across 1 rows and 1 columns" in message
+    assert "'row_a'" in message
+    assert "'sample_a'" in message
+    assert "choose missing_data.policy='impute_row_median'" in message
+
+
+def test_missing_data_stage_forbid_policy_rejects_multiple_missing_values() -> None:
+    phospho = _phospho()
+    phospho.loc["row_a", "sample_a"] = float("nan")
+    phospho.loc["row_a", "sample_b"] = float("nan")
+    phospho.loc["row_b", "sample_b"] = float("nan")
+    state = PreprocessingState(
+        phospho=phospho,
+        site_metadata=_site_metadata(phospho.index),
+        sample_metadata=None,
+        total=None,
+        plan=PreprocessingPlan(
+            missing_data_policy="forbid",
+            stage_order=("missing_data",),
+        ),
+    )
+
+    with pytest.raises(
+        PhosPyInputError,
+        match="found 3 missing values across 2 rows and 2 columns",
+    ):
+        MissingDataStage().run(state)
 
 
 def test_missing_data_stage_report_rows_appear_in_final_report() -> None:

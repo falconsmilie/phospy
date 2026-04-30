@@ -23,7 +23,7 @@ from phospy.api import (
     Organism,
     ReferencePreset,
 )
-from phospy.errors import DatasetValidationError, PhosPyInputError
+from phospy.errors import PhosPyInputError
 from phospy.io.publishers.workflows import publish_dataset
 from phospy.references.resolution import ReferenceResolver
 from phospy.transformations.models import IntensityScaleState
@@ -467,7 +467,11 @@ def test_dataset_builder_supports_site_matrix_build_from_metadata_policy() -> No
             site_metadata=site_metadata,
             organism=Organism.RAT,
             preprocessing_config=DatasetPreprocessingConfig(
-                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+                missing_data=DatasetMissingDataConfig(
+                    policy="impute_row_median",
+                    min_observed_values=2,
+                ),
+                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata"),
             ),
         )
     )
@@ -967,7 +971,10 @@ def test_dataset_builder_default_forbid_policy_keeps_missingness_strict() -> Non
     phospho = load_rat_l6_phospho().head(4).copy(deep=True)
     phospho.iloc[0, 0] = float("nan")
 
-    with pytest.raises(DatasetValidationError, match="must not contain missing values"):
+    with pytest.raises(
+        PhosPyInputError,
+        match="missing_data.policy='forbid'",
+    ):
         AnalysisReadyDatasetBuilder().run(
             DatasetBuildRequest(
                 phospho=phospho,

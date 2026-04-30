@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -46,6 +47,18 @@ def _site_metadata_from_site_ids(site_ids: pd.Index) -> pd.DataFrame:
     )
 
 
+def _plan_without_missing_stage(
+    config: DatasetPreprocessingConfig,
+) -> PreprocessingPlan:
+    plan = PreprocessingPlan.from_config(config)
+    return replace(
+        plan,
+        stage_order=tuple(
+            stage for stage in plan.stage_order if stage != "missing_data"
+        ),
+    )
+
+
 def test_subtract_log_total_total_protein_correction_matches_rewrite_reference_fixture(
     request: pytest.FixtureRequest,
 ) -> None:
@@ -67,7 +80,7 @@ def test_subtract_log_total_total_protein_correction_matches_rewrite_reference_f
         site_metadata=site_metadata,
         sample_metadata=None,
         total=total,
-        plan=PreprocessingPlan.from_config(
+        plan=_plan_without_missing_stage(
             DatasetPreprocessingConfig(
                 intensity_transform=DatasetIntensityTransformConfig(
                     policy="log2",
@@ -149,7 +162,7 @@ def test_site_matrix_build_from_metadata_matches_rewrite_reference_fixture(
         site_metadata=site_metadata,
         sample_metadata=None,
         total=None,
-        plan=PreprocessingPlan.from_config(
+        plan=_plan_without_missing_stage(
             DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
             )

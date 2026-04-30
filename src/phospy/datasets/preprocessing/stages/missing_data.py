@@ -28,6 +28,7 @@ class MissingDataStage:
 
     def run(self, state: PreprocessingState) -> PreprocessingStageResult:
         if state.plan.missing_data_policy == DATASET_MISSING_DATA_POLICY_FORBID:
+            _fail_if_forbid_policy_has_missing_values(state.phospho)
             return PreprocessingStageResult(
                 state=state,
                 diagnostics={
@@ -155,6 +156,41 @@ class MissingDataStage:
                 },
             },
         )
+
+
+def _fail_if_forbid_policy_has_missing_values(phospho: pd.DataFrame) -> None:
+    missing_mask = phospho.isna()
+    missing_cell_count = int(missing_mask.to_numpy().sum())
+    if missing_cell_count == 0:
+        return
+
+    affected_row_count = int(missing_mask.any(axis=1).sum())
+    affected_column_count = int(missing_mask.any(axis=0).sum())
+    affected_row_preview = _label_preview(
+        phospho.index[missing_mask.any(axis=1)].tolist()
+    )
+    affected_column_preview = _label_preview(
+        phospho.columns[missing_mask.any(axis=0)].tolist()
+    )
+    raise PhosPyInputError(
+        "dataset preprocessing stage 'missing_data' rejected missing values because "
+        "missing_data.policy='forbid'; "
+        f"found {missing_cell_count} missing values across "
+        f"{affected_row_count} rows and {affected_column_count} columns. "
+        f"affected row labels (preview): {affected_row_preview}. "
+        f"affected column labels (preview): {affected_column_preview}. "
+        "choose missing_data.policy='impute_row_median' or clean the input data."
+    )
+
+
+def _label_preview(values: list[object], *, max_items: int = 3) -> str:
+    if not values:
+        return "none"
+    rendered = [repr(str(value)) for value in values[:max_items]]
+    remaining_count = len(values) - len(rendered)
+    if remaining_count > 0:
+        rendered.append(f"+{remaining_count} more")
+    return ", ".join(rendered)
 
 
 __all__ = ["MissingDataStage"]

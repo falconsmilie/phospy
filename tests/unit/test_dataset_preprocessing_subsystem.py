@@ -105,6 +105,18 @@ def _internal_site_matrix_config(
     return config
 
 
+def _plan_without_missing_stage(
+    config: DatasetPreprocessingConfig,
+) -> PreprocessingPlan:
+    plan = PreprocessingPlan.from_config(config)
+    return replace(
+        plan,
+        stage_order=tuple(
+            stage for stage in plan.stage_order if stage != "missing_data"
+        ),
+    )
+
+
 def _total(columns: pd.Index) -> pd.DataFrame:
     return pd.DataFrame(
         {
@@ -428,7 +440,7 @@ def test_dataset_preprocessor_builds_site_matrix_from_metadata_policy() -> None:
         site_metadata=site_metadata,
         sample_metadata=None,
         total=None,
-        plan=PreprocessingPlan.from_config(
+        plan=_plan_without_missing_stage(
             DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
             )
@@ -480,7 +492,7 @@ def test_dataset_preprocessor_site_matrix_retain_missing_policy_keeps_partial_ro
         site_metadata=site_metadata,
         sample_metadata=None,
         total=None,
-        plan=PreprocessingPlan.from_config(
+        plan=_plan_without_missing_stage(
             DatasetPreprocessingConfig(
                 site_matrix=_internal_site_matrix_config(
                     policy="build_from_metadata",
@@ -525,7 +537,7 @@ def test_dataset_preprocessor_site_matrix_supports_min_observed_and_duplicate_ag
         site_metadata=site_metadata,
         sample_metadata=None,
         total=None,
-        plan=PreprocessingPlan.from_config(
+        plan=_plan_without_missing_stage(
             DatasetPreprocessingConfig(
                 site_matrix=_internal_site_matrix_config(
                     policy="build_from_metadata",
@@ -841,7 +853,7 @@ def test_dataset_preprocessor_subtract_log_total_matches_historical_baseline_fix
         site_metadata=site_metadata,
         sample_metadata=None,
         total=total,
-        plan=PreprocessingPlan.from_config(
+        plan=_plan_without_missing_stage(
             DatasetPreprocessingConfig(
                 intensity_transform=DatasetIntensityTransformConfig(
                     policy="log2",
@@ -913,7 +925,7 @@ def test_dataset_preprocessor_site_matrix_build_matches_historical_baseline_fixt
         site_metadata=site_metadata,
         sample_metadata=None,
         total=None,
-        plan=PreprocessingPlan.from_config(
+        plan=_plan_without_missing_stage(
             DatasetPreprocessingConfig(
                 site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
             )
@@ -1492,14 +1504,14 @@ def test_dataset_preprocessor_quantile_normalisation_is_deterministic_with_ties_
         site_metadata=site_metadata.copy(deep=True),
         sample_metadata=None,
         total=None,
-        plan=PreprocessingPlan.from_config(config),
+        plan=_plan_without_missing_stage(config),
     )
     second = DatasetPreprocessor().run(
         phospho=phospho.copy(deep=True),
         site_metadata=site_metadata.copy(deep=True),
         sample_metadata=None,
         total=None,
-        plan=PreprocessingPlan.from_config(config),
+        plan=_plan_without_missing_stage(config),
     )
 
     pdt.assert_frame_equal(first.phospho, second.phospho)

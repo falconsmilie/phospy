@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 import pytest
 
@@ -126,10 +128,13 @@ def test_site_matrix_stage_audits_missing_sequence_drops() -> None:
         site_metadata=site_metadata,
         sample_metadata=None,
         total=None,
-        plan=PreprocessingPlan.from_config(
-            DatasetPreprocessingConfig(
-                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
-            )
+        plan=replace(
+            PreprocessingPlan.from_config(
+                DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+                )
+            ),
+            stage_order=("site_matrix",),
         ),
     )
 
@@ -165,10 +170,13 @@ def test_site_matrix_stage_audits_incomplete_value_drops() -> None:
         site_metadata=site_metadata,
         sample_metadata=None,
         total=None,
-        plan=PreprocessingPlan.from_config(
-            DatasetPreprocessingConfig(
-                site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
-            )
+        plan=replace(
+            PreprocessingPlan.from_config(
+                DatasetPreprocessingConfig(
+                    site_matrix=DatasetSiteMatrixConfig(policy="build_from_metadata")
+                )
+            ),
+            stage_order=("site_matrix",),
         ),
     )
 
