@@ -11,6 +11,9 @@ interfaces are:
 - the Python API
 - the `phospy` command-line interface
 
+## Documentation
+You can view the full documentation here: [Phospy Docs](https://phospy.com/docs)
+
 ## Install
 
 PhosPy requires Python 3.10 or newer.
