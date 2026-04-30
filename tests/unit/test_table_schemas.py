@@ -306,6 +306,27 @@ def test_prediction_schema_valid_prediction_matrix_passes() -> None:
     assert wrapper.frame.shape == (2, 1)
 
 
+def test_prediction_schema_allows_nan_when_missing_policy_allows() -> None:
+    pred_mat = pd.DataFrame(
+        {"MAP2K6": [0.9, float("nan")]},
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    wrapper = KinasePredictionMatrix(frame=pred_mat)
+    assert pd.isna(wrapper.frame.loc["AKT1;T308;", "MAP2K6"])
+
+
+@pytest.mark.parametrize("invalid_value", [float("inf"), float("-inf")])
+def test_prediction_schema_rejects_infinite_values_when_missing_allowed(
+    invalid_value: float,
+) -> None:
+    pred_mat = pd.DataFrame(
+        {"MAP2K6": [0.9, invalid_value]},
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    with pytest.raises(PhosPyValidationError, match="finite numeric values"):
+        KinasePredictionMatrix(frame=pred_mat)
+
+
 def test_prediction_schema_duplicate_kinase_columns_fail() -> None:
     pred_mat = pd.DataFrame(
         [[0.9, 0.8]],

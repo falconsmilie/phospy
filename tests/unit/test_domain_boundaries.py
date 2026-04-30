@@ -203,9 +203,12 @@ def test_dataset_rejects_nan_in_phospho_matrix() -> None:
         )
 
 
-def test_dataset_rejects_inf_in_phospho_matrix() -> None:
+@pytest.mark.parametrize("invalid_value", [float("inf"), float("-inf")])
+def test_dataset_rejects_infinite_values_in_phospho_matrix(
+    invalid_value: float,
+) -> None:
     phospho = _phospho()
-    phospho.loc["MAPK14;Y182;", "sample_a"] = float("inf")
+    phospho.loc["MAPK14;Y182;", "sample_a"] = invalid_value
     with pytest.raises(
         DatasetValidationError, match="must contain finite numeric values"
     ):
@@ -215,6 +218,74 @@ def test_dataset_rejects_inf_in_phospho_matrix() -> None:
             organism=Organism.RAT,
             **_supported_dataset_state(has_total_matrix=False),
         )
+
+
+@pytest.mark.parametrize("invalid_value", [float("inf"), float("-inf")])
+def test_dataset_rejects_infinite_values_in_comparisons_matrix(
+    invalid_value: float,
+) -> None:
+    with pytest.raises(DatasetValidationError) as exc_info:
+        AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            comparisons=pd.DataFrame(
+                {"p_group1_group4": [invalid_value]},
+                index=["MAPK14;Y182;"],
+            ),
+            organism=Organism.RAT,
+            **_supported_dataset_state(has_total_matrix=False),
+        )
+    message = str(exc_info.value)
+    assert "dataset.comparisons must contain finite numeric values" in message
+    assert "('MAPK14;Y182;', 'p_group1_group4')" in message
+
+
+def test_dataset_rejects_nan_in_comparisons_matrix() -> None:
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.comparisons must not contain missing values",
+    ):
+        AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            comparisons=pd.DataFrame(
+                {"p_group1_group4": [float("nan")]},
+                index=["MAPK14;Y182;"],
+            ),
+            organism=Organism.RAT,
+            **_supported_dataset_state(has_total_matrix=False),
+        )
+
+
+def test_dataset_rejects_boolean_columns_in_total_matrix() -> None:
+    with pytest.raises(DatasetValidationError) as exc_info:
+        AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            total=pd.DataFrame({"sample_a": [True]}, index=["MAPK14"]),
+            organism=Organism.RAT,
+            **_supported_dataset_state(has_total_matrix=True),
+        )
+    message = str(exc_info.value)
+    assert "dataset.total must contain only scientific numeric columns" in message
+    assert "boolean columns are invalid: sample_a" in message
+
+
+def test_dataset_rejects_boolean_columns_in_comparisons_matrix() -> None:
+    with pytest.raises(DatasetValidationError) as exc_info:
+        AnalysisReadyPhosphoDataset(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            comparisons=pd.DataFrame(
+                {"p_group1_group4": [True]},
+                index=["MAPK14;Y182;"],
+            ),
+            organism=Organism.RAT,
+            **_supported_dataset_state(has_total_matrix=False),
+        )
+    message = str(exc_info.value)
+    assert "dataset.comparisons must contain only scientific numeric columns" in message
+    assert "boolean columns are invalid: p_group1_group4" in message
 
 
 def test_builder_rejects_sparse_missingness_in_phospho_matrix() -> None:
