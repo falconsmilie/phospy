@@ -135,6 +135,9 @@ def signalome_config_from_payload(
         )
     clustering_engine = payload.get("clustering_engine")
     if clustering_engine is None:
+        # Keep historical bundle replay deterministic: payloads created before
+        # `clustering_engine` was serialized are interpreted as the legacy exact
+        # backend rather than today's public default.
         clustering_engine = SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
     else:
         clustering_engine = require_str(

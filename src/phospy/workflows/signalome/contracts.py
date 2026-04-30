@@ -19,7 +19,7 @@ from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.signalomes.clustering.models import (
-    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
 )
 from phospy.signalomes.models import (
     SignalomeAlignmentDiagnostics,
@@ -47,7 +47,7 @@ class ResolvedSignalomeExecutionConfig:
     max_exact_tree_sites: int
     max_full_candidate_scoring_sites: int
     requested_module_count: int | None
-    clustering_engine: str = SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
+    clustering_engine: str = SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
 
 
 @dataclass(frozen=True, slots=True)

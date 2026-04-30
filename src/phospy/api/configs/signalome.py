@@ -112,7 +112,7 @@ class SignalomeConfig:
         SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
     )
     clustering_engine: SignalomeClusteringEngine = (
-        SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
+        SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
 
     def __post_init__(self) -> None:

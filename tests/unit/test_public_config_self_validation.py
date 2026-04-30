@@ -416,6 +416,13 @@ def test_signalome_config_accepts_supported_clustering_engine_names() -> None:
     assert scipy.clustering_engine == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
 
 
+def test_signalome_config_defaults_to_scipy_clustering_engine() -> None:
+    assert (
+        SignalomeConfig().clustering_engine
+        == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
+    )
+
+
 def test_signalome_config_rejects_removed_max_exact_clustering_sites_alias() -> None:
     with pytest.raises(
         TypeError,

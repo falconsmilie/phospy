@@ -43,7 +43,7 @@ def resolve_clustering_engine(name: str) -> SignalomeClusteringEngine:
 def run_clustering_engine(
     *,
     request: SignalomeClusteringEngineRequest,
-    clustering_engine: str = SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    clustering_engine: str = SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
 ) -> SignalomeClusteringEngineResult:
     """Run a resolved backend for the provided request."""
 

@@ -76,6 +76,24 @@ def test_backend_selection_rejects_unsupported_backend_name() -> None:
         resolve_clustering_engine("not_a_backend")
 
 
+def test_run_signalome_clustering_engine_defaults_to_scipy_backend() -> None:
+    result = run_signalome_clustering_engine(
+        scoring_matrix=_small_scoring_matrix(),
+        site_to_protein=_small_site_to_protein(),
+        requested_module_count=None,
+        primary_threshold=0.5,
+        fallback_threshold=0.1,
+        max_clusters=5,
+    )
+
+    assert result.backend_name == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
+    assert (
+        result.backend_version == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL_VERSION
+    )
+    assert result.backend_diagnostics is not None
+    assert result.backend_diagnostics["uses_scipy"] is True
+
+
 def test_exact_backend_result_surfaces_limit_threshold_and_backend_diagnostics() -> (
     None
 ):

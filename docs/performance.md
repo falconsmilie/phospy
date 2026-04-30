@@ -48,9 +48,9 @@ Default guards in `SignalomeConfig` are:
 - `max_exact_tree_sites=2000`
 - `max_full_candidate_scoring_sites=2000`
 - `candidate_scoring_policy="full"`
-- `clustering_engine="exact_python"`
+- `clustering_engine="scipy_hierarchical"`
 
-`clustering_engine="scipy_hierarchical"` is available when SciPy is installed.
+`clustering_engine="exact_python"` remains available for reference/debug checks.
 Both engines still honour the exact tree guard.
 
 `candidate_scoring_policy="sampled"` avoids materialising a full site-by-site
@@ -100,4 +100,3 @@ Run them locally with:
 ```bash
 pytest tests/performance -m performance
 ```
-

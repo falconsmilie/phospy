@@ -236,10 +236,13 @@ enrichment.
 | `candidate_scoring_policy` | `"full"` | `"full"` or `"sampled"` candidate module-count scoring |
 | `max_exact_tree_sites` | `2000` | hard guard for exact tree construction |
 | `max_full_candidate_scoring_sites` | `2000` | hard guard for full candidate scoring |
-| `clustering_engine` | `"exact_python"` | `"exact_python"` or `"scipy_hierarchical"` |
+| `clustering_engine` | `"scipy_hierarchical"` | `"exact_python"` or `"scipy_hierarchical"` |
 
 `candidate_scoring_policy="sampled"` reduces candidate module-count scoring
 cost. It does not remove the exact tree-construction guard.
+
+`clustering_engine="scipy_hierarchical"` is the preferred production default.
+Use `clustering_engine="exact_python"` mainly for reference/debug checks.
 
 Signalome module/network scores are derived summaries over upstream kinase score
 profiles. They are not probabilities, calibrated confidence values, or direct

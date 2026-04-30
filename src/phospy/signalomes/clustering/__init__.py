@@ -57,7 +57,7 @@ def run_signalome_clustering_engine(
     candidate_scoring_policy: str | None = None,
     max_exact_tree_sites: int | None = MAX_FULL_CORRELATION_SITE_COUNT,
     max_full_candidate_scoring_sites: int = MAX_FULL_CORRELATION_SITE_COUNT,
-    clustering_engine: str = SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    clustering_engine: str = SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
 ) -> SignalomeClusteringEngineResult:
     """Run configured signalome clustering backend."""
 

@@ -526,7 +526,7 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
         SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
     )
     assert interpreted.execution_config.clustering_engine == (
-        SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
+        SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
 
 
@@ -558,6 +558,50 @@ def test_interpreter_propagates_configured_clustering_engine() -> None:
     assert interpreted.execution_config.clustering_engine == (
         SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
+
+
+def test_executor_provenance_records_explicit_exact_python_backend() -> None:
+    dataset = _dataset(site_ids=["P1;S1;", "P2;S2;", "P3;S3;"])
+    prediction_matrix = _matrix(
+        values=[
+            [0.9, 0.1],
+            [0.1, 0.9],
+            [0.8, 0.7],
+        ],
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        kinases=["K1", "K2"],
+    )
+    score_matrix = _matrix(
+        values=[
+            [0.8, 0.2],
+            [0.2, 0.8],
+            [0.7, 0.6],
+        ],
+        site_ids=["P1;S1;", "P2;S2;", "P3;S3;"],
+        kinases=["K1", "K2"],
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=SignalomeConfig(
+            substrate_support_cutoff=0.5,
+            clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+        ),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    result = SignalomeWorkflowExecutor().run(interpreted)
+
+    assert result.provenance is not None
+    scale_guard = result.provenance.workflow_parameters["scale_guard"]
+    assert scale_guard["clustering_engine"] == SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
+    assert scale_guard["backend_diagnostics"]["backend_name"] == (
+        SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
+    )
+    assert scale_guard["backend_diagnostics"]["uses_scipy"] is False
 
 
 def test_interpreter_filters_site_indexed_inputs_to_retained_scores_after_preconditioning() -> (
@@ -1143,13 +1187,13 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     assert scale_guard == {
         "site_count": 2,
         "selected_module_count": 1,
-        "clustering_engine": "exact_python",
+        "clustering_engine": "scipy_hierarchical",
         "clustering_engine_version": "1",
         "backend_diagnostics": {
-            "backend_name": "exact_python",
-            "tree_engine": "exact_python_tree",
+            "backend_name": "scipy_hierarchical",
+            "tree_engine": "scipy_hierarchical_tree",
             "tree_engine_version": "1",
-            "uses_scipy": False,
+            "uses_scipy": True,
             "linkage_method": "ward",
             "distance_metric": "euclidean",
             "selected_module_count": 1,
@@ -1181,7 +1225,7 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
         == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
     )
     assert score_semantics["network_policy"] == "signed"
-    assert score_semantics["clustering_engine"] == "exact_python"
+    assert score_semantics["clustering_engine"] == "scipy_hierarchical"
     assert "probabilities" in score_semantics["scientific_interpretation_limits"]
     assert "causal" in score_semantics["scientific_interpretation_limits"]
     missing_profile = score_semantics["missing_profile_handling"]
@@ -1324,13 +1368,13 @@ def test_explicit_module_count_skips_sampled_candidate_scoring_in_provenance() -
     assert scale_guard == {
         "site_count": 3,
         "selected_module_count": 2,
-        "clustering_engine": "exact_python",
+        "clustering_engine": "scipy_hierarchical",
         "clustering_engine_version": "1",
         "backend_diagnostics": {
-            "backend_name": "exact_python",
-            "tree_engine": "exact_python_tree",
+            "backend_name": "scipy_hierarchical",
+            "tree_engine": "scipy_hierarchical_tree",
             "tree_engine_version": "1",
-            "uses_scipy": False,
+            "uses_scipy": True,
             "linkage_method": "ward",
             "distance_metric": "euclidean",
             "selected_module_count": 2,
@@ -1403,13 +1447,13 @@ def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> Non
     assert scale_guard == {
         "site_count": 3,
         "selected_module_count": 2,
-        "clustering_engine": "exact_python",
+        "clustering_engine": "scipy_hierarchical",
         "clustering_engine_version": "1",
         "backend_diagnostics": {
-            "backend_name": "exact_python",
-            "tree_engine": "exact_python_tree",
+            "backend_name": "scipy_hierarchical",
+            "tree_engine": "scipy_hierarchical_tree",
             "tree_engine_version": "1",
-            "uses_scipy": False,
+            "uses_scipy": True,
             "linkage_method": "ward",
             "distance_metric": "euclidean",
             "selected_module_count": 2,
@@ -1533,6 +1577,7 @@ def test_explicit_multi_module_invokes_exact_tree_builder_for_final_assignment(
             module_count=2,
             tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
             candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+            clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
         ),
     )
 
