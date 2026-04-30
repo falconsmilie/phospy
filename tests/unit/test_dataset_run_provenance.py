@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+
 import pandas as pd
+import pytest
 
 from phospy import AnalysisReadyDatasetBuilder
 from phospy.api import (
@@ -9,17 +12,40 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     Organism,
 )
+from phospy.provenance import environment as provenance_environment
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.serialization import from_payload, to_payload
 
 
 def test_collect_environment_provenance_reports_expected_keys() -> None:
     environment = collect_environment_provenance()
+    dependency_names = set(environment.dependency_versions)
     assert environment.package_name == "phospy"
     assert environment.python_version
-    assert {"numpy", "pandas", "scikit-learn"}.issubset(
-        set(environment.dependency_versions.keys())
+    assert {"numpy", "pandas", "scipy", "scikit-learn"}.issubset(dependency_names)
+    assert {"pyarrow", "openpyxl"}.issubset(dependency_names)
+    assert {"platform", "system", "machine"}.issubset(set(environment.platform))
+
+
+def test_collect_environment_provenance_tolerates_missing_optional_engines(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    optional_dependencies = {"pyarrow", "openpyxl"}
+    real_lookup = provenance_environment._distribution_version
+
+    def _version_lookup(distribution_name: str) -> str | None:
+        if distribution_name in optional_dependencies:
+            return None
+        return real_lookup(distribution_name)
+
+    monkeypatch.setattr(
+        provenance_environment, "_distribution_version", _version_lookup
     )
+    environment = collect_environment_provenance()
+
+    for dependency_name in optional_dependencies:
+        assert dependency_name in environment.dependency_versions
+        assert environment.dependency_versions[dependency_name] is None
 
 
 def test_dataset_builder_emits_run_provenance_and_stage_details() -> None:
@@ -102,6 +128,7 @@ def test_run_provenance_serialization_round_trip_preserves_payload() -> None:
     )
     assert built.provenance is not None
     payload = to_payload(built.provenance)
+    json.dumps(payload)
     restored = from_payload(payload)
     assert to_payload(restored) == payload
 
@@ -134,6 +161,9 @@ def test_run_provenance_from_payload_accepts_legacy_stage_shape() -> None:
     )
     assert built.provenance is not None
     payload = to_payload(built.provenance)
+    environment_payload = payload["environment"]
+    assert isinstance(environment_payload, dict)
+    environment_payload.pop("platform", None)
     stages = payload["preprocessing_stages"]
     assert isinstance(stages, list)
     for stage in stages:

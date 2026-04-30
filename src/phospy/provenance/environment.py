@@ -7,7 +7,12 @@ from importlib import metadata
 
 from phospy.provenance.models import EnvironmentProvenance
 
-DEFAULT_ENVIRONMENT_DEPENDENCIES = ("numpy", "pandas", "scikit-learn")
+CORE_ENVIRONMENT_DEPENDENCIES = ("numpy", "pandas", "scipy", "scikit-learn")
+OPTIONAL_ENVIRONMENT_DEPENDENCIES = ("pyarrow", "openpyxl")
+DEFAULT_ENVIRONMENT_DEPENDENCIES = (
+    *CORE_ENVIRONMENT_DEPENDENCIES,
+    *OPTIONAL_ENVIRONMENT_DEPENDENCIES,
+)
 
 
 def collect_environment_provenance(
@@ -25,6 +30,7 @@ def collect_environment_provenance(
             dependency: _distribution_version(dependency)
             for dependency in dependency_names
         },
+        platform=_platform_provenance(),
     )
 
 
@@ -35,7 +41,30 @@ def _distribution_version(distribution_name: str) -> str | None:
         return None
 
 
+def _platform_provenance() -> dict[str, str]:
+    return {
+        "platform": _normalize_platform_value(platform.platform()),
+        "system": _normalize_platform_value(platform.system()),
+        "release": _normalize_platform_value(platform.release()),
+        "version": _normalize_platform_value(platform.version()),
+        "machine": _normalize_platform_value(platform.machine()),
+        "processor": _normalize_platform_value(platform.processor()),
+        "python_implementation": _normalize_platform_value(
+            platform.python_implementation()
+        ),
+    }
+
+
+def _normalize_platform_value(value: str) -> str:
+    normalized = str(value).strip()
+    if normalized:
+        return normalized
+    return "unknown"
+
+
 __all__ = [
+    "CORE_ENVIRONMENT_DEPENDENCIES",
     "DEFAULT_ENVIRONMENT_DEPENDENCIES",
+    "OPTIONAL_ENVIRONMENT_DEPENDENCIES",
     "collect_environment_provenance",
 ]

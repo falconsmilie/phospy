@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from phospy.scientific_policies import ScientificPolicyRecord
 
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1 = 1
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2 = 2
+
+
+def _empty_platform_provenance() -> dict[str, str]:
+    return {}
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +36,7 @@ class EnvironmentProvenance:
     package_version: str
     python_version: str
     dependency_versions: dict[str, str | None]
+    platform: dict[str, str] = field(default_factory=_empty_platform_provenance)
 
 
 @dataclass(frozen=True, slots=True)

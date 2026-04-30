@@ -194,6 +194,7 @@ def _environment_to_payload(environment: EnvironmentProvenance) -> dict[str, obj
         "package_version": environment.package_version,
         "python_version": environment.python_version,
         "dependency_versions": _to_json_safe(environment.dependency_versions),
+        "platform": _to_json_safe(environment.platform),
     }
 
 
@@ -201,6 +202,10 @@ def _environment_from_payload(payload: Mapping[str, object]) -> EnvironmentProve
     dependency_versions = _require_mapping(
         payload.get("dependency_versions"),
         field_name="provenance.environment.dependency_versions",
+    )
+    platform_payload = _require_mapping(
+        payload.get("platform", {}),
+        field_name="provenance.environment.platform",
     )
     return EnvironmentProvenance(
         package_name=_require_str(
@@ -227,6 +232,13 @@ def _environment_from_payload(payload: Mapping[str, object]) -> EnvironmentProve
                 )
             )
             for key, value in dependency_versions.items()
+        },
+        platform={
+            str(key): _require_str(
+                value,
+                field_name=f"provenance.environment.platform['{str(key)}']",
+            )
+            for key, value in platform_payload.items()
         },
     )
 
