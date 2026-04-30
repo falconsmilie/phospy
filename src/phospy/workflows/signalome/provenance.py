@@ -129,36 +129,50 @@ class SignalomeProvenanceBuilder:
             workflow_name="signalome_workflow",
             workflow_parameters={
                 "signalome_config": {
-                    "substrate_support_cutoff": float(config.substrate_support_cutoff),
-                    "network_correlation_threshold": float(
-                        config.network_correlation_threshold
-                    ),
-                    "network_policy": str(config.network_policy),
-                    "assignment_policy": str(config.assignment_policy),
-                    "score_preconditioning_policy": str(
-                        config.score_preconditioning_policy
-                    ),
-                    "module_selection_primary_correlation_threshold": float(
-                        config.module_selection_primary_threshold
-                    ),
-                    "module_selection_fallback_correlation_threshold": float(
-                        config.module_selection_fallback_threshold
-                    ),
-                    "module_selection_max_clusters": int(
-                        config.module_selection_max_clusters
-                    ),
-                    "tree_engine": str(config.tree_engine),
-                    "candidate_scoring_policy": str(config.candidate_scoring_policy),
-                    "max_exact_tree_sites": int(config.max_exact_tree_sites),
-                    "max_full_candidate_scoring_sites": int(
-                        config.max_full_candidate_scoring_sites
-                    ),
-                    "clustering_engine": str(config.clustering_engine),
-                    "module_count": (
-                        None
-                        if config.requested_module_count is None
-                        else int(config.requested_module_count)
-                    ),
+                    "scientific": {
+                        "substrate_support_cutoff": float(
+                            config.substrate_support_cutoff
+                        ),
+                        "assignment_policy": str(config.assignment_policy),
+                    },
+                    "clustering": {
+                        "module_selection_primary_correlation_threshold": float(
+                            config.module_selection_primary_threshold
+                        ),
+                        "module_selection_fallback_correlation_threshold": float(
+                            config.module_selection_fallback_threshold
+                        ),
+                        "module_selection_max_clusters": int(
+                            config.module_selection_max_clusters
+                        ),
+                        "tree_engine": str(config.tree_engine),
+                        "candidate_scoring_policy": str(
+                            config.candidate_scoring_policy
+                        ),
+                        "clustering_engine": str(config.clustering_engine),
+                        "module_count": (
+                            None
+                            if config.requested_module_count is None
+                            else int(config.requested_module_count)
+                        ),
+                    },
+                    "validation": {
+                        "score_preconditioning_policy": str(
+                            config.score_preconditioning_policy
+                        ),
+                    },
+                    "output": {
+                        "network_correlation_threshold": float(
+                            config.network_correlation_threshold
+                        ),
+                        "network_policy": str(config.network_policy),
+                    },
+                    "performance": {
+                        "max_exact_tree_sites": int(config.max_exact_tree_sites),
+                        "max_full_candidate_scoring_sites": int(
+                            config.max_full_candidate_scoring_sites
+                        ),
+                    },
                 },
                 "scale_guard": {
                     "site_count": int(scale_guard_decision.site_count),

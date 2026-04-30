@@ -32,7 +32,12 @@ from phospy.api.configs import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    SignalomeClusteringConfig,
     SignalomeConfig,
+    SignalomeOutputConfig,
+    SignalomePerformanceConfig,
+    SignalomeScientificConfig,
+    SignalomeValidationConfig,
 )
 from phospy.api.requests import (
     DatasetBuildRequest,
@@ -360,16 +365,28 @@ def _run_signalome(args: argparse.Namespace) -> None:
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
             config=SignalomeConfig(
-                substrate_support_cutoff=args.substrate_support_cutoff,
-                network_correlation_threshold=args.network_correlation_threshold,
-                network_policy=args.network_policy,
-                assignment_policy=args.assignment_policy,
-                score_preconditioning_policy=args.score_preconditioning_policy,
-                tree_engine=args.tree_engine,
-                candidate_scoring_policy=args.candidate_scoring_policy,
-                max_exact_tree_sites=args.max_exact_tree_sites,
-                max_full_candidate_scoring_sites=(
-                    args.max_full_candidate_scoring_sites
+                scientific=SignalomeScientificConfig(
+                    substrate_support_cutoff=args.substrate_support_cutoff,
+                    assignment_policy=args.assignment_policy,  # type: ignore[arg-type]
+                ),
+                clustering=SignalomeClusteringConfig(
+                    tree_engine=args.tree_engine,  # type: ignore[arg-type]
+                    candidate_scoring_policy=(  # type: ignore[arg-type]
+                        args.candidate_scoring_policy
+                    ),
+                ),
+                validation=SignalomeValidationConfig(
+                    score_preconditioning_policy=(  # type: ignore[arg-type]
+                        args.score_preconditioning_policy
+                    ),
+                ),
+                output=SignalomeOutputConfig(
+                    network_correlation_threshold=args.network_correlation_threshold,
+                    network_policy=args.network_policy,  # type: ignore[arg-type]
+                ),
+                performance=SignalomePerformanceConfig(
+                    max_exact_tree_sites=args.max_exact_tree_sites,
+                    max_full_candidate_scoring_sites=args.max_full_candidate_scoring_sites,
                 ),
             ),
         )

@@ -15,7 +15,6 @@ from phospy.api import (
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     ReferencePreset,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
 )
 from phospy.signalomes.science import build_kinase_network
@@ -34,6 +33,7 @@ from tests.support.rewrite_fixture_data import (
     normalize_signalome_network_edges_for_parity,
     normalize_signalome_network_nodes_for_parity,
 )
+from tests.support.signalome_config import build_signalome_config
 
 # Fixture provenance:
 # - Input dataset fixture:
@@ -68,7 +68,7 @@ def _run_signalome_l6_supported_slice():
     return SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(substrate_support_cutoff=0.5),
+            config=build_signalome_config(substrate_support_cutoff=0.5),
         )
     )
 

@@ -9,7 +9,6 @@ from phospy.api import (
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
@@ -38,6 +37,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.signalome_config import build_signalome_config
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -150,7 +150,7 @@ def _run_signalome_executor() -> tuple[
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             network_correlation_threshold=0.3,
             module_count=2,

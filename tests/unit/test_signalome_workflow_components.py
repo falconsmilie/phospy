@@ -8,7 +8,6 @@ from phospy.api import (
     KinaseWorkflowResult,
     Organism,
     ReferenceBundle,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
@@ -46,6 +45,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.signalome_config import build_signalome_config
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -156,7 +156,7 @@ def _resolved_request():
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             network_correlation_threshold=0.3,
             module_count=2,
@@ -411,10 +411,15 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert "alignment_diagnostics" in provenance.workflow_parameters
     assert "network_correlation_diagnostics" in provenance.workflow_parameters
     signalome_config = provenance.workflow_parameters["signalome_config"]
-    assert "tree_engine" in signalome_config
-    assert "candidate_scoring_policy" in signalome_config
-    assert "max_exact_tree_sites" in signalome_config
-    assert signalome_config["module_count"] == 2
+    assert "scientific" in signalome_config
+    assert "clustering" in signalome_config
+    assert "validation" in signalome_config
+    assert "output" in signalome_config
+    assert "performance" in signalome_config
+    assert signalome_config["clustering"]["tree_engine"] == "exact"
+    assert signalome_config["clustering"]["candidate_scoring_policy"] == "full"
+    assert signalome_config["performance"]["max_exact_tree_sites"] == 2000
+    assert signalome_config["clustering"]["module_count"] == 2
     scale_guard = provenance.workflow_parameters["scale_guard"]
     assert "tree_engine" in scale_guard
     assert "candidate_scoring_policy" in scale_guard

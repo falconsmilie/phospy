@@ -10,7 +10,6 @@ from phospy.api import (
     Organism,
     ReferenceBundle,
     ReferencePreset,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
@@ -24,6 +23,7 @@ from phospy.errors import (
     SignalomeScaleError,
     WorkflowValidationError,
 )
+from tests.support.signalome_config import build_signalome_config
 
 
 def _dataset_request() -> DatasetBuildRequest:
@@ -93,7 +93,7 @@ def _kinase_result() -> KinaseWorkflowResult:
 def _signalome_request() -> SignalomeWorkflowRequest:
     return SignalomeWorkflowRequest(
         kinase_result=_kinase_result(),
-        config=SignalomeConfig(),
+        config=build_signalome_config(),
     )
 
 

@@ -45,20 +45,23 @@ Signalome is the main scale-sensitive lane.
 
 Default guards in `SignalomeConfig` are:
 
-- `max_exact_tree_sites=2000`
-- `max_full_candidate_scoring_sites=2000`
-- `candidate_scoring_policy="full"`
-- `clustering_engine="scipy_hierarchical"`
+- `performance.max_exact_tree_sites=2000`
+- `performance.max_full_candidate_scoring_sites=2000`
+- `clustering.candidate_scoring_policy="full"`
+- `clustering.clustering_engine="scipy_hierarchical"`
 
-`clustering_engine="exact_python"` remains available for reference/debug checks.
+`clustering.clustering_engine="exact_python"` remains available for
+reference/debug checks.
 Both engines still honour the exact tree guard.
 
-`candidate_scoring_policy="sampled"` avoids materialising a full site-by-site
-correlation matrix for candidate module-count scoring. It does not avoid exact
-tree construction, so `max_exact_tree_sites` still matters.
+`clustering.candidate_scoring_policy="sampled"` avoids materialising a full
+site-by-site correlation matrix for candidate module-count scoring. It does not
+avoid exact tree construction, so `performance.max_exact_tree_sites` still
+matters.
 
-If `module_count` is provided explicitly, candidate module-count scoring is
-skipped, but final module assignment can still require exact tree construction.
+If `clustering.module_count` is provided explicitly, candidate module-count
+scoring is skipped, but final module assignment can still require exact tree
+construction.
 
 Inspect what happened in a completed run:
 
@@ -83,7 +86,7 @@ print(scale_guard["max_full_candidate_scoring_sites"])
 | Quantile normalisation | check memory before running on very large dense matrices |
 | Signalome full candidate scoring | stay at or below the configured full-scoring guard unless you have profiled locally |
 | Signalome sampled candidate scoring | useful when candidate scoring is the bottleneck, but not a bypass for exact-tree limits |
-| Very large signalome runs | reduce interpreted sites, set explicit `module_count`, or profile before raising guards |
+| Very large signalome runs | reduce interpreted sites, set explicit `clustering.module_count`, or profile before raising guards |
 
 ## Benchmark Scripts
 

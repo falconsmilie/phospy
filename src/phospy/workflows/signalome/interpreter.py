@@ -154,34 +154,38 @@ class SignalomeWorkflowInterpreter:
         request: SignalomeWorkflowRequest,
     ) -> ResolvedSignalomeExecutionConfig:
         return ResolvedSignalomeExecutionConfig(
-            substrate_support_cutoff=float(request.config.substrate_support_cutoff),
-            network_correlation_threshold=float(
-                request.config.network_correlation_threshold
+            substrate_support_cutoff=float(
+                request.config.scientific.substrate_support_cutoff
             ),
-            network_policy=request.config.network_policy,
-            assignment_policy=request.config.assignment_policy,
-            score_preconditioning_policy=request.config.score_preconditioning_policy,
+            network_correlation_threshold=float(
+                request.config.output.network_correlation_threshold
+            ),
+            network_policy=request.config.output.network_policy,
+            assignment_policy=request.config.scientific.assignment_policy,
+            score_preconditioning_policy=(
+                request.config.validation.score_preconditioning_policy
+            ),
             module_selection_primary_threshold=float(
-                request.config.module_selection_primary_correlation_threshold
+                request.config.clustering.module_selection_primary_correlation_threshold
             ),
             module_selection_fallback_threshold=float(
-                request.config.module_selection_fallback_correlation_threshold
+                request.config.clustering.module_selection_fallback_correlation_threshold
             ),
             module_selection_max_clusters=int(
-                request.config.module_selection_max_clusters
+                request.config.clustering.module_selection_max_clusters
             ),
-            tree_engine=request.config.tree_engine,
-            candidate_scoring_policy=request.config.candidate_scoring_policy,
-            max_exact_tree_sites=int(request.config.max_exact_tree_sites),
+            tree_engine=request.config.clustering.tree_engine,
+            candidate_scoring_policy=request.config.clustering.candidate_scoring_policy,
+            max_exact_tree_sites=int(request.config.performance.max_exact_tree_sites),
             max_full_candidate_scoring_sites=int(
-                request.config.max_full_candidate_scoring_sites
+                request.config.performance.max_full_candidate_scoring_sites
             ),
             requested_module_count=(
                 None
-                if request.config.module_count is None
-                else int(request.config.module_count)
+                if request.config.clustering.module_count is None
+                else int(request.config.clustering.module_count)
             ),
-            clustering_engine=str(request.config.clustering_engine),
+            clustering_engine=str(request.config.clustering.clustering_engine),
         )
 
     @staticmethod
@@ -356,7 +360,9 @@ class SignalomeWorkflowInterpreter:
                 self._raise_boundary_error(
                     seam=self._SCORE_PRECONDITIONING_SEAM,
                     next_action=(
-                        "set config.score_preconditioning_policy='allow_and_report' "
+                        "set "
+                        "config.validation.score_preconditioning_policy="
+                        "'allow_and_report' "
                         "to proceed with explicit row dropping, or ensure upstream "
                         "downstream scores contain non-missing support for every "
                         "interpreted site"
@@ -373,7 +379,7 @@ class SignalomeWorkflowInterpreter:
                 seam=self._SCORE_PRECONDITIONING_SEAM,
                 next_action=(
                     "use a supported score preconditioning policy from "
-                    "SignalomeConfig.score_preconditioning_policy"
+                    "SignalomeConfig.validation.score_preconditioning_policy"
                 ),
                 score_preconditioning_policy=policy,
             )

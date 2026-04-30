@@ -118,11 +118,16 @@ from phospy.api.configs.signalome import (
     SIGNALOME_TREE_ENGINES,
     SignalomeAssignmentPolicy,
     SignalomeCandidateScoringPolicy,
+    SignalomeClusteringConfig,
     SignalomeClusteringEngine,
     SignalomeConfig,
     SignalomeKinaseNetworkPolicy,
+    SignalomeOutputConfig,
+    SignalomePerformanceConfig,
+    SignalomeScientificConfig,
     SignalomeScorePreconditioningPolicy,
     SignalomeTreeEngine,
+    SignalomeValidationConfig,
 )
 
 __all__ = [
@@ -234,10 +239,15 @@ __all__ = [
     "KinasePredictionConfig",
     "KinaseScoringConfig",
     "SignalomeAssignmentPolicy",
+    "SignalomeClusteringConfig",
     "SignalomeClusteringEngine",
     "SignalomeTreeEngine",
     "SignalomeCandidateScoringPolicy",
     "SignalomeKinaseNetworkPolicy",
+    "SignalomeOutputConfig",
+    "SignalomePerformanceConfig",
+    "SignalomeScientificConfig",
     "SignalomeScorePreconditioningPolicy",
     "SignalomeConfig",
+    "SignalomeValidationConfig",
 ]

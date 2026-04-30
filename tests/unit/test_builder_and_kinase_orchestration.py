@@ -49,6 +49,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.signalome_config import build_signalome_config
 
 
 def _phospho() -> pd.DataFrame:
@@ -142,24 +143,32 @@ def _resolved_signalome_execution_config(
     config: SignalomeConfig,
 ) -> ResolvedSignalomeExecutionConfig:
     return ResolvedSignalomeExecutionConfig(
-        substrate_support_cutoff=float(config.substrate_support_cutoff),
-        network_correlation_threshold=float(config.network_correlation_threshold),
-        network_policy=config.network_policy,
-        assignment_policy=config.assignment_policy,
-        score_preconditioning_policy=config.score_preconditioning_policy,
+        substrate_support_cutoff=float(config.scientific.substrate_support_cutoff),
+        network_correlation_threshold=float(
+            config.output.network_correlation_threshold
+        ),
+        network_policy=config.output.network_policy,
+        assignment_policy=config.scientific.assignment_policy,
+        score_preconditioning_policy=config.validation.score_preconditioning_policy,
         module_selection_primary_threshold=float(
-            config.module_selection_primary_correlation_threshold
+            config.clustering.module_selection_primary_correlation_threshold
         ),
         module_selection_fallback_threshold=float(
-            config.module_selection_fallback_correlation_threshold
+            config.clustering.module_selection_fallback_correlation_threshold
         ),
-        module_selection_max_clusters=int(config.module_selection_max_clusters),
-        tree_engine=config.tree_engine,
-        candidate_scoring_policy=config.candidate_scoring_policy,
-        max_exact_tree_sites=int(config.max_exact_tree_sites),
-        max_full_candidate_scoring_sites=int(config.max_full_candidate_scoring_sites),
+        module_selection_max_clusters=int(
+            config.clustering.module_selection_max_clusters
+        ),
+        tree_engine=config.clustering.tree_engine,
+        candidate_scoring_policy=config.clustering.candidate_scoring_policy,
+        max_exact_tree_sites=int(config.performance.max_exact_tree_sites),
+        max_full_candidate_scoring_sites=int(
+            config.performance.max_full_candidate_scoring_sites
+        ),
         requested_module_count=(
-            None if config.module_count is None else int(config.module_count)
+            None
+            if config.clustering.module_count is None
+            else int(config.clustering.module_count)
         ),
     )
 
@@ -414,7 +423,7 @@ def test_signalome_workflow_public_entrypoint_exercises_collaborators() -> None:
     )
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
     score_matrix = kinase_result.scoring_result.profile_scores
     interpreted = ResolvedSignalomeWorkflowRequest(

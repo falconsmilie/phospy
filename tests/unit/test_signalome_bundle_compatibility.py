@@ -7,6 +7,9 @@ from phospy.api import SignalomeConfig
 from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+    SignalomeOutputConfig,
+    SignalomeScientificConfig,
+    SignalomeValidationConfig,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._signalome.compatibility import (
@@ -37,23 +40,68 @@ def _full_signalome_snapshot_payload(
     **overrides: object,
 ) -> dict[str, dict[str, object]]:
     signalome_config: dict[str, object] = {
-        "substrate_support_cutoff": 0.5,
-        "network_correlation_threshold": 0.6,
-        "network_policy": "signed",
-        "assignment_policy": SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
-        "score_preconditioning_policy": (
-            SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
-        ),
-        "tree_engine": "exact",
-        "candidate_scoring_policy": "full",
-        "max_exact_tree_sites": 2000,
-        "max_full_candidate_scoring_sites": 2000,
-        "module_count": None,
-        "module_selection_primary_correlation_threshold": 0.6,
-        "module_selection_fallback_correlation_threshold": 0.2,
-        "module_selection_max_clusters": 15,
+        "scientific": {
+            "substrate_support_cutoff": 0.5,
+            "assignment_policy": SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
+        },
+        "clustering": {
+            "module_count": None,
+            "module_selection_primary_correlation_threshold": 0.6,
+            "module_selection_fallback_correlation_threshold": 0.2,
+            "module_selection_max_clusters": 15,
+            "tree_engine": "exact",
+            "candidate_scoring_policy": "full",
+            "clustering_engine": "exact_python",
+        },
+        "validation": {
+            "score_preconditioning_policy": (
+                SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+            ),
+        },
+        "output": {
+            "network_correlation_threshold": 0.6,
+            "network_policy": "signed",
+        },
+        "performance": {
+            "max_exact_tree_sites": 2000,
+            "max_full_candidate_scoring_sites": 2000,
+        },
     }
-    signalome_config.update(overrides)
+    for key, value in overrides.items():
+        if key in {"substrate_support_cutoff", "assignment_policy"}:
+            scientific = signalome_config["scientific"]
+            assert isinstance(scientific, dict)
+            scientific[key] = value
+            continue
+        if key in {
+            "module_count",
+            "module_selection_primary_correlation_threshold",
+            "module_selection_fallback_correlation_threshold",
+            "module_selection_max_clusters",
+            "tree_engine",
+            "candidate_scoring_policy",
+            "clustering_engine",
+        }:
+            clustering = signalome_config["clustering"]
+            assert isinstance(clustering, dict)
+            clustering[key] = value
+            continue
+        if key in {"score_preconditioning_policy"}:
+            validation = signalome_config["validation"]
+            assert isinstance(validation, dict)
+            validation[key] = value
+            continue
+        if key in {"network_correlation_threshold", "network_policy"}:
+            output = signalome_config["output"]
+            assert isinstance(output, dict)
+            output[key] = value
+            continue
+        if key in {"max_exact_tree_sites", "max_full_candidate_scoring_sites"}:
+            performance = signalome_config["performance"]
+            assert isinstance(performance, dict)
+            performance[key] = value
+            continue
+        signalome_config[key] = value
     return {"signalome_config": signalome_config}
 
 
@@ -83,7 +131,7 @@ def test_signalome_snapshot_supports_assignment_policy_payload() -> None:
     )
 
     assert (
-        snapshot.signalome_config.assignment_policy
+        snapshot.signalome_config.scientific.assignment_policy
         == SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP
     )
 
@@ -93,18 +141,24 @@ def test_signalome_snapshot_supports_network_policy_payload() -> None:
         _full_signalome_snapshot_payload(network_policy="absolute_threshold")
     )
 
-    assert snapshot.signalome_config.network_policy == "absolute_threshold"
+    assert snapshot.signalome_config.output.network_policy == "absolute_threshold"
 
 
 def test_signalome_snapshot_round_trip_preserves_network_policy() -> None:
     snapshot = SignalomeWorkflowConfigSnapshot(
         signalome_config=SignalomeConfig(
-            substrate_support_cutoff=0.5,
-            network_correlation_threshold=0.7,
-            network_policy="absolute_threshold",
-            assignment_policy=SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
-            score_preconditioning_policy=(
-                SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+            scientific=SignalomeScientificConfig(
+                substrate_support_cutoff=0.5,
+                assignment_policy=SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+            ),
+            validation=SignalomeValidationConfig(
+                score_preconditioning_policy=(
+                    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+                ),
+            ),
+            output=SignalomeOutputConfig(
+                network_correlation_threshold=0.7,
+                network_policy="absolute_threshold",
             ),
         )
     )
@@ -116,22 +170,32 @@ def test_signalome_snapshot_round_trip_preserves_network_policy() -> None:
 def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
     payload = {
         "signalome_config": {
-            "substrate_support_cutoff": 0.42,
-            "network_correlation_threshold": 0.73,
-            "network_policy": "absolute_threshold",
-            "assignment_policy": SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
-            "score_preconditioning_policy": (
-                SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
-            ),
-            "tree_engine": "exact",
-            "candidate_scoring_policy": "sampled",
-            "max_exact_tree_sites": 2500,
-            "max_full_candidate_scoring_sites": 1700,
-            "module_count": 6,
-            "module_selection_primary_correlation_threshold": 0.67,
-            "module_selection_fallback_correlation_threshold": 0.23,
-            "module_selection_max_clusters": 15,
-            "clustering_engine": "exact_python",
+            "scientific": {
+                "substrate_support_cutoff": 0.42,
+                "assignment_policy": SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP,
+            },
+            "clustering": {
+                "module_count": 6,
+                "module_selection_primary_correlation_threshold": 0.67,
+                "module_selection_fallback_correlation_threshold": 0.23,
+                "module_selection_max_clusters": 15,
+                "tree_engine": "exact",
+                "candidate_scoring_policy": "sampled",
+                "clustering_engine": "exact_python",
+            },
+            "validation": {
+                "score_preconditioning_policy": (
+                    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+                ),
+            },
+            "output": {
+                "network_correlation_threshold": 0.73,
+                "network_policy": "absolute_threshold",
+            },
+            "performance": {
+                "max_exact_tree_sites": 2500,
+                "max_full_candidate_scoring_sites": 1700,
+            },
         }
     }
 
@@ -147,8 +211,6 @@ def test_signalome_snapshot_rejects_removed_max_exact_clustering_sites_alias() -
         SignalomeWorkflowConfigSnapshot.from_payload(
             {
                 "signalome_config": {
-                    "substrate_support_cutoff": 0.42,
-                    "network_correlation_threshold": 0.73,
                     "max_exact_clustering_sites": 2500,
                 }
             }
@@ -158,7 +220,10 @@ def test_signalome_snapshot_rejects_removed_max_exact_clustering_sites_alias() -
 def test_signalome_snapshot_rejects_unknown_clustering_engine_value() -> None:
     with pytest.raises(
         PhosPyInputError,
-        match="config snapshot.signalome_config.clustering_engine must be one of:",
+        match=(
+            "config snapshot.signalome_config.clustering.clustering_engine "
+            "must be one of:"
+        ),
     ):
         SignalomeWorkflowConfigSnapshot.from_payload(
             _full_signalome_snapshot_payload(clustering_engine="approximate")
@@ -174,9 +239,11 @@ def test_signalome_snapshot_accepts_engine_policy_fields() -> None:
         )
     )
 
-    assert snapshot.signalome_config.tree_engine == "exact"
-    assert snapshot.signalome_config.candidate_scoring_policy == "sampled"
-    assert snapshot.signalome_config.clustering_engine == "scipy_hierarchical"
+    assert snapshot.signalome_config.clustering.tree_engine == "exact"
+    assert snapshot.signalome_config.clustering.candidate_scoring_policy == "sampled"
+    assert (
+        snapshot.signalome_config.clustering.clustering_engine == "scipy_hierarchical"
+    )
 
 
 @pytest.mark.parametrize(
@@ -206,7 +273,7 @@ def test_signalome_snapshot_rejects_removed_backend_style_fields(
 def test_signalome_snapshot_rejects_float_module_count_payload() -> None:
     with pytest.raises(
         PhosPyInputError,
-        match="config snapshot.signalome_config.module_count must be an int",
+        match="config snapshot.signalome_config.clustering.module_count must be an int",
     ):
         SignalomeWorkflowConfigSnapshot.from_payload(
             _full_signalome_snapshot_payload(module_count=6.0)
@@ -221,8 +288,6 @@ def test_signalome_snapshot_rejects_removed_network_policy_alias() -> None:
         SignalomeWorkflowConfigSnapshot.from_payload(
             {
                 "signalome_config": {
-                    "substrate_support_cutoff": 0.5,
-                    "network_correlation_threshold": 0.6,
                     "kinase_network_policy": "positive_only",
                 }
             }

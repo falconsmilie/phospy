@@ -92,7 +92,7 @@ Generation settings are fixed in the script and parity tests:
 - `build_rat_l6_dataset(n_sites=260)`
 - `KinaseScoringConfig(min_substrates=2)`
 - `KinasePredictionConfig(top_k=6, deterministic_max_selected_kinases=12, adaptive_ensemble_runs=12)`
-- `SignalomeConfig(substrate_support_cutoff=0.5)`
+- `SignalomeConfig(scientific=SignalomeScientificConfig(substrate_support_cutoff=0.5))`
 
 Generation date for full-output fixture promotion: 2026-04-20.
 

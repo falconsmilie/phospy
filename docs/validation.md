@@ -90,10 +90,11 @@ Gene-symbol prefixes in site IDs are not treated as protein identity.
 
 Signalome scale guards protect expensive clustering work:
 
-- `max_exact_tree_sites` limits exact tree construction.
-- `max_full_candidate_scoring_sites` limits full candidate correlation scoring.
-- `candidate_scoring_policy="sampled"` can reduce candidate-scoring cost but still
-  needs exact tree construction.
+- `performance.max_exact_tree_sites` limits exact tree construction.
+- `performance.max_full_candidate_scoring_sites` limits full candidate
+  correlation scoring.
+- `clustering.candidate_scoring_policy="sampled"` can reduce candidate-scoring
+  cost but still needs exact tree construction.
 
 After a successful run, `result.provenance.workflow_parameters["scale_guard"]`
 shows exact tree-generation details and candidate-scoring details separately.
@@ -108,7 +109,7 @@ shows exact tree-generation details and candidate-scoring details separately.
 | reference resolution error | Use rat with `AUTO`, or pass an explicit `ReferenceBundle`. |
 | total-protein correction error | Provide `total`, set `intensity_transform.policy="log2"`, and configure identity mapping. |
 | activity error on a tiny example | Disable activity or provide enough supported substrates. |
-| signalome scale error | Reduce sites, use `sampled` candidate scoring where appropriate, or raise guards deliberately. |
+| signalome scale error | Reduce sites, use `clustering.candidate_scoring_policy="sampled"` where appropriate, or raise `performance` guards deliberately. |
 
 ## Error Families
 

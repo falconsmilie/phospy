@@ -14,7 +14,11 @@ from phospy.api.configs import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    SignalomeClusteringConfig,
     SignalomeConfig,
+    SignalomeOutputConfig,
+    SignalomeScientificConfig,
+    SignalomeValidationConfig,
 )
 from phospy.api.requests import (
     DatasetBuildRequest,
@@ -44,6 +48,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.signalome_config import build_signalome_config
 
 
 def _dataset_state_kwargs(*, has_total_matrix: bool) -> dict[str, object]:
@@ -628,9 +633,9 @@ def test_kinase_activity_top_n_config_policy_fails_at_validator_boundary() -> No
 def test_signalome_request_support_cutoff_policy_fails_at_validator_boundary() -> None:
     with pytest.raises(
         WorkflowValidationError,
-        match="signalome workflow request config.substrate_support_cutoff",
+        match="signalome workflow request config.scientific.substrate_support_cutoff",
     ):
-        SignalomeConfig(substrate_support_cutoff=1.5)
+        SignalomeScientificConfig(substrate_support_cutoff=1.5)
 
 
 def test_signalome_request_network_threshold_policy_fails_at_validator_boundary() -> (
@@ -638,33 +643,35 @@ def test_signalome_request_network_threshold_policy_fails_at_validator_boundary(
 ):
     with pytest.raises(
         WorkflowValidationError,
-        match="signalome workflow request config.network_correlation_threshold",
+        match="signalome workflow request config.output.network_correlation_threshold",
     ):
-        SignalomeConfig(network_correlation_threshold=-0.1)
+        SignalomeOutputConfig(network_correlation_threshold=-0.1)
 
 
 def test_signalome_request_assignment_policy_fails_at_validator_boundary() -> None:
     with pytest.raises(
         WorkflowValidationError,
-        match="signalome workflow request config.assignment_policy",
+        match="signalome workflow request config.scientific.assignment_policy",
     ):
-        SignalomeConfig(assignment_policy="invalid")  # type: ignore[arg-type]
+        SignalomeScientificConfig(assignment_policy="invalid")  # type: ignore[arg-type]
 
 
 def test_signalome_request_network_policy_fails_at_validator_boundary() -> None:
     with pytest.raises(
         WorkflowValidationError,
-        match="signalome workflow request config.network_policy",
+        match="signalome workflow request config.output.network_policy",
     ):
-        SignalomeConfig(network_policy="invalid")  # type: ignore[arg-type]
+        SignalomeOutputConfig(network_policy="invalid")  # type: ignore[arg-type]
 
 
 def test_signalome_request_preconditioning_policy_fails_at_validator_boundary() -> None:
     with pytest.raises(
         WorkflowValidationError,
-        match="signalome workflow request config.score_preconditioning_policy",
+        match=(
+            "signalome workflow request config.validation.score_preconditioning_policy"
+        ),
     ):
-        SignalomeConfig(
+        SignalomeValidationConfig(
             score_preconditioning_policy="invalid"  # type: ignore[arg-type]
         )
 
@@ -672,22 +679,22 @@ def test_signalome_request_preconditioning_policy_fails_at_validator_boundary() 
 def test_signalome_request_module_count_policy_fails_at_validator_boundary() -> None:
     with pytest.raises(
         WorkflowValidationError,
-        match="signalome workflow request config.module_count",
+        match="signalome workflow request config.clustering.module_count",
     ):
-        SignalomeConfig(module_count=0)
+        SignalomeClusteringConfig(module_count=0)
     with pytest.raises(
         WorkflowValidationError,
-        match="signalome workflow request config.module_count",
+        match="signalome workflow request config.clustering.module_count",
     ):
-        SignalomeConfig(module_count=-1)
+        SignalomeClusteringConfig(module_count=-1)
 
 
 def test_signalome_request_module_count_type_fails_at_validator_boundary() -> None:
     with pytest.raises(
         WorkflowValidationError,
-        match="signalome workflow request config.module_count must be an int",
+        match="signalome workflow request config.clustering.module_count must be an int",
     ):
-        SignalomeConfig(module_count=1.5)
+        SignalomeClusteringConfig(module_count=1.5)  # type: ignore[arg-type]
 
 
 def test_signalome_request_module_selection_threshold_policy_fails_at_boundary() -> (
@@ -697,7 +704,7 @@ def test_signalome_request_module_selection_threshold_policy_fails_at_boundary()
         WorkflowValidationError,
         match="module_selection_primary_correlation_threshold",
     ):
-        SignalomeConfig(module_selection_primary_correlation_threshold=1.2)
+        SignalomeClusteringConfig(module_selection_primary_correlation_threshold=1.2)
 
 
 def test_signalome_request_module_selection_max_clusters_policy_fails_at_boundary() -> (
@@ -707,15 +714,15 @@ def test_signalome_request_module_selection_max_clusters_policy_fails_at_boundar
         WorkflowValidationError,
         match="module_selection_max_clusters",
     ):
-        SignalomeConfig(module_selection_max_clusters=0)
+        SignalomeClusteringConfig(module_selection_max_clusters=0)
 
 
 def test_signalome_request_clustering_engine_policy_fails_at_boundary() -> None:
     with pytest.raises(
         WorkflowValidationError,
-        match="signalome workflow request config.clustering_engine",
+        match="signalome workflow request config.clustering.clustering_engine",
     ):
-        SignalomeConfig(clustering_engine="unsupported")
+        SignalomeClusteringConfig(clustering_engine="unsupported")  # type: ignore[arg-type]
 
 
 def test_signalome_request_max_exact_clustering_sites_policy_fails_at_boundary() -> (
@@ -749,7 +756,7 @@ def test_signalome_validator_requires_explicit_site_metadata_protein_id_column()
             prediction_result=kinase_result.prediction_result,
             activity_result=kinase_result.activity_result,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     with pytest.raises(
@@ -805,7 +812,7 @@ def test_signalome_validator_does_not_cast_numeric_matrices(
 ) -> None:
     request = SignalomeWorkflowRequest(
         kinase_result=_kinase_result(),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     def _fail_astype(*args, **kwargs):
@@ -828,7 +835,7 @@ def test_signalome_validator_allows_prediction_matrix_missingness() -> None:
             prediction_result=KinasePredictionResult(pred_mat=prediction_with_missing),
             activity_result=kinase_result.activity_result,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     validated = SignalomeWorkflowValidator().run(request)
@@ -854,7 +861,7 @@ def test_signalome_validator_allows_downstream_score_matrix_missingness() -> Non
             prediction_result=kinase_result.prediction_result,
             activity_result=kinase_result.activity_result,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     validated = SignalomeWorkflowValidator().run(request)
@@ -885,5 +892,5 @@ def test_signalome_validator_prefers_rank_weighted_fusion_scores_when_available(
                 prediction_result=kinase_result.prediction_result,
                 activity_result=kinase_result.activity_result,
             ),
-            config=SignalomeConfig(substrate_support_cutoff=0.5),
+            config=build_signalome_config(substrate_support_cutoff=0.5),
         )

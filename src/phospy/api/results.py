@@ -51,7 +51,8 @@ class SignalomeWorkflowResult:
     linked-kinase metadata, regulated module IDs, and selected site-membership
     rows with stable `site_order`. `score_preconditioning_diagnostics` reports
     downstream-score row preconditioning counts and the active
-    `SignalomeConfig.score_preconditioning_policy`. `site_membership` and
+    `SignalomeConfig.validation.score_preconditioning_policy`.
+    `site_membership` and
     `protein_site_context` provide optional signalome provenance sidecars for
     site-level and protein-level phosphosite context.
     """

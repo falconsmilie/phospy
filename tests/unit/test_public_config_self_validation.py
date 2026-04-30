@@ -16,7 +16,12 @@ from phospy.api.configs import (
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
+    SignalomeClusteringConfig,
     SignalomeConfig,
+    SignalomeOutputConfig,
+    SignalomePerformanceConfig,
+    SignalomeScientificConfig,
+    SignalomeValidationConfig,
 )
 from phospy.errors import PhosPyInputError, WorkflowValidationError
 
@@ -324,101 +329,120 @@ def test_kinase_activity_config_self_validates(
 
 
 @pytest.mark.parametrize(
-    ("kwargs", "pattern"),
+    ("factory", "pattern"),
     [
         (
-            {"substrate_support_cutoff": 1.5},
-            "signalome workflow request config.substrate_support_cutoff",
+            lambda: SignalomeScientificConfig(substrate_support_cutoff=1.5),
+            "signalome workflow request config.scientific.substrate_support_cutoff",
         ),
         (
-            {"substrate_support_cutoff": True},
-            "signalome workflow request config.substrate_support_cutoff",
+            lambda: SignalomeScientificConfig(substrate_support_cutoff=True),  # type: ignore[arg-type]
+            "signalome workflow request config.scientific.substrate_support_cutoff",
         ),
         (
-            {"network_correlation_threshold": -0.1},
-            "signalome workflow request config.network_correlation_threshold",
+            lambda: SignalomeOutputConfig(network_correlation_threshold=-0.1),
+            "signalome workflow request config.output.network_correlation_threshold",
         ),
         (
-            {"network_policy": "invalid"},
-            "signalome workflow request config.network_policy",
+            lambda: SignalomeOutputConfig(network_policy="invalid"),  # type: ignore[arg-type]
+            "signalome workflow request config.output.network_policy",
         ),
         (
-            {"assignment_policy": "invalid"},
-            "signalome workflow request config.assignment_policy",
+            lambda: SignalomeScientificConfig(assignment_policy="invalid"),  # type: ignore[arg-type]
+            "signalome workflow request config.scientific.assignment_policy",
         ),
         (
-            {"score_preconditioning_policy": "invalid"},
-            "signalome workflow request config.score_preconditioning_policy",
+            lambda: SignalomeValidationConfig(
+                score_preconditioning_policy="invalid"  # type: ignore[arg-type]
+            ),
+            "signalome workflow request config.validation.score_preconditioning_policy",
         ),
         (
-            {"module_count": 0},
-            "signalome workflow request config.module_count",
+            lambda: SignalomeClusteringConfig(module_count=0),
+            "signalome workflow request config.clustering.module_count",
         ),
         (
-            {"module_count": -1},
-            "signalome workflow request config.module_count",
+            lambda: SignalomeClusteringConfig(module_count=-1),
+            "signalome workflow request config.clustering.module_count",
         ),
         (
-            {"module_count": True},
-            "signalome workflow request config.module_count must be an int",
+            lambda: SignalomeClusteringConfig(module_count=True),  # type: ignore[arg-type]
+            "signalome workflow request config.clustering.module_count must be an int",
         ),
         (
-            {"module_count": 2.5},
-            "signalome workflow request config.module_count must be an int",
+            lambda: SignalomeClusteringConfig(module_count=2.5),  # type: ignore[arg-type]
+            "signalome workflow request config.clustering.module_count must be an int",
         ),
         (
-            {"module_selection_primary_correlation_threshold": 1.2},
+            lambda: SignalomeClusteringConfig(
+                module_selection_primary_correlation_threshold=1.2
+            ),
             "module_selection_primary_correlation_threshold",
         ),
         (
-            {"module_selection_fallback_correlation_threshold": -0.1},
+            lambda: SignalomeClusteringConfig(
+                module_selection_fallback_correlation_threshold=-0.1
+            ),
             "module_selection_fallback_correlation_threshold",
         ),
         (
-            {"module_selection_max_clusters": 0},
+            lambda: SignalomeClusteringConfig(module_selection_max_clusters=0),
             "module_selection_max_clusters",
         ),
         (
-            {"tree_engine": "invalid"},
-            "signalome workflow request config.tree_engine",
+            lambda: SignalomeClusteringConfig(tree_engine="invalid"),  # type: ignore[arg-type]
+            "signalome workflow request config.clustering.tree_engine",
         ),
         (
-            {"candidate_scoring_policy": "invalid"},
-            "signalome workflow request config.candidate_scoring_policy",
+            lambda: SignalomeClusteringConfig(candidate_scoring_policy="invalid"),  # type: ignore[arg-type]
+            "signalome workflow request config.clustering.candidate_scoring_policy",
         ),
         (
-            {"max_exact_tree_sites": 0},
-            "signalome workflow request config.max_exact_tree_sites",
+            lambda: SignalomePerformanceConfig(max_exact_tree_sites=0),
+            "signalome workflow request config.performance.max_exact_tree_sites",
         ),
         (
-            {"max_full_candidate_scoring_sites": 0},
-            "signalome workflow request config.max_full_candidate_scoring_sites",
+            lambda: SignalomePerformanceConfig(max_full_candidate_scoring_sites=0),
+            (
+                "signalome workflow request config.performance."
+                "max_full_candidate_scoring_sites"
+            ),
         ),
         (
-            {"clustering_engine": "invalid"},
-            "signalome workflow request config.clustering_engine",
+            lambda: SignalomeClusteringConfig(clustering_engine="invalid"),  # type: ignore[arg-type]
+            "signalome workflow request config.clustering.clustering_engine",
         ),
     ],
 )
-def test_signalome_config_self_validates(
-    kwargs: dict[str, object], pattern: str
-) -> None:
+def test_signalome_config_self_validates(factory: object, pattern: str) -> None:
+    assert callable(factory)
     with pytest.raises(WorkflowValidationError, match=pattern):
-        SignalomeConfig(**kwargs)  # type: ignore[arg-type]
+        factory()
 
 
 def test_signalome_config_accepts_supported_clustering_engine_names() -> None:
-    exact = SignalomeConfig(clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON)
-    scipy = SignalomeConfig(
-        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
+    exact = SignalomeConfig(
+        clustering=SignalomeClusteringConfig(
+            clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
+        )
     )
-    assert exact.clustering_engine == SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
-    assert scipy.clustering_engine == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
+    scipy = SignalomeConfig(
+        clustering=SignalomeClusteringConfig(
+            clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
+        )
+    )
+    assert (
+        exact.clustering.clustering_engine == SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
+    )
+    assert (
+        scipy.clustering.clustering_engine
+        == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
+    )
 
 
 def test_signalome_config_defaults_to_scipy_clustering_engine() -> None:
     assert (
-        SignalomeConfig().clustering_engine
+        SignalomeConfig().clustering.clustering_engine
         == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
 
@@ -433,13 +457,21 @@ def test_signalome_config_rejects_removed_max_exact_clustering_sites_alias() -> 
 
 def test_signalome_config_accepts_engine_and_policy_names() -> None:
     config = SignalomeConfig(
-        tree_engine="exact",
-        candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
-        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+        clustering=SignalomeClusteringConfig(
+            tree_engine="exact",
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+            clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+        )
     )
-    assert config.tree_engine == "exact"
-    assert config.candidate_scoring_policy == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
-    assert config.clustering_engine == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
+    assert config.clustering.tree_engine == "exact"
+    assert (
+        config.clustering.candidate_scoring_policy
+        == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
+    )
+    assert (
+        config.clustering.clustering_engine
+        == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
+    )
 
 
 @pytest.mark.parametrize(

@@ -13,7 +13,12 @@ from phospy.api.configs import (
     SIGNALOME_KINASE_NETWORK_POLICIES,
     SIGNALOME_SCORE_PRECONDITIONING_POLICIES,
     SIGNALOME_TREE_ENGINES,
+    SignalomeClusteringConfig,
     SignalomeConfig,
+    SignalomeOutputConfig,
+    SignalomePerformanceConfig,
+    SignalomeScientificConfig,
+    SignalomeValidationConfig,
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import (
@@ -33,30 +38,40 @@ from phospy.signalomes.models import (
 )
 
 _SIGNALOME_CONFIG_ALLOWED_FIELDS = frozenset(
+    {"scientific", "clustering", "validation", "output", "performance"}
+)
+_SIGNALOME_CONFIG_REQUIRED_FIELDS = _SIGNALOME_CONFIG_ALLOWED_FIELDS
+
+_SCIENTIFIC_ALLOWED_FIELDS = frozenset(
+    {"substrate_support_cutoff", "assignment_policy"}
+)
+_SCIENTIFIC_REQUIRED_FIELDS = _SCIENTIFIC_ALLOWED_FIELDS
+
+_CLUSTERING_ALLOWED_FIELDS = frozenset(
     {
-        "substrate_support_cutoff",
-        "network_correlation_threshold",
-        "network_policy",
-        "assignment_policy",
-        "score_preconditioning_policy",
-        "tree_engine",
-        "candidate_scoring_policy",
-        "max_exact_tree_sites",
-        "max_full_candidate_scoring_sites",
         "module_count",
         "module_selection_primary_correlation_threshold",
         "module_selection_fallback_correlation_threshold",
         "module_selection_max_clusters",
+        "tree_engine",
+        "candidate_scoring_policy",
         "clustering_engine",
     }
 )
-_SIGNALOME_CONFIG_REQUIRED_FIELDS = frozenset(
-    {
-        field
-        for field in _SIGNALOME_CONFIG_ALLOWED_FIELDS
-        if field not in {"clustering_engine"}
-    }
+_CLUSTERING_REQUIRED_FIELDS = frozenset(
+    field for field in _CLUSTERING_ALLOWED_FIELDS if field not in {"clustering_engine"}
 )
+
+_VALIDATION_ALLOWED_FIELDS = frozenset({"score_preconditioning_policy"})
+_VALIDATION_REQUIRED_FIELDS = _VALIDATION_ALLOWED_FIELDS
+
+_OUTPUT_ALLOWED_FIELDS = frozenset({"network_correlation_threshold", "network_policy"})
+_OUTPUT_REQUIRED_FIELDS = _OUTPUT_ALLOWED_FIELDS
+
+_PERFORMANCE_ALLOWED_FIELDS = frozenset(
+    {"max_exact_tree_sites", "max_full_candidate_scoring_sites"}
+)
+_PERFORMANCE_REQUIRED_FIELDS = _PERFORMANCE_ALLOWED_FIELDS
 
 
 def signalome_config_from_payload(
@@ -77,120 +92,219 @@ def signalome_config_from_payload(
         field_name=config_field_name,
         required_fields=_SIGNALOME_CONFIG_REQUIRED_FIELDS,
     )
-    substrate_support_cutoff = payload.get("substrate_support_cutoff")
-    network_correlation_threshold = payload.get("network_correlation_threshold")
-    module_selection_max_clusters = _require_int(
-        payload.get("module_selection_max_clusters"),
-        field_name=f"{scope}.signalome_config.module_selection_max_clusters",
+
+    scientific_payload = require_mapping(
+        payload.get("scientific"),
+        field_name=f"{scope}.signalome_config.scientific",
     )
-    module_count = _parse_optional_int(
-        payload.get("module_count"),
-        field_name=f"{scope}.signalome_config.module_count",
+    _reject_unsupported_fields(
+        scientific_payload,
+        field_name=f"{scope}.signalome_config.scientific",
+        allowed_fields=_SCIENTIFIC_ALLOWED_FIELDS,
+    )
+    _require_fields(
+        scientific_payload,
+        field_name=f"{scope}.signalome_config.scientific",
+        required_fields=_SCIENTIFIC_REQUIRED_FIELDS,
     )
     assignment_policy = require_str(
-        payload.get("assignment_policy"),
-        field_name=f"{scope}.signalome_config.assignment_policy",
+        scientific_payload.get("assignment_policy"),
+        field_name=f"{scope}.signalome_config.scientific.assignment_policy",
     )
     if assignment_policy not in SIGNALOME_ASSIGNMENT_POLICIES:
         allowed = ", ".join(sorted(SIGNALOME_ASSIGNMENT_POLICIES))
         raise PhosPyInputError(
-            f"{scope}.signalome_config.assignment_policy must be one of: {allowed}"
+            f"{scope}.signalome_config.scientific.assignment_policy must be one of: "
+            f"{allowed}"
         )
-    network_policy = require_str(
-        payload.get("network_policy"),
-        field_name=f"{scope}.signalome_config.network_policy",
+
+    clustering_payload = require_mapping(
+        payload.get("clustering"),
+        field_name=f"{scope}.signalome_config.clustering",
     )
-    if network_policy not in SIGNALOME_KINASE_NETWORK_POLICIES:
-        allowed = ", ".join(sorted(SIGNALOME_KINASE_NETWORK_POLICIES))
-        raise PhosPyInputError(
-            f"{scope}.signalome_config.network_policy must be one of: {allowed}"
-        )
-    score_preconditioning_policy = require_str(
-        payload.get("score_preconditioning_policy"),
-        field_name=f"{scope}.signalome_config.score_preconditioning_policy",
+    _reject_unsupported_fields(
+        clustering_payload,
+        field_name=f"{scope}.signalome_config.clustering",
+        allowed_fields=_CLUSTERING_ALLOWED_FIELDS,
     )
-    if score_preconditioning_policy not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES:
-        allowed = ", ".join(sorted(SIGNALOME_SCORE_PRECONDITIONING_POLICIES))
-        raise PhosPyInputError(
-            f"{scope}.signalome_config.score_preconditioning_policy must be one of: {allowed}"
-        )
+    _require_fields(
+        clustering_payload,
+        field_name=f"{scope}.signalome_config.clustering",
+        required_fields=_CLUSTERING_REQUIRED_FIELDS,
+    )
     tree_engine = require_str(
-        payload.get("tree_engine"),
-        field_name=f"{scope}.signalome_config.tree_engine",
+        clustering_payload.get("tree_engine"),
+        field_name=f"{scope}.signalome_config.clustering.tree_engine",
     )
     if tree_engine not in SIGNALOME_TREE_ENGINES:
         allowed = ", ".join(sorted(SIGNALOME_TREE_ENGINES))
         raise PhosPyInputError(
-            f"{scope}.signalome_config.tree_engine must be one of: {allowed}"
+            f"{scope}.signalome_config.clustering.tree_engine must be one of: {allowed}"
         )
     candidate_scoring_policy = require_str(
-        payload.get("candidate_scoring_policy"),
-        field_name=f"{scope}.signalome_config.candidate_scoring_policy",
+        clustering_payload.get("candidate_scoring_policy"),
+        field_name=f"{scope}.signalome_config.clustering.candidate_scoring_policy",
     )
     if candidate_scoring_policy not in SIGNALOME_CANDIDATE_SCORING_POLICIES:
         allowed = ", ".join(sorted(SIGNALOME_CANDIDATE_SCORING_POLICIES))
         raise PhosPyInputError(
-            f"{scope}.signalome_config.candidate_scoring_policy must be one of: "
+            f"{scope}.signalome_config.clustering.candidate_scoring_policy "
+            "must be one of: "
             f"{allowed}"
         )
-    clustering_engine = payload.get("clustering_engine")
+    clustering_engine = clustering_payload.get("clustering_engine")
     if clustering_engine is None:
         # Keep historical bundle replay deterministic: payloads created before
-        # `clustering_engine` was serialized are interpreted as the legacy exact
-        # backend rather than today's public default.
+        # `clustering.clustering_engine` was serialized are interpreted as the
+        # legacy exact backend rather than today's public default.
         clustering_engine = SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON
     else:
         clustering_engine = require_str(
             clustering_engine,
-            field_name=f"{scope}.signalome_config.clustering_engine",
+            field_name=f"{scope}.signalome_config.clustering.clustering_engine",
         )
     if clustering_engine not in SIGNALOME_CLUSTERING_ENGINES:
         allowed = ", ".join(sorted(SIGNALOME_CLUSTERING_ENGINES))
         raise PhosPyInputError(
-            f"{scope}.signalome_config.clustering_engine must be one of: {allowed}"
+            f"{scope}.signalome_config.clustering.clustering_engine must be one "
+            f"of: {allowed}"
+        )
+    module_selection_max_clusters = _require_int(
+        clustering_payload.get("module_selection_max_clusters"),
+        field_name=f"{scope}.signalome_config.clustering.module_selection_max_clusters",
+    )
+    module_count = _parse_optional_int(
+        clustering_payload.get("module_count"),
+        field_name=f"{scope}.signalome_config.clustering.module_count",
+    )
+
+    validation_payload = require_mapping(
+        payload.get("validation"),
+        field_name=f"{scope}.signalome_config.validation",
+    )
+    _reject_unsupported_fields(
+        validation_payload,
+        field_name=f"{scope}.signalome_config.validation",
+        allowed_fields=_VALIDATION_ALLOWED_FIELDS,
+    )
+    _require_fields(
+        validation_payload,
+        field_name=f"{scope}.signalome_config.validation",
+        required_fields=_VALIDATION_REQUIRED_FIELDS,
+    )
+    score_preconditioning_policy = require_str(
+        validation_payload.get("score_preconditioning_policy"),
+        field_name=(
+            f"{scope}.signalome_config.validation.score_preconditioning_policy"
+        ),
+    )
+    if score_preconditioning_policy not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES:
+        allowed = ", ".join(sorted(SIGNALOME_SCORE_PRECONDITIONING_POLICIES))
+        raise PhosPyInputError(
+            f"{scope}.signalome_config.validation.score_preconditioning_policy "
+            f"must be one of: {allowed}"
         )
 
+    output_payload = require_mapping(
+        payload.get("output"),
+        field_name=f"{scope}.signalome_config.output",
+    )
+    _reject_unsupported_fields(
+        output_payload,
+        field_name=f"{scope}.signalome_config.output",
+        allowed_fields=_OUTPUT_ALLOWED_FIELDS,
+    )
+    _require_fields(
+        output_payload,
+        field_name=f"{scope}.signalome_config.output",
+        required_fields=_OUTPUT_REQUIRED_FIELDS,
+    )
+    network_policy = require_str(
+        output_payload.get("network_policy"),
+        field_name=f"{scope}.signalome_config.output.network_policy",
+    )
+    if network_policy not in SIGNALOME_KINASE_NETWORK_POLICIES:
+        allowed = ", ".join(sorted(SIGNALOME_KINASE_NETWORK_POLICIES))
+        raise PhosPyInputError(
+            f"{scope}.signalome_config.output.network_policy must be one of: {allowed}"
+        )
+
+    performance_payload = require_mapping(
+        payload.get("performance"),
+        field_name=f"{scope}.signalome_config.performance",
+    )
+    _reject_unsupported_fields(
+        performance_payload,
+        field_name=f"{scope}.signalome_config.performance",
+        allowed_fields=_PERFORMANCE_ALLOWED_FIELDS,
+    )
+    _require_fields(
+        performance_payload,
+        field_name=f"{scope}.signalome_config.performance",
+        required_fields=_PERFORMANCE_REQUIRED_FIELDS,
+    )
     max_exact_tree_sites = _require_int(
-        payload.get("max_exact_tree_sites"),
-        field_name=f"{scope}.signalome_config.max_exact_tree_sites",
+        performance_payload.get("max_exact_tree_sites"),
+        field_name=f"{scope}.signalome_config.performance.max_exact_tree_sites",
     )
     max_full_candidate_scoring_sites = _require_int(
-        payload.get("max_full_candidate_scoring_sites"),
-        field_name=f"{scope}.signalome_config.max_full_candidate_scoring_sites",
+        performance_payload.get("max_full_candidate_scoring_sites"),
+        field_name=(
+            f"{scope}.signalome_config.performance.max_full_candidate_scoring_sites"
+        ),
     )
+
     return SignalomeConfig(
-        substrate_support_cutoff=require_float(
-            substrate_support_cutoff,
-            field_name=f"{scope}.signalome_config.substrate_support_cutoff",
-        ),
-        network_correlation_threshold=require_float(
-            network_correlation_threshold,
-            field_name=f"{scope}.signalome_config.network_correlation_threshold",
-        ),
-        network_policy=network_policy,  # type: ignore[arg-type]
-        assignment_policy=assignment_policy,  # type: ignore[arg-type]
-        score_preconditioning_policy=score_preconditioning_policy,  # type: ignore[arg-type]
-        tree_engine=tree_engine,  # type: ignore[arg-type]
-        candidate_scoring_policy=candidate_scoring_policy,  # type: ignore[arg-type]
-        max_exact_tree_sites=max_exact_tree_sites,
-        max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
-        module_count=module_count,
-        module_selection_primary_correlation_threshold=require_float(
-            payload.get("module_selection_primary_correlation_threshold"),
-            field_name=(
-                f"{scope}.signalome_config."
-                "module_selection_primary_correlation_threshold"
+        scientific=SignalomeScientificConfig(
+            substrate_support_cutoff=require_float(
+                scientific_payload.get("substrate_support_cutoff"),
+                field_name=(
+                    f"{scope}.signalome_config.scientific.substrate_support_cutoff"
+                ),
             ),
+            assignment_policy=assignment_policy,  # type: ignore[arg-type]
         ),
-        module_selection_fallback_correlation_threshold=require_float(
-            payload.get("module_selection_fallback_correlation_threshold"),
-            field_name=(
-                f"{scope}.signalome_config."
-                "module_selection_fallback_correlation_threshold"
+        clustering=SignalomeClusteringConfig(
+            module_count=module_count,
+            module_selection_primary_correlation_threshold=require_float(
+                clustering_payload.get(
+                    "module_selection_primary_correlation_threshold"
+                ),
+                field_name=(
+                    f"{scope}.signalome_config.clustering."
+                    "module_selection_primary_correlation_threshold"
+                ),
             ),
+            module_selection_fallback_correlation_threshold=require_float(
+                clustering_payload.get(
+                    "module_selection_fallback_correlation_threshold"
+                ),
+                field_name=(
+                    f"{scope}.signalome_config.clustering."
+                    "module_selection_fallback_correlation_threshold"
+                ),
+            ),
+            module_selection_max_clusters=module_selection_max_clusters,
+            tree_engine=tree_engine,  # type: ignore[arg-type]
+            candidate_scoring_policy=candidate_scoring_policy,  # type: ignore[arg-type]
+            clustering_engine=clustering_engine,  # type: ignore[arg-type]
         ),
-        module_selection_max_clusters=module_selection_max_clusters,
-        clustering_engine=clustering_engine,  # type: ignore[arg-type]
+        validation=SignalomeValidationConfig(
+            score_preconditioning_policy=score_preconditioning_policy,  # type: ignore[arg-type]
+        ),
+        output=SignalomeOutputConfig(
+            network_correlation_threshold=require_float(
+                output_payload.get("network_correlation_threshold"),
+                field_name=(
+                    f"{scope}.signalome_config.output.network_correlation_threshold"
+                ),
+            ),
+            network_policy=network_policy,  # type: ignore[arg-type]
+        ),
+        performance=SignalomePerformanceConfig(
+            max_exact_tree_sites=max_exact_tree_sites,
+            max_full_candidate_scoring_sites=max_full_candidate_scoring_sites,
+        ),
     )
 
 

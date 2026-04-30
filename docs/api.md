@@ -219,31 +219,58 @@ enrichment.
 
 ## Signalome Config
 
-`SignalomeConfig` supports these fields:
+`SignalomeConfig` is grouped by user intent:
 
-| Field | Default | Meaning |
-| --- | --- | --- |
-| `substrate_support_cutoff` | `0.5` | prediction support cutoff for kinase-supported substrates |
-| `network_correlation_threshold` | `0.5` | threshold used by the network policy |
-| `network_policy` | `"signed"` | `"positive_only"`, `"absolute_threshold"`, or `"signed"` |
-| `assignment_policy` | `"cutoff_binary"` | `"cutoff_binary"` or `"weighted_top"` |
-| `score_preconditioning_policy` | `"allow_and_report"` | allow or reject all-missing downstream score rows |
-| `module_count` | `None` | explicit module count; omit for automatic selection |
-| `module_selection_primary_correlation_threshold` | `0.5` | first threshold for automatic module selection |
-| `module_selection_fallback_correlation_threshold` | `0.1` | fallback threshold for automatic module selection |
-| `module_selection_max_clusters` | `10` | largest candidate module count considered |
-| `tree_engine` | `"exact"` | exact tree construction; this is the only public value |
-| `candidate_scoring_policy` | `"full"` | `"full"` or `"sampled"` candidate module-count scoring only |
-| `max_exact_tree_sites` | `2000` | hard guard for exact tree construction |
-| `max_full_candidate_scoring_sites` | `2000` | hard guard for full candidate scoring |
-| `clustering_engine` | `"scipy_hierarchical"` | `"exact_python"` or `"scipy_hierarchical"` |
+- `scientific=SignalomeScientificConfig(...)`
+- `clustering=SignalomeClusteringConfig(...)`
+- `validation=SignalomeValidationConfig(...)`
+- `output=SignalomeOutputConfig(...)`
+- `performance=SignalomePerformanceConfig(...)` (advanced guardrails)
+
+Basic usage stays simple:
+
+```python
+result = SignalomeWorkflow().run(
+    SignalomeWorkflowRequest(kinase_result=kinase_result)
+)
+```
+
+or:
+
+```python
+result = SignalomeWorkflow().run(
+    SignalomeWorkflowRequest(
+        kinase_result=kinase_result,
+        config=SignalomeConfig(),
+    )
+)
+```
+
+Grouped options:
+
+| Group | Option | Default | Meaning |
+| --- | --- | --- | --- |
+| `scientific` | `substrate_support_cutoff` | `0.5` | prediction support cutoff for kinase-supported substrates |
+| `scientific` | `assignment_policy` | `"cutoff_binary"` | `"cutoff_binary"` or `"weighted_top"` |
+| `clustering` | `module_count` | `None` | explicit module count; omit for automatic selection |
+| `clustering` | `module_selection_primary_correlation_threshold` | `0.5` | first threshold for automatic module selection |
+| `clustering` | `module_selection_fallback_correlation_threshold` | `0.1` | fallback threshold for automatic module selection |
+| `clustering` | `module_selection_max_clusters` | `10` | largest candidate module count considered |
+| `clustering` | `tree_engine` | `"exact"` | exact tree construction; this is the only public value |
+| `clustering` | `candidate_scoring_policy` | `"full"` | `"full"` or `"sampled"` for candidate module-count scoring |
+| `clustering` | `clustering_engine` | `"scipy_hierarchical"` | `"exact_python"` or `"scipy_hierarchical"` |
+| `validation` | `score_preconditioning_policy` | `"allow_and_report"` | allow or reject all-missing downstream score rows |
+| `output` | `network_correlation_threshold` | `0.5` | threshold used by the network policy |
+| `output` | `network_policy` | `"signed"` | `"positive_only"`, `"absolute_threshold"`, or `"signed"` |
+| `performance` | `max_exact_tree_sites` | `2000` | advanced hard guard for exact tree construction |
+| `performance` | `max_full_candidate_scoring_sites` | `2000` | advanced hard guard for full candidate scoring |
 
 `candidate_scoring_policy="sampled"` reduces candidate module-count scoring
 cost only. It does not remove exact tree construction, and it does not make
 the full signalome workflow approximate.
 
-`clustering_engine="scipy_hierarchical"` is the preferred production default.
-Use `clustering_engine="exact_python"` mainly for reference/debug checks.
+`clustering.clustering_engine="scipy_hierarchical"` is the preferred production
+default. Use `"exact_python"` mainly for reference/debug checks.
 
 Signalome module/network scores are derived summaries over upstream kinase score
 profiles. They are not probabilities, calibrated confidence values, or direct

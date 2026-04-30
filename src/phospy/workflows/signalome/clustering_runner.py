@@ -80,15 +80,16 @@ class SignalomeClusteringRunner:
                 available_clustering_site_count=int(
                     request.downstream_score_matrix.shape[0]
                 ),
-                field_name="signalome workflow request config.module_count",
+                field_name="signalome workflow request config.clustering.module_count",
             )
         except SignalomeModuleCountValidationError as exc:
             raise_boundary_error(
                 seam=SIGNALOME_EXECUTOR_MODULE_CONSTRUCTION_SEAM,
                 next_action=(
-                    "choose config.module_count between 1 and the number of "
-                    "available clustering sites, or omit config.module_count for "
-                    "automatic module-count selection"
+                    "choose config.clustering.module_count between 1 and the number "
+                    "of available clustering sites, or omit "
+                    "config.clustering.module_count for automatic module-count "
+                    "selection"
                 ),
                 requested_module_count=requested_module_count_label(
                     config.requested_module_count
@@ -96,7 +97,9 @@ class SignalomeClusteringRunner:
                 available_clustering_site_count=int(
                     request.downstream_score_matrix.shape[0]
                 ),
-                affected_configuration_field="signalome workflow request config.module_count",
+                affected_configuration_field=(
+                    "signalome workflow request config.clustering.module_count"
+                ),
                 validation_error=str(exc),
             )
         try:

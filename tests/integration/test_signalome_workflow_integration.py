@@ -22,7 +22,6 @@ from phospy.api import (
     KinaseWorkflowRequest,
     KinaseWorkflowResult,
     ReferencePreset,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
 )
 from phospy.api.configs import SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
@@ -36,6 +35,7 @@ from phospy.workflows.signalome.constants import (
     SIGNALOME_INTERPRETER_SCORE_PRECONDITIONING_SEAM,
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
+from tests.support.signalome_config import build_signalome_config
 
 pytestmark = pytest.mark.integration
 
@@ -62,7 +62,7 @@ def test_signalome_workflow_runs_dataset_to_kinase_to_signalome_path() -> None:
     result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(substrate_support_cutoff=0.5),
+            config=build_signalome_config(substrate_support_cutoff=0.5),
         )
     )
 
@@ -191,7 +191,7 @@ def test_signalome_workflow_runs_with_scipy_clustering_engine() -> None:
     result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(
+            config=build_signalome_config(
                 substrate_support_cutoff=0.5,
                 clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
             ),
@@ -203,7 +203,7 @@ def test_signalome_workflow_runs_with_scipy_clustering_engine() -> None:
     assert result.provenance is not None
     signalome_config = result.provenance.workflow_parameters["signalome_config"]
     assert (
-        signalome_config["clustering_engine"]
+        signalome_config["clustering"]["clustering_engine"]
         == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
@@ -221,7 +221,10 @@ def test_signalome_workflow_runs_with_scipy_clustering_engine() -> None:
     assert score_semantics["candidate_scoring_scope"] == (
         "candidate_module_count_evaluation_only"
     )
-    assert score_semantics["network_policy"] == signalome_config["network_policy"]
+    assert (
+        score_semantics["network_policy"]
+        == signalome_config["output"]["network_policy"]
+    )
 
 
 def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id() -> (
@@ -258,7 +261,7 @@ def test_signalome_workflow_requires_explicit_dataset_site_metadata_protein_id()
         SignalomeWorkflow().run(
             SignalomeWorkflowRequest(
                 kinase_result=kinase_result,
-                config=SignalomeConfig(substrate_support_cutoff=0.5),
+                config=build_signalome_config(substrate_support_cutoff=0.5),
             )
         )
 
@@ -296,7 +299,7 @@ def test_signalome_workflow_uses_explicit_dataset_protein_identity_when_present(
     result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(substrate_support_cutoff=0.5),
+            config=build_signalome_config(substrate_support_cutoff=0.5),
         )
     )
 
@@ -324,7 +327,7 @@ def test_signalome_threshold_knobs_do_not_cross_couple_unrelated_outputs() -> No
     baseline = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(
+            config=build_signalome_config(
                 substrate_support_cutoff=0.5,
                 network_correlation_threshold=0.5,
             ),
@@ -333,7 +336,7 @@ def test_signalome_threshold_knobs_do_not_cross_couple_unrelated_outputs() -> No
     support_shifted = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(
+            config=build_signalome_config(
                 substrate_support_cutoff=0.65,
                 network_correlation_threshold=0.5,
             ),
@@ -342,7 +345,7 @@ def test_signalome_threshold_knobs_do_not_cross_couple_unrelated_outputs() -> No
     network_shifted = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(
+            config=build_signalome_config(
                 substrate_support_cutoff=0.5,
                 network_correlation_threshold=0.8,
             ),
@@ -385,7 +388,7 @@ def test_signalome_network_uses_rank_weighted_fusion_downstream_scores_when_avai
     )
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     rank_weighted_fusion_lane = SignalomeWorkflow().run(request)
@@ -453,7 +456,7 @@ def test_signalome_workflow_accepts_sparse_missing_rank_weighted_fusion_score_ro
     result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=sparse_kinase_result,
-            config=SignalomeConfig(
+            config=build_signalome_config(
                 substrate_support_cutoff=0.5,
                 network_correlation_threshold=0.2,
             ),
@@ -515,7 +518,7 @@ def test_signalome_workflow_rejects_sparse_missing_rank_weighted_fusion_rows_und
         SignalomeWorkflow().run(
             SignalomeWorkflowRequest(
                 kinase_result=sparse_kinase_result,
-                config=SignalomeConfig(
+                config=build_signalome_config(
                     substrate_support_cutoff=0.5,
                     network_correlation_threshold=0.2,
                     score_preconditioning_policy="error_on_drop",

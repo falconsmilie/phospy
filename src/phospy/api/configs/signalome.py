@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from phospy.api.configs.common import _require_int_at_least, _require_real_between
@@ -81,20 +81,36 @@ SIGNALOME_KINASE_NETWORK_POLICIES = frozenset(
 
 
 @dataclass(frozen=True, slots=True)
-class SignalomeConfig:
-    """Public signalome workflow configuration."""
+class SignalomeScientificConfig:
+    """Scientific interpretation choices for the signalome workflow."""
 
     substrate_support_cutoff: float = 0.5
-    network_correlation_threshold: float = 0.5
-    network_policy: SignalomeKinaseNetworkPolicy = (
-        SIGNALOME_KINASE_NETWORK_POLICY_SIGNED
-    )
     assignment_policy: SignalomeAssignmentPolicy = (
         SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
     )
-    score_preconditioning_policy: SignalomeScorePreconditioningPolicy = (
-        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
-    )
+
+    def __post_init__(self) -> None:
+        _require_real_between(
+            self.substrate_support_cutoff,
+            field_name=(
+                "signalome workflow request config.scientific.substrate_support_cutoff"
+            ),
+            minimum=0.0,
+            maximum=1.0,
+            error_type=WorkflowValidationError,
+        )
+        if self.assignment_policy not in SIGNALOME_ASSIGNMENT_POLICIES:
+            allowed_policies = ", ".join(sorted(SIGNALOME_ASSIGNMENT_POLICIES))
+            raise WorkflowValidationError(
+                "signalome workflow request config.scientific.assignment_policy "
+                f"must be one of: {allowed_policies}"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeClusteringConfig:
+    """Clustering and module-selection behaviour for the signalome workflow."""
+
     module_count: int | None = None
     module_selection_primary_correlation_threshold: float = (
         SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT
@@ -107,65 +123,24 @@ class SignalomeConfig:
     candidate_scoring_policy: SignalomeCandidateScoringPolicy = (
         SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
     )
-    max_exact_tree_sites: int = SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT
-    max_full_candidate_scoring_sites: int = (
-        SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
-    )
     clustering_engine: SignalomeClusteringEngine = (
         SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
 
     def __post_init__(self) -> None:
-        _require_real_between(
-            self.substrate_support_cutoff,
-            field_name="signalome workflow request config.substrate_support_cutoff",
-            minimum=0.0,
-            maximum=1.0,
-            error_type=WorkflowValidationError,
-        )
-        _require_real_between(
-            self.network_correlation_threshold,
-            field_name=(
-                "signalome workflow request config.network_correlation_threshold"
-            ),
-            minimum=0.0,
-            maximum=1.0,
-            error_type=WorkflowValidationError,
-        )
-        if self.network_policy not in SIGNALOME_KINASE_NETWORK_POLICIES:
-            allowed_policies = ", ".join(sorted(SIGNALOME_KINASE_NETWORK_POLICIES))
-            raise WorkflowValidationError(
-                "signalome workflow request config.network_policy "
-                f"must be one of: {allowed_policies}"
-            )
-        if self.assignment_policy not in SIGNALOME_ASSIGNMENT_POLICIES:
-            allowed_policies = ", ".join(sorted(SIGNALOME_ASSIGNMENT_POLICIES))
-            raise WorkflowValidationError(
-                "signalome workflow request config.assignment_policy "
-                f"must be one of: {allowed_policies}"
-            )
-        if (
-            self.score_preconditioning_policy
-            not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES
-        ):
-            allowed_policies = ", ".join(
-                sorted(SIGNALOME_SCORE_PRECONDITIONING_POLICIES)
-            )
-            raise WorkflowValidationError(
-                "signalome workflow request config.score_preconditioning_policy "
-                f"must be one of: {allowed_policies}"
-            )
         if self.module_count is not None:
             _require_int_at_least(
                 self.module_count,
-                field_name="signalome workflow request config.module_count",
+                field_name=(
+                    "signalome workflow request config.clustering.module_count"
+                ),
                 minimum=SIGNALOME_MODULE_COUNT_FLOOR,
                 error_type=WorkflowValidationError,
             )
         _require_real_between(
             self.module_selection_primary_correlation_threshold,
             field_name=(
-                "signalome workflow request config."
+                "signalome workflow request config.clustering."
                 "module_selection_primary_correlation_threshold"
             ),
             minimum=0.0,
@@ -175,7 +150,7 @@ class SignalomeConfig:
         _require_real_between(
             self.module_selection_fallback_correlation_threshold,
             field_name=(
-                "signalome workflow request config."
+                "signalome workflow request config.clustering."
                 "module_selection_fallback_correlation_threshold"
             ),
             minimum=0.0,
@@ -184,39 +159,155 @@ class SignalomeConfig:
         )
         _require_int_at_least(
             self.module_selection_max_clusters,
-            field_name="signalome workflow request config.module_selection_max_clusters",
+            field_name=(
+                "signalome workflow request config.clustering."
+                "module_selection_max_clusters"
+            ),
             minimum=SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR,
             error_type=WorkflowValidationError,
         )
         if self.tree_engine not in SIGNALOME_TREE_ENGINES:
             allowed = ", ".join(sorted(SIGNALOME_TREE_ENGINES))
             raise WorkflowValidationError(
-                "signalome workflow request config.tree_engine "
+                "signalome workflow request config.clustering.tree_engine "
                 f"must be one of: {allowed}"
             )
         if self.candidate_scoring_policy not in SIGNALOME_CANDIDATE_SCORING_POLICIES:
             allowed = ", ".join(sorted(SIGNALOME_CANDIDATE_SCORING_POLICIES))
             raise WorkflowValidationError(
-                "signalome workflow request config.candidate_scoring_policy "
+                "signalome workflow request config.clustering."
+                "candidate_scoring_policy "
                 f"must be one of: {allowed}"
             )
+        if self.clustering_engine not in SIGNALOME_CLUSTERING_ENGINES:
+            allowed = ", ".join(sorted(SIGNALOME_CLUSTERING_ENGINES))
+            raise WorkflowValidationError(
+                "signalome workflow request config.clustering.clustering_engine "
+                f"must be one of: {allowed}"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeValidationConfig:
+    """Validation and strictness policy for signalome inputs."""
+
+    score_preconditioning_policy: SignalomeScorePreconditioningPolicy = (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+    )
+
+    def __post_init__(self) -> None:
+        if (
+            self.score_preconditioning_policy
+            not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES
+        ):
+            allowed_policies = ", ".join(
+                sorted(SIGNALOME_SCORE_PRECONDITIONING_POLICIES)
+            )
+            raise WorkflowValidationError(
+                "signalome workflow request config.validation."
+                "score_preconditioning_policy "
+                f"must be one of: {allowed_policies}"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeOutputConfig:
+    """Output-shape and network-generation settings."""
+
+    network_correlation_threshold: float = 0.5
+    network_policy: SignalomeKinaseNetworkPolicy = (
+        SIGNALOME_KINASE_NETWORK_POLICY_SIGNED
+    )
+
+    def __post_init__(self) -> None:
+        _require_real_between(
+            self.network_correlation_threshold,
+            field_name=(
+                "signalome workflow request config.output.network_correlation_threshold"
+            ),
+            minimum=0.0,
+            maximum=1.0,
+            error_type=WorkflowValidationError,
+        )
+        if self.network_policy not in SIGNALOME_KINASE_NETWORK_POLICIES:
+            allowed_policies = ", ".join(sorted(SIGNALOME_KINASE_NETWORK_POLICIES))
+            raise WorkflowValidationError(
+                "signalome workflow request config.output.network_policy "
+                f"must be one of: {allowed_policies}"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomePerformanceConfig:
+    """Advanced clustering-scale guardrails for large signalome runs."""
+
+    max_exact_tree_sites: int = SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT
+    max_full_candidate_scoring_sites: int = (
+        SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
+    )
+
+    def __post_init__(self) -> None:
         _require_int_at_least(
             self.max_exact_tree_sites,
-            field_name="signalome workflow request config.max_exact_tree_sites",
+            field_name=(
+                "signalome workflow request config.performance.max_exact_tree_sites"
+            ),
             minimum=SIGNALOME_MAX_EXACT_TREE_SITES_FLOOR,
             error_type=WorkflowValidationError,
         )
         _require_int_at_least(
             self.max_full_candidate_scoring_sites,
-            field_name="signalome workflow request config.max_full_candidate_scoring_sites",
+            field_name=(
+                "signalome workflow request config.performance."
+                "max_full_candidate_scoring_sites"
+            ),
             minimum=SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_FLOOR,
             error_type=WorkflowValidationError,
         )
-        if self.clustering_engine not in SIGNALOME_CLUSTERING_ENGINES:
-            allowed = ", ".join(sorted(SIGNALOME_CLUSTERING_ENGINES))
+
+
+@dataclass(frozen=True, slots=True)
+class SignalomeConfig:
+    """Public signalome workflow configuration grouped by user intent."""
+
+    scientific: SignalomeScientificConfig = field(
+        default_factory=SignalomeScientificConfig
+    )
+    clustering: SignalomeClusteringConfig = field(
+        default_factory=SignalomeClusteringConfig
+    )
+    validation: SignalomeValidationConfig = field(
+        default_factory=SignalomeValidationConfig
+    )
+    output: SignalomeOutputConfig = field(default_factory=SignalomeOutputConfig)
+    performance: SignalomePerformanceConfig = field(
+        default_factory=SignalomePerformanceConfig
+    )
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.scientific, SignalomeScientificConfig):
             raise WorkflowValidationError(
-                "signalome workflow request config.clustering_engine "
-                f"must be one of: {allowed}"
+                "signalome workflow request config.scientific must be "
+                "SignalomeScientificConfig"
+            )
+        if not isinstance(self.clustering, SignalomeClusteringConfig):
+            raise WorkflowValidationError(
+                "signalome workflow request config.clustering must be "
+                "SignalomeClusteringConfig"
+            )
+        if not isinstance(self.validation, SignalomeValidationConfig):
+            raise WorkflowValidationError(
+                "signalome workflow request config.validation must be "
+                "SignalomeValidationConfig"
+            )
+        if not isinstance(self.output, SignalomeOutputConfig):
+            raise WorkflowValidationError(
+                "signalome workflow request config.output must be SignalomeOutputConfig"
+            )
+        if not isinstance(self.performance, SignalomePerformanceConfig):
+            raise WorkflowValidationError(
+                "signalome workflow request config.performance must be "
+                "SignalomePerformanceConfig"
             )
 
 
@@ -250,9 +341,14 @@ __all__ = [
     "SIGNALOME_TREE_ENGINE_EXACT",
     "SignalomeAssignmentPolicy",
     "SignalomeCandidateScoringPolicy",
+    "SignalomeClusteringConfig",
     "SignalomeClusteringEngine",
     "SignalomeConfig",
     "SignalomeKinaseNetworkPolicy",
+    "SignalomeOutputConfig",
+    "SignalomePerformanceConfig",
+    "SignalomeScientificConfig",
     "SignalomeScorePreconditioningPolicy",
+    "SignalomeValidationConfig",
     "SignalomeTreeEngine",
 ]

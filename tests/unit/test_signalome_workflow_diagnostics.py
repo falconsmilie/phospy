@@ -78,6 +78,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.signalome_config import build_signalome_config
 
 _SIGNALOME_WORKFLOW_EXECUTION_PATHS = ("direct_components", "public_workflow")
 
@@ -170,24 +171,32 @@ def _kinase_result(
 
 def _execution_config(config: SignalomeConfig) -> ResolvedSignalomeExecutionConfig:
     return ResolvedSignalomeExecutionConfig(
-        substrate_support_cutoff=float(config.substrate_support_cutoff),
-        network_correlation_threshold=float(config.network_correlation_threshold),
-        network_policy=config.network_policy,
-        assignment_policy=config.assignment_policy,
-        score_preconditioning_policy=config.score_preconditioning_policy,
+        substrate_support_cutoff=float(config.scientific.substrate_support_cutoff),
+        network_correlation_threshold=float(
+            config.output.network_correlation_threshold
+        ),
+        network_policy=config.output.network_policy,
+        assignment_policy=config.scientific.assignment_policy,
+        score_preconditioning_policy=config.validation.score_preconditioning_policy,
         module_selection_primary_threshold=float(
-            config.module_selection_primary_correlation_threshold
+            config.clustering.module_selection_primary_correlation_threshold
         ),
         module_selection_fallback_threshold=float(
-            config.module_selection_fallback_correlation_threshold
+            config.clustering.module_selection_fallback_correlation_threshold
         ),
-        module_selection_max_clusters=int(config.module_selection_max_clusters),
-        tree_engine=config.tree_engine,
-        candidate_scoring_policy=config.candidate_scoring_policy,
-        max_exact_tree_sites=int(config.max_exact_tree_sites),
-        max_full_candidate_scoring_sites=int(config.max_full_candidate_scoring_sites),
+        module_selection_max_clusters=int(
+            config.clustering.module_selection_max_clusters
+        ),
+        tree_engine=config.clustering.tree_engine,
+        candidate_scoring_policy=config.clustering.candidate_scoring_policy,
+        max_exact_tree_sites=int(config.performance.max_exact_tree_sites),
+        max_full_candidate_scoring_sites=int(
+            config.performance.max_full_candidate_scoring_sites
+        ),
         requested_module_count=(
-            None if config.module_count is None else int(config.module_count)
+            None
+            if config.clustering.module_count is None
+            else int(config.clustering.module_count)
         ),
     )
 
@@ -218,7 +227,7 @@ def _interpreted_request_for_context_failure() -> ResolvedSignalomeWorkflowReque
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
     return SignalomeWorkflowInterpreter().run(request)
 
@@ -256,7 +265,7 @@ def test_boundary_error_reports_no_usable_site_alignment_counts() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
@@ -296,7 +305,7 @@ def test_boundary_error_reports_no_overlapping_kinase_set_counts() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
@@ -341,7 +350,7 @@ def test_boundary_error_reports_unusable_protein_mapping_counts() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
@@ -380,7 +389,7 @@ def test_interpreter_uses_explicit_site_metadata_protein_id_when_present() -> No
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
@@ -420,7 +429,7 @@ def test_interpreter_does_not_fallback_to_site_id_prefix_when_protein_id_column_
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
@@ -460,7 +469,7 @@ def test_interpreter_prefers_rank_weighted_fusion_scores_for_downstream_signalom
             score_matrix=profile_scores,
             combined_score_matrix=rank_weighted_fusion_scores,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
@@ -490,7 +499,7 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(),
+        config=build_signalome_config(),
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
@@ -548,7 +557,7 @@ def test_interpreter_propagates_configured_clustering_engine() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
         ),
@@ -586,7 +595,7 @@ def test_executor_provenance_records_explicit_exact_python_backend() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
         ),
@@ -633,7 +642,7 @@ def test_interpreter_filters_site_indexed_inputs_to_retained_scores_after_precon
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
@@ -686,7 +695,7 @@ def test_interpreter_reports_zero_drop_preconditioning_diagnostics() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
@@ -728,7 +737,7 @@ def test_interpreter_reports_alignment_diagnostics_for_perfect_overlap() -> None
                 prediction_matrix=prediction_matrix,
                 score_matrix=score_matrix,
             ),
-            config=SignalomeConfig(substrate_support_cutoff=0.5),
+            config=build_signalome_config(substrate_support_cutoff=0.5),
         )
     )
     diagnostics = interpreted.alignment_diagnostics
@@ -776,7 +785,7 @@ def test_interpreter_reports_alignment_diagnostics_for_partial_site_overlap() ->
                 prediction_matrix=prediction_matrix,
                 score_matrix=score_matrix,
             ),
-            config=SignalomeConfig(substrate_support_cutoff=0.5),
+            config=build_signalome_config(substrate_support_cutoff=0.5),
         )
     )
     diagnostics = interpreted.alignment_diagnostics
@@ -841,7 +850,7 @@ def test_interpreter_reports_alignment_diagnostics_for_partial_kinase_overlap() 
                 prediction_matrix=prediction_matrix,
                 score_matrix=score_matrix,
             ),
-            config=SignalomeConfig(substrate_support_cutoff=0.5),
+            config=build_signalome_config(substrate_support_cutoff=0.5),
         )
     )
     diagnostics = interpreted.alignment_diagnostics
@@ -879,7 +888,7 @@ def test_interpreter_alignment_diagnostics_reports_missing_downstream_scores() -
                 prediction_matrix=prediction_matrix,
                 score_matrix=score_matrix,
             ),
-            config=SignalomeConfig(substrate_support_cutoff=0.5),
+            config=build_signalome_config(substrate_support_cutoff=0.5),
         )
     )
     assert (
@@ -923,7 +932,7 @@ def test_interpreter_alignment_diagnostics_reports_missing_prediction_scores() -
                 prediction_matrix=prediction_matrix,
                 score_matrix=score_matrix,
             ),
-            config=SignalomeConfig(substrate_support_cutoff=0.5),
+            config=build_signalome_config(substrate_support_cutoff=0.5),
         )
     )
     assert (
@@ -976,7 +985,7 @@ def test_resolved_signalome_request_rejects_mismatched_site_indexes() -> None:
                 score_matrix=score_matrix,
             ),
             execution_config=_execution_config(
-                SignalomeConfig(substrate_support_cutoff=0.5)
+                build_signalome_config(substrate_support_cutoff=0.5)
             ),
             downstream_score_matrix=downstream_score_matrix,
             downstream_score_source="rank_weighted_fusion_scores",
@@ -1020,7 +1029,7 @@ def test_interpreter_respects_explicit_allow_and_report_preconditioning_policy()
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             score_preconditioning_policy=(
                 SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
@@ -1070,7 +1079,7 @@ def test_interpreter_fails_when_error_on_drop_policy_detects_all_missing_rows() 
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             score_preconditioning_policy=(
                 SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
@@ -1123,7 +1132,7 @@ def test_interpreter_allows_error_on_drop_policy_when_no_rows_require_drop() -> 
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             score_preconditioning_policy=(
                 SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
@@ -1170,7 +1179,7 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
@@ -1328,7 +1337,7 @@ def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
             candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
@@ -1418,7 +1427,7 @@ def test_explicit_module_count_skips_sampled_candidate_scoring_in_provenance() -
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             module_count=2,
             tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
@@ -1527,7 +1536,7 @@ def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> Non
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             module_count=2,
             tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
@@ -1636,7 +1645,7 @@ def test_explicit_single_module_reports_trivial_final_assignment_backend() -> No
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             module_count=1,
             tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
@@ -1700,7 +1709,7 @@ def test_explicit_multi_module_invokes_exact_tree_builder_for_final_assignment(
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             module_count=2,
             tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
@@ -1787,7 +1796,7 @@ def test_explicit_module_count_above_available_sites_fails_before_clustering_sta
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             module_count=4,
             clustering_engine=clustering_engine,  # type: ignore[arg-type]
@@ -1820,8 +1829,8 @@ def test_explicit_module_count_above_available_sites_fails_before_clustering_sta
     assert "requested_module_count=4" in message
     assert "available_clustering_site_count=3" in message
     assert (
-        "affected_configuration_field=signalome workflow request config.module_count"
-        in message
+        "affected_configuration_field=signalome workflow request "
+        "config.clustering.module_count" in message
     )
     assert tree_calls == []
 
@@ -1863,7 +1872,7 @@ def test_explicit_module_count_over_exact_tree_limit_fails_early(
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             module_count=2,
             tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
@@ -1937,7 +1946,7 @@ def test_sampled_candidate_scoring_over_exact_tree_limit_fails_early(
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             module_count=2,
             tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
@@ -2013,7 +2022,7 @@ def test_full_candidate_scoring_over_full_correlation_limit_fails_early(
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(
+        config=build_signalome_config(
             substrate_support_cutoff=0.5,
             tree_engine=SIGNALOME_TREE_ENGINE_EXACT,
             candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
@@ -2095,7 +2104,7 @@ def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_g
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     resolved = SignalomeWorkflowInterpreter().run(request)
@@ -2124,7 +2133,7 @@ def test_boundary_error_reports_no_support_cutoff_support_counts() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.9),
+        config=build_signalome_config(substrate_support_cutoff=0.9),
     )
     interpreted = SignalomeWorkflowInterpreter().run(request)
 
@@ -2158,7 +2167,7 @@ def test_boundary_error_reports_module_construction_degeneracy_counts() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
     interpreted = SignalomeWorkflowInterpreter().run(request)
 
@@ -2195,7 +2204,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
             score_matrix=score_matrix_missing_kinase,
         ),
         execution_config=_execution_config(
-            SignalomeConfig(substrate_support_cutoff=0.5)
+            build_signalome_config(substrate_support_cutoff=0.5)
         ),
         downstream_score_matrix=score_matrix_missing_kinase,
         downstream_score_source="rank_weighted_fusion_scores",
@@ -2231,7 +2240,7 @@ def test_boundary_error_reports_network_failure_modes() -> None:
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix_zero_variance,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
     interpreted = SignalomeWorkflowInterpreter().run(request)
 
@@ -2277,7 +2286,7 @@ def test_boundary_error_reports_expanded_signalome_failure_seam(
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
     interpreted = SignalomeWorkflowInterpreter().run(request)
 
@@ -2462,7 +2471,7 @@ def test_support_cutoff_changes_substrate_support_without_changing_network_edges
     low_support_resolved = SignalomeWorkflowInterpreter().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(
+            config=build_signalome_config(
                 substrate_support_cutoff=0.5,
                 network_correlation_threshold=0.95,
             ),
@@ -2471,7 +2480,7 @@ def test_support_cutoff_changes_substrate_support_without_changing_network_edges
     high_support_resolved = SignalomeWorkflowInterpreter().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(
+            config=build_signalome_config(
                 substrate_support_cutoff=0.75,
                 network_correlation_threshold=0.95,
             ),
@@ -2526,7 +2535,7 @@ def test_network_threshold_changes_edge_sparsity_without_changing_substrate_supp
     low_threshold_resolved = SignalomeWorkflowInterpreter().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(
+            config=build_signalome_config(
                 substrate_support_cutoff=0.5,
                 network_correlation_threshold=0.95,
             ),
@@ -2535,7 +2544,7 @@ def test_network_threshold_changes_edge_sparsity_without_changing_substrate_supp
     high_threshold_resolved = SignalomeWorkflowInterpreter().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(
+            config=build_signalome_config(
                 substrate_support_cutoff=0.5,
                 network_correlation_threshold=0.999,
             ),
@@ -2589,7 +2598,7 @@ def test_executor_orchestrates_signalome_domain_services(
             score_matrix=score_matrix,
         ),
         execution_config=_execution_config(
-            SignalomeConfig(substrate_support_cutoff=0.5)
+            build_signalome_config(substrate_support_cutoff=0.5)
         ),
         downstream_score_matrix=score_matrix,
         downstream_score_source="rank_weighted_fusion_scores",

@@ -20,6 +20,7 @@ from phospy.api import (
     SignalomeConfig,
     SignalomeWorkflowRequest,
 )
+from phospy.api.configs import SignalomeOutputConfig
 from phospy.signalomes.science import (
     build_kinase_network,
     build_module_assignments,
@@ -32,6 +33,7 @@ from tests.support.intensity_scale_states import (
 from tests.support.rewrite_fixture_data import (
     load_adaptive_sampling_edge_rank_weighted_fusion_scores,
 )
+from tests.support.signalome_config import build_signalome_config
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -221,8 +223,6 @@ def test_signalome_clustering_historical_baseline_locks_dominant_module_assignme
     assert int(assignments.loc["P2;S3;", "module_id"]) == 2
     with pytest.raises(TypeError, match="module_selection_policy"):
         SignalomeConfig(  # type: ignore[call-arg]
-            substrate_support_cutoff=0.5,
-            network_correlation_threshold=0.5,
             module_selection_policy={"strategy": "single_module"},
         )
 
@@ -314,10 +314,16 @@ def test_network_policy_variant_historical_baseline_locks_signed_edges_and_narro
     assert signed_edges.at[0, "target_kinase"] == "KINASE_B"
     assert signed_edges.at[0, "correlation"] == pytest.approx(-1.0)
 
-    assert "network_policy" in {field.name for field in fields(SignalomeConfig)}
-    assert SignalomeConfig().network_policy == "signed"
-    assert SignalomeConfig(network_policy="positive_only").network_policy == (
-        "positive_only"
+    assert "output" in {field.name for field in fields(SignalomeConfig)}
+    assert SignalomeConfig().output.network_policy == "signed"
+    assert SignalomeConfig(
+        output=SignalomeOutputConfig(network_policy="positive_only")
+    ).output.network_policy == ("positive_only")
+    assert SignalomeConfig().scientific.assignment_policy == "cutoff_binary"
+    assert SignalomeConfig().clustering.tree_engine == "exact"
+    assert SignalomeConfig().performance.max_exact_tree_sites == 2000
+    assert SignalomeConfig().validation.score_preconditioning_policy == (
+        "allow_and_report"
     )
 
 
@@ -340,7 +346,7 @@ def test_expanded_signalome_historical_baseline_locks_supported_lane_to_material
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(
+            config=build_signalome_config(
                 substrate_support_cutoff=0.5,
                 network_correlation_threshold=0.5,
             ),

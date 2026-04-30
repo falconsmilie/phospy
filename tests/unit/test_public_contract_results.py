@@ -16,7 +16,6 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import (
@@ -30,6 +29,7 @@ from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
 )
+from tests.support.signalome_config import build_signalome_config
 
 
 def _dataset() -> AnalysisReadyPhosphoDataset:
@@ -140,7 +140,7 @@ def test_signalome_result_keeps_nested_kinase_result_contract() -> None:
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(substrate_support_cutoff=0.5),
+            config=build_signalome_config(substrate_support_cutoff=0.5),
         )
     )
     assert isinstance(signalome_result, SignalomeWorkflowResult)

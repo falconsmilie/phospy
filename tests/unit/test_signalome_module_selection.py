@@ -98,7 +98,7 @@ def test_module_count_selection_rejects_explicit_request_above_site_count() -> N
         )
 
     message = str(exc_info.value)
-    assert "field=signalome workflow request config.module_count" in message
+    assert "field=signalome workflow request config.clustering.module_count" in message
     assert "requested_module_count=5" in message
     assert "available_clustering_site_count=3" in message
     assert (
@@ -127,7 +127,7 @@ def test_module_count_selection_rejects_non_positive_explicit_request(
         )
 
     message = str(exc_info.value)
-    assert "field=signalome workflow request config.module_count" in message
+    assert "field=signalome workflow request config.clustering.module_count" in message
     assert f"requested_module_count={requested_module_count}" in message
     assert "available_clustering_site_count=3" in message
     assert (

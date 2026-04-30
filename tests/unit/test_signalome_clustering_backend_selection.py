@@ -285,7 +285,7 @@ def test_backend_rejects_requested_module_count_above_available_sites(
         )
 
     message = str(exc_info.value)
-    assert "field=signalome workflow request config.module_count" in message
+    assert "field=signalome workflow request config.clustering.module_count" in message
     assert "requested_module_count=10" in message
     assert "available_clustering_site_count=4" in message
 

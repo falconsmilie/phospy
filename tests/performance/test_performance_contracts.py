@@ -14,7 +14,6 @@ from phospy.api import (
     KinaseWorkflowRequest,
     Organism,
     ReferenceBundle,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import KinaseScoringResult, KinaseWorkflowResult
@@ -50,6 +49,7 @@ from tests.support.performance_contracts import (
     measure_runtime_and_peak_mib,
     median_runtime_seconds,
 )
+from tests.support.signalome_config import build_signalome_config
 
 pytestmark = pytest.mark.performance
 
@@ -698,7 +698,7 @@ def test_signalome_workflow_performance_contract_reports_scale_guard_diagnostics
         lambda: SignalomeWorkflow().run(
             SignalomeWorkflowRequest(
                 kinase_result=kinase_result,
-                config=SignalomeConfig(
+                config=build_signalome_config(
                     substrate_support_cutoff=0.5,
                     module_selection_max_clusters=8,
                     candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
@@ -802,7 +802,7 @@ def test_signalome_workflow_performance_contract_covers_all_missing_row_precondi
         lambda: SignalomeWorkflow().run(
             SignalomeWorkflowRequest(
                 kinase_result=sparse_kinase_result,
-                config=SignalomeConfig(
+                config=build_signalome_config(
                     substrate_support_cutoff=0.5,
                     module_selection_max_clusters=8,
                     candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,

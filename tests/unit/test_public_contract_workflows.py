@@ -9,7 +9,11 @@ import phospy
 import phospy.api.requests as request_models
 import phospy.api.workflows as workflow_models
 from phospy import KinaseWorkflow, SignalomeWorkflow
-from phospy.api.configs import KinaseScoringConfig, SignalomeConfig
+from phospy.api.configs import (
+    KinaseScoringConfig,
+    SignalomeConfig,
+    SignalomeOutputConfig,
+)
 from phospy.api.requests import (
     DatasetBuildRequest,
     KinaseWorkflowRequest,
@@ -79,6 +83,8 @@ def test_workflow_configs_self_validate_local_policy_constraints() -> None:
         KinaseScoringConfig(min_substrates=1)
     with pytest.raises(
         WorkflowValidationError,
-        match="signalome workflow request config.network_policy",
+        match="signalome workflow request config.output.network_policy",
     ):
-        SignalomeConfig(network_policy="invalid")  # type: ignore[arg-type]
+        SignalomeConfig(
+            output=SignalomeOutputConfig(network_policy="invalid")  # type: ignore[arg-type]
+        )

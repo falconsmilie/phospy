@@ -354,7 +354,7 @@ def _compute_module_selection(
     requested_module_count = validate_requested_module_count(
         requested_module_count=requested_module_count,
         available_clustering_site_count=n_sites,
-        field_name="signalome workflow request config.module_count",
+        field_name="signalome workflow request config.clustering.module_count",
     )
     profile_degeneracy = summarize_profile_degeneracy(scoring_array)
     correlation_exclusion_note = build_correlation_exclusion_note(profile_degeneracy)

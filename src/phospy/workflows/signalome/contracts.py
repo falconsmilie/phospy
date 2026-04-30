@@ -60,7 +60,7 @@ class ResolvedSignalomeWorkflowRequest:
     upstream kinase prediction, after interpreter preconditioning of unsupported
     all-missing score rows. ``score_preconditioning_diagnostics`` surfaces the
     aligned input row count, dropped all-missing row count, retained row count,
-    and active `SignalomeConfig.score_preconditioning_policy`.
+    and active ``SignalomeConfig.validation.score_preconditioning_policy``.
     ``alignment_diagnostics`` reports provided/retained/dropped counts (and
     exclusion reasons) for scientific input alignment across sites, kinases,
     and protein identifiers.

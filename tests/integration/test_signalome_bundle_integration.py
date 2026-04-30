@@ -15,7 +15,6 @@ from phospy.api import (
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     ReferencePreset,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import SignalomeWorkflowResult
@@ -35,6 +34,7 @@ from phospy.signalomes.clustering import (
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
 )
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
+from tests.support.signalome_config import build_signalome_config
 
 pytestmark = pytest.mark.integration
 
@@ -137,10 +137,10 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert provenance["environment"]["package_name"] == "phospy"
     assert "signalome_config" in provenance["workflow_parameters"]
     signalome_config = provenance["workflow_parameters"]["signalome_config"]
-    assert signalome_config["tree_engine"] == "exact"
-    assert signalome_config["candidate_scoring_policy"] == "full"
-    assert signalome_config["max_exact_tree_sites"] == 2000
-    assert signalome_config["max_full_candidate_scoring_sites"] == 2000
+    assert signalome_config["clustering"]["tree_engine"] == "exact"
+    assert signalome_config["clustering"]["candidate_scoring_policy"] == "full"
+    assert signalome_config["performance"]["max_exact_tree_sites"] == 2000
+    assert signalome_config["performance"]["max_full_candidate_scoring_sites"] == 2000
     assert "scale_guard" in provenance["workflow_parameters"]
     scale_guard = provenance["workflow_parameters"]["scale_guard"]
     assert scale_guard["site_count"] >= 1
@@ -217,13 +217,16 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
         "candidate_scoring_guard_triggered": False,
         "passed": True,
     }
-    assert score_semantics["network_policy"] == signalome_config["network_policy"]
+    assert (
+        score_semantics["network_policy"]
+        == signalome_config["output"]["network_policy"]
+    )
     assert score_semantics["clustering_engine"] == scale_guard["clustering_engine"]
     assert "probabilities" in score_semantics["scientific_interpretation_limits"]
     assert "causal" in score_semantics["scientific_interpretation_limits"]
     thresholds = score_semantics["thresholds_and_limits"]
     assert thresholds["network_correlation_threshold"] == pytest.approx(
-        signalome_config["network_correlation_threshold"]
+        signalome_config["output"]["network_correlation_threshold"]
     )
     assert thresholds["max_exact_tree_sites"] == 2000
     assert thresholds["max_full_candidate_scoring_sites"] == 2000
@@ -618,7 +621,7 @@ def _build_signalome_request_and_result():
     )
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
-        config=SignalomeConfig(substrate_support_cutoff=0.5),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
     result = SignalomeWorkflow().run(request)
     return request, result

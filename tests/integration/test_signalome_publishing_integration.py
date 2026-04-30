@@ -14,12 +14,12 @@ from phospy.api import (
     KinaseScoringConfig,
     KinaseWorkflowRequest,
     ReferencePreset,
-    SignalomeConfig,
     SignalomeWorkflowRequest,
 )
 from phospy.api.results import SignalomeWorkflowResult
 from phospy.io.publishers.workflows import publish_signalome_workflow
 from tests.support.rewrite_fixture_data import build_rat_l6_dataset
+from tests.support.signalome_config import build_signalome_config
 
 pytestmark = pytest.mark.integration
 
@@ -170,7 +170,7 @@ def _build_signalome_result():
     return SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=SignalomeConfig(substrate_support_cutoff=0.5),
+            config=build_signalome_config(substrate_support_cutoff=0.5),
         )
     )
 

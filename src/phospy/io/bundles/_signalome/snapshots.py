@@ -42,40 +42,56 @@ class SignalomeWorkflowConfigSnapshot:
 
         return {
             "signalome_config": {
-                "substrate_support_cutoff": float(
-                    self.signalome_config.substrate_support_cutoff
-                ),
-                "network_correlation_threshold": float(
-                    self.signalome_config.network_correlation_threshold
-                ),
-                "network_policy": str(self.signalome_config.network_policy),
-                "assignment_policy": str(self.signalome_config.assignment_policy),
-                "score_preconditioning_policy": str(
-                    self.signalome_config.score_preconditioning_policy
-                ),
-                "tree_engine": str(self.signalome_config.tree_engine),
-                "candidate_scoring_policy": str(
-                    self.signalome_config.candidate_scoring_policy
-                ),
-                "max_exact_tree_sites": int(self.signalome_config.max_exact_tree_sites),
-                "max_full_candidate_scoring_sites": int(
-                    self.signalome_config.max_full_candidate_scoring_sites
-                ),
-                "module_count": (
-                    None
-                    if self.signalome_config.module_count is None
-                    else int(self.signalome_config.module_count)
-                ),
-                "module_selection_primary_correlation_threshold": float(
-                    self.signalome_config.module_selection_primary_correlation_threshold
-                ),
-                "module_selection_fallback_correlation_threshold": float(
-                    self.signalome_config.module_selection_fallback_correlation_threshold
-                ),
-                "module_selection_max_clusters": int(
-                    self.signalome_config.module_selection_max_clusters
-                ),
-                "clustering_engine": str(self.signalome_config.clustering_engine),
+                "scientific": {
+                    "substrate_support_cutoff": float(
+                        self.signalome_config.scientific.substrate_support_cutoff
+                    ),
+                    "assignment_policy": str(
+                        self.signalome_config.scientific.assignment_policy
+                    ),
+                },
+                "clustering": {
+                    "module_count": (
+                        None
+                        if self.signalome_config.clustering.module_count is None
+                        else int(self.signalome_config.clustering.module_count)
+                    ),
+                    "module_selection_primary_correlation_threshold": float(
+                        self.signalome_config.clustering.module_selection_primary_correlation_threshold
+                    ),
+                    "module_selection_fallback_correlation_threshold": float(
+                        self.signalome_config.clustering.module_selection_fallback_correlation_threshold
+                    ),
+                    "module_selection_max_clusters": int(
+                        self.signalome_config.clustering.module_selection_max_clusters
+                    ),
+                    "tree_engine": str(self.signalome_config.clustering.tree_engine),
+                    "candidate_scoring_policy": str(
+                        self.signalome_config.clustering.candidate_scoring_policy
+                    ),
+                    "clustering_engine": str(
+                        self.signalome_config.clustering.clustering_engine
+                    ),
+                },
+                "validation": {
+                    "score_preconditioning_policy": str(
+                        self.signalome_config.validation.score_preconditioning_policy
+                    ),
+                },
+                "output": {
+                    "network_correlation_threshold": float(
+                        self.signalome_config.output.network_correlation_threshold
+                    ),
+                    "network_policy": str(self.signalome_config.output.network_policy),
+                },
+                "performance": {
+                    "max_exact_tree_sites": int(
+                        self.signalome_config.performance.max_exact_tree_sites
+                    ),
+                    "max_full_candidate_scoring_sites": int(
+                        self.signalome_config.performance.max_full_candidate_scoring_sites
+                    ),
+                },
             }
         }
 
