@@ -95,6 +95,9 @@ Signalome scale guards protect expensive clustering work:
 - `candidate_scoring_policy="sampled"` can reduce candidate-scoring cost but still
   needs exact tree construction.
 
+After a successful run, `result.provenance.workflow_parameters["scale_guard"]`
+shows exact tree-generation details and candidate-scoring details separately.
+
 ## Quick Fix Table
 
 | Error shape | What to check first |

@@ -106,9 +106,13 @@ Signalome-specific options:
 | `--assignment-policy` | `cutoff_binary` | `cutoff_binary` or `weighted_top` |
 | `--score-preconditioning-policy` | `allow_and_report` | allow/report or reject all-missing score rows |
 | `--tree-engine` | `exact` | exact tree construction; only supported value |
-| `--candidate-scoring-policy` | `full` | `full` or `sampled` |
+| `--candidate-scoring-policy` | `full` | `full` or `sampled` candidate module-count scoring |
 | `--max-exact-tree-sites` | `2000` | hard guard for exact tree construction |
 | `--max-full-candidate-scoring-sites` | `2000` | hard guard for full candidate scoring |
+
+`--candidate-scoring-policy sampled` reduces candidate module-count scoring
+work only. Exact tree construction still runs and is still guarded by
+`--max-exact-tree-sites`.
 
 The CLI does not expose every Python config field. Use the API for explicit
 `module_count`, comparison building, total-protein correction, custom references,

@@ -60,6 +60,20 @@ tree construction, so `max_exact_tree_sites` still matters.
 If `module_count` is provided explicitly, candidate module-count scoring is
 skipped, but final module assignment can still require exact tree construction.
 
+Inspect what happened in a completed run:
+
+```python
+scale_guard = result.provenance.workflow_parameters["scale_guard"]
+print(scale_guard["tree_generation_mode"])           # full_exact_tree_construction
+print(scale_guard["tree_generation_is_approximate"]) # False
+print(scale_guard["candidate_scoring_mode"])         # full / sampled / not_evaluated
+print(scale_guard["candidate_scoring_is_approximate"])
+print(scale_guard["candidate_scoring_sampled_site_total"])
+print(scale_guard["candidate_scoring_sampled_pair_count"])
+print(scale_guard["max_exact_tree_sites"])
+print(scale_guard["max_full_candidate_scoring_sites"])
+```
+
 ## Recommended Ranges
 
 | Lane | Practical guidance |

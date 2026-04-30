@@ -1396,6 +1396,10 @@ def run_clustering_with_tree_engine(
         "selected_module_count": selected_module_count,
         "input_site_count": int(request.scoring_matrix.shape[0]),
         "exact_tree_path_used": bool(clustering_result.exact_cluster_tree_built),
+        "tree_generation_mode": "full_exact_tree_construction",
+        "tree_generation_is_approximate": False,
+        "tree_generation_scope": "module_count_selection_and_final_assignment",
+        "candidate_scoring_scope": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
     }
     return SignalomeClusteringEngineResult(
         site_clusters=clustering_result.site_clusters,

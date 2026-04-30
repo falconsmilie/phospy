@@ -727,18 +727,39 @@ def test_signalome_workflow_performance_contract_reports_scale_guard_diagnostics
         == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
     assert scale_guard["site_count"] == int(result.module_assignments.table.shape[0])
+    assert scale_guard["input_protein_count"] >= 1
+    assert scale_guard["input_kinase_count"] >= 1
     assert scale_guard["selected_module_count"] == int(
         result.module_selection_diagnostics.selected_module_count
     )
+    assert scale_guard["candidate_module_counts_evaluated"] >= 1
+    assert (
+        scale_guard["candidate_module_count_upper_bound"]
+        >= scale_guard["candidate_module_counts_evaluated"]
+    )
     assert scale_guard["tree_engine"] == "exact"
+    assert scale_guard["tree_generation_mode"] == "full_exact_tree_construction"
+    assert scale_guard["tree_generation_is_approximate"] is False
+    assert (
+        scale_guard["tree_generation_scope"]
+        == "module_count_selection_and_final_assignment"
+    )
+    assert scale_guard["tree_generation_guard_triggered"] is False
     assert (
         scale_guard["candidate_scoring_mode"]
         == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
     )
+    assert scale_guard["candidate_scoring_strategy"] == (
+        SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
+    )
+    assert scale_guard["candidate_scoring_is_approximate"] is True
+    assert scale_guard["candidate_scoring_guard_triggered"] is False
     assert scale_guard["candidate_scoring_evaluated"] is True
     assert scale_guard["candidate_scoring_skip_reason"] is None
     assert scale_guard["exact_cluster_tree_built"] is True
     assert isinstance(scale_guard["candidate_scoring_sampling"], dict)
+    assert int(scale_guard["candidate_scoring_sampled_site_total"]) >= 0
+    assert int(scale_guard["candidate_scoring_sampled_pair_count"]) >= 0
     assert workflow_parameters["score_preconditioning_diagnostics"][
         "retained_row_count"
     ] == int(result.module_assignments.table.shape[0])

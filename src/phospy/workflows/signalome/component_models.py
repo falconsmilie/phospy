@@ -26,13 +26,27 @@ class SignalomeExecutionMetadata:
 @dataclass(frozen=True, slots=True)
 class SignalomeScaleGuardDecision:
     site_count: int
+    input_protein_count: int
+    input_kinase_count: int
     selected_module_count: int
+    candidate_module_counts_evaluated: int
+    candidate_module_count_upper_bound: int
     clustering_engine: str
     clustering_engine_version: str
     backend_diagnostics: dict[str, object] | None
     tree_engine: str
+    tree_generation_backend: str
+    tree_generation_mode: str
+    tree_generation_is_approximate: bool
+    tree_generation_scope: str
+    tree_generation_guard_triggered: bool
     candidate_scoring_policy: str
     candidate_scoring_requested_policy: str
+    candidate_scoring_strategy: str
+    candidate_scoring_is_approximate: bool
+    candidate_scoring_guard_triggered: bool
+    candidate_scoring_sampled_site_total: int | None
+    candidate_scoring_sampled_pair_count: int | None
     max_exact_tree_sites: int
     max_full_candidate_scoring_sites: int
     exact_cluster_tree_built: bool

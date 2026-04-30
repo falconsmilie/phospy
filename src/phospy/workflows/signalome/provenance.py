@@ -111,6 +111,13 @@ class SignalomeProvenanceBuilder:
                     if clustering_result.candidate_scoring_skip_reason is None
                     else str(clustering_result.candidate_scoring_skip_reason)
                 ),
+                candidate_scoring_scope=str(
+                    scale_guard_decision.candidate_scoring_applies_to
+                ),
+                tree_generation_mode=str(scale_guard_decision.tree_generation_mode),
+                tree_generation_is_approximate=bool(
+                    scale_guard_decision.tree_generation_is_approximate
+                ),
             ),
             PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
         )
@@ -155,8 +162,18 @@ class SignalomeProvenanceBuilder:
                 },
                 "scale_guard": {
                     "site_count": int(scale_guard_decision.site_count),
+                    "input_protein_count": int(
+                        scale_guard_decision.input_protein_count
+                    ),
+                    "input_kinase_count": int(scale_guard_decision.input_kinase_count),
                     "selected_module_count": int(
                         scale_guard_decision.selected_module_count
+                    ),
+                    "candidate_module_counts_evaluated": int(
+                        scale_guard_decision.candidate_module_counts_evaluated
+                    ),
+                    "candidate_module_count_upper_bound": int(
+                        scale_guard_decision.candidate_module_count_upper_bound
                     ),
                     "clustering_engine": str(scale_guard_decision.clustering_engine),
                     "clustering_engine_version": str(
@@ -168,11 +185,51 @@ class SignalomeProvenanceBuilder:
                         else dict(scale_guard_decision.backend_diagnostics)
                     ),
                     "tree_engine": str(scale_guard_decision.tree_engine),
+                    "tree_generation_backend": str(
+                        scale_guard_decision.tree_generation_backend
+                    ),
+                    "tree_generation_mode": str(
+                        scale_guard_decision.tree_generation_mode
+                    ),
+                    "tree_generation_is_approximate": bool(
+                        scale_guard_decision.tree_generation_is_approximate
+                    ),
+                    "tree_generation_scope": str(
+                        scale_guard_decision.tree_generation_scope
+                    ),
+                    "tree_generation_guard_triggered": bool(
+                        scale_guard_decision.tree_generation_guard_triggered
+                    ),
                     "candidate_scoring_policy": str(
                         scale_guard_decision.candidate_scoring_policy
                     ),
                     "candidate_scoring_requested_policy": str(
                         scale_guard_decision.candidate_scoring_requested_policy
+                    ),
+                    "candidate_scoring_strategy": str(
+                        scale_guard_decision.candidate_scoring_strategy
+                    ),
+                    "candidate_scoring_is_approximate": bool(
+                        scale_guard_decision.candidate_scoring_is_approximate
+                    ),
+                    "candidate_scoring_guard_triggered": bool(
+                        scale_guard_decision.candidate_scoring_guard_triggered
+                    ),
+                    "candidate_scoring_sampled_site_total": (
+                        None
+                        if scale_guard_decision.candidate_scoring_sampled_site_total
+                        is None
+                        else int(
+                            scale_guard_decision.candidate_scoring_sampled_site_total
+                        )
+                    ),
+                    "candidate_scoring_sampled_pair_count": (
+                        None
+                        if scale_guard_decision.candidate_scoring_sampled_pair_count
+                        is None
+                        else int(
+                            scale_guard_decision.candidate_scoring_sampled_pair_count
+                        )
                     ),
                     "max_exact_tree_sites": int(
                         scale_guard_decision.max_exact_tree_sites
@@ -282,9 +339,48 @@ def _build_signalome_score_semantics(
             "downstream score profiles across candidate module counts"
         ),
         "candidate_scoring_mode": str(scale_guard_decision.candidate_scoring_mode),
+        "candidate_scoring_is_approximate": bool(
+            scale_guard_decision.candidate_scoring_is_approximate
+        ),
+        "candidate_scoring_sampled_site_total": (
+            None
+            if scale_guard_decision.candidate_scoring_sampled_site_total is None
+            else int(scale_guard_decision.candidate_scoring_sampled_site_total)
+        ),
+        "candidate_scoring_sampled_pair_count": (
+            None
+            if scale_guard_decision.candidate_scoring_sampled_pair_count is None
+            else int(scale_guard_decision.candidate_scoring_sampled_pair_count)
+        ),
         "candidate_scoring_scope": str(
             scale_guard_decision.candidate_scoring_applies_to
         ),
+        "tree_generation_mode": str(scale_guard_decision.tree_generation_mode),
+        "tree_generation_is_approximate": bool(
+            scale_guard_decision.tree_generation_is_approximate
+        ),
+        "tree_generation_scope": str(scale_guard_decision.tree_generation_scope),
+        "tree_generation_backend": str(scale_guard_decision.tree_generation_backend),
+        "input_sizes": {
+            "site_count": int(scale_guard_decision.site_count),
+            "protein_count": int(scale_guard_decision.input_protein_count),
+            "kinase_count": int(scale_guard_decision.input_kinase_count),
+            "candidate_module_counts_evaluated": int(
+                scale_guard_decision.candidate_module_counts_evaluated
+            ),
+            "candidate_module_count_upper_bound": int(
+                scale_guard_decision.candidate_module_count_upper_bound
+            ),
+        },
+        "scale_guard_status": {
+            "exact_tree_guard_triggered": bool(
+                scale_guard_decision.tree_generation_guard_triggered
+            ),
+            "candidate_scoring_guard_triggered": bool(
+                scale_guard_decision.candidate_scoring_guard_triggered
+            ),
+            "passed": bool(scale_guard_decision.scale_guard_passed),
+        },
         "network_correlation_meaning": (
             "network candidate and edge scores are pairwise correlations between "
             "downstream kinase score profiles, computed on finite paired observations"

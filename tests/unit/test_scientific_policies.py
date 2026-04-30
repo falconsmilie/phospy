@@ -90,6 +90,12 @@ def test_signalome_candidate_score_policy_exposes_runtime_parameters() -> None:
     assert record.parameters["requested_policy"] == "sampled"
     assert record.parameters["candidate_scoring_policy"] == "sampled"
     assert record.parameters["candidate_scoring_mode"] == "sampled"
+    assert (
+        record.parameters["candidate_scoring_scope"]
+        == "candidate_module_count_evaluation_only"
+    )
+    assert record.parameters["tree_generation_mode"] == "full_exact_tree_construction"
+    assert record.parameters["tree_generation_is_approximate"] is False
     assert record.parameters["candidate_scoring_evaluated"] is True
 
 

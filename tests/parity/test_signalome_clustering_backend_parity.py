@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from phospy.signalomes.clustering import (
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
@@ -10,6 +11,8 @@ from phospy.signalomes.clustering import (
     run_signalome_clustering_engine,
 )
 from phospy.signalomes.clustering import exact_python as legacy_exact
+
+pytestmark = pytest.mark.parity
 
 
 def _fixture_scoring_matrix() -> pd.DataFrame:

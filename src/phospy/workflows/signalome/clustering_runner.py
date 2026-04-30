@@ -200,8 +200,53 @@ class SignalomeClusteringRunner:
         *,
         config: ResolvedSignalomeExecutionConfig,
         site_count: int,
+        site_to_protein: pd.Series,
+        downstream_score_kinases: int,
         clustering_result: ClusterSitesResult,
     ) -> SignalomeScaleGuardDecision:
+        def _sampled_sites_total(payload: dict[str, object] | None) -> int | None:
+            if payload is None:
+                return None
+            summary = payload.get("per_cluster_sample_count_summary")
+            if isinstance(summary, dict):
+                total = summary.get("total")
+                if isinstance(total, int):
+                    return int(total)
+                if isinstance(total, float) and float(total).is_integer():
+                    return int(total)
+            return None
+
+        def _sampled_pairs_total(payload: dict[str, object] | None) -> int | None:
+            if payload is None:
+                return None
+            sampled_pairs = payload.get("actual_sampled_pair_count")
+            if isinstance(sampled_pairs, int):
+                return int(sampled_pairs)
+            if isinstance(sampled_pairs, float) and float(sampled_pairs).is_integer():
+                return int(sampled_pairs)
+            return None
+
+        def _tree_generation_backend_name(
+            payload: dict[str, object] | None,
+        ) -> str:
+            if payload is None:
+                return "unknown_tree_backend"
+            backend_name = payload.get("tree_engine")
+            if isinstance(backend_name, str) and backend_name.strip():
+                return backend_name.strip()
+            return "unknown_tree_backend"
+
+        input_protein_count = int(
+            pd.Index(site_to_protein.astype(str)).nunique(dropna=True)
+        )
+        input_kinase_count = int(downstream_score_kinases)
+        candidate_scores = (
+            clustering_result.module_selection_diagnostics.candidate_scores
+        )
+        candidate_module_counts_evaluated = int(len(candidate_scores))
+        candidate_module_count_upper_bound = int(
+            clustering_result.module_selection_diagnostics.max_clusters_evaluated
+        )
         selected_module_count = int(
             clustering_result.module_selection_diagnostics.selected_module_count
         )
@@ -210,15 +255,41 @@ class SignalomeClusteringRunner:
             if selected_module_count <= 1
             else SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
         )
+        sampled_candidate_scoring = clustering_result.candidate_scoring_sampling
+        candidate_scoring_is_approximate = bool(
+            clustering_result.candidate_scoring_evaluated
+            and str(clustering_result.candidate_scoring_mode)
+            == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
+        )
         return SignalomeScaleGuardDecision(
             site_count=int(site_count),
+            input_protein_count=input_protein_count,
+            input_kinase_count=input_kinase_count,
             selected_module_count=selected_module_count,
+            candidate_module_counts_evaluated=candidate_module_counts_evaluated,
+            candidate_module_count_upper_bound=candidate_module_count_upper_bound,
             clustering_engine=str(clustering_result.backend_name),
             clustering_engine_version=str(clustering_result.backend_version),
             backend_diagnostics=clustering_result.backend_diagnostics,
             tree_engine=str(config.tree_engine),
+            tree_generation_backend=_tree_generation_backend_name(
+                clustering_result.backend_diagnostics
+            ),
+            tree_generation_mode="full_exact_tree_construction",
+            tree_generation_is_approximate=False,
+            tree_generation_scope="module_count_selection_and_final_assignment",
+            tree_generation_guard_triggered=False,
             candidate_scoring_policy=str(config.candidate_scoring_policy),
             candidate_scoring_requested_policy=str(config.candidate_scoring_policy),
+            candidate_scoring_strategy=str(clustering_result.candidate_scoring_mode),
+            candidate_scoring_is_approximate=candidate_scoring_is_approximate,
+            candidate_scoring_guard_triggered=False,
+            candidate_scoring_sampled_site_total=_sampled_sites_total(
+                sampled_candidate_scoring
+            ),
+            candidate_scoring_sampled_pair_count=_sampled_pairs_total(
+                sampled_candidate_scoring
+            ),
             max_exact_tree_sites=int(config.max_exact_tree_sites),
             max_full_candidate_scoring_sites=int(
                 config.max_full_candidate_scoring_sites
@@ -233,7 +304,7 @@ class SignalomeClusteringRunner:
                 if clustering_result.candidate_scoring_skip_reason is None
                 else str(clustering_result.candidate_scoring_skip_reason)
             ),
-            candidate_scoring_sampling=clustering_result.candidate_scoring_sampling,
+            candidate_scoring_sampling=sampled_candidate_scoring,
             scale_guard_passed=True,
             final_module_assignment_backend=final_module_assignment_backend,
         )

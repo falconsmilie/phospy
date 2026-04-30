@@ -233,13 +233,14 @@ enrichment.
 | `module_selection_fallback_correlation_threshold` | `0.1` | fallback threshold for automatic module selection |
 | `module_selection_max_clusters` | `10` | largest candidate module count considered |
 | `tree_engine` | `"exact"` | exact tree construction; this is the only public value |
-| `candidate_scoring_policy` | `"full"` | `"full"` or `"sampled"` candidate module-count scoring |
+| `candidate_scoring_policy` | `"full"` | `"full"` or `"sampled"` candidate module-count scoring only |
 | `max_exact_tree_sites` | `2000` | hard guard for exact tree construction |
 | `max_full_candidate_scoring_sites` | `2000` | hard guard for full candidate scoring |
 | `clustering_engine` | `"scipy_hierarchical"` | `"exact_python"` or `"scipy_hierarchical"` |
 
 `candidate_scoring_policy="sampled"` reduces candidate module-count scoring
-cost. It does not remove the exact tree-construction guard.
+cost only. It does not remove exact tree construction, and it does not make
+the full signalome workflow approximate.
 
 `clustering_engine="scipy_hierarchical"` is the preferred production default.
 Use `clustering_engine="exact_python"` mainly for reference/debug checks.
@@ -309,6 +310,21 @@ Undefined kinase correlations are preserved as missing values. A correlation of
 `result.provenance.scientific_policies` includes signalome-specific scientific
 policies (for candidate module-count scoring and protein-module derivation) and
 their resolved parameters.
+
+Inspect runtime clustering diagnostics from provenance:
+
+```python
+scale_guard = result.provenance.workflow_parameters["scale_guard"]
+print(scale_guard["clustering_engine"])
+print(scale_guard["tree_generation_mode"])          # full_exact_tree_construction
+print(scale_guard["tree_generation_is_approximate"])  # False
+print(scale_guard["candidate_scoring_mode"])        # full / sampled / not_evaluated
+print(scale_guard["candidate_scoring_is_approximate"])
+print(scale_guard["max_exact_tree_sites"])
+print(scale_guard["max_full_candidate_scoring_sites"])
+print(scale_guard["candidate_scoring_sampled_site_total"])
+print(scale_guard["candidate_scoring_sampled_pair_count"])
+```
 
 ## References
 

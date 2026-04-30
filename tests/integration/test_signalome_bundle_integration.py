@@ -144,9 +144,31 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert "scale_guard" in provenance["workflow_parameters"]
     scale_guard = provenance["workflow_parameters"]["scale_guard"]
     assert scale_guard["site_count"] >= 1
+    assert scale_guard["input_protein_count"] >= 1
+    assert scale_guard["input_kinase_count"] >= 1
     assert scale_guard["tree_engine"] == "exact"
+    assert scale_guard["tree_generation_backend"] in {
+        "scipy_hierarchical_tree",
+        "exact_python_tree",
+    }
+    assert scale_guard["tree_generation_mode"] == "full_exact_tree_construction"
+    assert scale_guard["tree_generation_is_approximate"] is False
+    assert (
+        scale_guard["tree_generation_scope"]
+        == "module_count_selection_and_final_assignment"
+    )
+    assert scale_guard["tree_generation_guard_triggered"] is False
     assert scale_guard["candidate_scoring_policy"] == "full"
     assert scale_guard["candidate_scoring_requested_policy"] == "full"
+    assert scale_guard["candidate_scoring_strategy"] in {
+        "full",
+        "sampled",
+        "not_evaluated",
+    }
+    assert scale_guard["candidate_scoring_is_approximate"] is False
+    assert scale_guard["candidate_scoring_guard_triggered"] is False
+    assert scale_guard["candidate_scoring_sampled_site_total"] is None
+    assert scale_guard["candidate_scoring_sampled_pair_count"] is None
     assert scale_guard["max_exact_tree_sites"] == 2000
     assert scale_guard["max_full_candidate_scoring_sites"] == 2000
     assert scale_guard["scale_guard_passed"] is True
@@ -170,10 +192,31 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
         "profile_scores",
     }
     assert score_semantics["candidate_scoring_mode"] == "full"
+    assert score_semantics["candidate_scoring_is_approximate"] is False
+    assert score_semantics["candidate_scoring_sampled_site_total"] is None
+    assert score_semantics["candidate_scoring_sampled_pair_count"] is None
     assert (
         score_semantics["candidate_scoring_scope"]
         == "candidate_module_count_evaluation_only"
     )
+    assert score_semantics["tree_generation_mode"] == "full_exact_tree_construction"
+    assert score_semantics["tree_generation_is_approximate"] is False
+    assert (
+        score_semantics["tree_generation_scope"]
+        == "module_count_selection_and_final_assignment"
+    )
+    assert score_semantics["tree_generation_backend"] in {
+        "scipy_hierarchical_tree",
+        "exact_python_tree",
+    }
+    assert score_semantics["input_sizes"]["site_count"] >= 1
+    assert score_semantics["input_sizes"]["protein_count"] >= 1
+    assert score_semantics["input_sizes"]["kinase_count"] >= 1
+    assert score_semantics["scale_guard_status"] == {
+        "exact_tree_guard_triggered": False,
+        "candidate_scoring_guard_triggered": False,
+        "passed": True,
+    }
     assert score_semantics["network_policy"] == signalome_config["network_policy"]
     assert score_semantics["clustering_engine"] == scale_guard["clustering_engine"]
     assert "probabilities" in score_semantics["scientific_interpretation_limits"]

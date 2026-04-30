@@ -1184,46 +1184,100 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
     )
     assert result.provenance is not None
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
-    assert scale_guard == {
-        "site_count": 2,
+    assert scale_guard["site_count"] == 2
+    assert scale_guard["input_protein_count"] == 2
+    assert scale_guard["input_kinase_count"] == 2
+    assert scale_guard["selected_module_count"] == 1
+    assert scale_guard["candidate_module_counts_evaluated"] == 1
+    assert scale_guard["candidate_module_count_upper_bound"] == 2
+    assert scale_guard["clustering_engine"] == "scipy_hierarchical"
+    assert scale_guard["clustering_engine_version"] == "1"
+    assert scale_guard["backend_diagnostics"] == {
+        "backend_name": "scipy_hierarchical",
+        "tree_engine": "scipy_hierarchical_tree",
+        "tree_engine_version": "1",
+        "uses_scipy": True,
+        "linkage_method": "ward",
+        "distance_metric": "euclidean",
         "selected_module_count": 1,
-        "clustering_engine": "scipy_hierarchical",
-        "clustering_engine_version": "1",
-        "backend_diagnostics": {
-            "backend_name": "scipy_hierarchical",
-            "tree_engine": "scipy_hierarchical_tree",
-            "tree_engine_version": "1",
-            "uses_scipy": True,
-            "linkage_method": "ward",
-            "distance_metric": "euclidean",
-            "selected_module_count": 1,
-            "input_site_count": 2,
-            "exact_tree_path_used": True,
-        },
-        "tree_engine": SIGNALOME_TREE_ENGINE_EXACT,
-        "candidate_scoring_policy": SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
-        "candidate_scoring_requested_policy": (SIGNALOME_CANDIDATE_SCORING_POLICY_FULL),
-        "max_exact_tree_sites": SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
-        "max_full_candidate_scoring_sites": SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
-        "exact_cluster_tree_built": True,
-        "candidate_scoring_mode": SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
-        "candidate_scoring_evaluated": True,
-        "candidate_scoring_skip_reason": None,
-        "candidate_scoring_sampling": None,
-        "candidate_scoring_applies_to": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
-        "final_module_assignment_backend": (
-            SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE
-        ),
-        "final_module_assignment_uses_candidate_scoring": False,
-        "scale_guard_passed": True,
+        "input_site_count": 2,
+        "exact_tree_path_used": True,
+        "tree_generation_mode": "full_exact_tree_construction",
+        "tree_generation_is_approximate": False,
+        "tree_generation_scope": "module_count_selection_and_final_assignment",
+        "candidate_scoring_scope": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
     }
+    assert scale_guard["tree_engine"] == SIGNALOME_TREE_ENGINE_EXACT
+    assert scale_guard["tree_generation_backend"] == "scipy_hierarchical_tree"
+    assert scale_guard["tree_generation_mode"] == "full_exact_tree_construction"
+    assert scale_guard["tree_generation_is_approximate"] is False
+    assert (
+        scale_guard["tree_generation_scope"]
+        == "module_count_selection_and_final_assignment"
+    )
+    assert scale_guard["tree_generation_guard_triggered"] is False
+    assert scale_guard["candidate_scoring_policy"] == (
+        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
+    )
+    assert scale_guard["candidate_scoring_requested_policy"] == (
+        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
+    )
+    assert scale_guard["candidate_scoring_strategy"] == (
+        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
+    )
+    assert scale_guard["candidate_scoring_is_approximate"] is False
+    assert scale_guard["candidate_scoring_guard_triggered"] is False
+    assert scale_guard["candidate_scoring_sampled_site_total"] is None
+    assert scale_guard["candidate_scoring_sampled_pair_count"] is None
+    assert scale_guard["max_exact_tree_sites"] == SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT
+    assert scale_guard["max_full_candidate_scoring_sites"] == (
+        SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
+    )
+    assert scale_guard["exact_cluster_tree_built"] is True
+    assert scale_guard["candidate_scoring_mode"] == (
+        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
+    )
+    assert scale_guard["candidate_scoring_evaluated"] is True
+    assert scale_guard["candidate_scoring_skip_reason"] is None
+    assert scale_guard["candidate_scoring_sampling"] is None
+    assert (
+        scale_guard["candidate_scoring_applies_to"]
+        == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
+    )
+    assert scale_guard["final_module_assignment_backend"] == (
+        SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE
+    )
+    assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
+    assert scale_guard["scale_guard_passed"] is True
     score_semantics = result.provenance.workflow_parameters["signalome_score_semantics"]
     assert score_semantics["downstream_score_source"] == "rank_weighted_fusion_scores"
     assert score_semantics["candidate_scoring_mode"] == "full"
+    assert score_semantics["candidate_scoring_is_approximate"] is False
+    assert score_semantics["candidate_scoring_sampled_site_total"] is None
+    assert score_semantics["candidate_scoring_sampled_pair_count"] is None
     assert (
         score_semantics["candidate_scoring_scope"]
         == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
     )
+    assert score_semantics["tree_generation_mode"] == "full_exact_tree_construction"
+    assert score_semantics["tree_generation_is_approximate"] is False
+    assert (
+        score_semantics["tree_generation_scope"]
+        == "module_count_selection_and_final_assignment"
+    )
+    assert score_semantics["tree_generation_backend"] == "scipy_hierarchical_tree"
+    assert score_semantics["input_sizes"] == {
+        "site_count": 2,
+        "protein_count": 2,
+        "kinase_count": 2,
+        "candidate_module_counts_evaluated": 1,
+        "candidate_module_count_upper_bound": 2,
+    }
+    assert score_semantics["scale_guard_status"] == {
+        "exact_tree_guard_triggered": False,
+        "candidate_scoring_guard_triggered": False,
+        "passed": True,
+    }
     assert score_semantics["network_policy"] == "signed"
     assert score_semantics["clustering_engine"] == "scipy_hierarchical"
     assert "probabilities" in score_semantics["scientific_interpretation_limits"]
@@ -1290,6 +1344,13 @@ def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
         scale_guard["candidate_scoring_policy"]
         == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
     )
+    assert scale_guard["candidate_scoring_strategy"] == (
+        SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
+    )
+    assert scale_guard["candidate_scoring_is_approximate"] is True
+    assert scale_guard["candidate_scoring_guard_triggered"] is False
+    assert scale_guard["tree_generation_is_approximate"] is False
+    assert scale_guard["tree_generation_guard_triggered"] is False
     assert scale_guard["candidate_scoring_evaluated"] is True
     assert scale_guard["candidate_scoring_skip_reason"] is None
     assert (
@@ -1303,6 +1364,8 @@ def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
     assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
     sampled = scale_guard["candidate_scoring_sampling"]
     assert isinstance(sampled, dict)
+    assert int(scale_guard["candidate_scoring_sampled_site_total"]) >= 0
+    assert int(scale_guard["candidate_scoring_sampled_pair_count"]) >= 0
     assert sampled["sampling_cap"] == MAX_APPROX_CORRELATION_SAMPLES_PER_CLUSTER
     assert sampled["sampling_method"] == SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD
     assert (
@@ -1319,6 +1382,9 @@ def test_sampled_candidate_scoring_records_sampling_provenance() -> None:
     assert int(per_cluster_summary["total"]) >= int(per_cluster_summary["max"])
     score_semantics = result.provenance.workflow_parameters["signalome_score_semantics"]
     assert score_semantics["candidate_scoring_mode"] == "sampled"
+    assert score_semantics["candidate_scoring_is_approximate"] is True
+    assert int(score_semantics["candidate_scoring_sampled_site_total"]) >= 0
+    assert int(score_semantics["candidate_scoring_sampled_pair_count"]) >= 0
     assert (
         score_semantics["candidate_scoring_scope"]
         == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
@@ -1365,43 +1431,73 @@ def test_explicit_module_count_skips_sampled_candidate_scoring_in_provenance() -
 
     assert result.provenance is not None
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
-    assert scale_guard == {
-        "site_count": 3,
+    assert scale_guard["site_count"] == 3
+    assert scale_guard["input_protein_count"] == 3
+    assert scale_guard["input_kinase_count"] == 2
+    assert scale_guard["selected_module_count"] == 2
+    assert scale_guard["candidate_module_counts_evaluated"] == 0
+    assert scale_guard["candidate_module_count_upper_bound"] == 3
+    assert scale_guard["clustering_engine"] == "scipy_hierarchical"
+    assert scale_guard["clustering_engine_version"] == "1"
+    assert scale_guard["backend_diagnostics"] == {
+        "backend_name": "scipy_hierarchical",
+        "tree_engine": "scipy_hierarchical_tree",
+        "tree_engine_version": "1",
+        "uses_scipy": True,
+        "linkage_method": "ward",
+        "distance_metric": "euclidean",
         "selected_module_count": 2,
-        "clustering_engine": "scipy_hierarchical",
-        "clustering_engine_version": "1",
-        "backend_diagnostics": {
-            "backend_name": "scipy_hierarchical",
-            "tree_engine": "scipy_hierarchical_tree",
-            "tree_engine_version": "1",
-            "uses_scipy": True,
-            "linkage_method": "ward",
-            "distance_metric": "euclidean",
-            "selected_module_count": 2,
-            "input_site_count": 3,
-            "exact_tree_path_used": True,
-        },
-        "tree_engine": SIGNALOME_TREE_ENGINE_EXACT,
-        "candidate_scoring_policy": SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
-        "candidate_scoring_requested_policy": (
-            SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
-        ),
-        "max_exact_tree_sites": SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
-        "max_full_candidate_scoring_sites": SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
-        "exact_cluster_tree_built": True,
-        "candidate_scoring_mode": SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
-        "candidate_scoring_evaluated": False,
-        "candidate_scoring_skip_reason": (
-            SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
-        ),
-        "candidate_scoring_sampling": None,
-        "candidate_scoring_applies_to": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
-        "final_module_assignment_backend": (
-            SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
-        ),
-        "final_module_assignment_uses_candidate_scoring": False,
-        "scale_guard_passed": True,
+        "input_site_count": 3,
+        "exact_tree_path_used": True,
+        "tree_generation_mode": "full_exact_tree_construction",
+        "tree_generation_is_approximate": False,
+        "tree_generation_scope": "module_count_selection_and_final_assignment",
+        "candidate_scoring_scope": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
     }
+    assert scale_guard["tree_engine"] == SIGNALOME_TREE_ENGINE_EXACT
+    assert scale_guard["tree_generation_backend"] == "scipy_hierarchical_tree"
+    assert scale_guard["tree_generation_mode"] == "full_exact_tree_construction"
+    assert scale_guard["tree_generation_is_approximate"] is False
+    assert (
+        scale_guard["tree_generation_scope"]
+        == "module_count_selection_and_final_assignment"
+    )
+    assert scale_guard["tree_generation_guard_triggered"] is False
+    assert scale_guard["candidate_scoring_policy"] == (
+        SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
+    )
+    assert scale_guard["candidate_scoring_requested_policy"] == (
+        SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
+    )
+    assert scale_guard["candidate_scoring_strategy"] == (
+        SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    )
+    assert scale_guard["candidate_scoring_is_approximate"] is False
+    assert scale_guard["candidate_scoring_guard_triggered"] is False
+    assert scale_guard["candidate_scoring_sampled_site_total"] is None
+    assert scale_guard["candidate_scoring_sampled_pair_count"] is None
+    assert scale_guard["max_exact_tree_sites"] == SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT
+    assert scale_guard["max_full_candidate_scoring_sites"] == (
+        SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
+    )
+    assert scale_guard["exact_cluster_tree_built"] is True
+    assert scale_guard["candidate_scoring_mode"] == (
+        SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    )
+    assert scale_guard["candidate_scoring_evaluated"] is False
+    assert scale_guard["candidate_scoring_skip_reason"] == (
+        SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
+    )
+    assert scale_guard["candidate_scoring_sampling"] is None
+    assert (
+        scale_guard["candidate_scoring_applies_to"]
+        == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
+    )
+    assert scale_guard["final_module_assignment_backend"] == (
+        SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
+    )
+    assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
+    assert scale_guard["scale_guard_passed"] is True
 
 
 def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> None:
@@ -1444,41 +1540,73 @@ def test_explicit_module_count_skips_candidate_scoring_for_full_backend() -> Non
 
     assert result.provenance is not None
     scale_guard = result.provenance.workflow_parameters["scale_guard"]
-    assert scale_guard == {
-        "site_count": 3,
+    assert scale_guard["site_count"] == 3
+    assert scale_guard["input_protein_count"] == 3
+    assert scale_guard["input_kinase_count"] == 2
+    assert scale_guard["selected_module_count"] == 2
+    assert scale_guard["candidate_module_counts_evaluated"] == 0
+    assert scale_guard["candidate_module_count_upper_bound"] == 3
+    assert scale_guard["clustering_engine"] == "scipy_hierarchical"
+    assert scale_guard["clustering_engine_version"] == "1"
+    assert scale_guard["backend_diagnostics"] == {
+        "backend_name": "scipy_hierarchical",
+        "tree_engine": "scipy_hierarchical_tree",
+        "tree_engine_version": "1",
+        "uses_scipy": True,
+        "linkage_method": "ward",
+        "distance_metric": "euclidean",
         "selected_module_count": 2,
-        "clustering_engine": "scipy_hierarchical",
-        "clustering_engine_version": "1",
-        "backend_diagnostics": {
-            "backend_name": "scipy_hierarchical",
-            "tree_engine": "scipy_hierarchical_tree",
-            "tree_engine_version": "1",
-            "uses_scipy": True,
-            "linkage_method": "ward",
-            "distance_metric": "euclidean",
-            "selected_module_count": 2,
-            "input_site_count": 3,
-            "exact_tree_path_used": True,
-        },
-        "tree_engine": SIGNALOME_TREE_ENGINE_EXACT,
-        "candidate_scoring_policy": SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
-        "candidate_scoring_requested_policy": SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
-        "max_exact_tree_sites": SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT,
-        "max_full_candidate_scoring_sites": SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
-        "exact_cluster_tree_built": True,
-        "candidate_scoring_mode": SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
-        "candidate_scoring_evaluated": False,
-        "candidate_scoring_skip_reason": (
-            SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
-        ),
-        "candidate_scoring_sampling": None,
-        "candidate_scoring_applies_to": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
-        "final_module_assignment_backend": (
-            SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
-        ),
-        "final_module_assignment_uses_candidate_scoring": False,
-        "scale_guard_passed": True,
+        "input_site_count": 3,
+        "exact_tree_path_used": True,
+        "tree_generation_mode": "full_exact_tree_construction",
+        "tree_generation_is_approximate": False,
+        "tree_generation_scope": "module_count_selection_and_final_assignment",
+        "candidate_scoring_scope": SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
     }
+    assert scale_guard["tree_engine"] == SIGNALOME_TREE_ENGINE_EXACT
+    assert scale_guard["tree_generation_backend"] == "scipy_hierarchical_tree"
+    assert scale_guard["tree_generation_mode"] == "full_exact_tree_construction"
+    assert scale_guard["tree_generation_is_approximate"] is False
+    assert (
+        scale_guard["tree_generation_scope"]
+        == "module_count_selection_and_final_assignment"
+    )
+    assert scale_guard["tree_generation_guard_triggered"] is False
+    assert scale_guard["candidate_scoring_policy"] == (
+        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
+    )
+    assert scale_guard["candidate_scoring_requested_policy"] == (
+        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
+    )
+    assert scale_guard["candidate_scoring_strategy"] == (
+        SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    )
+    assert scale_guard["candidate_scoring_is_approximate"] is False
+    assert scale_guard["candidate_scoring_guard_triggered"] is False
+    assert scale_guard["candidate_scoring_sampled_site_total"] is None
+    assert scale_guard["candidate_scoring_sampled_pair_count"] is None
+    assert scale_guard["max_exact_tree_sites"] == SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT
+    assert scale_guard["max_full_candidate_scoring_sites"] == (
+        SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
+    )
+    assert scale_guard["exact_cluster_tree_built"] is True
+    assert scale_guard["candidate_scoring_mode"] == (
+        SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
+    )
+    assert scale_guard["candidate_scoring_evaluated"] is False
+    assert scale_guard["candidate_scoring_skip_reason"] == (
+        SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT
+    )
+    assert scale_guard["candidate_scoring_sampling"] is None
+    assert (
+        scale_guard["candidate_scoring_applies_to"]
+        == SIGNALOME_CANDIDATE_SCORING_APPLIES_TO
+    )
+    assert scale_guard["final_module_assignment_backend"] == (
+        SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE
+    )
+    assert scale_guard["final_module_assignment_uses_candidate_scoring"] is False
+    assert scale_guard["scale_guard_passed"] is True
 
 
 def test_explicit_single_module_reports_trivial_final_assignment_backend() -> None:

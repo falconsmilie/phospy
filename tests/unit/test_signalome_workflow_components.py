@@ -384,6 +384,8 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     scale_guard = SignalomeClusteringRunner.summarize_scale_guard(
         config=resolved.execution_config,
         site_count=metadata.downstream_score_sites,
+        site_to_protein=resolved.site_to_protein,
+        downstream_score_kinases=metadata.downstream_score_kinases,
         clustering_result=clustering.clustering_result,
     )
     provenance = SignalomeProvenanceBuilder().build(
@@ -417,8 +419,22 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert "tree_engine" in scale_guard
     assert "candidate_scoring_policy" in scale_guard
     assert "candidate_scoring_requested_policy" in scale_guard
+    assert "candidate_scoring_strategy" in scale_guard
+    assert "candidate_scoring_is_approximate" in scale_guard
+    assert "candidate_scoring_guard_triggered" in scale_guard
+    assert "candidate_scoring_sampled_site_total" in scale_guard
+    assert "candidate_scoring_sampled_pair_count" in scale_guard
     assert "exact_cluster_tree_built" in scale_guard
     assert "candidate_scoring_mode" in scale_guard
+    assert "tree_generation_backend" in scale_guard
+    assert "tree_generation_mode" in scale_guard
+    assert "tree_generation_is_approximate" in scale_guard
+    assert "tree_generation_scope" in scale_guard
+    assert "tree_generation_guard_triggered" in scale_guard
+    assert "input_protein_count" in scale_guard
+    assert "input_kinase_count" in scale_guard
+    assert "candidate_module_counts_evaluated" in scale_guard
+    assert "candidate_module_count_upper_bound" in scale_guard
     output_names = {fingerprint.name for fingerprint in provenance.output_tables}
     assert "outputs.signalome.module_assignments" in output_names
     assert "outputs.signalome.signalome_modules" in output_names
@@ -472,6 +488,8 @@ def test_signalome_result_assembly_preserves_public_result_shape() -> None:
     scale_guard = SignalomeClusteringRunner.summarize_scale_guard(
         config=resolved.execution_config,
         site_count=metadata.downstream_score_sites,
+        site_to_protein=resolved.site_to_protein,
+        downstream_score_kinases=metadata.downstream_score_kinases,
         clustering_result=clustering.clustering_result,
     )
     provenance = SignalomeProvenanceBuilder().build(

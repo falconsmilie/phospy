@@ -186,6 +186,9 @@ def build_signalome_module_candidate_score_policy(
     max_full_candidate_scoring_sites: int,
     candidate_scoring_evaluated: bool,
     candidate_scoring_skip_reason: str | None,
+    candidate_scoring_scope: str = "candidate_module_count_evaluation_only",
+    tree_generation_mode: str = "full_exact_tree_construction",
+    tree_generation_is_approximate: bool = False,
 ) -> ScientificPolicyRecord:
     return ScientificPolicyRecord(
         id=ScientificPolicyId.SIGNALOME_MODULE_CANDIDATE_SCORE,
@@ -193,14 +196,19 @@ def build_signalome_module_candidate_score_policy(
         version="1",
         description=(
             "Ranks candidate module counts using within-cluster median "
-            "correlation summaries over downstream kinase-score profiles."
+            "correlation summaries over downstream kinase-score profiles. "
+            "Candidate scoring policy does not alter tree-generation exactness "
+            "in the current implementation."
         ),
         parameters={
             "requested_policy": str(requested_policy),
             "candidate_scoring_policy": str(candidate_scoring_policy),
             "candidate_scoring_mode": str(candidate_scoring_mode),
+            "candidate_scoring_scope": str(candidate_scoring_scope),
             "max_exact_tree_sites": max_exact_tree_sites,
             "max_full_candidate_scoring_sites": int(max_full_candidate_scoring_sites),
+            "tree_generation_mode": str(tree_generation_mode),
+            "tree_generation_is_approximate": bool(tree_generation_is_approximate),
             "candidate_scoring_evaluated": bool(candidate_scoring_evaluated),
             "candidate_scoring_skip_reason": (
                 None
@@ -212,6 +220,7 @@ def build_signalome_module_candidate_score_policy(
             "Candidate quality is summarized by within-cluster correlation coherence.",
             "Degenerate or undefined profiles are excluded or tracked via diagnostics.",
             "Selected module count depends on thresholds and candidate-scoring policy.",
+            "Tree generation remains exact and is guarded separately from candidate scoring.",
         ),
         output_scale=(
             "Candidate module-count support scores; higher values indicate stronger "

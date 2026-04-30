@@ -50,6 +50,10 @@ def _required_backend_diagnostic_keys() -> set[str]:
         "selected_module_count",
         "input_site_count",
         "exact_tree_path_used",
+        "tree_generation_mode",
+        "tree_generation_is_approximate",
+        "tree_generation_scope",
+        "candidate_scoring_scope",
     }
 
 
