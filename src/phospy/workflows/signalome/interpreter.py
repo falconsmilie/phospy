@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import cast
-
 import numpy as np
 import pandas as pd
 
@@ -361,7 +359,7 @@ class SignalomeWorkflowInterpreter:
                 aligned_score_kinases=int(score_matrix.shape[1]),
                 infinite_score_entries=int(infinite_mask.sum()),
             )
-        supported_rows = cast(pd.Series, score_matrix.notna().any(axis=1))
+        supported_rows = score_matrix.notna().any(axis=1)
         supported_row_mask = supported_rows.to_numpy(dtype=bool, copy=False)
         input_row_count = int(score_matrix.shape[0])
         retained_row_count = int(supported_row_mask.sum())

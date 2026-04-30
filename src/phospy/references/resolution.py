@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
+from phospy.errors.references import ReferenceResolutionError
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import ReferenceProvenance
 from phospy.references.models import Organism, ReferenceBundle, ReferencePreset
@@ -44,10 +44,6 @@ class BundledReferenceProvider:
     """
 
     def run(self, organism: Organism) -> ReferenceBundle:
-        if not isinstance(organism, Organism):
-            raise UnsupportedOrganismError(
-                "bundled reference provider requires a supported Organism"
-            )
         bundle_id = bundled_reference_name_for_organism(organism)
         kinase_substrate_map = load_bundled_kinase_substrate_map(organism)
         site_sequences = load_bundled_site_sequences(organism)
@@ -66,7 +62,7 @@ class BundledReferenceProvider:
                 ),
             ),
         )
-        return ReferenceBundle._from_owned(
+        return ReferenceBundle._from_owned(  # pyright: ignore[reportPrivateUsage] - trusted internal constructor avoids redundant frame copies
             organism=organism,
             kinase_substrate_map=kinase_substrate_map,
             site_sequences=site_sequences,
@@ -101,7 +97,7 @@ class ReferenceResolver:
                 dataset_organism=dataset_organism,
             )
             return reference_input
-        if not isinstance(reference_input, ReferencePreset):
+        if not isinstance(reference_input, ReferencePreset):  # pyright: ignore[reportUnnecessaryIsInstance] - runtime guard for untyped/boundary inputs
             raise ReferenceResolutionError(
                 "reference input must be a ReferencePreset or ReferenceBundle; "
                 f"got {type(reference_input).__name__}"

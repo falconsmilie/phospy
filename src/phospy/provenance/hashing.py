@@ -17,6 +17,21 @@ from phospy.provenance.models import TableFingerprint
 
 DEFAULT_TABLE_HASH_ALGORITHM = "sha256"
 _MISSING_SENTINEL = "<MISSING>"
+_PANDAS_MISSING_SCALAR_TYPES = (
+    str,
+    bytes,
+    bool,
+    int,
+    float,
+    complex,
+    Decimal,
+    date,
+    datetime,
+    time,
+    np.generic,
+    np.datetime64,
+    np.timedelta64,
+)
 
 
 def hash_table(
@@ -128,6 +143,8 @@ def _normalize_value(value: object) -> object:
 
 
 def _is_missing_scalar(value: object) -> bool:
+    if not isinstance(value, _PANDAS_MISSING_SCALAR_TYPES):
+        return False
     missing = pd.isna(value)
     return isinstance(missing, (bool, np.bool_)) and bool(missing)
 

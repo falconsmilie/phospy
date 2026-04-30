@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from typing import cast
 
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import (
@@ -418,23 +419,25 @@ def _reference_from_payload(payload: Mapping[str, object]) -> ReferenceProvenanc
 
 def _to_json_safe(value: object) -> object:
     if isinstance(value, Mapping):
-        return {str(key): _to_json_safe(item) for key, item in value.items()}
+        mapping = cast(Mapping[object, object], value)
+        return {str(key): _to_json_safe(item) for key, item in mapping.items()}
     if isinstance(value, tuple):
-        return [_to_json_safe(item) for item in value]
+        return [_to_json_safe(item) for item in cast(tuple[object, ...], value)]
     if isinstance(value, list):
-        return [_to_json_safe(item) for item in value]
+        return [_to_json_safe(item) for item in cast(list[object], value)]
     return value
 
 
 def _require_mapping(value: object, *, field_name: str) -> Mapping[str, object]:
     if isinstance(value, Mapping):
-        return value
+        mapping = cast(Mapping[object, object], value)
+        return {str(key): item for key, item in mapping.items()}
     raise PhosPyInputError(f"{field_name} must be an object")
 
 
-def _require_sequence(value: object, *, field_name: str) -> Sequence[object]:
+def _require_sequence(value: object, *, field_name: str) -> list[object]:
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        return value
+        return list(cast(Sequence[object], value))
     raise PhosPyInputError(f"{field_name} must be an array")
 
 

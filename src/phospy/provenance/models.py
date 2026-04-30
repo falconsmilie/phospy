@@ -9,6 +9,11 @@ from phospy.scientific_policies import ScientificPolicyRecord
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1 = 1
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2 = 2
 
+JsonPrimitive = str | int | float | bool | None
+JsonValue = (
+    JsonPrimitive | list["JsonValue"] | tuple["JsonValue", ...] | dict[str, "JsonValue"]
+)
+
 
 def _empty_platform_provenance() -> dict[str, str]:
     return {}
@@ -92,6 +97,7 @@ class RunProvenance:
 
 __all__ = [
     "EnvironmentProvenance",
+    "JsonValue",
     "PreprocessingStageProvenance",
     "ReferenceProvenance",
     "RunProvenance",

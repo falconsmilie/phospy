@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from math import isfinite
 from numbers import Integral, Real
-from typing import Literal, TypedDict
+from typing import Literal, TypedDict, cast
 
 from phospy.signalomes.clustering.policies import (
     SIGNALOME_CANDIDATE_SCORING_APPLIES_TO,
@@ -486,7 +486,8 @@ def backend_diagnostics_to_payload(
 
 def _require_mapping(value: object, *, field_name: str) -> Mapping[str, object]:
     if isinstance(value, Mapping):
-        return value
+        mapping = cast(Mapping[object, object], value)
+        return {str(key): item for key, item in mapping.items()}
     raise ValueError(f"{field_name} must be a mapping")
 
 

@@ -134,9 +134,16 @@ include = [
   "src/phospy/workflows",
 ]
 strict = [
+  "src/phospy/scientific_policies.py",
+  "src/phospy/references/resolution.py",
   "src/phospy/prediction/policies.py",
+  "src/phospy/provenance/serialization.py",
   "src/phospy/provenance/models.py",
+  "src/phospy/io/bundles/_kinase/manifest.py",
+  "src/phospy/io/bundles/_signalome/manifest.py",
+  "src/phospy/io/publishers/workflows.py",
   "src/phospy/signalomes/clustering/backend_dispatch.py",
+  "src/phospy/signalomes/clustering/diagnostic_schemas.py",
   "src/phospy/signalomes/clustering/diagnostics.py",
   "src/phospy/signalomes/clustering/protocol.py",
 ]
@@ -150,6 +157,13 @@ exclude = [
   "src/phospy.egg-info",
 ]
 reportMissingTypeStubs = "none"
+executionEnvironments = [
+  { root = "src/phospy/tables", reportMissingTypeStubs = "none", reportUnnecessaryCast = "error", reportUnnecessaryTypeIgnoreComment = "error" },
+  { root = "src/phospy/validation", reportMissingTypeStubs = "none", reportUnnecessaryCast = "error", reportUnnecessaryTypeIgnoreComment = "error" },
+  { root = "src/phospy/references", reportMissingTypeStubs = "none", reportUnnecessaryCast = "error", reportUnnecessaryTypeIgnoreComment = "error" },
+  { root = "src/phospy/workflows/kinase", reportMissingTypeStubs = "none", reportUnnecessaryCast = "error", reportUnnecessaryTypeIgnoreComment = "error" },
+  { root = "src/phospy/workflows/signalome", reportMissingTypeStubs = "none", reportUnnecessaryCast = "error", reportUnnecessaryTypeIgnoreComment = "error" },
+]
 
 [tool.setuptools.package-data]
 phospy = ["data/reference_bundles/*/*/*.csv"]
