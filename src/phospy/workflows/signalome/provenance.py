@@ -16,6 +16,10 @@ from phospy.provenance.models import (
     TableFingerprint,
 )
 from phospy.provenance.serialization import to_payload as provenance_to_payload
+from phospy.scientific_policies import (
+    PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
+    build_signalome_module_candidate_score_policy,
+)
 from phospy.signalomes.clustering import ClusterSitesResult
 from phospy.signalomes.models import SignalomeNetworkCorrelationDiagnostics
 from phospy.workflows.signalome.component_models import SignalomeScaleGuardDecision
@@ -84,6 +88,32 @@ class SignalomeProvenanceBuilder:
             )
         )
         upstream_provenance = request.kinase_result.provenance
+        scientific_policies = (
+            build_signalome_module_candidate_score_policy(
+                requested_policy=str(
+                    scale_guard_decision.candidate_scoring_requested_policy
+                ),
+                candidate_scoring_policy=str(config.candidate_scoring_policy),
+                candidate_scoring_mode=str(clustering_result.candidate_scoring_mode),
+                max_exact_tree_sites=(
+                    None
+                    if config.max_exact_tree_sites is None
+                    else int(config.max_exact_tree_sites)
+                ),
+                max_full_candidate_scoring_sites=int(
+                    config.max_full_candidate_scoring_sites
+                ),
+                candidate_scoring_evaluated=bool(
+                    clustering_result.candidate_scoring_evaluated
+                ),
+                candidate_scoring_skip_reason=(
+                    None
+                    if clustering_result.candidate_scoring_skip_reason is None
+                    else str(clustering_result.candidate_scoring_skip_reason)
+                ),
+            ),
+            PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
+        )
         return RunProvenance(
             environment=self._collect_environment(),
             input_tables=input_tables,
@@ -206,6 +236,7 @@ class SignalomeProvenanceBuilder:
             random_state=None,
             random_seed_policy=None,
             output_tables=output_tables,
+            scientific_policies=scientific_policies,
         )
 
     @staticmethod

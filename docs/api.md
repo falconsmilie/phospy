@@ -280,6 +280,10 @@ Important fields:
 Common tables include `profile_scores`, `rank_weighted_fusion_scores`,
 `pred_mat`, and activity tables when activity is enabled.
 
+`result.provenance.scientific_policies` lists the active scientific scoring
+policies with stable IDs, assumptions, parameters, and output-scale notes for
+auditability.
+
 ### `SignalomeWorkflowResult`
 
 Important fields:
@@ -298,6 +302,10 @@ Important fields:
 
 Undefined kinase correlations are preserved as missing values. A correlation of
 `0.0` means a correlation was estimated and is near zero.
+
+`result.provenance.scientific_policies` includes signalome-specific scientific
+policies (for candidate module-count scoring and protein-module derivation) and
+their resolved parameters.
 
 ## References
 

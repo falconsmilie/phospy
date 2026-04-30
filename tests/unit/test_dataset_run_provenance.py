@@ -144,6 +144,7 @@ def test_run_provenance_from_payload_accepts_legacy_stage_shape() -> None:
         stage.pop("backend", None)
         stage.pop("random_seed", None)
         stage.pop("is_deterministic", None)
+    payload.pop("scientific_policies", None)
 
     restored = from_payload(payload)
     stage = next(item for item in restored.preprocessing_stages if item.stage)
@@ -153,3 +154,4 @@ def test_run_provenance_from_payload_accepts_legacy_stage_shape() -> None:
     assert stage.backend is None
     assert stage.random_seed is None
     assert stage.is_deterministic is True
+    assert restored.scientific_policies == ()

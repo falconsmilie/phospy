@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from phospy.scientific_policies import ScientificPolicyRecord
+
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V1 = 1
 PREPROCESSING_STAGE_PROVENANCE_SCHEMA_VERSION_V2 = 2
 
@@ -80,6 +82,7 @@ class RunProvenance:
     random_state: int | None
     random_seed_policy: str | None
     output_tables: tuple[TableFingerprint, ...]
+    scientific_policies: tuple[ScientificPolicyRecord, ...] = ()
 
 
 __all__ = [

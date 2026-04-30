@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
 
-from phospy.activities.models import KinaseActivityInputs, KinaseActivityResult
+from phospy.activities.models import (
+    KinaseActivityInputs,
+    KinaseActivityResult,
+    PredMatOverlapSummary,
+)
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.scientific_policies import (
+    ScientificPolicyRecord,
+    build_simplified_weighted_substrate_activity_policy,
+)
 
 _SITE_ID_COLUMN = "site_id"
 
@@ -14,56 +24,91 @@ _SITE_ID_COLUMN = "site_id"
 def compute_activity_from_inputs(inputs: KinaseActivityInputs) -> KinaseActivityResult:
     """Compute weighted activity, thresholded mean activity, and target summaries."""
 
-    weighted_activity = _compute_weighted_kinase_activity(
+    policy = SimplifiedWeightedSubstrateActivityPolicy(
+        threshold=float(inputs.threshold),
+        min_substrates=int(inputs.min_substrates),
+        top_n_substrates=int(inputs.top_n_substrates),
+    )
+    return policy.compute(
         pred_mat=inputs.pred_mat,
         phospho_matrix=inputs.phospho_matrix,
-        top_n_substrates=inputs.top_n_substrates,
-        min_substrates=inputs.min_substrates,
-    )
-    (
-        thresholded_substrate_mean_activity,
-        thresholded_substrate_counts,
-    ) = _compute_thresholded_substrate_mean_activity(
-        pred_mat=inputs.pred_mat,
-        phospho_matrix=inputs.phospho_matrix,
-        threshold=inputs.threshold,
-        min_substrates=inputs.min_substrates,
-    )
-    target_counts = _count_predicted_targets(
-        pred_mat=inputs.pred_mat,
-        threshold=inputs.threshold,
-    )
-    target_table = _build_kinase_target_table(
-        pred_mat=inputs.pred_mat,
-        threshold=inputs.threshold,
+        overlap_summary=inputs.overlap_summary,
     )
 
-    if weighted_activity.empty and thresholded_substrate_mean_activity.empty:
-        _raise_boundary_error(
-            seam="kinase.activity.valid_candidates",
-            next_action=(
-                "lower activity_config.min_substrates, increase "
-                "activity_config.top_n_substrates, or lower "
-                "activity_config.threshold to retain kinase activity candidates"
-            ),
-            overlap_sites=inputs.overlap_summary.overlap_count,
-            pred_mat_sites=inputs.overlap_summary.pred_mat_rows,
-            phospho_sites=inputs.overlap_summary.phospho_rows,
-            candidate_kinases=int(inputs.pred_mat.shape[1]),
-            weighted_activity_kinases=0,
-            thresholded_mean_activity_kinases=0,
-            activity_config_threshold=inputs.threshold,
-            activity_config_min_substrates=inputs.min_substrates,
-            activity_config_top_n_substrates=inputs.top_n_substrates,
+
+@dataclass(frozen=True, slots=True)
+class SimplifiedWeightedSubstrateActivityPolicy:
+    """Executable policy for supported kinase activity scoring outputs."""
+
+    threshold: float
+    min_substrates: int
+    top_n_substrates: int
+
+    @property
+    def record(self) -> ScientificPolicyRecord:
+        return build_simplified_weighted_substrate_activity_policy(
+            threshold=float(self.threshold),
+            min_substrates=int(self.min_substrates),
+            top_n_substrates=int(self.top_n_substrates),
         )
 
-    return KinaseActivityResult._from_owned(
-        weighted_activity=weighted_activity,
-        thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
-        thresholded_substrate_counts=thresholded_substrate_counts,
-        target_counts=target_counts,
-        target_table=target_table,
-    )
+    def compute(
+        self,
+        *,
+        pred_mat: pd.DataFrame,
+        phospho_matrix: pd.DataFrame,
+        overlap_summary: PredMatOverlapSummary,
+    ) -> KinaseActivityResult:
+        weighted_activity = _compute_weighted_kinase_activity(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+            top_n_substrates=self.top_n_substrates,
+            min_substrates=self.min_substrates,
+        )
+        (
+            thresholded_substrate_mean_activity,
+            thresholded_substrate_counts,
+        ) = _compute_thresholded_substrate_mean_activity(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+            threshold=self.threshold,
+            min_substrates=self.min_substrates,
+        )
+        target_counts = _count_predicted_targets(
+            pred_mat=pred_mat,
+            threshold=self.threshold,
+        )
+        target_table = _build_kinase_target_table(
+            pred_mat=pred_mat,
+            threshold=self.threshold,
+        )
+
+        if weighted_activity.empty and thresholded_substrate_mean_activity.empty:
+            _raise_boundary_error(
+                seam="kinase.activity.valid_candidates",
+                next_action=(
+                    "lower activity_config.min_substrates, increase "
+                    "activity_config.top_n_substrates, or lower "
+                    "activity_config.threshold to retain kinase activity candidates"
+                ),
+                overlap_sites=int(overlap_summary.overlap_count),
+                pred_mat_sites=int(overlap_summary.pred_mat_rows),
+                phospho_sites=int(overlap_summary.phospho_rows),
+                candidate_kinases=int(pred_mat.shape[1]),
+                weighted_activity_kinases=0,
+                thresholded_mean_activity_kinases=0,
+                activity_config_threshold=float(self.threshold),
+                activity_config_min_substrates=int(self.min_substrates),
+                activity_config_top_n_substrates=int(self.top_n_substrates),
+            )
+
+        return KinaseActivityResult._from_owned(
+            weighted_activity=weighted_activity,
+            thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
+            thresholded_substrate_counts=thresholded_substrate_counts,
+            target_counts=target_counts,
+            target_table=target_table,
+        )
 
 
 def _compute_weighted_kinase_activity(
@@ -279,4 +324,7 @@ def _raise_boundary_error(
     )
 
 
-__all__ = ["compute_activity_from_inputs"]
+__all__ = [
+    "SimplifiedWeightedSubstrateActivityPolicy",
+    "compute_activity_from_inputs",
+]

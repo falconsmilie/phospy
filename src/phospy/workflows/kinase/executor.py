@@ -41,6 +41,11 @@ from phospy.provenance.models import (
     RunProvenance,
     TableFingerprint,
 )
+from phospy.scientific_policies import (
+    PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
+    build_motif_profile_rank_fusion_policy,
+    build_simplified_weighted_substrate_activity_policy,
+)
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
@@ -531,6 +536,21 @@ def _build_kinase_run_provenance(
         scoring_diagnostics["motif_library_validation"] = (
             scoring_result.motif_library_validation.summary()
         )
+    scientific_policies = [
+        PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
+        build_motif_profile_rank_fusion_policy(
+            allow_profile_only_fallback=True,
+            emit_weights=bool(config.include_diagnostic_scoring_tables),
+        ),
+    ]
+    if config.activity is not None:
+        scientific_policies.append(
+            build_simplified_weighted_substrate_activity_policy(
+                threshold=float(config.activity.threshold),
+                min_substrates=int(config.activity.min_substrates),
+                top_n_substrates=int(config.activity.top_n_substrates),
+            )
+        )
 
     return RunProvenance(
         environment=collect_environment_provenance(),
@@ -582,6 +602,7 @@ def _build_kinase_run_provenance(
         random_state=config.prediction_random_state,
         random_seed_policy=_resolve_seed_policy(config),
         output_tables=output_tables,
+        scientific_policies=tuple(scientific_policies),
     )
 
 

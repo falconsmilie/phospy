@@ -12,6 +12,7 @@ from phospy.provenance.models import (
     RunProvenance,
     TableFingerprint,
 )
+from phospy.scientific_policies import ScientificPolicyRecord
 
 
 def to_payload(provenance: RunProvenance) -> dict[str, object]:
@@ -37,6 +38,9 @@ def to_payload(provenance: RunProvenance) -> dict[str, object]:
         "output_tables": [
             _table_fingerprint_to_payload(item) for item in provenance.output_tables
         ],
+        "scientific_policies": [
+            item.to_payload() for item in provenance.scientific_policies
+        ],
     }
 
 
@@ -58,6 +62,10 @@ def from_payload(payload: Mapping[str, object]) -> RunProvenance:
     output_tables_payload = _require_sequence(
         payload.get("output_tables"),
         field_name="provenance.output_tables",
+    )
+    scientific_policies_payload = _require_sequence(
+        payload.get("scientific_policies", []),
+        field_name="provenance.scientific_policies",
     )
     reference_raw = payload.get("reference")
     if reference_raw is None:
@@ -114,6 +122,18 @@ def from_payload(payload: Mapping[str, object]) -> RunProvenance:
                 )
             )
             for position, item in enumerate(output_tables_payload)
+        ),
+        scientific_policies=tuple(
+            ScientificPolicyRecord.from_payload(
+                {
+                    str(key): value
+                    for key, value in _require_mapping(
+                        item,
+                        field_name=f"provenance.scientific_policies[{position}]",
+                    ).items()
+                }
+            )
+            for position, item in enumerate(scientific_policies_payload)
         ),
     )
 

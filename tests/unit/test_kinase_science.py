@@ -12,6 +12,7 @@ from phospy.errors import WorkflowStageError
 from phospy.workflows.kinase.science import (
     build_kinase_profiles,
     build_prediction_outputs,
+    score_profile_correlations,
 )
 
 
@@ -228,3 +229,32 @@ def test_build_prediction_outputs_matches_historical_baseline_selection_semantic
         expected_substrate_list.reset_index(drop=True),
         check_dtype=False,
     )
+
+
+def test_profile_correlation_scores_use_shifted_unit_transform() -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 1.0],
+            "sample_b": [2.0, 2.0],
+            "sample_c": [3.0, 3.0],
+        },
+        index=pd.Index(["SITE_POS", "SITE_NEG"], name="site_id"),
+    )
+    profile_matrix = pd.DataFrame(
+        {
+            "sample_a": [1.0, 3.0],
+            "sample_b": [2.0, 2.0],
+            "sample_c": [3.0, 1.0],
+        },
+        index=pd.Index(["KINASE_POS", "KINASE_NEG"], name="kinase"),
+    )
+
+    scores = score_profile_correlations(
+        phospho=phospho,
+        profile_matrix=profile_matrix,
+    )
+
+    assert scores.at["SITE_POS", "KINASE_POS"] == pytest.approx(1.0)
+    assert scores.at["SITE_POS", "KINASE_NEG"] == pytest.approx(0.0)
+    assert scores.at["SITE_NEG", "KINASE_POS"] == pytest.approx(1.0)
+    assert scores.at["SITE_NEG", "KINASE_NEG"] == pytest.approx(0.0)

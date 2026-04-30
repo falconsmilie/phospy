@@ -15,6 +15,7 @@ from phospy.api.configs import (
     KinaseProfileMissingValueStrategy,
 )
 from phospy.errors.workflows import WorkflowStageError
+from phospy.scientific_policies import shift_correlation_to_unit_support
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,9 +146,7 @@ def score_profile_correlations(
         correlation = left_centered @ right_centered.T / denominator
     correlation[denominator == 0.0] = np.nan
 
-    scores = (correlation + 1.0) / 2.0
-    valid = np.isfinite(scores)
-    scores[valid] = np.clip(scores[valid], 0.0, 1.0)
+    scores = shift_correlation_to_unit_support(correlation)
     return pd.DataFrame(
         scores,
         index=phospho.index.copy(),

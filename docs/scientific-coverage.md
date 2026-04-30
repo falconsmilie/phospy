@@ -47,6 +47,88 @@ Use these labels when discussing coverage:
 - Missing kinase correlations stay missing. `0.0` means a finite near-zero
   correlation was estimated.
 
+## Scientific Policy Records
+
+Workflow provenance includes machine-readable `scientific_policies` records.
+Each record carries:
+
+- stable policy ID
+- name and version
+- plain-language description
+- active parameters
+- scientific assumptions
+- output scale/meaning
+
+### `profile_correlation_shifted_unit_v1`
+
+- What it does:
+  transforms profile correlations from `[-1, 1]` to `[0, 1]` using `(r + 1) / 2`.
+- Assumptions:
+  positive correlation increases support.
+- Parameters:
+  transform formula, clipping to `[0, 1]`, preserve undefined values as missing.
+- Output meaning:
+  relative support score; larger means stronger positive agreement.
+- Output does not mean:
+  calibrated probability or direct evidence of inhibition/activation.
+  Negative correlations are treated as lower support, not explicit inhibitory
+  evidence.
+
+### `motif_profile_rank_fusion_v1`
+
+- What it does:
+  fuses motif-frequency and profile-correlation evidence using rank-derived
+  logarithmic weights.
+- Assumptions:
+  motif-library size and quantified-substrate count proxy evidence strength.
+- Parameters:
+  motif/profile weight formulas and fallback/diagnostic flags.
+- Output meaning:
+  relative downstream support for kinase-site ranking.
+- Output does not mean:
+  statistical enrichment p-value or calibrated confidence.
+
+### `simplified_weighted_substrate_activity_v1`
+
+- What it does:
+  computes prediction-weighted activity and thresholded substrate-mean activity.
+- Assumptions:
+  predicted substrate support can summarize relative kinase activity in-run.
+- Parameters:
+  threshold, `min_substrates`, `top_n_substrates`, and explicit scoring rules.
+- Output meaning:
+  relative sample-by-kinase activity summaries.
+- Output does not mean:
+  full KSEA-style enrichment statistics.
+
+### `signalome_module_candidate_score_v1`
+
+- What it does:
+  ranks candidate module counts using within-cluster correlation summaries.
+- Assumptions:
+  stronger within-cluster profile coherence indicates better candidate module
+  structure.
+- Parameters:
+  requested/resolved candidate-scoring policies, mode, guards, and skip/evaluated
+  diagnostics.
+- Output meaning:
+  candidate module-count support score used for ranking/selection.
+- Output does not mean:
+  biological certainty or causal regulation evidence.
+
+### `protein_module_from_site_membership_v1`
+
+- What it does:
+  derives protein module IDs from site-cluster membership incidence patterns.
+- Assumptions:
+  shared site-cluster membership reflects shared protein-level module context.
+- Parameters:
+  membership-vector representation and module ID assignment rule.
+- Output meaning:
+  integer protein module IDs for grouping.
+- Output does not mean:
+  direct mechanistic proof of shared regulation.
+
 ## Where Details Live
 
 - [Parity](parity.md) tracks PhosR comparison evidence and fixture locations.

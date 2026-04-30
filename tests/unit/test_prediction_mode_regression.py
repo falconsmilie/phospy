@@ -18,6 +18,8 @@ from phospy.api.configs import (
     KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
     KINASE_PREDICTION_MODES,
 )
+from phospy.provenance.serialization import from_payload, to_payload
+from phospy.scientific_policies import ScientificPolicyId
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -224,3 +226,31 @@ def test_prediction_config_docs_name_both_supported_lanes() -> None:
     doc = KinasePredictionConfig.__doc__ or ""
     assert "deterministic_ranking" in doc
     assert "adaptive_ensemble" in doc
+
+
+def test_kinase_provenance_records_active_scientific_policies() -> None:
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=_dataset(),
+            references=_references(),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+                mode=KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
+            ),
+            activity_config=None,
+        )
+    )
+    assert result.provenance is not None
+
+    policy_ids = {policy.id for policy in result.provenance.scientific_policies}
+    assert ScientificPolicyId.PROFILE_CORRELATION_SHIFTED_UNIT in policy_ids
+    assert ScientificPolicyId.MOTIF_PROFILE_RANK_FUSION in policy_ids
+    assert ScientificPolicyId.SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY not in policy_ids
+
+    payload = to_payload(result.provenance)
+    restored = from_payload(payload)
+    restored_ids = {policy.id for policy in restored.scientific_policies}
+    assert restored_ids == policy_ids

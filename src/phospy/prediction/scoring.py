@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+
+from phospy.scientific_policies import (
+    ScientificPolicyRecord,
+    build_motif_profile_rank_fusion_policy,
+)
 
 DOWNSTREAM_SCORE_SOURCE_PROFILE = "profile_scores"
 DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION = "rank_weighted_fusion_scores"
@@ -34,6 +40,61 @@ def fuse_profile_and_motif_scores_by_rank_weight(
     profile_sizes: pd.Series,
     allow_profile_only_fallback: bool = True,
     emit_weights: bool = True,
+) -> tuple[pd.DataFrame, pd.DataFrame | None]:
+    """Compatibility wrapper around the rank-fusion policy object."""
+
+    policy = MotifProfileRankFusionPolicy(
+        allow_profile_only_fallback=allow_profile_only_fallback,
+        emit_weights=emit_weights,
+    )
+    return policy.fuse(
+        motif_scores=motif_scores,
+        profile_scores=profile_scores,
+        motif_sizes=motif_sizes,
+        profile_sizes=profile_sizes,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class MotifProfileRankFusionPolicy:
+    """Executable rank-fusion policy for motif and profile evidence."""
+
+    allow_profile_only_fallback: bool = True
+    emit_weights: bool = True
+
+    @property
+    def record(self) -> ScientificPolicyRecord:
+        return build_motif_profile_rank_fusion_policy(
+            allow_profile_only_fallback=bool(self.allow_profile_only_fallback),
+            emit_weights=bool(self.emit_weights),
+        )
+
+    def fuse(
+        self,
+        *,
+        motif_scores: pd.DataFrame,
+        profile_scores: pd.DataFrame,
+        motif_sizes: pd.Series,
+        profile_sizes: pd.Series,
+    ) -> tuple[pd.DataFrame, pd.DataFrame | None]:
+        return _fuse_profile_and_motif_scores_by_rank_weight(
+            motif_scores=motif_scores,
+            profile_scores=profile_scores,
+            motif_sizes=motif_sizes,
+            profile_sizes=profile_sizes,
+            allow_profile_only_fallback=self.allow_profile_only_fallback,
+            emit_weights=self.emit_weights,
+        )
+
+
+def _fuse_profile_and_motif_scores_by_rank_weight(
+    *,
+    motif_scores: pd.DataFrame,
+    profile_scores: pd.DataFrame,
+    motif_sizes: pd.Series,
+    profile_sizes: pd.Series,
+    allow_profile_only_fallback: bool,
+    emit_weights: bool,
 ) -> tuple[pd.DataFrame, pd.DataFrame | None]:
     """Fuse motif-frequency and profile-correlation scores by rank-derived weights.
 
@@ -143,6 +204,7 @@ def _profile_only_weights(kinases: Sequence[str]) -> pd.DataFrame:
 __all__ = [
     "DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION",
     "DOWNSTREAM_SCORE_SOURCE_PROFILE",
+    "MotifProfileRankFusionPolicy",
     "fuse_profile_and_motif_scores_by_rank_weight",
     "select_downstream_score_matrix",
 ]

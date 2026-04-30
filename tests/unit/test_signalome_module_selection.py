@@ -6,6 +6,10 @@ import pytest
 
 import phospy.signalomes.clustering as clustering_module
 from phospy.errors import SignalomeModuleCountValidationError
+from phospy.scientific_policies import (
+    ScientificPolicyId,
+    build_signalome_module_candidate_score_policy,
+)
 from phospy.signalomes.clustering import (
     cluster_sites_with_diagnostics,
     fit_cluster_labels,
@@ -398,3 +402,26 @@ def test_module_selection_survives_empty_candidate_range_branch(
         "no candidate module count satisfied the configured correlation thresholds"
         in diagnostics.reason
     )
+
+
+def test_candidate_scoring_policy_record_matches_clustering_execution_metadata() -> (
+    None
+):
+    clustered = cluster_sites_with_diagnostics(
+        scoring_matrix=_candidate_scoring_test_matrix(),
+        requested_module_count=None,
+        candidate_scoring_policy=clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+    )
+    record = build_signalome_module_candidate_score_policy(
+        requested_policy=clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+        candidate_scoring_policy=clustering_module.SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+        candidate_scoring_mode=str(clustered.candidate_scoring_mode),
+        max_exact_tree_sites=clustering_module.MAX_FULL_CORRELATION_SITE_COUNT,
+        max_full_candidate_scoring_sites=clustering_module.MAX_FULL_CORRELATION_SITE_COUNT,
+        candidate_scoring_evaluated=bool(clustered.candidate_scoring_evaluated),
+        candidate_scoring_skip_reason=clustered.candidate_scoring_skip_reason,
+    )
+
+    assert record.id == ScientificPolicyId.SIGNALOME_MODULE_CANDIDATE_SCORE
+    assert record.parameters["candidate_scoring_mode"] == "full"
+    assert record.parameters["candidate_scoring_evaluated"] is True

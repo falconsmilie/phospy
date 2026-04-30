@@ -16,6 +16,7 @@ from phospy.api.results import (
     KinaseScoringResult,
     SignalomeWorkflowResult,
 )
+from phospy.scientific_policies import ScientificPolicyId
 from phospy.signalomes.clustering import (
     ClusterSitesResult,
 )
@@ -422,6 +423,9 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert "outputs.signalome.module_assignments" in output_names
     assert "outputs.signalome.signalome_modules" in output_names
     assert "outputs.signalome.site_membership" in output_names
+    policy_ids = {policy.id for policy in provenance.scientific_policies}
+    assert ScientificPolicyId.SIGNALOME_MODULE_CANDIDATE_SCORE in policy_ids
+    assert ScientificPolicyId.PROTEIN_MODULE_FROM_SITE_MEMBERSHIP in policy_ids
 
 
 def test_signalome_result_assembly_preserves_public_result_shape() -> None:

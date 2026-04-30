@@ -25,6 +25,7 @@ from phospy.api.results import (
     KinaseWorkflowResult,
     SignalomeWorkflowResult,
 )
+from phospy.scientific_policies import ScientificPolicyId
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -201,6 +202,9 @@ def test_kinase_result_exposes_supported_activity_stage_outputs_when_enabled() -
     assert hasattr(result.activity_result, "thresholded_substrate_counts")
     assert not hasattr(result.activity_result, "ksea_scores")
     assert not hasattr(result.activity_result, "ksea_counts")
+    assert result.provenance is not None
+    policy_ids = {policy.id for policy in result.provenance.scientific_policies}
+    assert ScientificPolicyId.SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY in policy_ids
 
 
 def test_kinase_result_can_include_opt_in_diagnostic_scoring_tables() -> None:

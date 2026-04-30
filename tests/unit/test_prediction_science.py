@@ -7,9 +7,11 @@ from phospy.prediction.candidates import build_candidate_substrate_list
 from phospy.prediction.scoring import (
     DOWNSTREAM_SCORE_SOURCE_PROFILE,
     DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION,
+    MotifProfileRankFusionPolicy,
     fuse_profile_and_motif_scores_by_rank_weight,
     select_downstream_score_matrix,
 )
+from phospy.scientific_policies import ScientificPolicyId
 
 
 def test_fuse_profile_and_motif_scores_by_rank_weight_falls_back_when_motif_column_is_all_nan() -> (
@@ -123,3 +125,30 @@ def test_fuse_profile_and_motif_scores_by_rank_weight_can_skip_weight_table() ->
 
     assert score_fusion_weights is None
     assert list(rank_weighted_fusion_scores.columns) == ["K1"]
+
+
+def test_fuse_profile_and_motif_scores_policy_metadata_and_default_behavior() -> None:
+    profile_scores = pd.DataFrame({"K1": [0.3, 0.7]}, index=["S1", "S2"])
+    motif_scores = pd.DataFrame({"K1": [0.8, 0.2]}, index=["S1", "S2"])
+    profile_sizes = pd.Series({"K1": 12.0})
+    motif_sizes = pd.Series({"K1": 8.0})
+
+    wrapper_scores, wrapper_weights = fuse_profile_and_motif_scores_by_rank_weight(
+        motif_scores=motif_scores,
+        profile_scores=profile_scores,
+        motif_sizes=motif_sizes,
+        profile_sizes=profile_sizes,
+    )
+    policy = MotifProfileRankFusionPolicy()
+    policy_scores, policy_weights = policy.fuse(
+        motif_scores=motif_scores,
+        profile_scores=profile_scores,
+        motif_sizes=motif_sizes,
+        profile_sizes=profile_sizes,
+    )
+
+    pd.testing.assert_frame_equal(wrapper_scores, policy_scores)
+    assert wrapper_weights is not None
+    assert policy_weights is not None
+    pd.testing.assert_frame_equal(wrapper_weights, policy_weights)
+    assert policy.record.id == ScientificPolicyId.MOTIF_PROFILE_RANK_FUSION

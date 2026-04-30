@@ -4,8 +4,12 @@ import pandas as pd
 import pytest
 
 from phospy.activities.models import KinaseActivityInputs, PredMatOverlapSummary
-from phospy.activities.scoring import compute_activity_from_inputs
+from phospy.activities.scoring import (
+    SimplifiedWeightedSubstrateActivityPolicy,
+    compute_activity_from_inputs,
+)
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.scientific_policies import ScientificPolicyId
 
 
 def _inputs(
@@ -209,3 +213,17 @@ def test_activity_stage_raises_when_all_candidates_are_filtered() -> None:
                 top_n_substrates=2,
             )
         )
+
+
+def test_activity_policy_metadata_captures_runtime_parameters() -> None:
+    policy = SimplifiedWeightedSubstrateActivityPolicy(
+        threshold=0.6,
+        min_substrates=3,
+        top_n_substrates=20,
+    )
+    record = policy.record
+
+    assert record.id == ScientificPolicyId.SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY
+    assert record.parameters["threshold"] == pytest.approx(0.6)
+    assert record.parameters["min_substrates"] == 3
+    assert record.parameters["top_n_substrates"] == 20
