@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from phospy.scientific_policies import ScientificPolicyRecord
@@ -31,6 +32,8 @@ class TableFingerprint:
     dtypes: tuple[str, ...]
     hash_algorithm: str
     hash_value: str
+    index_structure: Mapping[str, JsonValue] | None = None
+    column_index_structure: Mapping[str, JsonValue] | None = None
 
 
 @dataclass(frozen=True, slots=True)

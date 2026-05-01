@@ -8,6 +8,7 @@ from typing import cast
 from phospy.errors.input import PhosPyInputError
 from phospy.provenance.models import (
     EnvironmentProvenance,
+    JsonValue,
     PreprocessingStageProvenance,
     ReferenceProvenance,
     RunProvenance,
@@ -149,10 +150,28 @@ def _table_fingerprint_to_payload(fingerprint: TableFingerprint) -> dict[str, ob
         "dtypes": list(fingerprint.dtypes),
         "hash_algorithm": fingerprint.hash_algorithm,
         "hash_value": fingerprint.hash_value,
+        "index_structure": (
+            None
+            if fingerprint.index_structure is None
+            else _to_json_safe(fingerprint.index_structure)
+        ),
+        "column_index_structure": (
+            None
+            if fingerprint.column_index_structure is None
+            else _to_json_safe(fingerprint.column_index_structure)
+        ),
     }
 
 
 def _table_fingerprint_from_payload(payload: Mapping[str, object]) -> TableFingerprint:
+    index_structure = _optional_mapping(
+        payload.get("index_structure"),
+        field_name="table_fingerprint.index_structure",
+    )
+    column_index_structure = _optional_mapping(
+        payload.get("column_index_structure"),
+        field_name="table_fingerprint.column_index_structure",
+    )
     return TableFingerprint(
         name=_require_str(payload.get("name"), field_name="table_fingerprint.name"),
         rows=_require_int(payload.get("rows"), field_name="table_fingerprint.rows"),
@@ -186,6 +205,17 @@ def _table_fingerprint_from_payload(payload: Mapping[str, object]) -> TableFinge
             payload.get("hash_value"),
             field_name="table_fingerprint.hash_value",
         ),
+        index_structure=None
+        if index_structure is None
+        else {
+            str(key): _to_json_value(value) for key, value in index_structure.items()
+        },
+        column_index_structure=None
+        if column_index_structure is None
+        else {
+            str(key): _to_json_value(value)
+            for key, value in column_index_structure.items()
+        },
     )
 
 
@@ -428,6 +458,10 @@ def _to_json_safe(value: object) -> object:
     return value
 
 
+def _to_json_value(value: object) -> JsonValue:
+    return cast(JsonValue, _to_json_safe(value))
+
+
 def _require_mapping(value: object, *, field_name: str) -> Mapping[str, object]:
     if isinstance(value, Mapping):
         mapping = cast(Mapping[object, object], value)
@@ -454,6 +488,12 @@ def _optional_str(value: object, *, field_name: str) -> str | None:
     if value is None:
         return None
     return _require_str(value, field_name=field_name)
+
+
+def _optional_mapping(value: object, *, field_name: str) -> Mapping[str, object] | None:
+    if value is None:
+        return None
+    return _require_mapping(value, field_name=field_name)
 
 
 def _require_int(value: object, *, field_name: str) -> int:

@@ -8,12 +8,12 @@ import math
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
 
-from phospy.provenance.models import TableFingerprint
+from phospy.provenance.models import JsonValue, TableFingerprint
 
 DEFAULT_TABLE_HASH_ALGORITHM = "sha256"
 _MISSING_SENTINEL = "<MISSING>"
@@ -45,11 +45,9 @@ def hash_table(
     hasher = hashlib.new(algorithm)
     _update(hasher, name)
     _update(hasher, [int(table.shape[0]), int(table.shape[1])])
-    _update(hasher, None if table.index.name is None else str(table.index.name))
-    _update(hasher, [str(label) for label in table.columns.tolist()])
+    _update(hasher, _index_structure(table.index))
+    _update(hasher, _index_structure(table.columns))
     _update(hasher, [str(dtype) for dtype in table.dtypes.tolist()])
-    for label in table.index.tolist():
-        _update(hasher, _normalize_value(label))
     values = table.to_numpy(dtype=object, copy=False)
     for row in values:
         for value in row:
@@ -74,6 +72,8 @@ def fingerprint_table(
         dtypes=tuple(str(dtype) for dtype in table.dtypes.tolist()),
         hash_algorithm=algorithm,
         hash_value=hash_table(table, name=name, algorithm=algorithm),
+        index_structure=_index_structure(table.index),
+        column_index_structure=_index_structure(table.columns),
     )
 
 
@@ -102,15 +102,27 @@ def _update(hasher: hashlib._Hash, payload: Any) -> None:  # type: ignore[attr-d
     hasher.update(b"\n")
 
 
-def _normalize_value(value: object) -> object:
+def _normalize_value(value: object) -> JsonValue:
     if value is None or _is_missing_scalar(value):
         return {"kind": "missing", "value": _MISSING_SENTINEL}
     if isinstance(value, bool):
         return {"kind": "bool", "value": bool(value)}
-    if isinstance(value, (np.integer, int)):
+    if isinstance(value, int):
         return {"kind": "int", "value": int(value)}
-    if isinstance(value, (np.floating, float)):
+    if isinstance(value, np.integer):
+        return {"kind": "int", "value": int(cast(int, value))}
+    if isinstance(value, float):
         numeric = float(value)
+        if math.isnan(numeric):
+            return {"kind": "missing", "value": _MISSING_SENTINEL}
+        if math.isinf(numeric):
+            return {
+                "kind": "float",
+                "value": "Infinity" if numeric > 0.0 else "-Infinity",
+            }
+        return {"kind": "float", "value": format(numeric, ".17g")}
+    if isinstance(value, np.floating):
+        numeric = float(cast(float, value))
         if math.isnan(numeric):
             return {"kind": "missing", "value": _MISSING_SENTINEL}
         if math.isinf(numeric):
@@ -132,14 +144,55 @@ def _normalize_value(value: object) -> object:
     if isinstance(value, np.timedelta64):
         return {"kind": "timedelta64", "value": str(pd.Timedelta(value))}
     if isinstance(value, Mapping):
-        normalized_pairs = [
-            (str(key), _normalize_value(item))
+        normalized_pairs: list[list[JsonValue]] = [
+            [str(key), _normalize_value(item)]
             for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
         ]
-        return {"kind": "mapping", "value": normalized_pairs}
+        return cast(
+            JsonValue,
+            {"kind": "mapping", "value": normalized_pairs},
+        )
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         return {"kind": "sequence", "value": [_normalize_value(item) for item in value]}
     return {"kind": "repr", "value": repr(value)}
+
+
+def _normalize_axis_name(value: object) -> JsonValue:
+    if value is None:
+        return {"kind": "none", "value": None}
+    return _normalize_value(value)
+
+
+def _index_structure(index: pd.Index) -> dict[str, JsonValue]:
+    if isinstance(index, pd.MultiIndex):
+        return {
+            "type": "multi_index",
+            "index_class": type(index).__name__,
+            "nlevels": int(index.nlevels),
+            "names": [_normalize_axis_name(name) for name in index.names],
+            "level_dtypes": [str(level.dtype) for level in index.levels],
+            "values": [
+                [_normalize_value(component) for component in tuple(value)]
+                for value in index.tolist()
+            ],
+        }
+    if isinstance(index, pd.RangeIndex):
+        return {
+            "type": "range_index",
+            "index_class": type(index).__name__,
+            "name": _normalize_axis_name(index.name),
+            "start": int(index.start),
+            "stop": int(index.stop),
+            "step": int(index.step),
+            "dtype": str(index.dtype),
+        }
+    return {
+        "type": "index",
+        "index_class": type(index).__name__,
+        "name": _normalize_axis_name(index.name),
+        "dtype": str(index.dtype),
+        "values": [_normalize_value(label) for label in index.tolist()],
+    }
 
 
 def _is_missing_scalar(value: object) -> bool:

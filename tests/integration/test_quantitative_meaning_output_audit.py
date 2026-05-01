@@ -375,6 +375,7 @@ _SCALE_INDICATOR_KEYS = frozenset(
 )
 _LOG_SCALE_VALUES = frozenset(("log2", "log2_ratio"))
 _MEANING_KEYS = ("quantitative_meaning", "quantity")
+_IGNORED_SCALE_AUDIT_SUBTREES = frozenset(("index_structure", "column_index_structure"))
 
 
 def _find_scale_without_quantitative_meaning_issues(
@@ -417,6 +418,8 @@ def _find_scale_without_quantitative_meaning_issues(
                 )
 
         for key, child in value.items():
+            if key in _IGNORED_SCALE_AUDIT_SUBTREES:
+                continue
             issues.extend(
                 _find_scale_without_quantitative_meaning_issues(
                     child,
