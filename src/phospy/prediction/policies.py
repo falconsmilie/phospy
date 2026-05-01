@@ -60,7 +60,7 @@ class PredictionSamplingRandomSource:
         self,
         *,
         policy: PredictionSamplingPolicy,
-        random_state: int | None,
+        random_state: int,
     ) -> None:
         self.policy = policy
         self.random_state = random_state

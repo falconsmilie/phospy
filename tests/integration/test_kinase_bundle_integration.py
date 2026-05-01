@@ -59,6 +59,45 @@ def test_kinase_bundle_round_trip_preserves_outputs_and_config(
     _assert_kinase_result_equal(loaded.result, result)
 
 
+def test_kinase_bundle_round_trip_preserves_adaptive_prediction_seed(
+    tmp_path: Path,
+) -> None:
+    base_request = _build_request(activity=False)
+    seeded_request = KinaseWorkflowRequest(
+        dataset=base_request.dataset,
+        references=base_request.references,
+        scoring_config=base_request.scoring_config,
+        prediction_config=KinasePredictionConfig(
+            top_k=2,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=2,
+            mode="adaptive_ensemble",
+            n_iterations=2,
+            random_state=19,
+        ),
+        activity_config=base_request.activity_config,
+    )
+    result = KinaseWorkflow().run(seeded_request)
+    bundle_root = tmp_path / "kinase_bundle_adaptive_seed"
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(seeded_request),
+    )
+
+    loaded = load_kinase_workflow_bundle(bundle_root)
+    assert loaded.config_snapshot.prediction_config.mode == "adaptive_ensemble"
+    assert loaded.config_snapshot.prediction_config.random_state == 19
+    assert loaded.result.provenance is not None
+    assert (
+        loaded.result.provenance.workflow_parameters["prediction_config"][
+            "random_state"
+        ]
+        == 19
+    )
+    assert loaded.result.provenance.random_state == 19
+
+
 def test_kinase_bundle_round_trip_preserves_stage_table_fingerprints(
     tmp_path: Path,
 ) -> None:

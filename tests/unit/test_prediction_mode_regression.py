@@ -264,3 +264,27 @@ def test_kinase_provenance_records_active_scientific_policies() -> None:
     restored = from_payload(payload)
     restored_ids = {policy.id for policy in restored.scientific_policies}
     assert restored_ids == policy_ids
+
+
+def test_adaptive_prediction_provenance_records_exact_seed() -> None:
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=_dataset(),
+            references=_references(),
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=2,
+                deterministic_max_selected_kinases=2,
+                adaptive_ensemble_runs=2,
+                mode="adaptive_ensemble",
+                n_iterations=2,
+                random_state=31,
+            ),
+            activity_config=None,
+        )
+    )
+    assert result.provenance is not None
+    prediction_config = result.provenance.workflow_parameters["prediction_config"]
+    assert prediction_config["mode"] == "adaptive_ensemble"
+    assert prediction_config["random_state"] == 31
+    assert result.provenance.random_state == 31

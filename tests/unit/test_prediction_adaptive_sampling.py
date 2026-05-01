@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from phospy.api.configs import KinasePredictionConfig
-from phospy.errors import WorkflowStageError
+from phospy.errors import WorkflowStageError, WorkflowValidationError
 from phospy.prediction.execution import run_adaptive_ensemble_prediction
 from phospy.prediction.policies import (
     PredictionSamplingRandomSource,
@@ -13,6 +13,22 @@ from phospy.prediction.policies import (
 )
 from phospy.prediction.sampling_core import run_adaptive_sampling_ensemble
 from phospy.prediction.sampling_runtime import transform_resampling_probabilities
+
+
+def test_kinase_prediction_config_rejects_adaptive_mode_without_seed() -> None:
+    with pytest.raises(
+        WorkflowValidationError,
+        match=(
+            "prediction_config.random_state must be provided when "
+            "prediction_config.mode='adaptive_ensemble'"
+        ),
+    ):
+        KinasePredictionConfig(mode="adaptive_ensemble", random_state=None)
+
+
+def test_kinase_prediction_config_allows_adaptive_mode_with_seed() -> None:
+    config = KinasePredictionConfig(mode="adaptive_ensemble", random_state=1)
+    assert config.random_state == 1
 
 
 def test_resolve_prediction_sampling_policy_maps_public_modes() -> None:
@@ -148,5 +164,82 @@ def test_run_adaptive_ensemble_prediction_requires_negative_pool() -> None:
                 adaptive_ensemble_runs=1,
                 mode="adaptive_ensemble",
                 n_iterations=1,
+                random_state=0,
             ),
         )
+
+
+def test_adaptive_prediction_is_deterministic_for_same_seed() -> None:
+    score_matrix = pd.DataFrame(
+        {
+            "K1": [0.95, 0.91, 0.88, 0.22, 0.18, 0.11],
+            "K2": [0.12, 0.2, 0.28, 0.8, 0.86, 0.93],
+        },
+        index=["S1", "S2", "S3", "S4", "S5", "S6"],
+    )
+    candidate_substrates = {
+        "K1": ["S1", "S2", "S3"],
+        "K2": ["S4", "S5", "S6"],
+    }
+    prediction_config = KinasePredictionConfig(
+        top_k=3,
+        deterministic_max_selected_kinases=2,
+        adaptive_ensemble_runs=4,
+        mode="adaptive_ensemble",
+        n_iterations=3,
+        random_state=17,
+    )
+
+    first = run_adaptive_ensemble_prediction(
+        prediction_score_matrix=score_matrix,
+        candidate_substrates=candidate_substrates,
+        prediction_config=prediction_config,
+    )
+    second = run_adaptive_ensemble_prediction(
+        prediction_score_matrix=score_matrix,
+        candidate_substrates=candidate_substrates,
+        prediction_config=prediction_config,
+    )
+
+    pd.testing.assert_frame_equal(first, second)
+
+
+def test_adaptive_prediction_outputs_can_differ_for_different_seeds() -> None:
+    score_matrix = pd.DataFrame(
+        {
+            "K1": [0.95, 0.91, 0.88, 0.22, 0.18, 0.11],
+            "K2": [0.12, 0.2, 0.28, 0.8, 0.86, 0.93],
+        },
+        index=["S1", "S2", "S3", "S4", "S5", "S6"],
+    )
+    candidate_substrates = {
+        "K1": ["S1", "S2", "S3"],
+        "K2": ["S4", "S5", "S6"],
+    }
+
+    first = run_adaptive_ensemble_prediction(
+        prediction_score_matrix=score_matrix,
+        candidate_substrates=candidate_substrates,
+        prediction_config=KinasePredictionConfig(
+            top_k=3,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=4,
+            mode="adaptive_ensemble",
+            n_iterations=3,
+            random_state=17,
+        ),
+    )
+    second = run_adaptive_ensemble_prediction(
+        prediction_score_matrix=score_matrix,
+        candidate_substrates=candidate_substrates,
+        prediction_config=KinasePredictionConfig(
+            top_k=3,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=4,
+            mode="adaptive_ensemble",
+            n_iterations=3,
+            random_state=23,
+        ),
+    )
+
+    assert not first.equals(second)

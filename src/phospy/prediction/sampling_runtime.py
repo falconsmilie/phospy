@@ -48,13 +48,10 @@ def _derive_prediction_stream_seed(
 
 def make_kinase_prediction_random_generators(
     *,
-    random_state: int | None,
+    random_state: int,
     kinase: str,
 ) -> tuple[np.random.Generator, np.random.Generator]:
-    """Create deterministic per-kinase RNG streams from an optional base seed."""
-
-    if random_state is None:
-        return make_prediction_random_generators(np.random.default_rng())
+    """Create deterministic per-kinase RNG streams from a base seed."""
 
     return (
         np.random.default_rng(

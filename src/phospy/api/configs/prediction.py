@@ -65,6 +65,15 @@ class KinasePredictionConfig:
             raise WorkflowValidationError(
                 f"prediction_config.mode must be one of: {allowed_modes}"
             )
+        if (
+            self.mode == KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE
+            and self.random_state is None
+        ):
+            raise WorkflowValidationError(
+                "prediction_config.random_state must be provided when "
+                "prediction_config.mode='adaptive_ensemble' so adaptive prediction "
+                "runs are reproducible"
+            )
         if self.adaptive_policy not in KINASE_ADAPTIVE_POLICIES:
             allowed_policies = ", ".join(sorted(KINASE_ADAPTIVE_POLICIES))
             raise WorkflowValidationError(

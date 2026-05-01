@@ -83,10 +83,14 @@ def aligned_binary_decision_vector(
     finite_mask = np.isfinite(decision_values) & np.isfinite(aligned_probabilities)
     if finite_mask.sum() < 2:
         return decision_values
+    finite_decision_values = decision_values[finite_mask]
+    finite_probabilities = aligned_probabilities[finite_mask]
+    if np.std(finite_decision_values) == 0.0 or np.std(finite_probabilities) == 0.0:
+        return decision_values
 
     corr = np.corrcoef(
-        decision_values[finite_mask],
-        aligned_probabilities[finite_mask],
+        finite_decision_values,
+        finite_probabilities,
     )[0, 1]
     if np.isfinite(corr) and corr < 0:
         return -decision_values

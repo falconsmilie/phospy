@@ -628,6 +628,7 @@ def test_kinase_request_rejects_non_positive_adaptive_iterations() -> None:
             adaptive_ensemble_runs=5,
             mode="adaptive_ensemble",
             n_iterations=0,
+            random_state=1,
         )
 
 

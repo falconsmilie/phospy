@@ -321,7 +321,10 @@ def _add_kinase_runtime_arguments(parser: argparse.ArgumentParser) -> None:
         "--prediction-random-state",
         type=int,
         default=None,
-        help="Optional adaptive prediction random state.",
+        help=(
+            "Adaptive prediction random state. Required when "
+            "--prediction-mode=adaptive_ensemble."
+        ),
     )
     parser.add_argument(
         "--skip-activity",

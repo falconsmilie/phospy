@@ -35,9 +35,17 @@ def run_adaptive_ensemble_prediction(
     sampling_policy = resolve_prediction_sampling_policy(
         prediction_config.adaptive_policy
     )
+    random_state = prediction_config.random_state
+    if random_state is None:
+        raise WorkflowStageError(
+            "kinase workflow internal invariant failed at seam="
+            "prediction.adaptive_random_state; "
+            "prediction_config.random_state must be set when prediction_config.mode="
+            "'adaptive_ensemble'"
+        )
     random_source = PredictionSamplingRandomSource(
         policy=sampling_policy,
-        random_state=prediction_config.random_state,
+        random_state=random_state,
     )
     kinase_scores: dict[str, np.ndarray] = {}
 
