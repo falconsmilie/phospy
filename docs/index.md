@@ -31,6 +31,7 @@ work and explicit references. Use the CLI for simple file-based runs.
 | Public Python classes and parameters | [API Guide](api.md) |
 | Terminal commands | [CLI Guide](cli.md) |
 | Input rules and common errors | [Validation Guide](validation.md) |
+| Workflow expectations, assumptions, and result interpretation | [Workflow Contracts](workflow_contracts.md) |
 | Written output files and reloadable bundles | [Output Bundles](output_bundles.md) |
 | Runtime limits and larger datasets | [Performance Contracts](performance.md) |
 | Scientific coverage and PhosR comparison | [Scientific Coverage](scientific-coverage.md) and [Parity](parity.md) |

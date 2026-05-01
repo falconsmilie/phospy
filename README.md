@@ -162,8 +162,9 @@ exceptions.
 
 1. [Quickstart](https://phospy.com/docs/quickstart/)
 2. [API Guide](https://phospy.com/docs/api/)
-3. [CLI Guide](https://phospy.com/docs/cli/)
-4. [Validation Guide](https://phospy.com/docs/validation/)
+3. [Workflow Contracts](https://phospy.com/docs/workflow_contracts/)
+4. [CLI Guide](https://phospy.com/docs/cli/)
+5. [Validation Guide](https://phospy.com/docs/validation/)
 
 ## Citation
 

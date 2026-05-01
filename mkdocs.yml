@@ -58,6 +58,7 @@ nav:
       - API Guide: api.md
       - CLI Guide: cli.md
   - User Guides:
+      - Workflow Contracts: workflow_contracts.md
       - Validation Guide: validation.md
       - Output Bundles: output_bundles.md
       - Performance Contracts: performance.md

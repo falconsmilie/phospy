@@ -42,6 +42,9 @@ All public executors use `run(request)`.
 The beginner lane is rat-first because bundled runtime references in `1.5.0` are
 rat-only. Human and mouse workflows need an explicit `ReferenceBundle`.
 
+For concise scientist-facing assumptions and interpretation notes, see
+[Workflow Contracts](workflow_contracts.md).
+
 ## Request Models
 
 ### `DatasetBuildRequest`
