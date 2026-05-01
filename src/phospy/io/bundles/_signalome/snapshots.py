@@ -65,7 +65,6 @@ class SignalomeWorkflowConfigSnapshot:
                     "module_selection_max_clusters": int(
                         self.signalome_config.clustering.module_selection_max_clusters
                     ),
-                    "tree_engine": str(self.signalome_config.clustering.tree_engine),
                     "candidate_scoring_policy": str(
                         self.signalome_config.clustering.candidate_scoring_policy
                     ),

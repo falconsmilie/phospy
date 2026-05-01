@@ -11,7 +11,6 @@ from phospy.api.configs import (
     SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
     SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
-    SIGNALOME_TREE_ENGINE_EXACT,
     SignalomeAssignmentPolicy,
     SignalomeCandidateScoringPolicy,
     SignalomeClusteringConfig,
@@ -22,7 +21,6 @@ from phospy.api.configs import (
     SignalomePerformanceConfig,
     SignalomeScientificConfig,
     SignalomeScorePreconditioningPolicy,
-    SignalomeTreeEngine,
     SignalomeValidationConfig,
 )
 
@@ -45,7 +43,7 @@ def build_signalome_config(
         SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT
     ),
     module_selection_max_clusters: int = SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
-    tree_engine: SignalomeTreeEngine = SIGNALOME_TREE_ENGINE_EXACT,
+    tree_engine: str = "exact",
     candidate_scoring_policy: SignalomeCandidateScoringPolicy = (
         SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
     ),
@@ -71,7 +69,6 @@ def build_signalome_config(
                 module_selection_fallback_correlation_threshold
             ),
             module_selection_max_clusters=module_selection_max_clusters,
-            tree_engine=tree_engine,
             candidate_scoring_policy=candidate_scoring_policy,
             clustering_engine=clustering_engine,
         ),

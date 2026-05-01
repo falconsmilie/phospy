@@ -34,7 +34,6 @@ class SignalomeClusteringEngineRequest:
     primary_threshold: float
     fallback_threshold: float
     max_clusters: int
-    tree_engine: str
     candidate_scoring_policy: str | None
     max_exact_tree_sites: int | None
     max_full_candidate_scoring_sites: int
@@ -52,7 +51,7 @@ class SignalomeClusteringEngineResult:
     backend_version: str
     approximation_used: bool
     exact_cluster_tree_built: bool
-    tree_engine: str
+    tree_implementation: str
     candidate_scoring_mode: str
     candidate_scoring_evaluated: bool
     candidate_scoring_skip_reason: str | None

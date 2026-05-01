@@ -272,7 +272,6 @@ Grouped options:
 | `clustering` | `module_selection_primary_correlation_threshold` | `0.5` | first threshold for automatic module selection |
 | `clustering` | `module_selection_fallback_correlation_threshold` | `0.1` | fallback threshold for automatic module selection |
 | `clustering` | `module_selection_max_clusters` | `10` | largest candidate module count considered |
-| `clustering` | `tree_engine` | `"exact"` | exact tree construction; this is the only public value |
 | `clustering` | `candidate_scoring_policy` | `"full"` | `"full"` or `"sampled"` for candidate module-count scoring |
 | `clustering` | `clustering_engine` | `"scipy_hierarchical"` | `"exact_python"` or `"scipy_hierarchical"` |
 | `validation` | `score_preconditioning_policy` | `"allow_and_report"` | allow or reject all-missing downstream score rows |
@@ -288,6 +287,9 @@ the full signalome workflow approximate.
 
 `clustering.clustering_engine="scipy_hierarchical"` is the preferred production
 default. Use `"exact_python"` mainly for reference/debug checks.
+
+Tree implementation details are recorded in internal diagnostics/provenance as
+backend metadata, not as a public configuration choice.
 
 Signalome module/network scores are derived summaries over upstream kinase score
 profiles. They are not probabilities, calibrated confidence values, or direct

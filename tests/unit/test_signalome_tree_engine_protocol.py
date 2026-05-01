@@ -80,7 +80,6 @@ def test_shared_orchestration_runs_with_either_tree_engine() -> None:
         primary_threshold=0.5,
         fallback_threshold=0.1,
         max_clusters=4,
-        tree_engine="exact",
         candidate_scoring_policy="full",
         max_exact_tree_sites=10,
         max_full_candidate_scoring_sites=10,

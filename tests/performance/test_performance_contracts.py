@@ -191,7 +191,7 @@ def _collect_backend_contract_snapshot(
         "site_count": int(scoring_matrix.shape[0]),
         "kinase_count": int(scoring_matrix.shape[1]),
         "selected_module_count": int(diagnostics.selected_module_count),
-        "exact_tree_backend": str(backend_result.tree_engine),
+        "exact_tree_backend": str(backend_result.tree_implementation),
         "candidate_scoring_mode": str(backend_result.candidate_scoring_mode),
         "sampled_candidate_scoring_activated": bool(
             backend_result.candidate_scoring_evaluated
@@ -450,8 +450,8 @@ def test_signalome_backend_contracts_compare_exact_and_scipy_equivalent_small_fi
     assert scipy_snapshot["kinase_count"] == int(scoring_matrix.shape[1])
     assert exact_snapshot["selected_module_count"] >= 1
     assert scipy_snapshot["selected_module_count"] >= 1
-    assert exact_snapshot["exact_tree_backend"] == "exact"
-    assert scipy_snapshot["exact_tree_backend"] == "exact"
+    assert exact_snapshot["exact_tree_backend"] == "exact_python_tree"
+    assert scipy_snapshot["exact_tree_backend"] == "scipy_hierarchical_tree"
     assert (
         exact_snapshot["candidate_scoring_mode"]
         == SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
@@ -604,7 +604,7 @@ def test_signalome_exact_tree_guard_contract_near_threshold_fixture() -> None:
     message = str(exc_info.value).lower()
     assert "exact cluster-tree construction received" in message
     assert f"max_exact_tree_sites={near_limit}" in message
-    assert "tree_engine='exact'" in message
+    assert "tree_implementation='exact_cluster_tree'" in message
     assert guard_runtime_seconds < SIGNALOME_FULL_GUARD_RUNTIME_SECONDS_MAX
 
 
@@ -738,7 +738,10 @@ def test_signalome_workflow_performance_contract_reports_scale_guard_diagnostics
         scale_guard["candidate_module_count_upper_bound"]
         >= scale_guard["candidate_module_counts_evaluated"]
     )
-    assert scale_guard["tree_engine"] == "exact"
+    assert (
+        scale_guard["tree_implementation"]
+        == scale_guard["backend_diagnostics"]["tree_implementation"]
+    )
     assert scale_guard["tree_generation_mode"] == "full_exact_tree_construction"
     assert scale_guard["tree_generation_is_approximate"] is False
     assert (

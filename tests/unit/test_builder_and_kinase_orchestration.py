@@ -159,7 +159,6 @@ def _resolved_signalome_execution_config(
         module_selection_max_clusters=int(
             config.clustering.module_selection_max_clusters
         ),
-        tree_engine=config.clustering.tree_engine,
         candidate_scoring_policy=config.clustering.candidate_scoring_policy,
         max_exact_tree_sites=int(config.performance.max_exact_tree_sites),
         max_full_candidate_scoring_sites=int(

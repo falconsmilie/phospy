@@ -46,6 +46,9 @@ def _small_site_to_protein() -> pd.Series:
 def _required_backend_diagnostic_keys() -> set[str]:
     return {
         "backend_name",
+        "backend_version",
+        "tree_implementation",
+        "tree_implementation_version",
         "uses_scipy",
         "linkage_method",
         "distance_metric",
@@ -339,7 +342,7 @@ def test_engine_result_rejects_invalid_candidate_sampling_schema_early() -> None
             backend_version="1",
             approximation_used=False,
             exact_cluster_tree_built=False,
-            tree_engine="exact",
+            tree_implementation="exact",
             candidate_scoring_mode="not_evaluated",
             candidate_scoring_evaluated=False,
             candidate_scoring_skip_reason=None,
@@ -381,7 +384,7 @@ def test_engine_result_rejects_invalid_threshold_metadata_early() -> None:
             backend_version="1",
             approximation_used=False,
             exact_cluster_tree_built=False,
-            tree_engine="exact",
+            tree_implementation="exact",
             candidate_scoring_mode="not_evaluated",
             candidate_scoring_evaluated=False,
             candidate_scoring_skip_reason=None,

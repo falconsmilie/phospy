@@ -116,8 +116,6 @@ from phospy.api.configs.signalome import (
     SIGNALOME_SCORE_PRECONDITIONING_POLICIES,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
-    SIGNALOME_TREE_ENGINE_EXACT,
-    SIGNALOME_TREE_ENGINES,
     SignalomeAssignmentPolicy,
     SignalomeCandidateScoringPolicy,
     SignalomeClusteringConfig,
@@ -128,7 +126,6 @@ from phospy.api.configs.signalome import (
     SignalomePerformanceConfig,
     SignalomeScientificConfig,
     SignalomeScorePreconditioningPolicy,
-    SignalomeTreeEngine,
     SignalomeValidationConfig,
 )
 
@@ -197,8 +194,6 @@ __all__ = [
     "KINASE_ACTIVITY_MIN_SUBSTRATES_FLOOR",
     "KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR",
     "KINASE_SCORING_MIN_SUBSTRATES_FLOOR",
-    "SIGNALOME_TREE_ENGINE_EXACT",
-    "SIGNALOME_TREE_ENGINES",
     "SIGNALOME_CANDIDATE_SCORING_POLICY_FULL",
     "SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED",
     "SIGNALOME_CANDIDATE_SCORING_POLICIES",
@@ -245,7 +240,6 @@ __all__ = [
     "SignalomeAssignmentPolicy",
     "SignalomeClusteringConfig",
     "SignalomeClusteringEngine",
-    "SignalomeTreeEngine",
     "SignalomeCandidateScoringPolicy",
     "SignalomeKinaseNetworkPolicy",
     "SignalomeOutputConfig",

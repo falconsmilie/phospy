@@ -59,6 +59,10 @@ class SignalomeBackendDiagnostics(TypedDict):
     """Stable clustering-backend diagnostics payload."""
 
     backend_name: str
+    backend_version: str
+    tree_implementation: str
+    tree_implementation_version: str
+    # Legacy keys retained for historical/internal metadata compatibility.
     tree_engine: str
     tree_engine_version: str
     uses_scipy: bool
@@ -116,6 +120,7 @@ def build_tree_engine_diagnostics(
 def build_backend_diagnostics(
     *,
     backend_name: str,
+    backend_version: str,
     tree_engine: str,
     tree_engine_version: str,
     tree_engine_diagnostics: SignalomeTreeEngineDiagnostics,
@@ -133,6 +138,18 @@ def build_backend_diagnostics(
         "backend_name": _require_non_empty_str(
             backend_name,
             field_name="backend_name",
+        ),
+        "backend_version": _require_non_empty_str(
+            backend_version,
+            field_name="backend_version",
+        ),
+        "tree_implementation": _require_non_empty_str(
+            tree_engine,
+            field_name="tree_implementation",
+        ),
+        "tree_implementation_version": _require_non_empty_str(
+            tree_engine_version,
+            field_name="tree_implementation_version",
         ),
         "tree_engine": _require_non_empty_str(
             tree_engine,
@@ -279,24 +296,42 @@ def validate_backend_diagnostics(
     field_name: str,
 ) -> SignalomeBackendDiagnostics:
     mapping = _require_mapping(payload, field_name=field_name)
-    _require_exact_keys(
-        mapping,
-        expected={
-            "backend_name",
-            "tree_engine",
-            "tree_engine_version",
-            "uses_scipy",
-            "linkage_method",
-            "distance_metric",
-            "selected_module_count",
-            "input_site_count",
-            "exact_tree_path_used",
-            "tree_generation_mode",
-            "tree_generation_is_approximate",
-            "tree_generation_scope",
-            "candidate_scoring_scope",
-        },
-        field_name=field_name,
+    required_keys = {
+        "backend_name",
+        "uses_scipy",
+        "linkage_method",
+        "distance_metric",
+        "selected_module_count",
+        "input_site_count",
+        "exact_tree_path_used",
+        "tree_generation_mode",
+        "tree_generation_is_approximate",
+        "tree_generation_scope",
+        "candidate_scoring_scope",
+    }
+    missing = sorted(key for key in required_keys if key not in mapping)
+    if missing:
+        raise ValueError(f"{field_name} schema mismatch (missing keys: {missing})")
+
+    legacy_tree_engine = _require_non_empty_str(
+        mapping.get("tree_engine"),
+        field_name=f"{field_name}.tree_engine",
+    )
+    legacy_tree_engine_version = _require_non_empty_str(
+        mapping.get("tree_engine_version"),
+        field_name=f"{field_name}.tree_engine_version",
+    )
+    tree_implementation = _require_non_empty_str(
+        mapping.get("tree_implementation", legacy_tree_engine),
+        field_name=f"{field_name}.tree_implementation",
+    )
+    tree_implementation_version = _require_non_empty_str(
+        mapping.get("tree_implementation_version", legacy_tree_engine_version),
+        field_name=f"{field_name}.tree_implementation_version",
+    )
+    backend_version = _require_non_empty_str(
+        mapping.get("backend_version", "1"),
+        field_name=f"{field_name}.backend_version",
     )
     tree_generation_mode = _require_non_empty_str(
         mapping["tree_generation_mode"],
@@ -334,14 +369,11 @@ def validate_backend_diagnostics(
             mapping["backend_name"],
             field_name=f"{field_name}.backend_name",
         ),
-        "tree_engine": _require_non_empty_str(
-            mapping["tree_engine"],
-            field_name=f"{field_name}.tree_engine",
-        ),
-        "tree_engine_version": _require_non_empty_str(
-            mapping["tree_engine_version"],
-            field_name=f"{field_name}.tree_engine_version",
-        ),
+        "backend_version": backend_version,
+        "tree_implementation": tree_implementation,
+        "tree_implementation_version": tree_implementation_version,
+        "tree_engine": legacy_tree_engine,
+        "tree_engine_version": legacy_tree_engine_version,
         "uses_scipy": _require_bool(
             mapping["uses_scipy"],
             field_name=f"{field_name}.uses_scipy",
@@ -467,6 +499,9 @@ def backend_diagnostics_to_payload(
     )
     return {
         "backend_name": str(normalized["backend_name"]),
+        "backend_version": str(normalized["backend_version"]),
+        "tree_implementation": str(normalized["tree_implementation"]),
+        "tree_implementation_version": str(normalized["tree_implementation_version"]),
         "tree_engine": str(normalized["tree_engine"]),
         "tree_engine_version": str(normalized["tree_engine_version"]),
         "uses_scipy": bool(normalized["uses_scipy"]),

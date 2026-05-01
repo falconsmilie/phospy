@@ -101,7 +101,6 @@ class SignalomeClusteringRunner:
                 primary_threshold=config.module_selection_primary_threshold,
                 fallback_threshold=config.module_selection_fallback_threshold,
                 max_clusters=config.module_selection_max_clusters,
-                tree_engine=config.tree_engine,
                 candidate_scoring_policy=config.candidate_scoring_policy,
                 max_exact_tree_sites=config.max_exact_tree_sites,
                 max_full_candidate_scoring_sites=config.max_full_candidate_scoring_sites,
@@ -119,7 +118,7 @@ class SignalomeClusteringRunner:
             clustering_result = ClusterSitesResult(
                 site_clusters=backend_result.site_clusters,
                 module_selection_diagnostics=backend_result.module_selection_diagnostics,
-                tree_engine=backend_result.tree_engine,
+                tree_engine=backend_result.tree_implementation,
                 candidate_scoring_mode=_validated_candidate_scoring_mode(
                     backend_result.candidate_scoring_mode
                 ),
@@ -150,7 +149,6 @@ class SignalomeClusteringRunner:
                 module_selection_primary_correlation_threshold=config.module_selection_primary_threshold,
                 module_selection_fallback_correlation_threshold=config.module_selection_fallback_threshold,
                 module_selection_max_clusters=config.module_selection_max_clusters,
-                tree_engine=config.tree_engine,
                 candidate_scoring_policy=config.candidate_scoring_policy,
                 max_exact_tree_sites=config.max_exact_tree_sites,
                 max_full_candidate_scoring_sites=config.max_full_candidate_scoring_sites,
@@ -199,6 +197,9 @@ class SignalomeClusteringRunner:
         ) -> str:
             if payload is None:
                 return "unknown_tree_backend"
+            implementation = payload.get("tree_implementation")
+            if implementation is not None:
+                return str(implementation)
             return str(payload["tree_engine"])
 
         input_protein_count = int(
@@ -226,6 +227,9 @@ class SignalomeClusteringRunner:
             and str(clustering_result.candidate_scoring_mode)
             == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
         )
+        tree_generation_backend = _tree_generation_backend_name(
+            clustering_result.backend_diagnostics
+        )
         return SignalomeScaleGuardDecision(
             site_count=int(site_count),
             input_protein_count=input_protein_count,
@@ -236,10 +240,8 @@ class SignalomeClusteringRunner:
             clustering_engine=str(clustering_result.backend_name),
             clustering_engine_version=str(clustering_result.backend_version),
             backend_diagnostics=clustering_result.backend_diagnostics,
-            tree_engine=str(config.tree_engine),
-            tree_generation_backend=_tree_generation_backend_name(
-                clustering_result.backend_diagnostics
-            ),
+            tree_implementation=tree_generation_backend,
+            tree_generation_backend=tree_generation_backend,
             tree_generation_mode="full_exact_tree_construction",
             tree_generation_is_approximate=False,
             tree_generation_scope="module_count_selection_and_final_assignment",

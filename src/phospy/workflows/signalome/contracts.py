@@ -12,7 +12,6 @@ from phospy.api.configs import (
     SignalomeCandidateScoringPolicy,
     SignalomeKinaseNetworkPolicy,
     SignalomeScorePreconditioningPolicy,
-    SignalomeTreeEngine,
 )
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
@@ -42,7 +41,6 @@ class ResolvedSignalomeExecutionConfig:
     module_selection_primary_threshold: float
     module_selection_fallback_threshold: float
     module_selection_max_clusters: int
-    tree_engine: SignalomeTreeEngine
     candidate_scoring_policy: SignalomeCandidateScoringPolicy
     max_exact_tree_sites: int
     max_full_candidate_scoring_sites: int

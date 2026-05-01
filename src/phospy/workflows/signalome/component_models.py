@@ -40,7 +40,7 @@ class SignalomeScaleGuardDecision:
     clustering_engine: str
     clustering_engine_version: str
     backend_diagnostics: SignalomeBackendDiagnostics | None
-    tree_engine: str
+    tree_implementation: str
     tree_generation_backend: str
     tree_generation_mode: str
     tree_generation_is_approximate: bool

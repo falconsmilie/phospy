@@ -36,7 +36,7 @@ def raise_if_exact_tree_limit_exceeded(
             "Signalome exact cluster-tree construction received "
             f"{n_sites:,} sites, which exceeds max_exact_tree_sites="
             f"{int(resolved_max_exact_tree_sites):,} "
-            "(tree_engine='exact'). "
+            "(tree_implementation='exact_cluster_tree'). "
             f"candidate_scoring_policy='{candidate_scoring_policy}' still "
             "requires exact cluster-tree construction in the current "
             "implementation."

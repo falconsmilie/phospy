@@ -137,7 +137,6 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert provenance["environment"]["package_name"] == "phospy"
     assert "signalome_config" in provenance["workflow_parameters"]
     signalome_config = provenance["workflow_parameters"]["signalome_config"]
-    assert signalome_config["clustering"]["tree_engine"] == "exact"
     assert signalome_config["clustering"]["candidate_scoring_policy"] == "full"
     assert signalome_config["performance"]["max_exact_tree_sites"] == 2000
     assert signalome_config["performance"]["max_full_candidate_scoring_sites"] == 2000
@@ -146,7 +145,11 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert scale_guard["site_count"] >= 1
     assert scale_guard["input_protein_count"] >= 1
     assert scale_guard["input_kinase_count"] >= 1
-    assert scale_guard["tree_engine"] == "exact"
+    assert scale_guard["tree_implementation"] in {
+        "exact",
+        "exact_python_tree",
+        "scipy_hierarchical_tree",
+    }
     assert scale_guard["tree_generation_backend"] in {
         "scipy_hierarchical_tree",
         "exact_python_tree",

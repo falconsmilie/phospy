@@ -207,7 +207,7 @@ def test_signalome_clustering_runner_returns_expected_diagnostics() -> None:
             backend_version="1",
             approximation_used=False,
             exact_cluster_tree_built=True,
-            tree_engine="exact",
+            tree_implementation="exact",
             candidate_scoring_mode="full",
             candidate_scoring_evaluated=True,
             candidate_scoring_skip_reason=None,
@@ -250,7 +250,7 @@ def test_signalome_clustering_runner_returns_expected_diagnostics() -> None:
         expected_cluster_result.module_selection_diagnostics
     )
     assert observed_backend_kwargs["requested_module_count"] == 2
-    assert observed_backend_kwargs["tree_engine"] == "exact"
+    assert "tree_engine" not in observed_backend_kwargs
     assert observed_backend_kwargs["candidate_scoring_policy"] == "full"
     assert observed_backend_kwargs["site_to_protein"] is resolved.site_to_protein
 
@@ -446,7 +446,7 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert "validation" in signalome_config
     assert "output" in signalome_config
     assert "performance" in signalome_config
-    assert signalome_config["clustering"]["tree_engine"] == "exact"
+    assert "tree_engine" not in signalome_config["clustering"]
     assert signalome_config["clustering"]["candidate_scoring_policy"] == "full"
     assert signalome_config["clustering"]["missing_value_policy"] == (
         "column_median_imputation_with_zero_for_all_missing_columns"
@@ -454,7 +454,7 @@ def test_signalome_provenance_builder_records_scale_and_backend_fields() -> None
     assert signalome_config["performance"]["max_exact_tree_sites"] == 2000
     assert signalome_config["clustering"]["module_count"] == 2
     scale_guard = provenance.workflow_parameters["scale_guard"]
-    assert "tree_engine" in scale_guard
+    assert "tree_implementation" in scale_guard
     assert "candidate_scoring_policy" in scale_guard
     assert "candidate_scoring_requested_policy" in scale_guard
     assert "candidate_scoring_strategy" in scale_guard

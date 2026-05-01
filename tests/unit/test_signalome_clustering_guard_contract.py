@@ -64,7 +64,7 @@ def _assert_exact_tree_guard_message(
     assert "exact cluster-tree construction" in message_lower
     assert f"{expected_site_count:,} sites" in message_lower
     assert f"max_exact_tree_sites={resolved_limit_token}" in message_lower
-    assert "tree_engine='exact'" in message_lower
+    assert "tree_implementation='exact_cluster_tree'" in message_lower
 
 
 def test_cluster_sites_missing_exact_guard_arg_fails_over_limit() -> None:

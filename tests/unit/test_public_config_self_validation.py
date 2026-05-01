@@ -400,8 +400,8 @@ def test_kinase_activity_config_self_validates(
             "module_selection_max_clusters",
         ),
         (
-            lambda: SignalomeClusteringConfig(tree_engine="invalid"),  # type: ignore[arg-type]
-            "signalome workflow request config.clustering.tree_engine",
+            lambda: SignalomeClusteringConfig(clustering_engine="invalid"),  # type: ignore[arg-type]
+            "signalome workflow request config.clustering.clustering_engine",
         ),
         (
             lambda: SignalomeClusteringConfig(candidate_scoring_policy="invalid"),  # type: ignore[arg-type]
@@ -417,10 +417,6 @@ def test_kinase_activity_config_self_validates(
                 "signalome workflow request config.performance."
                 "max_full_candidate_scoring_sites"
             ),
-        ),
-        (
-            lambda: SignalomeClusteringConfig(clustering_engine="invalid"),  # type: ignore[arg-type]
-            "signalome workflow request config.clustering.clustering_engine",
         ),
     ],
 )
@@ -468,12 +464,10 @@ def test_signalome_config_rejects_removed_max_exact_clustering_sites_alias() -> 
 def test_signalome_config_accepts_engine_and_policy_names() -> None:
     config = SignalomeConfig(
         clustering=SignalomeClusteringConfig(
-            tree_engine="exact",
             candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
             clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
         )
     )
-    assert config.clustering.tree_engine == "exact"
     assert (
         config.clustering.candidate_scoring_policy
         == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
@@ -482,6 +476,11 @@ def test_signalome_config_accepts_engine_and_policy_names() -> None:
         config.clustering.clustering_engine
         == SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
     )
+
+
+def test_signalome_clustering_config_rejects_removed_tree_engine_argument() -> None:
+    with pytest.raises(TypeError, match="unexpected keyword argument 'tree_engine'"):
+        SignalomeClusteringConfig(tree_engine="exact")  # type: ignore[call-arg]
 
 
 @pytest.mark.parametrize(

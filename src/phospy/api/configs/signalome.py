@@ -14,10 +14,6 @@ SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT = 0.1
 SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR = 1
 SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT = 10
 
-SIGNALOME_TREE_ENGINE_EXACT = "exact"
-SignalomeTreeEngine = Literal["exact"]
-SIGNALOME_TREE_ENGINES = frozenset({SIGNALOME_TREE_ENGINE_EXACT})
-
 SIGNALOME_CANDIDATE_SCORING_POLICY_FULL = "full"
 SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED = "sampled"
 SignalomeCandidateScoringPolicy = Literal["full", "sampled"]
@@ -120,7 +116,6 @@ class SignalomeClusteringConfig:
         SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT
     )
     module_selection_max_clusters: int = SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT
-    tree_engine: SignalomeTreeEngine = SIGNALOME_TREE_ENGINE_EXACT
     candidate_scoring_policy: SignalomeCandidateScoringPolicy = (
         SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
     )
@@ -167,12 +162,6 @@ class SignalomeClusteringConfig:
             minimum=SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_FLOOR,
             error_type=WorkflowValidationError,
         )
-        if self.tree_engine not in SIGNALOME_TREE_ENGINES:
-            allowed = ", ".join(sorted(SIGNALOME_TREE_ENGINES))
-            raise WorkflowValidationError(
-                "signalome workflow request config.clustering.tree_engine "
-                f"must be one of: {allowed}"
-            )
         if self.candidate_scoring_policy not in SIGNALOME_CANDIDATE_SCORING_POLICIES:
             allowed = ", ".join(sorted(SIGNALOME_CANDIDATE_SCORING_POLICIES))
             raise WorkflowValidationError(
@@ -347,8 +336,6 @@ __all__ = [
     "SIGNALOME_SCORE_PRECONDITIONING_POLICIES",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT",
     "SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP",
-    "SIGNALOME_TREE_ENGINES",
-    "SIGNALOME_TREE_ENGINE_EXACT",
     "SignalomeAssignmentPolicy",
     "SignalomeCandidateScoringPolicy",
     "SignalomeClusteringConfig",
@@ -360,5 +347,4 @@ __all__ = [
     "SignalomeScientificConfig",
     "SignalomeScorePreconditioningPolicy",
     "SignalomeValidationConfig",
-    "SignalomeTreeEngine",
 ]

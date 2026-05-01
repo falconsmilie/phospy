@@ -183,7 +183,6 @@ class SignalomeProvenanceBuilder:
                         "module_selection_max_clusters": int(
                             config.module_selection_max_clusters
                         ),
-                        "tree_engine": str(config.tree_engine),
                         "candidate_scoring_policy": str(
                             config.candidate_scoring_policy
                         ),
@@ -241,7 +240,9 @@ class SignalomeProvenanceBuilder:
                             scale_guard_decision.backend_diagnostics
                         )
                     ),
-                    "tree_engine": str(scale_guard_decision.tree_engine),
+                    "tree_implementation": str(
+                        scale_guard_decision.tree_implementation
+                    ),
                     "tree_generation_backend": str(
                         scale_guard_decision.tree_generation_backend
                     ),

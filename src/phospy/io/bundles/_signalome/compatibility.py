@@ -12,7 +12,6 @@ from phospy.api.configs import (
     SIGNALOME_CLUSTERING_ENGINES,
     SIGNALOME_KINASE_NETWORK_POLICIES,
     SIGNALOME_SCORE_PRECONDITIONING_POLICIES,
-    SIGNALOME_TREE_ENGINES,
     SignalomeClusteringConfig,
     SignalomeConfig,
     SignalomeOutputConfig,
@@ -54,7 +53,6 @@ _CLUSTERING_ALLOWED_FIELDS = frozenset(
         "module_selection_primary_correlation_threshold",
         "module_selection_fallback_correlation_threshold",
         "module_selection_max_clusters",
-        "tree_engine",
         "candidate_scoring_policy",
         "clustering_engine",
     }
@@ -138,15 +136,6 @@ def signalome_config_from_payload(
         field_name=f"{scope}.signalome_config.clustering",
         required_fields=_CLUSTERING_REQUIRED_FIELDS,
     )
-    tree_engine = require_str(
-        clustering_payload.get("tree_engine"),
-        field_name=f"{scope}.signalome_config.clustering.tree_engine",
-    )
-    if tree_engine not in SIGNALOME_TREE_ENGINES:
-        allowed = ", ".join(sorted(SIGNALOME_TREE_ENGINES))
-        raise PhosPyInputError(
-            f"{scope}.signalome_config.clustering.tree_engine must be one of: {allowed}"
-        )
     candidate_scoring_policy = require_str(
         clustering_payload.get("candidate_scoring_policy"),
         field_name=f"{scope}.signalome_config.clustering.candidate_scoring_policy",
@@ -298,7 +287,6 @@ def signalome_config_from_payload(
                 ),
             ),
             module_selection_max_clusters=module_selection_max_clusters,
-            tree_engine=tree_engine,  # type: ignore[arg-type]
             candidate_scoring_policy=candidate_scoring_policy,  # type: ignore[arg-type]
             clustering_engine=clustering_engine,  # type: ignore[arg-type]
         ),

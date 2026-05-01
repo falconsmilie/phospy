@@ -49,7 +49,6 @@ def _full_signalome_snapshot_payload(
             "module_selection_primary_correlation_threshold": 0.6,
             "module_selection_fallback_correlation_threshold": 0.2,
             "module_selection_max_clusters": 15,
-            "tree_engine": "exact",
             "candidate_scoring_policy": "full",
             "clustering_engine": "exact_python",
         },
@@ -79,7 +78,6 @@ def _full_signalome_snapshot_payload(
             "module_selection_primary_correlation_threshold",
             "module_selection_fallback_correlation_threshold",
             "module_selection_max_clusters",
-            "tree_engine",
             "candidate_scoring_policy",
             "clustering_engine",
         }:
@@ -185,7 +183,6 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
                 "module_selection_primary_correlation_threshold": 0.67,
                 "module_selection_fallback_correlation_threshold": 0.23,
                 "module_selection_max_clusters": 15,
-                "tree_engine": "exact",
                 "candidate_scoring_policy": "sampled",
                 "clustering_engine": "exact_python",
             },
@@ -240,13 +237,11 @@ def test_signalome_snapshot_rejects_unknown_clustering_engine_value() -> None:
 def test_signalome_snapshot_accepts_engine_policy_fields() -> None:
     snapshot = SignalomeWorkflowConfigSnapshot.from_payload(
         _full_signalome_snapshot_payload(
-            tree_engine="exact",
             candidate_scoring_policy="sampled",
             clustering_engine="scipy_hierarchical",
         )
     )
 
-    assert snapshot.signalome_config.clustering.tree_engine == "exact"
     assert snapshot.signalome_config.clustering.candidate_scoring_policy == "sampled"
     assert (
         snapshot.signalome_config.clustering.clustering_engine == "scipy_hierarchical"

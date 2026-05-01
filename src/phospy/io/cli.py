@@ -21,6 +21,8 @@ from phospy.api.configs import (
     SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+    SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
     SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD,
     SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY,
     SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
@@ -28,7 +30,6 @@ from phospy.api.configs import (
     SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
-    SIGNALOME_TREE_ENGINE_EXACT,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -168,12 +169,16 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     signalome.add_argument(
-        "--tree-engine",
-        default=SIGNALOME_TREE_ENGINE_EXACT,
-        choices=[SIGNALOME_TREE_ENGINE_EXACT],
+        "--clustering-engine",
+        default=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+        choices=[
+            SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+            SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+        ],
         help=(
-            "Signalome tree-construction engine. Currently only exact "
-            "tree construction is supported."
+            "Signalome clustering backend implementation. "
+            "Use scipy_hierarchical for production defaults; "
+            "exact_python for reference/debug parity checks."
         ),
     )
     signalome.add_argument(
@@ -370,10 +375,10 @@ def _run_signalome(args: argparse.Namespace) -> None:
                     assignment_policy=args.assignment_policy,  # type: ignore[arg-type]
                 ),
                 clustering=SignalomeClusteringConfig(
-                    tree_engine=args.tree_engine,  # type: ignore[arg-type]
                     candidate_scoring_policy=(  # type: ignore[arg-type]
                         args.candidate_scoring_policy
                     ),
+                    clustering_engine=args.clustering_engine,  # type: ignore[arg-type]
                 ),
                 validation=SignalomeValidationConfig(
                     score_preconditioning_policy=(  # type: ignore[arg-type]

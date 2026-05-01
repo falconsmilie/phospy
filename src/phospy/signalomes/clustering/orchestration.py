@@ -418,6 +418,7 @@ class SignalomeDiagnosticsBuilder:
         self,
         *,
         clustering_engine: str,
+        backend_version: str,
         tree_engine: ClusterTreeEngine,
         tree_engine_diagnostics: SignalomeTreeEngineDiagnostics,
         selected_module_count: int,
@@ -426,6 +427,7 @@ class SignalomeDiagnosticsBuilder:
     ) -> SignalomeBackendDiagnostics:
         return build_backend_diagnostics(
             backend_name=str(clustering_engine),
+            backend_version=str(backend_version),
             tree_engine=str(tree_engine.name),
             tree_engine_version=str(tree_engine.version),
             tree_engine_diagnostics=tree_engine_diagnostics,
@@ -769,19 +771,6 @@ def run_clustering_with_tree_engine(
 ) -> SignalomeClusteringEngineResult:
     """Run shared orchestration with an injected tree engine implementation."""
 
-    requested_tree_engine = request.tree_engine
-    if requested_tree_engine is not None:
-        resolved_requested_tree_engine = str(requested_tree_engine)
-        if resolved_requested_tree_engine not in {
-            str(tree_engine.name),
-            SIGNALOME_TREE_ENGINE_EXACT,
-            "exact_python",
-            "scipy_hierarchical",
-        }:
-            raise ValueError(
-                f"unsupported tree_engine request {resolved_requested_tree_engine!r}"
-            )
-
     candidate_scoring_policy = (
         None
         if request.candidate_scoring_policy is None
@@ -808,6 +797,7 @@ def run_clustering_with_tree_engine(
     )
     resolved_backend_diagnostics = _DIAGNOSTICS_BUILDER.backend_diagnostics(
         clustering_engine=clustering_engine,
+        backend_version=backend_version,
         tree_engine=tree_engine,
         tree_engine_diagnostics=backend_diagnostics,
         selected_module_count=selected_module_count,
@@ -832,7 +822,7 @@ def run_clustering_with_tree_engine(
         backend_version=str(backend_version),
         approximation_used=bool(clustering_result.approximation_used),
         exact_cluster_tree_built=bool(clustering_result.exact_cluster_tree_built),
-        tree_engine=str(clustering_result.tree_engine),
+        tree_implementation=str(tree_engine.name),
         candidate_scoring_mode=str(clustering_result.candidate_scoring_mode),
         candidate_scoring_evaluated=bool(clustering_result.candidate_scoring_evaluated),
         candidate_scoring_skip_reason=(

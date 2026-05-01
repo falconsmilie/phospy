@@ -320,7 +320,7 @@ def test_network_policy_variant_historical_baseline_locks_signed_edges_and_narro
         output=SignalomeOutputConfig(network_policy="positive_only")
     ).output.network_policy == ("positive_only")
     assert SignalomeConfig().scientific.assignment_policy == "cutoff_binary"
-    assert SignalomeConfig().clustering.tree_engine == "exact"
+    assert SignalomeConfig().clustering.clustering_engine == "scipy_hierarchical"
     assert SignalomeConfig().performance.max_exact_tree_sites == 2000
     assert SignalomeConfig().validation.score_preconditioning_policy == (
         "allow_and_report"

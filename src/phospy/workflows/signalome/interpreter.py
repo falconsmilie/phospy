@@ -174,7 +174,6 @@ class SignalomeWorkflowInterpreter:
             module_selection_max_clusters=int(
                 request.config.clustering.module_selection_max_clusters
             ),
-            tree_engine=request.config.clustering.tree_engine,
             candidate_scoring_policy=request.config.clustering.candidate_scoring_policy,
             max_exact_tree_sites=int(request.config.performance.max_exact_tree_sites),
             max_full_candidate_scoring_sites=int(
