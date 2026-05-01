@@ -6,7 +6,7 @@ from dataclasses import InitVar, dataclass, field
 
 import pandas as pd
 
-from phospy._frame_ownership import own_optional_dataframe
+from phospy._frame_ownership import export_optional_dataframe, own_optional_dataframe
 from phospy.activities.models import KinaseActivityResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
@@ -55,6 +55,10 @@ class SignalomeWorkflowResult:
     `site_membership` and
     `protein_site_context` provide optional signalome provenance sidecars for
     site-level and protein-level phosphosite context.
+
+    Provenance in this object describes owned internal state at creation time.
+    Prefer public export helpers with ``copy=True`` to avoid post-creation
+    mutation drift when inspecting tables.
     """
 
     dataset: AnalysisReadyPhosphoDataset
@@ -161,6 +165,19 @@ class SignalomeWorkflowResult:
             provenance=provenance,
             _assume_owned=True,
         )
+
+    def to_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
+        """Return the primary expanded-signalome table when available."""
+
+        return export_optional_dataframe(self.expanded_signalome, copy=copy)
+
+    def site_membership_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.site_membership, copy=copy)
+
+    def protein_site_context_dataframe(
+        self, *, copy: bool = True
+    ) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.protein_site_context, copy=copy)
 
 
 __all__ = [

@@ -84,10 +84,23 @@ The only docs subdirectory should be `docs/adr/` for decision records.
 
 ## Frame Ownership Policy
 
-Public boundaries should own their DataFrames unless a clearly internal transfer
-has already established ownership. Avoid exposing mutable internals through
-public result objects. Internal DTOs may pass owned frames between adjacent stages
-when the ownership transfer is obvious and tested.
+PhosPy treats DataFrames as owned mutable state internally.
+
+Input DataFrames are copied when accepted into validated dataset/table objects.
+Workflow internals may pass owned DataFrames without repeated defensive copies.
+Public result/table access should either return a safe copy or clearly mark the
+returned object as borrowed and unsafe to mutate.
+
+Provenance fingerprints describe the owned internal state at creation time.
+
+Exposure categories:
+
+- `owned_internal`: DataFrames stored in dataset/result/table dataclass fields.
+- `safe_public_copy`: `to_dataframe(...)`, `to_pandas(...)`, and
+  `*_dataframe(...)` helpers with `copy=True` (default).
+- `borrowed_public_view`: same helpers with `copy=False`; borrowed and unsafe to
+  mutate unless intentional owner mutation is desired.
+- `export_snapshot`: persisted outputs and provenance fingerprints.
 
 ## Release Notes
 

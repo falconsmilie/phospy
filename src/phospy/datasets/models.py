@@ -7,7 +7,12 @@ from dataclasses import InitVar, dataclass
 
 import pandas as pd
 
-from phospy._frame_ownership import own_dataframe, own_optional_dataframe
+from phospy._frame_ownership import (
+    export_dataframe,
+    export_optional_dataframe,
+    own_dataframe,
+    own_optional_dataframe,
+)
 from phospy.datasets.preprocessing.report_schema import (
     COMPARISON_GROUP_STATS_COLUMNS,
     COMPARISON_PAIR_STATS_COLUMNS,
@@ -217,6 +222,39 @@ class DatasetPreprocessingReport:
         object.__setattr__(self, "comparison_group_stats", comparison_group_stats)
         object.__setattr__(self, "comparison_pair_stats", comparison_pair_stats)
 
+    def row_counts_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return preprocessing row-count report table."""
+
+        return export_dataframe(self.row_counts, copy=copy)
+
+    def operations_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return preprocessing operations report table."""
+
+        return export_dataframe(self.operations, copy=copy)
+
+    def row_audit_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return preprocessing row-audit report table."""
+
+        return export_dataframe(self.row_audit, copy=copy)
+
+    def duplicate_site_resolution_dataframe(
+        self, *, copy: bool = True
+    ) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.duplicate_site_resolution, copy=copy)
+
+    def metadata_conflicts_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.metadata_conflicts, copy=copy)
+
+    def comparison_group_stats_dataframe(
+        self, *, copy: bool = True
+    ) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.comparison_group_stats, copy=copy)
+
+    def comparison_pair_stats_dataframe(
+        self, *, copy: bool = True
+    ) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.comparison_pair_stats, copy=copy)
+
     @classmethod
     def from_rows(
         cls,
@@ -285,6 +323,9 @@ class AnalysisReadyPhosphoDataset:
     columns aligned to `phospho.index`.
     Site identity is strict at this boundary: canonical phospho row IDs must be
     coherent with `site_metadata.gene_symbol` / `site_metadata.site`.
+
+    Provenance in this object describes owned internal state at creation time.
+    Prefer public export helpers with ``copy=True`` for safe inspection.
     """
 
     phospho: pd.DataFrame
@@ -467,3 +508,25 @@ class AnalysisReadyPhosphoDataset:
             provenance=provenance,
             _assume_owned=True,
         )
+
+    def to_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return the primary phospho matrix.
+
+        ``copy=True`` returns a safe snapshot copy.
+        ``copy=False`` returns a borrowed DataFrame; mutating it mutates this
+        owning dataset.
+        """
+
+        return export_dataframe(self.phospho, copy=copy)
+
+    def site_metadata_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
+        return export_dataframe(self.site_metadata, copy=copy)
+
+    def sample_metadata_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.sample_metadata, copy=copy)
+
+    def total_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.total, copy=copy)
+
+    def comparisons_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.comparisons, copy=copy)

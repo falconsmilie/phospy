@@ -7,7 +7,7 @@ from enum import Enum
 
 import pandas as pd
 
-from phospy._frame_ownership import own_dataframe
+from phospy._frame_ownership import export_dataframe, own_dataframe
 from phospy.errors.validation import ReferenceValidationError
 from phospy.provenance.hashing import fingerprint_table
 from phospy.provenance.models import ReferenceProvenance
@@ -139,3 +139,9 @@ class ReferenceBundle:
             provenance=provenance,
             _assume_owned=True,
         )
+
+    def kinase_substrate_map_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
+        return export_dataframe(self.kinase_substrate_map, copy=copy)
+
+    def site_sequences_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
+        return export_dataframe(self.site_sequences, copy=copy)

@@ -7,7 +7,7 @@ from typing import ClassVar
 
 import pandas as pd
 
-from phospy._frame_ownership import own_dataframe
+from phospy._frame_ownership import export_dataframe, own_dataframe
 from phospy.errors.validation import PhosPyValidationError
 
 ValidationErrorType = type[PhosPyValidationError]
@@ -38,6 +38,16 @@ class TableSchema:
 
     def _validate_frame(self, frame: pd.DataFrame) -> pd.DataFrame:
         return frame
+
+    def to_pandas(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return this table as pandas.
+
+        ``copy=True`` returns a safe snapshot copy.
+        ``copy=False`` returns a borrowed DataFrame; mutating it mutates this
+        owning object.
+        """
+
+        return export_dataframe(self.frame, copy=copy)
 
     @classmethod
     def _from_owned(cls, *, frame: pd.DataFrame) -> TableSchema:

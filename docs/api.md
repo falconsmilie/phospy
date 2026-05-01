@@ -278,6 +278,20 @@ proof of causal regulation.
 
 ## Result Models
 
+### DataFrame Ownership
+
+PhosPy owns validated datasets and workflow results internally.
+
+When you pass a DataFrame into PhosPy, the accepted dataset/table keeps its own
+copy so later changes to your original DataFrame do not silently affect
+analysis.
+
+When you retrieve result tables through the public API, use export helpers
+(`to_dataframe(...)`, `to_pandas(...)`, or `*_dataframe(...)`). They return safe
+copies by default (`copy=True`). Advanced users may request borrowed DataFrames
+with `copy=False` for performance-sensitive work; borrowed DataFrames should not
+be mutated unless you intentionally want to modify the owning object.
+
 ### `AnalysisReadyPhosphoDataset`
 
 Important fields:
@@ -297,6 +311,8 @@ Read `intensity_scale_state.label` together with
 `intensity_scale_state.quantity`. For example, `log2` describes numeric scale;
 `phospho_total_log_ratio` describes what the values mean scientifically.
 
+Use `dataset.to_dataframe(copy=True)` for a safe phospho snapshot.
+
 ### `KinaseWorkflowResult`
 
 Important fields:
@@ -310,6 +326,9 @@ Important fields:
 
 Common tables include `profile_scores`, `rank_weighted_fusion_scores`,
 `pred_mat`, and activity tables when activity is enabled.
+
+Use `to_dataframe(copy=True)` on scoring/prediction/activity result objects for
+safe table snapshots.
 
 `result.provenance.scientific_policies` lists the active scientific scoring
 policies with stable IDs, assumptions, parameters, and output-scale notes for
@@ -337,6 +356,10 @@ Undefined kinase correlations are preserved as missing values. A correlation of
 `result.provenance.scientific_policies` includes signalome-specific scientific
 policies (for candidate module-count scoring and protein-module derivation) and
 their resolved parameters.
+
+Use `result.to_dataframe(copy=True)` for `expanded_signalome`, and
+`site_membership_dataframe(copy=True)` / `protein_site_context_dataframe(copy=True)`
+for safe sidecar snapshots.
 
 Inspect runtime clustering diagnostics from provenance:
 

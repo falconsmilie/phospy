@@ -6,7 +6,11 @@ from dataclasses import InitVar, dataclass
 
 import pandas as pd
 
-from phospy._frame_ownership import own_optional_dataframe
+from phospy._frame_ownership import (
+    export_dataframe,
+    export_optional_dataframe,
+    own_optional_dataframe,
+)
 from phospy.errors.validation import PhosPyValidationError
 from phospy.prediction.motif_scoring import MotifLibraryValidationResult
 from phospy.prediction.sequence_validation import SequenceValidationResult
@@ -108,6 +112,24 @@ class KinaseScoringResult:
             _assume_owned=True,
         )
 
+    def to_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return the primary `profile_scores` matrix."""
+
+        return export_dataframe(self.profile_scores, copy=copy)
+
+    def motif_scores_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.motif_scores, copy=copy)
+
+    def rank_weighted_fusion_scores_dataframe(
+        self, *, copy: bool = True
+    ) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.rank_weighted_fusion_scores, copy=copy)
+
+    def score_fusion_weights_dataframe(
+        self, *, copy: bool = True
+    ) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.score_fusion_weights, copy=copy)
+
 
 @dataclass(frozen=True, slots=True)
 class KinasePredictionResult:
@@ -144,3 +166,11 @@ class KinasePredictionResult:
             substrate_list=substrate_list,
             _assume_owned=True,
         )
+
+    def to_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return the primary `pred_mat` matrix."""
+
+        return export_dataframe(self.pred_mat, copy=copy)
+
+    def substrate_list_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.substrate_list, copy=copy)

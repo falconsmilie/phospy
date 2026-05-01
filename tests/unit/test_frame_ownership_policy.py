@@ -18,6 +18,7 @@ from phospy.api import (
 from phospy.api.results import KinasePredictionResult
 from phospy.datasets.builders.executor import DatasetBuildExecutor
 from phospy.datasets.builders.interpreter import DatasetBuildRequestInterpreter
+from phospy.provenance.hashing import fingerprint_table
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -198,3 +199,105 @@ def test_prediction_result_boundary_copy_and_owned_transfer_modes() -> None:
     substrate_list.iloc[0, 0] = "CHANGED"
     assert float(copied_result.pred_mat.iloc[0, 0]) == 0.9
     assert str(copied_result.substrate_list.iloc[0, 0]) == "MAP2K6"
+
+
+def test_dataset_public_export_copy_default_is_safe() -> None:
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+    exported = dataset.to_dataframe()
+    exported.iloc[0, 0] = 999.0
+
+    assert float(dataset.phospho.iloc[0, 0]) == 1.0
+
+
+def test_dataset_public_export_copy_false_is_borrowed() -> None:
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=_phospho(),
+        site_metadata=_site_metadata(),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+
+    borrowed = dataset.to_dataframe(copy=False)
+    borrowed.iloc[0, 0] = 999.0
+
+    assert float(dataset.phospho.iloc[0, 0]) == 999.0
+
+
+def test_prediction_result_public_export_copy_default_is_safe() -> None:
+    pred_mat = pd.DataFrame(
+        {
+            "MAP2K6": [0.9, 0.8],
+            "AKT1": [0.2, 0.1],
+        },
+        index=["MAPK14;Y182;", "GSK3B;S9;"],
+    )
+    result = KinasePredictionResult._from_owned(pred_mat=pred_mat)
+
+    exported = result.to_dataframe()
+    exported.iloc[0, 0] = 0.0
+
+    assert float(result.pred_mat.iloc[0, 0]) == 0.9
+
+
+def test_prediction_result_public_export_copy_false_is_borrowed() -> None:
+    pred_mat = pd.DataFrame(
+        {
+            "MAP2K6": [0.9, 0.8],
+            "AKT1": [0.2, 0.1],
+        },
+        index=["MAPK14;Y182;", "GSK3B;S9;"],
+    )
+    result = KinasePredictionResult._from_owned(pred_mat=pred_mat)
+
+    borrowed = result.to_dataframe(copy=False)
+    borrowed.iloc[0, 0] = 0.0
+
+    assert float(result.pred_mat.iloc[0, 0]) == 0.0
+
+
+def test_safe_public_export_does_not_change_owned_provenance_state() -> None:
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            organism=Organism.RAT,
+        )
+    )
+    fingerprint_before = fingerprint_table(built.phospho, name="dataset.phospho")
+
+    safe_copy = built.to_dataframe(copy=True)
+    safe_copy.iloc[0, 0] = 999.0
+
+    fingerprint_after = fingerprint_table(built.phospho, name="dataset.phospho")
+    assert fingerprint_before.hash_value == fingerprint_after.hash_value
+
+
+def test_borrowed_public_export_can_drift_from_original_provenance_interpretation() -> (
+    None
+):
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=_phospho(),
+            site_metadata=_site_metadata(),
+            organism=Organism.RAT,
+        )
+    )
+    fingerprint_before = fingerprint_table(built.phospho, name="dataset.phospho")
+
+    borrowed = built.to_dataframe(copy=False)
+    borrowed.iloc[0, 0] = 999.0
+
+    fingerprint_after = fingerprint_table(built.phospho, name="dataset.phospho")
+    assert fingerprint_before.hash_value != fingerprint_after.hash_value

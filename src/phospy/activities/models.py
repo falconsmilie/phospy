@@ -6,6 +6,7 @@ from dataclasses import InitVar, dataclass
 
 import pandas as pd
 
+from phospy._frame_ownership import export_dataframe
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.tables.activity import (
@@ -145,3 +146,16 @@ class KinaseActivityResult:
             target_table=target_table,
             _assume_owned=True,
         )
+
+    def to_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return the primary weighted-activity matrix."""
+
+        return export_dataframe(self.weighted_activity, copy=copy)
+
+    def thresholded_substrate_mean_activity_dataframe(
+        self, *, copy: bool = True
+    ) -> pd.DataFrame:
+        return export_dataframe(self.thresholded_substrate_mean_activity, copy=copy)
+
+    def target_table_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
+        return export_dataframe(self.target_table, copy=copy)

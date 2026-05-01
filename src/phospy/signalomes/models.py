@@ -7,7 +7,12 @@ from typing import Literal
 
 import pandas as pd
 
-from phospy._frame_ownership import own_dataframe, own_optional_dataframe
+from phospy._frame_ownership import (
+    export_dataframe,
+    export_optional_dataframe,
+    own_dataframe,
+    own_optional_dataframe,
+)
 from phospy.api.configs import (
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
@@ -206,6 +211,9 @@ class SignalomeAssignments:
     def _from_owned(cls, *, table: pd.DataFrame) -> SignalomeAssignments:
         return cls(table=table, _assume_owned=True)
 
+    def to_pandas(self, *, copy: bool = True) -> pd.DataFrame:
+        return export_dataframe(self.table, copy=copy)
+
 
 @dataclass(frozen=True, slots=True)
 class SignalomeModules:
@@ -232,6 +240,9 @@ class SignalomeModules:
     @classmethod
     def _from_owned(cls, *, table: pd.DataFrame) -> SignalomeModules:
         return cls(table=table, _assume_owned=True)
+
+    def to_pandas(self, *, copy: bool = True) -> pd.DataFrame:
+        return export_dataframe(self.table, copy=copy)
 
 
 @dataclass(frozen=True, slots=True)
@@ -310,6 +321,19 @@ class KinaseNetwork:
             ),
             _assume_owned=True,
         )
+
+    def to_pandas(self, *, copy: bool = True) -> pd.DataFrame:
+        """Return the primary kinase-network edges table."""
+
+        return export_dataframe(self.edges, copy=copy)
+
+    def nodes_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.nodes, copy=copy)
+
+    def candidate_correlations_dataframe(
+        self, *, copy: bool = True
+    ) -> pd.DataFrame | None:
+        return export_optional_dataframe(self.candidate_correlations, copy=copy)
 
 
 __all__ = [
