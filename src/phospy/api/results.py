@@ -1,4 +1,6 @@
 """Public result models."""
+# pyright: reportMissingTypeStubs=false, reportUnnecessaryIsInstance=false
+# pandas has no bundled stubs here; runtime boundary guards are intentionally retained.
 
 from __future__ import annotations
 

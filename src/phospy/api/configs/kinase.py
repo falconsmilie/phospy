@@ -1,4 +1,6 @@
 """Public kinase workflow configuration models."""
+# pyright: reportUnnecessaryIsInstance=false
+# Runtime boundary guards are intentionally retained for untyped external callers.
 
 from __future__ import annotations
 
