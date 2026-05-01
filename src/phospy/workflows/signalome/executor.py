@@ -2,25 +2,14 @@
 
 from __future__ import annotations
 
-import pandas as pd
-
 from phospy.api.results import SignalomeWorkflowResult
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.provenance.models import (
-    PreprocessingStageProvenance,
-    RunProvenance,
-    TableFingerprint,
-)
 from phospy.signalomes.clustering import (
-    ClusterSitesResult,
     run_signalome_clustering_engine,
 )
 from phospy.signalomes.context import (
     build_protein_site_context_table,
     build_site_membership_table,
-)
-from phospy.signalomes.models import (
-    SignalomeNetworkCorrelationDiagnostics,
 )
 from phospy.signalomes.science import (
     build_expanded_signalome_table,
@@ -30,15 +19,11 @@ from phospy.signalomes.science import (
     select_kinase_substrates,
 )
 from phospy.workflows.signalome.clustering_runner import SignalomeClusteringRunner
-from phospy.workflows.signalome.component_models import (
-    SignalomeScaleGuardDecision,
-)
 from phospy.workflows.signalome.constants import (
     SIGNALOME_WORKFLOW_BOUNDARY_MESSAGE_PREFIX,
 )
 from phospy.workflows.signalome.context_tables import SignalomeContextTableBuilder
 from phospy.workflows.signalome.contracts import (
-    ResolvedSignalomeExecutionConfig,
     ResolvedSignalomeWorkflowRequest,
 )
 from phospy.workflows.signalome.module_tables import SignalomeModuleTableBuilder
@@ -180,48 +165,3 @@ class SignalomeWorkflowExecutor:
             details=details,
             message_prefix=SIGNALOME_WORKFLOW_BOUNDARY_MESSAGE_PREFIX,
         )
-
-
-def _build_signalome_run_provenance(
-    *,
-    request: ResolvedSignalomeWorkflowRequest,
-    config: ResolvedSignalomeExecutionConfig,
-    clustering_result: ClusterSitesResult,
-    module_assignments: pd.DataFrame,
-    signalome_modules: pd.DataFrame,
-    network_edges: pd.DataFrame,
-    network_nodes: pd.DataFrame,
-    candidate_correlations: pd.DataFrame,
-    network_correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics,
-    expanded_signalome: pd.DataFrame,
-    site_membership: pd.DataFrame,
-    protein_site_context: pd.DataFrame,
-    scale_guard_decision: SignalomeScaleGuardDecision,
-) -> RunProvenance:
-    return SignalomeProvenanceBuilder().build(
-        request=request,
-        config=config,
-        clustering_result=clustering_result,
-        module_assignments=module_assignments,
-        signalome_modules=signalome_modules,
-        network_edges=network_edges,
-        network_nodes=network_nodes,
-        candidate_correlations=candidate_correlations,
-        network_correlation_diagnostics=network_correlation_diagnostics,
-        expanded_signalome=expanded_signalome,
-        site_membership=site_membership,
-        protein_site_context=protein_site_context,
-        scale_guard_decision=scale_guard_decision,
-    )
-
-
-def _dataset_preprocessing_stages(
-    request: ResolvedSignalomeWorkflowRequest,
-) -> tuple[PreprocessingStageProvenance, ...]:
-    return SignalomeProvenanceBuilder._dataset_preprocessing_stages(request)
-
-
-def _collect_fingerprints(
-    entries: tuple[tuple[str, pd.DataFrame | None], ...],
-) -> tuple[TableFingerprint, ...]:
-    return SignalomeProvenanceBuilder._collect_fingerprints(entries)

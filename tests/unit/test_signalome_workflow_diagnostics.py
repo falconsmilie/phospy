@@ -2716,7 +2716,10 @@ def test_executor_orchestrates_signalome_domain_services(
 ) -> None:
     import phospy.workflows.signalome.executor as executor_module
     from phospy.signalomes.clustering.models import SignalomeClusteringEngineResult
-    from phospy.signalomes.models import SignalomeModuleSelectionDiagnostics
+    from phospy.signalomes.models import (
+        SignalomeModuleSelectionDiagnostics,
+        SignalomeNetworkCorrelationDiagnostics,
+    )
 
     site_ids = ["P1;S1;", "P2;S2;"]
     kinases = ["K1", "K2"]
@@ -2865,7 +2868,7 @@ def test_executor_orchestrates_signalome_domain_services(
                     "correlation_reason": [None],
                 }
             ),
-            executor_module.SignalomeNetworkCorrelationDiagnostics(
+            SignalomeNetworkCorrelationDiagnostics(
                 total_candidate_correlations=1,
                 finite_correlations=1,
                 undefined_correlations=0,
