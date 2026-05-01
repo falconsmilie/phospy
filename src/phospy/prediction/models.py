@@ -112,23 +112,25 @@ class KinaseScoringResult:
             _assume_owned=True,
         )
 
-    def to_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
-        """Return the primary `profile_scores` matrix."""
+    def to_dataframe(self) -> pd.DataFrame:
+        """Return a `profile_scores` snapshot isolated from this result."""
 
-        return export_dataframe(self.profile_scores, copy=copy)
+        return export_dataframe(self.profile_scores)
 
-    def motif_scores_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.motif_scores, copy=copy)
+    def motif_scores_dataframe(self) -> pd.DataFrame | None:
+        """Return an optional motif-score snapshot isolated from this result."""
 
-    def rank_weighted_fusion_scores_dataframe(
-        self, *, copy: bool = True
-    ) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.rank_weighted_fusion_scores, copy=copy)
+        return export_optional_dataframe(self.motif_scores)
 
-    def score_fusion_weights_dataframe(
-        self, *, copy: bool = True
-    ) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.score_fusion_weights, copy=copy)
+    def rank_weighted_fusion_scores_dataframe(self) -> pd.DataFrame | None:
+        """Return an optional fusion-score snapshot isolated from this result."""
+
+        return export_optional_dataframe(self.rank_weighted_fusion_scores)
+
+    def score_fusion_weights_dataframe(self) -> pd.DataFrame | None:
+        """Return an optional fusion-weight snapshot isolated from this result."""
+
+        return export_optional_dataframe(self.score_fusion_weights)
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,10 +169,12 @@ class KinasePredictionResult:
             _assume_owned=True,
         )
 
-    def to_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
-        """Return the primary `pred_mat` matrix."""
+    def to_dataframe(self) -> pd.DataFrame:
+        """Return a `pred_mat` snapshot isolated from this result."""
 
-        return export_dataframe(self.pred_mat, copy=copy)
+        return export_dataframe(self.pred_mat)
 
-    def substrate_list_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.substrate_list, copy=copy)
+    def substrate_list_dataframe(self) -> pd.DataFrame | None:
+        """Return an optional substrate-list snapshot isolated from this result."""
+
+        return export_optional_dataframe(self.substrate_list)

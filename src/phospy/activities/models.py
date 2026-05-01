@@ -147,15 +147,17 @@ class KinaseActivityResult:
             _assume_owned=True,
         )
 
-    def to_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
-        """Return the primary weighted-activity matrix."""
+    def to_dataframe(self) -> pd.DataFrame:
+        """Return a weighted-activity snapshot isolated from this result."""
 
-        return export_dataframe(self.weighted_activity, copy=copy)
+        return export_dataframe(self.weighted_activity)
 
-    def thresholded_substrate_mean_activity_dataframe(
-        self, *, copy: bool = True
-    ) -> pd.DataFrame:
-        return export_dataframe(self.thresholded_substrate_mean_activity, copy=copy)
+    def thresholded_substrate_mean_activity_dataframe(self) -> pd.DataFrame:
+        """Return a thresholded-mean snapshot isolated from this result."""
 
-    def target_table_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
-        return export_dataframe(self.target_table, copy=copy)
+        return export_dataframe(self.thresholded_substrate_mean_activity)
+
+    def target_table_dataframe(self) -> pd.DataFrame:
+        """Return a target-table snapshot isolated from this result."""
+
+        return export_dataframe(self.target_table)

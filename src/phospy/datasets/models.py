@@ -222,38 +222,40 @@ class DatasetPreprocessingReport:
         object.__setattr__(self, "comparison_group_stats", comparison_group_stats)
         object.__setattr__(self, "comparison_pair_stats", comparison_pair_stats)
 
-    def row_counts_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
-        """Return preprocessing row-count report table."""
+    def row_counts_dataframe(self) -> pd.DataFrame:
+        """Return a row-count snapshot; mutating it does not mutate this report."""
 
-        return export_dataframe(self.row_counts, copy=copy)
+        return export_dataframe(self.row_counts)
 
-    def operations_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
-        """Return preprocessing operations report table."""
+    def operations_dataframe(self) -> pd.DataFrame:
+        """Return an operations snapshot; mutating it does not mutate this report."""
 
-        return export_dataframe(self.operations, copy=copy)
+        return export_dataframe(self.operations)
 
-    def row_audit_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
-        """Return preprocessing row-audit report table."""
+    def row_audit_dataframe(self) -> pd.DataFrame:
+        """Return a row-audit snapshot; mutating it does not mutate this report."""
 
-        return export_dataframe(self.row_audit, copy=copy)
+        return export_dataframe(self.row_audit)
 
-    def duplicate_site_resolution_dataframe(
-        self, *, copy: bool = True
-    ) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.duplicate_site_resolution, copy=copy)
+    def duplicate_site_resolution_dataframe(self) -> pd.DataFrame | None:
+        """Return an optional snapshot isolated from this report."""
 
-    def metadata_conflicts_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.metadata_conflicts, copy=copy)
+        return export_optional_dataframe(self.duplicate_site_resolution)
 
-    def comparison_group_stats_dataframe(
-        self, *, copy: bool = True
-    ) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.comparison_group_stats, copy=copy)
+    def metadata_conflicts_dataframe(self) -> pd.DataFrame | None:
+        """Return an optional snapshot isolated from this report."""
 
-    def comparison_pair_stats_dataframe(
-        self, *, copy: bool = True
-    ) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.comparison_pair_stats, copy=copy)
+        return export_optional_dataframe(self.metadata_conflicts)
+
+    def comparison_group_stats_dataframe(self) -> pd.DataFrame | None:
+        """Return an optional snapshot isolated from this report."""
+
+        return export_optional_dataframe(self.comparison_group_stats)
+
+    def comparison_pair_stats_dataframe(self) -> pd.DataFrame | None:
+        """Return an optional snapshot isolated from this report."""
+
+        return export_optional_dataframe(self.comparison_pair_stats)
 
     @classmethod
     def from_rows(
@@ -325,7 +327,8 @@ class AnalysisReadyPhosphoDataset:
     coherent with `site_metadata.gene_symbol` / `site_metadata.site`.
 
     Provenance in this object describes owned internal state at creation time.
-    Prefer public export helpers with ``copy=True`` for safe inspection.
+    Public export helpers return defensive snapshots; mutating exports does not
+    mutate this owning dataset.
     """
 
     phospho: pd.DataFrame
@@ -509,24 +512,27 @@ class AnalysisReadyPhosphoDataset:
             _assume_owned=True,
         )
 
-    def to_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
-        """Return the primary phospho matrix.
+    def to_dataframe(self) -> pd.DataFrame:
+        """Return a phospho snapshot; mutating it does not mutate this dataset."""
 
-        ``copy=True`` returns a safe snapshot copy.
-        ``copy=False`` returns a borrowed DataFrame; mutating it mutates this
-        owning dataset.
-        """
+        return export_dataframe(self.phospho)
 
-        return export_dataframe(self.phospho, copy=copy)
+    def site_metadata_dataframe(self) -> pd.DataFrame:
+        """Return a site-metadata snapshot isolated from this dataset."""
 
-    def site_metadata_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
-        return export_dataframe(self.site_metadata, copy=copy)
+        return export_dataframe(self.site_metadata)
 
-    def sample_metadata_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.sample_metadata, copy=copy)
+    def sample_metadata_dataframe(self) -> pd.DataFrame | None:
+        """Return an optional sample-metadata snapshot isolated from this dataset."""
 
-    def total_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.total, copy=copy)
+        return export_optional_dataframe(self.sample_metadata)
 
-    def comparisons_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.comparisons, copy=copy)
+    def total_dataframe(self) -> pd.DataFrame | None:
+        """Return an optional total-protein snapshot isolated from this dataset."""
+
+        return export_optional_dataframe(self.total)
+
+    def comparisons_dataframe(self) -> pd.DataFrame | None:
+        """Return an optional comparisons snapshot isolated from this dataset."""
+
+        return export_optional_dataframe(self.comparisons)

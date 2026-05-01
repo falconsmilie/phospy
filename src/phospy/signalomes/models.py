@@ -211,8 +211,10 @@ class SignalomeAssignments:
     def _from_owned(cls, *, table: pd.DataFrame) -> SignalomeAssignments:
         return cls(table=table, _assume_owned=True)
 
-    def to_pandas(self, *, copy: bool = True) -> pd.DataFrame:
-        return export_dataframe(self.table, copy=copy)
+    def to_pandas(self) -> pd.DataFrame:
+        """Return an assignments snapshot isolated from this object."""
+
+        return export_dataframe(self.table)
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,8 +243,10 @@ class SignalomeModules:
     def _from_owned(cls, *, table: pd.DataFrame) -> SignalomeModules:
         return cls(table=table, _assume_owned=True)
 
-    def to_pandas(self, *, copy: bool = True) -> pd.DataFrame:
-        return export_dataframe(self.table, copy=copy)
+    def to_pandas(self) -> pd.DataFrame:
+        """Return a modules snapshot isolated from this object."""
+
+        return export_dataframe(self.table)
 
 
 @dataclass(frozen=True, slots=True)
@@ -322,18 +326,20 @@ class KinaseNetwork:
             _assume_owned=True,
         )
 
-    def to_pandas(self, *, copy: bool = True) -> pd.DataFrame:
-        """Return the primary kinase-network edges table."""
+    def to_pandas(self) -> pd.DataFrame:
+        """Return an edges snapshot isolated from this network."""
 
-        return export_dataframe(self.edges, copy=copy)
+        return export_dataframe(self.edges)
 
-    def nodes_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.nodes, copy=copy)
+    def nodes_dataframe(self) -> pd.DataFrame | None:
+        """Return an optional nodes snapshot isolated from this network."""
 
-    def candidate_correlations_dataframe(
-        self, *, copy: bool = True
-    ) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.candidate_correlations, copy=copy)
+        return export_optional_dataframe(self.nodes)
+
+    def candidate_correlations_dataframe(self) -> pd.DataFrame | None:
+        """Return optional candidate correlations isolated from this network."""
+
+        return export_optional_dataframe(self.candidate_correlations)
 
 
 __all__ = [

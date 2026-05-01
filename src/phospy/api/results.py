@@ -57,8 +57,8 @@ class SignalomeWorkflowResult:
     site-level and protein-level phosphosite context.
 
     Provenance in this object describes owned internal state at creation time.
-    Prefer public export helpers with ``copy=True`` to avoid post-creation
-    mutation drift when inspecting tables.
+    Public export helpers return defensive snapshots; mutating exported
+    DataFrames does not mutate this owning result.
     """
 
     dataset: AnalysisReadyPhosphoDataset
@@ -166,18 +166,20 @@ class SignalomeWorkflowResult:
             _assume_owned=True,
         )
 
-    def to_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
-        """Return the primary expanded-signalome table when available."""
+    def to_dataframe(self) -> pd.DataFrame | None:
+        """Return an expanded-signalome snapshot when available."""
 
-        return export_optional_dataframe(self.expanded_signalome, copy=copy)
+        return export_optional_dataframe(self.expanded_signalome)
 
-    def site_membership_dataframe(self, *, copy: bool = True) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.site_membership, copy=copy)
+    def site_membership_dataframe(self) -> pd.DataFrame | None:
+        """Return a site-membership snapshot when available."""
 
-    def protein_site_context_dataframe(
-        self, *, copy: bool = True
-    ) -> pd.DataFrame | None:
-        return export_optional_dataframe(self.protein_site_context, copy=copy)
+        return export_optional_dataframe(self.site_membership)
+
+    def protein_site_context_dataframe(self) -> pd.DataFrame | None:
+        """Return a protein-site context snapshot when available."""
+
+        return export_optional_dataframe(self.protein_site_context)
 
 
 __all__ = [

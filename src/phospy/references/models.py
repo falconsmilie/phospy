@@ -140,8 +140,12 @@ class ReferenceBundle:
             _assume_owned=True,
         )
 
-    def kinase_substrate_map_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
-        return export_dataframe(self.kinase_substrate_map, copy=copy)
+    def kinase_substrate_map_dataframe(self) -> pd.DataFrame:
+        """Return a kinase-substrate map snapshot isolated from this bundle."""
 
-    def site_sequences_dataframe(self, *, copy: bool = True) -> pd.DataFrame:
-        return export_dataframe(self.site_sequences, copy=copy)
+        return export_dataframe(self.kinase_substrate_map)
+
+    def site_sequences_dataframe(self) -> pd.DataFrame:
+        """Return a site-sequence snapshot isolated from this bundle."""
+
+        return export_dataframe(self.site_sequences)

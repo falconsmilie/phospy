@@ -39,15 +39,10 @@ class TableSchema:
     def _validate_frame(self, frame: pd.DataFrame) -> pd.DataFrame:
         return frame
 
-    def to_pandas(self, *, copy: bool = True) -> pd.DataFrame:
-        """Return this table as pandas.
+    def to_pandas(self) -> pd.DataFrame:
+        """Return a table snapshot; mutating it does not mutate this object."""
 
-        ``copy=True`` returns a safe snapshot copy.
-        ``copy=False`` returns a borrowed DataFrame; mutating it mutates this
-        owning object.
-        """
-
-        return export_dataframe(self.frame, copy=copy)
+        return export_dataframe(self.frame)
 
     @classmethod
     def _from_owned(cls, *, frame: pd.DataFrame) -> TableSchema:

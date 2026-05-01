@@ -89,7 +89,7 @@ PhosPy treats DataFrames as owned mutable state internally.
 Input DataFrames are copied when accepted into validated dataset/table objects.
 Workflow internals may pass owned DataFrames without repeated defensive copies.
 Public result/table access should either return a safe copy or clearly mark the
-returned object as borrowed and unsafe to mutate.
+returned object as an internal-only borrowed reference.
 
 Provenance fingerprints describe the owned internal state at creation time.
 
@@ -97,9 +97,9 @@ Exposure categories:
 
 - `owned_internal`: DataFrames stored in dataset/result/table dataclass fields.
 - `safe_public_copy`: `to_dataframe(...)`, `to_pandas(...)`, and
-  `*_dataframe(...)` helpers with `copy=True` (default).
-- `borrowed_public_view`: same helpers with `copy=False`; borrowed and unsafe to
-  mutate unless intentional owner mutation is desired.
+  `*_dataframe(...)` helpers (always defensive snapshots).
+- `borrowed_internal_view`: private/internal helpers only (`_borrow_dataframe`,
+  `_borrow_optional_dataframe`).
 - `export_snapshot`: persisted outputs and provenance fingerprints.
 
 ## Release Notes
