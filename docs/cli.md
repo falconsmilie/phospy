@@ -104,7 +104,7 @@ Signalome-specific options:
 | `--network-correlation-threshold` | `0.5` | edge threshold used by the network policy |
 | `--network-policy` | `signed` | `positive_only`, `absolute_threshold`, or `signed` |
 | `--assignment-policy` | `cutoff_binary` | `cutoff_binary` or `weighted_top` |
-| `--score-preconditioning-policy` | `allow_and_report` | allow/report or reject all-missing score rows |
+| `--score-preconditioning-policy` | `error_on_drop` | strict default (fail when all-missing rows would be dropped); set `allow_and_report` to proceed and record diagnostics |
 | `--tree-engine` | `exact` | exact tree construction; only supported value |
 | `--candidate-scoring-policy` | `full` | `full` or `sampled` candidate module-count scoring |
 | `--max-exact-tree-sites` | `2000` | hard guard for exact tree construction |

@@ -813,6 +813,7 @@ def test_signalome_workflow_performance_contract_covers_all_missing_row_precondi
                     max_exact_tree_sites=360,
                     max_full_candidate_scoring_sites=140,
                     clustering_engine=SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+                    score_preconditioning_policy="allow_and_report",
                 ),
             )
         ),
@@ -839,6 +840,7 @@ def test_signalome_workflow_performance_contract_covers_all_missing_row_precondi
     assert preconditioning["retained_row_count"] == int(
         result.module_assignments.table.shape[0]
     )
+    assert preconditioning["policy"] == "allow_and_report"
     assert runtime_seconds < SIGNALOME_WORKFLOW_PRECONDITIONED_RUNTIME_SECONDS_MAX
     assert peak_mib < SIGNALOME_WORKFLOW_PRECONDITIONED_PEAK_MIB_MAX
 

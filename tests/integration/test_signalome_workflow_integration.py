@@ -459,6 +459,7 @@ def test_signalome_workflow_accepts_sparse_missing_rank_weighted_fusion_score_ro
             config=build_signalome_config(
                 substrate_support_cutoff=0.5,
                 network_correlation_threshold=0.2,
+                score_preconditioning_policy="allow_and_report",
             ),
         )
     )
@@ -478,7 +479,7 @@ def test_signalome_workflow_accepts_sparse_missing_rank_weighted_fusion_score_ro
     assert result.score_preconditioning_diagnostics.policy == "allow_and_report"
 
 
-def test_signalome_workflow_rejects_sparse_missing_rank_weighted_fusion_rows_under_error_policy() -> (
+def test_signalome_workflow_rejects_sparse_missing_rank_weighted_fusion_rows_under_default_strict_policy() -> (
     None
 ):
     dataset = build_rat_l6_dataset(n_sites=260)
@@ -521,7 +522,6 @@ def test_signalome_workflow_rejects_sparse_missing_rank_weighted_fusion_rows_und
                 config=build_signalome_config(
                     substrate_support_cutoff=0.5,
                     network_correlation_threshold=0.2,
-                    score_preconditioning_policy="error_on_drop",
                 ),
             )
         )

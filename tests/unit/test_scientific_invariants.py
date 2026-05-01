@@ -16,6 +16,7 @@ from phospy.api.configs import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
     SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     SIGNALOME_CLUSTERING_ENGINE_EXACT_PYTHON,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
 )
 from phospy.api.results import (
     KinasePredictionResult,
@@ -476,7 +477,12 @@ def test_signalome_missing_value_preconditioning_is_recorded_in_diagnostics_and_
     result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(
             kinase_result=kinase_result,
-            config=build_signalome_config(module_count=2),
+            config=build_signalome_config(
+                module_count=2,
+                score_preconditioning_policy=(
+                    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+                ),
+            ),
         )
     )
 

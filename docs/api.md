@@ -274,7 +274,7 @@ Grouped options:
 | `clustering` | `module_selection_max_clusters` | `10` | largest candidate module count considered |
 | `clustering` | `candidate_scoring_policy` | `"full"` | `"full"` or `"sampled"` for candidate module-count scoring |
 | `clustering` | `clustering_engine` | `"scipy_hierarchical"` | `"exact_python"` or `"scipy_hierarchical"` |
-| `validation` | `score_preconditioning_policy` | `"allow_and_report"` | allow or reject all-missing downstream score rows |
+| `validation` | `score_preconditioning_policy` | `"error_on_drop"` | strict-by-default handling of all-missing downstream score rows; set `"allow_and_report"` to opt in to row dropping |
 | `validation` | `allow_mixed_total_protein_quantitative_meaning` | `False` | require explicit opt-in to run on mixed corrected/uncorrected datasets |
 | `output` | `network_correlation_threshold` | `0.5` | threshold used by the network policy |
 | `output` | `network_policy` | `"signed"` | `"positive_only"`, `"absolute_threshold"`, or `"signed"` |

@@ -4,12 +4,17 @@ from pathlib import Path
 
 import pytest
 
+from phospy.api.configs import (
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
+)
 from phospy.cli import main as cli_main
 from phospy.datasets.builders.executor import DatasetBuildExecutor
 from phospy.datasets.builders.public import AnalysisReadyDatasetBuilder
 from phospy.datasets.builders.transformation_resolver import (
     DatasetIntensityScaleResolver,
 )
+from phospy.io.cli import build_parser
 from tests.support.rewrite_fixture_data import load_rat_l6_phospho, site_metadata_for
 
 pytestmark = pytest.mark.integration
@@ -151,6 +156,61 @@ def test_cli_signalome_from_files_writes_supported_lane_outputs(
     assert (outdir / "signalome" / "kinase_network_candidate_correlations.csv").exists()
     assert (outdir / "signalome" / "manifest.json").exists()
     assert (outdir / "signalome" / "expanded_signalome.csv").exists()
+
+
+def test_cli_signalome_argument_default_is_strict_score_preconditioning() -> None:
+    args = build_parser().parse_args(
+        [
+            "signalome",
+            "--phospho",
+            "phospho.csv",
+            "--site-metadata",
+            "site_metadata.csv",
+        ]
+    )
+    assert args.score_preconditioning_policy == (
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+    )
+
+
+def test_cli_signalome_accepts_explicit_allow_and_report_preconditioning_policy(
+    tmp_path: Path,
+) -> None:
+    phospho = load_rat_l6_phospho().head(260).copy(deep=True)
+    site_metadata = site_metadata_for(phospho)
+    site_metadata.loc[:, "protein_id"] = site_metadata.loc[:, "gene_symbol"].astype(str)
+    phospho_path = tmp_path / "phospho.csv"
+    site_metadata_path = tmp_path / "site_metadata.csv"
+    outdir = tmp_path / "out"
+    phospho.to_csv(phospho_path)
+    site_metadata.to_csv(site_metadata_path)
+
+    exit_code = cli_main(
+        [
+            "signalome",
+            "--phospho",
+            str(phospho_path),
+            "--site-metadata",
+            str(site_metadata_path),
+            "--organism",
+            "rat",
+            "--reference",
+            "auto",
+            "--prediction-top-k",
+            "6",
+            "--prediction-deterministic-max-selected-kinases",
+            "12",
+            "--prediction-adaptive-ensemble-runs",
+            "12",
+            "--score-preconditioning-policy",
+            SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    assert exit_code == 0
+    assert (outdir / "signalome" / "manifest.json").exists()
 
 
 def test_cli_reports_input_format_errors(

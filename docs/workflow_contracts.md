@@ -147,8 +147,8 @@ For executable usage, see:
 ### Missing-Value Policy
 
 - All-missing downstream-score rows are handled by `config.validation.score_preconditioning_policy`:
-  - `allow_and_report`: drop and report
-  - `error_on_drop`: fail fast
+  - `error_on_drop` (default): fail fast
+  - `allow_and_report`: explicit opt-in to drop and report
 - Non-finite values are rejected.
 - Partially missing values are retained for correlation-based steps with explicit diagnostics.
 

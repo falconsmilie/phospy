@@ -116,7 +116,7 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert int(diagnostics_payload["selected_module_count"]) >= 1
     assert isinstance(diagnostics_payload["candidate_scores"], dict)
     preconditioning_payload = signalome_metadata["score_preconditioning_diagnostics"]
-    assert preconditioning_payload["policy"] == "allow_and_report"
+    assert preconditioning_payload["policy"] == "error_on_drop"
     assert int(preconditioning_payload["input_row_count"]) >= 0
     assert int(preconditioning_payload["dropped_all_missing_row_count"]) >= 0
     assert int(preconditioning_payload["retained_row_count"]) >= 0
@@ -138,6 +138,10 @@ def test_signalome_bundle_manifest_v1_is_explicit_and_handles_optional_outputs(
     assert "signalome_config" in provenance["workflow_parameters"]
     signalome_config = provenance["workflow_parameters"]["signalome_config"]
     assert signalome_config["clustering"]["candidate_scoring_policy"] == "full"
+    assert (
+        signalome_config["validation"]["score_preconditioning_policy"]
+        == "error_on_drop"
+    )
     assert signalome_config["performance"]["max_exact_tree_sites"] == 2000
     assert signalome_config["performance"]["max_full_candidate_scoring_sites"] == 2000
     assert "scale_guard" in provenance["workflow_parameters"]

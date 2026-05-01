@@ -184,7 +184,7 @@ class SignalomeValidationConfig:
     """Validation and strictness policy for signalome inputs."""
 
     score_preconditioning_policy: SignalomeScorePreconditioningPolicy = (
-        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
     )
     allow_mixed_total_protein_quantitative_meaning: bool = (
         SIGNALOME_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT

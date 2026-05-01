@@ -10,7 +10,7 @@ from phospy.api.configs import (
     SIGNALOME_MODULE_SELECTION_FALLBACK_THRESHOLD_DEFAULT,
     SIGNALOME_MODULE_SELECTION_MAX_CLUSTERS_DEFAULT,
     SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT,
-    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+    SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     SignalomeAssignmentPolicy,
     SignalomeCandidateScoringPolicy,
     SignalomeClusteringConfig,
@@ -32,7 +32,7 @@ def build_signalome_config(
     network_policy: SignalomeKinaseNetworkPolicy = SIGNALOME_KINASE_NETWORK_POLICY_SIGNED,
     assignment_policy: SignalomeAssignmentPolicy = SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY,
     score_preconditioning_policy: SignalomeScorePreconditioningPolicy = (
-        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
     ),
     allow_mixed_total_protein_quantitative_meaning: bool = False,
     module_count: int | None = None,

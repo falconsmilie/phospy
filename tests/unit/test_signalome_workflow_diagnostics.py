@@ -516,7 +516,7 @@ def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:
         == SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY
     )
     assert interpreted.execution_config.score_preconditioning_policy == (
-        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
     )
     assert interpreted.execution_config.requested_module_count is None
     assert interpreted.execution_config.module_selection_primary_threshold == (
@@ -647,7 +647,12 @@ def test_interpreter_filters_site_indexed_inputs_to_retained_scores_after_precon
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=build_signalome_config(substrate_support_cutoff=0.5),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            score_preconditioning_policy=(
+                SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+            ),
+        ),
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)
@@ -711,7 +716,7 @@ def test_interpreter_reports_zero_drop_preconditioning_diagnostics() -> None:
     )
     assert interpreted.score_preconditioning_diagnostics.retained_row_count == 2
     assert interpreted.score_preconditioning_diagnostics.policy == (
-        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+        SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
     )
 
 
@@ -1057,7 +1062,7 @@ def test_interpreter_respects_explicit_allow_and_report_preconditioning_policy()
     )
 
 
-def test_interpreter_fails_when_error_on_drop_policy_detects_all_missing_rows() -> None:
+def test_interpreter_fails_by_default_when_all_missing_rows_would_be_dropped() -> None:
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
     prediction_matrix = _matrix(
@@ -1084,12 +1089,7 @@ def test_interpreter_fails_when_error_on_drop_policy_detects_all_missing_rows() 
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=build_signalome_config(
-            substrate_support_cutoff=0.5,
-            score_preconditioning_policy=(
-                SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
-            ),
-        ),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
     )
 
     with pytest.raises(WorkflowBoundaryError) as exc_info:
@@ -1105,11 +1105,13 @@ def test_interpreter_fails_when_error_on_drop_policy_detects_all_missing_rows() 
     assert error.details["score_preconditioning_policy"] == (
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
     )
+    assert "aligned_score_sites=3" in message
     assert "dropped_all_missing_row_count=1" in message
     assert (
         "score_preconditioning_policy="
         f"{SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP}"
     ) in message
+    assert "allow_and_report" in message
 
 
 def test_interpreter_allows_error_on_drop_policy_when_no_rows_require_drop() -> None:
@@ -1380,7 +1382,12 @@ def test_executor_uses_preconditioned_scores_when_missing_rows_are_present() -> 
             prediction_matrix=prediction_matrix,
             score_matrix=score_matrix,
         ),
-        config=build_signalome_config(substrate_support_cutoff=0.5),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            score_preconditioning_policy=(
+                SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+            ),
+        ),
     )
 
     interpreted = SignalomeWorkflowInterpreter().run(request)

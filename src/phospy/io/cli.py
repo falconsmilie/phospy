@@ -158,14 +158,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     signalome.add_argument(
         "--score-preconditioning-policy",
-        default=SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
+        default=SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
         choices=[
             SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT,
             SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
         ],
         help=(
-            "Downstream score preconditioning policy: allow dropped all-missing "
-            "rows with diagnostics, or fail when any drop would occur."
+            "Downstream score preconditioning policy: fail when any all-missing "
+            "row would be dropped (default), or opt into allow/report."
         ),
     )
     signalome.add_argument(

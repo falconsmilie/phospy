@@ -154,6 +154,7 @@ def _run_signalome_executor() -> tuple[
             substrate_support_cutoff=0.5,
             network_correlation_threshold=0.3,
             module_count=2,
+            score_preconditioning_policy="allow_and_report",
         ),
     )
     interpreted = SignalomeWorkflowInterpreter().run(request)

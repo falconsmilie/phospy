@@ -323,7 +323,7 @@ def test_network_policy_variant_historical_baseline_locks_signed_edges_and_narro
     assert SignalomeConfig().clustering.clustering_engine == "scipy_hierarchical"
     assert SignalomeConfig().performance.max_exact_tree_sites == 2000
     assert SignalomeConfig().validation.score_preconditioning_policy == (
-        "allow_and_report"
+        "error_on_drop"
     )
 
 
