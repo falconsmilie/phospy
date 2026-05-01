@@ -231,6 +231,10 @@ def test_dataset_preprocessing_config_rejects_wrong_nested_types(
             {"profile_missing_value_strategy": "invalid"},
             "scoring_config.profile_missing_value_strategy must be one of",
         ),
+        (
+            {"allow_mixed_total_protein_quantitative_meaning": "yes"},
+            "scoring_config.allow_mixed_total_protein_quantitative_meaning must be a bool",
+        ),
     ],
 )
 def test_kinase_scoring_config_self_validates(
@@ -356,6 +360,12 @@ def test_kinase_activity_config_self_validates(
                 score_preconditioning_policy="invalid"  # type: ignore[arg-type]
             ),
             "signalome workflow request config.validation.score_preconditioning_policy",
+        ),
+        (
+            lambda: SignalomeValidationConfig(
+                allow_mixed_total_protein_quantitative_meaning="yes"  # type: ignore[arg-type]
+            ),
+            "signalome workflow request config.validation.allow_mixed_total_protein_quantitative_meaning",
         ),
         (
             lambda: SignalomeClusteringConfig(module_count=0),

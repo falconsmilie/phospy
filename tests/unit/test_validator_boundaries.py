@@ -4,7 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from phospy import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
+    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -12,6 +14,7 @@ from phospy.api.configs import (
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
+    DatasetTotalProteinCorrectionIdentityConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -104,8 +107,49 @@ def _references() -> ReferenceBundle:
     )
 
 
-def _kinase_result() -> KinaseWorkflowResult:
-    dataset = _dataset()
+def _mixed_total_correction_dataset() -> AnalysisReadyPhosphoDataset:
+    phospho = pd.DataFrame(
+        {"sample_a": [15.0, 7.0], "sample_b": [31.0, 15.0]},
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "protein_id": ["MAPK14", "AKT1"],
+        },
+        index=phospho.index.copy(),
+    )
+    total = pd.DataFrame(
+        {"sample_a": [3.0], "sample_b": [7.0]},
+        index=pd.Index(["MAPK14"], name="protein_id"),
+    )
+    return AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            total=total,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+                total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                    policy="subtract_log_total",
+                    identity=DatasetTotalProteinCorrectionIdentityConfig(
+                        unmatched_policy=DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED
+                    ),
+                ),
+            ),
+        )
+    )
+
+
+def _kinase_result(
+    dataset: AnalysisReadyPhosphoDataset | None = None,
+) -> KinaseWorkflowResult:
+    resolved_dataset = _dataset() if dataset is None else dataset
     prediction_matrix = pd.DataFrame(
         {"MAP2K6": [0.9]},
         index=pd.Index(["MAPK14;Y182;"], name="site_id"),
@@ -115,7 +159,7 @@ def _kinase_result() -> KinaseWorkflowResult:
         index=pd.Index(["MAPK14;Y182;"], name="site_id"),
     )
     return KinaseWorkflowResult(
-        dataset=dataset,
+        dataset=resolved_dataset,
         references=_references(),
         scoring_result=KinaseScoringResult(
             profile_scores=score_matrix,
@@ -605,6 +649,53 @@ def test_kinase_request_reference_compatibility_is_enforced_in_resolver() -> Non
         KinaseWorkflow().run(request)
 
 
+def test_kinase_validator_rejects_mixed_total_protein_quantitative_meaning_by_default() -> (
+    None
+):
+    request = KinaseWorkflowRequest(
+        dataset=_mixed_total_correction_dataset(),
+        references=_references(),
+        scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(
+            top_k=5,
+            deterministic_max_selected_kinases=5,
+            adaptive_ensemble_runs=5,
+        ),
+        activity_config=None,
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match=(
+            "kinase workflow request dataset received a dataset with mixed "
+            "total-protein quantitative meaning"
+        ),
+    ) as exc_info:
+        KinaseWorkflowValidator().run(request)
+    assert "uncorrected_rows=1" in str(exc_info.value)
+    assert "unmatched_policy='allow_uncorrected'" in str(exc_info.value)
+
+
+def test_kinase_validator_allows_mixed_total_protein_quantitative_meaning_with_opt_in() -> (
+    None
+):
+    request = KinaseWorkflowRequest(
+        dataset=_mixed_total_correction_dataset(),
+        references=_references(),
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            allow_mixed_total_protein_quantitative_meaning=True,
+        ),
+        prediction_config=KinasePredictionConfig(
+            top_k=5,
+            deterministic_max_selected_kinases=5,
+            adaptive_ensemble_runs=5,
+        ),
+        activity_config=None,
+    )
+    validated = KinaseWorkflowValidator().run(request)
+    assert validated is request
+
+
 def test_kinase_activity_config_policy_fails_at_validator_boundary() -> None:
     with pytest.raises(
         WorkflowValidationError,
@@ -675,6 +766,39 @@ def test_signalome_request_preconditioning_policy_fails_at_validator_boundary() 
         SignalomeValidationConfig(
             score_preconditioning_policy="invalid"  # type: ignore[arg-type]
         )
+
+
+def test_signalome_validator_rejects_mixed_total_protein_quantitative_meaning_by_default() -> (
+    None
+):
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(_mixed_total_correction_dataset()),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
+    )
+    with pytest.raises(
+        WorkflowValidationError,
+        match=(
+            "signalome workflow request kinase_result.dataset received a dataset "
+            "with mixed total-protein quantitative meaning"
+        ),
+    ) as exc_info:
+        SignalomeWorkflowValidator().run(request)
+    assert "uncorrected_rows=1" in str(exc_info.value)
+    assert "unmatched_policy='allow_uncorrected'" in str(exc_info.value)
+
+
+def test_signalome_validator_allows_mixed_total_protein_quantitative_meaning_with_opt_in() -> (
+    None
+):
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(_mixed_total_correction_dataset()),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            allow_mixed_total_protein_quantitative_meaning=True,
+        ),
+    )
+    validated = SignalomeWorkflowValidator().run(request)
+    assert validated is request
 
 
 def test_signalome_request_module_count_policy_fails_at_validator_boundary() -> None:

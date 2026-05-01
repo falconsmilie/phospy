@@ -105,7 +105,15 @@ Optional tables remain optional. Missing optional activity, motif, node,
 site-membership, or context tables are represented as `None` when loaded.
 
 The manifest records output format, bundle kind, manifest version, table paths,
-reference organism, and provenance where available.
+reference organism, and provenance where available. Dataset metadata in the
+manifest includes `processing_state`, so explicit quantitative meaning
+(`phosphosite_log_abundance`, `phospho_total_log_ratio`, or mixed state) is
+preserved in published outputs.
+
+Bundle loaders reconstruct `dataset.processing_state` and
+`dataset.intensity_scale_state` from saved payloads, including mixed
+corrected/uncorrected total-protein quantitative meaning and row-level
+total-protein correction diagnostics.
 
 ## Choosing the Right Output Path
 

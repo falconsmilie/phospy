@@ -6,7 +6,10 @@ from phospy.api.requests import KinaseWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
 from phospy.references.models import ReferenceBundle, ReferencePreset
-from phospy.validation.workflows.configs import KinaseWorkflowConfigValidator
+from phospy.validation.workflows.configs import (
+    KinaseWorkflowConfigValidator,
+    reject_mixed_total_protein_quantitative_meaning,
+)
 
 
 class KinaseWorkflowValidator:
@@ -32,9 +35,14 @@ class KinaseWorkflowValidator:
             raise WorkflowValidationError(
                 "kinase workflow request references must be ReferencePreset or ReferenceBundle"
             )
-        self._config_validator.run(
+        scoring_config, _, _ = self._config_validator.run(
             scoring_config=request.scoring_config,
             prediction_config=request.prediction_config,
             activity_config=request.activity_config,
+        )
+        reject_mixed_total_protein_quantitative_meaning(
+            dataset=request.dataset,
+            allow_mixed=scoring_config.allow_mixed_total_protein_quantitative_meaning,
+            context="kinase workflow request dataset",
         )
         return request

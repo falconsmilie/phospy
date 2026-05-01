@@ -26,6 +26,7 @@ KINASE_ACTIVITY_TOP_N_SUBSTRATES_FLOOR = 1
 KINASE_ACTIVITY_DEFAULT_THRESHOLD = 0.6
 KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES = 3
 KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES = 20
+KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,11 +58,19 @@ class KinaseScoringConfig:
     profile_missing_value_strategy: KinaseProfileMissingValueStrategy = (
         KINASE_PROFILE_MISSING_VALUE_STRATEGY_STRICT
     )
+    allow_mixed_total_protein_quantitative_meaning: bool = (
+        KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT
+    )
 
     def __post_init__(self) -> None:
         if not isinstance(self.include_diagnostic_scoring_tables, bool):
             raise WorkflowValidationError(
                 "scoring_config.include_diagnostic_scoring_tables must be a bool"
+            )
+        if not isinstance(self.allow_mixed_total_protein_quantitative_meaning, bool):
+            raise WorkflowValidationError(
+                "scoring_config.allow_mixed_total_protein_quantitative_meaning "
+                "must be a bool"
             )
         if (
             self.profile_missing_value_strategy
@@ -120,6 +129,7 @@ class KinaseActivityConfig:
 
 
 __all__ = [
+    "KINASE_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT",
     "KINASE_ACTIVITY_DEFAULT_MIN_SUBSTRATES",
     "KINASE_ACTIVITY_DEFAULT_THRESHOLD",
     "KINASE_ACTIVITY_DEFAULT_TOP_N_SUBSTRATES",

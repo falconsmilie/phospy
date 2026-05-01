@@ -12,6 +12,7 @@ def test_kinase_snapshot_payload_round_trip_preserves_fields() -> None:
             "min_substrates": 3,
             "include_diagnostic_scoring_tables": False,
             "profile_missing_value_strategy": "median_skipna",
+            "allow_mixed_total_protein_quantitative_meaning": True,
         },
         "prediction_config": {
             "top_k": 5,

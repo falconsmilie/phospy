@@ -57,6 +57,7 @@ def _full_signalome_snapshot_payload(
             "score_preconditioning_policy": (
                 SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
             ),
+            "allow_mixed_total_protein_quantitative_meaning": False,
         },
         "output": {
             "network_correlation_threshold": 0.6,
@@ -87,6 +88,11 @@ def _full_signalome_snapshot_payload(
             clustering[key] = value
             continue
         if key in {"score_preconditioning_policy"}:
+            validation = signalome_config["validation"]
+            assert isinstance(validation, dict)
+            validation[key] = value
+            continue
+        if key in {"allow_mixed_total_protein_quantitative_meaning"}:
             validation = signalome_config["validation"]
             assert isinstance(validation, dict)
             validation[key] = value
@@ -187,6 +193,7 @@ def test_signalome_snapshot_payload_round_trip_preserves_all_fields() -> None:
                 "score_preconditioning_policy": (
                     SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
                 ),
+                "allow_mixed_total_protein_quantitative_meaning": True,
             },
             "output": {
                 "network_correlation_threshold": 0.73,

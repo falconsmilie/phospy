@@ -77,6 +77,9 @@ class SignalomeWorkflowConfigSnapshot:
                     "score_preconditioning_policy": str(
                         self.signalome_config.validation.score_preconditioning_policy
                     ),
+                    "allow_mixed_total_protein_quantitative_meaning": bool(
+                        self.signalome_config.validation.allow_mixed_total_protein_quantitative_meaning
+                    ),
                 },
                 "output": {
                     "network_correlation_threshold": float(

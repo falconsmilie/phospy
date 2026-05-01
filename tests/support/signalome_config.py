@@ -36,6 +36,7 @@ def build_signalome_config(
     score_preconditioning_policy: SignalomeScorePreconditioningPolicy = (
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
     ),
+    allow_mixed_total_protein_quantitative_meaning: bool = False,
     module_count: int | None = None,
     module_selection_primary_correlation_threshold: float = (
         SIGNALOME_MODULE_SELECTION_PRIMARY_THRESHOLD_DEFAULT
@@ -75,7 +76,10 @@ def build_signalome_config(
             clustering_engine=clustering_engine,
         ),
         validation=SignalomeValidationConfig(
-            score_preconditioning_policy=score_preconditioning_policy
+            score_preconditioning_policy=score_preconditioning_policy,
+            allow_mixed_total_protein_quantitative_meaning=(
+                allow_mixed_total_protein_quantitative_meaning
+            ),
         ),
         output=SignalomeOutputConfig(
             network_correlation_threshold=network_correlation_threshold,

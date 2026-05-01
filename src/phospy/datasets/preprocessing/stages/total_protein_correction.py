@@ -29,6 +29,10 @@ from phospy.provenance.hashing import hash_table
 
 _INDEX_IDENTITY_KEY = "__index__"
 _GENE_SYMBOL_COLUMN = "gene_symbol"
+_PHOSPHO_TOTAL_LOG_RATIO_QUANTITATIVE_MEANING = "phospho_total_log_ratio"
+_MIXED_QUANTITATIVE_MEANING = (
+    "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,6 +168,24 @@ def _build_diagnostics(
     uncorrected_rows = int(len(mapping.uncorrected_phosphosite_rows))
     unused_total_rows = int(len(mapping.unused_total_rows))
     shared_total_rows = int(len(mapping.total_rows_used_by_multiple_phosphosites))
+    quantitative_meaning = (
+        _MIXED_QUANTITATIVE_MEANING
+        if uncorrected_rows > 0
+        else _PHOSPHO_TOTAL_LOG_RATIO_QUANTITATIVE_MEANING
+    )
+    corrected_row_to_total_row = {
+        str(phosphosite_row_id): str(total_row_id)
+        for phosphosite_row_id, total_row_id in sorted(
+            mapping.phosphosite_to_total_row.items()
+        )
+    }
+    uncorrected_row_reasons = {
+        str(row_id): (
+            "no_matching_total_protein_row_retained_by_"
+            f"unmatched_policy_{str(identity_policy.unmatched_policy)}"
+        )
+        for row_id in mapping.uncorrected_phosphosite_rows
+    }
     diagnostics: dict[str, object] = {
         "diagnostics_schema_version": TOTAL_PROTEIN_CORRECTION_DIAGNOSTICS_SCHEMA_VERSION_V1,
         "policy": str(requested_policy),
@@ -173,7 +195,7 @@ def _build_diagnostics(
         "requires_log_scale": True,
         "input_scale": "log2",
         "output_scale": "log2_ratio",
-        "quantitative_meaning": "phospho_total_log_ratio",
+        "quantitative_meaning": quantitative_meaning,
         "matched_rows": corrected_rows,
         "identity_mode": str(identity_policy.mode),
         "phosphosite_key": str(identity_policy.phosphosite_key),
@@ -189,7 +211,10 @@ def _build_diagnostics(
         "uncorrected_row_count": uncorrected_rows,
         "unused_total_protein_row_count": unused_total_rows,
         "total_rows_used_by_multiple_phosphosites": shared_total_rows,
+        "corrected_phosphosite_row_ids": list(mapping.corrected_phosphosite_rows),
+        "corrected_phosphosite_to_total_protein_row_id": corrected_row_to_total_row,
         "unmatched_phosphosite_row_ids": list(mapping.uncorrected_phosphosite_rows),
+        "uncorrected_phosphosite_row_reasons": uncorrected_row_reasons,
         "unused_total_protein_row_ids": list(mapping.unused_total_rows),
         "gene_symbol_matching_used": bool(mapping.gene_symbol_matching_used),
         "gene_symbol_identity_warning": mapping.gene_symbol_warning,

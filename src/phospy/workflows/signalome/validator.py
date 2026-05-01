@@ -17,7 +17,10 @@ from phospy.validation.common.dataframes import (
     require_unique_columns,
     require_unique_index,
 )
-from phospy.validation.workflows.configs import SignalomeConfigValidator
+from phospy.validation.workflows.configs import (
+    SignalomeConfigValidator,
+    reject_mixed_total_protein_quantitative_meaning,
+)
 
 SIGNALOME_PROTEIN_IDENTITY_CONTRACT_NOTE = (
     "Signalome execution requires an explicit site_metadata.protein_id column. "
@@ -44,7 +47,12 @@ class SignalomeWorkflowValidator:
             raise WorkflowValidationError(
                 "signalome workflow request kinase_result must be KinaseWorkflowResult"
             )
-        self._config_validator.run(request.config)
+        config = self._config_validator.run(request.config)
+        reject_mixed_total_protein_quantitative_meaning(
+            dataset=request.kinase_result.dataset,
+            allow_mixed=config.validation.allow_mixed_total_protein_quantitative_meaning,
+            context="signalome workflow request kinase_result.dataset",
+        )
 
         prediction_matrix = require_dataframe(
             request.kinase_result.prediction_result.pred_mat,

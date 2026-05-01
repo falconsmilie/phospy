@@ -95,6 +95,10 @@ For executable usage, see:
 
 - No additional intensity transform or normalisation is done in this workflow.
 - The workflow consumes dataset values as provided by dataset-building preprocessing.
+- Mixed corrected/uncorrected total-protein quantitative meaning is rejected by
+  default. Set
+  `scoring_config.allow_mixed_total_protein_quantitative_meaning=True` only
+  when mixed-state input is intentional and scientifically justified.
 
 ### Scoring Policy
 
@@ -152,6 +156,10 @@ For executable usage, see:
 
 - No additional biological normalisation is applied.
 - For clustering internals, missing entries are handled by workflow-defined missing-value policy and imputation diagnostics are recorded.
+- Mixed corrected/uncorrected total-protein quantitative meaning is rejected by
+  default. Set
+  `config.validation.allow_mixed_total_protein_quantitative_meaning=True` only
+  when mixed-state input is intentional and scientifically justified.
 
 ### Scoring Policy
 

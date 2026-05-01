@@ -6,6 +6,7 @@ workflows, dataset/reference entrypoints, and public exception types.
 
 from phospy.api.builders import AnalysisReadyDatasetBuilder
 from phospy.api.configs import (
+    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
     DatasetMissingDataConfig,
@@ -103,6 +104,7 @@ __all__ = [
     "DatasetSiteMatrixConfig",
     "DatasetTotalProteinCorrectionIdentityConfig",
     "DatasetTotalProteinCorrectionConfig",
+    "DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED",
     "KinaseActivityConfig",
     "KinaseActivityResult",
     "KinasePredictionConfig",

@@ -22,6 +22,7 @@ from phospy.api.configs import (
 )
 from phospy.errors.input import PhosPyInputError
 from phospy.io.bundles._shared.primitives import (
+    require_bool,
     require_float,
     require_mapping,
     require_str,
@@ -62,8 +63,13 @@ _CLUSTERING_REQUIRED_FIELDS = frozenset(
     field for field in _CLUSTERING_ALLOWED_FIELDS if field not in {"clustering_engine"}
 )
 
-_VALIDATION_ALLOWED_FIELDS = frozenset({"score_preconditioning_policy"})
-_VALIDATION_REQUIRED_FIELDS = _VALIDATION_ALLOWED_FIELDS
+_VALIDATION_ALLOWED_FIELDS = frozenset(
+    {
+        "score_preconditioning_policy",
+        "allow_mixed_total_protein_quantitative_meaning",
+    }
+)
+_VALIDATION_REQUIRED_FIELDS = frozenset({"score_preconditioning_policy"})
 
 _OUTPUT_ALLOWED_FIELDS = frozenset({"network_correlation_threshold", "network_policy"})
 _OUTPUT_REQUIRED_FIELDS = _OUTPUT_ALLOWED_FIELDS
@@ -198,6 +204,13 @@ def signalome_config_from_payload(
             f"{scope}.signalome_config.validation.score_preconditioning_policy"
         ),
     )
+    allow_mixed_total_protein_quantitative_meaning = require_bool(
+        validation_payload.get("allow_mixed_total_protein_quantitative_meaning", False),
+        field_name=(
+            f"{scope}.signalome_config.validation."
+            "allow_mixed_total_protein_quantitative_meaning"
+        ),
+    )
     if score_preconditioning_policy not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES:
         allowed = ", ".join(sorted(SIGNALOME_SCORE_PRECONDITIONING_POLICIES))
         raise PhosPyInputError(
@@ -291,6 +304,9 @@ def signalome_config_from_payload(
         ),
         validation=SignalomeValidationConfig(
             score_preconditioning_policy=score_preconditioning_policy,  # type: ignore[arg-type]
+            allow_mixed_total_protein_quantitative_meaning=(
+                allow_mixed_total_protein_quantitative_meaning
+            ),
         ),
         output=SignalomeOutputConfig(
             network_correlation_threshold=require_float(

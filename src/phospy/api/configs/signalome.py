@@ -62,6 +62,7 @@ SIGNALOME_SCORE_PRECONDITIONING_POLICIES = frozenset(
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP,
     }
 )
+SIGNALOME_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT = False
 
 SIGNALOME_KINASE_NETWORK_POLICY_POSITIVE_ONLY = "positive_only"
 SIGNALOME_KINASE_NETWORK_POLICY_ABSOLUTE_THRESHOLD = "absolute_threshold"
@@ -194,8 +195,16 @@ class SignalomeValidationConfig:
     score_preconditioning_policy: SignalomeScorePreconditioningPolicy = (
         SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
     )
+    allow_mixed_total_protein_quantitative_meaning: bool = (
+        SIGNALOME_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT
+    )
 
     def __post_init__(self) -> None:
+        if not isinstance(self.allow_mixed_total_protein_quantitative_meaning, bool):
+            raise WorkflowValidationError(
+                "signalome workflow request config.validation."
+                "allow_mixed_total_protein_quantitative_meaning must be a bool"
+            )
         if (
             self.score_preconditioning_policy
             not in SIGNALOME_SCORE_PRECONDITIONING_POLICIES
@@ -312,6 +321,7 @@ class SignalomeConfig:
 
 
 __all__ = [
+    "SIGNALOME_ALLOW_MIXED_TOTAL_PROTEIN_QUANTITATIVE_MEANING_DEFAULT",
     "SIGNALOME_ASSIGNMENT_POLICIES",
     "SIGNALOME_ASSIGNMENT_POLICY_CUTOFF_BINARY",
     "SIGNALOME_ASSIGNMENT_POLICY_WEIGHTED_TOP",

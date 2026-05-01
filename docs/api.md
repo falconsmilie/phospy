@@ -156,6 +156,18 @@ Strictness controls are:
 - `duplicate_policy="error"`
 - `unmatched_policy="error"` or `"allow_uncorrected"`
 
+Quantitative meaning is explicit after preprocessing:
+
+- fully corrected log2 datasets: `phospho_total_log_ratio`
+- log2 datasets without total-protein correction: `phosphosite_log_abundance`
+- partially corrected datasets (`unmatched_policy="allow_uncorrected"` with retained unmatched rows):
+  `mixed_phospho_total_log_ratio_and_phosphosite_log_abundance`
+
+For mixed datasets, row-level correction status is available in
+`dataset.processing_state.total_protein_correction.diagnostics`, including
+`corrected_phosphosite_row_ids`, `corrected_phosphosite_to_total_protein_row_id`,
+and `uncorrected_phosphosite_row_reasons`.
+
 Gene-symbol matching is convenient, but it is not a universal biological identity
 guarantee. Prefer accessions, protein-group IDs, or an explicit mapping table
 when that better matches the experiment.
@@ -194,6 +206,7 @@ When `sample_metadata_pairs` is used, `sample_metadata` is required.
 | `min_substrates` | minimum quantified substrates per kinase; must be at least `2` |
 | `include_diagnostic_scoring_tables` | include extra scoring diagnostics when `True` |
 | `profile_missing_value_strategy` | `"strict"` or `"median_skipna"` |
+| `allow_mixed_total_protein_quantitative_meaning` | default `False`; require explicit opt-in to run on mixed corrected/uncorrected datasets |
 
 ### `KinasePredictionConfig`
 
@@ -263,6 +276,7 @@ Grouped options:
 | `clustering` | `candidate_scoring_policy` | `"full"` | `"full"` or `"sampled"` for candidate module-count scoring |
 | `clustering` | `clustering_engine` | `"scipy_hierarchical"` | `"exact_python"` or `"scipy_hierarchical"` |
 | `validation` | `score_preconditioning_policy` | `"allow_and_report"` | allow or reject all-missing downstream score rows |
+| `validation` | `allow_mixed_total_protein_quantitative_meaning` | `False` | require explicit opt-in to run on mixed corrected/uncorrected datasets |
 | `output` | `network_correlation_threshold` | `0.5` | threshold used by the network policy |
 | `output` | `network_policy` | `"signed"` | `"positive_only"`, `"absolute_threshold"`, or `"signed"` |
 | `performance` | `max_exact_tree_sites` | `2000` | advanced hard guard for exact tree construction |

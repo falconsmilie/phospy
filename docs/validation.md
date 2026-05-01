@@ -54,6 +54,9 @@ Common cross-field checks:
 
 - `subtract_log_total` requires `total` input data.
 - `subtract_log_total` requires `intensity_transform.policy="log2"`.
+- When `subtract_log_total` runs with `unmatched_policy="allow_uncorrected"` and
+  unmatched phosphosite rows are retained, dataset quantitative meaning is set to
+  `mixed_phospho_total_log_ratio_and_phosphosite_log_abundance`.
 - `sample_metadata_pairs` requires `sample_metadata`.
 - site-matrix construction may drop incomplete rows because the public output
   dataset must be complete.
@@ -81,12 +84,16 @@ is present.
 
 `KinaseScoringConfig.min_substrates` must be at least `2`. The activity stage can
 be disabled with `activity_config=None`, which is useful for tiny examples.
+Mixed corrected/uncorrected quantitative meaning is rejected by default; set
+`scoring_config.allow_mixed_total_protein_quantitative_meaning=True` to opt in.
 
 ### Signalome Workflow
 
 `SignalomeWorkflowRequest.kinase_result` must be a `KinaseWorkflowResult`.
 Signalome also requires explicit `protein_id` values for every interpreted site.
 Gene-symbol prefixes in site IDs are not treated as protein identity.
+Mixed corrected/uncorrected quantitative meaning is rejected by default; set
+`config.validation.allow_mixed_total_protein_quantitative_meaning=True` to opt in.
 
 Signalome scale guards protect expensive clustering work:
 
@@ -108,6 +115,7 @@ shows exact tree-generation details and candidate-scoring details separately.
 | signalome protein identity error | Add non-empty `protein_id` for every site. |
 | reference resolution error | Use rat with `AUTO`, or pass an explicit `ReferenceBundle`. |
 | total-protein correction error | Provide `total`, set `intensity_transform.policy="log2"`, and configure identity mapping. |
+| mixed quantitative meaning rejected | Use `unmatched_policy="error"` or complete total-protein mapping; if mixed inputs are intentional, set the workflow mixed-state opt-in flag. |
 | activity error on a tiny example | Disable activity or provide enough supported substrates. |
 | signalome scale error | Reduce sites, use `clustering.candidate_scoring_policy="sampled"` where appropriate, or raise `performance` guards deliberately. |
 

@@ -8,7 +8,11 @@ from phospy.api.configs import (
     KinaseScoringConfig,
     SignalomeConfig,
 )
+from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
+from phospy.transformations.models import QuantitativeMeaning
+
+_MIXED_QUANTITATIVE_MEANING = QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE.value
 
 
 class KinaseWorkflowConfigValidator:
@@ -68,4 +72,39 @@ class SignalomeConfigValidator:
         return config
 
 
-__all__ = ["KinaseWorkflowConfigValidator", "SignalomeConfigValidator"]
+def reject_mixed_total_protein_quantitative_meaning(
+    *,
+    dataset: AnalysisReadyPhosphoDataset,
+    allow_mixed: bool,
+    context: str,
+) -> None:
+    quantity = dataset.intensity_scale_state.quantity
+    if quantity is None or quantity.value != _MIXED_QUANTITATIVE_MEANING:
+        return
+    if allow_mixed:
+        return
+    diagnostics = dataset.processing_state.total_protein_correction.diagnostics
+    uncorrected_row_count = None
+    unmatched_policy = None
+    if diagnostics is not None:
+        uncorrected_row_count = diagnostics.get("uncorrected_row_count")
+        unmatched_policy = diagnostics.get("unmatched_policy")
+    raise WorkflowValidationError(
+        f"{context} received a dataset with mixed total-protein quantitative meaning "
+        f"({_MIXED_QUANTITATIVE_MEANING}). "
+        f"uncorrected_rows={uncorrected_row_count!r}, "
+        f"unmatched_policy={unmatched_policy!r}. "
+        "This usually happens when total-protein correction is applied with "
+        "unmatched_policy='allow_uncorrected'. "
+        "Recommended actions: set unmatched_policy='error' or complete the "
+        "phosphosite-to-total mapping. "
+        "If you intentionally want this mixed dataset, set the workflow "
+        "allow_mixed_total_protein_quantitative_meaning option to True."
+    )
+
+
+__all__ = [
+    "KinaseWorkflowConfigValidator",
+    "SignalomeConfigValidator",
+    "reject_mixed_total_protein_quantitative_meaning",
+]

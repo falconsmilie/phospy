@@ -39,7 +39,10 @@ _V1_KNOWN_DIAGNOSTICS_FIELDS = frozenset(
         "uncorrected_row_count",
         "unused_total_protein_row_count",
         "total_rows_used_by_multiple_phosphosites",
+        "corrected_phosphosite_row_ids",
+        "corrected_phosphosite_to_total_protein_row_id",
         "unmatched_phosphosite_row_ids",
+        "uncorrected_phosphosite_row_reasons",
         "unused_total_protein_row_ids",
         "gene_symbol_matching_used",
         "gene_symbol_identity_warning",
@@ -101,7 +104,10 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
     uncorrected_row_count: int | None = None
     unused_total_protein_row_count: int | None = None
     total_rows_used_by_multiple_phosphosites: int | None = None
+    corrected_phosphosite_row_ids: tuple[str, ...] | None = None
+    corrected_phosphosite_to_total_protein_row_id: dict[str, str] | None = None
     unmatched_phosphosite_row_ids: tuple[str, ...] | None = None
+    uncorrected_phosphosite_row_reasons: dict[str, str] | None = None
     unused_total_protein_row_ids: tuple[str, ...] | None = None
     gene_symbol_matching_used: bool | None = None
     gene_symbol_identity_warning: str | None = None
@@ -244,9 +250,23 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 payload.get("total_rows_used_by_multiple_phosphosites"),
                 field_name=f"{field_name}.total_rows_used_by_multiple_phosphosites",
             ),
+            corrected_phosphosite_row_ids=_require_optional_string_tuple(
+                payload.get("corrected_phosphosite_row_ids"),
+                field_name=f"{field_name}.corrected_phosphosite_row_ids",
+            ),
+            corrected_phosphosite_to_total_protein_row_id=_require_optional_string_to_string_mapping(
+                payload.get("corrected_phosphosite_to_total_protein_row_id"),
+                field_name=(
+                    f"{field_name}.corrected_phosphosite_to_total_protein_row_id"
+                ),
+            ),
             unmatched_phosphosite_row_ids=_require_optional_string_tuple(
                 payload.get("unmatched_phosphosite_row_ids"),
                 field_name=f"{field_name}.unmatched_phosphosite_row_ids",
+            ),
+            uncorrected_phosphosite_row_reasons=_require_optional_string_to_string_mapping(
+                payload.get("uncorrected_phosphosite_row_reasons"),
+                field_name=f"{field_name}.uncorrected_phosphosite_row_reasons",
             ),
             unused_total_protein_row_ids=_require_optional_string_tuple(
                 payload.get("unused_total_protein_row_ids"),
@@ -439,12 +459,37 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
                 "total_rows_used_by_multiple_phosphosites"
             ),
         )
+        corrected_phosphosite_row_ids = _require_optional_string_tuple(
+            self.corrected_phosphosite_row_ids,
+            field_name=(
+                "dataset processing state total_protein_correction.diagnostics."
+                "corrected_phosphosite_row_ids"
+            ),
+        )
+        corrected_phosphosite_to_total_protein_row_id = (
+            _require_optional_string_to_string_mapping(
+                self.corrected_phosphosite_to_total_protein_row_id,
+                field_name=(
+                    "dataset processing state total_protein_correction.diagnostics."
+                    "corrected_phosphosite_to_total_protein_row_id"
+                ),
+            )
+        )
         unmatched_phosphosite_row_ids = _require_optional_string_tuple(
             self.unmatched_phosphosite_row_ids,
             field_name=(
                 "dataset processing state total_protein_correction.diagnostics."
                 "unmatched_phosphosite_row_ids"
             ),
+        )
+        uncorrected_phosphosite_row_reasons = (
+            _require_optional_string_to_string_mapping(
+                self.uncorrected_phosphosite_row_reasons,
+                field_name=(
+                    "dataset processing state total_protein_correction.diagnostics."
+                    "uncorrected_phosphosite_row_reasons"
+                ),
+            )
         )
         unused_total_protein_row_ids = _require_optional_string_tuple(
             self.unused_total_protein_row_ids,
@@ -533,9 +578,21 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
             "total_rows_used_by_multiple_phosphosites",
             total_rows_used_by_multiple_phosphosites,
         )
+        if corrected_phosphosite_row_ids is not None:
+            payload["corrected_phosphosite_row_ids"] = list(
+                corrected_phosphosite_row_ids
+            )
+        if corrected_phosphosite_to_total_protein_row_id is not None:
+            payload["corrected_phosphosite_to_total_protein_row_id"] = dict(
+                corrected_phosphosite_to_total_protein_row_id
+            )
         if unmatched_phosphosite_row_ids is not None:
             payload["unmatched_phosphosite_row_ids"] = list(
                 unmatched_phosphosite_row_ids
+            )
+        if uncorrected_phosphosite_row_reasons is not None:
+            payload["uncorrected_phosphosite_row_reasons"] = dict(
+                uncorrected_phosphosite_row_reasons
             )
         if unused_total_protein_row_ids is not None:
             payload["unused_total_protein_row_ids"] = list(unused_total_protein_row_ids)
@@ -579,7 +636,22 @@ class TotalProteinCorrectionDiagnosticsV1(TotalProteinCorrectionDiagnostics):
             total_rows_used_by_multiple_phosphosites,
         )
         object.__setattr__(
+            self,
+            "corrected_phosphosite_row_ids",
+            corrected_phosphosite_row_ids,
+        )
+        object.__setattr__(
+            self,
+            "corrected_phosphosite_to_total_protein_row_id",
+            corrected_phosphosite_to_total_protein_row_id,
+        )
+        object.__setattr__(
             self, "unmatched_phosphosite_row_ids", unmatched_phosphosite_row_ids
+        )
+        object.__setattr__(
+            self,
+            "uncorrected_phosphosite_row_reasons",
+            uncorrected_phosphosite_row_reasons,
         )
         object.__setattr__(
             self, "unused_total_protein_row_ids", unused_total_protein_row_ids
@@ -754,6 +826,28 @@ def _require_optional_string_tuple(
             )
         )
     return tuple(parsed)
+
+
+def _require_optional_string_to_string_mapping(
+    value: object,
+    *,
+    field_name: str,
+) -> dict[str, str] | None:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise PhosPyInputError(f"{field_name} must be an object of string mappings")
+    parsed: dict[str, str] = {}
+    for raw_key, raw_value in value.items():
+        key = _require_required_str(
+            raw_key,
+            field_name=f"{field_name}.<key>",
+        )
+        parsed[key] = _require_required_str(
+            raw_value,
+            field_name=f"{field_name}.{key}",
+        )
+    return parsed
 
 
 def _set_optional_payload_value(

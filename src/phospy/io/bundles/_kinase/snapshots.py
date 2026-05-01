@@ -34,6 +34,14 @@ _SCORING_CONFIG_ALLOWED_FIELDS = frozenset(
         "min_substrates",
         "include_diagnostic_scoring_tables",
         "profile_missing_value_strategy",
+        "allow_mixed_total_protein_quantitative_meaning",
+    }
+)
+_SCORING_CONFIG_REQUIRED_FIELDS = frozenset(
+    {
+        "min_substrates",
+        "include_diagnostic_scoring_tables",
+        "profile_missing_value_strategy",
     }
 )
 _PREDICTION_CONFIG_ALLOWED_FIELDS = frozenset(
@@ -103,6 +111,9 @@ class KinaseWorkflowConfigSnapshot:
                 "profile_missing_value_strategy": (
                     self.scoring_config.profile_missing_value_strategy
                 ),
+                "allow_mixed_total_protein_quantitative_meaning": (
+                    self.scoring_config.allow_mixed_total_protein_quantitative_meaning
+                ),
             },
             "prediction_config": {
                 "top_k": self.prediction_config.top_k,
@@ -147,7 +158,7 @@ class KinaseWorkflowConfigSnapshot:
         _require_fields(
             scoring_payload,
             field_name=f"{scope}.scoring_config",
-            required_fields=_SCORING_CONFIG_ALLOWED_FIELDS,
+            required_fields=_SCORING_CONFIG_REQUIRED_FIELDS,
         )
         prediction_payload = require_mapping(
             payload.get("prediction_config"),
@@ -223,6 +234,15 @@ class KinaseWorkflowConfigSnapshot:
                             f"{scope}.scoring_config.profile_missing_value_strategy"
                         ),
                     )
+                ),
+                allow_mixed_total_protein_quantitative_meaning=require_bool(
+                    scoring_payload.get(
+                        "allow_mixed_total_protein_quantitative_meaning", False
+                    ),
+                    field_name=(
+                        f"{scope}.scoring_config."
+                        "allow_mixed_total_protein_quantitative_meaning"
+                    ),
                 ),
             ),
             prediction_config=KinasePredictionConfig(

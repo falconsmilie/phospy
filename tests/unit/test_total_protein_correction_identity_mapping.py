@@ -97,6 +97,7 @@ def test_total_correction_direct_accession_mapping_succeeds() -> None:
     )
     assert diagnostics["identity_mode"] == "direct"
     assert diagnostics["corrected_row_count"] == 3
+    assert diagnostics["quantitative_meaning"] == "phospho_total_log_ratio"
     assert diagnostics["total_rows_used_by_multiple_phosphosites"] == 1
     assert diagnostics["gene_symbol_matching_used"] is False
     assert corrected.shape == _phospho().shape
@@ -327,7 +328,26 @@ def test_total_correction_unmatched_rows_can_be_retained_when_configured() -> No
         total=total,
     )
     assert diagnostics["uncorrected_row_count"] == 1
+    assert (
+        diagnostics["quantitative_meaning"]
+        == "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance"
+    )
+    assert diagnostics["corrected_row_count"] == 2
+    assert diagnostics["corrected_phosphosite_row_ids"] == [
+        "MAPK14;T180;",
+        "MAPK14;Y182;",
+    ]
+    assert diagnostics["corrected_phosphosite_to_total_protein_row_id"] == {
+        "MAPK14;T180;": "P53778",
+        "MAPK14;Y182;": "P53778",
+    }
     assert diagnostics["unmatched_phosphosite_row_ids"] == ["AKT1;T308;"]
+    assert diagnostics["uncorrected_phosphosite_row_reasons"] == {
+        "AKT1;T308;": (
+            "no_matching_total_protein_row_retained_by_"
+            "unmatched_policy_allow_uncorrected"
+        )
+    }
     assert diagnostics["unused_total_protein_row_count"] == 0
     assert list(corrected.index) == list(_phospho().index)
 

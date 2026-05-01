@@ -21,7 +21,7 @@ from phospy.io.bundles._shared.processing_state import (
 )
 
 
-def _intensity_scale_state():
+def _intensity_scale_state(*, quantity: str = "phospho_total_log_ratio"):
     return intensity_scale_state_from_payload(
         {
             "phospho": {
@@ -34,14 +34,18 @@ def _intensity_scale_state():
                 "transformed": True,
                 "established_by": "bundle.fixture",
             },
-            "quantity": "phospho_total_log_ratio",
+            "quantity": quantity,
         }
     )
 
 
-def _processing_state_with_diagnostics(diagnostics):
+def _processing_state_with_diagnostics(
+    diagnostics,
+    *,
+    quantitative_meaning: str = "phospho_total_log_ratio",
+):
     return DatasetProcessingState(
-        intensity_scale=_intensity_scale_state(),
+        intensity_scale=_intensity_scale_state(quantity=quantitative_meaning),
         missing_data=MissingDataState(
             policy="forbid",
             min_observed_values=None,
@@ -56,7 +60,7 @@ def _processing_state_with_diagnostics(diagnostics):
             requires_log_scale=True,
             input_scale="log2",
             output_scale="log2_ratio",
-            quantitative_meaning="phospho_total_log_ratio",
+            quantitative_meaning=quantitative_meaning,
             diagnostics=diagnostics,
         ),
         site_matrix=SiteMatrixState(
@@ -74,7 +78,11 @@ def _processing_state_with_diagnostics(diagnostics):
     )
 
 
-def _processing_payload_with_diagnostics(diagnostics):
+def _processing_payload_with_diagnostics(
+    diagnostics,
+    *,
+    quantitative_meaning: str = "phospho_total_log_ratio",
+):
     return {
         "intensity_scale": {
             "phospho": {
@@ -87,7 +95,7 @@ def _processing_payload_with_diagnostics(diagnostics):
                 "transformed": True,
                 "established_by": "bundle.fixture",
             },
-            "quantity": "phospho_total_log_ratio",
+            "quantity": quantitative_meaning,
         },
         "missing_data": {
             "policy": "forbid",
@@ -103,7 +111,7 @@ def _processing_payload_with_diagnostics(diagnostics):
             "requires_log_scale": True,
             "input_scale": "log2",
             "output_scale": "log2_ratio",
-            "quantitative_meaning": "phospho_total_log_ratio",
+            "quantitative_meaning": quantitative_meaning,
             "diagnostics": diagnostics,
         },
         "site_matrix": {
@@ -184,6 +192,46 @@ def test_processing_state_payload_loads_new_versioned_diagnostics() -> None:
     diagnostics_payload = correction.diagnostics.to_payload()
     assert diagnostics_payload["diagnostics_schema_version"] == 1
     assert diagnostics_payload["matched_rows"] == 2
+
+
+def test_processing_state_payload_round_trip_preserves_mixed_total_correction_state() -> (
+    None
+):
+    mixed_meaning = "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance"
+    diagnostics = {
+        "diagnostics_schema_version": 1,
+        "policy": "subtract_log_total",
+        "requested_policy": "subtract_log_total",
+        "resolved_policy": "subtract_log_total",
+        "quantitative_meaning": mixed_meaning,
+        "corrected_row_count": 2,
+        "uncorrected_row_count": 1,
+        "unmatched_policy": "allow_uncorrected",
+        "corrected_phosphosite_row_ids": ["SITE_A", "SITE_B"],
+        "corrected_phosphosite_to_total_protein_row_id": {
+            "SITE_A": "TP_A",
+            "SITE_B": "TP_B",
+        },
+        "unmatched_phosphosite_row_ids": ["SITE_C"],
+        "uncorrected_phosphosite_row_reasons": {
+            "SITE_C": "no_matching_total_protein_row_retained_by_unmatched_policy_allow_uncorrected"
+        },
+    }
+    state = _processing_state_with_diagnostics(
+        diagnostics,
+        quantitative_meaning=mixed_meaning,
+    )
+    payload = processing_state_to_payload(state)
+    restored = processing_state_from_payload(payload)
+    assert restored.intensity_scale.quantity is not None
+    assert restored.intensity_scale.quantity.value == mixed_meaning
+    correction = restored.total_protein_correction
+    assert correction.quantitative_meaning == mixed_meaning
+    assert correction.diagnostics is not None
+    assert (
+        correction.diagnostics.to_payload()
+        == (payload["total_protein_correction"]["diagnostics"])
+    )
 
 
 def test_processing_state_from_payload_rejects_unversioned_diagnostics() -> None:

@@ -12,6 +12,7 @@ from phospy import (
     AnalysisReadyDatasetBuilder,
 )
 from phospy.api import (
+    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
     DatasetBuildRequest,
     DatasetComparisonBuildingConfig,
     DatasetIntensityTransformConfig,
@@ -20,6 +21,7 @@ from phospy.api import (
     DatasetPreprocessingConfig,
     DatasetSiteMatrixConfig,
     DatasetTotalProteinCorrectionConfig,
+    DatasetTotalProteinCorrectionIdentityConfig,
     Organism,
     ReferencePreset,
 )
@@ -330,6 +332,87 @@ def test_dataset_builder_applies_subtract_log_total_after_log2_transform() -> No
         built.provenance.workflow_parameters.get("quantitative_meaning")
         == "phospho_total_log_ratio"
     )
+
+
+def test_dataset_builder_marks_mixed_quantitative_meaning_when_uncorrected_rows_are_retained(
+    tmp_path: Path,
+) -> None:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [15.0, 7.0],
+            "sample_b": [31.0, 15.0],
+        },
+        index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "protein_id": ["MAPK14", "AKT1"],
+        },
+        index=phospho.index.copy(),
+    )
+    total = pd.DataFrame(
+        {
+            "sample_a": [3.0],
+            "sample_b": [7.0],
+        },
+        index=pd.Index(["MAPK14"], name="protein_id"),
+    )
+
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            total=total,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+                total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                    policy="subtract_log_total",
+                    identity=DatasetTotalProteinCorrectionIdentityConfig(
+                        unmatched_policy=DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED
+                    ),
+                ),
+            ),
+        )
+    )
+    mixed_meaning = "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance"
+    assert built.intensity_scale_state.quantity is not None
+    assert built.intensity_scale_state.quantity.value == mixed_meaning
+    correction = built.processing_state.total_protein_correction
+    assert correction.quantitative_meaning == mixed_meaning
+    assert correction.diagnostics is not None
+    assert correction.diagnostics.get("uncorrected_row_count") == 1
+    assert correction.diagnostics.get("corrected_row_count") == 1
+    assert correction.diagnostics.get("unmatched_policy") == "allow_uncorrected"
+    assert correction.diagnostics.get("corrected_phosphosite_row_ids") == [
+        "MAPK14;Y182;"
+    ]
+    assert correction.diagnostics.get(
+        "corrected_phosphosite_to_total_protein_row_id"
+    ) == {"MAPK14;Y182;": "MAPK14"}
+    assert correction.diagnostics.get("uncorrected_phosphosite_row_reasons") == {
+        "AKT1;T308;": (
+            "no_matching_total_protein_row_retained_by_"
+            "unmatched_policy_allow_uncorrected"
+        )
+    }
+
+    written = publish_dataset(
+        built,
+        tmp_path / "published_mixed",
+        output_format="csv",
+    )
+    manifest = json.loads(written["dataset.manifest"].read_text(encoding="utf-8"))
+    assert manifest["quantitative_meaning"] == mixed_meaning
+    assert manifest["processing_state"]["intensity_scale"]["quantity"] == mixed_meaning
+    correction_payload = manifest["processing_state"]["total_protein_correction"]
+    assert correction_payload["quantitative_meaning"] == mixed_meaning
+    assert correction_payload["diagnostics"]["quantitative_meaning"] == mixed_meaning
 
 
 def test_dataset_builder_requires_total_when_subtract_log_total_is_requested() -> None:

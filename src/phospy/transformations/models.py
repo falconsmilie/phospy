@@ -31,6 +31,9 @@ class QuantitativeMeaning(str, Enum):
     PHOSPHOSITE_ABUNDANCE = "phosphosite_abundance"
     PHOSPHOSITE_LOG_ABUNDANCE = "phosphosite_log_abundance"
     PHOSPHO_TOTAL_LOG_RATIO = "phospho_total_log_ratio"
+    MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE = (
+        "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance"
+    )
     UNKNOWN = "unknown"
 
 
@@ -316,6 +319,7 @@ def _validate_quantitative_meaning_kind_coherence(
         in {
             QuantitativeMeaning.PHOSPHOSITE_LOG_ABUNDANCE,
             QuantitativeMeaning.PHOSPHO_TOTAL_LOG_RATIO,
+            QuantitativeMeaning.MIXED_PHOSPHO_TOTAL_LOG_RATIO_AND_PHOSPHOSITE_LOG_ABUNDANCE,
         }
         and kind is not IntensityScaleKind.LOG2
     ):

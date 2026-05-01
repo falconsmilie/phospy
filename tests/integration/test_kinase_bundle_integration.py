@@ -11,10 +11,12 @@ from phospy import (
     KinaseWorkflow,
 )
 from phospy.api import (
+    DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED,
     DatasetBuildRequest,
     DatasetIntensityTransformConfig,
     DatasetPreprocessingConfig,
     DatasetTotalProteinCorrectionConfig,
+    DatasetTotalProteinCorrectionIdentityConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -136,6 +138,39 @@ def test_kinase_bundle_round_trip_preserves_total_protein_correction_state(
         check_dtype=False,
         check_names=False,
     )
+
+
+def test_kinase_bundle_round_trip_preserves_mixed_total_protein_quantitative_meaning(
+    tmp_path: Path,
+) -> None:
+    request = _build_request_with_subtract_log_total_and_uncorrected_rows(
+        activity=False
+    )
+    result = KinaseWorkflow().run(request)
+    bundle_root = tmp_path / "kinase_bundle_total_correction_mixed"
+
+    save_kinase_workflow_bundle(
+        result,
+        bundle_root,
+        config_snapshot=KinaseWorkflowConfigSnapshot.from_request(request),
+    )
+    loaded = load_kinase_workflow_bundle(bundle_root)
+
+    mixed_meaning = "mixed_phospho_total_log_ratio_and_phosphosite_log_abundance"
+    assert loaded.result.dataset.intensity_scale_state.quantity is not None
+    assert loaded.result.dataset.intensity_scale_state.quantity.value == mixed_meaning
+    correction = loaded.result.dataset.processing_state.total_protein_correction
+    assert correction.quantitative_meaning == mixed_meaning
+    assert correction.diagnostics is not None
+    assert correction.diagnostics.get("uncorrected_row_count") == 1
+    assert correction.diagnostics.get("unmatched_policy") == "allow_uncorrected"
+
+    manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
+    correction_payload = manifest["dataset"]["metadata"]["processing_state"][
+        "total_protein_correction"
+    ]
+    assert correction_payload["quantitative_meaning"] == mixed_meaning
+    assert correction_payload["diagnostics"]["quantitative_meaning"] == mixed_meaning
 
 
 def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
@@ -488,6 +523,101 @@ def _build_request(*, activity: bool) -> KinaseWorkflowRequest:
         dataset=dataset,
         references=references,
         scoring_config=KinaseScoringConfig(min_substrates=2),
+        prediction_config=KinasePredictionConfig(
+            top_k=2,
+            deterministic_max_selected_kinases=2,
+            adaptive_ensemble_runs=2,
+        ),
+        activity_config=(
+            KinaseActivityConfig(enabled=True, threshold=0.5, min_substrates=2)
+            if activity
+            else None
+        ),
+    )
+
+
+def _build_request_with_subtract_log_total_and_uncorrected_rows(
+    *,
+    activity: bool,
+) -> KinaseWorkflowRequest:
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [15.0, 7.0],
+            "sample_b": [31.0, 15.0],
+        },
+        index=["MAPK14;Y182;", "AKT1;T308;"],
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "AKT1"],
+            "site": ["Y182", "T308"],
+            "site_sequence": [
+                "LDFGLARHTDDEMTGYVATRWYRAPEIMLNW",
+                "MDFGLCKEGIKDGATMKLCKRERANWQPWQ",
+            ],
+            "protein_id": ["MAPK14", "AKT1"],
+        },
+        index=phospho.index.copy(),
+    )
+    sample_metadata = pd.DataFrame(
+        {
+            "group": ["treated", "control"],
+        },
+        index=phospho.columns.copy(),
+    )
+    total = pd.DataFrame(
+        {
+            "sample_a": [3.0],
+            "sample_b": [7.0],
+        },
+        index=["MAPK14"],
+    )
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            sample_metadata=sample_metadata,
+            total=total,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                intensity_transform=DatasetIntensityTransformConfig(
+                    policy="log2",
+                    pseudocount=1.0,
+                ),
+                total_protein_correction=DatasetTotalProteinCorrectionConfig(
+                    policy="subtract_log_total",
+                    identity=DatasetTotalProteinCorrectionIdentityConfig(
+                        unmatched_policy=DATASET_TOTAL_PROTEIN_CORRECTION_UNMATCHED_POLICY_ALLOW_UNCORRECTED
+                    ),
+                ),
+            ),
+        )
+    )
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K6"],
+                "substrate_site": [
+                    "MAPK14;Y182;",
+                    "AKT1;T308;",
+                ],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {
+                "site_sequence": site_metadata.loc[:, "site_sequence"],
+            },
+            index=pd.Index(site_metadata.index.copy(), name="site_id"),
+        ),
+    )
+    return KinaseWorkflowRequest(
+        dataset=dataset,
+        references=references,
+        scoring_config=KinaseScoringConfig(
+            min_substrates=2,
+            allow_mixed_total_protein_quantitative_meaning=True,
+        ),
         prediction_config=KinasePredictionConfig(
             top_k=2,
             deterministic_max_selected_kinases=2,
