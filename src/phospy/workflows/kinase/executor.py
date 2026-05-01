@@ -2,414 +2,132 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-import pandas as pd
-
 from phospy.activities.models import KinaseActivityResult
 from phospy.activities.scoring import compute_activity_from_inputs
-from phospy.api.configs import (
-    KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE,
-    KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING,
-    KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
-    KinasePredictionConfig,
-)
 from phospy.api.results import KinaseWorkflowResult
-from phospy.errors.workflows import WorkflowBoundaryError, WorkflowStageError
 from phospy.prediction.candidates import (
     build_candidate_substrate_list,
     summarize_candidate_shortfall,
 )
 from phospy.prediction.execution import run_adaptive_ensemble_prediction
-from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
+from phospy.prediction.models import KinasePredictionResult
 from phospy.prediction.motif_scoring import (
-    DEFAULT_MOTIF_FLANK_SIZE,
-    SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
-    MotifScoringResult,
     build_motif_library,
     get_motif_library_validation,
     score_phosphosite_motifs,
 )
-from phospy.prediction.policies import resolve_prediction_sampling_policy
 from phospy.prediction.scoring import (
     fuse_profile_and_motif_scores_by_rank_weight,
     select_downstream_score_matrix,
 )
-from phospy.provenance.environment import collect_environment_provenance
-from phospy.provenance.hashing import fingerprint_optional_table
-from phospy.provenance.models import (
-    PreprocessingStageProvenance,
-    RunProvenance,
-    TableFingerprint,
-)
-from phospy.scientific_policies import (
-    PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
-    CandidateSubstrateSelectionPolicy,
-    KinaseProfileScoringPolicy,
-    build_motif_profile_rank_fusion_policy,
-    build_simplified_weighted_substrate_activity_policy,
-)
 from phospy.validation.workflows.activity import KinaseActivityInputValidator
+from phospy.workflows.kinase.activity_runner import KinaseActivityRunner
+from phospy.workflows.kinase.component_models import KinaseScoringRunResult
 from phospy.workflows.kinase.contracts import (
     ResolvedKinaseExecutionConfig,
     ResolvedKinaseWorkflowRequest,
 )
+from phospy.workflows.kinase.prediction_runner import KinasePredictionRunner
+from phospy.workflows.kinase.provenance import KinaseProvenanceBuilder
+from phospy.workflows.kinase.result_assembly import KinaseResultAssembler
 from phospy.workflows.kinase.science import (
     build_kinase_profiles,
     build_prediction_outputs,
     rank_kinases_for_prediction,
     score_profile_correlations,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class _ScoringExecution:
-    scoring_result: KinaseScoringResult
-    downstream_score_matrix: pd.DataFrame
-    downstream_score_source: str
-    quantified_substrates: dict[str, list[str]]
-
-
-_CANDIDATE_SCORE_THRESHOLD = 0.0
-_CANDIDATE_MIN_INCLUSION = 1
+from phospy.workflows.kinase.scoring_runner import KinaseScoringRunner
 
 
 class KinaseWorkflowExecutor:
-    """Run stage logic and assemble `KinaseWorkflowResult`."""
+    """Run stage orchestration and assemble `KinaseWorkflowResult`."""
 
     def __init__(
         self,
         *,
         activity_input_validator: KinaseActivityInputValidator | None = None,
+        scoring_runner: KinaseScoringRunner | None = None,
+        prediction_runner: KinasePredictionRunner | None = None,
+        activity_runner: KinaseActivityRunner | None = None,
+        provenance_builder: KinaseProvenanceBuilder | None = None,
+        result_assembler: KinaseResultAssembler | None = None,
     ) -> None:
-        self._activity_input_validator = (
-            activity_input_validator or KinaseActivityInputValidator()
+        # Keep dependency wiring local so tests monkeypatching this module's symbols
+        # can still intercept default runner behavior.
+        self._scoring_runner = scoring_runner or KinaseScoringRunner(
+            build_profiles=build_kinase_profiles,
+            score_profiles=score_profile_correlations,
+            build_motif_library_fn=build_motif_library,
+            get_motif_library_validation_fn=get_motif_library_validation,
+            score_motifs=score_phosphosite_motifs,
+            fuse_scores=fuse_profile_and_motif_scores_by_rank_weight,
+            select_downstream=select_downstream_score_matrix,
         )
+        self._prediction_runner = prediction_runner or KinasePredictionRunner(
+            build_candidates=build_candidate_substrate_list,
+            summarize_candidate_shortfall_fn=summarize_candidate_shortfall,
+            run_adaptive_prediction=run_adaptive_ensemble_prediction,
+            rank_kinases=rank_kinases_for_prediction,
+            build_outputs=build_prediction_outputs,
+        )
+        self._activity_runner = activity_runner or KinaseActivityRunner(
+            activity_input_validator=activity_input_validator,
+            compute_activity=compute_activity_from_inputs,
+        )
+        self._provenance_builder = provenance_builder or KinaseProvenanceBuilder()
+        self._result_assembler = result_assembler or KinaseResultAssembler()
 
     def run(self, request: ResolvedKinaseWorkflowRequest) -> KinaseWorkflowResult:
         config = request.execution_config
-        scoring_execution = self._run_scoring_stage(
+        scoring_execution = self._scoring_runner.run(
             request=request,
             config=config,
         )
-        prediction_result = self._run_prediction_stage(
+        prediction_result = self._prediction_runner.run(
             request=request,
             config=config,
             scoring_execution=scoring_execution,
         )
-        activity_result = self._run_activity_stage(
+        activity_result = self._activity_runner.run(
             request=request,
             config=config,
             prediction_result=prediction_result,
         )
-        provenance = _build_kinase_run_provenance(
+        provenance = self._provenance_builder.run(
             request=request,
             config=config,
             scoring_result=scoring_execution.scoring_result,
             prediction_result=prediction_result,
             activity_result=activity_result,
         )
-        return KinaseWorkflowResult(
-            dataset=request.dataset,
-            references=request.references,
+        return self._result_assembler.run(
+            request=request,
             scoring_result=scoring_execution.scoring_result,
             prediction_result=prediction_result,
             activity_result=activity_result,
             provenance=provenance,
         )
 
+    # Compatibility hooks for existing tests that validate stage contracts directly.
     def _run_scoring_stage(
         self,
         *,
         request: ResolvedKinaseWorkflowRequest,
         config: ResolvedKinaseExecutionConfig,
-    ) -> _ScoringExecution:
-        # Authoritative downstream route:
-        # - profile correlations from quantified kinase substrates
-        # - rank-weighted fusion scores from profile+motif (with profile fallback)
-        #
-        # Optional diagnostic tables:
-        # - motif_scores
-        # - score_fusion_weights
-        include_diagnostic_tables = config.include_diagnostic_scoring_tables
-        scoring_min_substrates = int(config.scoring_min_substrates)
-        scoring_phospho = request.dataset.phospho.loc[request.scoring_site_index, :]
-        profile_build = build_kinase_profiles(
-            phospho=scoring_phospho,
-            kinase_substrate_map=request.kinase_substrate_map,
-            min_substrates=scoring_min_substrates,
-            allow_single_substrate_profiles=False,
-            profile_missing_value_strategy=config.profile_missing_value_strategy,
-        )
-        if profile_build.profile_matrix.empty:
-            raise WorkflowStageError(
-                "kinase workflow internal invariant failed at seam="
-                "kinase.executor.scoring_profiles; interpreter should reject "
-                "requests with zero eligible kinases before scoring"
-            )
-        profile_scores = score_profile_correlations(
-            phospho=scoring_phospho,
-            profile_matrix=profile_build.profile_matrix,
-        )
-        eligible_kinases = set(profile_scores.columns.astype(str))
-        # Performance contract: keep motif-library construction scoped to
-        # profile-eligible kinases so large off-lane reference maps do not
-        # dominate motif scoring cost.
-        motif_kinase_substrate_map = request.kinase_substrate_map.loc[
-            request.kinase_substrate_map.loc[:, "kinase"]
-            .astype(str)
-            .isin(eligible_kinases)
-        ]
-        sequence_series = request.site_sequences.loc[:, "site_sequence"]
-        motif_result = self._resolve_motif_scores(
-            request=request,
-            scoring_min_substrates=scoring_min_substrates,
-            scoring_phospho=scoring_phospho,
-            motif_kinase_substrate_map=motif_kinase_substrate_map,
-            sequence_series=sequence_series,
-        )
-        try:
-            (
-                rank_weighted_fusion_scores,
-                score_fusion_weights,
-            ) = fuse_profile_and_motif_scores_by_rank_weight(
-                motif_scores=motif_result.motif_scores,
-                profile_scores=profile_scores,
-                motif_sizes=motif_result.motif_sizes,
-                profile_sizes=profile_build.substrate_counts.astype(float),
-                allow_profile_only_fallback=True,
-                emit_weights=include_diagnostic_tables,
-            )
-        except ValueError as exc:
-            raise WorkflowStageError(
-                "kinase workflow internal invariant failed at seam="
-                "kinase.executor.rank_weighted_fusion_scoring; "
-                f"{exc}"
-            ) from exc
-        diagnostic_motif_scores: pd.DataFrame | None = None
-        if include_diagnostic_tables:
-            diagnostic_motif_scores = motif_result.motif_scores
-            if diagnostic_motif_scores.empty:
-                diagnostic_motif_scores = pd.DataFrame(
-                    index=motif_result.motif_scores.index.copy(),
-                    columns=profile_scores.columns.copy(),
-                    dtype=float,
-                )
-        scoring_result = KinaseScoringResult._from_owned(
-            profile_scores=profile_scores,
-            motif_scores=diagnostic_motif_scores,
-            rank_weighted_fusion_scores=rank_weighted_fusion_scores,
-            score_fusion_weights=score_fusion_weights,
-            motif_sequence_validation=motif_result.sequence_validation,
-            motif_library_validation=motif_result.library_validation,
-        )
-        downstream_score_matrix, downstream_score_source = (
-            select_downstream_score_matrix(
-                profile_scores=profile_scores,
-                rank_weighted_fusion_scores=rank_weighted_fusion_scores,
-            )
-        )
-        return _ScoringExecution(
-            scoring_result=scoring_result,
-            downstream_score_matrix=downstream_score_matrix,
-            downstream_score_source=downstream_score_source,
-            quantified_substrates=profile_build.quantified_substrates,
-        )
-
-    @staticmethod
-    def _resolve_motif_scores(
-        *,
-        request: ResolvedKinaseWorkflowRequest,
-        scoring_min_substrates: int,
-        scoring_phospho: pd.DataFrame,
-        motif_kinase_substrate_map: pd.DataFrame,
-        sequence_series: pd.Series,
-    ) -> MotifScoringResult:
-        motif_frequency_matrices, motif_sizes = build_motif_library(
-            kinase_substrate_map=motif_kinase_substrate_map,
-            site_sequences=sequence_series,
-            flank_size=DEFAULT_MOTIF_FLANK_SIZE,
-        )
-        motif_library_validation = get_motif_library_validation(motif_sizes)
-        return score_phosphosite_motifs(
-            site_sequences=sequence_series.loc[scoring_phospho.index],
-            motif_frequency_matrices=motif_frequency_matrices,
-            motif_sizes=motif_sizes,
-            site_index=tuple(str(site_id) for site_id in scoring_phospho.index),
-            min_motif_size=scoring_min_substrates,
-            flank_size=DEFAULT_MOTIF_FLANK_SIZE,
-            sequence_semantics=SEQUENCE_SEMANTICS_CENTRED_SEQUENCE,
-            library_validation=motif_library_validation,
-        )
+    ) -> KinaseScoringRunResult:
+        return self._scoring_runner.run(request=request, config=config)
 
     def _run_prediction_stage(
         self,
         *,
         request: ResolvedKinaseWorkflowRequest,
         config: ResolvedKinaseExecutionConfig,
-        scoring_execution: _ScoringExecution,
+        scoring_execution: KinaseScoringRunResult,
     ) -> KinasePredictionResult:
-        if config.prediction_mode == KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING:
-            return self._run_deterministic_prediction_lane(
-                request=request,
-                config=config,
-                scoring_execution=scoring_execution,
-            )
-        if config.prediction_mode == KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE:
-            return self._run_adaptive_prediction_lane(
-                request=request,
-                config=config,
-                scoring_execution=scoring_execution,
-            )
-        raise WorkflowStageError(
-            "kinase workflow internal invariant failed at seam="
-            "kinase.executor.prediction_mode; "
-            f"unsupported prediction mode: {config.prediction_mode}"
-        )
-
-    def _run_deterministic_prediction_lane(
-        self,
-        *,
-        request: ResolvedKinaseWorkflowRequest,
-        config: ResolvedKinaseExecutionConfig,
-        scoring_execution: _ScoringExecution,
-    ) -> KinasePredictionResult:
-        downstream_score_matrix = scoring_execution.downstream_score_matrix
-        candidate_substrates = build_candidate_substrate_list(
-            scores=downstream_score_matrix,
-            top=config.prediction_top_k,
-            score_threshold=_CANDIDATE_SCORE_THRESHOLD,
-            inclusion=_CANDIDATE_MIN_INCLUSION,
-        )
-        kinase_ranking = rank_kinases_for_prediction(
-            prediction_score_matrix=downstream_score_matrix,
-            candidate_substrates=candidate_substrates,
-        )
-        selected_kinases = kinase_ranking.head(
-            config.prediction_deterministic_max_selected_kinases
-        ).index
-        if selected_kinases.empty:
-            candidate_shortfall = summarize_candidate_shortfall(
-                scores=downstream_score_matrix,
-                top=config.prediction_top_k,
-                score_threshold=_CANDIDATE_SCORE_THRESHOLD,
-                inclusion=_CANDIDATE_MIN_INCLUSION,
-            )
-            self._raise_boundary_error(
-                seam="kinase.executor.prediction_ensemble",
-                next_action=(
-                    "provide dataset.phospho with at least two non-constant "
-                    "sample columns or lower scoring_config.min_substrates "
-                    "(scientific floor: min_substrates >= 2)"
-                ),
-                eligible_kinases=len(scoring_execution.quantified_substrates),
-                ranked_kinases=int(kinase_ranking.size),
-                prediction_config_deterministic_max_selected_kinases=(
-                    config.prediction_deterministic_max_selected_kinases
-                ),
-                prediction_config_top_k=config.prediction_top_k,
-                prediction_config_mode=config.prediction_mode,
-                dataset_samples=request.dataset.phospho.shape[1],
-                downstream_score_source=scoring_execution.downstream_score_source,
-                candidate_qualifying_kinases=candidate_shortfall.qualifying_kinases,
-                candidate_max_qualifying_sites=candidate_shortfall.max_qualifying_sites,
-            )
-        pred_mat, substrate_list = build_prediction_outputs(
-            prediction_score_matrix=downstream_score_matrix,
-            selected_kinases=selected_kinases,
-            candidate_substrates=candidate_substrates,
-            top_k=config.prediction_top_k,
-        )
-        return KinasePredictionResult._from_owned(
-            pred_mat=pred_mat,
-            substrate_list=substrate_list,
-        )
-
-    def _run_adaptive_prediction_lane(
-        self,
-        *,
-        request: ResolvedKinaseWorkflowRequest,
-        config: ResolvedKinaseExecutionConfig,
-        scoring_execution: _ScoringExecution,
-    ) -> KinasePredictionResult:
-        downstream_score_matrix = scoring_execution.downstream_score_matrix
-        candidate_substrates = build_candidate_substrate_list(
-            scores=downstream_score_matrix,
-            top=config.prediction_top_k,
-            score_threshold=_CANDIDATE_SCORE_THRESHOLD,
-            inclusion=_CANDIDATE_MIN_INCLUSION,
-        )
-        if not candidate_substrates:
-            candidate_shortfall = summarize_candidate_shortfall(
-                scores=downstream_score_matrix,
-                top=config.prediction_top_k,
-                score_threshold=_CANDIDATE_SCORE_THRESHOLD,
-                inclusion=_CANDIDATE_MIN_INCLUSION,
-            )
-            self._raise_boundary_error(
-                seam="kinase.executor.prediction_adaptive_candidates",
-                next_action=(
-                    "provide dataset.phospho with at least two non-constant "
-                    "sample columns or lower scoring_config.min_substrates "
-                    "(scientific floor: min_substrates >= 2)"
-                ),
-                eligible_kinases=len(scoring_execution.quantified_substrates),
-                candidate_kinases=0,
-                prediction_config_mode=config.prediction_mode,
-                prediction_config_top_k=config.prediction_top_k,
-                prediction_config_adaptive_ensemble_runs=(
-                    config.prediction_adaptive_ensemble_runs
-                ),
-                prediction_config_n_iterations=config.prediction_n_iterations,
-                dataset_samples=request.dataset.phospho.shape[1],
-                downstream_score_source=scoring_execution.downstream_score_source,
-                candidate_qualifying_kinases=candidate_shortfall.qualifying_kinases,
-                candidate_max_qualifying_sites=candidate_shortfall.max_qualifying_sites,
-            )
-        try:
-            adaptive_scores = run_adaptive_ensemble_prediction(
-                prediction_score_matrix=downstream_score_matrix,
-                candidate_substrates=candidate_substrates,
-                prediction_config=self._as_prediction_config(config),
-            )
-        except ImportError as exc:
-            raise WorkflowStageError(
-                "kinase workflow internal invariant failed at seam="
-                "kinase.executor.prediction_adaptive_dependencies; "
-                f"{exc}"
-            ) from exc
-        kinase_ranking = rank_kinases_for_prediction(
-            prediction_score_matrix=adaptive_scores,
-            candidate_substrates=candidate_substrates,
-        )
-        selected_kinases = kinase_ranking.index
-        if selected_kinases.empty:
-            self._raise_boundary_error(
-                seam="kinase.executor.prediction_adaptive_ensemble",
-                next_action=(
-                    "lower prediction_config.top_k, increase dataset signal depth, or "
-                    "review scoring-stage support for adaptive candidates"
-                ),
-                eligible_kinases=len(scoring_execution.quantified_substrates),
-                candidate_kinases=len(candidate_substrates),
-                ranked_kinases=0,
-                prediction_config_mode=config.prediction_mode,
-                prediction_config_top_k=config.prediction_top_k,
-                prediction_config_adaptive_ensemble_runs=(
-                    config.prediction_adaptive_ensemble_runs
-                ),
-                prediction_config_n_iterations=config.prediction_n_iterations,
-            )
-        pred_mat, substrate_list = build_prediction_outputs(
-            prediction_score_matrix=adaptive_scores,
-            selected_kinases=selected_kinases,
-            candidate_substrates=candidate_substrates,
-            top_k=config.prediction_top_k,
-            retain_full_scores=True,
-        )
-        return KinasePredictionResult._from_owned(
-            pred_mat=pred_mat,
-            substrate_list=substrate_list,
+        return self._prediction_runner.run(
+            request=request,
+            config=config,
+            scoring_execution=scoring_execution,
         )
 
     def _run_activity_stage(
@@ -419,236 +137,11 @@ class KinaseWorkflowExecutor:
         config: ResolvedKinaseExecutionConfig,
         prediction_result: KinasePredictionResult,
     ) -> KinaseActivityResult | None:
-        activity_config = config.activity
-        if activity_config is None:
-            return None
-        validated_inputs = self._activity_input_validator.run(
-            pred_mat=prediction_result.pred_mat,
-            phospho_matrix=request.activity_phospho_matrix,
-            threshold=activity_config.threshold,
-            min_substrates=activity_config.min_substrates,
-            top_n_substrates=activity_config.top_n_substrates,
-        )
-        return compute_activity_from_inputs(validated_inputs)
-
-    @staticmethod
-    def _as_prediction_config(
-        config: ResolvedKinaseExecutionConfig,
-    ) -> KinasePredictionConfig:
-        return KinasePredictionConfig(
-            top_k=config.prediction_top_k,
-            deterministic_max_selected_kinases=(
-                config.prediction_deterministic_max_selected_kinases
-            ),
-            adaptive_ensemble_runs=config.prediction_adaptive_ensemble_runs,
-            mode=config.prediction_mode,
-            adaptive_policy=config.prediction_adaptive_policy,
-            n_iterations=config.prediction_n_iterations,
-            random_state=config.prediction_random_state,
-        )
-
-    @staticmethod
-    def _raise_boundary_error(
-        *,
-        seam: str,
-        next_action: str,
-        **details: object,
-    ) -> None:
-        raise WorkflowBoundaryError(
-            seam=seam,
-            next_action=next_action,
-            details=details,
-            message_prefix="kinase workflow boundary validation failed",
+        return self._activity_runner.run(
+            request=request,
+            config=config,
+            prediction_result=prediction_result,
         )
 
 
-def _build_kinase_run_provenance(
-    *,
-    request: ResolvedKinaseWorkflowRequest,
-    config: ResolvedKinaseExecutionConfig,
-    scoring_result: KinaseScoringResult,
-    prediction_result: KinasePredictionResult,
-    activity_result: KinaseActivityResult | None,
-) -> RunProvenance:
-    input_tables = _collect_fingerprints(
-        (
-            ("dataset.phospho", request.dataset.phospho),
-            ("dataset.site_metadata", request.dataset.site_metadata),
-            ("dataset.sample_metadata", request.dataset.sample_metadata),
-            ("dataset.total", request.dataset.total),
-            ("dataset.comparisons", request.dataset.comparisons),
-            (
-                "references.kinase_substrate_map",
-                request.references.kinase_substrate_map,
-            ),
-            ("references.site_sequences", request.references.site_sequences),
-        )
-    )
-    output_tables = _collect_fingerprints(
-        (
-            ("outputs.scoring.profile_scores", scoring_result.profile_scores),
-            ("outputs.scoring.motif_scores", scoring_result.motif_scores),
-            (
-                "outputs.scoring.rank_weighted_fusion_scores",
-                scoring_result.rank_weighted_fusion_scores,
-            ),
-            (
-                "outputs.scoring.score_fusion_weights",
-                scoring_result.score_fusion_weights,
-            ),
-            ("outputs.prediction.pred_mat", prediction_result.pred_mat),
-            ("outputs.prediction.substrate_list", prediction_result.substrate_list),
-            (
-                "outputs.activity.weighted_activity",
-                None if activity_result is None else activity_result.weighted_activity,
-            ),
-            (
-                "outputs.activity.thresholded_substrate_mean_activity",
-                (
-                    None
-                    if activity_result is None
-                    else activity_result.thresholded_substrate_mean_activity
-                ),
-            ),
-            (
-                "outputs.activity.thresholded_substrate_counts",
-                (
-                    None
-                    if activity_result is None
-                    else activity_result.thresholded_substrate_counts.to_frame(
-                        name="n_substrates"
-                    )
-                ),
-            ),
-            (
-                "outputs.activity.target_counts",
-                (
-                    None
-                    if activity_result is None
-                    else activity_result.target_counts.to_frame(name="n_targets")
-                ),
-            ),
-            (
-                "outputs.activity.target_table",
-                None if activity_result is None else activity_result.target_table,
-            ),
-        )
-    )
-    scoring_diagnostics: dict[str, object] = (
-        {}
-        if scoring_result.motif_sequence_validation is None
-        else dict(scoring_result.motif_sequence_validation.summary())
-    )
-    if scoring_result.motif_library_validation is not None:
-        scoring_diagnostics["motif_library_validation"] = (
-            scoring_result.motif_library_validation.summary()
-        )
-    scientific_policies = [
-        PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
-        KinaseProfileScoringPolicy(
-            profile_missing_value_strategy=str(config.profile_missing_value_strategy),
-            min_substrates_floor=KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
-            requested_min_substrates=int(config.scoring_min_substrates),
-        ).record,
-        build_motif_profile_rank_fusion_policy(
-            allow_profile_only_fallback=True,
-            emit_weights=bool(config.include_diagnostic_scoring_tables),
-        ),
-        CandidateSubstrateSelectionPolicy(
-            top_k=int(config.prediction_top_k),
-            score_threshold=_CANDIDATE_SCORE_THRESHOLD,
-            inclusion=_CANDIDATE_MIN_INCLUSION,
-        ).record,
-    ]
-    if config.activity is not None:
-        scientific_policies.append(
-            build_simplified_weighted_substrate_activity_policy(
-                threshold=float(config.activity.threshold),
-                min_substrates=int(config.activity.min_substrates),
-                top_n_substrates=int(config.activity.top_n_substrates),
-            )
-        )
-
-    return RunProvenance(
-        environment=collect_environment_provenance(),
-        input_tables=input_tables,
-        preprocessing_stages=_dataset_preprocessing_stages(request),
-        reference=request.references.provenance,
-        workflow_name="kinase_workflow",
-        workflow_parameters={
-            "scoring_config": {
-                "min_substrates": int(config.scoring_min_substrates),
-                "include_diagnostic_scoring_tables": bool(
-                    config.include_diagnostic_scoring_tables
-                ),
-                "profile_missing_value_strategy": str(
-                    config.profile_missing_value_strategy
-                ),
-            },
-            "scoring_diagnostics": scoring_diagnostics,
-            "prediction_config": {
-                "top_k": int(config.prediction_top_k),
-                "deterministic_max_selected_kinases": int(
-                    config.prediction_deterministic_max_selected_kinases
-                ),
-                "adaptive_ensemble_runs": int(config.prediction_adaptive_ensemble_runs),
-                "mode": str(config.prediction_mode),
-                "adaptive_policy": str(config.prediction_adaptive_policy),
-                "n_iterations": int(config.prediction_n_iterations),
-                "random_state": config.prediction_random_state,
-            },
-            "activity_config": (
-                None
-                if config.activity is None
-                else {
-                    "threshold": float(config.activity.threshold),
-                    "min_substrates": int(config.activity.min_substrates),
-                    "top_n_substrates": int(config.activity.top_n_substrates),
-                    "activity_methods": {
-                        "weighted_activity": (
-                            "prediction-weighted mean over top-N predicted substrates"
-                        ),
-                        "thresholded_substrate_mean_activity": (
-                            "mean phospho signal over predicted substrates with "
-                            "pred_mat score > threshold; not full KSEA enrichment"
-                        ),
-                    },
-                }
-            ),
-        },
-        random_state=config.prediction_random_state,
-        random_seed_policy=_resolve_seed_policy(config),
-        output_tables=output_tables,
-        scientific_policies=tuple(scientific_policies),
-    )
-
-
-def _resolve_seed_policy(config: ResolvedKinaseExecutionConfig) -> str | None:
-    if config.prediction_mode == KINASE_PREDICTION_MODE_DETERMINISTIC_RANKING:
-        return None
-    if config.prediction_mode != KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE:
-        return None
-    return resolve_prediction_sampling_policy(
-        config.prediction_adaptive_policy
-    ).seed_strategy
-
-
-def _dataset_preprocessing_stages(
-    request: ResolvedKinaseWorkflowRequest,
-) -> tuple[PreprocessingStageProvenance, ...]:
-    provenance = request.dataset.provenance
-    if provenance is None:
-        return ()
-    return tuple(provenance.preprocessing_stages)
-
-
-def _collect_fingerprints(
-    entries: tuple[tuple[str, pd.DataFrame | None], ...],
-) -> tuple[TableFingerprint, ...]:
-    fingerprints: list[TableFingerprint] = []
-    for name, table in entries:
-        fingerprint = fingerprint_optional_table(table, name=name)
-        if fingerprint is None:
-            continue
-        fingerprints.append(fingerprint)
-    return tuple(fingerprints)
+__all__ = ["KinaseWorkflowExecutor"]
