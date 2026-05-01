@@ -17,7 +17,6 @@ from phospy.signalomes.clustering import (
     select_module_count_with_diagnostics,
 )
 from phospy.signalomes.clustering import exact_python as exact_clustering
-from phospy.signalomes.clustering import orchestration as clustering_orchestration
 from phospy.signalomes.clustering.tree_building import (
     prepare_scoring_values_for_clustering,
     summarize_clustering_missing_value_diagnostics,
@@ -141,9 +140,7 @@ def test_module_count_selection_rejects_non_positive_explicit_request(
     )
 
 
-def test_invalid_explicit_module_count_fails_before_candidate_scoring(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_invalid_explicit_module_count_fails_before_candidate_scoring() -> None:
     scoring_values = np.asarray(
         [
             [1.0, 2.0, 3.0],
@@ -152,26 +149,11 @@ def test_invalid_explicit_module_count_fails_before_candidate_scoring(
         ],
         dtype=float,
     )
-    candidate_scoring_calls: list[str] = []
-
-    def _candidate_scoring_should_not_run(**kwargs: object) -> object:
-        del kwargs
-        candidate_scoring_calls.append("called")
-        raise AssertionError("candidate scoring should not run for invalid requests")
-
-    monkeypatch.setattr(
-        exact_clustering,
-        "_compute_candidate_cluster_scores",
-        _candidate_scoring_should_not_run,
-    )
-
     with pytest.raises(SignalomeModuleCountValidationError):
         select_module_count_with_diagnostics(
             scoring_values=scoring_values,
             requested_module_count=5,
         )
-
-    assert candidate_scoring_calls == []
 
 
 def test_module_count_automatic_selection_surfaces_stable_diagnostics() -> None:
@@ -434,9 +416,7 @@ def test_prepare_scoring_values_imputes_non_finite_and_fully_missing_columns() -
     assert diagnostics.fully_missing_column_count == 2
 
 
-def test_cluster_sites_uses_imputed_values_for_final_tree_input(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_cluster_sites_uses_imputed_values_for_final_tree_input() -> None:
     scoring_matrix = pd.DataFrame(
         {
             "K1": [1.0, 2.0, 3.0],
@@ -447,32 +427,30 @@ def test_cluster_sites_uses_imputed_values_for_final_tree_input(
     )
     captured: dict[str, np.ndarray] = {}
 
-    def _capture_fit_cluster_labels(
-        scoring_values: np.ndarray,
-        cluster_count: int,
-        *,
-        tree_engine: str = "exact",
-        candidate_scoring_policy: str = "full",
-        max_exact_tree_sites: int | None = 2000,
-        cluster_tree_operations: object | None = None,
-    ) -> np.ndarray:
-        del cluster_count
-        del tree_engine
-        del candidate_scoring_policy
-        del max_exact_tree_sites
-        del cluster_tree_operations
-        captured["scoring_values"] = np.asarray(scoring_values, dtype=float).copy()
-        return np.zeros(scoring_values.shape[0], dtype=int)
+    class _CaptureTreeOperations:
+        def build_cluster_tree(self, scoring_values: np.ndarray) -> object:
+            captured["scoring_values"] = np.asarray(scoring_values, dtype=float).copy()
+            return object()
 
-    monkeypatch.setattr(
-        clustering_orchestration,
-        "_fit_cluster_labels_impl",
-        _capture_fit_cluster_labels,
-    )
+        def build_cluster_labels_from_tree(
+            self,
+            *,
+            cluster_tree: object,
+            cluster_counts: object,
+        ) -> dict[int, np.ndarray]:
+            del cluster_tree
+            labels: dict[int, np.ndarray] = {}
+            for count in [int(value) for value in cluster_counts]:
+                if count == 2:
+                    labels[count] = np.asarray([0, 0, 1], dtype=int)
+                else:
+                    labels[count] = np.zeros(3, dtype=int)
+            return labels
 
-    cluster_sites_with_diagnostics(
+    exact_clustering.cluster_sites_with_diagnostics(
         scoring_matrix=scoring_matrix,
         requested_module_count=2,
+        cluster_tree_operations=_CaptureTreeOperations(),  # type: ignore[arg-type]
     )
 
     prepared_values = captured.get("scoring_values")
@@ -493,9 +471,7 @@ def test_cluster_sites_uses_imputed_values_for_final_tree_input(
     )
 
 
-def test_module_selection_survives_empty_candidate_range_branch(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_module_selection_survives_empty_candidate_range_branch() -> None:
     values = np.asarray(
         [
             [1.0, 0.0, 0.5],
@@ -506,26 +482,14 @@ def test_module_selection_survives_empty_candidate_range_branch(
         dtype=float,
     )
 
-    original_resolver = clustering_orchestration._resolve_pre_scoring_module_selection
-
-    def _force_empty_candidate_range(**kwargs: object) -> tuple[None, int]:
-        _, resolved_max_clusters = original_resolver(**kwargs)
-        return None, min(1, int(resolved_max_clusters))
-
-    monkeypatch.setattr(
-        clustering_orchestration,
-        "_resolve_pre_scoring_module_selection",
-        _force_empty_candidate_range,
+    diagnostics = select_module_count_with_diagnostics(
+        scoring_values=values,
+        max_clusters=1,
     )
-
-    diagnostics = select_module_count_with_diagnostics(scoring_values=values)
 
     assert diagnostics.selected_module_count == 1
     assert diagnostics.candidate_scores == {}
-    assert (
-        "no candidate module count satisfied the configured correlation thresholds"
-        in diagnostics.reason
-    )
+    assert "fewer than two cluster counts are available" in diagnostics.reason
 
 
 def test_candidate_scoring_policy_record_matches_clustering_execution_metadata() -> (

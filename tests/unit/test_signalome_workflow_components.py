@@ -19,6 +19,7 @@ from phospy.scientific_policies import ScientificPolicyId
 from phospy.signalomes.clustering import (
     ClusterSitesResult,
 )
+from phospy.signalomes.clustering.models import SignalomeClusteringEngineResult
 from phospy.signalomes.constants import SITE_CLUSTER_COLUMN
 from phospy.signalomes.context import (
     build_protein_site_context_table,
@@ -168,8 +169,7 @@ def _resolved_request():
 def test_signalome_clustering_runner_returns_expected_diagnostics() -> None:
     resolved = _resolved_request()
     metadata = SignalomeClusteringRunner.collect_execution_metadata(resolved)
-    observed_cluster_kwargs: dict[str, object] = {}
-    observed_derive_kwargs: dict[str, object] = {}
+    observed_backend_kwargs: dict[str, object] = {}
     expected_cluster_result = ClusterSitesResult(
         site_clusters=pd.Series(
             [1, 2, 2],
@@ -196,33 +196,63 @@ def test_signalome_clustering_runner_returns_expected_diagnostics() -> None:
         name="module_id",
     )
 
-    def _cluster(**kwargs: object) -> ClusterSitesResult:
-        observed_cluster_kwargs.update(kwargs)
-        return expected_cluster_result
+    def _run_backend(**kwargs: object) -> SignalomeClusteringEngineResult:
+        observed_backend_kwargs.update(kwargs)
+        return SignalomeClusteringEngineResult(
+            site_clusters=expected_cluster_result.site_clusters,
+            protein_modules=expected_protein_modules,
+            selected_module_count=2,
+            module_selection_diagnostics=expected_cluster_result.module_selection_diagnostics,
+            backend_name="exact_python",
+            backend_version="1",
+            approximation_used=False,
+            exact_cluster_tree_built=True,
+            tree_engine="exact",
+            candidate_scoring_mode="full",
+            candidate_scoring_evaluated=True,
+            candidate_scoring_skip_reason=None,
+            candidate_scoring_sampling=None,
+            backend_diagnostics=None,
+            threshold_metadata={
+                "primary_threshold": float(
+                    resolved.execution_config.module_selection_primary_threshold
+                ),
+                "fallback_threshold": float(
+                    resolved.execution_config.module_selection_fallback_threshold
+                ),
+            },
+            limit_metadata={
+                "max_exact_tree_sites": int(
+                    resolved.execution_config.max_exact_tree_sites
+                ),
+                "max_full_candidate_scoring_sites": int(
+                    resolved.execution_config.max_full_candidate_scoring_sites
+                ),
+                "max_clusters": int(
+                    resolved.execution_config.module_selection_max_clusters
+                ),
+            },
+        )
 
-    def _derive(**kwargs: object) -> pd.Series:
-        observed_derive_kwargs.update(kwargs)
-        return expected_protein_modules
-
-    runner = SignalomeClusteringRunner(cluster_sites=_cluster, derive_modules=_derive)
+    runner = SignalomeClusteringRunner(run_backend_clustering=_run_backend)
     output = runner.run(
         request=resolved,
         config=resolved.execution_config,
         execution_metadata=metadata,
     )
 
-    assert output.clustering_result is expected_cluster_result
-    assert output.protein_modules is expected_protein_modules
+    pdt.assert_series_equal(
+        output.clustering_result.site_clusters,
+        expected_cluster_result.site_clusters,
+    )
+    pdt.assert_series_equal(output.protein_modules, expected_protein_modules)
     assert output.clustering_result.module_selection_diagnostics == (
         expected_cluster_result.module_selection_diagnostics
     )
-    assert observed_cluster_kwargs["requested_module_count"] == 2
-    assert observed_cluster_kwargs["tree_engine"] == "exact"
-    assert observed_cluster_kwargs["candidate_scoring_policy"] == "full"
-    assert (
-        observed_derive_kwargs["site_clusters"] is expected_cluster_result.site_clusters
-    )
-    assert observed_derive_kwargs["site_to_protein"] is resolved.site_to_protein
+    assert observed_backend_kwargs["requested_module_count"] == 2
+    assert observed_backend_kwargs["tree_engine"] == "exact"
+    assert observed_backend_kwargs["candidate_scoring_policy"] == "full"
+    assert observed_backend_kwargs["site_to_protein"] is resolved.site_to_protein
 
 
 def test_signalome_module_table_builder_preserves_module_summary_shape() -> None:

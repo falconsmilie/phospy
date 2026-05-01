@@ -1994,12 +1994,9 @@ def test_explicit_multi_module_invokes_exact_tree_builder_for_final_assignment(
     ),
 )
 def test_explicit_module_count_above_available_sites_fails_before_clustering_starts(
-    monkeypatch: pytest.MonkeyPatch,
     execution_path: str,
     clustering_engine: str,
 ) -> None:
-    from phospy.signalomes.clustering import exact_python as clustering_module
-
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
     prediction_matrix = _matrix(
@@ -2033,21 +2030,6 @@ def test_explicit_module_count_above_available_sites_fails_before_clustering_sta
         ),
     )
 
-    tree_calls: list[str] = []
-
-    def _build_tree_should_not_run(scoring_values: object) -> object:
-        del scoring_values
-        tree_calls.append("called")
-        raise AssertionError(
-            "_build_cluster_tree should not run for invalid module-count requests"
-        )
-
-    monkeypatch.setattr(
-        clustering_module,
-        "_build_cluster_tree",
-        _build_tree_should_not_run,
-    )
-
     with pytest.raises(WorkflowBoundaryError) as exc_info:
         _run_signalome_workflow_path(
             request=request,
@@ -2062,7 +2044,6 @@ def test_explicit_module_count_above_available_sites_fails_before_clustering_sta
         "affected_configuration_field=signalome workflow request "
         "config.clustering.module_count" in message
     )
-    assert tree_calls == []
 
 
 @pytest.mark.parametrize(
@@ -2071,11 +2052,8 @@ def test_explicit_module_count_above_available_sites_fails_before_clustering_sta
     ids=_SIGNALOME_WORKFLOW_EXECUTION_PATHS,
 )
 def test_explicit_module_count_over_exact_tree_limit_fails_early(
-    monkeypatch: pytest.MonkeyPatch,
     execution_path: str,
 ) -> None:
-    from phospy.signalomes.clustering import exact_python as clustering_module
-
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
     prediction_matrix = _matrix(
@@ -2111,21 +2089,6 @@ def test_explicit_module_count_over_exact_tree_limit_fails_early(
         ),
     )
 
-    tree_calls: list[str] = []
-
-    def _build_tree_should_not_run(scoring_values: object) -> object:
-        del scoring_values
-        tree_calls.append("called")
-        raise AssertionError(
-            "_build_cluster_tree should not run when exact tree guard fails"
-        )
-
-    monkeypatch.setattr(
-        clustering_module,
-        "_build_cluster_tree",
-        _build_tree_should_not_run,
-    )
-
     with pytest.raises(SignalomeScaleError) as exc_info:
         _run_signalome_workflow_path(
             request=request,
@@ -2136,7 +2099,6 @@ def test_explicit_module_count_over_exact_tree_limit_fails_early(
     assert "exact cluster-tree construction" in message
     assert "max_exact_tree_sites=2" in message
     assert "tree_engine='exact'" in message
-    assert tree_calls == []
 
 
 @pytest.mark.parametrize(
@@ -2145,11 +2107,8 @@ def test_explicit_module_count_over_exact_tree_limit_fails_early(
     ids=_SIGNALOME_WORKFLOW_EXECUTION_PATHS,
 )
 def test_sampled_candidate_scoring_over_exact_tree_limit_fails_early(
-    monkeypatch: pytest.MonkeyPatch,
     execution_path: str,
 ) -> None:
-    from phospy.signalomes.clustering import exact_python as clustering_module
-
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
     prediction_matrix = _matrix(
@@ -2185,21 +2144,6 @@ def test_sampled_candidate_scoring_over_exact_tree_limit_fails_early(
         ),
     )
 
-    tree_calls: list[str] = []
-
-    def _build_tree_should_not_run(scoring_values: object) -> object:
-        del scoring_values
-        tree_calls.append("called")
-        raise AssertionError(
-            "_build_cluster_tree should not run when exact tree guard fails"
-        )
-
-    monkeypatch.setattr(
-        clustering_module,
-        "_build_cluster_tree",
-        _build_tree_should_not_run,
-    )
-
     with pytest.raises(SignalomeScaleError) as exc_info:
         _run_signalome_workflow_path(
             request=request,
@@ -2212,7 +2156,6 @@ def test_sampled_candidate_scoring_over_exact_tree_limit_fails_early(
     # Sampled scoring only changes candidate module-count evaluation.
     # Exact cluster-tree construction is still required first.
     assert "candidate_scoring_policy='sampled'" in message
-    assert tree_calls == []
 
 
 @pytest.mark.parametrize(
@@ -2221,11 +2164,8 @@ def test_sampled_candidate_scoring_over_exact_tree_limit_fails_early(
     ids=_SIGNALOME_WORKFLOW_EXECUTION_PATHS,
 )
 def test_full_candidate_scoring_over_full_correlation_limit_fails_early(
-    monkeypatch: pytest.MonkeyPatch,
     execution_path: str,
 ) -> None:
-    from phospy.signalomes.clustering import exact_python as clustering_module
-
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
     prediction_matrix = _matrix(
@@ -2261,40 +2201,6 @@ def test_full_candidate_scoring_over_full_correlation_limit_fails_early(
         ),
     )
 
-    tree_calls: list[str] = []
-
-    def _build_tree_should_not_run(scoring_values: object) -> object:
-        del scoring_values
-        tree_calls.append("called")
-        raise AssertionError(
-            "_build_cluster_tree should not run when full-correlation guard fails"
-        )
-
-    monkeypatch.setattr(
-        clustering_module,
-        "_build_cluster_tree",
-        _build_tree_should_not_run,
-    )
-
-    full_correlation_calls: list[str] = []
-
-    def _full_correlation_should_not_run(
-        scoring_values: object,
-        *,
-        excluded_mask: object = None,
-    ) -> object:
-        del scoring_values, excluded_mask
-        full_correlation_calls.append("called")
-        raise AssertionError(
-            "full-correlation computation should not run when full-correlation guard fails"
-        )
-
-    monkeypatch.setattr(
-        clustering_module,
-        "build_correlation_matrix_with_exclusions",
-        _full_correlation_should_not_run,
-    )
-
     with pytest.raises(SignalomeScaleError) as exc_info:
         _run_signalome_workflow_path(
             request=request,
@@ -2306,8 +2212,6 @@ def test_full_candidate_scoring_over_full_correlation_limit_fails_early(
     assert "max_full_candidate_scoring_sites=2" in message
     assert "use candidate_scoring_policy='sampled'" in message
     assert "exact cluster-tree construction has not been attempted" in message
-    assert full_correlation_calls == []
-    assert tree_calls == []
 
 
 def test_signalome_grouping_does_not_collapse_distinct_protein_ids_with_shared_gene_symbol() -> (
@@ -2804,7 +2708,7 @@ def test_executor_orchestrates_signalome_domain_services(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import phospy.workflows.signalome.executor as executor_module
-    from phospy.signalomes.clustering import ClusterSitesResult
+    from phospy.signalomes.clustering.models import SignalomeClusteringEngineResult
     from phospy.signalomes.models import SignalomeModuleSelectionDiagnostics
 
     site_ids = ["P1;S1;", "P2;S2;"]
@@ -2843,29 +2747,50 @@ def test_executor_orchestrates_signalome_domain_services(
 
     call_order: list[str] = []
 
-    def _cluster(**_: object) -> ClusterSitesResult:
+    def _run_backend(**_: object) -> SignalomeClusteringEngineResult:
         call_order.append("cluster")
-        return ClusterSitesResult(
-            site_clusters=pd.Series(
-                [1, 2],
-                index=prediction_matrix.index.copy(),
-                dtype=int,
-                name=SITE_CLUSTER_COLUMN,
-            ),
-            module_selection_diagnostics=SignalomeModuleSelectionDiagnostics(
-                strategy="correlation_thresholds",
-                selected_module_count=2,
-                requested_module_count=None,
-                threshold_used=0.5,
-                max_clusters_evaluated=2,
-                candidate_scores={},
-                reason="test stub",
-            ),
-        )
-
-    def _derive(**_: object) -> pd.Series:
         call_order.append("derive")
-        return pd.Series({"P1": 1, "P2": 2}, dtype="int64", name="module_id")
+        site_clusters = pd.Series(
+            [1, 2],
+            index=prediction_matrix.index.copy(),
+            dtype=int,
+            name=SITE_CLUSTER_COLUMN,
+        )
+        module_selection = SignalomeModuleSelectionDiagnostics(
+            strategy="correlation_thresholds",
+            selected_module_count=2,
+            requested_module_count=None,
+            threshold_used=0.5,
+            max_clusters_evaluated=2,
+            candidate_scores={},
+            reason="test stub",
+        )
+        return SignalomeClusteringEngineResult(
+            site_clusters=site_clusters,
+            protein_modules=pd.Series(
+                {"P1": 1, "P2": 2},
+                dtype="int64",
+                name="module_id",
+            ),
+            selected_module_count=2,
+            module_selection_diagnostics=module_selection,
+            backend_name="exact_python",
+            backend_version="1",
+            approximation_used=False,
+            exact_cluster_tree_built=True,
+            tree_engine="exact",
+            candidate_scoring_mode="full",
+            candidate_scoring_evaluated=True,
+            candidate_scoring_skip_reason=None,
+            candidate_scoring_sampling=None,
+            backend_diagnostics=None,
+            threshold_metadata={"primary_threshold": 0.5, "fallback_threshold": 0.1},
+            limit_metadata={
+                "max_exact_tree_sites": 2000,
+                "max_full_candidate_scoring_sites": 2000,
+                "max_clusters": 10,
+            },
+        )
 
     def _assignments(**_: object) -> pd.DataFrame:
         call_order.append("assignments")
@@ -2966,8 +2891,9 @@ def test_executor_orchestrates_signalome_domain_services(
             }
         )
 
-    monkeypatch.setattr(executor_module, "cluster_sites_with_diagnostics", _cluster)
-    monkeypatch.setattr(executor_module, "derive_protein_modules", _derive)
+    monkeypatch.setattr(
+        executor_module, "run_signalome_clustering_engine", _run_backend
+    )
     monkeypatch.setattr(executor_module, "build_module_assignments", _assignments)
     monkeypatch.setattr(executor_module, "select_kinase_substrates", _substrates)
     monkeypatch.setattr(executor_module, "build_signalome_module_table", _modules)

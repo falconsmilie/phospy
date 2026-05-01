@@ -13,8 +13,7 @@ from phospy.provenance.models import (
 )
 from phospy.signalomes.clustering import (
     ClusterSitesResult,
-    cluster_sites_with_diagnostics,
-    derive_protein_modules,
+    run_signalome_clustering_engine,
 )
 from phospy.signalomes.context import (
     build_protein_site_context_table,
@@ -64,8 +63,7 @@ class SignalomeWorkflowExecutor:
         # Dependency wiring is intentionally done here so tests can monkeypatch
         # executor-module callables and still intercept default component behavior.
         self._clustering_runner = clustering_runner or SignalomeClusteringRunner(
-            cluster_sites=cluster_sites_with_diagnostics,
-            derive_modules=derive_protein_modules,
+            run_backend_clustering=run_signalome_clustering_engine,
         )
         self._module_table_builder = (
             module_table_builder

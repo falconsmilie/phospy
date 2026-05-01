@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import cast
 
 import numpy as np
 
+from phospy.signalomes.clustering.backends import exact_python as exact_tree_backend
 from phospy.signalomes.clustering.backends.exact_python import (
     ExactWardClusterTree,
 )
@@ -38,7 +38,7 @@ from phospy.signalomes.clustering.validation import (
 
 @dataclass(frozen=True, slots=True)
 class _ClusterTreeOperationsAdapter:
-    """Compatibility adapter for legacy cluster-tree operation hooks."""
+    """Adapter that maps ClusterTreeEngine to tree operations."""
 
     engine: ClusterTreeEngine
 
@@ -55,16 +55,11 @@ class _ClusterTreeOperationsAdapter:
 
 
 @dataclass(frozen=True, slots=True)
-class _ExactWardClusterTreeOperations:
-    """Default exact-tree operations with legacy monkeypatch hook behavior."""
+class ExactWardClusterTreeBuilder:
+    """Exact Ward tree builder and label cutter."""
 
     def build_cluster_tree(self, scoring_values: np.ndarray) -> object:
-        # Keep a runtime indirection through the exact-python module so
-        # performance-contract monkeypatching of exact-python helpers remains
-        # effective after orchestration extraction.
-        from phospy.signalomes.clustering import exact_python as exact_clustering
-
-        return exact_clustering._build_cluster_tree(scoring_values)
+        return exact_tree_backend.build_cluster_tree(scoring_values)
 
     def build_cluster_labels_from_tree(
         self,
@@ -72,10 +67,10 @@ class _ExactWardClusterTreeOperations:
         cluster_tree: object,
         cluster_counts: Iterable[int],
     ) -> dict[int, np.ndarray]:
-        from phospy.signalomes.clustering import exact_python as exact_clustering
-
-        return exact_clustering.build_cluster_labels_from_tree(
-            cluster_tree=cast(ExactWardClusterTree, cluster_tree),
+        if not isinstance(cluster_tree, ExactWardClusterTree):
+            raise TypeError("cluster_tree must be an ExactWardClusterTree instance")
+        return exact_tree_backend.build_cluster_labels_from_tree(
+            cluster_tree=cluster_tree,
             cluster_counts=cluster_counts,
         )
 
@@ -92,12 +87,12 @@ class SignalomeClusteringMissingValueDiagnostics:
 ClusterTreeOperations = _ClusterTreeOperationsAdapter
 ClusterTreeOperationsAdapter = _ClusterTreeOperationsAdapter
 
-_EXACT_WARD_CLUSTER_TREE_OPERATIONS = _ExactWardClusterTreeOperations()
+_EXACT_WARD_CLUSTER_TREE_OPERATIONS = ExactWardClusterTreeBuilder()
 
 
 def resolve_cluster_tree_operations(
     cluster_tree_operations: ClusterTreeOperations | None,
-) -> ClusterTreeOperations | _ExactWardClusterTreeOperations:
+) -> ClusterTreeOperations | ExactWardClusterTreeBuilder:
     if cluster_tree_operations is None:
         return _EXACT_WARD_CLUSTER_TREE_OPERATIONS
     return cluster_tree_operations

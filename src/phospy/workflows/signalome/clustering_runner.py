@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import cast
 
 import pandas as pd
 
@@ -15,8 +14,6 @@ from phospy.signalomes.clustering import (
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE,
     SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE,
     ClusterSitesResult,
-    cluster_sites_with_diagnostics,
-    derive_protein_modules,
     run_signalome_clustering_engine,
 )
 from phospy.signalomes.clustering.diagnostic_schemas import (
@@ -55,21 +52,11 @@ class SignalomeClusteringRunner:
     def __init__(
         self,
         *,
-        cluster_sites: Callable[..., ClusterSitesResult] = (
-            cluster_sites_with_diagnostics
-        ),
-        derive_modules: Callable[..., pd.Series] = derive_protein_modules,
         run_backend_clustering: Callable[
             ..., SignalomeClusteringEngineResult
         ] = run_signalome_clustering_engine,
     ) -> None:
-        self._cluster_sites = cluster_sites
-        self._derive_modules = derive_modules
         self._run_backend_clustering = run_backend_clustering
-        self._use_legacy_injected_cluster_functions = (
-            cluster_sites is not cluster_sites_with_diagnostics
-            or derive_modules is not derive_protein_modules
-        )
 
     def run(
         self,
@@ -107,63 +94,45 @@ class SignalomeClusteringRunner:
                 validation_error=str(exc),
             )
         try:
-            if self._use_legacy_injected_cluster_functions:
-                clustering_result = self._cluster_sites(
-                    scoring_matrix=request.downstream_score_matrix,
-                    requested_module_count=validated_requested_module_count,
-                    primary_threshold=config.module_selection_primary_threshold,
-                    fallback_threshold=config.module_selection_fallback_threshold,
-                    max_clusters=config.module_selection_max_clusters,
-                    tree_engine=config.tree_engine,
-                    candidate_scoring_policy=config.candidate_scoring_policy,
-                    max_exact_tree_sites=config.max_exact_tree_sites,
-                    max_full_candidate_scoring_sites=config.max_full_candidate_scoring_sites,
+            backend_result = self._run_backend_clustering(
+                scoring_matrix=request.downstream_score_matrix,
+                site_to_protein=request.site_to_protein,
+                requested_module_count=validated_requested_module_count,
+                primary_threshold=config.module_selection_primary_threshold,
+                fallback_threshold=config.module_selection_fallback_threshold,
+                max_clusters=config.module_selection_max_clusters,
+                tree_engine=config.tree_engine,
+                candidate_scoring_policy=config.candidate_scoring_policy,
+                max_exact_tree_sites=config.max_exact_tree_sites,
+                max_full_candidate_scoring_sites=config.max_full_candidate_scoring_sites,
+                clustering_engine=config.clustering_engine,
+            )
+            if backend_result.candidate_scoring_mode not in {
+                SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+                SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+                SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
+            }:
+                raise ValueError(
+                    "backend returned unsupported candidate_scoring_mode: "
+                    f"{backend_result.candidate_scoring_mode!r}"
                 )
-                protein_modules = self._derive_modules(
-                    site_clusters=clustering_result.site_clusters,
-                    site_to_protein=request.site_to_protein,
-                )
-            else:
-                backend_result = self._run_backend_clustering(
-                    scoring_matrix=request.downstream_score_matrix,
-                    site_to_protein=request.site_to_protein,
-                    requested_module_count=validated_requested_module_count,
-                    primary_threshold=config.module_selection_primary_threshold,
-                    fallback_threshold=config.module_selection_fallback_threshold,
-                    max_clusters=config.module_selection_max_clusters,
-                    tree_engine=config.tree_engine,
-                    candidate_scoring_policy=config.candidate_scoring_policy,
-                    max_exact_tree_sites=config.max_exact_tree_sites,
-                    max_full_candidate_scoring_sites=config.max_full_candidate_scoring_sites,
-                    clustering_engine=config.clustering_engine,
-                )
-                if backend_result.candidate_scoring_mode not in {
-                    SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
-                    SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
-                    SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
-                }:
-                    raise ValueError(
-                        "backend returned unsupported candidate_scoring_mode: "
-                        f"{backend_result.candidate_scoring_mode!r}"
-                    )
-                clustering_result = ClusterSitesResult(
-                    site_clusters=backend_result.site_clusters,
-                    module_selection_diagnostics=backend_result.module_selection_diagnostics,
-                    tree_engine=backend_result.tree_engine,
-                    candidate_scoring_mode=cast(
-                        _CandidateScoringMode,
-                        backend_result.candidate_scoring_mode,
-                    ),
-                    exact_cluster_tree_built=backend_result.exact_cluster_tree_built,
-                    candidate_scoring_sampling=backend_result.candidate_scoring_sampling,
-                    candidate_scoring_evaluated=backend_result.candidate_scoring_evaluated,
-                    candidate_scoring_skip_reason=backend_result.candidate_scoring_skip_reason,
-                    backend_name=backend_result.backend_name,
-                    backend_version=backend_result.backend_version,
-                    approximation_used=backend_result.approximation_used,
-                    backend_diagnostics=backend_result.backend_diagnostics,
-                )
-                protein_modules = backend_result.protein_modules
+            clustering_result = ClusterSitesResult(
+                site_clusters=backend_result.site_clusters,
+                module_selection_diagnostics=backend_result.module_selection_diagnostics,
+                tree_engine=backend_result.tree_engine,
+                candidate_scoring_mode=_validated_candidate_scoring_mode(
+                    backend_result.candidate_scoring_mode
+                ),
+                exact_cluster_tree_built=backend_result.exact_cluster_tree_built,
+                candidate_scoring_sampling=backend_result.candidate_scoring_sampling,
+                candidate_scoring_evaluated=backend_result.candidate_scoring_evaluated,
+                candidate_scoring_skip_reason=backend_result.candidate_scoring_skip_reason,
+                backend_name=backend_result.backend_name,
+                backend_version=backend_result.backend_version,
+                approximation_used=backend_result.approximation_used,
+                backend_diagnostics=backend_result.backend_diagnostics,
+            )
+            protein_modules = backend_result.protein_modules
             return SignalomeClusteringRunResult(
                 clustering_result=clustering_result,
                 protein_modules=protein_modules,
@@ -304,6 +273,14 @@ class SignalomeClusteringRunner:
             scale_guard_passed=True,
             final_module_assignment_backend=final_module_assignment_backend,
         )
+
+
+def _validated_candidate_scoring_mode(value: str) -> _CandidateScoringMode:
+    if value == SIGNALOME_CANDIDATE_SCORING_POLICY_FULL:
+        return SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
+    if value == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED:
+        return SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
+    return SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED
 
 
 __all__ = ["SignalomeClusteringRunner"]

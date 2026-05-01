@@ -86,6 +86,7 @@ def _patch_cluster_tree_build_for_contract_scoring(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from phospy.signalomes.clustering import exact_python as exact_clustering
+    from phospy.signalomes.clustering.backends import exact_python as exact_tree_backend
 
     def _stub_build_cluster_tree(scoring_values: np.ndarray) -> object:
         n_sites = int(np.asarray(scoring_values, dtype=float).shape[0])
@@ -108,12 +109,12 @@ def _patch_cluster_tree_build_for_contract_scoring(
         return labels_by_count
 
     monkeypatch.setattr(
-        exact_clustering,
-        "_build_cluster_tree",
+        exact_tree_backend,
+        "build_cluster_tree",
         _stub_build_cluster_tree,
     )
     monkeypatch.setattr(
-        exact_clustering,
+        exact_tree_backend,
         "build_cluster_labels_from_tree",
         _stub_build_cluster_labels_from_tree,
     )
