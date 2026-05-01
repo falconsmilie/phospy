@@ -143,6 +143,7 @@ def test_run_adaptive_ensemble_prediction_averages_per_ensemble_scores(
             n_iterations=2,
             random_state=5,
         ),
+        random_state=5,
     )
 
     assert call_count["count"] == 2
@@ -166,6 +167,7 @@ def test_run_adaptive_ensemble_prediction_requires_negative_pool() -> None:
                 n_iterations=1,
                 random_state=0,
             ),
+            random_state=0,
         )
 
 
@@ -194,11 +196,13 @@ def test_adaptive_prediction_is_deterministic_for_same_seed() -> None:
         prediction_score_matrix=score_matrix,
         candidate_substrates=candidate_substrates,
         prediction_config=prediction_config,
+        random_state=17,
     )
     second = run_adaptive_ensemble_prediction(
         prediction_score_matrix=score_matrix,
         candidate_substrates=candidate_substrates,
         prediction_config=prediction_config,
+        random_state=17,
     )
 
     pd.testing.assert_frame_equal(first, second)
@@ -228,6 +232,7 @@ def test_adaptive_prediction_outputs_can_differ_for_different_seeds() -> None:
             n_iterations=3,
             random_state=17,
         ),
+        random_state=17,
     )
     second = run_adaptive_ensemble_prediction(
         prediction_score_matrix=score_matrix,
@@ -240,6 +245,7 @@ def test_adaptive_prediction_outputs_can_differ_for_different_seeds() -> None:
             n_iterations=3,
             random_state=23,
         ),
+        random_state=23,
     )
 
     assert not first.equals(second)

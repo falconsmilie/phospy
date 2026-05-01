@@ -160,6 +160,7 @@ def _collect_lane_metrics(*, adaptive_policy: str) -> AdaptivePolicyLaneMetrics:
             n_iterations=ADAPTIVE_PARITY_N_ITERATIONS,
             random_state=ADAPTIVE_PARITY_RANDOM_STATE,
         ),
+        random_state=ADAPTIVE_PARITY_RANDOM_STATE,
     )
     observed_prediction_frame = _prediction_long_frame(observed)
     expected_prediction_frame = (

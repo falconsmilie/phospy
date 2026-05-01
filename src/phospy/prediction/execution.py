@@ -21,6 +21,7 @@ def run_adaptive_ensemble_prediction(
     prediction_score_matrix: pd.DataFrame,
     candidate_substrates: Mapping[str, list[str]],
     prediction_config: KinasePredictionConfig,
+    random_state: int,
     kernel: str = "rbf",
 ) -> pd.DataFrame:
     """Run adaptive ensemble execution for all candidate kinases."""
@@ -35,14 +36,6 @@ def run_adaptive_ensemble_prediction(
     sampling_policy = resolve_prediction_sampling_policy(
         prediction_config.adaptive_policy
     )
-    random_state = prediction_config.random_state
-    if random_state is None:
-        raise WorkflowStageError(
-            "kinase workflow internal invariant failed at seam="
-            "prediction.adaptive_random_state; "
-            "prediction_config.random_state must be set when prediction_config.mode="
-            "'adaptive_ensemble'"
-        )
     random_source = PredictionSamplingRandomSource(
         policy=sampling_policy,
         random_state=random_state,

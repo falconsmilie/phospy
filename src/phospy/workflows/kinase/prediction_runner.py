@@ -185,11 +185,16 @@ class KinasePredictionRunner:
                 candidate_qualifying_kinases=candidate_shortfall.qualifying_kinases,
                 candidate_max_qualifying_sites=candidate_shortfall.max_qualifying_sites,
             )
+        adaptive_random_state = self._require_adaptive_random_state(config)
         try:
             adaptive_scores = self._run_adaptive_prediction(
                 prediction_score_matrix=downstream_score_matrix,
                 candidate_substrates=candidate_substrates,
-                prediction_config=self._as_prediction_config(config),
+                prediction_config=self._as_prediction_config(
+                    config,
+                    random_state=adaptive_random_state,
+                ),
+                random_state=adaptive_random_state,
             )
         except ImportError as exc:
             raise WorkflowStageError(
@@ -234,6 +239,8 @@ class KinasePredictionRunner:
     @staticmethod
     def _as_prediction_config(
         config: ResolvedKinaseExecutionConfig,
+        *,
+        random_state: int,
     ) -> KinasePredictionConfig:
         return KinasePredictionConfig(
             top_k=config.prediction_top_k,
@@ -244,8 +251,20 @@ class KinasePredictionRunner:
             mode=config.prediction_mode,
             adaptive_policy=config.prediction_adaptive_policy,
             n_iterations=config.prediction_n_iterations,
-            random_state=config.prediction_random_state,
+            random_state=random_state,
         )
+
+    @staticmethod
+    def _require_adaptive_random_state(config: ResolvedKinaseExecutionConfig) -> int:
+        random_state = config.prediction_random_state
+        if random_state is None:
+            raise WorkflowStageError(
+                "kinase workflow internal invariant failed at seam="
+                "kinase.executor.prediction_adaptive_random_state; "
+                "prediction_config.random_state must be set when "
+                "prediction_config.mode='adaptive_ensemble'"
+            )
+        return random_state
 
     @staticmethod
     def _raise_boundary_error(
