@@ -48,7 +48,7 @@ def _run_median_center(phospho: pd.DataFrame) -> PreprocessingState:
         total=None,
         plan=PreprocessingPlan(normalisation_policy="median_center"),
     )
-    return NormalisationStage().run(state)
+    return NormalisationStage().run(state).state
 
 
 def _run_quantile_normalisation(phospho: pd.DataFrame) -> PreprocessingState:
@@ -68,7 +68,7 @@ def _run_quantile_normalisation(phospho: pd.DataFrame) -> PreprocessingState:
         total=None,
         plan=PreprocessingPlan(normalisation_policy="quantile"),
     )
-    return NormalisationStage().run(state)
+    return NormalisationStage().run(state).state
 
 
 def _run_missing_data_imputation(phospho: pd.DataFrame) -> PreprocessingState:
@@ -91,22 +91,25 @@ def _run_missing_data_imputation(phospho: pd.DataFrame) -> PreprocessingState:
             missing_data_min_observed_values=8,
         ),
     )
-    return MissingDataStage().run(state)
+    return MissingDataStage().run(state).state
 
 
 def main() -> None:
     from tests.support.performance_contracts import (
+        PREPROCESSING_CONTRACT_MISSING_FRACTION,
+        PREPROCESSING_CONTRACT_N_SAMPLES,
+        PREPROCESSING_CONTRACT_N_SITES,
         median_runtime_and_peak_mib,
         with_missing_fraction,
     )
 
     repeats = 3
-    n_sites = 2_500
-    n_samples = 20
+    n_sites = PREPROCESSING_CONTRACT_N_SITES
+    n_samples = PREPROCESSING_CONTRACT_N_SAMPLES
     baseline = _build_base_matrix(n_sites=n_sites, n_samples=n_samples)
     with_missing = with_missing_fraction(
         baseline,
-        missing_fraction=0.12,
+        missing_fraction=PREPROCESSING_CONTRACT_MISSING_FRACTION,
         seed=271,
     )
 
@@ -150,6 +153,7 @@ def main() -> None:
     print(f"repeats={repeats}")
     print(f"n_sites={n_sites}")
     print(f"n_samples={n_samples}")
+    print(f"missing_fraction={PREPROCESSING_CONTRACT_MISSING_FRACTION:.3f}")
     print(f"missing_runtime_seconds={missing_runtime_seconds:.6f}")
     print(f"missing_peak_mib={missing_peak_mib:.3f}")
     print(f"missing_output_rows={missing_state.phospho.shape[0]}")

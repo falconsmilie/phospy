@@ -5,6 +5,7 @@ Targets:
 - `phospy.signalomes.science.build_signalome_module_table`
 - `phospy.signalomes.science.build_expanded_signalome_table`
 - `phospy.workflows.kinase.science.build_prediction_outputs`
+- `phospy.prediction.execution.run_adaptive_ensemble_prediction`
 """
 
 from __future__ import annotations
@@ -462,7 +463,42 @@ def _build_prediction_inputs(
     return prediction_score_matrix, kinase_ids.copy(), candidate_substrates, top_k
 
 
+def _build_adaptive_prediction_inputs(
+    *,
+    n_sites: int = 2000,
+    n_kinases: int = 100,
+    candidate_kinases: int = 12,
+    sites_per_kinase: int = 96,
+    random_state: int = 41,
+) -> tuple[pd.DataFrame, dict[str, list[str]]]:
+    rng = np.random.default_rng(random_state)
+    site_ids = pd.Index(
+        [f"SITE_{index + 1}" for index in range(n_sites)], name="site_id"
+    )
+    kinase_ids = pd.Index(
+        [f"KINASE_{index + 1:03d}" for index in range(n_kinases)],
+        name="kinase",
+    )
+    values = rng.normal(loc=0.62, scale=0.18, size=(n_sites, n_kinases))
+    values = np.clip(values, 0.0, 1.0)
+    prediction_score_matrix = pd.DataFrame(values, index=site_ids, columns=kinase_ids)
+
+    site_array = site_ids.to_numpy(dtype=object, copy=False)
+    candidate_substrates: dict[str, list[str]] = {}
+    resolved_sites_per_kinase = min(int(sites_per_kinase), int(site_array.size))
+    for kinase_index in range(min(int(candidate_kinases), int(kinase_ids.size))):
+        kinase = str(kinase_ids[kinase_index])
+        offset = int((kinase_index * 17) % int(site_array.size))
+        candidate_substrates[kinase] = [
+            str(site_array[(offset + step) % int(site_array.size)])
+            for step in range(resolved_sites_per_kinase)
+        ]
+    return prediction_score_matrix, candidate_substrates
+
+
 def main() -> None:
+    from phospy.api import KinasePredictionConfig
+    from phospy.prediction.execution import run_adaptive_ensemble_prediction
     from phospy.signalomes.science import (
         build_expanded_signalome_table,
         build_signalome_module_table,
@@ -476,6 +512,9 @@ def main() -> None:
     )
     prediction_score_matrix, selected_kinases, candidate_substrates, top_k = (
         _build_prediction_inputs()
+    )
+    adaptive_prediction_matrix, adaptive_candidate_substrates = (
+        _build_adaptive_prediction_inputs()
     )
 
     baseline_modules = _historical_baseline_build_signalome_module_table(
@@ -534,6 +573,33 @@ def main() -> None:
         check_dtype=False,
     )
 
+    adaptive_prediction_config = KinasePredictionConfig(
+        top_k=48,
+        deterministic_max_selected_kinases=12,
+        adaptive_ensemble_runs=8,
+        mode="adaptive_ensemble",
+        adaptive_policy="stable",
+        n_iterations=12,
+        random_state=9017,
+    )
+    adaptive_scores = run_adaptive_ensemble_prediction(
+        prediction_score_matrix=adaptive_prediction_matrix,
+        candidate_substrates=adaptive_candidate_substrates,
+        prediction_config=adaptive_prediction_config,
+        random_state=9017,
+    )
+    repeated_adaptive_scores = run_adaptive_ensemble_prediction(
+        prediction_score_matrix=adaptive_prediction_matrix,
+        candidate_substrates=adaptive_candidate_substrates,
+        prediction_config=adaptive_prediction_config,
+        random_state=9017,
+    )
+    pd.testing.assert_frame_equal(
+        adaptive_scores,
+        repeated_adaptive_scores,
+        check_dtype=False,
+    )
+
     repeats = 4
     fixture_name = "signalome_prediction_hot_paths_v1"
     signalome_baseline_seconds, signalome_baseline_peak = _median_runtime_and_peak_mib(
@@ -588,6 +654,14 @@ def main() -> None:
             top_k=top_k,
         )
     )
+    adaptive_runtime_seconds, adaptive_peak_mib = _median_runtime_and_peak_mib(
+        repeats,
+        run_adaptive_ensemble_prediction,
+        prediction_score_matrix=adaptive_prediction_matrix,
+        candidate_substrates=adaptive_candidate_substrates,
+        prediction_config=adaptive_prediction_config,
+        random_state=9017,
+    )
 
     records = [
         {
@@ -636,6 +710,22 @@ def main() -> None:
             "speedup_ratio": float(
                 prediction_baseline_seconds / prediction_optimized_seconds
             ),
+        },
+        {
+            "suite": "signalome_prediction_hot_paths_v2",
+            "fixture_name": fixture_name,
+            "path_name": "run_adaptive_ensemble_prediction",
+            "site_count": int(adaptive_prediction_matrix.shape[0]),
+            "kinase_count": int(adaptive_prediction_matrix.shape[1]),
+            "candidate_kinase_count": int(len(adaptive_candidate_substrates)),
+            "adaptive_ensemble_runs": int(
+                adaptive_prediction_config.adaptive_ensemble_runs
+            ),
+            "adaptive_iterations": int(adaptive_prediction_config.n_iterations),
+            "random_state": int(adaptive_prediction_config.random_state or 0),
+            "repeats": int(repeats),
+            "optimized_runtime_seconds": float(adaptive_runtime_seconds),
+            "optimized_peak_mib": float(adaptive_peak_mib),
         },
     ]
 

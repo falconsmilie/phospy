@@ -12,6 +12,9 @@ For executable usage, see:
 - `examples/kinase_workflow_demo.py`
 - `examples/signalome_workflow_demo.py`
 
+For explicit performance and scale contracts (input sizes, guardrails,
+approximation behavior, and failure modes), see `docs/performance.md`.
+
 ## AnalysisReadyDatasetBuilder Contract
 
 ### Required Input Tables

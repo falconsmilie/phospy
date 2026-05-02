@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Benchmark signalome clustering backend contracts on stable fixtures.
+"""Benchmark signalome clustering contracts with explicit guardrail scenarios.
 
 Targets:
-- backend parity visibility for `exact_python` and `scipy_hierarchical`
-- exact-tree guard and full-correlation guard behavior
-- sampled candidate-scoring activation behavior
+- exact clustering below `max_exact_tree_sites`
+- exact-tree guard failure above `max_exact_tree_sites`
+- candidate scoring behavior under `full` and `sampled` policies
 """
 
 from __future__ import annotations
@@ -28,32 +28,14 @@ if str(SRC) not in sys.path:
 
 
 @dataclass(frozen=True, slots=True)
-class _BackendFixture:
+class _Fixture:
     name: str
     scoring_matrix: pd.DataFrame
     site_to_protein: pd.Series
-    requested_module_count: int | None = None
-    max_clusters: int = 8
-    candidate_scoring_backend: str | None = None
-    max_exact_cluster_tree_sites: int | None = None
-    max_full_correlation_sites: int = 2000
-    expect_error_substring: str | None = None
-
-
-def _build_deterministic_scoring_matrix(
-    *,
-    n_sites: int,
-    n_kinases: int,
-    seed: int,
-) -> pd.DataFrame:
-    from tests.support.performance_contracts import deterministic_matrix
-
-    matrix = deterministic_matrix(n_sites=n_sites, n_samples=n_kinases, seed=seed)
-    matrix.columns = pd.Index(
-        [f"KINASE_{index + 1:03d}" for index in range(int(matrix.shape[1]))],
-        name="kinase",
-    )
-    return matrix
+    candidate_scoring_policy: str
+    max_exact_tree_sites: int
+    max_full_candidate_scoring_sites: int
+    max_clusters: int = 10
 
 
 def _build_realistic_scoring_matrix(
@@ -74,10 +56,9 @@ def _build_realistic_scoring_matrix(
     module_assignments = (np.arange(int(n_sites), dtype=int) * 5) % int(n_modules)
     noise = rng.normal(loc=0.0, scale=0.28, size=(int(n_sites), int(n_kinases)))
     values = np.round(module_profiles[module_assignments] + noise, decimals=6)
-    site_ids = deterministic_site_ids(int(n_sites), start=40_000, gene_prefix="SIGSITE")
     return pd.DataFrame(
         values,
-        index=site_ids,
+        index=deterministic_site_ids(int(n_sites), start=40_000, gene_prefix="SIGSITE"),
         columns=pd.Index(
             [f"KINASE_{index + 1:03d}" for index in range(int(n_kinases))],
             name="kinase",
@@ -86,13 +67,7 @@ def _build_realistic_scoring_matrix(
     )
 
 
-def _build_site_to_protein(
-    site_ids: pd.Index,
-    *,
-    sites_per_protein: int,
-) -> pd.Series:
-    if sites_per_protein < 1:
-        raise ValueError("sites_per_protein must be >= 1")
+def _build_site_to_protein(site_ids: pd.Index, *, sites_per_protein: int) -> pd.Series:
     proteins = [
         f"PROT_{(index // int(sites_per_protein)) + 1:05d}"
         for index in range(int(site_ids.size))
@@ -105,7 +80,7 @@ def _build_site_to_protein(
     )
 
 
-def _measure_backend_call(
+def _measure(
     func, *, warmup: bool = True
 ) -> tuple[object | None, Exception | None, float, float]:
     if warmup:
@@ -119,237 +94,146 @@ def _measure_backend_call(
     started = time.perf_counter()
     try:
         result = func()
-    except Exception as exc:  # pragma: no cover - exercised by manual benchmark runs
+    except Exception as exc:  # pragma: no cover - exercised by benchmark runs
         error = exc
-    runtime_seconds = time.perf_counter() - started
+    elapsed = time.perf_counter() - started
     _current_bytes, peak_bytes = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    peak_mib = float(peak_bytes) / (1024.0 * 1024.0)
-    return result, error, float(runtime_seconds), peak_mib
+    return result, error, float(elapsed), float(peak_bytes) / (1024.0 * 1024.0)
 
 
-def _run_fixture_for_backend(
-    *,
-    fixture: _BackendFixture,
-    backend_name: str,
-) -> dict[str, object]:
+def _run_fixture(*, fixture: _Fixture) -> dict[str, object]:
     from phospy.errors.workflows import SignalomeScaleError
-    from phospy.signalomes.clustering import (
-        SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-        run_signalome_clustering_backend,
-    )
+    from phospy.signalomes.clustering import run_signalome_clustering_engine
 
-    result, error, runtime_seconds, peak_mib = _measure_backend_call(
-        lambda: run_signalome_clustering_backend(
+    result, error, runtime_seconds, peak_mib = _measure(
+        lambda: run_signalome_clustering_engine(
             scoring_matrix=fixture.scoring_matrix,
             site_to_protein=fixture.site_to_protein,
-            requested_module_count=fixture.requested_module_count,
+            requested_module_count=None,
             primary_threshold=0.45,
             fallback_threshold=0.15,
             max_clusters=fixture.max_clusters,
-            candidate_scoring_backend=fixture.candidate_scoring_backend,
-            max_exact_cluster_tree_sites=fixture.max_exact_cluster_tree_sites,
-            max_full_correlation_sites=fixture.max_full_correlation_sites,
-            backend_name=backend_name,
+            candidate_scoring_policy=fixture.candidate_scoring_policy,
+            max_exact_tree_sites=fixture.max_exact_tree_sites,
+            max_full_candidate_scoring_sites=fixture.max_full_candidate_scoring_sites,
         ),
         warmup=True,
     )
 
-    base_record: dict[str, object] = {
-        "suite": "signalome_clustering_contracts_v2",
+    record: dict[str, object] = {
+        "suite": "signalome_clustering_contracts_v3",
         "fixture_name": fixture.name,
-        "backend_name": backend_name,
         "site_count": int(fixture.scoring_matrix.shape[0]),
         "kinase_count": int(fixture.scoring_matrix.shape[1]),
-        "requested_candidate_scoring_backend": (
-            "auto"
-            if fixture.candidate_scoring_backend is None
-            else str(fixture.candidate_scoring_backend)
+        "candidate_scoring_policy": fixture.candidate_scoring_policy,
+        "max_exact_tree_sites": int(fixture.max_exact_tree_sites),
+        "max_full_candidate_scoring_sites": int(
+            fixture.max_full_candidate_scoring_sites
         ),
-        "requested_module_count": (
-            None
-            if fixture.requested_module_count is None
-            else int(fixture.requested_module_count)
-        ),
-        "max_exact_cluster_tree_sites": (
-            None
-            if fixture.max_exact_cluster_tree_sites is None
-            else int(fixture.max_exact_cluster_tree_sites)
-        ),
-        "max_full_correlation_sites": int(fixture.max_full_correlation_sites),
         "runtime_seconds": float(runtime_seconds),
         "peak_mib": float(peak_mib),
-        "selected_module_count": None,
-        "cluster_tree_backend_mode": None,
-        "candidate_scoring_mode": None,
-        "sampled_candidate_scoring_activated": None,
-        "candidate_scoring_skipped": None,
-        "exact_tree_construction_occurred": False,
         "status": "ok",
+        "candidate_scoring_mode": None,
+        "selected_module_count": None,
+        "exact_tree_construction_occurred": False,
         "error_type": None,
-        "error_contains_expected_token": None,
     }
 
     if error is not None:
         if not isinstance(error, SignalomeScaleError):
             raise error
-        if fixture.expect_error_substring is None:
-            raise RuntimeError(
-                f"unexpected guard failure for fixture={fixture.name} backend={backend_name}: {error}"
-            ) from error
-        normalized_message = str(error).lower()
-        base_record["status"] = "guard_error"
-        base_record["error_type"] = type(error).__name__
-        base_record["error_contains_expected_token"] = (
-            fixture.expect_error_substring.lower() in normalized_message
-        )
-        return base_record
+        record["status"] = "guard_error"
+        record["error_type"] = type(error).__name__
+        record["error_message"] = str(error)
+        return record
 
-    if fixture.expect_error_substring is not None:
-        raise RuntimeError(
-            f"expected guard error for fixture={fixture.name} backend={backend_name}"
-        )
     assert result is not None
     diagnostics = result.module_selection_diagnostics
-    candidate_mode = str(result.candidate_scoring_mode)
-    sampled_activated = bool(
-        result.candidate_scoring_evaluated
-        and candidate_mode == SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED
-    )
-
-    base_record.update(
+    record.update(
         {
+            "candidate_scoring_mode": str(result.candidate_scoring_mode),
             "selected_module_count": int(diagnostics.selected_module_count),
-            "cluster_tree_backend_mode": str(result.cluster_tree_backend),
-            "candidate_scoring_mode": candidate_mode,
-            "sampled_candidate_scoring_activated": sampled_activated,
-            "candidate_scoring_skipped": bool(not result.candidate_scoring_evaluated),
             "exact_tree_construction_occurred": bool(result.exact_cluster_tree_built),
+            "candidate_scoring_evaluated": bool(result.candidate_scoring_evaluated),
+            "candidate_scoring_skip_reason": result.candidate_scoring_skip_reason,
+            "tree_implementation": str(result.tree_implementation),
         }
     )
-    return base_record
+    return record
 
 
 def main() -> None:
     from phospy.signalomes.clustering import (
-        SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-        SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-        SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
-        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
+        SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+        SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
     )
 
-    backends = (
-        SIGNALOME_CLUSTERING_BACKEND_EXACT_PYTHON,
-        SIGNALOME_CLUSTERING_BACKEND_SCIPY_HIERARCHICAL,
-    )
-
-    small_deterministic = _build_deterministic_scoring_matrix(
-        n_sites=48,
-        n_kinases=14,
+    below_guard_matrix = _build_realistic_scoring_matrix(
+        n_sites=1_800,
+        n_kinases=60,
         seed=5101,
     )
-    medium_realistic = _build_realistic_scoring_matrix(
-        n_sites=240,
-        n_kinases=24,
+    above_guard_matrix = _build_realistic_scoring_matrix(
+        n_sites=2_120,
+        n_kinases=60,
         seed=5102,
-    )
-    near_threshold = _build_realistic_scoring_matrix(
-        n_sites=72,
-        n_kinases=12,
-        seed=5103,
-    )
-    full_guard = _build_realistic_scoring_matrix(
-        n_sites=90,
-        n_kinases=10,
-        seed=5104,
-    )
-    sampled_mode = _build_realistic_scoring_matrix(
-        n_sites=420,
-        n_kinases=24,
-        seed=5105,
     )
 
     fixtures = (
-        _BackendFixture(
-            name="signalome_small_deterministic_v1",
-            scoring_matrix=small_deterministic,
+        _Fixture(
+            name="signalome_exact_below_guardrail_v1",
+            scoring_matrix=below_guard_matrix,
             site_to_protein=_build_site_to_protein(
-                small_deterministic.index,
-                sites_per_protein=2,
+                below_guard_matrix.index, sites_per_protein=3
             ),
-            max_clusters=8,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-            max_exact_cluster_tree_sites=96,
-            max_full_correlation_sites=96,
-        ),
-        _BackendFixture(
-            name="signalome_medium_realistic_v1",
-            scoring_matrix=medium_realistic,
-            site_to_protein=_build_site_to_protein(
-                medium_realistic.index,
-                sites_per_protein=3,
-            ),
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+            max_exact_tree_sites=2_000,
+            max_full_candidate_scoring_sites=2_000,
             max_clusters=10,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-            max_exact_cluster_tree_sites=320,
-            max_full_correlation_sites=320,
         ),
-        _BackendFixture(
-            name="signalome_near_exact_tree_limit_v1",
-            scoring_matrix=near_threshold,
+        _Fixture(
+            name="signalome_exact_guardrail_trigger_v1",
+            scoring_matrix=above_guard_matrix,
             site_to_protein=_build_site_to_protein(
-                near_threshold.index,
-                sites_per_protein=2,
+                above_guard_matrix.index, sites_per_protein=3
             ),
-            max_clusters=7,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-            max_exact_cluster_tree_sites=72,
-            max_full_correlation_sites=72,
-        ),
-        _BackendFixture(
-            name="signalome_full_correlation_guard_v1",
-            scoring_matrix=full_guard,
-            site_to_protein=_build_site_to_protein(
-                full_guard.index,
-                sites_per_protein=2,
-            ),
-            max_clusters=6,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_FULL,
-            max_exact_cluster_tree_sites=120,
-            max_full_correlation_sites=80,
-            expect_error_substring="full candidate-correlation scoring would evaluate",
-        ),
-        _BackendFixture(
-            name="signalome_sampled_candidate_scoring_v1",
-            scoring_matrix=sampled_mode,
-            site_to_protein=_build_site_to_protein(
-                sampled_mode.index,
-                sites_per_protein=3,
-            ),
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+            max_exact_tree_sites=2_000,
+            max_full_candidate_scoring_sites=2_500,
             max_clusters=10,
-            candidate_scoring_backend=SIGNALOME_CANDIDATE_SCORING_BACKEND_SAMPLED,
-            max_exact_cluster_tree_sites=500,
-            max_full_correlation_sites=180,
+        ),
+        _Fixture(
+            name="signalome_candidate_scoring_full_v1",
+            scoring_matrix=below_guard_matrix,
+            site_to_protein=_build_site_to_protein(
+                below_guard_matrix.index, sites_per_protein=3
+            ),
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+            max_exact_tree_sites=2_500,
+            max_full_candidate_scoring_sites=2_500,
+            max_clusters=10,
+        ),
+        _Fixture(
+            name="signalome_candidate_scoring_sampled_v1",
+            scoring_matrix=below_guard_matrix,
+            site_to_protein=_build_site_to_protein(
+                below_guard_matrix.index, sites_per_protein=3
+            ),
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+            max_exact_tree_sites=2_500,
+            max_full_candidate_scoring_sites=2_500,
+            max_clusters=10,
         ),
     )
 
-    records: list[dict[str, object]] = []
-    for fixture in fixtures:
-        for backend_name in backends:
-            records.append(
-                _run_fixture_for_backend(fixture=fixture, backend_name=backend_name)
-            )
+    records = [_run_fixture(fixture=fixture) for fixture in fixtures]
 
     print("report_format=jsonl")
-    print("benchmark_suite=signalome_clustering_contracts_v2")
+    print("benchmark_suite=signalome_clustering_contracts_v3")
     for record in records:
         print(
-            json.dumps(
-                record,
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=True,
-            )
+            json.dumps(record, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
         )
 
 

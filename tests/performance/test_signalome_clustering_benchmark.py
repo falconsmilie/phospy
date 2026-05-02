@@ -6,16 +6,15 @@ import pytest
 
 import phospy.signalomes.clustering as clustering
 from tests.support.performance_contracts import (
+    SIGNALOME_CLUSTER_TREE_BENCHMARK_N_KINASES,
+    SIGNALOME_CLUSTER_TREE_BENCHMARK_N_SITES,
+    SIGNALOME_CLUSTER_TREE_PEAK_MIB_MAX,
+    SIGNALOME_CLUSTER_TREE_RUNTIME_SECONDS_MAX,
     deterministic_matrix,
     measure_runtime_and_peak_mib,
 )
 
 pytestmark = pytest.mark.performance
-
-SIGNALOME_CLUSTER_TREE_BENCHMARK_N_SITES = 500
-SIGNALOME_CLUSTER_TREE_BENCHMARK_N_KINASES = 8
-SIGNALOME_CLUSTER_TREE_RUNTIME_SECONDS_MAX = 25.0
-SIGNALOME_CLUSTER_TREE_PEAK_MIB_MAX = 256.0
 
 
 def _build_signalome_scoring_matrix(*, n_sites: int, n_kinases: int) -> pd.DataFrame:

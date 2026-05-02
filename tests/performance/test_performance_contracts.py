@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -20,11 +21,15 @@ from phospy.api.results import KinaseScoringResult, KinaseWorkflowResult
 from phospy.datasets.preprocessing.models import PreprocessingPlan, PreprocessingState
 from phospy.datasets.preprocessing.stages.normalisation import NormalisationStage
 from phospy.errors.workflows import SignalomeScaleError
+from phospy.io.bundles._signalome.snapshots import SignalomeWorkflowConfigSnapshot
+from phospy.io.bundles.signalome import save_signalome_workflow_bundle
+from phospy.prediction.execution import run_adaptive_ensemble_prediction
 from phospy.prediction.motif_scoring import (
     DEFAULT_MOTIF_FLANK_SIZE,
     build_motif_library,
     score_phosphosite_motifs,
 )
+from phospy.provenance.hashing import hash_table
 from phospy.signalomes.clustering import (
     MAX_FULL_CORRELATION_SITE_COUNT,
     SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED,
@@ -40,6 +45,40 @@ from phospy.signalomes.models import (
     SIGNALOME_MODULE_SELECTION_STRATEGY_EXPLICIT_MODULE_COUNT,
 )
 from tests.support.performance_contracts import (
+    ADAPTIVE_PREDICTION_CONTRACT_CANDIDATE_KINASES,
+    ADAPTIVE_PREDICTION_CONTRACT_N_KINASES,
+    ADAPTIVE_PREDICTION_CONTRACT_N_SITES,
+    ADAPTIVE_PREDICTION_CONTRACT_TOP_K,
+    ADAPTIVE_PREDICTION_PEAK_MIB_MAX,
+    ADAPTIVE_PREDICTION_RUNTIME_SECONDS_MAX,
+    BUNDLE_PUBLISH_PEAK_MIB_MAX,
+    BUNDLE_PUBLISH_RUNTIME_SECONDS_MAX,
+    DIAGNOSTIC_RUNTIME_ABSOLUTE_SECONDS,
+    DIAGNOSTIC_RUNTIME_RATIO_MULTIPLIER,
+    KINASE_FILTERED_REFERENCE_PEAK_MIB_MAX,
+    KINASE_FILTERED_REFERENCE_RUNTIME_SECONDS_MAX,
+    MOTIF_PEAK_MIB_MAX,
+    MOTIF_RUNTIME_SECONDS_MAX,
+    PREPROCESSING_CONTRACT_N_SAMPLES,
+    PREPROCESSING_CONTRACT_N_SITES,
+    PROVENANCE_HASHING_PEAK_MIB_MAX,
+    PROVENANCE_HASHING_RUNTIME_SECONDS_MAX,
+    QUANTILE_PEAK_MIB_MAX,
+    QUANTILE_RUNTIME_SECONDS_MAX,
+    SIGNALOME_ABOVE_THRESHOLD_RUNTIME_SECONDS_MAX,
+    SIGNALOME_BACKEND_MEDIUM_PEAK_MIB_MAX,
+    SIGNALOME_BACKEND_MEDIUM_RUNTIME_SECONDS_MAX,
+    SIGNALOME_BACKEND_SMALL_PEAK_MIB_MAX,
+    SIGNALOME_BACKEND_SMALL_RUNTIME_SECONDS_MAX,
+    SIGNALOME_BELOW_THRESHOLD_RUNTIME_SECONDS_MAX,
+    SIGNALOME_CONTRACT_N_KINASES,
+    SIGNALOME_CONTRACT_N_SITES,
+    SIGNALOME_FULL_GUARD_RUNTIME_SECONDS_MAX,
+    SIGNALOME_NEAR_THRESHOLD_RUNTIME_SECONDS_MAX,
+    SIGNALOME_WORKFLOW_PEAK_MIB_MAX,
+    SIGNALOME_WORKFLOW_PRECONDITIONED_PEAK_MIB_MAX,
+    SIGNALOME_WORKFLOW_PRECONDITIONED_RUNTIME_SECONDS_MAX,
+    SIGNALOME_WORKFLOW_RUNTIME_SECONDS_MAX,
     deterministic_kinase_substrate_map,
     deterministic_matrix,
     deterministic_site_ids,
@@ -54,32 +93,6 @@ from tests.support.signalome_config import build_signalome_config
 pytestmark = pytest.mark.performance
 
 APPROXIMATION_REASON_TOKEN = "Used sampled within-cluster correlation estimates"
-
-SIGNALOME_BELOW_THRESHOLD_RUNTIME_SECONDS_MAX = 8.0
-SIGNALOME_ABOVE_THRESHOLD_RUNTIME_SECONDS_MAX = 8.0
-
-QUANTILE_RUNTIME_SECONDS_MAX = 5.0
-QUANTILE_PEAK_MIB_MAX = 256.0
-
-MOTIF_RUNTIME_SECONDS_MAX = 8.0
-MOTIF_PEAK_MIB_MAX = 300.0
-
-KINASE_FILTERED_REFERENCE_RUNTIME_SECONDS_MAX = 8.0
-KINASE_FILTERED_REFERENCE_PEAK_MIB_MAX = 300.0
-
-DIAGNOSTIC_RUNTIME_RATIO_MULTIPLIER = 5.0
-DIAGNOSTIC_RUNTIME_ABSOLUTE_SECONDS = 1.0
-
-SIGNALOME_BACKEND_SMALL_RUNTIME_SECONDS_MAX = 10.0
-SIGNALOME_BACKEND_MEDIUM_RUNTIME_SECONDS_MAX = 18.0
-SIGNALOME_BACKEND_SMALL_PEAK_MIB_MAX = 256.0
-SIGNALOME_BACKEND_MEDIUM_PEAK_MIB_MAX = 512.0
-SIGNALOME_NEAR_THRESHOLD_RUNTIME_SECONDS_MAX = 12.0
-SIGNALOME_FULL_GUARD_RUNTIME_SECONDS_MAX = 3.0
-SIGNALOME_WORKFLOW_RUNTIME_SECONDS_MAX = 20.0
-SIGNALOME_WORKFLOW_PEAK_MIB_MAX = 700.0
-SIGNALOME_WORKFLOW_PRECONDITIONED_RUNTIME_SECONDS_MAX = 20.0
-SIGNALOME_WORKFLOW_PRECONDITIONED_PEAK_MIB_MAX = 700.0
 
 
 def _patch_cluster_tree_build_for_contract_scoring(
@@ -176,6 +189,36 @@ def _build_signalome_site_to_protein(
         name="protein_id",
         dtype=str,
     )
+
+
+def _build_adaptive_prediction_hot_path_inputs(
+    *,
+    n_sites: int,
+    n_kinases: int,
+    candidate_kinases: int,
+    seed: int,
+) -> tuple[pd.DataFrame, dict[str, list[str]]]:
+    prediction_score_matrix = deterministic_matrix(
+        n_sites=n_sites,
+        n_samples=n_kinases,
+        seed=seed,
+        site_ids=deterministic_site_ids(n_sites, start=140_000, gene_prefix="PREDSITE"),
+        sample_columns=pd.Index(
+            [f"KINASE_{index + 1:03d}" for index in range(n_kinases)],
+            name="kinase",
+        ),
+    )
+    site_values = prediction_score_matrix.index.astype(str).tolist()
+    candidate_substrates: dict[str, list[str]] = {}
+    sites_per_kinase = min(96, len(site_values))
+    for kinase_index in range(min(candidate_kinases, n_kinases)):
+        kinase = f"KINASE_{kinase_index + 1:03d}"
+        start = (kinase_index * 17) % len(site_values)
+        candidate_substrates[kinase] = [
+            site_values[(start + offset) % len(site_values)]
+            for offset in range(sites_per_kinase)
+        ]
+    return prediction_score_matrix, candidate_substrates
 
 
 def _collect_backend_contract_snapshot(
@@ -557,6 +600,58 @@ def test_signalome_backend_contracts_medium_fixture_activates_sampled_candidate_
     assert scipy_snapshot["peak_mib"] < SIGNALOME_BACKEND_MEDIUM_PEAK_MIB_MAX
 
 
+def test_signalome_candidate_scoring_contract_full_vs_sampled_policy() -> None:
+    scoring_matrix = _build_signalome_realistic_scoring_matrix(
+        n_sites=420,
+        n_kinases=24,
+        seed=2312,
+    )
+    site_to_protein = _build_signalome_site_to_protein(
+        scoring_matrix.index,
+        sites_per_protein=3,
+    )
+
+    full_result, full_runtime, full_peak_mib = _run_signalome_backend_contract(
+        scoring_matrix=scoring_matrix,
+        site_to_protein=site_to_protein,
+        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+        max_clusters=10,
+        candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+        max_exact_tree_sites=500,
+        max_full_candidate_scoring_sites=500,
+    )
+    sampled_result, sampled_runtime, sampled_peak_mib = _run_signalome_backend_contract(
+        scoring_matrix=scoring_matrix,
+        site_to_protein=site_to_protein,
+        clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+        max_clusters=10,
+        candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+        max_exact_tree_sites=500,
+        max_full_candidate_scoring_sites=500,
+    )
+
+    assert full_result.candidate_scoring_mode == SIGNALOME_CANDIDATE_SCORING_POLICY_FULL
+    assert (
+        sampled_result.candidate_scoring_mode
+        == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
+    )
+    assert (
+        APPROXIMATION_REASON_TOKEN
+        not in full_result.module_selection_diagnostics.reason
+    )
+    assert (
+        APPROXIMATION_REASON_TOKEN in sampled_result.module_selection_diagnostics.reason
+    )
+    assert full_result.candidate_scoring_evaluated is True
+    assert sampled_result.candidate_scoring_evaluated is True
+    assert full_result.exact_cluster_tree_built is True
+    assert sampled_result.exact_cluster_tree_built is True
+    assert full_runtime < SIGNALOME_BACKEND_MEDIUM_RUNTIME_SECONDS_MAX
+    assert sampled_runtime < SIGNALOME_BACKEND_MEDIUM_RUNTIME_SECONDS_MAX
+    assert full_peak_mib < SIGNALOME_BACKEND_MEDIUM_PEAK_MIB_MAX
+    assert sampled_peak_mib < SIGNALOME_BACKEND_MEDIUM_PEAK_MIB_MAX
+
+
 def test_signalome_exact_tree_guard_contract_near_threshold_fixture() -> None:
     near_limit = 72
     passing_matrix = _build_signalome_realistic_scoring_matrix(
@@ -847,8 +942,8 @@ def test_signalome_workflow_performance_contract_covers_all_missing_row_precondi
 
 def test_quantile_normalisation_performance_contract() -> None:
     phospho = deterministic_matrix(
-        n_sites=1_500,
-        n_samples=16,
+        n_sites=PREPROCESSING_CONTRACT_N_SITES,
+        n_samples=PREPROCESSING_CONTRACT_N_SAMPLES,
         seed=181,
     )
     state = PreprocessingState(
@@ -874,21 +969,23 @@ def test_quantile_normalisation_performance_contract() -> None:
 
 
 def test_motif_scoring_contract_scales_with_eligible_overlap() -> None:
-    dataset_sites = deterministic_site_ids(800)
+    dataset_sites = deterministic_site_ids(SIGNALOME_CONTRACT_N_SITES)
     offlane_sites = deterministic_site_ids(
-        300 * 8 + 64,
+        360 * 10 + 64,
         start=850_000,
         gene_prefix="OFFSITE",
     )
     full_reference_map = deterministic_kinase_substrate_map(
         dataset_site_ids=dataset_sites,
-        eligible_kinase_count=80,
-        substrates_per_kinase=8,
-        offlane_kinase_count=300,
-        offlane_sites_per_kinase=8,
+        eligible_kinase_count=SIGNALOME_CONTRACT_N_KINASES,
+        substrates_per_kinase=12,
+        offlane_kinase_count=360,
+        offlane_sites_per_kinase=10,
         offlane_site_ids=offlane_sites,
     )
-    eligible_kinases = {f"KINASE_{index + 1:03d}" for index in range(80)}
+    eligible_kinases = {
+        f"KINASE_{index + 1:03d}" for index in range(SIGNALOME_CONTRACT_N_KINASES)
+    }
     filtered_map = full_reference_map.loc[
         full_reference_map.loc[:, "kinase"].astype(str).isin(eligible_kinases)
     ]
@@ -922,6 +1019,47 @@ def test_motif_scoring_contract_scales_with_eligible_overlap() -> None:
     assert not any(name.startswith("OFFLANE_") for name in scored_kinases)
     assert runtime_seconds < MOTIF_RUNTIME_SECONDS_MAX
     assert peak_mib < MOTIF_PEAK_MIB_MAX
+
+
+def test_adaptive_prediction_hot_path_performance_contract_with_fixed_seed() -> None:
+    prediction_score_matrix, candidate_substrates = (
+        _build_adaptive_prediction_hot_path_inputs(
+            n_sites=ADAPTIVE_PREDICTION_CONTRACT_N_SITES,
+            n_kinases=ADAPTIVE_PREDICTION_CONTRACT_N_KINASES,
+            candidate_kinases=ADAPTIVE_PREDICTION_CONTRACT_CANDIDATE_KINASES,
+            seed=9417,
+        )
+    )
+    prediction_config = KinasePredictionConfig(
+        top_k=ADAPTIVE_PREDICTION_CONTRACT_TOP_K,
+        deterministic_max_selected_kinases=12,
+        adaptive_ensemble_runs=8,
+        mode="adaptive_ensemble",
+        n_iterations=12,
+        random_state=93103,
+    )
+
+    adaptive_scores, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
+        lambda: run_adaptive_ensemble_prediction(
+            prediction_score_matrix=prediction_score_matrix,
+            candidate_substrates=candidate_substrates,
+            prediction_config=prediction_config,
+            random_state=93103,
+        ),
+        warmup=True,
+    )
+    repeated_scores = run_adaptive_ensemble_prediction(
+        prediction_score_matrix=prediction_score_matrix,
+        candidate_substrates=candidate_substrates,
+        prediction_config=prediction_config,
+        random_state=93103,
+    )
+
+    pd.testing.assert_frame_equal(adaptive_scores, repeated_scores, check_dtype=False)
+    assert adaptive_scores.shape[0] == ADAPTIVE_PREDICTION_CONTRACT_N_SITES
+    assert adaptive_scores.shape[1] == ADAPTIVE_PREDICTION_CONTRACT_CANDIDATE_KINASES
+    assert runtime_seconds < ADAPTIVE_PREDICTION_RUNTIME_SECONDS_MAX
+    assert peak_mib < ADAPTIVE_PREDICTION_PEAK_MIB_MAX
 
 
 def test_large_reference_map_contract_keeps_filtered_scoring_bounded() -> None:
@@ -1025,3 +1163,86 @@ def test_diagnostic_scoring_tables_contract_has_bounded_runtime_overhead() -> No
     assert default_result.scoring_result.score_fusion_weights is None
     assert diagnostic_result.scoring_result.motif_scores is not None
     assert diagnostic_result.scoring_result.score_fusion_weights is not None
+
+
+def test_bundle_publishing_performance_contract_with_representative_tables(
+    tmp_path: Path,
+) -> None:
+    kinase_result, _eligible_kinases = _build_kinase_result_for_signalome_performance(
+        n_sites=220,
+        n_samples=8,
+        eligible_kinases=42,
+        substrates_per_kinase=6,
+        offlane_kinases=240,
+        offlane_sites_per_kinase=8,
+    )
+    signalome_request = SignalomeWorkflowRequest(
+        kinase_result=kinase_result,
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            module_selection_max_clusters=8,
+            candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+            max_exact_tree_sites=360,
+            max_full_candidate_scoring_sites=140,
+            clustering_engine=SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+        ),
+    )
+    signalome_result = SignalomeWorkflow().run(signalome_request)
+    config_snapshot = SignalomeWorkflowConfigSnapshot.from_request(signalome_request)
+    call_index = [0]
+
+    def _write_bundle():
+        bundle_root = tmp_path / f"signalome_contract_bundle_{call_index[0]}"
+        call_index[0] += 1
+        return save_signalome_workflow_bundle(
+            signalome_result,
+            bundle_root,
+            config_snapshot=config_snapshot,
+            output_format="csv",
+        )
+
+    written_paths, runtime_seconds, peak_mib = measure_runtime_and_peak_mib(
+        _write_bundle,
+        warmup=True,
+    )
+    assert "manifest" in written_paths
+    assert "signalome.module_assignments" in written_paths
+    assert "signalome.signalome_modules" in written_paths
+    assert "prediction.pred_mat" in written_paths
+    for written_path in written_paths.values():
+        assert Path(written_path).exists()
+    assert runtime_seconds < BUNDLE_PUBLISH_RUNTIME_SECONDS_MAX
+    assert peak_mib < BUNDLE_PUBLISH_PEAK_MIB_MAX
+
+
+def test_provenance_hashing_performance_contract_large_dataframes() -> None:
+    phospho = deterministic_matrix(
+        n_sites=PREPROCESSING_CONTRACT_N_SITES,
+        n_samples=PREPROCESSING_CONTRACT_N_SAMPLES,
+        seed=9511,
+    )
+    site_metadata = deterministic_site_metadata(phospho.index, include_protein_id=True)
+    site_metadata.loc[:, "category"] = (
+        np.arange(int(site_metadata.shape[0]), dtype=int) % 9
+    ).astype(str)
+
+    (phospho_hash, metadata_hash), runtime_seconds, peak_mib = (
+        measure_runtime_and_peak_mib(
+            lambda: (
+                hash_table(phospho, name="performance_contracts.phospho"),
+                hash_table(site_metadata, name="performance_contracts.site_metadata"),
+            ),
+            warmup=True,
+        )
+    )
+    repeated_phospho_hash = hash_table(phospho, name="performance_contracts.phospho")
+    repeated_metadata_hash = hash_table(
+        site_metadata, name="performance_contracts.site_metadata"
+    )
+
+    assert phospho_hash == repeated_phospho_hash
+    assert metadata_hash == repeated_metadata_hash
+    assert len(phospho_hash) == 64
+    assert len(metadata_hash) == 64
+    assert runtime_seconds < PROVENANCE_HASHING_RUNTIME_SECONDS_MAX
+    assert peak_mib < PROVENANCE_HASHING_PEAK_MIB_MAX
