@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 from phospy.errors.validation import (
     DatasetValidationError,
@@ -20,6 +22,30 @@ from phospy.tables.datasets import (
 from phospy.tables.kinase import KinasePredictionMatrix
 from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
 from phospy.tables.signalome import SignalomeProteinSiteContext, SignalomeSiteContext
+
+_PROPERTY_SETTINGS = settings(
+    max_examples=30,
+    deadline=None,
+    derandomize=True,
+)
+
+
+def _canonical_site_ids(
+    *,
+    min_size: int = 1,
+    max_size: int = 6,
+) -> st.SearchStrategy[list[str]]:
+    return st.lists(
+        st.integers(min_value=1, max_value=9999),
+        min_size=min_size,
+        max_size=max_size,
+        unique=True,
+    ).map(lambda ids: [f"G{site_id};S{site_id};" for site_id in ids])
+
+
+def _parse_site_id(site_id: str) -> tuple[str, str]:
+    gene_symbol, site, _ = site_id.split(";")
+    return gene_symbol, site
 
 
 def _phospho_frame() -> pd.DataFrame:
@@ -159,6 +185,44 @@ def test_dataset_schema_numeric_looking_string_column_fails() -> None:
         PhosphoIntensityMatrix(frame=bad)
 
 
+@given(site_ids=_canonical_site_ids(min_size=2))
+@_PROPERTY_SETTINGS
+def test_dataset_schema_property_non_numeric_string_columns_are_rejected(
+    site_ids: list[str],
+) -> None:
+    frame = pd.DataFrame(
+        {
+            "sample_a": [1.0 for _ in site_ids],
+            "sample_b": [2.0 for _ in site_ids],
+        },
+        index=pd.Index(site_ids, name="site_id"),
+    ).astype(object)
+    frame.loc[:, "sample_a"] = ["x" for _ in site_ids]
+    with pytest.raises(DatasetValidationError, match="non-numeric columns: sample_a"):
+        PhosphoIntensityMatrix(frame=frame)
+
+
+@given(site_ids=_canonical_site_ids(min_size=2))
+@_PROPERTY_SETTINGS
+def test_dataset_schema_property_boolean_columns_are_rejected(
+    site_ids: list[str],
+) -> None:
+    index = pd.Index(site_ids, name="site_id")
+    frame = pd.DataFrame(
+        {
+            "sample_a": [1.0 for _ in site_ids],
+            "sample_b": pd.Series(
+                [(idx % 2) == 0 for idx in range(len(site_ids))],
+                index=index,
+                dtype="bool",
+            ),
+        },
+        index=index,
+    )
+    with pytest.raises(DatasetValidationError, match="boolean columns are invalid"):
+        PhosphoIntensityMatrix(frame=frame)
+
+
 def test_dataset_schema_missing_phospho_value_fails() -> None:
     bad = _phospho_frame().copy(deep=True)
     bad.loc["MAPK14;Y182;", "sample_a"] = float("nan")
@@ -180,6 +244,74 @@ def test_dataset_schema_duplicate_phospho_columns_fail() -> None:
         PhosphoIntensityMatrix(frame=bad)
 
 
+@given(data=st.data())
+@_PROPERTY_SETTINGS
+def test_dataset_schema_property_duplicate_index_rejected_for_unique_site_ids(
+    data: st.DataObject,
+) -> None:
+    site_ids = data.draw(_canonical_site_ids(min_size=2), label="site_ids")
+    duplicate_source = data.draw(st.sampled_from(site_ids), label="duplicate_source")
+    duplicate_target_idx = data.draw(
+        st.integers(min_value=0, max_value=len(site_ids) - 1),
+        label="duplicate_target_idx",
+    )
+    duplicated_index = list(site_ids)
+    duplicated_index[duplicate_target_idx] = duplicate_source
+    assume(len(set(duplicated_index)) < len(duplicated_index))
+
+    frame = pd.DataFrame(
+        {
+            "sample_a": [float(i + 1) for i in range(len(duplicated_index))],
+            "sample_b": [float(i + 10) for i in range(len(duplicated_index))],
+        },
+        index=pd.Index(duplicated_index, name="site_id"),
+    )
+    with pytest.raises(
+        DatasetValidationError,
+        match="dataset.phospho.index must be unique",
+    ):
+        PhosphoIntensityMatrix(frame=frame)
+
+
+@given(data=st.data())
+@_PROPERTY_SETTINGS
+def test_prediction_schema_property_duplicate_columns_rejected_for_unique_kinase_labels(
+    data: st.DataObject,
+) -> None:
+    kinase_labels = data.draw(
+        st.lists(
+            st.integers(min_value=1, max_value=1000).map(lambda i: f"K{i}"),
+            min_size=2,
+            max_size=6,
+            unique=True,
+        ),
+        label="kinase_labels",
+    )
+    duplicate_source = data.draw(
+        st.sampled_from(kinase_labels),
+        label="duplicate_source",
+    )
+    duplicate_target_idx = data.draw(
+        st.integers(min_value=0, max_value=len(kinase_labels) - 1),
+        label="duplicate_target_idx",
+    )
+    duplicated_columns = list(kinase_labels)
+    duplicated_columns[duplicate_target_idx] = duplicate_source
+    assume(len(set(duplicated_columns)) < len(duplicated_columns))
+
+    frame = pd.DataFrame(
+        [list(range(1, len(duplicated_columns) + 1))],
+        index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        columns=pd.Index(duplicated_columns, name="kinase"),
+        dtype=float,
+    )
+    with pytest.raises(
+        PhosPyValidationError,
+        match="prediction_result.pred_mat.columns must be unique",
+    ):
+        KinasePredictionMatrix(frame=frame)
+
+
 def test_dataset_schema_non_canonical_site_index_fails() -> None:
     bad = _phospho_frame().copy(deep=True)
     bad.index = pd.Index(["MAPK14;Y182; ", "AKT1;T308;"])
@@ -192,6 +324,60 @@ def test_dataset_schema_site_metadata_missing_required_columns_fails() -> None:
     bad = _site_metadata_frame(phospho.frame.index).drop(columns=["gene_symbol"])
     with pytest.raises(DatasetValidationError, match="missing required columns"):
         SiteMetadataTable(frame=bad, expected_index=phospho.frame.index)
+
+
+@given(data=st.data())
+@_PROPERTY_SETTINGS
+def test_site_metadata_property_required_columns_allow_extra_columns(
+    data: st.DataObject,
+) -> None:
+    site_ids = data.draw(_canonical_site_ids(min_size=1), label="site_ids")
+    extra_column_names = data.draw(
+        st.lists(
+            st.integers(min_value=1, max_value=50).map(lambda i: f"extra_{i}"),
+            min_size=1,
+            max_size=3,
+            unique=True,
+        ),
+        label="extra_column_names",
+    )
+    parsed = [_parse_site_id(site_id) for site_id in site_ids]
+    frame = pd.DataFrame(
+        {
+            "gene_symbol": [gene for gene, _ in parsed],
+            "site": [site for _, site in parsed],
+            "site_sequence": ["A" * 31 for _ in site_ids],
+        },
+        index=pd.Index(site_ids, name="site_id"),
+    )
+    for idx, column_name in enumerate(extra_column_names):
+        frame.loc[:, column_name] = idx
+
+    wrapper = SiteMetadataTable(frame=frame, expected_index=frame.index)
+    assert set(extra_column_names).issubset(set(wrapper.frame.columns))
+
+
+@given(
+    site_ids=_canonical_site_ids(min_size=1),
+    missing_column=st.sampled_from(("gene_symbol", "site")),
+)
+@_PROPERTY_SETTINGS
+def test_site_metadata_property_removing_required_column_fails(
+    site_ids: list[str],
+    missing_column: str,
+) -> None:
+    parsed = [_parse_site_id(site_id) for site_id in site_ids]
+    frame = pd.DataFrame(
+        {
+            "gene_symbol": [gene for gene, _ in parsed],
+            "site": [site for _, site in parsed],
+            "site_sequence": ["A" * 31 for _ in site_ids],
+            "extra_col": ["x" for _ in site_ids],
+        },
+        index=pd.Index(site_ids, name="site_id"),
+    ).drop(columns=[missing_column])
+    with pytest.raises(DatasetValidationError, match="missing required columns"):
+        SiteMetadataTable(frame=frame, expected_index=frame.index)
 
 
 def test_dataset_schema_site_metadata_index_mismatch_fails() -> None:
@@ -325,6 +511,28 @@ def test_prediction_schema_rejects_infinite_values_when_missing_allowed(
     )
     with pytest.raises(PhosPyValidationError, match="finite numeric values"):
         KinasePredictionMatrix(frame=pred_mat)
+
+
+@given(
+    site_ids=_canonical_site_ids(min_size=2),
+    invalid_value=st.sampled_from((float("inf"), float("-inf"))),
+)
+@_PROPERTY_SETTINGS
+def test_prediction_schema_property_rejects_non_finite_numeric_entries(
+    site_ids: list[str],
+    invalid_value: float,
+) -> None:
+    frame = pd.DataFrame(
+        {
+            "K1": [0.9 for _ in site_ids],
+            "K2": [0.1 for _ in site_ids],
+        },
+        index=pd.Index(site_ids, name="site_id"),
+        dtype=float,
+    )
+    frame.iloc[0, 1] = invalid_value
+    with pytest.raises(PhosPyValidationError, match="finite numeric values"):
+        KinasePredictionMatrix(frame=frame)
 
 
 def test_prediction_schema_duplicate_kinase_columns_fail() -> None:

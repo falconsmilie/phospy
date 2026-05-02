@@ -3,6 +3,8 @@ from __future__ import annotations
 import pandas as pd
 import pandas.testing as pdt
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from phospy.api.configs import (
     DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
@@ -30,6 +32,12 @@ from phospy.datasets.preprocessing.stages.site_matrix_components import (
 )
 from phospy.errors.input import PhosPyInputError
 
+_PROPERTY_SETTINGS = settings(
+    max_examples=30,
+    deadline=None,
+    derandomize=True,
+)
+
 
 def _duplicate_policy_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     phospho = pd.DataFrame(
@@ -55,6 +63,18 @@ def _duplicate_policy_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
         name="site_id",
     )
     return phospho, site_metadata, constructed_site_id
+
+
+def _constructed_site_ids_strategy(
+    *,
+    min_size: int = 1,
+    max_size: int = 8,
+) -> st.SearchStrategy[list[str]]:
+    return st.lists(
+        st.integers(min_value=1, max_value=4),
+        min_size=min_size,
+        max_size=max_size,
+    ).map(lambda ids: [f"G{site_id};S{site_id};" for site_id in ids])
 
 
 def test_sequence_support_filter_preserves_supported_and_dropped_rows() -> None:
@@ -375,6 +395,57 @@ def test_duplicate_site_resolver_preserves_outputs_for_supported_policies(
 
     pdt.assert_frame_equal(result.phospho, expected_phospho)
     pdt.assert_frame_equal(result.site_metadata, expected_site_metadata)
+
+
+@given(
+    constructed_site_ids=_constructed_site_ids_strategy(min_size=1, max_size=8),
+    duplicate_site_policy=st.sampled_from(
+        (
+            DATASET_SITE_MATRIX_DUPLICATE_POLICY_FIRST,
+            DATASET_SITE_MATRIX_DUPLICATE_POLICY_MAX_MEAN_SIGNAL,
+            DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
+            DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
+        )
+    ),
+)
+@_PROPERTY_SETTINGS
+def test_duplicate_site_resolver_property_outputs_unique_site_ids(
+    constructed_site_ids: list[str],
+    duplicate_site_policy: str,
+) -> None:
+    row_ids = [f"row_{idx}" for idx in range(len(constructed_site_ids))]
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [float(idx + 1) for idx in range(len(constructed_site_ids))],
+            "sample_b": [float(idx + 11) for idx in range(len(constructed_site_ids))],
+        },
+        index=pd.Index(row_ids, name="source_row"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": [site_id.split(";")[0] for site_id in constructed_site_ids],
+            "site": [site_id.split(";")[1] for site_id in constructed_site_ids],
+            "site_sequence": ["A" * 31 for _ in constructed_site_ids],
+            "protein_id": [f"PROT_{idx}" for idx in range(len(constructed_site_ids))],
+        },
+        index=phospho.index.copy(),
+    )
+    constructed_site_id = pd.Series(
+        constructed_site_ids,
+        index=phospho.index.copy(),
+        name="site_id",
+    )
+
+    result = DuplicateSiteResolver().resolve(
+        phospho=phospho,
+        site_metadata=site_metadata,
+        constructed_site_id=constructed_site_id,
+        duplicate_site_policy=duplicate_site_policy,
+    )
+
+    assert result.phospho.index.is_unique
+    assert result.site_metadata.index.is_unique
+    assert len(result.phospho.index) == len(set(constructed_site_ids))
 
 
 def test_duplicate_site_resolver_reports_rows_and_metadata_conflicts() -> None:

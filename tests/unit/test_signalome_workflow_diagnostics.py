@@ -3,6 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 from phospy import (
     AnalysisReadyPhosphoDataset,
@@ -84,6 +86,11 @@ from tests.support.intensity_scale_states import (
 from tests.support.signalome_config import build_signalome_config
 
 _SIGNALOME_WORKFLOW_EXECUTION_PATHS = ("direct_components", "public_workflow")
+_PROPERTY_SETTINGS = settings(
+    max_examples=25,
+    deadline=None,
+    derandomize=True,
+)
 
 
 def _dataset(
@@ -149,6 +156,39 @@ def _matrix(
         columns=pd.Index(kinases, name="kinase"),
         dtype=float,
     )
+
+
+def _site_id_strategy(
+    *,
+    min_size: int = 2,
+    max_size: int = 6,
+    prefix: str = "P",
+) -> st.SearchStrategy[list[str]]:
+    return st.lists(
+        st.integers(min_value=1, max_value=9999),
+        min_size=min_size,
+        max_size=max_size,
+        unique=True,
+    ).map(
+        lambda ids: [
+            f"{prefix}{gene_id};S{position + 1};"
+            for position, gene_id in enumerate(ids)
+        ]
+    )
+
+
+def _kinase_strategy(
+    *,
+    min_size: int = 2,
+    max_size: int = 6,
+    prefix: str = "K",
+) -> st.SearchStrategy[list[str]]:
+    return st.lists(
+        st.integers(min_value=1, max_value=9999),
+        min_size=min_size,
+        max_size=max_size,
+        unique=True,
+    ).map(lambda ids: [f"{prefix}{idx}" for idx in ids])
 
 
 def _kinase_result(
@@ -481,6 +521,222 @@ def test_interpreter_prefers_rank_weighted_fusion_scores_for_downstream_signalom
         check_dtype=False,
     )
     assert interpreted.downstream_score_source == "rank_weighted_fusion_scores"
+
+
+@given(data=st.data())
+@_PROPERTY_SETTINGS
+def test_interpreter_property_shared_site_alignment_preserves_dataset_order(
+    data: st.DataObject,
+) -> None:
+    dataset_sites = data.draw(_site_id_strategy(min_size=2, prefix="D"))
+    shared_sites = data.draw(
+        st.lists(
+            st.sampled_from(dataset_sites),
+            min_size=1,
+            max_size=len(dataset_sites),
+            unique=True,
+        ),
+        label="shared_sites",
+    )
+    prediction_only_sites = data.draw(
+        _site_id_strategy(min_size=0, max_size=3, prefix="X"),
+        label="prediction_only_sites",
+    )
+    score_only_sites = data.draw(
+        _site_id_strategy(min_size=0, max_size=3, prefix="Y"),
+        label="score_only_sites",
+    )
+    prediction_shared = list(
+        data.draw(st.permutations(shared_sites), label="prediction_shared")
+    )
+    score_shared = list(data.draw(st.permutations(shared_sites), label="score_shared"))
+    prediction_sites = [*prediction_shared, *prediction_only_sites]
+    score_sites = [*score_shared, *score_only_sites]
+
+    dataset = _dataset(site_ids=dataset_sites)
+    kinases = ["K1", "K2"]
+    prediction_matrix = _matrix(
+        values=[[0.9, 0.1] for _ in prediction_sites],
+        site_ids=prediction_sites,
+        kinases=kinases,
+    )
+    score_matrix = _matrix(
+        values=[[1.0, 2.0] for _ in score_sites],
+        site_ids=score_sites,
+        kinases=kinases,
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    shared_site_set = set(shared_sites)
+    expected_order = [
+        site_id for site_id in dataset_sites if site_id in shared_site_set
+    ]
+    assert interpreted.prediction_matrix.index.tolist() == expected_order
+    assert interpreted.downstream_score_matrix.index.tolist() == expected_order
+
+
+@given(data=st.data())
+@_PROPERTY_SETTINGS
+def test_interpreter_property_shared_kinase_alignment_preserves_prediction_order(
+    data: st.DataObject,
+) -> None:
+    prediction_kinases = data.draw(_kinase_strategy(min_size=2, prefix="KP"))
+    shared_kinases = data.draw(
+        st.lists(
+            st.sampled_from(prediction_kinases),
+            min_size=1,
+            max_size=len(prediction_kinases),
+            unique=True,
+        ),
+        label="shared_kinases",
+    )
+    score_only_kinases = data.draw(
+        _kinase_strategy(min_size=0, max_size=3, prefix="KS"),
+        label="score_only_kinases",
+    )
+    score_shared = list(
+        data.draw(st.permutations(shared_kinases), label="score_shared")
+    )
+    score_kinases = [*score_shared, *score_only_kinases]
+    site_ids = ["P1;S1;", "P2;S2;"]
+
+    dataset = _dataset(site_ids=site_ids)
+    prediction_matrix = _matrix(
+        values=[[0.8 for _ in prediction_kinases] for _ in site_ids],
+        site_ids=site_ids,
+        kinases=prediction_kinases,
+    )
+    score_matrix = _matrix(
+        values=[[1.0 for _ in score_kinases] for _ in site_ids],
+        site_ids=site_ids,
+        kinases=score_kinases,
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=dataset,
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=build_signalome_config(substrate_support_cutoff=0.5),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    shared_kinase_set = set(shared_kinases)
+    expected_order = [
+        kinase for kinase in prediction_kinases if kinase in shared_kinase_set
+    ]
+    assert interpreted.prediction_matrix.columns.tolist() == expected_order
+    assert interpreted.downstream_score_matrix.columns.tolist() == expected_order
+
+
+@given(data=st.data())
+@_PROPERTY_SETTINGS
+def test_interpreter_property_allow_and_report_drops_all_missing_rows(
+    data: st.DataObject,
+) -> None:
+    site_ids = data.draw(_site_id_strategy(min_size=2, prefix="M"))
+    row_is_all_missing = data.draw(
+        st.lists(
+            st.booleans(),
+            min_size=len(site_ids),
+            max_size=len(site_ids),
+        ),
+        label="row_is_all_missing",
+    )
+    assume(any(not row_flag for row_flag in row_is_all_missing))
+    kinases = ["K1", "K2"]
+    prediction_matrix = _matrix(
+        values=[[0.9, 0.1] for _ in site_ids],
+        site_ids=site_ids,
+        kinases=kinases,
+    )
+    score_values = [
+        [float("nan"), float("nan")] if missing_row else [1.0, float("nan")]
+        for missing_row in row_is_all_missing
+    ]
+    score_matrix = _matrix(
+        values=score_values,
+        site_ids=site_ids,
+        kinases=kinases,
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=_dataset(site_ids=site_ids),
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            score_preconditioning_policy=(
+                SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
+            ),
+        ),
+    )
+
+    interpreted = SignalomeWorkflowInterpreter().run(request)
+    expected_retained_sites = [
+        site_id
+        for site_id, missing_row in zip(site_ids, row_is_all_missing, strict=True)
+        if not missing_row
+    ]
+    assert interpreted.downstream_score_matrix.index.tolist() == expected_retained_sites
+    assert interpreted.prediction_matrix.index.tolist() == expected_retained_sites
+
+
+@given(data=st.data())
+@_PROPERTY_SETTINGS
+def test_interpreter_property_error_on_drop_rejects_all_missing_rows(
+    data: st.DataObject,
+) -> None:
+    site_ids = data.draw(_site_id_strategy(min_size=2, prefix="E"))
+    row_is_all_missing = data.draw(
+        st.lists(
+            st.booleans(),
+            min_size=len(site_ids),
+            max_size=len(site_ids),
+        ),
+        label="row_is_all_missing",
+    )
+    assume(any(row_is_all_missing))
+    kinases = ["K1", "K2"]
+    prediction_matrix = _matrix(
+        values=[[0.9, 0.1] for _ in site_ids],
+        site_ids=site_ids,
+        kinases=kinases,
+    )
+    score_values = [
+        [float("nan"), float("nan")] if missing_row else [1.0, float("nan")]
+        for missing_row in row_is_all_missing
+    ]
+    score_matrix = _matrix(
+        values=score_values,
+        site_ids=site_ids,
+        kinases=kinases,
+    )
+    request = SignalomeWorkflowRequest(
+        kinase_result=_kinase_result(
+            dataset=_dataset(site_ids=site_ids),
+            prediction_matrix=prediction_matrix,
+            score_matrix=score_matrix,
+        ),
+        config=build_signalome_config(
+            substrate_support_cutoff=0.5,
+            score_preconditioning_policy=(
+                SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+            ),
+        ),
+    )
+
+    with pytest.raises(WorkflowBoundaryError, match="dropped_all_missing_row_count"):
+        SignalomeWorkflowInterpreter().run(request)
 
 
 def test_interpreter_resolves_execution_config_defaults_for_executor() -> None:

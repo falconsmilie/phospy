@@ -66,10 +66,12 @@ parquet = [
 ]
 
 test = [
+  "hypothesis>=6",
   "pytest>=8.0",
 ]
 
 dev = [
+  "hypothesis>=6",
   "pre-commit>=4.0",
   "pyright>=1.1.409",
   "pytest>=8.0",
