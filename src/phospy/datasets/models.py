@@ -35,7 +35,6 @@ from phospy.datasets.preprocessing.report_schema import (
     dataframe_from_operation_rows,
     dataframe_from_row_audit_rows,
     dataframe_from_row_count_rows,
-    missing_columns,
     reorder_columns,
 )
 from phospy.datasets.processing_state import DatasetProcessingState
@@ -50,14 +49,13 @@ from phospy.tables.datasets import (
 )
 from phospy.transformations.models import IntensityScaleState
 from phospy.validation.common.dataframes import (
+    require_columns,
     require_dataframe,
     require_exact_index_match,
+    require_finite_numeric_dataframe,
+    require_non_empty_dataframe,
     require_numeric_dataframe,
     require_unique_columns,
-)
-from phospy.validation.common.missing_values import (
-    MissingValuePolicy,
-    require_missing_value_policy,
 )
 from phospy.validation.transformations.state import IntensityScaleStateValidator
 
@@ -129,77 +127,52 @@ class DatasetPreprocessingReport:
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
-        missing_row_columns = missing_columns(
-            row_counts, expected_columns=ROW_COUNTS_COLUMNS
+        require_columns(
+            row_counts,
+            field_name="dataset.preprocessing_report.row_counts",
+            required_columns=ROW_COUNTS_COLUMNS,
+            error_type=DatasetValidationError,
         )
-        if missing_row_columns:
-            missing = ", ".join(missing_row_columns)
-            raise DatasetValidationError(
-                "dataset.preprocessing_report.row_counts is missing required "
-                f"columns: {missing}"
-            )
-        missing_operation_columns = missing_columns(
-            operations, expected_columns=OPERATIONS_COLUMNS
+        require_columns(
+            operations,
+            field_name="dataset.preprocessing_report.operations",
+            required_columns=OPERATIONS_COLUMNS,
+            error_type=DatasetValidationError,
         )
-        if missing_operation_columns:
-            missing = ", ".join(missing_operation_columns)
-            raise DatasetValidationError(
-                "dataset.preprocessing_report.operations is missing required "
-                f"columns: {missing}"
-            )
-        missing_row_audit_columns = missing_columns(
-            row_audit, expected_columns=ROW_AUDIT_COLUMNS
+        require_columns(
+            row_audit,
+            field_name="dataset.preprocessing_report.row_audit",
+            required_columns=ROW_AUDIT_COLUMNS,
+            error_type=DatasetValidationError,
         )
-        if missing_row_audit_columns:
-            missing = ", ".join(missing_row_audit_columns)
-            raise DatasetValidationError(
-                "dataset.preprocessing_report.row_audit is missing required "
-                f"columns: {missing}"
-            )
         if duplicate_site_resolution is not None:
-            missing_duplicate_columns = missing_columns(
+            require_columns(
                 duplicate_site_resolution,
-                expected_columns=DUPLICATE_SITE_RESOLUTION_COLUMNS,
+                field_name="dataset.preprocessing_report.duplicate_site_resolution",
+                required_columns=DUPLICATE_SITE_RESOLUTION_COLUMNS,
+                error_type=DatasetValidationError,
             )
-            if missing_duplicate_columns:
-                missing = ", ".join(missing_duplicate_columns)
-                raise DatasetValidationError(
-                    "dataset.preprocessing_report.duplicate_site_resolution is "
-                    f"missing required columns: {missing}"
-                )
         if metadata_conflicts is not None:
-            missing_conflict_columns = missing_columns(
+            require_columns(
                 metadata_conflicts,
-                expected_columns=METADATA_CONFLICT_COLUMNS,
+                field_name="dataset.preprocessing_report.metadata_conflicts",
+                required_columns=METADATA_CONFLICT_COLUMNS,
+                error_type=DatasetValidationError,
             )
-            if missing_conflict_columns:
-                missing = ", ".join(missing_conflict_columns)
-                raise DatasetValidationError(
-                    "dataset.preprocessing_report.metadata_conflicts is missing "
-                    f"required columns: {missing}"
-                )
         if comparison_group_stats is not None:
-            missing_group_stats_columns = missing_columns(
+            require_columns(
                 comparison_group_stats,
-                expected_columns=COMPARISON_GROUP_STATS_COLUMNS,
+                field_name="dataset.preprocessing_report.comparison_group_stats",
+                required_columns=COMPARISON_GROUP_STATS_COLUMNS,
+                error_type=DatasetValidationError,
             )
-            if missing_group_stats_columns:
-                missing = ", ".join(missing_group_stats_columns)
-                raise DatasetValidationError(
-                    "dataset.preprocessing_report.comparison_group_stats is "
-                    f"missing required columns: {missing}"
-                )
         if comparison_pair_stats is not None:
-            missing_pair_stats_columns = missing_columns(
+            require_columns(
                 comparison_pair_stats,
-                expected_columns=COMPARISON_PAIR_STATS_COLUMNS,
+                field_name="dataset.preprocessing_report.comparison_pair_stats",
+                required_columns=COMPARISON_PAIR_STATS_COLUMNS,
+                error_type=DatasetValidationError,
             )
-            if missing_pair_stats_columns:
-                missing = ", ".join(missing_pair_stats_columns)
-                raise DatasetValidationError(
-                    "dataset.preprocessing_report.comparison_pair_stats is "
-                    f"missing required columns: {missing}"
-                )
         row_counts = reorder_columns(row_counts, expected_columns=ROW_COUNTS_COLUMNS)
         operations = reorder_columns(operations, expected_columns=OPERATIONS_COLUMNS)
         row_audit = reorder_columns(row_audit, expected_columns=ROW_AUDIT_COLUMNS)
@@ -500,7 +473,12 @@ class AnalysisReadyPhosphoDataset:
             comparisons_frame = require_dataframe(
                 comparisons,
                 field_name="dataset.comparisons",
-                allow_empty=False,
+                allow_empty=True,
+                error_type=DatasetValidationError,
+            )
+            require_non_empty_dataframe(
+                comparisons_frame,
+                field_name="dataset.comparisons",
                 error_type=DatasetValidationError,
             )
             require_numeric_dataframe(
@@ -508,11 +486,11 @@ class AnalysisReadyPhosphoDataset:
                 field_name="dataset.comparisons",
                 error_type=DatasetValidationError,
             )
-            require_missing_value_policy(
+            require_finite_numeric_dataframe(
                 comparisons_frame,
                 field_name="dataset.comparisons",
-                policy=MissingValuePolicy.FORBID,
                 error_type=DatasetValidationError,
+                allow_missing=False,
             )
             require_unique_columns(
                 comparisons_frame,

@@ -67,6 +67,7 @@ from phospy.validation.common.dataframes import (
     require_canonical_string_column,
     require_columns,
     require_dataframe,
+    require_finite_numeric_dataframe,
     require_non_empty_string_column,
     require_numeric_dataframe,
     require_unique_columns,
@@ -313,13 +314,15 @@ class SignalomeModulesTable(TableSchema):
             field_name=self._field_name,
             error_type=self._error_type,
         )
+        require_finite_numeric_dataframe(
+            frame,
+            field_name=self._field_name,
+            error_type=self._error_type,
+            allow_missing=False,
+        )
         if frame.empty:
             return frame
         values = frame.to_numpy(dtype=float, copy=False)
-        if not np.isfinite(values).all():
-            raise self._error_type(
-                f"{self._field_name} must contain finite numeric values"
-            )
         if (
             (values < -_VALUE_BOUNDS_ATOL) | (values > 100.0 + _VALUE_BOUNDS_ATOL)
         ).any():

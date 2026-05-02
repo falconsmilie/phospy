@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 
+import numpy as np
 import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
@@ -26,8 +27,28 @@ def require_dataframe(
 
     if not isinstance(value, pd.DataFrame):
         raise error_type(f"{field_name} must be a pandas DataFrame")
-    if not allow_empty and value.empty:
-        raise error_type(f"{field_name} must be non-empty")
+    if not allow_empty:
+        require_non_empty_dataframe(
+            value,
+            field_name=field_name,
+            error_type=error_type,
+        )
+    return value
+
+
+def require_non_empty_dataframe(
+    value: pd.DataFrame,
+    *,
+    field_name: str,
+    error_type: ValidationErrorType,
+) -> pd.DataFrame:
+    """Require a DataFrame to contain at least one row and one column."""
+
+    if value.empty:
+        raise error_type(
+            f"{field_name} must be non-empty; "
+            f"rows={int(value.shape[0])}, columns={int(value.shape[1])}"
+        )
     return value
 
 
@@ -58,9 +79,36 @@ def require_numeric_dataframe(
     ]
     if non_numeric_columns:
         joined_columns = ", ".join(non_numeric_columns)
+        column_count = int(len(non_numeric_columns))
         raise error_type(
             f"{field_name} must contain only numeric columns; non-numeric columns: "
-            f"{joined_columns}"
+            f"{joined_columns}; non_numeric_column_count={column_count}"
+        )
+    return value
+
+
+def require_finite_numeric_dataframe(
+    value: pd.DataFrame,
+    *,
+    field_name: str,
+    error_type: ValidationErrorType,
+    allow_missing: bool = False,
+) -> pd.DataFrame:
+    """Require one numeric DataFrame to satisfy finite-value constraints."""
+
+    missing_mask = value.isna()
+    if not allow_missing and missing_mask.to_numpy().any():
+        missing_count = int(missing_mask.to_numpy().sum())
+        raise error_type(
+            f"{field_name} must not contain missing values; "
+            f"{_invalid_location_preview(missing_mask)}; missing_entries={missing_count}"
+        )
+    infinite_mask = value.isin([float("inf"), float("-inf")])
+    if infinite_mask.to_numpy().any():
+        infinite_count = int(infinite_mask.to_numpy().sum())
+        raise error_type(
+            f"{field_name} must contain finite numeric values; "
+            f"{_invalid_location_preview(infinite_mask)}; infinite_entries={infinite_count}"
         )
     return value
 
@@ -73,8 +121,11 @@ def require_unique_index(
 ) -> pd.DataFrame:
     """Require unique index labels in a DataFrame."""
 
-    if not value.index.is_unique:
-        raise error_type(f"{field_name}.index must be unique")
+    require_no_duplicate_labels(
+        value.index,
+        field_name=f"{field_name}.index",
+        error_type=error_type,
+    )
     return value
 
 
@@ -86,8 +137,11 @@ def require_unique_columns(
 ) -> pd.DataFrame:
     """Require unique column labels in a DataFrame."""
 
-    if not value.columns.is_unique:
-        raise error_type(f"{field_name}.columns must be unique")
+    require_no_duplicate_labels(
+        value.columns,
+        field_name=f"{field_name}.columns",
+        error_type=error_type,
+    )
     return value
 
 
@@ -103,7 +157,11 @@ def require_columns(
     missing = [column for column in required_columns if column not in value.columns]
     if missing:
         joined = ", ".join(missing)
-        raise error_type(f"{field_name} is missing required columns: {joined}")
+        raise error_type(
+            f"{field_name} is missing required columns: {joined}; "
+            f"missing_column_count={int(len(missing))}, "
+            f"column_count={int(value.shape[1])}"
+        )
     return value
 
 
@@ -118,7 +176,98 @@ def require_exact_index_match(
     """Require two indexes to be exactly equal (labels and order)."""
 
     if not left.equals(right):
-        raise error_type(f"{left_name} must exactly match {right_name}")
+        raise error_type(
+            f"{left_name} must exactly match {right_name}; "
+            f"{left_name}_count={int(left.size)}, {right_name}_count={int(right.size)}"
+        )
+
+
+def require_non_empty_index_intersection(
+    *,
+    left: pd.Index,
+    right: pd.Index,
+    left_name: str,
+    right_name: str,
+    error_type: ValidationErrorType,
+) -> pd.Index:
+    """Require two indexes to share at least one label and return the overlap."""
+
+    shared = left.intersection(right)
+    if shared.size > 0:
+        return shared
+    raise error_type(
+        f"{left_name} and {right_name} must share at least one label; "
+        f"{left_name}_count={int(left.size)}, {right_name}_count={int(right.size)}, "
+        "shared_count=0"
+    )
+
+
+def require_no_duplicate_labels(
+    labels: pd.Index,
+    *,
+    field_name: str,
+    error_type: ValidationErrorType,
+) -> pd.Index:
+    """Require one index-like label sequence to be unique."""
+
+    duplicated = labels[labels.duplicated(keep=False)]
+    if duplicated.size == 0:
+        return labels
+    duplicate_labels = duplicated.unique()
+    preview = ", ".join(repr(label) for label in duplicate_labels.tolist()[:5])
+    suffix = "" if duplicate_labels.size <= 5 else " ..."
+    raise error_type(
+        f"{field_name} must be unique; duplicate_count={int(duplicated.size)}, "
+        f"duplicate_labels={preview}{suffix}"
+    )
+
+
+def require_string_index(
+    index: pd.Index,
+    *,
+    field_name: str,
+    error_type: ValidationErrorType,
+) -> pd.Index:
+    """Require one index to contain only string labels and no missing labels."""
+
+    values = index.tolist()
+    missing = [value for value in values if _is_missing_site_identifier(value)]
+    if missing:
+        raise error_type(
+            f"{field_name} must not contain missing labels; "
+            f"missing_label_count={int(len(missing))}"
+        )
+    non_strings = [value for value in values if not isinstance(value, str)]
+    if non_strings:
+        preview = ", ".join(repr(value) for value in non_strings[:5])
+        suffix = "" if len(non_strings) <= 5 else " ..."
+        raise error_type(
+            f"{field_name} must contain only string labels; "
+            f"non_string_label_count={int(len(non_strings))}, "
+            f"examples={preview}{suffix}"
+        )
+    return index
+
+
+def require_aligned_dataframe_shape(
+    *,
+    left: pd.DataFrame,
+    right: pd.DataFrame,
+    left_name: str,
+    right_name: str,
+    error_type: ValidationErrorType,
+) -> None:
+    """Require two DataFrames to have identical row/column counts."""
+
+    if left.shape == right.shape:
+        return
+    left_rows, left_columns = left.shape
+    right_rows, right_columns = right.shape
+    raise error_type(
+        f"{left_name} shape must align with {right_name}; "
+        f"{left_name}_rows={int(left_rows)}, {left_name}_columns={int(left_columns)}, "
+        f"{right_name}_rows={int(right_rows)}, {right_name}_columns={int(right_columns)}"
+    )
 
 
 def require_non_empty_string_column(
@@ -325,6 +474,17 @@ def _is_missing_site_identifier(value: object) -> bool:
         return bool(pd.isna(value))
     except (TypeError, ValueError):
         return False
+
+
+def _invalid_location_preview(mask: pd.DataFrame, *, max_items: int = 3) -> str:
+    locations = np.argwhere(mask.to_numpy())
+    count = int(locations.shape[0])
+    preview = [
+        f"({mask.index[row_idx]!r}, {mask.columns[col_idx]!r})"
+        for row_idx, col_idx in locations[:max_items]
+    ]
+    suffix = "" if count <= max_items else f", +{count - max_items} more"
+    return f"found at {', '.join(preview)}{suffix}"
 
 
 def require_unique_row_pairs(

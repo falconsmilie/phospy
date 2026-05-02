@@ -12,13 +12,10 @@ from phospy.tables.base import TableSchema, require_canonical_label_index
 from phospy.validation.common.dataframes import (
     require_canonical_site_index,
     require_dataframe,
+    require_finite_numeric_dataframe,
     require_numeric_dataframe,
     require_unique_columns,
     require_unique_index,
-)
-from phospy.validation.common.missing_values import (
-    MissingValuePolicy,
-    require_missing_value_policy,
 )
 from phospy.validation.common.numeric_frames import require_numeric_unit_interval
 
@@ -115,11 +112,11 @@ def _validate_kinase_score_like_matrix(
         field_name=field_name,
         error_type=error_type,
     )
-    require_missing_value_policy(
+    require_finite_numeric_dataframe(
         frame,
         field_name=field_name,
-        policy=MissingValuePolicy.ALLOW if allow_missing else MissingValuePolicy.FORBID,
         error_type=error_type,
+        allow_missing=allow_missing,
     )
     require_unique_index(
         frame,

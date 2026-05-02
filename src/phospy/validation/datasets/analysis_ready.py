@@ -15,12 +15,10 @@ from phospy.tables.datasets import (
 from phospy.validation.common.dataframes import (
     require_dataframe,
     require_exact_index_match,
+    require_finite_numeric_dataframe,
+    require_non_empty_dataframe,
     require_numeric_dataframe,
     require_unique_columns,
-)
-from phospy.validation.common.missing_values import (
-    MissingValuePolicy,
-    require_missing_value_policy,
 )
 
 
@@ -58,7 +56,12 @@ class AnalysisReadyDatasetValidator:
             comparisons_frame = require_dataframe(
                 comparisons,
                 field_name="dataset.comparisons",
-                allow_empty=False,
+                allow_empty=True,
+                error_type=DatasetValidationError,
+            )
+            require_non_empty_dataframe(
+                comparisons_frame,
+                field_name="dataset.comparisons",
                 error_type=DatasetValidationError,
             )
             require_numeric_dataframe(
@@ -66,11 +69,11 @@ class AnalysisReadyDatasetValidator:
                 field_name="dataset.comparisons",
                 error_type=DatasetValidationError,
             )
-            require_missing_value_policy(
+            require_finite_numeric_dataframe(
                 comparisons_frame,
                 field_name="dataset.comparisons",
-                policy=MissingValuePolicy.FORBID,
                 error_type=DatasetValidationError,
+                allow_missing=False,
             )
             require_unique_columns(
                 comparisons_frame,

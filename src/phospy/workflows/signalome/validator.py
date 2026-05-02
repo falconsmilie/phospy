@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 
 from phospy.api.requests import SignalomeWorkflowRequest
@@ -13,6 +12,8 @@ from phospy.validation.common.dataframes import (
     require_columns,
     require_dataframe,
     require_exact_index_match,
+    require_finite_numeric_dataframe,
+    require_non_empty_dataframe,
     require_numeric_dataframe,
     require_unique_columns,
     require_unique_index,
@@ -59,7 +60,14 @@ class SignalomeWorkflowValidator:
             field_name=(
                 "signalome workflow request kinase_result.prediction_result.pred_mat"
             ),
-            allow_empty=False,
+            allow_empty=True,
+            error_type=WorkflowValidationError,
+        )
+        require_non_empty_dataframe(
+            prediction_matrix,
+            field_name=(
+                "signalome workflow request kinase_result.prediction_result.pred_mat"
+            ),
             error_type=WorkflowValidationError,
         )
         require_numeric_dataframe(
@@ -69,12 +77,13 @@ class SignalomeWorkflowValidator:
             ),
             error_type=WorkflowValidationError,
         )
-        self._require_no_missing_or_infinite(
+        require_finite_numeric_dataframe(
             prediction_matrix,
             field_name=(
                 "signalome workflow request kinase_result.prediction_result.pred_mat"
             ),
             allow_missing=True,
+            error_type=WorkflowValidationError,
         )
         prediction_matrix = require_unique_index(
             prediction_matrix,
@@ -110,7 +119,12 @@ class SignalomeWorkflowValidator:
         score_matrix = require_dataframe(
             downstream_score_matrix,
             field_name=score_field_name,
-            allow_empty=False,
+            allow_empty=True,
+            error_type=WorkflowValidationError,
+        )
+        require_non_empty_dataframe(
+            score_matrix,
+            field_name=score_field_name,
             error_type=WorkflowValidationError,
         )
         require_numeric_dataframe(
@@ -118,13 +132,14 @@ class SignalomeWorkflowValidator:
             field_name=score_field_name,
             error_type=WorkflowValidationError,
         )
-        self._require_no_missing_or_infinite(
+        require_finite_numeric_dataframe(
             score_matrix,
             field_name=score_field_name,
             # Correlation-based kinase scoring can legitimately emit missing
             # values (for example, zero-variance denominator collapse).
             # Missingness is preconditioned downstream by the interpreter.
             allow_missing=True,
+            error_type=WorkflowValidationError,
         )
         score_matrix = require_unique_index(
             score_matrix,
@@ -145,35 +160,6 @@ class SignalomeWorkflowValidator:
             dataset_sites=request.kinase_result.dataset.phospho.index,
         )
         return request
-
-    @staticmethod
-    def _require_no_missing_or_infinite(
-        frame: pd.DataFrame,
-        *,
-        field_name: str,
-        allow_missing: bool,
-    ) -> None:
-        if not allow_missing and frame.isna().to_numpy().any():
-            raise WorkflowValidationError(
-                f"{field_name} must not contain missing values"
-            )
-        try:
-            contains_infinite = bool(
-                np.isinf(frame.to_numpy(dtype=float, copy=False)).any()
-            )
-        except (TypeError, ValueError) as exc:
-            original_message = " ".join(str(exc).split())
-            raise WorkflowValidationError(
-                f"signalome.validation.numeric_finite_check failed while checking "
-                f"{field_name} for finite numeric values. "
-                f"Original error: {type(exc).__name__}: {original_message}. "
-                "Next action: ensure this matrix contains numeric finite values only "
-                "before running SignalomeWorkflow."
-            ) from exc
-        if contains_infinite:
-            raise WorkflowValidationError(
-                f"{field_name} must contain finite numeric values"
-            )
 
     @staticmethod
     def _require_explicit_site_metadata_protein_identity(

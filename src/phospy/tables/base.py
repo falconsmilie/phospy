@@ -9,6 +9,10 @@ import pandas as pd
 
 from phospy._frame_ownership import export_dataframe, own_dataframe
 from phospy.errors.validation import PhosPyValidationError
+from phospy.validation.common.dataframes import (
+    require_no_duplicate_labels,
+    require_string_index,
+)
 
 ValidationErrorType = type[PhosPyValidationError]
 
@@ -57,12 +61,17 @@ def require_canonical_label_index(
 ) -> pd.Index:
     """Require canonical non-empty stripped string labels for one index."""
 
+    require_string_index(
+        index,
+        field_name=field_name,
+        error_type=error_type,
+    )
+    require_no_duplicate_labels(
+        index,
+        field_name=field_name,
+        error_type=error_type,
+    )
     values = index.tolist()
-    missing_positions = [idx for idx, value in enumerate(values) if _is_missing(value)]
-    if missing_positions:
-        raise error_type(f"{field_name} must not contain missing labels")
-    if not all(isinstance(value, str) for value in values):
-        raise error_type(f"{field_name} must contain canonical non-empty string labels")
     stripped_values = [value.strip() for value in values]
     if any(value == "" for value in stripped_values):
         raise error_type(f"{field_name} must contain non-empty string labels")
@@ -84,10 +93,3 @@ def require_canonical_label_index(
     ):
         raise error_type(f"{field_name} must contain canonical non-empty string labels")
     return index
-
-
-def _is_missing(value: object) -> bool:
-    try:
-        return bool(pd.isna(value))
-    except (TypeError, ValueError):
-        return False

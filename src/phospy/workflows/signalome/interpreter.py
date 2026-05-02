@@ -14,6 +14,7 @@ from phospy.api.configs import (
 )
 from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
+from phospy.errors.validation import WorkflowValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.prediction.scoring import select_downstream_score_matrix
 from phospy.signalomes.constants import KINASE_COLUMN, PROTEIN_COLUMN, SITE_ID_COLUMN
@@ -21,6 +22,12 @@ from phospy.signalomes.models import (
     SignalomeAlignmentDiagnostics,
     SignalomeAlignmentInputDiagnostics,
     SignalomeScorePreconditioningDiagnostics,
+)
+from phospy.validation.common.dataframes import (
+    require_aligned_dataframe_shape,
+    require_no_duplicate_labels,
+    require_non_empty_index_intersection,
+    require_string_index,
 )
 from phospy.workflows.signalome.constants import (
     SIGNALOME_INTERPRETER_KINASE_OVERLAP_SEAM,
@@ -116,6 +123,13 @@ class SignalomeWorkflowInterpreter:
             aligned_downstream_score_matrix = resolved_downstream_score_matrix.loc[
                 aligned_site_index, aligned_kinase_index
             ]
+            require_aligned_dataframe_shape(
+                left=aligned_prediction_matrix,
+                right=aligned_downstream_score_matrix,
+                left_name="signalome.aligned_prediction_matrix",
+                right_name="signalome.aligned_downstream_score_matrix",
+                error_type=WorkflowValidationError,
+            )
         except (KeyError, TypeError, ValueError) as exc:
             self._raise_wrapped_boundary_error(
                 stage_name="signalome.index_alignment",
@@ -128,6 +142,23 @@ class SignalomeWorkflowInterpreter:
                 next_action=(
                     "ensure prediction and downstream scoring tables expose stable "
                     "canonical site IDs and kinase labels"
+                ),
+                original_error=exc,
+                aligned_sites=int(aligned_site_index.size),
+                aligned_kinases=int(aligned_kinase_index.size),
+            )
+        except WorkflowValidationError as exc:
+            self._raise_wrapped_boundary_error(
+                stage_name="signalome.index_alignment",
+                seam="signalome.interpreter.aligned_matrix_selection",
+                field_name=(
+                    "signalome workflow request kinase_result.prediction_result."
+                    "pred_mat and downstream score matrix"
+                ),
+                operation="validating aligned matrix shape after shared-index selection",
+                next_action=(
+                    "ensure prediction and downstream scoring tables expose identical "
+                    "aligned row/column dimensions for shared site and kinase labels"
                 ),
                 original_error=exc,
                 aligned_sites=int(aligned_site_index.size),
@@ -242,11 +273,31 @@ class SignalomeWorkflowInterpreter:
         columns_name: str,
     ) -> pd.DataFrame:
         try:
+            require_string_index(
+                frame.index,
+                field_name=f"{field_name}.index",
+                error_type=WorkflowValidationError,
+            )
+            require_string_index(
+                frame.columns,
+                field_name=f"{field_name}.columns",
+                error_type=WorkflowValidationError,
+            )
+            require_no_duplicate_labels(
+                frame.index,
+                field_name=f"{field_name}.index",
+                error_type=WorkflowValidationError,
+            )
+            require_no_duplicate_labels(
+                frame.columns,
+                field_name=f"{field_name}.columns",
+                error_type=WorkflowValidationError,
+            )
             resolved = frame.astype(float)
-            resolved.index = pd.Index(resolved.index.astype(str), name=index_name)
-            resolved.columns = pd.Index(resolved.columns.astype(str), name=columns_name)
+            resolved.index = pd.Index(frame.index, name=index_name)
+            resolved.columns = pd.Index(frame.columns, name=columns_name)
             return resolved
-        except (TypeError, ValueError) as exc:
+        except (TypeError, ValueError, WorkflowValidationError) as exc:
             SignalomeWorkflowInterpreter._raise_wrapped_boundary_error(
                 stage_name=stage_name,
                 seam=seam,
@@ -270,14 +321,22 @@ class SignalomeWorkflowInterpreter:
             prediction_sites.astype(str), name=self._SITE_ID_COLUMN
         )
         score_site_index = pd.Index(score_sites.astype(str), name=self._SITE_ID_COLUMN)
-        prediction_site_set = set(prediction_site_index.tolist())
-        score_site_set = set(score_site_index.tolist())
-        shared_sites = [
-            site_id
-            for site_id in dataset_site_index
-            if site_id in prediction_site_set and site_id in score_site_set
-        ]
-        if not shared_sites:
+        try:
+            shared_dataset_prediction = require_non_empty_index_intersection(
+                left=dataset_site_index,
+                right=prediction_site_index,
+                left_name="kinase_result.dataset.phospho.index",
+                right_name="kinase_result.prediction_result.pred_mat.index",
+                error_type=WorkflowValidationError,
+            )
+            shared_sites = require_non_empty_index_intersection(
+                left=shared_dataset_prediction,
+                right=score_site_index,
+                left_name="shared dataset/prediction phosphosite IDs",
+                right_name="kinase_result.scoring_result.downstream_score_matrix.index",
+                error_type=WorkflowValidationError,
+            )
+        except WorkflowValidationError:
             self._raise_boundary_error(
                 seam=self._SITE_ALIGNMENT_SEAM,
                 next_action=(
@@ -303,11 +362,15 @@ class SignalomeWorkflowInterpreter:
         score_kinase_index = pd.Index(
             score_kinases.astype(str), name=self._KINASE_COLUMN
         )
-        score_kinase_set = set(score_kinase_index.tolist())
-        shared_kinases = [
-            kinase for kinase in prediction_kinase_index if kinase in score_kinase_set
-        ]
-        if not shared_kinases:
+        try:
+            shared_kinases = require_non_empty_index_intersection(
+                left=prediction_kinase_index,
+                right=score_kinase_index,
+                left_name="kinase_result.prediction_result.pred_mat.columns",
+                right_name="kinase_result.scoring_result.downstream_score_matrix.columns",
+                error_type=WorkflowValidationError,
+            )
+        except WorkflowValidationError:
             self._raise_boundary_error(
                 seam=self._KINASE_OVERLAP_SEAM,
                 next_action=(
@@ -700,7 +763,7 @@ class SignalomeWorkflowInterpreter:
         seam: str,
         next_action: str,
         **details: object,
-    ) -> None:
+    ) -> NoReturn:
         raise WorkflowBoundaryError(
             seam=seam,
             next_action=next_action,

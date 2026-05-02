@@ -6,10 +6,13 @@ import numpy as np
 import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
-from phospy.validation.common.dataframes import require_dataframe
+from phospy.validation.common.dataframes import (
+    require_dataframe,
+    require_finite_numeric_dataframe,
+    require_numeric_dataframe,
+)
 from phospy.validation.common.missing_values import (
     MissingValuePolicy,
-    require_missing_value_policy,
 )
 
 ValidationErrorType = type[PhosPyValidationError]
@@ -31,38 +34,21 @@ def require_numeric_matrix(
         allow_empty=allow_empty,
         error_type=error_type,
     )
-    boolean_columns = [
-        str(column)
-        for column in frame.columns
-        if pd.api.types.is_bool_dtype(frame[column])
-    ]
-    if boolean_columns:
-        joined_columns = ", ".join(boolean_columns)
-        raise error_type(
-            f"{field_name} must contain scientific numeric values; "
-            f"boolean columns are invalid: {joined_columns}"
-        )
-    non_numeric_columns = [
-        str(column)
-        for column in frame.columns
-        if not pd.api.types.is_numeric_dtype(frame[column])
-    ]
-    if non_numeric_columns:
-        joined_columns = ", ".join(non_numeric_columns)
-        raise error_type(
-            f"{field_name} must contain numeric values; non-numeric columns: "
-            f"{joined_columns}"
-        )
+    require_numeric_dataframe(
+        frame,
+        field_name=field_name,
+        error_type=error_type,
+    )
+    require_finite_numeric_dataframe(
+        frame,
+        field_name=field_name,
+        error_type=error_type,
+        allow_missing=(missing_value_policy is MissingValuePolicy.ALLOW),
+    )
     try:
         numeric_frame = frame.astype(float)
     except (TypeError, ValueError) as exc:
         raise error_type(f"{field_name} must contain numeric values") from exc
-    require_missing_value_policy(
-        numeric_frame,
-        field_name=field_name,
-        policy=missing_value_policy,
-        error_type=error_type,
-    )
     return numeric_frame
 
 

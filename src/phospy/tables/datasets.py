@@ -13,15 +13,12 @@ from phospy.validation.common.dataframes import (
     require_columns,
     require_dataframe,
     require_exact_index_match,
+    require_finite_numeric_dataframe,
     require_non_empty_string_column,
     require_numeric_dataframe,
     require_site_identity_coherence,
     require_unique_columns,
     require_unique_index,
-)
-from phospy.validation.common.missing_values import (
-    MissingValuePolicy,
-    require_missing_value_policy,
 )
 
 
@@ -51,15 +48,11 @@ class PhosphoIntensityMatrix(TableSchema):
             field_name=self._field_name,
             error_type=self._error_type,
         )
-        require_missing_value_policy(
+        require_finite_numeric_dataframe(
             frame,
             field_name=self._field_name,
-            policy=(
-                MissingValuePolicy.ALLOW
-                if self.allow_missing
-                else MissingValuePolicy.FORBID
-            ),
             error_type=self._error_type,
+            allow_missing=self.allow_missing,
         )
         require_unique_index(
             frame,
@@ -202,11 +195,11 @@ class TotalProteinMatrix(TableSchema):
             field_name=self._field_name,
             error_type=self._error_type,
         )
-        require_missing_value_policy(
+        require_finite_numeric_dataframe(
             frame,
             field_name=self._field_name,
-            policy=MissingValuePolicy.FORBID,
             error_type=self._error_type,
+            allow_missing=False,
         )
         require_unique_index(
             frame,
