@@ -184,7 +184,6 @@ exclude = [
   ".venv",
   "build",
   "dist",
-  "legacy_archive",
   "src/phospy.egg-info",
 ]
 reportMissingTypeStubs = "none"

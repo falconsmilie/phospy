@@ -246,7 +246,10 @@ adaptive = KinasePredictionConfig.adaptive_reproducible(random_state=1)
 | `mode` | `"deterministic_ranking"` | `"deterministic_ranking"` or `"adaptive_ensemble"` |
 | `adaptive_policy` | `"stable"` | `"stable"` or `"r_parity"` |
 | `n_iterations` | `5` | adaptive sampling iterations |
-| `random_state` | `None` | optional random state |
+| `random_state` | `None` | required when `mode="adaptive_ensemble"`; unused in deterministic mode |
+
+`adaptive_policy="r_parity"` exists for parity/replay validation lanes. The
+default recommendation for production workflows is `adaptive_policy="stable"`.
 
 ### `KinaseActivityConfig`
 

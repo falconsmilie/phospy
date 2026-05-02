@@ -120,8 +120,12 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 - Candidate substrates per kinase are selected from top-`k` downstream scores with score `> 0`.
 - Deterministic mode ranks kinases by mean candidate support and keeps top configured kinases.
 - Adaptive mode uses ensemble sampling policy from `prediction_config`.
+- Adaptive mode requires explicit `prediction_config.random_state`; missing seed
+  is a hard validation error by design.
 - Prefer `KinasePredictionConfig.deterministic()` and
   `KinasePredictionConfig.adaptive_reproducible(random_state=...)` presets.
+- `adaptive_policy="r_parity"` is a parity-oriented mode, not the default
+  production recommendation.
 
 ### Provenance Guarantees
 

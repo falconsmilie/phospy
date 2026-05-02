@@ -5,425 +5,150 @@
 - **ADR ID:** ADR-014
 - **Title:** Test Suite Structure and Policy for PhosPy
 - **Status:** Accepted
-- **Date:** 2026-04-16
+- **Date:** 2026-05-02
 - **Decision Type:** Architecture Decision Record
 
 ## Abstract
 
-This Architecture Decision Record defines how the test suite should be structured and what each major test class is responsible for in PhosPy. The package is being developed as a maintainable Python port of PhosR. To support that goal, the test suite must reinforce the fresh-start architecture, distinguish clearly between ordinary behavioural testing and scientific parity testing, and keep failure signals easy to interpret.
-
-The decision is to structure the test suite around three primary categories:
-
-- unit tests
-- integration tests
-- parity tests
-
-Each category should have a clear purpose, scope, and comparison policy. Unit tests should validate isolated components and local rules. Integration tests should validate multi-component flows within the new architecture. Parity tests should validate scientifically meaningful outputs against explicit reference expectations, primarily derived from PhosR outputs.
+This ADR defines governance for test categories, golden/provenance regression
+policy, property-based invariants, and performance contracts.
 
 ## Status
 
 Accepted.
 
-This ADR defines the test-suite policy that supports the fresh-start rewrite strategy in ADR-012 and the scientific parity strategy in ADR-013.
+This ADR supersedes earlier narrower test-structure-only guidance.
 
 ## Context and Problem Statement
 
-The rewrite now has a strong architectural foundation:
+The codebase now includes:
 
-- one strict dataset boundary
-- one coherent builder story
-- two public workflows
-- validator, interpreter, executor workflow staging
-- private validation domain
-- explicit exception taxonomy
-- scientific parity defined separately from architectural conformance
+- golden fixtures for representative public workflow outputs
+- provenance golden contracts
+- parity tests with distinct purpose from golden tests
+- dedicated performance contract tests under `tests/performance/`
 
-Without a clear test-suite structure, these good architectural decisions can still degrade during implementation. A poorly structured test suite tends to produce several problems:
-
-- unit, integration, and parity concerns get mixed together
-- failures become harder to interpret
-- parity checks start acting as hidden contract tests or vice versa
-- scientific comparisons become scattered and inconsistent
-- contributors are unsure where new tests belong
-- the suite becomes harder to maintain as the rewrite grows
-
-PhosPy therefore needs an explicit decision about how the test suite is organised and what each layer of testing is supposed to prove.
+These are architecture governance checks and release policy checks. They are
+not ordinary local default unit-test behavior and are not manual-only checks.
 
 ## Decision Drivers
 
-The decision is driven by the following considerations:
-
-1. **Clarity of intent.** Test categories should answer different questions clearly.
-2. **Architectural alignment.** The test suite should support the fresh-start ADR set rather than recreate legacy pressure.
-3. **Maintainability.** Contributors should know where to place tests and how to write them.
-4. **Scientific confidence.** Parity testing must be present without swallowing the rest of the suite.
-5. **Failure readability.** Test failures should make it obvious what kind of expectation was violated.
-6. **Scalability.** The suite should remain organised as the package grows.
-
-## Proposed Decision
-
-PhosPy will structure its test suite around three primary categories:
-
-- unit
-- integration
-- parity
-
-These categories should be physically separated in the test tree and conceptually separated in contributor expectations.
-
-The package should not treat parity as just another form of integration testing, and it should not use unit tests to carry scientific-reference comparisons that belong in parity.
-
-## Core Design Principle
-
-Each test category should answer a different question.
-
-- **Unit tests** ask whether a focused component behaves correctly in isolation.
-- **Integration tests** ask whether multiple components work together correctly inside the new architecture.
-- **Parity tests** ask whether the implementation produces the expected scientific outputs for meaningful fixtures.
-
-If a test does not have a clear answer to one of those questions, it probably belongs in the wrong place.
-
-## Proposed Test Tree Direction
-
-A likely healthy top-level test structure is:
-
-```text
-tests/
-  support/
-  unit/
-  integration/
-  parity/
-```
-
-Additional internal organisation may exist beneath these directories, but this separation should remain the primary visible structure.
-
-`tests/support/` is the preferred home for shared test helpers that are genuinely reusable across test categories.
-
-## Unit Test Policy
-
-Unit tests should focus on small, isolated responsibilities.
-
-Examples include:
-
-- model invariant checks
-- validator behaviour for narrow rules
-- builder collaborator behaviour in isolation
-- reference provider behaviour for a focused case
-- transformer behaviour for a focused case
-- exception translation at a narrow boundary
-- result-model contract checks at object level
-
-Unit tests should:
-
-- be fast
-- minimise external dependencies
-- avoid unnecessary fixture sprawl
-- prefer focused assertions over broad end-to-end scenarios
-
-Unit tests should not be used to validate full workflow parity or multi-stage scientific behaviour.
-
-## Integration Test Policy
-
-Integration tests should validate multi-component flows inside the new architecture.
-
-Examples include:
-
-- builder flow from supported input to `AnalysisReadyPhosphoDataset`
-- end-to-end kinase workflow across validator, interpreter, executor, and domain services
-- end-to-end signalome workflow using upstream kinase outputs
-- reference-resolution flow for supported presets
-- exception behaviour across meaningful package boundaries
-
-Integration tests should prove that the new architecture works together as intended.
-
-They should not be overloaded with the full responsibility of parity against external scientific references.
-
-Fixture sharing between integration and parity suites is acceptable where it improves consistency and keeps both suites running against the same underlying data.
-
-## Parity Test Policy
-
-Parity tests should validate scientifically meaningful outputs against explicit reference expectations.
-
-This ADR follows the parity strategy established in ADR-013.
-
-Parity tests should:
-
-- live in a dedicated parity directory
-- use explicit fixtures
-- use explicit reference-output provenance
-- apply documented comparison rules
-- focus on meaningful scientific outputs rather than incidental implementation details
-
-The primary reference source for initial parity fixtures should be PhosR outputs.
-
-The initial parity suite should aim to include at least the scientific output areas already present in the old application.
-
-Parity fixtures do not need extra repository-level versioning or annotation machinery beyond being kept current and correct.
-
-## Separation Rules
-
-The suite should follow these separation rules.
-
-### Unit Tests Must Not
-
-- depend on large scientific reference fixture sets unless the component itself is inherently fixture-driven
-- attempt to prove full workflow parity
-- encode broad end-to-end behaviour that belongs in integration tests
-
-### Integration Tests Must Not
-
-- silently take on the entire parity burden
-- act as a substitute for focused unit tests
-- rely on unclear comparison rules for scientific outputs
-
-### Parity Tests Must Not
-
-- become a hidden migration test suite for legacy structure
-- assert internal class or module relationships
-- preserve old wrapper or alias behaviour that the ADR set has rejected
-
-## Comparison Policy by Test Category
-
-### Unit Tests
-
-Prefer exact, narrow assertions wherever possible.
-
-### Integration Tests
-
-Prefer exact behavioural assertions for contract and orchestration expectations, with focused tolerance-aware checks only where numerically necessary.
-
-### Parity Tests
-
-Use explicit comparison rules per fixture or output family, including documented tolerances where exact comparison is not appropriate.
-
-This keeps scientific comparison policy visible rather than hidden inside generic helper assertions.
-
-## Fixture Policy
-
-Fixture management should align with the three-part structure.
-
-### Unit Fixtures
-
-Should stay small, local, and easy to understand.
-
-### Integration Fixtures
-
-May be broader, but should still be targeted toward architectural flows rather than giant scientific archives.
-
-### Parity Fixtures
-
-Should be curated carefully and include:
-
-- explicit input data
-- explicit expected output reference
-- explicit provenance
-- explicit comparison rules
-
-Parity fixtures should be treated as high-value assets, not casual test data.
-
-## Test Naming and Contributor Policy
-
-Contributors should be able to answer two questions before adding a test:
-
-1. What kind of test is this?
-2. What architectural question is it answering?
-
-A healthy contributor rule is:
-
-- if the test targets one narrow component, it is probably a unit test
-- if it validates a new-architecture flow across multiple components, it is probably an integration test
-- if it compares scientific outputs to a reference baseline, it is probably a parity test
-
-If that classification is unclear, the test design should be reconsidered.
-
-For public API contract checks that are still narrow enough to be unit-like, the preferred direction is:
-
-- keep them under `tests/unit/`
-- group them under a clear `api/` subdirectory if helpful
-- use names that make the contract focus explicit, such as:
-  - `test_public_contract_dataset.py`
-  - `test_public_contract_workflows.py`
-  - `test_public_contract_results.py`
-
-The key rule is that the filename should say `public_contract` when that is the primary concern.
-
-## CI and Execution Direction
-
-The suite should be runnable as a whole, but the categories should remain separable.
-
-A healthy direction is:
-
-- unit tests are expected to run frequently and quickly
-- integration tests are expected to run regularly as part of architectural confidence
-- parity tests are expected to run as a distinct scientific-confidence layer
-
-Parity tests should not run by default. They should be run only when explicitly requested by the user at pytest invocation time.
-
-The exact CI policy may be defined elsewhere, but the suite structure should support separate execution and reporting.
-
-## Failure Interpretation Policy
-
-Test failures should be easy to classify.
-
-### Unit Failure
-
-Usually means a local rule or component behaviour is wrong.
-
-### Integration Failure
-
-Usually means the new architecture is not composing correctly.
-
-### Parity Failure
-
-Usually means either:
-
-- the scientific output differs from the reference expectation
-- the reference expectation is wrong or outdated
-- the comparison rule needs review
-
-This classification helps developers understand what to investigate first.
-
-## Relationship to Exception and Validation Policy
-
-The test suite should explicitly cover:
-
-- public and internal exception taxonomy behaviour where appropriate
-- validation-domain failure behaviour
-- builder failure behaviour
-- workflow failure boundaries
-
-However, these checks should still be placed in the appropriate suite category rather than treated as a separate fourth top-level test class.
-
-## Minimum Coverage Direction
-
-At a minimum, the suite should ensure:
-
-- public API contracts are covered
-- dataset builder flow is covered
-- kinase workflow flow is covered
-- signalome workflow flow is covered
-- parity coverage reaches at least the level already attained in the old application
-
-This does not mean every area must have equal test volume. It means no core public capability should be left without meaningful test coverage.
+1. Keep architectural and scientific regression signals explicit.
+2. Separate parity, golden, and performance purposes.
+3. Preserve deterministic replay-critical metadata in provenance tests.
+4. Make release blocking policy explicit for scientific production quality.
+
+## Decision
+
+### Test Category Structure
+
+PhosPy test categories remain:
+
+- `tests/unit`
+- `tests/integration`
+- `tests/parity`
+
+`parity` remains opt-in at local default pytest invocation.
+
+### Golden and Provenance Regression Governance
+
+1. Golden tests are architecture-governance tests, not ordinary snapshot tests.
+2. Golden fixtures should lock stable reproducibility-critical outputs.
+3. Golden fixtures should not lock incidental runtime/environment details.
+4. Provenance golden tests must cover:
+   - workflow name
+   - workflow config
+   - reference metadata
+   - reference fingerprints
+   - output fingerprints
+   - policy IDs
+   - policy names
+   - policy versions
+   - seed strategy where stochastic behavior is used
+   - score-preconditioning policy where applicable
+5. Fixture updates require intentional review because they may represent
+   scientific-output changes.
+6. Parity tests and golden tests have different purposes and must not be merged
+   conceptually.
+
+### Property-Based Testing Governance
+
+1. Property-based tests should protect scientific invariants.
+2. Property-based tests should not assert incidental implementation order unless
+   order is the invariant.
+3. Property-based tests complement golden and parity tests rather than replacing
+   them.
+
+### Performance Contract Governance
+
+1. tests/performance are release-gate checks.
+2. tests/performance remain excluded from the default local
+   unit/integration run.
+3. tests/performance are not manual-only checks.
+4. `tests/performance` run in a dedicated CI/release job or explicit
+   release-validation command.
+5. Failures in `tests/performance` block release until fixed, waived, or the
+   contract is intentionally updated.
+6. Contract updates require updating both `docs/performance.md` and related
+   test expectations.
+7. Scale guardrails are part of supported-behavior governance, not incidental
+   implementation limits.
+
+### Why Release-Gate Is the Correct Policy
+
+1. Performance tests can be environment-sensitive for every local/default run.
+2. Manual-only policy is too weak for production-quality scientific software.
+3. Release-gate policy is the required middle ground between the two extremes.
 
 ## Consequences
 
 ### Positive Consequences
 
-- The test suite becomes easier to navigate and maintain.
-- Failures become easier to interpret.
-- Scientific parity remains visible without overwhelming ordinary development tests.
-- Contributors have clearer guidance for where tests belong.
-- The suite reinforces the fresh-start architecture rather than legacy structure.
+- Golden/provenance fixtures become explicit contract assets.
+- Performance regressions cannot silently ship.
+- Property-based tests stay focused on real scientific invariants.
+- Review criteria for fixture/contract updates become explicit.
 
 ### Negative Consequences
 
-- Contributors will need to think more deliberately about test placement.
-- Some existing or future tests may need to be moved to preserve the intended separation.
-- Parity fixtures will require more discipline than casual test data.
+- Release pipelines must run dedicated performance contract jobs.
+- Fixture updates require explicit scientific review discipline.
 
-### Neutral Consequences
+## Affected Modules
 
-- Additional sub-structure may still exist under each major test directory.
-- Some tests may still require judgement calls when they sit near the boundary between categories.
-
-## Rejected Alternatives
-
-### Alternative 1: Keep All Tests in One Undifferentiated Directory
-
-This option was rejected because it weakens the distinction between contract, integration, and parity concerns.
-
-### Alternative 2: Treat Parity as a Subtype of Integration Testing Only
-
-This option was rejected because parity answers a distinct scientific-confidence question and needs a clearer identity.
-
-### Alternative 3: Add Many More Top-Level Test Categories Immediately
-
-This option was rejected because it would overcomplicate the suite before the rewrite has stabilised.
-
-### Alternative 4: Use Only Unit and Parity Tests
-
-This option was rejected because integration tests play an important role in validating the architecture as assembled.
-
-## Resolved Decisions
-
-The following decisions are now resolved for this ADR.
-
-1. Shared test helpers should live in a common support module under `tests/`.
-2. Fixture sharing between integration and parity suites is acceptable.
-3. Parity fixtures do not need additional repository-level versioning or metadata annotation machinery beyond being kept current.
-4. Narrow public API contract tests should stay in the unit suite and should use `public_contract` in their naming.
-5. Parity tests should not run by default and should be requested explicitly at pytest invocation time.
-
-## Implementation Guidance
-
-A likely healthy direction is:
-
-- create `tests/support`, `tests/unit`, `tests/integration`, and `tests/parity`
-- keep unit tests focused and fast
-- use integration tests for assembled architectural flows
-- treat parity fixtures and comparison helpers as deliberate scientific assets
-- document contributor expectations clearly in repository documentation
-- ensure parity execution is opt-in rather than default
-
-Reviewers should reject tests that blur category boundaries without a strong reason.
+- `tests/fixtures/public_workflow_reference/`
+- `tests/integration/test_kinase_workflow_integration.py`
+- `tests/integration/test_signalome_workflow_integration.py`
+- `tests/unit/test_scientific_invariants.py`
+- `tests/parity/`
+- `tests/performance/test_performance_contracts.py`
+- `tests/support/performance_contracts.py`
+- `docs/performance.md`
+- `src/phospy/signalomes/clustering/scale_guards.py`
+- `pyproject.toml`
 
 ## Scope Boundaries
 
-This ADR defines test suite structure and policy only.
-
-It does not define:
-
-- the full CI execution policy
-- the exact fixture repository layout beyond the high-level separation policy
-- the detailed scientific parity rules beyond ADR-013
-- performance benchmarking policy
-- release gating thresholds
-
-Those concerns should be addressed separately.
+This ADR governs testing and release-gate policy. It does not define public
+API namespace ownership (ADR-001), validation ownership (ADR-007), or internal
+module-splitting governance (ADR-010).
 
 ## Validation and Review Criteria
 
-Future code and review work should check proposed changes against the following questions:
+Future changes must satisfy all of the following:
 
-1. Is this test in the right category?
-2. Does it answer the right kind of question for that category?
-3. Does it keep scientific parity concerns separate from ordinary behavioural checks?
-4. Does it make future maintenance easier or harder?
-5. Does it reinforce or weaken the fresh-start architecture?
-
-If the answers are weak or negative, the design should be reconsidered.
-
-## Relationship to Earlier ADRs
-
-This ADR complements the earlier architecture decisions.
-
-- ADR-001 defines the intended public API contract.
-- ADR-002 defines the internal workflow architecture.
-- ADR-003 defines the dataset and preprocessing boundary.
-- ADR-004 defines the reference resolution strategy and `ReferenceBundle` contract.
-- ADR-005 defines result-model design.
-- ADR-006 defines the transformation-state and transformer contract.
-- ADR-007 defines the validation-domain architecture.
-- ADR-008 defines the internal analysis-ready dataset builder architecture.
-- ADR-009 defines the exception and error taxonomy.
-- ADR-010 defines the internal package and module layout.
-- ADR-011 defines the public builder API contract.
-- ADR-012 defines the fresh-start rewrite roadmap.
-- ADR-013 defines scientific parity strategy and parity-testing policy.
-- ADR-014 defines how the overall test suite should be structured around unit, integration, and parity concerns.
-
-Together, these ADRs establish:
-
-- one public dataset model
-- two public workflows
-- one coherent builder story
-- one fresh-start rewrite strategy
-- one scientific-parity policy
-- one explicit three-part test suite structure
+1. Is this test in the correct category for its purpose?
+2. Does the change preserve golden vs parity separation?
+3. Are provenance golden fields still reproducibility/audit critical?
+4. If performance contracts changed, were both docs and thresholds updated?
+5. Is release-gate semantics preserved (not default local, not manual-only)?
 
 ## References
 
-Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
+Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi,
+R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative
+phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14),
+i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
-
+YangLab. (n.d.). *PhosR*. GitHub repository.
+https://github.com/PYangLab/PhosR

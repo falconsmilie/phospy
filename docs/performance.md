@@ -40,3 +40,13 @@ Guardrail enforcement is owned by
 - CI performance tests live in `tests/performance/`.
 - Local benchmark scripts live in `benchmarks/` and report plain `key=value` or
   JSONL metrics without affecting production logic.
+
+## Execution and Release Policy
+
+- `tests/performance/` are release-gate checks.
+- They are excluded from default local unit/integration pytest runs.
+- They are not manual-only checks.
+- They should run in dedicated CI/release validation jobs or explicit
+  release-validation commands.
+- Failing performance contracts block release until fixed, formally waived, or
+  intentionally updated with matching test and documentation changes.

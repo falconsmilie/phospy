@@ -5,386 +5,136 @@
 - **ADR ID:** ADR-007
 - **Title:** Validation Domain Architecture for PhosPy
 - **Status:** Accepted
-- **Date:** 2026-04-16
+- **Date:** 2026-05-02
 - **Decision Type:** Architecture Decision Record
 
 ## Abstract
 
-This Architecture Decision Record defines how validation should be structured in PhosPy. The package is being developed as a maintainable Python port of PhosR. To support that goal, validation must be explicit, reusable, private, and easy to compose without leaking into the public API as a separate product surface.
-
-The decision is to establish validation as its own internal domain. Shared lower-level validation concerns should live in that domain, while workflow-level validators should act as composers that call shared validation components and then add workflow-specific rules. Validation methods should follow the project-wide `run(...)` convention.
+This ADR defines ownership boundaries for shared validation primitives and
+workflow/domain validators. Validation remains an internal architecture domain,
+but ownership is now explicit enough to prevent drift and generic-helper sprawl.
 
 ## Status
 
 Accepted.
 
-This ADR defines the validation architecture that supports the public API, dataset boundary, reference handling, intensity-scale and processing-state contract, and workflow architecture established by earlier ADRs.
+This ADR supersedes earlier generic statements about reusable validation.
 
 ## Context and Problem Statement
 
-Earlier ADRs have already made validation central to the architecture:
+Current code has shared DataFrame validation primitives, workflow request
+validators, and domain validators. Without explicit ownership rules:
 
-- the dataset boundary depends on strong dataset invariants
-- reference handling depends on structural and compatibility validation
-- intensity scale and processing state depend on validated typed contracts
-- workflows are built around validator, interpreter, and executor stages
+- shared modules become dumping grounds
+- scientific/domain rules get misplaced into generic validators
+- workflow validators start owning execution behavior
 
-At the same time, the project direction is clear that validation should remain private. It should not become a standalone public API surface that users are expected to wire manually.
-
-Without a dedicated validation domain, several problems tend to appear:
-
-- repeated checks spread across workflows, builders, and services
-- drift between similar validation rules implemented in different places
-- workflow validators becoming bloated with low-level data checks
-- public models carrying too much validation detail directly
-- helper classes with overlapping responsibilities and unclear ownership
-
-PhosPy therefore needs an explicit decision about where validation lives, how it is composed, and how it interacts with the workflow architecture.
+The boundary must be explicit because it affects public-config behavior,
+workflow correctness, and review governance.
 
 ## Decision Drivers
 
-The decision is driven by the following considerations:
+1. Keep reusable validation primitives reusable and narrow.
+2. Keep domain/scientific rules near domain ownership.
+3. Keep workflow validators as boundary enforcers, not executors.
+4. Ensure public config presets still pass the same validation boundaries.
 
-1. **Reusability.** Basic validation rules should be written once and reused.
-2. **Clarity.** Validation responsibility should be easy to locate and reason about.
-3. **Maintainability.** Shared rules should not be copied into multiple workflows or services.
-4. **Workflow simplicity.** Workflow validators should compose shared validation rather than reimplement everything themselves.
-5. **Privacy of implementation.** Validation should not become a separate public product surface.
-6. **PhosR alignment.** The package should feel like a workflow-driven scientific tool, not a toolkit of free-floating validation helpers.
+## Decision
 
-## Proposed Decision
+### Core Ownership Rules
 
-Validation in PhosPy will be implemented as its own internal domain.
+1. Workflow validators compose validation primitives.
+2. Validators do not execute scientific workflows.
+3. Generic DataFrame/index checks belong in shared validation primitives.
+4. Domain-specific rules belong in domain validation modules.
+5. Shared validation modules must not become dumping grounds.
+6. Site identity/coherence validation is owned by phosphosite/dataset validation
+   boundaries, not by generic DataFrame policy decisions.
+7. Config presets and public config objects must still pass through validation.
+8. Validators may return the original request/config when enforcing boundaries
+   rather than constructing new execution objects.
 
-This validation domain will contain reusable lower-level validation components for shared concerns such as:
+### `validation/common/` Boundary
 
-- dataset structure
-- matrix and metadata alignment
-- metadata column requirements
-- reference bundle validity
-- organism compatibility
-- intensity-scale validity
-- processing-state validity
-- general numeric and structural constraints
+validation/common/ is for generic structural primitives only.
 
-Workflow-level validators will remain part of the workflow architecture, but they will act primarily as composers. They will call the shared validation-domain components and then apply workflow-specific rules. Their job is to validate successfully or fail clearly, not to reshape the request into a new form.
+This includes rules such as:
 
-Validation remains private. Users should not be expected to work directly with validation classes as part of the normal public API.
+- DataFrame type/shape checks
+- required columns
+- uniqueness checks
+- finite/missing constraints
+- strict generic alignment primitives
 
-## Core Design Principle
+The following must live in narrower domain modules, not in
+`validation/common/` governance:
 
-Validation should be **centralised and composable**, not **duplicated and scattered**.
+- phosphosite identity rules
+- reference identity/organism compatibility rules
+- workflow-specific alignment boundaries
+- scientific policy checks
 
-The goal is not to create one giant validator. The goal is to create a validation domain where shared rules can be defined once and assembled cleanly where needed.
+### Workflow Validator Boundary
 
-## Validation Domain Scope
+Workflow validators must:
 
-The validation domain should own reusable validation concerns that are broader than any one workflow stage.
+- enforce request boundary correctness
+- compose shared/domain validators
+- reject invalid requests with explicit validation errors
+- return unchanged request/config when appropriate
 
-Examples include:
+Workflow validators must not:
 
-- checking required DataFrame properties
-- checking index uniqueness
-- checking matrix and metadata alignment
-- checking required metadata columns
-- checking non-empty structured resources
-- checking enum-like support constraints
-- checking intensity-scale-state presence and type
-- checking processing-state presence and type
-- checking organism compatibility rules
-
-These are not workflow-specific business rules. They are shared validation building blocks.
-
-## Workflow Validator Scope
-
-Workflow validators remain important, but their role is narrower.
-
-A workflow validator should:
-
-- accept the public workflow request DTO
-- call relevant shared validators from the validation domain
-- apply workflow-specific constraints that only make sense in that workflow
-- return the original request unchanged for pipeline continuity, or otherwise complete successfully without reshaping it into a new DTO
-
-A workflow validator should not:
-
-- reimplement basic dataset, reference, or intensity-scale checks already owned by the validation domain
-- become a dumping ground for low-level helper logic
-- expand into a second general-purpose validation framework
-- create dedicated validated DTOs as part of its normal job
-
-## Example Composition Direction
-
-A workflow validator should read more like this:
-
-```python
-class KinaseWorkflowValidator:
-    def __init__(self, dataset_validator, reference_validator, transform_validator) -> None:
-        self._dataset_validator = dataset_validator
-        self._reference_validator = reference_validator
-        self._transform_validator = transform_validator
-
-    def run(self, request: KinaseWorkflowRequest) -> KinaseWorkflowRequest:
-        self._dataset_validator.run(request.dataset)
-        self._transform_validator.run(request.dataset.intensity_scale_state)
-        self._reference_validator.run(request.reference, request.dataset.organism)
-        self._validate_workflow_specific_rules(request)
-        return request
-```
-
-The exact class names may differ, but the shape should remain.
-
-## Method Naming Convention
-
-All validators should expose a `run(...)` method.
-
-This keeps validation aligned with the broader workflow architecture convention already established elsewhere in the project.
-
-Examples:
-
-- `self._dataset_validator.run(dataset)`
-- `self._reference_validator.run(bundle)`
-- `self._workflow_validator.run(request)`
-
-Verb-specific method names such as `validate(...)` are discouraged for these components.
-
-## Validation Result Direction
-
-Validation components should validate by succeeding or failing clearly.
-
-The default direction is:
-
-- validation components check conditions
-- they either complete successfully or raise a validation exception
-- they do not create new DTOs as part of normal validation work
-
-Where pipeline continuity benefits from returning a value, the validator should return the original input unchanged rather than manufacturing a separate validated DTO.
-
-This keeps the validator focused on validation rather than type reshaping. Meaningful reshaping belongs to later stages such as interpretation, not to validation itself.
-
-## Error Strategy
-
-Validation should fail clearly and specifically.
-
-The validation domain should prefer domain-appropriate validation errors over accidental low-level exceptions such as:
-
-- raw `KeyError`
-- raw `IndexError`
-- ambiguous `ValueError` with little context
-
-Error messages should identify:
-
-- what object or field was invalid
-- what requirement failed
-- enough context for the caller to fix the issue
-
-A shared base validation exception type should exist for the validation domain so validation failures are explicit and can be handled consistently.
-
-## Dataset Validation Direction
-
-Dataset validation should be shared, central, and private.
-
-It should cover concerns such as:
-
-- phospho matrix presence and numeric shape
-- metadata alignment
-- required site metadata columns
-- optional sample metadata alignment
-- optional total matrix alignment
-- intensity-scale-state presence and validity
-- processing-state presence and validity
-
-`AnalysisReadyPhosphoDataset` may still perform local invariant checks at construction time.
-
-However, dataset-model construction should not become the place where broad shared validation logic is orchestrated. The preferred direction is:
-
-- dataset construction keeps local invariant checks that are truly about the model itself
-- builders and preprocessing paths use validation-domain components for broader shared validation before final construction
-- workflows may rely on that established boundary and compose further workflow-specific checks where needed
-
-This keeps the dataset model smaller, reduces coupling between the model and the wider validation domain, and avoids repeating deep validation orchestration in multiple places.
-
-## Reference Validation Direction
-
-Reference validation should live in the validation domain.
-
-It should cover concerns such as:
-
-- required `ReferenceBundle` fields
-- non-empty resources
-- organism support
-- dataset/reference organism compatibility
-- preset-resolution compatibility checks where appropriate
-
-Workflow validators should compose these checks rather than duplicate them.
-
-## Transformation Validation Direction
-
-Intensity-scale-state validation should live in the validation domain.
-
-It should cover concerns such as:
-
-- presence of `IntensityScaleState`
-- supported intensity scale kind
-- consistency with dataset expectations
-- rejection of unsupported or loosely declared intensity-scale claims
-
-This keeps intensity-scale validation out of workflow executors and out of scattered dataset helpers.
-
-## Builder and Preprocessing Interaction
-
-Builders and preprocessing services may call validation-domain components directly where needed.
-
-This is appropriate because they sit at the ingestion and dataset-construction boundary.
-
-However, this should not dissolve the distinction between:
-
-- reusable shared validation
-- workflow-specific validation composition
-
-The validation domain provides the building blocks. Builders and workflow validators each compose them for their own boundary.
-
-## Public API Boundary
-
-Validation remains outside the public product surface.
-
-This means:
-
-- users are not expected to instantiate validators directly
-- validators are not a first-class public workflow alternative
-- public API documentation should focus on datasets, workflows, requests, and results rather than teaching validation internals
-
-Validation is critical to the product, but it is still internal architecture.
-
-## Internal Package Direction
-
-A likely package direction is to give validation its own internal domain package.
-
-A likely shape is conceptually similar to:
-
-```text
-validation/
-  datasets/
-  references/
-  transformations/
-  common/
-  workflows/
-```
-
-This keeps shared validation organised by concern without making workflow validators swallow everything.
-
-The exact package layout may vary, but validation should be recognisable as its own domain.
+- run scoring, prediction, clustering, or provenance execution logic
+- perform scientific transformations
+- become catch-all utility modules
 
 ## Consequences
 
 ### Positive Consequences
 
-- Shared validation rules are centralised and reusable.
-- Workflow validators stay smaller and more readable.
-- Validation ownership becomes clearer.
-- Builder and workflow boundaries both benefit from the same lower-level rules.
-- Error quality improves because validation becomes intentional rather than accidental.
+- Validation ownership is reviewable and enforceable.
+- Shared primitives stay generic and reusable.
+- Domain logic stays close to scientific context.
+- Workflow validators remain small and predictable.
 
 ### Negative Consequences
 
-- The architecture introduces another explicit internal domain that must be maintained.
-- Some current validation logic will need to be extracted and reorganised.
-- The project must stay disciplined to avoid both over-fragmentation and validator bloat.
+- Some existing helper placement may require future cleanup when touched.
+- Reviewers must enforce module ownership instead of accepting convenience moves.
 
-### Neutral Consequences
+## Affected Modules
 
-- Some model-level invariant checks may still remain on public models where appropriate.
-- Builders, datasets, and workflows may all depend on the same validation domain without making it public.
-
-## Rejected Alternatives
-
-### Alternative 1: Keep Validation Embedded Inside Each Workflow and Builder
-
-This option was rejected because it duplicates rules, encourages drift, and makes workflows harder to maintain.
-
-### Alternative 2: Put All Validation Directly on Public Models Only
-
-This option was rejected because many reusable validation concerns cross model boundaries and should not be trapped inside one class.
-
-### Alternative 3: Expose Validators as a Public API Surface
-
-This option was rejected because the package is intended to present a clean workflow-oriented product surface, not a toolbox of standalone validators.
-
-### Alternative 4: Create One Monolithic Validator for the Whole Package
-
-This option was rejected because it would centralise validation in the wrong way and would become a maintenance bottleneck.
-
-## Resolved Decisions
-
-The following decisions are now resolved for this ADR.
-
-1. The validation domain should have a shared base validation exception type.
-2. `AnalysisReadyPhosphoDataset` should keep local invariant checks at construction time, while builders and preprocessing paths use validation-domain components for broader shared validation.
-3. Common validators should remain granular so they are easy to compose and reuse.
-4. Validators should not create dedicated validated DTOs as part of their normal job.
-5. Validation-domain components should not depend on each other across subdomains. Composition should happen at higher levels.
-
-## Implementation Guidance
-
-A likely healthy split is:
-
-- validation domain for reusable lower-level rules
-- workflow validators as composers
-- builder and preprocessing services reusing shared validation where appropriate
-- public models retaining only the invariant checks that are truly local to the model
-
-Reviewers should reject changes that duplicate shared validation logic in multiple workflows or that attempt to make validators part of the public product story.
+- `src/phospy/validation/common/dataframes.py`
+- `src/phospy/validation/workflows/configs.py`
+- `src/phospy/validation/references/bundle.py`
+- `src/phospy/validation/references/compatibility.py`
+- `src/phospy/workflows/kinase/validator.py`
+- `src/phospy/workflows/signalome/validator.py`
+- `src/phospy/tables/datasets.py`
 
 ## Scope Boundaries
 
-This ADR defines validation-domain architecture only.
-
-It does not define:
-
-- the full exception hierarchy
-- the exact dataset contract
-- the exact workflow request and result contracts
-- exporter or visualisation behaviour
-- migration strategy from current code
-
-Those concerns should be handled separately.
+This ADR defines validation ownership and composition governance. It does not
+define module-splitting rules (ADR-010) or stochastic reproducibility policy
+(ADR-0017).
 
 ## Validation and Review Criteria
 
-Future code and review work should check proposed changes against the following questions:
+Future changes must satisfy all of the following:
 
-1. Does this validation logic belong in the shared validation domain or in a workflow-specific validator?
-2. Does this change reduce or increase duplication?
-3. Does this keep validators private rather than public-facing?
-4. Does this keep workflow validators acting as composers rather than low-level utility bins?
-5. Does this improve or weaken validation clarity and error quality?
-
-If the answers are weak or negative, the design should be reconsidered.
-
-## Relationship to Earlier ADRs
-
-This ADR complements the earlier architecture decisions.
-
-- ADR-001 defines the intended public API contract.
-- ADR-002 defines the internal workflow architecture.
-- ADR-003 defines the dataset and preprocessing boundary.
-- ADR-004 defines the reference resolution strategy and `ReferenceBundle` contract.
-- ADR-005 defines result-model design.
-- ADR-006 defines the intensity-scale and dataset-processing-state contract.
-- ADR-007 defines how validation is organised and composed across the package.
-
-Together, these ADRs establish:
-
-- one public dataset model
-- two public workflows
-- one consistent internal workflow pattern
-- one explicit reference-resolution path
-- one disciplined result-model approach
-- one stronger intensity-scale and processing-state contract
-- one private validation domain with workflow-level composition
+1. Is the rule generic structure or domain/scientific policy?
+2. If generic, is it in `validation/common/` and still structurally generic?
+3. If domain-specific, is it in a domain module with clear ownership?
+4. Does the workflow validator compose validation without executing science?
+5. Do presets/config objects still pass normal validation boundaries?
 
 ## References
 
-Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi, R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14), i349-i356.
+Yang, P., Patrick, E., Humphrey, S. J., Ghazanfar, S., James, D. E., Jothi,
+R., & Yang, J. Y. H. (2019). Kinase activity inference from quantitative
+phosphoproteomics data using multiple linear models. *Bioinformatics, 35*(14),
+i349-i356.
 
-YangLab. (n.d.). *PhosR*. GitHub repository. https://github.com/PYangLab/PhosR
+YangLab. (n.d.). *PhosR*. GitHub repository.
+https://github.com/PYangLab/PhosR
