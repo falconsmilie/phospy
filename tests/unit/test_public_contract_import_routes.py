@@ -124,3 +124,15 @@ def test_public_signalome_docs_do_not_reference_raw_build_cluster_tree() -> None
     )
     assert "build_cluster_tree" not in readme
     assert "build_cluster_tree" not in docs_text
+
+
+def test_split_module_import_routes_remain_backward_compatible() -> None:
+    from phospy.io.bundles._signalome.compatibility import (
+        signalome_config_from_payload,
+    )
+    from phospy.prediction.motif_scoring import score_phosphosite_motifs
+    from phospy.tables.signalome import SignalomeSiteContext
+
+    assert SignalomeSiteContext.__name__ == "SignalomeSiteContext"
+    assert callable(signalome_config_from_payload)
+    assert callable(score_phosphosite_motifs)
