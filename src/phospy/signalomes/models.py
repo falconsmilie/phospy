@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 from typing import Literal
 
 import pandas as pd
@@ -185,25 +185,24 @@ def default_signalome_network_correlation_diagnostics() -> (
     )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class SignalomeAssignments:
     """Signalome module assignment table."""
 
-    table: pd.DataFrame
-    _assume_owned: InitVar[bool] = False
+    _table: pd.DataFrame = field(init=False, repr=False)
 
-    def __post_init__(self, _assume_owned: bool) -> None:
+    def __init__(self, table: pd.DataFrame, _assume_owned: bool = False) -> None:
         from phospy.tables.signalome import SignalomeAssignmentsTable
 
         table = own_dataframe(
-            self.table,
+            table,
             field_name="signalome_result.module_assignments.table",
             error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         object.__setattr__(
             self,
-            "table",
+            "_table",
             SignalomeAssignmentsTable(frame=table, _assume_owned=True).frame,
         )
 
@@ -214,28 +213,31 @@ class SignalomeAssignments:
     def to_pandas(self) -> pd.DataFrame:
         """Return an assignments snapshot isolated from this object."""
 
-        return export_dataframe(self.table)
+        return export_dataframe(self._table)
+
+    @property
+    def table(self) -> pd.DataFrame:
+        return export_dataframe(self._table)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class SignalomeModules:
     """Signalome module table."""
 
-    table: pd.DataFrame
-    _assume_owned: InitVar[bool] = False
+    _table: pd.DataFrame = field(init=False, repr=False)
 
-    def __post_init__(self, _assume_owned: bool) -> None:
+    def __init__(self, table: pd.DataFrame, _assume_owned: bool = False) -> None:
         from phospy.tables.signalome import SignalomeModulesTable
 
         table = own_dataframe(
-            self.table,
+            table,
             field_name="signalome_result.signalome_modules.table",
             error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         object.__setattr__(
             self,
-            "table",
+            "_table",
             SignalomeModulesTable(frame=table, _assume_owned=True).frame,
         )
 
@@ -246,48 +248,69 @@ class SignalomeModules:
     def to_pandas(self) -> pd.DataFrame:
         """Return a modules snapshot isolated from this object."""
 
-        return export_dataframe(self.table)
+        return export_dataframe(self._table)
+
+    @property
+    def table(self) -> pd.DataFrame:
+        return export_dataframe(self._table)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class KinaseNetwork:
     """Kinase network tables derived from signalome analysis."""
 
-    edges: pd.DataFrame
-    nodes: pd.DataFrame | None = None
-    candidate_correlations: pd.DataFrame | None = None
     correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics = field(
         default_factory=default_signalome_network_correlation_diagnostics
     )
-    _assume_owned: InitVar[bool] = False
+    _edges: pd.DataFrame = field(init=False, repr=False)
+    _nodes: pd.DataFrame | None = field(init=False, repr=False)
+    _candidate_correlations: pd.DataFrame | None = field(init=False, repr=False)
 
-    def __post_init__(self, _assume_owned: bool) -> None:
+    def __init__(
+        self,
+        edges: pd.DataFrame,
+        nodes: pd.DataFrame | None = None,
+        candidate_correlations: pd.DataFrame | None = None,
+        correlation_diagnostics: SignalomeNetworkCorrelationDiagnostics | None = None,
+        _assume_owned: bool = False,
+    ) -> None:
         from phospy.tables.signalome import (
             KinaseNetworkCandidateCorrelationsTable,
             KinaseNetworkEdgesTable,
             KinaseNetworkNodesTable,
         )
 
+        object.__setattr__(
+            self,
+            "correlation_diagnostics",
+            (
+                default_signalome_network_correlation_diagnostics()
+                if correlation_diagnostics is None
+                else correlation_diagnostics
+            ),
+        )
+
         edges = own_dataframe(
-            self.edges,
+            edges,
             field_name="signalome_result.kinase_network.edges",
             error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         nodes = own_optional_dataframe(
-            self.nodes,
+            nodes,
             field_name="signalome_result.kinase_network.nodes",
             error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         candidate_correlations = own_optional_dataframe(
-            self.candidate_correlations,
+            candidate_correlations,
             field_name="signalome_result.kinase_network.candidate_correlations",
             error_type=PhosPyValidationError,
             assume_owned=_assume_owned,
         )
         if not isinstance(
-            self.correlation_diagnostics, SignalomeNetworkCorrelationDiagnostics
+            self.correlation_diagnostics,
+            SignalomeNetworkCorrelationDiagnostics,
         ):
             raise PhosPyValidationError(
                 "signalome_result.kinase_network.correlation_diagnostics must be "
@@ -301,9 +324,21 @@ class KinaseNetwork:
                 frame=candidate_correlations,
                 _assume_owned=True,
             ).frame
-        object.__setattr__(self, "edges", edges)
-        object.__setattr__(self, "nodes", nodes)
-        object.__setattr__(self, "candidate_correlations", candidate_correlations)
+        object.__setattr__(self, "_edges", edges)
+        object.__setattr__(self, "_nodes", nodes)
+        object.__setattr__(self, "_candidate_correlations", candidate_correlations)
+
+    @property
+    def edges(self) -> pd.DataFrame:
+        return export_dataframe(self._edges)
+
+    @property
+    def nodes(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._nodes)
+
+    @property
+    def candidate_correlations(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._candidate_correlations)
 
     @classmethod
     def _from_owned(
@@ -318,28 +353,24 @@ class KinaseNetwork:
             edges=edges,
             nodes=nodes,
             candidate_correlations=candidate_correlations,
-            correlation_diagnostics=(
-                default_signalome_network_correlation_diagnostics()
-                if correlation_diagnostics is None
-                else correlation_diagnostics
-            ),
+            correlation_diagnostics=correlation_diagnostics,
             _assume_owned=True,
         )
 
     def to_pandas(self) -> pd.DataFrame:
         """Return an edges snapshot isolated from this network."""
 
-        return export_dataframe(self.edges)
+        return export_dataframe(self._edges)
 
     def nodes_dataframe(self) -> pd.DataFrame | None:
         """Return an optional nodes snapshot isolated from this network."""
 
-        return export_optional_dataframe(self.nodes)
+        return export_optional_dataframe(self._nodes)
 
     def candidate_correlations_dataframe(self) -> pd.DataFrame | None:
         """Return optional candidate correlations isolated from this network."""
 
-        return export_optional_dataframe(self.candidate_correlations)
+        return export_optional_dataframe(self._candidate_correlations)
 
 
 __all__ = [

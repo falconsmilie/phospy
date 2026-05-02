@@ -1292,7 +1292,7 @@ def test_executor_delegates_preprocessing_to_internal_subsystem() -> None:
 
     pdt.assert_frame_equal(built.phospho, preprocessed_tables.phospho)
     pdt.assert_frame_equal(built.site_metadata, preprocessed_tables.site_metadata)
-    assert built.sample_metadata is preprocessed_tables.sample_metadata
+    assert built._sample_metadata is preprocessed_tables.sample_metadata
     pdt.assert_frame_equal(built.total, preprocessed_tables.total)
     assert calls == ["preprocessor", "resolver"]
 

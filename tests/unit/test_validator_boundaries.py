@@ -996,7 +996,7 @@ def test_signalome_validator_allows_downstream_score_matrix_missingness() -> Non
 
 def test_signalome_validator_allows_missing_site_metadata_protein_values() -> None:
     kinase_result = _kinase_result()
-    kinase_result.dataset.site_metadata.loc[:, "protein_id"] = np.nan
+    kinase_result.dataset._site_metadata.loc[:, "protein_id"] = np.nan
     request = SignalomeWorkflowRequest(
         kinase_result=kinase_result,
         config=build_signalome_config(substrate_support_cutoff=0.5),

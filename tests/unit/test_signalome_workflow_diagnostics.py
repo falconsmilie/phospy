@@ -1164,7 +1164,7 @@ def test_interpreter_allows_removed_site_with_missing_protein_id_in_permissive_m
 ):
     site_ids = ["P1;S1;", "P2;S2;"]
     dataset = _dataset(site_ids=site_ids)
-    dataset.site_metadata.loc["P1;S1;", "protein_id"] = np.nan
+    dataset._site_metadata.loc["P1;S1;", "protein_id"] = np.nan
     prediction_matrix = _matrix(
         values=[
             [0.9, 0.1],
@@ -1221,7 +1221,7 @@ def test_interpreter_allows_removed_site_with_missing_protein_id_in_permissive_m
 def test_interpreter_fails_for_retained_site_with_missing_protein_id() -> None:
     site_ids = ["P1;S1;"]
     dataset = _dataset(site_ids=site_ids)
-    dataset.site_metadata.loc["P1;S1;", "protein_id"] = np.nan
+    dataset._site_metadata.loc["P1;S1;", "protein_id"] = np.nan
     prediction_matrix = _matrix(
         values=[[0.9, 0.1]],
         site_ids=site_ids,
@@ -1261,7 +1261,7 @@ def test_interpreter_strict_mode_fails_on_score_preconditioning_before_protein_m
 ):
     site_ids = ["P1;S1;", "P2;S2;"]
     dataset = _dataset(site_ids=site_ids)
-    dataset.site_metadata.loc["P1;S1;", "protein_id"] = np.nan
+    dataset._site_metadata.loc["P1;S1;", "protein_id"] = np.nan
     prediction_matrix = _matrix(
         values=[
             [0.9, 0.1],
@@ -1306,8 +1306,8 @@ def test_interpreter_mixed_removed_and_retained_missing_protein_sites_reports_re
 ):
     site_ids = ["P1;S1;", "P2;S2;", "P3;S3;"]
     dataset = _dataset(site_ids=site_ids)
-    dataset.site_metadata.loc["P1;S1;", "protein_id"] = np.nan
-    dataset.site_metadata.loc["P3;S3;", "protein_id"] = np.nan
+    dataset._site_metadata.loc["P1;S1;", "protein_id"] = np.nan
+    dataset._site_metadata.loc["P3;S3;", "protein_id"] = np.nan
     prediction_matrix = _matrix(
         values=[
             [0.9, 0.1],

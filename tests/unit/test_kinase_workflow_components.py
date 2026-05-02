@@ -275,8 +275,8 @@ def test_result_assembler_preserves_owned_dataframe_transfer() -> None:
 
     assert assembled.scoring_result is scoring_result
     assert assembled.prediction_result is prediction_result
-    assert assembled.scoring_result.profile_scores is scoring_result.profile_scores
-    assert assembled.prediction_result.pred_mat is prediction_result.pred_mat
+    assert assembled.scoring_result._profile_scores is scoring_result._profile_scores
+    assert assembled.prediction_result._pred_mat is prediction_result._pred_mat
     assert (
-        assembled.prediction_result.substrate_list is prediction_result.substrate_list
+        assembled.prediction_result._substrate_list is prediction_result._substrate_list
     )

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import InitVar, dataclass
+from dataclasses import dataclass, field
 
 import pandas as pd
 
@@ -64,58 +64,67 @@ from phospy.validation.transformations.state import IntensityScaleStateValidator
 _INTENSITY_SCALE_STATE_VALIDATOR = IntensityScaleStateValidator()
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class DatasetPreprocessingReport:
     """Public provenance report for dataset preprocessing."""
 
-    row_counts: pd.DataFrame
-    operations: pd.DataFrame
-    row_audit: pd.DataFrame
-    duplicate_site_resolution: pd.DataFrame | None = None
-    metadata_conflicts: pd.DataFrame | None = None
-    comparison_group_stats: pd.DataFrame | None = None
-    comparison_pair_stats: pd.DataFrame | None = None
-    _assume_owned: InitVar[bool] = False
+    _row_counts: pd.DataFrame = field(init=False, repr=False)
+    _operations: pd.DataFrame = field(init=False, repr=False)
+    _row_audit: pd.DataFrame = field(init=False, repr=False)
+    _duplicate_site_resolution: pd.DataFrame | None = field(init=False, repr=False)
+    _metadata_conflicts: pd.DataFrame | None = field(init=False, repr=False)
+    _comparison_group_stats: pd.DataFrame | None = field(init=False, repr=False)
+    _comparison_pair_stats: pd.DataFrame | None = field(init=False, repr=False)
 
-    def __post_init__(self, _assume_owned: bool) -> None:
+    def __init__(
+        self,
+        row_counts: pd.DataFrame,
+        operations: pd.DataFrame,
+        row_audit: pd.DataFrame,
+        duplicate_site_resolution: pd.DataFrame | None = None,
+        metadata_conflicts: pd.DataFrame | None = None,
+        comparison_group_stats: pd.DataFrame | None = None,
+        comparison_pair_stats: pd.DataFrame | None = None,
+        _assume_owned: bool = False,
+    ) -> None:
         row_counts = own_dataframe(
-            self.row_counts,
+            row_counts,
             field_name="dataset.preprocessing_report.row_counts",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         operations = own_dataframe(
-            self.operations,
+            operations,
             field_name="dataset.preprocessing_report.operations",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         row_audit = own_dataframe(
-            self.row_audit,
+            row_audit,
             field_name="dataset.preprocessing_report.row_audit",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         duplicate_site_resolution = own_optional_dataframe(
-            self.duplicate_site_resolution,
+            duplicate_site_resolution,
             field_name="dataset.preprocessing_report.duplicate_site_resolution",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         metadata_conflicts = own_optional_dataframe(
-            self.metadata_conflicts,
+            metadata_conflicts,
             field_name="dataset.preprocessing_report.metadata_conflicts",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         comparison_group_stats = own_optional_dataframe(
-            self.comparison_group_stats,
+            comparison_group_stats,
             field_name="dataset.preprocessing_report.comparison_group_stats",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         comparison_pair_stats = own_optional_dataframe(
-            self.comparison_pair_stats,
+            comparison_pair_stats,
             field_name="dataset.preprocessing_report.comparison_pair_stats",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
@@ -214,48 +223,78 @@ class DatasetPreprocessingReport:
                 comparison_pair_stats,
                 expected_columns=COMPARISON_PAIR_STATS_COLUMNS,
             )
-        object.__setattr__(self, "row_counts", row_counts)
-        object.__setattr__(self, "operations", operations)
-        object.__setattr__(self, "row_audit", row_audit)
-        object.__setattr__(self, "duplicate_site_resolution", duplicate_site_resolution)
-        object.__setattr__(self, "metadata_conflicts", metadata_conflicts)
-        object.__setattr__(self, "comparison_group_stats", comparison_group_stats)
-        object.__setattr__(self, "comparison_pair_stats", comparison_pair_stats)
+        object.__setattr__(self, "_row_counts", row_counts)
+        object.__setattr__(self, "_operations", operations)
+        object.__setattr__(self, "_row_audit", row_audit)
+        object.__setattr__(
+            self, "_duplicate_site_resolution", duplicate_site_resolution
+        )
+        object.__setattr__(self, "_metadata_conflicts", metadata_conflicts)
+        object.__setattr__(self, "_comparison_group_stats", comparison_group_stats)
+        object.__setattr__(self, "_comparison_pair_stats", comparison_pair_stats)
+
+    @property
+    def row_counts(self) -> pd.DataFrame:
+        return export_dataframe(self._row_counts)
+
+    @property
+    def operations(self) -> pd.DataFrame:
+        return export_dataframe(self._operations)
+
+    @property
+    def row_audit(self) -> pd.DataFrame:
+        return export_dataframe(self._row_audit)
+
+    @property
+    def duplicate_site_resolution(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._duplicate_site_resolution)
+
+    @property
+    def metadata_conflicts(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._metadata_conflicts)
+
+    @property
+    def comparison_group_stats(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._comparison_group_stats)
+
+    @property
+    def comparison_pair_stats(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._comparison_pair_stats)
 
     def row_counts_dataframe(self) -> pd.DataFrame:
         """Return a row-count snapshot; mutating it does not mutate this report."""
 
-        return export_dataframe(self.row_counts)
+        return export_dataframe(self._row_counts)
 
     def operations_dataframe(self) -> pd.DataFrame:
         """Return an operations snapshot; mutating it does not mutate this report."""
 
-        return export_dataframe(self.operations)
+        return export_dataframe(self._operations)
 
     def row_audit_dataframe(self) -> pd.DataFrame:
         """Return a row-audit snapshot; mutating it does not mutate this report."""
 
-        return export_dataframe(self.row_audit)
+        return export_dataframe(self._row_audit)
 
     def duplicate_site_resolution_dataframe(self) -> pd.DataFrame | None:
         """Return an optional snapshot isolated from this report."""
 
-        return export_optional_dataframe(self.duplicate_site_resolution)
+        return export_optional_dataframe(self._duplicate_site_resolution)
 
     def metadata_conflicts_dataframe(self) -> pd.DataFrame | None:
         """Return an optional snapshot isolated from this report."""
 
-        return export_optional_dataframe(self.metadata_conflicts)
+        return export_optional_dataframe(self._metadata_conflicts)
 
     def comparison_group_stats_dataframe(self) -> pd.DataFrame | None:
         """Return an optional snapshot isolated from this report."""
 
-        return export_optional_dataframe(self.comparison_group_stats)
+        return export_optional_dataframe(self._comparison_group_stats)
 
     def comparison_pair_stats_dataframe(self) -> pd.DataFrame | None:
         """Return an optional snapshot isolated from this report."""
 
-        return export_optional_dataframe(self.comparison_pair_stats)
+        return export_optional_dataframe(self._comparison_pair_stats)
 
     @classmethod
     def from_rows(
@@ -311,7 +350,7 @@ class DatasetPreprocessingReport:
         )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class AnalysisReadyPhosphoDataset:
     """Public analysis-ready dataset contract.
 
@@ -331,45 +370,101 @@ class AnalysisReadyPhosphoDataset:
     mutate this owning dataset.
     """
 
-    phospho: pd.DataFrame
-    site_metadata: pd.DataFrame
     intensity_scale_state: IntensityScaleState
     processing_state: DatasetProcessingState
-    sample_metadata: pd.DataFrame | None = None
-    total: pd.DataFrame | None = None
-    comparisons: pd.DataFrame | None = None
     organism: Organism | None = None
     preprocessing_report: DatasetPreprocessingReport | None = None
     provenance: RunProvenance | None = None
-    _assume_owned: InitVar[bool] = False
+    _phospho: pd.DataFrame = field(init=False, repr=False)
+    _site_metadata: pd.DataFrame = field(init=False, repr=False)
+    _sample_metadata: pd.DataFrame | None = field(init=False, repr=False)
+    _total: pd.DataFrame | None = field(init=False, repr=False)
+    _comparisons: pd.DataFrame | None = field(init=False, repr=False)
+    _init_payload: (
+        tuple[
+            pd.DataFrame,
+            pd.DataFrame,
+            pd.DataFrame | None,
+            pd.DataFrame | None,
+            pd.DataFrame | None,
+            bool,
+        ]
+        | None
+    ) = field(init=False, repr=False, default=None)
 
-    def __post_init__(self, _assume_owned: bool) -> None:
+    def __init__(
+        self,
+        phospho: pd.DataFrame,
+        site_metadata: pd.DataFrame,
+        intensity_scale_state: IntensityScaleState,
+        processing_state: DatasetProcessingState,
+        sample_metadata: pd.DataFrame | None = None,
+        total: pd.DataFrame | None = None,
+        comparisons: pd.DataFrame | None = None,
+        organism: Organism | None = None,
+        preprocessing_report: DatasetPreprocessingReport | None = None,
+        provenance: RunProvenance | None = None,
+        _assume_owned: bool = False,
+    ) -> None:
+        object.__setattr__(self, "intensity_scale_state", intensity_scale_state)
+        object.__setattr__(self, "processing_state", processing_state)
+        object.__setattr__(self, "organism", organism)
+        object.__setattr__(self, "preprocessing_report", preprocessing_report)
+        object.__setattr__(self, "provenance", provenance)
+        object.__setattr__(
+            self,
+            "_init_payload",
+            (
+                phospho,
+                site_metadata,
+                sample_metadata,
+                total,
+                comparisons,
+                _assume_owned,
+            ),
+        )
+        self.__post_init__()
+
+    def __post_init__(self) -> None:
+        payload = self._init_payload
+        if payload is None:
+            raise DatasetValidationError(
+                "dataset internal initialization payload missing"
+            )
+        (
+            phospho,
+            site_metadata,
+            sample_metadata,
+            total,
+            comparisons,
+            _assume_owned,
+        ) = payload
         phospho = own_dataframe(
-            self.phospho,
+            phospho,
             field_name="dataset.phospho",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         site_metadata = own_dataframe(
-            self.site_metadata,
+            site_metadata,
             field_name="dataset.site_metadata",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         sample_metadata = own_optional_dataframe(
-            self.sample_metadata,
+            sample_metadata,
             field_name="dataset.sample_metadata",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         total = own_optional_dataframe(
-            self.total,
+            total,
             field_name="dataset.total",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
         )
         comparisons = own_optional_dataframe(
-            self.comparisons,
+            comparisons,
             field_name="dataset.comparisons",
             error_type=DatasetValidationError,
             assume_owned=_assume_owned,
@@ -436,7 +531,7 @@ class AnalysisReadyPhosphoDataset:
             raise DatasetValidationError(
                 "dataset.organism must be an Organism enum value or None"
             )
-        intensity_scale_state = _INTENSITY_SCALE_STATE_VALIDATOR.run(
+        validated_intensity_scale_state = _INTENSITY_SCALE_STATE_VALIDATOR.run(
             intensity_scale_state=self.intensity_scale_state,
             has_total_matrix=total_table is not None,
             require_established=True,
@@ -445,7 +540,7 @@ class AnalysisReadyPhosphoDataset:
             raise DatasetValidationError(
                 "dataset.processing_state must be a DatasetProcessingState instance"
             )
-        if self.processing_state.intensity_scale != intensity_scale_state:
+        if self.processing_state.intensity_scale != validated_intensity_scale_state:
             raise DatasetValidationError(
                 "dataset.processing_state.intensity_scale must match "
                 "dataset.intensity_scale_state"
@@ -469,19 +564,41 @@ class AnalysisReadyPhosphoDataset:
             raise DatasetValidationError(
                 "dataset.provenance must be RunProvenance or None"
             )
-        object.__setattr__(self, "phospho", phospho_table.frame)
-        object.__setattr__(self, "site_metadata", site_metadata_table.frame)
+        object.__setattr__(self, "_phospho", phospho_table.frame)
+        object.__setattr__(self, "_site_metadata", site_metadata_table.frame)
         object.__setattr__(
             self,
-            "sample_metadata",
+            "_sample_metadata",
             None if sample_metadata_table is None else sample_metadata_table.frame,
         )
         object.__setattr__(
-            self, "total", None if total_table is None else total_table.frame
+            self, "_total", None if total_table is None else total_table.frame
         )
-        object.__setattr__(self, "comparisons", comparisons)
-        object.__setattr__(self, "intensity_scale_state", intensity_scale_state)
-        object.__setattr__(self, "processing_state", self.processing_state)
+        object.__setattr__(self, "_comparisons", comparisons)
+        object.__setattr__(
+            self, "intensity_scale_state", validated_intensity_scale_state
+        )
+        object.__setattr__(self, "_init_payload", None)
+
+    @property
+    def phospho(self) -> pd.DataFrame:
+        return export_dataframe(self._phospho)
+
+    @property
+    def site_metadata(self) -> pd.DataFrame:
+        return export_dataframe(self._site_metadata)
+
+    @property
+    def sample_metadata(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._sample_metadata)
+
+    @property
+    def total(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._total)
+
+    @property
+    def comparisons(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._comparisons)
 
     @classmethod
     def _from_owned(
@@ -515,24 +632,24 @@ class AnalysisReadyPhosphoDataset:
     def to_dataframe(self) -> pd.DataFrame:
         """Return a phospho snapshot; mutating it does not mutate this dataset."""
 
-        return export_dataframe(self.phospho)
+        return export_dataframe(self._phospho)
 
     def site_metadata_dataframe(self) -> pd.DataFrame:
         """Return a site-metadata snapshot isolated from this dataset."""
 
-        return export_dataframe(self.site_metadata)
+        return export_dataframe(self._site_metadata)
 
     def sample_metadata_dataframe(self) -> pd.DataFrame | None:
         """Return an optional sample-metadata snapshot isolated from this dataset."""
 
-        return export_optional_dataframe(self.sample_metadata)
+        return export_optional_dataframe(self._sample_metadata)
 
     def total_dataframe(self) -> pd.DataFrame | None:
         """Return an optional total-protein snapshot isolated from this dataset."""
 
-        return export_optional_dataframe(self.total)
+        return export_optional_dataframe(self._total)
 
     def comparisons_dataframe(self) -> pd.DataFrame | None:
         """Return an optional comparisons snapshot isolated from this dataset."""
 
-        return export_optional_dataframe(self.comparisons)
+        return export_optional_dataframe(self._comparisons)

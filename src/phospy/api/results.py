@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass, field
+from dataclasses import dataclass, field
 
 import pandas as pd
 
@@ -44,7 +44,7 @@ class KinaseWorkflowResult:
     provenance: RunProvenance | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class SignalomeWorkflowResult:
     """Top-level public signalome workflow result.
 
@@ -77,27 +77,100 @@ class SignalomeWorkflowResult:
     alignment_diagnostics: SignalomeAlignmentDiagnostics = field(
         default_factory=default_signalome_alignment_diagnostics
     )
-    expanded_signalome: pd.DataFrame | None = None
-    site_membership: pd.DataFrame | None = None
-    protein_site_context: pd.DataFrame | None = None
     provenance: RunProvenance | None = None
-    _assume_owned: InitVar[bool] = False
+    _expanded_signalome: pd.DataFrame | None = field(init=False, repr=False)
+    _site_membership: pd.DataFrame | None = field(init=False, repr=False)
+    _protein_site_context: pd.DataFrame | None = field(init=False, repr=False)
+    _init_payload: (
+        tuple[pd.DataFrame | None, pd.DataFrame | None, pd.DataFrame | None, bool]
+        | None
+    ) = field(init=False, repr=False, default=None)
 
-    def __post_init__(self, _assume_owned: bool) -> None:
+    def __init__(
+        self,
+        dataset: AnalysisReadyPhosphoDataset,
+        kinase_result: KinaseWorkflowResult,
+        module_assignments: SignalomeAssignments,
+        signalome_modules: SignalomeModules,
+        kinase_network: KinaseNetwork,
+        module_selection_diagnostics: SignalomeModuleSelectionDiagnostics | None = None,
+        score_preconditioning_diagnostics: SignalomeScorePreconditioningDiagnostics
+        | None = None,
+        alignment_diagnostics: SignalomeAlignmentDiagnostics | None = None,
+        expanded_signalome: pd.DataFrame | None = None,
+        site_membership: pd.DataFrame | None = None,
+        protein_site_context: pd.DataFrame | None = None,
+        provenance: RunProvenance | None = None,
+        _assume_owned: bool = False,
+    ) -> None:
+        object.__setattr__(self, "dataset", dataset)
+        object.__setattr__(self, "kinase_result", kinase_result)
+        object.__setattr__(self, "module_assignments", module_assignments)
+        object.__setattr__(self, "signalome_modules", signalome_modules)
+        object.__setattr__(self, "kinase_network", kinase_network)
+        object.__setattr__(
+            self,
+            "module_selection_diagnostics",
+            (
+                default_signalome_module_selection_diagnostics()
+                if module_selection_diagnostics is None
+                else module_selection_diagnostics
+            ),
+        )
+        object.__setattr__(
+            self,
+            "score_preconditioning_diagnostics",
+            (
+                default_signalome_score_preconditioning_diagnostics()
+                if score_preconditioning_diagnostics is None
+                else score_preconditioning_diagnostics
+            ),
+        )
+        object.__setattr__(
+            self,
+            "alignment_diagnostics",
+            (
+                default_signalome_alignment_diagnostics()
+                if alignment_diagnostics is None
+                else alignment_diagnostics
+            ),
+        )
+        object.__setattr__(self, "provenance", provenance)
+        object.__setattr__(
+            self,
+            "_init_payload",
+            (
+                expanded_signalome,
+                site_membership,
+                protein_site_context,
+                _assume_owned,
+            ),
+        )
+        self.__post_init__()
+
+    def __post_init__(self) -> None:
+        payload = self._init_payload
+        if payload is None:
+            raise WorkflowValidationError(
+                "signalome_result internal initialization payload missing"
+            )
+        expanded_signalome, site_membership, protein_site_context, _assume_owned = (
+            payload
+        )
         expanded_signalome = own_optional_dataframe(
-            self.expanded_signalome,
+            expanded_signalome,
             field_name="signalome_result.expanded_signalome",
             error_type=WorkflowValidationError,
             assume_owned=_assume_owned,
         )
         site_membership = own_optional_dataframe(
-            self.site_membership,
+            site_membership,
             field_name="signalome_result.site_membership",
             error_type=WorkflowValidationError,
             assume_owned=_assume_owned,
         )
         protein_site_context = own_optional_dataframe(
-            self.protein_site_context,
+            protein_site_context,
             field_name="signalome_result.protein_site_context",
             error_type=WorkflowValidationError,
             assume_owned=_assume_owned,
@@ -118,9 +191,22 @@ class SignalomeWorkflowResult:
             raise WorkflowValidationError(
                 "signalome_result.provenance must be RunProvenance or None"
             )
-        object.__setattr__(self, "expanded_signalome", expanded_signalome)
-        object.__setattr__(self, "site_membership", site_membership)
-        object.__setattr__(self, "protein_site_context", protein_site_context)
+        object.__setattr__(self, "_expanded_signalome", expanded_signalome)
+        object.__setattr__(self, "_site_membership", site_membership)
+        object.__setattr__(self, "_protein_site_context", protein_site_context)
+        object.__setattr__(self, "_init_payload", None)
+
+    @property
+    def expanded_signalome(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._expanded_signalome)
+
+    @property
+    def site_membership(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._site_membership)
+
+    @property
+    def protein_site_context(self) -> pd.DataFrame | None:
+        return export_optional_dataframe(self._protein_site_context)
 
     @classmethod
     def _from_owned(
@@ -146,21 +232,9 @@ class SignalomeWorkflowResult:
             module_assignments=module_assignments,
             signalome_modules=signalome_modules,
             kinase_network=kinase_network,
-            module_selection_diagnostics=(
-                default_signalome_module_selection_diagnostics()
-                if module_selection_diagnostics is None
-                else module_selection_diagnostics
-            ),
-            score_preconditioning_diagnostics=(
-                default_signalome_score_preconditioning_diagnostics()
-                if score_preconditioning_diagnostics is None
-                else score_preconditioning_diagnostics
-            ),
-            alignment_diagnostics=(
-                default_signalome_alignment_diagnostics()
-                if alignment_diagnostics is None
-                else alignment_diagnostics
-            ),
+            module_selection_diagnostics=module_selection_diagnostics,
+            score_preconditioning_diagnostics=score_preconditioning_diagnostics,
+            alignment_diagnostics=alignment_diagnostics,
             expanded_signalome=expanded_signalome,
             site_membership=site_membership,
             protein_site_context=protein_site_context,
@@ -171,17 +245,17 @@ class SignalomeWorkflowResult:
     def to_dataframe(self) -> pd.DataFrame | None:
         """Return an expanded-signalome snapshot when available."""
 
-        return export_optional_dataframe(self.expanded_signalome)
+        return export_optional_dataframe(self._expanded_signalome)
 
     def site_membership_dataframe(self) -> pd.DataFrame | None:
         """Return a site-membership snapshot when available."""
 
-        return export_optional_dataframe(self.site_membership)
+        return export_optional_dataframe(self._site_membership)
 
     def protein_site_context_dataframe(self) -> pd.DataFrame | None:
         """Return a protein-site context snapshot when available."""
 
-        return export_optional_dataframe(self.protein_site_context)
+        return export_optional_dataframe(self._protein_site_context)
 
 
 __all__ = [

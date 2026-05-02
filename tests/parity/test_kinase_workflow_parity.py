@@ -238,7 +238,7 @@ def test_profile_missing_value_policy_changes_downstream_lane_for_mixed_missing_
             organism=Organism.RAT,
         )
     )
-    dataset.phospho.loc["GENEA;S2;", "sample_c"] = float("nan")
+    dataset._phospho.loc["GENEA;S2;", "sample_c"] = float("nan")
     references = ReferenceBundle(
         organism=Organism.RAT,
         kinase_substrate_map=pd.DataFrame(

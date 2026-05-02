@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import InitVar, dataclass
+from dataclasses import dataclass, field
 
 import pandas as pd
 
@@ -67,7 +67,7 @@ class KinaseActivityInputs:
         object.__setattr__(self, "phospho_matrix", phospho_matrix)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class KinaseActivityResult:
     """Activity-stage outputs.
 
@@ -82,42 +82,53 @@ class KinaseActivityResult:
     - ``target_table``: thresholded kinase-target edge table
     """
 
-    weighted_activity: pd.DataFrame
-    thresholded_substrate_mean_activity: pd.DataFrame
     thresholded_substrate_counts: pd.Series
     target_counts: pd.Series
-    target_table: pd.DataFrame
-    _assume_owned: InitVar[bool] = False
+    _weighted_activity: pd.DataFrame = field(init=False, repr=False)
+    _thresholded_substrate_mean_activity: pd.DataFrame = field(init=False, repr=False)
+    _target_table: pd.DataFrame = field(init=False, repr=False)
 
-    def __post_init__(self, _assume_owned: bool) -> None:
+    def __init__(
+        self,
+        weighted_activity: pd.DataFrame,
+        thresholded_substrate_mean_activity: pd.DataFrame,
+        thresholded_substrate_counts: pd.Series,
+        target_counts: pd.Series,
+        target_table: pd.DataFrame,
+        _assume_owned: bool = False,
+    ) -> None:
+        object.__setattr__(
+            self, "thresholded_substrate_counts", thresholded_substrate_counts
+        )
+        object.__setattr__(self, "target_counts", target_counts)
         weighted_activity = ActivityMatrix(
-            frame=self.weighted_activity,
+            frame=weighted_activity,
             field_name="activity_result.weighted_activity",
             _assume_owned=_assume_owned,
         ).frame
         thresholded_substrate_mean_activity = ActivityMatrix(
-            frame=self.thresholded_substrate_mean_activity,
+            frame=thresholded_substrate_mean_activity,
             field_name="activity_result.thresholded_substrate_mean_activity",
             _assume_owned=_assume_owned,
         ).frame
         thresholded_substrate_counts = ActivityCountSeries(
-            series=self.thresholded_substrate_counts,
+            series=thresholded_substrate_counts,
             field_name="activity_result.thresholded_substrate_counts",
             _assume_owned=_assume_owned,
         ).series
         target_counts = ActivityCountSeries(
-            series=self.target_counts,
+            series=target_counts,
             field_name="activity_result.target_counts",
             _assume_owned=_assume_owned,
         ).series
         target_table = ActivityTargetTable(
-            frame=self.target_table,
+            frame=target_table,
             _assume_owned=_assume_owned,
         ).frame
-        object.__setattr__(self, "weighted_activity", weighted_activity)
+        object.__setattr__(self, "_weighted_activity", weighted_activity)
         object.__setattr__(
             self,
-            "thresholded_substrate_mean_activity",
+            "_thresholded_substrate_mean_activity",
             thresholded_substrate_mean_activity,
         )
         object.__setattr__(
@@ -126,7 +137,19 @@ class KinaseActivityResult:
             thresholded_substrate_counts,
         )
         object.__setattr__(self, "target_counts", target_counts)
-        object.__setattr__(self, "target_table", target_table)
+        object.__setattr__(self, "_target_table", target_table)
+
+    @property
+    def weighted_activity(self) -> pd.DataFrame:
+        return export_dataframe(self._weighted_activity)
+
+    @property
+    def thresholded_substrate_mean_activity(self) -> pd.DataFrame:
+        return export_dataframe(self._thresholded_substrate_mean_activity)
+
+    @property
+    def target_table(self) -> pd.DataFrame:
+        return export_dataframe(self._target_table)
 
     @classmethod
     def _from_owned(
@@ -150,14 +173,14 @@ class KinaseActivityResult:
     def to_dataframe(self) -> pd.DataFrame:
         """Return a weighted-activity snapshot isolated from this result."""
 
-        return export_dataframe(self.weighted_activity)
+        return export_dataframe(self._weighted_activity)
 
     def thresholded_substrate_mean_activity_dataframe(self) -> pd.DataFrame:
         """Return a thresholded-mean snapshot isolated from this result."""
 
-        return export_dataframe(self.thresholded_substrate_mean_activity)
+        return export_dataframe(self._thresholded_substrate_mean_activity)
 
     def target_table_dataframe(self) -> pd.DataFrame:
         """Return a target-table snapshot isolated from this result."""
 
-        return export_dataframe(self.target_table)
+        return export_dataframe(self._target_table)
