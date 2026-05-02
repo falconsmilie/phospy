@@ -127,6 +127,10 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 
 - Provenance includes input/output table fingerprints, environment, resolved reference provenance, and active scientific policy records.
 - Workflow parameters for scoring, prediction, and optional activity are serialized in provenance.
+- `workflow_parameters.scoring_diagnostics` includes motif sequence-validation
+  counts and motif site-sequence coverage diagnostics (for example
+  `total_sites_considered`, `sites_with_valid_site_sequence`,
+  `sites_without_valid_site_sequence`, and `site_sequence_coverage_fraction`).
 
 ### Known Limitations
 

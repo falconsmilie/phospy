@@ -101,10 +101,32 @@ class SequenceValidationResult:
     excluded_site_ids: tuple[str, ...]
     rows: tuple[SequenceValidationRow, ...]
 
-    def summary(self) -> dict[str, int]:
+    def site_sequence_coverage_summary(self) -> dict[str, int | float]:
+        """Return motif-site sequence coverage for workflow-level reporting."""
+
+        total_sites_considered = int(self.total_sequences)
+        sites_with_valid_site_sequence = int(self.valid_sequences)
+        sites_without_valid_site_sequence = int(self.invalid_sequences)
+        site_sequence_coverage_fraction = (
+            0.0
+            if total_sites_considered == 0
+            else sites_with_valid_site_sequence / total_sites_considered
+        )
+        return {
+            "total_sites_considered": total_sites_considered,
+            "sites_with_valid_site_sequence": sites_with_valid_site_sequence,
+            "sites_without_valid_site_sequence": sites_without_valid_site_sequence,
+            "site_sequence_coverage_fraction": float(site_sequence_coverage_fraction),
+            "sites_used_for_motif_scoring": sites_with_valid_site_sequence,
+            "sites_excluded_from_motif_scoring_due_to_sequence": (
+                sites_without_valid_site_sequence
+            ),
+        }
+
+    def summary(self) -> dict[str, int | float]:
         """Return workflow-level summary diagnostics."""
 
-        return {
+        diagnostics: dict[str, int | float] = {
             "total_sequences": self.total_sequences,
             "valid_sequences": self.valid_sequences,
             "invalid_sequences": self.invalid_sequences,
@@ -118,6 +140,8 @@ class SequenceValidationResult:
                 self.sequences_excluded_from_motif_scoring
             ),
         }
+        diagnostics.update(self.site_sequence_coverage_summary())
+        return diagnostics
 
 
 class MotifSequenceValidator:

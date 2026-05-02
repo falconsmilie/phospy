@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from phospy import AnalysisReadyPhosphoDataset
+from phospy import AnalysisReadyPhosphoDataset, KinaseWorkflow
 from phospy.api import (
     KinasePredictionConfig,
     KinaseScoringConfig,
@@ -202,6 +202,13 @@ def test_motif_scoring_excludes_invalid_sequences_and_reports_diagnostics() -> N
         invalid_row.status == SEQUENCE_VALIDATION_STATUS_UNSUPPORTED_RESIDUE_CHARACTER
     )
     assert result.sequence_validation.sequences_excluded_from_motif_scoring == 1
+    coverage = result.sequence_validation.site_sequence_coverage_summary()
+    assert coverage["total_sites_considered"] == 3
+    assert coverage["sites_with_valid_site_sequence"] == 2
+    assert coverage["sites_without_valid_site_sequence"] == 1
+    assert coverage["site_sequence_coverage_fraction"] == 2 / 3
+    assert coverage["sites_used_for_motif_scoring"] == 2
+    assert coverage["sites_excluded_from_motif_scoring_due_to_sequence"] == 1
     assert pd.isna(result.motif_scores.loc["MAPK1;S210;", "K1"])
     assert result.motif_scores.loc[["MAPK1;S202;", "MAPK1;T205;"], "K1"].notna().all()
 
@@ -432,6 +439,12 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
     assert summary["site_residue_mismatches"] == 0
     assert summary["unsupported_residue_characters"] == 1
     assert summary["sequences_excluded_from_motif_scoring"] == 1
+    assert summary["total_sites_considered"] == 3
+    assert summary["sites_with_valid_site_sequence"] == 2
+    assert summary["sites_without_valid_site_sequence"] == 1
+    assert summary["site_sequence_coverage_fraction"] == 2 / 3
+    assert summary["sites_used_for_motif_scoring"] == 2
+    assert summary["sites_excluded_from_motif_scoring_due_to_sequence"] == 1
 
     assert scoring_result.motif_library_validation is not None
     library_summary = scoring_result.motif_library_validation.summary()
@@ -447,6 +460,191 @@ def test_kinase_workflow_exposes_sequence_validation_diagnostics() -> None:
 
     assert scoring_result.motif_scores is not None
     assert pd.isna(scoring_result.motif_scores.loc["MAPK1;S210;", "KINASE_A"])
+
+
+def test_sequence_coverage_summary_reports_full_coverage_for_all_valid_sites() -> None:
+    result = _validator().run(
+        rows=[
+            SequenceValidationInput(
+                site_id="MAPK1;S202;",
+                site_sequence="AAAAAAASAAAAAAA",
+            ),
+            SequenceValidationInput(
+                site_id="MAPK1;T205;",
+                site_sequence="VVVVVVVTVVVVVVV",
+            ),
+        ]
+    )
+
+    coverage = result.site_sequence_coverage_summary()
+    assert coverage["total_sites_considered"] == 2
+    assert coverage["sites_with_valid_site_sequence"] == 2
+    assert coverage["sites_without_valid_site_sequence"] == 0
+    assert coverage["site_sequence_coverage_fraction"] == 1.0
+    assert coverage["sites_used_for_motif_scoring"] == 2
+    assert coverage["sites_excluded_from_motif_scoring_due_to_sequence"] == 0
+
+
+def test_sequence_coverage_summary_reports_zero_coverage_for_all_invalid_sites() -> (
+    None
+):
+    result = _validator().run(
+        rows=[
+            SequenceValidationInput(
+                site_id="MAPK1;S202;",
+                site_sequence=None,
+            ),
+            SequenceValidationInput(
+                site_id="MAPK1;S203;",
+                site_sequence="AAAAAAAXAAAAAAA",
+            ),
+        ]
+    )
+
+    coverage = result.site_sequence_coverage_summary()
+    assert coverage["total_sites_considered"] == 2
+    assert coverage["sites_with_valid_site_sequence"] == 0
+    assert coverage["sites_without_valid_site_sequence"] == 2
+    assert coverage["site_sequence_coverage_fraction"] == 0.0
+    assert coverage["sites_used_for_motif_scoring"] == 0
+    assert coverage["sites_excluded_from_motif_scoring_due_to_sequence"] == 2
+
+
+def test_kinase_workflow_reports_partial_sequence_coverage_in_provenance() -> None:
+    site_ids = pd.Index(["MAPK1;S202;", "MAPK1;T205;", "MAPK1;S210;"], name="site_id")
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=pd.DataFrame(
+            {
+                "sample_a": [1.0, 2.0, 3.0],
+                "sample_b": [2.0, 3.0, 4.0],
+            },
+            index=site_ids,
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK1", "MAPK1", "MAPK1"],
+                "site": ["S202", "T205", "S210"],
+                "site_sequence": ["A" * 31, "A" * 31, "A" * 31],
+            },
+            index=site_ids,
+        ),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["KINASE_A", "KINASE_A"],
+                "substrate_site": ["MAPK1;S202;", "MAPK1;T205;"],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {
+                "site_sequence": [
+                    "AAAAAAASAAAAAAA",
+                    "VVVVVVVTVVVVVVV",
+                    "AAAAAAAXAAAAAAA",
+                ],
+            },
+            index=site_ids,
+        ),
+    )
+
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=1,
+                deterministic_max_selected_kinases=1,
+                adaptive_ensemble_runs=1,
+            ),
+            activity_config=None,
+        )
+    )
+
+    assert not result.prediction_result.pred_mat.empty
+    assert result.provenance is not None
+    diagnostics = result.provenance.workflow_parameters["scoring_diagnostics"]
+    assert diagnostics["total_sites_considered"] == 3
+    assert diagnostics["sites_with_valid_site_sequence"] == 2
+    assert diagnostics["sites_without_valid_site_sequence"] == 1
+    assert diagnostics["site_sequence_coverage_fraction"] == 2 / 3
+    assert diagnostics["sites_used_for_motif_scoring"] == 2
+    assert diagnostics["sites_excluded_from_motif_scoring_due_to_sequence"] == 1
+    nested_coverage = diagnostics["motif_site_sequence_coverage"]
+    assert nested_coverage["total_sites_considered"] == 3
+    assert nested_coverage["sites_with_valid_site_sequence"] == 2
+    assert nested_coverage["sites_without_valid_site_sequence"] == 1
+
+
+def test_kinase_workflow_continues_when_no_sites_have_valid_sequence() -> None:
+    site_ids = pd.Index(["MAPK1;S202;", "MAPK1;T205;"], name="site_id")
+    dataset = AnalysisReadyPhosphoDataset(
+        phospho=pd.DataFrame(
+            {"sample_a": [1.0, 2.0], "sample_b": [2.0, 3.0]},
+            index=site_ids,
+        ),
+        site_metadata=pd.DataFrame(
+            {
+                "gene_symbol": ["MAPK1", "MAPK1"],
+                "site": ["S202", "T205"],
+                "site_sequence": ["A" * 31, "A" * 31],
+            },
+            index=site_ids,
+        ),
+        organism=Organism.RAT,
+        intensity_scale_state=supported_linear_intensity_scale_state(
+            has_total_matrix=False
+        ),
+        processing_state=supported_linear_processing_state(has_total_matrix=False),
+    )
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["KINASE_A", "KINASE_A"],
+                "substrate_site": ["MAPK1;S202;", "MAPK1;T205;"],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": ["AAAAAAAXAAAAAAA", "ASAA"]},
+            index=site_ids,
+        ),
+    )
+
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            scoring_config=KinaseScoringConfig(
+                min_substrates=2,
+                include_diagnostic_scoring_tables=True,
+            ),
+            prediction_config=KinasePredictionConfig(
+                top_k=1,
+                deterministic_max_selected_kinases=1,
+                adaptive_ensemble_runs=1,
+            ),
+            activity_config=None,
+        )
+    )
+
+    assert not result.prediction_result.pred_mat.empty
+    assert result.scoring_result.motif_scores is not None
+    assert result.scoring_result.motif_scores.isna().all().all()
+    assert result.scoring_result.rank_weighted_fusion_scores is not None
+    assert result.provenance is not None
+    diagnostics = result.provenance.workflow_parameters["scoring_diagnostics"]
+    assert diagnostics["total_sites_considered"] == 2
+    assert diagnostics["sites_with_valid_site_sequence"] == 0
+    assert diagnostics["sites_without_valid_site_sequence"] == 2
+    assert diagnostics["site_sequence_coverage_fraction"] == 0.0
 
 
 def test_motif_library_accepts_valid_reference_sequence_and_builds_profile() -> None:

@@ -132,6 +132,10 @@ class KinaseProvenanceBuilder:
             if scoring_result.motif_sequence_validation is None
             else dict(scoring_result.motif_sequence_validation.summary())
         )
+        if scoring_result.motif_sequence_validation is not None:
+            scoring_diagnostics["motif_site_sequence_coverage"] = (
+                scoring_result.motif_sequence_validation.site_sequence_coverage_summary()
+            )
         if scoring_result.motif_library_validation is not None:
             scoring_diagnostics["motif_library_validation"] = (
                 scoring_result.motif_library_validation.summary()
