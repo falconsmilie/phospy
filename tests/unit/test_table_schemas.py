@@ -455,15 +455,15 @@ def test_reference_schema_non_canonical_kinase_fails() -> None:
         KinaseSubstrateReference(frame=frame)
 
 
-def test_reference_schema_non_canonical_substrate_site_fails() -> None:
+def test_reference_schema_non_canonical_substrate_site_normalizes() -> None:
     frame = pd.DataFrame(
         {
             "kinase": ["MAP2K6"],
-            "substrate_site": ["MAPK14;Y182; "],
+            "substrate_site": [" mapk14 ; y182 "],
         }
     )
-    with pytest.raises(ReferenceValidationError, match="canonical site identifiers"):
-        KinaseSubstrateReference(frame=frame)
+    wrapper = KinaseSubstrateReference(frame=frame)
+    assert wrapper.frame.loc[0, "substrate_site"] == "MAPK14;Y182;"
 
 
 def test_reference_schema_missing_site_sequence_for_substrate_fails() -> None:

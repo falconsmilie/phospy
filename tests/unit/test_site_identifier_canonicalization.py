@@ -18,6 +18,8 @@ from phospy.errors import (
 )
 from phospy.references.models import ReferencePreset
 from phospy.references.resolution import ReferenceResolver
+from phospy.site_ids import canonicalize_site_identifier
+from phospy.workflows.kinase.interpreter import KinaseWorkflowInterpreter
 from tests.support.intensity_scale_states import (
     supported_linear_intensity_scale_state,
     supported_linear_processing_state,
@@ -58,7 +60,7 @@ def test_builder_canonicalizes_site_ids_and_reorders_site_metadata() -> None:
 def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
     phospho = pd.DataFrame(
         {"sample_a": [1.0, 2.0]},
-        index=pd.Index([101, " 101 "], name="site_id"),
+        index=pd.Index(["mapk14;s123;", " MAPK14;S123; "], name="site_id"),
     )
     site_metadata = pd.DataFrame(
         {
@@ -85,7 +87,7 @@ def test_builder_rejects_ambiguous_site_ids_after_canonicalization() -> None:
 def test_reference_bundle_rejects_ambiguous_site_sequence_ids() -> None:
     with pytest.raises(
         ReferenceValidationError,
-        match="contains colliding site identifiers when stripped",
+        match="duplicate site identifiers after canonicalization",
     ):
         ReferenceBundle(
             organism=Organism.RAT,
@@ -136,7 +138,7 @@ def test_dataset_boundary_rejects_non_canonical_site_ids() -> None:
 def test_dataset_boundary_rejects_colliding_dirty_site_ids() -> None:
     with pytest.raises(
         DatasetValidationError,
-        match="dataset\\.phospho\\.index contains colliding site identifiers when stripped",
+        match="contains colliding site identifiers when stripped",
     ):
         from phospy.datasets.models import AnalysisReadyPhosphoDataset
 
@@ -212,19 +214,33 @@ def test_reference_bundle_rejects_duplicate_kinase_substrate_pairs() -> None:
 
 
 def test_reference_bundle_rejects_colliding_dirty_substrate_site_ids() -> None:
+    bundle = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["MAP2K6", "MAP2K7"],
+                "substrate_site": ["MAPK14;Y182;", " mapk14 ; y182 "],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": ["A" * 31]},
+            index=pd.Index(["MAPK14;Y182;"], name="site_id"),
+        ),
+    )
+    assert set(bundle.kinase_substrate_map.loc[:, "substrate_site"]) == {"MAPK14;Y182;"}
+
+
+def test_reference_bundle_rejects_duplicate_pairs_after_site_id_normalization() -> None:
     with pytest.raises(
         ReferenceValidationError,
-        match=(
-            "references\\.kinase_substrate_map\\.substrate_site contains colliding "
-            "site identifiers when stripped"
-        ),
+        match="contains duplicate \\(kinase, substrate_site\\) pairs",
     ):
         ReferenceBundle(
             organism=Organism.RAT,
             kinase_substrate_map=pd.DataFrame(
                 {
-                    "kinase": ["MAP2K6", "MAP2K7"],
-                    "substrate_site": ["MAPK14;Y182;", " MAPK14;Y182;"],
+                    "kinase": ["MAP2K6", "MAP2K6"],
+                    "substrate_site": ["MAPK14;Y182;", " mapk14 ; y182 "],
                 }
             ),
             site_sequences=pd.DataFrame(
@@ -255,3 +271,76 @@ def test_reference_provider_shapes_bundled_resources_for_strict_boundary() -> No
         isinstance(value, str) and value == value.strip() and value != ""
         for value in bundle.kinase_substrate_map.loc[:, "substrate_site"].tolist()
     )
+
+
+def test_shared_normalizer_supports_whitespace_case_and_missing_trailing_semicolon() -> (
+    None
+):
+    assert (
+        canonicalize_site_identifier(
+            " mapk1 ; s123 ",
+            field_name="test.site_id",
+            error_type=UnsupportedInputFormatError,
+        )
+        == "MAPK1;S123;"
+    )
+    assert (
+        canonicalize_site_identifier(
+            "mapk1;s123",
+            field_name="test.site_id",
+            error_type=UnsupportedInputFormatError,
+        )
+        == "MAPK1;S123;"
+    )
+
+
+def test_shared_normalizer_rejects_malformed_site_id_with_clear_error() -> None:
+    with pytest.raises(
+        UnsupportedInputFormatError,
+        match="site identifiers must use 'GENE;SITE;' format",
+    ):
+        canonicalize_site_identifier(
+            "MAPK14-Y182",
+            field_name="test.site_id",
+            error_type=UnsupportedInputFormatError,
+        )
+
+
+def test_dataset_and_reference_ids_align_after_shared_normalization() -> None:
+    built = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=pd.DataFrame(
+                {"sample_a": [1.0], "sample_b": [2.0]},
+                index=pd.Index([" mapk14 ; y182 "], name="site_id"),
+            ),
+            site_metadata=pd.DataFrame(
+                {
+                    "site_id": ["MAPK14;Y182"],
+                    "gene_symbol": ["mapk14"],
+                    "site": ["y182"],
+                    "site_sequence": ["A" * 31],
+                }
+            ),
+            organism=Organism.RAT,
+        )
+    )
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {"kinase": ["MAP2K6"], "substrate_site": [" mapk14 ; y182 "]}
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": ["A" * 31]},
+            index=pd.Index(["MAPK14;Y182"], name="site_id"),
+        ),
+    )
+    overlap = KinaseWorkflowInterpreter._summarize_overlap(
+        dataset=built.phospho,
+        kinase_substrate_map=references.kinase_substrate_map,
+    )
+    scoring_index = KinaseWorkflowInterpreter._resolve_scoring_site_index(
+        dataset=built.phospho,
+        site_sequences=references.site_sequences,
+    )
+    assert overlap["overlap_sites"] == 1
+    assert list(scoring_index) == ["MAPK14;Y182;"]

@@ -31,6 +31,7 @@ class KinaseScoreMatrix(TableSchema):
     )
     allow_missing: bool = field(default=True, repr=False, compare=False)
     enforce_unit_interval: bool = field(default=False, repr=False, compare=False)
+    require_site_index: bool = field(default=True, repr=False, compare=False)
 
     _field_name = "scoring_result.profile_scores"
     _error_type = PhosPyValidationError
@@ -50,6 +51,7 @@ class KinaseScoreMatrix(TableSchema):
             error_type=self._error_type,
             allow_missing=self.allow_missing,
             enforce_unit_interval=self.enforce_unit_interval,
+            require_site_index=self.require_site_index,
         )
         return frame
 
@@ -84,6 +86,7 @@ class KinasePredictionMatrix(TableSchema):
             error_type=self._error_type,
             allow_missing=self.allow_missing,
             enforce_unit_interval=self.enforce_unit_interval,
+            require_site_index=True,
         )
         return frame
 
@@ -95,6 +98,7 @@ def _validate_kinase_score_like_matrix(
     error_type: type[PhosPyValidationError],
     allow_missing: bool,
     enforce_unit_interval: bool,
+    require_site_index: bool,
 ) -> None:
     require_dataframe(
         frame,
@@ -123,11 +127,18 @@ def _validate_kinase_score_like_matrix(
         field_name=field_name,
         error_type=error_type,
     )
-    require_canonical_site_index(
-        frame.index,
-        field_name=f"{field_name}.index",
-        error_type=error_type,
-    )
+    if require_site_index:
+        require_canonical_site_index(
+            frame.index,
+            field_name=f"{field_name}.index",
+            error_type=error_type,
+        )
+    else:
+        require_canonical_label_index(
+            frame.index,
+            field_name=f"{field_name}.index",
+            error_type=error_type,
+        )
     require_canonical_label_index(
         frame.columns,
         field_name=f"{field_name}.columns",

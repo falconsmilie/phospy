@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
 
 from phospy.errors.validation import PhosPyValidationError
+from phospy.site_ids import (
+    canonicalize_site_index,
+    canonicalize_site_series,
+    parse_canonical_site_identifier,
+)
 
 ValidationErrorType = type[PhosPyValidationError]
-_SITE_IDENTITY_PATTERN = re.compile(
-    r"^\s*(?P<gene_symbol>[^;]+?)\s*;\s*(?P<site>[^;]+?)\s*;\s*$"
-)
 
 
 def require_dataframe(
@@ -325,14 +326,35 @@ def require_canonical_site_index(
     *,
     field_name: str,
     error_type: ValidationErrorType,
+    strict_supported_format: bool = True,
 ) -> pd.Index:
     """Require one site index to already be strict/canonical."""
 
-    _require_strict_site_identifiers(
-        index.tolist(),
+    if not strict_supported_format:
+        _require_stripped_site_identifiers(
+            index.tolist(),
+            field_name=field_name,
+            error_type=error_type,
+        )
+        return index
+    canonical = canonicalize_site_index(
+        index,
         field_name=field_name,
         error_type=error_type,
+        require_unique=True,
+        index_name=(str(index.name) if index.name is not None else None),
     )
+    if canonical.tolist() != index.tolist():
+        raise error_type(
+            f"{field_name} must contain canonical site identifiers in "
+            "'GENE;SITE;' format"
+        )
+    if not index.is_unique:
+        require_no_duplicate_labels(
+            index,
+            field_name=field_name,
+            error_type=error_type,
+        )
     return index
 
 
@@ -341,14 +363,27 @@ def require_canonical_site_series(
     *,
     field_name: str,
     error_type: ValidationErrorType,
+    strict_supported_format: bool = True,
 ) -> pd.Series:
     """Require one site-id series to already be strict/canonical."""
 
-    _require_strict_site_identifiers(
-        series.tolist(),
+    if not strict_supported_format:
+        _require_stripped_site_identifiers(
+            series.tolist(),
+            field_name=field_name,
+            error_type=error_type,
+        )
+        return series
+    canonical = canonicalize_site_series(
+        series,
         field_name=field_name,
         error_type=error_type,
     )
+    if canonical.tolist() != series.tolist():
+        raise error_type(
+            f"{field_name} must contain canonical site identifiers in "
+            "'GENE;SITE;' format"
+        )
     return series
 
 
@@ -369,7 +404,11 @@ def require_site_identity_coherence(
     mismatched_rows: list[str] = []
 
     for site_id in site_index:
-        parsed = _parse_site_identity(site_id)
+        parsed = _parse_site_identity(
+            site_id,
+            field_name=site_index_field_name,
+            error_type=error_type,
+        )
         if parsed is None:
             unparseable_site_ids.append(str(site_id))
             continue
@@ -413,22 +452,25 @@ def require_site_identity_coherence(
     )
 
 
-def _parse_site_identity(site_id: object) -> tuple[str, str] | None:
+def _parse_site_identity(
+    site_id: object,
+    *,
+    field_name: str,
+    error_type: ValidationErrorType,
+) -> tuple[str, str] | None:
     if not isinstance(site_id, str):
         return None
-
-    match = _SITE_IDENTITY_PATTERN.fullmatch(site_id)
-    if match is None:
+    try:
+        return parse_canonical_site_identifier(
+            site_id,
+            field_name=field_name,
+            error_type=error_type,
+        )
+    except error_type:
         return None
 
-    gene_symbol = match.group("gene_symbol").strip()
-    site = match.group("site").strip()
-    if gene_symbol == "" or site == "":
-        return None
-    return gene_symbol, site
 
-
-def _require_strict_site_identifiers(
+def _require_stripped_site_identifiers(
     values: list[object],
     *,
     field_name: str,
@@ -458,11 +500,7 @@ def _require_strict_site_identifiers(
         )
     if any(
         raw_value != stripped_value
-        for raw_value, stripped_value in zip(
-            raw_values,
-            stripped_values,
-            strict=False,
-        )
+        for raw_value, stripped_value in zip(raw_values, stripped_values, strict=False)
     ):
         raise error_type(
             f"{field_name} must contain canonical site identifiers (non-empty stripped strings)"

@@ -7,10 +7,9 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.validation import ReferenceValidationError
+from phospy.site_ids import canonicalize_site_index, canonicalize_site_series
 from phospy.tables.base import TableSchema
 from phospy.validation.common.dataframes import (
-    require_canonical_site_index,
-    require_canonical_site_series,
     require_canonical_string_column,
     require_columns,
     require_dataframe,
@@ -63,11 +62,13 @@ class KinaseSubstrateReference(TableSchema):
             column_name="substrate_site",
             error_type=self._error_type,
         )
-        require_canonical_site_series(
+        canonical_substrate_site = canonicalize_site_series(
             frame.loc[:, "substrate_site"],
             field_name=f"{self._field_name}.substrate_site",
             error_type=self._error_type,
         )
+        frame = frame.copy()
+        frame.loc[:, "substrate_site"] = canonical_substrate_site.astype("string")
         require_unique_row_pairs(
             frame,
             field_name=self._field_name,
@@ -91,11 +92,6 @@ class SiteSequenceReference(TableSchema):
             allow_empty=False,
             error_type=self._error_type,
         )
-        require_unique_index(
-            frame,
-            field_name=self._field_name,
-            error_type=self._error_type,
-        )
         require_columns(
             frame,
             field_name=self._field_name,
@@ -114,9 +110,14 @@ class SiteSequenceReference(TableSchema):
             column_name="site_sequence",
             error_type=self._error_type,
         )
-        require_canonical_site_index(
+        frame.index = canonicalize_site_index(
             frame.index,
             field_name=f"{self._field_name}.index",
+            error_type=self._error_type,
+        )
+        require_unique_index(
+            frame,
+            field_name=self._field_name,
             error_type=self._error_type,
         )
         return frame

@@ -180,7 +180,7 @@ def test_normalizer_fails_when_index_derivation_convention_is_not_met() -> None:
 def test_normalizer_requires_exact_index_derivation_convention() -> None:
     with pytest.raises(
         UnsupportedInputFormatError,
-        match="site_metadata is missing required metadata columns",
+        match="site identifiers must use 'GENE;SITE;' format",
     ):
         DatasetConventionNormalizer().run(
             phospho=_phospho(),

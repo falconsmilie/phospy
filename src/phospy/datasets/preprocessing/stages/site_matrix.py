@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import replace
 
 import pandas as pd
@@ -36,6 +35,7 @@ from phospy.datasets.preprocessing.stages.site_matrix_components import (
     SiteMatrixRowAuditBuilder,
 )
 from phospy.errors.input import PhosPyInputError
+from phospy.site_ids import canonicalize_site_components_series
 
 _GENE_SYMBOL_COLUMN = "gene_symbol"
 _SITE_COLUMN = "site"
@@ -44,8 +44,6 @@ _REQUIRED_SITE_METADATA_COLUMNS = (
     _GENE_SYMBOL_COLUMN,
     _SITE_COLUMN,
 )
-_SITE_TOKEN_PATTERN = re.compile(r"^[A-Za-z]+\d+$")
-_GENE_TOKEN_PATTERN = re.compile(r"^[^;\s]+$")
 _ROW_DROP_STATS_ATTR = "site_matrix_row_drop_stats"
 _SITE_MATRIX_POLICY_ATTR = "site_matrix_policy"
 _SITE_MATRIX_PROVENANCE_ATTR = "site_matrix_provenance"
@@ -293,33 +291,16 @@ def _build_site_identifier(
     gene_symbol: pd.Series,
     site: pd.Series,
 ) -> pd.Series:
-    normalized_gene_symbol = gene_symbol.astype(str).str.strip().str.upper()
-    normalized_site = site.astype(str).str.strip().str.upper()
-
-    invalid_gene_symbol = ~normalized_gene_symbol.str.fullmatch(_GENE_TOKEN_PATTERN)
-    if bool(invalid_gene_symbol.any()):
-        preview = ", ".join(
-            normalized_gene_symbol.loc[invalid_gene_symbol].astype(str).head(3).tolist()
-        )
-        raise PhosPyInputError(
-            "dataset build request preprocessing site-matrix construction requires "
-            "site_metadata.gene_symbol values that normalize to canonical non-empty "
-            f"tokens without whitespace/semicolons; example invalid values: {preview}"
-        )
-
-    invalid_site = ~normalized_site.str.fullmatch(_SITE_TOKEN_PATTERN)
-    if bool(invalid_site.any()):
-        preview = ", ".join(normalized_site.loc[invalid_site].astype(str).head(3))
-        raise PhosPyInputError(
-            "dataset build request preprocessing site-matrix construction requires "
-            "site_metadata.site values that normalize to site tokens like 'S123'; "
-            f"example invalid values: {preview}"
-        )
-
-    site_id = normalized_gene_symbol + ";" + normalized_site + ";"
-    site_id.index = gene_symbol.index.copy()
-    site_id.name = _SITE_ID_COLUMN
-    return site_id
+    return canonicalize_site_components_series(
+        gene_symbol=gene_symbol,
+        site=site,
+        field_name=(
+            "dataset build request preprocessing site-matrix construction "
+            "site_metadata.gene_symbol/site"
+        ),
+        error_type=PhosPyInputError,
+        output_name=_SITE_ID_COLUMN,
+    )
 
 
 def _apply_missing_data_policy(

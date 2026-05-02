@@ -8,7 +8,11 @@ from phospy.errors.input import UnsupportedInputFormatError
 from phospy.errors.references import ReferenceResolutionError, UnsupportedOrganismError
 from phospy.references.models import Organism
 from phospy.references.resources import load_bundled_site_sequences
-from phospy.site_ids import canonicalize_site_index
+from phospy.site_ids import (
+    canonicalize_site_components_series,
+    canonicalize_site_index,
+    canonicalize_site_series,
+)
 
 
 class SiteSequenceDeriver:
@@ -127,17 +131,45 @@ def _resolve_site_ids_from_metadata_columns(site_metadata: pd.DataFrame) -> pd.S
         or "site" not in site_metadata.columns
     ):
         return pd.Series(pd.NA, index=site_metadata.index.copy(), dtype="string")
-    gene_symbol = site_metadata.loc[:, "gene_symbol"].astype("string").str.strip()
-    site = site_metadata.loc[:, "site"].astype("string").str.strip()
+    gene_symbol = site_metadata.loc[:, "gene_symbol"].astype("string")
+    site = site_metadata.loc[:, "site"].astype("string")
+    normalized_gene_symbol = gene_symbol.str.strip()
+    normalized_site = site.str.strip()
     has_tokens = gene_symbol.notna() & site.notna() & (gene_symbol != "") & (site != "")
-    normalized = (gene_symbol.str.upper() + ";" + site.str.upper() + ";").astype(
-        "string"
+    has_tokens = (
+        normalized_gene_symbol.notna()
+        & normalized_site.notna()
+        & (normalized_gene_symbol != "")
+        & (normalized_site != "")
     )
-    return normalized.where(has_tokens, other=pd.NA)
+    normalized = pd.Series(pd.NA, index=site_metadata.index.copy(), dtype="string")
+    if not bool(has_tokens.any()):
+        return normalized
+    canonical = canonicalize_site_components_series(
+        gene_symbol=gene_symbol.loc[has_tokens],
+        site=site.loc[has_tokens],
+        field_name=(
+            "dataset build request site_metadata.gene_symbol/site for sequence lookup"
+        ),
+        error_type=UnsupportedInputFormatError,
+        output_name="site_id",
+    ).astype("string")
+    normalized.loc[has_tokens] = canonical.to_numpy(dtype="object", copy=False)
+    return normalized
 
 
 def _resolve_site_ids_from_index(index: pd.Index) -> pd.Series:
     index_series = pd.Series(index.tolist(), index=index.copy(), dtype="string")
     normalized = index_series.str.strip()
     has_tokens = normalized.notna() & (normalized != "")
-    return normalized.where(has_tokens, other=pd.NA)
+    site_like_tokens = has_tokens & normalized.str.contains(";", regex=False)
+    resolved = pd.Series(pd.NA, index=index.copy(), dtype="string")
+    if not bool(site_like_tokens.any()):
+        return resolved
+    canonical = canonicalize_site_series(
+        normalized.loc[site_like_tokens],
+        field_name="dataset build request site_metadata.index for sequence lookup",
+        error_type=UnsupportedInputFormatError,
+    ).astype("string")
+    resolved.loc[site_like_tokens] = canonical.to_numpy(dtype="object", copy=False)
+    return resolved

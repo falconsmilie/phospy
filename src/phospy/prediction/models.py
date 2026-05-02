@@ -75,6 +75,7 @@ class KinaseScoringResult:
             else KinaseScoreMatrix(
                 frame=score_fusion_weights,
                 field_name="scoring_result.score_fusion_weights",
+                require_site_index=False,
                 _assume_owned=_assume_owned,
             ).frame
         )

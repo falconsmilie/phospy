@@ -7,7 +7,11 @@ from dataclasses import dataclass
 import pandas as pd
 
 from phospy.errors.input import UnsupportedInputFormatError
-from phospy.site_ids import canonicalize_site_index
+from phospy.site_ids import (
+    canonicalize_site_components_series,
+    canonicalize_site_index,
+    parse_canonical_site_identifier,
+)
 
 _GENE_SYMBOL_ALIASES = ("gene_symbol", "gene_name")
 _PROTEIN_ID_ALIASES = ("protein_id",)
@@ -41,10 +45,9 @@ class DatasetConventionNormalizer:
         total: pd.DataFrame | None,
     ) -> NormalizedDatasetInputs:
         normalized_phospho = phospho
-        normalized_phospho.index = canonicalize_site_index(
+        normalized_phospho.index = _normalize_supported_site_index_if_present(
             normalized_phospho.index,
             field_name="dataset build request phospho.index",
-            error_type=UnsupportedInputFormatError,
         )
         normalized_phospho.columns = _normalized_string_index(
             normalized_phospho.columns
@@ -80,6 +83,7 @@ class DatasetConventionNormalizer:
         normalized = self._normalize_site_metadata_index(normalized)
         normalized = self._normalize_site_metadata_columns(normalized)
         normalized = self._derive_site_fields_from_index(normalized)
+        normalized = self._normalize_site_metadata_site_identity_fields(normalized)
         if (
             not normalized.index.equals(phospho_index)
             and normalized.index.isin(phospho_index).all()
@@ -96,16 +100,28 @@ class DatasetConventionNormalizer:
         )
         has_site_id_column = "site_id" in normalized.columns
         if has_site_id_column and isinstance(normalized.index, pd.RangeIndex):
+            normalized["site_id"] = canonicalize_site_index(
+                pd.Index(normalized.loc[:, "site_id"], name="site_id"),
+                field_name="dataset build request site_metadata.site_id",
+                error_type=UnsupportedInputFormatError,
+                index_name="site_id",
+            ).tolist()
             normalized = normalized.set_index("site_id", drop=True)
         elif has_site_id_column:
-            index_as_site_id = canonicalize_site_index(
-                normalized.index,
-                field_name="dataset build request site_metadata.index",
-                error_type=UnsupportedInputFormatError,
-            )
             column_as_site_id = canonicalize_site_index(
                 pd.Index(normalized.loc[:, "site_id"], name="site_id"),
                 field_name="dataset build request site_metadata.site_id",
+                error_type=UnsupportedInputFormatError,
+            )
+            if not _has_site_like_tokens(normalized.index):
+                normalized = normalized.copy()
+                normalized["site_id"] = column_as_site_id.tolist()
+                normalized = normalized.set_index("site_id", drop=True)
+                normalized.index = pd.Index(normalized.index.tolist(), name="site_id")
+                return normalized
+            index_as_site_id = canonicalize_site_index(
+                normalized.index,
+                field_name="dataset build request site_metadata.index",
                 error_type=UnsupportedInputFormatError,
             )
             if not index_as_site_id.equals(column_as_site_id):
@@ -119,10 +135,9 @@ class DatasetConventionNormalizer:
                     index_as_site_id.tolist(),
                     name="site_id",
                 )
-        normalized.index = canonicalize_site_index(
+        normalized.index = _normalize_supported_site_index_if_present(
             normalized.index,
             field_name="dataset build request site_metadata.index",
-            error_type=UnsupportedInputFormatError,
         )
         return normalized
 
@@ -161,6 +176,50 @@ class DatasetConventionNormalizer:
         if not rename_map:
             return site_metadata
         return site_metadata.rename(columns=rename_map)
+
+    @staticmethod
+    def _normalize_site_metadata_site_identity_fields(
+        site_metadata: pd.DataFrame,
+    ) -> pd.DataFrame:
+        if (
+            "gene_symbol" not in site_metadata.columns
+            or "site" not in site_metadata.columns
+        ):
+            return site_metadata
+        gene_symbol = site_metadata.loc[:, "gene_symbol"]
+        site = site_metadata.loc[:, "site"]
+        gene_token = gene_symbol.astype("string").str.strip()
+        site_token = site.astype("string").str.strip()
+        has_blank_or_missing = (
+            gene_symbol.isna()
+            | site.isna()
+            | gene_token.isna()
+            | site_token.isna()
+            | (gene_token == "")
+            | (site_token == "")
+        )
+        if bool(has_blank_or_missing.any()):
+            return site_metadata
+        canonical_site_ids = canonicalize_site_components_series(
+            gene_symbol=gene_symbol,
+            site=site,
+            field_name="dataset build request site_metadata.gene_symbol/site",
+            error_type=UnsupportedInputFormatError,
+            output_name="site_id",
+        )
+        genes: list[str] = []
+        sites: list[str] = []
+        for canonical_site_id in canonical_site_ids.tolist():
+            gene_symbol, site = parse_canonical_site_identifier(
+                canonical_site_id,
+                field_name="dataset build request site_metadata.gene_symbol/site",
+                error_type=UnsupportedInputFormatError,
+            )
+            genes.append(gene_symbol)
+            sites.append(site)
+        site_metadata["gene_symbol"] = genes
+        site_metadata["site"] = sites
+        return site_metadata
 
     @staticmethod
     def _derive_site_fields_from_index(site_metadata: pd.DataFrame) -> pd.DataFrame:
@@ -290,15 +349,47 @@ def _normalized_column_lookup(columns: pd.Index) -> dict[str, list[str]]:
 def _parse_site_metadata_index_convention(
     index: pd.Index,
 ) -> tuple[pd.Series, pd.Series] | None:
-    extracted = (
-        index.to_series()
-        .astype(str)
-        .str.extract(r"^\s*(?P<gene>[^;]+?)\s*;\s*(?P<site>[^;]+?)\s*;\s*$")
+    if index.empty:
+        return (
+            pd.Series(index=index.copy(), dtype="object"),
+            pd.Series(index=index.copy(), dtype="object"),
+        )
+    genes: list[str] = []
+    sites: list[str] = []
+    for raw_site_id in index.tolist():
+        try:
+            gene_symbol, site = parse_canonical_site_identifier(
+                raw_site_id,
+                field_name="dataset build request site_metadata.index",
+                error_type=UnsupportedInputFormatError,
+            )
+        except UnsupportedInputFormatError:
+            return None
+        genes.append(gene_symbol)
+        sites.append(site)
+    return (
+        pd.Series(genes, index=index.copy(), dtype="object"),
+        pd.Series(sites, index=index.copy(), dtype="object"),
     )
-    if extracted.isna().any(axis=None):
-        return None
-    genes = extracted.loc[:, "gene"].astype(str).str.strip()
-    sites = extracted.loc[:, "site"].astype(str).str.strip()
-    if (genes == "").any() or (sites == "").any():
-        return None
-    return genes, sites
+
+
+def _normalize_supported_site_index_if_present(
+    index: pd.Index,
+    *,
+    field_name: str,
+) -> pd.Index:
+    normalized = _normalized_string_index(index)
+    if not _has_site_like_tokens(normalized):
+        return normalized
+    return canonicalize_site_index(
+        normalized,
+        field_name=field_name,
+        error_type=UnsupportedInputFormatError,
+    )
+
+
+def _has_site_like_tokens(index: pd.Index) -> bool:
+    for value in index.tolist():
+        if ";" in str(value):
+            return True
+    return False
