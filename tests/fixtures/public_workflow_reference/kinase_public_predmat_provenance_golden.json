@@ -92,7 +92,7 @@
   "scientific_policies": [
     {
       "id": "profile_correlation_shifted_unit_v1",
-      "name": "Profile Correlation Shifted Unit Support",
+      "name": "profile_correlation_v1",
       "version": "1"
     },
     {
@@ -102,12 +102,17 @@
     },
     {
       "id": "motif_profile_rank_fusion_v1",
-      "name": "Motif/Profile Rank-Weighted Fusion",
+      "name": "rank_weighted_motif_profile_fusion_v1",
       "version": "1"
     },
     {
       "id": "candidate_substrate_selection_v1",
       "name": "Candidate Substrate Selection Policy",
+      "version": "1"
+    },
+    {
+      "id": "adaptive_prediction_sampling_v1",
+      "name": "adaptive_prediction_sampling_stable_v1",
       "version": "1"
     }
   ]

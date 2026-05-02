@@ -16,6 +16,10 @@ from phospy.api.requests import KinaseWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.prediction.policies import (
+    DEFAULT_PREDICTION_SAMPLING_POLICY,
+    PredictionSamplingPolicy,
+)
 from phospy.references.models import ReferenceBundle
 from phospy.tables.datasets import PhosphoIntensityMatrix
 from phospy.tables.references import KinaseSubstrateReference, SiteSequenceReference
@@ -140,7 +144,10 @@ class ResolvedKinaseExecutionConfig:
     prediction_adaptive_policy: KinaseAdaptivePolicy
     prediction_n_iterations: int
     prediction_random_state: int | None
-    activity: ResolvedKinaseActivityExecutionConfig | None
+    prediction_sampling_policy: PredictionSamplingPolicy = (
+        DEFAULT_PREDICTION_SAMPLING_POLICY
+    )
+    activity: ResolvedKinaseActivityExecutionConfig | None = None
 
 
 class KinaseWorkflowValidatorContract(Protocol):

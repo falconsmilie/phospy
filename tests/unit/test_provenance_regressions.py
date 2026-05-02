@@ -7,6 +7,7 @@ from phospy.api import (
     DatasetBuildRequest,
     DatasetMissingDataConfig,
     DatasetPreprocessingConfig,
+    DatasetSiteMatrixConfig,
     KinaseActivityConfig,
     KinasePredictionConfig,
     KinasePredictionResult,
@@ -253,10 +254,70 @@ def test_active_scientific_policy_ids_are_present_in_kinase_and_signalome_proven
     }
     assert {
         ScientificPolicyId.SIGNALOME_MODULE_CANDIDATE_SCORE,
+        ScientificPolicyId.SIGNALOME_DOWNSTREAM_SCORE_SELECTION,
+        ScientificPolicyId.SIGNALOME_CANDIDATE_SCORING,
         ScientificPolicyId.SIGNALOME_MISSING_VALUE_CLUSTERING,
         ScientificPolicyId.SIGNALOME_SCORE_PRECONDITIONING,
+        ScientificPolicyId.SIGNALOME_ASSIGNMENT_POLICY,
+        ScientificPolicyId.SIGNALOME_NETWORK_POLICY,
         ScientificPolicyId.PROTEIN_MODULE_FROM_SITE_MEMBERSHIP,
     }.issubset(signalome_policy_ids)
+
+
+def test_provenance_policy_metadata_includes_stable_name_and_version() -> None:
+    dataset = _dataset_for_workflows()
+    references = _reference_bundle()
+
+    kinase_result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            activity_config=KinaseActivityConfig(enabled=False),
+        )
+    )
+    signalome_kinase_result = KinaseWorkflowResult(
+        dataset=dataset,
+        references=references,
+        scoring_result=KinaseScoringResult(
+            profile_scores=pd.DataFrame(
+                {"K1": [0.1, 0.9], "K2": [0.9, 0.1]},
+                index=dataset.phospho.index.copy(),
+            ),
+            rank_weighted_fusion_scores=pd.DataFrame(
+                {"K1": [0.1, 0.9], "K2": [0.9, 0.1]},
+                index=dataset.phospho.index.copy(),
+            ),
+        ),
+        prediction_result=KinasePredictionResult(
+            pred_mat=pd.DataFrame(
+                {"K1": [0.9, 0.8], "K2": [0.8, 0.9]},
+                index=dataset.phospho.index.copy(),
+            )
+        ),
+        activity_result=None,
+    )
+    signalome_result = SignalomeWorkflow().run(
+        SignalomeWorkflowRequest(
+            kinase_result=signalome_kinase_result,
+            config=build_signalome_config(module_count=1),
+        )
+    )
+
+    observed_names = set()
+    for provenance in (kinase_result.provenance, signalome_result.provenance):
+        assert provenance is not None
+        for policy in provenance.scientific_policies:
+            assert policy.name
+            assert policy.version == "1"
+            observed_names.add(policy.name)
+    assert {
+        "profile_correlation_v1",
+        "rank_weighted_motif_profile_fusion_v1",
+        "signalome_downstream_score_rank_weighted_preferred_v1",
+        "signalome_candidate_scoring_full_v1",
+        "score_preconditioning_error_on_drop_v1",
+        "protein_module_from_site_membership_v1",
+    }.issubset(observed_names)
 
 
 def test_adaptive_kinase_prediction_records_random_seed_provenance() -> None:
@@ -283,6 +344,73 @@ def test_adaptive_kinase_prediction_records_random_seed_provenance() -> None:
     assert provenance.random_state == 17
     assert provenance.random_seed_policy == "stable_by_kinase"
     assert provenance.workflow_parameters["prediction_config"]["random_state"] == 17
+
+
+def test_kinase_provenance_includes_duplicate_site_resolution_policy_when_preprocessed() -> (
+    None
+):
+    phospho = pd.DataFrame(
+        {
+            "sample_a": [1.0, 1.2, 2.0],
+            "sample_b": [1.5, 1.7, 2.5],
+        },
+        index=pd.Index(["r1", "r2", "r3"], name="row_id"),
+    )
+    site_metadata = pd.DataFrame(
+        {
+            "gene_symbol": ["MAPK14", "MAPK14", "GSK3B"],
+            "site": ["Y182", "Y182", "S9"],
+            "site_sequence": ["SEQ_A", "SEQ_A", "SEQ_B"],
+            "protein_id": ["P28482", "P28482", "Q9Y243"],
+        },
+        index=phospho.index.copy(),
+    )
+    dataset = AnalysisReadyDatasetBuilder().run(
+        DatasetBuildRequest(
+            phospho=phospho,
+            site_metadata=site_metadata,
+            organism=Organism.RAT,
+            preprocessing_config=DatasetPreprocessingConfig(
+                missing_data=DatasetMissingDataConfig(
+                    policy="forbid",
+                    min_observed_values=None,
+                ),
+                site_matrix=DatasetSiteMatrixConfig(
+                    policy="build_from_metadata",
+                    duplicate_site_policy="aggregate_mean",
+                    missing_data_policy="drop_any_missing",
+                ),
+            ),
+        )
+    )
+    references = ReferenceBundle(
+        organism=Organism.RAT,
+        kinase_substrate_map=pd.DataFrame(
+            {
+                "kinase": ["K_DUP", "K_DUP"],
+                "substrate_site": ["MAPK14;Y182;", "GSK3B;S9;"],
+            }
+        ),
+        site_sequences=pd.DataFrame(
+            {"site_sequence": ["SEQ_A", "SEQ_B"]},
+            index=pd.Index(["MAPK14;Y182;", "GSK3B;S9;"], name="site_id"),
+        ),
+    )
+    kinase_result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=references,
+            activity_config=KinaseActivityConfig(enabled=False),
+        )
+    )
+
+    duplicate_policies = [
+        policy
+        for policy in kinase_result.provenance.scientific_policies
+        if policy.id == ScientificPolicyId.DUPLICATE_SITE_RESOLUTION
+    ]
+    assert duplicate_policies
+    assert duplicate_policies[0].name == "duplicate_site_resolution_aggregate_mean_v1"
 
 
 def test_workflow_provenance_fingerprints_and_policy_versions_are_stable() -> None:

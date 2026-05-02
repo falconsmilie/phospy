@@ -18,6 +18,8 @@ from phospy.provenance.models import (
 from phospy.provenance.serialization import to_payload as provenance_to_payload
 from phospy.scientific_policies import (
     PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
+    ScientificPolicyId,
+    ScientificPolicyRecord,
     ScorePreconditioningPolicy,
     SignalomeMissingValueClusteringPolicy,
     build_signalome_module_candidate_score_policy,
@@ -107,7 +109,7 @@ class SignalomeProvenanceBuilder:
                 request.downstream_score_matrix.to_numpy(dtype=float, copy=False)
             )
         )
-        scientific_policies = (
+        scientific_policies: list[ScientificPolicyRecord] = [
             build_signalome_module_candidate_score_policy(
                 requested_policy=str(
                     scale_guard_decision.candidate_scoring_requested_policy
@@ -145,6 +147,15 @@ class SignalomeProvenanceBuilder:
                     SIGNALOME_CLUSTERING_MISSING_VALUE_POLICY_IMPUTED_VALUES_EXPOSED_IN_OUTPUT_TABLES
                 ),
             ).record,
+            _build_signalome_assignment_policy_record(
+                assignment_policy=str(config.assignment_policy)
+            ),
+            _build_signalome_network_policy_record(
+                network_policy=str(config.network_policy),
+                network_correlation_threshold=float(
+                    config.network_correlation_threshold
+                ),
+            ),
             ScorePreconditioningPolicy(
                 policy=str(request.score_preconditioning_diagnostics.policy),
                 input_row_count=int(
@@ -158,7 +169,13 @@ class SignalomeProvenanceBuilder:
                 ),
             ).record,
             PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
-        )
+        ]
+        if request.downstream_score_selection_policy is not None:
+            scientific_policies.append(request.downstream_score_selection_policy.record)
+        if config.candidate_scoring_policy_definition is not None:
+            scientific_policies.append(
+                config.candidate_scoring_policy_definition.record
+            )
         return RunProvenance(
             environment=self._collect_environment(),
             input_tables=input_tables,
@@ -356,7 +373,7 @@ class SignalomeProvenanceBuilder:
             random_state=None,
             random_seed_policy=None,
             output_tables=output_tables,
-            scientific_policies=scientific_policies,
+            scientific_policies=tuple(scientific_policies),
         )
 
     @staticmethod
@@ -586,6 +603,44 @@ def _negative_correlation_handling(
             "meets threshold; edge correlation values retain sign"
         )
     return "negative-correlation handling depends on configured network_policy"
+
+
+def _build_signalome_assignment_policy_record(
+    *,
+    assignment_policy: str,
+) -> ScientificPolicyRecord:
+    return ScientificPolicyRecord(
+        id=ScientificPolicyId.SIGNALOME_ASSIGNMENT_POLICY,
+        name=f"signalome_assignment_policy_{assignment_policy}_v1",
+        version="1",
+        description="Assignment policy used to map site support to module-level labels.",
+        parameters={"assignment_policy": assignment_policy},
+        assumptions=("Assignment policy affects top-kinase labels and tie handling.",),
+        output_scale="Module assignment labels and top-kinase summaries.",
+        quantitative_meaning="signalome_assignment_rule",
+    )
+
+
+def _build_signalome_network_policy_record(
+    *,
+    network_policy: str,
+    network_correlation_threshold: float,
+) -> ScientificPolicyRecord:
+    return ScientificPolicyRecord(
+        id=ScientificPolicyId.SIGNALOME_NETWORK_POLICY,
+        name=f"signalome_network_policy_{network_policy}_v1",
+        version="1",
+        description="Policy controlling signalome kinase-network edge eligibility.",
+        parameters={
+            "network_policy": network_policy,
+            "network_correlation_threshold": float(network_correlation_threshold),
+        },
+        assumptions=(
+            "Network policy defines how sign and magnitude thresholds are applied.",
+        ),
+        output_scale="Signalome kinase-network edge table.",
+        quantitative_meaning="network_edge_eligibility_rule",
+    )
 
 
 __all__ = ["SignalomeProvenanceBuilder"]

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
 import pandas as pd
 
@@ -13,7 +13,6 @@ from phospy.api.configs import (
     KINASE_SCORING_MIN_SUBSTRATES_FLOOR,
 )
 from phospy.prediction.models import KinasePredictionResult, KinaseScoringResult
-from phospy.prediction.policies import resolve_prediction_sampling_policy
 from phospy.provenance.environment import collect_environment_provenance
 from phospy.provenance.hashing import fingerprint_optional_table
 from phospy.provenance.models import (
@@ -26,6 +25,8 @@ from phospy.scientific_policies import (
     PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
     CandidateSubstrateSelectionPolicy,
     KinaseProfileScoringPolicy,
+    ScientificPolicyRecord,
+    build_duplicate_site_resolution_policy,
     build_motif_profile_rank_fusion_policy,
     build_simplified_weighted_substrate_activity_policy,
 )
@@ -154,6 +155,13 @@ class KinaseProvenanceBuilder:
                 inclusion=CANDIDATE_MIN_INCLUSION,
             ).record,
         ]
+        if config.prediction_mode == KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE:
+            scientific_policies.append(config.prediction_sampling_policy.record)
+        duplicate_site_policy = self._resolve_duplicate_site_resolution_policy(
+            request=request
+        )
+        if duplicate_site_policy is not None:
+            scientific_policies.append(duplicate_site_policy)
         if config.activity is not None:
             scientific_policies.append(
                 build_simplified_weighted_substrate_activity_policy(
@@ -224,9 +232,7 @@ class KinaseProvenanceBuilder:
             return None
         if config.prediction_mode != KINASE_PREDICTION_MODE_ADAPTIVE_ENSEMBLE:
             return None
-        return resolve_prediction_sampling_policy(
-            config.prediction_adaptive_policy
-        ).seed_strategy
+        return config.prediction_sampling_policy.seed_strategy
 
     @staticmethod
     def _dataset_preprocessing_stages(
@@ -236,6 +242,32 @@ class KinaseProvenanceBuilder:
         if provenance is None:
             return ()
         return tuple(provenance.preprocessing_stages)
+
+    @staticmethod
+    def _resolve_duplicate_site_resolution_policy(
+        *,
+        request: ResolvedKinaseWorkflowRequest,
+    ) -> ScientificPolicyRecord | None:
+        dataset_provenance = request.dataset.provenance
+        if dataset_provenance is None:
+            return None
+        workflow_parameters = dataset_provenance.workflow_parameters
+        if not isinstance(workflow_parameters, Mapping):
+            return None
+        preprocessing_plan = workflow_parameters.get("preprocessing_plan")
+        if not isinstance(preprocessing_plan, Mapping):
+            return None
+        stage_order = preprocessing_plan.get("stage_order")
+        if not isinstance(stage_order, list) or "site_matrix" not in stage_order:
+            return None
+        duplicate_site_policy = preprocessing_plan.get(
+            "site_matrix_duplicate_site_policy"
+        )
+        if not isinstance(duplicate_site_policy, str) or not duplicate_site_policy:
+            return None
+        return build_duplicate_site_resolution_policy(
+            duplicate_site_policy=duplicate_site_policy
+        )
 
     @staticmethod
     def _collect_fingerprints(

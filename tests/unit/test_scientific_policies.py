@@ -5,8 +5,13 @@ import pandas as pd
 import pytest
 
 from phospy.prediction.candidates import build_candidate_substrate_list
-from phospy.prediction.scoring import MotifProfileRankFusionPolicy
+from phospy.prediction.policies import resolve_prediction_sampling_policy
+from phospy.prediction.scoring import (
+    MotifProfileRankFusionPolicy,
+    resolve_downstream_score_matrix,
+)
 from phospy.scientific_policies import (
+    DUPLICATE_SITE_RESOLUTION_AGGREGATE_MEAN_POLICY,
     PROFILE_CORRELATION_SHIFTED_UNIT_POLICY,
     PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY,
     CandidateSubstrateSelectionPolicy,
@@ -16,11 +21,16 @@ from phospy.scientific_policies import (
     ScientificPolicyRecord,
     ScorePreconditioningPolicy,
     SignalomeMissingValueClusteringPolicy,
+    build_duplicate_site_resolution_policy,
     build_signalome_module_candidate_score_policy,
     build_simplified_weighted_substrate_activity_policy,
+    resolve_score_preconditioning_policy,
     shift_correlation_to_unit_support,
 )
 from phospy.signalomes.clustering import derive_protein_modules
+from phospy.signalomes.clustering.policies import (
+    resolve_candidate_scoring_policy_definition,
+)
 
 
 def test_scientific_policy_ids_are_stable() -> None:
@@ -53,6 +63,18 @@ def test_scientific_policy_ids_are_stable() -> None:
     )
     assert ScientificPolicyId.PROTEIN_MODULE_FROM_SITE_MEMBERSHIP.value == (
         "protein_module_from_site_membership_v1"
+    )
+    assert ScientificPolicyId.DUPLICATE_SITE_RESOLUTION.value == (
+        "duplicate_site_resolution_v1"
+    )
+    assert ScientificPolicyId.ADAPTIVE_PREDICTION_SAMPLING.value == (
+        "adaptive_prediction_sampling_v1"
+    )
+    assert ScientificPolicyId.SIGNALOME_DOWNSTREAM_SCORE_SELECTION.value == (
+        "signalome_downstream_score_selection_v1"
+    )
+    assert ScientificPolicyId.SIGNALOME_CANDIDATE_SCORING.value == (
+        "signalome_candidate_scoring_v1"
     )
 
 
@@ -232,3 +254,44 @@ def test_protein_module_from_site_membership_policy_matches_derivation_behavior(
     assert PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY.id == (
         ScientificPolicyId.PROTEIN_MODULE_FROM_SITE_MEMBERSHIP
     )
+
+
+def test_public_config_modes_resolve_to_expected_versioned_policy_objects() -> None:
+    stable_sampling = resolve_prediction_sampling_policy("stable")
+    parity_sampling = resolve_prediction_sampling_policy("r_parity")
+    sampled_candidate = resolve_candidate_scoring_policy_definition(
+        candidate_scoring_policy="sampled"
+    )
+    strict_preconditioning = resolve_score_preconditioning_policy(
+        policy="error_on_drop"
+    )
+    duplicate_aggregate_mean = build_duplicate_site_resolution_policy(
+        duplicate_site_policy="aggregate_mean"
+    )
+
+    assert stable_sampling.name == "adaptive_prediction_sampling_stable_v1"
+    assert parity_sampling.name == "adaptive_prediction_sampling_r_parity_v1"
+    assert sampled_candidate.name == "signalome_candidate_scoring_sampled_v1"
+    assert strict_preconditioning.name == "score_preconditioning_error_on_drop_v1"
+    assert (
+        duplicate_aggregate_mean.name
+        == DUPLICATE_SITE_RESOLUTION_AGGREGATE_MEAN_POLICY.name
+    )
+
+
+def test_downstream_score_resolution_returns_rank_weighted_preferred_policy() -> None:
+    profile_scores = pd.DataFrame({"K1": [0.1, 0.2]}, index=["S1", "S2"])
+    rank_weighted = pd.DataFrame({"K1": [0.7, 0.8]}, index=["S1", "S2"])
+    _selected, source, policy = resolve_downstream_score_matrix(
+        profile_scores=profile_scores,
+        rank_weighted_fusion_scores=rank_weighted,
+    )
+
+    assert source == "rank_weighted_fusion_scores"
+    assert policy.name == "signalome_downstream_score_rank_weighted_preferred_v1"
+
+
+def test_policy_parameters_are_immutable_mappings() -> None:
+    policy = resolve_score_preconditioning_policy(policy="allow_and_report")
+    with pytest.raises(TypeError):
+        policy.parameters["new_key"] = "new_value"  # type: ignore[index]

@@ -2,19 +2,72 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from types import MappingProxyType
 
 import numpy as np
 import pandas as pd
 
 from phospy.scientific_policies import (
+    ScientificPolicyId,
     ScientificPolicyRecord,
     build_motif_profile_rank_fusion_policy,
 )
 
 DOWNSTREAM_SCORE_SOURCE_PROFILE = "profile_scores"
 DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION = "rank_weighted_fusion_scores"
+
+
+@dataclass(frozen=True, slots=True)
+class DownstreamScoreSelectionPolicy:
+    """Versioned policy describing downstream score-lane selection semantics."""
+
+    name: str
+    version: str
+    parameters: Mapping[str, object]
+    description: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "parameters",
+            MappingProxyType(
+                {str(key): value for key, value in self.parameters.items()}
+            ),
+        )
+
+    @property
+    def record(self) -> ScientificPolicyRecord:
+        return ScientificPolicyRecord(
+            id=ScientificPolicyId.SIGNALOME_DOWNSTREAM_SCORE_SELECTION,
+            name=self.name,
+            version=self.version,
+            description=self.description,
+            parameters=self.parameters,
+            assumptions=(
+                "Downstream score-lane selection changes which upstream signal is "
+                "interpreted by signalome stages.",
+            ),
+            output_scale="Selected downstream kinase-site score matrix.",
+            quantitative_meaning="relative_downstream_support",
+        )
+
+
+SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY = (
+    DownstreamScoreSelectionPolicy(
+        name="signalome_downstream_score_rank_weighted_preferred_v1",
+        version="1",
+        parameters={
+            "preferred_source": DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION,
+            "fallback_source": DOWNSTREAM_SCORE_SOURCE_PROFILE,
+        },
+        description=(
+            "Select rank-weighted fusion scores when available; otherwise use "
+            "profile-only scores."
+        ),
+    )
+)
 
 
 def select_downstream_score_matrix(
@@ -30,6 +83,24 @@ def select_downstream_score_matrix(
             DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION,
         )
     return profile_scores, DOWNSTREAM_SCORE_SOURCE_PROFILE
+
+
+def resolve_downstream_score_matrix(
+    *,
+    profile_scores: pd.DataFrame,
+    rank_weighted_fusion_scores: pd.DataFrame | None,
+) -> tuple[pd.DataFrame, str, DownstreamScoreSelectionPolicy]:
+    """Resolve downstream score matrix/source and the active selection policy."""
+
+    selected, source = select_downstream_score_matrix(
+        profile_scores=profile_scores,
+        rank_weighted_fusion_scores=rank_weighted_fusion_scores,
+    )
+    return (
+        selected,
+        source,
+        SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY,
+    )
 
 
 def fuse_profile_and_motif_scores_by_rank_weight(
@@ -204,7 +275,10 @@ def _profile_only_weights(kinases: Sequence[str]) -> pd.DataFrame:
 __all__ = [
     "DOWNSTREAM_SCORE_SOURCE_RANK_WEIGHTED_FUSION",
     "DOWNSTREAM_SCORE_SOURCE_PROFILE",
+    "DownstreamScoreSelectionPolicy",
     "MotifProfileRankFusionPolicy",
+    "SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY",
     "fuse_profile_and_motif_scores_by_rank_weight",
+    "resolve_downstream_score_matrix",
     "select_downstream_score_matrix",
 ]

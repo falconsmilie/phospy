@@ -167,6 +167,7 @@ class SignalomeClusteringRunner:
             downstream_score_sites=int(request.downstream_score_matrix.shape[0]),
             downstream_score_kinases=int(request.downstream_score_matrix.shape[1]),
             downstream_score_source=request.downstream_score_source,
+            downstream_score_selection_policy=request.downstream_score_selection_policy,
         )
 
     @staticmethod

@@ -31,6 +31,7 @@ from phospy.api.results import (
 )
 from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
 from phospy.datasets.preprocessing.models import PreprocessingPlan
+from phospy.prediction.policies import resolve_prediction_sampling_policy
 from phospy.signalomes.models import (
     KinaseNetwork,
     SignalomeAssignments,
@@ -135,6 +136,9 @@ def _resolved_kinase_execution_config(
         prediction_adaptive_policy=request.prediction_config.adaptive_policy,
         prediction_n_iterations=int(request.prediction_config.n_iterations),
         prediction_random_state=request.prediction_config.random_state,
+        prediction_sampling_policy=resolve_prediction_sampling_policy(
+            request.prediction_config.adaptive_policy
+        ),
         activity=activity,
     )
 

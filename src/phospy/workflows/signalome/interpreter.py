@@ -16,7 +16,14 @@ from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.validation import WorkflowValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
-from phospy.prediction.scoring import select_downstream_score_matrix
+from phospy.prediction.scoring import (
+    SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY,
+    select_downstream_score_matrix,
+)
+from phospy.scientific_policies import resolve_score_preconditioning_policy
+from phospy.signalomes.clustering.policies import (
+    resolve_candidate_scoring_policy_definition,
+)
 from phospy.signalomes.constants import KINASE_COLUMN, PROTEIN_COLUMN, SITE_ID_COLUMN
 from phospy.signalomes.models import (
     SignalomeAlignmentDiagnostics,
@@ -70,6 +77,9 @@ class SignalomeWorkflowInterpreter:
                 profile_scores=scoring_result.profile_scores,
                 rank_weighted_fusion_scores=scoring_result.rank_weighted_fusion_scores,
             )
+        )
+        downstream_score_selection_policy = (
+            SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY
         )
         score_field_name = (
             "signalome workflow request kinase_result.scoring_result."
@@ -220,6 +230,7 @@ class SignalomeWorkflowInterpreter:
             site_to_protein=site_to_protein,
             score_preconditioning_diagnostics=score_preconditioning_diagnostics,
             alignment_diagnostics=alignment_diagnostics,
+            downstream_score_selection_policy=downstream_score_selection_policy,
         )
 
     @staticmethod
@@ -258,6 +269,18 @@ class SignalomeWorkflowInterpreter:
                 else int(request.config.clustering.module_count)
             ),
             clustering_engine=str(request.config.clustering.clustering_engine),
+            candidate_scoring_policy_definition=(
+                resolve_candidate_scoring_policy_definition(
+                    candidate_scoring_policy=(
+                        request.config.clustering.candidate_scoring_policy
+                    )
+                )
+            ),
+            score_preconditioning_policy_definition=(
+                resolve_score_preconditioning_policy(
+                    policy=str(request.config.validation.score_preconditioning_policy)
+                )
+            ),
         )
 
     @staticmethod

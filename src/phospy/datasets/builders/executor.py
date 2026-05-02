@@ -59,7 +59,11 @@ from phospy.provenance.models import (
     RunProvenance,
     TableFingerprint,
 )
-from phospy.scientific_policies import PreprocessingStageOrderPolicy
+from phospy.scientific_policies import (
+    PreprocessingStageOrderPolicy,
+    ScientificPolicyRecord,
+    build_duplicate_site_resolution_policy,
+)
 from phospy.transformations.contracts import Transformer
 from phospy.transformations.models import IntensityScaleKind
 from phospy.transformations.transformers import IdentityTransformer
@@ -285,17 +289,7 @@ def _build_dataset_run_provenance(
         random_state=None,
         random_seed_policy=None,
         output_tables=output_tables,
-        scientific_policies=(
-            PreprocessingStageOrderPolicy(
-                configured_stage_order=tuple(
-                    str(stage) for stage in request.preprocessing_plan.stage_order
-                ),
-                default_stage_order=tuple(
-                    str(stage) for stage in DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT
-                ),
-                supported_stage_order=_SUPPORTED_PREPROCESSING_STAGE_ORDER,
-            ).record,
-        ),
+        scientific_policies=_dataset_scientific_policies(request.preprocessing_plan),
     )
 
 
@@ -385,3 +379,28 @@ def _total_correction_identity_policy_to_payload(
         "duplicate_policy": policy.duplicate_policy,
         "unmatched_policy": policy.unmatched_policy,
     }
+
+
+def _dataset_scientific_policies(
+    preprocessing_plan: PreprocessingPlan,
+) -> tuple[ScientificPolicyRecord, ...]:
+    policies = [
+        PreprocessingStageOrderPolicy(
+            configured_stage_order=tuple(
+                str(stage) for stage in preprocessing_plan.stage_order
+            ),
+            default_stage_order=tuple(
+                str(stage) for stage in DATASET_PREPROCESSING_STAGE_ORDER_DEFAULT
+            ),
+            supported_stage_order=_SUPPORTED_PREPROCESSING_STAGE_ORDER,
+        ).record,
+    ]
+    if DATASET_PREPROCESSING_STAGE_SITE_MATRIX in preprocessing_plan.stage_order:
+        policies.append(
+            build_duplicate_site_resolution_policy(
+                duplicate_site_policy=str(
+                    preprocessing_plan.site_matrix_duplicate_site_policy
+                )
+            )
+        )
+    return tuple(policies)

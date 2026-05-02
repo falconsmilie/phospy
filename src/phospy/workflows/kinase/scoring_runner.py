@@ -17,8 +17,10 @@ from phospy.prediction.motif_scoring import (
     score_phosphosite_motifs,
 )
 from phospy.prediction.scoring import (
+    SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY,
+    DownstreamScoreSelectionPolicy,
     fuse_profile_and_motif_scores_by_rank_weight,
-    select_downstream_score_matrix,
+    resolve_downstream_score_matrix,
 )
 from phospy.workflows.kinase.component_models import KinaseScoringRunResult
 from phospy.workflows.kinase.contracts import (
@@ -50,9 +52,11 @@ class KinaseScoringRunner:
         fuse_scores: Callable[..., tuple[pd.DataFrame, pd.DataFrame | None]] = (
             fuse_profile_and_motif_scores_by_rank_weight
         ),
-        select_downstream: Callable[..., tuple[pd.DataFrame, str]] = (
-            select_downstream_score_matrix
-        ),
+        select_downstream: Callable[
+            ...,
+            tuple[pd.DataFrame, str]
+            | tuple[pd.DataFrame, str, DownstreamScoreSelectionPolicy],
+        ] = (resolve_downstream_score_matrix),
     ) -> None:
         self._build_profiles = build_profiles
         self._score_profiles = score_profiles
@@ -136,15 +140,27 @@ class KinaseScoringRunner:
             motif_sequence_validation=motif_result.sequence_validation,
             motif_library_validation=motif_result.library_validation,
         )
-        downstream_score_matrix, downstream_score_source = self._select_downstream(
+        downstream_selection = self._select_downstream(
             profile_scores=profile_scores,
             rank_weighted_fusion_scores=rank_weighted_fusion_scores,
         )
+        if len(downstream_selection) == 3:
+            (
+                downstream_score_matrix,
+                downstream_score_source,
+                downstream_score_selection_policy,
+            ) = downstream_selection
+        else:
+            downstream_score_matrix, downstream_score_source = downstream_selection
+            downstream_score_selection_policy = (
+                SIGNALOME_DOWNSTREAM_SCORE_RANK_WEIGHTED_PREFERRED_POLICY
+            )
         return KinaseScoringRunResult(
             scoring_result=scoring_result,
             downstream_score_matrix=downstream_score_matrix,
             downstream_score_source=downstream_score_source,
             quantified_substrates=profile_build.quantified_substrates,
+            downstream_score_selection_policy=downstream_score_selection_policy,
         )
 
     def _resolve_motif_scores(

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
+from types import MappingProxyType
 
 import numpy as np
 
@@ -23,6 +25,12 @@ class ScientificPolicyId(str, Enum):
     PREPROCESSING_STAGE_ORDER = "preprocessing_stage_order_v1"
     SIGNALOME_MODULE_CANDIDATE_SCORE = "signalome_module_candidate_score_v1"
     PROTEIN_MODULE_FROM_SITE_MEMBERSHIP = "protein_module_from_site_membership_v1"
+    DUPLICATE_SITE_RESOLUTION = "duplicate_site_resolution_v1"
+    ADAPTIVE_PREDICTION_SAMPLING = "adaptive_prediction_sampling_v1"
+    SIGNALOME_DOWNSTREAM_SCORE_SELECTION = "signalome_downstream_score_selection_v1"
+    SIGNALOME_CANDIDATE_SCORING = "signalome_candidate_scoring_v1"
+    SIGNALOME_ASSIGNMENT_POLICY = "signalome_assignment_policy_v1"
+    SIGNALOME_NETWORK_POLICY = "signalome_network_policy_v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,10 +41,19 @@ class ScientificPolicyRecord:
     name: str
     version: str
     description: str
-    parameters: dict[str, ScientificPolicyParameter]
+    parameters: Mapping[str, object]
     assumptions: tuple[str, ...]
     output_scale: str | None = None
     quantitative_meaning: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "parameters",
+            MappingProxyType(
+                {str(key): value for key, value in self.parameters.items()}
+            ),
+        )
 
     def to_payload(self) -> dict[str, object]:
         return {
@@ -58,7 +75,7 @@ class ScientificPolicyRecord:
         else:
             resolved_assumptions = ()
         parameters_raw = payload.get("parameters", {})
-        parameters: dict[str, ScientificPolicyParameter]
+        parameters: dict[str, object]
         if isinstance(parameters_raw, dict):
             parameters = {}
             for key, value in parameters_raw.items():
@@ -191,7 +208,7 @@ class PreprocessingStageOrderPolicy:
 
 PROFILE_CORRELATION_SHIFTED_UNIT_POLICY = ScientificPolicyRecord(
     id=ScientificPolicyId.PROFILE_CORRELATION_SHIFTED_UNIT,
-    name="Profile Correlation Shifted Unit Support",
+    name="profile_correlation_v1",
     version="1",
     description=(
         "Transforms Pearson correlation from [-1, 1] to [0, 1] using (r + 1) / 2."
@@ -222,7 +239,7 @@ def build_motif_profile_rank_fusion_policy(
 ) -> ScientificPolicyRecord:
     return ScientificPolicyRecord(
         id=ScientificPolicyId.MOTIF_PROFILE_RANK_FUSION,
-        name="Motif/Profile Rank-Weighted Fusion",
+        name="rank_weighted_motif_profile_fusion_v1",
         version="1",
         description=(
             "Combines motif-frequency and profile-correlation scores using "
@@ -407,9 +424,10 @@ def build_score_preconditioning_policy(
     row_retention_rule: str = "drop_rows_with_all_scores_missing",
     retained_partial_missing_rows: bool = True,
 ) -> ScientificPolicyRecord:
+    base_policy = resolve_score_preconditioning_policy(policy=policy)
     return ScientificPolicyRecord(
         id=ScientificPolicyId.SIGNALOME_SCORE_PRECONDITIONING,
-        name="Signalome Score Preconditioning Policy",
+        name=base_policy.name,
         version="1",
         description=(
             "Preconditions aligned downstream score rows before signalome "
@@ -433,6 +451,67 @@ def build_score_preconditioning_policy(
         ),
         output_scale="Retained downstream score matrix rows for signalome execution.",
         quantitative_meaning="retained_signalome_score_rows",
+    )
+
+
+SCORE_PRECONDITIONING_ERROR_ON_DROP_POLICY = ScientificPolicyRecord(
+    id=ScientificPolicyId.SIGNALOME_SCORE_PRECONDITIONING,
+    name="score_preconditioning_error_on_drop_v1",
+    version="1",
+    description=(
+        "Treat dropped all-missing downstream score rows as a hard workflow boundary "
+        "error."
+    ),
+    parameters={
+        "policy": "error_on_drop",
+        "row_retention_rule": "drop_rows_with_all_scores_missing",
+        "retained_partial_missing_rows": True,
+    },
+    assumptions=(
+        "All interpreted sites must retain at least one finite downstream score.",
+        "Any unsupported all-missing row invalidates signalome construction.",
+    ),
+    output_scale="Validation-only policy for preconditioning gate behavior.",
+    quantitative_meaning="preconditioning_validation_rule",
+)
+
+
+SCORE_PRECONDITIONING_ALLOW_AND_REPORT_POLICY = ScientificPolicyRecord(
+    id=ScientificPolicyId.SIGNALOME_SCORE_PRECONDITIONING,
+    name="score_preconditioning_allow_and_report_v1",
+    version="1",
+    description=(
+        "Allow dropping all-missing downstream score rows and report the drop "
+        "diagnostics in provenance."
+    ),
+    parameters={
+        "policy": "allow_and_report",
+        "row_retention_rule": "drop_rows_with_all_scores_missing",
+        "retained_partial_missing_rows": True,
+    },
+    assumptions=(
+        "All-missing rows provide no usable downstream score evidence.",
+        "Retained-site coverage can change as unsupported rows are removed.",
+    ),
+    output_scale="Validation-and-row-retention policy for score preconditioning.",
+    quantitative_meaning="preconditioning_row_retention_rule",
+)
+
+
+def resolve_score_preconditioning_policy(*, policy: str) -> ScientificPolicyRecord:
+    if policy == "error_on_drop":
+        return SCORE_PRECONDITIONING_ERROR_ON_DROP_POLICY
+    if policy == "allow_and_report":
+        return SCORE_PRECONDITIONING_ALLOW_AND_REPORT_POLICY
+    return ScientificPolicyRecord(
+        id=ScientificPolicyId.SIGNALOME_SCORE_PRECONDITIONING,
+        name=f"score_preconditioning_{policy}_v1",
+        version="1",
+        description="Configured score preconditioning policy.",
+        parameters={"policy": str(policy)},
+        assumptions=(),
+        output_scale="Validation-and-row-retention policy for score preconditioning.",
+        quantitative_meaning="preconditioning_row_retention_rule",
     )
 
 
@@ -524,7 +603,7 @@ def build_signalome_module_candidate_score_policy(
 
 PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY = ScientificPolicyRecord(
     id=ScientificPolicyId.PROTEIN_MODULE_FROM_SITE_MEMBERSHIP,
-    name="Protein Module From Site-Cluster Membership",
+    name="protein_module_from_site_membership_v1",
     version="1",
     description=(
         "Derives protein-level module IDs by grouping proteins with matching "
@@ -544,6 +623,51 @@ PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY = ScientificPolicyRecord(
 )
 
 
+DUPLICATE_SITE_RESOLUTION_AGGREGATE_MEAN_POLICY = ScientificPolicyRecord(
+    id=ScientificPolicyId.DUPLICATE_SITE_RESOLUTION,
+    name="duplicate_site_resolution_aggregate_mean_v1",
+    version="1",
+    description=(
+        "Resolves duplicate constructed site IDs by aggregating duplicate rows "
+        "with a column-wise arithmetic mean."
+    ),
+    parameters={
+        "duplicate_site_policy": "aggregate_mean",
+        "aggregation_function": "column_mean",
+    },
+    assumptions=(
+        "All duplicate rows contribute numerically to one retained site row.",
+        "Aggregation can blend peptide-context-specific measurements.",
+    ),
+    output_scale="Deduplicated site-matrix rows for downstream scoring.",
+    quantitative_meaning="duplicate_site_resolved_matrix",
+)
+
+
+def build_duplicate_site_resolution_policy(
+    *,
+    duplicate_site_policy: str,
+) -> ScientificPolicyRecord:
+    if duplicate_site_policy == "aggregate_mean":
+        return DUPLICATE_SITE_RESOLUTION_AGGREGATE_MEAN_POLICY
+    return ScientificPolicyRecord(
+        id=ScientificPolicyId.DUPLICATE_SITE_RESOLUTION,
+        name=f"duplicate_site_resolution_{duplicate_site_policy}_v1",
+        version="1",
+        description=(
+            "Resolves duplicate constructed site IDs according to the configured "
+            "site-matrix duplicate-site policy."
+        ),
+        parameters={"duplicate_site_policy": str(duplicate_site_policy)},
+        assumptions=(
+            "Duplicate-site resolution policy changes retained rows and/or values.",
+            "Resolved rows become the authoritative site matrix for downstream use.",
+        ),
+        output_scale="Deduplicated site-matrix rows for downstream scoring.",
+        quantitative_meaning="duplicate_site_resolved_matrix",
+    )
+
+
 def shift_correlation_to_unit_support(correlation: np.ndarray) -> np.ndarray:
     """Apply the shifted-unit profile support transform."""
 
@@ -559,11 +683,15 @@ __all__ = [
     "PreprocessingStageOrderPolicy",
     "PROFILE_CORRELATION_SHIFTED_UNIT_POLICY",
     "PROTEIN_MODULE_FROM_SITE_MEMBERSHIP_POLICY",
+    "DUPLICATE_SITE_RESOLUTION_AGGREGATE_MEAN_POLICY",
     "ScorePreconditioningPolicy",
+    "SCORE_PRECONDITIONING_ALLOW_AND_REPORT_POLICY",
+    "SCORE_PRECONDITIONING_ERROR_ON_DROP_POLICY",
     "SignalomeMissingValueClusteringPolicy",
     "ScientificPolicyId",
     "ScientificPolicyRecord",
     "build_candidate_substrate_selection_policy",
+    "build_duplicate_site_resolution_policy",
     "build_kinase_profile_scoring_policy",
     "build_motif_profile_rank_fusion_policy",
     "build_preprocessing_stage_order_policy",
@@ -571,5 +699,6 @@ __all__ = [
     "build_signalome_missing_value_clustering_policy",
     "build_signalome_module_candidate_score_policy",
     "build_simplified_weighted_substrate_activity_policy",
+    "resolve_score_preconditioning_policy",
     "shift_correlation_to_unit_support",
 ]

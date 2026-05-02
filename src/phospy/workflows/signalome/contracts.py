@@ -17,8 +17,13 @@ from phospy.api.requests import SignalomeWorkflowRequest
 from phospy.api.results import KinaseWorkflowResult, SignalomeWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.workflows import WorkflowBoundaryError
+from phospy.prediction.scoring import DownstreamScoreSelectionPolicy
+from phospy.scientific_policies import ScientificPolicyRecord
 from phospy.signalomes.clustering.models import (
     SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL,
+)
+from phospy.signalomes.clustering.policies import (
+    SignalomeCandidateScoringPolicyDefinition,
 )
 from phospy.signalomes.models import (
     SignalomeAlignmentDiagnostics,
@@ -46,6 +51,10 @@ class ResolvedSignalomeExecutionConfig:
     max_full_candidate_scoring_sites: int
     requested_module_count: int | None
     clustering_engine: str = SIGNALOME_CLUSTERING_ENGINE_SCIPY_HIERARCHICAL
+    candidate_scoring_policy_definition: (
+        SignalomeCandidateScoringPolicyDefinition | None
+    ) = None
+    score_preconditioning_policy_definition: ScientificPolicyRecord | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +86,7 @@ class ResolvedSignalomeWorkflowRequest:
     alignment_diagnostics: SignalomeAlignmentDiagnostics = field(
         default_factory=default_signalome_alignment_diagnostics
     )
+    downstream_score_selection_policy: DownstreamScoreSelectionPolicy | None = None
     _downstream_score_table: KinaseScoreMatrix = field(
         init=False,
         repr=False,

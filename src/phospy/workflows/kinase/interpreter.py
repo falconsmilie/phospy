@@ -8,6 +8,7 @@ import pandas as pd
 
 from phospy.api.requests import KinaseWorkflowRequest
 from phospy.errors.workflows import PhosPyWorkflowError, WorkflowBoundaryError
+from phospy.prediction.policies import resolve_prediction_sampling_policy
 from phospy.references.resolution import (
     BundledReferenceProvider,
     ReferenceResolver,
@@ -88,6 +89,9 @@ class KinaseWorkflowInterpreter:
     def _resolve_execution_config(
         request: KinaseWorkflowRequest,
     ) -> ResolvedKinaseExecutionConfig:
+        prediction_sampling_policy = resolve_prediction_sampling_policy(
+            request.prediction_config.adaptive_policy
+        )
         activity = (
             None
             if request.activity_config is None or not request.activity_config.enabled
@@ -112,6 +116,7 @@ class KinaseWorkflowInterpreter:
             ),
             prediction_mode=request.prediction_config.mode,
             prediction_adaptive_policy=request.prediction_config.adaptive_policy,
+            prediction_sampling_policy=prediction_sampling_policy,
             prediction_n_iterations=int(request.prediction_config.n_iterations),
             prediction_random_state=(
                 None

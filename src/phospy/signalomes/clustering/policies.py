@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Literal
+
+from phospy.scientific_policies import ScientificPolicyId, ScientificPolicyRecord
 
 # Performance contracts for module-count selection scoring:
 # - At or below `MAX_FULL_CORRELATION_SITE_COUNT`, candidate scoring computes a
@@ -48,6 +53,79 @@ SIGNALOME_CANDIDATE_SCORING_POLICY_FULL = "full"
 SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED = "sampled"
 SignalomeCandidateScoringPolicy = Literal["full", "sampled"]
 
+
+@dataclass(frozen=True, slots=True)
+class SignalomeCandidateScoringPolicyDefinition:
+    """Versioned scientific policy for candidate module-count scoring behavior."""
+
+    name: str
+    version: str
+    parameters: Mapping[str, object]
+    description: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "parameters",
+            MappingProxyType(
+                {str(key): value for key, value in self.parameters.items()}
+            ),
+        )
+
+    @property
+    def record(self) -> ScientificPolicyRecord:
+        return ScientificPolicyRecord(
+            id=ScientificPolicyId.SIGNALOME_CANDIDATE_SCORING,
+            name=self.name,
+            version=self.version,
+            description=self.description,
+            parameters=self.parameters,
+            assumptions=(
+                "Candidate-scoring policy only changes module-count evaluation, not "
+                "final exact tree construction semantics.",
+            ),
+            output_scale="Candidate module-count support summaries.",
+            quantitative_meaning="relative_module_candidate_support",
+        )
+
+
+SIGNALOME_CANDIDATE_SCORING_FULL_POLICY = SignalomeCandidateScoringPolicyDefinition(
+    name="signalome_candidate_scoring_full_v1",
+    version="1",
+    parameters={
+        "candidate_scoring_policy": SIGNALOME_CANDIDATE_SCORING_POLICY_FULL,
+        "correlation_mode": "full_site_by_site_matrix",
+    },
+    description=(
+        "Evaluate candidate module counts using full within-cluster correlation "
+        "calculations."
+    ),
+)
+
+SIGNALOME_CANDIDATE_SCORING_SAMPLED_POLICY = SignalomeCandidateScoringPolicyDefinition(
+    name="signalome_candidate_scoring_sampled_v1",
+    version="1",
+    parameters={
+        "candidate_scoring_policy": SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED,
+        "correlation_mode": "sampled_within_cluster_correlations",
+        "sampling_method": "deterministic_uniform_without_replacement",
+    },
+    description=(
+        "Evaluate candidate module counts with deterministic sampled "
+        "within-cluster correlations."
+    ),
+)
+
+
+def resolve_candidate_scoring_policy_definition(
+    *,
+    candidate_scoring_policy: SignalomeCandidateScoringPolicy,
+) -> SignalomeCandidateScoringPolicyDefinition:
+    if candidate_scoring_policy == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED:
+        return SIGNALOME_CANDIDATE_SCORING_SAMPLED_POLICY
+    return SIGNALOME_CANDIDATE_SCORING_FULL_POLICY
+
+
 SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED = "not_evaluated"
 _CandidateScoringMode = SignalomeCandidateScoringPolicy | Literal["not_evaluated"]
 
@@ -72,6 +150,8 @@ __all__ = [
     "SIGNALOME_CANDIDATE_SCORING_MODE_NOT_EVALUATED",
     "SIGNALOME_CANDIDATE_SCORING_POLICY_FULL",
     "SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED",
+    "SIGNALOME_CANDIDATE_SCORING_FULL_POLICY",
+    "SIGNALOME_CANDIDATE_SCORING_SAMPLED_POLICY",
     "SIGNALOME_CANDIDATE_SCORING_SAMPLING_METHOD",
     "SIGNALOME_CANDIDATE_SCORING_SAMPLING_SEED_POLICY",
     "SIGNALOME_CANDIDATE_SCORING_SKIP_REASON_EXPLICIT_MODULE_COUNT",
@@ -84,9 +164,11 @@ __all__ = [
     "SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_EXACT_CLUSTER_TREE",
     "SIGNALOME_FINAL_MODULE_ASSIGNMENT_BACKEND_SINGLE_MODULE",
     "SIGNALOME_TREE_ENGINE_EXACT",
+    "SignalomeCandidateScoringPolicyDefinition",
     "SignalomeCandidateScoringPolicy",
     "SignalomeClusteringMissingValuePolicy",
     "SignalomeClusteringScoringMode",
     "SignalomeTreeEngine",
+    "resolve_candidate_scoring_policy_definition",
     "_CandidateScoringMode",
 ]

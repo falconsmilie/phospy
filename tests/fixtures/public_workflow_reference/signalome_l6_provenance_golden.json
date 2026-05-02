@@ -147,13 +147,33 @@
       "version": "1"
     },
     {
+      "id": "signalome_assignment_policy_v1",
+      "name": "signalome_assignment_policy_cutoff_binary_v1",
+      "version": "1"
+    },
+    {
+      "id": "signalome_network_policy_v1",
+      "name": "signalome_network_policy_signed_v1",
+      "version": "1"
+    },
+    {
       "id": "signalome_score_preconditioning_v1",
-      "name": "Signalome Score Preconditioning Policy",
+      "name": "score_preconditioning_error_on_drop_v1",
       "version": "1"
     },
     {
       "id": "protein_module_from_site_membership_v1",
-      "name": "Protein Module From Site-Cluster Membership",
+      "name": "protein_module_from_site_membership_v1",
+      "version": "1"
+    },
+    {
+      "id": "signalome_downstream_score_selection_v1",
+      "name": "signalome_downstream_score_rank_weighted_preferred_v1",
+      "version": "1"
+    },
+    {
+      "id": "signalome_candidate_scoring_v1",
+      "name": "signalome_candidate_scoring_full_v1",
       "version": "1"
     }
   ]
