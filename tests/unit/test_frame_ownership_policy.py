@@ -783,6 +783,69 @@ def test_kinase_result_table_properties_are_defensive_snapshots() -> None:
     assert str(activity_result.target_table.iloc[0, 1]) == "MAP2K6"
 
 
+def test_kinase_activity_result_series_properties_are_defensive_snapshots() -> None:
+    activity_result = KinaseActivityResult._from_owned(
+        weighted_activity=pd.DataFrame(
+            {"MAP2K6": [1.0, 2.0]},
+            index=pd.Index(["sample_a", "sample_b"]),
+        ),
+        thresholded_substrate_mean_activity=pd.DataFrame(
+            {"MAP2K6": [0.5, 1.5]},
+            index=pd.Index(["sample_a", "sample_b"]),
+        ),
+        thresholded_substrate_counts=pd.Series(
+            [2, 2],
+            index=pd.Index(["MAP2K6", "AKT1"]),
+            name="n_substrates",
+        ),
+        target_counts=pd.Series(
+            [1, 1],
+            index=pd.Index(["MAP2K6", "AKT1"]),
+            name="n_targets",
+        ),
+        target_table=pd.DataFrame(
+            {
+                "site_id": ["MAPK14;Y182;"],
+                "kinase": ["MAP2K6"],
+                "score": [0.9],
+            }
+        ),
+    )
+
+    assert hasattr(activity_result, "thresholded_substrate_counts")
+    assert hasattr(activity_result, "target_counts")
+
+    thresholded_before = fingerprint_table(
+        activity_result.thresholded_substrate_counts.to_frame(name="n_substrates"),
+        name="outputs.activity.thresholded_substrate_counts",
+    )
+    exported_thresholded = activity_result.thresholded_substrate_counts
+    exported_thresholded.iloc[0] = 999
+    reread_thresholded = activity_result.thresholded_substrate_counts
+    assert exported_thresholded is not reread_thresholded
+    assert reread_thresholded.to_dict() == {"MAP2K6": 2, "AKT1": 2}
+    thresholded_after = fingerprint_table(
+        activity_result.thresholded_substrate_counts.to_frame(name="n_substrates"),
+        name="outputs.activity.thresholded_substrate_counts",
+    )
+    assert thresholded_before.hash_value == thresholded_after.hash_value
+
+    target_before = fingerprint_table(
+        activity_result.target_counts.to_frame(name="n_targets"),
+        name="outputs.activity.target_counts",
+    )
+    exported_target = activity_result.target_counts
+    exported_target.iloc[0] = 999
+    reread_target = activity_result.target_counts
+    assert exported_target is not reread_target
+    assert reread_target.to_dict() == {"MAP2K6": 1, "AKT1": 1}
+    target_after = fingerprint_table(
+        activity_result.target_counts.to_frame(name="n_targets"),
+        name="outputs.activity.target_counts",
+    )
+    assert target_before.hash_value == target_after.hash_value
+
+
 def test_signalome_result_table_properties_are_defensive_snapshots() -> None:
     signalome_result = SignalomeWorkflow().run(
         SignalomeWorkflowRequest(

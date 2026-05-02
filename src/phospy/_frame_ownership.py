@@ -85,3 +85,44 @@ def own_series(
     if assume_owned:
         return value
     return value.copy(deep=True)
+
+
+def export_series(value: pd.Series) -> pd.Series:
+    """Return a defensive public snapshot of an owned Series."""
+
+    return value.copy(deep=True)
+
+
+def _borrow_series(value: pd.Series) -> pd.Series:
+    """Return internal borrowed Series access without copying."""
+
+    return value
+
+
+def own_optional_series(
+    value: object | None,
+    *,
+    field_name: str,
+    error_type: ExceptionType = TypeError,
+    assume_owned: bool = False,
+) -> pd.Series | None:
+    if value is None:
+        return None
+    return own_series(
+        value,
+        field_name=field_name,
+        error_type=error_type,
+        assume_owned=assume_owned,
+    )
+
+
+def export_optional_series(value: pd.Series | None) -> pd.Series | None:
+    if value is None:
+        return None
+    return export_series(value)
+
+
+def _borrow_optional_series(value: pd.Series | None) -> pd.Series | None:
+    """Return internal borrowed optional Series access without copying."""
+
+    return value

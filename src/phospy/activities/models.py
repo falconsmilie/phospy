@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from phospy._frame_ownership import export_dataframe
+from phospy._frame_ownership import export_dataframe, export_series
 from phospy.errors.validation import PhosPyValidationError
 from phospy.errors.workflows import WorkflowBoundaryError
 from phospy.tables.activity import (
@@ -143,11 +143,11 @@ class KinaseActivityResult:
     - ``activity_method``: stable method identity metadata for these outputs
     """
 
-    thresholded_substrate_counts: pd.Series
-    target_counts: pd.Series
     activity_method: ActivityMethodMetadata
     _weighted_activity: pd.DataFrame = field(init=False, repr=False)
     _thresholded_substrate_mean_activity: pd.DataFrame = field(init=False, repr=False)
+    _thresholded_substrate_counts: pd.Series = field(init=False, repr=False)
+    _target_counts: pd.Series = field(init=False, repr=False)
     _target_table: pd.DataFrame = field(init=False, repr=False)
 
     def __init__(
@@ -162,10 +162,6 @@ class KinaseActivityResult:
         ),
         _assume_owned: bool = False,
     ) -> None:
-        object.__setattr__(
-            self, "thresholded_substrate_counts", thresholded_substrate_counts
-        )
-        object.__setattr__(self, "target_counts", target_counts)
         if not isinstance(activity_method, ActivityMethodMetadata):
             raise WorkflowBoundaryError(
                 "activity_result.activity_method must be ActivityMethodMetadata"
@@ -202,10 +198,10 @@ class KinaseActivityResult:
         )
         object.__setattr__(
             self,
-            "thresholded_substrate_counts",
+            "_thresholded_substrate_counts",
             thresholded_substrate_counts,
         )
-        object.__setattr__(self, "target_counts", target_counts)
+        object.__setattr__(self, "_target_counts", target_counts)
         object.__setattr__(self, "activity_method", activity_method)
         object.__setattr__(self, "_target_table", target_table)
 
@@ -216,6 +212,14 @@ class KinaseActivityResult:
     @property
     def thresholded_substrate_mean_activity(self) -> pd.DataFrame:
         return export_dataframe(self._thresholded_substrate_mean_activity)
+
+    @property
+    def thresholded_substrate_counts(self) -> pd.Series:
+        return export_series(self._thresholded_substrate_counts)
+
+    @property
+    def target_counts(self) -> pd.Series:
+        return export_series(self._target_counts)
 
     @property
     def target_table(self) -> pd.DataFrame:
