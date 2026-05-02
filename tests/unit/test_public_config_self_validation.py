@@ -547,12 +547,17 @@ def test_signalome_config_accepts_supported_clustering_engine_names() -> None:
 
 
 def test_signalome_config_presets_return_expected_values() -> None:
+    default = SignalomeConfig()
     strict = SignalomeConfig.strict()
     permissive = SignalomeConfig.permissive_missing_scores()
-    large = SignalomeConfig.large_dataset()
+    sampled = SignalomeConfig.sampled_candidate_scoring()
 
     assert (
         strict.validation.score_preconditioning_policy
+        == SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
+    )
+    assert (
+        default.validation.score_preconditioning_policy
         == SIGNALOME_SCORE_PRECONDITIONING_POLICY_ERROR_ON_DROP
     )
     assert (
@@ -560,16 +565,21 @@ def test_signalome_config_presets_return_expected_values() -> None:
         == SIGNALOME_SCORE_PRECONDITIONING_POLICY_ALLOW_AND_REPORT
     )
     assert (
-        large.clustering.candidate_scoring_policy
+        sampled.clustering.candidate_scoring_policy
         == SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED
     )
     assert (
-        large.performance.max_exact_tree_sites == SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT
+        sampled.performance.max_exact_tree_sites
+        == SIGNALOME_MAX_EXACT_TREE_SITES_DEFAULT
     )
     assert (
-        large.performance.max_full_candidate_scoring_sites
+        sampled.performance.max_full_candidate_scoring_sites
         == SIGNALOME_MAX_FULL_CANDIDATE_SCORING_SITES_DEFAULT
     )
+
+
+def test_signalome_config_removes_large_dataset_preset() -> None:
+    assert not hasattr(SignalomeConfig, "large_dataset")
 
 
 def test_signalome_config_defaults_to_scipy_clustering_engine() -> None:

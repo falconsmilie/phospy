@@ -305,8 +305,11 @@ from phospy.api import SignalomeConfig
 
 strict = SignalomeConfig.strict()
 permissive = SignalomeConfig.permissive_missing_scores()
-large = SignalomeConfig.large_dataset()
+sampled = SignalomeConfig.sampled_candidate_scoring()
 ```
+
+`SignalomeConfig.sampled_candidate_scoring()` changes candidate module-count
+scoring only and keeps scale guards enabled.
 
 Grouped options:
 

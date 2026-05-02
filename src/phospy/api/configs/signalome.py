@@ -333,8 +333,8 @@ class SignalomeConfig:
         )
 
     @classmethod
-    def large_dataset(cls) -> SignalomeConfig:
-        """Prefer sampled candidate scoring while keeping scale guards enabled."""
+    def sampled_candidate_scoring(cls) -> SignalomeConfig:
+        """Return config using sampled candidate module-count scoring while keeping scale guards enabled."""
         return cls(
             clustering=SignalomeClusteringConfig(
                 candidate_scoring_policy=SIGNALOME_CANDIDATE_SCORING_POLICY_SAMPLED

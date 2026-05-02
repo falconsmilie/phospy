@@ -190,8 +190,11 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 - Kinase-supported substrates are selected by `substrate_support_cutoff`.
 - Module count is either explicit (`module_count`) or automatically selected from configured candidate thresholds.
 - Module composition uses `assignment_policy` (`cutoff_binary` or `weighted_top`).
-- For larger runs, prefer `SignalomeConfig.large_dataset()` to select sampled
-  candidate scoring while preserving scale-guard checks.
+- For workflows where automatic module-count candidate evaluation is expensive,
+  use `SignalomeConfig.sampled_candidate_scoring()`.
+- This selects sampled candidate scoring, preserves exact-tree and
+  full-scoring scale-guard checks, and is not a general bypass for large input
+  limits.
 
 ### Provenance Guarantees
 

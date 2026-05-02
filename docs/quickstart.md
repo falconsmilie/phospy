@@ -95,7 +95,7 @@ kinase_result = KinaseWorkflow().run(
 signalome_result = SignalomeWorkflow().run(
     SignalomeWorkflowRequest(
         kinase_result=kinase_result,
-        config=SignalomeConfig.large_dataset(),
+        config=SignalomeConfig.sampled_candidate_scoring(),
     )
 )
 
