@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from phospy.activities.models import KinaseActivityResult
+from phospy.activities.models import ActivityMethodMetadata, KinaseActivityResult
 from phospy.api.results import KinaseWorkflowResult
 from phospy.datasets.models import AnalysisReadyPhosphoDataset
 from phospy.errors.input import PhosPyInputError
@@ -192,12 +192,25 @@ def reconstruct_kinase_result(
             raise PhosPyInputError(
                 "bundle manifest outputs.activity.tables are incomplete for enabled activity outputs"
             )
+        if sections.activity_method_metadata is None:
+            raise PhosPyInputError(
+                "bundle manifest.outputs.activity.method is required when activity is enabled"
+            )
+        try:
+            activity_method = ActivityMethodMetadata.from_payload(
+                sections.activity_method_metadata
+            )
+        except ValueError as exc:
+            raise PhosPyInputError(
+                f"bundle manifest.outputs.activity.method is invalid: {exc}"
+            ) from exc
         activity_result = KinaseActivityResult(
             weighted_activity=weighted_activity,
             thresholded_substrate_mean_activity=thresholded_substrate_mean_activity,
             thresholded_substrate_counts=thresholded_substrate_counts,
             target_counts=target_counts,
             target_table=target_table,
+            activity_method=activity_method,
         )
     else:
         if (
@@ -209,6 +222,10 @@ def reconstruct_kinase_result(
         ):
             raise PhosPyInputError(
                 "bundle manifest outputs.activity.enabled=false must not declare populated activity tables"
+            )
+        if sections.activity_method_metadata is not None:
+            raise PhosPyInputError(
+                "bundle manifest outputs.activity.enabled=false must not declare activity method metadata"
             )
         activity_result = None
 

@@ -208,15 +208,11 @@ class KinaseProvenanceBuilder:
                         "threshold": float(config.activity.threshold),
                         "min_substrates": int(config.activity.min_substrates),
                         "top_n_substrates": int(config.activity.top_n_substrates),
-                        "activity_methods": {
-                            "weighted_activity": (
-                                "prediction-weighted mean over top-N predicted substrates"
-                            ),
-                            "thresholded_substrate_mean_activity": (
-                                "mean phospho signal over predicted substrates with "
-                                "pred_mat score > threshold; not full KSEA enrichment"
-                            ),
-                        },
+                        "activity_method": (
+                            None
+                            if activity_result is None
+                            else activity_result.activity_method.to_payload()
+                        ),
                     }
                 ),
             },

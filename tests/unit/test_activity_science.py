@@ -227,3 +227,47 @@ def test_activity_policy_metadata_captures_runtime_parameters() -> None:
     assert record.parameters["threshold"] == pytest.approx(0.6)
     assert record.parameters["min_substrates"] == 3
     assert record.parameters["top_n_substrates"] == 20
+
+
+def test_activity_result_exposes_explicit_method_identity_without_changing_scores() -> (
+    None
+):
+    pred_mat = pd.DataFrame(
+        {"PRKACA": [0.9, 0.8, 0.7]},
+        index=["A;S1;", "B;S2;", "C;S3;"],
+    )
+    phospho_matrix = pd.DataFrame(
+        {
+            "phospho_corrected_1": [10.0, float("nan"), 1.0],
+            "phospho_corrected_2": [20.0, 6.0, float("nan")],
+        },
+        index=pred_mat.index.copy(),
+    )
+
+    result = compute_activity_from_inputs(
+        _inputs(
+            pred_mat=pred_mat,
+            phospho_matrix=phospho_matrix,
+            threshold=0.6,
+            min_substrates=3,
+            top_n_substrates=3,
+        )
+    )
+
+    assert result.activity_method.activity_method_id == (
+        "simplified_weighted_substrate_activity_v1"
+    )
+    assert result.activity_method.activity_method_family == (
+        "heuristic_weighted_substrate_score"
+    )
+    assert result.activity_method.activity_method_label == (
+        "simplified weighted substrate activity"
+    )
+    assert result.activity_method.is_ksea is False
+    assert result.activity_method.is_phosr_kinase_activity_equivalent is False
+    assert result.weighted_activity.at[
+        "PRKACA", "phospho_corrected_1"
+    ] == pytest.approx(6.0625)
+    assert result.weighted_activity.at[
+        "PRKACA", "phospho_corrected_2"
+    ] == pytest.approx((20 * 0.9 + 6 * 0.8) / (0.9 + 0.8))

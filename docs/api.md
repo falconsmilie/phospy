@@ -261,6 +261,14 @@ adaptive = KinasePredictionConfig.adaptive_reproducible(random_state=1)
 predicted substrates above the configured threshold. It is not full KSEA-style
 enrichment.
 
+When activity is enabled, `result.activity_result.activity_method` exposes
+explicit method identity metadata, including:
+
+- `activity_method_id="simplified_weighted_substrate_activity_v1"`
+- `activity_method_family="heuristic_weighted_substrate_score"`
+- `is_ksea=False`
+- `is_phosr_kinase_activity_equivalent=False`
+
 ## Signalome Config
 
 `SignalomeConfig` is grouped by user intent:
@@ -392,6 +400,9 @@ snapshots.
 `result.provenance.scientific_policies` lists the active scientific scoring
 policies with stable IDs, assumptions, parameters, and output-scale notes for
 auditability.
+
+`result.provenance.workflow_parameters["activity_config"]["activity_method"]`
+mirrors this method identity for the active weighted activity score.
 
 ### `SignalomeWorkflowResult`
 

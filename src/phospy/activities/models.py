@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -15,6 +16,65 @@ from phospy.tables.activity import (
     ActivityTargetTable,
 )
 from phospy.tables.kinase import KinasePredictionMatrix
+
+
+@dataclass(frozen=True, slots=True)
+class ActivityMethodMetadata:
+    """Stable scientific identity metadata for an activity scoring method."""
+
+    activity_method_id: str
+    activity_method_family: str
+    activity_method_label: str
+    is_ksea: bool
+    is_phosr_kinase_activity_equivalent: bool
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "activity_method_id": self.activity_method_id,
+            "activity_method_family": self.activity_method_family,
+            "activity_method_label": self.activity_method_label,
+            "is_ksea": bool(self.is_ksea),
+            "is_phosr_kinase_activity_equivalent": bool(
+                self.is_phosr_kinase_activity_equivalent
+            ),
+        }
+
+    @classmethod
+    def from_payload(
+        cls,
+        payload: Mapping[str, object],
+    ) -> ActivityMethodMetadata:
+        method_id = str(payload.get("activity_method_id", "")).strip()
+        method_family = str(payload.get("activity_method_family", "")).strip()
+        method_label = str(payload.get("activity_method_label", "")).strip()
+        is_ksea = payload.get("is_ksea")
+        is_phosr_equivalent = payload.get("is_phosr_kinase_activity_equivalent")
+        if not method_id:
+            raise ValueError("activity_method_id must be a non-empty string")
+        if not method_family:
+            raise ValueError("activity_method_family must be a non-empty string")
+        if not method_label:
+            raise ValueError("activity_method_label must be a non-empty string")
+        if not isinstance(is_ksea, bool):
+            raise ValueError("is_ksea must be a bool")
+        if not isinstance(is_phosr_equivalent, bool):
+            raise ValueError("is_phosr_kinase_activity_equivalent must be a bool")
+        return cls(
+            activity_method_id=method_id,
+            activity_method_family=method_family,
+            activity_method_label=method_label,
+            is_ksea=is_ksea,
+            is_phosr_kinase_activity_equivalent=is_phosr_equivalent,
+        )
+
+
+SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD = ActivityMethodMetadata(
+    activity_method_id="simplified_weighted_substrate_activity_v1",
+    activity_method_family="heuristic_weighted_substrate_score",
+    activity_method_label="simplified weighted substrate activity",
+    is_ksea=False,
+    is_phosr_kinase_activity_equivalent=False,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,10 +140,12 @@ class KinaseActivityResult:
       substrates per kinase
     - ``target_counts``: thresholded predicted target counts per kinase
     - ``target_table``: thresholded kinase-target edge table
+    - ``activity_method``: stable method identity metadata for these outputs
     """
 
     thresholded_substrate_counts: pd.Series
     target_counts: pd.Series
+    activity_method: ActivityMethodMetadata
     _weighted_activity: pd.DataFrame = field(init=False, repr=False)
     _thresholded_substrate_mean_activity: pd.DataFrame = field(init=False, repr=False)
     _target_table: pd.DataFrame = field(init=False, repr=False)
@@ -95,12 +157,19 @@ class KinaseActivityResult:
         thresholded_substrate_counts: pd.Series,
         target_counts: pd.Series,
         target_table: pd.DataFrame,
+        activity_method: ActivityMethodMetadata = (
+            SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD
+        ),
         _assume_owned: bool = False,
     ) -> None:
         object.__setattr__(
             self, "thresholded_substrate_counts", thresholded_substrate_counts
         )
         object.__setattr__(self, "target_counts", target_counts)
+        if not isinstance(activity_method, ActivityMethodMetadata):
+            raise WorkflowBoundaryError(
+                "activity_result.activity_method must be ActivityMethodMetadata"
+            )
         weighted_activity = ActivityMatrix(
             frame=weighted_activity,
             field_name="activity_result.weighted_activity",
@@ -137,6 +206,7 @@ class KinaseActivityResult:
             thresholded_substrate_counts,
         )
         object.__setattr__(self, "target_counts", target_counts)
+        object.__setattr__(self, "activity_method", activity_method)
         object.__setattr__(self, "_target_table", target_table)
 
     @property
@@ -160,6 +230,9 @@ class KinaseActivityResult:
         thresholded_substrate_counts: pd.Series,
         target_counts: pd.Series,
         target_table: pd.DataFrame,
+        activity_method: ActivityMethodMetadata = (
+            SIMPLIFIED_WEIGHTED_SUBSTRATE_ACTIVITY_METHOD
+        ),
     ) -> KinaseActivityResult:
         return cls(
             weighted_activity=weighted_activity,
@@ -167,6 +240,7 @@ class KinaseActivityResult:
             thresholded_substrate_counts=thresholded_substrate_counts,
             target_counts=target_counts,
             target_table=target_table,
+            activity_method=activity_method,
             _assume_owned=True,
         )
 

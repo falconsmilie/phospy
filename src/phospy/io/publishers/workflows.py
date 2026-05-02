@@ -175,6 +175,11 @@ def publish_kinase_workflow(
         {
             "reference_organism": result.references.organism.value,
             "activity_enabled": result.activity_result is not None,
+            "activity_method": (
+                None
+                if result.activity_result is None
+                else result.activity_result.activity_method.to_payload()
+            ),
             "output_format": output_format,
             "provenance": (
                 None

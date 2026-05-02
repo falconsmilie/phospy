@@ -39,6 +39,7 @@ class KinaseManifestSections:
     scoring_tables: Mapping[str, object]
     prediction_tables: Mapping[str, object]
     activity_enabled: bool
+    activity_method_metadata: Mapping[str, object] | None
     activity_tables: Mapping[str, object]
     provenance_payload: Mapping[str, object]
     config_snapshot_path: str
@@ -75,7 +76,7 @@ _SCORING_TABLE_KEYS = frozenset(
 )
 _PREDICTION_ALLOWED_FIELDS = frozenset({"tables"})
 _PREDICTION_TABLE_KEYS = frozenset({"pred_mat", "substrate_list"})
-_ACTIVITY_ALLOWED_FIELDS = frozenset({"enabled", "tables"})
+_ACTIVITY_ALLOWED_FIELDS = frozenset({"enabled", "method", "tables"})
 _ACTIVITY_TABLE_KEYS = frozenset(
     {
         "weighted_activity",
@@ -140,6 +141,11 @@ def build_manifest(
             },
             "activity": {
                 "enabled": result.activity_result is not None,
+                "method": (
+                    None
+                    if result.activity_result is None
+                    else result.activity_result.activity_method.to_payload()
+                ),
                 "tables": dict(activity_tables),
             },
         },
@@ -279,6 +285,23 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
         activity_payload.get("enabled"),
         field_name="bundle manifest.outputs.activity.enabled",
     )
+    activity_method_raw = activity_payload.get("method")
+    activity_method_metadata = (
+        None
+        if activity_method_raw is None
+        else require_mapping(
+            activity_method_raw,
+            field_name="bundle manifest.outputs.activity.method",
+        )
+    )
+    if activity_enabled and activity_method_metadata is None:
+        _raise_unsupported_manifest_shape(
+            "bundle manifest.outputs.activity.method is required when activity is enabled"
+        )
+    if not activity_enabled and activity_method_metadata is not None:
+        _raise_unsupported_manifest_shape(
+            "bundle manifest.outputs.activity.method must be null when activity is disabled"
+        )
     if payload.get("provenance") is None:
         _raise_unsupported_manifest_shape("bundle manifest.provenance is required")
     provenance_payload = require_mapping(
@@ -376,6 +399,7 @@ def parse_manifest(payload: Mapping[str, object]) -> KinaseManifestSections:
         scoring_tables=scoring_tables,
         prediction_tables=prediction_tables,
         activity_enabled=activity_enabled,
+        activity_method_metadata=activity_method_metadata,
         activity_tables=activity_tables,
         provenance_payload=provenance_payload,
         config_snapshot_path=require_str(

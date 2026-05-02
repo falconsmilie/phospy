@@ -250,6 +250,13 @@ def test_kinase_bundle_manifest_v1_is_explicit(tmp_path: Path) -> None:
     }
     assert manifest["outputs"]["activity"] == {
         "enabled": True,
+        "method": {
+            "activity_method_id": "simplified_weighted_substrate_activity_v1",
+            "activity_method_family": "heuristic_weighted_substrate_score",
+            "activity_method_label": "simplified weighted substrate activity",
+            "is_ksea": False,
+            "is_phosr_kinase_activity_equivalent": False,
+        },
         "tables": {
             "weighted_activity": "activity/weighted_activity.csv",
             "thresholded_substrate_mean_activity": "activity/thresholded_substrate_mean_activity.csv",
@@ -299,6 +306,7 @@ def test_kinase_bundle_round_trip_supports_disabled_activity(
     manifest = json.loads((bundle_root / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["outputs"]["activity"] == {
         "enabled": False,
+        "method": None,
         "tables": {
             "weighted_activity": None,
             "thresholded_substrate_mean_activity": None,

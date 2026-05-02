@@ -131,7 +131,9 @@ approximation behavior, and failure modes), see `docs/performance.md`.
 ### Known Limitations
 
 - Scores are relative support values within a run, not calibrated probabilities.
-- `thresholded_substrate_mean_activity` is a simplified summary, not full KSEA enrichment.
+- Activity outputs are a simplified weighted substrate activity score
+  (`simplified_weighted_substrate_activity_v1`), not full KSEA enrichment and
+  not PhosR-equivalent kinase activity inference.
 - In this release, `ReferencePreset.AUTO` bundled runtime data is rat-first.
 
 ### Expected Output Tables

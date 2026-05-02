@@ -110,6 +110,10 @@ manifest includes `processing_state`, so explicit quantitative meaning
 (`phosphosite_log_abundance`, `phospho_total_log_ratio`, or mixed state) is
 preserved in published outputs.
 
+For kinase activity outputs, manifest metadata includes explicit activity method
+identity (`activity_method_id`, family, and non-KSEA/non-PhosR-equivalence
+flags) when activity is enabled.
+
 Bundle loaders reconstruct `dataset.processing_state` and
 `dataset.intensity_scale_state` from saved payloads, including mixed
 corrected/uncorrected total-protein quantitative meaning and row-level

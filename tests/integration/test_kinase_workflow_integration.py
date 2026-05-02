@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Mapping
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -23,6 +25,7 @@ from phospy.api import (
     ReferenceBundle,
     ReferencePreset,
 )
+from phospy.io.publishers.workflows import publish_kinase_workflow
 from tests.support.rewrite_fixture_data import (
     build_rat_l6_dataset,
     load_kinase_public_predmat_provenance_golden,
@@ -176,6 +179,87 @@ def test_kinase_workflow_activity_stage_is_optional() -> None:
         )
     )
     assert result.activity_result is None
+
+
+def test_kinase_activity_method_identity_is_present_in_result_and_provenance() -> None:
+    dataset = build_rat_l6_dataset(n_sites=220)
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=5,
+                deterministic_max_selected_kinases=8,
+                adaptive_ensemble_runs=8,
+            ),
+            activity_config=KinaseActivityConfig(
+                enabled=True,
+                threshold=0.6,
+                min_substrates=3,
+                top_n_substrates=20,
+            ),
+        )
+    )
+    assert result.activity_result is not None
+    assert result.activity_result.activity_method.activity_method_id == (
+        "simplified_weighted_substrate_activity_v1"
+    )
+    assert result.activity_result.activity_method.is_ksea is False
+    assert (
+        result.activity_result.activity_method.is_phosr_kinase_activity_equivalent
+        is False
+    )
+    assert result.provenance is not None
+    activity_config = result.provenance.workflow_parameters["activity_config"]
+    assert isinstance(activity_config, Mapping)
+    method_metadata = activity_config["activity_method"]
+    assert isinstance(method_metadata, Mapping)
+    assert method_metadata["activity_method_id"] == (
+        "simplified_weighted_substrate_activity_v1"
+    )
+    assert method_metadata["activity_method_family"] == (
+        "heuristic_weighted_substrate_score"
+    )
+    assert method_metadata["is_ksea"] is False
+    assert method_metadata["is_phosr_kinase_activity_equivalent"] is False
+
+
+def test_kinase_publish_manifest_includes_activity_method_identity(
+    tmp_path: Path,
+) -> None:
+    dataset = build_rat_l6_dataset(n_sites=220)
+    result = KinaseWorkflow().run(
+        KinaseWorkflowRequest(
+            dataset=dataset,
+            references=ReferencePreset.AUTO,
+            scoring_config=KinaseScoringConfig(min_substrates=2),
+            prediction_config=KinasePredictionConfig(
+                top_k=5,
+                deterministic_max_selected_kinases=8,
+                adaptive_ensemble_runs=8,
+            ),
+            activity_config=KinaseActivityConfig(
+                enabled=True,
+                threshold=0.6,
+                min_substrates=3,
+                top_n_substrates=20,
+            ),
+        )
+    )
+    written = publish_kinase_workflow(
+        result, tmp_path / "published", output_format="csv"
+    )
+    manifest = json.loads(written["kinase.manifest"].read_text(encoding="utf-8"))
+    method_metadata = manifest["activity_method"]
+    assert method_metadata["activity_method_id"] == (
+        "simplified_weighted_substrate_activity_v1"
+    )
+    assert method_metadata["activity_method_family"] == (
+        "heuristic_weighted_substrate_score"
+    )
+    assert method_metadata["is_ksea"] is False
+    assert method_metadata["is_phosr_kinase_activity_equivalent"] is False
 
 
 def test_kinase_workflow_default_scoring_floor_supports_realistic_input() -> None:
