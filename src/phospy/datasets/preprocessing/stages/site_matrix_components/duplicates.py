@@ -20,6 +20,7 @@ from phospy.datasets.preprocessing.stages.site_matrix_components.metadata import
     MetadataConflictDetector,
     _empty_metadata_conflicts,
     _resolve_source_metadata_column,
+    resolve_aggregate_site_metadata,
 )
 from phospy.errors.input import PhosPyInputError
 
@@ -227,15 +228,11 @@ class DuplicateSiteResolver:
             DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEAN,
             DATASET_SITE_MATRIX_DUPLICATE_POLICY_AGGREGATE_MEDIAN,
         }:
-            metadata_columns = list(site_metadata.columns)
-            grouped_metadata = (
-                site_metadata.assign(
-                    **{_SITE_ID_COLUMN: constructed_site_id.to_numpy()}
-                )
-                .groupby(_SITE_ID_COLUMN, sort=False)[metadata_columns]
-                .first()
+            grouped_metadata = resolve_aggregate_site_metadata(
+                site_metadata=site_metadata,
+                constructed_site_id=constructed_site_id,
+                metadata_conflicts=metadata_conflicts,
             )
-            grouped_metadata = cast(pd.DataFrame, grouped_metadata)
             grouped_values = phospho.groupby(constructed_site_id, sort=False)
             if (
                 duplicate_site_policy
@@ -246,9 +243,6 @@ class DuplicateSiteResolver:
                 grouped_phospho = cast(pd.DataFrame, grouped_values.median())
             grouped_phospho.index = pd.Index(
                 grouped_phospho.index.astype(str), name=_SITE_ID_COLUMN
-            )
-            grouped_metadata.index = pd.Index(
-                grouped_metadata.index.astype(str), name=_SITE_ID_COLUMN
             )
             duplicate_site_resolution = self._build_duplicate_site_resolution(
                 duplicate_work=duplicate_work,

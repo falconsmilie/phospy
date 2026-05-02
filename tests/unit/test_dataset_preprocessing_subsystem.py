@@ -553,7 +553,7 @@ def test_dataset_preprocessor_site_matrix_supports_min_observed_and_duplicate_ag
     assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(2.0)
     assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(3.0)
     assert pd.isna(preprocessed.phospho.loc["MAPK14;Y182;", "sample_c"])
-    assert preprocessed.site_metadata.loc["MAPK14;Y182;", "uid"] == "A"
+    assert pd.isna(preprocessed.site_metadata.loc["MAPK14;Y182;", "uid"])
 
 
 def test_dataset_preprocessor_site_matrix_duplicate_first_policy_keeps_first_row() -> (
@@ -634,7 +634,7 @@ def test_dataset_preprocessor_site_matrix_duplicate_aggregate_median_policy() ->
     assert preprocessed.phospho.index.tolist() == ["AKT1;T308;", "MAPK14;Y182;"]
     assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(15.5)
     assert preprocessed.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(21.0)
-    assert preprocessed.site_metadata.loc["MAPK14;Y182;", "uid"] == "A"
+    assert pd.isna(preprocessed.site_metadata.loc["MAPK14;Y182;", "uid"])
 
 
 def test_dataset_preprocessor_rejects_site_matrix_min_observed_above_sample_count() -> (

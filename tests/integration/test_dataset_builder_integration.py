@@ -580,7 +580,7 @@ def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> 
         {
             "gene_symbol": ["MAPK14", "MAPK14"],
             "site": ["Y182", "Y182"],
-            "site_sequence": ["SEQ_A", "SEQ_B"],
+            "site_sequence": ["SEQ_A", "SEQ_A"],
             "source_uid": ["UID_A", "UID_B"],
         },
         index=phospho.index.copy(),
@@ -603,7 +603,7 @@ def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> 
     assert built.phospho.index.tolist() == ["MAPK14;Y182;"]
     assert built.phospho.loc["MAPK14;Y182;", "sample_a"] == pytest.approx(2.0)
     assert built.phospho.loc["MAPK14;Y182;", "sample_b"] == pytest.approx(3.0)
-    assert built.site_metadata.loc["MAPK14;Y182;", "source_uid"] == "UID_A"
+    assert pd.isna(built.site_metadata.loc["MAPK14;Y182;", "source_uid"])
     assert built.preprocessing_report is not None
     assert built.preprocessing_report.row_audit is not None
     assert built.preprocessing_report.duplicate_site_resolution is not None
@@ -615,7 +615,7 @@ def test_dataset_builder_supports_site_matrix_duplicate_aggregation_policy() -> 
     assert duplicate_rows["n_aggregated_rows"].tolist() == [2, 2]
     conflicts = built.preprocessing_report.metadata_conflicts
     assert not conflicts.empty
-    assert "site_sequence" in set(conflicts.loc[:, "field"])
+    assert "source_uid" in set(conflicts.loc[:, "field"])
     aggregated = built.preprocessing_report.row_audit.loc[
         (built.preprocessing_report.row_audit.loc[:, "stage"] == "site_matrix")
         & (built.preprocessing_report.row_audit.loc[:, "action"] == "aggregated")

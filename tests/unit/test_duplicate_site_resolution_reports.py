@@ -150,6 +150,10 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
     assert protein_conflict.iloc[0]["site_id"] == "MAPK14;Y182;"
     assert protein_conflict.iloc[0]["n_distinct_values"] == 2
     assert protein_conflict.iloc[0]["source_row_ids"] == ("row_a", "row_b")
+    assert "site_sequence" in set(result.metadata_conflicts.loc[:, "field"])
+    assert "uid" in set(result.metadata_conflicts.loc[:, "field"])
+    assert pd.isna(result.site_metadata.loc["MAPK14;Y182;", "site_sequence"])
+    assert pd.isna(result.site_metadata.loc["MAPK14;Y182;", "uid"])
     assert (
         result.duplicate_site_resolution.loc[:, "metadata_conflict_detected"]
         .astype(bool)
@@ -213,9 +217,9 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                 {
                     "gene_symbol": ["MAPK14", "AKT1"],
                     "site": ["Y182", "T308"],
-                    "site_sequence": ["SEQ_A", "SEQ_C"],
-                    "protein_id": ["PROT_A", "PROT_C"],
-                    "uid": ["A", "C"],
+                    "site_sequence": [pd.NA, "SEQ_C"],
+                    "protein_id": [pd.NA, "PROT_C"],
+                    "uid": [pd.NA, "C"],
                 },
                 index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
             ),
@@ -233,9 +237,9 @@ def test_duplicate_site_policy_reports_metadata_conflicts() -> None:
                 {
                     "gene_symbol": ["MAPK14", "AKT1"],
                     "site": ["Y182", "T308"],
-                    "site_sequence": ["SEQ_A", "SEQ_C"],
-                    "protein_id": ["PROT_A", "PROT_C"],
-                    "uid": ["A", "C"],
+                    "site_sequence": [pd.NA, "SEQ_C"],
+                    "protein_id": [pd.NA, "PROT_C"],
+                    "uid": [pd.NA, "C"],
                 },
                 index=pd.Index(["MAPK14;Y182;", "AKT1;T308;"], name="site_id"),
             ),

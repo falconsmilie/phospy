@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 import pandas as pd
 
@@ -120,7 +121,7 @@ class MetadataConflictDetector:
     def __init__(
         self,
         *,
-        conflict_fields: tuple[str, ...] = _DEFAULT_METADATA_CONFLICT_FIELDS,
+        conflict_fields: tuple[str, ...] | None = None,
     ) -> None:
         self._conflict_fields = conflict_fields
 
@@ -139,10 +140,15 @@ class MetadataConflictDetector:
                 "source_row_id": site_metadata.index.astype(str),
             }
         )
+        conflict_fields = (
+            tuple(site_metadata.columns)
+            if self._conflict_fields is None
+            else self._conflict_fields
+        )
         records: list[dict[str, object]] = []
         for site_id, group in duplicate_groups.groupby(_SITE_ID_COLUMN, sort=False):
             source_row_ids = tuple(group.loc[:, "source_row_id"].astype(str).tolist())
-            for field in self._conflict_fields:
+            for field in conflict_fields:
                 if field not in group.columns:
                     continue
                 observed_values = group.loc[:, field]
@@ -165,6 +171,39 @@ class MetadataConflictDetector:
         if not records:
             return _empty_metadata_conflicts()
         return pd.DataFrame.from_records(records, columns=METADATA_CONFLICT_COLUMNS)
+
+
+def resolve_aggregate_site_metadata(
+    *,
+    site_metadata: pd.DataFrame,
+    constructed_site_id: pd.Series,
+    metadata_conflicts: pd.DataFrame,
+) -> pd.DataFrame:
+    if site_metadata.empty:
+        return site_metadata.copy()
+
+    metadata_columns = list(site_metadata.columns)
+    grouped_metadata = cast(
+        pd.DataFrame,
+        site_metadata.assign(**{_SITE_ID_COLUMN: constructed_site_id.to_numpy()})
+        .groupby(_SITE_ID_COLUMN, sort=False)[metadata_columns]
+        .first(),
+    )
+    grouped_metadata.index = pd.Index(
+        grouped_metadata.index.astype(str), name=_SITE_ID_COLUMN
+    )
+
+    if metadata_conflicts.empty:
+        return cast(pd.DataFrame, grouped_metadata)
+
+    conflict_records = metadata_conflicts.loc[:, ["site_id", "field"]].drop_duplicates()
+    for conflict in conflict_records.to_dict(orient="records"):
+        site_id = str(conflict["site_id"])
+        field = str(conflict["field"])
+        if site_id in grouped_metadata.index and field in grouped_metadata.columns:
+            grouped_metadata.at[site_id, field] = pd.NA
+
+    return cast(pd.DataFrame, grouped_metadata)
 
 
 def _empty_metadata_conflicts() -> pd.DataFrame:
