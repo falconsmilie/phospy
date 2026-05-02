@@ -22,3 +22,4 @@ Use these ADRs when you need rationale and tradeoffs.
 - [ADR 0013: Scientific Parity Strategy and Parity-Testing Policy for PhosPy](adr_0013_scientific_parity_strategy_and_parity_testing_policy.md)
 - [ADR 0014: Test Suite Structure and Policy for PhosPy](adr_0014_test_suite_structure_and_policy.md)
 - [ADR 0015: Reference and Fixture Data Policy for PhosPy](adr_0015_reference_and_fixture_data_policy.md)
+- [ADR 0016: DataFrame and Series Ownership at Public Boundaries](adr_0016_dataframe_and_series_ownership_at_public_boundaries.md)
