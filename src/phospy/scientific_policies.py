@@ -7,8 +7,6 @@ from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
 
-import numpy as np
-
 ScientificPolicyParameter = str | int | float | bool | None
 
 
@@ -668,15 +666,6 @@ def build_duplicate_site_resolution_policy(
     )
 
 
-def shift_correlation_to_unit_support(correlation: np.ndarray) -> np.ndarray:
-    """Apply the shifted-unit profile support transform."""
-
-    scores = (correlation + 1.0) / 2.0
-    valid = np.isfinite(scores)
-    scores[valid] = np.clip(scores[valid], 0.0, 1.0)
-    return scores
-
-
 __all__ = [
     "CandidateSubstrateSelectionPolicy",
     "KinaseProfileScoringPolicy",
@@ -700,5 +689,4 @@ __all__ = [
     "build_signalome_module_candidate_score_policy",
     "build_simplified_weighted_substrate_activity_policy",
     "resolve_score_preconditioning_policy",
-    "shift_correlation_to_unit_support",
 ]

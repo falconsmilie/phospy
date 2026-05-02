@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -25,7 +24,6 @@ from phospy.scientific_policies import (
     build_signalome_module_candidate_score_policy,
     build_simplified_weighted_substrate_activity_policy,
     resolve_score_preconditioning_policy,
-    shift_correlation_to_unit_support,
 )
 from phospy.signalomes.clustering import derive_protein_modules
 from phospy.signalomes.clustering.policies import (
@@ -94,15 +92,23 @@ def test_scientific_policy_record_payload_round_trip() -> None:
     assert restored.output_scale == policy.output_scale
 
 
-def test_shift_correlation_to_unit_support_respects_nan_and_bounds() -> None:
-    correlation = np.asarray([-1.0, -0.5, 0.0, 0.5, 1.0, np.nan, 2.0], dtype=float)
-    scores = shift_correlation_to_unit_support(correlation)
-
-    assert scores[:5].tolist() == pytest.approx([0.0, 0.25, 0.5, 0.75, 1.0])
-    assert np.isnan(scores[5])
-    assert scores[6] == pytest.approx(1.0)
+def test_profile_correlation_shifted_unit_policy_record_is_stable() -> None:
     assert PROFILE_CORRELATION_SHIFTED_UNIT_POLICY.id == (
         ScientificPolicyId.PROFILE_CORRELATION_SHIFTED_UNIT
+    )
+    assert PROFILE_CORRELATION_SHIFTED_UNIT_POLICY.parameters["transform"] == (
+        "(r + 1) / 2"
+    )
+    assert (
+        PROFILE_CORRELATION_SHIFTED_UNIT_POLICY.parameters["clip_to_unit_interval"]
+        is True
+    )
+    assert (
+        PROFILE_CORRELATION_SHIFTED_UNIT_POLICY.parameters["preserve_undefined_as_nan"]
+        is True
+    )
+    assert PROFILE_CORRELATION_SHIFTED_UNIT_POLICY.quantitative_meaning == (
+        "relative_support_score"
     )
 
 

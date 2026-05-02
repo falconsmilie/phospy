@@ -15,7 +15,9 @@ from phospy.api.configs import (
     KinaseProfileMissingValueStrategy,
 )
 from phospy.errors.workflows import WorkflowStageError
-from phospy.scientific_policies import shift_correlation_to_unit_support
+from phospy.workflows.kinase.scoring_transforms import (
+    shift_correlation_to_unit_support,
+)
 
 
 @dataclass(frozen=True, slots=True)
