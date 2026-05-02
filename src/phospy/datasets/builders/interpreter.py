@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import NoReturn
+
 from phospy.api.configs import DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA
 from phospy.api.requests import DatasetBuildRequest
 from phospy.datasets.builders.contracts import InterpretedDatasetBuildRequest
@@ -9,6 +11,7 @@ from phospy.datasets.builders.normalizer import DatasetConventionNormalizer
 from phospy.datasets.builders.reader import DatasetInputReader
 from phospy.datasets.builders.sequence_derivation import SiteSequenceDeriver
 from phospy.datasets.preprocessing.models import PreprocessingPlan
+from phospy.errors.input import PhosPyInputError
 
 
 class DatasetBuildRequestInterpreter:
@@ -47,21 +50,46 @@ class DatasetBuildRequestInterpreter:
                 field_name="total",
             )
         )
-        normalized = self._normalizer.run(
-            phospho=phospho,
-            site_metadata=site_metadata,
-            sample_metadata=sample_metadata,
-            total=total,
-        )
+        try:
+            normalized = self._normalizer.run(
+                phospho=phospho,
+                site_metadata=site_metadata,
+                sample_metadata=sample_metadata,
+                total=total,
+            )
+        except (TypeError, ValueError, KeyError) as exc:
+            self._raise_wrapped_input_error(
+                stage_name="dataset_builder.normalization",
+                field_name="dataset build request input tables",
+                operation="normalizing input indices and metadata column conventions",
+                next_action=(
+                    "ensure phospho/site_metadata/sample_metadata/total tables use "
+                    "supported rectangular DataFrame shapes, canonical site labels, "
+                    "and non-conflicting metadata column conventions"
+                ),
+                original_error=exc,
+            )
         preprocessing_plan = PreprocessingPlan.from_config(request.preprocessing_config)
-        enriched_site_metadata = self._site_sequence_deriver.run(
-            normalized.site_metadata,
-            organism=request.organism,
-            allow_partial=(
-                preprocessing_plan.site_matrix_policy
-                == DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA
-            ),
-        )
+        try:
+            enriched_site_metadata = self._site_sequence_deriver.run(
+                normalized.site_metadata,
+                organism=request.organism,
+                allow_partial=(
+                    preprocessing_plan.site_matrix_policy
+                    == DATASET_SITE_MATRIX_POLICY_BUILD_FROM_METADATA
+                ),
+            )
+        except (TypeError, ValueError, KeyError) as exc:
+            self._raise_wrapped_input_error(
+                stage_name="dataset_builder.site_sequence_derivation",
+                field_name="dataset build request site_metadata",
+                operation="deriving and validating site_sequence values",
+                next_action=(
+                    "ensure site_metadata contains canonical non-empty gene/site "
+                    "fields and supported site identifiers for sequence derivation"
+                ),
+                original_error=exc,
+            )
         return InterpretedDatasetBuildRequest(
             phospho=normalized.phospho,
             site_metadata=enriched_site_metadata,
@@ -70,3 +98,19 @@ class DatasetBuildRequestInterpreter:
             organism=request.organism,
             preprocessing_plan=preprocessing_plan,
         )
+
+    @staticmethod
+    def _raise_wrapped_input_error(
+        *,
+        stage_name: str,
+        field_name: str,
+        operation: str,
+        next_action: str,
+        original_error: Exception,
+    ) -> NoReturn:
+        original_message = " ".join(str(original_error).split())
+        raise PhosPyInputError(
+            f"{stage_name} failed while {operation} for {field_name}. "
+            f"Original error: {type(original_error).__name__}: {original_message}. "
+            f"Next action: {next_action}"
+        ) from original_error

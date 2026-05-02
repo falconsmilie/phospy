@@ -157,7 +157,20 @@ class SignalomeWorkflowValidator:
             raise WorkflowValidationError(
                 f"{field_name} must not contain missing values"
             )
-        if np.isinf(frame.to_numpy(copy=False)).any():
+        try:
+            contains_infinite = bool(
+                np.isinf(frame.to_numpy(dtype=float, copy=False)).any()
+            )
+        except (TypeError, ValueError) as exc:
+            original_message = " ".join(str(exc).split())
+            raise WorkflowValidationError(
+                f"signalome.validation.numeric_finite_check failed while checking "
+                f"{field_name} for finite numeric values. "
+                f"Original error: {type(exc).__name__}: {original_message}. "
+                "Next action: ensure this matrix contains numeric finite values only "
+                "before running SignalomeWorkflow."
+            ) from exc
+        if contains_infinite:
             raise WorkflowValidationError(
                 f"{field_name} must contain finite numeric values"
             )

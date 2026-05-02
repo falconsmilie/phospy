@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import NoReturn
+
 import numpy as np
 import pandas as pd
 
@@ -62,13 +64,35 @@ class SignalomeWorkflowInterpreter:
                 rank_weighted_fusion_scores=scoring_result.rank_weighted_fusion_scores,
             )
         )
+        score_field_name = (
+            "signalome workflow request kinase_result.scoring_result."
+            f"{downstream_score_source}"
+        )
         resolved_downstream_score_matrix = self._as_aligned_numeric_frame(
             downstream_score_matrix,
+            field_name=score_field_name,
+            stage_name="signalome.score_matrix_conversion",
+            matrix_label="downstream score matrix",
+            seam="signalome.interpreter.downstream_score_matrix_conversion",
+            next_action=(
+                "ensure kinase scoring outputs contain numeric finite values before "
+                "running SignalomeWorkflow"
+            ),
             index_name=self._SITE_ID_COLUMN,
             columns_name=self._KINASE_COLUMN,
         )
         resolved_prediction_matrix = self._as_aligned_numeric_frame(
             request.kinase_result.prediction_result.pred_mat,
+            field_name=(
+                "signalome workflow request kinase_result.prediction_result.pred_mat"
+            ),
+            stage_name="signalome.prediction_matrix_conversion",
+            matrix_label="prediction matrix",
+            seam="signalome.interpreter.prediction_matrix_conversion",
+            next_action=(
+                "ensure kinase prediction outputs contain numeric finite values "
+                "before running SignalomeWorkflow"
+            ),
             index_name=self._SITE_ID_COLUMN,
             columns_name=self._KINASE_COLUMN,
         )
@@ -85,12 +109,30 @@ class SignalomeWorkflowInterpreter:
             prediction_kinases=resolved_prediction_matrix.columns,
             score_kinases=resolved_downstream_score_matrix.columns,
         )
-        aligned_prediction_matrix = resolved_prediction_matrix.loc[
-            aligned_site_index, aligned_kinase_index
-        ]
-        aligned_downstream_score_matrix = resolved_downstream_score_matrix.loc[
-            aligned_site_index, aligned_kinase_index
-        ]
+        try:
+            aligned_prediction_matrix = resolved_prediction_matrix.loc[
+                aligned_site_index, aligned_kinase_index
+            ]
+            aligned_downstream_score_matrix = resolved_downstream_score_matrix.loc[
+                aligned_site_index, aligned_kinase_index
+            ]
+        except (KeyError, TypeError, ValueError) as exc:
+            self._raise_wrapped_boundary_error(
+                stage_name="signalome.index_alignment",
+                seam="signalome.interpreter.aligned_matrix_selection",
+                field_name=(
+                    "signalome workflow request kinase_result.prediction_result."
+                    "pred_mat and downstream score matrix"
+                ),
+                operation=("selecting aligned shared site and kinase labels via .loc"),
+                next_action=(
+                    "ensure prediction and downstream scoring tables expose stable "
+                    "canonical site IDs and kinase labels"
+                ),
+                original_error=exc,
+                aligned_sites=int(aligned_site_index.size),
+                aligned_kinases=int(aligned_kinase_index.size),
+            )
         execution_config = self._resolve_execution_config(request)
         (
             preconditioned_downstream_score_matrix,
@@ -191,13 +233,28 @@ class SignalomeWorkflowInterpreter:
     def _as_aligned_numeric_frame(
         frame: pd.DataFrame,
         *,
+        field_name: str,
+        stage_name: str,
+        matrix_label: str,
+        seam: str,
+        next_action: str,
         index_name: str,
         columns_name: str,
     ) -> pd.DataFrame:
-        resolved = frame.astype(float)
-        resolved.index = pd.Index(resolved.index.astype(str), name=index_name)
-        resolved.columns = pd.Index(resolved.columns.astype(str), name=columns_name)
-        return resolved
+        try:
+            resolved = frame.astype(float)
+            resolved.index = pd.Index(resolved.index.astype(str), name=index_name)
+            resolved.columns = pd.Index(resolved.columns.astype(str), name=columns_name)
+            return resolved
+        except (TypeError, ValueError) as exc:
+            SignalomeWorkflowInterpreter._raise_wrapped_boundary_error(
+                stage_name=stage_name,
+                seam=seam,
+                field_name=field_name,
+                operation=f"converting {matrix_label} to float",
+                next_action=next_action,
+                original_error=exc,
+            )
 
     def _resolve_shared_site_index(
         self,
@@ -345,8 +402,26 @@ class SignalomeWorkflowInterpreter:
                     policy=policy,
                 ),
             )
-        score_values = score_matrix.to_numpy(dtype=float, copy=False)
-        infinite_mask = np.isinf(score_values)
+        try:
+            score_values = score_matrix.to_numpy(dtype=float, copy=False)
+            infinite_mask = np.isinf(score_values)
+        except (TypeError, ValueError) as exc:
+            self._raise_wrapped_boundary_error(
+                stage_name="signalome.score_preconditioning_conversion",
+                seam="signalome.interpreter.score_preconditioning_conversion",
+                field_name=(
+                    "signalome workflow request kinase_result.scoring_result."
+                    "downstream_score_matrix"
+                ),
+                operation="converting downstream score matrix to float for finite checks",
+                next_action=(
+                    "ensure kinase scoring outputs contain numeric finite values "
+                    "before running SignalomeWorkflow"
+                ),
+                original_error=exc,
+                aligned_score_sites=int(score_matrix.shape[0]),
+                aligned_score_kinases=int(score_matrix.shape[1]),
+            )
         if infinite_mask.any():
             self._raise_boundary_error(
                 seam=self._SCORE_PRECONDITIONING_SEAM,
@@ -587,6 +662,37 @@ class SignalomeWorkflowInterpreter:
             dropped_count=int(provided_index.size - retained_index.size),
             dropped_reasons=reasons,
         )
+
+    @staticmethod
+    def _raise_wrapped_boundary_error(
+        *,
+        stage_name: str,
+        seam: str,
+        field_name: str,
+        operation: str,
+        next_action: str,
+        original_error: Exception,
+        **details: object,
+    ) -> NoReturn:
+        original_message = " ".join(str(original_error).split())
+        message = (
+            f"{stage_name} failed while {operation} for {field_name}. "
+            f"Original error: {type(original_error).__name__}: {original_message}. "
+            f"Next action: {next_action}"
+        )
+        raise WorkflowBoundaryError(
+            message=message,
+            seam=seam,
+            next_action=next_action,
+            details={
+                "field_name": field_name,
+                "operation": operation,
+                "original_error_type": type(original_error).__name__,
+                "original_error_message": original_message,
+                **details,
+            },
+            message_prefix=SIGNALOME_WORKFLOW_BOUNDARY_MESSAGE_PREFIX,
+        ) from original_error
 
     @staticmethod
     def _raise_boundary_error(
